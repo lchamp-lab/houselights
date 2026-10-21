@@ -50,7 +50,7 @@ fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: (Version) 
         stringResource(R.string.versions),
         onDismiss = onDismiss,
         facts = listOf(item.title, item.year?.toString()),
-        artwork = item.poster?.let { poster -> { PosterThumb(poster, width = HlSize.posterThumbLarge) } },
+        artwork = item.poster?.let { poster -> { PosterThumb(poster, width = null) } },
         initialFocus = first.takeIf { versions.isNotEmpty() },
     ) { sheet ->
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {

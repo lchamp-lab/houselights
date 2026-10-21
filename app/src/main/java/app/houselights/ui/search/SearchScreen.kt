@@ -21,13 +21,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.core.MediaItem
 import app.houselights.core.hasPage
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
-import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.ListScroll
@@ -84,11 +83,11 @@ private fun Results(
     val now = shown ?: return
     val results = now.results
     if (results.isEmpty()) {
-        Text(
+        // An intertitle, as every message, on the rows' margin; the keys keep focus.
+        HlEmptyState(
             stringResource(R.string.search_none, now.query),
-            style = Hl.type.lead,
-            color = Hl.colors.contentSecondary,
-            modifier = modifier.padding(start = HlSpace.xl, top = HlSpace.xxl),
+            modifier.padding(start = HlSpace.safeH, top = HlSpace.xxl),
+            focusOnAppear = false,
         )
         return
     }

@@ -88,7 +88,7 @@ private fun Frames() {
     MediaRow(header = null) {
         item {
             Specimen("a poster", width = HlSize.poster) {
-                ArtworkSurface({}, Modifier.width(HlSize.poster).aspectRatio(2f / 3f), light = url) {
+                ArtworkSurface({}, Modifier.width(HlSize.poster).aspectRatio(HlSize.POSTER_RATIO), light = url) {
                     ArtworkImage(url, null, Modifier.fillMaxSize())
                 }
             }

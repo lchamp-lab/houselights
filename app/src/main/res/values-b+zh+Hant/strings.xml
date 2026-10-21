@@ -3,7 +3,7 @@
     <string name="source_local">我的檔案</string>
     <string name="source_local_desc">NAS 或網路共用資料夾（NFS 或 SMB）上的影片。Houselights 會掃描這些影片，並從 TMDB 取得海報和資料。</string>
     <string name="source_jellyfin">Jellyfin 伺服器</string>
-    <string name="source_jellyfin_desc">使用 Jellyfin 伺服器中的媒體庫。</string>
+    <string name="source_jellyfin_desc">伺服器中的媒體庫</string>
     <string name="welcome_title">選擇您的媒體庫</string>
 
     <!-- Libraries and sections -->
@@ -195,6 +195,9 @@
     <string name="field_user">使用者名稱</string>
     <string name="field_password">密碼</string>
     <string name="placeholder_host">例如：192.168.1.10</string>
+    <string name="placeholder_server_path">例如：/media/電影</string>
+    <string name="placeholder_network_path">例如：nfs://192.168.1.10/volume1/電影</string>
+    <string name="placeholder_tmdb_key">例如：0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">例如：/volume1/media</string>
     <string name="placeholder_share">例如：media</string>
     <string name="placeholder_path_movies">例如：電影</string>
@@ -268,11 +271,11 @@
     <string name="change_source_jellyfin_desc">在新來源準備就緒前，此伺服器會保持連線。</string>
     <string name="change_source">變更來源</string>
     <string name="reconnect">重新登入</string>
-    <string name="source_local_first">從 NAS 加入第一個資料夾</string>
+    <string name="source_local_first">從 NAS 加入資料夾</string>
     <plurals name="source_local_folders">
         <item quantity="other">NAS 上的 %d 個資料夾</item>
     </plurals>
-    <string name="source_jellyfin_other">其他伺服器，或其他帳號</string>
+    <string name="source_jellyfin_other">其他伺服器或帳號</string>
     <string name="sign_out">登出</string>
     <string name="sign_out_confirm">要登出「%s」嗎？</string>
     <string name="sign_out_desc">Houselights 將在本裝置上忘記此伺服器；您的資料夾將取而代之。</string>
@@ -331,7 +334,7 @@
     <string name="tmdb_scan_key_refused">TMDB 在上次掃描時拒絕了此金鑰：作品的資料有待取得。</string>
     <string name="tmdb_scan_offline">TMDB 在上次掃描時沒有回應：作品將在之後的掃描中取得資料。</string>
     <string name="tmdb_key_revert">改回內建金鑰</string>
-    <string name="tmdb_key_revert_desc">Houselights 會忘記您的金鑰，改用自己的金鑰</string>
+    <string name="tmdb_key_revert_desc">Houselights 會忘記您的金鑰</string>
     <string name="save">儲存</string>
     <string name="saved">已儲存</string>
     <string name="section_playback">播放</string>
@@ -353,13 +356,13 @@
     <string name="billing_and">與</string>
     <string name="edit">編輯</string>
     <string name="artwork_poster">海報</string>
-    <string name="artwork_poster_desc">顯示在橫列與媒體庫中</string>
+    <string name="artwork_poster_desc">橫列與媒體庫</string>
     <string name="artwork_backdrop">背景圖</string>
-    <string name="artwork_backdrop_desc">用於此頁面背景與首頁</string>
+    <string name="artwork_backdrop_desc">此頁面與首頁</string>
     <string name="artwork_logo">標誌</string>
-    <string name="artwork_logo_desc">以圖形顯示在此頁面頂部的片名</string>
+    <string name="artwork_logo_desc">頁面頂部的圖形片名</string>
     <string name="identify">識別</string>
-    <string name="identify_menu_desc">與 TMDB 上的其他作品配對</string>
+    <string name="identify_menu_desc">配對 TMDB 上的其他作品</string>
     <plurals name="image_count">
         <item quantity="other">%d 張圖片</item>
     </plurals>
@@ -501,11 +504,11 @@
     <string name="collections_setting">系列</string>
     <string name="collections_setting_desc">匯集同一系列的電影</string>
     <string name="collections_two">至少 2 部電影</string>
-    <string name="collections_two_desc">擁有某系列至少兩部電影時，才顯示該系列</string>
+    <string name="collections_two_desc">擁有兩部以上電影時顯示系列</string>
     <string name="collections_all">全部</string>
     <string name="collections_all_desc">即使只有該系列的一部電影</string>
     <string name="collections_off">隱藏</string>
-    <string name="collections_off_desc">「電影」中不顯示系列，也不顯示系列橫列</string>
+    <string name="collections_off_desc">「電影」和橫列中均不顯示</string>
     <plurals name="collection_count">
         <item quantity="other">%d 個系列</item>
     </plurals>
@@ -518,7 +521,7 @@
     <string name="job_cinematography">攝影</string>
     <string name="job_editing">剪輯</string>
     <string name="synopsis">簡介</string>
-    <string name="end_credits">演職員表</string>
+    <string name="tech_credits">製作團隊</string>
     <string name="error_person_gone_title">已無作品</string>
     <string name="error_person_gone">媒體庫中已沒有此人的任何作品。</string>
     <string name="row_films_of">導演作品</string>

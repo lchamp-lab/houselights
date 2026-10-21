@@ -101,10 +101,10 @@ class TechSheetTest {
         val sound = tracks(sheet, TechTopic.SOUND)
         assertEquals(listOf("fre", "eng", "eng"), sound.map { it.language })
         assertEquals(listOf(true, false, false), sound.map { it.inUse })
-        assertEquals(listOf(TechValue.Word("Dolby Digital Plus Atmos"), TechValue.Word("5.1")), sound[0].value)
+        assertEquals(listOf(TechValue.Word("Dolby Digital Plus Atmos"), TechValue.Channels("5.1")), sound[0].value)
         assertEquals(listOf(TechValue.Kilobits(768)), sound[0].detail)
         // Tracks that are not the default keep the file's order.
-        assertEquals(listOf(TechValue.Word("Dolby TrueHD Atmos"), TechValue.Word("7.1")), sound[1].value)
+        assertEquals(listOf(TechValue.Word("Dolby TrueHD Atmos"), TechValue.Channels("7.1")), sound[1].value)
         val subtitles = tracks(sheet, TechTopic.SUBTITLES)
         assertEquals(listOf("fre", "eng"), subtitles.map { it.language })
         assertEquals(listOf(true, false), subtitles.map { it.inUse })

@@ -3,7 +3,7 @@
     <string name="source_local">Mijn bestanden</string>
     <string name="source_local_desc">Video’s op uw NAS of een netwerkshare (NFS of SMB). Houselights scant ze en haalt posters en gegevens op bij TMDB.</string>
     <string name="source_jellyfin">Jellyfin-server</string>
-    <string name="source_jellyfin_desc">Gebruik de bibliotheek van uw Jellyfin-server.</string>
+    <string name="source_jellyfin_desc">De bibliotheek van uw server</string>
     <string name="welcome_title">Kies uw bibliotheek</string>
 
     <!-- Libraries and sections -->
@@ -184,8 +184,8 @@
     <string name="edit_folder_desc">Wijzig het adres of de inloggegevens. Houselights test de verbinding vóór het opslaan; de titels, wat u hebt bekeken en uw keuzes blijven behouden.</string>
     <string name="edit_folder_row_desc">Het adres of de inloggegevens</string>
     <string name="edit_folder_unreachable_desc">Het adres is misschien gewijzigd</string>
-    <string name="edit_folder_login_desc">Voer de gebruikersnaam of het wachtwoord opnieuw in</string>
-    <string name="edit_folder_not_found_desc">De share of het pad is misschien gewijzigd</string>
+    <string name="edit_folder_login_desc">Voer uw inloggegevens opnieuw in</string>
+    <string name="edit_folder_not_found_desc">Share of pad misschien gewijzigd</string>
     <string name="password_kept">Ongewijzigd</string>
     <string name="jellyfin_desc">Voer het adres van uw server en uw Jellyfin-inloggegevens in.</string>
     <string name="folder_kind">Inhoud</string>
@@ -199,6 +199,9 @@
     <string name="field_user">Gebruiker</string>
     <string name="field_password">Wachtwoord</string>
     <string name="placeholder_host">Bijv. 192.168.1.10</string>
+    <string name="placeholder_server_path">Bijv. /media/films</string>
+    <string name="placeholder_network_path">Bijv. nfs://192.168.1.10/volume1/films</string>
+    <string name="placeholder_tmdb_key">Bijv. 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export" tools:ignore="Typos">Bijv. /volume1/media</string>
     <string name="placeholder_share">Bijv. media</string>
     <string name="placeholder_path_movies">Bijv. films</string>
@@ -274,12 +277,12 @@
     <string name="change_source_jellyfin_desc">Deze server blijft verbonden tot de nieuwe bron klaar is.</string>
     <string name="change_source">Bron wijzigen</string>
     <string name="reconnect">Opnieuw inloggen</string>
-    <string name="source_local_first">Voeg een eerste map van uw NAS toe</string>
+    <string name="source_local_first">Voeg een map van uw NAS toe</string>
     <plurals name="source_local_folders">
         <item quantity="one">%d map op uw NAS</item>
         <item quantity="other">%d mappen op uw NAS</item>
     </plurals>
-    <string name="source_jellyfin_other">Een andere server, of een ander account</string>
+    <string name="source_jellyfin_other">Andere server of ander account</string>
     <string name="sign_out">Uitloggen</string>
     <string name="sign_out_confirm">Uitloggen bij “%s”?</string>
     <string name="sign_out_desc">Houselights vergeet deze server op dit apparaat; uw mappen nemen zijn plaats in.</string>
@@ -341,7 +344,7 @@
     <string name="tmdb_scan_key_refused">TMDB weigerde deze sleutel tijdens de laatste scan: titels wachten op hun gegevens.</string>
     <string name="tmdb_scan_offline">TMDB reageerde niet tijdens de laatste scan: titels krijgen hun gegevens bij een latere scan.</string>
     <string name="tmdb_key_revert">Terug naar de ingebouwde sleutel</string>
-    <string name="tmdb_key_revert_desc">Houselights vergeet uw sleutel en gebruikt zijn eigen</string>
+    <string name="tmdb_key_revert_desc">Houselights vergeet uw sleutel</string>
     <string name="save">Opslaan</string>
     <string name="saved">Opgeslagen</string>
     <string name="section_playback">Afspelen</string>
@@ -363,13 +366,13 @@
     <string name="billing_and">en</string>
     <string name="edit">Bewerken</string>
     <string name="artwork_poster">Poster</string>
-    <string name="artwork_poster_desc">Getoond in rijen en in de bibliotheek</string>
+    <string name="artwork_poster_desc">Rijen en bibliotheek</string>
     <string name="artwork_backdrop">Achtergrond</string>
-    <string name="artwork_backdrop_desc">Achter deze pagina en op het startscherm</string>
+    <string name="artwork_backdrop_desc">Deze pagina en Home</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">De getekende titel bovenaan deze pagina</string>
+    <string name="artwork_logo_desc">De getekende titel bovenaan</string>
     <string name="identify">Identificeren</string>
-    <string name="identify_menu_desc">Koppelen aan een andere TMDB-titel</string>
+    <string name="identify_menu_desc">Andere TMDB-titel kiezen</string>
     <plurals name="image_count">
         <item quantity="one">%d afbeelding</item>
         <item quantity="other">%d afbeeldingen</item>
@@ -487,7 +490,7 @@
     <string name="support_desc">Trakteer het project op een koffie, vanaf uw telefoon.</string>
     <string name="support_scan">Scan deze code met uw telefoon om de Ko-fi-pagina van het project te openen.</string>
     <string name="file_access">Bestandstoegang</string>
-    <string name="network_path_desc">De speler leest bestanden rechtstreeks van de NAS</string>
+    <string name="network_path_desc">De speler leest direct van de NAS</string>
     <string name="http_stream_desc">De speler leest de stream van de server</string>
     <string name="path_mappings">Padtoewijzingen</string>
     <plurals name="uhd_count">
@@ -518,11 +521,11 @@
     <string name="collections_setting">Saga’s</string>
     <string name="collections_setting_desc">Films uit dezelfde saga, samengebracht</string>
     <string name="collections_two">Vanaf 2 films</string>
-    <string name="collections_two_desc">Een saga verschijnt zodra u er minstens twee films van hebt</string>
+    <string name="collections_two_desc">Een saga vanaf twee van haar films</string>
     <string name="collections_all">Alle</string>
     <string name="collections_all_desc">Ook als u maar één film uit de saga hebt</string>
     <string name="collections_off">Verborgen</string>
-    <string name="collections_off_desc">Geen saga’s in Films en geen rij met saga’s</string>
+    <string name="collections_off_desc">Geen saga’s in Films, geen saga-rij</string>
     <plurals name="collection_count">
         <item quantity="one">%d saga</item>
         <item quantity="other">%d saga’s</item>
@@ -536,7 +539,7 @@
     <string name="job_cinematography">Camera</string>
     <string name="job_editing">Montage</string>
     <string name="synopsis">Synopsis</string>
-    <string name="end_credits">Aftiteling</string>
+    <string name="tech_credits">Ploeg</string>
     <string name="error_person_gone_title">Geen titels meer</string>
     <string name="error_person_gone">Geen enkele titel van deze persoon staat nog in de bibliotheek.</string>
     <string name="row_films_of">films van</string>

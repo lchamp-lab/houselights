@@ -3,7 +3,7 @@
     <string name="source_local">Moje pliki</string>
     <string name="source_local_desc">Pliki wideo na serwerze NAS lub w udziale sieciowym (NFS albo SMB). Houselights skanuje je i pobiera z TMDB plakaty oraz informacje.</string>
     <string name="source_jellyfin">Serwer Jellyfin</string>
-    <string name="source_jellyfin_desc">Korzystaj z biblioteki serwera Jellyfin.</string>
+    <string name="source_jellyfin_desc">Biblioteka z serwera</string>
     <string name="welcome_title">Wybierz bibliotekę</string>
 
     <!-- Libraries and sections -->
@@ -192,7 +192,7 @@
     <string name="edit_folder_desc">Zmień jego adres lub dane logowania. Houselights testuje połączenie przed zapisaniem; tytuły, historia oglądania i dokonane wybory zostają zachowane.</string>
     <string name="edit_folder_row_desc">Adres lub dane logowania</string>
     <string name="edit_folder_unreachable_desc">Adres mógł się zmienić</string>
-    <string name="edit_folder_login_desc">Wpisz ponownie nazwę użytkownika lub hasło</string>
+    <string name="edit_folder_login_desc">Wpisz ponownie dane logowania</string>
     <string name="edit_folder_not_found_desc">Udział lub ścieżka mogły się zmienić</string>
     <string name="password_kept">Bez zmian</string>
     <string name="jellyfin_desc">Wpisz adres serwera i dane logowania do Jellyfin.</string>
@@ -207,6 +207,9 @@
     <string name="field_user">Użytkownik</string>
     <string name="field_password">Hasło</string>
     <string name="placeholder_host">np. 192.168.1.10</string>
+    <string name="placeholder_server_path">np. /media/filmy</string>
+    <string name="placeholder_network_path">np. nfs://192.168.1.10/volume1/filmy</string>
+    <string name="placeholder_tmdb_key">np. 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">np. /volume1/media</string>
     <string name="placeholder_share">np. media</string>
     <string name="placeholder_path_movies">np. filmy</string>
@@ -286,7 +289,7 @@
     <string name="change_source_jellyfin_desc">Ten serwer pozostaje połączony, dopóki nowe źródło nie będzie gotowe.</string>
     <string name="change_source">Zmień źródło</string>
     <string name="reconnect">Zaloguj się ponownie</string>
-    <string name="source_local_first">Dodaj pierwszy folder z serwera NAS</string>
+    <string name="source_local_first">Dodaj folder z serwera NAS</string>
     <plurals name="source_local_folders">
         <item quantity="one">%d folder na serwerze NAS</item>
         <item quantity="few">%d foldery na serwerze NAS</item>
@@ -361,7 +364,7 @@
     <string name="tmdb_scan_key_refused">Ten klucz został odrzucony przez TMDB podczas ostatniego skanowania: tytuły czekają na informacje.</string>
     <string name="tmdb_scan_offline">Podczas ostatniego skanowania nie było odpowiedzi z TMDB: tytuły otrzymają informacje przy kolejnym skanowaniu.</string>
     <string name="tmdb_key_revert">Przywróć klucz wbudowany</string>
-    <string name="tmdb_key_revert_desc">Houselights zapomina podany klucz i używa własnego</string>
+    <string name="tmdb_key_revert_desc">Houselights zapomina podany klucz</string>
     <string name="save">Zapisz</string>
     <string name="saved">Zapisano</string>
     <string name="section_playback">Odtwarzanie</string>
@@ -383,13 +386,13 @@
     <string name="billing_and">i</string>
     <string name="edit">Edytuj</string>
     <string name="artwork_poster">Plakat</string>
-    <string name="artwork_poster_desc">Widoczny w rzędach i w bibliotece</string>
+    <string name="artwork_poster_desc">Rzędy i biblioteka</string>
     <string name="artwork_backdrop">Tło</string>
-    <string name="artwork_backdrop_desc">W tle tej strony i strony głównej</string>
+    <string name="artwork_backdrop_desc">Ta strona i strona główna</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">Graficzny tytuł u góry tej strony</string>
+    <string name="artwork_logo_desc">Graficzny tytuł u góry</string>
     <string name="identify">Identyfikuj</string>
-    <string name="identify_menu_desc">Dopasuj do innego tytułu z TMDB</string>
+    <string name="identify_menu_desc">Dopasuj do innego tytułu TMDB</string>
     <plurals name="image_count">
         <item quantity="one">%d obraz</item>
         <item quantity="few">%d obrazy</item>
@@ -511,8 +514,8 @@
     <string name="support_desc">Postaw projektowi kawę z telefonu.</string>
     <string name="support_scan">Zeskanuj ten kod telefonem, aby otworzyć stronę projektu w Ko-fi.</string>
     <string name="file_access">Dostęp do plików</string>
-    <string name="network_path_desc">Odtwarzacz odczytuje pliki bezpośrednio z serwera NAS</string>
-    <string name="http_stream_desc">Odtwarzacz odczytuje strumień z serwera</string>
+    <string name="network_path_desc">Odtwarzacz czyta pliki prosto z NAS</string>
+    <string name="http_stream_desc">Odtwarzacz czyta strumień z serwera</string>
     <string name="path_mappings">Mapowania ścieżek</string>
     <plurals name="uhd_count">
         <item quantity="one">%d w Ultra HD</item>
@@ -552,11 +555,11 @@
     <string name="collections_setting">Sagi</string>
     <string name="collections_setting_desc">Filmy z tej samej sagi, zebrane razem</string>
     <string name="collections_two">Od 2 filmów</string>
-    <string name="collections_two_desc">Saga pojawia się, gdy w bibliotece są co najmniej dwa jej filmy</string>
+    <string name="collections_two_desc">Saga od dwóch jej filmów</string>
     <string name="collections_all">Wszystkie</string>
-    <string name="collections_all_desc">Nawet gdy w bibliotece jest tylko jeden film z sagi</string>
+    <string name="collections_all_desc">Nawet z jednym filmem z sagi</string>
     <string name="collections_off">Ukryte</string>
-    <string name="collections_off_desc">Bez sag w zakładce Filmy ani rzędu sag</string>
+    <string name="collections_off_desc">Ani w Filmach, ani w rzędzie</string>
     <plurals name="collection_count">
         <item quantity="one">%d saga</item>
         <item quantity="few">%d sagi</item>
@@ -572,7 +575,7 @@
     <string name="job_cinematography">Zdjęcia</string>
     <string name="job_editing">Montaż</string>
     <string name="synopsis">Opis</string>
-    <string name="end_credits">Napisy końcowe</string>
+    <string name="tech_credits">Ekipa</string>
     <string name="error_person_gone_title">Nie ma już tytułów</string>
     <string name="error_person_gone">Żadnego tytułu tej osoby nie ma już w bibliotece.</string>
     <string name="row_films_of">reżyseria</string>

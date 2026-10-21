@@ -14,10 +14,10 @@ import app.houselights.core.MediaItem
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.HlDivider
-import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
-import app.houselights.ui.design.components.PreviewShape
+import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.RowPreview
+import app.houselights.ui.design.components.PreviewShape
 
 /**
  * A title's edit side sheet: its poster, backdrop and logo, each with a preview of the current one,
@@ -34,15 +34,14 @@ fun EditMenu(
     HlSideSheet(
         title = stringResource(R.string.edit),
         onDismiss = onDismiss,
-        subject = item.title,
-        facts = listOf(item.year?.toString()),
+        facts = listOf(item.title, item.year?.toString()),
         initialFocus = first,
     ) {
         HlSettingRow(
             stringResource(R.string.artwork_poster),
+            Modifier.focusRequester(first),
             description = stringResource(R.string.artwork_poster_desc),
             onClick = { onArtwork(ArtworkKind.POSTER) },
-            modifier = Modifier.focusRequester(first),
             leading = { RowPreview(item.poster, PreviewShape.Poster) },
         )
         HlSettingRow(

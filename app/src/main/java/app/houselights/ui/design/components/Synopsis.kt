@@ -30,7 +30,6 @@ import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
-import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import kotlinx.coroutines.launch
 
@@ -81,7 +80,7 @@ fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
         stringResource(R.string.synopsis),
         onDismiss = onDismiss,
         facts = listOf(item.title, item.year?.toString()),
-        artwork = item.poster?.let { poster -> { PosterThumb(poster, width = HlSize.posterThumbLarge) } },
+        artwork = item.poster?.let { poster -> { PosterThumb(poster, width = null) } },
         initialFocus = words,
         scroll = scroll,
     ) { _ ->

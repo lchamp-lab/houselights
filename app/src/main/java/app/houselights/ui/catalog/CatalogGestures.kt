@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
@@ -17,14 +18,12 @@ import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.BackHint
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.DefinitionRow
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlSettingRow
@@ -32,6 +31,7 @@ import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.Intertitle
 import app.houselights.ui.design.components.PosterStrip
+import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.SpecTable
 import app.houselights.ui.design.components.SpecTableRow
@@ -75,7 +75,7 @@ private fun SideBySide() {
                 stringResource(R.string.error_offline_title),
                 message = "192.168.1.20 ne répond pas. Vérifiez que le NAS est allumé.",
                 attention = true,
-            ) { HlButton(stringResource(R.string.retry), {}, emphasis = Emphasis.Primary) }
+            ) { HlButton(stringResource(R.string.retry), {}) }
         }
         Specimen("counter: the ember line, the count, the file", Modifier.weight(1f)) {
             ScanProgress(3, 9, label = stringResource(R.string.home_scanning), current = "Bugonia (2025).mkv")
@@ -89,7 +89,7 @@ private fun Intertitles() {
         Specimen("neutral: what to do, and a quieter way", Modifier.weight(1f)) {
             Intertitle(stringResource(R.string.home_empty_title), message = stringResource(R.string.home_empty_local)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    HlButton(stringResource(R.string.add_folder), {}, emphasis = Emphasis.Primary)
+                    HlButton(stringResource(R.string.add_folder), {})
                     HlButton(stringResource(R.string.home_see_folders), {})
                 }
             }
@@ -99,7 +99,7 @@ private fun Intertitles() {
                 stringResource(R.string.error_tmdb_key_refused_title),
                 message = stringResource(R.string.error_tmdb_key_refused),
                 attention = true,
-            ) { HlButton(stringResource(R.string.error_action_edit_tmdb_key), {}, emphasis = Emphasis.Primary) }
+            ) { HlButton(stringResource(R.string.error_action_edit_tmdb_key), {}) }
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
@@ -160,7 +160,6 @@ private fun Counters() {
             value = stringResource(R.string.scan_progress, 3, 9),
             valueLit = true,
             onClick = {},
-            chevron = false,
         )
     }
 }
@@ -232,8 +231,12 @@ private fun Frames() {
         Specimen("a folder's card: one poster that fails, five free places", Modifier.width(HlLayout.readableNarrow)) {
             PosterStrip(listOf(BROKEN), slots = 6)
         }
-        Specimen("a sheet's header: three places") {
-            PosterStrip(listOf(BROKEN), slots = 3, slotWidth = HlSize.rowPreviewPoster, gap = HlSpace.xxs, shape = HlShapes.thumb)
+        Specimen("a sheet's header: three places, as tall as its title block") {
+            Row(Modifier.height(HlSize.posterThumb), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+                PosterThumb(BROKEN, width = null)
+                PosterThumb(null, width = null)
+                PosterThumb(null, width = null)
+            }
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
@@ -242,8 +245,8 @@ private fun Frames() {
         }
         Specimen("loading cards: empty frames, at a poster and a thumbnail") {
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
-                CardSkeleton(HlSize.poster, POSTER)
-                CardSkeleton(HlSize.posterThumb, POSTER)
+                CardSkeleton(HlSize.poster, HlSize.POSTER_RATIO)
+                CardSkeleton(HlSize.posterThumb, HlSize.POSTER_RATIO)
             }
         }
     }
@@ -273,8 +276,6 @@ private fun CurrentOutput() {
 }
 
 private fun rates(vararg hz: String) = hz.joinToString(FACT_GAP) + "${NBSP}Hz"
-
-private const val POSTER = 2f / 3f
 
 /** A poster that fails to load. */
 private val BROKEN = ImageRef("catalog-gestures-broken") { "file:///nonexistent/gesture-poster.jpg" }

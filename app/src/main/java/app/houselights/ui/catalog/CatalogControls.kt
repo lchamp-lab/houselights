@@ -116,7 +116,6 @@ private fun ControlStates() {
             HlButton(
                 stringResource(R.string.sign_in),
                 { busy = true },
-                emphasis = Emphasis.Primary,
                 busy = busy,
                 busyLabel = stringResource(R.string.signing_in),
             )
@@ -140,7 +139,6 @@ private fun ControlStates() {
                 stringResource(R.string.scan_now),
                 description = "Aucun dossier à analyser",
                 onClick = {},
-                chevron = false,
                 enabled = false,
             )
         }

@@ -31,15 +31,15 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.components.FactRow
 import app.houselights.core.Job
 import app.houselights.core.MediaItem
 import app.houselights.core.Person
 import app.houselights.core.PersonPage
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
@@ -180,12 +180,8 @@ private fun PersonHead(page: PersonPage, modifier: Modifier = Modifier) {
         Column {
             ScreenTitle(person.name)
             Spacer(Modifier.height(HlSpace.xs))
-            // No punctuation between facts: the space separates them.
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
-                personJobs(page).forEach { Text(jobName(it), style = Hl.type.meta, color = Hl.colors.contentSecondary) }
-                val count = page.titles.size
-                Text(pluralStringResource(R.plurals.title_count, count, count), style = Hl.type.meta, color = Hl.colors.contentSecondary)
-            }
+            val count = page.titles.size
+            FactRow(personJobs(page).map { jobName(it) } + pluralStringResource(R.plurals.title_count, count, count))
         }
     }
 }
@@ -195,27 +191,21 @@ internal fun personJobs(page: PersonPage): List<Job> = page.jobs.filterValues { 
     if (job == Job.CAST) Job.entries.size else job.ordinal
 }
 
-/** A large portrait, with initials until it loads or when there is none; the name beside it announces it. */
+/** A large portrait, the bare frame until it loads or when there is none; the name beside it announces it. */
 @Composable
 private fun Portrait(person: Person) {
     val px = HlSize.portrait.toPx()
     val c = Hl.colors
-    // The artwork well and edge at rest, as for a portrait in a row.
+    // The artwork well and edge at rest, as for a portrait in a row: without a picture, the bare frame.
     Box(
         Modifier
             .width(HlSize.portrait)
             .aspectRatio(HlSize.PORTRAIT_RATIO)
             .clip(HlShapes.artwork)
-            .background(c.content.copy(alpha = HlAlpha.FILL))
+            .background(groundStepFill())
             .artworkEdge(HlShapes.artwork, c)
             .clearAndSetSemantics {},
-        contentAlignment = Alignment.Center,
     ) {
-        Text(
-            person.name.split(' ').mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString(""),
-            style = Hl.type.title,
-            color = Hl.colors.contentTertiary,
-        )
-        person.image?.url(px)?.let { ArtworkImage(it, person.name, Modifier.fillMaxSize()) }
+        ArtworkImage(person.image?.url(px), person.name, Modifier.fillMaxSize())
     }
 }

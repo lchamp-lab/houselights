@@ -33,12 +33,20 @@ class SettingRowTest {
             }
             HlSideSheet("Modifier", onDismiss = {}) {
                 HlSettingRow("Un nom", description = "Une ligne", onClick = {})
-                HlSettingRow("Un aperçu", description = "Une ligne", onClick = {}, leading = { RowPreview(null, PreviewShape.Poster) })
+                HlSettingRow("Une affiche", description = "Une ligne", onClick = {}, leading = { RowPreview(null, PreviewShape.Poster) })
+                HlSettingRow(
+                    "Un logo",
+                    description = "Une ligne",
+                    onClick = {},
+                    leading = { RowPreview(null, PreviewShape.Logo, icon = HlIcons.Logo) },
+                )
             }
         }
         compose.onNodeWithText("Bibliothèque").assertHeightIsEqualTo(HlSize.row).assertIsSelected()
         compose.onNodeWithText("Sur la salle").assertHeightIsEqualTo(HlSize.row)
         compose.onNodeWithText("Un nom").assertHeightIsEqualTo(HlSize.sheetRow)
-        compose.onNodeWithText("Un aperçu").assertHeightIsEqualTo(HlSize.sheetRow)
+        // A preview keeps the row's height, whatever it previews.
+        compose.onNodeWithText("Une affiche").assertHeightIsEqualTo(HlSize.sheetRow)
+        compose.onNodeWithText("Un logo").assertHeightIsEqualTo(HlSize.sheetRow)
     }
 }

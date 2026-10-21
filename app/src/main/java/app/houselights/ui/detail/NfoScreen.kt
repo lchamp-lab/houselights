@@ -188,13 +188,13 @@ private fun Credits(info: NfoInfo) {
     }
 }
 
-/** The database IDs the NFO points to, as badges. */
+/** The database IDs the NFO points to, each beside its database's name. */
 @Composable
 private fun Identifiers(info: NfoInfo) {
-    val ids = listOfNotNull(info.tmdbId?.let { "TMDB $it" }, info.imdbId?.let { "IMDb $it" }, info.tvdbId?.let { "TVDB $it" })
+    val ids = listOfNotNull(info.tmdbId?.let { "TMDB" to it }, info.imdbId?.let { "IMDb" to it }, info.tvdbId?.let { "TVDB" to it })
     if (ids.isEmpty()) return
     InfoBlock(stringResource(R.string.label_ids)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) { ids.forEach { Badge(it) } }
+        DefinitionList(ids.map { (name, id) -> name to id.toString() }, labelWidth = HlLayout.definitionLabelShort)
     }
 }
 

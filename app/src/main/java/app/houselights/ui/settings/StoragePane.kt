@@ -127,7 +127,6 @@ private fun StorageActions(storage: StorageStats?) {
                     )
                 }
             },
-            chevron = false,
         )
         RowFailureNote(cleanupFailure)
         HlSettingRow(
@@ -139,7 +138,6 @@ private fun StorageActions(storage: StorageStats?) {
             onClick = {
                 scope.launch { cleared = vm.clearImageCache() }
             },
-            chevron = false,
         )
         RowFailureNote(cacheFailure)
     }

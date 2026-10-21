@@ -48,8 +48,9 @@ class ContrastTest {
         // The same step on glass, where it is fainter, and a row or a well on the room.
         "FILL_FAINT" to c.content.over(HlAlpha.FILL_FAINT, c.background),
         "FILL_FAINT on glass" to c.content.over(HlAlpha.FILL_FAINT, c.glass),
-        // A progress line's track beside text.
+        // A progress line's track beside text, and the one it would take on focus's white plate.
         "FILL_STRONG" to c.content.over(HlAlpha.FILL_STRONG, c.background),
+        "FILL_STRONG on focus" to c.onFocus.over(HlAlpha.FILL_STRONG, c.focus),
         // A button in a side sheet.
         "FILL on glass" to c.content.over(HlAlpha.FILL, c.glass),
         "focus" to c.focus,
@@ -79,7 +80,7 @@ class ContrastTest {
         // Primary text, the count of unwatched episodes on its plate, the current option of a track.
         "content" on "background", "content" on "FILL", "content" on "glass",
         "content" on "FILL_FAINT", "content" on "FILL_FAINT on glass",
-        // On artwork, on a card's plate: the count of unwatched episodes, a person's initials.
+        // On artwork, on a card's plate: the count of unwatched episodes.
         "content" on "VEIL on a white image", "contentSecondary" on "VEIL on a white image",
         // A title's name, facts, overview and quietest words.
         "content" on "the veil's floor on a white image", "contentSecondary" on "the veil's floor on a white image",
@@ -121,7 +122,8 @@ class ContrastTest {
         ("emberFrom" on "VEIL on a white image").mark(), ("emberTo" on "VEIL on a white image").mark(),
         // The main action's words and icon on the ember light, at both ends and in its middle.
         "onEmber" on "emberFrom", "onEmber" on "ember", "onEmber" on "emberTo",
-        // What stays lit on a focused plate: a chosen check, the current place's dot, home's Gradation.
+        // What stays lit on a focused plate: a chosen check, the current place's dot, home's Gradation, a scan's line
+        // (on the plate itself, with no track).
         ("emberOnLight" on "focus").mark(),
         // On a picture's own dark: a title's words, the quietest, and the place in ember.
         "content" on "ambientDeep", "contentSecondary" on "ambientDeep", "contentTertiary" on "ambientDeep",
@@ -156,8 +158,9 @@ class ContrastTest {
         "contentTertiary" on "FILL_STRONG",
         // White on ember: the main action's ink is black.
         "content" on "emberFrom", "content" on "ember", "content" on "emberTo",
-        // Raspberry on white marks, never words.
+        // Raspberry on white marks, never words; a line on a track there, 2.05:1, so a focused line has none.
         "emberOnLight" on "focus",
+        ("emberOnLight" on "FILL_STRONG on focus").mark(),
         // A plate on the bare picture without its floor; ember words on a plate there even with it.
         "contentSecondary" on "plate on a white image", "contentTertiary" on "plate on a white image",
         "emberTo" on "plate at its ceiling on a white image",

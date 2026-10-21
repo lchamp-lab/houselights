@@ -87,12 +87,12 @@ private fun PathMappings() {
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Bottom) {
                 HlTextField(
                     stringResource(R.string.server_path), m.from, { vm.editMapping(index, m.copy(from = it)) },
-                    placeholder = "/media/movies", onImeAction = vm::saveMappings,
+                    placeholder = stringResource(R.string.placeholder_server_path), onImeAction = vm::saveMappings,
                     modifier = Modifier.weight(1f).focusRequester(servers.getOrPut(index) { FocusRequester() }).then(save),
                 )
                 HlTextField(
                     stringResource(R.string.network_path), m.to, { vm.editMapping(index, m.copy(to = it)) },
-                    placeholder = "nfs://192.168.1.10/volume1/movies", onImeAction = vm::saveMappings,
+                    placeholder = stringResource(R.string.placeholder_network_path), onImeAction = vm::saveMappings,
                     modifier = Modifier.weight(1.3f).focusRequester(networks.getOrPut(index) { FocusRequester() }).then(save),
                 )
                 HlIconButton(HlIcons.Close, stringResource(R.string.remove), onClick = {

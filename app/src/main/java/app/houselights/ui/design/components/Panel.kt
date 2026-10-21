@@ -147,10 +147,10 @@ internal fun HlRowSurface(
     ) { lit -> content(lit) }
 }
 
-/** A hairline that separates groups. */
+/** A hairline that separates groups, a rule like an empty frame's. */
 @Composable
 fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
-    val color = Hl.colors.edge
+    val color = Hl.colors.contentDecorative
     if (vertical) {
         Box(modifier.width(HlSize.hairline).fillMaxHeight().background(color))
     } else {
@@ -170,6 +170,15 @@ fun FactRow(
         facts.filterNotNull().filter { it.isNotBlank() }.forEach {
             Text(it, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+    }
+}
+
+/** Printed [badges] (a protocol), then [facts], on one line a fact's space apart. */
+@Composable
+internal fun BadgedFactRow(badges: List<String>, facts: List<String?>, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
+        badges.forEach { Badge(it) }
+        if (facts.any { !it.isNullOrBlank() }) FactRow(facts, Modifier.weight(1f, fill = false))
     }
 }
 
@@ -208,7 +217,6 @@ fun HlEmptyState(
                         onAction,
                         Modifier.focusRequester(focus),
                         icon = actionIcon,
-                        emphasis = Emphasis.Primary,
                         busy = busy != null,
                         busyLabel = busy ?: action,
                     )
@@ -275,15 +283,20 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
     }
 }
 
-/** An attention note: the attention light, then [text] in ember; screens never set ember themselves. */
+/**
+ * An attention note: the attention light, then [text] in ember; screens never set ember themselves. On a
+ * [focused] plate the words take focus's ink and the light stays lit, raspberry.
+ */
 @Composable
-fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.caption) {
+fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.caption, focused: Boolean = false) {
     Row(modifier) {
         // As tall as the first line, so the light sits beside it.
         val line = with(LocalDensity.current) { style.lineHeight.toDp() }
-        Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusLight(StatusState.Attention) }
+        Box(Modifier.height(line), contentAlignment = Alignment.Center) {
+            StatusLight(StatusState.Attention, ink = FocusStyle.emberMark(focused))
+        }
         Spacer(Modifier.width(HlSpace.xs))
-        Text(text, style = style, color = Hl.colors.ember)
+        Text(text, style = style, color = FocusStyle.ink(focused, rest = Hl.colors.ember))
     }
 }
 

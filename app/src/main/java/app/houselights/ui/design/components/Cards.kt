@@ -340,15 +340,12 @@ fun posterPx(width: Dp? = null): Int = requestedPoster(width).toPx()
 /** The width a poster [width] wide, a wall's cell when null, is requested at. */
 internal fun requestedPoster(width: Dp?): Dp = width ?: HlSize.wallPoster
 
-/** Poster aspect ratio, width to height. */
-private const val POSTER_SHAPE = 2f / 3f
-
 /** Still aspect ratio ([LandscapeCard]). */
 private const val STILL_SHAPE = 16f / 9f
 
 /** The request a [PosterCard] [widthPx] wide makes once laid out: its poster at that size, cropped. */
 internal fun posterRequest(context: Context, item: MediaItem, widthPx: Int): ImageRequest? =
-    item.poster?.let { artworkRequest(context, it.url(widthPx), widthPx, (widthPx / POSTER_SHAPE).roundToInt()) }
+    item.poster?.let { artworkRequest(context, it.url(widthPx), widthPx, (widthPx / HlSize.POSTER_RATIO).roundToInt()) }
 
 /** The request a [LandscapeCard] [widthPx] wide makes once laid out: its still at that size, cropped. */
 internal fun stillRequest(context: Context, item: MediaItem, widthPx: Int): ImageRequest? =
@@ -375,8 +372,14 @@ fun PosterCard(
     val px = posterPx(width)
     val poster = item.poster?.url(px)
     // Decoded at its width, as the preloads ask for it ([posterRequest]).
-    val decoded = IntSize(px, (px / POSTER_SHAPE).roundToInt())
-    ArtworkSurface(onClick, sized.aspectRatio(POSTER_SHAPE), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
+    val decoded = IntSize(px, (px / HlSize.POSTER_RATIO).roundToInt())
+    ArtworkSurface(
+        onClick,
+        sized.aspectRatio(HlSize.POSTER_RATIO),
+        onFocused = onFocused,
+        stateDescription = cardState(item),
+        light = poster,
+    ) {
         ArtworkImage(poster, item.title, Modifier.fillMaxSize(), size = decoded) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressPoster)
@@ -555,7 +558,7 @@ fun AbsentCard(title: String, year: Int?, modifier: Modifier = Modifier, width: 
             edge = artworkEdge(c),
         ),
         shape = HlShapes.artwork,
-        modifier = modifier.width(width).aspectRatio(POSTER_SHAPE).clearAndSetSemantics {
+        modifier = modifier.width(width).aspectRatio(HlSize.POSTER_RATIO).clearAndSetSemantics {
             contentDescription = listOfNotNull(title, year?.toString(), absent).joinToString(", ")
             this.focused = focused
         },
@@ -618,7 +621,7 @@ internal fun EmptyFrame(modifier: Modifier = Modifier, shape: Shape = HlShapes.a
 
 /**
  * A folder's latest posters in [slots] slots, unfilled ones as empty frames so every strip keeps the same
- * rhythm; with no posters, [name] is set like a one-sheet.
+ * rhythm, the room between them what it lies on; with no posters, [name] is set like a one-sheet on black.
  */
 @Composable
 fun PosterStrip(
@@ -632,13 +635,13 @@ fun PosterStrip(
 ) {
     val c = Hl.colors
     if (posters.isEmpty() && name != null) {
-        Box(modifier.fillMaxWidth().aspectRatio(slots * POSTER_RATIO).background(c.background)) { FallbackArtwork(name, null) }
+        Box(modifier.fillMaxWidth().aspectRatio(slots * HlSize.POSTER_RATIO).background(c.background)) { FallbackArtwork(name, null) }
         return
     }
     val px = (slotWidth ?: HlSize.poster).toPx()
-    Row(modifier.background(c.background), horizontalArrangement = Arrangement.spacedBy(gap)) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(gap)) {
         repeat(slots) { i ->
-            val slot = (if (slotWidth != null) Modifier.width(slotWidth) else Modifier.weight(1f)).aspectRatio(POSTER_RATIO)
+            val slot = (if (slotWidth != null) Modifier.width(slotWidth) else Modifier.weight(1f)).aspectRatio(HlSize.POSTER_RATIO)
             val poster = posters.getOrNull(i)
             if (poster == null) {
                 EmptyFrame(slot, shape)
@@ -648,8 +651,6 @@ fun PosterStrip(
         }
     }
 }
-
-private const val POSTER_RATIO = 2f / 3f
 
 /** At most one mark, top right: unwatched episode count, watched check or new-title ember dot. */
 @Composable
@@ -726,13 +727,15 @@ private const val PERCENT = 100
 /**
  * Ember progress line for titles in progress, [thickness] tall, the ember light stretched over the part seen.
  * On artwork it burns at the picture's foot over the dark plate ([groundPlate]), cut by the picture's corners,
- * and recedes with it.
+ * and recedes with it. On a [focused] plate it is a mark in solid raspberry on the plate itself: a track there
+ * would hold it under 3:1.
  */
 @Composable
-fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlSize.progress) {
+fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlSize.progress, focused: Boolean = false) {
     if (progress <= 0f) return
     val c = Hl.colors
-    val track = groundPlate() ?: c.content.copy(alpha = HlAlpha.FILL_STRONG)
+    val under = if (focused) null else groundPlate() ?: c.content.copy(alpha = HlAlpha.FILL_STRONG)
+    val mark = FocusStyle.emberMark(focused).takeIf { focused }
     val seen = progress.coerceAtMost(1f)
     val recede = LocalArtworkRecede.current
     Spacer(
@@ -741,8 +744,8 @@ fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp =
             // A brush spans the whole line unless told: the light ends where the part seen does.
             val light = c.emberLight(across = part.width)
             onDrawBehind {
-                drawRect(track)
-                drawRect(light, size = part, colorFilter = recedeFilterAt(recede()))
+                under?.let { drawRect(it) }
+                if (mark != null) drawRect(mark, size = part) else drawRect(light, size = part, colorFilter = recedeFilterAt(recede()))
             }
         },
     )
