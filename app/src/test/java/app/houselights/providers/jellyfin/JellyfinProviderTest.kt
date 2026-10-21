@@ -63,6 +63,24 @@ class JellyfinProviderTest {
         assertEquals(listOf("/UserPlayedItems/f1"), server.paths)
     }
 
+    /** Seasons are asked for their episodes on disk: one without any, which the server calls watched, holds none. */
+    @Test
+    fun seasonsCountTheirEpisodesOnDisk() = runTest {
+        val seasons = """{"Items":[
+            {"Id":"se1","Name":"Saison 1","Type":"Season","IndexNumber":1,"ChildCount":8,"RecursiveItemCount":8,
+             "UserData":{"Played":false,"UnplayedItemCount":2}},
+            {"Id":"se2","Name":"Saison 2","Type":"Season","IndexNumber":2,"ChildCount":0,"RecursiveItemCount":0,
+             "UserData":{"Played":true,"UnplayedItemCount":0}}
+        ],"TotalRecordCount":2}"""
+        val server = FakeServer { Answer(200, seasons) }
+        val found = provider(server).seasons(MediaItem("sh1", MediaKind.SERIES, "MobLand"))
+        val asked = synchronized(server.requests) { server.requests.single { it.url.encodedPath.endsWith("/Seasons") } }
+        val fields = asked.url.queryParameter("fields").orEmpty().split(",")
+        assertTrue(fields.toString(), fields.containsAll(listOf("ChildCount", "RecursiveItemCount")))
+        assertEquals(listOf(8, 0), found.map { it.childCount })
+        assertEquals(listOf(2, 0), found.map { it.user.unplayedCount })
+    }
+
     /** A season is marked by its own id, the server marking its episodes; unmarked, it is deleted. */
     @Test
     fun aSeasonIsMarkedByItsOwnId() = runTest {

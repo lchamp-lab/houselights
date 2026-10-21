@@ -1,6 +1,10 @@
 package app.houselights.ui.detail
 
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
@@ -54,7 +58,9 @@ class DetailViewModelTest {
     }
     private val events = FakeEvents()
 
-    private fun TestScope.detail(id: String = "m1") = DetailViewModel(id, { provider }, events, now = { testScheduler.currentTime })
+    /** A page on [source], saving in the test's scope, so each test runs its saves to their end. */
+    private fun TestScope.detail(id: String = "m1", source: MediaProvider = provider) =
+        DetailViewModel(id, { source }, events, this, now = { testScheduler.currentTime })
 
     @Test
     fun loadsTheTitle() = runTest {
@@ -107,21 +113,38 @@ class DetailViewModelTest {
     fun watchedShowsAtOnceAndTellsTheOtherScreens() = runTest {
         val vm = detail()
         advanceUntilIdle()
-        val reload = provider.gate("item m1")
+        val saving = provider.gate("played m1 true")
         vm.togglePlayed()
-        advanceUntilIdle()
-        // Saved: the page says so before it has loaded again, and home and the walls will reload.
+        // The page says so before it is saved; home and the walls reload once it is.
         assertEquals(true, vm.state.value.item?.user?.played)
+        advanceUntilIdle()
+        assertEquals(0L, events.libraryVersion.value)
+        saving.complete(Unit)
+        advanceUntilIdle()
         assertEquals(1L, events.libraryVersion.value)
         assertEquals(listOf("item m1", "played m1 true", "item m1"), provider.calls)
-        reload.complete(Unit)
-        advanceUntilIdle()
         assertEquals(true, vm.state.value.item?.user?.played)
 
         vm.toggleFavorite()
+        assertEquals(true, vm.state.value.item?.user?.favorite)
         advanceUntilIdle()
         assertEquals(true, vm.state.value.item?.user?.favorite)
         assertEquals(2L, events.libraryVersion.value)
+    }
+
+    /** Leaving the page while a change is saved: home and the walls are still told once it is. */
+    @Test
+    fun aChangeIsToldOnceSavedThoughThePageIsGone() = runTest {
+        val store = ViewModelStore()
+        val vm = ViewModelProvider(store, viewModelFactory { initializer { detail() } })[DetailViewModel::class.java]
+        advanceUntilIdle()
+        val saving = provider.gate("played m1 true")
+        vm.togglePlayed()
+        advanceUntilIdle()
+        store.clear()
+        saving.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(1L, events.libraryVersion.value)
     }
 
     @Test
@@ -133,6 +156,7 @@ class DetailViewModelTest {
         advanceUntilIdle()
         vm.togglePlayed()
         advanceUntilIdle()
+        assertEquals(true, vm.state.value.item?.user?.played)
         saving.complete(Unit)
         advanceUntilIdle()
         assertEquals(1, provider.calls.count { it.startsWith("played") })
@@ -168,29 +192,31 @@ class DetailViewModelTest {
 
     private val DetailViewModel.season1 get() = state.value.seasons.first { it.id == "s1" }
 
-    /** The watched tile marks the season shown, its episodes from their start; the show counts it before a reload. */
+    /** The watched tile marks the season shown, its episodes from their start, the show counting it: at once, then as saved. */
     @Test
     fun theTileMarksTheSeasonShownThenTheWholeShow() = runTest {
         countedShow()
         val vm = detail("show")
         advanceUntilIdle()
         assertEquals("s1", vm.state.value.shownSeason?.id)
-        val reload = provider.gate("item show")
+        fun saysTheSeasonWatched() {
+            assertTrue(seasonWatched(vm.season1))
+            assertEquals(listOf(true, true), vm.state.value.episodes.map { it.user.played })
+            assertEquals(listOf(0L, 0L), vm.state.value.episodes.map { it.user.positionMs })
+            assertEquals(4, vm.state.value.item?.user?.unplayedCount)
+            assertEquals(false, vm.state.value.item?.user?.played)
+        }
         vm.toggleSeasonPlayed()
+        saysTheSeasonWatched()
         advanceUntilIdle()
         assertTrue("played s1 true" in provider.calls)
-        assertTrue(seasonWatched(vm.season1))
-        assertEquals(listOf(true, true), vm.state.value.episodes.map { it.user.played })
-        assertEquals(listOf(0L, 0L), vm.state.value.episodes.map { it.user.positionMs })
-        assertEquals(4, vm.state.value.item?.user?.unplayedCount)
-        assertEquals(false, vm.state.value.item?.user?.played)
         assertEquals(1L, events.libraryVersion.value)
-        reload.complete(Unit)
-        advanceUntilIdle()
+        saysTheSeasonWatched()
 
         // A long OK: the whole show, every season with it.
-        provider.gate("item show")
         vm.togglePlayed()
+        assertEquals(true, vm.state.value.item?.user?.played)
+        assertTrue(vm.state.value.seasons.all(::seasonWatched))
         advanceUntilIdle()
         assertTrue("played show true" in provider.calls)
         assertEquals(true, vm.state.value.item?.user?.played)
@@ -203,39 +229,130 @@ class DetailViewModelTest {
         countedShow()
         val watched = UserState(played = true, unplayedCount = 0)
         provider.seasons = mapOf("show" to provider.seasons.getValue("show").map { it.copy(user = watched) })
+        provider.episodes = provider.episodes.mapValues { (_, list) -> list.map { it.copy(user = UserState(played = true)) } }
         provider.items["show"] = series("show").copy(user = watched)
         val vm = detail("show")
         advanceUntilIdle()
-        provider.gate("item show")
         vm.toggleSeasonPlayed()
+        fun countsItAgain() {
+            assertEquals(2, vm.season1.user.unplayedCount)
+            assertFalse(seasonWatched(vm.season1))
+            assertEquals(UserState(unplayedCount = 2), vm.state.value.item?.user)
+        }
+        countsItAgain()
         advanceUntilIdle()
         assertTrue("played s1 false" in provider.calls)
-        assertEquals(2, vm.season1.user.unplayedCount)
-        assertFalse(seasonWatched(vm.season1))
-        assertEquals(UserState(unplayedCount = 2), vm.state.value.item?.user)
+        countsItAgain()
     }
 
-    /** A long OK on an episode marks it alone; its season and its show count it at once. */
+    /** A long OK on an episode marks it alone; its season and its show count it at once, then as saved. */
     @Test
     fun anEpisodeIsMarkedAndItsSeasonCountsIt() = runTest {
         countedShow()
         val vm = detail("show")
         advanceUntilIdle()
-        val reload = provider.gate("item show")
+        fun countsIt() {
+            assertEquals(UserState(played = true), vm.state.value.episodes.first().user)
+            assertEquals(SegmentDetail.Count("1\u00a0/\u00a02"), seasonDetail(vm.season1))
+            assertEquals(5, vm.state.value.item?.user?.unplayedCount)
+        }
         vm.toggleEpisodePlayed(vm.state.value.episodes.first())
+        countsIt()
         advanceUntilIdle()
         assertTrue("played s1e1 true" in provider.calls)
-        assertEquals(UserState(played = true), vm.state.value.episodes.first().user)
-        assertEquals(SegmentDetail.Count("1\u00a0/\u00a02"), seasonDetail(vm.season1))
-        assertEquals(5, vm.state.value.item?.user?.unplayedCount)
-        reload.complete(Unit)
-        advanceUntilIdle()
-        assertEquals(true, vm.state.value.episodes.first().user.played)
+        countsIt()
 
         vm.toggleEpisodePlayed(vm.state.value.episodes.first())
+        assertEquals(6, vm.state.value.item?.user?.unplayedCount)
         advanceUntilIdle()
         assertTrue("played s1e1 false" in provider.calls)
         assertEquals(false, vm.state.value.episodes.first().user.played)
+        assertEquals(6, vm.state.value.item?.user?.unplayedCount)
+    }
+
+    /** A second episode marked while the page reloads after the first: the reload landing meanwhile undoes neither. */
+    @Test
+    fun aSecondMarkWhileTheFirstReloads() = runTest {
+        countedShow()
+        val vm = detail("show")
+        advanceUntilIdle()
+        val reload = provider.gate("item show")
+        vm.toggleEpisodePlayed(vm.state.value.episodes[0])
+        advanceUntilIdle()
+        val saving = provider.gate("played s1e2 true")
+        vm.toggleEpisodePlayed(vm.state.value.episodes[1])
+        fun bothShow() {
+            assertEquals(listOf(true, true), vm.state.value.episodes.map { it.user.played })
+            assertTrue(seasonWatched(vm.season1))
+            assertEquals(4, vm.state.value.item?.user?.unplayedCount)
+        }
+        bothShow()
+        reload.complete(Unit)
+        advanceUntilIdle()
+        bothShow()
+        saving.complete(Unit)
+        advanceUntilIdle()
+        bothShow()
+        assertEquals(2L, events.libraryVersion.value)
+    }
+
+    /** A mark that does not save comes undone, the source away, and says why on the episode row, not by the actions. */
+    @Test
+    fun aMarkNotSavedIsUndoneAndSaidOnItsRow() = runTest {
+        countedShow()
+        val vm = detail("show")
+        advanceUntilIdle()
+        provider.fail = { IOException("Server away") }
+        vm.toggleEpisodePlayed(vm.state.value.episodes.first())
+        assertEquals(true, vm.state.value.episodes.first().user.played)
+        advanceUntilIdle()
+        assertEquals(UserState(positionMs = 600_000), vm.state.value.episodes.first().user)
+        assertNull(seasonDetail(vm.season1))
+        assertEquals(6, vm.state.value.item?.user?.unplayedCount)
+        assertEquals(UiError.OFFLINE, vm.state.value.episodeMarkError)
+        assertNull(vm.state.value.actionError)
+        assertEquals(0L, events.libraryVersion.value)
+
+        // Said of its season: another one shown, it goes.
+        provider.fail = { null }
+        vm.selectSeason("s2")
+        assertNull(vm.state.value.episodeMarkError)
+    }
+
+    /** Lire follows a mark at once: the season holding the episode in progress marked, it starts that one over. */
+    @Test
+    fun lireFollowsAMarkAtOnce() = runTest {
+        countedShow()
+        provider.nextUps = mapOf("show" to "s1e1")
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertEquals(600_000L, vm.state.value.nextUp?.user?.positionMs)
+        vm.toggleSeasonPlayed()
+        assertEquals(UserState(played = true), vm.state.value.nextUp?.user)
+    }
+
+    /** A film marked: the copy Lire plays and the film in its saga's row say so at once, from their start. */
+    @Test
+    fun aFilmMarkedMarksItsCopiesAndItsPlaceInItsSaga() = runTest {
+        val begun = UserState(positionMs = 60_000)
+        provider.items["m1"] = film("m1", "Heat").copy(user = begun)
+        fun copy(key: String, best: Boolean) =
+            Version(film(key).copy(user = begun), null, null, null, null, null, chosen = best, best = best, key = key)
+        provider.catalog = FakeCatalog().apply { copies = mapOf("m1" to listOf(copy("long", best = true), copy("short", best = false))) }
+        provider.capabilities = provider.capabilities.copy(versions = true)
+        val saga = MediaItem("saga", MediaKind.COLLECTION, "Heat")
+        val source = object : MediaProvider by provider {
+            override suspend fun collectionOf(item: MediaItem) = saga
+
+            override suspend fun collectionItems(collection: MediaItem) = listOf(provider.items.getValue("m1"), film("m2"))
+        }
+        val vm = detail("m1", source)
+        advanceUntilIdle()
+        vm.togglePlayed()
+        val page = vm.state.value
+        assertEquals(UserState(played = true), page.playedCopy?.item?.user)
+        assertEquals(listOf(true, true), page.versions.map { it.item.user.played })
+        assertEquals(listOf(true, false), page.collectionFilms.map { it.user.played })
     }
 
     /** One season has no track: the watched tile marks the show. */
@@ -248,6 +365,19 @@ class DetailViewModelTest {
         vm.toggleSeasonPlayed()
         advanceUntilIdle()
         assertTrue(provider.calls.none { it.startsWith("played") })
+    }
+
+    /** A season without episodes, which a server may call watched, is not the tile's: it marks the show there. */
+    @Test
+    fun aSeasonWithoutEpisodesIsNotShown() = runTest {
+        val empty = season("s2", 2, "show").copy(childCount = 0, user = UserState(played = true, unplayedCount = 0))
+        provider.seasons = mapOf("show" to listOf(season("s1", 1, "show").copy(childCount = 2), empty))
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertEquals("s1", vm.state.value.shownSeason?.id)
+        vm.selectSeason("s2")
+        assertNull(vm.state.value.shownSeason)
+        assertFalse(seasonWatched(empty))
     }
 
     private val DetailViewModel.shownEpisodes get() = state.value.episodes.map { it.id }
@@ -408,12 +538,12 @@ class DetailViewModelTest {
     @Test
     fun theSeasonChosenOutlivesAStoppedProcess() = runTest {
         val saved = SavedStateHandle()
-        val before = DetailViewModel("show", { provider }, events, saved)
+        val before = DetailViewModel("show", { provider }, events, this, saved)
         advanceUntilIdle()
         before.selectSeason("s3")
         advanceUntilIdle()
 
-        val after = DetailViewModel("show", { provider }, events, saved.afterProcessDeath())
+        val after = DetailViewModel("show", { provider }, events, this, saved.afterProcessDeath())
         advanceUntilIdle()
         assertEquals("s3", after.state.value.selectedSeasonId)
         assertEquals(listOf("s3e1", "s3e2"), after.shownEpisodes)
@@ -429,7 +559,7 @@ class DetailViewModelTest {
             film("alien3").copy(user = UserState(positionMs = 60_000)),
         )
         val source = OneSaga(provider, films)
-        val vm = DetailViewModel("saga", { source }, events, now = { testScheduler.currentTime })
+        val vm = detail("saga", source)
         advanceUntilIdle()
         assertEquals(listOf("saga"), source.asked)
         assertEquals(films, vm.state.value.collectionFilms)
@@ -463,7 +593,7 @@ class DetailViewModelTest {
         provider.items["saga"] = collection
         val whole = Saga(collection, listOf(SagaPart(film("alien"), "Alien", 1979), SagaPart(null, "Aliens", 1986)))
         provider.catalog = FakeCatalog().apply { sagas = mapOf("saga" to whole) }
-        val vm = DetailViewModel("saga", { OneSaga(provider, listOf(film("alien"))) }, events, now = { testScheduler.currentTime })
+        val vm = detail("saga", OneSaga(provider, listOf(film("alien"))))
         advanceUntilIdle()
         assertEquals(whole, vm.state.value.saga)
     }

@@ -232,7 +232,7 @@ internal object HlSettingRowDefaults {
 
 /** The label a tile shows under it with focus. */
 internal object HlIconButtonDefaults {
-    /** Widest label; a longer one ends in an ellipsis. */
+    /** Widest label at the default text size, growing with it ([tileLabelWidth]); a longer one ends in an ellipsis. */
     val labelWidth = 256.dp
 
     /**

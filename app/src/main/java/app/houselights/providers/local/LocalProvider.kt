@@ -231,7 +231,9 @@ class LocalProvider(
         val key = itemKey(series) ?: return emptyList()
         val counts = dao.seasonCounts(key).associateBy { it.seasonId }
         return mapper.mapAll(dao.childRows(key).filter { it.kind == ItemKind.SEASON }).map { season ->
-            val c = season.id.toLongOrNull()?.let(counts::get) ?: return@map season
+            val id = season.id.toLongOrNull() ?: return@map season
+            // A season whose episodes are all gone holds none: it is not watched.
+            val c = counts[id] ?: return@map season.copy(childCount = 0, user = season.user.copy(played = false, unplayedCount = 0))
             season.copy(
                 childCount = c.episodes,
                 user = season.user.copy(played = season.user.played || c.played == c.episodes, unplayedCount = c.episodes - c.played),

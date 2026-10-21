@@ -148,7 +148,7 @@ class JellyfinProvider(
     override suspend fun item(id: String): MediaItem = toMedia(api.item(id, userId))
 
     override suspend fun seasons(series: MediaItem): List<MediaItem> =
-        titles(api.seasons(series.id, userId, ROW_FIELDS).items)
+        titles(api.seasons(series.id, userId, SEASON_FIELDS).items)
 
     override suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem> =
         titles(api.episodes(series.id, userId, season.id, EPISODE_FIELDS).items)
@@ -323,6 +323,9 @@ class JellyfinProvider(
 
         /** Fields a wall needs: year and ratings, without overview or genres. */
         private const val GRID_FIELDS = "ProductionYear,OfficialRating,CommunityRating,DateCreated"
+
+        /** Seasons count their episodes on disk too: without the count, the server calls an empty season watched. */
+        private const val SEASON_FIELDS = "$ROW_FIELDS,ChildCount,RecursiveItemCount"
         private const val EPISODE_FIELDS = "Overview"
 
         private fun libraryKind(collectionType: String?) = when (collectionType) {

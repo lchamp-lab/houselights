@@ -223,6 +223,22 @@ class LocalProviderTest {
         assertEquals(listOf(true, false, false), seasons.map { it.user.played })
     }
 
+    /** A season row whose episodes are all gone holds none, and is not watched, whatever its row says. */
+    @Test
+    fun aSeasonWithoutEpisodesIsNotWatched() = runTest {
+        val show = show("MobLand")
+        show.episode(1, 1, played = true)
+        dao.insert(
+            ItemEntity(
+                kind = ItemKind.SEASON, sourceId = source, parentId = show.id, seriesId = show.id, title = "Season 2",
+                sortTitle = "002", seasonNumber = 2, played = true, addedAt = 0,
+            )
+        )
+        val seasons = provider.seasons(provider.item(show.id.toString()))
+        assertEquals(listOf(1, 0), seasons.map { it.childCount })
+        assertEquals(listOf(true, false), seasons.map { it.user.played })
+    }
+
     /** A season is marked whole in one statement, its episodes back to their start; the other seasons stay as they are. */
     @Test
     fun aSeasonIsMarkedWithItsEpisodesAlone() = runTest {

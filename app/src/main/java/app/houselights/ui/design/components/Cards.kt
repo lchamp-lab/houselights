@@ -109,6 +109,7 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 import app.houselights.ui.design.Scrub
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 
 /** True while a card of the enclosing row or grid has focus, so the others recede. */
 val LocalGroupFocused = compositionLocalOf { false }
@@ -220,7 +221,7 @@ fun ArtworkSurface(
     val ambient = LocalAmbient.current
     val group = LocalGroupFocus.current
     val member = rememberGroupMember(group)
-    val reading = cardReading(readAs, stateDescription, focused, onClick.takeIf { acts })
+    val reading = cardReading(readAs, stateDescription, focused, onClick.takeIf { acts }, onLongClick, onLongClickLabel)
     HlFocusSurface(
         onClick = onClick,
         look = FocusStyle.frame(
@@ -244,13 +245,22 @@ fun ArtworkSurface(
     }
 }
 
-/** Clearing semantics for [readAs] drops the click action, so focus is restated and [onClick] re-added. */
-private fun cardReading(readAs: String?, stateDescription: String?, focused: Boolean, onClick: (() -> Unit)?): Modifier =
+/** Clearing semantics for [readAs] drops the clicks, so focus is restated and [onClick] and [onLongClick] re-added. */
+@Suppress("LongParameterList") // What is restated, and its clicks.
+private fun cardReading(
+    readAs: String?,
+    stateDescription: String?,
+    focused: Boolean,
+    onClick: (() -> Unit)?,
+    onLongClick: (() -> Unit)?,
+    longClickLabel: String?,
+): Modifier =
     if (readAs != null) {
         Modifier.clearAndSetSemantics {
             contentDescription = readAs
             this.focused = focused
             onClick?.let { act -> onClick { act(); true } }
+            onLongClick?.let { act -> onLongClick(label = longClickLabel) { act(); true } }
         }
     } else {
         Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }

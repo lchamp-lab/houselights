@@ -38,6 +38,9 @@ class FakeProvider : MediaProvider {
     var seasons = mapOf<String, List<MediaItem>>()
 
     var episodes = mapOf<String, List<MediaItem>>()
+
+    /** The episode Lire starts, by show; read from [episodes], so it is as they are now. */
+    var nextUps = mapOf<String, String>()
     var nfo: NfoDocument? = null
     var identity: Identity? = null
     var results = listOf<MatchCandidate>()
@@ -99,13 +102,14 @@ class FakeProvider : MediaProvider {
 
     override suspend fun nextUp(series: MediaItem): MediaItem? {
         call("nextUp ${series.id}")
-        return null
+        val id = nextUps[series.id] ?: return null
+        return episodes.values.flatten().firstOrNull { it.id == id }
     }
 
-    /** As a source does: a show or season marks its episodes, and every file is back to its start. */
+    /** As a source does: a show or season marks its episodes, every file back to its start, and they are counted again. */
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
         call("played ${item.id} $played")
-        items[item.id] = item.copy(user = item.user.copy(played = played))
+        items[item.id] = item.copy(user = item.user.copy(played = played, positionMs = 0))
         val seasonIds = when (item.kind) {
             MediaKind.SERIES -> seasons[item.id].orEmpty().map { it.id }.toSet()
             MediaKind.SEASON -> setOf(item.id)
@@ -116,6 +120,22 @@ class FakeProvider : MediaProvider {
                 if (season in seasonIds || ep.id == item.id) ep.copy(user = ep.user.copy(played = played, positionMs = 0)) else ep
             }
         }
+        recount()
+    }
+
+    /** Each show's seasons and the show itself, by their episodes: watched once all of at least one are. */
+    private fun recount() {
+        seasons = seasons.mapValues { (_, list) ->
+            list.map { season -> episodes[season.id].orEmpty().let { season.countedBy(it).copy(childCount = it.size) } }
+        }
+        seasons.forEach { (show, list) ->
+            items[show]?.let { items[show] = it.countedBy(list.flatMap { season -> episodes[season.id].orEmpty() }) }
+        }
+    }
+
+    private fun MediaItem.countedBy(held: List<MediaItem>): MediaItem {
+        val unplayed = held.count { !it.user.played }
+        return copy(user = user.copy(played = held.isNotEmpty() && unplayed == 0, unplayedCount = unplayed))
     }
 
     override suspend fun setFavorite(item: MediaItem, favorite: Boolean) {

@@ -63,6 +63,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.offset
@@ -92,6 +93,7 @@ import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.emberLit
 import app.houselights.ui.design.plate
 import app.houselights.ui.design.plateEdge
+import app.houselights.ui.util.screenWidthPx
 import kotlin.math.roundToInt
 
 enum class Emphasis { Primary, Secondary }
@@ -397,6 +399,7 @@ fun HlIconButton(
     )
     val c = Hl.colors
     val light = LocalAmbient.current
+    val screenWidth = screenWidthPx()
     Layout(
         modifier = modifier,
         content = {
@@ -426,7 +429,7 @@ fun HlIconButton(
         },
     ) { measurables, constraints ->
         val button = measurables[0].measure(constraints)
-        val text = measurables[1].measure(Constraints(maxWidth = HlIconButtonDefaults.labelWidth.roundToPx()))
+        val text = measurables[1].measure(Constraints(maxWidth = tileLabelWidth(screenWidth)))
         val gap = HlSpace.xs.roundToPx()
         val edge = HlIconButtonDefaults.labelEdge.roundToPx()
         layout(button.width, button.height) {
@@ -449,6 +452,12 @@ private fun Modifier.labelPlate(c: HlColors, light: AmbientLight): Modifier = dr
         drawOutline(outline, c.plate(light))
         drawOutline(outline, c.plateEdge, style = hairline)
     }
+}
+
+/** A tile's widest label: [HlIconButtonDefaults.labelWidth] grown with the text size, within the [screen]'s label edges. */
+internal fun Density.tileLabelWidth(screen: Int): Int {
+    val edges = 2 * HlIconButtonDefaults.labelEdge.roundToPx()
+    return (HlIconButtonDefaults.labelWidth * fontScale).roundToPx().coerceAtMost(screen - edges)
 }
 
 /** The label's x offset from the button: centred, else aligned to the side nearing [edge], never past it. */
