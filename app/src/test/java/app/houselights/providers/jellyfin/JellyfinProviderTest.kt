@@ -238,6 +238,24 @@ class JellyfinProviderTest {
         assertFalse((provider(file).playback(film, resume = false, options) as PlaybackPlan.Launch).disc)
     }
 
+    /** The source's tracks in the file's order go with its launch, a subtitle file beside it marked; one choice per show. */
+    @Test
+    fun theSourcesTracksGoWithItsLaunch() = runTest {
+        val streams = """[{"Type":"Audio","Codec":"eac3","Language":"fre","Index":1},""" +
+            """{"Type":"Audio","Codec":"ac3","Language":"eng","Index":4,"IsExternal":true},""" +
+            """{"Type":"Subtitle","Codec":"subrip","Language":"fre","Index":3,"IsExternal":true},""" +
+            """{"Type":"Subtitle","Codec":"pgssub","Language":"fre","Index":2,"IsForced":true}]"""
+        val episode = """{"Id":"e1","Name":"Pilot","Type":"Episode","SeriesId":"show1",""" +
+            """"MediaSources":[{"Id":"s1","Container":"mkv","VideoType":"VideoFile","MediaStreams":$streams}]}"""
+        val options = PlaybackOptions(emptyList(), forceHttp = true)
+        val plan = provider(FakeServer { Answer(200, episode) }).playback(film, resume = false, options) as PlaybackPlan.Launch
+        assertEquals("jellyfin:show1", plan.titleKey)
+        val media = checkNotNull(plan.media)
+        assertTrue(media.tracksInOrder)
+        assertEquals(listOf(true to false, false to true), media.subtitles.map { it.forced to it.external })
+        assertEquals(listOf(false, true), media.audio.map { it.external })
+    }
+
     /** Home loads the libraries, then its rows, which need them too: the server is asked for them once. */
     @Test
     fun homeAsksForTheLibrariesOnce() = runTest {

@@ -18,15 +18,17 @@ import kotlinx.coroutines.withContext
 @Database(
     entities = [
         SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
-        SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class,
+        SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class, TrackChoiceEntity::class,
     ],
-    version = 15,
+    version = 16,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 
     abstract fun trakt(): TraktDao
+
+    abstract fun trackChoices(): TrackChoiceDao
 
     companion object {
         const val NAME = "library.db"
@@ -219,6 +221,15 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `track_choices` (`title` TEXT NOT NULL, `audio` TEXT, `subtitles` TEXT, " +
+                        "`at` INTEGER NOT NULL, PRIMARY KEY(`title`))"
+                )
+            }
+        }
+
         /** Tables, columns and indexes added in v12, as in Room's exported schema. */
         private fun createTables(db: SupportSQLiteDatabase) {
             db.execSQL(
@@ -347,7 +358,7 @@ abstract class LibraryDatabase : RoomDatabase() {
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-            MIGRATION_14_15,
+            MIGRATION_14_15, MIGRATION_15_16,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =

@@ -44,9 +44,9 @@ object MediaProbe {
      * Probe version stored with each result; files probed by an older version get a headers-only re-probe at the
      * next scan. 1: frame rate. 2: formats from first frames (Atmos, DTS layers, HDR10+), audio bitrates from
      * tags. 3: video bitrate, Dolby Vision base layer. 4: AVI-muxed tracks by FOURCC and format tag (XviD and DivX
-     * are MPEG-4, not VC-1).
+     * are MPEG-4, not VC-1). 5: tracks marked in the file's order ([MediaInfo.tracksInOrder]).
      */
-    const val VERSION = 4
+    const val VERSION = 5
 
     fun isStale(mediaInfo: String?): Boolean = (decode(mediaInfo)?.probedWith ?: -1) < VERSION
 
@@ -66,7 +66,7 @@ object MediaProbe {
             fun kbps(uid: Long?) = uid?.let(bitrates::get)?.let(::bpsToKbps)
             val audio = result.info.audio.mapIndexed { i, track -> track.copy(bitrateKbps = kbps(result.audioUids.getOrNull(i))) }
             val video = result.info.video?.let { it.copy(bitrateKbps = kbps(result.videoUid)) }
-            result.info.copy(video = video, audio = audio, sizeBytes = basic.sizeBytes, probedWith = VERSION)
+            result.info.copy(video = video, audio = audio, sizeBytes = basic.sizeBytes, probedWith = VERSION, tracksInOrder = true)
         }.getOrElse { e ->
             // Reads records read failures; what remains is an unreachable NAS or unparsable bytes.
             if (ScanErrors.isUnreachable(e)) throw e

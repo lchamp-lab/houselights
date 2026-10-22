@@ -6,6 +6,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Job
 import app.houselights.core.Secrets
+import app.houselights.core.SubtitleChoice
+import app.houselights.core.TrackChoice
 import app.houselights.testing.testSecrets
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -280,6 +282,14 @@ class MigrationTest {
         val films = checkNotNull(db.dao().source(1))
         assertEquals("Films" to 1000L, films.name to films.lastScanAt)
         assertNull(films.refreshIn)
+    }
+
+    @Test
+    fun version16KeepsEachTitlesChoiceOfTracks() = runTest {
+        val db = migrated(from = 15) { filmsFolder() }
+        assertNull(db.trackChoices().choice("local:1"))
+        db.trackChoices().save(TrackChoiceEntity("local:1", "ko", SubtitleChoice.Off.stored, at = 5))
+        assertEquals(TrackChoice("ko", SubtitleChoice.Off), db.trackChoices().choice("local:1")?.choice())
     }
 
     /** What [version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas] finds once migrated. */

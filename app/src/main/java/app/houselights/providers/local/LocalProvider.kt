@@ -317,6 +317,9 @@ class LocalProvider(
             resumeKey = if (part == null) entity.id.toString() else LocalId.ofPart(entity.id, part),
             // A disc image, or the stream a scan chose for a Blu-ray or DVD title (see ScanTitles).
             disc = container == DISC_IMAGE || FilenameParser.discOf(file) != null,
+            // What the scan read is the first file's.
+            media = MediaProbe.decode(entity.mediaInfo).takeIf { (part ?: 1) == 1 },
+            titleKey = tracksKey(entity),
         )
     }
 
@@ -364,6 +367,9 @@ class LocalProvider(
 
         private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
+
+        /** Where a title's choice of tracks is kept ([PlaybackPlan.Launch.titleKey]): its show, else its film's first copy. */
+        private fun tracksKey(row: ItemEntity) = "local:${row.seriesId ?: row.versionOf ?: row.id}"
 
         /**
          * Per saga ([LibraryDao.startedSagas]), the first unwatched film after the last watched one, dated by the

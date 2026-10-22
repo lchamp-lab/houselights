@@ -1,0 +1,42 @@
+package app.houselights.player
+
+import android.util.Log
+import app.houselights.core.PlaybackPlan
+import app.houselights.core.TrackChoice
+import app.houselights.core.TrackPlan
+import app.houselights.core.TrackPreferences
+import app.houselights.core.suspendRunCatching
+import java.util.Locale
+
+/**
+ * The tracks to ask of the player for a title: Settings', or the title's own choice, which [load] and [save] keep
+ * under its key ([PlaybackPlan.Launch.titleKey]).
+ */
+class TrackChooser(
+    private val preferences: () -> TrackPreferences,
+    /** The app's language, with the device's region: a dub of that region comes first. */
+    private val locale: () -> Locale,
+    private val load: suspend (String) -> TrackChoice?,
+    private val save: suspend (String, TrackChoice) -> Unit,
+) {
+    /** The tracks to ask for [launch]; null when the player chooses them all, or when the file's order is unknown. */
+    suspend fun plan(launch: PlaybackPlan.Launch): TrackPlan? {
+        val media = launch.media?.takeIf { it.tracksInOrder } ?: return null
+        val key = launch.titleKey
+        // A choice that cannot be read leaves Settings to decide, never the film unplayed.
+        val choice = key?.let { k ->
+            suspendRunCatching { load(k) }.onFailure { Log.w(TAG, "Could not read the tracks chosen", it) }.getOrNull()
+        }
+        val locale = locale()
+        val language = TrackPlan.known(locale.language) ?: FALLBACK_LANGUAGE
+        return TrackPlan(media, preferences(), choice, language, locale.country.ifEmpty { null }, key).takeUnless { it.pick.isEmpty }
+    }
+
+    /** Keeps [changed] as the title's choice, besides what it had chosen of the other kind. */
+    suspend fun remember(key: String, changed: TrackChoice) = save(key, (load(key) ?: TrackChoice()).with(changed))
+
+    private companion object {
+        const val TAG = "Tracks"
+        const val FALLBACK_LANGUAGE = "en"
+    }
+}
