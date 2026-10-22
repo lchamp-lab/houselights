@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Deferred
 import android.util.Log
+import app.houselights.core.AudioTrack
 import app.houselights.core.Credits
 import app.houselights.core.Saga
 import app.houselights.core.TrackChoice
@@ -71,6 +72,9 @@ data class DetailState(
     /** The tracks of what Lire plays ([tracksTarget]), and what Settings and the title's choice ask of the player. */
     val tracks: TrackPlan? = null,
 ) {
+    /** The audio track Lire asks of the player for the title shown; null when the player chooses it. */
+    val playedAudio: AudioTrack? get() = tracks?.takeIf { item?.isPlayable == true }?.let { p -> p.audio?.let(p.audioTracks::getOrNull) }
+
     /** [tracks] when there is a choice to make: two audio tracks, or subtitles. */
     val tracksToChoose: TrackPlan? get() = tracks?.takeIf { it.audioTracks.size > 1 || it.subtitleTracks.isNotEmpty() }
 

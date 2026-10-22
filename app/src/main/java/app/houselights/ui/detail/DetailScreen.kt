@@ -50,6 +50,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ArtworkKind
+import app.houselights.core.AudioTrack
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
@@ -249,6 +250,7 @@ internal fun DetailPage(
                     ) {
                         Hero(
                             item = item,
+                            plays = state.playedAudio,
                             nextUp = state.nextUp,
                             capabilities = state.capabilities,
                             problem = problem,
@@ -486,6 +488,7 @@ private data class DetailActions(
 @Composable
 private fun Hero(
     item: MediaItem,
+    plays: AudioTrack?,
     nextUp: MediaItem?,
     capabilities: ProviderCapabilities?,
     problem: UiError?,
@@ -517,7 +520,7 @@ private fun Hero(
             // Picture, then sound, as on the back of a case.
             if (item.badges.isNotEmpty() || item.media?.video != null || item.media?.audio?.isNotEmpty() == true) {
                 Spacer(Modifier.height(HlSpace.s))
-                FormatLines(item)
+                FormatLines(item, plays = plays)
             }
             // The tagline introduces the overview, quieter than the title above it.
             item.tagline?.let {

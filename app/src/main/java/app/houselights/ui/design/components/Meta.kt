@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.AudioTrack
 import app.houselights.core.FormatFamily
 import app.houselights.core.FormatMark
 import app.houselights.core.Formats
@@ -51,6 +52,7 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.util.formatDuration
+import app.houselights.ui.util.languageName
 import java.text.NumberFormat
 import java.util.Locale
 import app.houselights.ui.util.NBSP
@@ -141,12 +143,14 @@ private val FormatMark.style: TextStyle
 /**
  * A title's formats ([Formats]), picture then sound, from the file's media info, else the stored badges. On its
  * page, set as on a case's back ([plate]): a plate of two lines, "Image" and "Son", the words in `jaquette`.
- * In a row ([VersionsSheet]), unframed words, in [ink] when the row has focus.
+ * In a row ([VersionsSheet]), unframed words, in [ink] when the row has focus. The sound is the audio Lire asks of
+ * the player ([plays]), its language after it, else the file's best track.
  */
 @Composable
-fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = null, plate: Boolean = true) {
+fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = null, plate: Boolean = true, plays: AudioTrack? = null) {
     val video = item.media?.video
-    val best = Formats.bestTrack(item.media?.audio.orEmpty())
+    val best = plays ?: Formats.bestTrack(item.media?.audio.orEmpty())
+    val language = plays?.let { languageName(it.language) }
     val marks = remember(item.badges) { Formats.fromBadges(item.badges) }
     val frames = video?.frameRate?.let { frameRateLabel(it) }
     val picture = remember(video, frames) {
@@ -154,8 +158,8 @@ fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = nu
             ?: marks.filter { it.family == FormatFamily.PICTURE }
     }
     val rate = best?.bitrateKbps?.let { audioBitrateLabel(it) }
-    val sound = remember(best, rate) {
-        best?.let { marks(FormatFamily.SOUND, listOf(Formats.soundName(it)), listOfNotNull(it.layout, rate)) }
+    val sound = remember(best, rate, language) {
+        best?.let { marks(FormatFamily.SOUND, listOf(Formats.soundName(it)), listOfNotNull(it.layout, rate, language)) }
             ?: marks.filter { it.family == FormatFamily.SOUND }
     }
     if (picture.isEmpty() && sound.isEmpty()) return
