@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Releases
+    url: https://github.com/lchamp-lab/houselights/releases/latest
+    about: The latest release, its checksum and its notes; check you run it before reporting.
