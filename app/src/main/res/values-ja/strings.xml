@@ -535,7 +535,6 @@
     <string name="job_cinematography">撮影</string>
     <string name="job_editing">編集</string>
     <string name="synopsis">あらすじ</string>
-    <string name="tech_credits">スタッフ</string>
     <string name="error_person_gone_title">作品が残っていません</string>
     <string name="error_person_gone">この人物の作品はもうライブラリにありません。</string>
     <string name="row_films_of">監督作品</string>

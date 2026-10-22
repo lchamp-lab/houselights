@@ -122,8 +122,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import app.houselights.ui.util.jobName
 import app.houselights.ui.design.components.HeadOverview
 import app.houselights.ui.design.components.SynopsisSheet
-import app.houselights.ui.design.components.Craft
-import app.houselights.ui.design.components.CRAFT_NAMES
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.MutableState
 import app.houselights.core.SagaPart
@@ -196,8 +194,6 @@ internal fun DetailPage(
     val focusedEpisode = remember { mutableStateOf<MediaItem?>(null) }
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
-    val crafts = endCrafts(item, state.credits).map { (job, names) -> Craft(jobName(job), names) }
-    val tech = techTile(file = media != null, credits = crafts.isNotEmpty())
     var showVersions by remember { mutableStateOf(false) }
     var showSynopsis by remember { mutableStateOf(false) }
     var showNfo by remember { mutableStateOf(false) }
@@ -210,8 +206,7 @@ internal fun DetailPage(
         onOpenSeries = { item.seriesId?.let(onOpenItem) },
         onOpenNfo = { showNfo = true },
         // Null hides the button: nothing for the technical sheet, or a single copy.
-        onShowTech = { showTech = true }.takeIf { tech != null },
-        techAt = tech ?: TechTile.InPlace,
+        onShowTech = { showTech = true }.takeIf { media != null },
         onShowVersions = { showVersions = true }.takeIf { state.versions.size > 1 },
         onShowSynopsis = { showSynopsis = true },
         copy = state.playedCopy,
@@ -264,7 +259,7 @@ internal fun DetailPage(
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
             } }
         // Over the page, in its light.
-        if (showTech && tech != null) TechSpecs(item, onDismiss = { showTech = false }, crafts = crafts)
+        if (showTech && media != null) TechSpecs(item, onDismiss = { showTech = false })
         if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
@@ -446,8 +441,6 @@ private data class DetailActions(
     val onOpenSeries: () -> Unit,
     val onOpenNfo: () -> Unit,
     val onShowTech: (() -> Unit)?,
-    /** Where the technical sheet's tile stands ([techTile]). */
-    val techAt: TechTile = TechTile.InPlace,
     val onShowVersions: (() -> Unit)?,
     val onShowSynopsis: () -> Unit,
     /** The copy Lire plays and its index (to name it); null for one copy. */
@@ -545,7 +538,15 @@ private fun Actions(
             HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
         if (capabilities?.markPlayed == true) WatchedTile(item, actions, Modifier.focusKey(WATCHED, memory))
-        TechButton(actions, memory, TechTile.InPlace)
+        // A button bears the name of what it opens.
+        if (actions.onShowTech != null) {
+            HlIconButton(
+                HlIcons.Info,
+                stringResource(R.string.tech_details),
+                onClick = actions.onShowTech,
+                modifier = Modifier.focusKey(TECH, memory),
+            )
+        }
         if (item.hasNfo) {
             HlIconButton(
                 HlIcons.Document,
@@ -566,7 +567,6 @@ private fun Actions(
         if (actions.onEdit != null) {
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
-        TechButton(actions, memory, TechTile.Last)
         ActionFailure(problem, actionError)
     } }
 }
@@ -597,26 +597,6 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
         hint = hint.takeIf { season != null },
     )
 }
-
-/** The technical sheet's tile, when it stands [at] this place; it bears the name of what it opens. */
-@Composable
-private fun TechButton(actions: DetailActions, memory: FocusMemory, at: TechTile) {
-    val open = actions.onShowTech?.takeIf { actions.techAt == at } ?: return
-    HlIconButton(HlIcons.Info, stringResource(R.string.tech_details), onClick = open, modifier = Modifier.focusKey(TECH, memory))
-}
-
-/**
- * Where the technical sheet's tile goes: in its place for a [file]'s facts, known as the page shows; last for
- * [credits] alone, which come after the page, so no tile moves under focus. Null without either.
- */
-internal fun techTile(file: Boolean, credits: Boolean): TechTile? = when {
-    file -> TechTile.InPlace
-    credits -> TechTile.Last
-    else -> null
-}
-
-/** Where the technical sheet's tile stands among the actions. */
-internal enum class TechTile { InPlace, Last }
 
 /** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
 @Composable
@@ -863,19 +843,6 @@ internal fun peopleOf(item: MediaItem, credits: Credits?, directing: String, cre
     val direction = credits.crew[if (show) Job.CREATOR else Job.DIRECTOR].orEmpty().map { it.copy(role = role) }
     return (direction + credits.cast).ifEmpty { item.cast }
 }
-
-/** The crafts the head omits, for the technical sheet, up to [CRAFT_NAMES] names each; a show's only music (it varies by episode). */
-internal fun endCrafts(item: MediaItem, credits: Credits?): List<Pair<Job, List<String>>> {
-    val crew = credits?.crew ?: return emptyList()
-    val jobs = if (item.kind == MediaKind.SERIES) SHOW_CRAFTS else FILM_CRAFTS
-    return jobs.mapNotNull { job ->
-        crew[job].orEmpty().map { it.name }.distinct().take(CRAFT_NAMES).takeIf { it.isNotEmpty() }?.let { job to it }
-    }
-}
-
-private val FILM_CRAFTS = listOf(Job.WRITER, Job.COMPOSER, Job.CINEMATOGRAPHY, Job.EDITING)
-private val SHOW_CRAFTS = listOf(Job.COMPOSER)
-
 
 /** Placeholders while a season loads: as many episodes as the screen shows whole. */
 private const val EPISODE_SKELETONS = 3

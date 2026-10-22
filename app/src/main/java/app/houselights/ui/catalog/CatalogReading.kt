@@ -44,7 +44,6 @@ import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.design.components.WithItsPicture
-import app.houselights.ui.design.components.Craft
 import app.houselights.ui.design.components.HeadOverview
 import app.houselights.ui.design.components.SynopsisSheet
 import app.houselights.ui.design.components.FilmsOfHeading
@@ -339,29 +338,21 @@ private fun ReadingTechSheetSection() {
     // Opened as a detail page opens it: the same panel, its first row focused.
     Group("Technical sheet") {
         var open by remember { mutableStateOf<MediaItem?>(null) }
-        var crafts by remember { mutableStateOf(emptyList<Craft>()) }
-        fun show(item: MediaItem, credits: List<Craft> = emptyList()) {
-            open = item
-            crafts = credits
-        }
         ReadingRow {
-            Specimen("DV 8.1 and HDR10+, two French dubs, a note, its credits", gap = HlSpace.xxs) {
-                HlButton("Dolby", { show(READING_TECH_DOLBY, READING_CRAFTS) })
-            }
-            Specimen("a show: its music alone, no file", gap = HlSpace.xxs) {
-                HlButton("Credits only", { show(READING_SERIES_ON, listOf(Craft("Musique", listOf("Daniel Pemberton")))) })
+            Specimen("DV 8.1 and HDR10+, two French dubs, a note", gap = HlSpace.xxs) {
+                HlButton("Dolby", { open = READING_TECH_DOLBY })
             }
             Specimen("longer than the screen: its rows scroll", gap = HlSpace.xxs) {
-                HlButton("3 audio, 14 subtitles", { show(READING_TECH_FULL) })
+                HlButton("3 audio, 14 subtitles", { open = READING_TECH_FULL })
             }
         }
         Spacer(Modifier.height(HlSpace.l))
         ReadingRow {
-            Specimen("a lean file", gap = HlSpace.xxs) { HlButton("1 audio, no subtitles", { show(READING_TECH_LEAN) }) }
-            Specimen("nothing named, as a server gives it", gap = HlSpace.xxs) { HlButton("Sparse", { show(READING_TECH_SPARSE) }) }
-            Specimen("the longest words, side by side", gap = HlSpace.xxs) { HlButton("Stress", { show(READING_TECH_STRESS) }) }
+            Specimen("a lean file", gap = HlSpace.xxs) { HlButton("1 audio, no subtitles", { open = READING_TECH_LEAN }) }
+            Specimen("nothing named, as a server gives it", gap = HlSpace.xxs) { HlButton("Sparse", { open = READING_TECH_SPARSE }) }
+            Specimen("the longest words, side by side", gap = HlSpace.xxs) { HlButton("Stress", { open = READING_TECH_STRESS }) }
         }
-        open?.let { TechSpecs(it, onDismiss = { open = null }, crafts = crafts) }
+        open?.let { TechSpecs(it, onDismiss = { open = null }) }
     }
 }
 
@@ -571,14 +562,6 @@ private val READING_TECH_FULL = sample("Le Samouraï", 1967).copy(
             SubtitleTrack(format = Codecs.VOBSUB),
         ),
     ),
-)
-
-/** A film's crafts, three names at most each: the fourth name is never shown. */
-private val READING_CRAFTS = listOf(
-    Craft("Scénario", listOf("Will Tracy")),
-    Craft("Musique", listOf("Jerskin Fendrix")),
-    Craft("Image", listOf("Robbie Ryan", "Louis Berger", "Jean-Paul Alphen", "Albert Viguier")),
-    Craft("Montage", listOf("Yorgos Mavropsaridis")),
 )
 
 /** The panel as designed: every picture row, the default dub first, a region where two dubs share a language. */

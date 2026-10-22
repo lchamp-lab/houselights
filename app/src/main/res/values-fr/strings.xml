@@ -570,7 +570,6 @@
     <string name="job_cinematography">Image</string>
     <string name="job_editing">Montage</string>
     <string name="synopsis">Synopsis</string>
-    <string name="tech_credits">Générique</string>
     <string name="error_person_gone_title">Plus aucun titre</string>
     <string name="error_person_gone">Aucun titre de cette personne n’est plus dans la bibliothèque.</string>
     <string name="row_films_of">les films de</string>

@@ -538,7 +538,6 @@
     <string name="job_cinematography">摄影</string>
     <string name="job_editing">剪辑</string>
     <string name="synopsis">简介</string>
-    <string name="tech_credits">制作团队</string>
     <string name="error_person_gone_title">已无作品</string>
     <string name="error_person_gone">媒体库中已没有此人的任何作品。</string>
     <string name="row_films_of">导演作品</string>

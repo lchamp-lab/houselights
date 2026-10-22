@@ -570,7 +570,6 @@
     <string name="job_cinematography">Cinematography</string>
     <string name="job_editing">Editing</string>
     <string name="synopsis">Synopsis</string>
-    <string name="tech_credits">Crew</string>
     <string name="error_person_gone_title">No titles left</string>
     <string name="error_person_gone">None of this person’s titles is in the library any more.</string>
     <string name="row_films_of">films by</string>
