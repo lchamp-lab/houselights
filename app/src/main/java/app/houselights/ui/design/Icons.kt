@@ -81,6 +81,9 @@ object HlIcons {
         "M13 11h4",
     )
 
+    /** Sound, a title's audio formats: a waveform's bars (`audio-lines`). */
+    val Sound = icon("Sound", "M2 10v3", "M6 6v11", "M10 3v18", "M14 8v7", "M18 5v13", "M22 10v3")
+
     /** Sorting: lines of decreasing length, and the way they go (`arrow-down-wide-narrow`). */
     val Sort = icon("Sort", "m3 16 4 4 4-4", "M7 20V4", "M11 4h10", "M11 8h7", "M11 12h4")
 
