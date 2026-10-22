@@ -299,12 +299,14 @@ internal object HlMenuDefaults {
 /**
  * The technical sheet's columns: a track's format before its language, the column as wide as the block's widest
  * format and [HlSpace.m] between [formatColumn] and [formatColumnWide] ("Dolby Digital Plus" whole, a longer one on
- * two lines), a craft before its names.
+ * two lines), a craft before its names, its column the block's widest craft between [craftColumn] and
+ * [craftColumnWide] ("Cinematography" whole).
  */
 internal object TechSpecsDefaults {
     val formatColumn = 188.dp
     val formatColumnWide = 280.dp
     val craftColumn = 112.dp
+    val craftColumnWide = 168.dp
 }
 
 /**

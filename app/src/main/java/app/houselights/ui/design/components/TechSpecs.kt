@@ -31,6 +31,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -257,20 +258,25 @@ private fun TracksBlock(section: TechSection, modifier: Modifier) {
     }
 }
 
-/**
- * The formats' column: the widest of [formats] on one line in `spec` and [HlSpace.m] before the language, held
- * between the column's least and most.
- */
+/** The formats' column: the widest format on one line in `spec`, between the column's least and most. */
 @Composable
-private fun formatColumn(formats: List<String>): Dp {
+private fun formatColumn(formats: List<String>): Dp =
+    widestColumn(formats, Hl.type.spec, TechSpecsDefaults.formatColumn, TechSpecsDefaults.formatColumnWide)
+
+/** The crafts' column: the widest craft on one line in `meta`, between the column's least and most. */
+@Composable
+private fun craftColumn(crafts: List<String>): Dp =
+    widestColumn(crafts, Hl.type.meta, TechSpecsDefaults.craftColumn, TechSpecsDefaults.craftColumnWide)
+
+/** A column as wide as the widest of [words] on one line in [style] and [HlSpace.m] after it, held between [least] and [most]. */
+@Composable
+private fun widestColumn(words: List<String>, style: TextStyle, least: Dp, most: Dp): Dp {
     val measurer = rememberTextMeasurer()
-    val spec = Hl.type.spec
     val density = LocalDensity.current
-    return remember(formats, spec, density) {
+    return remember(words, style, density) {
         with(density) {
-            formats.maxOfOrNull { measurer.measure(it, spec, softWrap = false, maxLines = 1).size.width.toDp() + HlSpace.m }
-                ?.coerceIn(TechSpecsDefaults.formatColumn, TechSpecsDefaults.formatColumnWide)
-                ?: TechSpecsDefaults.formatColumn
+            words.maxOfOrNull { measurer.measure(it, style, softWrap = false, maxLines = 1).size.width.toDp() + HlSpace.m }
+                ?.coerceIn(least, most) ?: least
         }
     }
 }
@@ -283,6 +289,7 @@ private fun CreditsBlock(crafts: List<Craft>, modifier: Modifier) {
     val name = stringResource(R.string.tech_credits)
     val locale = Locale.getDefault()
     val readAs = (listOf(name) + crafts.map { (listOf(it.job) + it.names.take(CRAFT_NAMES)).joinToString(", ") }).joinToString(", ")
+    val column = craftColumn(crafts.map { it.job })
     ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
         BlockName(name)
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
@@ -294,7 +301,7 @@ private fun CreditsBlock(crafts: List<Craft>, modifier: Modifier) {
                         color = c.contentSecondary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(TechSpecsDefaults.craftColumn).alignByBaseline(),
+                        modifier = Modifier.width(column).alignByBaseline(),
                     )
                     FlowRow(Modifier.weight(1f).alignByBaseline(), horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         craft.names.take(CRAFT_NAMES).forEach {
