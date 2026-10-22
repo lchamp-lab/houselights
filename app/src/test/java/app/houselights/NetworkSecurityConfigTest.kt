@@ -1,13 +1,15 @@
 package app.houselights
 
+import app.houselights.providers.trakt.TraktClient
 import app.houselights.testing.children
 import app.houselights.testing.xmlRoot
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.w3c.dom.Element
 import java.io.File
 
-/** The network security config per host, as Android resolves it: user CAs for home servers, not for TMDB. */
+/** The network security config per host, as Android resolves it: user CAs for home servers, not for TMDB or Trakt. */
 class NetworkSecurityConfigTest {
     private val file = File("src/main/res/xml/network_security_config.xml")
 
@@ -17,6 +19,14 @@ class NetworkSecurityConfigTest {
     @Test
     fun tmdbTrustsTheSystemOnly() {
         listOf("api.themoviedb.org", "image.tmdb.org", "themoviedb.org", "www.themoviedb.org").forEach { host ->
+            assertEquals(host, Policy(cleartext = false, anchors = setOf("system")), policy(host))
+        }
+    }
+
+    @Test
+    fun traktTrustsTheSystemOnly() {
+        val called = listOf(TraktClient.API_URL, TraktClient.AUTH_URL).map { it.toHttpUrl().host }
+        (called + "trakt.tv").forEach { host ->
             assertEquals(host, Policy(cleartext = false, anchors = setOf("system")), policy(host))
         }
     }

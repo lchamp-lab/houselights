@@ -85,14 +85,14 @@ private fun PathMappings() {
 
 /**
  * A mapping's two paths, the server's then the network's, with what they do to a file the server names; Back
- * saves them once both are filled in. An existing one can be removed.
+ * saves them once both are filled in. An existing one can be removed. Its password is never shown ([shownTo]).
  */
 @Composable
 private fun MappingSheet(index: Int?, onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val was = index?.let { vm.mappings.getOrNull(it) }
     var from by remember { mutableStateOf(was?.from.orEmpty()) }
-    var to by remember { mutableStateOf(was?.to.orEmpty()) }
+    var to by remember { mutableStateOf(shownTo(was)) }
     var samplePath by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { samplePath = vm.samplePath() }
     val first = remember { FocusRequester() }
@@ -100,7 +100,7 @@ private fun MappingSheet(index: Int?, onDismiss: () -> Unit) {
     HlSideSheet(
         stringResource(if (index == null) R.string.add_mapping else R.string.edit_mapping),
         onDismiss = {
-            if (!removed) vm.putMapping(index, PathMapping(from.trim(), to.trim()))
+            if (!removed) vm.putMapping(index, editedMapping(was, from, to))
             onDismiss()
         },
         description = stringResource(R.string.path_mapping_help),
@@ -141,6 +141,13 @@ private fun MappingSheet(index: Int?, onDismiss: () -> Unit) {
         }
     }
 }
+
+/** [was]'s network path as its sheet shows it: masked like the list's line, no password on the TV. */
+internal fun shownTo(was: PathMapping?): String = was?.to?.let(Redact::uri).orEmpty()
+
+/** The mapping the sheet saves from [from] and [to]: the mask left in [to] keeps [was]'s user and password. */
+internal fun editedMapping(was: PathMapping?, from: String, to: String) =
+    PathMapping(from.trim(), Redact.unmask(to.trim(), was?.to.orEmpty()))
 
 /** [MappingSheet]'s line for a mapping not yet added. */
 private const val NEW = -1

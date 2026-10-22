@@ -329,7 +329,8 @@ internal const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
 
 /**
  * Image client sharing [api]'s pool with its own queue: OkHttp runs five requests per host, and Jellyfin serves
- * images and API from one host, so posters would otherwise delay a title's details or playback.
+ * images and API from one host, so posters would otherwise delay a title's details or playback. A redirect never
+ * changes scheme: an NFO's HTTPS picture cannot send the player to an address in plain HTTP.
  */
 internal fun imageHttpClient(api: OkHttpClient): OkHttpClient =
-    api.newBuilder().dispatcher(Dispatcher(api.dispatcher.executorService)).build()
+    api.newBuilder().dispatcher(Dispatcher(api.dispatcher.executorService)).followSslRedirects(false).build()

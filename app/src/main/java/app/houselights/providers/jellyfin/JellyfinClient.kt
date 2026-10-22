@@ -7,6 +7,8 @@ import app.houselights.core.SourceConfig
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -23,7 +25,10 @@ import javax.net.ssl.SSLPeerUnverifiedException
 /** The input is not a valid server address ([input] is empty if nothing was typed); no request was made. */
 class InvalidServerAddress(val input: String) : IllegalArgumentException("Not a server address: \"$input\"")
 
-/** No candidate answered as Jellyfin; [url] has the most informative failure (bad certificate over timeout). */
+/**
+ * No candidate answered as Jellyfin, or one's certificate was refused, which ends the search; [url] has the most
+ * informative failure (bad certificate over timeout).
+ */
 class ReachFailure(val url: String, override val cause: Exception) : IOException("$url: ${cause.message}", cause)
 
 /** A server answered at [url] but is unsupported: Jellyfin older than 10.9, or another product. */
@@ -43,6 +48,8 @@ class JellyfinClient(
 ) {
     val baseUrl: String = normalizeUrl(serverUrl)
 
+    private val server = "$baseUrl/".toHttpUrl()
+
     private val http: OkHttpClient = base.newBuilder()
         .connectTimeout(connectTimeoutMs, TimeUnit.MILLISECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -60,6 +67,13 @@ class JellyfinClient(
                     .header("X-Emby-Authorization", auth)
                     .build()
             )
+        }
+        // Every request sent, redirects included: the token, a password or the device's name go to the server only.
+        // OkHttp would carry X-Emby-Authorization and a 307's body to another host.
+        .addNetworkInterceptor { chain ->
+            val url = chain.request().url
+            if (!staysOn(server, url)) throw IOException("Redirected away from the server, to ${url.redact()}")
+            chain.proceed(chain.request())
         }
         .build()
 
@@ -138,16 +152,20 @@ class JellyfinClient(
 
         /**
          * The first supported server among [candidateUrls], with its public info. Throws [InvalidServerAddress],
-         * [UnsupportedServer], or [ReachFailure] when none answers.
+         * [UnsupportedServer], or [ReachFailure] when none answers or a certificate is refused: plain HTTP after it
+         * would carry the password in the clear, so only typing http:// chooses it.
          */
         suspend fun reach(input: String, deviceId: String, http: OkHttpClient = Http.client): Pair<String, PublicSystemInfo> {
             val candidates = checkedCandidates(input)
             val failures = mutableListOf<Pair<String, Exception>>()
             for ((i, url) in candidates.withIndex()) {
                 val connect = if (i < candidates.lastIndex) PROBE_CONNECT_MS else CONNECT_MS
-                val info = publicInfo(url, deviceId, http, connect).onFailure { failures += url to it as Exception }.getOrNull() ?: continue
-                if (!isSupported(info)) throw UnsupportedServer(url, info.productName, info.version)
-                return url to info
+                val info = publicInfo(url, deviceId, http, connect).onFailure { failures += url to it as Exception }.getOrNull()
+                if (info != null) {
+                    if (!isSupported(info)) throw UnsupportedServer(url, info.productName, info.version)
+                    return url to info
+                }
+                if (failures.last().second.isCertificateFailure()) break
             }
             // On a tie, report the last address tried: the plain HTTP one, closest to the input.
             val (url, cause) = failures.asReversed().maxBy { (_, e) -> e.meaning() }
@@ -192,6 +210,9 @@ class JellyfinClient(
         }
 
         fun isEncrypted(url: String): Boolean = url.startsWith("https://")
+
+        /** True when [url] is on [server]: its host, and over HTTPS when the server is reached so. */
+        internal fun staysOn(server: HttpUrl, url: HttpUrl): Boolean = url.host == server.host && (url.isHttps || !server.isHttps)
 
         /** Revokes the token on the server, giving up after a short timeout if it is unreachable. */
         suspend fun signOut(config: SourceConfig.Jellyfin, deviceId: String) {

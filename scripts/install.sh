@@ -24,10 +24,11 @@ No keystore.properties: a release is signed with your own key, chosen once, befo
 installation on the player. Android only updates an app signed with the same key: changing keys
 later means uninstalling, which loses the library and watch history kept on the player.
 
-  keytool -genkeypair -keystore ~/houselights-release.jks -alias houselights \
-      -keyalg RSA -keysize 4096 -validity 10000
+  mkdir -p ~/.config/houselights && chmod 700 ~/.config/houselights
+  keytool -genkeypair -keystore ~/.config/houselights/houselights-release.jks -storetype PKCS12 \
+      -alias houselights -keyalg RSA -keysize 4096 -validity 36500 -dname "CN=Houselights, O=Houselights"
 
-Then write keystore.properties as README.md shows (Signing), and keep a copy of both files.
+Then write keystore.properties as CONTRIBUTING.md shows (Signing), and keep a copy of both files.
 Meanwhile, `scripts/install.sh bench` installs an optimised build beside the release.
 MSG
     exit 1

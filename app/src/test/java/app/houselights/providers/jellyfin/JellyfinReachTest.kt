@@ -55,6 +55,16 @@ class JellyfinReachTest {
         assertEquals(LoginError.Certificate("https://nas:8920"), signIn("nas", server))
     }
 
+    /** A self-signed certificate on 8920 and HTTP on 8096: the password never goes to the plain address unasked. */
+    @Test
+    fun aRefusedCertificateStopsBeforeThePlainAddress() = runTest {
+        val server = FakeServer { request ->
+            if (request.url.isHttps) throw certificateRefused() else Answer(200, info("10.10.3"))
+        }
+        assertEquals(LoginError.Certificate("https://nas:8920"), signIn("nas", server))
+        assertTrue(server.requests.all { it.url.isHttps })
+    }
+
     @Test
     fun withNothingAnsweringThePlainAddressIsNamed() = runTest {
         val server = FakeServer { throw ConnectException("Connection refused") }

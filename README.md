@@ -102,13 +102,19 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
 
 - **Prefer NFS**, which needs no credentials. With SMB, the Zidoo player receives the credentials in the file
   URI and Android logs started intents (readable over adb): use a **dedicated read-only NAS account**.
-  Credentials are only passed to the Zidoo player installed with the system.
+  Credentials only go to the Zidoo's player: a system app or one signed like the firmware's apps; failing
+  those, the app under a Zidoo name that first received them, remembered by its certificate. Any other app,
+  or that one signed by someone else, receives none.
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
   held in the Android Keystore. Android backup is disabled. Disconnecting Trakt revokes the app's token there.
-- Jellyfin is reached over HTTPS when the server offers it; the settings show when a connection is not
-  encrypted. Signing out revokes the app's token on the server. A stream played without path mappings
+- Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in
+  rather than fall back to plain HTTP, which only typing `http://` chooses; the settings show when a connection
+  is not encrypted. Requests carrying the token or the password follow no redirect to another host, or from
+  HTTPS to HTTP. Signing out revokes the app's token on the server. A stream played without path mappings
   carries the token in its URL and is only handed to another app through Android's app chooser.
-- TMDB and artwork named by NFO files are fetched over HTTPS only. Plain HTTP is allowed for local servers.
+- TMDB and Trakt are reached over HTTPS only, trusting the system's certificate authorities alone. Artwork
+  named by NFO files is fetched over HTTPS only, redirects included. Other servers may use plain HTTP: home
+  servers are reached by their address, which no rule can name.
 - `nfs-client` depends on Netty 3.10 (end of life). Its known vulnerabilities affect HTTP and compression
   codecs that NFS does not use; it will be replaced when a maintained NFS client is available.
 

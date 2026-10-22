@@ -38,6 +38,6 @@ done
 
 cd "$ROOT"
 # Without keystore.properties the release is signed with this machine's debug key: it is checked
-# here, never installed (README, Signing).
+# here, never installed (CONTRIBUTING, Signing).
 exec ./gradlew ${options[@]+"${options[@]}"} -Phouselights.debugSignedRelease=true \
     testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest assembleRelease assembleDebug

@@ -8,6 +8,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,7 +16,7 @@ import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-/** Images and API calls to the same host have separate queues: neither waits behind the other. */
+/** Images and API calls to the same host have separate queues: neither waits behind the other; HTTPS stays HTTPS. */
 class ImageHttpClientTest {
     /** Holds the fake server's image requests until counted down; other requests answer at once. */
     private val pictures = CountDownLatch(1)
@@ -61,6 +62,14 @@ class ImageHttpClientTest {
         val images = imageHttpClient(api)
         assertSame(api.connectionPool, images.connectionPool)
         assertSame(api.dispatcher.executorService, images.dispatcher.executorService)
+    }
+
+    /** An NFO's HTTPS picture redirected to http://192.168.1.1/… would reach the router in plain HTTP. */
+    @Test
+    fun aRedirectNeverLeavesHttps() {
+        val images = imageHttpClient(OkHttpClient())
+        assertFalse(images.followSslRedirects)
+        assertTrue(images.followRedirects)
     }
 
     private companion object {
