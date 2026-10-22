@@ -1,0 +1,55 @@
+name: Bug
+description: Something does not work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report. The player, the source and the version decide most bugs, so please fill them in.
+  - type: input
+    id: version
+    attributes:
+      label: Houselights version
+      description: Settings > About, or the release you installed.
+      placeholder: 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: player
+    attributes:
+      label: Player
+      description: The model and its firmware or Android version.
+      placeholder: Zidoo Z1000 Pro, firmware 6.4.42 (Android 9)
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source
+      options:
+        - My files over NFS
+        - My files over SMB
+        - Jellyfin
+        - Not related to a source
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      description: Step by step, from the screen you started on.
+      placeholder: |
+        1. Open a show's page
+        2. Press OK on the watched mark of episode 3
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Anything else
+      description: A file name, an NFO, a photo of the screen, `adb logcat` lines if you have them. Remove passwords and tokens.

@@ -1,0 +1,25 @@
+name: Idea
+description: Something Houselights could do
+labels: [feature]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you would like
+      description: What you want to do from the sofa, and where in the app.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Why
+      description: What you do today instead, and how often it comes up.
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source it concerns
+      options:
+        - My files
+        - Jellyfin
+        - Both
+        - Not related to a source
