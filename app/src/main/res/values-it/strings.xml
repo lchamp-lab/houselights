@@ -265,7 +265,7 @@
 
     <!-- Settings -->
     <string name="settings_title">Impostazioni</string>
-    <string name="welcome_tagline">I Suoi film, sul grande schermo.</string>
+    <string name="welcome_tagline">I Suoi film e le Sue serie, sul grande schermo.</string>
     <string name="section_about">Informazioni</string>
     <string name="section_storage">Archiviazione</string>
     <string name="storage_artwork">Immagini locali</string>
@@ -577,7 +577,6 @@
     <string name="job_cinematography">Fotografia</string>
     <string name="job_editing">Montaggio</string>
     <string name="synopsis">Sinossi</string>
-    <string name="tech_credits">Troupe</string>
     <string name="error_person_gone_title">Nessun titolo rimasto</string>
     <string name="error_person_gone">Nessun titolo di questa persona è più nella libreria.</string>
     <string name="row_films_of">i film di</string>

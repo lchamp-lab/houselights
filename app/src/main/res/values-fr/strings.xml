@@ -259,7 +259,7 @@
     <string name="error_server_other">%1$s est un serveur %2$s : Houselights fonctionne avec Jellyfin 10.9 ou plus récent.</string>
 
     <string name="settings_title">Réglages</string>
-    <string name="welcome_tagline">Vos films, sur grand écran.</string>
+    <string name="welcome_tagline">Vos films et vos séries, sur grand écran.</string>
     <string name="section_about">À propos</string>
     <string name="section_storage">Stockage</string>
     <string name="storage_artwork">Images locales</string>
@@ -570,7 +570,6 @@
     <string name="job_cinematography">Image</string>
     <string name="job_editing">Montage</string>
     <string name="synopsis">Synopsis</string>
-    <string name="tech_credits">Générique</string>
     <string name="error_person_gone_title">Plus aucun titre</string>
     <string name="error_person_gone">Aucun titre de cette personne n’est plus dans la bibliothèque.</string>
     <string name="row_films_of">les films de</string>

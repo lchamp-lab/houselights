@@ -255,7 +255,7 @@
 
     <!-- Settings -->
     <string name="settings_title">설정</string>
-    <string name="welcome_tagline">내 영화를 큰 화면에서.</string>
+    <string name="welcome_tagline">내 영화와 시리즈를 큰 화면에서.</string>
     <string name="section_about">앱 정보</string>
     <string name="section_storage">저장 공간</string>
     <string name="storage_artwork">로컬 이미지</string>
@@ -535,7 +535,6 @@
     <string name="job_cinematography">촬영</string>
     <string name="job_editing">편집</string>
     <string name="synopsis">줄거리</string>
-    <string name="tech_credits">제작진</string>
     <string name="error_person_gone_title">남은 작품 없음</string>
     <string name="error_person_gone">이 인물의 작품이 더 이상 라이브러리에 없습니다.</string>
     <string name="row_films_of">감독 작품</string>

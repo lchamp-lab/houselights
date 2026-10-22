@@ -32,9 +32,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * The technical sheet, read block by block: the picture as marks, each measured under it; the crew after the
- * picture and the sound, three names a craft, none without a name; a block taller than the sheet read through
- * before focus leaves it.
+ * The technical sheet, read block by block: the picture as marks, each measured under it, then the sound, the
+ * subtitles and the file; a block taller than the sheet read through before focus leaves it.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -56,11 +55,6 @@ class TechSpecsTest {
         ),
     )
 
-    private val crafts = listOf(
-        Craft("Image", listOf("Boris Kaufman", "Louis Berger", "Jean-Paul Alphen", "Albert Viguier")),
-        Craft("Musique", emptyList()),
-    )
-
     /** The block read first as [name]. */
     private fun block(name: String) = SemanticsMatcher("the $name block") {
         it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()?.startsWith("$name, ") == true
@@ -72,16 +66,13 @@ class TechSpecsTest {
     private fun top(name: String) = compose.onNode(block(name)).getUnclippedBoundsInRoot().top
 
     @Test
-    fun theCreditsFollowThePictureAndTheSound() {
-        compose.setTvContent { TechSpecs(film, onDismiss = {}, crafts = crafts) }
+    fun theBlocksReadInOrder() {
+        compose.setTvContent { TechSpecs(film, onDismiss = {}) }
         // A mark reads as its format, then what measures it.
-        compose.onNode(block("Video")).assertExists()
         compose.onAllNodes(read("Video, Full HD, 1920 × 804, 2.39:1, SDR, HEVC, 10-bit"))
             .assertCountEquals(1)
-        compose.onAllNodes(read("Crew, Image, Boris Kaufman, Louis Berger, Jean-Paul Alphen"))
-            .assertCountEquals(1)
-        assertTrue("the crew after the sound", top("Audio") < top("Crew"))
-        assertTrue("subtitles after the crew", top("Crew") < top("Subtitles"))
+        val tops = listOf("Video", "Audio", "Subtitles", "File").map(::top)
+        assertEquals(tops.sorted(), tops)
     }
 
     @Test
@@ -90,13 +81,6 @@ class TechSpecsTest {
         compose.onAllNodes(SemanticsMatcher("MKV, 8.67 GB") { node ->
             node.config.getOrNull(SemanticsProperties.Text)?.any { it.text.startsWith("MKV, ") } == true
         }).assertCountEquals(1)
-    }
-
-    @Test
-    fun noCraftNamedNoCrew() {
-        compose.setTvContent { TechSpecs(film, onDismiss = {}, crafts = listOf(Craft("Musique", emptyList()))) }
-        compose.onAllNodes(block("Crew")).assertCountEquals(0)
-        compose.onNode(block("Video")).assertExists()
     }
 
     /** Formats as on a case's back, measures and what qualifies them alike, a video's bitrate as an audio track's. */
@@ -147,15 +131,6 @@ class TechSpecsTest {
         }
         assertTrue("several presses read it: $presses", presses > 1)
         compose.onNode(block("File")).assertIsFocused()
-    }
-
-    @Test
-    fun aTitleWithCreditsAndNoFileShowsItsCredits() {
-        val show = film.copy(kind = MediaKind.SERIES, media = null)
-        compose.setTvContent { TechSpecs(show, onDismiss = {}, crafts = listOf(Craft("Musique", listOf("Daniel Pemberton")))) }
-        compose.onAllNodes(read("Crew, Musique, Daniel Pemberton"))
-            .assertCountEquals(1)
-        compose.onAllNodes(block("Video")).assertCountEquals(0)
     }
 
     private companion object {

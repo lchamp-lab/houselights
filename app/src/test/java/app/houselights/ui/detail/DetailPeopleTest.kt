@@ -11,7 +11,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** A title's people: direction first in the cast row, the end-credit crafts, and who opens a page. */
+/** A title's people: direction first in the cast row, and who opens a page. */
 class DetailPeopleTest {
     private fun person(name: String, role: String? = null, titles: Int? = null, id: String? = "tmdb:$name") =
         Person(name, role, null, id = id, titleCount = titles)
@@ -54,33 +54,5 @@ class DetailPeopleTest {
         assertTrue(person("Denis Villeneuve", titles = 4).hasPage)
         assertFalse("one title leads nowhere", person("Benicio del Toro", titles = 1).hasPage)
         assertFalse("no id to open", person("Emily Blunt", titles = 3, id = null).hasPage)
-    }
-
-    @Test
-    fun theEndCreditsNameTheCraftsTheHeadDoesNotInTheirOrder() {
-        val crafts = endCrafts(film, credits)
-        assertEquals(listOf(Job.WRITER, Job.COMPOSER, Job.CINEMATOGRAPHY, Job.EDITING), crafts.map { it.first })
-    }
-
-    @Test
-    fun threeNamesACraftAtMost() {
-        val many = Credits(crew = mapOf(Job.WRITER to (1..5).map { person("Writer $it") }))
-        assertEquals(3, endCrafts(film, many).single().second.size)
-    }
-
-    @Test
-    fun aShowsEndCreditsAreItsMusic() {
-        val show = MediaItem("s1", MediaKind.SERIES, "Twin Peaks")
-        val crew = mapOf(
-            Job.CREATOR to listOf(person("David Lynch")),
-            Job.COMPOSER to listOf(person("Angelo Badalamenti")),
-            Job.WRITER to listOf(person("Mark Frost")),
-        )
-        assertEquals(listOf(Job.COMPOSER), endCrafts(show, Credits(crew = crew)).map { it.first })
-    }
-
-    @Test
-    fun withoutCreditsNoCrafts() {
-        assertEquals(emptyList<Pair<Job, List<String>>>(), endCrafts(film, null))
     }
 }

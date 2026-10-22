@@ -59,54 +59,33 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
-/** One craft of a title's credits: its [job] as credited ("Musique") and its [names] in billing order. */
-data class Craft(val job: String, val names: List<String>)
-
-/** At most this many names per craft, the first in billing order, as on a poster. */
-const val CRAFT_NAMES = 3
-
 /**
  * A title's technical sheet ([TechSheet]) in a side sheet, its file's container and size among its facts, read as
- * a case's back, block by block: picture, sound, then the [crafts] its head does not name, subtitles and file. A
- * block is a plate the remote rings ([ReadingPlate]), scrolled through before focus leaves it; OK does nothing.
+ * a case's back, block by block: picture, sound, subtitles and file. A block is a plate the remote rings
+ * ([ReadingPlate]), scrolled through before focus leaves it; OK does nothing.
  */
 @Composable
-fun TechSpecs(item: MediaItem, onDismiss: () -> Unit, crafts: List<Craft> = emptyList()) {
+fun TechSpecs(item: MediaItem, onDismiss: () -> Unit) {
     val media = item.media
     val sections = remember(media, item.fileName) { media?.let { TechSheet.of(it, item.fileName).sections }.orEmpty() }
-    val blocks = remember(sections, crafts) {
-        val credited = crafts.filter { it.names.isNotEmpty() }.takeIf { it.isNotEmpty() }?.let(Block::Credits)
-        // The credits follow the picture and the sound.
-        val (head, tail) = sections.partition { it.topic == TechTopic.PICTURE || it.topic == TechTopic.SOUND }
-        head.map(Block::Media) + listOfNotNull(credited) + tail.map(Block::Media)
-    }
     val first = remember { FocusRequester() }
     val scroll = rememberScrollState()
     HlSideSheet(
         stringResource(R.string.tech_details),
         onDismiss = onDismiss,
         facts = listOf(item.title, item.year?.toString(), media?.let { fileFact(it) }),
-        initialFocus = first.takeIf { blocks.isNotEmpty() },
+        initialFocus = first.takeIf { sections.isNotEmpty() },
         scroll = scroll,
     ) {
-        blocks.forEachIndexed { i, block ->
+        sections.forEachIndexed { i, section ->
             val modifier = Modifier.readThrough(scroll).then(if (i == 0) Modifier.focusRequester(first) else Modifier)
-            when (block) {
-                is Block.Media -> when (block.section.topic) {
-                    TechTopic.PICTURE -> PictureBlock(block.section, modifier)
-                    TechTopic.SOUND, TechTopic.SUBTITLES -> TracksBlock(block.section, modifier)
-                    TechTopic.FILE -> FileBlock(block.section, modifier)
-                }
-                is Block.Credits -> CreditsBlock(block.crafts, modifier)
+            when (section.topic) {
+                TechTopic.PICTURE -> PictureBlock(section, modifier)
+                TechTopic.SOUND, TechTopic.SUBTITLES -> TracksBlock(section, modifier)
+                TechTopic.FILE -> FileBlock(section, modifier)
             }
         }
     }
-}
-
-/** A block of the sheet: a section of the file's, or the credits. */
-private sealed interface Block {
-    data class Media(val section: TechSection) : Block
-    data class Credits(val crafts: List<Craft>) : Block
 }
 
 /** The file as a case's spine prints it: its container and its size ("MKV, 23,4 Go"). */
@@ -271,38 +250,6 @@ private fun formatColumn(formats: List<String>): Dp {
             formats.maxOfOrNull { measurer.measure(it, spec, softWrap = false, maxLines = 1).size.width.toDp() + HlSpace.m }
                 ?.coerceIn(TechSpecsDefaults.formatColumn, TechSpecsDefaults.formatColumnWide)
                 ?: TechSpecsDefaults.formatColumn
-        }
-    }
-}
-
-/** The crafts the head does not name, each beside its names in the billing block's capitals, [CRAFT_NAMES] at most. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CreditsBlock(crafts: List<Craft>, modifier: Modifier) {
-    val c = Hl.colors
-    val name = stringResource(R.string.tech_credits)
-    val locale = Locale.getDefault()
-    val readAs = (listOf(name) + crafts.map { (listOf(it.job) + it.names.take(CRAFT_NAMES)).joinToString(", ") }).joinToString(", ")
-    ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
-        BlockName(name)
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-            crafts.forEach { craft ->
-                Row {
-                    Text(
-                        craft.job,
-                        style = Hl.type.meta,
-                        color = c.contentSecondary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(TechSpecsDefaults.craftColumn).alignByBaseline(),
-                    )
-                    FlowRow(Modifier.weight(1f).alignByBaseline(), horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                        craft.names.take(CRAFT_NAMES).forEach {
-                            Text(it.uppercase(locale), Modifier.alignByBaseline(), style = Hl.type.billing, color = c.content, maxLines = 1)
-                        }
-                    }
-                }
-            }
         }
     }
 }

@@ -255,7 +255,7 @@
 
     <!-- Settings -->
     <string name="settings_title">设置</string>
-    <string name="welcome_tagline">您的电影，在大银幕上。</string>
+    <string name="welcome_tagline">您的电影和剧集，在大银幕上。</string>
     <string name="section_about">关于</string>
     <string name="section_storage">存储空间</string>
     <string name="storage_artwork">本地图片</string>
@@ -538,7 +538,6 @@
     <string name="job_cinematography">摄影</string>
     <string name="job_editing">剪辑</string>
     <string name="synopsis">简介</string>
-    <string name="tech_credits">制作团队</string>
     <string name="error_person_gone_title">已无作品</string>
     <string name="error_person_gone">媒体库中已没有此人的任何作品。</string>
     <string name="row_films_of">导演作品</string>

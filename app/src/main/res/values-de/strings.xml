@@ -260,7 +260,7 @@
 
     <!-- Settings -->
     <string name="settings_title">Einstellungen</string>
-    <string name="welcome_tagline">Ihre Filme, auf der großen Leinwand.</string>
+    <string name="welcome_tagline">Ihre Filme und Serien, auf der großen Leinwand.</string>
     <string name="section_about">Über</string>
     <string name="section_storage">Speicher</string>
     <string name="storage_artwork">Lokale Bilder</string>
@@ -557,7 +557,6 @@
     <string name="job_cinematography">Kamera</string>
     <string name="job_editing">Schnitt</string>
     <string name="synopsis">Inhalt</string>
-    <string name="tech_credits">Stab</string>
     <string name="error_person_gone_title">Keine Titel mehr</string>
     <string name="error_person_gone">Keiner der Titel dieser Person ist mehr in der Bibliothek.</string>
     <string name="row_films_of">Filme von</string>

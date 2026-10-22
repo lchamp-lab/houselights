@@ -270,7 +270,7 @@
 
     <!-- Settings -->
     <string name="settings_title">Ustawienia</string>
-    <string name="welcome_tagline">Filmy na wielkim ekranie.</string>
+    <string name="welcome_tagline">Filmy i seriale na wielkim ekranie.</string>
     <string name="section_about">O aplikacji</string>
     <string name="section_storage">Pamięć</string>
     <string name="storage_artwork">Obrazy lokalne</string>
@@ -595,7 +595,6 @@
     <string name="job_cinematography">Zdjęcia</string>
     <string name="job_editing">Montaż</string>
     <string name="synopsis">Opis</string>
-    <string name="tech_credits">Ekipa</string>
     <string name="error_person_gone_title">Nie ma już tytułów</string>
     <string name="error_person_gone">Żadnego tytułu tej osoby nie ma już w bibliotece.</string>
     <string name="row_films_of">reżyseria</string>
