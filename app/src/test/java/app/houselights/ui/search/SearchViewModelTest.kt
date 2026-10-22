@@ -6,6 +6,7 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
+import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
@@ -17,6 +18,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.net.ConnectException
 
 /** A search: what is typed shows at once, what it finds comes `WAIT_MS` after the last key, once. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -62,5 +64,26 @@ class SearchViewModelTest {
         advanceUntilIdle()
         assertNull(vm.found.value)
         assertEquals(emptyList<String>(), catalog.calls)
+    }
+
+    @Test
+    fun aSearchThatFailsSaysWhyAndRetryRunsItAgain() = runTest {
+        catalog.fail = { ConnectException("Server away") }
+        val vm = SearchViewModel { provider }
+        backgroundScope.launch { vm.found.collect {} }
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+        assertEquals("not that nothing matches", UiError.OFFLINE, vm.found.value?.error)
+
+        catalog.fail = { null }
+        vm.retry()
+        advanceUntilIdle()
+        assertNull(vm.found.value?.error)
+        assertEquals("amelie", vm.found.value?.results?.titles?.single()?.id)
+        assertEquals(listOf("search AME", "search AME"), catalog.calls)
+
+        vm.retry()
+        advanceUntilIdle()
+        assertEquals("a search that found is not run again", 2, catalog.calls.size)
     }
 }

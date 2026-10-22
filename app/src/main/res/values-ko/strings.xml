@@ -544,6 +544,7 @@
     <string name="versions">버전</string>
     <string name="version_chosen">선택됨</string>
     <string name="version_copy">사본 %d</string>
+    <string name="versions_server_first">서버는 항상 첫 번째 사본을 재생합니다.</string>
     <string name="edition_extended">확장판</string>
     <string name="edition_directors_cut">감독판</string>
     <string name="edition_theatrical">극장판</string>

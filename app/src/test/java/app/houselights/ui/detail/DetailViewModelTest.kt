@@ -576,7 +576,7 @@ class DetailViewModelTest {
             copies = mapOf("m1" to listOf(copy("long", "Extended", best = true), copy("short", "Theatrical", best = false)))
         }
         provider.catalog = catalog
-        provider.capabilities = provider.capabilities.copy(versions = true)
+        provider.capabilities = provider.capabilities.copy(versions = true, versionChoice = true)
         val vm = detail()
         advanceUntilIdle()
         assertEquals(listOf("long", "short"), vm.state.value.versions.map { it.key })
@@ -584,6 +584,24 @@ class DetailViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("choose short"), catalog.calls.filter { it.startsWith("choose") })
         assertEquals("short", vm.state.value.versions.single { it.chosen }.key)
+    }
+
+    /** A server that keeps no choice shows its copies, and is never asked to choose one. */
+    @Test
+    fun aSourceThatKeepsNoChoiceIsNotAskedToChoose() = runTest {
+        val copies = listOf("first", "second").map { key ->
+            Version(film(key), null, null, null, null, null, chosen = key == "first", best = key == "first", key = key)
+        }
+        val catalog = FakeCatalog().apply { this.copies = mapOf("m1" to copies) }
+        provider.catalog = catalog
+        provider.capabilities = provider.capabilities.copy(versions = true)
+        val vm = detail()
+        advanceUntilIdle()
+        assertFalse(vm.state.value.canChooseVersion)
+        vm.chooseVersion(vm.state.value.versions[1])
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), catalog.calls.filter { it.startsWith("choose") })
+        assertEquals("first", vm.state.value.versions.single { it.chosen }.key)
     }
 
     /** A saga's page has it whole when the source knows it: the films the library lacks in their place. */

@@ -73,6 +73,9 @@ data class DetailState(
     /** Index of [playedCopy], to name a copy without an edition ("Copie 2"). */
     val playedCopyIndex: Int get() = versions.indexOfFirst { it.chosen }.coerceAtLeast(0)
 
+    /** The source keeps the copy chosen ([ProviderCapabilities.versionChoice]); else the versions only read. */
+    val canChooseVersion: Boolean get() = capabilities?.versionChoice == true
+
     /** The chosen season, when the page shows a season track (two seasons or more) and it holds episodes: what the tile marks. */
     val shownSeason: MediaItem?
         get() = seasons.takeIf { item?.kind == MediaKind.SERIES && it.size > 1 }
@@ -286,7 +289,7 @@ class DetailViewModel(
 
     /** Makes [version] the copy Lire plays (null for the best) and rereads the copies; failures show by the actions. */
     fun chooseVersion(version: Version?) {
-        val item = _state.value.item ?: return
+        val item = _state.value.takeIf { it.canChooseVersion }?.item ?: return
         _state.update { it.copy(actionError = null) }
         viewModelScope.launch {
             suspendRunCatching {

@@ -260,7 +260,10 @@ internal fun DetailPage(
             } }
         // Over the page, in its light.
         if (showTech && media != null) TechSpecs(item, onDismiss = { showTech = false })
-        if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
+        if (showVersions) {
+            val choose = vm::chooseVersion.takeIf { state.canChooseVersion }
+            VersionsSheet(item, state.versions, onChoose = choose, onDismiss = { showVersions = false })
+        }
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
         if (showEdit) {

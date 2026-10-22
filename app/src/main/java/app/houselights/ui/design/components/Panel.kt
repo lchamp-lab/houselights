@@ -136,11 +136,11 @@ fun HlPanelButton(
 
 /**
  * A full-width selectable row: its words on what holds it, white-filled on focus; disabled, it sits in its
- * [disabled] well and keeps focus, ringed.
+ * [disabled] well and keeps focus, ringed. Without [onClick] it only reads: focus reaches it, OK does nothing.
  */
 @Composable
 internal fun HlRowSurface(
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     rest: Color = Color.Transparent,
     restContent: Color = Hl.colors.content,

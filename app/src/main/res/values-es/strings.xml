@@ -587,6 +587,7 @@
     <string name="versions">Versiones</string>
     <string name="version_chosen">Su elección</string>
     <string name="version_copy">Copia %d</string>
+    <string name="versions_server_first">El servidor siempre reproduce su primera copia.</string>
     <string name="edition_extended">Versión extendida</string>
     <string name="edition_directors_cut">Versión del director</string>
     <string name="edition_theatrical">Versión de cines</string>

@@ -604,6 +604,7 @@
     <string name="versions">Wersje</string>
     <string name="version_chosen">Wybrana</string>
     <string name="version_copy">Kopia %d</string>
+    <string name="versions_server_first">Serwer zawsze odtwarza swoją pierwszą kopię.</string>
     <string name="edition_extended">Wersja rozszerzona</string>
     <string name="edition_directors_cut">Wersja reżyserska</string>
     <string name="edition_theatrical">Wersja kinowa</string>

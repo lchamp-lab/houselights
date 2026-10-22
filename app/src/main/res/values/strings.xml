@@ -579,6 +579,7 @@
     <string name="versions">Versions</string>
     <string name="version_chosen">Your choice</string>
     <string name="version_copy">Copy %d</string>
+    <string name="versions_server_first">The server always plays its first copy.</string>
     <string name="edition_extended">Extended cut</string>
     <string name="edition_directors_cut">Director’s cut</string>
     <string name="edition_theatrical">Theatrical cut</string>

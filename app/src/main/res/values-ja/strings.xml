@@ -544,6 +544,7 @@
     <string name="versions">バージョン</string>
     <string name="version_chosen">選択中</string>
     <string name="version_copy">コピー%d</string>
+    <string name="versions_server_first">サーバーは常に最初のコピーを再生します。</string>
     <string name="edition_extended">エクステンデッド版</string>
     <string name="edition_directors_cut">ディレクターズ・カット版</string>
     <string name="edition_theatrical">劇場公開版</string>
