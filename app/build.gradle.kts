@@ -172,7 +172,7 @@ if (keystoreProps.isEmpty && !debugSignedRelease) {
             throw GradleException(
                 "No keystore.properties: this release would be signed with this machine's debug key, and a later " +
                     "one signed with yours could only be installed after uninstalling it, which loses the library " +
-                    "and watch history kept on the player. Create your key first (README, Signing), or pass " +
+                    "and watch history kept on the player. Create your key first (CONTRIBUTING, Signing), or pass " +
                     "-Phouselights.debugSignedRelease=true for a build that will not be installed; " +
                     "scripts/install.sh bench installs an optimised build beside the release."
             )
@@ -259,6 +259,8 @@ dependencies {
     testImplementation(libs.kxml2)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    // A real server where a test needs what OkHttp does below the interceptors: redirects.
+    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.androidx.test.core)
     // Compose tests on Robolectric: focus, keys and sheets as the remote drives them. The test
     // manifest declares the activity they run in, in debug builds only.
