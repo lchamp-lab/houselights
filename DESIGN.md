@@ -590,7 +590,8 @@ motion it came in with. Focus stays inside and returns where it was (`SheetFocus
   the year), printed marks first (a protocol, `Badge`), its artwork as tall as both as the title sets beside it, on
   one line or two: the title gives up its width, never the artwork; a status; then its plates, `HlSpace.m` apart, in
   the film's light (`glassPlate`) on its glass in the film's dark (`sheetGlass`), fading into the sheet where there is
-  more, never under its head. No hint: Back is the remote's own. Every action row describes itself in one line, so
+  more, never under its head; focus near either end scrolls to it (`SheetScroll`), so a group's title above the first
+  row and a note under the last are never left under a fade (`SheetEndsTest`). No hint: Back is the remote's own. Every action row describes itself in one line, so
   rows keep one height (`PaneRowLineTest`, in every language, at the default text size and 1.3), and lies on a plate.
   Modifier shows the images it changes as a gallery (`Gallery`), Identifier on a plate under them. Its lines fall
   within 3 dp of the board's baselines (`SheetRhythmTest`).

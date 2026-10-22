@@ -190,8 +190,8 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         forget = { database.trackChoices().forget(it) },
     )
 
-    /** A Zidoo player takes the tracks asked of it ([TrackChooser]); another app ignores them. */
-    val asksTracks: Boolean by lazy { ZidooPlayer(app).choose().player != null }
+    /** A Zidoo player takes the tracks asked of it ([TrackChooser]); another app ignores them. Debug builds show them anywhere. */
+    val asksTracks: Boolean by lazy { BuildConfig.DEBUG || ZidooPlayer(app).choose().player != null }
 
     /** The tracks Lire would ask of the player for [item], from the file it plays (its chosen copy); null when unknown. */
     suspend fun tracksOf(item: MediaItem): TrackPlan? {
