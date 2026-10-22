@@ -45,7 +45,8 @@ object BadgeTokens {
 
 enum class FormatFamily { PICTURE, SOUND }
 
-data class FormatMark(val label: String, val family: FormatFamily)
+/** A format as a case names it, or one of its [measure]s (channels, a rate), which a page sets quieter. */
+data class FormatMark(val label: String, val family: FormatFamily, val measure: Boolean = false)
 
 /**
  * The formats a title's page shows, named as a Blu-ray case prints them (Dolby Digital Plus, not E-AC3).
@@ -65,7 +66,7 @@ object Formats {
             definition?.let { FormatMark(it.label, FormatFamily.PICTURE) },
             range?.let { FormatMark(it, FormatFamily.PICTURE) },
             sound?.let { FormatMark(soundName(it), FormatFamily.SOUND) },
-            channels?.let { FormatMark(it, FormatFamily.SOUND) },
+            channels?.let { FormatMark(it, FormatFamily.SOUND, measure = true) },
         )
     }
 

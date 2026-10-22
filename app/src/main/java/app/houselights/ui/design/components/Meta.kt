@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -36,6 +37,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.FormatFamily
+import app.houselights.core.FormatMark
 import app.houselights.core.Formats
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -128,9 +130,13 @@ fun Badge(text: String, modifier: Modifier = Modifier, ink: Color? = null) {
 }
 
 @Composable
-private fun FormatWord(text: String, ink: Color?) {
-    Text(text, style = Hl.type.jaquette, color = ink ?: Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
+private fun FormatWord(word: FormatMark, ink: Color?) {
+    Text(word.label, style = word.style, color = ink ?: Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
 }
+
+/** A format in the technical voice, `jaquette`; a measure of it (a rate, channels) in the text voice, `caption`. */
+private val FormatMark.style: TextStyle
+    @Composable get() = if (measure) Hl.type.caption else Hl.type.jaquette
 
 /**
  * A title's formats ([Formats]), picture then sound, from the file's media info, else the stored badges. On its
@@ -140,15 +146,17 @@ private fun FormatWord(text: String, ink: Color?) {
 @Composable
 fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = null, plate: Boolean = true) {
     val video = item.media?.video
-    val audio = item.media?.audio.orEmpty()
+    val best = Formats.bestTrack(item.media?.audio.orEmpty())
     val marks = remember(item.badges) { Formats.fromBadges(item.badges) }
     val frames = video?.frameRate?.let { frameRateLabel(it) }
     val picture = remember(video, frames) {
-        video?.let { Formats.picture(it) + listOfNotNull(frames) } ?: marks.filter { it.family == FormatFamily.PICTURE }.map { it.label }
+        video?.let { marks(FormatFamily.PICTURE, Formats.picture(it), listOfNotNull(frames)) }
+            ?: marks.filter { it.family == FormatFamily.PICTURE }
     }
-    val rate = Formats.bestTrack(audio)?.bitrateKbps?.let { audioBitrateLabel(it) }
-    val sound = remember(audio, rate) {
-        (Formats.sound(audio) + listOfNotNull(rate)).ifEmpty { marks.filter { it.family == FormatFamily.SOUND }.map { it.label } }
+    val rate = best?.bitrateKbps?.let { audioBitrateLabel(it) }
+    val sound = remember(best, rate) {
+        best?.let { marks(FormatFamily.SOUND, listOf(Formats.soundName(it)), listOfNotNull(it.layout, rate)) }
+            ?: marks.filter { it.family == FormatFamily.SOUND }
     }
     if (picture.isEmpty() && sound.isEmpty()) return
     if (plate) {
@@ -164,10 +172,11 @@ fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = nu
 
 /**
  * The back of a case: a plate in the picture's own dark, one line per family of [lines] with words, its name in
- * a caption, the words after it in `jaquette`, a hairline between lines. As wide as its longest line.
+ * a caption, then its formats in `jaquette` and their measures in a secondary `caption`, a hairline between lines.
+ * As wide as its longest line.
  */
 @Composable
-private fun Jaquette(lines: List<Pair<String, List<String>>>, modifier: Modifier) {
+private fun Jaquette(lines: List<Pair<String, List<FormatMark>>>, modifier: Modifier) {
     val c = Hl.colors
     val shown = lines.filter { it.second.isNotEmpty() }
     // The names share a column, as wide as the widest, so the words start together.
@@ -190,12 +199,19 @@ private fun Jaquette(lines: List<Pair<String, List<String>>>, modifier: Modifier
                 Text(name, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1, modifier = Modifier.width(column))
                 Spacer(Modifier.width(HlSpace.m))
                 OneLine(spacing = HlSpace.m, squeezeFirst = false) {
-                    words.forEach { Text(it, style = Hl.type.jaquette, color = c.content, maxLines = 1, softWrap = false) }
+                    words.forEach {
+                        val ink = if (it.measure) c.contentSecondary else c.content
+                        Text(it.label, style = it.style, color = ink, maxLines = 1, softWrap = false)
+                    }
                 }
             }
         }
     }
 }
+
+/** [formats] of a [family], then their [measures]. */
+private fun marks(family: FormatFamily, formats: List<String>, measures: List<String>): List<FormatMark> =
+    formats.map { FormatMark(it, family) } + measures.map { FormatMark(it, family, measure = true) }
 
 /** A frame rate as displayed: "23,976 i/s", "25 i/s". */
 @Composable
