@@ -126,8 +126,12 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.MutableState
 import app.houselights.core.SagaPart
 import app.houselights.ui.design.components.AbsentCard
+import app.houselights.core.TrackChoice
+import app.houselights.core.TrackPlan
 import app.houselights.core.Version
+import app.houselights.ui.design.components.TracksSheet
 import app.houselights.ui.design.components.VersionsSheet
+import app.houselights.ui.design.components.tracksHint
 import app.houselights.ui.util.versionName
 import app.houselights.core.hasPage
 
@@ -195,6 +199,8 @@ internal fun DetailPage(
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     var showVersions by remember { mutableStateOf(false) }
+    var showTracks by remember { mutableStateOf(false) }
+    val tracks = state.tracksToChoose
     var showSynopsis by remember { mutableStateOf(false) }
     var showNfo by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf(false) }
@@ -208,6 +214,8 @@ internal fun DetailPage(
         // Null hides the button: nothing for the technical sheet, or a single copy.
         onShowTech = { showTech = true }.takeIf { media != null },
         onShowVersions = { showVersions = true }.takeIf { state.versions.size > 1 },
+        onShowTracks = { showTracks = true },
+        tracks = tracks,
         onShowSynopsis = { showSynopsis = true },
         copy = state.playedCopy,
         copyIndex = state.playedCopyIndex,
@@ -264,6 +272,7 @@ internal fun DetailPage(
             val choose = vm::chooseVersion.takeIf { state.canChooseVersion }
             VersionsSheet(item, state.versions, onChoose = choose, onDismiss = { showVersions = false })
         }
+        TitleTracks(item, tracks, open = showTracks, onChoose = vm::chooseTracks, onDismiss = { showTracks = false })
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
         if (showEdit) {
@@ -434,6 +443,23 @@ private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
 @Immutable
 private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (String) -> Unit)
 
+/** A tile says a second line: a show's watched tile its long OK, the tracks tile what Lire plays. */
+private fun hintsUnderTiles(item: MediaItem, capabilities: ProviderCapabilities?, tracks: TrackPlan?): Boolean =
+    item.kind == MediaKind.SERIES && capabilities?.markPlayed == true || tracks != null
+
+/** The title's audio and subtitles in their sheet, when [open]: for the film, or for the whole show from an episode. */
+@Composable
+private fun TitleTracks(item: MediaItem, plan: TrackPlan?, open: Boolean, onChoose: (TrackChoice) -> Unit, onDismiss: () -> Unit) {
+    if (!open) return
+    if (plan == null) {
+        // The tracks went away (another copy, a file gone): the sheet closes for good.
+        LaunchedEffect(Unit) { onDismiss() }
+        return
+    }
+    val show = item.kind == MediaKind.SERIES || item.kind == MediaKind.EPISODE
+    TracksSheet(item.seriesTitle ?: item.title, plan, show, onChoose = onChoose, onDismiss = onDismiss)
+}
+
 /** The page's actions, passed down whole; named fields keep same-typed lambdas apart, and null hides a button. */
 @Immutable
 private data class DetailActions(
@@ -445,6 +471,9 @@ private data class DetailActions(
     val onOpenNfo: () -> Unit,
     val onShowTech: (() -> Unit)?,
     val onShowVersions: (() -> Unit)?,
+    /** Opens the title's audio and subtitles; null [tracks] hides the button. */
+    val onShowTracks: () -> Unit,
+    val tracks: TrackPlan? = null,
     val onShowSynopsis: () -> Unit,
     /** The copy Lire plays and its index (to name it); null for one copy. */
     val copy: Version? = null,
@@ -523,8 +552,8 @@ private fun Actions(
     memory: FocusMemory,
     actionRow: FocusRequester,
 ) {
-    // A show's watched tile may say its long OK under its label: room for it from the start, so nothing moves.
-    val hinted = item.kind == MediaKind.SERIES && capabilities?.markPlayed == true
+    // A tile may say a second line under its label: room for it from the start, so nothing moves.
+    val hinted = hintsUnderTiles(item, capabilities, actions.tracks)
     OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted) {
         PlayButtons(item, nextUp, memory, actions)
         Parts(item, memory, actions.onPlay)
@@ -535,6 +564,15 @@ private fun Actions(
                 stringResource(R.string.versions),
                 onClick = actions.onShowVersions,
                 modifier = Modifier.focusKey(VERSIONS, memory),
+            )
+        }
+        if (actions.tracks != null) {
+            HlIconButton(
+                HlIcons.Captions,
+                stringResource(R.string.tracks),
+                onClick = actions.onShowTracks,
+                modifier = Modifier.focusKey(TRACKS, memory),
+                hint = tracksHint(actions.tracks),
             )
         }
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
@@ -818,6 +856,7 @@ private fun FocusMemory.card(row: String, item: MediaItem) =
 
 private val PLAY = FocusKey.action("play")
 private val VERSIONS = FocusKey.action("versions")
+private val TRACKS = FocusKey.action("tracks")
 private val RESTART = FocusKey.action("restart")
 private val SERIES = FocusKey.action("series")
 private val WATCHED = FocusKey.action("watched")

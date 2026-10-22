@@ -18,9 +18,13 @@ class TrackChooser(
     private val locale: () -> Locale,
     private val load: suspend (String) -> TrackChoice?,
     private val save: suspend (String, TrackChoice) -> Unit,
+    private val forget: suspend (String) -> Unit,
 ) {
     /** The tracks to ask for [launch]; null when the player chooses them all, or when the file's order is unknown. */
-    suspend fun plan(launch: PlaybackPlan.Launch): TrackPlan? {
+    suspend fun plan(launch: PlaybackPlan.Launch): TrackPlan? = table(launch)?.takeUnless { it.pick.isEmpty }
+
+    /** [launch]'s tracks and what Settings and the title's choice make of them; null when their order is unknown. */
+    suspend fun table(launch: PlaybackPlan.Launch): TrackPlan? {
         val media = launch.media?.takeIf { it.tracksInOrder } ?: return null
         val key = launch.titleKey
         // A choice that cannot be read leaves Settings to decide, never the film unplayed.
@@ -29,7 +33,13 @@ class TrackChooser(
         }
         val locale = locale()
         val language = TrackPlan.known(locale.language) ?: FALLBACK_LANGUAGE
-        return TrackPlan(media, preferences(), choice, language, locale.country.ifEmpty { null }, key).takeUnless { it.pick.isEmpty }
+        return TrackPlan(media, preferences(), choice, language, locale.country.ifEmpty { null }, key)
+    }
+
+    /** Changes the title's choice by [change]; an empty one leaves it to Settings again. */
+    suspend fun choose(key: String, change: (TrackChoice) -> TrackChoice) {
+        val choice = change(load(key) ?: TrackChoice())
+        if (choice.isEmpty) forget(key) else save(key, choice)
     }
 
     /** Keeps [changed] as the title's choice, besides what it had chosen of the other kind. */

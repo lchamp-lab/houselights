@@ -1,5 +1,7 @@
 package app.houselights.ui.settings
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
@@ -21,6 +23,7 @@ import app.houselights.player.PathResolver
 import app.houselights.player.Redact
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.HlSettingGroup
@@ -29,33 +32,49 @@ import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.revealOnFocus
 
-/** How the player reaches the server's files, the chosen way checked in ember, then the path mappings, a line each. */
-internal fun LazyListScope.playbackPane(s: AppSettings) {
+/**
+ * The tracks a Zidoo player plays ([TracksGroup]); from a server, then how the player reaches its files, the chosen
+ * way checked in ember, and the path mappings, a line each.
+ */
+internal fun LazyListScope.playbackPane(s: AppSettings, server: Boolean, tracks: Boolean) {
     item {
-        val vm = settingsViewModel()
-        val failure = rowFailure(vm.errorOf(SettingAction.FILE_ACCESS))
-        Section(stringResource(R.string.section_playback), sentence = stringResource(R.string.playback_desc)) {
-            HlSettingGroup(stringResource(R.string.file_access)) {
-                listOf(
-                    false to (R.string.network_path to R.string.network_path_desc),
-                    true to (R.string.http_stream to R.string.http_stream_desc),
-                ).forEach { (http, words) ->
-                    val current = s.forceHttp == http
-                    HlSettingRow(
-                        stringResource(words.first),
-                        Modifier.semantics { selected = current },
-                        description = stringResource(words.second),
-                        value = failure?.value.takeIf { current },
-                        valueAttention = failure != null,
-                        onClick = { vm.setForceHttp(http) },
-                        trailing = if (current && failure == null) ({ ChoiceCheck() }) else null,
-                    )
-                }
-                RowFailureNote(failure)
+        val sentence = when {
+            !tracks -> R.string.playback_desc
+            server -> R.string.playback_desc_server
+            else -> R.string.playback_desc_folders
+        }
+        Section(stringResource(R.string.section_playback), sentence = stringResource(sentence)) {
+            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+                if (tracks) TracksGroup(s.tracks)
+                if (server) FileAccessGroup(s)
             }
         }
     }
-    item { HlSettingGroup(stringResource(R.string.path_mappings), Modifier.revealOnFocus()) { PathMappings() } }
+    if (server) item { HlSettingGroup(stringResource(R.string.path_mappings), Modifier.revealOnFocus()) { PathMappings() } }
+}
+
+@Composable
+private fun FileAccessGroup(s: AppSettings) {
+    val vm = settingsViewModel()
+    val failure = rowFailure(vm.errorOf(SettingAction.FILE_ACCESS))
+    HlSettingGroup(stringResource(R.string.file_access)) {
+        listOf(
+            false to (R.string.network_path to R.string.network_path_desc),
+            true to (R.string.http_stream to R.string.http_stream_desc),
+        ).forEach { (http, words) ->
+            val current = s.forceHttp == http
+            HlSettingRow(
+                stringResource(words.first),
+                Modifier.semantics { selected = current },
+                description = stringResource(words.second),
+                value = failure?.value.takeIf { current },
+                valueAttention = failure != null,
+                onClick = { vm.setForceHttp(http) },
+                trailing = if (current && failure == null) ({ ChoiceCheck() }) else null,
+            )
+        }
+        RowFailureNote(failure)
+    }
 }
 
 /** The mappings, each read as a sentence ("/media/films devient nfs://…"); OK opens it in a sheet, as Add does a new one. */

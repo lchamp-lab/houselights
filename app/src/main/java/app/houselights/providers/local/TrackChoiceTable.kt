@@ -28,4 +28,7 @@ interface TrackChoiceDao {
 
     @Upsert
     suspend fun save(choice: TrackChoiceEntity)
+
+    @Query("DELETE FROM track_choices WHERE title = :title")
+    suspend fun forget(title: String)
 }

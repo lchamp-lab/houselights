@@ -71,6 +71,16 @@ object HlIcons {
         "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2",
     )
 
+    /** A title's audio and subtitles: a frame with lines of text (`captions`). */
+    val Captions = icon(
+        "Captions",
+        "M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2Z",
+        "M7 15h4",
+        "M15 15h2",
+        "M7 11h2",
+        "M13 11h4",
+    )
+
     /** Sorting: lines of decreasing length, and the way they go (`arrow-down-wide-narrow`). */
     val Sort = icon("Sort", "m3 16 4 4 4-4", "M7 20V4", "M11 4h10", "M11 8h7", "M11 12h4")
 

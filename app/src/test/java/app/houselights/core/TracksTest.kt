@@ -98,6 +98,47 @@ class TracksTest {
         assertNull("an audio of unknown language may be foreign: the player chooses", plan(unknown, foreign).pick.subtitle)
     }
 
+    /** A choice keeps a dub's region: the VFQ can be chosen where the device prefers the VFF. */
+    @Test
+    fun aDubsRegionIsPartOfTheChoice() {
+        val dubs = media(
+            audio = listOf(
+                AudioTrack(Codecs.AC3, 6, "fre", "VFF"),
+                AudioTrack(Codecs.AC3, 6, "fre", "VFQ"),
+                AudioTrack(Codecs.TRUEHD, 8, "eng"),
+            ),
+            subtitles = listOf(SubtitleTrack("fre", "VFF", Codecs.SRT), SubtitleTrack("fre", "VFQ", Codecs.SRT)),
+        )
+        val p = plan(dubs, choice = TrackChoice("fr-CA", SubtitleChoice.Track("fr-CA", SubtitleKind.FULL)))
+        assertEquals(TrackPick(1, 2), p.pick)
+        assertEquals(listOf(0, 1, 2), p.audioOptions)
+        assertEquals(listOf(1, 2), p.subtitleOptions)
+        assertEquals("fr-CA", p.choiceOf(1, null).audio)
+    }
+
+    /** One row a choice can lead to: a commentary or a second track of the same kind is not one. */
+    @Test
+    fun theChoicesOfAFileAreTheTracksTheyLeadTo() {
+        val tracks = media(
+            audio = listOf(
+                AudioTrack(Codecs.EAC3, 6, "fre", default = true),
+                AudioTrack(Codecs.AC3, 2, "fre"),
+                AudioTrack(Codecs.AC3, 2, "eng", "Commentary with the director"),
+            ),
+            subtitles = COLONY.subtitles,
+        )
+        val p = plan(tracks)
+        assertEquals("the best French; no commentary", listOf(0), p.audioOptions)
+        assertEquals("SRT forced, SRT full, SDH", listOf(1, 2, 5), p.subtitleOptions)
+    }
+
+    @Test
+    fun norwegianIsOneLanguageHoweverTagged() {
+        val tracks = media(audio = listOf(AudioTrack(Codecs.AC3, 6, "eng"), AudioTrack(Codecs.AC3, 6, "nob")))
+        assertEquals(1, plan(tracks, TrackPreferences(audio = "no")).pick.audio)
+        assertEquals("no", TrackPlan.known("nn-NO"))
+    }
+
     @Test
     fun aServersExternalAudioIsNotNumbered() {
         val tracks = COLONY.copy(audio = listOf(AudioTrack(Codecs.AC3, 6, "fre", "Commentaire", external = true)) + COLONY.audio)
@@ -113,8 +154,10 @@ class TracksTest {
         assertEquals(TrackPick(0, 0), plan(COLONY, always, TrackChoice(subtitles = SubtitleChoice.Off)).pick)
         val sdh = TrackChoice(subtitles = SubtitleChoice.Track("fr", SubtitleKind.SDH))
         assertEquals(5, plan(COLONY, choice = sdh).pick.subtitle)
-        val german = TrackChoice(subtitles = SubtitleChoice.Track("de", SubtitleKind.FULL))
-        assertEquals("missing from this file: none", 0, plan(COLONY, choice = german).pick.subtitle)
+        val german = TrackChoice(audio = "de", subtitles = SubtitleChoice.Track("de", SubtitleKind.FULL))
+        val elsewhere = plan(COLONY, french.copy(subtitles = SubtitleMode.FORCED), german)
+        assertEquals("missing from this episode: Settings", TrackPick(0, 1), elsewhere.pick)
+        assertEquals(false to false, elsewhere.audioChosen to elsewhere.subtitleChosen)
     }
 
     @Test
@@ -127,9 +170,10 @@ class TracksTest {
     @Test
     fun whatThePlayersNumbersMean() {
         val p = plan(DISCLOSURE_DAY)
-        assertEquals(TrackChoice("en", SubtitleChoice.Track("fr", SubtitleKind.FULL)), p.choiceOf(1, 3))
+        // The VFF's region goes with it.
+        assertEquals(TrackChoice("en", SubtitleChoice.Track("fr-FR", SubtitleKind.FULL)), p.choiceOf(1, 3))
         assertEquals(TrackChoice(null, SubtitleChoice.Off), p.choiceOf(null, 0))
-        assertEquals(TrackChoice(null, SubtitleChoice.Track("fr", SubtitleKind.FORCED)), p.choiceOf(null, 1))
+        assertEquals(TrackChoice(null, SubtitleChoice.Track("fr-FR", SubtitleKind.FORCED)), p.choiceOf(null, 1))
         assertTrue("numbers it does not have", p.choiceOf(7, 9).isEmpty)
     }
 

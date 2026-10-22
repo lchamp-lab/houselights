@@ -40,4 +40,13 @@ class TrackNamesTest {
         assertEquals("FR", TrackNames.region("fre", "VFF  DD 5.1  384 kbps"))
         assertNull(TrackNames.region("en", "VO : English"))
     }
+
+    /** A subtitle's title says nothing more when it repeats its kind and format; a name of its own stays. */
+    @Test
+    fun subtitleTitlesThatRepeatTheRowSayNothing() {
+        listOf("VFF Forced : SRT" to "fr", "VFF Full : SRT" to "fr", "VO Anglaise SDH" to "en", "English (SDH) PGS" to "en")
+            .plus("Forcés" to "fr")
+            .forEach { (title, language) -> assertNull(title, TrackNames.subtitleNote(title, language)) }
+        assertEquals("Signs & Songs", TrackNames.subtitleNote("Signs & Songs", "en"))
+    }
 }

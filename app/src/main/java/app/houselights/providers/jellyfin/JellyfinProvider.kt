@@ -202,7 +202,8 @@ class JellyfinProvider(
         val uri = networkUri ?: client.streamUrl(full.id, source?.id, container)
         val media = toMedia(full)
         val startMs = if (resume) media.user.positionMs else 0L
-        Log.i(TAG, "Play ${full.name} -> ${Redact.uri(uri)} (start ${startMs} ms)")
+        // Debug only: a page reads the plan too, for its tracks; a launch is logged by the player.
+        Log.d(TAG, "Plan ${full.name} -> ${Redact.uri(uri)} (start ${startMs} ms)")
 
         return media.launch(
             uri, container, startMs,

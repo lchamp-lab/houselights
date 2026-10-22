@@ -82,7 +82,7 @@ fun SettingsScreen(
         onUseFolders { vm.actionFailed(SettingAction.SOURCE, it) }
     }
     val s by vm.settings.collectAsStateWithLifecycle()
-    val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts)
+    val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts, vm.asksTracks)
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
     // A failed change is reported in the pane it was made in, not in the next one.
     LaunchedEffect(pane) { vm.clearActionError() }
@@ -158,16 +158,17 @@ private const val LOST_SECRET = "lost-secret"
 
 private fun paneKey(pane: Pane) = FocusKey.pane(pane.name)
 
-/** The panes listed with [source]: path mappings where its provider uses them, counts where it counts. */
-internal fun panesFor(source: SourceConfig?, pathMapping: Boolean, counts: Boolean): List<Pane> = Pane.entries.filter { p ->
-    when (p) {
-        Pane.Playback -> source != null && pathMapping
-        Pane.Numbers -> source != null && counts
-        // Jellyfin keeps its own watch history, and has its own Trakt plugin.
-        Pane.Trakt -> source == SourceConfig.Local
-        else -> true
+/** The panes listed with [source]: playback for its path mappings or the player's [tracks], counts where it counts. */
+internal fun panesFor(source: SourceConfig?, pathMapping: Boolean, counts: Boolean, tracks: Boolean): List<Pane> =
+    Pane.entries.filter { p ->
+        when (p) {
+            Pane.Playback -> source != null && (pathMapping || tracks)
+            Pane.Numbers -> source != null && counts
+            // Jellyfin keeps its own watch history, and has its own Trakt plugin.
+            Pane.Trakt -> source == SourceConfig.Local
+            else -> true
+        }
     }
-}
 
 /** The rows of [pane]. Focus returning from the navigation goes back to the row it left. */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -208,7 +209,7 @@ private fun PaneContent(
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
-            Pane.Playback -> playbackPane(s)
+            Pane.Playback -> playbackPane(s, server = vm.capabilities.pathMapping, tracks = vm.asksTracks)
             Pane.Trakt -> trakt?.let { traktPane(it, s.trakt) }
             Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
