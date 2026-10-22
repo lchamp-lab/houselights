@@ -260,7 +260,7 @@
 
     <!-- Settings -->
     <string name="settings_title">Instellingen</string>
-    <string name="welcome_tagline">Uw films, op het grote scherm.</string>
+    <string name="welcome_tagline">Uw films en series, op het grote scherm.</string>
     <string name="section_about">Over</string>
     <string name="section_storage">Opslag</string>
     <string name="storage_artwork">Lokale afbeeldingen</string>

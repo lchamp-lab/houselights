@@ -255,7 +255,7 @@
 
     <!-- Settings -->
     <string name="settings_title">설정</string>
-    <string name="welcome_tagline">내 영화를 큰 화면에서.</string>
+    <string name="welcome_tagline">내 영화와 시리즈를 큰 화면에서.</string>
     <string name="section_about">앱 정보</string>
     <string name="section_storage">저장 공간</string>
     <string name="storage_artwork">로컬 이미지</string>

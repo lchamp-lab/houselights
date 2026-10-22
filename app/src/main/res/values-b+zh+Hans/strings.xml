@@ -255,7 +255,7 @@
 
     <!-- Settings -->
     <string name="settings_title">设置</string>
-    <string name="welcome_tagline">您的电影，在大银幕上。</string>
+    <string name="welcome_tagline">您的电影和剧集，在大银幕上。</string>
     <string name="section_about">关于</string>
     <string name="section_storage">存储空间</string>
     <string name="storage_artwork">本地图片</string>

@@ -260,7 +260,7 @@
 
     <!-- Settings -->
     <string name="settings_title">Einstellungen</string>
-    <string name="welcome_tagline">Ihre Filme, auf der großen Leinwand.</string>
+    <string name="welcome_tagline">Ihre Filme und Serien, auf der großen Leinwand.</string>
     <string name="section_about">Über</string>
     <string name="section_storage">Speicher</string>
     <string name="storage_artwork">Lokale Bilder</string>

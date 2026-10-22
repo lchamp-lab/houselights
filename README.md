@@ -2,7 +2,7 @@
   <img src="docs/images/houselights.svg" alt="Houselights: a cinema-style media browser for Zidoo players and Android TV" width="100%">
 </p>
 
-<h3 align="center">Your films, on the big screen.</h3>
+<h3 align="center">Your films and shows, on the big screen.</h3>
 
 <p align="center">
   A cinema-style media browser for <b>Zidoo</b> players that hands playback to the <b>native Zidoo player</b>,<br>

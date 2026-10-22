@@ -265,7 +265,7 @@
 
     <!-- Settings -->
     <string name="settings_title">Impostazioni</string>
-    <string name="welcome_tagline">I Suoi film, sul grande schermo.</string>
+    <string name="welcome_tagline">I Suoi film e le Sue serie, sul grande schermo.</string>
     <string name="section_about">Informazioni</string>
     <string name="section_storage">Archiviazione</string>
     <string name="storage_artwork">Immagini locali</string>

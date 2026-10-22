@@ -270,7 +270,7 @@
 
     <!-- Settings -->
     <string name="settings_title">Ustawienia</string>
-    <string name="welcome_tagline">Filmy na wielkim ekranie.</string>
+    <string name="welcome_tagline">Filmy i seriale na wielkim ekranie.</string>
     <string name="section_about">O aplikacji</string>
     <string name="section_storage">Pamięć</string>
     <string name="storage_artwork">Obrazy lokalne</string>
