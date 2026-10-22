@@ -21,6 +21,7 @@ import app.houselights.player.PlaybackManager
 import app.houselights.player.Redact
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
+import app.houselights.providers.local.DetailsLanguage
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalEditor
@@ -28,6 +29,7 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
+import app.houselights.providers.local.followDetailsLanguage
 import app.houselights.providers.trakt.TraktAccount
 import app.houselights.providers.trakt.TraktKeys
 import app.houselights.providers.trakt.TraktSync
@@ -203,7 +205,6 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         browsers = remoteBrowsers::of,
         closeIdle = remoteBrowsers::closeIdle,
         started = ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) },
-        refreshedIn = { libraryReadIn(it.toLanguageTag()) },
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
@@ -228,22 +229,17 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         }
         // Titles the library words itself ("Season 1") are made again in a new interface language.
         scope.launch { language.chosen.drop(1).collect { libraryChanged() } }
-        // Details read in another language than TMDB's are all read again; a refresh cut short resumes at launch.
+        // Details read in another language than TMDB's are read again, folder by folder.
         scope.launch {
-            combine(settings.state.filter { it.loaded }, deviceLocale) { s, device ->
+            val languages = combine(settings.state.filter { it.loaded }, deviceLocale) { s, device ->
                 val refreshable = s.source == SourceConfig.Local && tmdbKey(s) != null
-                Triple(metadataLocale(s, device).toLanguageTag(), s.libraryLanguage, refreshable)
-            }.distinctUntilChanged().collect { (wanted, read, refreshable) ->
-                when {
-                    // Until a language is recorded, the folders were read in the one in use.
-                    read == null -> libraryReadIn(wanted)
-                    wanted != read && refreshable -> scanner.scanAll(refreshMetadata = true)
-                }
+                DetailsLanguage(metadataLocale(s, device).toLanguageTag(), s.libraryLanguage, refreshable)
             }
+            followDetailsLanguage(languages, scanner::refreshAllIn, ::libraryReadIn)
         }
     }
 
-    /** Records the language all details are now in. */
+    /** Records the language the details are now in, or being read again in. */
     private suspend fun libraryReadIn(tag: String) {
         suspendRunCatching { settings.setLibraryLanguage(tag) }
             .onFailure { Log.w("Houselights", "The library's language could not be saved", it) }

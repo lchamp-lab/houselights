@@ -566,6 +566,7 @@
     <string name="versions">Versies</string>
     <string name="version_chosen">Uw keuze</string>
     <string name="version_copy">Kopie %d</string>
+    <string name="versions_server_first">De server speelt altijd zijn eerste kopie af.</string>
     <string name="edition_extended">Verlengde versie</string>
     <string name="edition_directors_cut">Director’s cut</string>
     <string name="edition_theatrical">Bioscoopversie</string>

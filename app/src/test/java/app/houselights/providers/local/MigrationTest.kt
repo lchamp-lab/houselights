@@ -274,6 +274,14 @@ class MigrationTest {
         assertEquals(0 to null, waiting.attempts to waiting.sentAt)
     }
 
+    @Test
+    fun version15KeepsTheFoldersWithNothingToReadAgain() = runTest {
+        val db = migrated(from = 14) { filmsFolder() }
+        val films = checkNotNull(db.dao().source(1))
+        assertEquals("Films" to 1000L, films.name to films.lastScanAt)
+        assertNull(films.refreshIn)
+    }
+
     /** What [version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas] finds once migrated. */
     private suspend fun checkVersion12(db: LibraryDatabase) {
         val dao = db.dao()

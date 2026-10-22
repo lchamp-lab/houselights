@@ -117,7 +117,7 @@ data class AppSettings(
     val collectionMinFilms: Int = CollectionThreshold.DEFAULT,
     /** TMDB's language as a BCP 47 tag ("fr-CA"); null follows the device. */
     val metadataLanguage: String? = null,
-    /** The language the folders' details were last all read in; null before the first launch that records it. */
+    /** The language the folders' details are in, or being read again in, folder by folder; null until first recorded. */
     val libraryLanguage: String? = null,
     /** The Trakt account connected for the folders' watch history; null when none is. */
     val trakt: TraktSession? = null,

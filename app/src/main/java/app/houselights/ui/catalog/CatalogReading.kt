@@ -416,6 +416,7 @@ private fun ReadingVersionsSection() {
     // Opened as a detail page opens it: the copy Lire plays focused.
     Group("Versions: a film in several copies") {
         var open by remember { mutableStateOf(false) }
+        var serverOpen by remember { mutableStateOf(false) }
         val film = READING_TECH_DOLBY
         val versions = listOf(
             Version(film, Editions.EXTENDED, null, film.media, 78_400_000_000, 8_880_000, chosen = true, best = true, key = "1"),
@@ -430,8 +431,10 @@ private fun ReadingVersionsSection() {
                 VersionRow(versionName(versions[0].edition, null, 0), versions[0], onChoose = {})
             }
             Specimen("the panel", gap = HlSpace.xxs) { HlButton("Versions", { open = true }) }
+            Specimen("from a server, read only", gap = HlSpace.xxs) { HlButton("Versions", { serverOpen = true }) }
         }
         if (open) VersionsSheet(film, versions, onChoose = {}, onDismiss = { open = false })
+        if (serverOpen) VersionsSheet(film, versions, onChoose = null, onDismiss = { serverOpen = false })
     }
 }
 

@@ -63,8 +63,6 @@ class LibraryScanner(
     private val elapsed: () -> Long = SystemClock::elapsedRealtime,
     /** Foreground state; in the background the scan waits, as another app may be playing from the NAS. */
     private val started: Flow<Boolean> = flowOf(true),
-    /** Told the language of a refresh that read every source again: all details are now in it. */
-    private val refreshedIn: suspend (Locale) -> Unit = {},
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -148,6 +146,15 @@ class LibraryScanner(
     /** Removes unreferenced cached artwork, credits and search words; never while an item is being processed. */
     suspend fun cleanup(): CleanupResult = withContext(Dispatchers.IO) {
         lock.withLock { cleanupLocked() }
+    }
+
+    /**
+     * Asks every folder to be read again whole in [locale], the details' new language, and scans: each folder stays
+     * due until a pass in that language reads it, so one out of reach is read once back, the others left alone.
+     */
+    suspend fun refreshAllIn(locale: Locale) {
+        dao.refreshAllIn(locale.toLanguageTag())
+        scanAll()
     }
 
     /** Clears the old key's issue and rescans, retrying unmatched titles at once. */
@@ -237,7 +244,7 @@ class LibraryScanner(
             for (source in sources) {
                 reached += source.id
                 val failure = suspendRunCatching {
-                    changed = scan(source, refreshMetadata, tmdb, seasons, askUnmatched) || changed
+                    changed = scanFolder(source, refreshMetadata, tmdb, seasons, askUnmatched) || changed
                 }.exceptionOrNull()
                 val error = failure?.let { errorOf(source, it) }
                 error?.let { errors[source.id] = it }
@@ -270,12 +277,6 @@ class LibraryScanner(
         // No change, no refresh of the screens.
         if (changed) _changed.emit(Unit)
         _passEnded.tryEmit(changed)
-        if (refreshMetadata) refreshed(errors, client)
-    }
-
-    /** A refresh that read every source with TMDB leaves every title in [client]'s language. */
-    private suspend fun refreshed(errors: Map<Long, ScanError>, client: TmdbClient?) {
-        if (errors.isEmpty() && client != null) refreshedIn(client.locale)
     }
 
     /** Runs the [Backfill] after the sources; a failure is retried at the next pass. */
@@ -299,6 +300,21 @@ class LibraryScanner(
             }
         }
         _changed.emit(Unit)
+    }
+
+    /** [scan], whole for a folder due in this pass's language ([refreshAllIn]), which is then no longer due. */
+    private suspend fun scanFolder(
+        source: SourceEntity,
+        refreshMetadata: Boolean,
+        tmdb: TmdbPass,
+        seasons: ShowIndexer.SeasonCache,
+        askUnmatched: Boolean,
+    ): Boolean {
+        // Due in another language than this pass's TMDB speaks: a later pass reads it.
+        val due = source.refreshIn?.takeIf { it == tmdb.client?.locale?.toLanguageTag() }
+        val changed = scan(source, refreshMetadata || due != null, tmdb, seasons, askUnmatched)
+        if (due != null) dao.refreshedIn(source.id, due)
+        return changed
     }
 
     /** Scans one source; true when the library changed. [askUnmatched] retries titles only waiting for TMDB. */

@@ -547,6 +547,7 @@
     <string name="versions">版本</string>
     <string name="version_chosen">您的选择</string>
     <string name="version_copy">副本 %d</string>
+    <string name="versions_server_first">服务器始终播放第一个副本。</string>
     <string name="edition_extended">加长版</string>
     <string name="edition_directors_cut">导演剪辑版</string>
     <string name="edition_theatrical">院线版</string>

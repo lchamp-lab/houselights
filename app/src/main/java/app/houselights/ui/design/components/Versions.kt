@@ -39,15 +39,17 @@ import app.houselights.ui.util.versionName
 
 /**
  * A film's versions in a side sheet, on one plate: edition ("Version longue"), formats, size and runtime; the one
- * Lire plays has the ember check. OK chooses a version ([onChoose]); Back closes.
+ * Lire plays has the ember check. OK chooses a version ([onChoose]); Back closes. Without [onChoose], for a server
+ * that keeps no choice, the sheet only reads: it says the server plays its first copy, and OK does nothing.
  */
 @Composable
-fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: (Version) -> Unit, onDismiss: () -> Unit) {
+fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: ((Version) -> Unit)?, onDismiss: () -> Unit) {
     val first = remember { FocusRequester() }
     HlSideSheet(
         stringResource(R.string.versions),
         onDismiss = onDismiss,
         facts = listOf(item.title, item.year?.toString()),
+        description = if (onChoose == null) stringResource(R.string.versions_server_first) else null,
         initialFocus = first.takeIf { versions.isNotEmpty() },
     ) { sheet ->
         HlSettingGroup(null) {
@@ -57,7 +59,7 @@ fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: (Version) 
                 VersionRow(
                     name = versionName(version.edition, version.label, i),
                     version = version,
-                    onChoose = { sheet.dismiss { onChoose(version) } },
+                    onChoose = onChoose?.let { choose -> { sheet.dismiss { choose(version) } } },
                     modifier = if (i == start) Modifier.focusRequester(first) else Modifier,
                 )
             }
@@ -65,22 +67,26 @@ fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: (Version) 
     }
 }
 
-/** One film version: [name], formats ([FormatLines]), size and runtime; the chosen one adds "Votre choix". */
+/**
+ * One film version: [name], formats ([FormatLines]), size and runtime; the chosen one adds "Votre choix". Without
+ * [onChoose], nothing was chosen and nothing is marked.
+ */
 @Composable
-fun VersionRow(name: String, version: Version, onChoose: () -> Unit, modifier: Modifier = Modifier) {
+fun VersionRow(name: String, version: Version, onChoose: (() -> Unit)?, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val chosen = stringResource(R.string.version_chosen)
+    val marked = version.chosen && onChoose != null
     val size = version.sizeBytes?.let { formatBytes(it) }
     val length = version.runtimeMs?.let(::formatDuration)
-    val readAs = listOfNotNull(name, size, length, chosen.takeIf { version.chosen }).joinToString(", ")
+    val readAs = listOfNotNull(name, size, length, chosen.takeIf { marked }).joinToString(", ")
     HlRowSurface(
         onClick = onChoose,
         modifier = modifier.fillMaxWidth().clearAndSetSemantics {
             contentDescription = readAs
             this.focused = focused
-            onClick { onChoose(); true }
+            if (onChoose != null) onClick { onChoose(); true }
         },
         interactionSource = interaction,
     ) { _ ->
@@ -94,7 +100,7 @@ fun VersionRow(name: String, version: Version, onChoose: () -> Unit, modifier: M
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
-                if (version.chosen) {
+                if (marked) {
                     Spacer(Modifier.width(HlSpace.s))
                     Icon(
                         HlIcons.Check,

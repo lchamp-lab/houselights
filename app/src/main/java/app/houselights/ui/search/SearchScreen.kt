@@ -42,6 +42,7 @@ import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.DetailAhead
 import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.LetterGrid
 import app.houselights.ui.design.components.MediaRow
@@ -87,7 +88,7 @@ fun SearchScreen(onOpenItem: (MediaItem) -> Unit, onOpenPerson: (String) -> Unit
                         LetterGrid(vm::type, vm::space, vm::delete, first = firstKey)
                     }
                 }
-                Results(found, shown, focusedId, memory, onOpenItem, onOpenPerson, Modifier.weight(1f))
+                Results(found, shown, focusedId, memory, onOpenItem, onOpenPerson, vm::retry, Modifier.weight(1f))
             }
         }
     }
@@ -96,19 +97,28 @@ fun SearchScreen(onOpenItem: (MediaItem) -> Unit, onOpenPerson: (String) -> Unit
 /** The title or saga [id] names among these results, if any. */
 internal fun SearchResults.lit(id: String?): MediaItem? = id?.let { (titles + sagas).find { item -> item.id == it } }
 
-/** The results in rows, each title and saga row naming the one [shown] under it, or a message that nothing matches. */
+/**
+ * The results in rows, each title and saga row naming the one [shown] under it, a message that nothing matches,
+ * or why the search failed.
+ */
 @Composable
-private fun Results(
+internal fun Results(
     found: State<Found?>,
     shown: State<MediaItem?>,
     focusedId: MutableState<String?>,
     memory: FocusMemory,
     onOpenItem: (MediaItem) -> Unit,
     onOpenPerson: (String) -> Unit,
-    modifier: Modifier,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val now = found.value ?: return
     val results = now.results
+    if (now.error != null) {
+        // The keys keep focus; Retry lies to their right.
+        HlErrorState(now.error, onRetry, modifier.padding(start = HlSpace.safeH), now.retrying, focusOnAppear = false)
+        return
+    }
     if (results.isEmpty()) {
         // An intertitle, as every message, on the rows' margin; the keys keep focus.
         HlEmptyState(

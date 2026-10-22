@@ -96,6 +96,8 @@ data class SourceEntity(
     val lastScanAt: Long = 0,
     /** End of the first complete scan (0 until then); only titles added later count as new. */
     val firstScanAt: Long = 0,
+    /** Language tag its titles are to be read again in, whole ([LibraryScanner.refreshAllIn]); null when none. */
+    val refreshIn: String? = null,
 )
 
 data class SourceFirstScan(val id: Long, val firstScanAt: Long)

@@ -143,6 +143,14 @@ interface LibraryDao {
     @Query("UPDATE sources SET lastScanAt = :at, firstScanAt = CASE WHEN firstScanAt = 0 THEN :at ELSE firstScanAt END WHERE id = :id")
     suspend fun markScanned(id: Long, at: Long)
 
+    /** Asks every folder to be read again whole in [language] ([SourceEntity.refreshIn]). */
+    @Query("UPDATE sources SET refreshIn = :language")
+    suspend fun refreshAllIn(language: String)
+
+    /** Clears [id]'s request once read whole in [language], unless another language was asked meanwhile. */
+    @Query("UPDATE sources SET refreshIn = NULL WHERE id = :id AND refreshIn = :language")
+    suspend fun refreshedIn(id: Long, language: String)
+
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
