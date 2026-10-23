@@ -10,6 +10,5 @@ updates:
       actions:
         patterns: ["*"]
     ignore:
-      # v6 caches through a proprietary component (ci.yml).
+      # v5.0.2 is v5's last release, and v6 caches through a proprietary component (ci.yml): bumped by hand.
       - dependency-name: gradle/actions
-        update-types: ["version-update:semver-major"]
