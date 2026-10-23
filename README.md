@@ -118,6 +118,8 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
 - `nfs-client` depends on Netty 3.10 (end of life). Its known vulnerabilities affect HTTP and compression
   codecs that NFS does not use; it will be replaced when a maintained NFS client is available.
 
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
 ## Support
 
 If Houselights earns its place under your TV, you can support the project on

@@ -1,5 +1,8 @@
 # Contributing to Houselights
 
+Everyone taking part follows the [Code of conduct](CODE_OF_CONDUCT.md). Security flaws are reported privately
+([SECURITY.md](SECURITY.md)).
+
 ## Setup
 
 Requirements: JDK 17 and the Android SDK (platform 35).
