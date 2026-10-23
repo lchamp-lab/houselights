@@ -146,11 +146,11 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 If Houselights earns its place under your TV, you can support the project on
 [Ko-fi](https://ko-fi.com/lchamp_lab). The same page is available as a QR code in Settings > About.
 
-**Reporting a problem.** Right after it happens, without restarting the app, open Settings > About > Send the log and
-scan its QR code with your phone: it opens Houselights' own log, with a line to paste at the top (version, player and
+**Reporting a problem.** Right after it happens, open Settings > About > Send the log and scan its QR code with your
+phone: it opens Houselights' own log, a crash's lines included, with a line to paste at the top (version, player and
 firmware, source, Trakt), to copy or download and attach to your
 [issue](https://github.com/lchamp-lab/houselights/issues/new/choose). Passwords and tokens are masked; the names of
-your files, shares and NAS stay, so read it before posting. With adb, the same lines:
+your files, shares and NAS stay, so read it before posting. With adb, the lines of the running app only:
 `adb logcat -d --pid=$(adb shell pidof -s app.houselights)`.
 
 ## Development

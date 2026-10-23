@@ -588,7 +588,7 @@
     <string name="journal_closes">Strona zamknie się wraz z tym panelem, najpóźniej za %1$s.</string>
     <string name="journal_offline">Odtwarzacz nie jest połączony z żadną siecią lokalną: połącz go z routerem i otwórz ten panel ponownie.</string>
     <string name="journal_failed">Nie udało się otworzyć strony na tym odtwarzaczu: zamknij ten panel i otwórz go ponownie.</string>
-    <string name="journal_few">Zeskanuj kod, by otworzyć dziennik, prawie pusty: wróć tu zaraz po problemie, bez restartu aplikacji.</string>
+    <string name="journal_few">Zeskanuj kod, by otworzyć dziennik, prawie pusty: wróć tu zaraz po problemie.</string>
     <string name="journal_page_title">Dziennik</string>
     <string name="journal_page_text">Ostatnie wiersze zapisane przez aplikację, od najnowszego.</string>
     <string name="journal_copy">Kopiuj</string>

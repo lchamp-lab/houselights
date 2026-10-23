@@ -576,7 +576,7 @@
     <string name="journal_closes">The page closes with this panel, in %1$s at most.</string>
     <string name="journal_offline">The player is on no local network: connect it to your router, then open this panel again.</string>
     <string name="journal_failed">The page could not open on this player: close this panel, then open it again.</string>
-    <string name="journal_few">Scan this code to open the log, almost empty: come back here right after the problem, without restarting the app.</string>
+    <string name="journal_few">Scan this code to open the log, almost empty: come back here right after the problem.</string>
     <string name="journal_page_title">Log</string>
     <string name="journal_page_text">The latest lines the app wrote, newest first.</string>
     <string name="journal_copy">Copy</string>

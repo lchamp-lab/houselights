@@ -549,7 +549,7 @@
     <string name="journal_closes">此頁面隨本面板關閉，最遲 %1$s 後關閉。</string>
     <string name="journal_offline">播放器未連線至任何區域網路：請將其連接到路由器，然後重新開啟此面板。</string>
     <string name="journal_failed">無法在此播放器上開啟頁面：請關閉此面板，然後重新開啟。</string>
-    <string name="journal_few">掃描此 QR 碼可開啟日誌，但目前幾乎是空的：請在問題發生後立即開啟此面板，不要重新啟動應用程式。</string>
+    <string name="journal_few">掃描此 QR 碼可開啟日誌，但目前幾乎是空的：請在問題發生後立即開啟此面板。</string>
     <string name="journal_page_title">日誌</string>
     <string name="journal_page_text">應用程式最近寫入的行，最新的在前。</string>
     <string name="journal_copy">複製</string>

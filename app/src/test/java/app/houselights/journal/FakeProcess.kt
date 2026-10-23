@@ -4,9 +4,9 @@ import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.io.OutputStream
 
-/** A process that printed [output] and ended, as logcat -d does. */
-internal class FakeProcess(output: String) : Process() {
-    private val stdout = ByteArrayInputStream(output.toByteArray())
+/** A process that printed [stdout] and ended, as logcat -d does. */
+internal class FakeProcess(private val stdout: InputStream) : Process() {
+    constructor(output: String) : this(ByteArrayInputStream(output.toByteArray()))
 
     override fun getOutputStream(): OutputStream = OutputStream.nullOutputStream()
 

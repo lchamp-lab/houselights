@@ -573,7 +573,7 @@
     <string name="journal_closes">A página fecha com este painel, em no máximo %1$s.</string>
     <string name="journal_offline">O player não está conectado a nenhuma rede local: conecte-o ao seu roteador e abra este painel novamente.</string>
     <string name="journal_failed">A página não pôde ser aberta neste player: feche este painel e abra-o novamente.</string>
-    <string name="journal_few">Escaneie este código para abrir o registro, quase vazio: volte aqui logo após o problema, sem reiniciar o app.</string>
+    <string name="journal_few">Escaneie este código para abrir o registro, quase vazio: volte aqui logo após o problema.</string>
     <string name="journal_page_title">Registro</string>
     <string name="journal_page_text">As últimas linhas escritas pelo app, da mais recente à mais antiga.</string>
     <string name="journal_copy">Copiar</string>
