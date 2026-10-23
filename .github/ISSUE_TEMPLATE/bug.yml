@@ -52,4 +52,8 @@ body:
     id: details
     attributes:
       label: Anything else
-      description: A file name, an NFO, a photo of the screen, `adb logcat` lines if you have them. Remove passwords and tokens.
+      description: >-
+        A file name, an NFO, a photo of the screen. With adb, Houselights' own log, taken right after the problem
+        without restarting the app: `adb logcat -d --pid=$(adb shell pidof -s app.houselights)`. Never paste the
+        whole `adb logcat`: Android writes there the address of each file played, with your NAS password in a
+        line containing `smb://`.
