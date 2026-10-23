@@ -438,7 +438,7 @@ class TraktPaneTest {
             val local = context.createConfigurationContext(config).resources
             val label = local.getString(R.string.trakt_skipped_fix_label)
             listOf(1, 2, 5, 22).forEach { n ->
-                val fix = local.getQuantityString(R.plurals.trakt_skipped_fix, n)
+                val fix = local.getString(if (n == 1) R.string.trakt_skipped_fix_one else R.string.trakt_skipped_fix)
                 assertTrue("$tag, $n: «$fix» after «$label»", fix.startsWith(label) && fix.length > label.length)
             }
         }

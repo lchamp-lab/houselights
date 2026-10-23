@@ -682,14 +682,10 @@
         <item quantity="one">%d item skipped</item>
         <item quantity="other">%d items skipped</item>
     </plurals>
-    <plurals name="trakt_skipped_desc">
-        <item quantity="one">Trakt sends it in a form the app can’t read</item>
-        <item quantity="other">Trakt sends them in a form the app can’t read</item>
-    </plurals>
-    <plurals name="trakt_skipped_text">
-        <item quantity="one">Trakt sends it in a form this version can’t read, often a paused playback left by another app. The rest is synced, and your marks go out as usual.</item>
-        <item quantity="other">Trakt sends them in a form this version can’t read, often a paused playback left by another app. The rest is synced, and your marks go out as usual.</item>
-    </plurals>
+    <string name="trakt_skipped_desc_one">Trakt sends it in a form the app can’t read</string>
+    <string name="trakt_skipped_desc">Trakt sends them in a form the app can’t read</string>
+    <string name="trakt_skipped_text_one">Trakt sends it in a form this version can’t read, often a paused playback left by another app. The rest is synced, and your marks go out as usual.</string>
+    <string name="trakt_skipped_text">Trakt sends them in a form this version can’t read, often a paused playback left by another app. The rest is synced, and your marks go out as usual.</string>
     <plurals name="trakt_skipped_untitled">
         <item quantity="one">%d item without a title</item>
         <item quantity="other">%d items without a title</item>
@@ -705,10 +701,8 @@
     <string name="trakt_skipped_partial_episodes">While the episode history can’t be read in full, Houselights doesn’t send Trakt the episodes watched here that it lacks, so as not to create duplicates.</string>
     <string name="trakt_skipped_partial_both">While the film and episode histories can’t be read in full, Houselights doesn’t send Trakt the films and episodes watched here that it lacks, so as not to create duplicates.</string>
     <string name="trakt_skipped_fix_label">To fix:</string>
-    <plurals name="trakt_skipped_fix">
-        <item quantity="one">To fix: delete it on trakt.tv, under Progress or History, or update Houselights once a version can read it.</item>
-        <item quantity="other">To fix: delete them on trakt.tv, under Progress or History, or update Houselights once a version can read them.</item>
-    </plurals>
+    <string name="trakt_skipped_fix_one">To fix: delete it on trakt.tv, under Progress or History, or update Houselights once a version can read it.</string>
+    <string name="trakt_skipped_fix">To fix: delete them on trakt.tv, under Progress or History, or update Houselights once a version can read them.</string>
     <string name="trakt_certificate">Trakt’s certificate is refused. Check this device’s date and time, then try again.</string>
     <string name="settings_lost_trakt">The Trakt connection saved on this player could not be read again. Connect your account again.</string>
 </resources>

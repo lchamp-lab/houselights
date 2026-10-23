@@ -52,7 +52,7 @@ internal fun SkippedRow(skipped: List<SkippedEntry>) {
     val count = skipped.size
     HlSettingRow(
         pluralStringResource(R.plurals.trakt_skipped, count, count),
-        description = pluralStringResource(R.plurals.trakt_skipped_desc, count),
+        description = stringResource(if (count == 1) R.string.trakt_skipped_desc_one else R.string.trakt_skipped_desc),
         onClick = { open = true },
     )
     if (open) SkippedSheet(skipped, onDismiss = { open = false })
@@ -71,7 +71,8 @@ internal fun SkippedSheet(skipped: List<SkippedEntry>, onDismiss: () -> Unit) {
     val overflows = scroll.maxValue > 0
     val lines = remember(skipped) { skippedLines(skipped) }
     HlSideSheet(pluralStringResource(R.plurals.trakt_skipped, count, count), onDismiss, scroll = scroll) { _ ->
-        Text(pluralStringResource(R.plurals.trakt_skipped_text, count), style = Hl.type.body, color = c.contentSecondary)
+        val text = if (count == 1) R.string.trakt_skipped_text_one else R.string.trakt_skipped_text
+        Text(stringResource(text), style = Hl.type.body, color = c.contentSecondary)
         ReadingPlate(Modifier.fillMaxWidth().focusProperties { canFocus = overflows }.readsThrough(scroll)) {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) { lines.forEach { SkippedItem(it) } }
         }
@@ -171,7 +172,7 @@ private fun Fix(count: Int) {
     val c = Hl.colors
     val t = Hl.type
     val label = stringResource(R.string.trakt_skipped_fix_label)
-    val fix = pluralStringResource(R.plurals.trakt_skipped_fix, count)
+    val fix = stringResource(if (count == 1) R.string.trakt_skipped_fix_one else R.string.trakt_skipped_fix)
     val text = remember(label, fix, c, t) {
         buildAnnotatedString {
             if (fix.startsWith(label)) withStyle(t.entry.toSpanStyle().copy(color = c.content)) { append(label) }

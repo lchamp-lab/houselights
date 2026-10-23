@@ -52,12 +52,13 @@ class TraktFollowTest : TraktSyncFixture() {
         assertEquals(setOf(waiting.title, "movie:71"), queue.pending().map { it.title }.toSet())
         assertEquals(emptyList<String>(), trakt.routes)
 
-        // Synced a minute before: what waited goes alone, Trakt's history is not read again from the start.
+        // Synced a minute before: what waited goes, with nothing sent from a whole join; the lists are read once, as
+        // in every process, to say again what a sync left out.
         session = saved
         settings.value = AppSettings(loaded = true, source = SourceConfig.Local, trakt = saved)
         waitFor("what waited sent") { queue.pending().isEmpty() && !sync.state.value.running }
         assertEquals(listOf(1, 1), listOf(trakt.count("POST /sync/history/remove"), trakt.count("POST /sync/history")))
-        assertEquals(0, trakt.count("GET /sync/last_activities") + trakt.count("GET /sync/watched/movies"))
+        assertEquals(1, trakt.count("GET /sync/watched/movies"))
     }
 
     @Test

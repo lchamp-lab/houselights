@@ -648,12 +648,10 @@
     <plurals name="trakt_skipped">
         <item quantity="other">已略過 %d 個項目</item>
     </plurals>
-    <plurals name="trakt_skipped_desc">
-        <item quantity="other">Trakt 傳送的格式此應用程式無法讀取</item>
-    </plurals>
-    <plurals name="trakt_skipped_text">
-        <item quantity="other">Trakt 傳送的格式此版本無法讀取，通常是其他應用程式留下的暫停播放。其餘內容已同步，您的標記也會照常傳送。</item>
-    </plurals>
+    <string name="trakt_skipped_desc_one">Trakt 傳送的格式此應用程式無法讀取</string>
+    <string name="trakt_skipped_desc">Trakt 傳送的格式此應用程式無法讀取</string>
+    <string name="trakt_skipped_text_one">Trakt 傳送的格式此版本無法讀取，通常是其他應用程式留下的暫停播放。其餘內容已同步，您的標記也會照常傳送。</string>
+    <string name="trakt_skipped_text">Trakt 傳送的格式此版本無法讀取，通常是其他應用程式留下的暫停播放。其餘內容已同步，您的標記也會照常傳送。</string>
     <plurals name="trakt_skipped_untitled">
         <item quantity="other">%d 個無標題項目</item>
     </plurals>
@@ -667,9 +665,8 @@
     <string name="trakt_skipped_partial_episodes">在劇集觀看記錄能夠完整讀取之前，Houselights 不會把在這裡看過而 Trakt 缺少的劇集傳送給它，以免產生重複。</string>
     <string name="trakt_skipped_partial_both">在電影和劇集觀看記錄能夠完整讀取之前，Houselights 不會把在這裡看過而 Trakt 缺少的電影和劇集傳送給它，以免產生重複。</string>
     <string name="trakt_skipped_fix_label">解決方法：</string>
-    <plurals name="trakt_skipped_fix">
-        <item quantity="other">解決方法：在 trakt.tv 的「進度」或「觀看記錄」中刪除它們，或在有版本能夠讀取時更新 Houselights。</item>
-    </plurals>
+    <string name="trakt_skipped_fix_one">解決方法：在 trakt.tv 的「進度」或「觀看記錄」中刪除它們，或在有版本能夠讀取時更新 Houselights。</string>
+    <string name="trakt_skipped_fix">解決方法：在 trakt.tv 的「進度」或「觀看記錄」中刪除它們，或在有版本能夠讀取時更新 Houselights。</string>
     <string name="trakt_certificate">Trakt 的憑證遭到拒絕。請檢查此裝置的日期和時間，然後重試。</string>
     <string name="settings_lost_trakt">無法重新讀取本播放器上儲存的 Trakt 連結。請重新連結您的帳戶。</string>
 </resources>

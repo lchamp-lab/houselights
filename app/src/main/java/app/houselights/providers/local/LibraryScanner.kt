@@ -212,9 +212,13 @@ class LibraryScanner(
     private val askTmdbAgain = AtomicBoolean(false)
 
     private suspend fun cleanupLocked(): CleanupResult {
-        val orphanCast = dao.deleteOrphanCredits()
-        dao.deleteOrphanSearchWords()
-        dao.deleteOrphanTrackChoices()
+        // One transaction for the three, on a device where each costs a sync to storage.
+        var orphanCast = 0
+        dao.inTransaction {
+            orphanCast = dao.deleteOrphanCredits()
+            dao.deleteOrphanSearchWords()
+            dao.deleteOrphanTrackChoices()
+        }
         // Based on library references, not on the NAS listing, so an unreachable NAS never deletes artwork.
         val result = artwork.sweep(dao.cachedArtworkPaths())
         if (result.deletedFiles > 0 || orphanCast > 0) {
