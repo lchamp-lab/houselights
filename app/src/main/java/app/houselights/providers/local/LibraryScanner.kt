@@ -214,6 +214,7 @@ class LibraryScanner(
     private suspend fun cleanupLocked(): CleanupResult {
         val orphanCast = dao.deleteOrphanCredits()
         dao.deleteOrphanSearchWords()
+        dao.deleteOrphanTrackChoices()
         // Based on library references, not on the NAS listing, so an unreachable NAS never deletes artwork.
         val result = artwork.sweep(dao.cachedArtworkPaths())
         if (result.deletedFiles > 0 || orphanCast > 0) {
@@ -352,7 +353,7 @@ class LibraryScanner(
         val own = files.filterNot { it.relativePath in waiting }.associateWith { work(it) }.filterValues { it != null }
         // When a show's own sidecars changed and none of its episodes is read in full, one episode reads them.
         val forShows = showsToRead(source, files, own.filterValues { it == Work.FULL }.keys, known, sidecars)
-        val todo = own.keys.toList() + forShows.keys.filterNot { it in own }
+        val todo = inOrder(own, forShows)
         _state.update { it.copy(total = todo.size) }
         Log.i(
             TAG,
@@ -437,6 +438,15 @@ class LibraryScanner(
 
     private data class ShowFolder(val dir: String, val seriesId: Long, val name: String)
 
+    /**
+     * Files to read in full first, then those of [forShows], then headers to read again ([Work.PROBE]): after a new
+     * probe version, these may take the whole pass, and a new film should not wait for them.
+     */
+    private fun inOrder(own: Map<RemoteFile, Work?>, forShows: Map<RemoteFile, Long>): List<RemoteFile> {
+        val (probes, reads) = own.keys.partition { own[it] == Work.PROBE && it !in forShows }
+        return reads + forShows.keys.filterNot { it in own } + probes
+    }
+
     /** [work], except that a file picked by [showsToRead] gets a full read unless its show was read this pass. */
     private fun stillDue(work: (RemoteFile) -> Work?, forShows: Map<RemoteFile, Long>): (RemoteFile) -> Work? =
         { file -> Work.FULL.takeIf { forShows[file]?.let(shows::readThisPass) == false } ?: work(file) }
@@ -486,8 +496,9 @@ class LibraryScanner(
             )
         }
 
+    /** Without what screens never show: the probe's version and whether the tracks are in the file's order. */
     private fun unstamped(mediaInfo: String?): String? =
-        MediaProbe.decode(mediaInfo)?.copy(probedWith = 0)?.let(MediaProbe::encode) ?: mediaInfo
+        MediaProbe.decode(mediaInfo)?.copy(probedWith = 0, tracksInOrder = false)?.let(MediaProbe::encode) ?: mediaInfo
 
     /**
      * Checks free space too: on a full disk SQLite rolls back by itself and Room's rollback then fails ("cannot

@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
@@ -16,6 +17,8 @@ import app.houselights.core.SortOption
 import app.houselights.core.UserState
 import app.houselights.core.WatchStatus
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -530,17 +533,57 @@ class LocalProviderTest {
     @Test
     fun theFilesTracksGoWithItsLaunch() = runTest {
         val options = PlaybackOptions(emptyList(), false)
-        val french = listOf(AudioTrack(Codecs.AC3, 6, "fre"))
-        val read = MediaInfo(container = "MKV", audio = french, probedWith = MediaProbe.VERSION, tracksInOrder = true)
-        val heat = movie("Heat") { withMedia(read) }
+        val read = readInOrder()
+        val heat = movie("Heat") { withMedia(read).copy(tmdbId = 949) }
         val plan = provider.playback(provider.item(heat.toString()), resume = false, options) as PlaybackPlan.Launch
-        assertEquals(read to "local:$heat", plan.media to plan.titleKey)
-        val copy = movie("Heat", path = "Heat 2160p.mkv") { withMedia(read).copy(versionOf = heat) }
+        assertEquals(read to "local:film:949", plan.media to plan.titleKey)
+        val copy = movie("Heat", path = "Heat 2160p.mkv") { withMedia(read).copy(tmdbId = 949) }
+        dao.groupVersions()
         val copyPlan = provider.play(copy, null, resume = false) as PlaybackPlan.Launch
-        assertEquals("one choice for every copy", "local:$heat", copyPlan.titleKey)
+        assertEquals("one choice for every copy", "local:film:949", copyPlan.titleKey)
+        val unmatched = movie("Ronin") { withMedia(read) }
+        assertEquals("local:$unmatched", (provider.play(unmatched, null, resume = false) as PlaybackPlan.Launch).titleKey)
         val iso = movie("Ronin", path = "Ronin.iso") { withMedia(read) }
         assertNull((provider.playback(provider.item(iso.toString()), resume = false, options) as PlaybackPlan.Launch).media)
     }
+
+    /** A film's choice of tracks is kept under its TMDB id, which groups its copies: it outlives the copy it was made on. */
+    @Test
+    fun aChoiceOfTracksOutlivesTheCopyItWasMadeOn() = runTest {
+        val first = movie("Dune", path = "Dune 1080p.mkv") { withMedia(readInOrder()).copy(tmdbId = 438631) }
+        val copy = movie("Dune", path = "Dune 2160p.mkv") { withMedia(readInOrder()).copy(tmdbId = 438631) }
+        dao.groupVersions()
+        val key = checkNotNull((provider.play(first, null, resume = false) as PlaybackPlan.Launch).titleKey)
+        db.trackChoices().save(TrackChoiceEntity(key, "eng", null, at = 5))
+        // The 1080p file gone for good, as a scan settles it: the 4K copy becomes the title.
+        dao.settleMissing(emptyList(), emptyList(), emptyList(), removed = listOf(first), emptyList(), now = 10)
+        assertNull(dao.item(copy)?.versionOf)
+
+        val plan = provider.playback(provider.item(copy.toString()), resume = false, PlaybackOptions(emptyList(), false))
+        assertEquals("eng", (plan as PlaybackPlan.Launch).titleKey?.let { db.trackChoices().choice(it) }?.audio)
+    }
+
+    /** The library's cleanup deletes the choices no title keys any more: a matched film's, an unmatched one's and a show's stay. */
+    @Test
+    fun aChoiceOfTracksGoesWithItsTitle() = runTest {
+        movie("Dune") { copy(tmdbId = 438631) }
+        val heat = movie("Heat")
+        val show = show("Severance")
+        val kept = listOf("local:film:438631", "local:$heat", "local:${show.id}", "jellyfin:show1")
+        val gone = listOf("local:film:949", "local:999", "local:film:$heat")
+        for (key in kept + gone) db.trackChoices().save(TrackChoiceEntity(key, "eng", null, at = 5))
+
+        val idle = CoroutineScope(Job().apply { cancel() })
+        val artwork = ArtworkCache(ApplicationProvider.getApplicationContext<Context>().cacheDir.resolve("artwork"))
+        LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {}).cleanup()
+        assertEquals(kept, kept.filter { db.trackChoices().choice(it) != null })
+        assertEquals(emptyList<String>(), gone.filter { db.trackChoices().choice(it) != null })
+    }
+
+    /** French AC3 alone, read by the probe in the file's order. */
+    private fun readInOrder() = MediaInfo(
+        container = "MKV", audio = listOf(AudioTrack(Codecs.AC3, 6, "fre")), probedWith = MediaProbe.VERSION, tracksInOrder = true,
+    )
 
     /** No logo chosen (the title set in type): the player gets none either. */
     @Test
