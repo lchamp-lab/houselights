@@ -27,6 +27,11 @@
 > **Beta.** Made for the Zidoo Z1000 Pro, Z9X and UHD series (Android 9 with Zidoo's launcher) and for Android TV
 > boxes running Android 9 or later. Not affiliated with Zidoo, Jellyfin, Emby or Plex.
 
+**En français.** Houselights est une médiathèque façon salle de cinéma pour les lecteurs **Zidoo** (Z1000 Pro, Z9X,
+UHD) et les box Android TV : vos films et séries d’un **NAS** (NFS ou SMB, avec les NFO Kodi et TMDB) ou d’un
+serveur **Jellyfin**, lus par le **lecteur natif Zidoo** (HDR10, HDR10+, Dolby Vision, passthrough audio), avec le
+suivi **Trakt**. Libre et gratuite, l’application est entièrement en français. [Installer](#install)
+
 ## Features
 
 - **The Zidoo player plays.** Files open directly in it (`smb://`, `nfs://` or HTTP), with everything it
