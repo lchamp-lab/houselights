@@ -934,10 +934,14 @@ private object CutPostersMade {
         made[keys] = posters
     }
 
-    /** The making of [keys] under way, and whether the caller is to make it. */
+    /**
+     * The making of [keys] under way, and whether the caller is to make it. One cancelled is never handed out: a waiter
+     * its cancelling resumes before its maker is [done] makes them itself rather than await it again.
+     */
     @Synchronized
     fun making(keys: List<Any?>): Pair<CompletableDeferred<CutPosters>, Boolean> =
-        underWay[keys]?.let { it to false } ?: CompletableDeferred<CutPosters>().also { underWay[keys] = it }.let { it to true }
+        underWay[keys]?.takeIf { !it.isCancelled }?.let { it to false }
+            ?: CompletableDeferred<CutPosters>().also { underWay[keys] = it }.let { it to true }
 
     @Synchronized
     fun done(keys: List<Any?>, making: CompletableDeferred<CutPosters>) {

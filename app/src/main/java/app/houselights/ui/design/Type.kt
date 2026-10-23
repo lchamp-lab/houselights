@@ -144,7 +144,7 @@ data class HlType(
     val headline: TextStyle,
     /** What a panel or sheet is about ("Modifier"), an intertitle's line, a figure that states something. */
     val subject: TextStyle,
-    /** The places of a track (Films, Séries, a season); [placeCurrent] for the one you are in. */
+    /** The words of a track (a season, an NFO's view); [placeCurrent] for the one you are in. */
     val place: TextStyle,
     val placeCurrent: TextStyle,
     /** A row's title over its cards; the selected title over a wall. */

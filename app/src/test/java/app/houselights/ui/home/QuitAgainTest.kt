@@ -3,6 +3,10 @@ package app.houselights.ui.home
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -58,7 +62,9 @@ class QuitAgainTest {
     fun aFirstBackSaysASecondQuits() {
         open()
         back()
+        // Read out politely as it comes.
         compose.onNodeWithText(line).assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
         assertFalse("one Back never quits", quits)
         back()
         assertTrue(quits)

@@ -21,6 +21,7 @@ import androidx.navigation.toRoute
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
+import app.houselights.core.MediaItem
 import app.houselights.ui.home.HomeActions
 import app.houselights.ui.home.HomeGrid
 import app.houselights.ui.home.films
@@ -76,7 +77,8 @@ class PagesNavigationTest {
                     )
                     HomeGrid(fullHome(), actions)
                 }
-                composable<Route.Library> { WallAt(it) }
+                composable<Route.Library> { WallAt(it) { item -> nav.navigate(Route.Item(item.id)) } }
+                composable<Route.Item> {}
                 composable<Route.Watch> {}
                 composable<Route.Search> {}
                 composable<Route.Settings> {}
@@ -89,7 +91,7 @@ class PagesNavigationTest {
 
     /** The wall at [entry], its saved state from the route's arguments as the app's factory makes it. */
     @Composable
-    private fun WallAt(entry: NavBackStackEntry) {
+    private fun WallAt(entry: NavBackStackEntry, onOpenItem: (MediaItem) -> Unit) {
         val route = entry.toRoute<Route.Library>()
         val library = Library(route.id, route.kind, route.title)
         val sagas = route.sagas?.let { Library(it, LibraryKind.COLLECTIONS, null) }
@@ -98,10 +100,13 @@ class PagesNavigationTest {
                 initializer { LibraryViewModel({ source }, library, createSavedStateHandle(), opensOn = route.filter, sagas = sagas) }
             },
         )
-        Wall(vm, library, route.title ?: "Wall", onOpenItem = {})
+        Wall(vm, library, route.title ?: "Wall", onOpenItem)
     }
 
     private fun focusIsOn(text: String) = compose.onNode(isFocused()).assert(hasText(text, substring = true))
+
+    /** Focus on the poster of "Film [n]", by its whole name: "Film 1" is not "Film 16". */
+    private fun focusIsOnFilm(n: Int) = compose.onNode(isFocused()).assert(hasText("Film $n"))
 
     private fun back() {
         compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
@@ -145,14 +150,29 @@ class PagesNavigationTest {
         val nav = app()
         compose.press(Key.DirectionRight)
         compose.press(Key.DirectionCenter)
-        focusIsOn("Film 1")
+        focusIsOnFilm(1)
         compose.runOnIdle { assertEquals("movies" to "collections", nav.wall().id to nav.wall().sagas) }
         compose.press(Key.DirectionDown, times = 2)
         back()
-        focusIsOn("Film 1")
+        focusIsOnFilm(1)
         back()
         compose.runOnIdle { assertTrue(nav.on(Route.Home::class)) }
         focusIsOn("Movies")
+    }
+
+    /** Back from a title's page opened from a wall, focus is on its poster again. */
+    @Test
+    fun aTitlesPageGoesBackToItsPoster() {
+        val nav = app()
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionCenter)
+        compose.press(Key.DirectionDown, times = 2)
+        compose.press(Key.DirectionRight)
+        focusIsOnFilm(16)
+        compose.press(Key.DirectionCenter)
+        compose.runOnIdle { assertTrue(nav.on(Route.Item::class)) }
+        back()
+        focusIsOnFilm(16)
     }
 
     /** A wall opened from a person's page or from the library in numbers goes back there, not home. */
@@ -161,13 +181,13 @@ class PagesNavigationTest {
         val nav = app()
         compose.runOnIdle { nav.navigate(Route.Person("p7")) }
         compose.runOnIdle { nav.navigate(Route.Library.of(films, LibraryFilter(person = "p7"), personName = "Denis Villeneuve")) }
-        focusIsOn("Film 1")
+        focusIsOnFilm(1)
         back()
         compose.runOnIdle { assertTrue("the filmography's person", nav.on(Route.Person::class)) }
 
         compose.runOnIdle { nav.navigate(Route.Settings) }
         compose.runOnIdle { nav.openWall(films, LibraryFilter(picture = "Ultra HD")) }
-        focusIsOn("Film 1")
+        focusIsOnFilm(1)
         back()
         compose.runOnIdle { assertTrue("the library in numbers", nav.on(Route.Settings::class)) }
     }

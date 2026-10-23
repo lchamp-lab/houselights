@@ -446,7 +446,7 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   (`HomeLayoutTest`, `HomePlanTest`).
 - **« À regarder »** (`WatchScreen`): home's rows under their title (`ScreenTitle`), the hero band (`HlLayout.hero`,
   148: logo, one line of facts, two lines of overview or progress), then the rows, `HlSpace.l` apart; opened on the
-  row of the door that opens it, Back home to that door (`WatchPageTest`).
+  row of the door that opens it, Back home to that door (`WatchPageTest`, `PagesNavigationTest`).
 - **A wall is a page**, as search and the settings are, whether home's door opens it (Films, Séries, Sagas, a
   server's libraries) or another screen does, filtered (a person, a format): its name lit at the safe area's top
   (`ScreenTitle`), its count beside it, Filtrer and Trier at the end of that line, the selected title under it, then
@@ -552,10 +552,10 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
 starts, then leaves. Home's grid has no depth: from any door, a first Back says "Appuyez encore sur Retour pour
 quitter" at the end of its head (`HomeHead`'s `status`), and a second one within 2.5 s (`QUIT_WINDOW_MS`) quits;
 the line goes when that time is out or as soon as focus moves to another door. Under the launch screen nothing has
-been seen yet: the first Back quits (`QuitAgainTest`). A page goes back to the screen that opened it, one opened
-from home to the door it came from, one opened from a person's page or the library in numbers there
-(`PagesNavigationTest`): « À regarder » at once, a wall from past its first line to its first poster, then away.
-Sheets and menus handle their own Back; during the house-light cue, Back cancels it.
+been seen yet: the first Back quits (`QuitAgainTest`). A page goes back to the screen that opened it: home, on the
+door it came from, or the person's page or the library in numbers that opened a wall (`PagesNavigationTest`).
+« À regarder » goes at once; a wall, from past its first line, first returns to its first poster. Sheets and menus
+handle their own Back; during the house-light cue, Back cancels it.
 
 **Menu** (or the Zidoo remote's Pop Menu, sent as F12) opens the options of what has focus, on its way up
 (`menuForLongClick`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
