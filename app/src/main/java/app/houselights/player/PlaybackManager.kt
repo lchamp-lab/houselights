@@ -51,7 +51,7 @@ class PlaybackManager(
         var positionMs: Long,
         /** A disc: it may open on a menu or an intro, whose length is not the title's (see [follow]). */
         val disc: Boolean = false,
-        /** Key of the playing file ([PlaybackPlan.Launch.resumeKey]), for the log. */
+        /** Key of the playing file ([PlaybackPlan.Launch.resumeKey]), for the log and [playersOwnTracks]. */
         var key: String? = null,
         /** The player a secret goes to, remembered only once it has started ([onPlayerLaunched]). */
         val trusting: ZidooPlayer.Choice? = null,
@@ -86,9 +86,6 @@ class PlaybackManager(
         /** The player's lists, as the check read them: the numbers it returns are its own; null until one is read. */
         var plays: PlayerTracks? = null
 
-        /** The subtitles the player first played by itself, when none were asked to look beside the video. */
-        var ownSubtitle: Int? = null
-
         /** Tracks the player played without the user (asked, its own, switched to), by kind: a return to one is no choice. */
         val usual = mutableMapOf<TrackKind, MutableSet<Int>>()
 
@@ -104,6 +101,9 @@ class PlaybackManager(
 
     /** The session, persisted before launch: on a 2 GB player, Android may kill the app during the film. */
     private val saved = context.getSharedPreferences("playback", Context.MODE_PRIVATE)
+
+    /** Files last played while the app was stopped, by [PlaybackPlan.Launch.resumeKey] (see [playersOwnTracks]). */
+    private val unfollowed = context.getSharedPreferences("unfollowed", Context.MODE_PRIVATE)
 
     private val _playing = MutableStateFlow(false)
 
@@ -172,7 +172,7 @@ class PlaybackManager(
             putExtra("from_start", true)
         }
         tracks?.pick?.let { pick ->
-            val beside = if (tracks.subtitleBeside) " (looked for beside the video)" else ""
+            val beside = if (tracks.subtitleBeside) ", better ones looked for beside the video" else ""
             Log.i(TAG, "Tracks asked: audio ${pick.audio}, subtitles ${pick.subtitle}$beside")
             pick.audio?.let { putExtra("audio_idx", it) }
             pick.subtitle?.let { putExtra("subtitle_idx", it) }
@@ -203,6 +203,8 @@ class PlaybackManager(
     fun onPlayerLaunched() {
         val s = session ?: return
         s.trusting?.let(players::remember)
+        // From the start, the player's memory of the file no longer matters.
+        if (s.positionMs <= 0) s.key?.let { unfollowed.edit().remove(it).apply() }
         _playing.value = true
         s.started = scope.launch { report(s, "started") { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()
@@ -379,12 +381,7 @@ class PlaybackManager(
         s.checked = true
         val read = tracks()
         s.plays = (s.plays ?: read)?.with(read)
-        // None asked, the subtitles the player first lists are its own choice, never the user's.
-        if (plan.subtitleBeside && s.ownSubtitle == null) {
-            s.ownSubtitle = read?.subtitleIndex
-            s.usual(TrackKind.SUBTITLE, s.ownSubtitle)
-        }
-        if (read != null) switch(s, read, TrackCheck.fixes(plan, read, s.ownSubtitle))
+        if (read != null) switch(s, read, TrackCheck.fixes(plan, read))
         if (read?.complete == true || ++s.tries >= CHECK_TRIES) s.settled = true
     }
 
@@ -404,16 +401,15 @@ class PlaybackManager(
     }
 
     /**
-     * What the user changed in the player among the tracks asked of it, which becomes the title's choice; subtitles
-     * looked for beside the video once the check read what the player chose by itself. Nothing when in doubt: another
-     * file, a check under way, or numbers that may not be the file's.
+     * What the user changed in the player among the tracks asked of it, which becomes the title's choice. Nothing
+     * when in doubt: another file, a check under way, or numbers that may not be the file's.
      */
     private fun changed(s: Session, data: Intent?, played: String?): TrackChoice? {
         val plan = s.tracks?.takeUnless { s.doubtful(played) } ?: return null
-        fun returned(kind: TrackKind, extra: String, asked: Boolean) =
-            data?.getIntExtra(extra, -1)?.takeIf { it >= 0 && asked && !s.isUsual(kind, it) }
-        val audio = returned(TrackKind.AUDIO, "audio_idx", plan.pick.audio != null)
-        val subtitle = returned(TrackKind.SUBTITLE, "subtitle_idx", plan.pick.subtitle != null || s.ownSubtitle != null)
+        fun returned(kind: TrackKind, extra: String, asked: Int?) =
+            data?.getIntExtra(extra, -1)?.takeIf { it >= 0 && asked != null && !s.isUsual(kind, it) }
+        val audio = returned(TrackKind.AUDIO, "audio_idx", plan.pick.audio)
+        val subtitle = returned(TrackKind.SUBTITLE, "subtitle_idx", plan.pick.subtitle)
         if (audio == null && subtitle == null) return null
         // A list the player did not give leaves the file's numbering, its own unless files beside the video count: a
         // server's, or, once the check found no list, ones a scan cannot know of (a subtitle file the player may list).
@@ -429,6 +425,12 @@ class PlaybackManager(
         saved.edit().putLong(KEY_POSITION, s.positionMs).apply()
     }
 
+    /**
+     * Whether the file of [resumeKey] was last played while the app was stopped, until it is played from the start:
+     * what the user chose in the player then, only its memory of the file keeps ([TrackChooser.plan]).
+     */
+    fun playersOwnTracks(resumeKey: String): Boolean = unfollowed.contains(resumeKey)
+
     /** Player result: final position in ms when the player returns it. */
     fun onPlayerResult(data: Intent?) {
         val live = session
@@ -439,6 +441,8 @@ class PlaybackManager(
         _playing.value = false
         saved.edit().clear().apply()
         if (live == null && resumeKey == null) return
+        // Stopped while the film played, the app could not follow what the user chose in the player.
+        if (live == null) unfollowed.edit().putBoolean(resumeKey, true).apply()
         val poll = pollJob
         pollJob = null
         val returned = data?.getIntExtra("position", -1) ?: -1

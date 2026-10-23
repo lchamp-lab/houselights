@@ -196,6 +196,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         playerAudio = { ZidooSettings.audio(app.contentResolver) },
         // The player speaks the device's language, whatever the app's.
         deviceLanguage = { deviceLocale.value.language },
+        playersOwn = { player.playersOwnTracks(it) },
     )
 
     /** The Zidoo player takes the tracks asked of it ([ZidooPlayer.takesTracks]); another ignores them. Debug builds show them anywhere. */
@@ -210,7 +211,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     }
 
     /** Launches the external player for a title and follows it while it plays. */
-    val player = PlaybackManager(app, scope, remember = tracks::remember) { resumeKey ->
+    val player: PlaybackManager = PlaybackManager(app, scope, remember = tracks::remember) { resumeKey ->
         // After a process restart, the source is known only once the settings are loaded.
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)

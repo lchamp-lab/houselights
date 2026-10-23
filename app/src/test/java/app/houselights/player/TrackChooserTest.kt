@@ -32,33 +32,39 @@ class TrackChooserTest {
     }
 
     /**
-     * Resumed, a title the user chose no tracks for is left to the player, which remembers what was chosen in it for
-     * the file, even if the app was stopped before it could keep it; a title's own choice is still asked, alone.
+     * A resume asks Settings: its position may come from elsewhere (a pause Trakt keeps, another Jellyfin client), which
+     * the player has no memory of. Last played while the app was stopped, the file is left to the player, which
+     * remembers what was chosen in it then; a title's own choice is still asked, alone.
      */
     @Test
-    fun aResumeLeavesTheTracksToThePlayersMemoryOfTheFile() = runTest {
+    fun aResumeLeavesTheTracksToThePlayersMemoryOnlyOfAFileItAloneFollowed() = runTest {
         var stored: TrackChoice? = null
+        val unfollowed = mutableSetOf<String>()
         val chooser = TrackChooser(
             preferences = { TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.ALWAYS) },
             locale = { Locale.FRANCE },
             load = { stored },
             save = { _, _ -> },
             forget = {},
+            playersOwn = { it in unfollowed },
         )
         val resumed = LAUNCH.copy(startMs = 1_800_000)
         assertEquals("from the start: Settings", TrackPick(0, 2), chooser.plan(LAUNCH)?.pick)
+        assertEquals("resumed: Settings", TrackPick(0, 2), chooser.plan(resumed)?.pick)
+        unfollowed += "4"
         assertNull(chooser.plan(resumed))
+        assertEquals("from the start: Settings", TrackPick(0, 2), chooser.plan(LAUNCH)?.pick)
         stored = TrackChoice(audio = "en")
         assertEquals(TrackPick(1, null), chooser.plan(resumed)?.pick)
     }
 
-    /** Nothing to ask of the player but the forced French it may find beside the video: the check still looks for them. */
+    /** No forced French in the file: none are asked, and the check looks for them beside the video. */
     @Test
     fun subtitlesToLookForBesideTheVideoAreAPlan() = runTest {
         val chooser = TrackChooser({ TrackPreferences(subtitles = SubtitleMode.FOREIGN) }, { Locale.FRANCE }, { null }, { _, _ -> }, {})
         val french = checkNotNull(LAUNCH.media).let { it.copy(subtitles = it.subtitles.filterNot(SubtitleTrack::forced)) }
         val plan = checkNotNull(chooser.plan(LAUNCH.copy(media = french)))
-        assertEquals(true to true, plan.pick.isEmpty to plan.subtitleBeside)
+        assertEquals(TrackPick(null, 0) to true, plan.pick to plan.subtitleBeside)
     }
 
     private companion object {

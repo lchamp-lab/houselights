@@ -421,6 +421,31 @@ class PlaybackManagerTest {
         assertEquals("stopped ${E01 - 4_000} / null", reports.last())
     }
 
+    /**
+     * Ended while the app was stopped, a file's tracks are the player's memory alone ([TrackChooser.plan]), even once
+     * resumed and followed again, until it is played from the start.
+     */
+    @Test
+    fun tracksPlayedWhileTheAppWasStoppedAreThePlayersUntilAStartOver() = runTest {
+        closedAt(started(), 600_000)
+        val first = PlaybackManager(context, backgroundScope, status = { PlayerAnswer.NoAnswer }, clock = { currentTime }) { null }
+        assertFalse("followed to its end", first.playersOwnTracks("m1"))
+        first.intentFor(plan())
+        first.onPlayerLaunched()
+
+        val second = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, clock = { currentTime }) { reporter }
+        second.onPlayerResult(result(600_000))
+        advanceUntilIdle()
+        assertTrue(second.playersOwnTracks("m1"))
+        closedAt(started(plan().copy(startMs = 600_000)), 700_000)
+        assertTrue("resumed and followed", second.playersOwnTracks("m1"))
+        val again = manager().apply { intentFor(plan()) }
+        assertTrue("not started", second.playersOwnTracks("m1"))
+        again.onPlayerLaunched()
+        assertFalse("from the start", second.playersOwnTracks("m1"))
+        closedAt(again, 60_000)
+    }
+
     /** A stream the player names without its query, or with it otherwise, is the stream launched. */
     @Test
     fun aStreamIsTheStreamWhateverItsQuery() = runTest {

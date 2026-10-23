@@ -17,52 +17,47 @@ data class TrackFix(val kind: TrackKind, val index: Int)
  */
 object TrackCheck {
     /**
-     * At most one fix per kind still played as asked ([TrackPlan.pick]), or, for subtitles looked for beside the video
-     * ([TrackPlan.subtitleBeside]), as the player chose them by itself ([own], those it first listed); so that what the
-     * player [plays] matches [plan], tracks matched by language and kind. Without its audio list, the audio is taken to
-     * be the one asked; one left to the player is only guessed, and subtitles that would follow it are not fixed until
-     * the list tells it.
+     * At most one fix per kind still played as asked ([TrackPlan.pick]), so that what the player [plays] matches [plan],
+     * tracks matched by language and kind; subtitles wanted before those asked, once listed beside the video, replace
+     * them. Without its audio list, the audio is taken to be the one asked; one left to the player is only guessed, and
+     * subtitles that would follow it are not fixed until the list tells it.
      */
-    fun fixes(plan: TrackPlan, plays: PlayerTracks, own: Int? = plays.subtitleIndex): List<TrackFix> = buildList {
+    fun fixes(plan: TrackPlan, plays: PlayerTracks): List<TrackFix> = buildList {
         val index = plays.audioIndex
         var heard = TrackPlan.known(if (index == null) plan.expectedAudio?.language else plays.audioAt(index)?.language)
         audioFix(plan, plays)?.let { audio ->
             add(TrackFix(TrackKind.AUDIO, audio.index))
             heard = TrackPlan.known(audio.language)
         }
-        val playing = plays.subtitleIndex ?: return@buildList
-        if ((plan.pick.subtitle ?: own.takeIf { plan.subtitleBeside }) != playing) return@buildList
+        val asked = plan.pick.subtitle?.takeIf { it == plays.subtitleIndex } ?: return@buildList
         if (index == null && followsPlayersAudio(plan)) return@buildList
         val target = subtitleFor(plan, heard, plays)
-        if (target != null && target != playing) add(TrackFix(TrackKind.SUBTITLE, target))
+        if (target != null && target != asked) add(TrackFix(TrackKind.SUBTITLE, target))
     }
 
     /** The subtitles asked depend on which of the file's audio tracks the player chose by itself. */
     private fun followsPlayersAudio(plan: TrackPlan): Boolean = plan.pick.audio == null &&
         plan.audioTracks.map { TrackPlan.known(it.language) }.distinct()
-            .map { heard -> plan.subtitle(heard) to plan.wantedSubtitles(heard)?.takeIf { plan.looksBeside(heard) } }
+            .map { heard -> plan.subtitle(heard) to plan.bestBeside(heard) }
             .distinct().size > 1
 
     /**
-     * The player's number for the subtitles wanted with [heard]: the file's track, found in its list; when the best may
-     * be beside the video, the first wanted it lists, files beside it included, else none. Null leaves them as they are.
+     * The player's number for the subtitles wanted with [heard]: the first it lists beside the video of those wanted
+     * before the file's own ([TrackPlan.bestBeside]), else the file's, found in its list. Null leaves them as they are.
      */
     private fun subtitleFor(plan: TrackPlan, heard: String?, plays: PlayerTracks): Int? {
-        if (plan.looksBeside(heard)) {
-            return plan.wantedSubtitles(heard).orEmpty().firstNotNullOfOrNull { listed(plan, it, plays) } ?: TrackPlan.NONE
-        }
+        plan.bestBeside(heard).firstNotNullOfOrNull { beside(it, plays) }?.let { return it }
         val wanted = plan.subtitle(heard) ?: return null
         return if (wanted == TrackPlan.NONE) wanted else playerNumber(wanted, plan.subtitleTrack(wanted), plays)
     }
 
-    /** The player's number for [wanted]: the file's own track where it has one, else one it lists of that language and kind. */
-    private fun listed(plan: TrackPlan, wanted: SubtitleChoice.Track, plays: PlayerTracks): Int? {
-        val own = plan.numberOf(wanted)?.let { playerNumber(it, plan.subtitleTrack(it), plays) }
+    /** The player's number for [wanted], which the file lacks: a file beside the video it lists of that language and kind. */
+    private fun beside(wanted: SubtitleChoice.Track, plays: PlayerTracks): Int? {
         val language = TrackPlan.known(wanted.language)
         val same = plays.subtitles.filter {
             it.index != TrackPlan.NONE && TrackPlan.known(it.language) == language && TrackPlan.isOfKind(it.forced, wanted.kind)
         }
-        return own ?: (same.firstOrNull { it.hearingImpaired == (wanted.kind == SubtitleKind.SDH) } ?: same.firstOrNull())?.index
+        return (same.firstOrNull { it.hearingImpaired == (wanted.kind == SubtitleKind.SDH) } ?: same.firstOrNull())?.index
     }
 
     /**

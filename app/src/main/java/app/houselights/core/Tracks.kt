@@ -57,8 +57,7 @@ data class TrackChoice(val audio: String? = null, val subtitles: SubtitleChoice?
 
 /**
  * Tracks to ask the player for, numbered as the Zidoo player numbers them: [audio] from 0 among the audio tracks,
- * [subtitle] from 1 among the file's own subtitles, 0 for none. Null leaves that choice to the player, unless subtitles
- * are looked for beside the video once it plays ([TrackPlan.subtitleBeside]).
+ * [subtitle] from 1 among the file's own subtitles, 0 for none. Null leaves that choice to the player.
  */
 data class TrackPick(val audio: Int? = null, val subtitle: Int? = null) {
     val isEmpty: Boolean get() = audio == null && subtitle == null
@@ -111,18 +110,10 @@ data class TrackPlan(
     /** The title's choice decides this file's subtitles; else Settings do. */
     val subtitleChosen: Boolean get() = chosenSubtitle != null
 
-    private val subtitleTarget = target(known(expectedAudio?.language))
+    val pick = TrackPick(audio, subtitle(known(expectedAudio?.language)))
 
-    val pick = TrackPick(audio, subtitleTarget.takeUnless { it == BESIDE })
-
-    /** No subtitles asked: the best wanted may be a file beside the video, which the player's list tells ([looksBeside]). */
-    val subtitleBeside: Boolean = subtitleTarget == BESIDE
-
-    /** Nothing to ask of the player, nor to look for once it plays. */
-    val leftToPlayer: Boolean get() = pick.isEmpty && !subtitleBeside
-
-    /** The subtitles a summary shows: those asked; none when looked for beside the video, which only the player lists. */
-    val subtitleShown: Int? get() = pick.subtitle ?: NONE.takeIf { subtitleBeside }
+    /** Better subtitles than those asked may be a file beside the video, which the check looks for ([bestBeside]). */
+    val subtitleBeside: Boolean = bestBeside(known(expectedAudio?.language)).isNotEmpty()
 
     /** One audio track for each choice the file offers, as its language and region lead to: no commentary, no twin. */
     val audioOptions: List<Int> get() = audioTracks.mapNotNull { t -> tagOf(t.language, t.title)?.let(::audioFor) }.distinct()
@@ -166,23 +157,13 @@ data class TrackPlan(
 
     /**
      * The subtitle to ask for once the audio is in [heard] (a language code, null if unknown), in the player's
-     * numbering: the first wanted the file has. Null leaves it to the player, or to the check when one wanted before
-     * may be beside the video ([looksBeside]).
+     * numbering: the first wanted the file has, else none. Null leaves it to the player.
      */
-    fun subtitle(heard: String?): Int? = target(heard).takeUnless { it == BESIDE }
+    fun subtitle(heard: String?): Int? = wantedSubtitles(heard)?.let { wanted -> wanted.firstNotNullOfOrNull(::numberOf) ?: NONE }
 
-    /** The best subtitles wanted with an audio in [heard] are not the file's, but may be a file beside it. */
-    fun looksBeside(heard: String?): Boolean = target(heard) == BESIDE
-
-    /** The first subtitles wanted the file has, [NONE] if none; [BESIDE] when one before them may be beside the video. */
-    private fun target(heard: String?): Int? {
-        val wanted = wantedSubtitles(heard) ?: return null
-        for (track in wanted) {
-            numberOf(track)?.let { return it }
-            if (mayBeBeside(track)) return BESIDE
-        }
-        return NONE
-    }
+    /** The subtitles wanted with an audio in [heard] before the first the file has, which a file beside it may hold. */
+    fun bestBeside(heard: String?): List<SubtitleChoice.Track> =
+        wantedSubtitles(heard).orEmpty().takeWhile { numberOf(it) == null }.filter(::mayBeBeside)
 
     /**
      * Whether a file beside the video may hold [wanted]: any may when the tracks were read from the file itself, which
@@ -192,7 +173,7 @@ data class TrackPlan(
         media.subtitles.any { it.external && known(it.language) == known(wanted.language) && isOfKind(it.forced, wanted.kind) }
 
     /** The player's number for the file's own track for [wanted]; null when it has none. */
-    fun numberOf(wanted: SubtitleChoice.Track): Int? = trackFor(wanted)?.let { t -> subtitleTracks.indexOfFirst { it === t } + 1 }
+    private fun numberOf(wanted: SubtitleChoice.Track): Int? = trackFor(wanted)?.let { t -> subtitleTracks.indexOfFirst { it === t } + 1 }
 
     /** The file's subtitle the player numbers [number]; null for none or a number it does not have. */
     fun subtitleTrack(number: Int): SubtitleTrack? = subtitleTracks.getOrNull(number - 1)
@@ -270,9 +251,6 @@ data class TrackPlan(
     companion object {
         /** The player's number for no subtitles. */
         const val NONE = 0
-
-        /** A number no track has: the subtitles wanted may be beside the video ([looksBeside]). */
-        private const val BESIDE = -1
 
         /** [playerAudio] set to the file's first track, or to its default one. */
         const val PLAYER_FIRST = "first"

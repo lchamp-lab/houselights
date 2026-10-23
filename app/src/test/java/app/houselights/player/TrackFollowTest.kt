@@ -123,17 +123,17 @@ class TrackFollowTest {
     }
 
     /**
-     * Colony without its forced French, the film in French: no subtitles asked, the player shows its first, then the
+     * Colony without its forced French, the film in French: none asked, never the player's first meanwhile, then the
      * forced French beside the video are switched to; the user leaves them for the French in full, kept for the title.
      */
     @Test
     fun subtitlesBesideTheVideoAreSwitchedToOnceListed() = runTest {
         val listed = checkNotNull(ZidooStatus.parseTracks(PlayerAnswers.COLONY_BESIDE_SUBTITLES)).second
-        plays = colony(audio = 0, subtitle = 1).copy(subtitles = listed)
+        plays = colony(audio = 0, subtitle = 0).copy(subtitles = listed)
         val beside = COLONY.copy(subtitles = COLONY.subtitles.filterNot { it.forced })
         val foreign = TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.FOREIGN)
         val manager = started(TrackPlan(beside, foreign, null, "fr", "FR", "local:3"))
-        assertEquals(0 to false, launched?.getIntExtra("audio_idx", -1) to launched?.hasExtra("subtitle_idx"))
+        assertEquals(0 to 0, launched?.getIntExtra("audio_idx", -1) to launched?.getIntExtra("subtitle_idx", -1))
         advanceTimeBy(4_000 + 2_000 * 5L)
         assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 4)), switched)
         closed(manager, audio = 0, subtitle = 2)
