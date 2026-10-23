@@ -299,23 +299,12 @@ class MainActivity : ComponentActivity() {
         cancelCue()
     }
 
-    /** During the cue, Back cancels it; other non-system keys are swallowed, so a second OK never plays twice. */
     // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // Tracks whether an arrow is held (focus running across cards); it sees every key and consumes none.
         Scrub.onKey(event)
-        return when {
-            // Under the launch screen nothing is selected unseen: only system keys pass, Back included.
-            covered && !event.isSystem -> true
-            !lightsDown.value -> super.dispatchKeyEvent(event)
-            event.keyCode == KeyEvent.KEYCODE_BACK -> {
-                if (event.action == KeyEvent.ACTION_UP) cancelCue()
-                true
-            }
-            event.isSystem -> super.dispatchKeyEvent(event)
-            else -> true
-        }
+        return dispatchUnseen(event, covered, lightsDown.value, ::cancelCue) { super.dispatchKeyEvent(it) }
     }
 
     private fun play(item: MediaItem, resume: Boolean) {
@@ -587,6 +576,31 @@ private val SETUP_SCREENS = listOf(Route.Welcome::class, Route.JellyfinLogin::cl
 /** Whether the screen at [destination] gives way to the welcome screen: there is no source and it would show one. */
 internal fun mustWelcome(source: SourceConfig?, destination: NavDestination?): Boolean =
     source == null && destination != null && SETUP_SCREENS.none { destination.hasRoute(it) }
+
+/**
+ * Passes [event] on ([pass]) unless nothing must be chosen unseen: under the launch screen ([covered]) only system keys
+ * pass, Back included; while the lights go down ([dimming]) Back cancels the cue ([cancel]) and other non-system keys
+ * are swallowed, so a second OK never plays twice. Menu, though a system key, opens options: it is swallowed too.
+ */
+internal fun dispatchUnseen(
+    event: KeyEvent,
+    covered: Boolean,
+    dimming: Boolean,
+    cancel: () -> Unit,
+    pass: (KeyEvent) -> Boolean,
+): Boolean {
+    val system = event.isSystem && event.keyCode != KeyEvent.KEYCODE_MENU
+    return when {
+        covered && !system -> true
+        !dimming -> pass(event)
+        event.keyCode == KeyEvent.KEYCODE_BACK -> {
+            if (event.action == KeyEvent.ACTION_UP) cancel()
+            true
+        }
+        system -> pass(event)
+        else -> true
+    }
+}
 
 /** Navigates to where an error is fixed; retrying is left to each screen. */
 private fun NavHostController.fixError(action: ErrorAction) = when (action) {
