@@ -579,9 +579,10 @@ Artwork carries no text: the top of the screen names what has focus.
   short rule in `contentDecorative`. A person without a portrait is the bare frame, the name under it.
 - **Episodes** read as a number in tabular figures, a name, then length and progress. OK plays one; Menu or a long OK
   opens its options (`EpisodeOptions`), which the Menu key at the end of its name's line says under the card with
-  focus alone: a side sheet titled with its name, "Saison 1 Épisode 2 52 min" under it, then "Marquer comme vu" or
-  "Marquer comme non vu", focused; "Lire depuis le début" once started; "Audio et sous-titres" where the tracks
-  apply, as the tracks tile, saying what Lire plays and opening the show's. A card with none of these opens nothing.
+  focus alone: a side sheet titled with its name, "Saison 1 Épisode 2 52 min" under it (the season by its number,
+  in the app's language, specials by the source's name), then "Marquer comme vu" or "Marquer comme non vu", focused;
+  "Lire depuis le début" once started; "Audio et sous-titres" where the tracks apply, as the tracks tile, saying what
+  Lire plays and opening the show's. A card with none of these opens nothing.
   A mark is made with no question, its season's count, the show and Lire following at once, a started episode back to
   its start, as the watched tile does. A mark that did not save comes undone and is said under the row, in place of
   the overview, until an OK there.

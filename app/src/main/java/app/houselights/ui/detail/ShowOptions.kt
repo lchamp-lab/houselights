@@ -60,8 +60,11 @@ internal fun EpisodeOptions(state: DetailState, episodeId: String?, actions: Epi
             .takeIf { episode.user.positionMs > 0 },
         tracks?.let { SheetOption(stringResource(R.string.tracks), HlIcons.Captions, tracksHint(it), actions.onTracks) },
     )
-    val season = state.seasons.firstOrNull { it.id == episode.seasonId }?.title
-        ?: episode.seasonNumber?.let { stringResource(R.string.season_number, it) }
+    val seasonItem = state.seasons.firstOrNull { it.id == episode.seasonId }
+    // Said in the app's language beside the number and length; specials, season 0, keep the source's name.
+    val season = (episode.seasonNumber ?: seasonItem?.seasonNumber)?.takeIf { it > 0 }
+        ?.let { stringResource(R.string.season_number, it) }
+        ?: seasonItem?.title
     OptionsSheet(
         episode.title,
         listOf(season, episodeNumber(episode), episode.runtimeMs?.let(::formatDuration)),

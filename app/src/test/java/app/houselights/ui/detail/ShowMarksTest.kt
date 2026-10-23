@@ -176,6 +176,31 @@ class ShowMarksTest {
         assertEquals(listOf("s1e1" to false), played)
     }
 
+    /** A season the source names in its own language is said by its number in the app's, with the episode's. */
+    @Test
+    fun anEpisodesOptionsSayItsSeasonByItsNumber() {
+        provider.seasons = mapOf("show" to listOf(season("s1", 1, "show").copy(title = "Staffel 1", childCount = 2)))
+        showPage()
+        downToTheEpisodes()
+        compose.press(Key.Menu)
+        compose.onNodeWithText(context.getString(R.string.season_number, 1)).assertExists()
+        compose.onNodeWithText(context.getString(R.string.episode_number, 1)).assertExists()
+    }
+
+    /** Specials, season 0, keep the name the source gives them. */
+    @Test
+    fun aSpecialsOptionsSayTheSourcesName() {
+        provider.seasons = mapOf("show" to listOf(season("s0", 0, "show").copy(title = "Specials", childCount = 1)))
+        provider.episodes = mapOf("s0" to listOf(episode("s0e1", "s0", 1)))
+        showPage()
+        val onThePage = compose.onAllNodesWithText("Specials").fetchSemanticsNodes().size
+        episodeCard("s0e1").requestFocus()
+        compose.press(Key.Menu)
+        option(R.string.mark_watched).assertIsFocused()
+        compose.onAllNodesWithText("Specials").assertCountEquals(onThePage + 1)
+        compose.onNodeWithText(context.getString(R.string.season_number, 0)).assertDoesNotExist()
+    }
+
     /** Held, OK opens an episode's options too, and plays nothing. */
     @Test
     fun aLongOkOpensAnEpisodesOptions() {
