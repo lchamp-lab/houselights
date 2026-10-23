@@ -38,22 +38,25 @@ val serverJson: Json = Json {
 fun <T> Json.decodeEach(serializer: KSerializer<T>, elements: List<JsonElement>, what: String): List<T> =
     decodeCounted(serializer, elements, what).entries
 
-/** A list's [entries] that could be read, [skipped] the number left out ([decodeEach]). */
-class Decoded<T>(val entries: List<T>, val skipped: Int)
+/** A list's [entries] that could be read, and those [left] out as they came ([decodeEach]). */
+class Decoded<T>(val entries: List<T>, val left: List<JsonElement> = emptyList()) {
+    val skipped: Int get() = left.size
+}
 
-/** [decodeEach], also saying how many entries it left out. */
+/** [decodeEach], also giving the entries it left out. */
 fun <T> Json.decodeCounted(serializer: KSerializer<T>, elements: List<JsonElement>, what: String): Decoded<T> {
-    var skipped = 0
+    val left = mutableListOf<JsonElement>()
     val decoded = elements.mapIndexedNotNull { index, element ->
         try {
             decodeFromJsonElement(serializer, element)
         } catch (e: SerializationException) {
-            if (++skipped <= LOGGED_SKIPS) Log.w(TAG, "$what: entry $index left out, ${unreadable(whyNot(serializer, element) ?: e)}")
+            left += element
+            if (left.size <= LOGGED_SKIPS) Log.w(TAG, "$what: entry $index left out, ${unreadable(whyNot(serializer, element) ?: e)}")
             null
         }
     }
-    if (skipped > LOGGED_SKIPS) Log.w(TAG, "$what: $skipped of ${elements.size} entries left out")
-    return Decoded(decoded, skipped)
+    if (left.size > LOGGED_SKIPS) Log.w(TAG, "$what: ${left.size} of ${elements.size} entries left out")
+    return Decoded(decoded, left)
 }
 
 /** Why [element] cannot be decoded, as the text decoder says it: unlike the tree's, it names a nested field's whole path. */

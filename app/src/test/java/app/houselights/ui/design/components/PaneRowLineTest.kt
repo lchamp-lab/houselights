@@ -110,6 +110,8 @@ class PaneRowLineTest {
             line(R.string.trakt_connect_desc),
             line(R.string.trakt_disconnect_desc),
             line(R.string.trakt_sync_now_desc),
+            Line(local.resources.getQuantityString(R.plurals.trakt_skipped_desc, 1), "$tag: trakt_skipped_desc (1)", Beside.None),
+            Line(local.resources.getQuantityString(R.plurals.trakt_skipped_desc, MANY), "$tag: trakt_skipped_desc", Beside.None),
             line(R.string.ui_resolution_desc, value = longest(R.string.ui_4k, R.string.ui_system)),
             line(R.string.interface_language_desc, value = language),
             line(R.string.cleanup_desc),

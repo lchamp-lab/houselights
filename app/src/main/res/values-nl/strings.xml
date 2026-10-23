@@ -664,6 +664,37 @@
     <string name="trakt_sync_failed">Het synchroniseren met Trakt is niet voltooid. Het gaat vanzelf verder.</string>
     <string name="trakt_sync_refused">Trakt weigert te synchroniseren: de account is misschien vergrendeld, of de sleutel van deze versie geweigerd. Controleer uw account op trakt.tv.</string>
     <string name="trakt_sync_unreadable">Trakt antwoordde op een manier die deze versie niet kan lezen. Houselights bijwerken zou dit moeten verhelpen.</string>
+    <plurals name="trakt_skipped">
+        <item quantity="one">%d item overgeslagen</item>
+        <item quantity="other">%d items overgeslagen</item>
+    </plurals>
+    <plurals name="trakt_skipped_desc">
+        <item quantity="one">Trakt stuurt het in een vorm die de app niet kan lezen</item>
+        <item quantity="other">Trakt stuurt ze in een vorm die de app niet kan lezen</item>
+    </plurals>
+    <plurals name="trakt_skipped_text">
+        <item quantity="one">Trakt stuurt het in een vorm die deze versie niet kan lezen, vaak een gepauzeerde weergave van een andere app. De rest is gesynchroniseerd, en uw markeringen gaan gewoon door.</item>
+        <item quantity="other">Trakt stuurt ze in een vorm die deze versie niet kan lezen, vaak een gepauzeerde weergave van een andere app. De rest is gesynchroniseerd, en uw markeringen gaan gewoon door.</item>
+    </plurals>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="one">%d item zonder titel</item>
+        <item quantity="other">%d items zonder titel</item>
+    </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="one">En nog %d</item>
+        <item quantity="other">En nog %d</item>
+    </plurals>
+    <string name="trakt_skipped_movies">Filmgeschiedenis</string>
+    <string name="trakt_skipped_episodes">Afleveringengeschiedenis</string>
+    <string name="trakt_skipped_paused">Gepauzeerde weergave</string>
+    <string name="trakt_skipped_partial_movies">Zolang de filmgeschiedenis niet volledig te lezen is, stuurt Houselights Trakt geen hier bekeken films die daar ontbreken, om geen dubbele te maken.</string>
+    <string name="trakt_skipped_partial_episodes">Zolang de afleveringengeschiedenis niet volledig te lezen is, stuurt Houselights Trakt geen hier bekeken afleveringen die daar ontbreken, om geen dubbele te maken.</string>
+    <string name="trakt_skipped_partial_both">Zolang de film- en afleveringengeschiedenis niet volledig te lezen zijn, stuurt Houselights Trakt geen hier bekeken films en afleveringen die daar ontbreken, om geen dubbele te maken.</string>
+    <string name="trakt_skipped_fix_label">Oplossen:</string>
+    <plurals name="trakt_skipped_fix">
+        <item quantity="one">Oplossen: verwijder het op trakt.tv, onder Voortgang of Geschiedenis, of werk Houselights bij zodra een versie het kan lezen.</item>
+        <item quantity="other">Oplossen: verwijder ze op trakt.tv, onder Voortgang of Geschiedenis, of werk Houselights bij zodra een versie ze kan lezen.</item>
+    </plurals>
     <string name="trakt_certificate">Het certificaat van Trakt wordt geweigerd. Controleer de datum en tijd van het apparaat en probeer het opnieuw.</string>
     <string name="settings_lost_trakt">De Trakt-verbinding die op deze speler is opgeslagen, kon niet opnieuw worden gelezen. Verbind uw account opnieuw.</string>
 </resources>

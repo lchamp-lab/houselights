@@ -2,7 +2,6 @@ package app.houselights.providers.trakt
 
 import app.houselights.core.Decoded
 import app.houselights.core.decodeCounted
-import app.houselights.core.decodeEach
 import app.houselights.core.serverJson
 import kotlinx.serialization.json.JsonElement
 import retrofit2.Response
@@ -74,5 +73,5 @@ suspend fun TraktApi.watchedMovies(): Decoded<WatchedMovie> =
 suspend fun TraktApi.watchedShows(): Decoded<WatchedShow> =
     serverJson.decodeCounted(WatchedShow.serializer(), watchedShowEntries(), "Trakt sync/watched/shows")
 
-suspend fun TraktApi.playback(): List<PlaybackProgress> =
-    serverJson.decodeEach(PlaybackProgress.serializer(), playbackEntries(), "Trakt sync/playback")
+suspend fun TraktApi.playback(): Decoded<PlaybackProgress> =
+    serverJson.decodeCounted(PlaybackProgress.serializer(), playbackEntries(), "Trakt sync/playback")

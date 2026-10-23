@@ -664,6 +664,37 @@
     <string name="trakt_sync_failed">Die Synchronisierung mit Trakt wurde nicht abgeschlossen. Sie wird von selbst fortgesetzt.</string>
     <string name="trakt_sync_refused">Trakt lehnt die Synchronisierung ab: Das Konto ist vielleicht gesperrt oder der Schlüssel dieser Version abgelehnt. Prüfen Sie Ihr Konto auf trakt.tv.</string>
     <string name="trakt_sync_unreadable">Trakt hat so geantwortet, dass diese Version es nicht lesen kann. Ein Update von Houselights sollte das beheben.</string>
+    <plurals name="trakt_skipped">
+        <item quantity="one">%d Eintrag übersprungen</item>
+        <item quantity="other">%d Einträge übersprungen</item>
+    </plurals>
+    <plurals name="trakt_skipped_desc">
+        <item quantity="one">Trakt sendet ihn in einer Form, die die App nicht liest</item>
+        <item quantity="other">Trakt sendet sie in einer Form, die die App nicht liest</item>
+    </plurals>
+    <plurals name="trakt_skipped_text">
+        <item quantity="one">Trakt sendet ihn in einer Form, die diese Version nicht lesen kann, oft eine pausierte Wiedergabe einer anderen App. Der Rest ist synchronisiert, und Ihre Markierungen werden wie gewohnt gesendet.</item>
+        <item quantity="other">Trakt sendet sie in einer Form, die diese Version nicht lesen kann, oft eine pausierte Wiedergabe einer anderen App. Der Rest ist synchronisiert, und Ihre Markierungen werden wie gewohnt gesendet.</item>
+    </plurals>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="one">%d Eintrag ohne Titel</item>
+        <item quantity="other">%d Einträge ohne Titel</item>
+    </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="one">Und %d weiterer</item>
+        <item quantity="other">Und %d weitere</item>
+    </plurals>
+    <string name="trakt_skipped_movies">Filmverlauf</string>
+    <string name="trakt_skipped_episodes">Episodenverlauf</string>
+    <string name="trakt_skipped_paused">Pausierte Wiedergabe</string>
+    <string name="trakt_skipped_partial_movies">Solange der Filmverlauf nicht vollständig gelesen werden kann, sendet Houselights Trakt keine hier gesehenen Filme, die dort fehlen, um keine Duplikate zu erzeugen.</string>
+    <string name="trakt_skipped_partial_episodes">Solange der Episodenverlauf nicht vollständig gelesen werden kann, sendet Houselights Trakt keine hier gesehenen Episoden, die dort fehlen, um keine Duplikate zu erzeugen.</string>
+    <string name="trakt_skipped_partial_both">Solange der Film- und der Episodenverlauf nicht vollständig gelesen werden können, sendet Houselights Trakt keine hier gesehenen Filme und Episoden, die dort fehlen, um keine Duplikate zu erzeugen.</string>
+    <string name="trakt_skipped_fix_label">Abhilfe:</string>
+    <plurals name="trakt_skipped_fix">
+        <item quantity="one">Abhilfe: Löschen Sie ihn auf trakt.tv unter Fortschritt oder Verlauf, oder aktualisieren Sie Houselights, sobald eine Version ihn lesen kann.</item>
+        <item quantity="other">Abhilfe: Löschen Sie sie auf trakt.tv unter Fortschritt oder Verlauf, oder aktualisieren Sie Houselights, sobald eine Version sie lesen kann.</item>
+    </plurals>
     <string name="trakt_certificate">Das Zertifikat von Trakt wird abgelehnt. Prüfen Sie Datum und Uhrzeit des Geräts und versuchen Sie es erneut.</string>
     <string name="settings_lost_trakt">Die auf diesem Player gespeicherte Trakt-Verbindung konnte nicht erneut gelesen werden. Verbinden Sie Ihr Konto erneut.</string>
 </resources>
