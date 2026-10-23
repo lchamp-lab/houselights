@@ -488,6 +488,33 @@ class TraktPaneTest {
         assertEquals(1, link.signedOut)
     }
 
+    /**
+     * Paused, a name Trakt could not say is not asked, so no token is renewed: the plate reads its last sync alone, and
+     * the name is read back with the folders.
+     */
+    @Test
+    fun pausedANamelessAccountWaitsForTheFoldersToReadItsName() {
+        session = lea.copy(username = null)
+        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis() - 5 * 60_000, watched = 412, inProgress = 1)
+        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        var folders by mutableStateOf(false)
+        compose.setTvContent {
+            HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session, folders) } }
+        }
+        compose.onNodeWithText("En pause").assertExists()
+        compose.onNodeWithText(PAUSED).assertExists()
+        compose.onNodeWithText("Compte").assertDoesNotExist()
+        compose.onNodeWithText("Dernière synchronisation").assertExists()
+        compose.onNodeWithText("Il y a 5", substring = true).assertExists()
+        compose.onNodeWithText("412").assertExists()
+        compose.onNode(hasClickAction() and hasText(DISCONNECT)).assertExists()
+        compose.runOnIdle { assertEquals(0, link.namesRead) }
+
+        folders = true
+        compose.onNodeWithText("Connecté").assertExists()
+        compose.runOnIdle { assertEquals(1, link.namesRead) }
+    }
+
     /** Disconnected under a server, its place leaves the settings, and the place after it opens with focus. */
     @Test
     fun disconnectedUnderAServerThePlaceAfterItTakesFocus() {

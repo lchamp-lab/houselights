@@ -60,9 +60,7 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) 
     val live = session?.takeUnless { it.ended }
     val focus = rememberCodeFocus(vm.connecting)
     BackHandler(enabled = vm.connecting) { vm.cancel() }
-    // Connected while Trakt could not say the name: it is read once the pane shows.
-    val nameless = live != null && live.username == null
-    LaunchedEffect(nameless) { if (nameless) vm.readName() }
+    ReadMissingName(vm, live, folders)
 
     Column(Modifier.revealOnFocus()) {
         val title = stringResource(R.string.section_trakt)
@@ -95,8 +93,18 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) 
 }
 
 /**
+ * Connected while Trakt could not say the name: it is read once the pane shows with the [folders]. Paused, Trakt is not
+ * asked, as reading it may renew the token or end the session.
+ */
+@Composable
+private fun ReadMissingName(vm: TraktViewModel, live: TraktSession?, folders: Boolean) {
+    val nameless = folders && live != null && live.username == null
+    LaunchedEffect(nameless) { if (nameless) vm.readName() }
+}
+
+/**
  * Paused under another source, still connected, said in place of what Trakt keeps; the account when its session could
- * be read at this launch.
+ * be read at this launch, its last sync alone while its name is unknown.
  */
 @Composable
 private fun Paused(vm: TraktViewModel, live: TraktSession?, title: String) {
