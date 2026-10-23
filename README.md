@@ -34,9 +34,9 @@
 - **A 10-foot interface built for the living room**: full-screen backdrops, clear logos, poster rows and
   walls, detail pages with cast, seasons and episodes, in 4K60 where the device allows it. Built with Jetpack
   Compose for TV on its own design system ([DESIGN.md](DESIGN.md)).
-  - One bar of places, Home · Films · Shows (or a Jellyfin server's libraries), on home and on each wall; it
-    slides away once you browse the posters. A place opens on OK, Back climbs to the bar, then home, and asks
-    once more before leaving the app.
+  - One bar of places, Home · Movies · TV shows (or a Jellyfin server's libraries), on home and on each wall;
+    it slides away once you browse the posters. A place opens on OK, Back climbs to the bar, then home, and
+    asks once more before leaving the app.
 - **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
   details from TMDB.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;

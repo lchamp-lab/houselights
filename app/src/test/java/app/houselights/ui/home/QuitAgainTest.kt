@@ -1,6 +1,7 @@
 package app.houselights.ui.home
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
@@ -14,6 +15,8 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
+import app.houselights.ui.design.LaunchScreen
+import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
@@ -25,7 +28,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** DESIGN.md, Focus: Back at home's start says once that a second Back quits, in the bar, then quits. */
+/**
+ * DESIGN.md, Focus: Back at home's start says once that a second Back quits, in the bar, then quits; under the
+ * launch screen, the first quits.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class QuitAgainTest {
@@ -47,8 +53,17 @@ class QuitAgainTest {
 
     private val line = "Press Back again to quit"
 
-    private fun open() {
-        compose.setTvContent { HomeBands(home) }
+    /** The launch screen, covering until it lifts. */
+    private class Cover : LaunchScreen {
+        override var covers = true
+
+        override fun drawn() = Unit
+    }
+
+    private fun open(launch: LaunchScreen? = null) {
+        compose.setTvContent {
+            if (launch == null) HomeBands(home) else CompositionLocalProvider(LocalLaunchScreen provides launch) { HomeBands(home) }
+        }
         compose.waitForIdle()
     }
 
@@ -109,6 +124,27 @@ class QuitAgainTest {
         back()
         assertFalse(quits)
         compose.onNodeWithText(line).assertIsDisplayed()
+    }
+
+    @Test
+    fun underTheLaunchScreenTheFirstBackQuitsWithoutTheLine() {
+        open(Cover())
+        back()
+        assertTrue("nothing seen yet: Back quits", quits)
+        compose.onNodeWithText(line).assertDoesNotExist()
+    }
+
+    @Test
+    fun onceTheLaunchScreenLiftsTheFirstBackAsks() {
+        val cover = Cover()
+        open(cover)
+        // It lifts without home being composed again.
+        cover.covers = false
+        back()
+        compose.onNodeWithText(line).assertIsDisplayed()
+        assertFalse(quits)
+        back()
+        assertTrue(quits)
     }
 
     @Test

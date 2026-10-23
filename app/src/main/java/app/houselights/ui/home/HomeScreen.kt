@@ -14,9 +14,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.activity.compose.BackHandler
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.first
@@ -33,6 +36,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.ui.design.Hl
@@ -59,6 +63,7 @@ import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalHouseLights
+import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -133,7 +138,7 @@ internal fun HomeBands(
     onAddFolder: () -> Unit,
     onReload: () -> Unit,
     onRescan: () -> Unit,
-    /** Prefetches a library's wall while the track moves to its tab. */
+    /** Prefetches a library's wall once its place is chosen. */
     onLibraryAhead: (Library) -> Unit = {},
     /** Null when the source cannot search. */
     onOpenSearch: (() -> Unit)? = null,
@@ -312,14 +317,36 @@ internal fun backGoesUp(focusedRow: Int?): Boolean = focusedRow != null && focus
 internal const val QUIT_WINDOW_MS = 2_500L
 
 /**
- * Back at home's start ([atStart]): a first press arms the second, which then goes through to Android and quits.
- * Disarmed after [QUIT_WINDOW_MS] or once focus moves down ([depth] grows: -1 the bar, then the rows). Whether
- * the line saying so shows.
+ * Back at home's start ([atStart]): a first press arms the second, which then goes through to Android and quits;
+ * under the launch screen, where nothing has been seen, the first goes through. Disarmed after [QUIT_WINDOW_MS] or
+ * once focus moves down ([depth] grows: -1 the bar, then the rows). Whether the line saying so shows.
  */
 @Composable
 private fun quitOnSecondBack(atStart: Boolean, depth: () -> Int): Boolean {
     var armed by remember { mutableStateOf(false) }
-    BackHandler(enabled = atStart && !armed) { armed = true }
+    val launch = LocalLaunchScreen.current
+    val dispatcher = checkNotNull(LocalOnBackPressedDispatcherOwner.current) { "No Back dispatcher" }.onBackPressedDispatcher
+    // The launch screen is asked as Back comes: its lifting recomposes nothing.
+    val first = remember(launch, dispatcher) {
+        object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                if (!launch.covers) {
+                    armed = true
+                    return
+                }
+                // Stepped aside, this Back goes on to Android, which quits.
+                isEnabled = false
+                dispatcher.onBackPressed()
+                isEnabled = true
+            }
+        }
+    }
+    SideEffect { first.isEnabled = atStart && !armed }
+    val lifecycle = LocalLifecycleOwner.current
+    DisposableEffect(first, lifecycle) {
+        dispatcher.addCallback(lifecycle, first)
+        onDispose { first.remove() }
+    }
     val currentDepth by rememberUpdatedState(depth)
     LaunchedEffect(armed) {
         if (!armed) return@LaunchedEffect

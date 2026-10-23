@@ -1,5 +1,6 @@
 package app.houselights.ui.home
 
+import androidx.compose.runtime.remember
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsSelected
@@ -14,9 +15,12 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
+import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -76,6 +80,41 @@ class HomeBarFocusTest {
         compose.onNode(isFocused()).assert(hasText("Home")).assertIsSelected()
         compose.press(Key.DirectionLeft)
         compose.onNode(isFocused()).assert(hasText("Home"))
+    }
+
+    /** A place opens on OK: focus passing over Home and the libraries neither prefetches nor opens one. */
+    @Test
+    fun aPlaceOpensOnOkNeverAsFocusPasses() {
+        val ahead = mutableListOf<String>()
+        val opened = mutableListOf<String>()
+        compose.setContent {
+            HouselightsTheme {
+                HomeBands(
+                    home,
+                    remember { MutableStateFlow(ScanState()) },
+                    onOpenItem = {},
+                    onOpenLibrary = { library, _ -> opened += library.id },
+                    onOpenSettings = {},
+                    onAddFolder = {},
+                    onReload = {},
+                    onRescan = {},
+                    onLibraryAhead = { ahead += it.id },
+                )
+            }
+        }
+        compose.waitForIdle()
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight, times = 2)
+        focusIsOn("TV shows")
+        compose.press(Key.DirectionLeft, times = 2)
+        compose.press(Key.DirectionRight, times = 2)
+        focusIsOn("TV shows")
+        assertEquals(emptyList<String>(), ahead)
+        assertEquals(emptyList<String>(), opened)
+
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf("shows"), ahead)
+        assertEquals(listOf("shows"), opened)
     }
 
     @Test

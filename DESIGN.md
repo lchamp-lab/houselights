@@ -505,10 +505,10 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
 starts, then leaves. Home: Back from a lower row goes up to the bar and the first row; from the first row or
 the bar, a first Back says "Appuyez encore sur Retour pour quitter" in the bar's band, before the tiles
 (`HlNavBar`'s `status`), and a second one within 2.5 s (`QUIT_WINDOW_MS`) quits; the line goes when that time is
-out or as soon as focus moves down (`QuitAgainTest`). On a wall under the bar, Back from the posters or the
-header goes to the bar, on the wall's place, the wall back at its top; from the bar, home (`BarFoldTest`). A wall
-without the bar returns to its first poster, then leaves. Sheets and menus handle their own Back; during the
-house-light cue, Back cancels it.
+out or as soon as focus moves down. Under the launch screen nothing has been seen yet: the first Back quits
+(`QuitAgainTest`). On a wall under the bar, Back from the posters or the header goes to the bar, on the wall's
+place, the wall back at its top; from the bar, home (`BarFoldTest`). A wall without the bar returns to its first
+poster, then leaves. Sheets and menus handle their own Back; during the house-light cue, Back cancels it.
 
 **Menu** (or the Zidoo remote's Pop Menu, sent as F12) opens the options of what has focus, on its way up
 (`menuForLongClick`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
