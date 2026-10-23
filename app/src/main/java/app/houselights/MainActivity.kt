@@ -33,6 +33,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -46,9 +47,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import app.houselights.core.Library
@@ -85,6 +89,7 @@ import app.houselights.ui.home.HomeScreen
 import app.houselights.ui.library.LibraryScreen
 import app.houselights.ui.onboarding.AddFolderScreen
 import app.houselights.ui.onboarding.JellyfinLoginScreen
+import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.onboarding.WelcomeScreen
 import app.houselights.ui.settings.SettingsScreen
 import app.houselights.ui.design.HouselightsTheme
@@ -376,13 +381,16 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     // Why choosing folders on the welcome screen failed (storage refused it), shown there until it is left.
     var sourceProblem by remember { mutableStateOf<UiError?>(null) }
 
-    /** "My files": reuses folders added before, else opens the form; failures go to [onError], shown where focus is. */
-    fun useFolders(onError: (UiError) -> Unit) {
+    /**
+     * "My files": reuses folders added before, else opens the form; a server left stays signed in unless
+     * [keepServer] is false. Failures go to [onError], shown where focus is.
+     */
+    fun useFolders(keepServer: Boolean, onError: (UiError) -> Unit) {
         scope.launchAction("Sources", "Choosing the folders", onError = onError, errorOf = Throwable::toWriteError) {
             if (!app.library.hasFolders()) {
-                nav.navigate(Route.AddFolder())
+                nav.navigate(Route.AddFolder(signOut = !keepServer))
             } else {
-                app.sources.switchTo(SourceConfig.Local)
+                app.sources.switchTo(SourceConfig.Local, keepServer)
                 goHome()
             }
         }
@@ -402,76 +410,107 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
             WelcomeScreen(
                 onLocal = {
                     sourceProblem = null
-                    useFolders { sourceProblem = it }
+                    useFolders(keepServer = true) { sourceProblem = it }
                 },
-                onJellyfin = { nav.navigate(Route.JellyfinLogin) },
+                onJellyfin = { nav.navigate(Route.JellyfinLogin.of(LoginFill.Blank)) },
                 problem = sourceProblem,
             )
         }
-        composable<Route.JellyfinLogin> { JellyfinLoginScreen(onLoggedIn = ::goHome) }
+        composable<Route.JellyfinLogin> { entry -> JellyfinLoginScreen(entry.toRoute<Route.JellyfinLogin>().fill, onLoggedIn = ::goHome) }
         composable<Route.AddFolder> { entry ->
             val route = entry.toRoute<Route.AddFolder>()
-            AddFolderScreen(route.folderId, route.focus, onDone = { switched ->
+            AddFolderScreen(route.folderId, route.focus, route.signOut, onDone = { switched ->
                 // A new source or a first folder: the home screen; another folder, or one edited: back to settings.
                 if (switched || !nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
             })
         }
         composable<Route.Home> {
-            HomeScreen(
-                onOpenItem = { openItem(it.id) },
-                onOpenLibrary = ::openLibrary,
-                onOpenSettings = { nav.navigate(Route.Settings) },
-                onAddFolder = { nav.navigate(Route.AddFolder()) },
-                onOpenSearch = { nav.navigate(Route.Search) },
-            )
+            WithSource(settings.source) {
+                HomeScreen(
+                    onOpenItem = { openItem(it.id) },
+                    onOpenLibrary = ::openLibrary,
+                    onOpenSettings = { nav.navigate(Route.Settings) },
+                    onAddFolder = { nav.navigate(Route.AddFolder()) },
+                    onOpenSearch = { nav.navigate(Route.Search) },
+                )
+            }
         }
         composable<Route.Search> {
-            SearchScreen(onOpenItem = { found -> openItem(found.id) }, onOpenPerson = { id -> nav.navigate(Route.Person(id)) })
+            WithSource(settings.source) {
+                SearchScreen(onOpenItem = { found -> openItem(found.id) }, onOpenPerson = { id -> nav.navigate(Route.Person(id)) })
+            }
         }
         composable<Route.Library> { entry ->
             val route = entry.toRoute<Route.Library>()
             val library = Library(id = route.id, kind = route.kind, title = route.title?.ifBlank { null })
-            LibraryScreen(
-                library = library,
-                title = library.title ?: libraryName(library.kind),
-                onOpenItem = { openItem(it.id) },
-                opensOn = route.filter,
-                personName = route.personName,
-                sagas = route.sagas?.let { Library(id = it, kind = LibraryKind.COLLECTIONS, title = null) },
-            )
+            WithSource(settings.source) {
+                LibraryScreen(
+                    library = library,
+                    title = library.title ?: libraryName(library.kind),
+                    onOpenItem = { openItem(it.id) },
+                    opensOn = route.filter,
+                    personName = route.personName,
+                    sagas = route.sagas?.let { Library(id = it, kind = LibraryKind.COLLECTIONS, title = null) },
+                )
+            }
         }
         composable<Route.Item> { entry ->
-            DetailScreen(
-                itemId = entry.toRoute<Route.Item>().id,
-                onPlay = onPlay,
-                onOpenItem = ::openItem,
-                onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
-                onIdentify = { nav.navigate(Route.Identify(it)) },
-                onOpenPerson = { nav.navigate(Route.Person(it)) },
-            )
+            WithSource(settings.source) {
+                DetailScreen(
+                    itemId = entry.toRoute<Route.Item>().id,
+                    onPlay = onPlay,
+                    onOpenItem = ::openItem,
+                    onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
+                    onIdentify = { nav.navigate(Route.Identify(it)) },
+                    onOpenPerson = { nav.navigate(Route.Person(it)) },
+                )
+            }
         }
         composable<Route.Artwork> { entry ->
             val route = entry.toRoute<Route.Artwork>()
-            ArtworkScreen(itemId = route.id, kind = route.kind, onDone = { nav.popBackStack() })
+            WithSource(settings.source) { ArtworkScreen(itemId = route.id, kind = route.kind, onDone = { nav.popBackStack() }) }
         }
         composable<Route.Identify> { entry ->
-            IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() })
+            WithSource(settings.source) { IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() }) }
         }
-        composable<Route.Person> { entry -> PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
+        composable<Route.Person> { entry ->
+            WithSource(settings.source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
+        }
         composable<Route.Settings> {
             // Source changes keep Settings on the back stack: Back returns to it, the source unchanged.
-            SettingsScreen(
-                onFolderForm = { folderId, focus -> nav.navigate(Route.AddFolder(folderId, focus)) },
-                onUseFolders = ::useFolders,
-                onSignIn = { nav.navigate(Route.JellyfinLogin) },
-                onOpenCatalog = { nav.navigate(Route.Catalog) },
-                onOpenWall = { library, filter -> nav.navigate(Route.Library.of(library, filter)) },
-                onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
-            )
+            WithSource(settings.source) {
+                SettingsScreen(
+                    onFolderForm = { folderId, focus -> nav.navigate(Route.AddFolder(folderId, focus)) },
+                    onUseFolders = ::useFolders,
+                    onSignIn = { nav.navigate(Route.JellyfinLogin.of(it)) },
+                    onSourceResumed = ::goHome,
+                    onOpenCatalog = { nav.navigate(Route.Catalog) },
+                    onOpenWall = { library, filter -> nav.navigate(Route.Library.of(library, filter)) },
+                    onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
+                )
+            }
         }
         // Debug builds only: every component in its states, for design review.
         if (BuildConfig.DEBUG) composable<Route.Catalog> { CatalogScreen() }
     }
+    WelcomeWhenLost(nav, settings.source)
+}
+
+/** [content], a screen that shows the source, composed only while there is one ([source]): it would read it at once. */
+@Composable
+private fun WithSource(source: SourceConfig?, content: @Composable () -> Unit) {
+    if (source != null) content()
+}
+
+/**
+ * Sends a screen that shows the source to the welcome screen while there is none: restored after the process died,
+ * its connection could not be read back. Apart, so that only it follows each navigation.
+ */
+@Composable
+private fun WelcomeWhenLost(nav: NavHostController, source: SourceConfig?) {
+    val entry by nav.currentBackStackEntryAsState()
+    val lost = mustWelcome(source, entry?.destination)
+    LaunchedEffect(lost) { if (lost) nav.navigate(Route.Welcome) { popUpTo(0) { inclusive = true } } }
 }
 
 /** Shown when the settings keep failing to load: an error with Réessayer, busy while they are read again. */
@@ -483,9 +522,16 @@ private fun SettingsUnread(settings: SettingsStore) {
     }
 }
 
+/** The screens shown without a source: the welcome screen and the forms that set one up. */
+private val SETUP_SCREENS = listOf(Route.Welcome::class, Route.JellyfinLogin::class, Route.AddFolder::class)
+
+/** Whether the screen at [destination] gives way to the welcome screen: there is no source and it would show one. */
+internal fun mustWelcome(source: SourceConfig?, destination: NavDestination?): Boolean =
+    source == null && destination != null && SETUP_SCREENS.none { destination.hasRoute(it) }
+
 /** Navigates to where an error is fixed; retrying is left to each screen. */
 private fun NavHostController.fixError(action: ErrorAction) = when (action) {
-    ErrorAction.RECONNECT -> navigate(Route.JellyfinLogin)
+    ErrorAction.RECONNECT -> navigate(Route.JellyfinLogin())
     ErrorAction.ADD_TMDB_KEY, ErrorAction.EDIT_TMDB_KEY -> navigate(Route.Settings)
     ErrorAction.RETRY -> Unit
 }

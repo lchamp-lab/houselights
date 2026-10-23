@@ -322,7 +322,8 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Los pósteres y los detalles provienen de TMDB.</string>
     <string name="change_source_local_desc">Sus carpetas se conservan</string>
-    <string name="change_source_jellyfin_desc">Conectado hasta el cambio</string>
+    <string name="change_source_jellyfin_desc">El servidor sigue conectado si cambia</string>
+    <string name="change_source_jellyfin_sheet">El servidor sigue conectado si cambia</string>
     <string name="change_source">Cambiar de fuente</string>
     <string name="reconnect">Iniciar sesión de nuevo</string>
     <string name="source_local_first">Añada una carpeta de su NAS</string>
@@ -336,11 +337,21 @@
         <item quantity="many">%d carpetas</item>
         <item quantity="other">%d carpetas</item>
     </plurals>
-    <string name="source_jellyfin_other">Otro servidor u otra cuenta</string>
     <string name="sign_out">Cerrar sesión</string>
     <string name="sign_out_confirm">¿Cerrar sesión en «%s»?</string>
-    <string name="sign_out_desc">Houselights olvidará este servidor en este dispositivo; sus carpetas ocuparán su lugar.</string>
+    <string name="sign_out_desc">Houselights olvidará este servidor en este dispositivo; sus carpetas ocuparán su lugar. Para volver a usarlo, tendrá que iniciar sesión de nuevo.</string>
     <string name="sign_out_first_folder">Houselights olvidará este servidor en este dispositivo cuando se añada su primera carpeta.</string>
+    <string name="source_jellyfin_another">Otro servidor Jellyfin</string>
+    <string name="source_jellyfin_another_desc">Otra dirección u otra cuenta</string>
+    <string name="source_kept_resume">sin iniciar sesión</string>
+    <string name="source_trakt_resumes">Trakt se reanuda</string>
+    <string name="forget">Olvidar</string>
+    <string name="forget_server">Olvidar «%s»</string>
+    <string name="forget_server_desc">Houselights cierra la sesión aquí</string>
+    <string name="forget_server_confirm">¿Olvidar «%s»?</string>
+    <string name="forget_server_consequence">Houselights cerrará la sesión en este servidor en este dispositivo. Para volver a usarlo, tendrá que iniciar sesión de nuevo.</string>
+    <string name="sign_out_server">Cerrar sesión en «%s»</string>
+    <string name="sign_out_server_desc">Houselights lo olvida aquí</string>
     <string name="label_server">Servidor</string>
     <string name="label_connection">Conexión</string>
     <string name="connection_encrypted">Cifrada (HTTPS)</string>

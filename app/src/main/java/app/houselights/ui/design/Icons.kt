@@ -46,6 +46,9 @@ object HlIcons {
         "M6 18L6.01 18",
     )
 
+    /** Signing out of a server, or forgetting it: an arrow leaving a door (`log-out`). */
+    val SignOut = icon("SignOut", "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4", "m16 17 5-5-5-5", "M21 12H9")
+
     /** The TV screen (`monitor`). */
     val Display = icon(
         "Display",

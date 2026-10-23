@@ -316,7 +316,8 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Poster und Infos stammen von TMDB.</string>
     <string name="change_source_local_desc">Ihre Ordner bleiben erhalten</string>
-    <string name="change_source_jellyfin_desc">Bleibt bis zum Wechsel verbunden</string>
+    <string name="change_source_jellyfin_desc">Bleibt verbunden, wenn Sie wechseln</string>
+    <string name="change_source_jellyfin_sheet">Der Server bleibt verbunden, wenn Sie wechseln</string>
     <string name="change_source">Quelle wechseln</string>
     <string name="reconnect">Erneut anmelden</string>
     <string name="source_local_first">Ordner von Ihrem NAS hinzufügen</string>
@@ -328,11 +329,21 @@
         <item quantity="one">%d Ordner</item>
         <item quantity="other">%d Ordnern</item>
     </plurals>
-    <string name="source_jellyfin_other">Anderer Server oder anderes Konto</string>
     <string name="sign_out">Abmelden</string>
     <string name="sign_out_confirm">Von „%s“ abmelden?</string>
-    <string name="sign_out_desc">Houselights vergisst diesen Server auf diesem Gerät; Ihre Ordner treten an seine Stelle.</string>
+    <string name="sign_out_desc">Houselights vergisst diesen Server auf diesem Gerät; Ihre Ordner treten an seine Stelle. Um ihn wieder zu nutzen, müssen Sie sich erneut anmelden.</string>
     <string name="sign_out_first_folder">Houselights vergisst diesen Server auf diesem Gerät, sobald Ihr erster Ordner hinzugefügt ist.</string>
+    <string name="source_jellyfin_another">Ein anderer Jellyfin-Server</string>
+    <string name="source_jellyfin_another_desc">Andere Adresse oder anderes Konto</string>
+    <string name="source_kept_resume">ohne neue Anmeldung</string>
+    <string name="source_trakt_resumes">Trakt läuft weiter</string>
+    <string name="forget">Vergessen</string>
+    <string name="forget_server">„%s“ vergessen</string>
+    <string name="forget_server_desc">Houselights meldet sich hier ab</string>
+    <string name="forget_server_confirm">„%s“ vergessen?</string>
+    <string name="forget_server_consequence">Houselights meldet sich auf diesem Gerät von diesem Server ab. Um ihn wieder zu nutzen, müssen Sie sich erneut anmelden.</string>
+    <string name="sign_out_server">Von „%s“ abmelden</string>
+    <string name="sign_out_server_desc">Houselights vergisst ihn hier</string>
     <string name="label_server">Server</string>
     <string name="label_connection">Verbindung</string>
     <string name="connection_encrypted">Verschlüsselt (HTTPS)</string>

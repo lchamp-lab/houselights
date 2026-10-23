@@ -59,7 +59,7 @@ class ServerFoundTest {
     private fun form(): JellyfinLoginViewModel {
         val vm = runBlocking {
             val settings = testSettings(folder.root, scope)
-            JellyfinLoginViewModel(settings, SourceSwitcher({ settings.state.value }, {}, scope, signOut = { _, _ -> }), Salon)
+            JellyfinLoginViewModel(settings, SourceSwitcher({ settings.state.value }, { _, _ -> }, scope, signOut = { _, _ -> }), Salon)
         }
         compose.setTvContent { JellyfinLoginForm(vm) {} }
         compose.waitUntil { vm.discovered.isNotEmpty() }

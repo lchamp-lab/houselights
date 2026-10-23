@@ -136,13 +136,14 @@ class AddFolderViewModel(
     private val probe: suspend (SourceEntity) -> Int,
     private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
-    constructor(app: AppContainer, folderId: Long?, saved: SavedStateHandle) : this(
+    /** [signOut]: the server the folders replace is signed out of, not kept. */
+    constructor(app: AppContainer, folderId: Long?, signOut: Boolean, saved: SavedStateHandle) : this(
         library = app.library,
         folderId = folderId,
         background = app.scope,
         useFolders = {
             val switched = app.settings.state.value.source != SourceConfig.Local
-            if (switched) app.sources.switchTo(SourceConfig.Local)
+            if (switched) app.sources.switchTo(SourceConfig.Local, keepServer = !signOut)
             switched
         },
         probe = { app.remoteBrowsers.of(it).test(it) },
@@ -336,8 +337,8 @@ class AddFolderViewModel(
     }
 
     companion object {
-        fun factory(app: AppContainer, folderId: Long?): ViewModelProvider.Factory = viewModelFactory {
-            initializer { AddFolderViewModel(app, folderId, createSavedStateHandle()) }
+        fun factory(app: AppContainer, folderId: Long?, signOut: Boolean): ViewModelProvider.Factory = viewModelFactory {
+            initializer { AddFolderViewModel(app, folderId, signOut, createSavedStateHandle()) }
         }
     }
 }

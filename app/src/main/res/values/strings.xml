@@ -327,7 +327,8 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Posters and details come from TMDB.</string>
     <string name="change_source_local_desc">Your folders are kept</string>
-    <string name="change_source_jellyfin_desc">Stays connected until the change</string>
+    <string name="change_source_jellyfin_desc">The server stays connected if you switch</string>
+    <string name="change_source_jellyfin_sheet">The server stays connected if you switch</string>
     <string name="change_source">Change source</string>
     <string name="reconnect">Sign in again</string>
     <string name="source_local_first">Add a folder from your NAS</string>
@@ -339,11 +340,21 @@
         <item quantity="one">%d folder</item>
         <item quantity="other">%d folders</item>
     </plurals>
-    <string name="source_jellyfin_other">Another server or account</string>
     <string name="sign_out">Sign out</string>
     <string name="sign_out_confirm">Sign out of “%s”?</string>
-    <string name="sign_out_desc">Houselights will forget this server on this device; your folders take its place.</string>
+    <string name="sign_out_desc">Houselights will forget this server on this device; your folders take its place. To use it again, you will need to sign in.</string>
     <string name="sign_out_first_folder">Houselights will forget this server on this device once your first folder is added.</string>
+    <string name="source_jellyfin_another">Another Jellyfin server</string>
+    <string name="source_jellyfin_another_desc">Another address or another account</string>
+    <string name="source_kept_resume">without signing in</string>
+    <string name="source_trakt_resumes">Trakt resumes</string>
+    <string name="forget">Forget</string>
+    <string name="forget_server">Forget “%s”</string>
+    <string name="forget_server_desc">Houselights signs out of it here</string>
+    <string name="forget_server_confirm">Forget “%s”?</string>
+    <string name="forget_server_consequence">Houselights will sign out of this server on this device. To use it again, you will need to sign in.</string>
+    <string name="sign_out_server">Sign out of “%s”</string>
+    <string name="sign_out_server_desc">Houselights forgets it on this device</string>
     <string name="label_server">Server</string>
     <string name="label_connection">Connection</string>
     <string name="connection_encrypted">Encrypted (HTTPS)</string>

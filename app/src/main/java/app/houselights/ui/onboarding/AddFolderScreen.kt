@@ -45,11 +45,19 @@ import app.houselights.ui.util.sourceKindName
 private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
 private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 
-/** Adds a network folder, or edits folder [folderId] except its kind; [onDone] gets whether the source changed. */
+/**
+ * Adds a network folder, or edits folder [folderId] except its kind; [onDone] gets whether the source changed. A first
+ * folder that replaces a server signs out of it with [signOut], else keeps it.
+ */
 @Composable
-fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, onDone: (switched: Boolean) -> Unit) {
+fun AddFolderScreen(
+    folderId: Long?,
+    focusOn: FolderField = FolderField.FIRST,
+    signOut: Boolean = false,
+    onDone: (switched: Boolean) -> Unit,
+) {
     val app = appContainer()
-    val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, folderId))
+    val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, folderId, signOut))
     AddFolderForm(vm, focusOn, roomPosters(), onDone)
 }
 

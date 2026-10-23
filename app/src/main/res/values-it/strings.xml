@@ -322,7 +322,8 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Locandine e informazioni provengono da TMDB.</string>
     <string name="change_source_local_desc">Le cartelle vengono conservate</string>
-    <string name="change_source_jellyfin_desc">Resta connesso fino al cambio</string>
+    <string name="change_source_jellyfin_desc">Il server resta connesso anche cambiando</string>
+    <string name="change_source_jellyfin_sheet">Il server resta connesso anche cambiando</string>
     <string name="change_source">Cambia sorgente</string>
     <string name="reconnect">Accedi di nuovo</string>
     <string name="source_local_first">Aggiungere una cartella dal NAS</string>
@@ -336,11 +337,21 @@
         <item quantity="many">%d cartelle</item>
         <item quantity="other">%d cartelle</item>
     </plurals>
-    <string name="source_jellyfin_other">Un altro server o account</string>
     <string name="sign_out">Disconnetti</string>
     <string name="sign_out_confirm">Disconnettersi da «%s»?</string>
-    <string name="sign_out_desc">Houselights dimenticherà questo server su questo dispositivo; le cartelle ne prenderanno il posto.</string>
+    <string name="sign_out_desc">Houselights dimenticherà questo server su questo dispositivo; le cartelle ne prenderanno il posto. Per ritrovarlo occorrerà riconnettersi.</string>
     <string name="sign_out_first_folder">Houselights dimenticherà questo server su questo dispositivo una volta aggiunta la prima cartella.</string>
+    <string name="source_jellyfin_another">Un altro server Jellyfin</string>
+    <string name="source_jellyfin_another_desc">Un altro indirizzo o un altro account</string>
+    <string name="source_kept_resume">senza riconnettersi</string>
+    <string name="source_trakt_resumes">Trakt riprende</string>
+    <string name="forget">Dimentica</string>
+    <string name="forget_server">Dimentica «%s»</string>
+    <string name="forget_server_desc">Houselights si disconnette qui</string>
+    <string name="forget_server_confirm">Dimenticare «%s»?</string>
+    <string name="forget_server_consequence">Houselights si disconnetterà da questo server su questo dispositivo. Per ritrovarlo occorrerà riconnettersi.</string>
+    <string name="sign_out_server">Disconnetti da «%s»</string>
+    <string name="sign_out_server_desc">Houselights lo dimentica qui</string>
     <string name="label_server">Server</string>
     <string name="label_connection">Connessione</string>
     <string name="connection_encrypted">Cifrata (HTTPS)</string>

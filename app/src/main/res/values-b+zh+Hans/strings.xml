@@ -310,7 +310,8 @@
     <string name="tracks_hint_pair">%1$s，%2$s</string>
     <string name="tmdb_desc">海报和资料来自 TMDB。</string>
     <string name="change_source_local_desc">您的文件夹会保留</string>
-    <string name="change_source_jellyfin_desc">切换前保持连接</string>
+    <string name="change_source_jellyfin_desc">切换后服务器仍保持连接</string>
+    <string name="change_source_jellyfin_sheet">切换后服务器仍保持连接</string>
     <string name="change_source">更换来源</string>
     <string name="reconnect">重新登录</string>
     <string name="source_local_first">从 NAS 添加文件夹</string>
@@ -320,11 +321,21 @@
     <plurals name="folder_count">
         <item quantity="other">%d 个文件夹</item>
     </plurals>
-    <string name="source_jellyfin_other">其他服务器或账号</string>
     <string name="sign_out">退出登录</string>
     <string name="sign_out_confirm">要退出登录“%s”吗？</string>
-    <string name="sign_out_desc">Houselights 将在本设备上忘记此服务器；您的文件夹将取而代之。</string>
+    <string name="sign_out_desc">Houselights 将在本设备上忘记此服务器；您的文件夹将取而代之。如需再次使用，需要重新登录。</string>
     <string name="sign_out_first_folder">添加第一个文件夹后，Houselights 将在本设备上忘记此服务器。</string>
+    <string name="source_jellyfin_another">其他 Jellyfin 服务器</string>
+    <string name="source_jellyfin_another_desc">其他地址或其他账号</string>
+    <string name="source_kept_resume">无需重新登录</string>
+    <string name="source_trakt_resumes">Trakt 将恢复</string>
+    <string name="forget">忘记</string>
+    <string name="forget_server">忘记“%s”</string>
+    <string name="forget_server_desc">Houselights 将在本设备上退出登录</string>
+    <string name="forget_server_confirm">要忘记“%s”吗？</string>
+    <string name="forget_server_consequence">Houselights 将在本设备上退出此服务器。如需再次使用，需要重新登录。</string>
+    <string name="sign_out_server">退出登录“%s”</string>
+    <string name="sign_out_server_desc">Houselights 将在本设备上忘记它</string>
     <string name="label_server">服务器</string>
     <string name="label_connection">连接</string>
     <string name="connection_encrypted">已加密（HTTPS）</string>

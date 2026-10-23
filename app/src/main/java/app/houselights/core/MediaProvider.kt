@@ -113,7 +113,12 @@ data class ProviderCapabilities(
     val formatFilters: Boolean = false,
     val personFilter: Boolean = false,
     val search: Boolean = false,
-)
+) {
+    companion object {
+        /** No source, none of it: a screen restored before its source could be read. */
+        val NONE = ProviderCapabilities(markPlayed = false, favorites = false, similar = false, pathMapping = false)
+    }
+}
 
 /** A media library backend: local folders on the NAS, or a Jellyfin server. */
 interface MediaProvider {

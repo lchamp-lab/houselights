@@ -316,7 +316,8 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Posters en gegevens komen van TMDB.</string>
     <string name="change_source_local_desc">Uw mappen blijven bewaard</string>
-    <string name="change_source_jellyfin_desc">Blijft verbonden tot de wissel</string>
+    <string name="change_source_jellyfin_desc">De server blijft verbonden als u wisselt</string>
+    <string name="change_source_jellyfin_sheet">De server blijft verbonden als u wisselt</string>
     <string name="change_source">Bron wijzigen</string>
     <string name="reconnect">Opnieuw inloggen</string>
     <string name="source_local_first">Voeg een map van uw NAS toe</string>
@@ -328,11 +329,21 @@
         <item quantity="one">%d map</item>
         <item quantity="other">%d mappen</item>
     </plurals>
-    <string name="source_jellyfin_other">Andere server of ander account</string>
     <string name="sign_out">Uitloggen</string>
     <string name="sign_out_confirm">Uitloggen bij “%s”?</string>
-    <string name="sign_out_desc">Houselights vergeet deze server op dit apparaat; uw mappen nemen zijn plaats in.</string>
+    <string name="sign_out_desc">Houselights vergeet deze server op dit apparaat; uw mappen nemen zijn plaats in. Om hem weer te gebruiken, moet u opnieuw inloggen.</string>
     <string name="sign_out_first_folder">Houselights vergeet deze server op dit apparaat zodra uw eerste map is toegevoegd.</string>
+    <string name="source_jellyfin_another">Een andere Jellyfin-server</string>
+    <string name="source_jellyfin_another_desc">Een ander adres of een ander account</string>
+    <string name="source_kept_resume">zonder in te loggen</string>
+    <string name="source_trakt_resumes">Trakt gaat verder</string>
+    <string name="forget">Vergeten</string>
+    <string name="forget_server">“%s” vergeten</string>
+    <string name="forget_server_desc">Houselights logt hier uit</string>
+    <string name="forget_server_confirm">“%s” vergeten?</string>
+    <string name="forget_server_consequence">Houselights logt op dit apparaat uit bij deze server. Om hem weer te gebruiken, moet u opnieuw inloggen.</string>
+    <string name="sign_out_server">Uitloggen bij “%s”</string>
+    <string name="sign_out_server_desc">Houselights vergeet hem hier</string>
     <string name="label_server">Server</string>
     <string name="label_connection">Verbinding</string>
     <string name="connection_encrypted">Versleuteld (HTTPS)</string>

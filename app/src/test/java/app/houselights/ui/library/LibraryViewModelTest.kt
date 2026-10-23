@@ -56,6 +56,16 @@ class LibraryViewModelTest {
         assertEquals(239, ids.size)
     }
 
+    /** A wall restored before its source could be read (its connection unreadable): an error, never a crash. */
+    @Test
+    fun withoutASourceTheWallOpensOnAnError() = runTest {
+        val vm = LibraryViewModel({ null }, library, SavedStateHandle(), opensOn = LibraryFilter(picture = "Dolby Vision"))
+        assertFalse(vm.capabilities.formatFilters)
+        advanceUntilIdle()
+        assertEquals(UiError.FAILED, vm.state.value.error)
+        assertTrue(vm.state.value.items.isEmpty())
+    }
+
     @Test
     fun aChangeReloadsWhatIsShownInPlace() = runTest {
         val vm = LibraryViewModel({ provider }, library)

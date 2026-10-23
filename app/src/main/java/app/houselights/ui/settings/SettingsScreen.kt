@@ -49,6 +49,7 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.UiError
 
@@ -63,24 +64,30 @@ internal enum class Pane(val label: Int, val icon: ImageVector) {
 }
 
 /**
- * Settings in two panes: its places, a word each, and the focused one's rows. [onUseFolders] makes
- * the folders the source and reports a failure on the source's row; the library in numbers opens a filtered wall
- * ([onOpenWall]) or a director's page ([onOpenPerson]).
+ * Settings in two panes: its places, a word each, and the focused one's rows. [onUseFolders] makes the folders the
+ * source, keeping the server left or signing out of it, and reports a failure on the source's row; [onSignIn] opens
+ * the sign-in, filled in as it says; [onSourceResumed] follows the kept server made the source again. The library in
+ * numbers opens a filtered wall ([onOpenWall]) or a director's page ([onOpenPerson]).
  */
 @Composable
 fun SettingsScreen(
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
-    onUseFolders: (onError: (UiError) -> Unit) -> Unit,
-    onSignIn: () -> Unit,
+    onUseFolders: (keepServer: Boolean, onError: (UiError) -> Unit) -> Unit,
+    onSignIn: (LoginFill) -> Unit,
+    onSourceResumed: () -> Unit,
     onOpenCatalog: () -> Unit = {},
     onOpenWall: (Library, LibraryFilter) -> Unit = { _, _ -> },
     onOpenPerson: (personId: String) -> Unit = {},
 ) {
     val vm = settingsViewModel()
-    val useFolders = {
-        vm.clearActionError()
-        onUseFolders { vm.actionFailed(SettingAction.SOURCE, it) }
-    }
+    val sources = SourceDoors(
+        useFolders = { keepServer ->
+            vm.clearActionError()
+            onUseFolders(keepServer) { vm.actionFailed(SettingAction.SOURCE, it) }
+        },
+        signIn = onSignIn,
+        resumed = onSourceResumed,
+    )
     val s by vm.settings.collectAsStateWithLifecycle()
     val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts, vm.asksTracks)
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
@@ -124,7 +131,7 @@ fun SettingsScreen(
         ) {
             val rows = remember(pane) { PaneRows(memory, pane.name) }
             PaneContent(
-                pane, s, storage, onFolderForm, useFolders, onSignIn, onOpenCatalog, rows, list,
+                pane, s, storage, onFolderForm, sources, onOpenCatalog, rows, list,
                 entry = memory.requester(paneKey(pane)),
                 onFocusIn = { inPane = it },
                 numbers = NumbersDoors(onOpenWall, onOpenPerson),
@@ -145,6 +152,12 @@ private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMem
 
 /** Where the library in numbers leads: a wall filtered by a value it counts, or a director's page. */
 private class NumbersDoors(val onOpenWall: (Library, LibraryFilter) -> Unit, val onOpenPerson: (String) -> Unit)
+
+/**
+ * Where the source's rows lead: the folders, keeping the server left or not ([useFolders]), a sign-in filled in as
+ * asked ([signIn]), and what follows the kept server made the source again ([resumed]).
+ */
+internal class SourceDoors(val useFolders: (keepServer: Boolean) -> Unit, val signIn: (LoginFill) -> Unit, val resumed: () -> Unit)
 
 /** The note [pane] shows when one of its secrets could not be read back and must be re-entered; else null. */
 internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
@@ -178,8 +191,7 @@ private fun PaneContent(
     s: AppSettings,
     storage: StorageStats?,
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
-    onUseFolders: () -> Unit,
-    onSignIn: () -> Unit,
+    sources: SourceDoors,
     onOpenCatalog: () -> Unit,
     rows: PaneRows,
     list: LazyListState,
@@ -207,7 +219,7 @@ private fun PaneContent(
         // A lost secret shows at the pane's head; a failed change shows on its own row, where focus is.
         lostSecretNote(pane, s.lostSecrets)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
         when (pane) {
-            Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)
+            Pane.Library -> libraryPane(s, onFolderForm, sources, rows)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
             Pane.Playback -> playbackPane(s, server = vm.capabilities.pathMapping, tracks = vm.asksTracks)
             Pane.Trakt -> trakt?.let { traktPane(it, s.trakt) }

@@ -60,6 +60,7 @@ import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatCount
@@ -74,8 +75,7 @@ import java.util.Locale
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
-    onUseFolders: () -> Unit,
-    onSignIn: () -> Unit,
+    sources: SourceDoors,
     rows: PaneRows,
 ) {
     when (val source = s.source) {
@@ -83,7 +83,7 @@ internal fun LazyListScope.libraryPane(
             item { Section(stringResource(R.string.section_source), aside = librarySummary()) { Showcases(rows, onEdit = onFolderForm) } }
             item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, rows) }
             item { FilmData() }
-            item { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE)) } }
+            item { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(sources, rows.focus(SOURCE)) } }
         }
         is SourceConfig.Jellyfin -> {
             item {
@@ -111,9 +111,9 @@ internal fun LazyListScope.libraryPane(
                         stringResource(R.string.reconnect),
                         rows.focus("reconnect"),
                         description = source.userName,
-                        onClick = onSignIn,
+                        onClick = { sources.signIn(LoginFill.Current) },
                     )
-                    SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
+                    SourceRow(sources, rows.focus(SOURCE))
                 }
             }
         }
@@ -466,104 +466,214 @@ private fun metadataLanguageName(tag: String, locale: Locale = Locale.forLanguag
     return name.replaceFirstChar { it.titlecase(locale) }
 }
 
-/** The current source and what changing it keeps; OK opens [SourceSheet]. */
+/** The current source and what changing it keeps; OK opens [SourceSheet], whose every choice closes it at once. */
 @Composable
-private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit, modifier: Modifier = Modifier) {
+private fun SourceRow(doors: SourceDoors, modifier: Modifier = Modifier) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
+    val folders by vm.library.folders.collectAsStateWithLifecycle(emptyList())
+    val titles by vm.library.titleCount.collectAsStateWithLifecycle(0)
     var choose by remember { mutableStateOf(false) }
     val server = s.source is SourceConfig.Jellyfin
-    // Switching to the folders failed (storage): shown here, where focus returns.
-    val failure = rowFailure(vm.errorOf(SettingAction.SOURCE))
+    // Switching failed (storage), or the kept server could not be resumed or forgotten: shown here, where focus returns.
+    val failure = rowFailure(vm.errorOf(SettingAction.SOURCE)) ?: rowFailure(vm.errorOf(SettingAction.KEPT_SERVER), notDone = true)
     HlSettingRow(
         stringResource(R.string.change_source_row),
         modifier,
-        value = failure?.value ?: stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
+        value = when {
+            vm.resuming -> stringResource(R.string.signing_in)
+            failure != null -> failure.value
+            else -> stringResource(if (server) R.string.source_jellyfin else R.string.source_local)
+        },
         description = stringResource(sourceKeeps(s.source)),
         valueAttention = failure != null,
         onClick = { choose = true },
     )
     RowFailureNote(failure)
     if (choose) {
-        // Both choices open another screen: the sheet closes at once.
         SourceSheet(
-            source = s.source,
+            SourceSheetFacts(s.source, s.keptServer, folders.size, titles, trakt = s.trakt?.ended == false),
             onDismiss = { choose = false },
-            onUseFolders = {
+            onChoose = { choice ->
                 choose = false
-                onUseFolders()
-            },
-            onSignIn = {
-                choose = false
-                onSignIn()
+                when (choice) {
+                    is SourceChoice.Folders -> doors.useFolders(true)
+                    // A token the server refuses: the sign-in opens filled in, on the password.
+                    is SourceChoice.Server -> vm.resumeServer(choice.server, doors.resumed) { refused ->
+                        doors.signIn(LoginFill.Server(refused.serverUrl, refused.userName))
+                    }
+                    is SourceChoice.SignIn -> doors.signIn(LoginFill.Blank)
+                    is SourceChoice.Leave -> if (choice.current) doors.useFolders(false) else vm.forgetServer()
+                }
             },
         )
     }
 }
 
-/** What changing from [source] keeps, under the row and atop its sheet. */
+/** What changing from [source] keeps, under the Source row. */
 private fun sourceKeeps(source: SourceConfig?): Int =
     if (source is SourceConfig.Jellyfin) R.string.change_source_jellyfin_desc else R.string.change_source_local_desc
 
-/** Folders or a Jellyfin server, the current one checked; leaving a server for the folders asks first. */
+/** What the source sheet shows: the source, the server [kept] beside the folders, their count and titles, Trakt connected. */
+internal data class SourceSheetFacts(
+    val source: SourceConfig?,
+    val kept: SourceConfig.Jellyfin?,
+    val folders: Int,
+    val titles: Int,
+    val trakt: Boolean,
+)
+
+/** What a row of the source sheet does. */
+internal sealed interface SourceChoice {
+    /** The folders, checked while they are the source; Trakt resumes once a server is left for them ([traktResumes]). */
+    data class Folders(val current: Boolean, val traktResumes: Boolean) : SourceChoice
+
+    /** [server], checked while it is the source, else the one kept beside the folders, resumed without signing in. */
+    data class Server(val server: SourceConfig.Jellyfin, val current: Boolean) : SourceChoice
+
+    /** A Jellyfin server to sign in to; [another] beside one in use or kept. */
+    data class SignIn(val another: Boolean) : SourceChoice
+
+    /** Signs out of [server] while it is the source ([current]), else forgets the kept one; asked first. */
+    data class Leave(val server: SourceConfig.Jellyfin, val current: Boolean) : SourceChoice
+}
+
+/** The sheet's rows for [source] and the server [kept] beside the folders, then the one apart that leaves a server, if any. */
+internal fun sourceChoices(
+    source: SourceConfig?,
+    kept: SourceConfig.Jellyfin?,
+    trakt: Boolean,
+): Pair<List<SourceChoice>, SourceChoice.Leave?> {
+    val inUse = source as? SourceConfig.Jellyfin
+    val server = inUse ?: kept
+    val rows = listOfNotNull(
+        SourceChoice.Folders(current = source == SourceConfig.Local, traktResumes = inUse != null && trakt),
+        server?.let { SourceChoice.Server(it, current = inUse != null) },
+        SourceChoice.SignIn(another = server != null),
+    )
+    return rows to server?.let { SourceChoice.Leave(it, current = inUse != null) }
+}
+
+/**
+ * Folders or a Jellyfin server, the current one checked, the kept one resumed in one OK, another server; apart,
+ * forgetting the kept server or signing out of the current one, asked first. Focus starts on what changes the source.
+ * A choice that does something goes to [onChoose].
+ */
 @Composable
-private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit) {
-    val vm = settingsViewModel()
-    val folders by vm.library.folders.collectAsStateWithLifecycle(emptyList())
-    val server = source as? SourceConfig.Jellyfin
-    val local = remember { FocusRequester() }
-    val jellyfin = remember { FocusRequester() }
-    val serverName = server?.serverName ?: stringResource(R.string.source_jellyfin)
+internal fun SourceSheet(facts: SourceSheetFacts, onDismiss: () -> Unit, onChoose: (SourceChoice) -> Unit) {
+    val (choices, leave) = sourceChoices(facts.source, facts.kept, facts.trakt)
+    val server = facts.source as? SourceConfig.Jellyfin
+    val first = remember { FocusRequester() }
+    val firstChoice = choices.firstOrNull { it is SourceChoice.Server && !it.current } ?: choices.first()
     HlSideSheet(
         title = stringResource(R.string.change_source),
         onDismiss = onDismiss,
-        facts = listOf(if (server != null) serverName else stringResource(R.string.source_local)) + sourceFacts(server),
-        description = stringResource(sourceKeeps(source)),
-        initialFocus = if (server != null) jellyfin else local,
+        facts = sourceFacts(server, facts.titles),
+        // The head has room for the whole sentence, the row beside its value has not.
+        description = stringResource(if (server != null) R.string.change_source_jellyfin_sheet else R.string.change_source_local_desc),
+        initialFocus = first,
     ) { sheet ->
-        SheetConfirm(
-            question = stringResource(R.string.sign_out_confirm, serverName),
-            consequence = stringResource(if (folders.isEmpty()) R.string.sign_out_first_folder else R.string.sign_out_desc),
-            confirm = stringResource(R.string.sign_out),
-            onConfirm = onUseFolders,
-        ) { ask, origin ->
+        LeaveConfirm(leave, facts.folders, onChoose) { ask, origin ->
             HlSettingGroup(null) {
-                HlSettingRow(
-                    stringResource(R.string.source_local),
-                    origin.focusRequester(local),
-                    description = foldersLine(folders.size),
-                    icon = HlIcons.Folder,
-                    onClick = {
-                        when {
-                            source is SourceConfig.Jellyfin -> ask()
-                            source == SourceConfig.Local && folders.isNotEmpty() -> sheet.dismiss()
-                            else -> onUseFolders()
-                        }
-                    },
-                    trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
-                )
-                HlSettingRow(
-                    stringResource(R.string.source_jellyfin),
-                    Modifier.focusRequester(jellyfin),
-                    description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
-                    icon = HlIcons.Server,
-                    onClick = onSignIn,
-                    trailing = if (server != null) ({ ChoiceCheck() }) else null,
-                )
+                choices.forEach { choice ->
+                    SourceChoiceRow(choice, facts.folders, if (choice == firstChoice) Modifier.focusRequester(first) else Modifier) {
+                        if (isCurrent(choice, facts.folders)) sheet.dismiss() else onChoose(choice)
+                    }
+                }
             }
+            leave?.let { HlSettingGroup(null) { SourceChoiceRow(it, facts.folders, origin, onClick = ask) } }
         }
     }
 }
 
-/** Facts under the current source's name: the server's kind and user, or the folders' title count. */
+/** [choice] is the source already, with nothing to add: OK only closes the sheet. */
+private fun isCurrent(choice: SourceChoice, folders: Int): Boolean = when (choice) {
+    is SourceChoice.Server -> choice.current
+    is SourceChoice.Folders -> choice.current && folders > 0
+    else -> false
+}
+
+/** [rows], or in their place the question that signs out of the server or forgets the kept one ([leave]). */
 @Composable
-private fun sourceFacts(server: SourceConfig.Jellyfin?): List<String?> {
-    val titles by settingsViewModel().library.titleCount.collectAsStateWithLifecycle(0)
-    return if (server != null) {
-        listOf(stringResource(R.string.source_jellyfin).takeIf { server.serverName != null }, server.userName)
-    } else {
-        listOf(pluralStringResource(R.plurals.title_count, titles, titles))
+private fun LeaveConfirm(
+    leave: SourceChoice.Leave?,
+    folders: Int,
+    onChoose: (SourceChoice) -> Unit,
+    rows: @Composable (ask: () -> Unit, origin: Modifier) -> Unit,
+) {
+    val signsOut = leave?.current == true
+    val name = leave?.let { serverName(it.server) }.orEmpty()
+    SheetConfirm(
+        question = stringResource(if (signsOut) R.string.sign_out_confirm else R.string.forget_server_confirm, name),
+        consequence = stringResource(
+            when {
+                !signsOut -> R.string.forget_server_consequence
+                folders == 0 -> R.string.sign_out_first_folder
+                else -> R.string.sign_out_desc
+            }
+        ),
+        confirm = stringResource(if (signsOut) R.string.sign_out else R.string.forget),
+        onConfirm = { leave?.let(onChoose) },
+        rows = rows,
+    )
+}
+
+/** [choice] as its row, saying in one line what it is, checked while it is the source. */
+@Composable
+private fun SourceChoiceRow(choice: SourceChoice, folders: Int, modifier: Modifier, onClick: () -> Unit) {
+    when (choice) {
+        is SourceChoice.Folders -> HlSettingRow(
+            stringResource(R.string.source_local),
+            modifier,
+            // Trakt resumes with the folders: said in place of where they are, so that the line holds.
+            description = if (choice.traktResumes && folders > 0) {
+                pluralStringResource(R.plurals.folder_count, folders, folders) + DOT + stringResource(R.string.source_trakt_resumes)
+            } else {
+                foldersLine(folders)
+            },
+            icon = HlIcons.Folder,
+            onClick = onClick,
+            trailing = if (choice.current) ({ ChoiceCheck() }) else null,
+        )
+        is SourceChoice.Server -> HlSettingRow(
+            serverName(choice.server),
+            modifier,
+            description = listOfNotNull(
+                JELLYFIN,
+                choice.server.userName,
+                stringResource(R.string.source_kept_resume).takeUnless { choice.current },
+            ).joinToString(DOT),
+            icon = HlIcons.Server,
+            onClick = onClick,
+            trailing = if (choice.current) ({ ChoiceCheck() }) else null,
+        )
+        is SourceChoice.SignIn -> HlSettingRow(
+            stringResource(if (choice.another) R.string.source_jellyfin_another else R.string.source_jellyfin),
+            modifier,
+            description = stringResource(if (choice.another) R.string.source_jellyfin_another_desc else R.string.source_jellyfin_desc),
+            icon = if (choice.another) HlIcons.Add else HlIcons.Server,
+            onClick = onClick,
+        )
+        is SourceChoice.Leave -> HlSettingRow(
+            stringResource(if (choice.current) R.string.sign_out_server else R.string.forget_server, serverName(choice.server)),
+            modifier,
+            description = stringResource(if (choice.current) R.string.sign_out_server_desc else R.string.forget_server_desc),
+            icon = HlIcons.SignOut,
+            onClick = onClick,
+        )
     }
+}
+
+/** A server by its own name, else as a Jellyfin server. */
+@Composable
+private fun serverName(server: SourceConfig.Jellyfin): String = server.serverName ?: stringResource(R.string.source_jellyfin)
+
+/** The current source's name and its facts: the server's kind and user, or the folders' [titles]. */
+@Composable
+private fun sourceFacts(server: SourceConfig.Jellyfin?, titles: Int): List<String?> = if (server != null) {
+    listOf(serverName(server), stringResource(R.string.source_jellyfin).takeIf { server.serverName != null }, server.userName)
+} else {
+    listOf(stringResource(R.string.source_local), pluralStringResource(R.plurals.title_count, titles, titles))
 }
 
 /** The folders option's line: the folders added, or the first one to add. */
@@ -695,6 +805,12 @@ private const val HEADER_POSTERS = 3
 
 private const val ADD_FOLDER = "add_folder"
 private const val SOURCE = "source"
+
+/** Between the parts of a source row's line ("Jellyfin · léa"). */
+private const val DOT = " · "
+
+/** The server's kind, by its own name in every language. */
+private const val JELLYFIN = "Jellyfin"
 
 /** A folder's showcase's row key. */
 private fun folderRow(id: Long) = "folder-$id"

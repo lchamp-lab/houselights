@@ -105,7 +105,8 @@ class FormLayoutTest {
     private fun jellyfinHolds() {
         val vm = runBlocking {
             val settings = testSettings(folder.root, scope)
-            JellyfinLoginViewModel(settings, SourceSwitcher({ settings.state.value }, {}, scope, signOut = { _, _ -> }), TwoServers)
+            val sources = SourceSwitcher({ settings.state.value }, { _, _ -> }, scope, signOut = { _, _ -> })
+            JellyfinLoginViewModel(settings, sources, TwoServers)
         }
         compose.setTvContent { JellyfinLoginForm(vm) {} }
         compose.waitForIdle()

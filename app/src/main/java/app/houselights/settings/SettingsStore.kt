@@ -47,6 +47,7 @@ private val Context.dataStore by preferencesDataStore(
 
 private object Keys {
     val source = stringPreferencesKey("source")
+    val keptServer = stringPreferencesKey("kept_server")
     val deviceId = stringPreferencesKey("device_id")
     val mappings = stringPreferencesKey("path_mappings")
     val forceHttp = booleanPreferencesKey("force_http")
@@ -61,12 +62,15 @@ private object Keys {
     val subtitleLanguage = stringPreferencesKey("subtitle_language")
 }
 
-private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings, Keys.trakt)
+private val SECRET_KEYS = listOf(Keys.source, Keys.keptServer, Keys.tmdbKey, Keys.mappings, Keys.trakt)
 
 /** A setting that holds a secret, named so screens can say which one could not be read. */
 enum class SecretSetting {
     /** The source: a server's token. */
     SOURCE,
+
+    /** The server left for the folders, still signed in: its token. */
+    KEPT_SERVER,
     TMDB_KEY,
 
     /** Path mappings: their network paths may carry a password. */
@@ -79,6 +83,7 @@ enum class SecretSetting {
 private val Preferences.Key<String>.secret: SecretSetting
     get() = when (this) {
         Keys.source -> SecretSetting.SOURCE
+        Keys.keptServer -> SecretSetting.KEPT_SERVER
         Keys.tmdbKey -> SecretSetting.TMDB_KEY
         Keys.trakt -> SecretSetting.TRAKT
         else -> SecretSetting.PATH_MAPPINGS
@@ -112,6 +117,8 @@ internal class SealSecrets(private val secrets: Secrets) : DataMigration<Prefere
 data class AppSettings(
     val loaded: Boolean = false,
     val source: SourceConfig? = null,
+    /** The Jellyfin server left for the folders, still signed in, resumed without signing in again; one at most. */
+    val keptServer: SourceConfig.Jellyfin? = null,
     val deviceId: String = "",
     val pathMappings: List<PathMapping> = emptyList(),
     val forceHttp: Boolean = false,
@@ -138,7 +145,7 @@ data class AppSettings(
 
     /** Omits the TMDB key, the mappings' network paths, which may carry a password, and Trakt's tokens: logs may quote the settings. */
     override fun toString() =
-        "AppSettings(loaded=$loaded, source=$source, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
+        "AppSettings(loaded=$loaded, source=$source, keptServer=$keptServer, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
             "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
             "collectionMinFilms=$collectionMinFilms, metadataLanguage=$metadataLanguage, libraryLanguage=$libraryLanguage, " +
             "trakt=$trakt, tracks=$tracks, lostSecrets=$lostSecrets, readFailed=$readFailed)"
@@ -202,22 +209,19 @@ class SettingsStore(
 
     private fun Preferences.toSettings(): AppSettings {
         val lost = mutableSetOf<SecretSetting>()
-        val source = this[Keys.source]?.let { opened(Keys.source, it, lost) }?.let { decoded<SourceConfig>(Keys.source, it, lost) }
-        val mappings = this[Keys.mappings]
-            ?.let { opened(Keys.mappings, it, lost) }
-            ?.let { decoded<List<PathMapping>>(Keys.mappings, it, lost) }
         return AppSettings(
             loaded = true,
-            source = source,
+            source = sealed<SourceConfig>(Keys.source, lost),
+            keptServer = sealed<SourceConfig.Jellyfin>(Keys.keptServer, lost),
             deviceId = this[Keys.deviceId] ?: "",
-            pathMappings = mappings.orEmpty(),
+            pathMappings = sealed<List<PathMapping>>(Keys.mappings, lost).orEmpty(),
             forceHttp = this[Keys.forceHttp] ?: false,
             ui4k = this[Keys.ui4k] ?: true,
             tmdbApiKey = this[Keys.tmdbKey]?.let { opened(Keys.tmdbKey, it, lost) }?.takeIf { it.isNotBlank() },
             collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
             metadataLanguage = this[Keys.metadataLanguage],
             libraryLanguage = this[Keys.libraryLanguage],
-            trakt = this[Keys.trakt]?.let { opened(Keys.trakt, it, lost) }?.let { decoded<TraktSession>(Keys.trakt, it, lost) },
+            trakt = sealed<TraktSession>(Keys.trakt, lost),
             tracks = TrackPreferences(
                 audio = this[Keys.audioLanguage],
                 subtitles = SubtitleMode.entries.firstOrNull { it.name == this[Keys.subtitleMode] } ?: SubtitleMode.PLAYER,
@@ -226,6 +230,10 @@ class SettingsStore(
             lostSecrets = lost,
         )
     }
+
+    /** The value sealed at [key], opened and decoded; null when absent, or unreadable and recorded in [lost]. */
+    private inline fun <reified T> Preferences.sealed(key: Preferences.Key<String>, lost: MutableSet<SecretSetting>): T? =
+        this[key]?.let { opened(key, it, lost) }?.let { decoded<T>(key, it, lost) }
 
     /** A secret's plain text; null when unreadable, recorded in [lost] and logged without its value. */
     private fun opened(key: Preferences.Key<String>, stored: String, lost: MutableSet<SecretSetting>): String? {
@@ -266,12 +274,26 @@ class SettingsStore(
 
     /** Saves the source; local folders hold no secret and are never sealed, so they never wait on the Keystore. */
     suspend fun setSource(source: SourceConfig?) {
-        write {
-            when (source) {
-                null -> it.remove(Keys.source)
-                SourceConfig.Local -> it[Keys.source] = lenientJson.encodeToString<SourceConfig>(source)
-                is SourceConfig.Jellyfin -> it[Keys.source] = secrets.seal(lenientJson.encodeToString<SourceConfig>(source))
-            }
+        write { it.putSource(source) }
+    }
+
+    /**
+     * Saves the source and the server kept signed in beside it ([kept], null for none) in one write, so neither is
+     * ever saved without the other; both sealed before anything is written.
+     */
+    suspend fun setSource(source: SourceConfig, kept: SourceConfig.Jellyfin?) {
+        write { prefs ->
+            val sealed = kept?.let { secrets.seal(lenientJson.encodeToString(it)) }
+            prefs.putSource(source)
+            if (sealed == null) prefs.remove(Keys.keptServer) else prefs[Keys.keptServer] = sealed
+        }
+    }
+
+    private fun MutablePreferences.putSource(source: SourceConfig?) {
+        when (source) {
+            null -> remove(Keys.source)
+            SourceConfig.Local -> this[Keys.source] = lenientJson.encodeToString<SourceConfig>(source)
+            is SourceConfig.Jellyfin -> this[Keys.source] = secrets.seal(lenientJson.encodeToString<SourceConfig>(source))
         }
     }
 

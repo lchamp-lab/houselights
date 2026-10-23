@@ -207,6 +207,11 @@ class JellyfinClient(
         /** True when [url] is on [server]: its host, and over HTTPS when the server is reached so. */
         internal fun staysOn(server: HttpUrl, url: HttpUrl): Boolean = url.host == server.host && (url.isHttps || !server.isHttps)
 
+        /** Asks the server for the token's account: an [HttpException] once it refuses the token, an [IOException] when silent. */
+        suspend fun checkToken(config: SourceConfig.Jellyfin, deviceId: String) {
+            JellyfinClient(config.serverUrl, deviceId, config.accessToken).api.me()
+        }
+
         /** Revokes the token on the server, giving up after a short timeout if it is unreachable. */
         suspend fun signOut(config: SourceConfig.Jellyfin, deviceId: String) {
             withTimeoutOrNull(SIGN_OUT_MS) {

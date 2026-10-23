@@ -138,8 +138,17 @@ class PaneRowLineTest {
                 "$tag: source_local_folders",
                 Beside.Icon,
             ),
+            Line(
+                local.resources.getQuantityString(R.plurals.folder_count, MANY, MANY) + DOT +
+                    local.getString(R.string.source_trakt_resumes),
+                "$tag: folder_count, source_trakt_resumes",
+                Beside.Icon,
+            ),
             line(R.string.source_jellyfin_desc, Beside.Icon),
-            line(R.string.source_jellyfin_other, Beside.Icon),
+            Line("Jellyfin$DOT$USER$DOT" + local.getString(R.string.source_kept_resume), "$tag: source_kept_resume", Beside.Icon),
+            line(R.string.source_jellyfin_another_desc, Beside.Icon),
+            line(R.string.forget_server_desc, Beside.Icon),
+            line(R.string.sign_out_server_desc, Beside.Icon),
             line(R.string.collections_two_desc, Beside.Check),
             line(R.string.collections_all_desc, Beside.Check),
             line(R.string.collections_off_desc, Beside.Check),
@@ -163,6 +172,10 @@ class PaneRowLineTest {
     private companion object {
         const val LARGEST = 1.3f
         const val MANY = 12
+
+        /** Between the parts of a source's line, and an account's name; a longer one ends in an ellipsis. */
+        const val DOT = " · "
+        const val USER = "léa"
 
         /** A scan's count, as long as a library's. */
         const val SCANNED = 1_234

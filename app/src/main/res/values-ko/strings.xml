@@ -310,7 +310,8 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">포스터와 작품 정보는 TMDB에서 가져옵니다.</string>
     <string name="change_source_local_desc">폴더는 그대로 유지됩니다</string>
-    <string name="change_source_jellyfin_desc">전환할 때까지 연결이 유지됩니다</string>
+    <string name="change_source_jellyfin_desc">전환해도 서버 연결이 유지됩니다</string>
+    <string name="change_source_jellyfin_sheet">전환해도 서버 연결이 유지됩니다</string>
     <string name="change_source">소스 변경</string>
     <string name="reconnect">다시 로그인</string>
     <string name="source_local_first">NAS에서 폴더를 추가하세요</string>
@@ -320,11 +321,21 @@
     <plurals name="folder_count">
         <item quantity="other">폴더 %d개</item>
     </plurals>
-    <string name="source_jellyfin_other">다른 서버 또는 다른 계정</string>
     <string name="sign_out">로그아웃</string>
     <string name="sign_out_confirm">‘%s’에서 로그아웃하시겠습니까?</string>
-    <string name="sign_out_desc">Houselights가 이 기기에서 이 서버 정보를 지웁니다. 대신 폴더를 사용합니다.</string>
+    <string name="sign_out_desc">Houselights가 이 기기에서 이 서버 정보를 지웁니다. 대신 폴더를 사용합니다. 다시 사용하려면 다시 로그인해야 합니다.</string>
     <string name="sign_out_first_folder">첫 폴더를 추가하면 Houselights가 이 기기에서 이 서버 정보를 지웁니다.</string>
+    <string name="source_jellyfin_another">다른 Jellyfin 서버</string>
+    <string name="source_jellyfin_another_desc">다른 주소 또는 다른 계정</string>
+    <string name="source_kept_resume">다시 로그인할 필요 없음</string>
+    <string name="source_trakt_resumes">Trakt 재개</string>
+    <string name="forget">지우기</string>
+    <string name="forget_server">‘%s’ 지우기</string>
+    <string name="forget_server_desc">이 기기에서 서버에서 로그아웃합니다</string>
+    <string name="forget_server_confirm">‘%s’ 정보를 지우시겠습니까?</string>
+    <string name="forget_server_consequence">Houselights가 이 기기에서 이 서버에서 로그아웃합니다. 다시 사용하려면 다시 로그인해야 합니다.</string>
+    <string name="sign_out_server">‘%s’에서 로그아웃</string>
+    <string name="sign_out_server_desc">이 기기에서 서버 정보를 지웁니다</string>
     <string name="label_server">서버</string>
     <string name="label_connection">연결</string>
     <string name="connection_encrypted">암호화됨(HTTPS)</string>

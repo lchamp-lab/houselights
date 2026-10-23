@@ -53,9 +53,11 @@
     - marking a title unwatched removes every play of it from Trakt's history, those of other devices
       too; a title only in progress loses its pause alone;
     - marks and stops wait while Trakt cannot be reached, or until the account is connected again once
-      Trakt ended its connection; disconnecting forgets them, and choosing a server as the source
-      disconnects Trakt.
-- **Jellyfin**: browses your server and reports playback progress back to it. Emby and Plex are planned.
+      Trakt ended its connection; disconnecting forgets them. Under a server as the source, Trakt pauses,
+      still connected, and sends what waited once your folders are the source again.
+- **Jellyfin**: browses your server and reports playback progress back to it. Switching to your folders keeps
+  the server signed in: it comes back from Settings in one OK, without signing in again. Emby and Plex are
+  planned.
 - **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,
   Polish, Chinese (simplified and traditional), Japanese and Korean, and details in the language of your
   choice. Both follow the device unless chosen in the settings.
@@ -110,8 +112,13 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
 - Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in
   rather than fall back to plain HTTP, which only typing `http://` chooses; the settings show when a connection
   is not encrypted. Requests carrying the token or the password follow no redirect to another host, or from
-  HTTPS to HTTP. Signing out revokes the app's token on the server. A stream played without path mappings
-  carries the token in its URL and is only handed to another app through Android's app chooser.
+  HTTPS to HTTP. A stream played without path mappings carries the token in its URL and is only handed to
+  another app through Android's app chooser.
+- Changing source signs out of nothing. A Jellyfin server left for your folders keeps its token, encrypted
+  like the source's under its own key, so that it comes back without signing in; one server at most, signed out
+  of instead when the Keystore cannot encrypt it. Its token is revoked on the server when you forget it or sign
+  out of it, or when a new sign-in replaces it, and is never used again after; a token the server refuses is
+  forgotten.
 - TMDB and Trakt are reached over HTTPS only, trusting the system's certificate authorities alone. Artwork
   named by NFO files is fetched over HTTPS only, redirects included. Other servers may use plain HTTP: home
   servers are reached by their address, which no rule can name.

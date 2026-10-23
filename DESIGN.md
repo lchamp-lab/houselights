@@ -616,7 +616,17 @@ Content closes a sheet with `SheetScope.dismiss(then)`: the sheet leaves, then `
 meanwhile. Opening another screen closes the sheet at once. Menus share the motion (`rememberSheetMotion`).
 
 A choice that needs another screen (a new source needs a folder or a sign-in) changes nothing until that
-screen succeeds. Sources change in one place, `SourceSwitcher`.
+screen succeeds. Sources change in one place, `SourceSwitcher`, and changing signs out of nothing.
+
+**Changer de source** lists the folders, a Jellyfin server, then another one (`HlIcons.Add`), the current one
+checked, focus on what changes the source; apart, on its own plate, the row that ends a server's session
+(`HlIcons.SignOut`), the one choice asked first. A server left for the folders stays signed in, kept, one at most:
+under its name, "Jellyfin · léa · sans vous reconnecter", it comes back in one OK once the server takes its token
+(the Source row says "Connexion…" meanwhile; a token refused opens the sign-in filled in, address and account), and
+"Oublier « … »" forgets it. On a server, "Mes fichiers" switches at once, its line "2 dossiers · Trakt reprend"
+once Trakt is connected, and "Se déconnecter de « … »" signs out. A row's line joins its parts with a middle dot,
+each row on one line at the largest text size (`PaneRowLineTest`), a long account's name ending in an ellipsis. The
+head says the server stays connected in a sentence; the Source row, beside its value, in fewer words.
 
 ## Messages
 
@@ -769,3 +779,5 @@ Debug builds show **Settings > About > Design system**: every token and componen
 2. Add a token or component here before using a new value twice.
 3. End a vertical list with `contentPadding(bottom = HlFocus.edge)`; if it starts below the top of the screen,
    wrap it in `ListScroll(top = its top padding)`. `HlTwoPane` does both for its content pane.
+4. A screen that shows the source is composed in `WithSource` (`AppNavigation`): restored after its connection
+   could no longer be read, it gives way to the welcome screen (`mustWelcome`), never reading a source there is not.

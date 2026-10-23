@@ -101,11 +101,31 @@ private fun SavingFailed.loginError(): LoginError = when (cause.toWriteError()) 
 /** Runs [block], a write to the device itself, wrapping any failure in [SavingFailed]. */
 private suspend fun <T> saving(block: suspend () -> T): T = suspendRunCatching { block() }.getOrElse { throw SavingFailed(it) }
 
+/** What the sign-in form starts with. */
+sealed interface LoginFill {
+    /** The current server's address and user, to sign in to it again. */
+    data object Current : LoginFill
+
+    /** Nothing: another server, or another account. */
+    data object Blank : LoginFill
+
+    /** A server that no longer takes its token: its [address] and [user]. */
+    data class Server(val address: String, val user: String?) : LoginFill
+}
+
+/** The address and user the form starts with for [fill] while [current] is the source; null for an empty form. */
+internal fun prefill(fill: LoginFill, current: SourceConfig?): Pair<String, String>? = when (fill) {
+    LoginFill.Current -> (current as? SourceConfig.Jellyfin)?.let { it.serverUrl to it.userName.orEmpty() }
+    LoginFill.Blank -> null
+    is LoginFill.Server -> fill.address to fill.user.orEmpty()
+}
+
 /** Signs in to a Jellyfin server, which becomes the source once [sources] switches to it. */
 class JellyfinLoginViewModel(
     private val settings: SettingsStore,
     private val sources: SourceSwitcher,
     private val network: JellyfinNetwork = JellyfinNetwork.Lan,
+    fill: LoginFill = LoginFill.Current,
 ) : ViewModel() {
     var server by Field()
     var user by Field()
@@ -119,15 +139,15 @@ class JellyfinLoginViewModel(
     var discovered by mutableStateOf<List<DiscoveredServer>>(emptyList())
         private set
 
-    /** Signing in again to the current server: its address and user are prefilled, only the password is asked. */
+    /** Signing in again to a server known here: its address and user are prefilled, only the password is asked. */
     val again: Boolean
 
     init {
-        val current = settings.state.value.source as? SourceConfig.Jellyfin
-        again = current != null
-        if (current != null) {
-            server = current.serverUrl
-            user = current.userName.orEmpty()
+        val known = prefill(fill, settings.state.value.source)
+        again = known != null
+        if (known != null) {
+            server = known.first
+            user = known.second
         }
         viewModelScope.launch { discovered = network.discover() }
     }
@@ -171,8 +191,8 @@ class JellyfinLoginViewModel(
     private fun typed() = listOf(server, user, password)
 
     companion object {
-        fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { JellyfinLoginViewModel(app.settings, app.sources) }
+        fun factory(app: AppContainer, fill: LoginFill): ViewModelProvider.Factory = viewModelFactory {
+            initializer { JellyfinLoginViewModel(app.settings, app.sources, fill = fill) }
         }
     }
 }

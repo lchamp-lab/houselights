@@ -32,10 +32,11 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.roomPosters
 
+/** Signs in to Jellyfin, the form starting as [fill] says. */
 @Composable
-fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
+fun JellyfinLoginScreen(fill: LoginFill, onLoggedIn: () -> Unit) {
     val app = appContainer()
-    val vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(app))
+    val vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(app, fill))
     JellyfinLoginForm(vm, roomPosters(), onLoggedIn)
 }
 

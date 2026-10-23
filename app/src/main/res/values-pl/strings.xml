@@ -328,7 +328,8 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Plakaty i informacje pochodzą z TMDB.</string>
     <string name="change_source_local_desc">Foldery zostają zachowane</string>
-    <string name="change_source_jellyfin_desc">Połączony aż do zmiany</string>
+    <string name="change_source_jellyfin_desc">Serwer pozostaje połączony po zmianie</string>
+    <string name="change_source_jellyfin_sheet">Serwer pozostaje połączony po zmianie</string>
     <string name="change_source">Zmień źródło</string>
     <string name="reconnect">Zaloguj się ponownie</string>
     <string name="source_local_first">Dodaj folder z serwera NAS</string>
@@ -344,11 +345,21 @@
         <item quantity="many">%d folderów</item>
         <item quantity="other">%d folderu</item>
     </plurals>
-    <string name="source_jellyfin_other">Inny serwer lub inne konto</string>
     <string name="sign_out">Wyloguj się</string>
     <string name="sign_out_confirm">Wylogować się z „%s”?</string>
-    <string name="sign_out_desc">Houselights zapomni o tym serwerze na tym urządzeniu; jego miejsce zajmą foldery.</string>
+    <string name="sign_out_desc">Houselights zapomni o tym serwerze na tym urządzeniu; jego miejsce zajmą foldery. Aby znów z niego korzystać, trzeba będzie zalogować się ponownie.</string>
     <string name="sign_out_first_folder">Houselights zapomni o tym serwerze na tym urządzeniu po dodaniu pierwszego folderu.</string>
+    <string name="source_jellyfin_another">Inny serwer Jellyfin</string>
+    <string name="source_jellyfin_another_desc">Inny adres lub inne konto</string>
+    <string name="source_kept_resume">bez logowania</string>
+    <string name="source_trakt_resumes">Trakt działa dalej</string>
+    <string name="forget">Zapomnij</string>
+    <string name="forget_server">Zapomnij „%s”</string>
+    <string name="forget_server_desc">Houselights wyloguje się tutaj</string>
+    <string name="forget_server_confirm">Zapomnieć „%s”?</string>
+    <string name="forget_server_consequence">Houselights wyloguje się z tego serwera na tym urządzeniu. Aby znów z niego korzystać, trzeba będzie zalogować się ponownie.</string>
+    <string name="sign_out_server">Wyloguj się z „%s”</string>
+    <string name="sign_out_server_desc">Houselights zapomni o nim tutaj</string>
     <string name="label_server">Serwer</string>
     <string name="label_connection">Połączenie</string>
     <string name="connection_encrypted">Szyfrowane (HTTPS)</string>

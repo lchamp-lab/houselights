@@ -20,6 +20,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -544,21 +545,27 @@ class TraktSyncTest : TraktSyncFixture() {
     }
 
     @Test
-    fun leavingTheFoldersDisconnectsTheAccountAndForgetsWhatWaits() = runTest {
+    fun underAnotherSourceTraktPausesConnectedAndBackOnTheFoldersSendsWhatWaited() = runTest {
         val id = film(56)
         val sync = connected()
         trakt.offline = true
         provider(sync).mark(id, played = true)
         waitFor("the mark waiting") { queue.pending().isNotEmpty() && sync.state.value.error != null }
         trakt.offline = false
+        val before = trakt.routes.size
 
-        sync.leave()
+        sync.follow(connected = true, folders = false)
+        sync.syncNow()
+        advanceUntilIdle()
+        assertEquals(before, trakt.routes.size)
+        assertEquals(listOf(TraktAction.WATCHED), queue.pending().map { it.action })
+        assertNotNull(session)
 
-        assertNull(session)
-        assertEquals(1, trakt.count("POST /oauth/revoke"))
-        assertTrue(queue.pending().isEmpty())
-        assertNull(queue.state())
-        assertEquals(TraktSyncState(), sync.state.value)
-        assertTrue(dao.item(id)!!.played)
+        // Synced a moment ago: the queue goes alone, Trakt's history is not read again.
+        sync.follow(connected = true, folders = true)
+        waitFor("what waited sent") { queue.pending().isEmpty() && !sync.state.value.running }
+        assertEquals(listOf(56), trakt.sent("POST /sync/history").single().tmdbs)
+        assertEquals(listOf("POST /sync/history"), trakt.routes.drop(before))
+        assertEquals(0, trakt.count("POST /oauth/revoke"))
     }
 }

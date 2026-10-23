@@ -5,6 +5,7 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.Quality
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.onboarding.LoginFill
 import kotlinx.serialization.Serializable
 
 /** Type-safe navigation routes: each screen and its arguments, checked at compile time. */
@@ -12,12 +13,31 @@ object Route {
     @Serializable
     data object Welcome
 
+    /** Signs in to Jellyfin, the form filled in with [server] and [user] when given, else as [blank] says ([fill]). */
     @Serializable
-    data object JellyfinLogin
+    data class JellyfinLogin(val server: String? = null, val user: String? = null, val blank: Boolean = false) {
+        val fill: LoginFill
+            get() = when {
+                server != null -> LoginFill.Server(server, user)
+                blank -> LoginFill.Blank
+                else -> LoginFill.Current
+            }
 
-    /** Adds a folder, or edits the folder [folderId] in place, focus starting on [focus]. */
+        companion object {
+            fun of(fill: LoginFill) = when (fill) {
+                LoginFill.Current -> JellyfinLogin()
+                LoginFill.Blank -> JellyfinLogin(blank = true)
+                is LoginFill.Server -> JellyfinLogin(fill.address, fill.user)
+            }
+        }
+    }
+
+    /**
+     * Adds a folder, or edits the folder [folderId] in place, focus starting on [focus]. A first folder added with
+     * [signOut] signs out of the server it replaces rather than keep it.
+     */
     @Serializable
-    data class AddFolder(val folderId: Long? = null, val focus: FolderField = FolderField.FIRST)
+    data class AddFolder(val folderId: Long? = null, val focus: FolderField = FolderField.FIRST, val signOut: Boolean = false)
 
     @Serializable
     data object Home

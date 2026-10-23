@@ -126,7 +126,7 @@ fun HomeScreen(
         onReload = vm::load,
         onRescan = vm::rescan,
         onLibraryAhead = { app.libraryAhead.ask(app.scope, it, PicturesAhead(context, screen), context.imageLoader) },
-        onOpenSearch = onOpenSearch.takeIf { app.provider.capabilities.search },
+        onOpenSearch = onOpenSearch.takeIf { app.providerOrNull()?.capabilities?.search == true },
     )
 }
 

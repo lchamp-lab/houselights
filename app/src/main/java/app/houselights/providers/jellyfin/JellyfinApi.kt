@@ -22,6 +22,10 @@ interface JellyfinApi {
     @POST("Sessions/Logout")
     suspend fun logout()
 
+    /** The account the token signs in; refused (401) once the token is revoked. */
+    @GET("Users/Me")
+    suspend fun me()
+
     @GET("UserViews")
     suspend fun views(@Query("userId") userId: String): ItemsResult
 

@@ -310,7 +310,8 @@
     <string name="tracks_hint_pair">%1$s、%2$s</string>
     <string name="tmdb_desc">ポスターと作品情報はTMDBから取得します。</string>
     <string name="change_source_local_desc">フォルダは保持されます</string>
-    <string name="change_source_jellyfin_desc">切り替えまで接続を維持します</string>
+    <string name="change_source_jellyfin_desc">切り替えても接続を維持します</string>
+    <string name="change_source_jellyfin_sheet">切り替えてもサーバーとの接続は維持されます</string>
     <string name="change_source">ソースを変更</string>
     <string name="reconnect">再ログイン</string>
     <string name="source_local_first">NASからフォルダを追加</string>
@@ -320,11 +321,21 @@
     <plurals name="folder_count">
         <item quantity="other">%dフォルダ</item>
     </plurals>
-    <string name="source_jellyfin_other">別のサーバーやアカウント</string>
     <string name="sign_out">ログアウト</string>
     <string name="sign_out_confirm">「%s」からログアウトしますか？</string>
-    <string name="sign_out_desc">Houselightsはこのデバイス上のこのサーバーの情報を消去します。代わりにフォルダが使われます。</string>
+    <string name="sign_out_desc">Houselightsはこのデバイス上のこのサーバーの情報を消去します。代わりにフォルダが使われます。再び使うには、もう一度ログインする必要があります。</string>
     <string name="sign_out_first_folder">最初のフォルダを追加すると、Houselightsはこのデバイス上のこのサーバーの情報を消去します。</string>
+    <string name="source_jellyfin_another">別のJellyfinサーバー</string>
+    <string name="source_jellyfin_another_desc">別のアドレスまたは別のアカウント</string>
+    <string name="source_kept_resume">再ログイン不要</string>
+    <string name="source_trakt_resumes">Traktを再開</string>
+    <string name="forget">消去</string>
+    <string name="forget_server">「%s」の情報を消去</string>
+    <string name="forget_server_desc">このデバイスでログアウトします</string>
+    <string name="forget_server_confirm">「%s」の情報を消去しますか？</string>
+    <string name="forget_server_consequence">Houselightsはこのデバイスでこのサーバーからログアウトします。再び使うには、もう一度ログインする必要があります。</string>
+    <string name="sign_out_server">「%s」からログアウト</string>
+    <string name="sign_out_server_desc">このデバイスで情報を消去します</string>
     <string name="label_server">サーバー</string>
     <string name="label_connection">接続</string>
     <string name="connection_encrypted">暗号化あり（HTTPS）</string>

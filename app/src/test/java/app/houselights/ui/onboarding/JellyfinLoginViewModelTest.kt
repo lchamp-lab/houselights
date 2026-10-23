@@ -77,10 +77,11 @@ class JellyfinLoginViewModelTest {
     private suspend fun TestScope.login(
         settings: SettingsStore? = null,
         save: suspend (SourceConfig) -> Unit = { saved += it },
+        fill: LoginFill = LoginFill.Current,
     ): JellyfinLoginViewModel {
         val store = settings ?: testSettings(folder.root, backgroundScope)
-        val sources = SourceSwitcher({ store.state.value }, save, backgroundScope, signOut = { _, _ -> })
-        return JellyfinLoginViewModel(store, sources, network)
+        val sources = SourceSwitcher({ store.state.value }, { source, _ -> save(source) }, backgroundScope, signOut = { _, _ -> })
+        return JellyfinLoginViewModel(store, sources, network, fill)
     }
 
     @Test
@@ -109,6 +110,26 @@ class JellyfinLoginViewModelTest {
         assertTrue(vm.again)
         assertEquals("https://nas:8920", vm.server)
         assertEquals("lea", vm.user)
+    }
+
+    /** A kept server that no longer takes its token: its address and account are filled in, only the password asked. */
+    @Test
+    fun aServerThatRefusedItsTokenFillsInItsAddressAndAccount() = runTest {
+        val vm = login(fill = LoginFill.Server("https://nas:8920", "lea"))
+        assertTrue(vm.again)
+        assertEquals("https://nas:8920", vm.server)
+        assertEquals("lea", vm.user)
+    }
+
+    @Test
+    fun anotherServerStartsEmptyEvenFromAServer() = runTest {
+        val settings = testSettings(folder.root, backgroundScope)
+        settings.setSource(SourceConfig.Jellyfin("https://nas:8920", "Maison", "u1", "lea", "token"))
+        settings.state.first { it.source != null }
+        val vm = login(settings, fill = LoginFill.Blank)
+        assertFalse(vm.again)
+        assertEquals("", vm.server)
+        assertEquals("", vm.user)
     }
 
     @Test

@@ -44,7 +44,8 @@ data class LibraryState(
  * playback. Opened on part of the library ([opensOn]: a format, a person), it starts filtered by it.
  */
 class LibraryViewModel(
-    private val provider: () -> MediaProvider,
+    /** The source's provider; null while there is none (its connection could not be read back), and nothing loads. */
+    private val provider: () -> MediaProvider?,
     private val library: Library,
     private val saved: SavedStateHandle = SavedStateHandle(),
     /** The first page, prefetched while Home's track moved to this library. */
@@ -52,12 +53,15 @@ class LibraryViewModel(
     opensOn: LibraryFilter? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(
-        LibraryState(sort = saved.sort(), filter = saved.filter(opensOn?.within(provider().capabilities))),
+        LibraryState(sort = saved.sort(), filter = saved.filter(opensOn?.within(capabilities))),
     )
     val state: StateFlow<LibraryState> = _state
 
-    /** What the source can filter by: the filter menu offers nothing else. */
-    val capabilities: ProviderCapabilities get() = provider().capabilities
+    /** What the source can filter by: the filter menu offers nothing else; nothing without a source. */
+    val capabilities: ProviderCapabilities get() = provider()?.capabilities ?: ProviderCapabilities.NONE
+
+    /** The provider a load reads; without a source the load fails, as the wall gives way to the welcome screen. */
+    private fun source(): MediaProvider = checkNotNull(provider()) { "No library source configured" }
 
     /** The first page, an in-place reload or the next page: one at a time, a new one cancelling the previous. */
     private val pages = LatestJob(viewModelScope)
@@ -95,7 +99,7 @@ class LibraryViewModel(
 
     private fun loadFacets() {
         facetLoads.launch {
-            suspendRunCatching { provider().libraryFacets(library) }
+            suspendRunCatching { source().libraryFacets(library) }
                 .onSuccess { f -> _state.update { it.copy(facets = f) } }
                 // On failure, the filter menu keeps what it offered.
                 .onFailure { Log.w(TAG, "Library facets failed", it) }
@@ -113,7 +117,7 @@ class LibraryViewModel(
         val s = _state.value
         pages.launch {
             suspendRunCatching {
-                provider().libraryPage(library, s.sort, s.filter, start = 0, limit = maxOf(s.items.size, PAGE))
+                source().libraryPage(library, s.sort, s.filter, start = 0, limit = maxOf(s.items.size, PAGE))
             }.onSuccess { page ->
                 val items = page.items.distinctBy(MediaItem::id)
                 _state.update {
@@ -147,7 +151,7 @@ class LibraryViewModel(
         pages.launch {
             suspendRunCatching {
                 val first = if (s.items.isEmpty()) ahead?.take(library, s.sort, s.filter) else null
-                first ?: provider().libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
+                first ?: source().libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
             }.onSuccess { page ->
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update {
@@ -178,7 +182,7 @@ class LibraryViewModel(
         internal const val PAGE = 120
 
         fun factory(app: AppContainer, library: Library, opensOn: LibraryFilter? = null): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LibraryViewModel(app::provider, library, createSavedStateHandle(), app.libraryAhead, opensOn) }
+            initializer { LibraryViewModel(app::providerOrNull, library, createSavedStateHandle(), app.libraryAhead, opensOn) }
         }
     }
 }

@@ -119,14 +119,6 @@ class TraktSync(
         }
     }
 
-    /** The folders are no longer the source: the account is disconnected, what waits and the sync's state forgotten. */
-    suspend fun leave() {
-        active = false
-        follows = false
-        suspendRunCatching { account.signOut() }.onFailure { Log.w(TAG, "Trakt could not be disconnected: ${described(it)}") }
-        disconnected(keepQueue = false)
-    }
-
     /** A scan ended: Trakt is read for the titles it found, else only if Trakt changed. */
     fun scanned(changedLibrary: Boolean) = request(if (changedLibrary) SyncMode.PULL else SyncMode.CHECK)
 

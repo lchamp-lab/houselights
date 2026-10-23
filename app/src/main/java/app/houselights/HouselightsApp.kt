@@ -45,6 +45,7 @@ import app.houselights.settings.AppSettings
 import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
+import app.houselights.settings.TraktFollow
 import app.houselights.ui.home.HomeLaunch
 import app.houselights.ui.library.LibraryAhead
 import app.houselights.ui.design.components.AwaitAhead
@@ -166,8 +167,11 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     val trakt = TraktAccount(TraktKeys.builtIn, session = { settings.state.value.trakt }, save = settings::setTrakt)
 
     /** The only way to change the source: the current one stays active until the new one is saved. */
-    val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope, leftFolders = { traktSync.leave() })
+    val sources = SourceSwitcher({ settings.state.value }, settings::setSource, scope)
     val database = LibraryDatabase.create(app, Secrets.device)
+
+    /** Trakt follows the account and the source as the settings have them. */
+    private val traktFollow = TraktFollow(settings.state)
 
     /** Keeps the folders' history and the Trakt account's together, in the background. */
     val traktSync = TraktSync(
@@ -176,7 +180,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         scope,
         changed = ::libraryChanged,
         // Read at a playback's end too, which a process restarted meanwhile may report before the settings are followed.
-        following = { settings.state.first { it.loaded }.let { it.trakt != null && it.source == SourceConfig.Local } },
+        following = traktFollow::queues,
     )
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
     /** The audio and subtitles asked of the player: Settings', or each title's own choice. */
@@ -284,19 +288,22 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 
     /** Provider of the active source; rebuilt when the source changes. */
     val provider: MediaProvider
-        get() {
-            val source = settings.state.value.source ?: error("No library source configured")
-            cached?.takeIf { it.first == source }?.let { return it.second }
-            val created = when (source) {
-                SourceConfig.Local -> {
-                    val editor = LocalEditor(database.dao(), scanner, ::tmdbInteractive)
-                    LocalProvider(app, database.dao(), editor, traktSync) { settings.state.value.collectionMinFilms }
-                }
-                is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
+        get() = providerOrNull() ?: error("No library source configured")
+
+    /** Provider of the active source, or null while there is none (its connection could not be read back). */
+    fun providerOrNull(): MediaProvider? {
+        val source = settings.state.value.source ?: return null
+        cached?.takeIf { it.first == source }?.let { return it.second }
+        val created = when (source) {
+            SourceConfig.Local -> {
+                val editor = LocalEditor(database.dao(), scanner, ::tmdbInteractive)
+                LocalProvider(app, database.dao(), editor, traktSync) { settings.state.value.collectionMinFilms }
             }
-            cached = source to created
-            return created
+            is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
         }
+        cached = source to created
+        return created
+    }
 
     /** TMDB key in use: the one saved in Settings, else the one built into the APK. */
     fun tmdbKey(s: AppSettings = settings.state.value): String? = s.tmdbApiKey ?: BuildConfig.TMDB_API_KEY.ifBlank { null }
@@ -342,12 +349,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         // Seals passwords left in plain text by a failing Keystore (migration 6 to 7) once it works again.
         scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device) }
         // Trakt follows the account and the source; the end of a scan reads it again.
-        scope.launch {
-            settings.state.filter { it.loaded }
-                .map { s -> Triple(s.trakt?.ended == false, s.source == SourceConfig.Local, s.trakt == null) }
-                .distinctUntilChanged()
-                .collect { (connected, folders, signedOut) -> traktSync.follow(connected, folders, signedOut) }
-        }
+        scope.launch { traktFollow.drive(traktSync) }
         scope.launch { scanner.passEnded.collect(traktSync::scanned) }
     }
 }

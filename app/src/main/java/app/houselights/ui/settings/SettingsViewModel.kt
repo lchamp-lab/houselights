@@ -13,6 +13,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.AppContainer
 import app.houselights.core.MediaProvider
 import app.houselights.core.PathMapping
+import app.houselights.core.ProviderCapabilities
+import app.houselights.core.SourceConfig
 import app.houselights.core.TrackPreferences
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.CleanupResult
@@ -21,7 +23,9 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.settings.AppSettings
+import app.houselights.settings.Resumed
 import app.houselights.settings.SettingsStore
+import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.launchAction
@@ -70,6 +74,9 @@ internal enum class SettingAction {
     CLEANUP,
     CLEAR_IMAGE_CACHE,
     SOURCE,
+
+    /** Resuming or forgetting the server kept beside the folders, said on the source's row. */
+    KEPT_SERVER,
     TRACKS,
 }
 
@@ -84,8 +91,10 @@ internal data class ActionError(val action: SettingAction, val error: UiError, v
 internal class SettingsViewModel(
     private val store: SettingsStore,
     val library: LocalLibrary,
-    private val provider: () -> MediaProvider,
+    /** The source's provider; null while there is none (its connection could not be read back). */
+    private val provider: () -> MediaProvider?,
     private val work: CoroutineScope,
+    private val sources: SourceSwitcher,
     private val images: ImageLoader?,
     private val checkTmdbKey: suspend (String) -> TmdbKeyCheck = { TmdbClient(it).checkKey() },
     private val chooseLanguage: suspend (String?) -> Unit = {},
@@ -93,16 +102,17 @@ internal class SettingsViewModel(
     val asksTracks: Boolean = false,
 ) : ViewModel() {
     constructor(app: AppContainer, images: ImageLoader) : this(
-        app.settings, app.library, app::provider, app.scope, images, chooseLanguage = app.language::choose, asksTracks = app.asksTracks,
+        app.settings, app.library, app::providerOrNull, app.scope, app.sources, images,
+        chooseLanguage = app.language::choose, asksTracks = app.asksTracks,
     )
 
     val settings: StateFlow<AppSettings> = store.state
 
     /** What the current source can do; the settings show what applies to it. */
-    val capabilities get() = provider().capabilities
+    val capabilities get() = provider()?.capabilities ?: ProviderCapabilities.NONE
 
     /** Whether the current source counts its library ([MediaProvider.catalog]), for the library in numbers. */
-    val counts get() = provider().catalog != null
+    val counts get() = provider()?.catalog != null
 
     private val _storage = MutableStateFlow<StorageStats?>(null)
     val storage: StateFlow<StorageStats?> = _storage
@@ -123,6 +133,34 @@ internal class SettingsViewModel(
     /** Folders being removed: each waits for any file a scan is reading in it. */
     var removing by mutableStateOf(emptySet<Long>())
         private set
+
+    /** The kept server is being asked whether it still takes its token. */
+    var resuming by mutableStateOf(false)
+        private set
+
+    /**
+     * Makes [server], the one kept beside the folders, the source again, then [onResumed]; one that no longer takes its
+     * token goes to [onRefused], for the sign-in. A server that cannot be asked says so on the source's row.
+     */
+    fun resumeServer(server: SourceConfig.Jellyfin, onResumed: () -> Unit, onRefused: (SourceConfig.Jellyfin) -> Unit) {
+        if (resuming) return
+        resuming = true
+        actionError = null
+        val failed = { error: UiError -> actionError = ActionError(SettingAction.KEPT_SERVER, error) }
+        viewModelScope.launchAction(TAG, "Resuming the kept server", onError = failed) {
+            try {
+                when (val resumed = sources.resume(server)) {
+                    Resumed.Done -> onResumed()
+                    is Resumed.Refused -> onRefused(resumed.server)
+                }
+            } finally {
+                resuming = false
+            }
+        }
+    }
+
+    /** Forgets the server kept beside the folders and revokes its token. */
+    fun forgetServer() = change("Forgetting the kept server", SettingAction.KEPT_SERVER) { sources.forget() }
 
     /** A personal TMDB key is being checked with TMDB, then saved. */
     var savingTmdbKey by mutableStateOf(false)
@@ -308,7 +346,7 @@ internal class SettingsViewModel(
     }
 
     /** A file path as the server reports it, to show what path mappings do. */
-    suspend fun samplePath(): String? = suspendRunCatching { provider().samplePath() }.getOrNull()
+    suspend fun samplePath(): String? = suspendRunCatching { provider()?.samplePath() }.getOrNull()
 
     private companion object {
         const val TAG = "Settings"

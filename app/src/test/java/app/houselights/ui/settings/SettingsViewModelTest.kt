@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.PathMapping
 import app.houselights.core.Secrets
+import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.LibraryDao
@@ -20,6 +21,8 @@ import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
+import app.houselights.settings.SourceSwitcher
+import app.houselights.testing.http
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
@@ -36,6 +39,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -49,6 +53,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
 
@@ -66,6 +71,7 @@ class SettingsViewModelTest {
     val folder = TemporaryFolder()
 
     private val screens = ViewModelStore()
+    private val home = SourceConfig.Jellyfin("https://nas:8920", "Maison", "u1", "lea", "token")
     private lateinit var db: LibraryDatabase
     private lateinit var dao: LibraryDao
     private lateinit var library: LocalLibrary
@@ -94,9 +100,13 @@ class SettingsViewModelTest {
         work: CoroutineScope,
         checkKey: suspend (String) -> TmdbKeyCheck = { TmdbKeyCheck.ACCEPTED },
         images: ImageLoader? = null,
+        check: suspend (SourceConfig.Jellyfin, String) -> Unit = { _, _ -> },
     ): SettingsViewModel {
         val factory = viewModelFactory {
-            initializer { SettingsViewModel(store, library, { FakeProvider() }, work, images = images, checkTmdbKey = checkKey) }
+            initializer {
+                val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> }, check = check)
+                SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = images, checkTmdbKey = checkKey)
+            }
         }
         return ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
     }
@@ -127,6 +137,67 @@ class SettingsViewModelTest {
         assertNull(vm.errorOf(SettingAction.COLLECTIONS))
         vm.setCollectionMinFilms(0)
         assertNull(vm.errorOf(SettingAction.SOURCE))
+    }
+
+    /** A sleeping kept server: nothing changes, the source's row says why, and the server stays kept. */
+    @Test
+    fun aKeptServerThatDoesNotAnswerSaysSoOnTheSourceRow() = runTest {
+        val store = keeping(home)
+        val vm = settings(store, backgroundScope, check = { _, _ -> throw IOException("Connection timed out") })
+        var resumed = false
+        vm.resumeServer(home, onResumed = { resumed = true }, onRefused = { error("Refused") })
+        waitFor("the server asked") { !vm.resuming }
+        assertFalse(resumed)
+        assertEquals(UiError.OFFLINE, vm.errorOf(SettingAction.KEPT_SERVER))
+        assertEquals(home, store.state.value.keptServer)
+    }
+
+    /** A token the server refuses: the sign-in opens for that server, which is no longer kept. */
+    @Test
+    fun aKeptServerThatRefusesItsTokenOpensItsSignIn() = runTest {
+        val store = keeping(home)
+        val vm = settings(store, backgroundScope, check = { _, _ -> throw http(401) })
+        var refused: SourceConfig.Jellyfin? = null
+        vm.resumeServer(home, onResumed = { error("Resumed") }, onRefused = { refused = it })
+        waitFor("the sign-in asked") { refused != null }
+        assertEquals(home, refused)
+        assertNull(store.state.first { it.keptServer == null }.keptServer)
+        assertEquals(SourceConfig.Local, store.state.value.source)
+        assertNull(vm.actionError)
+    }
+
+    @Test
+    fun aKeptServerThatTakesItsTokenIsTheSourceAgain() = runTest {
+        val store = keeping(home)
+        val vm = settings(store, backgroundScope)
+        var resumed = false
+        vm.resumeServer(home, onResumed = { resumed = true }, onRefused = { error("Refused") })
+        waitFor("the server resumed") { resumed }
+        assertEquals(home, store.state.value.source)
+        assertNull(store.state.value.keptServer)
+    }
+
+    /** Settings restored before the source could be read show what applies to no source, never a crash. */
+    @Test
+    fun withoutASourceTheSettingsShowWhatApplies() = runTest {
+        val factory = viewModelFactory {
+            initializer {
+                val store = fullSettings(backgroundScope)
+                val sources = SourceSwitcher({ store.state.value }, store::setSource, backgroundScope)
+                SettingsViewModel(store, library, { null }, backgroundScope, sources, images = null)
+            }
+        }
+        val vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
+        assertFalse(vm.capabilities.pathMapping)
+        assertFalse(vm.counts)
+    }
+
+    /** Settings on the folders, [server] kept beside them. */
+    private suspend fun TestScope.keeping(server: SourceConfig.Jellyfin): SettingsStore {
+        val store = testSettings(folder.root, backgroundScope)
+        store.setSource(SourceConfig.Local, kept = server)
+        store.state.first { it.keptServer != null }
+        return store
     }
 
     @Test

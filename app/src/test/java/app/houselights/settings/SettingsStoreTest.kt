@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.houselights.core.Secrets
+import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import app.houselights.core.SubtitleMode
 import app.houselights.core.TrackPreferences
@@ -274,6 +275,46 @@ class SettingsStoreTest {
         settings.setTrakt(null)
         assertNull(settings.state.first { it.trakt == null }.trakt)
         assertNull(store.data.first()[traktKey])
+    }
+
+    /** The server kept beside the folders: written sealed with the source, read back, lost under another key, removed. */
+    @Test
+    fun theKeptServerIsSealedWithTheSourceThenReadBack() = runTest {
+        val keptKey = stringPreferencesKey("kept_server")
+        val secrets = testSecrets()
+        val file = folder.root.resolve("settings.preferences_pb")
+        val store = PreferenceDataStoreFactory.create(scope = backgroundScope, produceFile = { file })
+        val settings = SettingsStore(store, backgroundScope, secrets, readOn = EmptyCoroutineContext)
+        settings.state.first { it.loaded }
+
+        settings.setSource(SourceConfig.Local, kept = home)
+        val read = settings.state.first { it.keptServer != null }
+        assertEquals(SourceConfig.Local, read.source)
+        assertEquals(home, read.keptServer)
+        val stored = checkNotNull(store.data.first()[keptKey])
+        assertTrue(secrets.isSealed(stored))
+        assertFalse(stored, "token" in stored || "nas:8920" in stored)
+
+        val other = SettingsStore(FlakyStore(0, mutablePreferencesOf(keptKey to stored)), backgroundScope, testSecrets())
+        val lost = other.state.first { it.loaded }
+        assertNull(lost.keptServer)
+        assertEquals(setOf(SecretSetting.KEPT_SERVER), lost.lostSecrets)
+        assertFalse(lost.lostSource)
+
+        settings.setSource(home, kept = null)
+        assertEquals(home, settings.state.first { it.keptServer == null }.source)
+        assertNull(store.data.first()[keptKey])
+    }
+
+    /** A kept server the Keystore cannot seal leaves the file as it was: the source does not change without it. */
+    @Test
+    fun aKeptServerTheKeystoreCannotSealWritesNothing() = runTest {
+        val broken = Secrets { throw ProviderException("Failed to generate key") }
+        val settings = testSettings(folder.root, backgroundScope, broken)
+        val refused = runCatching { settings.setSource(SourceConfig.Local, kept = home) }.exceptionOrNull()
+        assertTrue("$refused", refused is SecretsUnavailableException)
+        assertNull(settings.state.value.source)
+        assertNull(settings.state.value.keptServer)
     }
 
     private companion object {

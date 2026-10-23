@@ -79,7 +79,7 @@ class SignInFocusTest {
             val settings = testSettings(folder.root, scope)
             settings.setSource(SourceConfig.Jellyfin("https://nas:8920", "Maison", "u1", userName, "token"))
             settings.state.first { it.source != null }
-            JellyfinLoginViewModel(settings, SourceSwitcher({ settings.state.value }, {}, scope, signOut = { _, _ -> }), Offline)
+            JellyfinLoginViewModel(settings, SourceSwitcher({ settings.state.value }, { _, _ -> }, scope, signOut = { _, _ -> }), Offline)
         }
         compose.setTvContent { JellyfinLoginForm(vm) {} }
         compose.waitForIdle()
