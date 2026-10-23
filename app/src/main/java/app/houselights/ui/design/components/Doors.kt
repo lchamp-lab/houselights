@@ -17,6 +17,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -702,7 +703,10 @@ private fun SagaPoster(item: MediaItem, px: Int, decoded: IntSize, modifier: Mod
     ) { FallbackArtwork(item.title, item.year) }
 }
 
-/** A wall of [items]' small posters, out, from the door's top: what a search reaches. */
+/**
+ * A wall of [items]' small posters, out, from the door's top: what a search reaches. It fills the door, [items] taken
+ * again in turn when fewer than it holds ([wallThumbs]).
+ */
 @Composable
 fun DoorWall(items: List<MediaItem>, modifier: Modifier = Modifier) {
     val width = HomeGridDefaults.wallThumb.toPx()
@@ -712,6 +716,14 @@ fun DoorWall(items: List<MediaItem>, modifier: Modifier = Modifier) {
         m *= ColorMatrix().apply { setToScale(WALL, WALL, WALL, 1f) }
         ColorFilter.colorMatrix(m)
     }
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val shown = remember(items, maxWidth, maxHeight) { items.cycledTo(wallThumbs(maxWidth, maxHeight)) }
+        WallThumbs(shown, width, decoded, out)
+    }
+}
+
+@Composable
+private fun WallThumbs(items: List<MediaItem>, width: Int, decoded: IntSize, out: ColorFilter) {
     Layout(
         content = {
             items.forEach { item ->
@@ -720,7 +732,7 @@ fun DoorWall(items: List<MediaItem>, modifier: Modifier = Modifier) {
                 }
             }
         },
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
     ) { measurables, constraints ->
         val gap = HomeGridDefaults.posterGap.roundToPx()
         val thumb = HomeGridDefaults.wallThumb.roundToPx()
@@ -738,6 +750,9 @@ fun DoorWall(items: List<MediaItem>, modifier: Modifier = Modifier) {
 }
 
 private const val WALL = HlScrim.WALL_THUMB_LIGHT
+
+/** [count] of these, from the first, taken again in turn when there are fewer; none when there are none. */
+internal fun <T> List<T>.cycledTo(count: Int): List<T> = if (isEmpty()) emptyList() else List(count) { this[it % size] }
 
 /** How many small posters [DoorWall] lays across [width] and down [height] (dp). */
 internal fun wallThumbs(width: Dp, height: Dp): Int {
@@ -933,8 +948,10 @@ private object CutPostersMade {
     private const val KEPT = 5
 }
 
+/** Each poster of [items] loaded once, though a count may be cut in one twice. */
 private suspend fun loadCutPosters(context: Context, items: List<MediaItem>, px: (Dp) -> Int): CutPosters = coroutineScope {
-    val bitmaps = items.map { item ->
+    val distinct = items.distinctBy { it.id }
+    val bitmaps = distinct.map { item ->
         async {
             cutPosterRequest(context, item, px)?.let { request ->
                 (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap()
@@ -942,8 +959,11 @@ private suspend fun loadCutPosters(context: Context, items: List<MediaItem>, px:
         }
     }.awaitAll()
     withContext(Dispatchers.Default) {
-        val posters = bitmaps.map { bitmap -> bitmap?.let { CutPoster(it, lightOf(paletteOf(it)).glow) } }
-        CutPosters(posters, doorTint(bitmaps.filterNotNull()))
+        val loaded = distinct.zip(bitmaps).associate { (item, bitmap) ->
+            item.id to bitmap?.let { CutPoster(it, lightOf(paletteOf(it)).glow) }
+        }
+        val posters = items.map { loaded[it.id] }
+        CutPosters(posters, doorTint(posters.mapNotNull { it?.bitmap }))
     }
 }
 

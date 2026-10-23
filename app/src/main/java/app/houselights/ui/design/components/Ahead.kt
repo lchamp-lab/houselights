@@ -51,8 +51,9 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     /** The posters of a door's band ([DoorPosters]). */
     fun strip(items: List<MediaItem>): List<ImageRequest> = posters(items, HomeGridDefaults.stripPoster)
 
-    /** The posters a door's count is cut in ([DoorFigures]), read for their pixels. */
-    fun cut(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { cutPosterRequest(context, it) { d -> d.px() } }
+    /** The posters a door's count is cut in ([DoorFigures]), read for their pixels, each once. */
+    fun cut(items: List<MediaItem>): List<ImageRequest> =
+        items.distinctBy { it.id }.mapNotNull { cutPosterRequest(context, it) { d -> d.px() } }
 
     /** Cuts a door's count in [items]' posters ahead ([makeCutPosters]), so the door draws them on its first frame. */
     suspend fun cutAhead(items: List<MediaItem>) {

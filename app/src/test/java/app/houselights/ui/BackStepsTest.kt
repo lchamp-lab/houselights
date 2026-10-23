@@ -9,13 +9,13 @@ import org.junit.Test
 /** Where Back takes focus before it leaves a screen: from deep in it, back to where it starts; home's grid asks at once (QuitAgainTest). */
 class BackStepsTest {
 
-    /** A wall opened filtered, without the bar; under the bar, Back goes to it (BarFoldTest). */
+    /** A wall: past its first line, Back returns to its first poster; from it, or the menus, it leaves (PagesNavigationTest). */
     @Test
     fun theWallReturnsToItsFirstPosterFromPastTheFirstLine() {
         assertFalse(backReturnsToFirst(focusedIndex = 0))
         assertFalse("still the first line", backReturnsToFirst(focusedIndex = 6))
         assertTrue(backReturnsToFirst(focusedIndex = 7))
-        assertFalse("the filter or sort button: Back goes home", backReturnsToFirst(focusedIndex = null))
+        assertFalse("the filter or sort button: Back leaves", backReturnsToFirst(focusedIndex = null))
     }
 
     @Test

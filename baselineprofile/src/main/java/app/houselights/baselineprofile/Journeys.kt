@@ -38,7 +38,7 @@ internal fun MacrobenchmarkScope.browseLibrary() {
     down()
     left(2)
     down()
-    // Back to the bar, then home.
+    // Back to the first poster, then home.
     back(2)
 }
 

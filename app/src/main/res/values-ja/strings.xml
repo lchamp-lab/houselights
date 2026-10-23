@@ -87,7 +87,6 @@
     <string name="play">再生</string>
     <string name="resume">続きから再生</string>
     <string name="time_left">残り%s</string>
-    <string name="nav_home">ホーム</string>
     <string name="back_again_to_quit">もう一度戻るボタンを押すと終了します</string>
     <string name="watch_title">これから観る</string>
     <string name="home_news">新着</string>

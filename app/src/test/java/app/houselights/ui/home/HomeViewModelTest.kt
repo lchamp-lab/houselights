@@ -68,17 +68,6 @@ class HomeViewModelTest {
 
     private fun HomeViewModel.content() = state.value.content
 
-    /** A wall's bar takes its places from home beneath it: the libraries home read, without its rows or the scan. */
-    @Test
-    fun theLibrariesHomeReadAreTheBarsPlaces() = runTest {
-        val libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"), Library("shows", LibraryKind.SHOWS, "Séries"))
-        provider.libraries = libraries
-        val vm = HomeViewModel({ provider }, scan, folders.filterNotNull(), settings, scanAll = {})
-        backgroundScope.launch { vm.libraries.collect {} }
-        advanceUntilIdle()
-        assertEquals(libraries, vm.libraries.value)
-    }
-
     @Test
     fun theLibrarysRowsComeAfterTheLaunch() = runTest {
         provider.catalog = FakeCatalog().apply { best = (1..6).map { film("best$it") } }

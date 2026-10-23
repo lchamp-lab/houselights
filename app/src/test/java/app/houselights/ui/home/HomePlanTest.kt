@@ -122,6 +122,31 @@ class HomePlanTest {
         assertTrue("the wall shows none of the strip", wall.none { it in strip })
     }
 
+    /** Too few posters shown nowhere else: those shown elsewhere, then the same again; ink only without any. */
+    @Test
+    fun aCountShortOfPostersTakesThoseShownElsewhereThenTheSameAgain() {
+        fun cutOf(posters: List<MediaItem>) =
+            plan(listOf(continuing, next, latestFilms), doors.copy(shelves = listOf(Shelf(films, 412, posters))))
+                .row(RowKind.LIBRARIES).map { (it.first as Door.Library).posters.map(MediaItem::id) }.first()
+        // film1 and film2 are in the news strip.
+        assertEquals(listOf("best1", "film1", "film2"), cutOf(listOf(poster("film1"), poster("film2"), poster("best1"))))
+        assertEquals(listOf("best1", "best1", "best1"), cutOf(listOf(poster("best1"))))
+        assertEquals("ink", emptyList<String>(), cutOf(listOf(title("unpictured"))))
+    }
+
+    /** Too few posters shown nowhere else for the search door's wall: those shown elsewhere; empty only without any. */
+    @Test
+    fun theSearchWallTakesPostersShownElsewhereWhenTooFewAreLeft() {
+        fun wallOf(latest: List<MediaItem>, shelves: List<Shelf>) =
+            plan(listOf(continuing, next, latestFilms.copy(items = latest)), doors.copy(shelves = shelves))
+                .row(RowKind.TOOLS).firstNotNullOf { it.first as? Door.Search }.posters.map(MediaItem::id)
+        val latest = (1..6).map { poster("film$it") }
+        // The strip shows five: the sixth comes first, then the strip's.
+        assertEquals(listOf("film6", "film1", "film2", "film3", "film4", "film5"), wallOf(latest, emptyList()))
+        assertEquals("a count's poster too", "best1", wallOf(latest.take(2), listOf(Shelf(films, 1, listOf(poster("best1"))))).last())
+        assertEquals(emptyList<String>(), wallOf(emptyList(), listOf(Shelf(films, 1, listOf(title("unpictured"))))))
+    }
+
     @Test
     fun aDoorSaysWhatIsNewInIt() {
         val fresh = HomeSection(

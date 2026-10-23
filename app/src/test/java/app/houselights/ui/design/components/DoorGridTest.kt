@@ -96,6 +96,10 @@ class DoorGridTest {
     fun theSearchWallFillsItsDoor() {
         assertEquals(8, wallThumbs(141.dp, 98.dp))
         assertEquals(16, wallThumbs(294.dp, 98.dp))
+        // Fewer posters than it holds: the same again, in turn; none without any.
+        assertEquals(listOf("a", "b", "c", "a", "b", "c", "a", "b"), listOf("a", "b", "c").cycledTo(8))
+        assertEquals(listOf("a", "b"), listOf("a", "b", "c").cycledTo(2))
+        assertEquals(emptyList<String>(), emptyList<String>().cycledTo(8))
     }
 
     @Test

@@ -322,7 +322,7 @@ fun CatalogScreen() {
                     var library by remember { mutableIntStateOf(0) }
                     HlSegmented(
                         listOf(
-                            stringResource(R.string.nav_home),
+                            stringResource(R.string.library_movies),
                             "Films 4K HDR",
                             "Séries d’animation",
                             "Documentaires",

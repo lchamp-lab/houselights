@@ -16,8 +16,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 /**
- * Prefetches a wall's first page and first two poster lines while Home's track moves to that library, so the
- * wall opens filled. Consumed once, by that wall opening soon after as it opens by default: sorted by title, not
+ * Prefetches a wall's first page and first two poster lines as its door on home is chosen, so the wall opens
+ * filled. Consumed once, by that wall opening soon after as it opens by default: sorted by title, not
  * filtered, a films wall with its [sagas][groups] among its films.
  */
 class LibraryAhead(private val provider: () -> MediaProvider, private val now: () -> Long = SystemClock::uptimeMillis) {

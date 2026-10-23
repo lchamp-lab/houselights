@@ -99,7 +99,7 @@ enum class Emphasis { Primary, Secondary }
 /** Set by [HeaderControls]: buttons and tiles take their compact sizes. */
 private val LocalInHeader = staticCompositionLocalOf { false }
 
-/** Lays [content] out as a screen's header or home's bar: its buttons 44 tall, its tiles 40 square. */
+/** Lays [content] out as a screen's header: its buttons 44 tall, its tiles 40 square. */
 @Composable
 fun HeaderControls(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalInHeader provides true, content = content)

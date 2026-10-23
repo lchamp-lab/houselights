@@ -29,12 +29,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import android.util.Log
 
-/** What Home shows below its bar: [Browsing] (hero, then rows) or a [Message] where the focused title would start. */
+/** What Home shows under its head: [Browsing] (hero, then rows) or a [Message] where the focused title would start. */
 sealed interface HomeContent {
     /** The hero's band, then the rows or their empty frames; with [firstScan], the scan's counter between them. */
     sealed interface Browsing : HomeContent {
@@ -159,10 +158,6 @@ class HomeViewModel(
         SharingStarted.WhileSubscribed(STOP_AFTER_MS),
         HomeState(content = homeContent(load.value, scan.value, folders = null, local = settings.value.source == SourceConfig.Local)),
     )
-
-    /** The source's libraries as last read: the places of the bar over a wall. */
-    val libraries: StateFlow<List<Library>> =
-        load.map { it.libraries }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), load.value.libraries)
 
     init {
         load()

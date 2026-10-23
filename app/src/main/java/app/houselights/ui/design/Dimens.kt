@@ -92,7 +92,7 @@ object HlSize {
     /** A button on a detail page; [controlCompact] in a screen's header. */
     val control = 48.dp
     val controlCompact = 44.dp
-    /** A square icon button; [tileCompact] in a screen's header and the bar. */
+    /** A square icon button; [tileCompact] in a screen's header. */
     val tile = 48.dp
     val tileCompact = 40.dp
     val icon = 20.dp
@@ -164,8 +164,6 @@ object HlSize {
      */
     val galleryWide = 244.dp
     const val LOGO_BOX_RATIO = 244f / 85f
-    /** Gradation signing the bar, as tall as its words' capitals. */
-    val barMark = 18.dp
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
     val focusBorder = 2.dp
     val hairline = 1.dp
@@ -190,7 +188,7 @@ object HlLayout {
     val titleArtWidth = 440.dp
     val titleArtHeight = 112.dp
     /**
-     * Home hero band, [HlSpace.l] from the bar and the rows: logo, facts, two overview lines, [HlSpace.s]
+     * The hero band of « À regarder », [HlSpace.l] from its title and its rows: logo, facts, two overview lines, [HlSpace.s]
      * apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
      */
     val hero = 148.dp
@@ -354,15 +352,6 @@ internal object HlIconButtonDefaults {
 
     /** Closest the label may come to a screen side: past the safe area, so an edge button keeps it centred. */
     val labelEdge = HlSpace.l
-}
-
-/** The bar of places ([app.houselights.ui.design.components.HlNavBar]) and a wall under it. */
-internal object HlNavBarDefaults {
-    /** From Gradation to the first place's word: its plate stands [HlSpace.xl] off the mark. */
-    val markGap = HlSpace.xl + HlControl.tabPaddingH
-
-    /** How much lower a wall lies under the open bar: the bar, then the gap above the wall's header. */
-    val fold = HlSize.tileCompact + HlSpace.s
 }
 
 /** Menus anchored to a button (sort); their height is the room the screen leaves them. */

@@ -10,32 +10,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.tv.material3.Text
-import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
-import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
-import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
-import app.houselights.ui.design.components.HlIconButton
-import app.houselights.ui.design.components.HlNavBar
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.textRoom
@@ -49,31 +39,12 @@ import kotlin.math.roundToInt
 
 /** The fullest content the screens can meet, unadjusted: what overflows here overflows on screen. */
 internal fun LazyListScope.catalogStress() {
-    item { StressTopBarSection() }
     item { StressInfoLineSection() }
     item { StressHeroSection() }
     item { StressScriptsSection() }
     item { StressScriptsOnPosterSection() }
     item { StressFactsSection() }
     item { StressDeviceSection() }
-}
-
-@Composable
-private fun StressTopBarSection() {
-    Group("The bar on the brightest image") {
-        Column {
-            StressTopBar(STRESS_LIBRARIES)
-            StressCaption("Nine libraries with long names")
-        }
-        Column {
-            StressTopBar(STRESS_LIBRARIES, status = stringResource(R.string.back_again_to_quit))
-            StressCaption("Nine libraries and Back once on home: the places scroll beside the line")
-        }
-        Column {
-            StressTopBar(listOf(stringResource(R.string.library_movies), stringResource(R.string.library_shows), "Documentaires"))
-            StressCaption("Three libraries, for comparison")
-        }
-    }
 }
 
 @Composable
@@ -182,20 +153,6 @@ private fun StressDeviceSection() {
     }
 }
 
-/** The bar as home composes it, on projector white, the lightest backdrop a film can bring. */
-@Composable
-private fun StressTopBar(libraries: List<String>, status: String? = null) {
-    var current by remember { mutableIntStateOf(0) }
-    HlNavBar(
-        listOf(stringResource(R.string.nav_home)) + libraries,
-        current,
-        onPlace = { current = it },
-        // The label of the settings button shows on the image, under the bar, as it does at home.
-        Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlIconButtonDefaults.labelRoom),
-        status = status,
-    ) { HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = {}) }
-}
-
 /** The line naming the focused title above the library's wall, at the height LibraryScreen gives it. */
 @Composable
 private fun StressInfoLine(item: MediaItem) {
@@ -226,18 +183,6 @@ private val STRESS_SCRIPTS = listOf(
     StressScript("Ổn Định Ở Đâu", 2024, "Vietnamese, in Archivo"),
     StressScript("Жизнь и судьба", 2012, "Cyrillic, system fallback"),
     StressScript("Ζορμπάς ο Έλλην", 1964, "Greek, system fallback"),
-)
-
-private val STRESS_LIBRARIES = listOf(
-    "Films 4K HDR et Dolby Vision",
-    "Séries d’animation japonaise",
-    "Documentaires animaliers",
-    "Concerts et spectacles vivants",
-    "Classiques du cinéma français",
-    "Courts métrages d’étudiants",
-    "Films de famille et vacances",
-    "Émissions de télévision",
-    "Collections et sagas complètes",
 )
 
 private val STRESS_INFO = MediaItem(

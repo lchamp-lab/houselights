@@ -6,6 +6,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.NEW_FOR_MS
 import app.houselights.core.SectionType
 import app.houselights.ui.design.FocusKey
+import app.houselights.ui.design.components.cycledTo
 import app.houselights.ui.design.components.wearsNewDot
 
 /** What home's case shows: the title last in progress, or a film not seen yet. */
@@ -79,7 +80,7 @@ data class HomePlan(val case: CaseShows?, val rows: List<GridRow>) {
  * Home's grid from what home read ([sections], the tab [libraries], the source's [sagas], the [doors]), whether it
  * [canSearch], at [now]. The case resumes the title last in progress, else proposes a film not seen; À suivre shows
  * the next episode, else the second title in progress, else the row gives its width to Nouveautés; a library's count
- * is cut in posters shown nowhere else on the screen; without sagas, Rechercher takes their place.
+ * and Rechercher's wall take posters shown nowhere else on the screen first; without sagas, Rechercher takes their place.
  */
 fun homePlan(
     sections: List<HomeSection>,
@@ -104,7 +105,8 @@ fun homePlan(
         doors?.shelves?.firstOrNull { it.library.id == library.id } ?: Shelf(library, null, emptyList())
     }
     val libraryDoors = libraryDoors(shelves, latest, used)
-    val wallFrom = (newest + shelves.flatMap { it.posters }).filter { it.poster != null && it.id !in used }.distinctBy { it.id }
+    // Those shown nowhere else first, then those shown elsewhere: the wall fills its door from them.
+    val wallFrom = (newest + shelves.flatMap { it.posters }).filter { it.poster != null }.distinctBy { it.id }.sortedBy { it.id in used }
     val sagaShelf = doors?.sagas?.takeIf { sagas != null && (it.count ?: 0) > 0 }
     return HomePlan(
         case,
@@ -124,7 +126,7 @@ private fun watchDoors(following: Door?, newest: List<MediaItem>, used: MutableS
     return listOfNotNull(following, Door.News(strip, week).takeIf { strip.isNotEmpty() })
 }
 
-/** A door per library of [shelves], the fourth gathering the rest past four, each count cut in posters not [used]. */
+/** A door per library of [shelves], the fourth gathering the rest past four, each count cut in posters ([postersFor]). */
 private fun libraryDoors(shelves: List<Shelf>, latest: List<HomeSection>, used: MutableSet<String>): List<Door> {
     val gathered = shelves.size > SHELF_DOORS
     val shown = if (gathered) shelves.take(SHELF_DOORS - 1) else shelves
@@ -155,9 +157,15 @@ internal fun newest(latest: List<HomeSection>): List<MediaItem> {
 /** [count]'s digits, which a door cuts each in a poster. */
 internal fun digitsOf(count: Int): Int = count.toString().length
 
-/** Of [posters], the first [digits] with a picture and shown nowhere else ([used]), which they then are. */
-private fun postersFor(posters: List<MediaItem>, digits: Int, used: MutableSet<String>): List<MediaItem> =
-    posters.filter { it.poster != null && it.id !in used }.distinctBy { it.id }.take(digits).also { picked -> used += picked.map { it.id } }
+/**
+ * Of [posters] with a picture, one per digit of [digits]: first those shown nowhere else ([used]), which they then are,
+ * then those shown elsewhere, then the same again; none without a picture, and the digits are ink.
+ */
+private fun postersFor(posters: List<MediaItem>, digits: Int, used: MutableSet<String>): List<MediaItem> {
+    val (fresh, shown) = posters.filter { it.poster != null }.distinctBy { it.id }.partition { it.id !in used }
+    used += fresh.take(digits).map { it.id }
+    return (fresh + shown).cycledTo(digits)
+}
 
 /** A row's parts: a door of two is half the row, one of one a quarter. */
 private const val PARTS = 4
@@ -169,7 +177,7 @@ private const val SHELF_DOORS = 4
 private const val STRIP = 5
 private const val WIDE_STRIP = 9
 
-/** Small posters the search door shows on a quarter of the row, and on half of it. */
+/** Small posters the search door is given on a quarter of the row and on half of it, what it holds there ([wallThumbs]). */
 private const val WALL = 8
 private const val WIDE_WALL = 16
 

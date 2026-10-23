@@ -230,7 +230,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** Prefetches home's first rows and pictures while the launch screen holds. */
     val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value }, unseenPick)
 
-    /** Prefetches a wall's first page and posters while its name lights in home's bar. */
+    /** Prefetches a wall's first page and posters as its door on home is chosen. */
     val libraryAhead = LibraryAhead({ provider })
 
     /** Library-generated rows shown below home's own, chosen once a day. */

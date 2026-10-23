@@ -85,7 +85,7 @@ class LibraryAheadTest {
         assertNull("filtered", ahead.take(films, SortOption.TITLE, LibraryFilter(status = WatchStatus.UNWATCHED), grouped = false))
     }
 
-    /** From the bar, the films wall is asked as it opens: its films and their sagas. */
+    /** From its door, the films wall is asked as it opens: its films and their sagas. */
     @Test
     fun aFilmsWallWithSagasOpensOnItsFilmsAndSagas() = runTest {
         ask(films, sagas)

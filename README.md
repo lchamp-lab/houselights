@@ -44,8 +44,8 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     episode and what is new, a door per library with its number of titles cut in its posters, the sagas, search
     and the app's state. The rows of what to watch are one door away. Back on home asks once more before leaving
     the app.
-  - Each wall keeps a bar of places, Movies · TV shows (or a Jellyfin server's libraries); it slides away once you
-    browse the posters. A place opens on OK, Back climbs to the bar, then home.
+  - Each door opens its page: a library's wall of posters with its filters and sort, the sagas, search or the
+    settings. Back returns home, on the door you came from.
 - **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
   details from TMDB.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;

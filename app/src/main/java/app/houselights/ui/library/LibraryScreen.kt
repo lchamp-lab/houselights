@@ -101,25 +101,14 @@ import app.houselights.ui.design.components.DetailAhead
 import app.houselights.ui.design.HlSize
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
-import androidx.compose.ui.platform.LocalContext
 import app.houselights.ui.design.FocusMemory
-import app.houselights.ui.design.components.BarFold
-import app.houselights.ui.design.components.rememberBarFoldState
-import app.houselights.ui.design.components.PicturesAhead
-import app.houselights.ui.home.Places
-import app.houselights.ui.home.PlacesBar
-import app.houselights.ui.util.screenWidthPx
-import coil.imageLoader
 
 internal const val COLUMNS = 7
 
 /** Placeholder rows while the wall loads: more than the screen shows, like the wall. */
 private const val SKELETON_ROWS = 3
 
-/**
- * A poster wall, filtered by [opensOn] if given (a format, or person [personName]); else films show their [sagas].
- * Opened as one of the bar's [places], it lies under the bar.
- */
+/** A poster wall, filtered by [opensOn] if given (a format, or person [personName]); else films show their [sagas]. */
 @Composable
 fun LibraryScreen(
     library: Library,
@@ -128,33 +117,17 @@ fun LibraryScreen(
     opensOn: LibraryFilter? = null,
     personName: String? = null,
     sagas: Library? = null,
-    places: Places? = null,
 ) {
     val app = appContainer()
     val vm: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(app, library, opensOn, sagas))
     ReloadOnLibraryChange { vm.onLibraryChanged() }
-    val context = LocalContext.current
-    val screen = screenWidthPx()
-    Wall(
-        vm,
-        library,
-        title,
-        onOpenItem,
-        // The person the wall was opened for, offered by the filter menu.
-        person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } },
-        places = places?.copy(
-            onSearch = places.onSearch.takeIf { app.providerOrNull()?.capabilities?.search == true },
-            onLibraryAhead = { next, nextSagas ->
-                app.libraryAhead.ask(app.scope, next, nextSagas, PicturesAhead(context, screen), context.imageLoader)
-            },
-        ),
-    )
+    // The person the wall was opened for, offered by the filter menu.
+    Wall(vm, library, title, onOpenItem, person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } })
 }
 
 /**
- * The wall [vm] reads, [library]'s, named [title], or the sagas alone: its header, the selected title and the posters.
- * Under the bar of [places], [library] its place, Back from the wall goes to the bar, which folds away once focus
- * enters the posters.
+ * The wall [vm] reads, [library]'s, named [title], or the sagas alone: a page, its header at the top, the selected
+ * title, then two whole lines of posters. Back from past the first line returns to the first poster, then leaves.
  */
 @Composable
 internal fun Wall(
@@ -163,7 +136,6 @@ internal fun Wall(
     title: String,
     onOpenItem: (MediaItem) -> Unit,
     person: Person? = null,
-    places: Places? = null,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     // Shown once focus settles, read outside composition: a step loads no image and recomposes nothing.
@@ -180,27 +152,21 @@ internal fun Wall(
         index >= 0
     }
     FocusAfterRetry(state, memory)
-    // The sagas alone are named as such, under the films' place.
+    // The sagas alone are named as such, on the films' wall.
     val sagasAlone = state.view == WallView.SAGAS
     val kind = if (sagasAlone) LibraryKind.COLLECTIONS else library.kind
     val name = if (sagasAlone) libraryName(LibraryKind.COLLECTIONS) else title
-    val header: @Composable (Boolean) -> Unit = { underBar -> WallHeader(vm, state, kind, name, shown, person, underBar) }
-    val body: @Composable () -> Unit = { WallBody(vm, state, kind, grid, memory, shown, onOpenItem) }
 
     // Prepares the settled title's detail page, so OK opens it complete.
     DetailAhead(shown.value)
     AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse) {
-        if (places != null) {
-            UnderTheBar(places, library, memory, grid, header, body)
-        } else {
-            BackToFirstPoster(grid.focusedIndex) {
-                grid.state.animateScrollToItem(0)
-                grid.first.tryRequestFocus()
-            }
-            Column(Modifier.fillMaxSize()) {
-                header(false)
-                body()
-            }
+        BackToFirstPoster(grid.focusedIndex) {
+            grid.state.animateScrollToItem(0)
+            grid.first.tryRequestFocus()
+        }
+        Column(Modifier.fillMaxSize()) {
+            WallHeader(vm, state, kind, name, shown, person)
+            WallBody(vm, state, kind, grid, memory, shown, onOpenItem)
         }
     }
 }
@@ -210,33 +176,6 @@ internal fun Wall(
 private class WallGrid(val state: LazyGridState, val selectedId: MutableState<String?>) {
     val first = FocusRequester()
     val focusedIndex = mutableStateOf<Int?>(null)
-}
-
-/**
- * The wall under the bar ([BarFold]): Back from the posters or the header brings the bar back, on this wall's place,
- * the wall back at its top; from the bar it leaves, for home.
- */
-@Composable
-private fun UnderTheBar(
-    places: Places,
-    here: Library,
-    memory: FocusMemory,
-    grid: WallGrid,
-    header: @Composable (underBar: Boolean) -> Unit,
-    body: @Composable () -> Unit,
-) {
-    val fold = rememberBarFoldState()
-    var inBar by remember { mutableStateOf(false) }
-    BackToStart(away = !inBar) {
-        fold.reveal()
-        grid.state.animateScrollToItem(0)
-    }
-    BarFold(
-        bar = { PlacesBar(places, here, memory, down = { null }, modifier = Modifier.onFocusChanged { inBar = it.hasFocus }) },
-        header = header,
-        state = fold,
-        content = body,
-    )
 }
 
 /** Once Réessayer at the wall's foot loads its page, focus moves to that page's first poster. */
@@ -259,10 +198,7 @@ private fun FocusAfterRetry(state: LibraryState, memory: FocusMemory) {
     }
 }
 
-/**
- * The wall's [name] lit as the place, its count beside it; the menus on plates over the wall's picture. [underBar],
- * the bar names the place: the name keeps only its room, so nothing under it moves.
- */
+/** The wall's [name] lit as the place, at the safe area's top, its count beside it; the menus on plates over the wall's picture. */
 @Composable
 private fun WallHeader(
     vm: LibraryViewModel,
@@ -271,19 +207,16 @@ private fun WallHeader(
     name: String,
     shown: State<MediaItem?>,
     person: Person?,
-    underBar: Boolean,
 ) {
     OnArtwork { HeaderControls { Row(
         Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row {
-            ScreenTitle(name, Modifier.alignByBaseline(), shown = !underBar)
+            ScreenTitle(name, Modifier.alignByBaseline())
             if (state.total > 0) {
-                // After the name, or first when the bar stands in for it.
-                val gap = if (underBar) HlSpace.none else HlSpace.m
                 val count = wallCount(state, kind)
-                WallFolio(count, state.items, shown, state.total, state.sort, Modifier.alignByBaseline().padding(start = gap))
+                WallFolio(count, state.items, shown, state.total, state.sort, Modifier.alignByBaseline().padding(start = HlSpace.m))
             }
         }
         Spacer(Modifier.weight(1f))

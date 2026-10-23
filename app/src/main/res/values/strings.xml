@@ -97,8 +97,7 @@
     <string name="play">Play</string>
     <string name="resume">Resume</string>
     <string name="time_left">%s left</string>
-    <string name="nav_home">Home</string>
-    <!-- Said in home's bar after a first Back; a second within moments leaves the app. -->
+    <!-- Said at the end of home's head after a first Back; a second within moments leaves the app. -->
     <string name="back_again_to_quit">Press Back again to quit</string>
     <string name="watch_title">To watch</string>
     <string name="home_news">New</string>

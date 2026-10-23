@@ -131,7 +131,7 @@ private fun Fills() {
     var place by remember { mutableIntStateOf(1) }
     Specimen("tabs: the place lit in ember; focus is white, a dot marks the place", gap = HlSpace.xs) {
         HlSegmented(
-            listOf(R.string.nav_home, R.string.library_movies, R.string.library_shows).map { stringResource(it) },
+            listOf(R.string.library_movies, R.string.library_shows, R.string.library_collections).map { stringResource(it) },
             selected = place,
             onSelect = { place = it },
         )

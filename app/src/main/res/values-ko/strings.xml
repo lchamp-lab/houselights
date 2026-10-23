@@ -87,7 +87,6 @@
     <string name="play">재생</string>
     <string name="resume">이어서 재생</string>
     <string name="time_left">%s 남음</string>
-    <string name="nav_home">홈</string>
     <string name="back_again_to_quit">뒤로 버튼을 한 번 더 누르면 종료됩니다</string>
     <string name="watch_title">볼 작품</string>
     <string name="home_news">새로 추가됨</string>
