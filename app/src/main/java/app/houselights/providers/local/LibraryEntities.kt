@@ -208,6 +208,8 @@ data class CollectionMember(
     val userPosterPath: String?,
     val backdropPath: String?,
     val userBackdropPath: String?,
+    /** When it was added after its folder's first scan; null for a film that scan found ([LocalMapper]'s rule). */
+    val addedLater: Long?,
 )
 
 @Entity(

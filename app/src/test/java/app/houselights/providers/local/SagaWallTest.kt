@@ -108,6 +108,24 @@ class SagaWallTest {
         val hidden = grouped()
         assertEquals(listOf("Alien", "Aliens", "Mad Max"), hidden.shown())
         assertNull("nothing grouped, no sagas to count", hidden.sagas)
+        // A wall still asking for the sagas alone, as it was left, finds none.
+        assertEquals(Page(emptyList(), 0, 0), sagasAlone())
+    }
+
+    /** As a film's, a saga's month added is its latest film's added since its folder's first scan; none before. */
+    @Test
+    fun aSagaIsAddedWhenItsLatestFilmWas() = runTest {
+        source = dao.insertSource(nfsFolder("Récents").copy(firstScanAt = 100))
+        val alien = saga("Alien")
+        movie("Alien", alien, addedAt = 50)
+        movie("Aliens", alien, addedAt = 300)
+        movie("Alien 3", alien, addedAt = 200)
+        val toys = saga("Toy Story")
+        movie("Toy Story", toys, addedAt = 40)
+        movie("Toy Story 2", toys, addedAt = 60)
+        val page = sagasAlone()
+        assertEquals(listOf("saga Alien", "saga Toy Story"), page.shown())
+        assertEquals(listOf(300L, null), page.items.map { it.addedAt })
     }
 
     /** A second copy of a film is the same film: it neither makes a saga nor shows on its own. */

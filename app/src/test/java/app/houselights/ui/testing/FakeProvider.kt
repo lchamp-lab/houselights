@@ -38,6 +38,9 @@ class FakeProvider : MediaProvider {
     /** A library's own wall, by its id. */
     var walls = mapOf<String, List<MediaItem>>()
 
+    /** Whether a grouped page counts its sagas; Jellyfin's never does. */
+    var countsSagas = true
+
     /** What each page was asked of: the library, its filter, and whether its sagas were grouped. */
     val pages = mutableListOf<Asked>()
 
@@ -94,7 +97,8 @@ class FakeProvider : MediaProvider {
         call("page $start $limit")
         pages += Asked(library.id, filter, grouped)
         val shown = walls[library.id] ?: wall
-        return Page(shown.drop(start).take(limit), shown.size, shown.count { it.kind == MediaKind.COLLECTION }.takeIf { grouped })
+        val sagas = shown.count { it.kind == MediaKind.COLLECTION }.takeIf { grouped && countsSagas }
+        return Page(shown.drop(start).take(limit), shown.size, sagas)
     }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets {

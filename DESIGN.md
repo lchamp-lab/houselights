@@ -424,7 +424,10 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   asks, ranked by them (`SagaWall`), and counts both ("8 titres · 1 saga"). Its filter menu opens on Afficher,
   Films et sagas or Sagas: the sagas alone are titled Sagas under the Films place, named first on the button
   ("Filtrer · Sagas · Non vus"), and filtered through their films. A wall opened on part of the library shows
-  every film (`FilterMenuTest`, `SagaWallTest`).
+  every film, and so does the wall once Sagas is set to Masquées, with nothing to choose. Jellyfin gathers a
+  saga's films on the server (`collapseBoxSetItems`), but not under a filter, ranks it by the collection's own
+  fields (when it was made, its year, its rating) and counts it as a title; its sagas alone are not filtered
+  (`FilterMenuTest`, `FilmsWallTest`, `SagaWallTest`).
 - **The welcome screen**: the lockup and tagline in the middle of the left column, notes under them; the task's
   title on one line over the two choices, raised on glass, a focused one's frame inside the safe area
   (`WelcomeLayoutTest`).

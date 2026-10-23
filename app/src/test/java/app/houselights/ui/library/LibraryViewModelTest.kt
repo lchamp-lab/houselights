@@ -79,8 +79,8 @@ class LibraryViewModelTest {
 
         vm.onLibraryChanged()
         advanceUntilIdle()
-        // In one go, as much as was shown: the grid keeps its place.
-        assertEquals(listOf("page 0 240", "facets"), provider.calls)
+        // In one go, as much as was shown: the grid keeps its place. The films wall first reads whether it has sagas.
+        assertEquals(listOf("libraries", "facets", "page 0 240"), provider.calls)
         assertEquals(240, vm.state.value.items.size)
     }
 
@@ -323,9 +323,60 @@ class LibraryViewModelTest {
         assertNull(vm.state.value.view)
         assertEquals(Asked("films", LibraryFilter(person = "p7"), grouped = false), provider.pages.single())
         assertNull(vm.state.value.sagas)
-        // Nothing to turn to.
+        // Nothing to turn to, even once the source shows sagas.
         vm.setView(WallView.SAGAS)
         assertNull(vm.state.value.view)
+        provider.libraries = listOf(library, sagas)
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertNull(vm.state.value.view)
+        assertFalse(provider.pages.last().grouped)
+    }
+
+    /** The Sagas setting changed while the wall is open: hidden, its films alone and nothing to choose; back, grouped. */
+    @Test
+    fun theWallFollowsTheSagasTheSourceShows() = runTest {
+        withSagas()
+        provider.libraries = listOf(library, sagas)
+        val saved = SavedStateHandle()
+        val vm = LibraryViewModel({ provider }, library, saved, sagas = sagas)
+        vm.setView(WallView.SAGAS)
+        advanceUntilIdle()
+        provider.pages.clear()
+
+        provider.libraries = listOf(library)
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertNull(vm.state.value.view)
+        assertEquals(listOf(Asked("films", LibraryFilter(), grouped = false)), provider.pages)
+        // The sagas alone forgotten: a wall brought back by its route, which names the sagas, opens on the films.
+        val restored = LibraryViewModel({ provider }, library, saved.afterProcessDeath(), sagas = sagas)
+        assertEquals(WallView.FILMS_AND_SAGAS, restored.state.value.view)
+
+        // Back, on the films and their sagas: the sagas alone were left with them.
+        provider.libraries = listOf(library, sagas)
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(WallView.FILMS_AND_SAGAS, vm.state.value.view)
+        assertEquals(Asked("films", LibraryFilter(), grouped = true), provider.pages.last())
+        vm.setView(WallView.SAGAS)
+        advanceUntilIdle()
+        assertEquals("sagas", provider.pages.last().library)
+    }
+
+    /** A wall opened while the sagas were hidden groups them once the setting shows them. */
+    @Test
+    fun aWallOpenedWithoutSagasGroupsThemOnceShown() = runTest {
+        withSagas()
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        assertNull(vm.state.value.view)
+
+        provider.libraries = listOf(library, sagas)
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(WallView.FILMS_AND_SAGAS, vm.state.value.view)
+        assertEquals(Asked("films", LibraryFilter(), grouped = true), provider.pages.last())
     }
 
     @Test

@@ -662,7 +662,9 @@ interface LibraryDao {
 
     /** Card columns of the films of [collectionIds], by collection in release order: one query per page. */
     @Query(
-        "SELECT collectionId, year, rating, genres, played, posterPath, userPosterPath, backdropPath, userBackdropPath " +
+        "SELECT collectionId, year, rating, genres, played, posterPath, userPosterPath, backdropPath, userBackdropPath, " +
+            "CASE WHEN addedAt > (SELECT firstScanAt FROM sources WHERE sources.id = items.sourceId AND firstScanAt > 0) " +
+            "THEN addedAt END AS addedLater " +
             "FROM items WHERE kind = 'MOVIE' AND versionOf IS NULL AND collectionId IN (:collectionIds) " +
             "ORDER BY collectionId, year IS NULL, year, sortTitle, id"
     )

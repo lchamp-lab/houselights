@@ -63,7 +63,8 @@ internal fun filtersApply(view: WallView?, can: ProviderCapabilities): Boolean =
 /**
  * A library's wall, page by page. Sort, filter and view are kept in [saved], as Android may kill the app during
  * playback. Opened on part of the library ([opensOn]: a format, a person), it starts filtered by it and shows every
- * film; else a films wall shows each saga of the source's [sagas] as one title, or the sagas alone ([setView]).
+ * film; else a films wall shows each saga of the source's [sagas] as one title, or the sagas alone ([setView]), as
+ * long as the source shows sagas.
  */
 class LibraryViewModel(
     /** The source's provider; null while there is none (its connection could not be read back), and nothing loads. */
@@ -75,8 +76,11 @@ class LibraryViewModel(
     opensOn: LibraryFilter? = null,
     sagas: Library? = null,
 ) : ViewModel() {
-    /** The sagas this wall groups its films into, and shows alone. */
-    private val sagas = sagas?.takeIf { groups(library, it) && opensOn == null }
+    /** Whether this wall shows the source's sagas among its films: a films wall of the whole library. */
+    private val followsSagas = opensOn == null && library.kind == LibraryKind.MOVIES
+
+    /** The sagas this wall groups its films into, and shows alone; followed as the Sagas setting changes. */
+    private var sagas = sagas.takeIf { followsSagas }
 
     private val _state = MutableStateFlow(
         LibraryState(
@@ -99,15 +103,38 @@ class LibraryViewModel(
     /** Loads what the filter menu offers, from the library as it is now; a new load cancels the previous. */
     private val facetLoads = LatestJob(viewModelScope)
 
+    /** Reads whether the source still shows sagas before reloading; a new read cancels the previous. */
+    private val sagaReads = LatestJob(viewModelScope)
+
     init {
         reset()
         loadFacets()
     }
 
-    /** Shows what the library holds after a change (a scan, a film watched), without losing the place. */
+    /** Shows what the library holds after a change (a scan, a film watched, the Sagas setting), without losing the place. */
     fun onLibraryChanged() {
-        refresh()
+        if (followsSagas) followSagas() else refresh()
         loadFacets()
+    }
+
+    /**
+     * Reloads in place, unless the source no longer shows the wall's sagas, or shows some again: then the wall starts
+     * over, its films alone with nothing to choose, or with their sagas among them. A failed read keeps the sagas.
+     */
+    private fun followSagas() {
+        sagaReads.launch {
+            val now = suspendRunCatching { source().libraries().firstOrNull { it.kind == LibraryKind.COLLECTIONS } }
+                .getOrElse { sagas }
+            if (now?.id == sagas?.id) {
+                refresh()
+            } else {
+                sagas = now
+                // Hidden, the sagas alone are forgotten: shown again, the wall opens on the films and their sagas.
+                if (now == null) saved.remove<String>(VIEW)
+                _state.update { it.copy(view = now?.let { saved.view() }) }
+                reset()
+            }
+        }
     }
 
     /** After a failure, loads again from the first page. */

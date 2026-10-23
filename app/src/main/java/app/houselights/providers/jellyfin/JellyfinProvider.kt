@@ -101,7 +101,10 @@ class JellyfinProvider(
     private suspend fun <T> row(what: String, block: suspend () -> T): Result<T> =
         suspendRunCatching { block() }.onFailure { Log.w(TAG, "$what failed", it) }
 
-    /** [grouped], the server gives a collection's films as the collection, but not under other filters; never counted. */
+    /**
+     * [grouped], the server gives a collection's films as the collection, ranked by the collection's own fields, but
+     * not under other filters; never counted.
+     */
     override suspend fun libraryPage(
         library: Library,
         sort: SortOption,

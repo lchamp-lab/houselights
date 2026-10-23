@@ -93,7 +93,10 @@ class LocalProvider(
         grouped: Boolean,
     ): Page {
         val min = collectionMinFilms()
-        if (library.id == COLLECTIONS) return sagaPage(SagaWall(min.coerceAtLeast(1), filter, films = false), sort, start, limit)
+        if (library.id == COLLECTIONS) {
+            // Hidden by the setting, there are no sagas to show alone.
+            return if (min > 0) sagaPage(SagaWall(min, filter, films = false), sort, start, limit) else Page(emptyList(), 0, 0)
+        }
         if (grouped && library.id == MOVIES && min > 0) return sagaPage(SagaWall(min, filter, films = true), sort, start, limit)
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows have no technical badges of their own: file filters match their episodes, as in libraryFacets.
@@ -216,6 +219,8 @@ class LocalProvider(
                 .sortedByDescending { it.size }.take(3).map(PipeList::spellingOf),
             poster = (c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })?.let { image(it, ImageType.POSTER) },
             backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })?.let { image(it, ImageType.BACKDROP) },
+            // As a film's: its latest film added since its folder's first scan, the month a wall sorted by Ajout shows.
+            addedAt = members.mapNotNull { it.addedLater }.maxOrNull(),
             user = UserState(played = members.isNotEmpty() && unplayed == 0, unplayedCount = unplayed),
             childCount = members.size,
             totalCount = c.partCount?.takeIf { it > members.size },

@@ -334,12 +334,13 @@ private fun WallBody(
         when {
             state.items.isEmpty() && wallError != null -> HlErrorState(wallError, vm::retry, message, retrying = state.loading)
             state.loading && state.items.isEmpty() -> SkeletonWall()
+            // Takes the filters off, the sagas alone still shown.
             state.items.isEmpty() && state.applied(vm.capabilities).activeCount > 0 -> HlEmptyState(
                 stringResource(R.string.no_match),
                 message,
                 action = stringResource(R.string.reset_filters),
                 actionIcon = HlIcons.Filter,
-                onAction = vm::clearFilters,
+                onAction = { vm.setFilter(LibraryFilter()) },
             )
             state.items.isEmpty() -> HlEmptyState(
                 stringResource(if (kind == LibraryKind.COLLECTIONS) R.string.empty_collections else R.string.empty_title),
