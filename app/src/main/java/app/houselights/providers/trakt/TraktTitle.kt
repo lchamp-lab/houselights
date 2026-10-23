@@ -58,16 +58,18 @@ internal fun SyncRow.titles(): List<TraktTitle> {
 /** Trakt's films by when they were last watched (ms; 0 when Trakt says not). */
 @JvmName("watchedMovies")
 internal fun List<WatchedMovie>.watched(): Map<TraktTitle, Long> =
-    mapNotNull { m -> m.movie.ids.tmdb?.let { TraktTitle.Movie(it) to (millisOf(m.lastWatchedAt) ?: 0L) } }.toMap()
+    mapNotNull { m -> m.movie?.ids?.tmdb?.let { TraktTitle.Movie(it) to (millisOf(m.lastWatchedAt) ?: 0L) } }.toMap()
 
-/** Trakt's episodes by when they were last watched, for shows it knows by a TMDB id. */
+/** Trakt's episodes by when they were last watched, for shows it knows by a TMDB id and episodes it numbers. */
 @JvmName("watchedEpisodes")
 internal fun List<WatchedShow>.watched(): Map<TraktTitle, Long> = buildMap {
     for (show in this@watched) {
-        val tmdb = show.show.ids.tmdb ?: continue
+        val tmdb = show.show?.ids?.tmdb ?: continue
         for (season in show.seasons) {
+            val number = season.number ?: continue
             for (episode in season.episodes) {
-                put(TraktTitle.Episode(tmdb, season.number, episode.number), millisOf(episode.lastWatchedAt ?: show.lastWatchedAt) ?: 0L)
+                val at = millisOf(episode.lastWatchedAt ?: show.lastWatchedAt) ?: 0L
+                episode.number?.let { put(TraktTitle.Episode(tmdb, number, it), at) }
             }
         }
     }

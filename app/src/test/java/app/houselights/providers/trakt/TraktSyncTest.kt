@@ -41,6 +41,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import java.time.Instant
 
 /** The sync against a test Trakt and an in-memory library: both sides joined, the latest pause, the queue, the limits. */
@@ -604,6 +605,79 @@ class TraktSyncTest {
 
         assertEquals(listOf(listOf(46, 47, 48), listOf(46), listOf(47), listOf(48)), trakt.sent("POST /sync/history").map { it.tmdbs })
         assertTrue(queue.pending().isEmpty())
+    }
+
+    @Test
+    fun anEntryTraktKeepsInAShapeThisVersionCannotReadIsLeftOutTheOthersApplied() = runTest {
+        val seen = film(61)
+        val show = series(101)
+        val first = episode(show, 1)
+        val second = episode(show, 2)
+        val paused = film(62)
+        // Another app's entries: a count as text, seasons that are no list, a pause without a progress or a date.
+        trakt.movies = """[{"plays":"twice","movie":{"ids":{"tmdb":63}}},${movie(61, T2)},{"plays":1}]"""
+        trakt.shows = """[{"show":{"ids":{"tmdb":102}},"seasons":"all"},${show(101, T2, 1 to 1)},""" +
+            """{"show":{"ids":{"tmdb":101}},"seasons":[{"episodes":[{"number":2}]},{"number":1,"episodes":[{"plays":1}]}]}]"""
+        trakt.playback = """[{"id":"x"},{"id":81,"progress":null,"paused_at":"$T2","type":"movie","movie":{"ids":{"tmdb":62}}},""" +
+            """{"id":82,"progress":20,"type":"movie","movie":{"ids":{"tmdb":62}}},${pausedMovie(83, 62, 60f, T2)}]"""
+
+        val sync = connected()
+
+        assertNull(sync.state.value.error)
+        assertTrue(dao.item(seen)!!.played)
+        assertTrue(dao.item(first)!!.played)
+        assertFalse(dao.item(second)!!.played)
+        assertEquals(60 * MINUTE, dao.item(paused)!!.positionMs)
+    }
+
+    @Test
+    fun aRemovalWaitingGoesThoughTraktKeepsAPauseItCannotRead() = runTest {
+        film(64)
+        trakt.playback = """[{"id":84,"progress":"half","type":"movie"},${pausedMovie(85, 64, 30f, T1)}]"""
+        queue.queue(listOf(TraktPendingEntity("movie:64", TraktAction.UNWATCHED, NOW)))
+
+        val sync = connected()
+
+        assertEquals(listOf(64), trakt.sent("POST /sync/history/remove").single().tmdbs)
+        assertEquals(1, trakt.count("DELETE /sync/playback/85"))
+        assertTrue(queue.pending().isEmpty())
+        assertNull(sync.state.value.error)
+    }
+
+    @Test
+    fun aWriteTraktTookLeavesTheQueueWhateverItsAnswerSays() = runTest {
+        queue.queue(
+            listOf(
+                TraktPendingEntity("movie:65", TraktAction.WATCHED, NOW),
+                TraktPendingEntity("movie:66", TraktAction.PROGRESS, NOW, progress = 30f),
+            )
+        )
+        trakt.stage("POST /sync/history", Answer(201))
+        trakt.stage("POST /scrobble/stop", Answer(201, "{}"))
+
+        val sync = connected()
+
+        assertEquals(1, trakt.count("POST /sync/history"))
+        assertEquals(1, trakt.count("POST /scrobble/stop"))
+        assertTrue(queue.pending().isEmpty())
+        assertNull(sync.state.value.error)
+    }
+
+    @Test
+    fun aFailureIsLoggedWithTheRouteItCameFrom() = runTest {
+        ShadowLog.clear()
+        queue.queue(listOf(TraktPendingEntity("movie:67", TraktAction.WATCHED, NOW)))
+        trakt.stage("POST /sync/history", Answer(503))
+        trakt.shows = """{"error":"s3cret"}"""
+        val sync = sync()
+
+        sync.follow(connected = true, folders = true)
+        waitFor("the failure said") { sync.state.value.error == TraktSyncError.UNREADABLE && !sync.state.value.running }
+
+        val told = ShadowLog.getLogsForTag("Trakt").map { it.msg }
+        assertTrue(told.toString(), "What waits could not be sent to Trakt: sync/history, HTTP 503" in told)
+        assertTrue(told.toString(), "Trakt could not be synced: sync/watched/shows, unreadable answer at $" in told)
+        assertTrue(told.none { "s3cret" in it })
     }
 
     @Test

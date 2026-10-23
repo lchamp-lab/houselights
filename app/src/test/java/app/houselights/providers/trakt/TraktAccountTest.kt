@@ -1,8 +1,10 @@
 package app.houselights.providers.trakt
 
 import app.houselights.core.TraktSession
+import app.houselights.core.serverJson
 import app.houselights.testing.Answer
 import app.houselights.testing.FakeServer
+import app.houselights.testing.http
 import app.houselights.ui.testing.waitFor
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -12,6 +14,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -21,6 +24,7 @@ import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -419,6 +423,18 @@ class TraktAccountTest {
         assertFalse(lea.toString().contains("a1") || lea.toString().contains("r1"))
         assertTrue(TraktKeys("id").available)
         assertFalse(TraktKeys("").available)
+    }
+
+    @Test
+    fun anAnswerThatCannotBeReadIsLoggedByWhereNeverByItsTokens() {
+        val tokens = """{"access_token":"s3cret-t0ken","refresh_token":"r","expires_in":"soon","created_at":1}"""
+        val unreadable = assertThrows(SerializationException::class.java) { serverJson.decodeFromString<TraktTokens>(tokens) }
+        assertEquals("unreadable answer at $.expires_in", described(unreadable))
+        val missing = assertThrows(SerializationException::class.java) {
+            serverJson.decodeFromString<TraktTokens>("""{"access_token":"s3cret-t0ken","refresh_token":"r","created_at":1}""")
+        }
+        assertEquals("unreadable answer at $, missing expires_in", described(missing))
+        assertEquals("HTTP 502", described(http(502)))
     }
 
     private companion object {

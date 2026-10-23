@@ -1,5 +1,8 @@
 package app.houselights.providers.trakt
 
+import app.houselights.core.decodeEach
+import app.houselights.core.serverJson
+import kotlinx.serialization.json.JsonElement
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -33,26 +36,41 @@ interface TraktApi {
     @GET("sync/last_activities")
     suspend fun lastActivities(): LastActivities
 
+    // What every app sent Trakt, read entry by entry ([watchedMovies], [watchedShows], [playback]).
+
     @GET("sync/watched/movies")
-    suspend fun watchedMovies(): List<WatchedMovie>
+    suspend fun watchedMovieEntries(): List<JsonElement>
 
     @GET("sync/watched/shows")
-    suspend fun watchedShows(): List<WatchedShow>
+    suspend fun watchedShowEntries(): List<JsonElement>
 
     @GET("sync/playback")
-    suspend fun playback(): List<PlaybackProgress>
+    suspend fun playbackEntries(): List<JsonElement>
+
+    // Writes: their status is all a sync reads, their body is dropped unread.
 
     /** Forgets a paused playback ([PlaybackProgress.id]); 404 once gone. */
     @DELETE("sync/playback/{id}")
     suspend fun removePlayback(@Path("id") id: Long)
 
     @POST("sync/history")
-    suspend fun addToHistory(@Body body: HistoryItems): HistoryAdded
+    suspend fun addToHistory(@Body body: HistoryItems)
 
     @POST("sync/history/remove")
-    suspend fun removeFromHistory(@Body body: HistoryItems): HistoryRemoved
+    suspend fun removeFromHistory(@Body body: HistoryItems)
 
     /** 409 when the same title was scrobbled moments ago; 422 under 1 %. */
     @POST("scrobble/stop")
-    suspend fun scrobbleStop(@Body body: ScrobbleRequest): ScrobbleResult
+    suspend fun scrobbleStop(@Body body: ScrobbleRequest)
 }
+
+// An entry this version cannot read is left out and logged, rather than the whole list.
+
+suspend fun TraktApi.watchedMovies(): List<WatchedMovie> =
+    serverJson.decodeEach(WatchedMovie.serializer(), watchedMovieEntries(), "Trakt sync/watched/movies")
+
+suspend fun TraktApi.watchedShows(): List<WatchedShow> =
+    serverJson.decodeEach(WatchedShow.serializer(), watchedShowEntries(), "Trakt sync/watched/shows")
+
+suspend fun TraktApi.playback(): List<PlaybackProgress> =
+    serverJson.decodeEach(PlaybackProgress.serializer(), playbackEntries(), "Trakt sync/playback")

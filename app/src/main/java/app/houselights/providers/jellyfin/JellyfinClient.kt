@@ -4,9 +4,9 @@ import android.os.Build
 import app.houselights.BuildConfig
 import app.houselights.core.Http
 import app.houselights.core.SourceConfig
+import app.houselights.core.serverJson
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -80,7 +80,7 @@ class JellyfinClient(
     val api: JellyfinApi = Retrofit.Builder()
         .baseUrl("$baseUrl/")
         .client(http)
-        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .addConverterFactory(serverJson.asConverterFactory("application/json".toMediaType()))
         .build()
         .create(JellyfinApi::class.java)
 
@@ -99,13 +99,6 @@ class JellyfinClient(
     }
 
     companion object {
-        val json = Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-            coerceInputValues = true
-            encodeDefaults = true
-        }
-
         private const val HTTP_PORT = 8096
         private const val HTTPS_PORT = 8920
         private const val SIGN_OUT_MS = 3_000L

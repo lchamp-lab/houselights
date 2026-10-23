@@ -28,13 +28,16 @@ internal class SyncPlan(
     /** What a sync makes of one title. */
     private class Outcome(val seen: Boolean, val inProgress: Boolean, val resume: Resume?, val send: List<TraktPendingEntity>)
 
+    /** Trakt's pause of a title: at [progress] percent, made at [at] (ms; null when Trakt does not say). */
+    private class Pause(val progress: Float, val at: Long?)
+
     /**
      * Trakt's side of a sync: its [watched] titles by date, its pauses, the rows it marks, the copies Lire plays
      * ([played]); [union] sends what it lacks.
      */
     private class Planner(
         val watched: Map<TraktTitle, Long>,
-        val paused: Map<TraktTitle, PlaybackProgress>,
+        val paused: Map<TraktTitle, Pause>,
         val marked: Set<Long>,
         val played: Set<Long>,
         val union: Boolean,
@@ -71,7 +74,7 @@ internal class SyncPlan(
         private fun resumeOf(title: TraktTitle, main: SyncRow, seenThere: Long): Resume? {
             val length = main.runtimeMs()?.takeIf { it > 0 } ?: return null
             val pause = paused[title] ?: return null
-            val pausedAt = millisOf(pause.pausedAt)?.takeIf { it > maxOf(main.lastPlayedAt ?: 0L, seenThere) } ?: return null
+            val pausedAt = pause.at?.takeIf { it > maxOf(main.lastPlayedAt ?: 0L, seenThere) } ?: return null
             val position = (pause.progress.toDouble() / WHOLE * length).toLong()
             return Resume(main.id, position, pausedAt).takeUnless { abs(position - main.positionMs) * WHOLE / length < NEAR_PERCENT }
         }
@@ -117,9 +120,15 @@ internal class SyncPlan(
             // A file holding several episodes is watched once all are.
             val marks = titled.filter { (row, titles) -> !row.played && titles.all { it in watched } }
                 .groupBy({ (_, titles) -> titles.maxOf { watched.getValue(it) } }, { (row, _) -> row.id })
-            val pausedBy = paused.mapNotNull { p -> p.title()?.let { it to p } }
+            // A pause without a title the library can name, or without a progress, cannot be placed.
+            val pausedBy = paused
+                .mapNotNull { p ->
+                    val title = p.title()
+                    val progress = p.progress
+                    if (title != null && progress != null) title to Pause(progress, millisOf(p.pausedAt)) else null
+                }
                 .groupBy({ it.first }, { it.second })
-                .mapValues { (_, list) -> list.maxBy { millisOf(it.pausedAt) ?: 0L } }
+                .mapValues { (_, list) -> list.maxBy { it.at ?: 0L } }
             val planner = Planner(watched, pausedBy, marks.values.flatten().toSet(), played, union)
             val outcomes = titled.flatMap { (row, titles) -> titles.map { it to row } }
                 .groupBy({ it.first }, { it.second })

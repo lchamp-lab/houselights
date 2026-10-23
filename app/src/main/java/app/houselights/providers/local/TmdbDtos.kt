@@ -1,12 +1,15 @@
 package app.houselights.providers.local
 
+import app.houselights.core.EntryByEntry
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // --- DTOs (snake_case JSON, mapped by the naming strategy; ISO codes need explicit names) ------
+// A list is read entry by entry: an entry TMDB left incomplete (a person without a name, an image without a file) is
+// left out. A title's name may be missing: the NFO's or the file's stands in.
 
 @Serializable
-data class TmdbPage<T>(val results: List<T> = emptyList())
+data class TmdbPage<T>(@Serializable(with = EntryByEntry::class) val results: List<T> = emptyList())
 
 @Serializable
 data class TmdbSearchResult(
@@ -28,8 +31,8 @@ data class TmdbGenre(val name: String)
 
 @Serializable
 data class TmdbFindResult(
-    val movieResults: List<TmdbSearchResult> = emptyList(),
-    val tvResults: List<TmdbSearchResult> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val movieResults: List<TmdbSearchResult> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val tvResults: List<TmdbSearchResult> = emptyList(),
 )
 
 /** A cast member; [id] is the TMDB person id, used as the library's person key. */
@@ -50,7 +53,10 @@ data class TmdbCrewMember(val name: String, val job: String? = null, val id: Int
 data class TmdbCreator(val name: String, val id: Int? = null, val profilePath: String? = null)
 
 @Serializable
-data class TmdbCredits(val cast: List<TmdbCastMember> = emptyList(), val crew: List<TmdbCrewMember> = emptyList())
+data class TmdbCredits(
+    @Serializable(with = EntryByEntry::class) val cast: List<TmdbCastMember> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val crew: List<TmdbCrewMember> = emptyList(),
+)
 
 @Serializable
 data class TmdbImage(
@@ -64,13 +70,13 @@ data class TmdbImage(
 /** All images of a title, for the artwork pickers. */
 @Serializable
 data class TmdbImageSet(
-    val posters: List<TmdbImage> = emptyList(),
-    val backdrops: List<TmdbImage> = emptyList(),
-    val logos: List<TmdbImage> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val posters: List<TmdbImage> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val backdrops: List<TmdbImage> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val logos: List<TmdbImage> = emptyList(),
 )
 
 @Serializable
-data class TmdbImages(val logos: List<TmdbImage> = emptyList())
+data class TmdbImages(@Serializable(with = EntryByEntry::class) val logos: List<TmdbImage> = emptyList())
 
 @Serializable
 data class TmdbReleaseDate(val certification: String = "")
@@ -79,33 +85,33 @@ data class TmdbReleaseDate(val certification: String = "")
 data class TmdbCountryReleases(@SerialName("iso_3166_1") val iso31661: String, val releaseDates: List<TmdbReleaseDate> = emptyList())
 
 @Serializable
-data class TmdbReleaseDates(val results: List<TmdbCountryReleases> = emptyList())
+data class TmdbReleaseDates(@Serializable(with = EntryByEntry::class) val results: List<TmdbCountryReleases> = emptyList())
 
 @Serializable
 data class TmdbContentRating(@SerialName("iso_3166_1") val iso31661: String, val rating: String = "")
 
 @Serializable
-data class TmdbContentRatings(val results: List<TmdbContentRating> = emptyList())
+data class TmdbContentRatings(@Serializable(with = EntryByEntry::class) val results: List<TmdbContentRating> = emptyList())
 
 /** The collection reference in a film's details. */
 @Serializable
-data class TmdbCollectionRef(val id: Int, val name: String, val posterPath: String? = null, val backdropPath: String? = null)
+data class TmdbCollectionRef(val id: Int, val name: String? = null, val posterPath: String? = null, val backdropPath: String? = null)
 
 /** A collection with its films ("parts"), released or announced. */
 @Serializable
 data class TmdbCollection(
     val id: Int,
-    val name: String,
+    val name: String? = null,
     val overview: String? = null,
     val posterPath: String? = null,
     val backdropPath: String? = null,
-    val parts: List<TmdbSearchResult> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val parts: List<TmdbSearchResult> = emptyList(),
 )
 
 @Serializable
 data class TmdbMovie(
     val id: Int,
-    val title: String,
+    val title: String? = null,
     val imdbId: String? = null,
     val originalTitle: String? = null,
     val overview: String? = null,
@@ -114,7 +120,7 @@ data class TmdbMovie(
     val runtime: Int? = null,
     val voteAverage: Double? = null,
     val voteCount: Int? = null,
-    val genres: List<TmdbGenre> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val genres: List<TmdbGenre> = emptyList(),
     val posterPath: String? = null,
     val backdropPath: String? = null,
     val credits: TmdbCredits = TmdbCredits(),
@@ -126,7 +132,7 @@ data class TmdbMovie(
 @Serializable
 data class TmdbTv(
     val id: Int,
-    val name: String,
+    val name: String? = null,
     val originalName: String? = null,
     val overview: String? = null,
     val tagline: String? = null,
@@ -136,8 +142,8 @@ data class TmdbTv(
     val episodeRunTime: List<Int> = emptyList(),
     val voteAverage: Double? = null,
     val voteCount: Int? = null,
-    val createdBy: List<TmdbCreator> = emptyList(),
-    val genres: List<TmdbGenre> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val createdBy: List<TmdbCreator> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val genres: List<TmdbGenre> = emptyList(),
     val posterPath: String? = null,
     val backdropPath: String? = null,
     val credits: TmdbCredits = TmdbCredits(),
@@ -163,10 +169,10 @@ data class TmdbEpisode(
 
 @Serializable
 data class TmdbSeason(
-    val seasonNumber: Int,
+    val seasonNumber: Int? = null,
     val name: String? = null,
     val overview: String? = null,
     val posterPath: String? = null,
     val airDate: String? = null,
-    val episodes: List<TmdbEpisode> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val episodes: List<TmdbEpisode> = emptyList(),
 )
