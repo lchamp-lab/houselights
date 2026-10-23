@@ -410,6 +410,16 @@ class TraktAccountTest {
         assertNull(session)
     }
 
+    /** A session the Keystore could not open at this launch reads as none: nothing to revoke, but it is forgotten. */
+    @Test
+    fun signingOutForgetsASessionTheKeystoreCouldNotOpen() = runTest {
+        val saved = mutableListOf<TraktSession?>()
+        val server = server()
+        TraktAccount(KEYS, session = { null }, save = { saved += it }, http = server.http, now = { now }).signOut()
+        assertEquals(listOf<TraktSession?>(null), saved)
+        assertTrue(server.requests.isEmpty())
+    }
+
     @Test
     fun withoutAnAccountNothingIsAsked() = runTest {
         val server = server(SETTINGS to listOf(answer(200, SETTINGS_JSON)))

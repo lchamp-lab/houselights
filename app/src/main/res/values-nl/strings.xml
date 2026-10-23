@@ -657,6 +657,8 @@
     <string name="trakt_no_keys">Deze versie van Houselights heeft geen Trakt-sleutel.</string>
     <string name="trakt_signed_out">Niet verbonden</string>
     <string name="trakt_connected">Verbonden</string>
+    <string name="trakt_paused">Gepauzeerd</string>
+    <string name="trakt_paused_desc">Trakt volgt uw mappen; het gaat verder zodra u ernaar terugkeert.</string>
     <string name="trakt_connect">Uw account verbinden</string>
     <string name="trakt_connect_desc">Met een code die u op uw telefoon of computer invoert</string>
     <string name="trakt_disconnect">Uw account loskoppelen</string>

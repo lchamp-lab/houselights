@@ -635,6 +635,8 @@
     <string name="trakt_no_keys">このビルドのHouselightsにはTraktのキーがありません。</string>
     <string name="trakt_signed_out">未接続</string>
     <string name="trakt_connected">接続済み</string>
+    <string name="trakt_paused">一時停止中</string>
+    <string name="trakt_paused_desc">Traktはフォルダと連動します。フォルダに戻ると再開します。</string>
     <string name="trakt_connect">アカウントを接続</string>
     <string name="trakt_connect_desc">スマートフォンかパソコンでコードを入力します</string>
     <string name="trakt_disconnect">アカウントの接続を解除</string>

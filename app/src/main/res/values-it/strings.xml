@@ -679,6 +679,8 @@
     <string name="trakt_no_keys">Questa versione di Houselights non ha una chiave Trakt.</string>
     <string name="trakt_signed_out">Non connesso</string>
     <string name="trakt_connected">Connesso</string>
+    <string name="trakt_paused">In pausa</string>
+    <string name="trakt_paused_desc">Trakt segue le cartelle; riprende quando si torna a usarle.</string>
     <string name="trakt_connect">Collega l’account</string>
     <string name="trakt_connect_desc">Con un codice da inserire sul telefono o sul computer</string>
     <string name="trakt_disconnect">Scollega l’account</string>

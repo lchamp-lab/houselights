@@ -58,7 +58,8 @@
       too; a title only in progress loses its pause alone;
     - marks and stops wait while Trakt cannot be reached, or until the account is connected again once
       Trakt ended its connection; disconnecting forgets them. Under a server as the source, Trakt pauses,
-      still connected, and sends what waited once your folders are the source again.
+      still connected, and sends what waited once your folders are the source again; Settings > Trakt says
+      so meanwhile, and disconnects it.
 - **Jellyfin**: browses your server and reports playback progress back to it. Switching to your folders keeps
   the server signed in: it comes back from Settings in one OK, without signing in again. Emby and Plex are
   planned.

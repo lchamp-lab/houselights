@@ -203,12 +203,12 @@ class TraktAccount(
         keep(current.copy(accessToken = "", refreshToken = "", ended = true))
     }
 
-    /** Revokes the access token on Trakt, giving up after a short wait, then forgets the session. */
+    /**
+     * Revokes the access token on Trakt, giving up after a short wait, then forgets the session; one the Keystore could
+     * not open, read as none, is forgotten all the same.
+     */
     override suspend fun signOut() = lock.withLock {
-        val current = current()
-        // Nothing to forget, unless forgetting it failed before.
-        if (current == null && held?.saved != false) return@withLock
-        current?.let { revoke(it.accessToken) }
+        current()?.let { revoke(it.accessToken) }
         keep(null).getOrThrow()
     }
 
