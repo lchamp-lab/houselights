@@ -137,23 +137,20 @@ class DesignTokenGuardTest {
     /** Ember says where you are: only a place lights its title, never a task, a form or a film. */
     @Test
     fun onlyAPlaceIsTitledInEmber() {
-        val lit = Regex("""(?<!fun )\b(ScreenTitle|HlTitleSwitch)\(""")
+        val lit = Regex("""(?<!fun )\bScreenTitle\(""")
         // The catalogue shows both titles.
         val elsewhere = listOf(ui.resolve("design"), ui.resolve("catalog"))
         val titled = kotlinSources(ui).filter { file -> elsewhere.none { file.startsWith(it) } }
             .filter { file -> file.readLines().any { !it.trimStart().startsWith("import ") && lit.containsMatchIn(it) } }
             .map { it.relativeTo(ui).path }.toSortedSet()
         assertEquals("Screens titled as a place", places.keys.toSortedSet(), titled)
-        // One place per screen: a title, or on a wall with sagas the title that switches to the other view.
-        val twice = titled.filter { path ->
-            val text = ui.resolve(path).readText()
-            listOf("ScreenTitle(", "HlTitleSwitch(").any { call -> Regex("""(?<!fun )\b${Regex.escape(call)}""").findAll(text).count() > 1 }
-        }
+        // One place per screen, a wall's whatever it shows.
+        val twice = titled.filter { path -> lit.findAll(ui.resolve(path).readText()).count() > 1 }
         assertTrue("A screen titled as more than one place: ${twice.joinToString()}", twice.isEmpty())
-        // In the design system, only the switch of a wall's title lights one.
+        // The design system lights no title of its own.
         val components = ui.resolve("design/components")
         val lighting = kotlinSources(components).filter { file -> file.readLines().any { lit.containsMatchIn(it) } }.map { it.name }
-        assertEquals(listOf("Controls.kt"), lighting)
+        assertEquals(emptyList<String>(), lighting)
     }
 
     /** Whether this exception, "path:fragment", covers [line] of the file at [path]. */

@@ -166,4 +166,5 @@ data class LibraryFacets(
     val fileTypes: List<String> = emptyList(),
 )
 
-data class Page(val items: List<MediaItem>, val total: Int)
+/** A wall's [items] from a start, of [total]; [sagas] of them are sagas, when the source grouped and counted them. */
+data class Page(val items: List<MediaItem>, val total: Int, val sagas: Int? = null)

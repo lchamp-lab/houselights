@@ -48,6 +48,8 @@
     <string name="sort_added">Date d’ajout</string>
     <string name="sort">Trier</string>
     <string name="filter">Filtrer</string>
+    <string name="filter_show">Afficher</string>
+    <string name="show_grouped">Films et sagas</string>
     <string name="filter_status">Statut</string>
     <string name="status_in_progress">En cours</string>
     <string name="status_watched">Vus</string>
@@ -621,9 +623,9 @@
     <string name="collections_off">Masquées</string>
     <string name="collections_off_desc">Ni sagas dans Films, ni rangée de saga</string>
     <plurals name="collection_count">
-        <item quantity="one">%d saga</item>
-        <item quantity="other">%d sagas</item>
-        <item quantity="many">%d sagas</item>
+        <item quantity="one">%d saga</item>
+        <item quantity="other">%d sagas</item>
+        <item quantity="many">%d sagas</item>
     </plurals>
     <!-- Les personnes : leurs métiers, comme le générique les nomme, leur page, et les rangées que la bibliothèque écrit. -->
     <string name="job_cast">Interprétation</string>

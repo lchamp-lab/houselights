@@ -49,6 +49,8 @@
     <string name="sort_added">Hinzugefügt</string>
     <string name="sort">Sortieren</string>
     <string name="filter">Filtern</string>
+    <string name="filter_show">Anzeigen</string>
+    <string name="show_grouped">Filme und Filmreihen</string>
     <string name="filter_status">Status</string>
     <string name="status_in_progress">Begonnen</string>
     <string name="status_watched">Gesehen</string>
@@ -609,8 +611,8 @@
     <string name="collections_off">Ausgeblendet</string>
     <string name="collections_off_desc">Weder unter Filme noch als Zeile</string>
     <plurals name="collection_count">
-        <item quantity="one">%d Filmreihe</item>
-        <item quantity="other">%d Filmreihen</item>
+        <item quantity="one">%d Filmreihe</item>
+        <item quantity="other">%d Filmreihen</item>
     </plurals>
     <!-- People: their jobs, as the credits name them, their page, and the rows the library writes. -->
     <string name="job_cast">Besetzung</string>

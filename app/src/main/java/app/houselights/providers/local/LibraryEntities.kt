@@ -192,6 +192,12 @@ data class EpisodeState(
     val positionMs: Long,
 )
 
+/** A wall's title: a film's row ([ItemEntity.id]) or a saga ([CollectionEntity.id]). */
+data class WallRow(val saga: Boolean, val id: Long)
+
+/** A wall's [total] titles, of which [sagas] are sagas. */
+data class WallCount(val total: Int, val sagas: Int)
+
 data class CollectionMember(
     val collectionId: Long,
     val year: Int?,
@@ -202,6 +208,8 @@ data class CollectionMember(
     val userPosterPath: String?,
     val backdropPath: String?,
     val userBackdropPath: String?,
+    /** When it was added after its folder's first scan; null for a film that scan found ([LocalMapper]'s rule). */
+    val addedLater: Long?,
 )
 
 @Entity(

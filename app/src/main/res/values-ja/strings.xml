@@ -47,6 +47,8 @@
     <string name="sort_added">追加日</string>
     <string name="sort">並べ替え</string>
     <string name="filter">フィルター</string>
+    <string name="filter_show">表示</string>
+    <string name="show_grouped">映画とシリーズ</string>
     <string name="filter_status">視聴状況</string>
     <string name="status_in_progress">視聴中</string>
     <string name="status_watched">視聴済み</string>

@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
-import app.houselights.core.LibraryKind
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
@@ -39,12 +38,10 @@ import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlNavBar
 import app.houselights.ui.design.components.BarFold
 import app.houselights.ui.design.components.HlSettingRow
-import app.houselights.ui.design.components.HlTitleSwitch
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SegmentDetail
 import app.houselights.ui.design.components.TaskTitle
 import app.houselights.ui.util.NBSP
-import app.houselights.ui.util.libraryName
 import kotlinx.coroutines.delay
 
 /** Buttons, tiles, tracks and headers in their states, on the room and over a picture. */
@@ -179,12 +176,6 @@ private fun TileStates() {
         Specimen("in a header", gap = HlSpace.xs) {
             HeaderControls { HlIconButton(HlIcons.Search, stringResource(R.string.search), {}) }
         }
-    }
-    // The Films wall's title: the tile turns it to its sagas and back.
-    var sagas by remember { mutableStateOf(false) }
-    val views = listOf(LibraryKind.MOVIES, LibraryKind.COLLECTIONS).map { libraryName(it) }
-    Specimen("a title and its other view", gap = HlSpace.xs) {
-        HeaderControls { HlTitleSwitch(views[if (sagas) 1 else 0], label = views[if (sagas) 0 else 1], onSwitch = { sagas = !sagas }) }
     }
 }
 

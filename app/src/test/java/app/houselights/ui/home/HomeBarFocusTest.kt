@@ -98,7 +98,7 @@ class HomeBarFocusTest {
                     onAddFolder = {},
                     onReload = {},
                     onRescan = {},
-                    onLibraryAhead = { ahead += it.id },
+                    onLibraryAhead = { library, _ -> ahead += library.id },
                 )
             }
         }

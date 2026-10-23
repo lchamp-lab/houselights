@@ -101,7 +101,18 @@ class JellyfinProvider(
     private suspend fun <T> row(what: String, block: suspend () -> T): Result<T> =
         suspendRunCatching { block() }.onFailure { Log.w(TAG, "$what failed", it) }
 
-    override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
+    /**
+     * [grouped], the server gives a collection's films as the collection, ranked by the collection's own fields, but
+     * not under other filters; never counted.
+     */
+    override suspend fun libraryPage(
+        library: Library,
+        sort: SortOption,
+        filter: LibraryFilter,
+        start: Int,
+        limit: Int,
+        grouped: Boolean,
+    ): Page {
         val types = when (library.kind) {
             LibraryKind.MOVIES -> "Movie"
             LibraryKind.SHOWS -> "Series"
@@ -124,17 +135,13 @@ class JellyfinProvider(
             startIndex = start,
             limit = limit,
             fields = GRID_FIELDS,
-            filters = when (filter.status) {
-                WatchStatus.ALL -> null
-                WatchStatus.UNWATCHED -> "IsUnplayed"
-                WatchStatus.IN_PROGRESS -> "IsResumable"
-                WatchStatus.WATCHED -> "IsPlayed"
-                WatchStatus.FAVORITES -> "IsFavorite"
-            },
+            filters = statusFilter(filter.status),
             genres = filter.genre,
             years = filter.decade?.let { d -> (d..d + 9).joinToString(",") },
             is4K = if (filter.quality == Quality.UHD_4K) true else null,
             personIds = filter.person,
+            // Said either way for films, so the server's own setting never decides.
+            collapseBoxSetItems = grouped.takeIf { library.kind == LibraryKind.MOVIES },
         )
         return Page(titles(result.items), result.totalRecordCount)
     }
@@ -334,6 +341,15 @@ class JellyfinProvider(
         /** Seasons count their episodes on disk too: without the count, the server calls an empty season watched. */
         private const val SEASON_FIELDS = "$ROW_FIELDS,ChildCount,RecursiveItemCount"
         private const val EPISODE_FIELDS = "Overview"
+
+        /** The server's filter for a watch [status]; none for all. */
+        private fun statusFilter(status: WatchStatus) = when (status) {
+            WatchStatus.ALL -> null
+            WatchStatus.UNWATCHED -> "IsUnplayed"
+            WatchStatus.IN_PROGRESS -> "IsResumable"
+            WatchStatus.WATCHED -> "IsPlayed"
+            WatchStatus.FAVORITES -> "IsFavorite"
+        }
 
         private fun libraryKind(collectionType: String?) = when (collectionType) {
             "movies" -> LibraryKind.MOVIES

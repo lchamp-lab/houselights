@@ -67,10 +67,10 @@ data class HomeState(
     val libraries: List<Library> = emptyList(),
     val content: HomeContent = HomeContent.Loading(firstScan = false),
 ) {
-    /** The tabs: every library except the sagas, which a films' wall shows instead ([sagas]). */
+    /** The tabs: every library except the sagas, which a films' wall shows among its films ([sagas]). */
     val tabs: List<Library> get() = libraries.filter { it.kind != LibraryKind.COLLECTIONS }
 
-    /** The source's sagas, if it has any: a films' wall shows them on demand. */
+    /** The source's sagas, if it has any: a films' wall shows them among its films, or alone. */
     val sagas: Library? get() = libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
 }
 

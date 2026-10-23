@@ -662,7 +662,9 @@ interface LibraryDao {
 
     /** Card columns of the films of [collectionIds], by collection in release order: one query per page. */
     @Query(
-        "SELECT collectionId, year, rating, genres, played, posterPath, userPosterPath, backdropPath, userBackdropPath " +
+        "SELECT collectionId, year, rating, genres, played, posterPath, userPosterPath, backdropPath, userBackdropPath, " +
+            "CASE WHEN addedAt > (SELECT firstScanAt FROM sources WHERE sources.id = items.sourceId AND firstScanAt > 0) " +
+            "THEN addedAt END AS addedLater " +
             "FROM items WHERE kind = 'MOVIE' AND versionOf IS NULL AND collectionId IN (:collectionIds) " +
             "ORDER BY collectionId, year IS NULL, year, sortTitle, id"
     )
@@ -674,8 +676,13 @@ interface LibraryDao {
     )
     suspend fun collectionCount(minFilms: Int): Int
 
+    /** A wall's rows in order, films and sagas ([SagaWall.page]). */
     @RawQuery
-    suspend fun collectionQuery(query: SupportSQLiteQuery): List<CollectionEntity>
+    suspend fun wallRows(query: SupportSQLiteQuery): List<WallRow>
+
+    /** How many titles a wall holds, sagas among them ([SagaWall.count]). */
+    @RawQuery
+    suspend fun wallCount(query: SupportSQLiteQuery): WallCount
 
     @Query("DELETE FROM collections WHERE id NOT IN (SELECT collectionId FROM items WHERE collectionId IS NOT NULL)")
     suspend fun deleteEmptyCollectionRows()

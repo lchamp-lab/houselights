@@ -55,7 +55,8 @@ class LocalProvider(
 
     override val capabilities = ProviderCapabilities(
         markPlayed = true, favorites = true, similar = true, pathMapping = false, people = true, crew = true, sagaParts = true,
-        versions = true, versionChoice = true, formatNumbers = true, formatFilters = true, personFilter = true, search = true,
+        versions = true, versionChoice = true, formatNumbers = true, formatFilters = true, personFilter = true, sagaFilters = true,
+        search = true,
     )
 
     override val catalog: Catalog by lazy { LocalCatalog(context, dao, this, collectionMinFilms) }
@@ -83,8 +84,20 @@ class LocalProvider(
         }
     }
 
-    override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
-        if (library.id == COLLECTIONS) return collectionsPage(sort, start, limit)
+    override suspend fun libraryPage(
+        library: Library,
+        sort: SortOption,
+        filter: LibraryFilter,
+        start: Int,
+        limit: Int,
+        grouped: Boolean,
+    ): Page {
+        val min = collectionMinFilms()
+        if (library.id == COLLECTIONS) {
+            // Hidden by the setting, there are no sagas to show alone.
+            return if (min > 0) sagaPage(SagaWall(min, filter, films = false), sort, start, limit) else Page(emptyList(), 0, 0)
+        }
+        if (grouped && library.id == MOVIES && min > 0) return sagaPage(SagaWall(min, filter, films = true), sort, start, limit)
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows have no technical badges of their own: file filters match their episodes, as in libraryFacets.
         val filtered = LocalFilters.where(kind, filter)
@@ -105,24 +118,17 @@ class LocalProvider(
         return Page(mapper.mapAll(items), total)
     }
 
-    private suspend fun collectionsPage(sort: SortOption, start: Int, limit: Int): Page {
-        val min = collectionMinFilms().coerceAtLeast(1)
-        val order = when (sort) {
-            SortOption.TITLE -> "c.sortTitle COLLATE NOCASE ASC"
-            SortOption.ADDED -> "s.added DESC"
-            SortOption.YEAR -> "s.lastYear DESC, c.sortTitle ASC"
-            SortOption.RATING -> "s.rating DESC, c.sortTitle ASC"
-        }
-        val collections = dao.collectionQuery(
-            SimpleSQLiteQuery(
-                "SELECT c.* FROM collections c JOIN (SELECT collectionId, COUNT(*) AS n, MAX(addedAt) AS added, " +
-                    "MAX(year) AS lastYear, AVG(rating) AS rating FROM items WHERE kind = 'MOVIE' AND collectionId IS NOT NULL " +
-                    "AND versionOf IS NULL " +
-                    "GROUP BY collectionId HAVING n >= ?) s ON s.collectionId = c.id ORDER BY $order, c.id LIMIT $limit OFFSET $start",
-                arrayOf<Any>(min),
-            )
-        )
-        return Page(collectionItems(collections), dao.collectionCount(min))
+    /** A page of [wall]: its rows in order, then their films and sagas, a few queries for the whole page. */
+    private suspend fun sagaPage(wall: SagaWall, sort: SortOption, start: Int, limit: Int): Page {
+        val rows = dao.wallRows(wall.page(sort, start, limit))
+        val count = dao.wallCount(wall.count())
+        val (sagaRows, filmRows) = rows.partition { it.saga }
+        val films = filmRows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }
+        val sagas = sagaRows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.collections(it) }
+        val filmItems = if (films.isEmpty()) emptyMap() else films.map { it.id }.zip(LocalMapper(dao, context).mapAll(films)).toMap()
+        val sagaItems = if (sagas.isEmpty()) emptyMap() else sagas.map { it.id }.zip(collectionItems(sagas)).toMap()
+        val items = rows.mapNotNull { if (it.saga) sagaItems[it.id] else filmItems[it.id] }
+        return Page(items, count.total, count.sagas)
     }
 
     internal suspend fun collectionItems(collections: List<CollectionEntity>): List<MediaItem> {
@@ -134,8 +140,8 @@ class LocalProvider(
     internal suspend fun membersOf(ids: List<Long>): Map<Long, List<CollectionMember>> =
         ids.chunked(SQL_IN_LIMIT).flatMap { dao.collectionMembers(it) }.groupBy { it.collectionId }
 
+    /** A sagas wall offers its films' values: it is filtered through them. */
     override suspend fun libraryFacets(library: Library): LibraryFacets {
-        if (library.id == COLLECTIONS) return LibraryFacets()
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows have no technical badges of their own: read their episodes'.
         val files = if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind
@@ -213,6 +219,8 @@ class LocalProvider(
                 .sortedByDescending { it.size }.take(3).map(PipeList::spellingOf),
             poster = (c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })?.let { image(it, ImageType.POSTER) },
             backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })?.let { image(it, ImageType.BACKDROP) },
+            // As a film's: its latest film added since its folder's first scan, the month a wall sorted by Ajout shows.
+            addedAt = members.mapNotNull { it.addedLater }.maxOrNull(),
             user = UserState(played = members.isNotEmpty() && unplayed == 0, unplayedCount = unplayed),
             childCount = members.size,
             totalCount = c.partCount?.takeIf { it > members.size },

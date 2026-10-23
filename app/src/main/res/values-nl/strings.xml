@@ -49,6 +49,8 @@
     <string name="sort_added">Datum toegevoegd</string>
     <string name="sort">Sorteren</string>
     <string name="filter">Filteren</string>
+    <string name="filter_show">Weergeven</string>
+    <string name="show_grouped">Films en saga’s</string>
     <string name="filter_status">Status</string>
     <string name="status_in_progress">Begonnen</string>
     <string name="status_watched">Bekeken</string>
@@ -609,8 +611,8 @@
     <string name="collections_off">Verborgen</string>
     <string name="collections_off_desc">Geen saga’s in Films, geen saga-rij</string>
     <plurals name="collection_count">
-        <item quantity="one">%d saga</item>
-        <item quantity="other">%d saga’s</item>
+        <item quantity="one">%d saga</item>
+        <item quantity="other">%d saga’s</item>
     </plurals>
     <!-- People: their jobs, as the credits name them, their page, and the rows the library writes. -->
     <string name="job_cast">Cast</string>

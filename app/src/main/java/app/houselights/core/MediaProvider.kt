@@ -112,6 +112,8 @@ data class ProviderCapabilities(
     /** Grids filter by [LibraryFilter.picture], [LibraryFilter.sound] and [LibraryFilter.fileType]. */
     val formatFilters: Boolean = false,
     val personFilter: Boolean = false,
+    /** A sagas library's wall takes a [LibraryFilter], which its films pass; else it is never filtered. */
+    val sagaFilters: Boolean = false,
     val search: Boolean = false,
 ) {
     companion object {
@@ -126,7 +128,18 @@ interface MediaProvider {
 
     suspend fun libraries(): List<Library>
     suspend fun home(): List<HomeSection>
-    suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page
+    /**
+     * A page of [library]'s wall. [grouped], a films library shows each saga ([LibraryKind.COLLECTIONS]) as one title in
+     * place of its films, as far as the source groups them, and counts them in [Page.sagas] when it knows how many.
+     */
+    suspend fun libraryPage(
+        library: Library,
+        sort: SortOption,
+        filter: LibraryFilter,
+        start: Int,
+        limit: Int,
+        grouped: Boolean = false,
+    ): Page
 
     /** Values present in [library] (genres, decades, formats…) for the filter menu. */
     suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets()

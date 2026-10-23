@@ -122,7 +122,9 @@ fun HomeScreen(
         onAddFolder,
         onReload = vm::load,
         onRescan = vm::rescan,
-        onLibraryAhead = { app.libraryAhead.ask(app.scope, it, PicturesAhead(context, screen), context.imageLoader) },
+        onLibraryAhead = { library, sagas ->
+            app.libraryAhead.ask(app.scope, library, sagas, PicturesAhead(context, screen), context.imageLoader)
+        },
         onOpenSearch = onOpenSearch.takeIf { app.providerOrNull()?.capabilities?.search == true },
     )
 }
@@ -139,7 +141,7 @@ internal fun HomeBands(
     onReload: () -> Unit,
     onRescan: () -> Unit,
     /** Prefetches a library's wall once its place is chosen. */
-    onLibraryAhead: (Library) -> Unit = {},
+    onLibraryAhead: (Library, sagas: Library?) -> Unit = { _, _ -> },
     /** Null when the source cannot search. */
     onOpenSearch: (() -> Unit)? = null,
 ) {

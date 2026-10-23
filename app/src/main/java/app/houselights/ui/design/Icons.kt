@@ -163,9 +163,6 @@ object HlIcons {
         "m18 9-6 6",
     )
 
-    /** Turns a screen to its other view: two arrows, one each way (`arrow-left-right`). */
-    val Swap = icon("Swap", "M8 3 4 7l4 4", "M4 7h16", "m16 21 4-4-4-4", "M20 17H4")
-
     /** Settings: three faders, each at its own level (`sliders-horizontal`). */
     val Settings = icon(
         "Settings",

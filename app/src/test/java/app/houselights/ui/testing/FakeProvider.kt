@@ -32,8 +32,19 @@ class FakeProvider : MediaProvider {
     var libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"))
     var home = listOf<HomeSection>()
 
-    /** The wall of every library, in order. */
+    /** The wall of every library not in [walls], in order. */
     var wall = listOf<MediaItem>()
+
+    /** A library's own wall, by its id. */
+    var walls = mapOf<String, List<MediaItem>>()
+
+    /** Whether a grouped page counts its sagas; Jellyfin's never does. */
+    var countsSagas = true
+
+    /** What each page was asked of: the library, its filter, and whether its sagas were grouped. */
+    val pages = mutableListOf<Asked>()
+
+    data class Asked(val library: String, val filter: LibraryFilter, val grouped: Boolean)
     var facets = LibraryFacets()
     var seasons = mapOf<String, List<MediaItem>>()
 
@@ -75,9 +86,19 @@ class FakeProvider : MediaProvider {
         return home
     }
 
-    override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
+    override suspend fun libraryPage(
+        library: Library,
+        sort: SortOption,
+        filter: LibraryFilter,
+        start: Int,
+        limit: Int,
+        grouped: Boolean,
+    ): Page {
         call("page $start $limit")
-        return Page(wall.drop(start).take(limit), wall.size)
+        pages += Asked(library.id, filter, grouped)
+        val shown = walls[library.id] ?: wall
+        val sagas = shown.count { it.kind == MediaKind.COLLECTION }.takeIf { grouped && countsSagas }
+        return Page(shown.drop(start).take(limit), shown.size, sagas)
     }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets {
