@@ -547,7 +547,7 @@
     <string name="journal_closes">이 페이지는 이 패널과 함께 닫히며, 늦어도 %1$s 후에 닫힙니다.</string>
     <string name="journal_offline">플레이어가 로컬 네트워크에 연결되어 있지 않습니다. 공유기에 연결한 다음 이 패널을 다시 여세요.</string>
     <string name="journal_failed">이 플레이어에서 페이지를 열 수 없습니다. 이 패널을 닫은 다음 다시 여세요.</string>
-    <string name="journal_few">이 코드를 스캔하면 로그가 열리지만 아직 거의 비어 있습니다. 문제가 생긴 직후 앱을 다시 시작하지 말고 이 패널을 여세요.</string>
+    <string name="journal_few">이 코드를 스캔하면 로그가 열리지만 아직 거의 비어 있습니다. 문제가 생긴 직후 이 패널을 여세요.</string>
     <string name="journal_page_title">로그</string>
     <string name="journal_page_text">앱이 기록한 최근 줄입니다. 최신 순으로 표시됩니다.</string>
     <string name="journal_copy">복사</string>

@@ -268,8 +268,7 @@ class JournalSheetTest {
         const val MASKED = "Mots de passe et jetons y sont masqués$NB; les noms de vos fichiers, partages et du NAS y restent$NB: " +
             "relisez-le avant de le publier."
         const val CLOSES = "La page se ferme avec ce panneau, au plus tard dans 10${NB}min."
-        const val FEW = "Scannez ce code pour ouvrir le journal, presque vide$NB: revenez ici juste après le problème, " +
-            "sans redémarrer l’app."
+        const val FEW = "Scannez ce code pour ouvrir le journal, presque vide$NB: revenez ici juste après le problème."
         const val OFFLINE = "Le lecteur n’est relié à aucun réseau local$NB: reliez-le à votre box, puis ouvrez à nouveau ce panneau."
         const val FAILED = "La page n’a pas pu s’ouvrir sur ce lecteur$NB: fermez ce panneau, puis ouvrez-le à nouveau."
     }

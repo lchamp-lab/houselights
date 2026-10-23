@@ -569,7 +569,7 @@
     <string name="journal_closes">La page se ferme avec ce panneau, au plus tard dans %1$s.</string>
     <string name="journal_offline">Le lecteur n’est relié à aucun réseau local : reliez-le à votre box, puis ouvrez à nouveau ce panneau.</string>
     <string name="journal_failed">La page n’a pas pu s’ouvrir sur ce lecteur : fermez ce panneau, puis ouvrez-le à nouveau.</string>
-    <string name="journal_few">Scannez ce code pour ouvrir le journal, presque vide : revenez ici juste après le problème, sans redémarrer l’app.</string>
+    <string name="journal_few">Scannez ce code pour ouvrir le journal, presque vide : revenez ici juste après le problème.</string>
     <string name="journal_page_title">Journal</string>
     <string name="journal_page_text">Les dernières lignes écrites par l’app, de la plus récente à la plus ancienne.</string>
     <string name="journal_copy">Copier</string>
