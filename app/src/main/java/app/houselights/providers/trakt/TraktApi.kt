@@ -1,5 +1,7 @@
 package app.houselights.providers.trakt
 
+import app.houselights.core.Decoded
+import app.houselights.core.decodeCounted
 import app.houselights.core.decodeEach
 import app.houselights.core.serverJson
 import kotlinx.serialization.json.JsonElement
@@ -66,11 +68,11 @@ interface TraktApi {
 
 // An entry this version cannot read is left out and logged, rather than the whole list.
 
-suspend fun TraktApi.watchedMovies(): List<WatchedMovie> =
-    serverJson.decodeEach(WatchedMovie.serializer(), watchedMovieEntries(), "Trakt sync/watched/movies")
+suspend fun TraktApi.watchedMovies(): Decoded<WatchedMovie> =
+    serverJson.decodeCounted(WatchedMovie.serializer(), watchedMovieEntries(), "Trakt sync/watched/movies")
 
-suspend fun TraktApi.watchedShows(): List<WatchedShow> =
-    serverJson.decodeEach(WatchedShow.serializer(), watchedShowEntries(), "Trakt sync/watched/shows")
+suspend fun TraktApi.watchedShows(): Decoded<WatchedShow> =
+    serverJson.decodeCounted(WatchedShow.serializer(), watchedShowEntries(), "Trakt sync/watched/shows")
 
 suspend fun TraktApi.playback(): List<PlaybackProgress> =
     serverJson.decodeEach(PlaybackProgress.serializer(), playbackEntries(), "Trakt sync/playback")

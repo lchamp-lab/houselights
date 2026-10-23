@@ -402,6 +402,34 @@ class PlaybackManagerTest {
         assertEquals("stopped 600000 / null", reports.last())
     }
 
+    /** Killed while the player went on to the next episode, the app reads the result against the file it launched. */
+    @Test
+    fun aNewProcessKnowsTheFileItLaunched() = runTest {
+        val first = PlaybackManager(
+            context, backgroundScope, status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer }, clock = { currentTime },
+        ) { null }
+        first.intentFor(plan("nfs://nas/series/Show/S01E01.mkv"))
+        statuses += playing(E01 - 4_000, E01, "/mnt/nfs/nas/series/Show/S01E01.mkv")
+        first.onPlayerLaunched()
+        advanceTimeBy(4_001)
+        // The file's name alone: an address may carry a password.
+        assertEquals("S01E01.mkv", context.getSharedPreferences("playback", Context.MODE_PRIVATE).getString("file_name", null))
+
+        val second = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, clock = { currentTime }) { reporter }
+        second.onPlayerResult(result(1_200_000, "/mnt/nfs/nas/series/Show/S01E02.mkv"))
+        advanceUntilIdle()
+        assertEquals("stopped ${E01 - 4_000} / null", reports.last())
+    }
+
+    /** A stream the player names without its query, or with it otherwise, is the stream launched. */
+    @Test
+    fun aStreamIsTheStreamWhateverItsQuery() = runTest {
+        val stream = "https://jf.example/Videos/abc/stream.mkv?static=true&mediaSourceId=abc&api_key=k"
+        val manager = started(plan(stream), listOf(playing(600_000, FILM, "https://jf.example/Videos/abc/stream.mkv")))
+        advanceTimeBy(4_000 + 1)
+        assertEquals("stopped 650000 / $FILM", closedAt(manager, 650_000, "https://jf.example/Videos/abc/stream.mkv?static=true"))
+    }
+
     private companion object {
         /** Where the manager writes the position down. */
         const val POSITION = "position_ms"

@@ -113,7 +113,8 @@ class PlaybackManager(
         val trusting = choice.takeIf { secret && intent.component != null }
         session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting, file = plan.uri)
         // Pending apply() writes complete before our activity stops, so the resume point survives a killed process.
-        saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
+        saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs)
+            .putString(KEY_FILE, nameOf(plan.uri).takeUnless { plan.disc }).apply()
         return intent
     }
 
@@ -256,7 +257,7 @@ class PlaybackManager(
                 s.path = state.path
                 s.file = next.path
                 // So a new process receiving the result reports this part; skipped once the result ended the session.
-                if (session === s) saved.edit().putString(KEY_RESUME, next.resumeKey).apply()
+                if (session === s) saved.edit().putString(KEY_RESUME, next.resumeKey).putString(KEY_FILE, nameOf(next.path)).apply()
             } else {
                 Log.i(TAG, "The title is ${state.durationMs} ms long, past a menu or an intro of $launched ms")
             }
@@ -295,12 +296,21 @@ class PlaybackManager(
 
     /** Whether the player's [path] names the file at [other], either escaped or not, whatever their mounts. */
     private fun names(path: String, other: String): Boolean {
-        val name = other.substringAfterLast('/')
-        val played = path.substringAfterLast('/')
+        val name = leaf(other)
+        val played = leaf(path)
         val decoded = Uri.decode(played)
         return played.equals(name, ignoreCase = true) || decoded.equals(name, ignoreCase = true) ||
             decoded.equals(Uri.decode(name), ignoreCase = true)
     }
+
+    /** The last segment of [path]; a stream's without its query, which the player may give otherwise. */
+    private fun leaf(path: String): String {
+        val web = path.startsWith("http://", ignoreCase = true) || path.startsWith("https://", ignoreCase = true)
+        return (if (web) path.substringBefore('?').substringBefore('#') else path).substringAfterLast('/')
+    }
+
+    /** The file's name alone, kept for a new process: never its URI, which may carry a password. */
+    private fun nameOf(uri: String): String = leaf(uri)
 
     /** Whether the player ended on [played], another file than the one followed; a disc's is not compared. */
     private fun Session.endedElsewhere(played: String?): Boolean {
@@ -318,6 +328,7 @@ class PlaybackManager(
         val live = session
         val resumeKey = saved.getString(KEY_RESUME, null)
         val savedPosition = saved.getLong(KEY_POSITION, 0)
+        val savedFile = saved.getString(KEY_FILE, null)
         session = null
         _playing.value = false
         saved.edit().clear().apply()
@@ -332,7 +343,7 @@ class PlaybackManager(
             poll?.cancelAndJoin()
             live?.started?.join()
             // No live session: the app was stopped while the film played.
-            val s = live ?: Session(resumeKey?.let { reporterFor(it) }, savedPosition, key = resumeKey)
+            val s = live ?: Session(resumeKey?.let { reporterFor(it) }, savedPosition, key = resumeKey, file = savedFile)
             // A position the player returns for another file is not this title's.
             if (returned > 0 && !s.switched && !s.endedElsewhere(played)) s.positionMs = returned.toLong()
             Log.i(TAG, "Playback ended at ${s.positionMs} / ${s.durationMs} ms")
@@ -359,6 +370,7 @@ class PlaybackManager(
         private const val AUTO_LAUNCH_SINGLE_CHOICE = "android.intent.extra.AUTO_LAUNCH_SINGLE_CHOICE"
         private const val KEY_RESUME = "resume_key"
         private const val KEY_POSITION = "position_ms"
+        private const val KEY_FILE = "file_name"
 
         /** The player takes a few seconds to open the file. */
         private const val FIRST_POLL_MS = 4_000L

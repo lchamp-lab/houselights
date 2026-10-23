@@ -8,6 +8,11 @@ import app.houselights.providers.local.WatchHistory
 import app.houselights.providers.local.runtimeMs
 import kotlin.math.abs
 
+/** Which of Trakt's histories were read whole: with an entry left out unread, Trakt may have seen what it seems to lack. */
+internal class WholeHistory(val movies: Boolean = true, val episodes: Boolean = true) {
+    fun of(title: TraktTitle) = if (title is TraktTitle.Movie) movies else episodes
+}
+
 /**
  * What a sync does with what it read of Trakt: the rows Trakt saw watched, by date; the resume points Trakt paused at
  * since the title was last played here and last watched there; and, joining both sides, the titles only the library
@@ -41,6 +46,7 @@ internal class SyncPlan(
         val marked: Set<Long>,
         val played: Set<Long>,
         val union: Boolean,
+        val whole: WholeHistory,
     ) {
         fun outcomeOf(title: TraktTitle, rows: List<SyncRow>): Outcome {
             val seenThere = watched[title] ?: 0L
@@ -55,9 +61,9 @@ internal class SyncPlan(
             return Outcome(seen, !seen && position > 0, resume, send)
         }
 
-        /** Watched here, never on Trakt: Trakt gets the last play here. */
+        /** Watched here, never on Trakt: Trakt gets the last play here, unless its history of the kind was read in part. */
         private fun playOf(title: TraktTitle, rows: List<SyncRow>): TraktPendingEntity? {
-            if (title in watched || rows.none { it.played }) return null
+            if (title in watched || rows.none { it.played } || !whole.of(title)) return null
             return TraktPendingEntity(title.key, TraktAction.WATCHED, rows.mapNotNull { it.lastPlayedAt }.maxOrNull() ?: 0L)
         }
 
@@ -115,6 +121,7 @@ internal class SyncPlan(
             paused: List<PlaybackProgress>,
             union: Boolean,
             played: Set<Long> = emptySet(),
+            whole: WholeHistory = WholeHistory(),
         ): SyncPlan {
             val titled = rows.map { it to it.titles() }.filter { it.second.isNotEmpty() }
             // A file holding several episodes is watched once all are.
@@ -129,7 +136,7 @@ internal class SyncPlan(
                 }
                 .groupBy({ it.first }, { it.second })
                 .mapValues { (_, list) -> list.maxBy { it.at ?: 0L } }
-            val planner = Planner(watched, pausedBy, marks.values.flatten().toSet(), played, union)
+            val planner = Planner(watched, pausedBy, marks.values.flatten().toSet(), played, union, whole)
             val outcomes = titled.flatMap { (row, titles) -> titles.map { it to row } }
                 .groupBy({ it.first }, { it.second })
                 .map { (title, titleRows) -> planner.outcomeOf(title, titleRows) }

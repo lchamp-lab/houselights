@@ -2,6 +2,7 @@ package app.houselights.providers.trakt
 
 import android.os.SystemClock
 import android.util.Log
+import app.houselights.core.Decoded
 import app.houselights.core.FailureKind
 import app.houselights.core.HttpStatus
 import app.houselights.core.failureKind
@@ -266,7 +267,10 @@ class TraktSync(
         val rows = dao.rows()
         val played = rows.mapNotNullTo(HashSet()) { it.versionOf }.mapNotNullTo(HashSet()) { dao.playedCopy(it) }
         val union = mode == SyncMode.UNION || saved.syncedAt == null
-        val plan = withContext(Dispatchers.Default) { SyncPlan.of(rows, movies.watched() + shows.watched(), paused, union, played) }
+        val whole = WholeHistory(movies = movies.skipped == 0, episodes = shows.skipped == 0)
+        if (union && !(whole.movies && whole.episodes)) Log.w(TAG, "Trakt's history read in part: what it seems to lack of it is not sent")
+        val seenThere = movies.entries.watched() + shows.entries.watched()
+        val plan = withContext(Dispatchers.Default) { SyncPlan.of(rows, seenThere, paused, union, played, whole) }
         local.withLock { dao.apply(plan.watched, plan.resumes, plan.titles) }
         if (plan.changes) changed()
         // Never in place of a mark waiting since the queue was sent.
@@ -357,7 +361,7 @@ class TraktSync(
         val byTitle = entries.associate { (entry, title) -> title to entry }
         for (pause in lookup.paused()) {
             val entry = pause.title()?.let(byTitle::get) ?: continue
-            pause.id?.let { id -> write(listOf(entry), PLAYBACK) { it.removePlayback(id) } }
+            pause.id?.let { id -> write(listOf(entry), PLAYBACK_REMOVE) { it.removePlayback(id) } }
         }
     }
 
@@ -443,8 +447,8 @@ class TraktSync(
     /** What a send reads of Trakt to decide, each at most once and only when needed. */
     private inner class Lookup {
         private var activities: LastActivities? = null
-        private var movies: Map<TraktTitle, Long>? = null
-        private var shows: Map<TraktTitle, Long>? = null
+        private var movies: Decoded<WatchedMovie>? = null
+        private var shows: Decoded<WatchedShow>? = null
         private var pauses: List<PlaybackProgress>? = null
 
         suspend fun paused(): List<PlaybackProgress> = pauses ?: trakt(PLAYBACK) { it.playback() }.also { pauses = it }
@@ -462,13 +466,16 @@ class TraktSync(
             val movie = title is TraktTitle.Movie
             val changed = millisOf(if (movie) last.movies.watchedAt else last.episodes.watchedAt) ?: return false
             if (changed < since - CLOCK_SKEW_MS) return false
-            val seen = if (movie) {
-                movies ?: trakt(WATCHED_MOVIES) { it.watchedMovies() }.watched().also { movies = it }
+            val (seen, whole) = if (movie) {
+                val read = movies ?: trakt(WATCHED_MOVIES) { it.watchedMovies() }.also { movies = it }
+                read.entries.watched() to (read.skipped == 0)
             } else {
-                shows ?: trakt(WATCHED_SHOWS) { it.watchedShows() }.watched().also { shows = it }
+                val read = shows ?: trakt(WATCHED_SHOWS) { it.watchedShows() }.also { shows = it }
+                read.entries.watched() to (read.skipped == 0)
             }
+            // Not found in a history read in part, it may be among what was left out: taken as there, never sent twice.
             // Trakt keeps a play's date to the second.
-            return (seen[title] ?: return false) >= at - MS_PER_S
+            return (seen[title] ?: return !whole) >= at - MS_PER_S
         }
     }
 
@@ -512,6 +519,7 @@ class TraktSync(
         const val WATCHED_MOVIES = "sync/watched/movies"
         const val WATCHED_SHOWS = "sync/watched/shows"
         const val PLAYBACK = "sync/playback"
+        const val PLAYBACK_REMOVE = "sync/playback/{id}"
         const val HISTORY = "sync/history"
         const val HISTORY_REMOVE = "sync/history/remove"
         const val SCROBBLE_STOP = "scrobble/stop"

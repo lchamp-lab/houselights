@@ -35,7 +35,14 @@ val serverJson: Json = Json {
  * [elements] decoded one at a time: one that cannot be is left out and logged as [what], with its index and the path
  * of the field at fault, so that one entry this version cannot read does not lose the others.
  */
-fun <T> Json.decodeEach(serializer: KSerializer<T>, elements: List<JsonElement>, what: String): List<T> {
+fun <T> Json.decodeEach(serializer: KSerializer<T>, elements: List<JsonElement>, what: String): List<T> =
+    decodeCounted(serializer, elements, what).entries
+
+/** A list's [entries] that could be read, [skipped] the number left out ([decodeEach]). */
+class Decoded<T>(val entries: List<T>, val skipped: Int)
+
+/** [decodeEach], also saying how many entries it left out. */
+fun <T> Json.decodeCounted(serializer: KSerializer<T>, elements: List<JsonElement>, what: String): Decoded<T> {
     var skipped = 0
     val decoded = elements.mapIndexedNotNull { index, element ->
         try {
@@ -46,7 +53,7 @@ fun <T> Json.decodeEach(serializer: KSerializer<T>, elements: List<JsonElement>,
         }
     }
     if (skipped > LOGGED_SKIPS) Log.w(TAG, "$what: $skipped of ${elements.size} entries left out")
-    return decoded
+    return Decoded(decoded, skipped)
 }
 
 /** Why [element] cannot be decoded, as the text decoder says it: unlike the tree's, it names a nested field's whole path. */
