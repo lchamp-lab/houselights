@@ -43,6 +43,9 @@ class TrackFollowTest {
     private val switched = mutableListOf<TrackFix>()
     private val kept = mutableListOf<Pair<String, TrackChoice>>()
 
+    /** The intent the player was launched with. */
+    private var launched: Intent? = null
+
     @Before
     fun zidoo() {
         val schemes = listOf("http", "file", "content")
@@ -72,7 +75,7 @@ class TrackFollowTest {
         },
         remember = { key, choice -> kept += key to choice },
     ) { null }.apply {
-        intentFor(plan, tracks)
+        launched = intentFor(plan, tracks)
         onPlayerLaunched()
     }
 
@@ -117,6 +120,24 @@ class TrackFollowTest {
         assertEquals(emptyList<TrackFix>(), switched)
         closed(manager, audio = 0, subtitle = 0)
         assertEquals(listOf("local:3" to TrackChoice(subtitles = SubtitleChoice.Off)), kept)
+    }
+
+    /**
+     * Colony without its forced French, the film in French: no subtitles asked, the player shows its first, then the
+     * forced French beside the video are switched to; the user leaves them for the French in full, kept for the title.
+     */
+    @Test
+    fun subtitlesBesideTheVideoAreSwitchedToOnceListed() = runTest {
+        val listed = checkNotNull(ZidooStatus.parseTracks(PlayerAnswers.COLONY_BESIDE_SUBTITLES)).second
+        plays = colony(audio = 0, subtitle = 1).copy(subtitles = listed)
+        val beside = COLONY.copy(subtitles = COLONY.subtitles.filterNot { it.forced })
+        val foreign = TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.FOREIGN)
+        val manager = started(TrackPlan(beside, foreign, null, "fr", "FR", "local:3"))
+        assertEquals(0 to false, launched?.getIntExtra("audio_idx", -1) to launched?.hasExtra("subtitle_idx"))
+        advanceTimeBy(4_000 + 2_000 * 5L)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 4)), switched)
+        closed(manager, audio = 0, subtitle = 2)
+        assertEquals(listOf("local:3" to TrackChoice(subtitles = SubtitleChoice.Track("fr", SubtitleKind.FULL))), kept)
     }
 
     /** Lists the player does not give yet are asked again at the next statuses. */

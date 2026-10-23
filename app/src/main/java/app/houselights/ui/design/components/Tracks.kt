@@ -83,7 +83,7 @@ private fun AudioColumn(plan: TrackPlan, choice: TrackChoice, onChoose: (TrackCh
 
 @Composable
 private fun SubtitleColumn(plan: TrackPlan, choice: TrackChoice, onChoose: (TrackChoice) -> Unit) {
-    val settings = plan.copy(choice = choice.copy(subtitles = null)).pick.subtitle
+    val settings = plan.copy(choice = choice.copy(subtitles = null)).subtitleShown
     HlSettingGroup(stringResource(R.string.subtitles)) {
         TrackRow(
             stringResource(R.string.tracks_settings),
@@ -148,14 +148,14 @@ private fun subtitleFormat(track: SubtitleTrack): String =
     listOfNotNull(track.format, TrackNames.subtitleNote(track.title, track.language)).joinToString(", ")
 
 /**
- * What Lire plays, for an action's second line: "Français, sous-titres forcés"; only what is asked of the player, and
- * [R.string.tracks_player] when nothing is.
+ * What Lire plays, for an action's second line: "Français, sous-titres forcés"; only what is asked of the player
+ * ([TrackPlan.subtitleShown]), and [R.string.tracks_player] when nothing is.
  */
 @Composable
 fun tracksHint(plan: TrackPlan): String {
     // The language alone: the line is short.
     val audio = plan.audio?.let { languageName(plan.audioTracks[it].language) }
-    val subtitles = when (val number = plan.pick.subtitle) {
+    val subtitles = when (val number = plan.subtitleShown) {
         null -> null
         TrackPlan.NONE -> stringResource(R.string.tracks_hint_none)
         else -> plan.subtitleTrack(number)?.let { track ->

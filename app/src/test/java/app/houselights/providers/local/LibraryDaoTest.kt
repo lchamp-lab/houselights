@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -52,6 +53,28 @@ class LibraryDaoTest {
     }
 
     private fun assertFitsAndroid9() = assertTrue("${widest.get()} values in one statement", widest.get() <= ANDROID_9_LIMIT)
+
+    /**
+     * A film matched anew keeps its choice of tracks under its new key ([tracksKey]), never over the
+     * choice that key holds already; the old key stays while another copy is still matched to it.
+     */
+    @Test
+    fun aFilmMatchedAnewKeepsItsChoiceOfTracks() = runTest {
+        val choices = db.trackChoices()
+        val heat = dao.insert(row(ItemKind.MOVIE, "Heat"))
+        choices.save(TrackChoiceEntity("local:$heat", "eng", null, at = 5))
+        dao.saveScanned(checkNotNull(dao.item(heat)).copy(tmdbId = 949))
+        assertEquals("eng", choices.choice("local:film:949")?.audio)
+        assertNull(choices.choice("local:$heat"))
+
+        val copy = dao.insert(row(ItemKind.MOVIE, "Heat 2160p").copy(tmdbId = 949))
+        choices.save(TrackChoiceEntity("local:film:1", "fre", null, at = 6))
+        dao.saveScanned(checkNotNull(dao.item(heat)).copy(tmdbId = 1))
+        assertEquals("its own choice stays", "fre", choices.choice("local:film:1")?.audio)
+        assertEquals("still the copy's", "eng", choices.choice("local:film:949")?.audio)
+        dao.saveScanned(checkNotNull(dao.item(copy)).copy(tmdbId = 1))
+        assertNull("no copy keys it any more", choices.choice("local:film:949"))
+    }
 
     /** A renamed file keeps its probe; one of another size is probed again, its length with it. */
     @Test

@@ -52,6 +52,13 @@ class ZidooStatusTest {
         )
     }
 
+    /** A file beside the video, which the player names by its file: its language and kind are read there. */
+    @Test
+    fun aFileBesideTheVideoIsReadByItsName() {
+        val (_, subtitles) = checkNotNull(ZidooStatus.parseTracks(PlayerAnswers.COLONY_BESIDE_SUBTITLES))
+        assertEquals(PlayerTrack(4, "fr", forced = true), subtitles.last())
+    }
+
     /** One list the player did not give leaves the other, which can still be checked. */
     @Test
     fun eachListIsReadOnItsOwn() {

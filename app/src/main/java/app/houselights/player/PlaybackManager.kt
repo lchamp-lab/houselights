@@ -86,6 +86,9 @@ class PlaybackManager(
         /** The player's lists, as the check read them: the numbers it returns are its own; null until one is read. */
         var plays: PlayerTracks? = null
 
+        /** The subtitles the player first played by itself, when none were asked to look beside the video. */
+        var ownSubtitle: Int? = null
+
         /** Tracks the player played without the user (asked, its own, switched to), by kind: a return to one is no choice. */
         val usual = mutableMapOf<TrackKind, MutableSet<Int>>()
 
@@ -169,7 +172,8 @@ class PlaybackManager(
             putExtra("from_start", true)
         }
         tracks?.pick?.let { pick ->
-            Log.i(TAG, "Tracks asked: audio ${pick.audio}, subtitles ${pick.subtitle}")
+            val beside = if (tracks.subtitleBeside) " (looked for beside the video)" else ""
+            Log.i(TAG, "Tracks asked: audio ${pick.audio}, subtitles ${pick.subtitle}$beside")
             pick.audio?.let { putExtra("audio_idx", it) }
             pick.subtitle?.let { putExtra("subtitle_idx", it) }
         }
@@ -375,7 +379,12 @@ class PlaybackManager(
         s.checked = true
         val read = tracks()
         s.plays = (s.plays ?: read)?.with(read)
-        if (read != null) switch(s, read, TrackCheck.fixes(plan, read))
+        // None asked, the subtitles the player first lists are its own choice, never the user's.
+        if (plan.subtitleBeside && s.ownSubtitle == null) {
+            s.ownSubtitle = read?.subtitleIndex
+            s.usual(TrackKind.SUBTITLE, s.ownSubtitle)
+        }
+        if (read != null) switch(s, read, TrackCheck.fixes(plan, read, s.ownSubtitle))
         if (read?.complete == true || ++s.tries >= CHECK_TRIES) s.settled = true
     }
 
@@ -395,15 +404,16 @@ class PlaybackManager(
     }
 
     /**
-     * What the user changed in the player among the tracks asked of it, which becomes the title's choice. Nothing
-     * when in doubt: another file, a check under way, or numbers that may not be the file's.
+     * What the user changed in the player among the tracks asked of it, which becomes the title's choice; subtitles
+     * looked for beside the video once the check read what the player chose by itself. Nothing when in doubt: another
+     * file, a check under way, or numbers that may not be the file's.
      */
     private fun changed(s: Session, data: Intent?, played: String?): TrackChoice? {
         val plan = s.tracks?.takeUnless { s.doubtful(played) } ?: return null
-        fun returned(kind: TrackKind, extra: String, asked: Int?) =
-            data?.getIntExtra(extra, -1)?.takeIf { it >= 0 && asked != null && !s.isUsual(kind, it) }
-        val audio = returned(TrackKind.AUDIO, "audio_idx", plan.pick.audio)
-        val subtitle = returned(TrackKind.SUBTITLE, "subtitle_idx", plan.pick.subtitle)
+        fun returned(kind: TrackKind, extra: String, asked: Boolean) =
+            data?.getIntExtra(extra, -1)?.takeIf { it >= 0 && asked && !s.isUsual(kind, it) }
+        val audio = returned(TrackKind.AUDIO, "audio_idx", plan.pick.audio != null)
+        val subtitle = returned(TrackKind.SUBTITLE, "subtitle_idx", plan.pick.subtitle != null || s.ownSubtitle != null)
         if (audio == null && subtitle == null) return null
         // A list the player did not give leaves the file's numbering, its own unless files beside the video count: a
         // server's, or, once the check found no list, ones a scan cannot know of (a subtitle file the player may list).

@@ -6,9 +6,12 @@ import app.houselights.core.MediaInfo
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SubtitleMode
 import app.houselights.core.SubtitleTrack
+import app.houselights.core.TrackChoice
+import app.houselights.core.TrackPick
 import app.houselights.core.TrackPreferences
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import java.util.Locale
 
@@ -26,6 +29,36 @@ class TrackChooserTest {
         )
         val plan = checkNotNull(chooser.plan(LAUNCH))
         assertEquals("en" to 2, plan.expectedAudio?.language to plan.pick.subtitle)
+    }
+
+    /**
+     * Resumed, a title the user chose no tracks for is left to the player, which remembers what was chosen in it for
+     * the file, even if the app was stopped before it could keep it; a title's own choice is still asked, alone.
+     */
+    @Test
+    fun aResumeLeavesTheTracksToThePlayersMemoryOfTheFile() = runTest {
+        var stored: TrackChoice? = null
+        val chooser = TrackChooser(
+            preferences = { TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.ALWAYS) },
+            locale = { Locale.FRANCE },
+            load = { stored },
+            save = { _, _ -> },
+            forget = {},
+        )
+        val resumed = LAUNCH.copy(startMs = 1_800_000)
+        assertEquals("from the start: Settings", TrackPick(0, 2), chooser.plan(LAUNCH)?.pick)
+        assertNull(chooser.plan(resumed))
+        stored = TrackChoice(audio = "en")
+        assertEquals(TrackPick(1, null), chooser.plan(resumed)?.pick)
+    }
+
+    /** Nothing to ask of the player but the forced French it may find beside the video: the check still looks for them. */
+    @Test
+    fun subtitlesToLookForBesideTheVideoAreAPlan() = runTest {
+        val chooser = TrackChooser({ TrackPreferences(subtitles = SubtitleMode.FOREIGN) }, { Locale.FRANCE }, { null }, { _, _ -> }, {})
+        val french = checkNotNull(LAUNCH.media).let { it.copy(subtitles = it.subtitles.filterNot(SubtitleTrack::forced)) }
+        val plan = checkNotNull(chooser.plan(LAUNCH.copy(media = french)))
+        assertEquals(true to true, plan.pick.isEmpty to plan.subtitleBeside)
     }
 
     private companion object {

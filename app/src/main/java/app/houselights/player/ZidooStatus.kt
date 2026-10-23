@@ -2,6 +2,7 @@ package app.houselights.player
 
 import app.houselights.core.Http
 import app.houselights.core.HttpStatus
+import app.houselights.core.Languages
 import app.houselights.core.lenientJson
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
@@ -128,8 +129,9 @@ object ZidooStatus {
 
     /**
      * Parses a getAudioList or getSubtitleList answer: the index playing and the tracks, null if unusable. Both list
-     * under "subtitles"; whether a subtitle is forced or for the hearing impaired shows only in its title. Until the
-     * player has read the file, it answers each list empty, numbered 0: not given yet (its subtitles always list "none").
+     * under "subtitles"; whether a subtitle is forced or for the hearing impaired shows only in its title, and the
+     * language of a file beside the video may show only there, in its name. Until the player has read the file, it
+     * answers each list empty, numbered 0: not given yet (its subtitles always list "none").
      */
     internal fun parseTracks(body: String): Pair<Int, List<PlayerTrack>>? = runCatching {
         val root = lenientJson.parseToJsonElement(body).jsonObject
@@ -143,11 +145,11 @@ object ZidooStatus {
         val index = entry["index"]?.jsonPrimitive?.intOrNull ?: return null
         val title = (entry["title"] as? JsonPrimitive)?.contentOrNull.orEmpty()
         // The API's own spelling.
-        val language = (entry["laungaue"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null }
+        val language = (entry["laungaue"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null } ?: Languages.named(title)
         return PlayerTrack(index, language, forced = FORCED.containsMatchIn(title), hearingImpaired = SDH.containsMatchIn(title))
     }
 
-    private val FORCED = Regex("""\bforced\b""", RegexOption.IGNORE_CASE)
+    private val FORCED = Regex("""(?<!\p{L})forc(?:ed|és?)(?!\p{L})""", RegexOption.IGNORE_CASE)
     private val SDH = Regex("""\bSDH\b""")
 
     /** True when the control API answers, i.e. the app runs on a Zidoo. */

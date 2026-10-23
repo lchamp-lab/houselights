@@ -29,8 +29,16 @@ class TrackChooser(
     /** One change at a time: each reads what the one before wrote. */
     private val changes = Mutex()
 
-    /** The tracks to ask for [launch]; null when the player chooses them all, or when the file's order is unknown. */
-    suspend fun plan(launch: PlaybackPlan.Launch): TrackPlan? = table(launch)?.takeUnless { it.pick.isEmpty }
+    /**
+     * The tracks to ask for [launch]; null when the player chooses them all, or when the file's order is unknown. A
+     * resume asks only the title's own choice: Settings would undo what the player remembers having played of the file,
+     * chosen there perhaps while the app was stopped and could not keep it.
+     */
+    suspend fun plan(launch: PlaybackPlan.Launch): TrackPlan? {
+        val table = table(launch) ?: return null
+        val plan = if (launch.startMs > 0) table.copy(preferences = TrackPreferences()) else table
+        return plan.takeUnless { it.leftToPlayer }
+    }
 
     /** [launch]'s tracks and what Settings and the title's choice make of them; null when their order is unknown. */
     suspend fun table(launch: PlaybackPlan.Launch): TrackPlan? {
