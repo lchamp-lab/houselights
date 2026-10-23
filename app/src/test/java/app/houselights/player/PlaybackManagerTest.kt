@@ -214,6 +214,18 @@ class PlaybackManagerTest {
         assertEquals("stopped ${E01 - 2_000} / $E01", closedAt(manager, 1_200_000))
     }
 
+    /** "Next" pressed mid-episode, the next one 18 s longer: only the name the player gives tells it from a seek to the start. */
+    @Test
+    fun nextPressedMidEpisodeIsAnotherFileAsLong() = runTest {
+        val first = (1..5).map { playing(590_000 + it * 2_000L, E01, "/mnt/nfs/nas/series/Show/S01E01.mkv") }
+        val next = (1..10).map { playing(it * 2_000L, E02, "/mnt/nfs/nas/series/Show/S01E02.mkv") }
+        val manager = started(plan("nfs://nas/series/Show/S01E01.mkv"), first + next)
+        advanceTimeBy(4_000 + 2_000 * 14L + 1)
+        assertEquals("Tracking stopped at the other file", first.size + 1, polls)
+
+        assertEquals("stopped 600000 / $E01", closedAt(manager, 30_000))
+    }
+
     /** Unnamed, the next episode as long is told by its start right after the end; a seek to the start is not. */
     @Test
     fun theNextEpisodeAsLongStartsOverRightAfterTheEnd() = runTest {
