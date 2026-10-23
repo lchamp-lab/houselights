@@ -73,6 +73,8 @@ interface JellyfinApi {
         @Query("personIds") personIds: String? = null,
         /** Server-side search on item names. */
         @Query("searchTerm") searchTerm: String? = null,
+        /** Films of a collection given as the collection; the server keeps them apart when other filters are set. */
+        @Query("collapseBoxSetItems") collapseBoxSetItems: Boolean? = null,
     ): ItemsResult
 
     /** People whose names match [searchTerm], using the server's search. */

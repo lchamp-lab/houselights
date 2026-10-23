@@ -44,8 +44,8 @@ object Route {
 
     /**
      * A library's wall, opened pre-filtered from a facet ([filter]; [quality] by enum name, [person] labelled
-     * [personName]). A films wall may show the source's [sagas] (a library id) instead. Opened as a [place] of the
-     * bar, it lies under it.
+     * [personName]). A films wall shows the source's [sagas] (a library id) among its films, or alone. Opened as a
+     * [place] of the bar, it lies under it.
      */
     @Serializable
     data class Library(

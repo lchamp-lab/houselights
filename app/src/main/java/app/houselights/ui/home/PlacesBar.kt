@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 
 /**
  * The places of the bar and where they lead: home, then [tabs], every library but the sagas, which a films' wall
- * shows instead ([sagas]). [onPlace] opens home (null) or a library's wall; [onLibraryAhead] prefetches a wall.
+ * shows among its films ([sagas]). [onPlace] opens home (null) or a library's wall; [onLibraryAhead] prefetches a wall.
  */
 data class Places(
     val tabs: List<Library>,
@@ -39,7 +39,7 @@ data class Places(
     val onSettings: () -> Unit,
     /** Null when the source cannot search. */
     val onSearch: (() -> Unit)? = null,
-    val onLibraryAhead: (Library) -> Unit = {},
+    val onLibraryAhead: (Library, sagas: Library?) -> Unit = { _, _ -> },
 )
 
 /** The places as one focus group, which picks the place to focus: the current one. */
@@ -74,10 +74,11 @@ internal fun PlacesBar(
             if (i != current && current == start) {
                 current = i
                 val library = shown[i]
-                library?.let(places.onLibraryAhead)
+                val sagas = places.sagas.takeIf { library?.kind == LibraryKind.MOVIES }
+                library?.let { places.onLibraryAhead(it, sagas) }
                 scope.launch {
                     awaitMotion(HlMotion.STANDARD)
-                    places.onPlace(library, places.sagas.takeIf { library?.kind == LibraryKind.MOVIES })
+                    places.onPlace(library, sagas)
                 }
             }
         },

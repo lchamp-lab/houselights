@@ -47,6 +47,8 @@
     <string name="sort_added">추가일</string>
     <string name="sort">정렬</string>
     <string name="filter">필터</string>
+    <string name="filter_show">보기</string>
+    <string name="show_grouped">영화와 시리즈</string>
     <string name="filter_status">시청 상태</string>
     <string name="status_in_progress">시청 중</string>
     <string name="status_watched">시청 완료</string>

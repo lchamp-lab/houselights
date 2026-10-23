@@ -531,7 +531,7 @@ private fun homeLibraries(home: NavBackStackEntry): List<Library> {
 /** Opens [library]'s wall filtered by [filter], a page over the one shown rather than a place: it has no bar. */
 internal fun NavController.openWall(library: Library, filter: LibraryFilter) = navigate(Route.Library.of(library, filter))
 
-/** Opens home (null) or [library]'s wall as a place of the bar, a films' wall able to show the source's [sagas]. */
+/** Opens home (null) or [library]'s wall as a place of the bar, a films' wall with the source's [sagas]. */
 internal fun NavController.openPlace(library: Library?, sagas: Library? = null) =
     openPlace(library?.let { Route.Library(it.id, it.kind, it.title, sagas = sagas?.id, place = true) } ?: Route.Home)
 

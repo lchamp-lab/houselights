@@ -18,7 +18,6 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.ui.library.LibraryViewModel
 import app.houselights.ui.library.Wall
-import app.houselights.ui.library.WallHeading
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
@@ -26,6 +25,7 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -66,7 +66,10 @@ class PlacesNavigationTest {
         return nav
     }
 
-    private val libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"), Library("shows", LibraryKind.SHOWS, "Séries"))
+    private val libraries = listOf(
+        Library("films", LibraryKind.MOVIES, "Films"), Library("shows", LibraryKind.SHOWS, "Séries"),
+        Library("sagas", LibraryKind.COLLECTIONS, "Sagas"),
+    )
     private val source = FakeProvider().apply { wall = (1..20).map { film("m$it", "Film $it") } }
 
     /**
@@ -83,9 +86,10 @@ class PlacesNavigationTest {
                 composable<Route.Library> { entry ->
                     val route = entry.toRoute<Route.Library>()
                     val library = Library(route.id, route.kind, route.title)
-                    val vm = remember { LibraryViewModel({ source }, library, opensOn = route.filter) }
+                    val sagas = route.sagas?.let { Library(it, LibraryKind.COLLECTIONS, null) }
+                    val vm = remember { LibraryViewModel({ source }, library, opensOn = route.filter, sagas = sagas) }
                     val places = homePlaces(nav, entry, shown = route.place) { libraries }
-                    Wall(vm, library, WallHeading(route.title.orEmpty()), onOpenItem = {}, places = places)
+                    Wall(vm, library, route.title.orEmpty(), onOpenItem = {}, places = places)
                 }
             }
         }
@@ -151,6 +155,25 @@ class PlacesNavigationTest {
             assertEquals(false, nav.currentBackStackEntry?.toRoute<Route.Library>()?.place)
             assertTrue("Back returns to the numbers", nav.previousBackStackEntry?.destination?.hasRoute<Route.Settings>() == true)
         }
+    }
+
+    /** The films' place shows their sagas among them; the same films opened from the numbers show every film. */
+    @Test
+    fun theFilmsPlaceGroupsItsSagasAWallOpenedElsewhereDoesNot() {
+        val nav = wiredScreens()
+        compose.runOnIdle { nav.openPlace(libraries[1], sagas = null) }
+        compose.waitForIdle()
+        compose.press(Key.DirectionUp, times = 2)
+        focusIsOn("Séries")
+        compose.press(Key.DirectionLeft)
+        focusIsOn("Films")
+        compose.press(Key.DirectionCenter)
+        compose.runOnIdle {
+            assertEquals("sagas", nav.currentBackStackEntry?.toRoute<Route.Library>()?.sagas)
+            assertEquals(FakeProvider.Asked("films", LibraryFilter(), grouped = true), source.pages.last())
+        }
+        compose.runOnIdle { nav.openWall(libraries[0], LibraryFilter(picture = "Ultra HD")) }
+        compose.runOnIdle { assertFalse(source.pages.last().grouped) }
     }
 
     @Test

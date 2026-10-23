@@ -52,6 +52,8 @@ import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
+import app.houselights.core.LibraryKind
+import app.houselights.ui.util.libraryName
 
 /** Forms, menus, choice sheets and long text; HlTwoPane and HlFormScaffold fill the screen (see setup). */
 internal fun LazyListScope.catalogForms() {
@@ -349,13 +351,15 @@ private fun FormMenus() {
             "A popup hanging from the button, inside the safe area: below it when the room down to the safe area " +
                 "holds it, else above (scroll this group to the foot of the screen); a longer menu scrolls inside. " +
                 "It grows from the button's corner and leaves the same way. Sort closes on a choice and applies once " +
-                "the menu has gone; filters stay open so choices combine, and an active one lights the detail.",
+                "the menu has gone; filters stay open so choices combine, and an active one lights the detail. A films " +
+                "wall with sagas first shows its films and sagas, or the sagas alone, named before the filters.",
             style = Hl.type.caption,
             color = Hl.colors.contentTertiary,
             modifier = Modifier.weight(1f),
         )
         Specimen("filters, none active", gap = HlSpace.xs) { FormFilterMenu(FormFilters()) }
         Specimen("filters, two active", gap = HlSpace.xs) { FormFilterMenu(FormFilters(status = 1, genre = "Drame")) }
+        Specimen("the sagas alone, one filter", gap = HlSpace.xs) { FormFilterMenu(FormFilters(sagas = true, status = 1)) }
         Specimen("sort", gap = HlSpace.xs) { FormSortMenu() }
     }
 }
@@ -371,8 +375,14 @@ private fun FormSortMenu() {
     )
 }
 
-/** The library's filters, as its filter menu combines them. */
-private data class FormFilters(val status: Int = 0, val genre: String? = null, val decade: Int? = null, val quality: String? = null) {
+/** The films wall's filters, as its filter menu combines them, and whether it shows the [sagas] alone. */
+private data class FormFilters(
+    val sagas: Boolean = false,
+    val status: Int = 0,
+    val genre: String? = null,
+    val decade: Int? = null,
+    val quality: String? = null,
+) {
     val active: Int get() = listOf(status != 0, genre != null, decade != null, quality != null).count { it }
 }
 
@@ -381,7 +391,17 @@ private fun FormFilterMenu(initial: FormFilters) {
     var f by remember { mutableStateOf(initial) }
     val statuses = formStatuses()
     val decades = FORM_DECADES.associateWith { stringResource(R.string.decade, it) }
+    val sagasName = libraryName(LibraryKind.COLLECTIONS)
     val sections = buildList {
+        add(
+            MenuSection(
+                stringResource(R.string.filter_show),
+                listOf(
+                    MenuOption(stringResource(R.string.show_grouped), !f.sagas) { f = f.copy(sagas = false) },
+                    MenuOption(sagasName, f.sagas) { f = f.copy(sagas = true) },
+                ),
+            )
+        )
         add(
             MenuSection(
                 stringResource(R.string.filter_status),
@@ -409,20 +429,22 @@ private fun FormFilterMenu(initial: FormFilters) {
                     FORM_QUALITIES.map { q -> MenuOption(q, f.quality == q) { f = f.copy(quality = q) } },
             )
         )
-        if (f.active > 0) add(MenuSection(null, listOf(MenuOption("Réinitialiser les filtres", false) { f = FormFilters() })))
+        val reset = MenuOption(stringResource(R.string.reset_filters), false) { f = FormFilters() }
+        if (f.active > 0 || f.sagas) add(MenuSection(null, listOf(reset)))
     }
-    // The button names the active filter, or how many are combined.
-    val detail = when (f.active) {
+    // The button names the sagas shown alone, then the active filter, or how many are combined.
+    val filters = when (f.active) {
         0 -> null
         1 -> statuses[f.status].takeIf { f.status != 0 } ?: f.genre ?: f.decade?.let(decades::getValue) ?: f.quality
         else -> pluralStringResource(R.plurals.filter_count, f.active, f.active)
     }
+    val detail = listOfNotNull(sagasName.takeIf { f.sagas }, filters).joinToString(" · ").ifEmpty { null }
     HlMenuButton(
         text = stringResource(R.string.filter),
         icon = HlIcons.Filter,
         sections = sections,
         detail = detail,
-        detailLit = f.active > 0,
+        detailLit = detail != null,
         closeOnSelect = false,
     )
 }

@@ -52,7 +52,7 @@ private fun IconSheet() {
         HlIcons.Folder, HlIcons.Server, HlIcons.SignOut, HlIcons.Display, HlIcons.Playback, HlIcons.Play, HlIcons.Versions,
         HlIcons.Captions, HlIcons.Sound, HlIcons.Sort, HlIcons.Filter, HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers,
         HlIcons.Edit, HlIcons.Search, HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Erase,
-        HlIcons.Swap, HlIcons.Settings, HlIcons.Add, HlIcons.Refresh, HlIcons.Test, HlIcons.Heart, HlIcons.HeartFilled,
+        HlIcons.Settings, HlIcons.Add, HlIcons.Refresh, HlIcons.Test, HlIcons.Heart, HlIcons.HeartFilled,
         HlIcons.Star, HlIcons.Attention, HlIcons.History, HlIcons.Menu,
     )
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {

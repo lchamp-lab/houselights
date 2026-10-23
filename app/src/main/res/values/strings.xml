@@ -56,6 +56,8 @@
     <string name="sort_added">Date added</string>
     <string name="sort">Sort</string>
     <string name="filter">Filter</string>
+    <string name="filter_show">Show</string>
+    <string name="show_grouped">Movies and sagas</string>
     <string name="filter_status">Status</string>
     <string name="status_in_progress">In progress</string>
     <string name="status_watched">Watched</string>
@@ -624,8 +626,8 @@
     <string name="collections_off">Hidden</string>
     <string name="collections_off_desc">No sagas in Movies and no saga row</string>
     <plurals name="collection_count">
-        <item quantity="one">%d saga</item>
-        <item quantity="other">%d sagas</item>
+        <item quantity="one">%d saga</item>
+        <item quantity="other">%d sagas</item>
     </plurals>
     <!-- People: their jobs, as the credits name them, their page, and the rows the library writes. -->
     <string name="job_cast">Cast</string>

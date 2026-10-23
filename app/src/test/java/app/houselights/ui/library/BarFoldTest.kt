@@ -7,7 +7,6 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
-import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.isSelectable
@@ -22,6 +21,8 @@ import androidx.navigation.compose.rememberNavController
 import app.houselights.Route
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.openPlace
 import app.houselights.ui.design.HlNavBarDefaults
 import app.houselights.ui.design.HlSpace
@@ -58,10 +59,13 @@ class BarFoldTest {
     private val provider = FakeProvider().apply { wall = (1..40).map { film("m$it", "Film $it") } }
     private val places = Places(listOf(films, shows), null, { _, _ -> }, onSettings = {})
 
+    private val sagas = Library("sagas", LibraryKind.COLLECTIONS, null)
+
+    /** The films' wall, showing [view] of the source's [sagas] if given. */
     @Composable
-    private fun FilmsWall(heading: WallHeading = WallHeading("Films")) {
-        val vm = remember { LibraryViewModel({ provider }, films) }
-        Wall(vm, films, heading, onOpenItem = {}, places = places)
+    private fun FilmsWall(sagas: Library? = null, view: WallView = WallView.FILMS_AND_SAGAS) {
+        val vm = remember { LibraryViewModel({ provider }, films, sagas = sagas).apply { setView(view) } }
+        Wall(vm, films, "Films", onOpenItem = {}, places = places)
     }
 
     private fun focusIsOn(text: String) = compose.onNode(isFocused()).assert(hasText(text, substring = true))
@@ -117,18 +121,25 @@ class BarFoldTest {
         assertEquals(atRest, posterTop())
     }
 
+    /** The sagas alone lie under the films' place: the header names them, the bar lights Films. */
     @Test
-    fun withSagasDownFromTheBarLandsOnTheirSwitchAndUpComesBack() {
-        compose.setTvContent { FilmsWall(WallHeading("Films", switchTo = "Sagas")) }
+    fun theSagasAloneLieUnderTheFilmsPlace() {
+        provider.walls = mapOf(sagas.id to listOf(MediaItem("c1", MediaKind.COLLECTION, "Alien")))
+        compose.setTvContent { FilmsWall(sagas, WallView.SAGAS) }
         compose.waitForIdle()
+        focusIsOn("Alien")
+        // Named in the header, and on its filter menu, which chose them.
+        compose.onNode(hasText("Sagas") and !isSelectable() and !hasClickAction()).assertExists()
+        compose.onNode(hasText("Filter") and hasText("Sagas")).assertExists()
+        compose.onNodeWithText("1\u00A0saga").assertExists()
         compose.press(Key.DirectionUp, times = 2)
         focusIsOn("Films")
         compose.press(Key.DirectionRight)
         focusIsOn("Séries")
+        // Down from the bar to the header's menu; Up comes back to the wall's place.
         compose.press(Key.DirectionDown)
-        compose.onNode(isFocused()).assert(hasContentDescription("Sagas"))
+        focusIsOn("Filter")
         assertOpen()
-        // Up from the header: the bar on the wall's place, whichever place focus left it on.
         compose.press(Key.DirectionUp)
         focusIsOn("Films")
     }

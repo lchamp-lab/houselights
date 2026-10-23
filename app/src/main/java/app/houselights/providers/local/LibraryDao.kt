@@ -674,8 +674,13 @@ interface LibraryDao {
     )
     suspend fun collectionCount(minFilms: Int): Int
 
+    /** A wall's rows in order, films and sagas ([SagaWall.page]). */
     @RawQuery
-    suspend fun collectionQuery(query: SupportSQLiteQuery): List<CollectionEntity>
+    suspend fun wallRows(query: SupportSQLiteQuery): List<WallRow>
+
+    /** How many titles a wall holds, sagas among them ([SagaWall.count]). */
+    @RawQuery
+    suspend fun wallCount(query: SupportSQLiteQuery): WallCount
 
     @Query("DELETE FROM collections WHERE id NOT IN (SELECT collectionId FROM items WHERE collectionId IS NOT NULL)")
     suspend fun deleteEmptyCollectionRows()

@@ -21,6 +21,7 @@ import okhttp3.Request
 import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -281,6 +282,21 @@ class JellyfinProviderTest {
         assertFalse("Overview" in fields)
         assertFalse("Genres" in fields)
         assertTrue("ProductionYear" in fields)
+    }
+
+    /** The films and their sagas: the server gives a collection's films as the collection; else every film. */
+    @Test
+    fun theServerGroupsACollectionsFilmsOnlyWhenAsked() = runTest {
+        val server = FakeServer { Answer(200, oneFilm) }
+        val provider = provider(server)
+        val films = Library("lib1", LibraryKind.MOVIES, "Films")
+        val grouped = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), start = 0, limit = 120, grouped = true)
+        assertNull("the server does not count them", grouped.sagas)
+        provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), start = 0, limit = 120)
+        provider.libraryPage(Library("lib2", LibraryKind.SHOWS, "Séries"), SortOption.TITLE, LibraryFilter(), start = 0, limit = 120)
+        val collapsed = synchronized(server.requests) { server.requests.map { it.url.queryParameter("collapseBoxSetItems") } }
+        assertEquals(listOf("true", "false", null), collapsed)
+        assertFalse("a collection is never filtered by its films", provider.capabilities.sagaFilters)
     }
 
     @Test

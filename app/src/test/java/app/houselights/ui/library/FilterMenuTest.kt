@@ -37,7 +37,7 @@ class FilterMenuTest {
 
     private val local = ProviderCapabilities(
         markPlayed = true, favorites = true, similar = true, pathMapping = false, formatNumbers = true, formatFilters = true,
-        personFilter = true,
+        personFilter = true, sagaFilters = true,
     )
     private val jellyfin =
         ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = true, personFilter = true)
@@ -52,11 +52,28 @@ class FilterMenuTest {
 
     private var filter by mutableStateOf(LibraryFilter())
 
+    /** What a films wall with sagas shows; null for a wall without. */
+    private var view by mutableStateOf<WallView?>(null)
+
     /** The menu open, as OK on the button opens it. */
     private fun open(facets: LibraryFacets, can: ProviderCapabilities, person: Person? = null) {
-        compose.setTvContent { FilterButton(filter, facets, can, person) { filter = it } }
+        compose.setTvContent {
+            FilterButton(
+                filter, facets, can, person, view,
+                onView = { view = it },
+                onClear = {
+                    filter = LibraryFilter()
+                    view = view?.let { WallView.FILMS_AND_SAGAS }
+                },
+            ) { filter = it }
+        }
         compose.onNodeWithText("Filtrer").requestFocus()
         compose.press(Key.DirectionCenter)
+    }
+
+    /** The button's detail, after its name: what the wall shows. */
+    private fun buttonSays(detail: String) {
+        compose.onNode(hasText("Filtrer") and hasText(detail)).assertExists()
     }
 
     /** The menu scrolled to [option]: it is offered. */
@@ -126,6 +143,67 @@ class FilterMenuTest {
         offered("Son")
         choose("Tous les sons")
         assertEquals(LibraryFilter(), filter)
+    }
+
+    /** A films wall with sagas shows its films and their sagas, or the sagas alone: chosen first, named first. */
+    @Test
+    fun theSagasAloneAreChosenFirstAndNamedBeforeTheFilters() {
+        view = WallView.FILMS_AND_SAGAS
+        open(facets, local)
+        val shows = compose.onAllNodesWithText("Afficher").fetchSemanticsNodes()
+        assertEquals(1, shows.size)
+        compose.onNodeWithText("Retirer les filtres").assertDoesNotExist()
+        choose("Sagas")
+        assertEquals(WallView.SAGAS, view)
+        buttonSays("Sagas")
+        choose("Non vus")
+        buttonSays("Sagas · Non vus")
+        choose("Drame")
+        buttonSays("Sagas · 2\u00A0filtres")
+        // Nothing else to show: neither every film nor more views.
+        compose.onNodeWithText("Tous les films").assertDoesNotExist()
+    }
+
+    @Test
+    fun theFilmsAndTheirSagasAreNotNamedOnTheButton() {
+        view = WallView.FILMS_AND_SAGAS
+        open(facets, local)
+        choose("Non vus")
+        buttonSays("Non vus")
+        compose.onNodeWithText("Sagas · Non vus").assertDoesNotExist()
+    }
+
+    /** Clearing the filters is offered with the sagas alone, and comes back to the films and sagas, unfiltered. */
+    @Test
+    fun clearingTheFiltersComesBackToTheFilmsAndSagas() {
+        view = WallView.SAGAS
+        filter = LibraryFilter(genre = "Drame")
+        open(facets, local)
+        choose("Retirer les filtres")
+        assertEquals(WallView.FILMS_AND_SAGAS to LibraryFilter(), view to filter)
+    }
+
+    @Test
+    fun aWallWithoutSagasHasNothingToShow() {
+        open(facets, local)
+        offered("Statut")
+        compose.onNodeWithText("Afficher").assertDoesNotExist()
+        compose.onNodeWithText("Films et sagas").assertDoesNotExist()
+    }
+
+    /** Jellyfin cannot filter a collection by its films: the sagas alone offer only the view, the filters kept. */
+    @Test
+    fun sagasTheSourceCannotFilterOfferOnlyTheView() {
+        view = WallView.SAGAS
+        filter = LibraryFilter(genre = "Drame")
+        open(facets, jellyfin)
+        offered("Films et sagas")
+        listOf("Statut", "Genre", "Drame").forEach { compose.onNodeWithText(it).assertDoesNotExist() }
+        buttonSays("Sagas")
+        choose("Films et sagas")
+        assertEquals(LibraryFilter(genre = "Drame"), filter)
+        offered("Genre")
+        buttonSays("Drame")
     }
 
     @Test

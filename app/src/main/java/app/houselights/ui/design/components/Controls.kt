@@ -296,20 +296,6 @@ private fun rememberPlate(): PlateLook {
 }
 
 /**
- * A screen title naming one of two views, then a tile switching to the other; [label] names that one. Not [shown],
- * under the bar that names the place, the title keeps only its height and baseline: the tile comes first, the same
- * tile, so focus on it stays as the bar comes and goes.
- */
-@Composable
-fun HlTitleSwitch(title: String, label: String, onSwitch: () -> Unit, modifier: Modifier = Modifier, shown: Boolean = true) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        ScreenTitle(title, shown = shown)
-        Spacer(Modifier.width(if (shown) HlSpace.s else HlSpace.none))
-        Tile(HlIcons.Swap, label, onSwitch)
-    }
-}
-
-/**
  * A square tile on its plate, white with focus; 40 in a header ([HeaderControls]), else 48. [chosen] lights
  * its glyph in ember, raspberry on the white of focus.
  */

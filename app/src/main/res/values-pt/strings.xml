@@ -51,6 +51,8 @@
     <string name="sort_added">Data de adição</string>
     <string name="sort">Ordenar</string>
     <string name="filter">Filtrar</string>
+    <string name="filter_show">Mostrar</string>
+    <string name="show_grouped">Filmes e sagas</string>
     <string name="filter_status">Status</string>
     <string name="status_in_progress">Em andamento</string>
     <string name="status_watched">Vistos</string>
@@ -624,9 +626,9 @@
     <string name="collections_off">Ocultas</string>
     <string name="collections_off_desc">Nem em Filmes nem em fileira</string>
     <plurals name="collection_count">
-        <item quantity="one">%d saga</item>
-        <item quantity="many">%d sagas</item>
-        <item quantity="other">%d sagas</item>
+        <item quantity="one">%d saga</item>
+        <item quantity="many">%d sagas</item>
+        <item quantity="other">%d sagas</item>
     </plurals>
     <!-- People -->
     <string name="job_cast">Elenco</string>

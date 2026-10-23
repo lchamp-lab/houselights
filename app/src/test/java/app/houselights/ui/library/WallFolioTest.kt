@@ -32,4 +32,12 @@ class WallFolioTest {
         assertEquals("Octobre 2026", folioOf(item("Ajouté", addedAt = october), SortOption.ADDED, Locale.FRENCH))
         assertEquals("7,9", folioOf(item("Noté", rating = 7.9), SortOption.RATING, Locale.FRENCH))
     }
+
+    /** A saga is filed by year under its latest film, as it ranks. */
+    @Test
+    fun aSagaByTheYearOfItsLatestFilm() {
+        val saga = MediaItem("c1", MediaKind.COLLECTION, "Alien", year = 1979, endYear = 1997)
+        assertEquals("1997", folioOf(saga, SortOption.YEAR))
+        assertEquals("1979", folioOf(saga.copy(endYear = null), SortOption.YEAR))
+    }
 }

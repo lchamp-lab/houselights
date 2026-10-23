@@ -53,6 +53,8 @@
     <string name="sort_added">Data dodania</string>
     <string name="sort">Sortuj</string>
     <string name="filter">Filtruj</string>
+    <string name="filter_show">Pokaż</string>
+    <string name="show_grouped">Filmy i sagi</string>
     <string name="filter_status">Status</string>
     <string name="status_in_progress">W trakcie</string>
     <string name="status_watched">Obejrzane</string>
@@ -645,10 +647,10 @@
     <string name="collections_off">Ukryte</string>
     <string name="collections_off_desc">Ani w Filmach, ani w rzędzie</string>
     <plurals name="collection_count">
-        <item quantity="one">%d saga</item>
-        <item quantity="few">%d sagi</item>
-        <item quantity="many">%d sag</item>
-        <item quantity="other">%d sagi</item>
+        <item quantity="one">%d saga</item>
+        <item quantity="few">%d sagi</item>
+        <item quantity="many">%d sag</item>
+        <item quantity="other">%d sagi</item>
     </plurals>
     <!-- People -->
     <string name="job_cast">Obsada</string>

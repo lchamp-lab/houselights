@@ -51,6 +51,8 @@
     <string name="sort_added">Fecha de adición</string>
     <string name="sort">Ordenar</string>
     <string name="filter">Filtrar</string>
+    <string name="filter_show">Mostrar</string>
+    <string name="show_grouped">Películas y sagas</string>
     <string name="filter_status">Estado</string>
     <string name="status_in_progress">En curso</string>
     <string name="status_watched">Vistos</string>

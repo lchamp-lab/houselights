@@ -12,8 +12,10 @@ import app.houselights.AppContainer
 import app.houselights.core.Library
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
+import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaProvider
+import app.houselights.core.Page
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
@@ -26,22 +28,42 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
+/** What a films wall with sagas shows, chosen in its filter menu. */
+enum class WallView {
+    /** The films, each saga's as one poster in their place. */
+    FILMS_AND_SAGAS,
+
+    /** The sagas alone. */
+    SAGAS,
+}
+
 data class LibraryState(
     val items: List<MediaItem> = emptyList(),
     val total: Int = 0,
+    /** Of [total], the sagas, when the source counted them. */
+    val sagas: Int? = null,
     val loading: Boolean = true,
     val error: UiError? = null,
     val sort: SortOption = SortOption.TITLE,
     val filter: LibraryFilter = LibraryFilter(),
     val facets: LibraryFacets = LibraryFacets(),
+    /** What a films wall with sagas shows; null for any other wall, which has nothing to choose. */
+    val view: WallView? = null,
     /** Why the next page could not load, shown at the wall's foot; no page loads by itself until [pageRetrying]. */
     val pageError: UiError? = null,
     val pageRetrying: Boolean = false,
-)
+) {
+    /** The filters the wall shows: none on sagas a source cannot filter ([filtersApply]). */
+    fun applied(can: ProviderCapabilities): LibraryFilter = if (filtersApply(view, can)) filter else LibraryFilter()
+}
+
+/** Whether a wall showing [view] is filtered: the sagas alone only where the source filters them by their films. */
+internal fun filtersApply(view: WallView?, can: ProviderCapabilities): Boolean = view != WallView.SAGAS || can.sagaFilters
 
 /**
- * A library's wall, page by page. Sort and filter are kept in [saved], as Android may kill the app during
- * playback. Opened on part of the library ([opensOn]: a format, a person), it starts filtered by it.
+ * A library's wall, page by page. Sort, filter and view are kept in [saved], as Android may kill the app during
+ * playback. Opened on part of the library ([opensOn]: a format, a person), it starts filtered by it and shows every
+ * film; else a films wall shows each saga of the source's [sagas] as one title, or the sagas alone ([setView]).
  */
 class LibraryViewModel(
     /** The source's provider; null while there is none (its connection could not be read back), and nothing loads. */
@@ -51,9 +73,17 @@ class LibraryViewModel(
     /** The first page, prefetched while Home's track moved to this library. */
     private val ahead: LibraryAhead? = null,
     opensOn: LibraryFilter? = null,
+    sagas: Library? = null,
 ) : ViewModel() {
+    /** The sagas this wall groups its films into, and shows alone. */
+    private val sagas = sagas?.takeIf { groups(library, it) && opensOn == null }
+
     private val _state = MutableStateFlow(
-        LibraryState(sort = saved.sort(), filter = saved.filter(opensOn?.within(capabilities))),
+        LibraryState(
+            sort = saved.sort(),
+            filter = saved.filter(opensOn?.within(capabilities)),
+            view = if (this.sagas == null) null else saved.view(),
+        ),
     )
     val state: StateFlow<LibraryState> = _state
 
@@ -97,6 +127,38 @@ class LibraryViewModel(
         reset()
     }
 
+    /** Shows the films and their sagas, or the sagas alone, with the same filters; only a wall with sagas has a view. */
+    fun setView(view: WallView) {
+        val shown = _state.value.view
+        if (shown == null || view == shown) return
+        saved[VIEW] = view.name
+        _state.update { it.copy(view = view) }
+        reset()
+    }
+
+    /** Back to the whole wall: no filter, and the films with their sagas. */
+    fun clearFilters() {
+        val s = _state.value
+        val view = s.view?.let { WallView.FILMS_AND_SAGAS }
+        if (s.filter == LibraryFilter() && s.view == view) return
+        saved.keep(LibraryFilter())
+        view?.let { saved[VIEW] = it.name }
+        _state.update { it.copy(filter = LibraryFilter(), view = view) }
+        reset()
+    }
+
+    /** The library a page of [s] is asked of, its filter, and whether its sagas are grouped. */
+    private fun asked(s: LibraryState): Asked = when (s.view) {
+        WallView.SAGAS -> Asked(checkNotNull(sagas), s.applied(capabilities), grouped = false)
+        WallView.FILMS_AND_SAGAS -> Asked(library, s.filter, grouped = true)
+        null -> Asked(library, s.filter, grouped = false)
+    }
+
+    private class Asked(val library: Library, val filter: LibraryFilter, val grouped: Boolean)
+
+    private suspend fun MediaProvider.page(s: LibraryState, start: Int, limit: Int): Page =
+        asked(s).let { libraryPage(it.library, s.sort, it.filter, start, limit, it.grouped) }
+
     private fun loadFacets() {
         facetLoads.launch {
             suspendRunCatching { source().libraryFacets(library) }
@@ -108,7 +170,9 @@ class LibraryViewModel(
 
     private fun reset() {
         pages.cancel()
-        _state.update { it.copy(items = emptyList(), total = 0, loading = true, error = null, pageError = null, pageRetrying = false) }
+        _state.update {
+            it.copy(items = emptyList(), total = 0, sagas = null, loading = true, error = null, pageError = null, pageRetrying = false)
+        }
         loadMore()
     }
 
@@ -117,11 +181,14 @@ class LibraryViewModel(
         val s = _state.value
         pages.launch {
             suspendRunCatching {
-                source().libraryPage(library, s.sort, s.filter, start = 0, limit = maxOf(s.items.size, PAGE))
+                source().page(s, start = 0, limit = maxOf(s.items.size, PAGE))
             }.onSuccess { page ->
                 val items = page.items.distinctBy(MediaItem::id)
                 _state.update {
-                    it.copy(items = items, total = page.total, loading = false, error = null, pageError = null, pageRetrying = false)
+                    it.copy(
+                        items = items, total = page.total, sagas = page.sagas, loading = false, error = null, pageError = null,
+                        pageRetrying = false,
+                    )
                 }
             }.onFailure { e ->
                 // Keep what is shown; clear any busy state this reload superseded; report only if nothing shows.
@@ -150,14 +217,15 @@ class LibraryViewModel(
         if (pages.isActive || (s.items.isNotEmpty() && s.items.size >= s.total)) return
         pages.launch {
             suspendRunCatching {
-                val first = if (s.items.isEmpty()) ahead?.take(library, s.sort, s.filter) else null
-                first ?: source().libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
+                val first = if (s.items.isEmpty()) asked(s).let { ahead?.take(it.library, s.sort, it.filter, it.grouped) } else null
+                first ?: source().page(s, start = s.items.size, limit = PAGE)
             }.onSuccess { page ->
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update {
                     it.copy(
                         items = (it.items + page.items).distinctBy(MediaItem::id),
                         total = page.total,
+                        sagas = page.sagas,
                         loading = false,
                         pageError = null,
                         pageRetrying = false,
@@ -181,15 +249,20 @@ class LibraryViewModel(
         private const val TAG = "Library"
         internal const val PAGE = 120
 
-        fun factory(app: AppContainer, library: Library, opensOn: LibraryFilter? = null): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LibraryViewModel(app::providerOrNull, library, createSavedStateHandle(), app.libraryAhead, opensOn) }
-        }
+        fun factory(app: AppContainer, library: Library, opensOn: LibraryFilter?, sagas: Library?): ViewModelProvider.Factory =
+            viewModelFactory {
+                initializer { LibraryViewModel(app::providerOrNull, library, createSavedStateHandle(), app.libraryAhead, opensOn, sagas) }
+            }
     }
 }
+
+/** Whether [library]'s wall shows its films' [sagas] among them: a films wall, of a source with sagas. */
+internal fun groups(library: Library, sagas: Library?): Boolean = sagas != null && library.kind == LibraryKind.MOVIES
 
 // A wall's route passes what it opens on under the last five keys, as the same plain values, so its saved
 // state starts with them; [filter] reads the saved state only once [keep] has written every key.
 private const val SORT = "sort"
+private const val VIEW = "view"
 private const val STATUS = "status"
 private const val GENRE = "genre"
 private const val DECADE = "decade"
@@ -202,6 +275,10 @@ private const val PERSON = "person"
 /** The kept sort, by name; an unknown name falls back to the default. */
 private fun SavedStateHandle.sort(): SortOption =
     get<String>(SORT)?.let { name -> SortOption.entries.find { it.name == name } } ?: SortOption.TITLE
+
+/** The kept view, by name; films and sagas by default. */
+private fun SavedStateHandle.view(): WallView =
+    get<String>(VIEW)?.let { name -> WallView.entries.find { it.name == name } } ?: WallView.FILMS_AND_SAGAS
 
 /** The kept filter, else [opensOn], kept at once so a restored wall is as it was left, not as it was opened. */
 private fun SavedStateHandle.filter(opensOn: LibraryFilter?): LibraryFilter {

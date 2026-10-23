@@ -144,6 +144,20 @@ class LargeLibraryTest {
         assertTrue("sagas page ran $count queries", count <= PAGE_QUERIES)
     }
 
+    /** Every film is in a saga of five: the films wall shows the sagas, ranked and filtered in SQL. */
+    @Test
+    fun aPageOfFilmsAndSagasCostsAFewQueries() = runTest {
+        val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
+        val (page, count) = measure("films and sagas page") {
+            provider.libraryPage(films, SortOption.ADDED, LibraryFilter(), 0, PAGE, grouped = true)
+        }
+        assertEquals(PAGE, page.items.size)
+        assertEquals(SAGAS to SAGAS, page.total to page.sagas)
+        // The saga of the film added last comes first.
+        assertEquals("Saga ${(FILMS - 1) % SAGAS}", page.items.first().title)
+        assertTrue("films and sagas page ran $count queries", count <= GROUPED_QUERIES)
+    }
+
     /** Home, with "À suivre": the state of every episode of the last shows watched, then the next episode of each. */
     @Test
     fun homeWithItsNextUpCostsAFewQueries() = runTest {
@@ -216,5 +230,8 @@ class LargeLibraryTest {
         const val PAGE = 120
         const val HOME_QUERIES = 10
         const val PAGE_QUERIES = 5
+
+        /** A page and its count, then its films, their sources' first scans, its sagas and their films. */
+        const val GROUPED_QUERIES = 6
     }
 }
