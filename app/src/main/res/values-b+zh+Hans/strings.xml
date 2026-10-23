@@ -547,7 +547,8 @@
     <string name="journal_masked">密码和令牌已隐藏；您的文件、共享和 NAS 的名称仍会保留：发布前请先检查。</string>
     <string name="journal_closes">此页面随本面板关闭，最迟 %1$s 后关闭。</string>
     <string name="journal_offline">播放器未连接任何局域网：请将其连接到路由器，然后重新打开此面板。</string>
-    <string name="journal_few">日志中几乎没有内容：请在问题发生后立即打开此面板，不要重启应用。</string>
+    <string name="journal_failed">无法在此播放器上打开页面：请关闭此面板，然后重新打开。</string>
+    <string name="journal_few">扫描此二维码可打开日志，但目前几乎为空：请在问题发生后立即打开此面板，不要重启应用。</string>
     <string name="journal_page_title">日志</string>
     <string name="journal_page_text">应用最近写入的行，最新的在前。</string>
     <string name="journal_copy">复制</string>

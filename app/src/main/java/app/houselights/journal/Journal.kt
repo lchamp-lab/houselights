@@ -9,12 +9,15 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.DeviceIdentity
 import app.houselights.player.ZidooStatus
+import app.houselights.providers.local.Protocol
+import app.houselights.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.net.InetAddress
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -26,18 +29,36 @@ sealed interface JournalAccess {
 
     /** No home network to serve it on. */
     data object Offline : JournalAccess
+
+    /** The page could not listen on the player. */
+    data object Failed : JournalAccess
 }
 
 /** Opens the journal's page for a phone. */
 fun interface JournalOpener {
-    /** Tells where the page is ([opened]), then serves it; returns once it has closed on its own, or at once when offline. */
+    /** Tells where the page is ([opened]), then serves it; returns once it has closed on its own, at once when it cannot open. */
     suspend fun serve(opened: (JournalAccess) -> Unit)
 }
 
-/** The app's journal on the home network ([JournalServer]), its lines read again at each request ([AppLog]). */
-class LocalJournal(private val context: Context, private val container: AppContainer, private val log: AppLog = AppLog()) : JournalOpener {
+/**
+ * The app's journal on the home network ([JournalServer]) at [host]'s address, its lines read again at each request
+ * ([AppLog]); its head says the source from [settings], with [protocols], the folders', and Trakt.
+ */
+class LocalJournal(
+    private val context: Context,
+    private val settings: () -> AppSettings,
+    private val protocols: suspend () -> List<Protocol>,
+    private val log: AppLog = AppLog(),
+    private val host: () -> InetAddress? = { HomeAddress.find(context) },
+) : JournalOpener {
+    constructor(context: Context, container: AppContainer) : this(
+        context,
+        settings = { container.settings.state.value },
+        protocols = { container.library.folders.first().map { it.protocol } },
+    )
+
     override suspend fun serve(opened: (JournalAccess) -> Unit) = coroutineScope {
-        val host = withContext(Dispatchers.IO) { JournalServer.privateIpv4() } ?: return@coroutineScope opened(JournalAccess.Offline)
+        val address = withContext(Dispatchers.IO) { host() } ?: return@coroutineScope opened(JournalAccess.Offline)
         // The player's firmware may take its API's time to answer: the page waits for it, not the sheet.
         val facts = async { facts() }
         val words = words()
@@ -49,10 +70,11 @@ class LocalJournal(private val context: Context, private val container: AppConta
         }
         val few = log.read().size < AppLog.FEW_LINES
         try {
-            JournalServer(host, content).serve { opened(JournalAccess.Open(it, few)) }
+            JournalServer(address, content).serve { opened(JournalAccess.Open(it, few)) }
         } catch (e: IOException) {
             Log.w(TAG, "The journal's page could not open", e)
-            opened(JournalAccess.Offline)
+            facts.cancel()
+            opened(JournalAccess.Failed)
         }
     }
 
@@ -60,11 +82,10 @@ class LocalJournal(private val context: Context, private val container: AppConta
     private suspend fun facts(): List<String> {
         val device = DeviceIdentity.current()
         val firmware = if (device.namesZidoo) ZidooStatus.firmware() else null
-        val settings = container.settings.state.value
+        val settings = settings()
         val source = when (settings.source) {
             SourceConfig.Local -> {
-                val folders = suspendRunCatching { container.library.folders.first() }.getOrDefault(emptyList())
-                val protocols = folders.map { it.protocol.name }.distinct().sorted()
+                val protocols = suspendRunCatching { protocols() }.getOrDefault(emptyList()).map { it.name }.distinct().sorted()
                 context.getString(R.string.source_local) + protocols.joinToString(", ").let { if (it.isEmpty()) "" else " ($it)" }
             }
             is SourceConfig.Jellyfin -> JELLYFIN

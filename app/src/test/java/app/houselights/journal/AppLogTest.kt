@@ -10,7 +10,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
-import java.io.OutputStream
 
 /** The journal reads the app's own lines only, the last of them within its bounds, each masked before it is kept. */
 @RunWith(RobolectricTestRunner::class)
@@ -75,23 +74,6 @@ class AppLogTest {
     }
 
     private fun input(text: String) = ByteArrayInputStream(text.toByteArray())
-
-    /** A process that printed [output] and ended. */
-    private class FakeProcess(output: String) : Process() {
-        private val stdout = ByteArrayInputStream(output.toByteArray())
-
-        override fun getOutputStream(): OutputStream = OutputStream.nullOutputStream()
-
-        override fun getInputStream(): InputStream = stdout
-
-        override fun getErrorStream(): InputStream = InputStream.nullInputStream()
-
-        override fun waitFor(): Int = 0
-
-        override fun exitValue(): Int = 0
-
-        override fun destroy() = Unit
-    }
 
     private companion object {
         const val LINE = "10-23 10:42:11.123  4321  4350"

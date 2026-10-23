@@ -26,14 +26,15 @@ data class JournalHead(val facts: List<String>, val time: String) {
 }
 
 /**
- * The journal as a phone shows it ([html]) and as it is downloaded ([text]). The page is dark and plain, needs
- * nothing from elsewhere, and escapes every line; its one script copies the text.
+ * The journal as a phone shows it ([html]) and as it is downloaded ([text]), each line masked ([Redact.text]) whatever
+ * gave it. The page is dark and plain, needs nothing from elsewhere, and escapes every line; its one script copies the
+ * text.
  */
 object JournalPage {
-    /** The downloaded text: the head's line, then the lines oldest first, as logcat wrote them. */
+    /** The downloaded text: the head's line, then the lines oldest first, as logcat wrote them but masked. */
     fun text(head: JournalHead, lines: List<String>): String = buildString {
         append(head.line).append("\n\n")
-        lines.forEach { append(it).append('\n') }
+        lines.forEach { append(Redact.text(it)).append('\n') }
     }
 
     /**
@@ -67,8 +68,9 @@ object JournalPage {
 
     /** A line as the page shows it: its time, level, tag and message, in colour from a warning up, its masks lit. */
     internal fun line(raw: String): String {
-        val match = THREADTIME.matchEntire(raw)
-        val shown = match?.groupValues?.let { "${it[TIME]} ${it[LEVEL]} ${it[TAG].padEnd(TAG_WIDTH)} ${it[MESSAGE]}" } ?: raw
+        val masked = Redact.text(raw)
+        val match = THREADTIME.matchEntire(masked)
+        val shown = match?.groupValues?.let { "${it[TIME]} ${it[LEVEL]} ${it[TAG].padEnd(TAG_WIDTH)} ${it[MESSAGE]}" } ?: masked
         val escaped = escape(shown).replace(Redact.TEXT_MASK, "<span class=\"m\">${Redact.TEXT_MASK}</span>")
         val kind = when (match?.groupValues?.get(LEVEL)) {
             "W" -> "w"

@@ -30,10 +30,14 @@ import java.util.concurrent.atomic.AtomicLong
 class JournalServerTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val now = AtomicLong(1_000_000)
+    /** Lines as logcat writes them, secrets included: the page masks them, whatever gave them. */
     private val lines = listOf(
-        "10-23 10:40:02.100  4321  4350 I Playback: Launch smb://•••@nas/series/MobLand/S01E02.mkv",
+        "10-23 10:40:02.100  4321  4350 I Playback: Launch smb://zidoo:p4ss@nas/series/MobLand/S01E02.mkv",
+        "10-23 10:41:00.000  4321  4350 D Jellyfin: GET http://nas:8096/Items?api_key=0123abcd&ParentId=42",
+        "10-23 10:41:30.000  4321  4350 D Settings: password: hunter 2",
         "10-23 10:42:11.123  4321  4350 W Trakt   : <b>unreadable</b> answer & more",
     )
+    private val secrets = listOf("p4ss", "0123abcd", "hunter")
     private val head = JournalHead(listOf("Houselights 0.3.0", "ZIDOO Z1000 Pro"), "23/10/2026 10:42")
     private val words = JournalWords("fr", "Journal", "Les dernières lignes.", "Copier", "Copié", "Télécharger", "Aucune ligne.")
     private val content = object : JournalContent {
@@ -71,6 +75,9 @@ class JournalServerTest {
         assertEquals(200, reply.status)
         assertEquals("text/html; charset=utf-8", reply.headers["content-type"])
         assertTrue(reply.body, reply.body.contains("smb://<span class=\"m\">•••</span>@nas/series/MobLand/S01E02.mkv"))
+        assertTrue(reply.body, reply.body.contains("api_key=<span class=\"m\">•••</span>&amp;ParentId=42"))
+        assertTrue(reply.body, reply.body.contains("password: <span class=\"m\">•••</span>"))
+        secrets.forEach { assertFalse(it, reply.body.contains(it)) }
         assertTrue(reply.body, reply.body.contains("&lt;b&gt;unreadable&lt;/b&gt; answer &amp; more"))
         assertFalse(reply.body, reply.body.contains("<b>unreadable"))
         // The page lives nowhere else, keeps no copy and runs nothing it did not bring.
@@ -93,6 +100,8 @@ class JournalServerTest {
         assertEquals("text/plain; charset=utf-8", reply.headers["content-type"])
         assertEquals("attachment; filename=\"houselights-journal.txt\"", reply.headers["content-disposition"])
         assertEquals(JournalPage.text(head, lines), reply.body)
+        assertTrue(reply.body, reply.body.contains("smb://•••@nas/series/MobLand/S01E02.mkv"))
+        secrets.forEach { assertFalse(it, reply.body.contains(it)) }
     }
 
     @Test
@@ -150,20 +159,6 @@ class JournalServerTest {
         assertNull(runCatching { get(uri, uri.path) }.getOrNull()?.status)
         runBlocking { withTimeout(WAIT_MS) { job.join() } }
         assertRefused(uri)
-    }
-
-    @Test
-    fun theHomeNetworksAddressIsAPrivateIpv4One() {
-        fun address(text: String) = InetAddress.getByName(text)
-        assertEquals(
-            address("192.168.1.53"),
-            JournalServer.privateIpv4(listOf(address("::1"), address("127.0.0.1"), address("fe80::1"), address("192.168.1.53"))),
-        )
-        assertEquals(address("10.0.0.7"), JournalServer.privateIpv4(listOf(address("2a01:e0a::1"), address("10.0.0.7"))))
-        assertEquals(address("172.20.1.2"), JournalServer.privateIpv4(listOf(address("172.20.1.2"))))
-        // A public address, the loopback or a link-local one is no home network.
-        val none = listOf(address("82.64.1.2"), address("127.0.0.1"), address("169.254.3.4"), address("2a01:e0a::1"))
-        assertNull(JournalServer.privateIpv4(none))
     }
 
     private suspend fun Job.cancelAndJoinQuietly() {

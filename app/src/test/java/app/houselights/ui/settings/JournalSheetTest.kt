@@ -1,6 +1,7 @@
 package app.houselights.ui.settings
 
 import android.view.KeyEvent
+import androidx.activity.ComponentActivity
 import android.view.View
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,10 +15,11 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.isFocused
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.lifecycle.Lifecycle
 import app.houselights.journal.JournalAccess
 import app.houselights.journal.JournalOpener
 import app.houselights.ui.design.HlSpace
@@ -43,7 +45,8 @@ import org.robolectric.shadows.ShadowDialog
 
 /**
  * About, Envoyer le journal: OK opens a sheet with the page's QR code and address and what the log keeps, or that
- * there is no home network; the page is served while the sheet is open, and the sheet closes with the page.
+ * there is no home network, or that the page cannot open; the page is served while the sheet is open and the app on
+ * screen, and the sheet closes with the page.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr-$TV")
@@ -51,7 +54,7 @@ import org.robolectric.shadows.ShadowDialog
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class JournalSheetTest {
     @get:Rule
-    val compose = createComposeRule()
+    val compose = createAndroidComposeRule<ComponentActivity>()
 
     private val row = FocusRequester()
 
@@ -166,12 +169,14 @@ class JournalSheetTest {
     /** [node] whole on the screen, not clipped by the sheet's scroll. */
     private fun shown(node: SemanticsNode) = node.boundsInRoot.bottom >= foot(node) - 1f && foot(node) <= SCREEN_HEIGHT
 
+    /** The code never shows without what it opens: with almost nothing in the log, one sentence says both. */
     @Test
-    fun withAlmostNothingInTheLogItSaysWhenToOpenIt() {
+    fun withAlmostNothingInTheLogItSaysWhatTheCodeOpensAndWhenToOpenIt() {
         show(FakeJournal(JournalAccess.Open(ADDRESS, few = true)))
         compose.press(Key.DirectionCenter)
         compose.onNodeWithText(FEW).assertExists()
         compose.onNodeWithText(SCAN).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Code QR").assertExists()
         compose.onNodeWithText(ADDRESS).assertExists()
         compose.onNodeWithText(MASKED).assertExists()
     }
@@ -185,6 +190,37 @@ class JournalSheetTest {
         compose.onNodeWithContentDescription("Code QR").assertDoesNotExist()
         compose.onNodeWithText(MASKED).assertDoesNotExist()
         compose.onNodeWithText(CLOSES).assertDoesNotExist()
+    }
+
+    @Test
+    fun whenThePageCannotOpenItSaysSoInPlaceOfTheCode() {
+        show(FakeJournal(JournalAccess.Failed))
+        compose.press(Key.DirectionCenter)
+        compose.onNodeWithText(FAILED).assertExists()
+        compose.onNodeWithText(OFFLINE).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Code QR").assertDoesNotExist()
+        compose.onNodeWithText(MASKED).assertDoesNotExist()
+        compose.onNodeWithText(CLOSES).assertDoesNotExist()
+    }
+
+    /** Home leaves the sheet composed while the app is out of sight: the page closes as the app stops, and the sheet with it. */
+    @Test
+    fun leavingTheAppClosesThePageAndTheSheet() {
+        val journal = FakeJournal(OPEN)
+        show(journal)
+        compose.press(Key.DirectionCenter)
+        compose.onNodeWithText(ADDRESS).assertExists()
+
+        compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertTrue("the page closes as the app stops", journal.cancelled)
+            assertFalse(journal.serving)
+        }
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        compose.waitForIdle()
+        compose.onNodeWithText(ADDRESS).assertDoesNotExist()
+        assertEquals("back on screen, it opens no page again", 1, journal.served)
     }
 
     @Test
@@ -232,7 +268,9 @@ class JournalSheetTest {
         const val MASKED = "Mots de passe et jetons y sont masqués$NB; les noms de vos fichiers, partages et du NAS y restent$NB: " +
             "relisez-le avant de le publier."
         const val CLOSES = "La page se ferme avec ce panneau, au plus tard dans 10${NB}min."
-        const val FEW = "Le journal ne contient presque rien$NB: ouvrez ce panneau juste après le problème, sans redémarrer l’app."
+        const val FEW = "Scannez ce code pour ouvrir le journal, presque vide$NB: revenez ici juste après le problème, " +
+            "sans redémarrer l’app."
         const val OFFLINE = "Le lecteur n’est relié à aucun réseau local$NB: reliez-le à votre box, puis ouvrez à nouveau ce panneau."
+        const val FAILED = "La page n’a pas pu s’ouvrir sur ce lecteur$NB: fermez ce panneau, puis ouvrez-le à nouveau."
     }
 }

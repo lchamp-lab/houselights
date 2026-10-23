@@ -545,7 +545,8 @@
     <string name="journal_masked">パスワードとトークンは伏せられていますが、ファイル、共有フォルダ、NASの名前は残ります。公開する前に確認してください。</string>
     <string name="journal_closes">このページはこのパネルとともに閉じ、遅くとも%1$s後には閉じます。</string>
     <string name="journal_offline">プレーヤーがローカルネットワークに接続されていません。ルーターに接続してから、このパネルを開き直してください。</string>
-    <string name="journal_few">ログにほとんど何もありません。問題が起きた直後に、アプリを再起動せずにこのパネルを開いてください。</string>
+    <string name="journal_failed">このプレーヤーでページを開けませんでした。このパネルを閉じてから、もう一度開いてください。</string>
+    <string name="journal_few">このコードでほぼ空のログが開きます。問題が起きた直後に、アプリを再起動せずにこのパネルを開いてください。</string>
     <string name="journal_page_title">ログ</string>
     <string name="journal_page_text">アプリが書き込んだ最新の行です。新しい順に表示します。</string>
     <string name="journal_copy">コピー</string>

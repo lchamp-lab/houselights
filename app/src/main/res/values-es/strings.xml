@@ -573,7 +573,8 @@
     <string name="journal_masked">Las contraseñas y los tokens están ocultos; los nombres de sus archivos, recursos compartidos y del NAS permanecen: revíselo antes de publicarlo.</string>
     <string name="journal_closes">La página se cierra con este panel, como máximo en %1$s.</string>
     <string name="journal_offline">El reproductor no está conectado a ninguna red local: conéctelo a su router y vuelva a abrir este panel.</string>
-    <string name="journal_few">El registro casi no contiene nada: abra este panel justo después del problema, sin reiniciar la app.</string>
+    <string name="journal_failed">La página no se pudo abrir en este reproductor: cierre este panel y vuelva a abrirlo.</string>
+    <string name="journal_few">Escanee el código para abrir el registro, casi vacío: vuelva aquí justo después del problema, sin reiniciar la app.</string>
     <string name="journal_page_title">Registro</string>
     <string name="journal_page_text">Las últimas líneas que escribió la app, de la más reciente a la más antigua.</string>
     <string name="journal_copy">Copiar</string>

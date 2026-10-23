@@ -573,7 +573,8 @@
     <string name="journal_masked">Password e token vi sono nascosti; i nomi dei file, delle condivisioni e del NAS restano: rileggerlo prima di pubblicarlo.</string>
     <string name="journal_closes">La pagina si chiude con questo pannello, al più tardi tra %1$s.</string>
     <string name="journal_offline">Il lettore non è collegato a nessuna rete locale: collegarlo al router, poi riaprire questo pannello.</string>
-    <string name="journal_few">Il registro non contiene quasi nulla: aprire questo pannello subito dopo il problema, senza riavviare l’app.</string>
+    <string name="journal_failed">Non è stato possibile aprire la pagina su questo lettore: chiudere questo pannello, poi riaprirlo.</string>
+    <string name="journal_few">Inquadrare il codice per aprire il registro, quasi vuoto: tornare qui subito dopo il problema, senza riavviare l’app.</string>
     <string name="journal_page_title">Registro</string>
     <string name="journal_page_text">Le ultime righe scritte dall’app, dalla più recente alla più vecchia.</string>
     <string name="journal_copy">Copia</string>

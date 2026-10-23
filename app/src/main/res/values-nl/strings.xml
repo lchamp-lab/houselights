@@ -560,7 +560,8 @@
     <string name="journal_masked">Wachtwoorden en tokens zijn erin verborgen; de namen van uw bestanden, shares en NAS blijven staan: lees het na voordat u het publiceert.</string>
     <string name="journal_closes">De pagina sluit met dit paneel, uiterlijk over %1$s.</string>
     <string name="journal_offline">De speler is met geen enkel lokaal netwerk verbonden: verbind hem met uw router en open dit paneel opnieuw.</string>
-    <string name="journal_few">Het logboek bevat bijna niets: open dit paneel direct na het probleem, zonder de app opnieuw te starten.</string>
+    <string name="journal_failed">De pagina kon op deze speler niet worden geopend: sluit dit paneel en open het opnieuw.</string>
+    <string name="journal_few">Deze code opent het logboek, nog bijna leeg: kom direct na het probleem terug, zonder de app opnieuw te starten.</string>
     <string name="journal_page_title">Logboek</string>
     <string name="journal_page_text">De laatste regels die de app schreef, de nieuwste eerst.</string>
     <string name="journal_copy">Kopiëren</string>

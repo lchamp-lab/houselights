@@ -9,10 +9,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.journal.JournalAccess
@@ -27,6 +30,8 @@ import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.ReadingPlate
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatDuration
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /** Sending the app's log, for a report: OK opens a sheet whose QR code opens the log on a phone ([JournalSheet]). */
@@ -51,10 +56,11 @@ private fun rememberJournal(): JournalOpener {
 
 /**
  * The journal's page while the sheet is open, as Soutenir Houselights shows its page: what the code opens, the QR code
- * and the address, then what the log keeps and when the page closes. A log holding almost nothing says to come back
- * right after the problem in place of what the code opens; without a home network, the sheet says so in place of the
- * code. The page closes with the sheet, and the sheet with the page once its time is up. Nothing in it takes focus
- * but, taller than the screen (the largest text), its notes on a plate, which Down rings and reads the sheet through from.
+ * and the address, then what the log keeps and when the page closes. A log holding almost nothing says so with what the
+ * code opens, and to come back right after the problem; without a home network, or when the page cannot open, the
+ * sheet says so in place of the code. The page closes with the sheet or once the app leaves the screen, and the sheet
+ * with the page once its time is up. Nothing in it takes focus but, taller than the screen (the largest text), its
+ * notes on a plate, which Down rings and reads the sheet through from.
  */
 @Composable
 internal fun JournalSheet(journal: JournalOpener, onDismiss: () -> Unit) {
@@ -62,13 +68,24 @@ internal fun JournalSheet(journal: JournalOpener, onDismiss: () -> Unit) {
     val description = when (val a = access) {
         null -> null
         JournalAccess.Offline -> stringResource(R.string.journal_offline)
+        JournalAccess.Failed -> stringResource(R.string.journal_failed)
         is JournalAccess.Open -> stringResource(if (a.few) R.string.journal_few else R.string.journal_scan)
     }
     val scroll = rememberScrollState()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val dismiss by rememberUpdatedState(onDismiss)
     HlSideSheet(stringResource(R.string.journal), onDismiss, description = description, scroll = scroll) { sheet ->
-        LaunchedEffect(journal) {
-            journal.serve { access = it }
-            if (access is JournalAccess.Open) sheet.dismiss()
+        LaunchedEffect(journal, lifecycle) {
+            val serving = launch { journal.serve { access = it } }
+            // Home stops the app but leaves the sheet composed, and nothing recomposes until it is back: the page closes now.
+            val leaving = launch {
+                lifecycle.currentStateFlow.first { !it.isAtLeast(Lifecycle.State.STARTED) }
+                serving.cancel()
+                dismiss()
+            }
+            serving.join()
+            leaving.cancel()
+            if (!serving.isCancelled && access is JournalAccess.Open) sheet.dismiss()
         }
         (access as? JournalAccess.Open)?.let { open ->
             // In capitals, the address takes the QR code's most compact mode; the page answers in either case.

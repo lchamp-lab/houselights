@@ -9,12 +9,9 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.net.Inet4Address
 import java.net.InetAddress
-import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
-import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -228,22 +225,6 @@ class JournalServer(
             } catch (_: IOException) {
                 // Already closed.
             }
-        }
-
-        /**
-         * The device's private IPv4 address on the home network (10/8, 172.16/12, 192.168/16), from the interfaces that
-         * are up; null without one.
-         */
-        fun privateIpv4(addresses: List<InetAddress> = upAddresses()): Inet4Address? =
-            addresses.filterIsInstance<Inet4Address>().firstOrNull { it.isSiteLocalAddress && !it.isLoopbackAddress }
-
-        /** The addresses of the interfaces that are up; none when the system cannot list them. */
-        private fun upAddresses(): List<InetAddress> = try {
-            NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
-                .filter { it.isUp && !it.isLoopback }
-                .flatMap { it.inetAddresses.toList() }
-        } catch (_: SocketException) {
-            emptyList()
         }
     }
 }

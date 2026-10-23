@@ -53,6 +53,25 @@ class JournalPageTest {
         assertTrue(page, page.contains("&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt; &quot;a&quot; &amp; b"))
     }
 
+    /** Whatever gave the lines, the page and the text mask them, and what was masked stays so. */
+    @Test
+    fun everyLineIsMaskedAgain() {
+        val raw = listOf(
+            "10-23 10:42:11.123  4321  4350 I Playback: Launch smb://lea:my pass@nas/film.mkv",
+            "10-23 10:42:12.000  4321  4350 D Settings: password: hunter2",
+        )
+        val page = page(raw + lines.first())
+        val text = JournalPage.text(head, raw + lines.first())
+        listOf(page, text).forEach { shown ->
+            listOf("lea:", "my pass", "hunter2").forEach { assertFalse(shown, shown.contains(it)) }
+        }
+        assertTrue(page, page.contains("smb://<span class=\"m\">•••</span>@nas/film.mkv"))
+        assertTrue(page, page.contains("password: <span class=\"m\">•••</span>"))
+        assertTrue(page, page.contains("api_key=<span class=\"m\">•••</span>&amp;ParentId=42"))
+        assertTrue(text, text.contains("smb://•••@nas/film.mkv\n"))
+        assertTrue(text, text.contains("${lines.first()}\n"))
+    }
+
     @Test
     fun itsStyleAndScriptCarryTheNonceAndNothingComesFromElsewhere() {
         val page = page()

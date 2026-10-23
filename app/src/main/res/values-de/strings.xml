@@ -560,7 +560,8 @@
     <string name="journal_masked">Passwörter und Tokens sind darin verborgen; die Namen Ihrer Dateien, Freigaben und Ihres NAS bleiben: Lesen Sie es, bevor Sie es veröffentlichen.</string>
     <string name="journal_closes">Die Seite schließt sich mit dieser Leiste, spätestens in %1$s.</string>
     <string name="journal_offline">Der Player ist mit keinem lokalen Netzwerk verbunden: Verbinden Sie ihn mit Ihrem Router und öffnen Sie diese Leiste erneut.</string>
-    <string name="journal_few">Das Protokoll enthält fast nichts: Öffnen Sie diese Leiste direkt nach dem Problem, ohne die App neu zu starten.</string>
+    <string name="journal_failed">Die Seite konnte auf diesem Player nicht geöffnet werden: Schließen Sie diese Leiste und öffnen Sie sie erneut.</string>
+    <string name="journal_few">Der Code öffnet das noch fast leere Protokoll: Kommen Sie gleich nach dem Problem zurück, ohne Neustart der App.</string>
     <string name="journal_page_title">Protokoll</string>
     <string name="journal_page_text">Die letzten Zeilen der App, die neuesten zuerst.</string>
     <string name="journal_copy">Kopieren</string>
