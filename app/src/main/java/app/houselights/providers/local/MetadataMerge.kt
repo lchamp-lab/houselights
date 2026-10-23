@@ -7,7 +7,7 @@ import app.houselights.core.yearOf
 /** TMDB details of a film or show, in a shape common to both. */
 data class TmdbDetails(
     val id: Int,
-    val title: String,
+    val title: String?,
     val originalTitle: String?,
     val overview: String?,
     val tagline: String?,

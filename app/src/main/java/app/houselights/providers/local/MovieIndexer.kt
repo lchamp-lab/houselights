@@ -224,7 +224,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val name = nfo?.collection ?: ref?.name ?: return null
         // A custom NFO set ("Marvel") is not TMDB's collection, even if the film is in one.
         val tmdbId = nfo?.collectionTmdbId
-            ?: ref?.id?.takeIf { nfo?.collection == null || CollectionRules.sameName(nfo.collection, ref.name) }
+            ?: ref?.id?.takeIf { nfo?.collection == null || ref.name != null && CollectionRules.sameName(nfo.collection, ref.name) }
         val key = CollectionRules.key(tmdbId, name)
         val row = dao.collectionByKey(key) ?: CollectionEntity(
             matchKey = key,
@@ -244,7 +244,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         // Fetched at most once per pass, answered or not.
         if (plan.fetch != null) refreshedCollections += c.id
         details.value?.let { full ->
-            val shown = plan.nfoName ?: full.name
+            val shown = plan.nfoName ?: full.name ?: c.name
             c = c.copy(
                 name = shown,
                 sortTitle = MetadataMerge.sortKey(shown),

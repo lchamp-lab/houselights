@@ -5,13 +5,16 @@ import android.util.Log
 import app.houselights.core.Http
 import app.houselights.core.HttpStatus
 import app.houselights.core.TraktSession
+import app.houselights.core.serverJson
 import app.houselights.core.suspendRunCatching
+import app.houselights.core.unreadable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.SerializationException
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import retrofit2.Response
@@ -23,8 +26,16 @@ enum class DeviceCodeEnd { APPROVED, DENIED, EXPIRED, INVALID, USED }
 /** No Trakt account is connected, or Trakt ended its connection: it must be connected again. */
 class TraktSignedOutException : IllegalStateException("No Trakt account connected")
 
-/** A failure for the log: its status or its type, never its message, which may quote an answer and its tokens. */
-internal fun described(e: Throwable): String = if (e is HttpException) "HTTP ${e.code()}" else e.javaClass.simpleName
+/**
+ * A failure for the log: its status, where an answer could not be read, or its type; never its message, which may
+ * quote an answer and its tokens.
+ */
+internal fun described(e: Throwable): String = when (e) {
+    is HttpException -> "HTTP ${e.code()}"
+    // Its type alone would be renamed in a release build.
+    is SerializationException -> unreadable(e)
+    else -> e.javaClass.simpleName
+}
 
 /** What connecting and disconnecting an account takes ([TraktAccount]); an interface so tests can stand in for Trakt. */
 interface TraktLink {
@@ -229,7 +240,7 @@ class TraktAccount(
     private fun grantRefused(e: HttpException): Boolean {
         if (e.code() != BAD_REQUEST && e.code() != HttpStatus.UNAUTHORIZED) return false
         val body = runCatching { e.response()?.errorBody()?.string() }.getOrNull() ?: return false
-        return runCatching { TraktClient.json.decodeFromString<OAuthError>(body).error }.getOrNull() == INVALID_GRANT
+        return runCatching { serverJson.decodeFromString<OAuthError>(body).error }.getOrNull() == INVALID_GRANT
     }
 
     private companion object {

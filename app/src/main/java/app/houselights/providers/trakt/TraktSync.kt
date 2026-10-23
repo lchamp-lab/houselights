@@ -101,6 +101,9 @@ class TraktSync(
 
     private var lastWrite: Long? = null
 
+    /** The last call to Trakt that failed, by its route, so that the log says where a failure came from. */
+    private var failed: Pair<String, Throwable>? = null
+
     /**
      * The account and the source as the settings have them: a connection starts; signing out forgets what waits,
      * which stays for the next connection when Trakt ended this one.
@@ -251,15 +254,15 @@ class TraktSync(
      */
     private suspend fun exchange(mode: SyncMode, saved: TraktStateEntity): TraktStateEntity {
         var unsent = sendOrFailure()
-        val activities = trakt { it.lastActivities() }.key()
+        val activities = trakt(LAST_ACTIVITIES) { it.lastActivities() }.key()
         // Trakt answers: what it did not take counts against those titles.
         unsent?.let { counted(it) }
         if (mode == SyncMode.CHECK && saved.syncedAt != null && saved.activities == activities) {
             return saved.copy(syncedAt = now(), error = unsent?.let(::errorOf))
         }
-        val movies = trakt { it.watchedMovies() }
-        val shows = trakt { it.watchedShows() }
-        val paused = trakt { it.playback() }
+        val movies = trakt(WATCHED_MOVIES) { it.watchedMovies() }
+        val shows = trakt(WATCHED_SHOWS) { it.watchedShows() }
+        val paused = trakt(PLAYBACK) { it.playback() }
         val rows = dao.rows()
         val played = rows.mapNotNullTo(HashSet()) { it.versionOf }.mapNotNullTo(HashSet()) { dao.playedCopy(it) }
         val union = mode == SyncMode.UNION || saved.syncedAt == null
@@ -280,9 +283,11 @@ class TraktSync(
         )
     }
 
-    /** Sends what waits; a failure is returned, unless Trakt ended the connection. */
-    private suspend fun sendOrFailure(): Throwable? =
-        suspendRunCatching { send() }.exceptionOrNull()?.also { if (it is TraktSignedOutException) throw it }
+    /** Sends what waits; a failure is logged and returned, unless Trakt ended the connection. */
+    private suspend fun sendOrFailure(): Throwable? = suspendRunCatching { send() }.exceptionOrNull()?.also {
+        if (it is TraktSignedOutException) throw it
+        Log.w(TAG, "What waits could not be sent to Trakt: ${said(it)}")
+    }
 
     /** A failed write counts against its titles, unless Trakt refused the account; those failed too often are dropped. */
     private suspend fun counted(failure: Throwable) {
@@ -297,7 +302,7 @@ class TraktSync(
     private suspend fun settle(saved: TraktStateEntity, result: Result<TraktStateEntity>) {
         val next = result.getOrElse { e ->
             if (e is TraktSignedOutException) return
-            Log.w(TAG, "Trakt could not be synced: ${described((e as? Unsent)?.cause ?: e)}")
+            Log.w(TAG, "Trakt could not be synced: ${said(e)}")
             saved.copy(error = errorOf(e))
         }
         val stored = read("sync state") { saveState(next) } != null
@@ -338,7 +343,11 @@ class TraktSync(
     private suspend fun history(batch: List<Queued>, remove: Boolean) {
         val entries = batch.map { it.first }
         val items = historyOf(batch.map { (entry, title) -> title to entry.at }, dated = !remove)
-        val taken = write(entries) { if (remove) it.removeFromHistory(items) else it.addToHistory(items) }
+        val taken = if (remove) {
+            write(entries, HISTORY_REMOVE) { it.removeFromHistory(items) }
+        } else {
+            write(entries, HISTORY) { it.addToHistory(items) }
+        }
         if (taken || batch.size == 1) dao.sent(entries) else batch.forEach { history(listOf(it), remove) }
     }
 
@@ -348,7 +357,7 @@ class TraktSync(
         val byTitle = entries.associate { (entry, title) -> title to entry }
         for (pause in lookup.paused()) {
             val entry = pause.title()?.let(byTitle::get) ?: continue
-            write(listOf(entry)) { it.removePlayback(pause.id) }
+            pause.id?.let { id -> write(listOf(entry), PLAYBACK) { it.removePlayback(id) } }
         }
     }
 
@@ -362,22 +371,22 @@ class TraktSync(
         val watched = percent >= SyncPlan.WATCHED_PERCENT
         when {
             late && (lookup.watched(title, entry.at) || !watched && lookup.paused(title, entry.at)) -> Unit
-            late && watched -> write(listOf(entry)) { it.addToHistory(historyOf(listOf(title to entry.at))) }
-            else -> write(listOf(entry)) { it.scrobbleStop(scrobbleOf(title, percent)) }
+            late && watched -> write(listOf(entry), HISTORY) { it.addToHistory(historyOf(listOf(title to entry.at))) }
+            else -> write(listOf(entry), SCROBBLE_STOP) { it.scrobbleStop(scrobbleOf(title, percent)) }
         }
         dao.sent(listOf(entry))
     }
 
     /**
-     * Sends a write spaced from the last one, noting when [tried] went: true once Trakt took it, false when it
-     * refused what it carries; any other failure is thrown as [Unsent].
+     * Sends a write to [route] spaced from the last one, noting when [tried] went: true once Trakt took it, false when
+     * it refused what it carries; any other failure is thrown as [Unsent].
      */
-    private suspend fun write(tried: List<TraktPendingEntity>, request: suspend (TraktApi) -> Any): Boolean {
+    private suspend fun write(tried: List<TraktPendingEntity>, route: String, request: suspend (TraktApi) -> Unit): Boolean {
         lastWrite?.let { delay(it + WRITE_GAP_MS - clock()) }
         // Noted before it goes: Trakt may take a write whose answer is lost, or whose process dies waiting.
         read("sending") { sending(tried, now()) }
         val failure = try {
-            trakt(request)
+            trakt(route, request)
             return true
         } catch (e: HttpException) {
             if (e.code() !in ACCOUNT && e.code() != TIMEOUT && e.code() < SERVER_ERRORS) {
@@ -394,8 +403,19 @@ class TraktSync(
         throw Unsent(tried, failure)
     }
 
+    /** Calls Trakt on [route] ([waited]); a failure is kept with its route for the log ([said]). */
+    private suspend fun <T> trakt(route: String, block: suspend (TraktApi) -> T): T =
+        suspendRunCatching { waited(block) }.onFailure { failed = route to it }.getOrThrow()
+
+    /** A failure as the log says it: the route it came from when a call to Trakt threw it, then what it is. */
+    private fun said(e: Throwable): String {
+        val failure = (e as? Unsent)?.cause ?: e
+        val route = failed?.takeIf { it.second === failure }?.first
+        return if (route == null) described(failure) else "$route, ${described(failure)}"
+    }
+
     /** Calls Trakt, waiting out its limit ([RETRY_AFTER], else [X_RATELIMIT]'s end) a few times, never for long. */
-    private suspend fun <T> trakt(block: suspend (TraktApi) -> T): T {
+    private suspend fun <T> waited(block: suspend (TraktApi) -> T): T {
         var waits = 0
         while (true) {
             try {
@@ -427,7 +447,7 @@ class TraktSync(
         private var shows: Map<TraktTitle, Long>? = null
         private var pauses: List<PlaybackProgress>? = null
 
-        suspend fun paused(): List<PlaybackProgress> = pauses ?: trakt { it.playback() }.also { pauses = it }
+        suspend fun paused(): List<PlaybackProgress> = pauses ?: trakt(PLAYBACK) { it.playback() }.also { pauses = it }
 
         /** Whether Trakt paused [title] after [at] (ms). */
         suspend fun paused(title: TraktTitle, at: Long): Boolean =
@@ -438,14 +458,14 @@ class TraktSync(
          * say it changed [since] then, give or take [CLOCK_SKEW_MS] of the device's clock.
          */
         suspend fun watched(title: TraktTitle, at: Long, since: Long = at): Boolean {
-            val last = activities ?: trakt { it.lastActivities() }.also { activities = it }
+            val last = activities ?: trakt(LAST_ACTIVITIES) { it.lastActivities() }.also { activities = it }
             val movie = title is TraktTitle.Movie
             val changed = millisOf(if (movie) last.movies.watchedAt else last.episodes.watchedAt) ?: return false
             if (changed < since - CLOCK_SKEW_MS) return false
             val seen = if (movie) {
-                movies ?: trakt { it.watchedMovies() }.watched().also { movies = it }
+                movies ?: trakt(WATCHED_MOVIES) { it.watchedMovies() }.watched().also { movies = it }
             } else {
-                shows ?: trakt { it.watchedShows() }.watched().also { shows = it }
+                shows ?: trakt(WATCHED_SHOWS) { it.watchedShows() }.watched().also { shows = it }
             }
             // Trakt keeps a play's date to the second.
             return (seen[title] ?: return false) >= at - MS_PER_S
@@ -486,6 +506,15 @@ class TraktSync(
 
         /** Writes Trakt fails for a title, while answering reads, before the title is dropped. */
         const val MAX_ATTEMPTS = 5
+
+        // Routes, as the log names them.
+        const val LAST_ACTIVITIES = "sync/last_activities"
+        const val WATCHED_MOVIES = "sync/watched/movies"
+        const val WATCHED_SHOWS = "sync/watched/shows"
+        const val PLAYBACK = "sync/playback"
+        const val HISTORY = "sync/history"
+        const val HISTORY_REMOVE = "sync/history/remove"
+        const val SCROBBLE_STOP = "scrobble/stop"
 
         const val RETRY_AFTER = "Retry-After"
         const val X_RATELIMIT = "X-Ratelimit"
