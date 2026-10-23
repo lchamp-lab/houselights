@@ -103,6 +103,11 @@ object HlSize {
     /** A mark over a picture (watched, chosen), on its plate. */
     val mark = 22.dp
     val markIcon = 14.dp
+    /** The remote's Menu key, drawn where it opens options ([MenuKey]): its frame [keyEdge] wide, its lines [keyGlyph]. */
+    val menuKeyWidth = 24.dp
+    val menuKeyHeight = 22.dp
+    val keyEdge = 1.5.dp
+    val keyGlyph = 18.dp
     /** Status dot (default track, online); a state that is off is its ring, [dotRing] wide. */
     val dot = 8.dp
     val dotRing = 1.75.dp

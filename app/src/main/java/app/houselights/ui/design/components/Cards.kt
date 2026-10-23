@@ -49,6 +49,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.AlignmentLine
@@ -67,6 +69,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.tv.material3.Icon
@@ -388,7 +391,8 @@ fun PosterCard(
 
 /**
  * 16:9 still with an optional caption: an episode [number] and the [title], then [facts], beside or under it.
- * A long OK does [onLongClick], named by [onLongClickLabel].
+ * Menu or a long OK opens its options ([onLongClick], named by [onLongClickLabel]), which the Menu key says at the
+ * end of its caption's first line while it shows focus.
  */
 @Composable
 fun LandscapeCard(
@@ -404,10 +408,15 @@ fun LandscapeCard(
     onLongClickLabel: String? = null,
 ) {
     val still = item.landscape?.url(width.toPx())
+    val focused = remember { mutableStateOf(false) }
+    val keyed = onLongClick != null
     CardColumn(modifier.width(width)) {
         ArtworkSurface(
             onClick,
-            Modifier.fillMaxWidth().aspectRatio(STILL_SHAPE),
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(STILL_SHAPE)
+                .then(if (keyed) Modifier.onFocusChanged { focused.value = it.isFocused } else Modifier),
             shape = HlShapes.wide,
             onFocused = onFocused,
             stateDescription = cardState(item),
@@ -425,8 +434,34 @@ fun LandscapeCard(
         if (title != null || said) {
             Spacer(Modifier.height(HlSpace.s))
             // The caption fades out before the screen edge; the picture above may extend past it.
-            CardCaption(title, number, facts.takeIf { said }, Modifier.fadeOutsideSafeArea())
+            CardCaption(
+                title,
+                number,
+                facts.takeIf { said },
+                Modifier.fadeOutsideSafeArea(),
+                key = if (keyed) ({ CardKey { focused.value } }) else null,
+            )
         }
+    }
+}
+
+/** The Menu key while its card shows focus ([focused], not under a sheet), coming and going as a tile's label. */
+@Composable
+private fun CardKey(focused: () -> Boolean) {
+    val shown = focused() && OpenSheets.count == 0
+    val alpha = animateFloatAsState(
+        if (shown) 1f else 0f,
+        if (shown) tween(HlMotion.PLATE_IN, easing = HlMotion.focusPull) else tween(HlMotion.PLATE_OUT, easing = HlMotion.fallBack),
+        label = "menuKey",
+    )
+    val fading by remember { derivedStateOf { alpha.value > 0f } }
+    if (shown || fading) {
+        MenuKey(
+            Modifier.graphicsLayer {
+                this.alpha = alpha.value
+                compositingStrategy = CompositingStrategy.ModulateAlpha
+            },
+        )
     }
 }
 
@@ -449,14 +484,22 @@ private fun CardName(name: String, number: String?) {
     }
 }
 
-/** A card's [name] after its [number], then its [facts] on the same baseline when both fit whole, else under it. */
+/**
+ * A card's [name] after its [number], then its [facts] on the same baseline when both fit whole, else under it. A
+ * [key] sits at the end of the first line, centred on it, its room kept whether it shows or not, so nothing moves.
+ */
 @Composable
-private fun CardCaption(name: String?, number: String?, facts: List<String?>?, modifier: Modifier) {
+private fun CardCaption(name: String?, number: String?, facts: List<String?>?, modifier: Modifier, key: (@Composable () -> Unit)? = null) {
     Layout(
-        contents = listOf({ if (name != null) CardName(name, number) }, { if (facts != null) FactRow(facts, style = Hl.type.caption) }),
+        contents = listOf(
+            { if (name != null) CardName(name, number) },
+            { if (facts != null) FactRow(facts, style = Hl.type.caption) },
+            { key?.invoke() },
+        ),
         modifier = modifier,
-    ) { (names, factLines), constraints ->
-        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+    ) { (names, factLines, keys), constraints ->
+        val keyRoom = if (key != null) (HlSize.menuKeyWidth + HlSpace.s).roundToPx() else 0
+        val loose = constraints.copy(minWidth = 0, minHeight = 0, maxWidth = (constraints.maxWidth - keyRoom).coerceAtLeast(0))
         val gap = HlSpace.s.roundToPx()
         val nameWants = names.widest(loose.maxHeight)
         val factsWant = factLines.widest(loose.maxHeight)
@@ -469,11 +512,16 @@ private fun CardCaption(name: String?, number: String?, facts: List<String?>?, m
         // Beside, the two lines share a baseline; under, the facts start below the name.
         val nameY = if (beside) (factLine.base - nameLine.base).coerceAtLeast(0) else 0
         val factY = if (beside) (nameLine.base - factLine.base).coerceAtLeast(0) else nameLine.tall + HlSpace.xxs.roundToPx()
-        val width = maxOf(nameLine.wide, factX + factLine.wide)
+        // A card's caption is as wide as the card: the key ends with it.
+        val width = if (key != null) constraints.maxWidth else maxOf(nameLine.wide, factX + factLine.wide)
+        // The key, as tall as a line or nearly, never makes the caption taller as it comes.
         val height = maxOf(nameY + nameLine.tall, factY + factLine.tall)
+        val keyLine = keys.firstOrNull()?.measure(Constraints())
+        val (firstY, firstTall) = if (nameLine != null) nameY to nameLine.tall else factY to factLine.tall
         layout(width.coerceIn(constraints.minWidth, constraints.maxWidth), height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
             nameLine?.placeRelative(0, nameY)
             factLine?.placeRelative(factX, factY)
+            keyLine?.placeRelative(width - keyLine.width, firstY + (firstTall - keyLine.height) / 2)
         }
     }
 }

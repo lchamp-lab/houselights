@@ -159,14 +159,14 @@ private fun TileStates() {
         Specimen("rest", gap = HlSpace.xs) { HlIconButton(HlIcons.Restart, stringResource(R.string.from_start), {}) }
         // Watched is done, not a choice: the check fills white.
         Specimen("done", gap = HlSpace.xs) { HlIconButton(HlIcons.CheckFilled, stringResource(R.string.mark_unwatched), {}) }
-        // A show's season tile: its hint names what a long OK does.
-        Specimen("a long OK, hinted", gap = HlSpace.xs) {
+        // A show's season tile: Menu opens its options, which the key under its label says.
+        Specimen("options: the Menu key", gap = HlSpace.xs) {
             HlIconButton(
                 HlIcons.Check,
                 stringResource(R.string.mark_season_watched),
                 {},
                 onLongClick = {},
-                hint = stringResource(R.string.menu_series_watched),
+                onLongClickLabel = stringResource(R.string.more_options),
             )
         }
         Specimen("chosen", gap = HlSpace.xs) { HlIconButton(HlIcons.HeartFilled, stringResource(R.string.remove_favorite), {}, lit = true) }

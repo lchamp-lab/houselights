@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -378,8 +379,9 @@ fun HlActionRow(
 /**
  * Square icon tile whose focus label overflows below it on a plate, without taking layout space (an
  * [HlActionRow] reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden
- * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit]. A long OK does
- * [onLongClick], which [onLongClickLabel] names to accessibility services and [hint], a quieter second line, on screen.
+ * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit]. Menu or a long OK
+ * opens its options ([onLongClick], which [onLongClickLabel] names to accessibility services), the Menu key saying so
+ * on the label's second line; without options, that line is its [hint], quieter.
  */
 @Composable
 fun HlIconButton(
@@ -427,7 +429,10 @@ fun HlIconButton(
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             ) {
                 Text(label, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (hint != null) {
+                if (onLongClick != null) {
+                    // On a hint's line, as tall as it, at its end.
+                    MenuKey(Modifier.align(Alignment.End).height(HlIconButtonDefaults.hintRoom).wrapContentHeight(unbounded = true))
+                } else if (hint != null) {
                     Text(hint, style = Hl.type.meta, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
