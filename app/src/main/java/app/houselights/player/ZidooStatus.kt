@@ -157,4 +157,18 @@ object ZidooStatus {
                 .execute().use { it.isSuccessful }
         }.getOrDefault(false)
     }
+
+    /** The player's firmware ("6.4.68"), as its control API gives it; null when it does not answer or say. */
+    suspend fun firmware(): String? = withContext(Dispatchers.IO) {
+        suspendRunCatching {
+            http.newCall(Request.Builder().url("$BASE/ZidooControlCenter/getModel").build())
+                .execute().use { it.body?.string() }
+        }.getOrNull()?.let(::firmware)
+    }
+
+    /** The firmware a getModel answer names, without its "v". */
+    internal fun firmware(body: String): String? = runCatching {
+        (lenientJson.parseToJsonElement(body).jsonObject["firmware"] as? JsonPrimitive)?.contentOrNull
+            ?.trim()?.removePrefix("v")?.ifBlank { null }
+    }.getOrNull()
 }

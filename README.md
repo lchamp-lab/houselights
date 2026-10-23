@@ -120,6 +120,10 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   of instead when the Keystore cannot encrypt it. Its token is revoked on the server when you forget it or sign
   out of it, or when a new sign-in replaces it, and is never used again after; a token the server refuses is
   forgotten.
+- Send the log (Settings > About) serves the app's own log on your home network only while its panel is open and the
+  app on screen, ten minutes at most: read-only, on the player's private IPv4 address on its home network, never a
+  VPN's, at an address holding a random 100-bit code that only the panel shows, each line masked of passwords and
+  tokens. The page loads nothing from elsewhere.
 - TMDB and Trakt are reached over HTTPS only, trusting the system's certificate authorities alone. Artwork
   named by NFO files is fetched over HTTPS only, redirects included. Other servers may use plain HTTP: home
   servers are reached by their address, which no rule can name.
@@ -130,6 +134,13 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
 
 If Houselights earns its place under your TV, you can support the project on
 [Ko-fi](https://ko-fi.com/lchamp_lab). The same page is available as a QR code in Settings > About.
+
+**Reporting a problem.** Right after it happens, without restarting the app, open Settings > About > Send the log and
+scan its QR code with your phone: it opens Houselights' own log, with a line to paste at the top (version, player and
+firmware, source, Trakt), to copy or download and attach to your
+[issue](https://github.com/lchamp-lab/houselights/issues/new/choose). Passwords and tokens are masked; the names of
+your files, shares and NAS stay, so read it before posting. With adb, the same lines:
+`adb logcat -d --pid=$(adb shell pidof -s app.houselights)`.
 
 ## Development
 

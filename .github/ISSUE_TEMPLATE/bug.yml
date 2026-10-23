@@ -53,7 +53,8 @@ body:
     attributes:
       label: Anything else
       description: >-
-        A file name, an NFO, a photo of the screen. With adb, Houselights' own log, taken right after the problem
-        without restarting the app: `adb logcat -d --pid=$(adb shell pidof -s app.houselights)`. Never paste the
-        whole `adb logcat`: Android writes there the address of each file played, with your NAS password in a
-        line containing `smb://`.
+        A file name, an NFO, a photo of the screen, and Houselights' own log, taken right after the problem without
+        restarting the app: in Settings > About > Send the log, scan the QR code with your phone, then download the
+        log and attach it here (passwords and tokens are masked; read it first). With adb, the same lines:
+        `adb logcat -d --pid=$(adb shell pidof -s app.houselights)`. Never paste the whole `adb logcat`: Android
+        writes there the address of each file played, with your NAS password in a line containing `smb://`.

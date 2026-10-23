@@ -50,6 +50,7 @@ internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) 
     item {
         HlSettingGroup(null, Modifier.revealOnFocus()) {
             SupportRow()
+            JournalRow()
             // Debug builds only: the design system catalogue, last.
             if (BuildConfig.DEBUG) HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog)
         }

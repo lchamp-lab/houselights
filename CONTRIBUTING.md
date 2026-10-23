@@ -23,6 +23,7 @@ app/src/main/java/app/houselights/
   core/          backend-independent model and the MediaProvider interface
   providers/     local (SMB, NFS, TMDB, Room), jellyfin and trakt (the folders' Trakt account)
   player/        Zidoo player launch, progress tracking, path mapping
+  journal/       the app's own log, masked, served to a phone on the home network (Settings > About)
   ui/design/     design system: tokens and components (DESIGN.md)
   ui/            Compose for TV screens
 baselineprofile/ baseline profile generator and benchmarks, run on a device
