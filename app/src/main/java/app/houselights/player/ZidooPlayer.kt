@@ -327,6 +327,9 @@ class ZidooPlayer(
         const val KNOWN_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
         private const val ZIDOO_PREFIX = "com.zidoo."
 
+        /** Whether [player] takes audio_idx and subtitle_idx: checked on the known player only; another may number otherwise. */
+        fun takesTracks(player: ComponentName?): Boolean = player?.packageName == KNOWN_PACKAGE
+
         private const val KEY_PACKAGE = "trusted_package"
         private const val KEY_CERTIFICATE = "trusted_certificate"
 

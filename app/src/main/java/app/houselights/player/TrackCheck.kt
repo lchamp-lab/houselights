@@ -10,34 +10,65 @@ data class TrackFix(val kind: TrackKind, val index: Int)
 
 /**
  * Checks, once the film plays, that the player plays what [TrackPlan] asked: its numbering could differ from the
- * file's (a server's external subtitles), and the audio it chose by itself decides the subtitles of some modes.
+ * file's (a server's external subtitles, a file replaced since the scan), and the audio it chose by itself decides the
+ * subtitles of some modes. A kind it no longer plays as asked was changed by the user, and is left as it is.
  */
 object TrackCheck {
-    /** At most one fix per kind, so that what the player [plays] matches [plan]; tracks matched by language and kind. */
+    /**
+     * At most one fix per kind still played as asked ([TrackPlan.pick]), so that what the player [plays] matches [plan];
+     * tracks matched by language and kind. Without its audio list, the audio is taken to be the one [plan] expects.
+     */
     fun fixes(plan: TrackPlan, plays: PlayerTracks): List<TrackFix> = buildList {
-        var heard = TrackPlan.known(plays.audio.firstOrNull { it.index == plays.audioIndex }?.language)
-        val audio = plan.audioLanguage?.takeIf { plan.audio != null && it != heard }
-            ?.let { wanted -> plays.audio.firstOrNull { TrackPlan.known(it.language) == wanted } }
-        if (audio != null) {
+        val index = plays.audioIndex
+        var heard = TrackPlan.known(if (index == null) plan.expectedAudio?.language else plays.audioAt(index)?.language)
+        audioFix(plan, plays)?.let { audio ->
             add(TrackFix(TrackKind.AUDIO, audio.index))
             heard = TrackPlan.known(audio.language)
         }
+        val asked = plan.pick.subtitle?.takeIf { it == plays.subtitleIndex } ?: return@buildList
         val wanted = plan.subtitle(heard) ?: return@buildList
         val target = if (wanted == TrackPlan.NONE) wanted else playerNumber(wanted, plan.subtitleTrack(wanted), plays)
-        if (target != null && target != plays.subtitleIndex) add(TrackFix(TrackKind.SUBTITLE, target))
+        if (target != null && target != asked) add(TrackFix(TrackKind.SUBTITLE, target))
     }
 
-    /** What the player's tracks [audio] and [subtitle], by its own numbers in [plays], mean; each null when unknown. */
-    fun choiceOf(plays: PlayerTracks, audio: Int?, subtitle: Int?) = TrackChoice(
-        audio = audio?.let { i -> plays.audio.firstOrNull { it.index == i } }?.let { TrackPlan.known(it.language) },
-        subtitles = when (subtitle) {
-            null -> null
-            TrackPlan.NONE -> SubtitleChoice.Off
-            else -> plays.subtitles.firstOrNull { it.index == subtitle }?.let { t ->
-                TrackPlan.known(t.language)?.let { SubtitleChoice.Track(it, TrackPlan.kindOf(t.forced, t.hearingImpaired)) }
-            }
-        },
-    )
+    /**
+     * The audio to switch to when the player plays the number asked in another language than the file's: the track of
+     * the file's language at the same rank among them; none when the player lists another count of them.
+     */
+    private fun audioFix(plan: TrackPlan, plays: PlayerTracks): PlayerTrack? {
+        val asked = plan.pick.audio?.takeIf { it == plays.audioIndex } ?: return null
+        val wanted = plan.audioLanguage ?: return null
+        if (TrackPlan.known(plays.audioAt(asked)?.language) == wanted) return null
+        val inFile = plan.audioTracks.filter { TrackPlan.known(it.language) == wanted }
+        val listed = plays.audio.filter { TrackPlan.known(it.language) == wanted }
+        return listed.getOrNull(inFile.indexOfFirst { it === plan.audioTracks[asked] }).takeIf { listed.size == inFile.size }
+    }
+
+    /**
+     * What the player's tracks [audio] and [subtitle], by its own numbers, mean: read in [plays] where it gave the
+     * list, else in the file's numbering when [byFile]; each null when unknown. The player's audio, in the language of
+     * the file's track of that number, keeps that track's region ("fr-CA").
+     */
+    fun choiceOf(plan: TrackPlan, plays: PlayerTracks?, audio: Int?, subtitle: Int?, byFile: Boolean): TrackChoice {
+        val file = if (byFile) plan.choiceOf(audio, subtitle) else TrackChoice()
+        return TrackChoice(
+            audio = if (plays?.audioIndex == null) file.audio else audio?.let { audioOf(plan, plays, it) },
+            subtitles = if (plays?.subtitleIndex == null) file.subtitles else subtitle?.let { subtitlesOf(plays, it) },
+        )
+    }
+
+    private fun audioOf(plan: TrackPlan, plays: PlayerTracks, index: Int): String? {
+        val language = TrackPlan.known(plays.audioAt(index)?.language) ?: return null
+        val same = plan.audioTracks.getOrNull(index)?.takeIf { TrackPlan.known(it.language) == language }
+        return same?.let { TrackPlan.tagOf(it.language, it.title) } ?: language
+    }
+
+    private fun subtitlesOf(plays: PlayerTracks, index: Int): SubtitleChoice? =
+        if (index == TrackPlan.NONE) SubtitleChoice.Off else plays.subtitles.firstOrNull { it.index == index }?.let { t ->
+            TrackPlan.known(t.language)?.let { SubtitleChoice.Track(it, TrackPlan.kindOf(t.forced, t.hearingImpaired)) }
+        }
+
+    private fun PlayerTracks.audioAt(index: Int): PlayerTrack? = audio.firstOrNull { it.index == index }
 
     /**
      * The player's number for the file's subtitle [track], numbered [number]: that number if it matches, else the first

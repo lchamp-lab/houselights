@@ -14,11 +14,13 @@ import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
 import app.houselights.core.MediaInfo
 import app.houselights.core.SubtitleChoice
+import app.houselights.core.SubtitleKind
 import app.houselights.core.SubtitleMode
 import app.houselights.core.SubtitleTrack
 import app.houselights.core.TrackChoice
 import app.houselights.core.TrackPlan
 import app.houselights.core.TrackPreferences
+import app.houselights.player.TrackChooser
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
@@ -28,6 +30,7 @@ import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.design.components.tracksHint
 import app.houselights.ui.util.PlaybackOutcome
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -65,15 +68,13 @@ class DetailTracksTest {
 
     private fun text(id: Int) = context.getString(id)
 
-    private fun page(): DetailViewModel {
-        val vm = DetailViewModel(
-            "colony", { provider }, FakeEvents(), work,
-            tracksOf = { plan },
-            keepTracks = { key, change ->
-                keeping.getOrThrow()
-                kept += key to change(stored)
-            },
-        )
+    private fun page(
+        keepTracks: suspend (String, (TrackChoice) -> TrackChoice) -> Unit = { key, change ->
+            keeping.getOrThrow()
+            kept += key to change(stored)
+        },
+    ): DetailViewModel {
+        val vm = DetailViewModel("colony", { provider }, FakeEvents(), work, tracksOf = { plan }, keepTracks = keepTracks)
         compose.setTvContent {
             DetailPage(
                 vm,
@@ -117,6 +118,50 @@ class DetailTracksTest {
         vm.chooseTracks(TrackChoice(audio = "ko", subtitles = SubtitleChoice.Off))
         compose.waitForIdle()
         assertEquals(TrackChoice(subtitles = SubtitleChoice.Off), vm.state.value.tracks?.choice)
+        assertEquals(true, vm.state.value.actionError != null)
+    }
+
+    /** Two choices in quick succession while the store is slow: the second reads what the first wrote. */
+    @Test
+    fun twoQuickChoicesAreBothKept() {
+        var saved: TrackChoice? = null
+        val slow = CompletableDeferred<Unit>()
+        val chooser = TrackChooser(
+            preferences = { TrackPreferences() },
+            locale = { Locale.FRANCE },
+            load = { saved },
+            save = { _, choice ->
+                slow.await()
+                saved = choice
+            },
+            forget = { saved = null },
+        )
+        val vm = page(chooser::choose)
+        vm.chooseTracks(TrackChoice(audio = "ko"))
+        vm.chooseTracks(TrackChoice(audio = "ko", subtitles = SubtitleChoice.Off))
+        slow.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(TrackChoice("ko", SubtitleChoice.Off), saved)
+    }
+
+    /** A choice that could not be kept is undone only while the page shows it, never over one made since. */
+    @Test
+    fun aChoiceNotKeptLeavesALaterOneShown() {
+        val first = CompletableDeferred<Unit>()
+        var calls = 0
+        val vm = page { key, change ->
+            if (++calls == 1) {
+                first.await()
+                throw IOException("Disk busy")
+            }
+            kept += key to change(stored)
+        }
+        val full = TrackChoice("ko", SubtitleChoice.Track("fr", SubtitleKind.FULL))
+        vm.chooseTracks(TrackChoice(audio = "ko"))
+        vm.chooseTracks(full)
+        first.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(full, vm.state.value.tracks?.choice)
         assertEquals(true, vm.state.value.actionError != null)
     }
 

@@ -118,6 +118,17 @@ class PlayerLaunchTest {
         assertFalse(left.hasExtra("audio_idx") || left.hasExtra("subtitle_idx"))
     }
 
+    /** A newer firmware's own player was never read: it may number tracks otherwise, so none are asked of it. */
+    @Test
+    fun theTracksAreAskedOfTheKnownPlayerOnly() = runTest {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true)
+        val media = MediaInfo(audio = listOf(AudioTrack(Codecs.EAC3, 6, "fr"), AudioTrack(Codecs.EAC3, 6, "ko")), tracksInOrder = true)
+        val tracks = TrackPlan(media, TrackPreferences("ko"), null, "fr", "FR", "local:1")
+        val intent = manager(ZIDOO_BUILD).intentFor(plan(NFS), tracks)
+        assertEquals(ZIDOO_PLAYER_ACTIVITY, intent.component?.className)
+        assertFalse(intent.hasExtra("audio_idx") || intent.hasExtra("subtitle_idx"))
+    }
+
     @Test
     fun noPlayerNoPassword() = runTest {
         val manager = manager(ZIDOO_BUILD)

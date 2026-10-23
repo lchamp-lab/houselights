@@ -76,11 +76,14 @@ class PlaybackManager(
         /** Statuses heard while it played, until the tracks are checked ([CHECK_AFTER]). */
         var heard = 0
 
+        /** Checks made: one per status while the player's lists are missing, [CHECK_TRIES] at most. */
+        var tries = 0
+
         /** The check has begun; it is over once [settled]. */
         var checked = false
         var settled = false
 
-        /** The player's lists, read by the check: the numbers it returns are its own. */
+        /** The player's lists, as the check read them: the numbers it returns are its own; null until one is read. */
         var plays: PlayerTracks? = null
 
         /** Tracks the player played without the user (asked, its own, switched to), by kind: a return to one is no choice. */
@@ -89,6 +92,8 @@ class PlaybackManager(
         fun usual(kind: TrackKind, index: Int?) {
             if (index != null) usual.getOrPut(kind) { mutableSetOf() } += index
         }
+
+        fun isUsual(kind: TrackKind, index: Int?): Boolean = index != null && index in usual[kind].orEmpty()
     }
 
     private var session: Session? = null
@@ -131,14 +136,15 @@ class PlaybackManager(
             Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}$unanswered")
         }
         val changed = choice.decision == ZidooPlayer.Decision.CHANGED
+        // Tracks are numbered as the known Zidoo player numbers them: asked of it only.
+        val numbered = tracks?.takeIf { ZidooPlayer.takesTracks(player?.component) }
         val intent = when {
-            player != null && (!secret || choice.decision.trusted) -> playerIntent(player.component, plan, tracks)
+            player != null && (!secret || choice.decision.trusted) -> playerIntent(player.component, plan, numbered)
             Redact.hasUserInfo(plan.uri) || secret && changed -> throw CredentialsNotShared(playerChanged = changed)
             else -> anyPlayerIntent(plan, chooser = secret)
         }
         val trusting = choice.takeIf { secret && intent.component != null }
-        // Tracks are numbered as the Zidoo player numbers them: asked of it only.
-        val asked = tracks?.takeIf { intent.component != null }
+        val asked = numbered?.takeIf { intent.component != null }
         session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting, asked, plan.uri).apply {
             usual(TrackKind.AUDIO, asked?.pick?.audio)
             usual(TrackKind.SUBTITLE, asked?.pick?.subtitle)
@@ -359,32 +365,32 @@ class PlaybackManager(
 
     /**
      * Once the film has played a few statuses ([CHECK_AFTER]), past the player's own choice of tracks, switches to
-     * the tracks asked if it plays others ([TrackCheck]); only once, so that it never undoes the user's choice.
+     * the tracks asked if it plays others under their numbers ([TrackCheck]). Tried again at the next statuses while
+     * a list is missing ([CHECK_TRIES]); a track the user chose meanwhile is theirs, never undone.
      */
     private suspend fun check(s: Session) {
         val plan = s.tracks ?: return
-        if (s.switched || s.checked || ++s.heard < CHECK_AFTER) return
+        if (s.switched || s.settled || ++s.heard < CHECK_AFTER) return
         s.checked = true
-        val plays = tracks()
-        s.plays = plays
-        s.heardFrom(plays)
-        val fixes = plays?.let { TrackCheck.fixes(plan, it) }.orEmpty()
+        val read = tracks()
+        s.plays = (s.plays ?: read)?.with(read)
+        if (read != null) switch(s, read, TrackCheck.fixes(plan, read))
+        if (s.plays?.complete == true || ++s.tries >= CHECK_TRIES) s.settled = true
+    }
+
+    /** Switches the player to [fixes], found in what it played ([read]). */
+    private suspend fun switch(s: Session, read: PlayerTracks, fixes: List<TrackFix>) {
+        if (fixes.isEmpty()) return
         for (fix in fixes) {
             val done = select(fix.kind, fix.index)
             Log.i(TAG, "The player played other tracks: ${fix.kind} ${fix.index}${if (done) "" else ", refused"}")
             if (done) s.usual(fix.kind, fix.index)
         }
-        if (fixes.isNotEmpty()) {
-            // Read again once applied: another audio may have made the player choose its subtitles anew.
-            delay(SETTLE_MS)
-            s.heardFrom(tracks())
-        }
-        s.settled = true
-    }
-
-    private fun Session.heardFrom(plays: PlayerTracks?) {
-        usual(TrackKind.AUDIO, plays?.audioIndex)
-        usual(TrackKind.SUBTITLE, plays?.subtitleIndex)
+        // Read again once applied: another audio may have made the player choose its subtitles anew, unless the user had.
+        delay(SETTLE_MS)
+        val now = tracks()
+        if (s.isUsual(TrackKind.AUDIO, read.audioIndex)) s.usual(TrackKind.AUDIO, now?.audioIndex)
+        if (s.isUsual(TrackKind.SUBTITLE, read.subtitleIndex)) s.usual(TrackKind.SUBTITLE, now?.subtitleIndex)
     }
 
     /**
@@ -394,14 +400,14 @@ class PlaybackManager(
     private fun changed(s: Session, data: Intent?, played: String?): TrackChoice? {
         val plan = s.tracks?.takeUnless { s.doubtful(played) } ?: return null
         fun returned(kind: TrackKind, extra: String, asked: Int?) =
-            data?.getIntExtra(extra, -1)?.takeIf { it >= 0 && asked != null && it !in s.usual[kind].orEmpty() }
+            data?.getIntExtra(extra, -1)?.takeIf { it >= 0 && asked != null && !s.isUsual(kind, it) }
         val audio = returned(TrackKind.AUDIO, "audio_idx", plan.pick.audio)
         val subtitle = returned(TrackKind.SUBTITLE, "subtitle_idx", plan.pick.subtitle)
         if (audio == null && subtitle == null) return null
-        val choice = s.plays?.let { TrackCheck.choiceOf(it, audio, subtitle) }
-            // Unchecked: the file's numbering is the player's, unless a server lists files beside it.
-            ?: plan.choiceOf(audio, subtitle).takeUnless { plan.media.hasFilesBeside }
-        return choice?.takeUnless { it.isEmpty }
+        // A list the player did not give leaves the file's numbering, its own unless files beside the video count: a
+        // server's, or, once the check found no list, ones a scan cannot know of (a subtitle file the player may list).
+        val byFile = !plan.media.hasFilesBeside && !(s.checked && plan.media.readFromFile)
+        return TrackCheck.choiceOf(plan, s.plays, audio, subtitle, byFile).takeUnless { it.isEmpty }
     }
 
     /** What the player played is in doubt: another file ([played] the one it ended on), or a check under way. */
@@ -475,6 +481,9 @@ class PlaybackManager(
 
         /** Statuses heard before checking the tracks: the player sets its subtitles 3 s after opening the file. */
         private const val CHECK_AFTER = 3
+
+        /** Checks at most, one per status, while the player's lists are missing (a 2 GB player opening a 4K film). */
+        private const val CHECK_TRIES = 5
 
         /** Time for the player to apply a track switched to before reading what it plays. */
         private const val SETTLE_MS = 1_500L

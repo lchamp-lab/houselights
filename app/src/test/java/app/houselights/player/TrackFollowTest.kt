@@ -76,7 +76,8 @@ class TrackFollowTest {
         onPlayerLaunched()
     }
 
-    private fun plan(preferences: TrackPreferences) = TrackPlan(COLONY, preferences, null, "fr", "FR", "local:3")
+    private fun plan(preferences: TrackPreferences, player: String? = null) =
+        TrackPlan(COLONY, preferences, null, "fr", "FR", "local:3", playerAudio = player)
 
     /** Closes the player, which says it played [audio] and [subtitle]. */
     private fun TestScope.closed(manager: PlaybackManager, audio: Int, subtitle: Int) {
@@ -84,19 +85,52 @@ class TrackFollowTest {
         advanceUntilIdle()
     }
 
-    /** The player remembered Korean without subtitles; French with its forced subtitles is asked. */
+    /**
+     * The audio left to the player, which remembered Korean; the forced French subtitles were asked for the French
+     * it was expected to play: once it plays, they are switched to full ones.
+     */
     @Test
     fun theTracksAreCheckedOnceAfterThePlayersOwnChoice() = runTest {
-        plays = colony(audio = 1, subtitle = 0)
-        val manager = started(plan(TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.FORCED)))
+        plays = colony(audio = 1, subtitle = 1)
+        val manager = started(plan(TrackPreferences(subtitles = SubtitleMode.FOREIGN)))
         advanceTimeBy(4_000 + 2_000L + 1)
         assertEquals("not before its third status", 0, listed)
         advanceTimeBy(2_000)
-        assertEquals(listOf(TrackFix(TrackKind.AUDIO, 0), TrackFix(TrackKind.SUBTITLE, 1)), switched)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 2)), switched)
         advanceTimeBy(2_000 * 10L)
         assertEquals("once, read again once switched", 2, listed)
-        closed(manager, audio = 0, subtitle = 1)
+        closed(manager, audio = 1, subtitle = 2)
         assertEquals("what was asked, played to the end", emptyList<Pair<String, TrackChoice>>(), kept)
+    }
+
+    /**
+     * The player set to French, the subtitles in "if the audio is in another language": its forced ones are asked.
+     * The user turns them off before the check: they stay off, and are kept so for the title.
+     */
+    @Test
+    fun subtitlesTheUserTurnedOffBeforeTheCheckStayOff() = runTest {
+        plays = colony(audio = 0, subtitle = 0)
+        val asked = plan(TrackPreferences(subtitles = SubtitleMode.FOREIGN), player = "fr-FR")
+        assertEquals(1, asked.pick.subtitle)
+        val manager = started(asked)
+        advanceTimeBy(4_000 + 2_000 * 5L)
+        assertEquals(emptyList<TrackFix>(), switched)
+        closed(manager, audio = 0, subtitle = 0)
+        assertEquals(listOf("local:3" to TrackChoice(subtitles = SubtitleChoice.Off)), kept)
+    }
+
+    /** Lists the player does not give yet are asked again at the next statuses. */
+    @Test
+    fun theListsAreAskedAgainUntilThePlayerGivesThem() = runTest {
+        val manager = started(plan(TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.FORCED)))
+        advanceTimeBy(4_000 + 2_000 * 3L + 1)
+        assertEquals(2 to emptyList<TrackFix>(), listed to switched)
+        plays = shifted(audio = 0, subtitle = 1)
+        advanceTimeBy(2_000)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 2)), switched)
+        advanceTimeBy(2_000 * 10L)
+        assertEquals("read, then again once switched; no more", 4, listed)
+        closed(manager, audio = 0, subtitle = 2)
     }
 
     @Test
@@ -118,23 +152,37 @@ class TrackFollowTest {
         assertEquals(emptyList<Pair<String, TrackChoice>>(), kept)
     }
 
-    /** Its API out of reach: it is taken to play what was asked. */
+    /**
+     * Its API out of reach five times: nothing is switched, and what the user chose cannot be read, the player
+     * perhaps numbering a subtitle file beside the video the scan did not see.
+     */
     @Test
-    fun withoutItsListsWhatWasAskedStands() = runTest {
+    fun withoutItsListsNothingIsKept() = runTest {
         val manager = started(plan(TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.OFF)))
-        advanceTimeBy(4_000 + 2_000 * 5L)
-        assertEquals(emptyList<TrackFix>(), switched)
+        advanceTimeBy(4_000 + 2_000 * 8L)
+        assertEquals(5 to emptyList<TrackFix>(), listed to switched)
         closed(manager, audio = 0, subtitle = 2)
+        assertEquals(emptyList<Pair<String, TrackChoice>>(), kept)
+    }
+
+    /** Closed before the check: the file's numbering stands for the player's. */
+    @Test
+    fun beforeTheCheckTheFilesNumbersStand() = runTest {
+        plays = colony(audio = 0, subtitle = 0)
+        val manager = started(plan(TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.OFF)))
+        advanceTimeBy(4_000 + 2_000L)
+        closed(manager, audio = 0, subtitle = 2)
+        assertEquals(0, listed)
         assertEquals(listOf("local:3" to TrackChoice(subtitles = SubtitleChoice.Track("fr", SubtitleKind.FULL))), kept)
     }
 
     /** The player's own numbers: a file beside the video listed first moves every subtitle by one. */
     @Test
     fun whatIsKeptIsReadInThePlayersNumbers() = runTest {
-        plays = shifted(audio = 0, subtitle = 2)
+        plays = shifted(audio = 0, subtitle = 1)
         val manager = started(plan(TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.FORCED)))
         advanceTimeBy(4_000 + 2_000 * 5L)
-        assertEquals("forced French, the player's 2", emptyList<TrackFix>(), switched)
+        assertEquals("forced French, the player's 2", listOf(TrackFix(TrackKind.SUBTITLE, 2)), switched)
         closed(manager, audio = 0, subtitle = 3)
         assertEquals(listOf("local:3" to TrackChoice(subtitles = SubtitleChoice.Track("fr", SubtitleKind.FULL))), kept)
     }
@@ -203,8 +251,10 @@ class TrackFollowTest {
             reporter = null, resumeKey = "3",
         )
 
+        /** As the scan read it from the file. */
         val COLONY = MediaInfo(
             container = "MKV",
+            probedWith = 5,
             audio = listOf(AudioTrack(Codecs.EAC3, 6, "fr", default = true), AudioTrack(Codecs.EAC3, 6, "ko")),
             subtitles = listOf(
                 SubtitleTrack("fr", format = Codecs.SRT, forced = true, default = true),

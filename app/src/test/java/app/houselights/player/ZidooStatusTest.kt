@@ -1,5 +1,6 @@
 package app.houselights.player
 
+import app.houselights.core.TrackPlan
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -49,6 +50,30 @@ class ZidooStatusTest {
             ),
             subtitles,
         )
+    }
+
+    /** One list the player did not give leaves the other, which can still be checked. */
+    @Test
+    fun eachListIsReadOnItsOwn() {
+        val subtitles = checkNotNull(ZidooStatus.lists(null, PlayerAnswers.COLONY_SUBTITLES))
+        assertEquals(null to emptyList<PlayerTrack>(), subtitles.audioIndex to subtitles.audio)
+        assertEquals(0 to 6, subtitles.subtitleIndex to subtitles.subtitles.size)
+        val audio = checkNotNull(ZidooStatus.lists(PlayerAnswers.COLONY_AUDIO, """{"status":806}"""))
+        assertEquals(1 to null, audio.audioIndex to audio.subtitleIndex)
+        assertNull(ZidooStatus.lists(null, "not json"))
+        assertEquals("a list read later completes them", true, subtitles.with(audio).complete)
+    }
+
+    /** The player's audio setting as Settings.System numbers it (28: fr-FR on the Z1000 Pro). */
+    @Test
+    fun thePlayersAudioSetting() {
+        assertEquals("fr-FR", ZidooSettings.audio(28, -1))
+        assertEquals("af-ZA", ZidooSettings.audio(3, -1))
+        assertEquals("jpn", ZidooSettings.audio(91, -1))
+        assertEquals(TrackPlan.PLAYER_DEFAULT, ZidooSettings.audio(1, -1))
+        assertEquals(TrackPlan.PLAYER_FIRST, ZidooSettings.audio(2, -1))
+        assertEquals("the older setting, numbered one less", "fr-FR", ZidooSettings.audio(-1, 27))
+        listOf(0 to -1, -1 to -1, -1 to 0, 92 to -1).forEach { (index, old) -> assertNull(ZidooSettings.audio(index, old)) }
     }
 
     @Test

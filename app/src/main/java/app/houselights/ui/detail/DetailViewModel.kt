@@ -345,7 +345,8 @@ class DetailViewModel(
 
     /**
      * Makes [choice] the title's, shown at once: only the column it changes is written, over what is stored, which
-     * the player may have changed since the page was read. A failure shows by the actions.
+     * the player may have changed since the page was read. A failure shows by the actions, and undoes the choice while
+     * the page still shows it, not one made since.
      */
     fun chooseTracks(choice: TrackChoice) {
         val plan = _state.value.tracks ?: return
@@ -353,13 +354,19 @@ class DetailViewModel(
         val before = plan.choice ?: TrackChoice()
         val audio = choice.audio != before.audio
         val subtitles = choice.subtitles != before.subtitles
-        _state.update { it.copy(tracks = plan.copy(choice = choice.takeUnless { c -> c.isEmpty }), actionError = null) }
+        val shown = choice.takeUnless { it.isEmpty }
+        _state.update { it.copy(tracks = plan.copy(choice = shown), actionError = null) }
         work.launch {
             suspendRunCatching {
                 keepTracks(key) { stored ->
                     TrackChoice(if (audio) choice.audio else stored.audio, if (subtitles) choice.subtitles else stored.subtitles)
                 }
-            }.onFailure { e -> _state.update { it.copy(tracks = plan, actionError = e.reported(TAG, "Tracks of $itemId")) } }
+            }.onFailure { e ->
+                _state.update { s ->
+                    val undone = s.tracks?.takeIf { it.choice == shown }?.copy(choice = plan.choice) ?: s.tracks
+                    s.copy(tracks = undone, actionError = e.reported(TAG, "Tracks of $itemId"))
+                }
+            }
         }
     }
 

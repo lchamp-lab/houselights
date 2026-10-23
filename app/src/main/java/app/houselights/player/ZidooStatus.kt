@@ -42,8 +42,21 @@ sealed interface PlayerAnswer {
 /** A track as the player lists it while it plays; [index] is the number it answers to ([ZidooStatus.select]). */
 data class PlayerTrack(val index: Int, val language: String?, val forced: Boolean = false, val hearingImpaired: Boolean = false)
 
-/** The tracks the player lists and the ones it plays; its subtitles start with "none", numbered 0. */
-data class PlayerTracks(val audio: List<PlayerTrack>, val audioIndex: Int, val subtitles: List<PlayerTrack>, val subtitleIndex: Int)
+/**
+ * The tracks the player lists and the ones it plays; its subtitles start with "none", numbered 0. A list it did not
+ * give has no index ([audioIndex], [subtitleIndex]) and no tracks.
+ */
+data class PlayerTracks(val audio: List<PlayerTrack>, val audioIndex: Int?, val subtitles: List<PlayerTrack>, val subtitleIndex: Int?) {
+    val complete: Boolean get() = audioIndex != null && subtitleIndex != null
+
+    /** These lists, each replaced by [newer]'s where it gave it. */
+    fun with(newer: PlayerTracks?) = PlayerTracks(
+        audio = if (newer?.audioIndex != null) newer.audio else audio,
+        audioIndex = newer?.audioIndex ?: audioIndex,
+        subtitles = if (newer?.subtitleIndex != null) newer.subtitles else subtitles,
+        subtitleIndex = newer?.subtitleIndex ?: subtitleIndex,
+    )
+}
 
 enum class TrackKind { AUDIO, SUBTITLE }
 
@@ -87,13 +100,17 @@ object ZidooStatus {
     /** Statuses meaning nothing plays: no video open (804), the player not running (806). */
     private val NOTHING_PLAYS = setOf(804, 806)
 
-    /** The tracks of the file playing; null when nothing plays or the API is out of reach. */
+    /** The tracks of the file playing, each list asked on its own; null when it gives neither (nothing plays, API out of reach). */
     suspend fun tracks(): PlayerTracks? = withContext(Dispatchers.IO) {
-        suspendRunCatching {
-            val audio = get("getAudioList")?.let(::parseTracks) ?: return@suspendRunCatching null
-            val subtitles = get("getSubtitleList")?.let(::parseTracks) ?: return@suspendRunCatching null
-            PlayerTracks(audio.second, audio.first, subtitles.second, subtitles.first)
-        }.getOrNull()
+        lists(suspendRunCatching { get("getAudioList") }.getOrNull(), suspendRunCatching { get("getSubtitleList") }.getOrNull())
+    }
+
+    /** The lists in getAudioList's and getSubtitleList's answers, each missing when unusable; null when both are. */
+    internal fun lists(audio: String?, subtitles: String?): PlayerTracks? {
+        val sound = audio?.let(::parseTracks)
+        val text = subtitles?.let(::parseTracks)
+        if (sound == null && text == null) return null
+        return PlayerTracks(sound?.second.orEmpty(), sound?.first, text?.second.orEmpty(), text?.first)
     }
 
     /** Asks the player to play its track numbered [index]; true once it has accepted. */

@@ -76,6 +76,11 @@ data class TrackPlan(
     val region: String?,
     /** Where the title's choice is kept ([PlaybackPlan.Launch.titleKey]); null when it is not kept. */
     val titleKey: String?,
+    /**
+     * The player's own audio setting, which it follows when asked no audio: a language ("fr-FR"), [PLAYER_FIRST] or
+     * [PLAYER_DEFAULT]; null when unset, the player then looking for the device's language.
+     */
+    val playerAudio: String? = null,
 ) {
     /** The file's own tracks, in the player's order: a server's files beside it are not among them. */
     val audioTracks: List<AudioTrack> = media.audio.filterNot { it.external }
@@ -142,9 +147,25 @@ data class TrackPlan(
         },
     )
 
-    /** The audio as the player should play it: the track asked for, else the file's default, else its first. */
+    /** The audio as the player should play it: the track asked for, else the one it chooses by itself. */
     val expectedAudio: AudioTrack?
-        get() = audio?.let(audioTracks::get) ?: audioTracks.firstOrNull { it.default } ?: audioTracks.firstOrNull()
+        get() = audio?.let(audioTracks::get) ?: playersOwnAudio()
+
+    /**
+     * The track the player plays when asked none, as its [playerAudio] setting leads it, else in [language] (its own
+     * being the device's), else its first. Its memory of the file, if any, comes first and is not known here.
+     */
+    private fun playersOwnAudio(): AudioTrack? {
+        val set = when (val setting = playerAudio) {
+            null -> null
+            PLAYER_FIRST -> audioTracks.firstOrNull()
+            PLAYER_DEFAULT -> audioTracks.filter { it.default }.let { all -> all.firstOrNull(::inAppLanguage) ?: all.firstOrNull() }
+            else -> known(setting)?.let { wanted -> audioTracks.firstOrNull { known(it.language) == wanted } }
+        }
+        return set ?: audioTracks.firstOrNull(::inAppLanguage) ?: audioTracks.firstOrNull()
+    }
+
+    private fun inAppLanguage(track: AudioTrack) = known(track.language) == language
 
     /** The track a choice of [tag] ("fr", "fr-CA") leads to. */
     private fun audioFor(tag: String): Int? = known(tag)?.let { bestAudio(it, regionOf(tag)) }
@@ -195,6 +216,10 @@ data class TrackPlan(
     companion object {
         /** The player's number for no subtitles. */
         const val NONE = 0
+
+        /** [playerAudio] set to the file's first track, or to its default one. */
+        const val PLAYER_FIRST = "first"
+        const val PLAYER_DEFAULT = "default"
 
         /** A track's language as a two-letter code, Norwegian's written forms as one; null when unknown ("und"). */
         fun known(code: String?): String? = Languages.code(code)?.let { NORWEGIAN[it] ?: it }?.takeUnless { it == UNDETERMINED }

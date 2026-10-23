@@ -264,6 +264,9 @@ data class MediaInfo(
     /** A server lists files beside the video among its tracks, which the player does not number as it does. */
     val hasFilesBeside: Boolean get() = audio.any { it.external } || subtitles.any { it.external }
 
+    /** Read by the app from the file itself, which says nothing of files beside it; a server's report lists them. */
+    val readFromFile: Boolean get() = probedWith > 0
+
     val bitrateKbps: Long?
         get() {
             val size = sizeBytes ?: return null

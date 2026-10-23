@@ -24,6 +24,7 @@ import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
 import app.houselights.player.TrackChooser
 import app.houselights.player.ZidooPlayer
+import app.houselights.player.ZidooSettings
 import app.houselights.player.Redact
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
@@ -188,10 +189,11 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
             database.trackChoices().save(TrackChoiceEntity(key, choice.audio, choice.subtitles?.stored, System.currentTimeMillis()))
         },
         forget = { database.trackChoices().forget(it) },
+        playerAudio = { ZidooSettings.audio(app.contentResolver) },
     )
 
-    /** A Zidoo player takes the tracks asked of it ([TrackChooser]); another app ignores them. Debug builds show them anywhere. */
-    val asksTracks: Boolean by lazy { BuildConfig.DEBUG || ZidooPlayer(app).choose().player != null }
+    /** The Zidoo player takes the tracks asked of it ([ZidooPlayer.takesTracks]); another ignores them. Debug builds show them anywhere. */
+    val asksTracks: Boolean by lazy { BuildConfig.DEBUG || ZidooPlayer.takesTracks(ZidooPlayer(app).choose().player?.component) }
 
     /** The tracks Lire would ask of the player for [item], from the file it plays (its chosen copy); null when unknown. */
     suspend fun tracksOf(item: MediaItem): TrackPlan? {
