@@ -13,7 +13,7 @@ import java.io.InputStream
 
 /**
  * The app's lines of the system log, by its uid, so those of a process that crashed before this one too (Android 9
- * gives an app its own uid's lines without a permission): the last [MAX_LINES] at most, within [MAX_BYTES], in
+ * gives an app its own uid's lines alone, without a permission): the last [MAX_LINES] at most, within [MAX_BYTES], in
  * threadtime form, each masked ([Redact.text]).
  */
 class AppLog(
@@ -57,15 +57,20 @@ class AppLog(
 
         /**
          * Dumps the last lines and exits, each with its date, time, uid, process, thread and level. Android 9 has no
-         * --uid: logd gives an app its own uid's lines, and those of all with READ_LOGS, which [keep] leaves out.
+         * --uid: logd gives an app its own uid's lines, their uid blank, and with READ_LOGS those of all, each with its
+         * uid, which [keep] leaves out.
          */
         private val COMMAND = listOf("logcat", "-d", "-v", "threadtime", "-v", "uid", "-t", "$MAX_LINES")
 
         /**
-         * "10-23 10:42:11.123 10057  4321  4350 I Scan    : …": the time, the uid, then the process, thread and the
-         * rest as threadtime has them, whatever its characters. A uid named, as root, is never an app's.
+         * "10-23 10:42:11.123 10057  4321  4350 I Scan    : …": the time, the uid if logd gave it, then the process,
+         * and the thread, level and rest as threadtime has them, whatever their characters. A uid named, as root, is
+         * never an app's.
          */
-        private val WITH_UID = Regex("""(\d\d-\d\d \d\d:\d\d:\d\d\.\d+) +(\d+) ( *\d+ +\d+ .*)""", RegexOption.DOT_MATCHES_ALL)
+        private val LINE = Regex("""(\d\d-\d\d \d\d:\d\d:\d\d\.\d+) +(?:(\d+) +)?(\d+)( +\d+ \S .*)""", RegexOption.DOT_MATCHES_ALL)
+
+        /** Threadtime's width for the process, as %5d. */
+        private const val PID_WIDTH = 5
 
         /**
          * The last lines of [input] of [uid], without their uid, each masked, within [MAX_LINES] and [MAX_BYTES]; what
@@ -81,11 +86,12 @@ class AppLog(
             return kept.lines.toList()
         }
 
-        /** [line] as threadtime writes it if it is [uid]'s; null for another uid's and logcat's dividers. */
+        /** [line] in threadtime form if it is [uid]'s or without uid; null for another uid's and logcat's dividers. */
         private fun threadtime(line: String, uid: Int): String? {
-            val match = WITH_UID.matchEntire(line) ?: return null
-            val (time, lineUid, rest) = match.destructured
-            return if (lineUid.toIntOrNull() == uid) "$time $rest" else null
+            val match = LINE.matchEntire(line) ?: return null
+            val (time, lineUid, pid) = match.destructured
+            if (lineUid.isNotEmpty() && lineUid.toIntOrNull() != uid) return null
+            return "$time ${pid.padStart(PID_WIDTH)}${match.groupValues.last()}"
         }
     }
 
