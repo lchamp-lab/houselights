@@ -640,6 +640,8 @@
     <string name="trakt_no_keys">Diese Version von Houselights hat keinen Trakt-Schlüssel.</string>
     <string name="trakt_signed_out">Nicht verbunden</string>
     <string name="trakt_connected">Verbunden</string>
+    <string name="trakt_paused">Pausiert</string>
+    <string name="trakt_paused_desc">Trakt folgt Ihren Ordnern; es läuft weiter, sobald Sie zu ihnen zurückkehren.</string>
     <string name="trakt_connect">Konto verbinden</string>
     <string name="trakt_connect_desc">Mit einem Code auf Ihrem Telefon oder PC</string>
     <string name="trakt_disconnect">Konto trennen</string>

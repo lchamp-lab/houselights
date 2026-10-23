@@ -654,6 +654,8 @@
     <string name="trakt_no_keys">This build of Houselights has no Trakt key.</string>
     <string name="trakt_signed_out">Not connected</string>
     <string name="trakt_connected">Connected</string>
+    <string name="trakt_paused">Paused</string>
+    <string name="trakt_paused_desc">Trakt follows your folders; it resumes when you return to them.</string>
     <string name="trakt_connect">Connect your account</string>
     <string name="trakt_connect_desc">With a code entered on your phone or computer</string>
     <string name="trakt_disconnect">Disconnect your account</string>

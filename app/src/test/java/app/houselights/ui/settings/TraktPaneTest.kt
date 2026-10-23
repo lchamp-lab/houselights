@@ -20,6 +20,7 @@ import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -39,9 +40,12 @@ import app.houselights.providers.trakt.DeviceCodeEnd
 import app.houselights.providers.trakt.SkippedEntry
 import app.houselights.providers.trakt.SkippedKind
 import app.houselights.providers.trakt.TraktSyncState
+import app.houselights.settings.AppSettings
 import app.houselights.settings.InterfaceLanguage
+import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.testing.FakeTraktLink
@@ -76,10 +80,10 @@ class TraktPaneTest {
     private var link = FakeTraktLink(onApproved = { session = lea }).apply { onSignOut = { session = null } }
     private val sync = FakeTraktSync()
 
-    private fun show() {
+    private fun show(folders: Boolean = true) {
         val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
         compose.setTvContent {
-            HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session) } }
+            HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session, folders) } }
         }
     }
 
@@ -444,14 +448,82 @@ class TraktPaneTest {
         }
     }
 
+    /** Under a server, Trakt pauses: its state replaces what it keeps, and disconnecting is all it offers. */
     @Test
-    fun theEntryShowsWithTheFoldersOnly() {
-        assertTrue(Pane.Trakt in panesFor(SourceConfig.Local, pathMapping = false, counts = true, tracks = false))
-        fun playback(tracks: Boolean) = Pane.Playback in panesFor(SourceConfig.Local, pathMapping = false, counts = true, tracks = tracks)
+    fun underAServerItIsPausedAndOnlyDisconnects() {
+        session = lea
+        sync.state.value = TraktSyncState(
+            syncedAt = System.currentTimeMillis(),
+            watched = 412,
+            inProgress = 1,
+            error = TraktSyncError.OFFLINE,
+            skipped = listOf(PAUSED_FILM),
+        )
+        show(folders = false)
+        compose.onNodeWithText("En pause").assertExists()
+        compose.onNodeWithText(PAUSED).assertExists()
+        compose.onNodeWithText(DESCRIPTION).assertDoesNotExist()
+        compose.onNodeWithText("Connecté").assertDoesNotExist()
+        compose.onNodeWithText("lea").assertExists()
+        compose.onNodeWithText("412").assertExists()
+        compose.onNodeWithText(SYNC).assertDoesNotExist()
+        compose.onNodeWithText("1 élément ignoré").assertDoesNotExist()
+        compose.onNodeWithText("Non effectué").assertDoesNotExist()
+        compose.onAllNodes(hasClickAction()).assertCountEquals(1)
+        compose.onNode(hasClickAction() and hasText(DISCONNECT)).assertExists()
+
+        ok(DISCONNECT)
+        assertEquals(1, link.signedOut)
+    }
+
+    /** A session the Keystore could not open at launch is still kept: paused, without its account, and disconnected. */
+    @Test
+    fun aSessionNotOpenedAtLaunchIsPausedAndDisconnects() {
+        show(folders = false)
+        compose.onNodeWithText("En pause").assertExists()
+        compose.onNodeWithText(PAUSED).assertExists()
+        compose.onNodeWithText("Compte").assertDoesNotExist()
+        compose.onNodeWithText(CONNECT).assertDoesNotExist()
+        ok(DISCONNECT)
+        assertEquals(1, link.signedOut)
+    }
+
+    /** Disconnected under a server, its place leaves the settings, and the place after it opens with focus. */
+    @Test
+    fun disconnectedUnderAServerThePlaceAfterItTakesFocus() {
+        session = lea
+        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        var open by mutableStateOf(Pane.Trakt)
+        compose.setTvContent {
+            val memory = rememberFocusMemory()
+            val panes = panesFor(account, pathMapping = true, counts = true, tracks = false, trakt = session != null)
+            HlTwoPane(side = { SettingsPlaces(panes, open, memory, ready = true) { open = it } }) {
+                LazyColumn(Modifier.fillMaxSize()) { if (open == Pane.Trakt) traktPane(vm, session, folders = false) }
+            }
+        }
+        ok(DISCONNECT)
+        compose.onNodeWithText("Affichage").assertIsFocused()
+        compose.runOnIdle { assertEquals(Pane.Display, open) }
+        compose.onNodeWithText("Trakt").assertDoesNotExist()
+    }
+
+    @Test
+    fun theEntryShowsWithTheFoldersAndUnderAServerWhileAnAccountIsKept() {
+        fun trakt(source: SourceConfig?, kept: Boolean) =
+            Pane.Trakt in panesFor(source, pathMapping = true, counts = true, tracks = false, trakt = kept)
+        assertTrue(trakt(SourceConfig.Local, kept = false))
+        assertTrue("paused", trakt(account, kept = true))
+        assertFalse(trakt(account, kept = false))
+        assertFalse(trakt(null, kept = true))
+        fun playback(tracks: Boolean) =
+            Pane.Playback in panesFor(SourceConfig.Local, pathMapping = false, counts = true, tracks = tracks, trakt = false)
         assertTrue("the tracks of a Zidoo player", playback(tracks = true))
         assertFalse("nothing to set elsewhere", playback(tracks = false))
-        assertFalse(Pane.Trakt in panesFor(account, pathMapping = true, counts = true, tracks = false))
-        assertFalse(Pane.Trakt in panesFor(null, pathMapping = false, counts = false, tracks = true))
+        // Kept while connected or not opened at this launch, not once Trakt ended it.
+        assertTrue(AppSettings(trakt = lea).keepsTrakt)
+        assertTrue(AppSettings(lostSecrets = setOf(SecretSetting.TRAKT)).keepsTrakt)
+        assertFalse(AppSettings(trakt = lea.copy(ended = true)).keepsTrakt)
+        assertFalse(AppSettings().keepsTrakt)
     }
 
     @Test
@@ -472,6 +544,7 @@ class TraktPaneTest {
         const val DESCRIPTION =
             "Votre compte Trakt garde ce que vous regardez$NB: les films et les épisodes vus, et où vous en êtes. " +
                 "Sur cet appareil comme ailleurs."
+        const val PAUSED = "Trakt suit vos dossiers$NB; il reprend quand vous y revenez."
         const val SKIPPED_DESC = "Trakt les envoie sous une forme que l’app ne sait pas lire"
         const val FIX = "Pour régler"
         const val MOVIES_HELD = "Tant que l’historique des films ne se lit pas en entier, Houselights n’envoie pas à Trakt les films vus " +

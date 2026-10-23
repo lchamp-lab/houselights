@@ -621,6 +621,8 @@
     <string name="trakt_no_keys">此版本的 Houselights 没有 Trakt 密钥。</string>
     <string name="trakt_signed_out">未连接</string>
     <string name="trakt_connected">已连接</string>
+    <string name="trakt_paused">已暂停</string>
+    <string name="trakt_paused_desc">Trakt 跟随您的文件夹；回到文件夹后即恢复。</string>
     <string name="trakt_connect">连接您的账户</string>
     <string name="trakt_connect_desc">在手机或电脑上输入一个代码即可</string>
     <string name="trakt_disconnect">断开您的账户</string>

@@ -618,6 +618,8 @@
     <string name="trakt_no_keys">이 버전의 Houselights에는 Trakt 키가 없습니다.</string>
     <string name="trakt_signed_out">연결 안 됨</string>
     <string name="trakt_connected">연결됨</string>
+    <string name="trakt_paused">일시 중지됨</string>
+    <string name="trakt_paused_desc">Trakt는 폴더와 연동됩니다. 폴더로 돌아오면 재개됩니다.</string>
     <string name="trakt_connect">계정 연결</string>
     <string name="trakt_connect_desc">휴대폰이나 컴퓨터에서 코드를 입력합니다</string>
     <string name="trakt_disconnect">계정 연결 해제</string>

@@ -678,6 +678,8 @@
     <string name="trakt_no_keys">Ta wersja Houselights nie ma klucza Trakt.</string>
     <string name="trakt_signed_out">Nie połączono</string>
     <string name="trakt_connected">Połączono</string>
+    <string name="trakt_paused">Wstrzymano</string>
+    <string name="trakt_paused_desc">Trakt działa z folderami; wznowi działanie po powrocie do nich.</string>
     <string name="trakt_connect">Połącz konto</string>
     <string name="trakt_connect_desc">Za pomocą kodu wpisanego w telefonie lub komputerze</string>
     <string name="trakt_disconnect">Odłącz konto</string>
