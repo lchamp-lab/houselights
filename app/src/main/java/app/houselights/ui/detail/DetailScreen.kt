@@ -205,6 +205,9 @@ internal fun DetailPage(
     var showSynopsis by remember { mutableStateOf(false) }
     var showNfo by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf(false) }
+    // The episode whose options are open, and the watched tile's.
+    var episodeOptions by remember { mutableStateOf<String?>(null) }
+    var showMarks by remember { mutableStateOf(false) }
     val actions = DetailActions(
         onPlay = onPlay,
         onTogglePlayed = vm::togglePlayed,
@@ -222,6 +225,7 @@ internal fun DetailPage(
         copyIndex = state.playedCopyIndex,
         onEdit = { showEdit = true }.takeIf { state.canEdit },
         season = state.shownSeason,
+        onShowMarks = { showMarks = true },
     )
 
     val recede = rememberRecede { scrolled }
@@ -265,7 +269,7 @@ internal fun DetailPage(
                     }
                 }
 
-                seasonRows(state, memory, focusedEpisode, vm, onPlay)
+                seasonRows(state, memory, focusedEpisode, vm, EpisodeLinks(onPlay, onOptions = { episodeOptions = it.id }))
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
             } }
         // Over the page, in its light.
@@ -275,6 +279,21 @@ internal fun DetailPage(
             VersionsSheet(item, state.versions, onChoose = choose, onDismiss = { showVersions = false })
         }
         TitleTracks(item, tracks, open = showTracks, onChoose = vm::chooseTracks, onDismiss = { showTracks = false })
+        val episodeActions = EpisodeActions(
+            onMark = vm::toggleEpisodePlayed.takeIf { state.capabilities?.markPlayed == true },
+            onPlayFromStart = { onPlay(it, false) },
+            onTracks = { showTracks = true },
+        )
+        EpisodeOptions(state, episodeOptions, episodeActions, onDismiss = { episodeOptions = null })
+        ShowMarks(
+            item,
+            state.shownSeason,
+            state.seasons.size,
+            open = showMarks,
+            onMarkSeason = vm::toggleSeasonPlayed,
+            onMarkShow = vm::togglePlayed,
+            onDismiss = { showMarks = false },
+        )
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
         if (showEdit) {
@@ -295,7 +314,7 @@ private fun LazyListScope.seasonRows(
     /** The focused episode, read only where its overview shows. */
     focusedEpisode: MutableState<MediaItem?>,
     vm: DetailViewModel,
-    onPlay: (MediaItem, Boolean) -> Unit,
+    links: EpisodeLinks,
 ) {
     val item = state.item ?: return
     if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
@@ -315,6 +334,7 @@ private fun LazyListScope.seasonRows(
                     memory.focus(FocusKey.row(EPISODES))
                 }
             }
+            val canMark = state.capabilities?.markPlayed == true
             when {
                 failed != null -> EpisodesFailed(
                     single?.title,
@@ -330,8 +350,10 @@ private fun LazyListScope.seasonRows(
                     memory = memory,
                     focused = focusedEpisode.value,
                     onFocus = { focusedEpisode.value = it },
-                    onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
-                    onMark = vm::toggleEpisodePlayed.takeIf { state.capabilities?.markPlayed == true },
+                    onPlay = { ep -> links.onPlay(ep, ep.user.positionMs > 0) },
+                    onOptions = { ep ->
+                        { links.onOptions(ep) }.takeIf { episodeHasOptions(ep, canMark, state.tracksToChoose) }
+                    },
                     markError = state.episodeMarkError,
                     onClearMarkError = vm::clearEpisodeMarkError,
                 )
@@ -445,7 +467,11 @@ private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
 @Immutable
 private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (String) -> Unit)
 
-/** A tile says a second line: a show's watched tile its long OK, the tracks tile what Lire plays. */
+/** What an episode's card does: OK plays it, from where it was left; Menu or a long OK opens its options. */
+@Immutable
+private class EpisodeLinks(val onPlay: (MediaItem, Boolean) -> Unit, val onOptions: (MediaItem) -> Unit)
+
+/** A tile says a second line: a show's watched tile the Menu key, the tracks tile what Lire plays. */
 private fun hintsUnderTiles(item: MediaItem, capabilities: ProviderCapabilities?, tracks: TrackPlan?): Boolean =
     item.kind == MediaKind.SERIES && capabilities?.markPlayed == true || tracks != null
 
@@ -481,8 +507,10 @@ private data class DetailActions(
     val copy: Version? = null,
     val copyIndex: Int = 0,
     val onEdit: (() -> Unit)?,
-    /** The season the watched tile marks, the whole show on a long OK; null where it marks the title. */
+    /** The season the watched tile marks; null where it marks the title. */
     val season: MediaItem? = null,
+    /** Opens the watched tile's options, the season and the whole show, where it marks a [season]. */
+    val onShowMarks: () -> Unit = {},
 )
 
 @Composable
@@ -616,8 +644,9 @@ private fun Actions(
 }
 
 /**
- * The watched tile: the title, or the season shown ([DetailActions.season]) and the whole show on a long OK, which
- * its hint says. Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
+ * The watched tile: the title, or the season shown ([DetailActions.season]), Menu or a long OK then opening its options,
+ * which the Menu key under its label says. Label: what OK does; icon: the current state. Watched is done, not a choice:
+ * the check fills white.
  */
 @Composable
 private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modifier) {
@@ -629,16 +658,13 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
         watched -> R.string.mark_season_unwatched
         else -> R.string.mark_season_watched
     }
-    val whole = stringResource(if (show) R.string.mark_series_unwatched else R.string.mark_series_watched)
-    val hint = stringResource(if (show) R.string.menu_series_unwatched else R.string.menu_series_watched)
     HlIconButton(
         if (watched) HlIcons.CheckFilled else HlIcons.Check,
         stringResource(label),
         onClick = if (season != null) actions.onToggleSeasonPlayed else actions.onTogglePlayed,
         modifier = modifier,
-        onLongClick = actions.onTogglePlayed.takeIf { season != null },
-        onLongClickLabel = whole.takeIf { season != null },
-        hint = hint.takeIf { season != null },
+        onLongClick = actions.onShowMarks.takeIf { season != null },
+        onLongClickLabel = stringResource(R.string.more_options),
     )
 }
 
@@ -752,8 +778,8 @@ private fun episodeState(ep: MediaItem): String? =
     if (ep.user.played) stringResource(R.string.watched) else timeLeft(ep)
 
 /**
- * A season's episodes: OK plays one, a long OK marks it watched or not ([onMark], null where the source cannot);
- * a mark that did not save ([markError]) is said under them until an OK there.
+ * A season's episodes: OK plays one, Menu or a long OK opens its options ([onOptions], null for a card without); a
+ * mark that did not save ([markError]) is said under them until an OK there.
  */
 @Composable
 private fun Episodes(
@@ -763,7 +789,7 @@ private fun Episodes(
     focused: MediaItem?,
     onFocus: (MediaItem) -> Unit,
     onPlay: (MediaItem) -> Unit,
-    onMark: ((MediaItem) -> Unit)?,
+    onOptions: (MediaItem) -> (() -> Unit)?,
     markError: UiError?,
     onClearMarkError: () -> Unit,
 ) {
@@ -771,7 +797,6 @@ private fun Episodes(
     Column(Modifier.scrollsAsBlock().okClears(onClearMarkError)) {
         MediaRow(header = header, modifier = memory.rowGroup(EPISODES), spacing = HlSpace.l) {
             items(episodes, key = { it.id }) { ep ->
-                val mark = if (ep.user.played) R.string.mark_episode_unwatched else R.string.mark_episode_watched
                 LandscapeCard(
                     item = ep,
                     modifier = memory.card(EPISODES, ep),
@@ -781,8 +806,8 @@ private fun Episodes(
                     number = ep.episodeNumbers,
                     facts = listOf(ep.runtimeMs?.let(::formatDuration), episodeState(ep)),
                     onFocused = { onFocus(ep) },
-                    onLongClick = onMark?.let { toggle -> { toggle(ep) } },
-                    onLongClickLabel = stringResource(mark),
+                    onLongClick = onOptions(ep),
+                    onLongClickLabel = stringResource(R.string.more_options),
                 )
             }
         }
