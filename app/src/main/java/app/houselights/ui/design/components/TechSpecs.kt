@@ -325,7 +325,7 @@ private fun labelName(label: TechLabel): String = stringResource(
 
 /** A track's language, with its region when known: "Français (Canada)". */
 @Composable
-private fun trackLanguage(code: String?, region: String?): String {
+internal fun trackLanguage(code: String?, region: String?): String {
     val name = languageName(code) ?: stringResource(R.string.unknown_language)
     return region?.let { "$name (${Locale("", it).getDisplayCountry(Locale.getDefault())})" } ?: name
 }

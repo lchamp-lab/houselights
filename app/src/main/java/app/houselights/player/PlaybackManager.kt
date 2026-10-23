@@ -9,6 +9,8 @@ import android.util.Log
 import app.houselights.R
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
+import app.houselights.core.TrackChoice
+import app.houselights.core.TrackPlan
 import app.houselights.core.isWebUrl
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +37,11 @@ class PlaybackManager(
     /** Monotonic clock (ms) that times the player's silence. */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
     private val players: ZidooPlayer = ZidooPlayer(context),
+    /** The tracks of the file playing ([ZidooStatus.tracks]) and switching them ([ZidooStatus.select]). */
+    private val tracks: suspend () -> PlayerTracks? = ZidooStatus::tracks,
+    private val select: suspend (TrackKind, Int) -> Boolean = ZidooStatus::select,
+    /** Keeps what the user changed in the player as the title's choice ([TrackPlan.titleKey]). */
+    private val remember: suspend (String, TrackChoice) -> Unit = { _, _ -> },
     /** Recovers the reporter of a playback started before the app was stopped (see [PlaybackPlan.Launch.resumeKey]). */
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
@@ -48,6 +55,8 @@ class PlaybackManager(
         var key: String? = null,
         /** The player a secret goes to, remembered only once it has started ([onPlayerLaunched]). */
         val trusting: ZidooPlayer.Choice? = null,
+        /** The tracks asked of the player, checked once it plays ([check]); null when it chose them, or for a next part. */
+        var tracks: TrackPlan? = null,
         /** The URI launched, then the part followed: the player's result is read against it if no status named the file. */
         var file: String? = null,
     ) {
@@ -63,6 +72,23 @@ class PlaybackManager(
 
         /** The "started" report, which the "stopped" report waits for. */
         var started: Job? = null
+
+        /** Statuses heard while it played, until the tracks are checked ([CHECK_AFTER]). */
+        var heard = 0
+
+        /** The check has begun; it is over once [settled]. */
+        var checked = false
+        var settled = false
+
+        /** The player's lists, read by the check: the numbers it returns are its own. */
+        var plays: PlayerTracks? = null
+
+        /** Tracks the player played without the user (asked, its own, switched to), by kind: a return to one is no choice. */
+        val usual = mutableMapOf<TrackKind, MutableSet<Int>>()
+
+        fun usual(kind: TrackKind, index: Int?) {
+            if (index != null) usual.getOrPut(kind) { mutableSetOf() } += index
+        }
     }
 
     private var session: Session? = null
@@ -93,7 +119,7 @@ class PlaybackManager(
      * password (trusted on first use), a system app update signed with the firmware's AOSP test keys, and
      * anyone reading the device log over adb, where Android logs the URI it starts.
      */
-    fun intentFor(plan: PlaybackPlan.Launch): Intent {
+    fun intentFor(plan: PlaybackPlan.Launch, tracks: TrackPlan? = null): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
 
         val choice = players.choose()
@@ -106,19 +132,24 @@ class PlaybackManager(
         }
         val changed = choice.decision == ZidooPlayer.Decision.CHANGED
         val intent = when {
-            player != null && (!secret || choice.decision.trusted) -> playerIntent(player.component, plan)
+            player != null && (!secret || choice.decision.trusted) -> playerIntent(player.component, plan, tracks)
             Redact.hasUserInfo(plan.uri) || secret && changed -> throw CredentialsNotShared(playerChanged = changed)
             else -> anyPlayerIntent(plan, chooser = secret)
         }
         val trusting = choice.takeIf { secret && intent.component != null }
-        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting, file = plan.uri)
+        // Tracks are numbered as the Zidoo player numbers them: asked of it only.
+        val asked = tracks?.takeIf { intent.component != null }
+        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting, asked, plan.uri).apply {
+            usual(TrackKind.AUDIO, asked?.pick?.audio)
+            usual(TrackKind.SUBTITLE, asked?.pick?.subtitle)
+        }
         // Pending apply() writes complete before our activity stops, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs)
             .putString(KEY_FILE, nameOf(plan.uri).takeUnless { plan.disc }).apply()
         return intent
     }
 
-    private fun playerIntent(player: ComponentName, plan: PlaybackPlan.Launch) = Intent(Intent.ACTION_VIEW).apply {
+    private fun playerIntent(player: ComponentName, plan: PlaybackPlan.Launch, tracks: TrackPlan?) = Intent(Intent.ACTION_VIEW).apply {
         component = player
         setDataAndType(Uri.parse(plan.uri), "video/${plan.container ?: "*"}")
         putExtra("title", plan.title)
@@ -130,6 +161,11 @@ class PlaybackManager(
             putExtra("position", plan.startMs.toInt())
         } else {
             putExtra("from_start", true)
+        }
+        tracks?.pick?.let { pick ->
+            Log.i(TAG, "Tracks asked: audio ${pick.audio}, subtitles ${pick.subtitle}")
+            pick.audio?.let { putExtra("audio_idx", it) }
+            pick.subtitle?.let { putExtra("subtitle_idx", it) }
         }
         putExtra("return_result", true)
     }
@@ -193,6 +229,7 @@ class PlaybackManager(
                     idle = 0
                     unanswered = 0
                     follow(s, answer.state)
+                    check(s)
                     if (!s.switched && tick % REPORT_EVERY == 0) {
                         keep(s)
                         report(s, "progress") { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
@@ -253,6 +290,8 @@ class PlaybackManager(
                 }
                 Log.i(TAG, "The player went on to the title's next part ($launched -> ${state.durationMs} ms)")
                 s.reporter = next.reporter
+                // Tracks were asked of the first part only: the next one plays the player's.
+                s.tracks = null
                 s.key = next.resumeKey
                 s.path = state.path
                 s.file = next.path
@@ -318,6 +357,56 @@ class PlaybackManager(
         return played != null && followed != null && !names(played, followed)
     }
 
+    /**
+     * Once the film has played a few statuses ([CHECK_AFTER]), past the player's own choice of tracks, switches to
+     * the tracks asked if it plays others ([TrackCheck]); only once, so that it never undoes the user's choice.
+     */
+    private suspend fun check(s: Session) {
+        val plan = s.tracks ?: return
+        if (s.switched || s.checked || ++s.heard < CHECK_AFTER) return
+        s.checked = true
+        val plays = tracks()
+        s.plays = plays
+        s.heardFrom(plays)
+        val fixes = plays?.let { TrackCheck.fixes(plan, it) }.orEmpty()
+        for (fix in fixes) {
+            val done = select(fix.kind, fix.index)
+            Log.i(TAG, "The player played other tracks: ${fix.kind} ${fix.index}${if (done) "" else ", refused"}")
+            if (done) s.usual(fix.kind, fix.index)
+        }
+        if (fixes.isNotEmpty()) {
+            // Read again once applied: another audio may have made the player choose its subtitles anew.
+            delay(SETTLE_MS)
+            s.heardFrom(tracks())
+        }
+        s.settled = true
+    }
+
+    private fun Session.heardFrom(plays: PlayerTracks?) {
+        usual(TrackKind.AUDIO, plays?.audioIndex)
+        usual(TrackKind.SUBTITLE, plays?.subtitleIndex)
+    }
+
+    /**
+     * What the user changed in the player among the tracks asked of it, which becomes the title's choice. Nothing
+     * when in doubt: another file, a check under way, or numbers that may not be the file's.
+     */
+    private fun changed(s: Session, data: Intent?, played: String?): TrackChoice? {
+        val plan = s.tracks?.takeUnless { s.doubtful(played) } ?: return null
+        fun returned(kind: TrackKind, extra: String, asked: Int?) =
+            data?.getIntExtra(extra, -1)?.takeIf { it >= 0 && asked != null && it !in s.usual[kind].orEmpty() }
+        val audio = returned(TrackKind.AUDIO, "audio_idx", plan.pick.audio)
+        val subtitle = returned(TrackKind.SUBTITLE, "subtitle_idx", plan.pick.subtitle)
+        if (audio == null && subtitle == null) return null
+        val choice = s.plays?.let { TrackCheck.choiceOf(it, audio, subtitle) }
+            // Unchecked: the file's numbering is the player's, unless a server lists files beside it.
+            ?: plan.choiceOf(audio, subtitle).takeUnless { plan.media.hasFilesBeside }
+        return choice?.takeUnless { it.isEmpty }
+    }
+
+    /** What the player played is in doubt: another file ([played] the one it ended on), or a check under way. */
+    private fun Session.doubtful(played: String?): Boolean = switched || checked && !settled || endedElsewhere(played)
+
     /** Persists the session's position for a new process if Android kills this one (see [saved]). */
     private fun keep(s: Session) {
         saved.edit().putLong(KEY_POSITION, s.positionMs).apply()
@@ -338,6 +427,15 @@ class PlaybackManager(
         val returned = data?.getIntExtra("position", -1) ?: -1
         // The file the player played last: empty when none, another when it went on to the folder's next file.
         val played = data?.getStringExtra("url")?.ifBlank { null }
+        val key = live?.tracks?.titleKey
+        val changed = live?.let { changed(it, data, played) }
+        if (changed != null && key != null) {
+            // At once, not after the reports, which a server may keep waiting.
+            scope.launch {
+                Log.i(TAG, "Tracks changed in the player, kept for the title: $changed")
+                suspendRunCatching { remember(key, changed) }.onFailure { Log.w(TAG, "Could not keep the tracks chosen", it) }
+            }
+        }
         scope.launch {
             // The last progress report and the "started" report finish before the final one is sent.
             poll?.cancelAndJoin()
@@ -374,6 +472,12 @@ class PlaybackManager(
 
         /** The player takes a few seconds to open the file. */
         private const val FIRST_POLL_MS = 4_000L
+
+        /** Statuses heard before checking the tracks: the player sets its subtitles 3 s after opening the file. */
+        private const val CHECK_AFTER = 3
+
+        /** Time for the player to apply a track switched to before reading what it plays. */
+        private const val SETTLE_MS = 1_500L
         private const val POLL_MS = 2_000L
 
         /** Progress is reported every this many polls, about ten seconds. */

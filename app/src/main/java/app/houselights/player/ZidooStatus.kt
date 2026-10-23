@@ -6,9 +6,11 @@ import app.houselights.core.lenientJson
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
@@ -36,6 +38,14 @@ sealed interface PlayerAnswer {
     /** No answer, or a nonsensical one: a briefly unreachable API says nothing about the film. */
     data object NoAnswer : PlayerAnswer
 }
+
+/** A track as the player lists it while it plays; [index] is the number it answers to ([ZidooStatus.select]). */
+data class PlayerTrack(val index: Int, val language: String?, val forced: Boolean = false, val hearingImpaired: Boolean = false)
+
+/** The tracks the player lists and the ones it plays; its subtitles start with "none", numbered 0. */
+data class PlayerTracks(val audio: List<PlayerTrack>, val audioIndex: Int, val subtitles: List<PlayerTrack>, val subtitleIndex: Int)
+
+enum class TrackKind { AUDIO, SUBTITLE }
 
 object ZidooStatus {
     private const val BASE = "http://127.0.0.1:9529"
@@ -76,6 +86,50 @@ object ZidooStatus {
 
     /** Statuses meaning nothing plays: no video open (804), the player not running (806). */
     private val NOTHING_PLAYS = setOf(804, 806)
+
+    /** The tracks of the file playing; null when nothing plays or the API is out of reach. */
+    suspend fun tracks(): PlayerTracks? = withContext(Dispatchers.IO) {
+        suspendRunCatching {
+            val audio = get("getAudioList")?.let(::parseTracks) ?: return@suspendRunCatching null
+            val subtitles = get("getSubtitleList")?.let(::parseTracks) ?: return@suspendRunCatching null
+            PlayerTracks(audio.second, audio.first, subtitles.second, subtitles.first)
+        }.getOrNull()
+    }
+
+    /** Asks the player to play its track numbered [index]; true once it has accepted. */
+    suspend fun select(kind: TrackKind, index: Int): Boolean = withContext(Dispatchers.IO) {
+        val call = if (kind == TrackKind.AUDIO) "setAudio" else "setSubtitle"
+        suspendRunCatching { get("$call?index=$index")?.let(::accepted) }.getOrNull() ?: false
+    }
+
+    private fun get(call: String): String? =
+        http.newCall(Request.Builder().url("$BASE/ZidooVideoPlay/$call").build()).execute().use { it.body?.string() }
+
+    internal fun accepted(body: String): Boolean =
+        runCatching { lenientJson.parseToJsonElement(body).jsonObject["status"]?.jsonPrimitive?.intOrNull == HttpStatus.OK }
+            .getOrDefault(false)
+
+    /**
+     * Parses a getAudioList or getSubtitleList answer: the index playing and the tracks, null if unusable. Both list
+     * under "subtitles"; whether a subtitle is forced or for the hearing impaired shows only in its title.
+     */
+    internal fun parseTracks(body: String): Pair<Int, List<PlayerTrack>>? = runCatching {
+        val root = lenientJson.parseToJsonElement(body).jsonObject
+        if (root["status"]?.jsonPrimitive?.intOrNull != HttpStatus.OK) return@runCatching null
+        val current = root["currentIndex"]?.jsonPrimitive?.intOrNull ?: return@runCatching null
+        current to root["subtitles"]?.jsonArray.orEmpty().mapNotNull { (it as? JsonObject)?.let(::track) }
+    }.getOrNull()
+
+    private fun track(entry: JsonObject): PlayerTrack? {
+        val index = entry["index"]?.jsonPrimitive?.intOrNull ?: return null
+        val title = (entry["title"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+        // The API's own spelling.
+        val language = (entry["laungaue"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null }
+        return PlayerTrack(index, language, forced = FORCED.containsMatchIn(title), hearingImpaired = SDH.containsMatchIn(title))
+    }
+
+    private val FORCED = Regex("""\bforced\b""", RegexOption.IGNORE_CASE)
+    private val SDH = Regex("""\bSDH\b""")
 
     /** True when the control API answers, i.e. the app runs on a Zidoo. */
     suspend fun isAvailable(): Boolean = withContext(Dispatchers.IO) {

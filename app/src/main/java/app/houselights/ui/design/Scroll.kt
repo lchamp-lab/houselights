@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.Composable
@@ -77,6 +78,26 @@ class EdgeScroll(
             offset >= start && itemEnd <= end -> 0f
             offset < start || size > end - start -> offset - start
             else -> itemEnd - end
+        }
+    }
+}
+
+/**
+ * A sheet's scrolling: focus stops [edge] from its ends, as in a list, and goes all the way to an end of what the
+ * sheet holds once within [near] of it, so a group's title above the first row or a note under the last row is
+ * never left under a fade.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+class SheetScroll(private val scroll: ScrollState, edge: Float, private val near: Float) : BringIntoViewSpec {
+    private val list = EdgeScroll(edge, edge)
+
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val fromStart = scroll.value + offset
+        val toEnd = scroll.maxValue + containerSize - (fromStart + size)
+        return when {
+            fromStart <= near -> -scroll.value.toFloat()
+            toEnd <= near -> (scroll.maxValue - scroll.value).toFloat()
+            else -> list.calculateScrollDistance(offset, size, containerSize)
         }
     }
 }

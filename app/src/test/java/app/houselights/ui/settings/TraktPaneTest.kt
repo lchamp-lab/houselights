@@ -272,9 +272,12 @@ class TraktPaneTest {
 
     @Test
     fun theEntryShowsWithTheFoldersOnly() {
-        assertTrue(Pane.Trakt in panesFor(SourceConfig.Local, pathMapping = false, counts = true))
-        assertFalse(Pane.Trakt in panesFor(account, pathMapping = true, counts = true))
-        assertFalse(Pane.Trakt in panesFor(null, pathMapping = false, counts = false))
+        assertTrue(Pane.Trakt in panesFor(SourceConfig.Local, pathMapping = false, counts = true, tracks = false))
+        fun playback(tracks: Boolean) = Pane.Playback in panesFor(SourceConfig.Local, pathMapping = false, counts = true, tracks = tracks)
+        assertTrue("the tracks of a Zidoo player", playback(tracks = true))
+        assertFalse("nothing to set elsewhere", playback(tracks = false))
+        assertFalse(Pane.Trakt in panesFor(account, pathMapping = true, counts = true, tracks = false))
+        assertFalse(Pane.Trakt in panesFor(null, pathMapping = false, counts = false, tracks = true))
     }
 
     @Test

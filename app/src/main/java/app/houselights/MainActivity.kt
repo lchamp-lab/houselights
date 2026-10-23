@@ -321,7 +321,7 @@ class MainActivity : ComponentActivity() {
                         is PlaybackPlan.Launch -> try {
                             // The player needs the memory more than pictures that reload from disk.
                             imageLoader.memoryCache?.clear()
-                            playerLauncher.launch(container.player.intentFor(plan))
+                            playerLauncher.launch(container.player.intentFor(plan, container.tracks.plan(plan)))
                             container.player.onPlayerLaunched()
                         } catch (_: ActivityNotFoundException) {
                             container.player.onLaunchFailed()

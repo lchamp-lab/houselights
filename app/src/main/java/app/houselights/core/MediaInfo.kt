@@ -45,7 +45,8 @@ object BadgeTokens {
 
 enum class FormatFamily { PICTURE, SOUND }
 
-data class FormatMark(val label: String, val family: FormatFamily)
+/** A format as a case names it, a [detail] of it (the codec), or one of its [measure]s (channels, a rate), set quieter. */
+data class FormatMark(val label: String, val family: FormatFamily, val measure: Boolean = false, val detail: Boolean = false)
 
 /**
  * The formats a title's page shows, named as a Blu-ray case prints them (Dolby Digital Plus, not E-AC3).
@@ -65,7 +66,7 @@ object Formats {
             definition?.let { FormatMark(it.label, FormatFamily.PICTURE) },
             range?.let { FormatMark(it, FormatFamily.PICTURE) },
             sound?.let { FormatMark(soundName(it), FormatFamily.SOUND) },
-            channels?.let { FormatMark(it, FormatFamily.SOUND) },
+            channels?.let { FormatMark(it, FormatFamily.SOUND, measure = true) },
         )
     }
 
@@ -207,6 +208,8 @@ data class AudioTrack(
     val default: Boolean = false,
     /** Bitrate in kb/s, from the file's tags or as a server reports it. */
     val bitrateKbps: Int? = null,
+    /** A file beside the video, as a server lists it; the player numbers only the file's own tracks. */
+    val external: Boolean = false,
 ) {
     /** 7.1, 5.1, 2.0… */
     val layout: String?
@@ -239,6 +242,8 @@ data class SubtitleTrack(
     val forced: Boolean = false,
     val hearingImpaired: Boolean = false,
     val default: Boolean = false,
+    /** A file beside the video, as a server lists it; the player numbers only the file's own tracks. */
+    val external: Boolean = false,
 )
 
 /** What is inside a video file. Read from the file itself, or reported by a media server. */
@@ -253,7 +258,12 @@ data class MediaInfo(
     val subtitles: List<SubtitleTrack> = emptyList(),
     /** Version of the file probe that read this; 0 for unversioned readings and server reports. */
     val probedWith: Int = 0,
+    /** [audio] and [subtitles] are in the file's order, which the player numbers them by; not so from an NFO. */
+    val tracksInOrder: Boolean = false,
 ) {
+    /** A server lists files beside the video among its tracks, which the player does not number as it does. */
+    val hasFilesBeside: Boolean get() = audio.any { it.external } || subtitles.any { it.external }
+
     val bitrateKbps: Long?
         get() {
             val size = sizeBytes ?: return null

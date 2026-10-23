@@ -52,6 +52,10 @@ sealed interface PlaybackPlan {
         val resumeKey: String? = null,
         /** A disc (an ISO, a Blu-ray or DVD folder): the player may open it on a menu or an intro before its title. */
         val disc: Boolean = false,
+        /** The file's tracks, when known in the player's order ([MediaInfo.tracksInOrder]); never a disc's. */
+        val media: MediaInfo? = null,
+        /** Where the title's choice of tracks is kept: the film, all its copies, or the whole show for an episode. */
+        val titleKey: String? = null,
     ) : PlaybackPlan
 }
 
@@ -67,6 +71,8 @@ fun MediaItem.launch(
     reporter: PlaybackReporter?,
     resumeKey: String?,
     disc: Boolean = false,
+    media: MediaInfo? = null,
+    titleKey: String? = null,
 ) = PlaybackPlan.Launch(
     uri = uri,
     container = container,
@@ -77,6 +83,8 @@ fun MediaItem.launch(
     reporter = reporter,
     resumeKey = resumeKey,
     disc = disc,
+    media = media.takeUnless { disc },
+    titleKey = titleKey,
 )
 
 /**

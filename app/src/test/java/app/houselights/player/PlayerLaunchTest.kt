@@ -4,7 +4,14 @@ import android.app.Application
 import android.content.Intent
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.AudioTrack
+import app.houselights.core.Codecs
+import app.houselights.core.MediaInfo
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.SubtitleMode
+import app.houselights.core.SubtitleTrack
+import app.houselights.core.TrackPlan
+import app.houselights.core.TrackPreferences
 import app.houselights.player.FakeApps.Companion.FIRMWARE_SCHEMES
 import app.houselights.player.FakeApps.Companion.GALLERY
 import app.houselights.player.FakeApps.Companion.MOVIE_ACTIVITY
@@ -88,6 +95,27 @@ class PlayerLaunchTest {
             assertEquals(it, intent.dataString)
         }
         assertEquals(PlayerStatus.Detected(GALLERY), ZidooPlayer(context) { Z1000_PRO_BUILD }.status())
+    }
+
+    /** Numbered as the Zidoo player numbers them: asked of it only, never of another app. */
+    @Test
+    fun theTracksAreAskedOfTheZidooPlayerOnly() = runTest {
+        val media = MediaInfo(
+            audio = listOf(AudioTrack(Codecs.EAC3, 6, "fr"), AudioTrack(Codecs.EAC3, 6, "ko")),
+            subtitles = listOf(SubtitleTrack("fr", format = Codecs.SRT, forced = true), SubtitleTrack("fr", format = Codecs.SRT)),
+            tracksInOrder = true,
+        )
+        val tracks = TrackPlan(media, TrackPreferences("ko", SubtitleMode.FOREIGN), null, "fr", "FR", "local:1")
+        val elsewhere = manager(ZIDOO_BUILD).intentFor(plan(NFS), tracks)
+        assertNull(elsewhere.component)
+        assertFalse(elsewhere.hasExtra("audio_idx") || elsewhere.hasExtra("subtitle_idx"))
+
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, certificate = ZIDOO_KEY, schemes = listOf("http", "file", "content"))
+        val manager = manager(Z1000_PRO_BUILD)
+        val asked = manager.intentFor(plan(NFS), tracks)
+        assertEquals(1 to 2, asked.getIntExtra("audio_idx", -1) to asked.getIntExtra("subtitle_idx", -1))
+        val left = manager.intentFor(plan(NFS))
+        assertFalse(left.hasExtra("audio_idx") || left.hasExtra("subtitle_idx"))
     }
 
     @Test

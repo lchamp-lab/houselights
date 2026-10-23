@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
+import app.houselights.core.SubtitleMode
+import app.houselights.core.TrackPreferences
 import app.houselights.core.TraktSession
 import app.houselights.testing.testKey
 import app.houselights.testing.testSecrets
@@ -224,6 +226,18 @@ class SettingsStoreTest {
 
         val settings = SettingsStore(FlakyStore(0, migrated), backgroundScope, broken)
         assertEquals(home, settings.state.first { it.loaded }.source)
+    }
+
+    /** Until chosen, the player picks the tracks; the choice is read back, a language left out follows the app. */
+    @Test
+    fun theTracksAskedAreWrittenThenReadBack() = runTest {
+        val settings = testSettings(folder.root, backgroundScope, testSecrets())
+        assertEquals(TrackPreferences(), settings.state.first { it.loaded }.tracks)
+        val vost = TrackPreferences(audio = "ja", subtitles = SubtitleMode.FOREIGN)
+        settings.setTracks(vost)
+        assertEquals(vost, settings.state.first { it.tracks != TrackPreferences() }.tracks)
+        settings.setTracks(TrackPreferences(subtitles = SubtitleMode.OFF, subtitleLanguage = "en"))
+        assertEquals(TrackPreferences(null, SubtitleMode.OFF, "en"), settings.state.first { it.tracks.audio == null }.tracks)
     }
 
     /** "My files" holds no secret: chosen while the Keystore fails, it is still written, never a crash. */

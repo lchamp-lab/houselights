@@ -31,8 +31,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Deferred
 import android.util.Log
+import app.houselights.core.AudioTrack
 import app.houselights.core.Credits
 import app.houselights.core.Saga
+import app.houselights.core.TrackChoice
+import app.houselights.core.TrackPlan
 import app.houselights.core.Version
 
 data class DetailState(
@@ -66,7 +69,18 @@ data class DetailState(
     val saga: Saga? = null,
     /** For a film in several copies: each one, the one Lire plays marked ([Version.chosen]); empty for one copy. */
     val versions: List<Version> = emptyList(),
+    /** The tracks of what Lire plays ([tracksTarget]), and what Settings and the title's choice ask of the player. */
+    val tracks: TrackPlan? = null,
 ) {
+    /** The audio track Lire asks of the player for the title shown; null when the player chooses it. */
+    val playedAudio: AudioTrack? get() = tracks?.takeIf { item?.isPlayable == true }?.let { p -> p.audio?.let(p.audioTracks::getOrNull) }
+
+    /** [tracks] when there is a choice to make: two audio tracks, or subtitles. */
+    val tracksToChoose: TrackPlan? get() = tracks?.takeIf { it.audioTracks.size > 1 || it.subtitleTracks.isNotEmpty() }
+
+    /** What Lire plays, whose tracks are chosen here: the title, or a show's next episode; null for a collection. */
+    val tracksTarget: MediaItem? get() = if (item?.kind == MediaKind.SERIES) nextUp else item?.takeIf { it.isPlayable }
+
     /** The copy Lire plays, for a film in several; null for one copy. */
     val playedCopy: Version? get() = versions.takeIf { it.size > 1 }?.let { all -> all.firstOrNull { it.chosen } ?: all.first() }
 
@@ -94,6 +108,10 @@ class DetailViewModel(
     private val work: CoroutineScope,
     private val saved: SavedStateHandle = SavedStateHandle(),
     private val now: () -> Long = SystemClock::elapsedRealtime,
+    /** The tracks of what Lire plays for an item ([AppContainer.tracksOf]). */
+    private val tracksOf: suspend (MediaItem) -> TrackPlan? = { null },
+    /** Changes a title's stored choice of tracks, under its key; an empty one leaves it to Settings. */
+    private val keepTracks: suspend (String, (TrackChoice) -> TrackChoice) -> Unit = { _, _ -> },
 ) : ViewModel() {
     private val _state = MutableStateFlow(DetailState(selectedSeasonId = saved[SEASON]))
     val state: StateFlow<DetailState> = _state
@@ -102,6 +120,8 @@ class DetailViewModel(
 
     /** Episodes of the last chosen season, one load at a time, so a slow answer never shows under another tab. */
     private val seasonLoads = LatestJob(viewModelScope)
+
+    private val trackLoads = LatestJob(viewModelScope)
 
     init {
         load()
@@ -164,6 +184,7 @@ class DetailViewModel(
             val seasonsLoad = async { source.seasons(item) }
             val next = nextUp.await()
             sayFirst(source, item, next)
+            val tracks = async { next?.let { readTracks(it, keep = it) } }
             val seasons = seasonsLoad.await()
             val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
                 ?: next?.seasonId
@@ -178,6 +199,7 @@ class DetailViewModel(
                 selectedSeasonId = seasonId,
                 episodes = episodes,
                 similar = similar.await(),
+                tracks = tracks.await(),
             )
         }
 
@@ -188,20 +210,22 @@ class DetailViewModel(
         return DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films, saga = saga)
     }
 
-    /** A film's page: its saga, then [similar] titles outside it. */
-    private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState {
+    /** A film's page: its saga, then [similar] titles outside it; the tracks of what Lire plays, read meanwhile. */
+    private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState = coroutineScope {
+        val tracks = async { item.takeIf { it.isPlayable }?.let { readTracks(it, keep = it) } }
         val collection = source.collectionOf(item)
         // Includes the film itself, showing its place in the saga.
         val saga = collection?.let { c -> source.collectionItems(c) }.orEmpty()
         // Films of the same saga are shown as such, not again as "similar".
         val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
-        return DetailState(
+        DetailState(
             item = item,
             capabilities = source.capabilities,
             similar = similarFilms,
             collection = collection,
             collectionFilms = saga,
             versions = versionsOf(source, item),
+            tracks = tracks.await(),
         )
     }
 
@@ -296,8 +320,46 @@ class DetailViewModel(
                 val source = provider()
                 source.catalog?.chooseVersion(item, version)
                 versionsOf(source, item)
-            }.onSuccess { versions -> _state.update { it.copy(versions = versions) } }
+            }.onSuccess { versions ->
+                _state.update { it.copy(versions = versions) }
+                loadTracks()
+            }
                 .onFailure { e -> _state.update { it.copy(actionError = e.reported(TAG, "Version of $itemId")) } }
+        }
+    }
+
+    /** Reads the tracks of what Lire plays again (another copy); without them, the page has no tracks tile. */
+    private fun loadTracks() {
+        val target = _state.value.tracksTarget ?: return
+        trackLoads.launch {
+            val plan = readTracks(target, keep = target)
+            _state.update { if (it.tracksTarget?.id == target.id) it.copy(tracks = plan) else it }
+        }
+    }
+
+    /** [target]'s tracks; on failure, those the page shows for [keep], so a passing fault does not hide the tile. */
+    private suspend fun readTracks(target: MediaItem, keep: MediaItem): TrackPlan? =
+        suspendRunCatching { tracksOf(target) }
+            .onFailure { Log.w(TAG, "Tracks of ${target.id}", it) }
+            .getOrElse { _state.value.takeIf { shown -> shown.tracksTarget?.id == keep.id }?.tracks }
+
+    /**
+     * Makes [choice] the title's, shown at once: only the column it changes is written, over what is stored, which
+     * the player may have changed since the page was read. A failure shows by the actions.
+     */
+    fun chooseTracks(choice: TrackChoice) {
+        val plan = _state.value.tracks ?: return
+        val key = plan.titleKey ?: return
+        val before = plan.choice ?: TrackChoice()
+        val audio = choice.audio != before.audio
+        val subtitles = choice.subtitles != before.subtitles
+        _state.update { it.copy(tracks = plan.copy(choice = choice.takeUnless { c -> c.isEmpty }), actionError = null) }
+        work.launch {
+            suspendRunCatching {
+                keepTracks(key) { stored ->
+                    TrackChoice(if (audio) choice.audio else stored.audio, if (subtitles) choice.subtitles else stored.subtitles)
+                }
+            }.onFailure { e -> _state.update { it.copy(tracks = plan, actionError = e.reported(TAG, "Tracks of $itemId")) } }
         }
     }
 
@@ -347,7 +409,12 @@ class DetailViewModel(
 
     companion object {
         fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
-            initializer { DetailViewModel(itemId, app::provider, app, app.scope, createSavedStateHandle()) }
+            initializer {
+                DetailViewModel(
+                    itemId, app::provider, app, app.scope, createSavedStateHandle(),
+                    tracksOf = app::tracksOf, keepTracks = app.tracks::choose,
+                )
+            }
         }
     }
 }

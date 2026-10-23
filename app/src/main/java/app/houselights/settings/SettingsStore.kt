@@ -17,6 +17,8 @@ import app.houselights.core.PathMapping
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
+import app.houselights.core.SubtitleMode
+import app.houselights.core.TrackPreferences
 import app.houselights.core.TraktSession
 import app.houselights.core.lenientJson
 import kotlinx.coroutines.CancellationException
@@ -54,6 +56,9 @@ private object Keys {
     val metadataLanguage = stringPreferencesKey("metadata_language")
     val libraryLanguage = stringPreferencesKey("library_language")
     val trakt = stringPreferencesKey("trakt")
+    val audioLanguage = stringPreferencesKey("audio_language")
+    val subtitleMode = stringPreferencesKey("subtitle_mode")
+    val subtitleLanguage = stringPreferencesKey("subtitle_language")
 }
 
 private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings, Keys.trakt)
@@ -121,6 +126,8 @@ data class AppSettings(
     val libraryLanguage: String? = null,
     /** The Trakt account connected for the folders' watch history; null when none is. */
     val trakt: TraktSession? = null,
+    /** The audio and subtitles asked of the player for every title; by default the player chooses. */
+    val tracks: TrackPreferences = TrackPreferences(),
     /** Secrets that could not be read back (key lost, bad value): each reads as unset until saved again. */
     val lostSecrets: Set<SecretSetting> = emptySet(),
     /** The file keeps failing to read: retried ever less often, never replaced by defaults (which open Welcome). */
@@ -134,7 +141,7 @@ data class AppSettings(
         "AppSettings(loaded=$loaded, source=$source, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
             "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
             "collectionMinFilms=$collectionMinFilms, metadataLanguage=$metadataLanguage, libraryLanguage=$libraryLanguage, " +
-            "trakt=$trakt, lostSecrets=$lostSecrets, readFailed=$readFailed)"
+            "trakt=$trakt, tracks=$tracks, lostSecrets=$lostSecrets, readFailed=$readFailed)"
 }
 
 class SettingsStore(
@@ -211,6 +218,11 @@ class SettingsStore(
             metadataLanguage = this[Keys.metadataLanguage],
             libraryLanguage = this[Keys.libraryLanguage],
             trakt = this[Keys.trakt]?.let { opened(Keys.trakt, it, lost) }?.let { decoded<TraktSession>(Keys.trakt, it, lost) },
+            tracks = TrackPreferences(
+                audio = this[Keys.audioLanguage],
+                subtitles = SubtitleMode.entries.firstOrNull { it.name == this[Keys.subtitleMode] } ?: SubtitleMode.PLAYER,
+                subtitleLanguage = this[Keys.subtitleLanguage],
+            ),
             lostSecrets = lost,
         )
     }
@@ -285,6 +297,14 @@ class SettingsStore(
 
     suspend fun setLibraryLanguage(tag: String) {
         write { it[Keys.libraryLanguage] = tag }
+    }
+
+    suspend fun setTracks(tracks: TrackPreferences) {
+        write {
+            if (tracks.audio == null) it.remove(Keys.audioLanguage) else it[Keys.audioLanguage] = tracks.audio
+            it[Keys.subtitleMode] = tracks.subtitles.name
+            if (tracks.subtitleLanguage == null) it.remove(Keys.subtitleLanguage) else it[Keys.subtitleLanguage] = tracks.subtitleLanguage
+        }
     }
 
     /** Saves the Trakt account's tokens sealed, or forgets them ([session] null). */

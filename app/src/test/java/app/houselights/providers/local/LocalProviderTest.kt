@@ -1,6 +1,8 @@
 package app.houselights.providers.local
 
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.AudioTrack
+import app.houselights.core.Codecs
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
@@ -522,6 +524,22 @@ class LocalProviderTest {
         assertTrue((provider.playback(provider.item(iso.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
         val mkv = movie("Ronin")
         assertFalse((provider.playback(provider.item(mkv.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
+    }
+
+    /** The tracks the scan read in the file's order go with its launch, under its title's key; a disc's never do. */
+    @Test
+    fun theFilesTracksGoWithItsLaunch() = runTest {
+        val options = PlaybackOptions(emptyList(), false)
+        val french = listOf(AudioTrack(Codecs.AC3, 6, "fre"))
+        val read = MediaInfo(container = "MKV", audio = french, probedWith = MediaProbe.VERSION, tracksInOrder = true)
+        val heat = movie("Heat") { withMedia(read) }
+        val plan = provider.playback(provider.item(heat.toString()), resume = false, options) as PlaybackPlan.Launch
+        assertEquals(read to "local:$heat", plan.media to plan.titleKey)
+        val copy = movie("Heat", path = "Heat 2160p.mkv") { withMedia(read).copy(versionOf = heat) }
+        val copyPlan = provider.play(copy, null, resume = false) as PlaybackPlan.Launch
+        assertEquals("one choice for every copy", "local:$heat", copyPlan.titleKey)
+        val iso = movie("Ronin", path = "Ronin.iso") { withMedia(read) }
+        assertNull((provider.playback(provider.item(iso.toString()), resume = false, options) as PlaybackPlan.Launch).media)
     }
 
     /** No logo chosen (the title set in type): the player gets none either. */

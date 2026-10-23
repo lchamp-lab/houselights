@@ -10,14 +10,20 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import app.houselights.core.Http
 import app.houselights.core.LibraryEvents
+import app.houselights.core.MediaItem
 import app.houselights.ui.design.components.FIELD_POSTERS
 import app.houselights.ui.util.RoomPosters
 import app.houselights.core.MediaProvider
+import app.houselights.core.PlaybackOptions
+import app.houselights.core.PlaybackPlan
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
+import app.houselights.core.TrackPlan
 import app.houselights.core.Typeset
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
+import app.houselights.player.TrackChooser
+import app.houselights.player.ZidooPlayer
 import app.houselights.player.Redact
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
@@ -29,6 +35,7 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
+import app.houselights.providers.local.TrackChoiceEntity
 import app.houselights.providers.local.followDetailsLanguage
 import app.houselights.providers.trakt.TraktAccount
 import app.houselights.providers.trakt.TraktKeys
@@ -171,8 +178,31 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         following = { settings.state.first { it.loaded }.let { it.trakt != null && it.source == SourceConfig.Local } },
     )
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
+    /** The audio and subtitles asked of the player: Settings', or each title's own choice. */
+    val tracks = TrackChooser(
+        preferences = { settings.state.value.tracks },
+        // The app's own language, which may not be the device's, in the device's region.
+        locale = { Locale(app.resources.configuration.locales[0].language, deviceLocale.value.country) },
+        load = { database.trackChoices().choice(it)?.choice() },
+        save = { key, choice ->
+            database.trackChoices().save(TrackChoiceEntity(key, choice.audio, choice.subtitles?.stored, System.currentTimeMillis()))
+        },
+        forget = { database.trackChoices().forget(it) },
+    )
+
+    /** A Zidoo player takes the tracks asked of it ([TrackChooser]); another app ignores them. Debug builds show them anywhere. */
+    val asksTracks: Boolean by lazy { BuildConfig.DEBUG || ZidooPlayer(app).choose().player != null }
+
+    /** The tracks Lire would ask of the player for [item], from the file it plays (its chosen copy); null when unknown. */
+    suspend fun tracksOf(item: MediaItem): TrackPlan? {
+        if (!asksTracks) return null
+        val s = settings.state.value
+        val launch = provider.playback(item, resume = false, PlaybackOptions(s.pathMappings, s.forceHttp)) as? PlaybackPlan.Launch
+        return launch?.let { tracks.table(it) }
+    }
+
     /** Launches the external player for a title and follows it while it plays. */
-    val player = PlaybackManager(app, scope) { resumeKey ->
+    val player = PlaybackManager(app, scope, remember = tracks::remember) { resumeKey ->
         // After a process restart, the source is known only once the settings are loaded.
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)

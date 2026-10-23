@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.AppContainer
 import app.houselights.core.MediaProvider
 import app.houselights.core.PathMapping
+import app.houselights.core.TrackPreferences
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.CleanupResult
 import app.houselights.providers.local.LocalLibrary
@@ -69,6 +70,7 @@ internal enum class SettingAction {
     CLEANUP,
     CLEAR_IMAGE_CACHE,
     SOURCE,
+    TRACKS,
 }
 
 /** Why the change made from [action] failed; [folderId] is the folder a removal targeted. */
@@ -87,9 +89,12 @@ internal class SettingsViewModel(
     private val images: ImageLoader?,
     private val checkTmdbKey: suspend (String) -> TmdbKeyCheck = { TmdbClient(it).checkKey() },
     private val chooseLanguage: suspend (String?) -> Unit = {},
+    /** A Zidoo player takes the tracks asked of it: the tracks settings apply ([AppContainer.asksTracks]). */
+    val asksTracks: Boolean = false,
 ) : ViewModel() {
-    constructor(app: AppContainer, images: ImageLoader) :
-        this(app.settings, app.library, app::provider, app.scope, images, chooseLanguage = app.language::choose)
+    constructor(app: AppContainer, images: ImageLoader) : this(
+        app.settings, app.library, app::provider, app.scope, images, chooseLanguage = app.language::choose, asksTracks = app.asksTracks,
+    )
 
     val settings: StateFlow<AppSettings> = store.state
 
@@ -184,6 +189,10 @@ internal class SettingsViewModel(
     }
 
     /** Saves TMDB's language ([tag], null for the device's); the app then reads every title again in it. */
+    fun setTracks(tracks: TrackPreferences) = change("Saving the tracks", SettingAction.TRACKS) {
+        store.setTracks(tracks)
+    }
+
     fun setMetadataLanguage(tag: String?) = change("Saving the details language", SettingAction.METADATA_LANGUAGE) {
         store.setMetadataLanguage(tag)
     }

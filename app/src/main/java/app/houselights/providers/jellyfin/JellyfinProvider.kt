@@ -202,13 +202,17 @@ class JellyfinProvider(
         val uri = networkUri ?: client.streamUrl(full.id, source?.id, container)
         val media = toMedia(full)
         val startMs = if (resume) media.user.positionMs else 0L
-        Log.i(TAG, "Play ${full.name} -> ${Redact.uri(uri)} (start ${startMs} ms)")
+        // Debug only: a page reads the plan too, for its tracks; a launch is logged by the player.
+        Log.d(TAG, "Plan ${full.name} -> ${Redact.uri(uri)} (start ${startMs} ms)")
 
         return media.launch(
             uri, container, startMs,
             reporter = Reporter(full.id, source?.id),
             resumeKey = listOfNotNull(full.id, source?.id).joinToString(RESUME_KEY_SEPARATOR),
             disc = source?.videoType in DISC_VIDEO_TYPES || container.equals(DISC_IMAGE, ignoreCase = true),
+            // The source played, which a stream sends unchanged (static).
+            media = JellyfinMapper.mediaInfo(full, source),
+            titleKey = "$TRACKS_KEY${full.seriesId ?: full.id}",
         )
     }
 
@@ -316,6 +320,9 @@ class JellyfinProvider(
         /** Media source video types that are discs: ISO image, Blu-ray folder, DVD folder. */
         private val DISC_VIDEO_TYPES = setOf("Iso", "BluRay", "Dvd")
         private const val DISC_IMAGE = "iso"
+
+        /** Prefix of a title's key for its choice of tracks ([PlaybackPlan.Launch.titleKey]). */
+        private const val TRACKS_KEY = "jellyfin:"
 
         private const val COLLECTION_LIMIT = 200
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)

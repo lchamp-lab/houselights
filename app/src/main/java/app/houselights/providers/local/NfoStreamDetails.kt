@@ -41,6 +41,8 @@ object NfoStreamDetails {
             video = video,
             audio = audio.ifEmpty { base?.audio.orEmpty() },
             subtitles = subtitles.ifEmpty { base?.subtitles.orEmpty() },
+            // An NFO lists tracks in an order of its own.
+            tracksInOrder = base?.tracksInOrder == true && audio.isEmpty() && subtitles.isEmpty(),
         )
     }
 }
