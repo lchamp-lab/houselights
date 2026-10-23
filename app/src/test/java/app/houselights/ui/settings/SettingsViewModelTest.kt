@@ -318,11 +318,19 @@ class SettingsViewModelTest {
     @Test
     fun eachPaneSaysWhatOfItsOwnWasLost() {
         val lost = setOf(SecretSetting.TMDB_KEY, SecretSetting.PATH_MAPPINGS, SecretSetting.TRAKT)
-        assertEquals(R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost))
-        assertEquals(R.string.settings_lost_mappings, lostSecretNote(Pane.Playback, lost))
-        assertEquals(R.string.settings_lost_trakt, lostSecretNote(Pane.Trakt, lost))
-        assertNull(lostSecretNote(Pane.Display, lost))
-        assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE)))
+        assertEquals(R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost, folders = true))
+        assertEquals(R.string.settings_lost_mappings, lostSecretNote(Pane.Playback, lost, folders = true))
+        assertEquals(R.string.settings_lost_trakt, lostSecretNote(Pane.Trakt, lost, folders = true))
+        assertNull(lostSecretNote(Pane.Display, lost, folders = true))
+        assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE), folders = true))
+    }
+
+    /** Paused under a server, Trakt's pane can only disconnect: it never asks to connect again there. */
+    @Test
+    fun aLostTraktSessionIsNotToldUnderAServer() {
+        val lost = setOf(SecretSetting.TMDB_KEY, SecretSetting.TRAKT)
+        assertNull(lostSecretNote(Pane.Trakt, lost, folders = false))
+        assertEquals(R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost, folders = false))
     }
 
     /** A mapping whose path is emptied goes at once, rather than stay as an empty row until the next start. */

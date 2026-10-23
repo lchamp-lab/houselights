@@ -176,11 +176,14 @@ private class NumbersDoors(val onOpenWall: (Library, LibraryFilter) -> Unit, val
  */
 internal class SourceDoors(val useFolders: (keepServer: Boolean) -> Unit, val signIn: (LoginFill) -> Unit, val resumed: () -> Unit)
 
-/** The note [pane] shows when one of its secrets could not be read back and must be re-entered; else null. */
-internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
+/**
+ * The note [pane] shows when one of its secrets could not be read back and must be re-entered; else null. Trakt's waits
+ * for the [folders]: paused elsewhere, its pane offers no way to connect again.
+ */
+internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>, folders: Boolean): Int? = when {
     pane == Pane.Library && SecretSetting.TMDB_KEY in lost -> R.string.settings_lost_tmdb_key
     pane == Pane.Playback && SecretSetting.PATH_MAPPINGS in lost -> R.string.settings_lost_mappings
-    pane == Pane.Trakt && SecretSetting.TRAKT in lost -> R.string.settings_lost_trakt
+    pane == Pane.Trakt && folders && SecretSetting.TRAKT in lost -> R.string.settings_lost_trakt
     else -> null
 }
 
@@ -240,12 +243,13 @@ private fun PaneContent(
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         // A lost secret shows at the pane's head; a failed change shows on its own row, where focus is.
-        lostSecretNote(pane, s.lostSecrets)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
+        val folders = s.source == SourceConfig.Local
+        lostSecretNote(pane, s.lostSecrets, folders)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, sources, rows)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
             Pane.Playback -> playbackPane(s, server = vm.capabilities.pathMapping, tracks = vm.asksTracks)
-            Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders = s.source == SourceConfig.Local) }
+            Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders) }
             Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
             Pane.About -> aboutPane(onOpenCatalog, rows)
