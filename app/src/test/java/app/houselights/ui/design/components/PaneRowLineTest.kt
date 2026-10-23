@@ -117,6 +117,7 @@ class PaneRowLineTest {
             line(R.string.cleanup_desc),
             line(R.string.clear_cache_desc, value = CACHE),
             line(R.string.support_desc),
+            line(R.string.journal_desc),
             line(R.string.network_path_desc, Beside.Check),
             line(R.string.http_stream_desc, Beside.Check),
             line(R.string.add_mapping_desc),

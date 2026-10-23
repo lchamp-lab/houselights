@@ -40,6 +40,38 @@ object Redact {
         return typed.replaceFirst(mask, "://${stored.substring(start.length, stored.length - end.length)}@")
     }
 
+    /**
+     * [text], a log line or any free text, with its secrets masked: the user info of every URI, up to the last @
+     * of its authority or, typed raw, of the URI ("smb://u:p/ss@nas" → "smb://•••@nas"); tokens, keys, passwords
+     * and codes as query or header values, JSON fields or `name=value`; a Bearer or Basic credential.
+     */
+    fun text(text: String): String = TEXT_SECRETS.fold(text) { masked, (pattern, replacement) -> masked.replace(pattern, replacement) }
+
+    /** What [text] writes in place of a secret. */
+    const val TEXT_MASK = "•••"
+
+    private const val SCHEME = """\b([a-zA-Z][a-zA-Z0-9+.\-]*://)"""
+
+    /** Names whose value is a secret wherever it is written: Jellyfin's, Plex's and Trakt's tokens, keys and codes. */
+    private const val SECRET_NAMES =
+        "api_?key|access_?token|refresh_?token|id_token|token|x-emby-token|x-mediabrowser-token|x-plex-token|" +
+            "password|passwd|pw|client_secret|device_code|user_code"
+
+    private val TEXT_SECRETS = listOf(
+        // The authority's user info; then one typed raw, where a slash, ? or # in the password ended the authority.
+        Regex("""$SCHEME[^\s/?#]*@""") to "$1$TEXT_MASK@",
+        Regex("""$SCHEME[^\s/?#@:]+:[^\s@]*@""") to "$1$TEXT_MASK@",
+        // A JSON field ("access_token": "…"); an OAuth code only there or in a query, as "code" names much else.
+        Regex("""(?i)"($SECRET_NAMES|code)"(\s*:\s*)"[^"]*"""") to "\"$1\"$2\"$TEXT_MASK\"",
+        Regex("""(?i)([?&]code=)[^\s&#"']+""") to "$1$TEXT_MASK",
+        // name=value in a query, a form or a header's parameters (Token="…" in Jellyfin's Authorization).
+        Regex("""(?i)(?<![\w-])($SECRET_NAMES)(=)("?)[^\s&"',;)}\]]+""") to "$1$2$3$TEXT_MASK",
+        // A header carrying a token as its value.
+        Regex("""(?i)\b(x-emby-token|x-mediabrowser-token|x-plex-token)(\s*:\s*)\S+""") to "$1$2$TEXT_MASK",
+        Regex("""(?i)\b(Bearer\s+)[\w\-.~+/]+=*""") to "$1$TEXT_MASK",
+        Regex("""(?i)\b(Authorization\s*:\s*Basic\s+)\S+""") to "$1$TEXT_MASK",
+    )
+
     /** An @ followed by a slash ("@nas/share"): the host where an unescaped password ends. */
     private val AT_THEN_PATH = Regex("""@[^/]*/""")
 

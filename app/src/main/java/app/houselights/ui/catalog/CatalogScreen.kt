@@ -42,9 +42,12 @@ import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.ui.edit.EditMenu
 import app.houselights.core.MediaKind
+import app.houselights.journal.JournalAccess
 import app.houselights.providers.trakt.SkippedEntry
 import app.houselights.providers.trakt.SkippedKind
+import app.houselights.ui.settings.JournalSheet
 import app.houselights.ui.settings.SkippedSheet
+import kotlinx.coroutines.awaitCancellation
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
@@ -216,6 +219,7 @@ fun CatalogScreen() {
                     var long by remember { mutableStateOf(false) }
                     var code by remember { mutableStateOf(false) }
                     var skipped by remember { mutableStateOf(false) }
+                    var journal by remember { mutableStateOf<JournalAccess?>(null) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Modifier: a gallery of its images", { side = true })
                         HlButton("An action that asks first", { asking = true })
@@ -226,6 +230,18 @@ fun CatalogScreen() {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("A code to scan", { code = true })
                         HlButton("What a sync left out", { skipped = true })
+                        HlButton("An address made here", { journal = CATALOG_JOURNAL })
+                        HlButton("No home network", { journal = JournalAccess.Offline })
+                    }
+                    journal?.let { access ->
+                        // The log's sheet as it serves, its address encoded at run time, for as long as it stays open.
+                        JournalSheet(
+                            journal = { opened ->
+                                opened(access)
+                                awaitCancellation()
+                            },
+                            onDismiss = { journal = null },
+                        )
                     }
                     if (asking) SheetQuestion(onDismiss = { asking = false })
                     if (keyed) SheetStatusField(onDismiss = { keyed = false })
@@ -505,6 +521,9 @@ private fun SheetCode(onDismiss: () -> Unit) {
 
 /** More rows than a side sheet holds. */
 private const val CATALOG_LONG_ROWS = 14
+
+/** The log's page at its longest address, its journal almost empty: every line the sheet can say. */
+private val CATALOG_JOURNAL = JournalAccess.Open("http://192.168.100.200:65535/journal/k7f2m4q9x3w8r5t6y2zb", few = true)
 
 /** Trakt's entries a sync could not read (Réglages > Trakt): named, named by their show, naming nothing. */
 private val CATALOG_SKIPPED = listOf(

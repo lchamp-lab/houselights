@@ -6,11 +6,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** Fails when a layer under the screens (core, player, providers, settings) depends on the UI. */
+/** Fails when a layer under the screens (core, player, providers, settings, journal) depends on the UI. */
 class LayersGuardTest {
     private val sources = File("src/main/java/app/houselights")
 
-    private val layers = listOf("core", "player", "providers", "settings")
+    private val layers = listOf("core", "player", "providers", "settings", "journal")
 
     @Test
     fun theLayersUnderTheScreensNeverLeanOnThem() {

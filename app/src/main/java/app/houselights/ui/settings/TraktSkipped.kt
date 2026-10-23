@@ -83,7 +83,7 @@ internal fun SkippedSheet(skipped: List<SkippedEntry>, onDismiss: () -> Unit) {
 
 /** Down and up scroll the sheet a step a press while it has more that way, so all of it is read. */
 @Composable
-private fun Modifier.readsThrough(scroll: ScrollState): Modifier {
+internal fun Modifier.readsThrough(scroll: ScrollState): Modifier {
     val scope = rememberCoroutineScope()
     val step = with(LocalDensity.current) { HlSize.scrollStep.toPx() }
     return onPreviewKeyEvent { event ->

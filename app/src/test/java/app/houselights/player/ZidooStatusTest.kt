@@ -85,6 +85,16 @@ class ZidooStatusTest {
         listOf(0 to -1, -1 to -1, -1 to 0, 92 to -1).forEach { (index, old) -> assertNull(ZidooSettings.audio(index, old)) }
     }
 
+    /** The firmware the journal's head names, from getModel's answer; nothing when it does not say. */
+    @Test
+    fun theFirmware() {
+        assertEquals("6.4.68", ZidooStatus.firmware("""{"status":200,"model":"Z1000 Pro","firmware":"v6.4.68","language":"fr"}"""))
+        assertEquals("6.4.42", ZidooStatus.firmware("""{"status":200,"firmware":" 6.4.42 "}"""))
+        listOf("""{"status":200,"model":"Z9X"}""", """{"firmware":""}""", """{"firmware":{"v":1}}""", "not json").forEach {
+            assertNull(it, ZidooStatus.firmware(it))
+        }
+    }
+
     @Test
     fun noTracksWhenNothingPlays() {
         assertNull(ZidooStatus.parseTracks("""{"status":806,"msg":"The resource does not exist"}"""))

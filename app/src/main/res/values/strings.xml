@@ -566,6 +566,22 @@
     <string name="support">Support Houselights</string>
     <string name="support_desc">Buy the project a coffee, from your phone.</string>
     <string name="support_scan">Scan this code with your phone to open the project’s Ko-fi page.</string>
+    <!-- The journal: the app's own log, opened on a phone from About -->
+    <string name="journal">Send the log</string>
+    <string name="journal_desc">To report a problem, from your phone</string>
+    <string name="journal_scan">Scan this code with your phone: it opens Houselights’ log, to attach to your message.</string>
+    <string name="journal_masked">Passwords and tokens are masked in it; the names of your files, shares and NAS remain: read it before you post it.</string>
+    <string name="journal_closes">The page closes with this panel, in %1$s at most.</string>
+    <string name="journal_offline">The player is on no local network: connect it to your router, then open this panel again.</string>
+    <string name="journal_few">The log holds almost nothing: open this panel right after the problem, without restarting the app.</string>
+    <string name="journal_page_title">Log</string>
+    <string name="journal_page_text">The latest lines the app wrote, newest first.</string>
+    <string name="journal_copy">Copy</string>
+    <string name="journal_copied">Copied</string>
+    <string name="journal_download">Download</string>
+    <string name="journal_empty">Android kept no line from the app.</string>
+    <string name="journal_trakt_on">Trakt connected</string>
+    <string name="journal_trakt_off">Trakt not connected</string>
     <string name="file_access">File access</string>
     <string name="network_path_desc">The player reads straight from the NAS</string>
     <string name="http_stream_desc">The player reads the server’s stream</string>
