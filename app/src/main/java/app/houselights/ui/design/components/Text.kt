@@ -15,6 +15,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.absolutePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,14 +51,25 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(text, style = Hl.type.rowTitle, color = Hl.colors.content, modifier = modifier)
 }
 
-/** The title of a place (a wall, Réglages, Rechercher, a person) in the ember light; never a film's title. */
+/**
+ * The title of a place (a wall, Réglages, Rechercher, a person) in the ember light; never a film's title. Not [shown],
+ * under the bar that names the place, it keeps its height and baseline but no width, neither drawn nor read.
+ */
 @Composable
-fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
+fun ScreenTitle(text: String, modifier: Modifier = Modifier, shown: Boolean = true) {
     val colors = Hl.colors
     val headline = Hl.type.headline
     val lit = remember(colors, headline) { headline.emberLit(colors) }
-    Text(text, style = lit, color = colors.content, modifier = modifier)
+    Text(text, style = lit, color = colors.content, modifier = if (shown) modifier else modifier.heightOnly())
 }
+
+/** Keeps its height and baselines in the layout, no width, and is neither drawn nor read. */
+private fun Modifier.heightOnly(): Modifier = clearAndSetSemantics {}
+    .drawWithContent {}
+    .layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        layout(0, placeable.height) { placeable.place(0, 0) }
+    }
 
 /** The title of a task or a form (Identifier, Ajouter un dossier) in white: ember says where you are, not what you do. */
 @Composable

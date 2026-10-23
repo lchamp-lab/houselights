@@ -129,12 +129,11 @@ private fun Fills() {
         Specimen("cannot act: ringed", gap = HlSpace.xs) { HlButton(stringResource(R.string.add), {}, enabled = false) }
     }
     var place by remember { mutableIntStateOf(1) }
-    Specimen("tabs: the place lit in ember, home's Gradation grey; focus is white, a dot marks the place", gap = HlSpace.xs) {
+    Specimen("tabs: the place lit in ember; focus is white, a dot marks the place", gap = HlSpace.xs) {
         HlSegmented(
             listOf(R.string.nav_home, R.string.library_movies, R.string.library_shows).map { stringResource(it) },
             selected = place,
             onSelect = { place = it },
-            markFirst = true,
         )
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {

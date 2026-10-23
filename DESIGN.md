@@ -69,9 +69,10 @@ Three moments carry the identity:
   fit.
 
 The **brand** is Gradation, in the ember light, and the **wordmark**, projector white (see *Brand*). On screen,
-Gradation is home's place in its bar (`GradationMark`), in place of a word; the **lockup** (`Lockup`), Gradation
-beside the name, drawn, never typeset, flat and without glow, opens the welcome screen (`HlSize.wordmarkHero`,
-26) and About (`HlSize.wordmark`, 30).
+Gradation signs the bar (`GradationMark`), projector white before its places and never focused, so the place you
+are in stays the bar's one ember light; the **lockup** (`Lockup`), Gradation in its light beside the name, drawn,
+never typeset, flat and without glow, opens the welcome screen (`HlSize.wordmarkHero`, 26) and About
+(`HlSize.wordmark`, 30).
 
 ## Gestures: small surfaces
 
@@ -208,7 +209,7 @@ Check fills on a TV with the catalogue's black-level chart (`BLACK_LEVELS`).
 - *Your choice*: the current choice's check, a chosen value or match, an active filter, a favourite.
 - *Needs attention*: an error with its mark, the action a question asks about.
 - *New*: the dot of a title new to the library, a row's count of new titles.
-- *Where you are*: the current place in the bar (its word, or Gradation for home), a place's title (never a
+- *Where you are*: the current place in the bar (its word), a place's title (never a
   task's), the open section's icon, the current season.
 - *The action to play*: Lire or Reprendre, the one button filled with the ember light; any other is a plate.
 
@@ -401,9 +402,16 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
 - **Pages turn by whole blocks** (`scrollsAsBlock`). On home and a title's page a block moves to the top
   keyline, and the gap between blocks (`HlLayout.detailGap`, 32) takes the previous one off screen. A title's
   page first shows its hero plus the first row's header and a strip of images (`HlLayout.detailHeroMin`).
-- **Home is three bands** on `safeH`: the bar (the places, home's as Gradation, the search and settings
-  tiles), the hero band (`HlLayout.hero`, 148: logo, one line of facts, two lines of overview or progress), the
-  rows; `HlSpace.l` between them (`HomeLayoutTest`).
+- **Home is three bands** on `safeH`: the bar (`HlNavBar`: Gradation, the places Accueil · Films · Séries, the
+  search and settings tiles), the hero band (`HlLayout.hero`, 148: logo, one line of facts, two lines of overview
+  or progress), the rows; `HlSpace.l` between them (`HomeLayoutTest`).
+- **The bar** is the same on home and on each library's wall opened from it (Films, Séries, a server's libraries,
+  `Route.Library.place`). A title's page, a person's, search, settings and a wall opened filtered from elsewhere
+  have none: they are pages opened, then closed. On a wall (`BarFold`), while focus is in the bar, the wall's
+  header lies under it without its name (`ScreenTitle`'s `shown`: ⇄ for the sagas, the folio, the menus), the wall
+  `HlNavBarDefaults.fold` (52) lower. Once focus enters the posters, the bar slides up out of the screen over
+  `STANDARD`, in the focus pull as it comes and the fall back as it goes, and the wall is as it was: its name lit,
+  two whole lines of posters. Focus in the header leaves the bar as it is (`BarFoldTest`).
 - **Three vertical gaps:** `HlSpace.s` within a block, `HlSpace.l` between home's bands, `HlSpace.xl` between
   the blocks of a scrolling page.
 - **Reading measures:** `readable` 640, `readableNarrow` 520 beside artwork.
@@ -461,9 +469,13 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
 
 - **Nothing is brighter than focus**, and ember never marks it: on a focused plate only marks stay lit, in
   `emberOnLight`.
-- **Track options**: the focused word is the white plate; the current one is lit, never white unless focused;
-  home's Gradation, current, stays lit on the plate in `emberOnLight`. Focus entering a track lands on the
-  current option (`focusProperties.enter`, `SegmentedFocusTest`).
+- **Track options**: the focused word is the white plate; the current one is lit, never white unless focused.
+  Focus entering a track lands on the current option (`focusProperties.enter`, `SegmentedFocusTest`).
+- **The bar**: Gradation never takes focus, so Left from the first place stays on it; Up from home's first row
+  or from a wall's header lands on the current place; Down from a wall's bar goes to its header, then to the
+  posters (`NavBarFocusTest`, `HomeBarFocusTest`, `BarFoldTest`). A place opens on OK, never as focus passes: its
+  word lights while its wall loads (`LibraryAhead`), and the screen cuts after `STANDARD`. Changing place replaces
+  the wall shown, piling up no history (`openPlace`, `PlacesNavigationTest`).
 - **Disabled controls** keep focus, ringed, never filled. What is only read (a technical sheet's block, an NFO)
   is not disabled: it takes the ring and OK does nothing.
 - **Nothing grows.** Focus reaches `HlFocus.reach` past what it frames, whatever its size: the room a
@@ -491,8 +503,12 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
 
 **Back** goes in two steps (`BackToStart`): deep in a screen, it first returns focus to where the screen
 starts, then leaves. Home: Back from a lower row goes up to the bar and the first row; from the first row or
-the bar, it quits, with no "press again". Sheets and menus handle their own Back; during the house-light cue,
-Back cancels it.
+the bar, a first Back says "Appuyez encore sur Retour pour quitter" in the bar's band, before the tiles
+(`HlNavBar`'s `status`), and a second one within 2.5 s (`QUIT_WINDOW_MS`) quits; the line goes when that time is
+out or as soon as focus moves down (`QuitAgainTest`). On a wall under the bar, Back from the posters or the
+header goes to the bar, on the wall's place, the wall back at its top; from the bar, home (`BarFoldTest`). A wall
+without the bar returns to its first poster, then leaves. Sheets and menus handle their own Back; during the
+house-light cue, Back cancels it.
 
 **Menu** (or the Zidoo remote's Pop Menu, sent as F12) opens the options of what has focus, on its way up
 (`menuForLongClick`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
@@ -539,7 +555,8 @@ back on the element.
 | Component | Use |
 |---|---|
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton`, `HeaderControls`, `HlActionRow` | actions 48 dp tall, radius 10. The primary one, Lire or Reprendre and nothing else, is the ember light in black ink (`onEmber`), `HlIcons.Play`, a duration in `jaquette`; focus frames it. A secondary one is a plate by its ground (over a picture `plate(light)` edged by `plateEdge`, glass on the room, `FILL` on glass) that focus fills white. `HlIconButton` is a square tile (48, its glyph `HlSize.tileIcon`) showing its label below on focus, on a plate as wide as `tileLabelWidth` allows, at most `HlIconButtonDefaults.labelEdge` from the screen's side, hidden while a sheet is open; `HlActionRow` keeps room for it. In a header (`HeaderControls`): buttons 44, tiles 40, glyphs 20. Toggles name what OK does and show the state with the icon (`lit`: the glyph in ember, raspberry on white; `HlIcons.CheckFilled`). On a show's page with a season track, the watched toggle marks the season shown when it holds episodes ("Marquer la saison comme vue", `shownSeason`); Menu or a long OK opens its options (`ShowMarks`): "Marquer la saison 2 comme vue" or "non vue", then "Marquer toute la série comme vue" or "non vue", each as it stands. The Menu key under its label says so, on a hint's line (`hintRoom`), which a show's `HlActionRow` keeps (`hinted`); a tile without options may say a second line there in tertiary `meta` (`hint`, the tracks tile's), bound as the label. Films and episodes have no options on their tile. `detailLit` lights a chosen value in the detail. Disabled: a faint well (over a picture, its plate), tertiary ink, ringed by focus, OK ignored. `busy`: a pending dot and `busyLabel` ("Connexion…"), width kept, OK ignored |
-| `HlSegmented` | where you are among a few places, as words in `place`: home's bar (its first place, home, drawn as Gradation with `markFirst`), seasons (`scrollable`, chosen as focus moves with `selectOnFocus`, each with its `SegmentDetail`), NFO views, form choices. The current word is lit in ember (`placeCurrent`), the others grey, on no plate; focus is the white plate, with a raspberry dot (`HlSize.wordDot`) before the current word. Home's Gradation is a place like the words, read as its name: the ember light when current, `emberOnLight` on focus's plate, a word's ink otherwise, on a plate padded as a word's. Words line up with the start edge and plates hang past it, each word as wide as in bold and set from its start: nothing moves as focus or the choice moves. Focus entering lands on the current option (`enterAt`). Exposed as tabs |
+| `HlSegmented` | where you are among a few places, as words in `place`: the bar's places (`HlNavBar`), seasons (`scrollable`, chosen as focus moves with `selectOnFocus`, each with its `SegmentDetail`), NFO views, form choices. The current word is lit in ember (`placeCurrent`), the others grey, on no plate; focus is the white plate, with a raspberry dot (`HlSize.wordDot`) before the current word. Words line up with the start edge and plates hang past it, each word as wide as in bold and set from its start: nothing moves as focus or the choice moves. Focus entering lands on the current option (`enterAt`). Exposed as tabs |
+| `HlNavBar`, `BarFold` | the bar of the places, on home and on a library's wall, `HlSize.tileCompact` tall at any text size (`HomeLayoutTest`): Gradation in projector white (`HlSize.barMark`), its signature, neither focused nor read; `HlNavBarDefaults.markGap` (44) to the first word; the places as a scrolling `HlSegmented`, the current one lit; at its end the search and settings tiles, `HlSpace.s` apart. Its `status`, a passing line (Back once on home), stands before the tiles: `HlStatus` pending, quiet, on a tile label's plate, as the picture may be white there, read out as it comes (a polite live region). `BarFold` lays a wall under it: open while focus is in the bar, the wall `HlNavBarDefaults.fold` lower; folded once focus enters the wall, the bar slid up out of the screen, then no longer composed, so neither the remote nor a screen reader finds it there; Up from the header brings it back (`BarFoldState.reveal`), Down from the bar goes to the header; positions read while placing. Under the bar a wall's `HlTitleSwitch` keeps its tile, first in the header |
 | `HlTextField` | a glass plate `HlSize.field` tall edged by a hairline (`field`), its name in white over it, ringed white with focus, keyboard on OK, "OK saisir" hint (`KeyHint`); while typing, the ember ring and a raspberry cursor. One line below in `meta`: `supporting` or `error` (`AttentionNote`). Its label is always read out, shown or not (`showLabel`), "(facultatif)" after it when `optional`; `password` hides the value. Placeholders are examples from resources. Saved when left, never while typing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a sectioned menu anchored to its button (sort, filters), on raised glass (`panel`, 320 wide), opening below or above within the safe area and growing from `ENTER_SCALE`; options 44 tall, the chosen one white with its ember check (raspberry on focus's white plate), the others grey; a sort applies once the menu has closed, filters at once with the menu kept open (`closeOnSelect`) |
 | `HlScrollArea` | long content read with the remote: focusable only when scrollable, or always where it is what a sheet is read for (`alwaysFocusable`), ringed white with focus, `HlSize.scrollStep` per press, a held key adding steps; in a sheet a group's plate in the film's light; `HlScrollArea(lines)` lays out only the lines shown of a raw text in `code`, each where the whole text would set it |
@@ -644,9 +661,10 @@ in a sentence; the Source row, beside its value, in fewer words, in every langua
 ## Messages
 
 A message appears where the action was, in the app's voice: no Toast (a test forbids it), no snackbar, no
-dialog. A title that fails to play says so at the end of its actions (`HlStatus` `Attention`, "Lecture
-impossible", the reason in `meta`). A screen that cannot load, or has nothing yet, shows an intertitle with
-what fixes it (`HlEmptyState`). Exception text never reaches the screen; it goes to the log.
+dialog. Back once on home is said in the bar's band (`HlNavBar`'s `status`), gone after 2.5 s. A title that
+fails to play says so at the end of its actions (`HlStatus` `Attention`, "Lecture impossible", the reason in
+`meta`). A screen that cannot load, or has nothing yet, shows an intertitle with what fixes it (`HlEmptyState`).
+Exception text never reaches the screen; it goes to the log.
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt.
@@ -690,8 +708,9 @@ at a time, together as wide as they are tall.
   TV's 320 × 180 grid; the launch mark is 36 units. Each is optically centred (`Gradation.PULL`).
 
 All are vectors: `ic_launcher_foreground` (with the icon's `<monochrome>` layer), `banner.xml`, `splash_mark`.
-On screen, `GradationMark` is home's place in its bar only (`HlSize.barMark`, the height of its words' capitals, a
-brush per bar: `Gradation.lights`): in its ember light where you are, else in one ink (see `HlSegmented`).
+On screen, `GradationMark` signs the bar (`HlSize.barMark`, the height of its words' capitals) in projector white,
+one ink, before the places: never focused, so the bar's one ember light is the place you are in. Its light, a brush
+per bar (`Gradation.lights`), is the launch's and the lockup's.
 
 - **Lockup** (`Lockup`): the mark in its light, `Gradation.LOCKUP_MARK` (1.4) times the name's capitals and centred
   on them, the name `Gradation.lockupGap` (0.622, the wide bar's width) after it (`lockupBars`). Its box is the
@@ -716,7 +735,7 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
   never decodes its picture. The settings' field is made once from posters' samples and drawn the same way, the last
   two kept; a new one is drawn over the one showing for `TINT` only.
 - **Prepare the next screen during the gesture before it.** Settled on a title, home and walls request its
-  page's logo (`DetailAhead`); while a library's name lights in home's bar, its wall's first page loads
+  page's logo (`DetailAhead`); while a library's name lights in the bar, its wall's first page loads
   (`LibraryAhead`).
 - **Light nothing that focus only crosses** (`Scrub`), and nothing moves for ever but the welcome wall.
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
@@ -762,8 +781,8 @@ Deliberate exceptions go in a guard's `allowed` list with their reason; a value 
 design system.
 
 Remote behaviour is tested as the remote drives it, on Robolectric with the app's theme on the TV canvas
-(`ui/testing/Remote.kt`): `MediaRowFocusTest`, `SheetFocusTest`, `SegmentedFocusTest`, `RestoreFocusTest`,
-`ScrollAreaTest`, `TitleSwitchTest`, `TextFieldMessageTest`, `SupportRowTest`, `TraktPaneTest`, `OkPressTest`. A focus rule that
+(`ui/testing/Remote.kt`): `MediaRowFocusTest`, `SheetFocusTest`, `SegmentedFocusTest`, `NavBarFocusTest`,
+`BarFoldTest`, `QuitAgainTest`, `RestoreFocusTest`, `ScrollAreaTest`, `TitleSwitchTest`, `TextFieldMessageTest`, `SupportRowTest`, `TraktPaneTest`, `OkPressTest`. A focus rule that
 changes comes with its test.
 
 ## Catalogue
@@ -778,13 +797,13 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogFocus` | every shape with its radii; the frame (poster, wide image, portrait, absent card, panel, the action to play) and the fill and ring, live |
 | `CatalogGestures` | case back, intertitle and counter side by side, then intertitles, error states, counters, case backs, empty frames and poster strips |
 | `CatalogIcons` | every glyph on the room and on focus; done and your choice; ember for states only; the Menu key, alone and after a name |
-| `CatalogControls` | buttons in their states, a place's title and a task's, tiles, controls on a picture's plates, home's bar and the seasons |
+| `CatalogControls` | buttons in their states, a place's title and a task's, tiles, controls on a picture's plates, the bar with its status, the bar over a wall, open and folded, and the seasons |
 | `CatalogSecondary` | the settings' room of posters with its places, a group, a plate of facts and states; a pane's heads, the lockup, printed pairs, definitions, a meter that states, a code to type; showcases in their row; a gallery whose images step back; a plate in a film's light and the sheets that hold them, a reading plate, one wide to read, an NFO's |
 | `CatalogForms` | settings in their group and in a sheet, text fields, status panels, panel buttons, dividers, menus, choice sheets and settings, scroll areas |
 | `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, people; progress lines, skeletons, artwork choices, results, thumbnails |
 | `CatalogReading` | title art, episode headings, meta and title lines, formats, a row's billing, the billing block, hero info, the technical sheet, search and its keys, the synopsis, versions |
-| `CatalogStress` | the longest labels, home's bar on the brightest image, the largest text size, fallback scripts, device metrics |
-| `CatalogBrand` | the icon and banner as a launcher draws them, the launch mark in its circle, Gradation as home's place, the lockup |
+| `CatalogStress` | the longest labels, the bar on the brightest image, the largest text size, fallback scripts, device metrics |
+| `CatalogBrand` | the icon and banner as a launcher draws them, the launch mark in its circle, Gradation signing the bar, the lockup |
 
 ## Adding a screen
 

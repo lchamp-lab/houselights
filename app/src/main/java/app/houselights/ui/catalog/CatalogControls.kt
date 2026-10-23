@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -33,6 +36,8 @@ import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HlNavBar
+import app.houselights.ui.design.components.BarFold
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTitleSwitch
 import app.houselights.ui.design.components.ScreenTitle
@@ -206,18 +211,14 @@ private fun OverAPicture() {
 private fun Tracks() {
     var place by remember { mutableIntStateOf(0) }
     val places = listOf(R.string.nav_home, R.string.library_movies, R.string.library_shows).map { stringResource(it) }
-    Specimen("home's bar: home as Gradation, the places, the tiles", Modifier.fillMaxWidth(), gap = HlSpace.xs) {
-        OnArtwork {
-            HeaderControls {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    HlSegmented(places, selected = place, onSelect = { place = it }, modifier = Modifier.weight(1f), markFirst = true)
-                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                        HlIconButton(HlIcons.Search, stringResource(R.string.search), {})
-                        HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), {})
-                    }
-                }
-            }
-        }
+    Specimen("the bar: Gradation in white, never focused; the places, the current one lit; the tiles", Modifier.fillMaxWidth()) {
+        HlNavBar(places, place, onPlace = { place = it }, Modifier.fillMaxWidth()) { BarTiles() }
+    }
+    Specimen("Back once on home: a quiet line before the tiles, read out as it comes", Modifier.fillMaxWidth()) {
+        HlNavBar(places, 0, onPlace = {}, Modifier.fillMaxWidth(), status = stringResource(R.string.back_again_to_quit)) { BarTiles() }
+    }
+    Specimen("a wall under the bar: open while focus is in it, folded once focus enters the wall", Modifier.fillMaxWidth()) {
+        WallUnderTheBar(places)
     }
     var season by remember { mutableIntStateOf(2) }
     Specimen("seasons: chosen as focus moves, how far each is seen", gap = HlSpace.xs) {
@@ -235,6 +236,35 @@ private fun Tracks() {
         listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }
     }
     FactRow(listOf("2026", "1 h 53", "8,2"))
+}
+
+/** The bar's tiles, as home and the walls have them. */
+@Composable
+private fun BarTiles() {
+    HlIconButton(HlIcons.Search, stringResource(R.string.search), {})
+    HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), {})
+}
+
+/** A wall in small, its header and a few titles, under the bar while focus is in it. */
+@Composable
+private fun WallUnderTheBar(places: List<String>) {
+    var place by remember { mutableIntStateOf(1) }
+    Box(Modifier.fillMaxWidth().height(HlLayout.hero).clipToBounds()) {
+        BarFold(
+            bar = { HlNavBar(places, place, onPlace = { place = it }, Modifier.fillMaxWidth()) { BarTiles() } },
+            header = { underBar ->
+                OnArtwork { HeaderControls { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    ScreenTitle(places[place], shown = !underBar)
+                    Spacer(Modifier.weight(1f))
+                    HlButton(stringResource(R.string.sort), {}, icon = HlIcons.Sort, detail = stringResource(R.string.sort_title))
+                } } }
+            },
+        ) {
+            Row(Modifier.padding(top = HlSpace.s), horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                listOf("Playtime", "Le Samouraï", "Alien").forEach { HlButton(it, {}) }
+            }
+        }
+    }
 }
 
 /** How long the catalogue's busy buttons work before they give their answer. */

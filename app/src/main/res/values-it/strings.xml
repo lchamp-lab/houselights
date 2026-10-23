@@ -92,6 +92,7 @@
     <string name="resume">Riprendi</string>
     <string name="time_left">%s rimanenti</string>
     <string name="nav_home">Home</string>
+    <string name="back_again_to_quit">Premere di nuovo Indietro per uscire</string>
     <string name="from_start">Dall’inizio</string>
     <string name="part_of">Parte %1$d di %2$d</string>
     <string name="parts">Parti</string>

@@ -89,6 +89,7 @@
     <string name="resume">Hervatten</string>
     <string name="time_left">Nog %s</string>
     <string name="nav_home">Home</string>
+    <string name="back_again_to_quit">Druk nogmaals op Terug om af te sluiten</string>
     <string name="from_start">Vanaf het begin</string>
     <string name="part_of">Deel %1$d van %2$d</string>
     <string name="parts">Delen</string>

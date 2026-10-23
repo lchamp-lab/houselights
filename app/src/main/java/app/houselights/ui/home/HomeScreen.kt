@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -15,19 +14,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
@@ -37,9 +37,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.components.HlIconButton
-import app.houselights.ui.design.components.HlSegmented
-import app.houselights.ui.design.components.HeaderControls
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.HlFocus
@@ -56,14 +53,10 @@ import app.houselights.ui.design.rememberRowState
 import app.houselights.R
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
-import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
-import app.houselights.ui.design.HlMotion
-import app.houselights.ui.design.OnArtwork
-import app.houselights.ui.design.awaitMotion
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
@@ -82,7 +75,6 @@ import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
-import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.skeletonDelayPassed
 import app.houselights.ui.util.timeLeft
@@ -172,6 +164,8 @@ internal fun HomeBands(
         memory.focus(TRACK)
         rows.animateScrollToItem(0)
     }
+    // At home's start, a first Back says that a second one quits; the bar is above the first row.
+    val quitting = quitOnSecondBack(atStart = !backGoesUp(focusedRow)) { focusedRow ?: -1 }
 
     // Complete for the launch screen once rows are in and the hero shows a title (a frame after the rows).
     val whole = content !is HomeContent.Loading && (shown != null || sections.isEmpty())
@@ -179,21 +173,25 @@ internal fun HomeBands(
     DetailAhead(shown)
     AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero, ready = whole) {
         Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
-            TopBar(
-                libraries = state.tabs,
-                memory = memory,
-                // Back from a library, focus enters the track on that library's tab.
-                returnTo = state.tabs.indexOfFirst { memory.last == trackTab(it) }.takeIf { it >= 0 }?.plus(1),
-                onLibrary = { library ->
-                    memory.record(trackTab(library))
-                    // The sagas have no tab: the films' wall shows them in their place.
-                    onOpenLibrary(library, state.sagas.takeIf { library.kind == LibraryKind.MOVIES })
+            val places = Places(
+                state.tabs,
+                state.sagas,
+                onPlace = { library, sagas ->
+                    // Coming back home, focus enters the bar on its current place, home.
+                    memory.record(TRACK)
+                    if (library != null) onOpenLibrary(library, sagas)
                 },
-                onLibraryAhead = onLibraryAhead,
                 onSettings = onOpenSettings,
                 onSearch = onOpenSearch,
+                onLibraryAhead = onLibraryAhead,
+            )
+            PlacesBar(
+                places,
+                here = null,
+                memory = memory,
                 // The first row's group, once laid out, so it can take focus.
-                intoRows = { first?.takeIf { rows.firstVisibleItemIndex == 0 }?.let { memory.requester(FocusKey.section(it.key)) } },
+                down = { first?.takeIf { rows.firstVisibleItemIndex == 0 }?.let { memory.requester(FocusKey.section(it.key)) } },
+                status = stringResource(R.string.back_again_to_quit).takeIf { quitting },
             )
             when (content) {
                 is HomeContent.Browsing -> {
@@ -232,70 +230,6 @@ internal fun HomeBands(
             }
         }
     }
-}
-
-/** The places, home's as Gradation, and the tiles, [HlSpace.safeV] from the top; as tall as a compact tile (`HomeLayoutTest`). */
-@Composable
-internal fun TopBar(
-    libraries: List<Library>,
-    memory: FocusMemory,
-    returnTo: Int?,
-    onLibrary: (Library) -> Unit,
-    onLibraryAhead: (Library) -> Unit,
-    onSettings: () -> Unit,
-    /** The first row's focus target, if any. */
-    intoRows: () -> FocusRequester?,
-    /** Null when the source cannot search. */
-    onSearch: (() -> Unit)? = null,
-) {
-    // The places on the veil, the actions apart on their plates; a long track scrolls, the tiles stay.
-    OnArtwork { HeaderControls { Row(
-        Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // The chosen library lights before it opens; returning home makes home the place again.
-        var current by remember { mutableIntStateOf(0) }
-        val scope = rememberCoroutineScope()
-        HlSegmented(
-            options = listOf(stringResource(R.string.nav_home)) + libraries.map { it.title ?: libraryName(it.kind) },
-            selected = current,
-            onSelect = { i ->
-                if (i > 0 && current == 0) {
-                    current = i
-                    // Prefetch the wall while its name lights.
-                    onLibraryAhead(libraries[i - 1])
-                    scope.launch {
-                        awaitMotion(HlMotion.STANDARD)
-                        onLibrary(libraries[i - 1])
-                    }
-                }
-            },
-            // Focus coming back to the track lands where the track's own rule puts it.
-            modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusGroupKey(TRACK, memory),
-            scrollable = true,
-            enterAt = returnTo ?: current,
-            markFirst = true,
-        )
-        // Down from the buttons enters the first row as from the tabs, not on the card beneath the button.
-        val down = Modifier.focusProperties { down = intoRows() ?: FocusRequester.Default }
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-            if (onSearch != null) {
-                HlIconButton(
-                    HlIcons.Search,
-                    stringResource(R.string.search),
-                    onClick = onSearch,
-                    modifier = Modifier.focusKey(FocusKey.action("search"), memory).then(down),
-                )
-            }
-            HlIconButton(
-                HlIcons.Settings,
-                stringResource(R.string.nav_settings),
-                onClick = onSettings,
-                modifier = Modifier.focusKey(FocusKey.action("settings"), memory).then(down),
-            )
-        }
-    } } }
 }
 
 @Composable
@@ -371,13 +305,30 @@ internal fun sectionIndex(sections: List<HomeSection>, key: String): Int? {
     return sections.indexOfFirst { FocusKey.section(it.key) == row }.takeIf { it >= 0 }
 }
 
-/** Back goes up to the tabs from below the first row; from the first row or the tabs, it leaves. */
+/** Back goes up to the bar from below the first row; from the first row or the bar, it asks before leaving. */
 internal fun backGoesUp(focusedRow: Int?): Boolean = focusedRow != null && focusedRow > 0
 
-/** The library tabs as one focus group, which picks the tab to focus. */
-private const val TRACK = "track"
+/** How long after a first Back at home's start a second one quits. */
+internal const val QUIT_WINDOW_MS = 2_500L
 
-private fun trackTab(library: Library) = FocusKey.within(TRACK, FocusKey.tab(library.id))
+/**
+ * Back at home's start ([atStart]): a first press arms the second, which then goes through to Android and quits.
+ * Disarmed after [QUIT_WINDOW_MS] or once focus moves down ([depth] grows: -1 the bar, then the rows). Whether
+ * the line saying so shows.
+ */
+@Composable
+private fun quitOnSecondBack(atStart: Boolean, depth: () -> Int): Boolean {
+    var armed by remember { mutableStateOf(false) }
+    BackHandler(enabled = atStart && !armed) { armed = true }
+    val currentDepth by rememberUpdatedState(depth)
+    LaunchedEffect(armed) {
+        if (!armed) return@LaunchedEffect
+        val from = currentDepth()
+        withTimeoutOrNull(QUIT_WINDOW_MS) { snapshotFlow { currentDepth() }.first { it > from } }
+        armed = false
+    }
+    return armed
+}
 
 /** Placeholder rows in the real rows' footprint, shown once loading is slow (nothing below needs their room). */
 @Composable

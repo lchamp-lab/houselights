@@ -2,6 +2,7 @@ package app.houselights.ui.home
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
@@ -22,7 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** DESIGN.md, Focus: down from home's bar, focus enters the first row on its last card, else its first. */
+/** DESIGN.md, Focus: up from the first row, the bar on the current place; down from it, the first row on its last card, else its first. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class HomeBarFocusTest {
@@ -64,6 +65,19 @@ class HomeBarFocusTest {
         compose.onNode(isFocused()).assert(hasContentDescription("Settings"))
     }
 
+    /** Up from anywhere on the first row: the bar, on the current place, home; Left from it stays there. */
+    @Test
+    fun upFromTheFirstRowLandsOnTheCurrentPlace() {
+        open()
+        compose.waitForIdle()
+        compose.press(Key.DirectionRight, times = 4)
+        focusIsOn("Film 5")
+        compose.press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Home")).assertIsSelected()
+        compose.press(Key.DirectionLeft)
+        compose.onNode(isFocused()).assert(hasText("Home"))
+    }
+
     @Test
     fun downFromTheSettingsButtonComesBackToTheCardTheRowHad() {
         open()
@@ -83,7 +97,7 @@ class HomeBarFocusTest {
         backFromTheSettings()
         // From the tabs: the track, on its current tab, then the row under it.
         compose.press(Key.DirectionLeft)
-        compose.onNode(isFocused()).assert(hasContentDescription("Home"))
+        compose.onNode(isFocused()).assert(hasText("Home"))
         compose.press(Key.DirectionDown)
         focusIsOn("Film 1")
 

@@ -99,13 +99,27 @@ import java.util.Locale
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.components.DetailAhead
 import app.houselights.ui.design.HlSize
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.Stable
+import androidx.compose.ui.platform.LocalContext
+import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.components.BarFold
+import app.houselights.ui.design.components.rememberBarFoldState
+import app.houselights.ui.design.components.PicturesAhead
+import app.houselights.ui.home.Places
+import app.houselights.ui.home.PlacesBar
+import app.houselights.ui.util.screenWidthPx
+import coil.imageLoader
 
 internal const val COLUMNS = 7
 
 /** Placeholder rows while the wall loads: more than the screen shows, like the wall. */
 private const val SKELETON_ROWS = 3
 
-/** A poster wall, filtered by [opensOn] if given (a format, or person [personName]); films can switch to [sagas]. */
+/**
+ * A poster wall, filtered by [opensOn] if given (a format, or person [personName]); films can switch to [sagas].
+ * Opened as one of the bar's [places], it lies under the bar.
+ */
 @Composable
 fun LibraryScreen(
     library: Library,
@@ -114,6 +128,7 @@ fun LibraryScreen(
     opensOn: LibraryFilter? = null,
     personName: String? = null,
     sagas: Library? = null,
+    places: Places? = null,
 ) {
     val app = appContainer()
     var showSagas by rememberSaveable { mutableStateOf(false) }
@@ -123,30 +138,121 @@ fun LibraryScreen(
         factory = LibraryViewModel.factory(app, wall, opensOn.takeIf { wall == library }),
     )
     ReloadOnLibraryChange { vm.onLibraryChanged() }
-    val state by vm.state.collectAsStateWithLifecycle()
+    // With sagas, ⇄ after the title turns the wall from the films to their sagas, and back.
+    val other = libraryName(LibraryKind.COLLECTIONS)
+    val heading = WallHeading(
+        title = if (showSagas) other else title,
+        switchTo = sagas?.let { if (showSagas) title else other },
+        onSwitch = { showSagas = !showSagas },
+    )
+    val context = LocalContext.current
+    val screen = screenWidthPx()
+    Wall(
+        vm,
+        wall,
+        heading,
+        onOpenItem,
+        // The person the wall was opened for, offered by the filter menu.
+        person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } },
+        places = places?.copy(
+            onSearch = places.onSearch.takeIf { app.providerOrNull()?.capabilities?.search == true },
+            onLibraryAhead = { app.libraryAhead.ask(app.scope, it, PicturesAhead(context, screen), context.imageLoader) },
+        ),
+        here = library,
+    )
+}
 
+/** A wall's name, and with sagas the other view ⇄ turns it to ([switchTo]), then back ([onSwitch]). */
+internal class WallHeading(val title: String, val switchTo: String? = null, val onSwitch: () -> Unit = {})
+
+/**
+ * The wall [vm] reads, [wall]'s: its header, the selected title and the posters. Under the bar of [places], [here]
+ * its place, Back from the wall goes to the bar, which folds away once focus enters the posters.
+ */
+@Composable
+internal fun Wall(
+    vm: LibraryViewModel,
+    wall: Library,
+    heading: WallHeading,
+    onOpenItem: (MediaItem) -> Unit,
+    person: Person? = null,
+    places: Places? = null,
+    here: Library = wall,
+) {
+    val state by vm.state.collectAsStateWithLifecycle()
     // Shown once focus settles, read outside composition: a step loads no image and recomposes nothing.
     val selectedId = rememberSaveable { mutableStateOf<String?>(null) }
     val shown = rememberSettled { selectedIn(state.items, selectedId.value) }
-    val gridFocus = remember { FocusRequester() }
-    var gridHasFocus by remember { mutableStateOf(false) }
     // Films and sagas each start at their top.
     val gridState = rememberSaveable(wall.id, saver = LazyGridState.Saver) { LazyGridState() }
-    val scope = rememberCoroutineScope()
+    val grid = remember(gridState) { WallGrid(gridState, selectedId) }
     // Focus returns to the last poster, else the first.
     val memory = rememberFocusMemory()
-    RestoreFocus(memory, gridFocus, ready = state.items.isNotEmpty()) { key ->
+    RestoreFocus(memory, grid.first, ready = state.items.isNotEmpty()) { key ->
         val index = FocusKey.itemId(key)?.let { id -> state.items.indexOfFirst { it.id == id } } ?: -1
-        if (index >= 0) gridState.scrollToItem(index)
+        if (index >= 0) grid.state.scrollToItem(index)
         index >= 0
     }
-    // Set at every step and read only in BackToFirstPoster.
-    val focusedIndex = remember { mutableStateOf<Int?>(null) }
-    BackToFirstPoster(focusedIndex) {
-        gridState.animateScrollToItem(0)
-        gridFocus.tryRequestFocus()
+    FocusAfterRetry(state, memory)
+    val header: @Composable (Boolean) -> Unit = { underBar -> WallHeader(vm, state, wall.kind, heading, shown, person, underBar) }
+    val body: @Composable () -> Unit = { WallBody(vm, state, wall.kind, grid, memory, shown, onOpenItem) }
+
+    // Prepares the settled title's detail page, so OK opens it complete.
+    DetailAhead(shown.value)
+    AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse) {
+        if (places != null) {
+            UnderTheBar(places, here, memory, grid, header, body)
+        } else {
+            BackToFirstPoster(grid.focusedIndex) {
+                grid.state.animateScrollToItem(0)
+                grid.first.tryRequestFocus()
+            }
+            Column(Modifier.fillMaxSize()) {
+                header(false)
+                body()
+            }
+        }
     }
-    // Where the failed page's foot was, so focus moves to its first poster once Réessayer loads it.
+}
+
+/** The grid's state, its first poster's requester, the selected title and the focused poster's index (read by Back). */
+@Stable
+private class WallGrid(val state: LazyGridState, val selectedId: MutableState<String?>) {
+    val first = FocusRequester()
+    val focusedIndex = mutableStateOf<Int?>(null)
+}
+
+/**
+ * The wall under the bar ([BarFold]): Back from the posters or the header brings the bar back, on this wall's place,
+ * the wall back at its top; from the bar it leaves, for home.
+ */
+@Composable
+private fun UnderTheBar(
+    places: Places,
+    here: Library,
+    memory: FocusMemory,
+    grid: WallGrid,
+    header: @Composable (underBar: Boolean) -> Unit,
+    body: @Composable () -> Unit,
+) {
+    val fold = rememberBarFoldState()
+    var inBar by remember { mutableStateOf(false) }
+    BackToStart(away = !inBar) {
+        fold.reveal()
+        grid.state.animateScrollToItem(0)
+    }
+    BarFold(
+        bar = { PlacesBar(places, here, memory, down = { null }, modifier = Modifier.onFocusChanged { inBar = it.hasFocus }) },
+        header = header,
+        state = fold,
+        content = body,
+    )
+}
+
+/** Once Réessayer at the wall's foot loads its page, focus moves to that page's first poster. */
+@Composable
+private fun FocusAfterRetry(state: LibraryState, memory: FocusMemory) {
+    // Where the failed page's foot was.
     var footAt by remember { mutableIntStateOf(-1) }
     LaunchedEffect(state.pageError, state.items.size) {
         if (state.pageError != null) {
@@ -161,124 +267,148 @@ fun LibraryScreen(
             }
         }
     }
+}
 
-    // Prepares the settled title's detail page, so OK opens it complete.
-    DetailAhead(shown.value)
-    AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse) {
-        Column(Modifier.fillMaxSize()) {
-            // The wall's name lit as the place, its count beside it; the menus on plates over the wall's picture.
-            OnArtwork { HeaderControls { Row(
-                Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                    // With sagas, ⇄ after the title turns the wall from the films to their sagas, and back.
-                    if (sagas == null) {
-                        ScreenTitle(title, Modifier.alignByBaseline())
-                    } else {
-                        val films = title
-                        val other = libraryName(LibraryKind.COLLECTIONS)
-                        HlTitleSwitch(
-                            if (showSagas) other else films,
-                            label = if (showSagas) films else other,
-                            onSwitch = { showSagas = !showSagas },
-                            modifier = Modifier.alignByBaseline(),
-                        )
-                    }
-                    if (state.total > 0) {
-                        val count = pluralStringResource(
-                            if (wall.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
-                            state.total,
-                            state.total,
-                        )
-                        WallFolio(count, state.items, shown, state.total, state.sort, Modifier.alignByBaseline())
-                    }
-                }
-                Spacer(Modifier.weight(1f))
-                // The person the wall was opened for, offered by the filter menu.
-                val person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } }
-                WallMenus(wall.kind, state, vm.capabilities, person, vm::setFilter, vm::setSort)
-            } } }
-            // The selected title on one line; a long name drops its facts first, then ends in an ellipsis.
-            Box(
-                Modifier
-                    .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.xs)
-                    .height(HlLayout.infoLine),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                // Shown with its backdrop, as on Home.
-                WithItsPicture(shown.value) { TitleLine(it) }
+/**
+ * The wall's name lit as the place, ⇄ to the sagas, its count beside it; the menus on plates over the wall's picture.
+ * [underBar], the bar names the place: the name keeps only its room, so nothing under it moves.
+ */
+@Composable
+private fun WallHeader(
+    vm: LibraryViewModel,
+    state: LibraryState,
+    kind: LibraryKind,
+    heading: WallHeading,
+    shown: State<MediaItem?>,
+    person: Person?,
+    underBar: Boolean,
+) {
+    OnArtwork { HeaderControls { Row(
+        Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row {
+            val switchTo = heading.switchTo
+            if (switchTo == null) {
+                ScreenTitle(heading.title, Modifier.alignByBaseline(), shown = !underBar)
+            } else {
+                HlTitleSwitch(heading.title, switchTo, heading.onSwitch, Modifier.alignByBaseline(), shown = !underBar)
             }
-            // While retrying, the error stays with its button busy.
-            val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
-            when {
-                state.items.isEmpty() && wallError != null -> HlErrorState(
-                    wallError,
-                    vm::retry,
-                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-                    retrying = state.loading,
+            if (state.total > 0) {
+                val count = pluralStringResource(
+                    if (kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
+                    state.total,
+                    state.total,
                 )
-                state.loading && state.items.isEmpty() -> SkeletonWall()
-                state.items.isEmpty() && state.filter.activeCount > 0 -> HlEmptyState(
-                    stringResource(R.string.no_match),
-                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-                    action = stringResource(R.string.reset_filters),
-                    actionIcon = HlIcons.Filter,
-                    onAction = { vm.setFilter(LibraryFilter()) },
-                )
-                state.items.isEmpty() -> HlEmptyState(
-                    stringResource(if (wall.kind == LibraryKind.COLLECTIONS) R.string.empty_collections else R.string.empty_title),
-                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-                    backHint = true,
-                )
-                // A scrolled line of posters comes to where the first line rests.
-                else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
-                    ListScroll(top = HlFocus.wallRoom) { LazyVerticalGrid(
-                    columns = GridCells.Fixed(COLUMNS),
-                    state = gridState,
-                    contentPadding = PaddingValues(
-                        start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom, bottom = HlFocus.edge,
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
-                    verticalArrangement = Arrangement.spacedBy(HlSpace.l),
-                    modifier = Modifier.fillMaxSize().onFocusChanged {
-                        gridHasFocus = it.hasFocus
-                        // Leaving for the buttons above keeps the selected title.
-                        if (!it.hasFocus) focusedIndex.value = null
-                    },
-                ) {
-                    itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
-                        PosterCard(
-                            item = item,
-                            onClick = { onOpenItem(item) },
-                            width = null,
-                            onFocused = {
-                                selectedId.value = item.id
-                                focusedIndex.value = index
-                                // The first line sits under the padding: show it all.
-                                if (index < COLUMNS) scope.launch { gridState.animateScrollToItem(0) }
-                                if (index > state.items.size - COLUMNS * 3) vm.loadMore()
-                            },
-                            modifier = Modifier
-                                .focusKey(FocusKey.item(item.id), memory)
-                                .then(if (index == 0) Modifier.focusRequester(gridFocus) else Modifier),
-                        )
-                    }
-                    // The next page's error and its fix, at the wall's foot.
-                    state.pageError?.let { error ->
-                        item(key = PAGE_FAILED, span = { GridItemSpan(maxLineSpan) }) {
-                            PartFailed(
-                                error,
-                                retrying = state.pageRetrying,
-                                onRetry = vm::retryPage,
-                                modifier = Modifier.padding(top = HlSpace.m),
-                                action = Modifier.focusKey(RETRY_PAGE, memory),
-                            )
-                        }
-                    }
-                } } }
+                // After the name, or first when the bar stands in for it.
+                val gap = if (switchTo == null && underBar) HlSpace.none else HlSpace.m
+                WallFolio(count, state.items, shown, state.total, state.sort, Modifier.alignByBaseline().padding(start = gap))
             }
         }
+        Spacer(Modifier.weight(1f))
+        WallMenus(kind, state, vm.capabilities, person, vm::setFilter, vm::setSort)
+    } } }
+}
+
+/** The selected title on one line, then the posters, or why there are none. */
+@Composable
+private fun WallBody(
+    vm: LibraryViewModel,
+    state: LibraryState,
+    kind: LibraryKind,
+    grid: WallGrid,
+    memory: FocusMemory,
+    shown: State<MediaItem?>,
+    onOpenItem: (MediaItem) -> Unit,
+) {
+    Column {
+        // A long name drops its facts first, then ends in an ellipsis.
+        Box(
+            Modifier
+                .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.xs)
+                .height(HlLayout.infoLine),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            // Shown with its backdrop, as on Home.
+            WithItsPicture(shown.value) { TitleLine(it) }
+        }
+        // While retrying, the error stays with its button busy.
+        val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
+        val message = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l)
+        when {
+            state.items.isEmpty() && wallError != null -> HlErrorState(wallError, vm::retry, message, retrying = state.loading)
+            state.loading && state.items.isEmpty() -> SkeletonWall()
+            state.items.isEmpty() && state.filter.activeCount > 0 -> HlEmptyState(
+                stringResource(R.string.no_match),
+                message,
+                action = stringResource(R.string.reset_filters),
+                actionIcon = HlIcons.Filter,
+                onAction = { vm.setFilter(LibraryFilter()) },
+            )
+            state.items.isEmpty() -> HlEmptyState(
+                stringResource(if (kind == LibraryKind.COLLECTIONS) R.string.empty_collections else R.string.empty_title),
+                message,
+                backHint = true,
+            )
+            else -> Posters(vm, state, grid, memory, onOpenItem)
+        }
+    }
+}
+
+/** The posters, seven across; a scrolled line comes to where the first line rests. */
+@Composable
+private fun Posters(
+    vm: LibraryViewModel,
+    state: LibraryState,
+    grid: WallGrid,
+    memory: FocusMemory,
+    onOpenItem: (MediaItem) -> Unit,
+) {
+    var gridHasFocus by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
+        ListScroll(top = HlFocus.wallRoom) { LazyVerticalGrid(
+            columns = GridCells.Fixed(COLUMNS),
+            state = grid.state,
+            contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom, bottom = HlFocus.edge),
+            horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
+            verticalArrangement = Arrangement.spacedBy(HlSpace.l),
+            modifier = Modifier.fillMaxSize().onFocusChanged {
+                gridHasFocus = it.hasFocus
+                // Leaving for the buttons above keeps the selected title.
+                if (!it.hasFocus) grid.focusedIndex.value = null
+            },
+        ) {
+            itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
+                PosterCard(
+                    item = item,
+                    onClick = { onOpenItem(item) },
+                    width = null,
+                    onFocused = {
+                        grid.selectedId.value = item.id
+                        grid.focusedIndex.value = index
+                        // The first line sits under the padding: show it all.
+                        if (index < COLUMNS) scope.launch { grid.state.animateScrollToItem(0) }
+                        if (index > state.items.size - COLUMNS * 3) vm.loadMore()
+                    },
+                    modifier = Modifier
+                        .focusKey(FocusKey.item(item.id), memory)
+                        .then(if (index == 0) Modifier.focusRequester(grid.first) else Modifier),
+                )
+            }
+            // The next page's error and its fix, at the wall's foot.
+            state.pageError?.let { error ->
+                item(key = PAGE_FAILED, span = { GridItemSpan(maxLineSpan) }) {
+                    PartFailed(
+                        error,
+                        retrying = state.pageRetrying,
+                        onRetry = vm::retryPage,
+                        modifier = Modifier.padding(top = HlSpace.m),
+                        action = Modifier.focusKey(RETRY_PAGE, memory),
+                    )
+                }
+            }
+        } }
     }
 }
 
