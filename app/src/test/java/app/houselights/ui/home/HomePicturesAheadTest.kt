@@ -108,7 +108,7 @@ class HomePicturesAheadTest {
         ),
     )
 
-    private val state = HomeState(rows.libraries, HomeContent.Rows(rows.sections, firstScan = false), rows.doors)
+    private val state = HomeState(rows.libraries, HomeContent.Rows(rows.sections), rows.doors)
 
     /** Loads ahead what the launch would, then lays home out: what each asked, in that order. */
     private fun loadAheadThenShow(): Pair<List<Asked>, List<Asked>> {

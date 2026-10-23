@@ -89,7 +89,7 @@ class HomeLaunchTest {
         val launch = coldStart(gate)
         val vm = home(launch)
         advanceTimeBy(100)
-        assertEquals("home is composed with its rows under the launch screen", HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals("home is composed with its rows under the launch screen", HomeContent.Rows(rows), vm.content())
         assertNull("the pictures are not in yet", gate.reason)
         loaded.complete(Unit)
         runCurrent()
@@ -104,7 +104,7 @@ class HomeLaunchTest {
         val launch = coldStart(gate())
         val vm = home(launch)
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals(HomeContent.Rows(rows), vm.content())
         assertEquals("each asked once", listOf("home", "libraries"), provider.rowCalls.sorted())
     }
 
@@ -131,7 +131,7 @@ class HomeLaunchTest {
         val gate = gate()
         val vm = home(coldStart(gate))
         advanceTimeBy(100)
-        assertEquals("the rows show at once", HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals("the rows show at once", HomeContent.Rows(rows), vm.content())
         gate.homeDrawn()
         advanceTimeBy(CAP - 100 - 1)
         assertNull(gate.reason)
@@ -148,10 +148,10 @@ class HomeLaunchTest {
         val vm = home(coldStart(gate))
         advanceTimeBy(CAP + 1)
         assertEquals(Reason.CAP, gate.reason)
-        assertEquals(HomeContent.Loading(firstScan = false), vm.content())
+        assertEquals(HomeContent.Loading, vm.content())
         answer.complete(Unit)
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals(HomeContent.Rows(rows), vm.content())
         assertEquals(listOf("home", "libraries"), provider.rowCalls.sorted())
         assertTrue("home shows already: it asks for its pictures itself, not twice", picturesAsked.isEmpty())
     }
@@ -229,7 +229,7 @@ class HomeLaunchTest {
     fun withoutALaunchHomeAsksItself() = runTest {
         val vm = home(launchOf(gate()))
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals(HomeContent.Rows(rows), vm.content())
         assertEquals(listOf("libraries", "home"), provider.rowCalls)
     }
 
@@ -262,7 +262,7 @@ class HomeLaunchTest {
         assertNull(launch.take(SourceConfig.Local))
         val vm = home(launch)
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals(HomeContent.Rows(rows), vm.content())
         assertEquals("home asked again", listOf("home", "home", "libraries", "libraries"), provider.rowCalls.sorted())
     }
 

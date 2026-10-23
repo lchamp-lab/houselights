@@ -60,8 +60,8 @@ class HomePlanTest {
     @Test
     fun nothingInProgressProposesAFilmNotSeen() {
         val unseen = poster("fallguy")
-        val plan = plan(listOf(next, latestFilms), doors.copy(unseen = unseen))
-        assertEquals(CaseShows.Unseen(unseen), plan.case)
+        val plan = plan(listOf(next, latestFilms), doors.copy(proposed = unseen))
+        assertEquals(CaseShows.Proposed(unseen), plan.case)
         assertNull("nothing to propose", plan(listOf(next, latestFilms), doors).case)
     }
 

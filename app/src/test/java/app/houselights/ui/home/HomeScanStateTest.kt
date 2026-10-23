@@ -2,14 +2,11 @@ package app.houselights.ui.home
 
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
-import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.nfsFolder
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.UiError
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** What home says of a scan, folder by folder: two folders may bear the same name. */
@@ -19,13 +16,6 @@ class HomeScanStateTest {
 
     private val read = folder(1, "nas1", lastScanAt = 1_800_000_000_000L)
     private val new = folder(2, "nas2")
-
-    @Test
-    fun aFolderReadAgainIsNoFirstScanThoughAnotherOfItsNameIsNew() {
-        val scan = ScanState(running = true, sourceId = read.id)
-        assertFalse(firstScan(scan, empty = false, folders = listOf(read, new)))
-        assertTrue(firstScan(scan.copy(sourceId = new.id), empty = false, folders = listOf(read, new)))
-    }
 
     @Test
     fun theKeyToChangeIsOfferedUnderTheFirstScansCounter() {

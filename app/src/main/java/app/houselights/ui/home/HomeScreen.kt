@@ -131,13 +131,20 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
     // The line saying a second Back quits goes as soon as focus moves to another door.
     val quitting = quitOnSecondBack(atStart = true) { memory.last }
     val plan = rememberPlan(state, canSearch = actions.onOpenSearch != null)
-    // A first focus waits for the case: with nothing in progress, it proposes a film once the doors are read.
+    // A first focus waits for the case: with nothing in progress, it proposes a title as soon as one is read.
     val ready = plan != null && (plan.case != null || state.doors != null)
     RestoreFocus(memory, fallback = plan?.start?.let { memory.requester(it) }, ready = ready)
     var listing by rememberSaveable { mutableStateOf(false) }
     var options by rememberSaveable { mutableStateOf(false) }
+    val case = plan?.case
+    val gathered = plan?.doors?.any { it is Door.Libraries } == true
+    // A sheet whose element went with a reload closes, and does not open again by itself when it comes back.
+    SideEffect {
+        if (case == null) options = false
+        if (!gathered) listing = false
+    }
     // Whole for the launch screen once the grid shows with its doors read, or a message.
-    val whole = content !is HomeContent.Loading && (plan == null || state.doors != null)
+    val whole = content !is HomeContent.Loading && (plan == null || state.doors?.shelvesRead == true)
     Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current).drawnWhole(whole)) {
         // Without a grid, the settings stay one tile away, where a message may send the viewer.
         val settings: (@Composable () -> Unit)? = if (content is HomeContent.Message) {
@@ -153,7 +160,6 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
         }
     }
     if (listing && plan != null) LibrariesSheet(plan, state.sagas, actions) { listing = false }
-    val case = plan?.case
     if (options && case != null) CaseOptions(case, actions) { options = false }
 }
 
@@ -189,6 +195,7 @@ private fun Grid(
     DoorGrid(
         memory = memory,
         caseKey = CASE,
+        hasCase = plan.case != null,
         rightOfCase = plan.firstLibrary?.key,
         rows = plan.rows.map { row ->
             row.doors.map { (door, span) ->
@@ -201,23 +208,31 @@ private fun Grid(
 }
 
 /**
- * The case: the title last in progress, resumed on OK; else a film not seen, played; else nothing to propose. One
- * case either way, so focus stays on it as what it shows changes.
+ * The case: the title last in progress, resumed on OK; else what it proposes, a film played, a show's page opened.
+ * One case either way, so focus stays on it as what it shows changes.
  */
 @Composable
 private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit, modifier: Modifier) {
     if (case == null) {
-        // Focus still lands somewhere at home's start.
+        // Nothing to propose: the grid moves focus to its first door.
         Box(modifier.fillMaxSize().clearAndSetSemantics {})
         return
     }
-    val resume = case is CaseShows.Resume
+    val proposed = case as? CaseShows.Proposed
+    val opens = proposed?.opensPage == true
+    val action = when {
+        proposed == null -> R.string.resume
+        !opens -> R.string.play
+        case.item.kind == MediaKind.SERIES -> R.string.view_series
+        else -> R.string.home_open_title
+    }
     ResumeCase(
         case.item,
-        stringResource(if (resume) R.string.resume else R.string.play),
-        onClick = { actions.onPlay(case.item, resume) },
+        stringResource(action),
+        onClick = { if (opens) actions.onOpenItem(case.item) else actions.onPlay(case.item, proposed == null) },
         modifier = modifier,
-        label = stringResource(R.string.home_unseen).takeIf { !resume },
+        label = stringResource(R.string.home_unseen).takeIf { proposed?.notSeen == true },
+        plays = !opens,
         onLongClick = onOptions,
         onLongClickLabel = stringResource(R.string.more_options),
     )
@@ -275,13 +290,13 @@ private fun WatchDoor(door: Door, actions: HomeActions, modifier: Modifier) {
 @Composable
 private fun LibrariesDoor(door: Door.Libraries, figure: TextUnit, onList: () -> Unit, modifier: Modifier) {
     val cut = rememberCutPosters(door.posters)
-    HomeDoor(
-        stringResource(R.string.home_libraries),
-        HlIcons.Library,
-        onClick = onList,
-        modifier = modifier,
-        glowTones = { cut.tones },
-    ) { lit -> DoorFigures(formatCount(door.shelves.size.toLong()), cut, figure, lit) }
+    val name = stringResource(R.string.home_libraries)
+    val count = formatCount(door.shelves.size.toLong())
+    // Read as it says: its name, how many, then which.
+    val names = door.shelves.map { it.library.title ?: libraryName(it.library.kind) }
+    HomeDoor(name, HlIcons.Library, onClick = onList, modifier = modifier, glowTones = { cut.tones }) { lit ->
+        DoorFigures(count, cut, figure, lit, readAs = (listOf(name, count) + names).joinToString(READ_JOIN))
+    }
 }
 
 /** A tool's door: the sagas, the search, the settings and the app's state. */
@@ -322,8 +337,12 @@ private fun LibraryDoor(door: Door.Library, state: HomeState, actions: HomeActio
         door.news > 0 -> DoorNote.News(pluralStringResource(R.plurals.row_news, door.news, door.news))
         else -> null
     }
+    val name = library.title ?: libraryName(library.kind)
+    val count = door.shelf.count
+    // Read as it says: its name first, then how many titles, then what is new.
+    val titles = count?.let { pluralStringResource(R.plurals.title_count, it, it) }
     HomeDoor(
-        library.title ?: libraryName(library.kind),
+        name,
         iconOf(library.kind),
         onClick = {
             actions.onLibraryAhead(library, sagas)
@@ -332,8 +351,16 @@ private fun LibraryDoor(door: Door.Library, state: HomeState, actions: HomeActio
         modifier = modifier,
         note = note,
         glowTones = { cut.tones },
-    ) { lit -> door.shelf.count?.let { DoorFigures(formatCount(it.toLong()), cut, figure, lit) } }
+    ) { lit ->
+        count?.let {
+            val readAs = listOfNotNull(name, titles, (note as? DoorNote.News)?.text).joinToString(READ_JOIN)
+            DoorFigures(formatCount(it.toLong()), cut, figure, lit, readAs = readAs)
+        }
+    }
 }
+
+/** Between the parts a door is read as. */
+private const val READ_JOIN = ", "
 
 private fun iconOf(kind: LibraryKind) = when (kind) {
     LibraryKind.MOVIES -> HlIcons.Film
@@ -363,7 +390,10 @@ private fun StateOf(status: HomeStatus, scan: StateFlow<ScanState>) {
     DoorFacts(stateFacts(status, progress))
 }
 
-/** The app's state as the settings door states it: the source, Trakt where it follows it, the last scan or the one running. */
+/**
+ * The app's state as the settings door states it, ranked as it keeps them when they do not all fit: the source, Trakt
+ * where it follows it, the last scan or the one running, and above them a problem TMDB had, in the source's place.
+ */
 @Composable
 private fun stateFacts(status: HomeStatus, progress: Pair<Int, Int>?): List<StateFact> {
     val context = LocalContext.current
@@ -371,13 +401,13 @@ private fun stateFacts(status: HomeStatus, progress: Pair<Int, Int>?): List<Stat
     val source = when (val from = status.source) {
         is StatusSource.Folders -> {
             val folders = from.count.takeIf { it > 1 }?.let { pluralStringResource(R.plurals.folder_count, it, it) }
-            StateFact(label, stringResource(R.string.source_local), detail = from.hosts.singleOrNull() ?: folders)
+            StateFact(label, stringResource(R.string.source_local), detail = from.hosts.singleOrNull() ?: folders, quietDetail = false)
         }
         is StatusSource.Server -> StateFact(label, from.name ?: stringResource(R.string.source_jellyfin))
     }
     val trakt = status.trakt?.let { on ->
         val said = stringResource(if (on) R.string.trakt_connected else R.string.trakt_signed_out)
-        StateFact(stringResource(R.string.home_state_trakt), said, done = on)
+        StateFact(stringResource(R.string.home_state_trakt), said, done = on, rank = 1)
     }
     val scan = progress?.let { (done, total) ->
         StateFact(
@@ -385,12 +415,16 @@ private fun stateFacts(status: HomeStatus, progress: Pair<Int, Int>?): List<Stat
             stringResource(R.string.home_scan_running),
             detail = stringResource(R.string.scan_progress, done, total).takeIf { total > 0 },
             wide = true,
+            rank = 2,
         )
     } ?: status.scannedAt?.let { at ->
-        val ago = relativeTime(context, at, System.currentTimeMillis(), alone = true)
-        StateFact(stringResource(R.string.home_state_scan), ago, wide = true)
+        val ago = relativeTime(context, at, System.currentTimeMillis(), alone = true, short = true)
+        StateFact(stringResource(R.string.home_state_scan), ago, wide = true, rank = 2)
     }
-    return listOfNotNull(source, trakt, scan)
+    val tmdb = status.tmdb?.let { issue ->
+        StateFact(stringResource(R.string.home_state_tmdb), stringResource(issue.title), wide = true, attention = true, rank = 3)
+    }
+    return listOfNotNull(source, trakt, tmdb, scan)
 }
 
 /** The libraries past the third, each opening its wall. */

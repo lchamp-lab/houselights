@@ -20,7 +20,9 @@ import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.RoomPosters
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.reported
+import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
@@ -33,20 +35,15 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import android.util.Log
 
-/** What Home shows under its head: [Browsing] (hero, then rows) or a [Message] where the focused title would start. */
+/** What Home shows under its head: the grid of its [Rows], or a [Message] saying why there is none. */
 sealed interface HomeContent {
-    /** The hero's band, then the rows or their empty frames; with [firstScan], the scan's counter between them. */
-    sealed interface Browsing : HomeContent {
-        val firstScan: Boolean
-    }
-
-    /** Nothing to browse: the message starts where the focused title would. */
+    /** Nothing to browse: the message starts at the safe area, under the head. */
     sealed interface Message : HomeContent
 
-    data class Loading(override val firstScan: Boolean) : Browsing
+    data object Loading : HomeContent
 
-    /** The rows; with [firstScan], a folder's first scan is running and its counter shows above them. */
-    data class Rows(val sections: List<HomeSection>, override val firstScan: Boolean) : Browsing
+    /** The rows home's grid is made of (« À regarder » shows them). */
+    data class Rows(val sections: List<HomeSection>) : HomeContent
 
     /** No rows yet and a scan running: its counter, with rows filling in as titles are found. */
     data object FirstScan : Message
@@ -68,7 +65,7 @@ sealed interface HomeContent {
 /** Home: the source's libraries, what shows (the grid's rows, or a message), its doors and the app's state. */
 data class HomeState(
     val libraries: List<Library> = emptyList(),
-    val content: HomeContent = HomeContent.Loading(firstScan = false),
+    val content: HomeContent = HomeContent.Loading,
     val doors: HomeDoors? = null,
     val status: HomeStatus? = null,
 ) {
@@ -106,18 +103,19 @@ sealed interface StatusSource {
 /**
  * The app's state as home's settings door states it: the [source], whether a Trakt account follows it ([trakt], null
  * where Trakt does not follow this source), when the folders were last scanned ([scannedAt], 0 never, null on a
- * server) and whether a scan runs ([scanning]; the door alone reads its progress).
+ * server), whether a scan runs ([scanning]; the door alone reads its progress) and what TMDB did to the last ([tmdb]).
  */
 data class HomeStatus(
     val source: StatusSource,
     val trakt: Boolean? = null,
     val scannedAt: Long? = null,
     val scanning: Boolean = false,
+    val tmdb: UiError? = null,
 )
 
 /**
- * Home's rows from the current source's [provider], and what Home shows without them. Only the first scan's
- * counter reads [scan] progress, so a file scanned changes [state] only when it changes what Home shows.
+ * Home's rows from the current source's [provider], and what Home shows without them. Only the first scan's counter
+ * and the settings door read [scan] progress, so a file scanned changes [state] only when it changes what Home shows.
  */
 class HomeViewModel(
     private val provider: () -> MediaProvider,
@@ -188,14 +186,22 @@ class HomeViewModel(
      * the rows stay. Even when nothing could be read, the doors count as read, so home takes its first focus.
      */
     private suspend fun loadDoors(rows: HomeRows) {
-        val doors = rows.doorsAhead?.let { awaitAhead(it) }
-            ?: suspendRunCatching { readDoors(provider(), rows.libraries, rows.sections, pick) }
+        val doors = rows.doorsAhead?.let { awaitDoors(it) }
+            ?: suspendRunCatching { coroutineScope { awaitDoors(readDoorsAsync(provider(), rows.libraries, rows.sections, pick)) } }
                 .onFailure { Log.w(TAG, "Doors", it) }
                 .getOrNull()
-        load.update { it.copy(doors = doors ?: it.doors ?: HomeDoors()) }
+        load.update { it.copy(doors = doors ?: it.doors?.copy(shelvesRead = true) ?: HomeDoors()) }
     }
 
-    /** The launch's read of the doors; null when it went away, and the doors are read here. */
+    /** What [read] proposes, shown as soon as it comes over the doors shown, then its doors; null when it went away. */
+    private suspend fun awaitDoors(read: DoorsRead): HomeDoors? {
+        awaitAhead(read.first)?.let { first ->
+            load.update { last -> last.copy(doors = last.doors?.copy(proposed = first.proposed) ?: first) }
+        }
+        return awaitAhead(read.whole)
+    }
+
+    /** A read of the doors, the launch's or one under way; null when it went away, and the doors are read here. */
     private suspend fun awaitAhead(read: Deferred<HomeDoors>): HomeDoors? = try {
         read.await()
     } catch (gone: CancellationException) {
@@ -246,16 +252,14 @@ class HomeViewModel(
 
 /**
  * What Home shows, from [load], [scan], [folders] (null until read) and whether the source is [local]. Shown rows
- * always stay; with none, the hero's room and empty frames, then the scan counter, an error, or why it is empty.
+ * always stay; with none, nothing while loading, then the scan counter, an error, or why it is empty.
  */
 internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<SourceEntity>?, local: Boolean): HomeContent {
-    val empty = load.sections.isEmpty()
-    val firstScan = firstScan(scan, empty, folders)
     val failed = failedFolder(scan.errors, folders.orEmpty())
     return when {
-        !empty -> HomeContent.Rows(load.sections + load.drawn, firstScan)
-        load.loading && load.error == null -> HomeContent.Loading(firstScan)
-        firstScan -> HomeContent.FirstScan
+        load.sections.isNotEmpty() -> HomeContent.Rows(load.sections + load.drawn)
+        load.loading && load.error == null -> HomeContent.Loading
+        scan.running -> HomeContent.FirstScan
         load.error != null -> HomeContent.Failed(load.error, retrying = load.loading)
         local && folders == null -> HomeContent.ReadingFolders
         local && failed != null -> HomeContent.ScanFailed(failed.first, failed.second)
@@ -273,13 +277,10 @@ internal fun homeStatus(settings: AppSettings, folders: List<SourceEntity>?, sca
             trakt = (settings.trakt?.ended == false).takeIf { traktAvailable },
             scannedAt = folders?.maxOfOrNull { it.lastScanAt } ?: 0L,
             scanning = scan.running,
+            tmdb = scan.tmdbIssue?.toUiError(),
         )
         is SourceConfig.Jellyfin -> HomeStatus(StatusSource.Server(source.serverName))
     }
-
-/** A folder's first scan, or any scan while Home has nothing to show. */
-internal fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEntity>?): Boolean =
-    scan.running && (empty || folders.orEmpty().any { it.id == scan.sourceId && it.lastScanAt <= 0 })
 
 /** The first existing folder whose last scan failed, and why. */
 internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<SourceEntity>): Pair<SourceEntity, ScanError>? =

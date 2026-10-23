@@ -32,6 +32,18 @@ class RelativeTimeTest {
         assertEquals("Jamais", relativeTime(context, 0, now, alone = true))
     }
 
+    /** Home's settings door says it short: "Il y a 2 h", "2 hr. ago". */
+    @Test
+    fun shortItsUnitIsAbbreviated() {
+        assertEquals("Il y a 2 h", relativeTime(context, now - 2 * 60 * minute, now, alone = true, short = true).normal())
+    }
+
+    @Test
+    @Config(qualifiers = "en")
+    fun shortInEnglish() {
+        assertEquals("2 hr. ago", relativeTime(context, now - 2 * 60 * minute, now, alone = true, short = true).normal())
+    }
+
     @Test
     fun noCapitalAfterAColon() {
         // However the time is worded, a sentence never resumes with a capital.

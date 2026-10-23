@@ -33,7 +33,7 @@ data class HomeRows(
     val libraries: List<Library>,
     val sections: List<HomeSection>,
     val doors: HomeDoors? = null,
-    val doorsAhead: Deferred<HomeDoors>? = null,
+    val doorsAhead: DoorsRead? = null,
 )
 
 /**
@@ -112,9 +112,9 @@ class HomeLaunch(
         gate.homeLoaded()
         coroutineScope {
             // The doors are read after the rows, which home shows meanwhile; it awaits this read rather than make its own.
-            val doors = rows.getOrNull()?.let { read -> async { readDoors(checkNotNull(home), read.libraries, read.sections, pick) } }
+            val doors = rows.getOrNull()?.let { read -> readDoorsAsync(checkNotNull(home), read.libraries, read.sections, pick) }
             answer.complete(Asked(source, at, rows.map { it.copy(doorsAhead = doors) }))
-            rows.onSuccess { read -> load({ read.copy(doors = doors?.await()) }, pictures) }
+            rows.onSuccess { read -> load({ read.copy(doors = doors?.whole?.await()) }, pictures) }
         }
         gate.picturesLoaded()
     }

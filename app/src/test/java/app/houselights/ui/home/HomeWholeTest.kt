@@ -68,7 +68,7 @@ class HomeWholeTest {
 
     @Test
     fun loadingIsNotWhole() {
-        show { HomeState(content = HomeContent.Loading(firstScan = false)) }
+        show { HomeState(content = HomeContent.Loading) }
         assertEquals(0, cover.told)
     }
 

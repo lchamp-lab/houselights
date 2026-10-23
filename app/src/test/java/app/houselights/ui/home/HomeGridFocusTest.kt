@@ -2,6 +2,7 @@ package app.houselights.ui.home
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.StateRestorationTester
@@ -9,6 +10,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
+import app.houselights.core.UserState
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.holdOk
@@ -21,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.NBSP
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -169,7 +173,7 @@ class HomeGridFocusTest {
         val played = mutableListOf<String>()
         val home = fullHome(sections = fullHome().content.let { (it as HomeContent.Rows).sections.drop(1) })
         val actions = HomeActions(onPlay = { item, resume -> played += "${item.id} $resume" })
-        open(home.copy(doors = home.doors!!.copy(unseen = title("fallguy"))), actions)
+        open(home.copy(doors = home.doors!!.copy(proposed = title("fallguy"))), actions)
         focusIsOn("Not seen yet")
         compose.press(Key.DirectionCenter)
         assertEquals(listOf("fallguy false"), played)
@@ -192,7 +196,7 @@ class HomeGridFocusTest {
         val opened = mutableListOf<String>()
         open(actions = HomeActions(onOpenItem = { opened += it.id }, onPlay = { item, resume -> opened += "play ${item.id} $resume" }))
         compose.holdOk()
-        compose.onNodeWithText("Open its page").assertExists()
+        compose.onNodeWithText("Open page").assertExists()
         compose.onNodeWithText("Play from the beginning").assertExists()
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.waitForIdle()
@@ -202,13 +206,76 @@ class HomeGridFocusTest {
     @Test
     fun focusStaysOnTheCaseAsItChangesKind() {
         val proposed = fullHome(sections = (fullHome().content as HomeContent.Rows).sections.drop(1))
-        var home by mutableStateOf(proposed.copy(doors = proposed.doors!!.copy(unseen = title("fallguy"))))
+        var home by mutableStateOf(proposed.copy(doors = proposed.doors!!.copy(proposed = title("fallguy"))))
         compose.setTvContent { HomeGrid(home) }
         compose.waitForIdle()
         focusIsOn("Not seen yet")
         home = fullHome()
         compose.waitForIdle()
         focusIsOn("Resume")
+    }
+
+    /** The last title in progress finished: the case proposes another, focus still on it. */
+    @Test
+    fun focusStaysOnTheCaseFromResumingToProposing() {
+        val doors = fullHome().doors!!.copy(proposed = title("fallguy"))
+        var home by mutableStateOf(fullHome(doors = doors))
+        compose.setTvContent { HomeGrid(home) }
+        compose.waitForIdle()
+        focusIsOn("Resume")
+        home = fullHome(sections = (fullHome().content as HomeContent.Rows).sections.drop(1), doors = doors)
+        compose.waitForIdle()
+        focusIsOn("Not seen yet")
+    }
+
+    /** The case gone with focus, nothing left to propose: focus goes to the first door. */
+    @Test
+    fun theCaseGoneWithFocusLeavesItOnTheFirstDoor() {
+        var home by mutableStateOf(fullHome())
+        compose.setTvContent { HomeGrid(home) }
+        compose.waitForIdle()
+        focusIsOn("Resume")
+        home = fullHome(sections = (fullHome().content as HomeContent.Rows).sections.drop(1))
+        compose.waitForIdle()
+        focusIsOn("Next up")
+    }
+
+    /** The case's options close with the case, and do not open again by themselves when it comes back. */
+    @Test
+    fun theCasesOptionsGoWithItForGood() {
+        var home by mutableStateOf(fullHome())
+        compose.setTvContent { HomeGrid(home) }
+        compose.waitForIdle()
+        compose.holdOk()
+        compose.onNodeWithText("Open page").assertExists()
+        home = fullHome(sections = (fullHome().content as HomeContent.Rows).sections.drop(1))
+        compose.waitForIdle()
+        compose.onNodeWithText("Open page").assertDoesNotExist()
+        home = fullHome()
+        compose.waitForIdle()
+        compose.onNodeWithText("Open page").assertDoesNotExist()
+    }
+
+    /** Every film seen: a show not seen, whose page OK opens. */
+    @Test
+    fun aShowProposedOpensItsPage() {
+        val opened = mutableListOf<String>()
+        val proposed = fullHome(sections = (fullHome().content as HomeContent.Rows).sections.drop(1))
+        val show = title("severance", MediaKind.SERIES)
+        open(proposed.copy(doors = proposed.doors!!.copy(proposed = show)), HomeActions(onOpenItem = { opened += it.id }))
+        focusIsOn("Not seen yet")
+        focusIsOn("View series")
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf("severance"), opened)
+    }
+
+    /** Everything seen: any title, played, without "Pas encore vu". */
+    @Test
+    fun aTitleSeenIsProposedWithoutItsKicker() {
+        val proposed = fullHome(sections = (fullHome().content as HomeContent.Rows).sections.drop(1))
+        open(proposed.copy(doors = proposed.doors!!.copy(proposed = title("heat").copy(user = UserState(played = true)))))
+        focusIsOn("Play")
+        compose.onNodeWithText("Not seen yet").assertDoesNotExist()
     }
 
     /** A door with focus that goes after a reload leaves focus on the door last visited still there. */
@@ -235,9 +302,19 @@ class HomeGridFocusTest {
         compose.setTvContent { HomeGrid(home) }
         compose.waitForIdle()
         compose.onNode(isFocused()).assertDoesNotExist()
-        home = proposed.copy(doors = proposed.doors!!.copy(unseen = title("fallguy")))
+        home = proposed.copy(doors = proposed.doors!!.copy(proposed = title("fallguy")))
         compose.waitForIdle()
         focusIsOn("Not seen yet")
+    }
+
+    /** A library's door is read name first: its name, how many titles, then what is new. */
+    @Test
+    fun aLibrarysDoorIsReadNameFirst() {
+        open()
+        compose.press(Key.DirectionRight)
+        compose.onNode(isFocused()).assert(hasContentDescription("Movies, 412${NBSP}titles"))
+        compose.press(Key.DirectionRight)
+        compose.onNode(isFocused()).assert(hasContentDescription("TV shows, 38${NBSP}titles, 3 new episodes"))
     }
 
     /** Without a grid (a message), the settings stay one tile away. */

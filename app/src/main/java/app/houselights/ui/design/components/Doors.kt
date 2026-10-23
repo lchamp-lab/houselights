@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -174,15 +173,16 @@ internal fun PassingStatus(text: String) {
 data class DoorCell(val key: String, val span: Int = 1, val content: @Composable (Modifier) -> Unit)
 
 /**
- * Home's grid (DESIGN.md, Layout): the [case] down the left, named [caseKey] in [memory], then [rows] of doors as
- * tall as [heights], each row sharing its width by parts ([placeDoors]). Focus moves as the grid reads: right from the
- * case to the door [rightOfCase] names, left from a row's first door to the case, up and down to the door over or
- * under, the one last visited among several ([doorBelow]).
+ * Home's grid (DESIGN.md, Layout): the [case] down the left, named [caseKey] in [memory] (focusable while [hasCase]),
+ * then [rows] of doors as tall as [heights], each row sharing its width by parts ([placeDoors]). Focus moves as the grid
+ * reads: right from the case to the door [rightOfCase] names, left from a row's first door to the case, up and down to
+ * the door over or under, the one last visited among several ([doorBelow]).
  */
 @Composable
 fun DoorGrid(
     memory: FocusMemory,
     caseKey: String,
+    hasCase: Boolean,
     rightOfCase: String?,
     rows: List<List<DoorCell>>,
     heights: List<Dp>,
@@ -207,6 +207,12 @@ fun DoorGrid(
         withFrameNanos { }
         val back = visited.lastOrNull { it in keys }
         if (back == null || !memory.focus(back)) memory.focus(caseKey)
+    }
+    // The case gone with focus (nothing left to propose) leaves it on the first door.
+    LaunchedEffect(hasCase) {
+        if (hasCase || gone != caseKey) return@LaunchedEffect
+        withFrameNanos { }
+        keys.firstOrNull()?.let { memory.focus(it) }
     }
     Layout(
         content = {
@@ -467,7 +473,8 @@ private fun BoxScope.BandEdge(progress: DoorProgress) {
 /**
  * Home's case (DESIGN.md, Layout): a title's backdrop cropped upright (else its poster) melting into its dark, under
  * its [label], its logo or name, its facts, then its progress and time left or its genres, and its [action], a plate
- * the case's focus fills white. OK does [onClick]; Menu or a long OK, [onLongClick].
+ * the case's focus fills white, after the Play glyph when it [plays]. OK does [onClick]; Menu or a long OK,
+ * [onLongClick], which the Menu key says at the plate's end while the case has focus.
  */
 @Composable
 fun ResumeCase(
@@ -476,6 +483,7 @@ fun ResumeCase(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     label: String? = null,
+    plays: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
 ) {
@@ -510,16 +518,11 @@ fun ResumeCase(
                     style = Hl.type.headline,
                 )
                 Spacer(Modifier.height(HlSpace.s))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f)) {
-                        if (episode) {
-                            EpisodeHeading(item.episodeLabel, item.title, style = Hl.type.entry)
-                        } else {
-                            MetaLine(item, showGenres = false)
-                        }
-                    }
-                    // Its options, said with focus; its room kept, so nothing moves.
-                    if (onLongClick != null) MenuKey(Modifier.alpha(if (lit) 1f else 0f))
+                if (episode) {
+                    EpisodeHeading(item.episodeLabel, item.title, style = Hl.type.entry)
+                } else {
+                    // Closer than a page's facts: the case's column is narrow, and its score stays.
+                    MetaLine(item, showGenres = false, spacing = HlSpace.s)
                 }
                 Spacer(Modifier.height(HlSpace.s))
                 val left = timeLeft(item)
@@ -541,7 +544,7 @@ fun ResumeCase(
                     )
                 }
                 Spacer(Modifier.height(HlSpace.s))
-                CaseAction(action, lit)
+                CaseAction(action, lit, plays, menu = onLongClick != null)
             }
         }
     }
@@ -564,23 +567,30 @@ private fun BoxScope.CasePicture(item: MediaItem, picture: String?) {
     Box(Modifier.matchParentSize().background(Brush.verticalGradient(*HlScrim.CASE_FOOT.colorStops(c.ambientDeep))))
 }
 
-/** The case's action: its words on a quiet plate, white with black ink once the case is [lit]. */
+/**
+ * The case's action: its words on a quiet plate, white with black ink once the case is [lit], then with the Menu key at
+ * its end when it has options ([menu]); nothing moves for it.
+ */
 @Composable
-private fun CaseAction(action: String, lit: Boolean) {
+private fun CaseAction(action: String, lit: Boolean, plays: Boolean, menu: Boolean) {
     val c = Hl.colors
     val ink = FocusStyle.ink(lit)
-    Row(
+    Box(
         Modifier
             .fillMaxWidth()
             .heightIn(min = HomeGridDefaults.action)
             .background(FocusStyle.heldPlate(lit, c.content.copy(alpha = HlAlpha.FILL)), HlShapes.control)
             .then(if (lit) Modifier else Modifier.border(HlSize.hairline, c.plateEdge, HlShapes.control)),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(HlIcons.Play, contentDescription = null, tint = ink, modifier = Modifier.size(HomeGridDefaults.actionIcon))
-        Spacer(Modifier.width(HlSpace.xs))
-        Text(action, style = Hl.type.cardName, color = ink, maxLines = 1)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (plays) {
+                Icon(HlIcons.Play, contentDescription = null, tint = ink, modifier = Modifier.size(HomeGridDefaults.actionIcon))
+                Spacer(Modifier.width(HlSpace.xs))
+            }
+            Text(action, style = Hl.type.cardName, color = ink, maxLines = 1)
+        }
+        if (menu && lit) MenuKey(Modifier.align(Alignment.CenterEnd).padding(end = HlSpace.xs), ink = ink)
     }
 }
 
@@ -764,43 +774,89 @@ internal fun wallThumbs(width: Dp, height: Dp): Int {
     return columns * rows
 }
 
-/** One fact of the settings' door: its [label] over its [value], a [detail] after it, a [done] check before it. */
+/**
+ * One fact of the settings' door: its [label] over its [value], a [detail] after it (quiet, or as the value but its
+ * separator unless [quietDetail] is false), a [done] check or the [attention] mark before it, on a line of its own when
+ * [wide]. When the door cannot hold them all, the fact of lowest [rank] goes first, its detail before it.
+ */
 @Immutable
-data class StateFact(val label: String, val value: String, val detail: String? = null, val done: Boolean = false, val wide: Boolean = false)
+data class StateFact(
+    val label: String,
+    val value: String,
+    val detail: String? = null,
+    val done: Boolean = false,
+    val wide: Boolean = false,
+    val quietDetail: Boolean = true,
+    val attention: Boolean = false,
+    val rank: Int = 0,
+)
 
 /**
  * The app's state as a case's back (DESIGN.md, Gestures), in a door: each label in the technical voice over its
  * value, two short ones side by side while they fit, a [StateFact.wide] one on its own line; centred down the door's
- * picture. A line the picture has no room for (the largest text) is left out whole, from the last.
+ * picture. What the picture has no room for (a long name, the largest text) goes by rank ([keptFacts]).
  */
 @Composable
 fun DoorFacts(facts: List<StateFact>, modifier: Modifier = Modifier) {
     val ordered = facts.sortedBy { it.wide }
+    // Each fact with a detail is also laid out without it, for when it must give it up.
+    val detailed = ordered.indices.filter { ordered[it].detail != null }
     Layout(
-        content = { ordered.forEach { Fact(it) } },
+        content = {
+            ordered.forEach { Fact(it) }
+            // Read once, whole: the copy is only drawn.
+            detailed.forEach { Fact(ordered[it].copy(detail = null), Modifier.clearAndSetSemantics {}) }
+        },
         modifier = modifier.fillMaxSize().padding(horizontal = HlSpace.s),
     ) { measurables, constraints ->
         val rowGap = HomeGridDefaults.stateRows.roundToPx()
-        val columnGap = HomeGridDefaults.stateColumns.roundToPx()
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val placeables = measurables.map { it.measure(loose) }
-        val lines = factLines(ordered.map { it.wide }, placeables.map { it.width }, columnGap, loose.maxWidth)
-        val heights = lines.map { line -> line.maxOf { placeables[it].height } }
-        var used = -rowGap
-        val shown = lines.indices.takeWhile { i ->
-            (used + rowGap + heights[i] <= loose.maxHeight).also { fits -> if (fits) used += rowGap + heights[i] }
-        }
+        val full = measurables.take(ordered.size).map { it.measure(loose) }
+        val bare = detailed.zip(measurables.drop(ordered.size)).associate { (k, m) -> k to m.measure(loose) }
+        val kept = keptFacts(
+            FactSizes(ordered.map { it.wide }, ordered.map { it.rank }, full.map { it.width }, bare.mapValues { it.value.width }),
+            full.map { it.height },
+            HomeGridDefaults.stateColumns.roundToPx(),
+            rowGap,
+            IntSize(loose.maxWidth, loose.maxHeight),
+        )
+        val placeable = { k: Int -> if (k in kept.bare) bare.getValue(k) else full[k] }
+        val heights = kept.lines.map { line -> line.maxOf { placeable(it).height } }
+        val used = heights.sum() + rowGap * (heights.size - 1).coerceAtLeast(0)
         layout(constraints.maxWidth, constraints.maxHeight) {
-            var y = (constraints.maxHeight - used.coerceAtLeast(0)) / 2
-            shown.forEach { i ->
+            var y = (constraints.maxHeight - used) / 2
+            kept.lines.forEachIndexed { i, line ->
                 var x = 0
-                lines[i].forEach { k ->
-                    placeables[k].placeRelative(x, y)
-                    x += placeables[k].width + columnGap
+                line.forEach { k ->
+                    placeable(k).placeRelative(x, y)
+                    x += placeable(k).width + HomeGridDefaults.stateColumns.roundToPx()
                 }
                 y += heights[i] + rowGap
             }
         }
+    }
+}
+
+/** The facts' parts the door measures: whether each is [wide], its [rank], its width, and without its detail ([bare]). */
+internal class FactSizes(val wide: List<Boolean>, val rank: List<Int>, val widths: List<Int>, val bare: Map<Int, Int>)
+
+/** The facts a door shows, as lines of indices, and those shown without their detail. */
+internal class KeptFacts(val lines: List<List<Int>>, val bare: Set<Int>)
+
+/**
+ * The facts of [sizes] whose lines ([factLines]) fit in [room], [heights] tall, [gap] across and [rowGap] down: all of
+ * them while they fit; else the one of lowest rank gives up its detail, then goes, and so on.
+ */
+internal fun keptFacts(sizes: FactSizes, heights: List<Int>, gap: Int, rowGap: Int, room: IntSize): KeptFacts {
+    val shown = sizes.wide.indices.toMutableList()
+    val bare = mutableSetOf<Int>()
+    while (true) {
+        val widths = shown.map { k -> if (k in bare) sizes.bare.getValue(k) else sizes.widths[k] }
+        val lines = factLines(shown.map { sizes.wide[it] }, widths, gap, room.width).map { line -> line.map { shown[it] } }
+        val tall = lines.sumOf { line -> line.maxOf { heights[it] } } + rowGap * (lines.size - 1).coerceAtLeast(0)
+        if (tall <= room.height || shown.isEmpty()) return KeptFacts(lines, bare)
+        val least = shown.minBy { sizes.rank[it] }
+        if (least in sizes.bare && least !in bare) bare += least else shown -= least
     }
 }
 
@@ -832,19 +888,23 @@ internal fun factLines(wide: List<Boolean>, widths: List<Int>, gap: Int, room: I
 }
 
 @Composable
-private fun Fact(fact: StateFact) {
+private fun Fact(fact: StateFact, modifier: Modifier = Modifier) {
     val c = Hl.colors
-    Column {
+    Column(modifier) {
         Text(fact.label, style = Hl.type.jaquette, color = c.contentTertiary, maxLines = 1)
         Spacer(Modifier.height(HlSpace.xxs))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (fact.done) {
-                Icon(HlIcons.Check, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.inlineIcon))
-                Spacer(Modifier.width(HlSpace.xs))
+            when {
+                fact.attention -> StatusLight(StatusState.Attention)
+                fact.done -> Icon(HlIcons.Check, null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.inlineIcon))
             }
-            Text(fact.value, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (fact.attention || fact.done) Spacer(Modifier.width(HlSpace.xs))
+            val ink = if (fact.attention) c.ember else c.content
+            Text(fact.value, style = Hl.type.meta, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             fact.detail?.let {
-                Text(FACT_JOIN + it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(FACT_JOIN, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
+                val detailInk = if (fact.quietDetail) c.contentSecondary else ink
+                Text(it, style = Hl.type.meta, color = detailInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }

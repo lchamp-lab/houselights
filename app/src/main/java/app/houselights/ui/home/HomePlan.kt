@@ -3,20 +3,28 @@ package app.houselights.ui.home
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
 import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.core.NEW_FOR_MS
 import app.houselights.core.SectionType
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.components.cycledTo
 import app.houselights.ui.design.components.wearsNewDot
 
-/** What home's case shows: the title last in progress, or a film not seen yet. */
+/** What home's case shows: the title last in progress, or what it proposes when nothing is ([UnseenPick]). */
 sealed interface CaseShows {
     val item: MediaItem
 
     data class Resume(override val item: MediaItem) : CaseShows
 
-    data class Unseen(override val item: MediaItem) : CaseShows
+    /** A film or a show not seen yet ([notSeen]), else any title; a show opens its page, a film plays. */
+    data class Proposed(override val item: MediaItem) : CaseShows {
+        val notSeen: Boolean get() = item.notSeen
+        val opensPage: Boolean get() = item.kind in PAGES
+    }
 }
+
+/** What the case opens rather than plays. */
+private val PAGES = setOf(MediaKind.SERIES, MediaKind.COLLECTION, MediaKind.FOLDER)
 
 /** The row of the page « À regarder » a door opens it on. */
 enum class WatchRow { CONTINUE, NEXT_UP, LATEST }
@@ -68,7 +76,7 @@ data class GridRow(val kind: RowKind, val doors: List<Pair<Door, Int>>)
 
 enum class RowKind { WATCH, LIBRARIES, TOOLS }
 
-/** Home's grid: the [case] (none for a library with nothing to propose) and its rows, top to bottom. */
+/** Home's grid: the [case] (none for an empty library, or until what it proposes is read) and its rows, top to bottom. */
 data class HomePlan(val case: CaseShows?, val rows: List<GridRow>) {
     val doors: List<Door> get() = rows.flatMap { row -> row.doors.map { it.first } }
 
@@ -78,7 +86,7 @@ data class HomePlan(val case: CaseShows?, val rows: List<GridRow>) {
 
 /**
  * Home's grid from what home read ([sections], the tab [libraries], the source's [sagas], the [doors]), whether it
- * [canSearch], at [now]. The case resumes the title last in progress, else proposes a film not seen; À suivre shows
+ * [canSearch], at [now]. The case resumes the title last in progress, else proposes another; À suivre shows
  * the next episode, else the second title in progress, else the row gives its width to Nouveautés; a library's count
  * and Rechercher's wall take posters shown nowhere else on the screen first; without sagas, Rechercher takes their place.
  */
@@ -93,7 +101,7 @@ fun homePlan(
     val resume = sections.firstOrNull { it.type == SectionType.CONTINUE }?.items.orEmpty()
     val next = nextUp(sections)
     val latest = sections.filter { it.type == SectionType.LATEST }
-    val case = resume.firstOrNull()?.let { CaseShows.Resume(it) } ?: doors?.unseen?.let { CaseShows.Unseen(it) }
+    val case = resume.firstOrNull()?.let { CaseShows.Resume(it) } ?: doors?.proposed?.let { CaseShows.Proposed(it) }
     // The titles shown so far: a count is cut in none of their posters.
     val used = listOfNotNull(case?.item?.id).toMutableSet()
     val season = doors?.season?.takeIf { next != null && doors.seasonOf == next.id }

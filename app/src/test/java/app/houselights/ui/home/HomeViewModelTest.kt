@@ -5,6 +5,7 @@ import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
+import app.houselights.core.UserState
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
@@ -31,6 +32,9 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
@@ -86,21 +90,11 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun theFirstLoadShowsTheHerosRoomAndEmptyFrames() = runTest {
+    fun theFirstLoadShowsNothingYet() = runTest {
         provider.gate("libraries")
         val vm = home()
         advanceUntilIdle()
-        assertEquals(HomeContent.Loading(firstScan = false), vm.content())
-    }
-
-    @Test
-    fun aScanDuringTheFirstLoadCountsAboveTheEmptyFrames() = runTest {
-        provider.gate("libraries")
-        scan.value = ScanState(running = true, sourceId = 1)
-        val vm = home()
-        assertEquals("before the screen listens", HomeContent.Loading(firstScan = true), vm.content())
-        advanceUntilIdle()
-        assertEquals(HomeContent.Loading(firstScan = true), vm.content())
+        assertEquals(HomeContent.Loading, vm.content())
     }
 
     @Test
@@ -108,19 +102,7 @@ class HomeViewModelTest {
         val vm = home()
         advanceUntilIdle()
         assertEquals(provider.libraries, vm.state.value.libraries)
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
-    }
-
-    @Test
-    fun aFolderReadForTheFirstTimeCountsAboveTheRows() = runTest {
-        folders.value = listOf(folder(1, lastScanAt = 1_800_000_000_000L), folder(2))
-        val vm = home()
-        scan.value = ScanState(running = true, sourceId = 1)
-        advanceUntilIdle()
-        assertEquals("a folder read again: no counter", HomeContent.Rows(rows, firstScan = false), vm.content())
-        scan.value = ScanState(running = true, sourceId = 2)
-        advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = true), vm.content())
+        assertEquals(HomeContent.Rows(rows), vm.content())
     }
 
     @Test
@@ -168,7 +150,7 @@ class HomeViewModelTest {
         provider.fail = { null }
         vm.load()
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals(HomeContent.Rows(rows), vm.content())
     }
 
     @Test
@@ -283,7 +265,7 @@ class HomeViewModelTest {
         provider.gate("libraries")
         vm.load()
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals(HomeContent.Rows(rows), vm.content())
     }
 
     @Test
@@ -293,17 +275,18 @@ class HomeViewModelTest {
         provider.fail = { IOException("Server away") }
         vm.load()
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals(HomeContent.Rows(rows), vm.content())
     }
     @Test
     fun theDoorsAreReadAfterTheRows() = runTest {
         provider.libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"), Library("shows", LibraryKind.SHOWS, "Séries"))
         provider.walls = mapOf("films" to (1..20).map { film("f$it") }, "shows" to (1..3).map { film("s$it") })
+        provider.items.putAll((1..20).associate { "f$it" to film("f$it") })
         val vm = home()
         advanceUntilIdle()
         val doors = checkNotNull(vm.state.value.doors)
         assertEquals(listOf(20, 3), doors.shelves.map { it.count })
-        assertEquals("a film in progress: none to propose", null, doors.unseen)
+        assertNotNull("read while a film is in progress, for when it ends", doors.proposed)
         // Read again with the rows, kept meanwhile.
         provider.gate("page 0 12")
         vm.load()
@@ -318,10 +301,45 @@ class HomeViewModelTest {
         provider.items.putAll((1..20).associate { "f$it" to film("f$it") })
         val vm = home()
         advanceUntilIdle()
-        val unseen = checkNotNull(vm.state.value.doors?.unseen)
+        val unseen = checkNotNull(vm.state.value.doors?.proposed)
         vm.load()
         advanceUntilIdle()
-        assertEquals("the same all session", unseen, vm.state.value.doors?.unseen)
+        assertEquals("the same all session", unseen, vm.state.value.doors?.proposed)
+    }
+
+    /** With nothing in progress, the case shows what it proposes before the libraries' doors are read. */
+    @Test
+    fun whatTheCaseProposesComesBeforeTheShelves() = runTest {
+        provider.home = listOf(HomeSection(SectionType.LATEST, listOf(film("m1")), landscape = false, libraryId = "films"))
+        provider.walls = mapOf("films" to (1..20).map { film("f$it") })
+        val shelves = provider.gate("page 0 12")
+        val vm = home()
+        advanceUntilIdle()
+        val doors = checkNotNull(vm.state.value.doors)
+        assertNotNull(doors.proposed)
+        assertFalse("the shelves to come", doors.shelvesRead)
+        shelves.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(true, vm.state.value.doors?.shelvesRead)
+        assertEquals(listOf(20), vm.state.value.doors?.shelves?.map { it.count })
+    }
+
+    /** A film proposed, then watched to its end: back home, another takes its place before the shelves are read again. */
+    @Test
+    fun aFilmProposedThenWatchedGivesWayAtOnce() = runTest {
+        provider.home = listOf(HomeSection(SectionType.LATEST, listOf(film("m1")), landscape = false, libraryId = "films"))
+        provider.walls = mapOf("films" to (1..20).map { film("f$it") })
+        provider.items.putAll((1..20).associate { "f$it" to film("f$it") })
+        val vm = home()
+        advanceUntilIdle()
+        val watched = checkNotNull(vm.state.value.doors?.proposed).copy(user = UserState(played = true))
+        provider.items[watched.id] = watched
+        provider.walls = mapOf("films" to (1..20).map { provider.items.getValue("f$it") })
+        provider.gate("page 0 12")
+        vm.load()
+        advanceUntilIdle()
+        val proposed = checkNotNull(vm.state.value.doors?.proposed)
+        assertNotEquals(watched.id, proposed.id)
     }
 
     @Test
@@ -330,7 +348,7 @@ class HomeViewModelTest {
         provider.fail = { call -> IOException("Away").takeIf { call.startsWith("page") } }
         val vm = home()
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals(HomeContent.Rows(rows), vm.content())
         assertEquals("its count unread", listOf<Int?>(null), vm.state.value.doors?.shelves?.map { it.count })
     }
 }

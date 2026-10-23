@@ -107,8 +107,9 @@
     <string name="home_state_scan">Last scan</string>
     <string name="home_scan_running">In progress…</string>
     <string name="home_episode">S%1$d · E%2$s</string>
-    <string name="home_open_title">Open its page</string>
+    <string name="home_open_title">Open page</string>
     <string name="home_state_trakt" translatable="false">Trakt</string>
+    <string name="home_state_tmdb" translatable="false">TMDB</string>
     <plurals name="home_news_week">
         <item quantity="one">%d this week</item>
         <item quantity="other">%d this week</item>

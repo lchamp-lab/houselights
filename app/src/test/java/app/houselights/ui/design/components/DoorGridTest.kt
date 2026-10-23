@@ -2,6 +2,7 @@ package app.houselights.ui.design.components
 
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HomeGridDefaults
@@ -116,6 +117,30 @@ class DoorGridTest {
         val apart = factLines(listOf(false, false, true), listOf(150, 120, 200), 28, 270)
         assertEquals("too wide side by side", listOf(listOf(0), listOf(1), listOf(2)), apart)
         assertEquals(listOf(listOf(0), listOf(1)), factLines(listOf(false, true), listOf(100, 200), 28, 270))
+    }
+
+    /** Source, Trakt (both short), the last scan: what a door [tall] keeps, the source [wide] with its host. */
+    private fun kept(source: Int, tall: Int, tmdb: Boolean = false): KeptFacts {
+        val wide = listOf(false, false) + listOfNotNull(true.takeIf { tmdb }) + true
+        val ranks = listOf(0, 1) + listOfNotNull(3.takeIf { tmdb }) + 2
+        val widths = listOf(source, 120) + listOfNotNull(200.takeIf { tmdb }) + 200
+        return keptFacts(FactSizes(wide, ranks, widths, mapOf(0 to 100)), List(wide.size) { 40 }, 28, 11, IntSize(270, tall))
+    }
+
+    /** Short of room, the least fact gives up its detail, then goes: the source first, then Trakt; the last scan stays. */
+    @Test
+    fun theLeastFactGoesFirstItsDetailBeforeIt() {
+        assertEquals("all fit", listOf(listOf(0, 1), listOf(2)), kept(source = 120, tall = 98).lines)
+        val bare = kept(source = 150, tall = 98)
+        assertEquals("the source without its host", listOf(listOf(0, 1), listOf(2)) to setOf(0), bare.lines to bare.bare)
+        val gone = kept(source = 150, tall = 60)
+        assertEquals("one line: the last scan's", listOf(listOf(2)), gone.lines)
+    }
+
+    /** A problem TMDB had stays with the last scan; the source and Trakt make room. */
+    @Test
+    fun aTmdbProblemTakesTheLeastFactsPlace() {
+        assertEquals(listOf(listOf(2), listOf(3)), kept(source = 120, tall = 98, tmdb = true).lines)
     }
 
     private companion object {
