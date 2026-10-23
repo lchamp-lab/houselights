@@ -11,10 +11,12 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouselightsType
+import app.houselights.ui.design.components.forgetCutPosters
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +30,10 @@ class HomeLayoutTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    /** A count cut by an earlier test is drawn at once: each test starts as the app does. */
+    @Before
+    fun forgetTheCuts() = forgetCutPosters()
 
     private val screen = 540.dp
     private val safeBottom = screen - HlSpace.safeV

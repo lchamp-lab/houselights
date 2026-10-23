@@ -9,10 +9,12 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.LaunchScreen
 import app.houselights.ui.design.LocalLaunchScreen
+import app.houselights.ui.design.components.forgetCutPosters
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.drawWindow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,6 +29,10 @@ import org.robolectric.annotation.GraphicsMode
 class HomeWholeTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
+
+    /** A count cut by an earlier test is drawn at once: each test starts as the app does. */
+    @Before
+    fun forgetTheCuts() = forgetCutPosters()
 
     /** The launch screen over home, told once. */
     private class Cover : LaunchScreen {

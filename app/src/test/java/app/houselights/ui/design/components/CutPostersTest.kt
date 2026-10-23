@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertNotNull
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -27,6 +28,9 @@ class CutPostersTest {
     private val context = ApplicationProvider.getApplicationContext<Application>()
 
     private val px: (Dp) -> Int = { it.value.toInt() }
+
+    @Before
+    fun forgetTheCuts() = forgetCutPosters()
 
     @After
     fun forgetTheLoader() = Coil.reset()

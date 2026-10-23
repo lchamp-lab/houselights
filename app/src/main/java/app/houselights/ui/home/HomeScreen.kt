@@ -114,7 +114,7 @@ data class HomeActions(
 fun HomeScreen(actions: HomeActions) {
     val app = appContainer()
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
-    ReloadOnLibraryChange { vm.onLibraryChanged() }
+    ReloadOnLibraryChange(vm.libraryShown) { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
     val search = actions.onOpenSearch.takeIf { app.providerOrNull()?.capabilities?.search == true }
     HomeGrid(state, vm.scan, actions.copy(onOpenSearch = search, onReload = vm::load, onRescan = vm::rescan))

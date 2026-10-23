@@ -24,6 +24,7 @@ import app.houselights.HouselightsApp
 import app.houselights.ui.design.HlMotion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.random.Random
 
@@ -44,6 +45,28 @@ fun ReloadOnLibraryChange(reload: () -> Unit) {
         if (isBehind(shown, version)) reload()
         shown = shownAt(version)
     }
+}
+
+/**
+ * The library version last shown by the screens of one view model (home and « À regarder »), so a change reloads it
+ * once, whichever shows it first. It lives with the view model: a new process makes both anew, reading the library then.
+ */
+class LibraryShown {
+    private var at: Long? = null
+
+    /** Whether the library moved on since it was last shown, now shown at [version]. */
+    @Synchronized
+    fun moveTo(version: Long): Boolean = (at != null && at != version).also { at = version }
+}
+
+/** Calls [reload] when the library changed since the screens sharing [shown] last showed it, at once or on their return. */
+@Composable
+fun ReloadOnLibraryChange(shown: LibraryShown, reload: () -> Unit) = ReloadOnLibraryChange(appContainer().libraryVersion, shown, reload)
+
+@Composable
+internal fun ReloadOnLibraryChange(version: StateFlow<Long>, shown: LibraryShown, reload: () -> Unit) {
+    val at by version.collectAsStateWithLifecycle()
+    LaunchedEffect(at) { if (shown.moveTo(at)) reload() }
 }
 
 /** Identifies this process: library versions from two processes do not compare. */

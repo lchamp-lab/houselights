@@ -65,7 +65,7 @@ import app.houselights.ui.util.timeLeft
 @Composable
 fun WatchScreen(vm: HomeViewModel, row: WatchRow, onOpenItem: (MediaItem) -> Unit) {
     // A title watched from here comes back with its progress, as home's rows did.
-    ReloadOnLibraryChange { vm.onLibraryChanged() }
+    ReloadOnLibraryChange(vm.libraryShown) { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
     WatchBands(state, row, onOpenItem)
 }

@@ -17,6 +17,7 @@ import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
 import app.houselights.settings.AppSettings
 import app.houselights.ui.util.LatestJob
+import app.houselights.ui.util.LibraryShown
 import app.houselights.ui.util.RoomPosters
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.reported
@@ -136,6 +137,9 @@ class HomeViewModel(
     /** Whether this build reaches Trakt at all. */
     private val traktAvailable: Boolean = false,
 ) : ViewModel() {
+    /** The library version home and « À regarder » last showed: one change reloads them once. */
+    val libraryShown = LibraryShown()
+
     private val load = MutableStateFlow(HomeLoad())
     private val loads = LatestJob(viewModelScope)
     private val draws = LatestJob(viewModelScope)

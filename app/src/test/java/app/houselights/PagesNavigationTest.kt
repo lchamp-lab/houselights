@@ -3,10 +3,14 @@ package app.houselights
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -22,7 +26,7 @@ import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
-import app.houselights.ui.home.HomeActions
+import app.houselights.ui.design.components.forgetCutPosters
 import app.houselights.ui.home.HomeGrid
 import app.houselights.ui.home.films
 import app.houselights.ui.home.fullHome
@@ -39,6 +43,7 @@ import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,6 +55,7 @@ import kotlin.reflect.KClass
  * DESIGN.md, Focus: a wall, search and the settings open as pages over the screen that opens them. Back from one
  * opened from home lands on the door it came from; from one opened elsewhere, on that screen.
  */
+@OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class PagesNavigationTest {
@@ -61,22 +67,17 @@ class PagesNavigationTest {
 
     private val source = FakeProvider().apply { wall = (1..30).map { film("m$it", "Film $it") } }
 
-    /** Home's grid with everything, its doors wired as the app wires them; each wall a real one, of a fake source. */
+    /** A count cut by an earlier test is drawn at once: each test starts as the app does. */
+    @Before
+    fun forgetTheCuts() = forgetCutPosters()
+
+    /** Home's grid with everything, its doors wired by the app's [homeActions]; each wall a real one, of a fake source. */
     private fun app(): NavHostController {
         lateinit var nav: NavHostController
         compose.setTvContent {
             nav = rememberNavController()
             NavHost(nav, startDestination = Route.Home) {
-                composable<Route.Home> {
-                    val actions = HomeActions(
-                        onOpenWatch = { row -> nav.navigate(Route.Watch(row.name)) },
-                        onOpenLibrary = { library, sagas -> nav.openLibrary(library, sagas) },
-                        onOpenSagas = { films, sagas -> nav.openSagas(films, sagas) },
-                        onOpenSearch = { nav.navigate(Route.Search) },
-                        onOpenSettings = { nav.navigate(Route.Settings) },
-                    )
-                    HomeGrid(fullHome(), actions)
-                }
+                composable<Route.Home> { HomeGrid(fullHome(), nav.homeActions()) }
                 composable<Route.Library> { WallAt(it) { item -> nav.navigate(Route.Item(item.id)) } }
                 composable<Route.Item> {}
                 composable<Route.Watch> {}
@@ -138,6 +139,33 @@ class PagesNavigationTest {
             focusIsOn(door)
             compose.press(Key.DirectionCenter)
             compose.runOnIdle { assertTrue("$door opens its page over home", nav.on(page) && nav.overHome()) }
+            back()
+            compose.runOnIdle { assertTrue("one Back from $door's page", nav.on(Route.Home::class)) }
+            focusIsOn(door)
+        }
+    }
+
+    /** OK pressed twice before a door's page shows opens it once: one Back from it is home. */
+    @Test
+    fun okTwiceOpensADoorsPageOnce() {
+        val nav = app()
+        // From the door before, the keys to the door, and the page it opens.
+        val doors = listOf(
+            Triple(listOf(Key.DirectionRight, Key.DirectionUp), "Next up", Route.Watch::class),
+            Triple(listOf(Key.DirectionDown), "Movies", Route.Library::class),
+            Triple(listOf(Key.DirectionDown), "Sagas", Route.Library::class),
+            Triple(listOf(Key.DirectionRight), "Search", Route.Search::class),
+            Triple(listOf(Key.DirectionRight), "Settings", Route.Settings::class),
+        )
+        doors.forEach { (keys, door, page) ->
+            keys.forEach { compose.press(it) }
+            focusIsOn(door)
+            compose.onRoot().performKeyInput {
+                pressKey(Key.DirectionCenter)
+                pressKey(Key.DirectionCenter)
+            }
+            compose.waitForIdle()
+            compose.runOnIdle { assertTrue("$door opens its page", nav.on(page) && nav.overHome()) }
             back()
             compose.runOnIdle { assertTrue("one Back from $door's page", nav.on(Route.Home::class)) }
             focusIsOn(door)
