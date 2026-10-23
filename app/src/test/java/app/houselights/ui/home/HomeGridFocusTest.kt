@@ -16,6 +16,10 @@ import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import android.view.KeyEvent
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -193,5 +197,57 @@ class HomeGridFocusTest {
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.waitForIdle()
         assertEquals(listOf("heat"), opened)
+    }
+    /** The case stays one element as what it shows changes: a film proposed, played, then resumed. */
+    @Test
+    fun focusStaysOnTheCaseAsItChangesKind() {
+        val proposed = fullHome(sections = (fullHome().content as HomeContent.Rows).sections.drop(1))
+        var home by mutableStateOf(proposed.copy(doors = proposed.doors!!.copy(unseen = title("fallguy"))))
+        compose.setTvContent { HomeGrid(home) }
+        compose.waitForIdle()
+        focusIsOn("Not seen yet")
+        home = fullHome()
+        compose.waitForIdle()
+        focusIsOn("Resume")
+    }
+
+    /** A door with focus that goes after a reload leaves focus on the door last visited still there. */
+    @Test
+    fun aDoorThatGoesLeavesFocusOnOneThatStays() {
+        var home by mutableStateOf(fullHome())
+        compose.setTvContent { HomeGrid(home) }
+        compose.waitForIdle()
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionUp)
+        focusIsOn("Next up")
+        // The next episode watched and nothing else in progress: À suivre goes, Nouveautés takes its row.
+        val sections = (fullHome().content as HomeContent.Rows).sections
+        home = fullHome(sections = listOf(sections[0].copy(items = sections[0].items.take(1))) + sections.drop(2))
+        compose.waitForIdle()
+        focusIsOn("Movies")
+    }
+
+    /** With nothing in progress, the first focus waits for the doors, which bring the film the case proposes. */
+    @Test
+    fun theFirstFocusWaitsForTheCase() {
+        val proposed = fullHome(sections = (fullHome().content as HomeContent.Rows).sections.drop(1))
+        var home by mutableStateOf(proposed.copy(doors = null))
+        compose.setTvContent { HomeGrid(home) }
+        compose.waitForIdle()
+        compose.onNode(isFocused()).assertDoesNotExist()
+        home = proposed.copy(doors = proposed.doors!!.copy(unseen = title("fallguy")))
+        compose.waitForIdle()
+        focusIsOn("Not seen yet")
+    }
+
+    /** Without a grid (a message), the settings stay one tile away. */
+    @Test
+    fun aMessageKeepsTheSettingsATileAway() {
+        val opened = mutableListOf<String>()
+        open(HomeState(content = HomeContent.ServerEmpty), HomeActions(onOpenSettings = { opened += "settings" }))
+        compose.onNodeWithContentDescription("Settings").assertExists()
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf("settings"), opened)
     }
 }

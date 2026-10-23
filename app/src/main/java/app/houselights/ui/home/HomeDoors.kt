@@ -25,8 +25,9 @@ data class HomeDoors(
     /** Each library's door, in the source's order, the sagas apart. */
     val shelves: List<Shelf> = emptyList(),
     val sagas: Shelf? = null,
-    /** The episodes of the next episode's season in order, whether each is watched. */
+    /** The episodes of the next episode's season in order, whether each is watched; read for the episode [seasonOf]. */
     val season: List<Boolean>? = null,
+    val seasonOf: String? = null,
 )
 
 /** A library's door: how many titles it holds ([count], null when unread), its best rated posters, its new episodes. */
@@ -67,9 +68,15 @@ suspend fun readDoors(
     val sagaShelf = sagas?.let { async { shelf(source, it, SortOption.ADDED, SAGA_POSTERS, now) } }
     val resuming = sections.any { it.type == SectionType.CONTINUE && it.items.isNotEmpty() }
     val unseen = if (resuming) null else async { part("Unseen") { pick.of(source, tabs.firstOrNull { it.kind == LibraryKind.MOVIES }) } }
-    val next = sections.firstOrNull { it.type == SectionType.NEXT_UP }?.items?.firstOrNull()
+    val next = nextUp(sections)
     val season = next?.let { async { part("Season") { seasonOf(source, it) } } }
-    HomeDoors(unseen?.await(), shelves.awaitAll(), sagaShelf?.await(), season?.await())
+    HomeDoors(unseen?.await(), shelves.awaitAll(), sagaShelf?.await(), season?.await(), next?.id.takeIf { season != null })
+}
+
+/** What follows: the first next episode (or saga film) that is not already in progress, as a server may list it too. */
+internal fun nextUp(sections: List<HomeSection>): MediaItem? {
+    val resuming = sections.filter { it.type == SectionType.CONTINUE }.flatMap { it.items }.map { it.id }.toSet()
+    return sections.firstOrNull { it.type == SectionType.NEXT_UP }?.items?.firstOrNull { it.id !in resuming }
 }
 
 private suspend fun shelf(source: MediaProvider, library: Library, sort: SortOption, posters: Int, now: Long): Shelf {

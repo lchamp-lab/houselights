@@ -90,15 +90,19 @@ fun homePlan(
     now: Long = System.currentTimeMillis(),
 ): HomePlan {
     val resume = sections.firstOrNull { it.type == SectionType.CONTINUE }?.items.orEmpty()
-    val next = sections.firstOrNull { it.type == SectionType.NEXT_UP }?.items?.firstOrNull()
+    val next = nextUp(sections)
     val latest = sections.filter { it.type == SectionType.LATEST }
     val case = resume.firstOrNull()?.let { CaseShows.Resume(it) } ?: doors?.unseen?.let { CaseShows.Unseen(it) }
-    // The posters shown so far: a count is cut in none of them.
-    val used = mutableSetOf<String>()
-    val following = next?.let { Door.Next(it, doors?.season) } ?: resume.getOrNull(1)?.let { Door.AlsoResume(it) }
+    // The titles shown so far: a count is cut in none of their posters.
+    val used = listOfNotNull(case?.item?.id).toMutableSet()
+    val season = doors?.season?.takeIf { next != null && doors.seasonOf == next.id }
+    val following = next?.let { Door.Next(it, season) } ?: resume.getOrNull(1)?.let { Door.AlsoResume(it) }
     val newest = newest(latest)
     val watch = watchDoors(following, newest, used, now)
-    val shelves = doors?.shelves?.takeIf { it.isNotEmpty() } ?: libraries.map { Shelf(it, null, emptyList()) }
+    // Every library has its door, its count once read.
+    val shelves = libraries.map { library ->
+        doors?.shelves?.firstOrNull { it.library.id == library.id } ?: Shelf(library, null, emptyList())
+    }
     val libraryDoors = libraryDoors(shelves, latest, used)
     val wallFrom = (newest + shelves.flatMap { it.posters }).filter { it.poster != null && it.id !in used }.distinctBy { it.id }
     val sagaShelf = doors?.sagas?.takeIf { sagas != null && (it.count ?: 0) > 0 }

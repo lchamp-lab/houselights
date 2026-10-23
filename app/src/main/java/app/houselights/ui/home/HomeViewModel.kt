@@ -20,7 +20,11 @@ import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.RoomPosters
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.reported
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -138,6 +142,7 @@ class HomeViewModel(
     private val load = MutableStateFlow(HomeLoad())
     private val loads = LatestJob(viewModelScope)
     private val draws = LatestJob(viewModelScope)
+    private val doorReads = LatestJob(viewModelScope)
 
     /** Null until first read; on return, the last list stays until the database re-reads it, so Home never blanks. */
     private val folderList: StateFlow<List<SourceEntity>?> = folders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
@@ -174,7 +179,7 @@ class HomeViewModel(
                     HomeLoad(false, null, rows.libraries, rows.sections, drawn = last.drawn, doors = rows.doors ?: last.doors)
                 }
                 shown(rows.sections)
-                if (rows.doors == null) loadDoors(rows)
+                if (rows.doors == null) doorReads.launch { loadDoors(rows) }
                 drawLibraryRows()
             }.onFailure { e ->
                 val error = e.reported(TAG, "Home")
@@ -183,11 +188,24 @@ class HomeViewModel(
         }
     }
 
-    /** Reads the doors of [rows]' libraries; a part that fails is left out, the rows stay. */
+    /**
+     * The doors of [rows]' libraries: the launch's read when it made one, else read here; a part that fails is left out,
+     * the rows stay. Even when nothing could be read, the doors count as read, so home takes its first focus.
+     */
     private suspend fun loadDoors(rows: HomeRows) {
-        val doors = suspendRunCatching { readDoors(provider(), rows.libraries, rows.sections, pick) }
-            .onFailure { Log.w(TAG, "Doors", it) }.getOrNull() ?: return
-        load.update { it.copy(doors = doors) }
+        val doors = rows.doorsAhead?.let { awaitAhead(it) }
+            ?: suspendRunCatching { readDoors(provider(), rows.libraries, rows.sections, pick) }
+                .onFailure { Log.w(TAG, "Doors", it) }
+                .getOrNull()
+        load.update { it.copy(doors = doors ?: it.doors ?: HomeDoors()) }
+    }
+
+    /** The launch's read of the doors; null when it went away, and the doors are read here. */
+    private suspend fun awaitAhead(read: Deferred<HomeDoors>): HomeDoors? = try {
+        read.await()
+    } catch (gone: CancellationException) {
+        if (!currentCoroutineContext().isActive) throw gone
+        null
     }
 
     /** Reloads after a library change, recomputing the library's rows along with Home's own. */

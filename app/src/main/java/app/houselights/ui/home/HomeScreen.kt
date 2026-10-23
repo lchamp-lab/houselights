@@ -62,6 +62,7 @@ import app.houselights.ui.design.components.DoorSagas
 import app.houselights.ui.design.components.DoorStill
 import app.houselights.ui.design.components.DoorWall
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlSettingGroup
@@ -130,13 +131,21 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
     // The line saying a second Back quits goes as soon as focus moves to another door.
     val quitting = quitOnSecondBack(atStart = true) { memory.last }
     val plan = rememberPlan(state, canSearch = actions.onOpenSearch != null)
-    RestoreFocus(memory, fallback = plan?.start?.let { memory.requester(it) }, ready = plan != null)
+    // A first focus waits for the case: with nothing in progress, it proposes a film once the doors are read.
+    val ready = plan != null && (plan.case != null || state.doors != null)
+    RestoreFocus(memory, fallback = plan?.start?.let { memory.requester(it) }, ready = ready)
     var listing by rememberSaveable { mutableStateOf(false) }
     var options by rememberSaveable { mutableStateOf(false) }
     // Whole for the launch screen once the grid shows with its doors read, or a message.
     val whole = content !is HomeContent.Loading && (plan == null || state.doors != null)
     Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current).drawnWhole(whole)) {
-        HomeHead(stringResource(R.string.back_again_to_quit).takeIf { quitting })
+        // Without a grid, the settings stay one tile away, where a message may send the viewer.
+        val settings: (@Composable () -> Unit)? = if (content is HomeContent.Message) {
+            { HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = actions.onOpenSettings) }
+        } else {
+            null
+        }
+        HomeHead(stringResource(R.string.back_again_to_quit).takeIf { quitting }, end = settings)
         when {
             plan != null -> Grid(plan, state, scan, actions, memory, onList = { listing = true }, onOptions = { options = true })
             content is HomeContent.Message -> NoRows(content, scan, actions, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
@@ -191,30 +200,27 @@ private fun Grid(
     ) { modifier -> CaseOf(plan.case, actions, onOptions, modifier) }
 }
 
-/** The case: the title last in progress, resumed on OK; else a film not seen, played; else nothing to propose. */
+/**
+ * The case: the title last in progress, resumed on OK; else a film not seen, played; else nothing to propose. One
+ * case either way, so focus stays on it as what it shows changes.
+ */
 @Composable
 private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit, modifier: Modifier) {
-    when (case) {
-        is CaseShows.Resume -> ResumeCase(
-            case.item,
-            stringResource(R.string.resume),
-            onClick = { actions.onPlay(case.item, true) },
-            modifier = modifier,
-            onLongClick = onOptions,
-            onLongClickLabel = stringResource(R.string.more_options),
-        )
-        is CaseShows.Unseen -> ResumeCase(
-            case.item,
-            stringResource(R.string.play),
-            onClick = { actions.onPlay(case.item, false) },
-            modifier = modifier,
-            label = stringResource(R.string.home_unseen),
-            onLongClick = onOptions,
-            onLongClickLabel = stringResource(R.string.more_options),
-        )
+    if (case == null) {
         // Focus still lands somewhere at home's start.
-        null -> Box(modifier.fillMaxSize().clearAndSetSemantics {})
+        Box(modifier.fillMaxSize().clearAndSetSemantics {})
+        return
     }
+    val resume = case is CaseShows.Resume
+    ResumeCase(
+        case.item,
+        stringResource(if (resume) R.string.resume else R.string.play),
+        onClick = { actions.onPlay(case.item, resume) },
+        modifier = modifier,
+        label = stringResource(R.string.home_unseen).takeIf { !resume },
+        onLongClick = onOptions,
+        onLongClickLabel = stringResource(R.string.more_options),
+    )
 }
 
 /** A door of the grid, drawn for what it shows. */
@@ -236,35 +242,33 @@ private fun DoorOf(
     }
 }
 
-/** A door of what is watched: the next episode, the second title in progress, or the latest titles. */
+/**
+ * A door of what is watched: the next episode, the second title in progress, or the latest titles. The first two
+ * are one door, so focus stays on it as it changes from one to the other.
+ */
 @Composable
 private fun WatchDoor(door: Door, actions: HomeActions, modifier: Modifier) {
-    when (door) {
-        is Door.Next -> HomeDoor(
-            stringResource(R.string.section_next_up),
-            HlIcons.Next,
-            onClick = { actions.onOpenWatch(WatchRow.NEXT_UP) },
-            modifier = modifier,
-            note = episodeMark(door.item)?.let { DoorNote.Mark(it) },
-            progress = door.season?.let { DoorProgress.Episodes(it) },
-        ) { DoorStill(door.item) }
-        is Door.AlsoResume -> HomeDoor(
-            stringResource(R.string.section_continue),
-            HlIcons.Play,
-            onClick = { actions.onOpenWatch(WatchRow.CONTINUE) },
-            modifier = modifier,
-            note = episodeMark(door.item)?.let { DoorNote.Mark(it) } ?: timeLeft(door.item)?.let { DoorNote.Words(it) },
-            progress = DoorProgress.Seen(door.item.progress),
-        ) { DoorStill(door.item) }
-        is Door.News -> HomeDoor(
+    if (door is Door.News) {
+        HomeDoor(
             stringResource(R.string.home_news),
             HlIcons.Sparkles,
             onClick = { actions.onOpenWatch(WatchRow.LATEST) },
             modifier = modifier,
             note = door.thisWeek.takeIf { it > 0 }?.let { DoorNote.News(pluralStringResource(R.plurals.home_news_week, it, it)) },
         ) { DoorPosters(door.posters) }
-        else -> Unit
+        return
     }
+    val next = door as? Door.Next
+    val item = next?.item ?: (door as? Door.AlsoResume)?.item ?: return
+    val mark = episodeMark(item)?.let { DoorNote.Mark(it) }
+    HomeDoor(
+        stringResource(if (next != null) R.string.section_next_up else R.string.section_continue),
+        if (next != null) HlIcons.Next else HlIcons.Play,
+        onClick = { actions.onOpenWatch(if (next != null) WatchRow.NEXT_UP else WatchRow.CONTINUE) },
+        modifier = modifier,
+        note = if (next != null) mark else mark ?: timeLeft(item)?.let { DoorNote.Words(it) },
+        progress = if (next != null) next.season?.let { DoorProgress.Episodes(it) } else DoorProgress.Seen(item.progress),
+    ) { DoorStill(item) }
 }
 
 /** The libraries past the third, behind one door: their number cut in their posters; OK lists them. */

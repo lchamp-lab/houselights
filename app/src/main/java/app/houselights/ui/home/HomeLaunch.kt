@@ -23,11 +23,18 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.CoroutineContext
 
-/** Home's first content: the source's libraries, the rows and, read after them, what the doors show. */
-data class HomeRows(val libraries: List<Library>, val sections: List<HomeSection>, val doors: HomeDoors? = null)
+/**
+ * Home's first content: the source's libraries, the rows and what the doors show, read after them: [doors] once read,
+ * or the launch's read still under way ([doorsAhead]), which home awaits rather than read them again.
+ */
+data class HomeRows(
+    val libraries: List<Library>,
+    val sections: List<HomeSection>,
+    val doors: HomeDoors? = null,
+    val doorsAhead: Deferred<HomeDoors>? = null,
+)
 
 /**
  * Loads Home's first rows and first-view pictures once at a cold start, while the launch screen holds
@@ -92,27 +99,33 @@ class HomeLaunch(
             return
         }
         val at = version()
+        var home: MediaProvider? = null
         val rows = suspendRunCatching {
-            val home = provider()
-            val fetched = coroutineScope {
-                val libraries = async { home.libraries() }
-                val sections = async { home.home() }
+            val provided = provider().also { home = it }
+            coroutineScope {
+                val libraries = async { provided.libraries() }
+                val sections = async { provided.home() }
                 HomeRows(libraries.await(), sections.await())
             }
-            // The doors' counts and posters, so home opens whole, within a while; past it, home reads them itself.
-            fetched.copy(doors = withTimeoutOrNull(DOORS_WAIT_MS) { readDoors(home, fetched.libraries, fetched.sections, pick) })
         }
         // A failure is first content too: Home takes it at once, composed under the launch screen.
         gate.homeLoaded()
-        answer.complete(Asked(source, at, rows))
-        rows.onSuccess { load(it, pictures) }
+        coroutineScope {
+            // The doors are read after the rows, which home shows meanwhile; it awaits this read rather than make its own.
+            val doors = rows.getOrNull()?.let { read -> async { readDoors(checkNotNull(home), read.libraries, read.sections, pick) } }
+            answer.complete(Asked(source, at, rows.map { it.copy(doorsAhead = doors) }))
+            rows.onSuccess { read -> load({ read.copy(doors = doors?.await()) }, pictures) }
+        }
         gate.picturesLoaded()
     }
 
-    /** Preloads the pictures until done or the gate opens at its time cap; Home then loads the rest, never twice. */
-    private suspend fun load(rows: HomeRows, pictures: suspend (HomeRows) -> Unit) = coroutineScope {
+    /**
+     * Preloads the pictures of the [rows] to come (their doors read) until done or the gate opens at its time cap;
+     * Home then loads the rest, never twice.
+     */
+    private suspend fun load(rows: suspend () -> HomeRows, pictures: suspend (HomeRows) -> Unit) = coroutineScope {
         if (gate.isOpen) return@coroutineScope
-        val loading = launch { suspendRunCatching { pictures(rows) } }
+        val loading = launch { suspendRunCatching { pictures(rows()) } }
         val cap = launch {
             gate.awaitOpen()
             loading.cancel()
@@ -138,9 +151,6 @@ class HomeLaunch(
      */
     fun drop() = synchronized(this) { asked = null }
 }
-
-/** How long the launch waits for the doors after the rows, of the 1.5 s it may hold. */
-private const val DOORS_WAIT_MS = 600L
 
 /**
  * Preloads Home's first-view pictures for a [screenWidthPx] screen; Home awaits each one ([LoadingAhead]). The

@@ -142,4 +142,30 @@ class HomePlanTest {
         val b = HomeSection(SectionType.LATEST, listOf(poster("b1", 5), poster("b2")), landscape = false, libraryId = "b")
         assertEquals(listOf("a1", "b1", "a2", "b2"), newest(listOf(a, b)).map(MediaItem::id))
     }
+    @Test
+    fun aNextEpisodeAlreadyInProgressIsNotWhatFollows() {
+        // A server lists the episode in progress among its next ones too: the case resumes it, À suivre shows the next.
+        val after = title("mobland-s1e5", app.houselights.core.MediaKind.EPISODE)
+        val resumed = HomeSection(SectionType.CONTINUE, listOf(nextEpisode), landscape = true)
+        val listed = HomeSection(SectionType.NEXT_UP, listOf(nextEpisode, after), landscape = true)
+        val plan = plan(listOf(resumed, listed, latestFilms), doors)
+        assertEquals(CaseShows.Resume(nextEpisode), plan.case)
+        assertEquals(after, (plan.row(RowKind.WATCH)[0].first as Door.Next).item)
+    }
+
+    @Test
+    fun aSeasonReadForAnotherEpisodeIsNotShown() {
+        val season = listOf(true, false, false)
+        val ours = plan(listOf(continuing, next, latestFilms), doors.copy(season = season, seasonOf = nextEpisode.id))
+        assertEquals(season, (ours.row(RowKind.WATCH)[0].first as Door.Next).season)
+        val stale = plan(listOf(continuing, next, latestFilms), doors.copy(season = season, seasonOf = "another"))
+        assertNull((stale.row(RowKind.WATCH)[0].first as Door.Next).season)
+    }
+
+    @Test
+    fun everyLibraryHasItsDoorItsCountOnceRead() {
+        val row = plan(listOf(continuing), doors.copy(shelves = doors.shelves.take(1))).row(RowKind.LIBRARIES)
+        assertEquals(listOf(films, shows), row.map { (it.first as Door.Library).shelf.library })
+        assertEquals(listOf(412, null), row.map { (it.first as Door.Library).shelf.count })
+    }
 }

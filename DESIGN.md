@@ -422,11 +422,11 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     proposes a film not seen, drawn once a session (`UnseenPick`): "Pas encore vu" in `jaquette`, its genres, Lire.
     OK plays; Menu opens its options, which the Menu key says at the end of its facts while it has focus: its page,
     and from its start once started.
-  - **What is watched**: À suivre, the next episode's still and logo (`DoorStill`), its season's episodes along the
-    band's top edge, those watched in the ember light, "S1 · É4" in `jaquette`; without one, the second title in
-    progress and its part seen; without either, Nouveautés takes the row. Nouveautés: the latest titles' posters
-    side by side, newest first (`DoorPosters`), and how many joined this week by the ember dot. Each opens « À
-    regarder » on its row.
+  - **What is watched**: À suivre, the next episode not already in progress (`nextUp`), its still and logo
+    (`DoorStill`), its season's episodes along the band's top edge, those watched in the ember light, "S1 · É4" in
+    `jaquette`; without one, the second title in progress and its part seen; without either, Nouveautés takes the
+    row. Nouveautés: the latest titles' posters side by side, newest first (`DoorPosters`), and how many joined this
+    week by the ember dot. Each opens « À regarder » on its row.
   - **The libraries**: a door each, up to four; past four, the fourth gathers the rest ("Bibliothèques", a side sheet
     listing them). Its count is its picture (`DoorFigures`): each digit cut in a poster of the library shown
     nowhere else on the screen, its upper half, edged in ink at `FIGURE_EDGE`, a digit in ink while its poster loads;
@@ -454,8 +454,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   `HlNavBarDefaults.fold` (52) lower. Once focus enters the posters, the bar slides up out of the screen over
   `STANDARD`, in the focus pull as it comes and the fall back as it goes, and the wall is as it was: its name lit,
   two whole lines of posters. Focus in the header leaves the bar as it is (`BarFoldTest`).
-- **Three vertical gaps:** `HlSpace.s` within a block, `HlSpace.l` between the bands of « À regarder », `HlSpace.xl` between
-  the blocks of a scrolling page.
+- **Three vertical gaps:** `HlSpace.s` within a block, `HlSpace.l` between the bands of « À regarder »,
+  `HlSpace.xl` between the blocks of a scrolling page.
 - **Reading measures:** `readable` 640, `readableNarrow` 520 beside artwork.
 - **A focused poster stays inside the safe area**, its frame included, as a pane's showcases do (`HomeLayoutTest`,
   `DetailLayoutTest`, `FocusReachTest`).
@@ -523,7 +523,9 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   Focus entering a track lands on the current option (`focusProperties.enter`, `SegmentedFocusTest`).
 - **Home's grid** reads as it lies: Right from the case goes to the first library's door, Left from a row's first
   door to the case, Up and Down to the door over or under, the one last visited among two (Down from Films: Sagas,
-  or Rechercher once visited, `doorBelow`); coming back, focus is on the door left (`HomeGridFocusTest`).
+  or Rechercher once visited, `doorBelow`); coming back, focus is on the door left; a door with focus that goes after
+  a reload leaves it on the door last visited still there; the first focus waits for the case (`HomeGridFocusTest`).
+  Without a grid (a message), the settings tile stands at the end of home's head.
 - **The bar**: Gradation never takes focus, so Left from the first place stays on it; Up from a wall's header lands
   on the current place; Down from a wall's bar goes to its header, then to the posters (`NavBarFocusTest`,
   `BarFoldTest`). A place opens on OK, never as focus passes: its

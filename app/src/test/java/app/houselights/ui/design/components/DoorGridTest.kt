@@ -106,6 +106,14 @@ class DoorGridTest {
         assertEquals(listOf(RED, RED, BLUE, BLUE, RED, RED, BLUE, BLUE), strip.toList())
     }
 
+    @Test
+    fun theStatesShortFactsShareALineWhileTheyFit() {
+        assertEquals(listOf(listOf(0, 1), listOf(2)), factLines(listOf(false, false, true), listOf(100, 80, 200), 28, 270))
+        val apart = factLines(listOf(false, false, true), listOf(150, 120, 200), 28, 270)
+        assertEquals("too wide side by side", listOf(listOf(0), listOf(1), listOf(2)), apart)
+        assertEquals(listOf(listOf(0), listOf(1)), factLines(listOf(false, true), listOf(100, 200), 28, 270))
+    }
+
     private companion object {
         const val RED = 0xFFFF0000.toInt()
         const val BLUE = 0xFF0000FF.toInt()

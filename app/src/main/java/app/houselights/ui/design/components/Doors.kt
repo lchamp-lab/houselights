@@ -38,6 +38,8 @@ import app.houselights.ui.design.LocalAmbient
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -110,6 +112,10 @@ import coil.request.SuccessResult
 import coil.size.Precision
 import coil.size.Scale
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.isActive
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -123,9 +129,12 @@ import kotlin.math.roundToInt
 
 // Home's grid (DESIGN.md, Layout): the case and the doors, their pictures and the measures they share.
 
-/** Home's head over the grid: the lockup at the safe area's start, a passing [status] at its end, then the gap to the grid. */
+/**
+ * Home's head over the grid: the lockup at the safe area's start, a passing [status] then [end] (a tile where home
+ * shows no grid) at its end, then the gap to the grid.
+ */
 @Composable
-fun HomeHead(status: String?, modifier: Modifier = Modifier) {
+fun HomeHead(status: String?, modifier: Modifier = Modifier, end: (@Composable () -> Unit)? = null) {
     Row(
         modifier
             .fillMaxWidth()
@@ -135,8 +144,12 @@ fun HomeHead(status: String?, modifier: Modifier = Modifier) {
     ) {
         Lockup(HomeGridDefaults.lockup)
         Spacer(Modifier.weight(1f))
-        // Taller than the band, it stands over it, never squeezed.
+        // Taller than the band, they stand over it, never squeezed.
         if (status != null) Box(Modifier.wrapContentHeight(unbounded = true)) { PassingStatus(status) }
+        if (end != null) {
+            Spacer(Modifier.width(HlSpace.s))
+            Box(Modifier.wrapContentHeight(unbounded = true)) { HeaderControls(end) }
+        }
     }
 }
 
@@ -175,15 +188,25 @@ fun DoorGrid(
     modifier: Modifier = Modifier,
     case: @Composable (Modifier) -> Unit,
 ) {
-    // Doors by when they last had focus, latest last: Down from a door over two goes to the one visited.
-    val recent = remember { mutableStateOf(listOf<String>()) }
-    val visit: (String) -> Unit = { key -> recent.value = recent.value - key + key }
+    // Where focus is in the grid and the doors it visited, latest last: Down from a door over two goes to the one visited.
+    val held = remember { GridFocus() }
     val gap = HlSpace.s
     val density = LocalDensity.current
     val placed = remember(rows.map { row -> row.map { it.key to it.span } }, heights, density) {
         with(density) { placeDoors(rows.map { row -> row.map { it.span } }, heights.map { it.toPx() }, gap.toPx()) }
     }
     val links = remember(rows, placed, memory) { DoorLinks(rows.map { row -> row.map { it.key } }, placed, memory) }
+    // A door with focus that goes (a reload changed the grid) leaves it on the door last visited still there, else the
+    // case, wherever the removal put it. Read as the grid recomposes, before the door goes.
+    val gone = held.at
+    val visited = held.recent
+    val keys = rows.flatMap { row -> row.map { it.key } }
+    LaunchedEffect(keys) {
+        if (gone == null || gone == caseKey || gone in keys) return@LaunchedEffect
+        withFrameNanos { }
+        val back = visited.lastOrNull { it in keys }
+        if (back == null || !memory.focus(back)) memory.focus(caseKey)
+    }
     Layout(
         content = {
             val right = rightOfCase?.let { memory.requester(it) }
@@ -191,25 +214,28 @@ fun DoorGrid(
             case(
                 Modifier
                     .focusKey(caseKey, memory)
-                    .onFocusChanged { if (it.isFocused) visit(caseKey) }
+                    .onFocusChanged { if (it.isFocused) held.visit(caseKey) }
                     .focusProperties { if (right != null) this.right = right },
             )
             rows.forEachIndexed { r, row ->
                 row.forEachIndexed { i, cell ->
-                    cell.content(
-                        Modifier
-                            .focusKey(cell.key, memory)
-                            .onFocusChanged { if (it.isFocused) visit(cell.key) }
-                            .focusProperties {
-                                if (i == 0) left = toCase
-                                up = links.next(placed[r][i], r - 1, recent.value)
-                                down = links.next(placed[r][i], r + 1, recent.value)
-                            },
-                    )
+                    // By its key: a door that stays keeps its node, and focus, when others come or go.
+                    key(cell.key) {
+                        cell.content(
+                            Modifier
+                                .focusKey(cell.key, memory)
+                                .onFocusChanged { if (it.isFocused) held.visit(cell.key) }
+                                .focusProperties {
+                                    if (i == 0) left = toCase
+                                    up = links.next(placed[r][i], r - 1, held.recent)
+                                    down = links.next(placed[r][i], r + 1, held.recent)
+                                },
+                        )
+                    }
                 }
             }
         },
-        modifier = modifier,
+        modifier = modifier.onFocusChanged { if (!it.hasFocus) held.at = null },
     ) { measurables, constraints ->
         val gapPx = gap.roundToPx()
         val caseWidth = HomeGridDefaults.case.roundToPx()
@@ -225,6 +251,17 @@ fun DoorGrid(
             caseP.place(0, 0)
             cells.forEach { (p, at) -> p.place(left + at.left.roundToInt(), at.top.roundToInt()) }
         }
+    }
+}
+
+/** The door with focus ([at], none outside the grid) and the doors visited, latest last; plain fields, never observed. */
+private class GridFocus {
+    var at: String? = null
+    var recent: List<String> = emptyList()
+
+    fun visit(key: String) {
+        at = key
+        recent = recent - key + key
     }
 }
 
@@ -718,35 +755,65 @@ data class StateFact(val label: String, val value: String, val detail: String? =
 
 /**
  * The app's state as a case's back (DESIGN.md, Gestures), in a door: each label in the technical voice over its
- * value, two short ones side by side, a [StateFact.wide] one on its own line; centred down the door's picture. A
- * line the picture has no room for (the largest text) is left out whole, from the last.
+ * value, two short ones side by side while they fit, a [StateFact.wide] one on its own line; centred down the door's
+ * picture. A line the picture has no room for (the largest text) is left out whole, from the last.
  */
 @Composable
 fun DoorFacts(facts: List<StateFact>, modifier: Modifier = Modifier) {
-    val (wide, short) = facts.partition { it.wide }
+    val ordered = facts.sortedBy { it.wide }
     Layout(
-        content = {
-            short.chunked(2).forEach { pair ->
-                Row(horizontalArrangement = Arrangement.spacedBy(HomeGridDefaults.stateColumns)) { pair.forEach { Fact(it) } }
-            }
-            wide.forEach { Fact(it) }
-        },
+        content = { ordered.forEach { Fact(it) } },
         modifier = modifier.fillMaxSize().padding(horizontal = HlSpace.s),
     ) { measurables, constraints ->
-        val gap = HomeGridDefaults.stateRows.roundToPx()
-        val lines = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
-        var used = -gap
-        val shown = lines.takeWhile { line ->
-            (used + gap + line.height <= constraints.maxHeight).also { fits -> if (fits) used += gap + line.height }
+        val rowGap = HomeGridDefaults.stateRows.roundToPx()
+        val columnGap = HomeGridDefaults.stateColumns.roundToPx()
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val placeables = measurables.map { it.measure(loose) }
+        val lines = factLines(ordered.map { it.wide }, placeables.map { it.width }, columnGap, loose.maxWidth)
+        val heights = lines.map { line -> line.maxOf { placeables[it].height } }
+        var used = -rowGap
+        val shown = lines.indices.takeWhile { i ->
+            (used + rowGap + heights[i] <= loose.maxHeight).also { fits -> if (fits) used += rowGap + heights[i] }
         }
         layout(constraints.maxWidth, constraints.maxHeight) {
             var y = (constraints.maxHeight - used.coerceAtLeast(0)) / 2
-            shown.forEach { line ->
-                line.placeRelative(0, y)
-                y += line.height + gap
+            shown.forEach { i ->
+                var x = 0
+                lines[i].forEach { k ->
+                    placeables[k].placeRelative(x, y)
+                    x += placeables[k].width + columnGap
+                }
+                y += heights[i] + rowGap
             }
         }
     }
+}
+
+/** The facts by line, as indices: two short ones side by side when [widths] fit [room] with their [gap], a wide one alone. */
+internal fun factLines(wide: List<Boolean>, widths: List<Int>, gap: Int, room: Int): List<List<Int>> {
+    val lines = mutableListOf<List<Int>>()
+    var waiting: Int? = null
+    wide.indices.forEach { k ->
+        val held = waiting
+        when {
+            wide[k] -> {
+                held?.let { lines += listOf(it) }
+                waiting = null
+                lines += listOf(k)
+            }
+            held == null -> waiting = k
+            widths[held] + gap + widths[k] <= room -> {
+                lines += listOf(held, k)
+                waiting = null
+            }
+            else -> {
+                lines += listOf(held)
+                waiting = k
+            }
+        }
+    }
+    waiting?.let { lines += listOf(it) }
+    return lines
 }
 
 @Composable
@@ -796,7 +863,7 @@ private const val CUT = "houselights.cut"
 fun rememberCutPosters(items: List<MediaItem>): CutPosters {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val keys = remember(items) { items.map { it.id } }
+    val keys = remember(items) { cutKeys(items) }
     var loaded by remember(keys) { mutableStateOf(CutPostersMade.of(keys) ?: CutPosters()) }
     LaunchedEffect(keys) {
         if (loaded.posters.isNotEmpty() || items.isEmpty()) return@LaunchedEffect
@@ -805,25 +872,61 @@ fun rememberCutPosters(items: List<MediaItem>): CutPosters {
     return loaded
 }
 
-/** Loads the posters of [items] a door's count is cut in and keeps them, so the door shows them at once; for preloads too. */
+/**
+ * Loads the posters of [items] a door's count is cut in and keeps them, so the door shows them at once; for preloads
+ * too. A making already under way for the same posters is awaited, not made again.
+ */
 suspend fun makeCutPosters(context: Context, items: List<MediaItem>, px: (Dp) -> Int): CutPosters {
-    val keys = items.map { it.id }
+    val keys = cutKeys(items)
     CutPostersMade.of(keys)?.let { return it }
-    return loadCutPosters(context, items, px).also { made -> if (made.posters.any { it != null }) CutPostersMade.keep(keys, made) }
+    val (making, mine) = CutPostersMade.making(keys)
+    if (!mine) {
+        return try {
+            making.await()
+        } catch (gone: CancellationException) {
+            // Its maker went away: this one makes them, unless it is going away itself.
+            if (!currentCoroutineContext().isActive) throw gone
+            makeCutPosters(context, items, px)
+        }
+    }
+    return try {
+        loadCutPosters(context, items, px).also { made ->
+            if (made.posters.any { it != null }) CutPostersMade.keep(keys, made)
+            making.complete(made)
+        }
+    } finally {
+        // Cancelled or failed: whoever waits makes them again.
+        if (!making.isCompleted) making.cancel()
+        CutPostersMade.done(keys, making)
+    }
 }
 
-/** The cut posters made last, by their titles: a door coming back, or opened under the launch screen, draws them at once. */
+/** The titles and their posters a cut is made of: a poster changed is another cut. */
+private fun cutKeys(items: List<MediaItem>): List<Any?> = items.flatMap { listOf(it.id, it.poster) }
+
+/** The cut posters made last, by their titles and posters: a door coming back, or opened under the launch screen, draws them at once. */
 private object CutPostersMade {
-    private val made = object : LinkedHashMap<List<String>, CutPosters>(KEPT, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<String>, CutPosters>) = size > KEPT
+    private val made = object : LinkedHashMap<List<Any?>, CutPosters>(KEPT, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<Any?>, CutPosters>) = size > KEPT
+    }
+    private val underWay = HashMap<List<Any?>, CompletableDeferred<CutPosters>>()
+
+    @Synchronized
+    fun of(keys: List<Any?>): CutPosters? = made[keys]
+
+    @Synchronized
+    fun keep(keys: List<Any?>, posters: CutPosters) {
+        made[keys] = posters
     }
 
+    /** The making of [keys] under way, and whether the caller is to make it. */
     @Synchronized
-    fun of(keys: List<String>): CutPosters? = made[keys]
+    fun making(keys: List<Any?>): Pair<CompletableDeferred<CutPosters>, Boolean> =
+        underWay[keys]?.let { it to false } ?: CompletableDeferred<CutPosters>().also { underWay[keys] = it }.let { it to true }
 
     @Synchronized
-    fun keep(keys: List<String>, posters: CutPosters) {
-        made[keys] = posters
+    fun done(keys: List<Any?>, making: CompletableDeferred<CutPosters>) {
+        if (underWay[keys] === making) underWay.remove(keys)
     }
 
     /** Home's library doors, and the one gathering the rest. */
