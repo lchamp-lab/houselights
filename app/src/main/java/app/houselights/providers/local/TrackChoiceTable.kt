@@ -21,6 +21,17 @@ data class TrackChoiceEntity(
     fun choice() = TrackChoice(audio, subtitles?.let(SubtitleChoice::parse))
 }
 
+/**
+ * Where a local title's choice of tracks is kept ([PlaybackPlan.Launch.titleKey]): its show; a matched film's TMDB id,
+ * which groups its copies, so the choice outlives any of them; else its row. [LibraryDao.deleteOrphanTrackChoices]
+ * keys them alike.
+ */
+internal fun tracksKey(row: ItemEntity) = when {
+    row.seriesId != null -> "local:${row.seriesId}"
+    row.kind == ItemKind.MOVIE && row.tmdbId != null -> "local:film:${row.tmdbId}"
+    else -> "local:${row.id}"
+}
+
 @Dao
 interface TrackChoiceDao {
     @Query("SELECT * FROM track_choices WHERE title = :title")

@@ -30,6 +30,11 @@ private const val TITLE_OF_COPY = "NULLIF((SELECT MIN(o.id) FROM items o WHERE o
 /** Groups each film's copies, writing only rows whose versionOf changes (see [LibraryDao.groupVersions]). */
 internal const val GROUP_VERSIONS = "UPDATE items SET versionOf = $TITLE_OF_COPY WHERE kind = 'MOVIE' AND versionOf IS NOT $TITLE_OF_COPY"
 
+/** The keys of the local films' and shows' choices of tracks ([tracksKey]). */
+private const val TRACK_KEYS =
+    "SELECT CASE WHEN kind = 'MOVIE' AND tmdbId IS NOT NULL THEN 'local:film:' || tmdbId ELSE 'local:' || id END " +
+        "FROM items WHERE kind IN ('MOVIE', 'SERIES')"
+
 /** Number of titles crediting c's person, counting a multi-copy film once (see [LibraryDao.creditsOf]). */
 private const val TITLES_OF_PERSON =
     "(SELECT COUNT(DISTINCT o.itemId) FROM credits o JOIN items oi ON oi.id = o.itemId " +
@@ -475,7 +480,8 @@ interface LibraryDao {
 
     /**
      * Saves scan results, keeping columns the scan does not own, which may change meanwhile: user artwork and match,
-     * favourite, watched state, resume point, chosen copy, versionOf, creditsAt. Reindexes search words on rename.
+     * favourite, watched state, resume point, chosen copy, versionOf, creditsAt. Reindexes search words on rename; a
+     * film matched anew takes its choice of tracks to its new key.
      */
     @Transaction
     suspend fun saveScanned(item: ItemEntity) {
@@ -497,7 +503,28 @@ interface LibraryDao {
             )
         )
         if (item.title != current.title || item.originalTitle != current.originalTitle) indexTitle(item)
+        if (item.tmdbId != current.tmdbId) moveTrackChoice(tracksKey(current), tracksKey(item))
     }
+
+    /**
+     * Gives [to] the choice of tracks kept under [from], unless it has its own, then forgets [from] unless a title
+     * still has that key: another copy of the film, matched as before.
+     */
+    @Transaction
+    suspend fun moveTrackChoice(from: String, to: String) {
+        if (from == to) return
+        copyTrackChoice(from, to)
+        forgetTrackChoiceUnkeyed(from)
+    }
+
+    @Query(
+        "INSERT OR IGNORE INTO track_choices (title, audio, subtitles, at) " +
+            "SELECT :to, audio, subtitles, at FROM track_choices WHERE title = :from"
+    )
+    suspend fun copyTrackChoice(from: String, to: String)
+
+    @Query("DELETE FROM track_choices WHERE title = :key AND :key NOT IN ($TRACK_KEYS)")
+    suspend fun forgetTrackChoiceUnkeyed(key: String)
 
     /** Copies favourite, user match and artwork from [fromId] where [toId] lacks them ([ShowIndexer]). */
     @Transaction
@@ -546,12 +573,8 @@ interface LibraryDao {
     @Query("DELETE FROM credits WHERE itemId NOT IN (SELECT id FROM items)")
     suspend fun deleteOrphanCredits(): Int
 
-    /** Deletes the local titles' choices of tracks no film or show keys any more ([LocalProvider.tracksKey]). */
-    @Query(
-        "DELETE FROM track_choices WHERE title LIKE 'local:%' AND title NOT IN (SELECT CASE " +
-            "WHEN kind = 'MOVIE' AND tmdbId IS NOT NULL THEN 'local:film:' || tmdbId ELSE 'local:' || id END " +
-            "FROM items WHERE kind IN ('MOVIE', 'SERIES'))"
-    )
+    /** Deletes the local titles' choices of tracks no film or show keys any more ([tracksKey]). */
+    @Query("DELETE FROM track_choices WHERE title LIKE 'local:%' AND title NOT IN ($TRACK_KEYS)")
     suspend fun deleteOrphanTrackChoices(): Int
 
     /** Deletes search words of deleted titles and sagas, and of person keys no credit uses any more. */

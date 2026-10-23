@@ -1,6 +1,7 @@
 package app.houselights.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -74,13 +75,76 @@ class TracksTest {
         assertNull(subtitle(COLONY, SubtitleMode.PLAYER))
     }
 
-    /** Bugonia in French: the player alone would show its first track, English forced subtitles. */
+    /**
+     * Bugonia in French: the player alone would show its first track, English forced subtitles. As the scan reads it,
+     * from the file, as a server lists it: a file beside the video changes nothing to what is asked at once.
+     */
     @Test
     fun noForcedTrackInTheLanguageMeansNone() {
-        assertEquals(0, plan(BUGONIA, french.copy(subtitles = SubtitleMode.FOREIGN)).pick.subtitle)
-        assertEquals("in English: French in full", 6, plan(BUGONIA, TrackPreferences("en", SubtitleMode.FOREIGN)).pick.subtitle)
-        val forced = TrackPreferences("en", SubtitleMode.FORCED)
-        assertEquals("forced English, which go with the English audio", 1, plan(BUGONIA, forced).pick.subtitle)
+        listOf(BUGONIA.copy(probedWith = PROBED), BUGONIA).forEach { bugonia ->
+            assertEquals(0, plan(bugonia, french.copy(subtitles = SubtitleMode.FOREIGN)).pick.subtitle)
+            assertEquals(0, plan(bugonia, french.copy(subtitles = SubtitleMode.FORCED)).pick.subtitle)
+            assertEquals("in English: French in full", 6, plan(bugonia, TrackPreferences("en", SubtitleMode.FOREIGN)).pick.subtitle)
+            val forced = TrackPreferences("en", SubtitleMode.FORCED)
+            assertEquals("forced English, which go with the English audio", 1, plan(bugonia, forced).pick.subtitle)
+        }
+    }
+
+    /**
+     * A film in English with forced French, read from the file: forced English, which a file beside it may hold, would
+     * come first; the forced French it has are asked meanwhile.
+     */
+    @Test
+    fun theBestSubtitlesTheFileHasAreAskedWhileBetterOnesMayBeBesideIt() {
+        val english = media(
+            audio = listOf(AudioTrack(Codecs.AC3, 6, "en")),
+            subtitles = listOf(SubtitleTrack("fr", format = Codecs.SRT, forced = true), SubtitleTrack("fr", format = Codecs.SRT)),
+        ).copy(probedWith = PROBED)
+        val p = plan(english, TrackPreferences("en", SubtitleMode.FORCED))
+        assertEquals(1 to true, p.pick.subtitle to p.subtitleBeside)
+    }
+
+    /**
+     * Bugonia read from the file, which says nothing of the files beside it (Bazarr's Bugonia.fr.forced.srt): the forced
+     * French may be there, which the check looks for once the player lists them. A server lists what is beside: only
+     * German leaves nothing to look for.
+     */
+    @Test
+    fun aFileBesideTheVideoMayHoldTheSubtitlesTheFileLacks() {
+        val foreign = french.copy(subtitles = SubtitleMode.FOREIGN)
+        val read = BUGONIA.copy(probedWith = PROBED)
+        assertTrue(plan(read, foreign).subtitleBeside)
+        assertFalse("nothing beside it", plan(BUGONIA, foreign).subtitleBeside)
+        assertEquals(listOf(SubtitleChoice.Track("fr", SubtitleKind.FORCED)), plan(read, foreign).wantedSubtitles("fr"))
+        assertFalse("its own French in full, with English", plan(read, TrackPreferences("en", SubtitleMode.FOREIGN)).subtitleBeside)
+        val listed = BUGONIA.copy(subtitles = BUGONIA.subtitles + SubtitleTrack("fre", format = Codecs.SRT, forced = true, external = true))
+        assertEquals("the forced French listed beside it", 0 to true, plan(listed, foreign).let { it.pick.subtitle to it.subtitleBeside })
+        val german = BUGONIA.copy(subtitles = BUGONIA.subtitles + SubtitleTrack("ger", format = Codecs.SRT, external = true))
+        assertEquals(0 to false, plan(german, foreign).let { it.pick.subtitle to it.subtitleBeside })
+
+        // French in full, which may be beside, comes before the file's forced English, asked meanwhile.
+        val english = media(
+            audio = listOf(AudioTrack(Codecs.AC3, 6, "en")),
+            subtitles = listOf(SubtitleTrack("en", format = Codecs.SRT, forced = true), SubtitleTrack("en", format = Codecs.SRT)),
+        )
+        val always = TrackPreferences("en", SubtitleMode.ALWAYS)
+        assertEquals(1 to true, plan(english.copy(probedWith = PROBED), always).let { it.pick.subtitle to it.subtitleBeside })
+        assertEquals(1 to false, plan(english, always).let { it.pick.subtitle to it.subtitleBeside })
+        val wanted = listOf(SubtitleKind.FULL to "fr", SubtitleKind.FORCED to "en", SubtitleKind.FORCED to "fr")
+        assertEquals(wanted.map { (kind, language) -> SubtitleChoice.Track(language, kind) }, plan(english, always).wantedSubtitles("en"))
+    }
+
+    /** A title's choice the file lacks may be a file beside it, before Settings; left to the player, it stays the player's. */
+    @Test
+    fun aTitlesChoiceMayBeBesideTheVideo() {
+        val read = COLONY.copy(probedWith = PROBED)
+        val german = TrackChoice(subtitles = SubtitleChoice.Track("de", SubtitleKind.FULL))
+        val forced = french.copy(subtitles = SubtitleMode.FORCED)
+        val p = plan(read, forced, german)
+        assertEquals("Settings' forced French meanwhile", TrackPick(0, 1) to true, p.pick to p.subtitleBeside)
+        assertEquals(SubtitleChoice.Track("de", SubtitleKind.FULL), p.wantedSubtitles("fr")?.first())
+        assertEquals("the player's", TrackPick(0, null) to false, plan(read, french, german).let { it.pick to it.subtitleBeside })
+        assertEquals("nothing beside it: Settings", TrackPick(0, 1), plan(COLONY, forced, german).pick)
     }
 
     @Test
@@ -214,6 +278,9 @@ class TracksTest {
     }
 
     private companion object {
+        /** A probe's version: tracks read from the file itself. */
+        const val PROBED = 5
+
         fun media(audio: List<AudioTrack>, subtitles: List<SubtitleTrack> = emptyList()) =
             MediaInfo(container = "MKV", audio = audio, subtitles = subtitles, tracksInOrder = true)
 

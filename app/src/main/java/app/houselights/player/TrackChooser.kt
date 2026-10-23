@@ -25,12 +25,23 @@ class TrackChooser(
     private val playerAudio: () -> String? = { null },
     /** The device's language ([TrackPlan.deviceLanguage]); null takes the app's. */
     private val deviceLanguage: () -> String? = { null },
+    /** Whether a file, by its resume key, was last played while the app was stopped ([PlaybackManager.playersOwnTracks]). */
+    private val playersOwn: (String) -> Boolean = { false },
 ) {
     /** One change at a time: each reads what the one before wrote. */
     private val changes = Mutex()
 
-    /** The tracks to ask for [launch]; null when the player chooses them all, or when the file's order is unknown. */
-    suspend fun plan(launch: PlaybackPlan.Launch): TrackPlan? = table(launch)?.takeUnless { it.pick.isEmpty }
+    /**
+     * The tracks to ask for [launch]; null when the player chooses them all, or when the file's order is unknown. A
+     * resume of a file last played while the app was stopped asks only the title's own choice: Settings would undo
+     * what the user chose in the player then, which the app could not keep and only the player remembers.
+     */
+    suspend fun plan(launch: PlaybackPlan.Launch): TrackPlan? {
+        val table = table(launch) ?: return null
+        val unfollowed = launch.startMs > 0 && launch.resumeKey?.let(playersOwn) == true
+        val plan = if (unfollowed) table.copy(preferences = TrackPreferences()) else table
+        return plan.takeUnless { it.pick.isEmpty }
+    }
 
     /** [launch]'s tracks and what Settings and the title's choice make of them; null when their order is unknown. */
     suspend fun table(launch: PlaybackPlan.Launch): TrackPlan? {

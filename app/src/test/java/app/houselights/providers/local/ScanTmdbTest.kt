@@ -135,6 +135,25 @@ class ScanTmdbTest {
         assertNull(issue())
     }
 
+    /** A film TMDB matches late keeps the tracks chosen while it was unmatched. */
+    @Test
+    fun aFilmMatchedLateKeepsItsChoiceOfTracks() = runTest {
+        val films = bench.folder("Films")
+        described("Film (2020)", "Mon film")
+        tmdb.movie(1, "Mon film", 2020)
+        bench.tmdbOutOfReach()
+        bench.scan()
+        val film = bench.item(films, "Film (2020).mkv")
+        assertNull(film.tmdbId)
+        val choices = bench.db.trackChoices()
+        choices.save(TrackChoiceEntity("local:${film.id}", "kor", null, at = 5))
+
+        bench.tmdbBack()
+        bench.scan()
+        assertEquals(1, bench.item(films, "Film (2020).mkv").tmdbId)
+        assertEquals("kor", choices.choice("local:film:1")?.audio)
+    }
+
     /** TMDB answers for a new file within the hour: it is back, says so, and the others are asked next pass. */
     @Test
     fun tmdbAnsweringANewFileEndsTheWait() = runTest {

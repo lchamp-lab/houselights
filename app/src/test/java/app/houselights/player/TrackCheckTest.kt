@@ -88,6 +88,47 @@ class TrackCheckTest {
         assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 2)), TrackCheck.fixes(chosen, noAudio))
     }
 
+    /**
+     * Colony read from the file without its forced French, the film in French: none asked; once the player lists them,
+     * the forced French beside the video are switched to, unless the user chose others meanwhile.
+     */
+    @Test
+    fun subtitlesBesideTheVideoAreFoundInThePlayersList() {
+        val foreign = plan(TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.FOREIGN), media = BESIDE)
+        assertEquals(TrackPlan.NONE, foreign.pick.subtitle)
+        val listed = checkNotNull(ZidooStatus.parseTracks(PlayerAnswers.COLONY_BESIDE_SUBTITLES)).second
+        val beside = PlayerTracks(plays.audio, 0, listed, TrackPlan.NONE)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 4)), TrackCheck.fixes(foreign, beside))
+        val unlisted = beside.copy(subtitles = listed.dropLast(1))
+        assertEquals("none listed: none, as asked", emptyList<TrackFix>(), TrackCheck.fixes(foreign, unlisted))
+        assertEquals("the user's", emptyList<TrackFix>(), TrackCheck.fixes(foreign, beside.copy(subtitleIndex = 2)))
+
+        // A server that lists the file beside the video.
+        val file = SubtitleTrack("fre", format = Codecs.SRT, forced = true, external = true)
+        val server = BESIDE.copy(probedWith = 0, subtitles = BESIDE.subtitles + file)
+        val jellyfin = plan(TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.FOREIGN), media = server)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 4)), TrackCheck.fixes(jellyfin, beside))
+    }
+
+    /**
+     * A film in English with forced French, the forced English wanted first: the French asked meanwhile give way to the
+     * forced English the player lists beside the video; without them, they stay.
+     */
+    @Test
+    fun subtitlesBesideTheVideoComeBeforeTheFilesOwnAskedMeanwhile() {
+        val english = MediaInfo(
+            audio = listOf(AudioTrack(Codecs.AC3, 6, "en")),
+            subtitles = listOf(SubtitleTrack("fr", format = Codecs.SRT, forced = true), SubtitleTrack("fr", format = Codecs.SRT)),
+            tracksInOrder = true,
+            probedWith = 5,
+        )
+        val forcedFirst = plan(TrackPreferences("en", SubtitleMode.FORCED), media = english)
+        val own = listOf(PlayerTrack(0, null), PlayerTrack(1, "fr", forced = true), PlayerTrack(2, "fr"))
+        val listed = PlayerTracks(listOf(PlayerTrack(0, "en")), 0, own + PlayerTrack(3, "en", forced = true), 1)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 3)), TrackCheck.fixes(forcedFirst, listed))
+        assertEquals(emptyList<TrackFix>(), TrackCheck.fixes(forcedFirst, listed.copy(subtitles = own)))
+    }
+
     /** The VFQ asked, third in the file: numbered otherwise, it is the player's second French track, as in the file. */
     @Test
     fun anAudioNumberedOtherwiseIsTheSameRankInItsLanguage() {
@@ -143,5 +184,8 @@ class TrackCheckTest {
             ),
             tracksInOrder = true,
         )
+
+        /** Colony without its forced French, read from the file: what is beside it is unknown. */
+        val BESIDE = COLONY.copy(subtitles = COLONY.subtitles.filterNot { it.forced }, probedWith = 5)
     }
 }

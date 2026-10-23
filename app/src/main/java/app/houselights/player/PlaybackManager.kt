@@ -51,7 +51,7 @@ class PlaybackManager(
         var positionMs: Long,
         /** A disc: it may open on a menu or an intro, whose length is not the title's (see [follow]). */
         val disc: Boolean = false,
-        /** Key of the playing file ([PlaybackPlan.Launch.resumeKey]), for the log. */
+        /** Key of the playing file ([PlaybackPlan.Launch.resumeKey]), for the log and [playersOwnTracks]. */
         var key: String? = null,
         /** The player a secret goes to, remembered only once it has started ([onPlayerLaunched]). */
         val trusting: ZidooPlayer.Choice? = null,
@@ -101,6 +101,9 @@ class PlaybackManager(
 
     /** The session, persisted before launch: on a 2 GB player, Android may kill the app during the film. */
     private val saved = context.getSharedPreferences("playback", Context.MODE_PRIVATE)
+
+    /** Files last played while the app was stopped, by [PlaybackPlan.Launch.resumeKey] (see [playersOwnTracks]). */
+    private val unfollowed = context.getSharedPreferences("unfollowed", Context.MODE_PRIVATE)
 
     private val _playing = MutableStateFlow(false)
 
@@ -169,7 +172,8 @@ class PlaybackManager(
             putExtra("from_start", true)
         }
         tracks?.pick?.let { pick ->
-            Log.i(TAG, "Tracks asked: audio ${pick.audio}, subtitles ${pick.subtitle}")
+            val beside = if (tracks.subtitleBeside) ", better ones looked for beside the video" else ""
+            Log.i(TAG, "Tracks asked: audio ${pick.audio}, subtitles ${pick.subtitle}$beside")
             pick.audio?.let { putExtra("audio_idx", it) }
             pick.subtitle?.let { putExtra("subtitle_idx", it) }
         }
@@ -199,6 +203,8 @@ class PlaybackManager(
     fun onPlayerLaunched() {
         val s = session ?: return
         s.trusting?.let(players::remember)
+        // From the start, the player's memory of the file no longer matters.
+        if (s.positionMs <= 0) s.key?.let { unfollowed.edit().remove(it).apply() }
         _playing.value = true
         s.started = scope.launch { report(s, "started") { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()
@@ -419,6 +425,12 @@ class PlaybackManager(
         saved.edit().putLong(KEY_POSITION, s.positionMs).apply()
     }
 
+    /**
+     * Whether the file of [resumeKey] was last played while the app was stopped, until it is played from the start:
+     * what the user chose in the player then, only its memory of the file keeps ([TrackChooser.plan]).
+     */
+    fun playersOwnTracks(resumeKey: String): Boolean = unfollowed.contains(resumeKey)
+
     /** Player result: final position in ms when the player returns it. */
     fun onPlayerResult(data: Intent?) {
         val live = session
@@ -429,6 +441,8 @@ class PlaybackManager(
         _playing.value = false
         saved.edit().clear().apply()
         if (live == null && resumeKey == null) return
+        // Stopped while the film played, the app could not follow what the user chose in the player.
+        if (live == null) unfollowed.edit().putBoolean(resumeKey, true).apply()
         val poll = pollJob
         pollJob = null
         val returned = data?.getIntExtra("position", -1) ?: -1
