@@ -89,6 +89,21 @@
     <string name="time_left">剩余 %s</string>
     <string name="nav_home">首页</string>
     <string name="back_again_to_quit">再按一次返回键退出</string>
+    <string name="watch_title">待看</string>
+    <string name="home_news">最新</string>
+    <string name="home_unseen">尚未观看</string>
+    <string name="home_libraries">媒体库</string>
+    <string name="home_state_source">来源</string>
+    <string name="home_state_scan">上次扫描</string>
+    <string name="home_scan_running">进行中…</string>
+    <string name="home_episode">S%1$d · E%2$s</string>
+    <string name="home_open_title">打开详情</string>
+    <plurals name="home_news_week">
+        <item quantity="other">本周 %d 部</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="other">新剧集 %d 集</item>
+    </plurals>
     <string name="from_start">从头播放</string>
     <string name="part_of">第 %1$d/%2$d 段</string>
     <string name="parts">分段</string>

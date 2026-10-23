@@ -141,6 +141,12 @@ interface MediaProvider {
         grouped: Boolean = false,
     ): Page
 
+    /**
+     * Episodes of [library] added since [since] (epoch ms) and not watched yet, up to [cap]; null when the source cannot
+     * say (home's door then says nothing of them).
+     */
+    suspend fun newEpisodes(library: Library, since: Long, cap: Int = NEW_EPISODES_CAP): Int? = null
+
     /** Values present in [library] (genres, decades, formats…) for the filter menu. */
     suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets()
 
@@ -184,6 +190,9 @@ interface MediaProvider {
     /** People, whole sagas, versions, numbers and search, as far as [capabilities] says. */
     val catalog: Catalog? get() = null
 }
+
+/** The most new episodes a source counts for home: past it, the door says as many. */
+const val NEW_EPISODES_CAP = 99
 
 /**
  * The film "Play" starts in a collection's [films] (release order): the first in progress, else unwatched,

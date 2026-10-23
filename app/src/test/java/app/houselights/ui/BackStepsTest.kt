@@ -1,21 +1,13 @@
 package app.houselights.ui
 
 import app.houselights.ui.detail.backReturnsToActions
-import app.houselights.ui.home.backGoesUp
 import app.houselights.ui.library.backReturnsToFirst
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Where Back takes focus before it leaves a screen: from deep in it, back to where it starts. */
+/** Where Back takes focus before it leaves a screen: from deep in it, back to where it starts; home's grid asks at once (QuitAgainTest). */
 class BackStepsTest {
-
-    @Test
-    fun homeGoesUpToTheBarFromBelowTheFirstRow() {
-        assertTrue(backGoesUp(focusedRow = 2))
-        assertFalse("the first row: Back asks before leaving (QuitAgainTest)", backGoesUp(focusedRow = 0))
-        assertFalse("the bar: Back asks before leaving", backGoesUp(focusedRow = null))
-    }
 
     /** A wall opened filtered, without the bar; under the bar, Back goes to it (BarFoldTest). */
     @Test

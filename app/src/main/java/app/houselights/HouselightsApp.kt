@@ -76,6 +76,7 @@ import okhttp3.OkHttpClient
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import app.houselights.ui.home.LibraryRows
+import app.houselights.ui.home.UnseenPick
 
 class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -223,8 +224,11 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** Holds the launch screen on a cold start while home loads underneath. */
     val launch = LaunchGate()
 
+    /** The film home's case proposes when nothing is in progress, the same all session. */
+    val unseenPick = UnseenPick()
+
     /** Prefetches home's first rows and pictures while the launch screen holds. */
-    val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value })
+    val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value }, unseenPick)
 
     /** Prefetches a wall's first page and posters while its name lights in home's bar. */
     val libraryAhead = LibraryAhead({ provider })

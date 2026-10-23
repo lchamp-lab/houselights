@@ -199,6 +199,12 @@ object HlAlpha {
     /** The edge of artwork at rest, so a dark poster keeps its outline on the black room: `content`. */
     const val EDGE_ARTWORK = 0.12f
 
+    /** The ink edge of a digit cut in a poster, so a dark poster keeps the figure's shape: `content`. */
+    const val FIGURE_EDGE = 0.3f
+
+    /** A door's tint, its own posters darkened ([HlScrim.DOOR_TINT_LIGHT]), at rest; focus brings it whole. */
+    const val DOOR_TINT = 0.55f
+
     /** The catalogue's black-level chart: a TV that merges the first steps into black crushes its blacks. */
     val BLACK_LEVELS = listOf(0.03f, 0.06f, 0.09f, 0.12f, 0.15f, 0.2f)
 }

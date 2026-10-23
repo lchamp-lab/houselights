@@ -92,6 +92,23 @@
     <string name="time_left">Noch %s</string>
     <string name="nav_home">Startseite</string>
     <string name="back_again_to_quit">Drücken Sie erneut Zurück, um zu beenden</string>
+    <string name="watch_title">Zum Ansehen</string>
+    <string name="home_news">Neu</string>
+    <string name="home_unseen">Noch nicht gesehen</string>
+    <string name="home_libraries">Bibliotheken</string>
+    <string name="home_state_source">Quelle</string>
+    <string name="home_state_scan">Letzter Scan</string>
+    <string name="home_scan_running">Läuft…</string>
+    <string name="home_episode">S%1$d · F%2$s</string>
+    <string name="home_open_title">Seite öffnen</string>
+    <plurals name="home_news_week">
+        <item quantity="one">%d diese Woche</item>
+        <item quantity="other">%d diese Woche</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="one">%d neue Folge</item>
+        <item quantity="other">%d neue Folgen</item>
+    </plurals>
     <string name="from_start">Von Anfang an</string>
     <string name="part_of">Teil %1$d von %2$d</string>
     <string name="parts">Teile</string>

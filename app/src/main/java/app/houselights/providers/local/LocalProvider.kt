@@ -140,6 +140,9 @@ class LocalProvider(
     internal suspend fun membersOf(ids: List<Long>): Map<Long, List<CollectionMember>> =
         ids.chunked(SQL_IN_LIMIT).flatMap { dao.collectionMembers(it) }.groupBy { it.collectionId }
 
+    override suspend fun newEpisodes(library: Library, since: Long, cap: Int): Int? =
+        if (library.id == SHOWS) dao.newEpisodes(since).coerceAtMost(cap) else null
+
     /** A sagas wall offers its films' values: it is filtered through them. */
     override suspend fun libraryFacets(library: Library): LibraryFacets {
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE

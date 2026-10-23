@@ -272,7 +272,7 @@ class HomeViewModelTest {
         // The first load was cancelled while it waited: only the second asked for the rows.
         first.complete(Unit)
         advanceUntilIdle()
-        assertEquals(listOf("libraries", "libraries", "home"), provider.calls)
+        assertEquals(listOf("libraries", "libraries", "home"), provider.rowCalls)
     }
 
     /** During a first scan, home loads again every few seconds over no rows: what it shows stays still. */
@@ -305,5 +305,43 @@ class HomeViewModelTest {
         vm.load()
         advanceUntilIdle()
         assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+    }
+    @Test
+    fun theDoorsAreReadAfterTheRows() = runTest {
+        provider.libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"), Library("shows", LibraryKind.SHOWS, "Séries"))
+        provider.walls = mapOf("films" to (1..20).map { film("f$it") }, "shows" to (1..3).map { film("s$it") })
+        val vm = home()
+        advanceUntilIdle()
+        val doors = checkNotNull(vm.state.value.doors)
+        assertEquals(listOf(20, 3), doors.shelves.map { it.count })
+        assertEquals("a film in progress: none to propose", null, doors.unseen)
+        // Read again with the rows, kept meanwhile.
+        provider.gate("page 0 12")
+        vm.load()
+        advanceUntilIdle()
+        assertSame(doors, vm.state.value.doors)
+    }
+
+    @Test
+    fun withNothingInProgressAFilmNotSeenIsProposedAndKept() = runTest {
+        provider.home = listOf(HomeSection(SectionType.LATEST, listOf(film("m1")), landscape = false, libraryId = "films"))
+        provider.walls = mapOf("films" to (1..20).map { film("f$it") })
+        provider.items.putAll((1..20).associate { "f$it" to film("f$it") })
+        val vm = home()
+        advanceUntilIdle()
+        val unseen = checkNotNull(vm.state.value.doors?.unseen)
+        vm.load()
+        advanceUntilIdle()
+        assertEquals("the same all session", unseen, vm.state.value.doors?.unseen)
+    }
+
+    @Test
+    fun aDoorThatFailsLeavesTheRowsAndTheOthers() = runTest {
+        provider.libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"))
+        provider.fail = { call -> IOException("Away").takeIf { call.startsWith("page") } }
+        val vm = home()
+        advanceUntilIdle()
+        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals("its count unread", listOf<Int?>(null), vm.state.value.doors?.shelves?.map { it.count })
     }
 }

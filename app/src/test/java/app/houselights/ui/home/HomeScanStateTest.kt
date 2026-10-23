@@ -28,11 +28,10 @@ class HomeScanStateTest {
     }
 
     @Test
-    fun theKeyToChangeIsOfferedOnlyOnAHomeWithoutRows() {
-        assertEquals(ErrorAction.EDIT_TMDB_KEY, scanNoteAction(UiError.TMDB_KEY_REFUSED, aboveRows = false))
-        assertNull("between the tabs and the rows, Down would land on it", scanNoteAction(UiError.TMDB_KEY_REFUSED, aboveRows = true))
-        assertNull(scanNoteAction(UiError.TMDB_OFFLINE, aboveRows = false))
-        assertNull(scanNoteAction(null, aboveRows = false))
+    fun theKeyToChangeIsOfferedUnderTheFirstScansCounter() {
+        assertEquals(ErrorAction.EDIT_TMDB_KEY, scanNoteAction(UiError.TMDB_KEY_REFUSED))
+        assertNull(scanNoteAction(UiError.TMDB_OFFLINE))
+        assertNull(scanNoteAction(null))
     }
 
     @Test

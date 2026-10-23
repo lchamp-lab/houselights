@@ -252,6 +252,68 @@ internal object TwoPaneDefaults {
     val sideWide = 344.dp
 }
 
+/**
+ * Home's grid (DESIGN.md, Layout): the lockup's band, then the case on the left and three rows of doors across the
+ * safe area: what is watched, the libraries, the tools. A row's doors share its width by spans of four.
+ */
+internal object HomeGridDefaults {
+    /** The lockup's band under the safe area's top, and the gap from it to the grid. */
+    val head = 20.dp
+    val headGap = 20.dp
+
+    /** The lockup's capitals: its bars as tall as the band less its air (16). */
+    val lockup = 11.5.dp
+
+    /** The case: the title in progress, or one not seen yet. */
+    val case = 252.dp
+    val watchRow = 136.dp
+    val libraryRow = 148.dp
+    val toolRow = 136.dp
+
+    /** A door's band, under its picture: its icon, its name and what it says, at the default text size. */
+    val band = 38.dp
+    val bandIcon = 18.dp
+
+    /** The case's logo, and the next episode's over its still. */
+    val caseLogoWidth = 188.dp
+    val caseLogoHeight = 96.dp
+    val stillLogoWidth = 108.dp
+    val stillLogoHeight = 40.dp
+
+    /** The case's action, a plate the case's focus fills. */
+    val action = 40.dp
+    val actionIcon = 17.dp
+
+    /** The episodes of a season along a band's top edge, and between two. */
+    val segment = 3.dp
+    val segmentGap = 2.dp
+
+    /** A count cut in posters: the air its longest keeps across and down, from the picture's start. */
+    val figureAirX = 14.dp
+    val figureAirY = 13.dp
+    val figureStart = 13.dp
+
+    /** Between the posters of a band of them and of a wall of them. */
+    val posterGap = 4.dp
+
+    /** A poster of the news door's band, as wide as its picture's height makes it at the default text size. */
+    val stripPoster = 66.dp
+
+    /** Two sagas stacked: their posters' width, and where each stands in the door's picture. */
+    val sagaPoster = 54.dp
+    val sagaBack = 62.dp
+    val sagaFront = 22.dp
+    val sagaBackTop = 8.dp
+    val sagaFrontTop = 12.dp
+
+    /** A small poster of the search door's wall, at least this wide. */
+    val wallThumb = 32.dp
+
+    /** The settings' state: between its two columns and its lines. */
+    val stateColumns = 28.dp
+    val stateRows = 11.dp
+}
+
 /** The logo or title of a browsing hero (home's). */
 internal object HeroDefaults {
     val titleWidth = 380.dp

@@ -1,330 +1,454 @@
 package app.houselights.ui.home
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.components.HlEmptyState
-import app.houselights.ui.design.components.HlErrorState
-import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.ListScroll
-import app.houselights.ui.design.BackToStart
-import app.houselights.ui.design.FocusKey
-import app.houselights.ui.design.FocusMemory
-import app.houselights.ui.design.RestoreFocus
-import app.houselights.ui.design.focusGroupKey
-import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.rememberFocusMemory
-import app.houselights.ui.design.rememberRowState
 import app.houselights.R
-import app.houselights.core.HomeSection
 import app.houselights.core.Library
+import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
-import app.houselights.ui.design.textRoom
+import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.LocalLaunchScreen
+import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.drawnWhole
 import app.houselights.ui.design.houseLit
-import app.houselights.ui.design.HlSize
-import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.AttentionNote
-import app.houselights.ui.design.components.AmbientBackdrop
-import app.houselights.ui.design.components.BackdropStyle
-import app.houselights.ui.design.components.CardSkeleton
-import app.houselights.ui.design.components.HeroInfo
+import app.houselights.ui.design.components.DoorCell
+import app.houselights.ui.design.components.DoorFacts
+import app.houselights.ui.design.components.DoorFigures
+import app.houselights.ui.design.components.DoorGrid
+import app.houselights.ui.design.components.DoorNote
+import app.houselights.ui.design.components.DoorPosters
+import app.houselights.ui.design.components.DoorProgress
+import app.houselights.ui.design.components.DoorSagas
+import app.houselights.ui.design.components.DoorStill
+import app.houselights.ui.design.components.DoorWall
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.LandscapeCard
-import app.houselights.ui.design.components.MediaRow
-import app.houselights.ui.design.components.wearsNewDot
-import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.components.HlErrorState
+import app.houselights.ui.design.components.HlSettingGroup
+import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlSideSheet
+import app.houselights.ui.design.components.HomeDoor
+import app.houselights.ui.design.components.HomeHead
+import app.houselights.ui.design.components.ResumeCase
 import app.houselights.ui.design.components.ScanProgress
-import app.houselights.ui.util.ReloadOnLibraryChange
-import app.houselights.ui.util.appContainer
-import app.houselights.ui.util.rememberSettled
-import app.houselights.ui.util.skeletonDelayPassed
-import app.houselights.ui.util.timeLeft
-import app.houselights.ui.util.scanErrorText
-import app.houselights.ui.util.sectionTitle
+import app.houselights.ui.design.components.StateFact
+import app.houselights.ui.design.components.gridHeights
+import app.houselights.ui.design.components.rememberCutPosters
+import app.houselights.ui.design.components.rememberFigureSize
+import app.houselights.ui.settings.relativeTime
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
+import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.formatCount
+import app.houselights.ui.util.libraryName
+import app.houselights.ui.util.scanErrorText
+import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.flow.StateFlow
-import androidx.compose.ui.platform.LocalContext
-import app.houselights.ui.design.components.DetailAhead
-import app.houselights.ui.design.components.PicturesAhead
-import app.houselights.ui.util.screenWidthPx
-import coil.imageLoader
-import app.houselights.core.SectionType
-import app.houselights.ui.design.components.FilmsOfHeading
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+
+/** Where home's case and doors lead; each does nothing by default. */
+data class HomeActions(
+    val onPlay: (MediaItem, resume: Boolean) -> Unit = { _, _ -> },
+    val onOpenItem: (MediaItem) -> Unit = {},
+    val onOpenWatch: (WatchRow) -> Unit = {},
+    /** Opens a library's wall; for films, also the sagas it groups. */
+    val onOpenLibrary: (Library, sagas: Library?) -> Unit = { _, _ -> },
+    /** Opens the films' wall on its sagas alone. */
+    val onOpenSagas: (films: Library?, sagas: Library) -> Unit = { _, _ -> },
+    /** Null when the source cannot search. */
+    val onOpenSearch: (() -> Unit)? = null,
+    val onOpenSettings: () -> Unit = {},
+    val onAddFolder: () -> Unit = {},
+    val onReload: () -> Unit = {},
+    val onRescan: () -> Unit = {},
+    /** Prefetches a library's wall as its door is chosen. */
+    val onLibraryAhead: (Library, sagas: Library?) -> Unit = { _, _ -> },
+)
 
 @Composable
-fun HomeScreen(
-    onOpenItem: (MediaItem) -> Unit,
-    /** Opens a library's wall; for films, also the sagas it can switch to. */
-    onOpenLibrary: (Library, sagas: Library?) -> Unit,
-    onOpenSettings: () -> Unit,
-    onAddFolder: () -> Unit,
-    onOpenSearch: () -> Unit = {},
-) {
+fun HomeScreen(actions: HomeActions) {
     val app = appContainer()
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
     ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val screen = screenWidthPx()
-    HomeBands(
-        state,
-        vm.scan,
-        onOpenItem,
-        onOpenLibrary,
-        onOpenSettings,
-        onAddFolder,
-        onReload = vm::load,
-        onRescan = vm::rescan,
-        onLibraryAhead = { library, sagas ->
-            app.libraryAhead.ask(app.scope, library, sagas, PicturesAhead(context, screen), context.imageLoader)
-        },
-        onOpenSearch = onOpenSearch.takeIf { app.providerOrNull()?.capabilities?.search == true },
-    )
+    val search = actions.onOpenSearch.takeIf { app.providerOrNull()?.capabilities?.search == true }
+    HomeGrid(state, vm.scan, actions.copy(onOpenSearch = search, onReload = vm::load, onRescan = vm::rescan))
 }
 
-/** Home for [state]: its bar, hero and rows, and focus among them. */
+/**
+ * Home for [state] (DESIGN.md, Layout): the lockup, then the grid of the case and its doors, or what says why there is
+ * none. Focus comes back to the door left; Back says once that a second one quits.
+ */
 @Composable
-internal fun HomeBands(
+internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: HomeActions) {
+    val content = state.content
+    val memory = rememberFocusMemory()
+    // The line saying a second Back quits goes as soon as focus moves to another door.
+    val quitting = quitOnSecondBack(atStart = true) { memory.last }
+    val plan = rememberPlan(state, canSearch = actions.onOpenSearch != null)
+    RestoreFocus(memory, fallback = plan?.start?.let { memory.requester(it) }, ready = plan != null)
+    var listing by rememberSaveable { mutableStateOf(false) }
+    var options by rememberSaveable { mutableStateOf(false) }
+    // Whole for the launch screen once the grid shows with its doors read, or a message.
+    val whole = content !is HomeContent.Loading && (plan == null || state.doors != null)
+    Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current).drawnWhole(whole)) {
+        HomeHead(stringResource(R.string.back_again_to_quit).takeIf { quitting })
+        when {
+            plan != null -> Grid(plan, state, scan, actions, memory, onList = { listing = true }, onOptions = { options = true })
+            content is HomeContent.Message -> NoRows(content, scan, actions, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
+            else -> Unit
+        }
+    }
+    if (listing && plan != null) LibrariesSheet(plan, state.sagas, actions) { listing = false }
+    val case = plan?.case
+    if (options && case != null) CaseOptions(case, actions) { options = false }
+}
+
+/** Home's grid for [state]'s rows, once there are; null for a message or while loading. */
+@Composable
+private fun rememberPlan(state: HomeState, canSearch: Boolean): HomePlan? {
+    val rows = state.content as? HomeContent.Rows ?: return null
+    return remember(rows, state.libraries, state.doors, canSearch) {
+        homePlan(rows.sections, state.tabs, state.sagas, state.doors, canSearch)
+    }
+}
+
+/** Where a first visit starts: on the case, else on the first door. */
+private val HomePlan.start: String? get() = case?.let { CASE } ?: doors.firstOrNull()?.key
+
+/** The grid of [plan]: the case, then its rows of doors. */
+@Composable
+private fun Grid(
+    plan: HomePlan,
     state: HomeState,
     scan: StateFlow<ScanState>,
-    onOpenItem: (MediaItem) -> Unit,
-    onOpenLibrary: (Library, sagas: Library?) -> Unit,
-    onOpenSettings: () -> Unit,
-    onAddFolder: () -> Unit,
-    onReload: () -> Unit,
-    onRescan: () -> Unit,
-    /** Prefetches a library's wall once its place is chosen. */
-    onLibraryAhead: (Library, sagas: Library?) -> Unit = { _, _ -> },
-    /** Null when the source cannot search. */
-    onOpenSearch: (() -> Unit)? = null,
+    actions: HomeActions,
+    memory: FocusMemory,
+    onList: () -> Unit,
+    onOptions: () -> Unit,
 ) {
-    val content = state.content
-    val sections = (content as? HomeContent.Rows)?.sections.orEmpty()
+    val watch = plan.rows.any { it.kind == RowKind.WATCH }
+    val libraries = plan.rows.firstOrNull { it.kind == RowKind.LIBRARIES }
+    val heights = gridHeights(watch, libraries != null)
+    val counts = libraries?.doors?.map { (door, _) -> countOf(door)?.let { formatCount(it.toLong()) }.orEmpty() }.orEmpty()
+    val libraryHeight = heights[plan.rows.indexOfFirst { it.kind == RowKind.LIBRARIES }.coerceAtLeast(0)]
+    val figure = rememberFigureSize(counts, libraries?.doors?.map { it.second }.orEmpty(), libraryHeight)
+    DoorGrid(
+        memory = memory,
+        caseKey = CASE,
+        rightOfCase = plan.firstLibrary?.key,
+        rows = plan.rows.map { row ->
+            row.doors.map { (door, span) ->
+                DoorCell(door.key, span) { modifier -> DoorOf(door, state, scan, actions, figure, onList, modifier) }
+            }
+        },
+        heights = heights,
+        modifier = Modifier.padding(horizontal = HlSpace.safeH),
+    ) { modifier -> CaseOf(plan.case, actions, onOptions, modifier) }
+}
 
-    // The last selected title stays shown while focus is on the tabs and survives navigation; default: the first.
-    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
-    // Changes once focus settles, so no image loads per step; read only there, so a step recomposes nothing here.
-    val shown by rememberSettled { selectedTitle(sections, selectedId) }
-
-    val memory = rememberFocusMemory()
-    val rows = rememberLazyListState()
-    // Focus returns where it was (a card by row and id, a tab, a button); a first visit starts on the first card.
-    val first = sections.firstOrNull()
-    RestoreFocus(
-        memory,
-        fallback = first?.items?.firstOrNull()?.let { memory.requester(cardKey(first, it)) },
-        ready = sections.isNotEmpty(),
-    ) { key ->
-        val index = sectionIndex(sections, key)
-        if (index != null) rows.scrollToItem(index)
-        index != null
+/** The case: the title last in progress, resumed on OK; else a film not seen, played; else nothing to propose. */
+@Composable
+private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit, modifier: Modifier) {
+    when (case) {
+        is CaseShows.Resume -> ResumeCase(
+            case.item,
+            stringResource(R.string.resume),
+            onClick = { actions.onPlay(case.item, true) },
+            modifier = modifier,
+            onLongClick = onOptions,
+            onLongClickLabel = stringResource(R.string.more_options),
+        )
+        is CaseShows.Unseen -> ResumeCase(
+            case.item,
+            stringResource(R.string.play),
+            onClick = { actions.onPlay(case.item, false) },
+            modifier = modifier,
+            label = stringResource(R.string.home_unseen),
+            onLongClick = onOptions,
+            onLongClickLabel = stringResource(R.string.more_options),
+        )
+        // Focus still lands somewhere at home's start.
+        null -> Box(modifier.fillMaxSize().clearAndSetSemantics {})
     }
-    var focusedRow by remember { mutableStateOf<Int?>(null) }
-    BackToStart(away = backGoesUp(focusedRow)) {
-        memory.focus(TRACK)
-        rows.animateScrollToItem(0)
-    }
-    // At home's start, a first Back says that a second one quits; the bar is above the first row.
-    val quitting = quitOnSecondBack(atStart = !backGoesUp(focusedRow)) { focusedRow ?: -1 }
+}
 
-    // Complete for the launch screen once rows are in and the hero shows a title (a frame after the rows).
-    val whole = content !is HomeContent.Loading && (shown != null || sections.isEmpty())
-    // Prepares the settled title's detail page, so OK opens it complete.
-    DetailAhead(shown)
-    AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero, ready = whole) {
-        Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
-            val places = Places(
-                state.tabs,
-                state.sagas,
-                onPlace = { library, sagas ->
-                    // Coming back home, focus enters the bar on its current place, home.
-                    memory.record(TRACK)
-                    if (library != null) onOpenLibrary(library, sagas)
-                },
-                onSettings = onOpenSettings,
-                onSearch = onOpenSearch,
-                onLibraryAhead = onLibraryAhead,
-            )
-            PlacesBar(
-                places,
-                here = null,
-                memory = memory,
-                // The first row's group, once laid out, so it can take focus.
-                down = { first?.takeIf { rows.firstVisibleItemIndex == 0 }?.let { memory.requester(FocusKey.section(it.key)) } },
-                status = stringResource(R.string.back_again_to_quit).takeIf { quitting },
-            )
-            when (content) {
-                is HomeContent.Browsing -> {
-                    // A fixed height fitting the text at the viewer's text size, whatever has focus.
-                    HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero)))
-                    Spacer(Modifier.height(HlSpace.l))
-                    // A folder's first scan: the counter stays above the rows as they fill in.
-                    if (content.firstScan) {
-                        FirstScan(scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
-                    }
-                    when (content) {
-                        is HomeContent.Loading -> SkeletonRows()
-                        is HomeContent.Rows -> Sections(
-                            sections = content.sections,
-                            memory = memory,
-                            rows = rows,
-                            onOpen = onOpenItem,
-                            onFocus = { section, item ->
-                                focusedRow = section
-                                selectedId = item.id
-                            },
-                            onLeave = { focusedRow = null },
-                        )
-                    }
-                }
-                // The message starts where the focused title would.
-                is HomeContent.Message -> NoRows(
-                    content,
-                    scan,
-                    onReload = onReload,
-                    onRescan = onRescan,
-                    onSettings = onOpenSettings,
-                    onAddFolder = onAddFolder,
-                    modifier = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+/** A door of the grid, drawn for what it shows. */
+@Composable
+private fun DoorOf(
+    door: Door,
+    state: HomeState,
+    scan: StateFlow<ScanState>,
+    actions: HomeActions,
+    figure: TextUnit,
+    onList: () -> Unit,
+    modifier: Modifier,
+) {
+    when (door) {
+        is Door.Next, is Door.AlsoResume, is Door.News -> WatchDoor(door, actions, modifier)
+        is Door.Library -> LibraryDoor(door, state, actions, figure, modifier)
+        is Door.Libraries -> LibrariesDoor(door, figure, onList, modifier)
+        is Door.Sagas, is Door.Search, Door.Settings -> ToolDoor(door, state, scan, actions, modifier)
+    }
+}
+
+/** A door of what is watched: the next episode, the second title in progress, or the latest titles. */
+@Composable
+private fun WatchDoor(door: Door, actions: HomeActions, modifier: Modifier) {
+    when (door) {
+        is Door.Next -> HomeDoor(
+            stringResource(R.string.section_next_up),
+            HlIcons.Next,
+            onClick = { actions.onOpenWatch(WatchRow.NEXT_UP) },
+            modifier = modifier,
+            note = episodeMark(door.item)?.let { DoorNote.Mark(it) },
+            progress = door.season?.let { DoorProgress.Episodes(it) },
+        ) { DoorStill(door.item) }
+        is Door.AlsoResume -> HomeDoor(
+            stringResource(R.string.section_continue),
+            HlIcons.Play,
+            onClick = { actions.onOpenWatch(WatchRow.CONTINUE) },
+            modifier = modifier,
+            note = episodeMark(door.item)?.let { DoorNote.Mark(it) } ?: timeLeft(door.item)?.let { DoorNote.Words(it) },
+            progress = DoorProgress.Seen(door.item.progress),
+        ) { DoorStill(door.item) }
+        is Door.News -> HomeDoor(
+            stringResource(R.string.home_news),
+            HlIcons.Sparkles,
+            onClick = { actions.onOpenWatch(WatchRow.LATEST) },
+            modifier = modifier,
+            note = door.thisWeek.takeIf { it > 0 }?.let { DoorNote.News(pluralStringResource(R.plurals.home_news_week, it, it)) },
+        ) { DoorPosters(door.posters) }
+        else -> Unit
+    }
+}
+
+/** The libraries past the third, behind one door: their number cut in their posters; OK lists them. */
+@Composable
+private fun LibrariesDoor(door: Door.Libraries, figure: TextUnit, onList: () -> Unit, modifier: Modifier) {
+    val cut = rememberCutPosters(door.posters)
+    HomeDoor(
+        stringResource(R.string.home_libraries),
+        HlIcons.Library,
+        onClick = onList,
+        modifier = modifier,
+        glowTones = { cut.tones },
+    ) { lit -> DoorFigures(formatCount(door.shelves.size.toLong()), cut, figure, lit) }
+}
+
+/** A tool's door: the sagas, the search, the settings and the app's state. */
+@Composable
+private fun ToolDoor(door: Door, state: HomeState, scan: StateFlow<ScanState>, actions: HomeActions, modifier: Modifier) {
+    when (door) {
+        is Door.Sagas -> HomeDoor(
+            stringResource(R.string.library_collections),
+            HlIcons.Layers,
+            onClick = { state.sagas?.let { sagas -> actions.onOpenSagas(state.films, sagas) } },
+            modifier = modifier,
+            note = door.shelf.count?.let { DoorNote.Mark(formatCount(it.toLong())) },
+        ) { DoorSagas(door.shelf.posters) }
+        is Door.Search -> HomeDoor(
+            stringResource(R.string.search),
+            HlIcons.Search,
+            onClick = { actions.onOpenSearch?.invoke() },
+            modifier = modifier,
+        ) { DoorWall(door.posters) }
+        Door.Settings -> HomeDoor(
+            stringResource(R.string.nav_settings),
+            HlIcons.Settings,
+            onClick = actions.onOpenSettings,
+            modifier = modifier,
+        ) { state.status?.let { status -> StateOf(status, scan) } }
+        else -> Unit
+    }
+}
+
+/** A library's door: its count cut in its posters, and what is new in it. */
+@Composable
+private fun LibraryDoor(door: Door.Library, state: HomeState, actions: HomeActions, figure: TextUnit, modifier: Modifier) {
+    val library = door.shelf.library
+    val cut = rememberCutPosters(door.posters)
+    val sagas = state.sagas.takeIf { library.kind == LibraryKind.MOVIES }
+    val note = when {
+        (door.newEpisodes ?: 0) > 0 -> door.newEpisodes?.let { DoorNote.News(pluralStringResource(R.plurals.home_new_episodes, it, it)) }
+        door.news > 0 -> DoorNote.News(pluralStringResource(R.plurals.row_news, door.news, door.news))
+        else -> null
+    }
+    HomeDoor(
+        library.title ?: libraryName(library.kind),
+        iconOf(library.kind),
+        onClick = {
+            actions.onLibraryAhead(library, sagas)
+            actions.onOpenLibrary(library, sagas)
+        },
+        modifier = modifier,
+        note = note,
+        glowTones = { cut.tones },
+    ) { lit -> door.shelf.count?.let { DoorFigures(formatCount(it.toLong()), cut, figure, lit) } }
+}
+
+private fun iconOf(kind: LibraryKind) = when (kind) {
+    LibraryKind.MOVIES -> HlIcons.Film
+    LibraryKind.SHOWS -> HlIcons.Tv
+    LibraryKind.COLLECTIONS -> HlIcons.Layers
+    LibraryKind.MIXED -> HlIcons.Folder
+}
+
+/** The count a library's door cuts in posters. */
+private fun countOf(door: Door): Int? = when (door) {
+    is Door.Library -> door.shelf.count
+    is Door.Libraries -> door.shelves.size
+    else -> null
+}
+
+/** "S1 · É4" for an episode; nothing for a film. */
+@Composable
+private fun episodeMark(item: MediaItem): String? {
+    val number = item.episodeNumbers?.takeIf { item.kind == MediaKind.EPISODE } ?: return null
+    return stringResource(R.string.home_episode, item.seasonNumber ?: 0, number)
+}
+
+/** The settings door's state; only it reads a running scan's progress, file by file. */
+@Composable
+private fun StateOf(status: HomeStatus, scan: StateFlow<ScanState>) {
+    val progress = if (status.scanning) scan.collectAsStateWithLifecycle().value.let { it.processed to it.total } else null
+    DoorFacts(stateFacts(status, progress))
+}
+
+/** The app's state as the settings door states it: the source, Trakt where it follows it, the last scan or the one running. */
+@Composable
+private fun stateFacts(status: HomeStatus, progress: Pair<Int, Int>?): List<StateFact> {
+    val context = LocalContext.current
+    val label = stringResource(R.string.home_state_source)
+    val source = when (val from = status.source) {
+        is StatusSource.Folders -> {
+            val folders = from.count.takeIf { it > 1 }?.let { pluralStringResource(R.plurals.folder_count, it, it) }
+            StateFact(label, stringResource(R.string.source_local), detail = from.hosts.singleOrNull() ?: folders)
+        }
+        is StatusSource.Server -> StateFact(label, from.name ?: stringResource(R.string.source_jellyfin))
+    }
+    val trakt = status.trakt?.let { on ->
+        val said = stringResource(if (on) R.string.trakt_connected else R.string.trakt_signed_out)
+        StateFact(stringResource(R.string.home_state_trakt), said, done = on)
+    }
+    val scan = progress?.let { (done, total) ->
+        StateFact(
+            stringResource(R.string.home_state_scan),
+            stringResource(R.string.home_scan_running),
+            detail = stringResource(R.string.scan_progress, done, total).takeIf { total > 0 },
+            wide = true,
+        )
+    } ?: status.scannedAt?.let { at ->
+        val ago = relativeTime(context, at, System.currentTimeMillis(), alone = true)
+        StateFact(stringResource(R.string.home_state_scan), ago, wide = true)
+    }
+    return listOfNotNull(source, trakt, scan)
+}
+
+/** The libraries past the third, each opening its wall. */
+@Composable
+private fun LibrariesSheet(plan: HomePlan, sagas: Library?, actions: HomeActions, onDismiss: () -> Unit) {
+    val door = plan.doors.filterIsInstance<Door.Libraries>().firstOrNull() ?: return
+    val first = remember { FocusRequester() }
+    HlSideSheet(stringResource(R.string.home_libraries), onDismiss, initialFocus = first) { sheet ->
+        HlSettingGroup(null) {
+            door.shelves.forEachIndexed { i, shelf ->
+                val library = shelf.library
+                val films = sagas.takeIf { library.kind == LibraryKind.MOVIES }
+                HlSettingRow(
+                    library.title ?: libraryName(library.kind),
+                    if (i == 0) Modifier.focusRequester(first) else Modifier,
+                    value = shelf.count?.let { pluralStringResource(R.plurals.title_count, it, it) },
+                    icon = iconOf(library.kind),
+                    onClick = {
+                        actions.onLibraryAhead(library, films)
+                        sheet.dismiss { actions.onOpenLibrary(library, films) }
+                    },
                 )
             }
         }
     }
 }
 
+/** The case's options: its title's page, and, once started, playing it from the start. */
 @Composable
-private fun Sections(
-    sections: List<HomeSection>,
-    memory: FocusMemory,
-    rows: LazyListState,
-    onOpen: (MediaItem) -> Unit,
-    onFocus: (section: Int, item: MediaItem) -> Unit,
-    /** Focus left the rows for the tabs; the selected title stays. */
-    onLeave: () -> Unit,
-) {
-    // Up from any first-row card goes to the tabs, not to the nearer action buttons.
-    val toTabs = Modifier.focusProperties { up = memory.requester(TRACK) }
-    // A row that must scroll comes to the list's top, where the first rests; the one above leaves whole.
-    ListScroll(top = HlSpace.none, toTop = true) { LazyColumn(
-        state = rows,
-        modifier = Modifier.fillMaxSize().onFocusChanged { if (!it.hasFocus) onLeave() },
-        contentPadding = PaddingValues(bottom = HlFocus.edge),
-        verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
-    ) {
-        sections.forEachIndexed { sectionIndex, section ->
-            item(key = section.key) {
-                MediaRow(
-                    header = sectionTitle(section),
-                    // A director's row is headed as a poster bills it.
-                    heading = section.person?.takeIf { section.type == SectionType.DIRECTOR }?.let { p -> { FilmsOfHeading(p.name) } },
-                    // If the focused card is gone, focus returns to its row.
-                    modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
-                    spacing = section.spacing,
-                    state = rememberRowState(section.items.map { it.id }),
-                    news = section.items.count { it.wearsNewDot() },
-                ) {
-                    items(section.items, key = { it.id }) { item ->
-                        val mod = Modifier.focusKey(cardKey(section, item), memory).then(if (sectionIndex == 0) toTabs else Modifier)
-                        val focus = { onFocus(sectionIndex, item) }
-                        if (section.landscape) {
-                            // Named under the picture, as an episode is: a still does not say which film it is.
-                            LandscapeCard(
-                                item,
-                                onClick = { onOpen(item) },
-                                modifier = mod,
-                                title = item.seriesTitle ?: item.title,
-                                facts = listOf(item.episodeLabel, timeLeft(item)),
-                                onFocused = focus,
-                            )
-                        } else {
-                            PosterCard(item, onClick = { onOpen(item) }, modifier = mod, onFocused = focus)
-                        }
-                    }
-                }
+private fun CaseOptions(case: CaseShows, actions: HomeActions, onDismiss: () -> Unit) {
+    val item = case.item
+    val first = remember { FocusRequester() }
+    val title = if (item.kind == MediaKind.EPISODE) item.seriesTitle ?: item.title else item.title
+    HlSideSheet(title, onDismiss, facts = listOf(item.episodeLabel ?: item.year?.toString()), initialFocus = first) { sheet ->
+        HlSettingGroup(null) {
+            HlSettingRow(
+                stringResource(R.string.home_open_title),
+                Modifier.focusRequester(first),
+                icon = HlIcons.Info,
+                onClick = { sheet.dismiss { actions.onOpenItem(item) } },
+            )
+            if (item.user.positionMs > 0) {
+                HlSettingRow(
+                    stringResource(R.string.play_from_start),
+                    icon = HlIcons.Restart,
+                    onClick = { sheet.dismiss { actions.onPlay(item, false) } },
+                )
             }
         }
-    } }
+    }
 }
 
-/** The title [id] in [sections], or the first title when it is absent. */
-internal fun selectedTitle(sections: List<HomeSection>, id: String?): MediaItem? =
-    sections.firstNotNullOfOrNull { section -> section.items.find { it.id == id } } ?: sections.firstOrNull()?.items?.firstOrNull()
-
-/** A Home row's stable key: its type and library. */
-internal val HomeSection.key: String get() = "$type-$libraryId"
-
-/** Card spacing: stills, titled below the picture, sit further apart than posters. */
-internal val HomeSection.spacing: Dp get() = if (landscape) HlSpace.l else HlSpace.m
-
-/** A Home card's key: the same title may sit in two rows. */
-internal fun cardKey(section: HomeSection, item: MediaItem) = FocusKey.within(FocusKey.section(section.key), FocusKey.item(item.id))
-
-/** The row holding what [key] names; null for the tabs, the action buttons, or a row gone. */
-internal fun sectionIndex(sections: List<HomeSection>, key: String): Int? {
-    val row = FocusKey.groups(key).lastOrNull() ?: return null
-    return sections.indexOfFirst { FocusKey.section(it.key) == row }.takeIf { it >= 0 }
-}
-
-/** Back goes up to the bar from below the first row; from the first row or the bar, it asks before leaving. */
-internal fun backGoesUp(focusedRow: Int?): Boolean = focusedRow != null && focusedRow > 0
-
-/** How long after a first Back at home's start a second one quits. */
+/** How long after a first Back at home a second one quits. */
 internal const val QUIT_WINDOW_MS = 2_500L
 
 /**
  * Back at home's start ([atStart]): a first press arms the second, which then goes through to Android and quits;
  * under the launch screen, where nothing has been seen, the first goes through. Disarmed after [QUIT_WINDOW_MS] or
- * once focus moves down ([depth] grows: -1 the bar, then the rows). Whether the line saying so shows.
+ * once focus moves ([where] changes). Whether the line saying so shows.
  */
 @Composable
-private fun quitOnSecondBack(atStart: Boolean, depth: () -> Int): Boolean {
+private fun quitOnSecondBack(atStart: Boolean, where: () -> Any?): Boolean {
     var armed by remember { mutableStateOf(false) }
     val launch = LocalLaunchScreen.current
     val dispatcher = checkNotNull(LocalOnBackPressedDispatcherOwner.current) { "No Back dispatcher" }.onBackPressedDispatcher
@@ -349,32 +473,19 @@ private fun quitOnSecondBack(atStart: Boolean, depth: () -> Int): Boolean {
         dispatcher.addCallback(lifecycle, first)
         onDispose { first.remove() }
     }
-    val currentDepth by rememberUpdatedState(depth)
+    val currentWhere by rememberUpdatedState(where)
     LaunchedEffect(armed) {
         if (!armed) return@LaunchedEffect
-        val from = currentDepth()
-        withTimeoutOrNull(QUIT_WINDOW_MS) { snapshotFlow { currentDepth() }.first { it > from } }
+        val from = currentWhere()
+        withTimeoutOrNull(QUIT_WINDOW_MS) { snapshotFlow { currentWhere() }.first { it != from } }
         armed = false
     }
     return armed
 }
 
-/** Placeholder rows in the real rows' footprint, shown once loading is slow (nothing below needs their room). */
+/** The first scan's counter; only it reads [progress]. */
 @Composable
-private fun SkeletonRows() {
-    if (!skeletonDelayPassed()) return
-    Column(Modifier.padding(start = HlSpace.safeH, top = HlSpace.xl), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-        repeat(2) {
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                repeat(8) { CardSkeleton(HlSize.poster, HlSize.POSTER_RATIO) }
-            }
-        }
-    }
-}
-
-/** The first scan's counter; [aboveRows] keeps its lines' room so rows stay put. Only it reads [progress]. */
-@Composable
-private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveRows: Boolean = false) {
+private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier) {
     val scan by progress.collectAsStateWithLifecycle()
     val tmdbIssue = scan.tmdbIssue?.toUiError()
     Column(modifier) {
@@ -382,11 +493,14 @@ private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveR
             scan.processed,
             scan.total,
             label = stringResource(R.string.home_scanning),
-            current = if (aboveRows) scan.current.orEmpty() else scan.current,
+            current = scan.current,
             lineWidth = HlLayout.readableNarrow,
         )
-        TmdbIssue(tmdbIssue, keepRoom = aboveRows)
-        scanNoteAction(tmdbIssue, aboveRows)?.let { action ->
+        if (tmdbIssue != null) {
+            Spacer(Modifier.height(HlSpace.m))
+            AttentionNote(stringResource(noteOf(tmdbIssue)), Modifier.widthIn(max = HlLayout.readableNarrow), style = Hl.type.meta)
+        }
+        scanNoteAction(tmdbIssue)?.let { action ->
             val fix = LocalErrorFix.current
             Spacer(Modifier.height(HlSpace.m))
             HlButton(stringResource(action.label), onClick = { fix(action) })
@@ -394,46 +508,21 @@ private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveR
     }
 }
 
-/** Why TMDB stopped answering, if it did; [keepRoom] lays out both notes unseen so one arriving later fits. */
-@Composable
-private fun TmdbIssue(issue: UiError?, keepRoom: Boolean) {
-    if (issue == null && !keepRoom) return
-    val width = Modifier.widthIn(max = HlLayout.readableNarrow)
-    Spacer(Modifier.height(HlSpace.m))
-    Box {
-        if (keepRoom) {
-            listOf(UiError.TMDB_KEY_REFUSED, UiError.TMDB_OFFLINE).forEach { each ->
-                AttentionNote(stringResource(noteOf(each)), width.alpha(0f).clearAndSetSemantics {}, style = Hl.type.caption)
-            }
-        }
-        issue?.let { AttentionNote(stringResource(noteOf(it)), width, style = Hl.type.caption) }
-    }
-}
-
 private fun noteOf(issue: UiError): Int =
     if (issue == UiError.TMDB_KEY_REFUSED) R.string.home_scan_tmdb_refused else R.string.home_scan_tmdb_offline
 
-/** The counter's fix for [issue] (edit a refused TMDB key), only without rows: above rows it would steal Down. */
-internal fun scanNoteAction(issue: UiError?, aboveRows: Boolean): ErrorAction? =
-    issue?.action?.takeIf { it == ErrorAction.EDIT_TMDB_KEY && !aboveRows }
+/** The counter's fix for [issue]: edit a refused TMDB key. */
+internal fun scanNoteAction(issue: UiError?): ErrorAction? = issue?.action?.takeIf { it == ErrorAction.EDIT_TMDB_KEY }
 
 /** No rows and nothing loading: the first scan, a failure, a scan that failed, or a library still empty. */
 @Composable
-private fun NoRows(
-    content: HomeContent.Message,
-    progress: StateFlow<ScanState>,
-    onReload: () -> Unit,
-    onRescan: () -> Unit,
-    onSettings: () -> Unit,
-    onAddFolder: () -> Unit,
-    modifier: Modifier,
-) {
+private fun NoRows(content: HomeContent.Message, progress: StateFlow<ScanState>, actions: HomeActions, modifier: Modifier) {
     when (content) {
         HomeContent.FirstScan -> FirstScan(progress, modifier)
-        is HomeContent.Failed -> HlErrorState(content.error, onReload, modifier, content.retrying)
+        is HomeContent.Failed -> HlErrorState(content.error, actions.onReload, modifier, content.retrying)
         HomeContent.ReadingFolders -> Unit
-        is HomeContent.ScanFailed -> ScanFailed(content.folder, content.error, onRescan, onSettings, modifier)
-        is HomeContent.NoFilms -> NoFilms(content.hasFolders, onAddFolder, onSettings, modifier)
+        is HomeContent.ScanFailed -> ScanFailed(content.folder, content.error, actions, modifier)
+        is HomeContent.NoFilms -> NoFilms(content.hasFolders, actions, modifier)
         HomeContent.ServerEmpty ->
             HlEmptyState(stringResource(R.string.empty_title), modifier, message = stringResource(R.string.empty_server))
     }
@@ -441,22 +530,22 @@ private fun NoRows(
 
 /** No films yet: an action to add the folder holding them and, with [hasFolders], a link to the folders. */
 @Composable
-private fun NoFilms(hasFolders: Boolean, onAddFolder: () -> Unit, onSettings: () -> Unit, modifier: Modifier) {
+private fun NoFilms(hasFolders: Boolean, actions: HomeActions, modifier: Modifier) {
     HlEmptyState(
         stringResource(R.string.home_empty_title),
         modifier,
         message = stringResource(R.string.home_empty_local),
         action = stringResource(R.string.add_folder),
         actionIcon = HlIcons.Add,
-        onAction = onAddFolder,
+        onAction = actions.onAddFolder,
         secondaryAction = stringResource(R.string.home_see_folders).takeIf { hasFolders },
-        onSecondaryAction = onSettings,
+        onSecondaryAction = actions.onOpenSettings,
     )
 }
 
-/** [folder] could not be read: the [error], a rescan ([onRescan]) and the folders. */
+/** [folder] could not be read: the [error], a rescan and the folders. */
 @Composable
-private fun ScanFailed(folder: SourceEntity, error: ScanError, onRescan: () -> Unit, onSettings: () -> Unit, modifier: Modifier) {
+private fun ScanFailed(folder: SourceEntity, error: ScanError, actions: HomeActions, modifier: Modifier) {
     HlEmptyState(
         stringResource(R.string.home_scan_failed),
         modifier,
@@ -464,8 +553,8 @@ private fun ScanFailed(folder: SourceEntity, error: ScanError, onRescan: () -> U
         attention = true,
         action = stringResource(R.string.retry),
         actionIcon = HlIcons.Refresh,
-        onAction = onRescan,
+        onAction = actions.onRescan,
         secondaryAction = stringResource(R.string.home_see_folders),
-        onSecondaryAction = onSettings,
+        onSecondaryAction = actions.onOpenSettings,
     )
 }

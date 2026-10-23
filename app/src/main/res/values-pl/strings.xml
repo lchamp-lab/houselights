@@ -98,6 +98,27 @@
     <string name="time_left">Pozostało %s</string>
     <string name="nav_home">Strona główna</string>
     <string name="back_again_to_quit">Naciśnij ponownie Wstecz, aby wyjść</string>
+    <string name="watch_title">Do obejrzenia</string>
+    <string name="home_news">Nowości</string>
+    <string name="home_unseen">Jeszcze nieobejrzany</string>
+    <string name="home_libraries">Biblioteki</string>
+    <string name="home_state_source">Źródło</string>
+    <string name="home_state_scan">Ostatnie skanowanie</string>
+    <string name="home_scan_running">W toku…</string>
+    <string name="home_episode">S%1$d · O%2$s</string>
+    <string name="home_open_title">Otwórz kartę</string>
+    <plurals name="home_news_week">
+        <item quantity="one">%d w tym tygodniu</item>
+        <item quantity="few">%d w tym tygodniu</item>
+        <item quantity="many">%d w tym tygodniu</item>
+        <item quantity="other">%d w tym tygodniu</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="one">%d nowy odcinek</item>
+        <item quantity="few">%d nowe odcinki</item>
+        <item quantity="many">%d nowych odcinków</item>
+        <item quantity="other">%d nowego odcinka</item>
+    </plurals>
     <string name="from_start">Od początku</string>
     <string name="part_of">Część %1$d z %2$d</string>
     <string name="parts">Części</string>

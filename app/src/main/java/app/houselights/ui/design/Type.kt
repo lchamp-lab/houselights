@@ -44,6 +44,9 @@ object HlFonts {
     val text = archivo(100f, FontWeight.Normal, FontWeight.SemiBold)
     val expanded = archivo(125f, FontWeight.SemiBold, FontWeight.Bold)
 
+    /** A count cut in posters ([HlType.figureSignature]): the poster's voice drawn tighter, its one weight. */
+    val figures = archivo(62f, FontWeight.Bold)
+
     /** Code read as written (NFO XML): fixed-width already, and a single weight on Android 9. */
     val mono = FontFamily.Monospace
 }
@@ -91,6 +94,11 @@ private val BILLING_JOIN_TRACKING = 0.02.em
 
 /** A code to type elsewhere, its letters set apart to be read from across the room. */
 private val CODE_TRACKING = 0.06.em
+
+/** A count cut in posters: its digits close, each as wide as its own shape, its lines as tall as its figures. */
+private val FIGURE_TRACKING = (-0.01).em
+private const val PROPORTIONAL = "pnum"
+private const val FIGURE_LINE = 0.74f
 
 private fun scale(
     family: FontFamily,
@@ -183,6 +191,8 @@ data class HlType(
     val billingJoin: TextStyle,
     /** A code to type elsewhere (Trakt's): [display] with its letters set apart. */
     val codeSignature: TextStyle,
+    /** A library's count on its home door, each digit cut in a poster; sized to the doors ([figureAt]). */
+    val figureSignature: TextStyle,
 )
 
 /** A name to choose, and the title over a group. */
@@ -216,7 +226,11 @@ val HouselightsType = HlType(
     billing = signature(HlFonts.condensed, FontWeight.Medium, 18, 24, CAPITALS_TRACKING, CAPITALS),
     billingJoin = signature(HlFonts.condensed, FontWeight.Normal, 14, 24, BILLING_JOIN_TRACKING),
     codeSignature = signature(HlFonts.condensed, FontWeight.Bold, 64, 72, CODE_TRACKING),
+    figureSignature = signature(HlFonts.figures, FontWeight.Bold, 120, 88, FIGURE_TRACKING, PROPORTIONAL),
 )
+
+/** [HlType.figureSignature] at [size], the one the doors share, its lines as tall as its figures. */
+fun TextStyle.figureAt(size: TextUnit): TextStyle = copy(fontSize = size, lineHeight = size * FIGURE_LINE)
 
 val LocalHlType = staticCompositionLocalOf { HouselightsType }
 

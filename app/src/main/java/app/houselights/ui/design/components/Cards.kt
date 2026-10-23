@@ -275,7 +275,8 @@ val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
 /**
  * Card artwork; [fallback] replaces it when missing or failing (NAS asleep); without one, the surface shows.
  * [picture] styles the loaded image only. Decoded at its laid out size, or at [size] (px) when given, as
- * a preload asks for it. Receding dims and desaturates it through its colour filter, not a layer.
+ * a preload asks for it, cropped about [alignment]. Receding dims and desaturates it through its colour filter, not
+ * a layer; a picture that never recedes may take a [filter] of its own.
  */
 @Composable
 fun ArtworkImage(
@@ -285,6 +286,8 @@ fun ArtworkImage(
     contentScale: ContentScale = ContentScale.Crop,
     picture: Modifier = Modifier,
     size: IntSize? = null,
+    alignment: Alignment = Alignment.Center,
+    filter: ColorFilter? = null,
     fallback: @Composable BoxScope.() -> Unit = {},
 ) {
     var failed by remember(url) { mutableStateOf(false) }
@@ -293,14 +296,14 @@ fun ArtworkImage(
         Box(modifier.receding(recede, Hl.colors.background), content = fallback)
     } else {
         val step by remember(recede) { derivedStateOf { HlFocus.recedeStep(recede()) } }
-        val filter = recedeFilters[step]
         val context = LocalContext.current
         val model = remember(url, size, context) { size?.let { artworkRequest(context, url, it.width, it.height) } ?: url }
         AsyncImage(
             model = model,
             contentDescription = description,
             contentScale = contentScale,
-            colorFilter = filter,
+            alignment = alignment,
+            colorFilter = filter ?: recedeFilters[step],
             onError = { failed = true },
             modifier = modifier.then(picture),
         )

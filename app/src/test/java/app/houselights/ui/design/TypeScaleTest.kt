@@ -26,7 +26,10 @@ class TypeScaleTest {
 
     /** Signatures set to their own measure: their size, weight and tracking are their own. */
     private val signatures: Map<String, TextStyle> = with(HouselightsType) {
-        mapOf("titleSignature" to titleSignature, "billing" to billing, "billingJoin" to billingJoin, "codeSignature" to codeSignature)
+        mapOf(
+            "titleSignature" to titleSignature, "billing" to billing, "billingJoin" to billingJoin, "codeSignature" to codeSignature,
+            "figureSignature" to figureSignature,
+        )
     }
 
     private val styles = roles + signatures

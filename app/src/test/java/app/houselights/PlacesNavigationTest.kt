@@ -16,7 +16,12 @@ import androidx.navigation.toRoute
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.ui.library.LibraryViewModel
+import app.houselights.ui.library.WallView
 import app.houselights.ui.library.Wall
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.SettleMainLooper
@@ -200,6 +205,35 @@ class PlacesNavigationTest {
         compose.runOnIdle {
             assertEquals("shows", nav.wall())
             assertTrue(nav.underIsHome())
+        }
+    }
+    /** Home's sagas door opens the films' wall over home, on its sagas alone, by its route: the wall's saved state starts with it. */
+    @Test
+    fun theSagasDoorOpensTheFilmsWallOnItsSagasByItsRoute() {
+        var wall: LibraryViewModel? = null
+        lateinit var nav: NavHostController
+        compose.setContent {
+            nav = rememberNavController()
+            NavHost(nav, startDestination = Route.Home) {
+                composable<Route.Home> {}
+                composable<Route.Library> {
+                    // As the app makes it: its saved state from the route's arguments.
+                    wall = viewModel(
+                        factory = viewModelFactory {
+                            initializer { LibraryViewModel({ source }, libraries[0], createSavedStateHandle(), sagas = libraries[2]) }
+                        },
+                    )
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.runOnIdle { nav.openSagas(libraries[0], libraries[2]) }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            val route = checkNotNull(nav.currentBackStackEntry).toRoute<Route.Library>()
+            assertEquals("films" to "sagas", route.id to route.sagas)
+            assertTrue("a place of the bar, over home", route.place && nav.underIsHome())
+            assertEquals(WallView.SAGAS, checkNotNull(wall).state.value.view)
         }
     }
 }

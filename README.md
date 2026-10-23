@@ -40,9 +40,12 @@ gratuite, l’application est entièrement en français. [Installer](#install)
 - **A 10-foot interface built for the living room**: full-screen backdrops, clear logos, poster rows and
   walls, detail pages with cast, seasons and episodes, in 4K60 where the device allows it. Built with Jetpack
   Compose for TV on its own design system ([DESIGN.md](DESIGN.md)).
-  - One bar of places, Home · Movies · TV shows (or a Jellyfin server's libraries), on home and on each wall;
-    it slides away once you browse the posters. A place opens on OK, Back climbs to the bar, then home, and
-    asks once more before leaving the app.
+  - Home is a grid of doors: the title you were watching to resume in one OK (or a film not seen yet), the next
+    episode and what is new, a door per library with its number of titles cut in its posters, the sagas, search
+    and the app's state. The rows of what to watch are one door away. Back on home asks once more before leaving
+    the app.
+  - Each wall keeps a bar of places, Movies · TV shows (or a Jellyfin server's libraries); it slides away once you
+    browse the posters. A place opens on OK, Back climbs to the bar, then home.
 - **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
   details from TMDB.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;

@@ -38,18 +38,13 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import app.houselights.ui.design.GradationMark
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlNavBarDefaults
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.tryRequestFocus
 import kotlin.math.roundToInt
@@ -82,25 +77,10 @@ fun HlNavBar(
             HlSegmented(places, current, onPlace, track.padding(end = HlSpace.l), scrollable = true)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
-            if (status != null) BarStatus(status)
+            if (status != null) PassingStatus(status)
             tiles()
         }
     } } }
-}
-
-/** A passing line in the bar, quiet, on a tile label's plate since the picture may be white there; read out as it comes. */
-@Composable
-private fun BarStatus(text: String) {
-    val c = Hl.colors
-    val light = LocalAmbient.current
-    HlStatus(
-        StatusState.Pending,
-        text,
-        Modifier
-            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }
-            .labelPlate(c, light)
-            .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
-    )
 }
 
 /** Whether the bar over a wall shows, and the way to bring it back with focus on it ([reveal]). */

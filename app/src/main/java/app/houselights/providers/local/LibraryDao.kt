@@ -331,6 +331,13 @@ interface LibraryDao {
     @Query("SELECT COUNT(*) FROM items WHERE kind = :kind")
     suspend fun count(kind: ItemKind): Int
 
+    /** Episodes added since [since], not watched, found after their folder's first scan, as a title counts as new. */
+    @Query(
+        "SELECT COUNT(*) FROM items WHERE kind = 'EPISODE' AND played = 0 AND addedAt >= :since " +
+            "AND addedAt > (SELECT firstScanAt FROM sources WHERE sources.id = items.sourceId AND firstScanAt > 0)"
+    )
+    suspend fun newEpisodes(since: Long): Int
+
     /** Each title's genres, with the lower() form the genre filter compares against ([PipeList.distinctGenres]). */
     @Query("SELECT genres, lower(genres) AS folded FROM items WHERE kind = :kind AND genres != ''")
     suspend fun genresOf(kind: ItemKind): List<GenreList>

@@ -112,7 +112,6 @@ class DesignTokenGuardTest {
         "design/components/Meta.kt" to "a case back's names beside its formats",
         "design/components/Picker.kt" to "an artwork choice's facts under its name",
         "design/components/ScanProgress.kt" to "the file under a counter's label",
-        "home/HomeScreen.kt" to "TMDB's note in home's hero band, whose room is counted",
     )
 
     /** What is read keeps to 16 sp: `caption` only where [captions] says. */
@@ -132,6 +131,7 @@ class DesignTokenGuardTest {
         "settings/SettingsScreen.kt" to "Réglages",
         "search/SearchScreen.kt" to "Rechercher",
         "person/PersonScreen.kt" to "a person",
+        "home/WatchScreen.kt" to "À regarder, home's rows",
     )
 
     /** Ember says where you are: only a place lights its title, never a task, a form or a film. */

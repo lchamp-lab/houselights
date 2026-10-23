@@ -62,16 +62,21 @@ sealed interface HomeContent {
     data object ServerEmpty : Message
 }
 
-/** Home: the tabs' libraries, and what shows under them. */
+/** Home: the source's libraries, what shows (the grid's rows, or a message), its doors and the app's state. */
 data class HomeState(
     val libraries: List<Library> = emptyList(),
     val content: HomeContent = HomeContent.Loading(firstScan = false),
+    val doors: HomeDoors? = null,
+    val status: HomeStatus? = null,
 ) {
     /** The tabs: every library except the sagas, which a films' wall shows among its films ([sagas]). */
     val tabs: List<Library> get() = libraries.filter { it.kind != LibraryKind.COLLECTIONS }
 
     /** The source's sagas, if it has any: a films' wall shows them among its films, or alone. */
     val sagas: Library? get() = libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
+
+    /** The first films library, whose wall the sagas door opens on its sagas alone. */
+    val films: Library? get() = tabs.firstOrNull { it.kind == LibraryKind.MOVIES }
 }
 
 /** The source's last result for Home, kept while reloading so an intertitle and its focused button stay. */
@@ -82,6 +87,29 @@ internal data class HomeLoad(
     val sections: List<HomeSection> = emptyList(),
     /** The library's own rows below them ([LibraryRows]), once computed. */
     val drawn: List<HomeSection> = emptyList(),
+    /** What the doors show beyond the rows, once read; kept while reloading. */
+    val doors: HomeDoors? = null,
+)
+
+/** Where home's settings door says the library comes from. */
+sealed interface StatusSource {
+    /** The folders, by their servers' names. */
+    data class Folders(val hosts: List<String>, val count: Int) : StatusSource
+
+    /** A media server, by its name when it gave one. */
+    data class Server(val name: String?) : StatusSource
+}
+
+/**
+ * The app's state as home's settings door states it: the [source], whether a Trakt account follows it ([trakt], null
+ * where Trakt does not follow this source), when the folders were last scanned ([scannedAt], 0 never, null on a
+ * server) and whether a scan runs ([scanning]; the door alone reads its progress).
+ */
+data class HomeStatus(
+    val source: StatusSource,
+    val trakt: Boolean? = null,
+    val scannedAt: Long? = null,
+    val scanning: Boolean = false,
 )
 
 /**
@@ -102,6 +130,10 @@ class HomeViewModel(
     private val afterLaunch: suspend () -> Unit = {},
     /** Home's rows as they are shown ([RoomPosters.shown]). */
     private val shown: (List<HomeSection>) -> Unit = {},
+    /** The film the case proposes when nothing is in progress, kept all session. */
+    private val pick: UnseenPick = UnseenPick(),
+    /** Whether this build reaches Trakt at all. */
+    private val traktAvailable: Boolean = false,
 ) : ViewModel() {
     private val load = MutableStateFlow(HomeLoad())
     private val loads = LatestJob(viewModelScope)
@@ -111,7 +143,12 @@ class HomeViewModel(
     private val folderList: StateFlow<List<SourceEntity>?> = folders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     val state: StateFlow<HomeState> = combine(load, scan, folderList, settings) { loaded, progress, list, current ->
-        HomeState(loaded.libraries, homeContent(loaded, progress, list, local = current.source == SourceConfig.Local))
+        HomeState(
+            loaded.libraries,
+            homeContent(loaded, progress, list, local = current.source == SourceConfig.Local),
+            loaded.doors,
+            homeStatus(current, list, progress, traktAvailable),
+        )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(STOP_AFTER_MS),
@@ -131,16 +168,26 @@ class HomeViewModel(
         if (load.value.sections.isEmpty() && load.value.error != null) load.update { it.copy(loading = true) }
         loads.launch {
             suspendRunCatching {
-                launched()?.let { it.libraries to it.sections } ?: provider().let { source -> source.libraries() to source.home() }
-            }.onSuccess { (libraries, sections) ->
-                load.update { HomeLoad(loading = false, libraries = libraries, sections = sections, drawn = it.drawn) }
-                shown(sections)
+                launched() ?: provider().let { source -> HomeRows(source.libraries(), source.home()) }
+            }.onSuccess { rows ->
+                load.update { last ->
+                    HomeLoad(false, null, rows.libraries, rows.sections, drawn = last.drawn, doors = rows.doors ?: last.doors)
+                }
+                shown(rows.sections)
+                if (rows.doors == null) loadDoors(rows)
                 drawLibraryRows()
             }.onFailure { e ->
                 val error = e.reported(TAG, "Home")
                 load.update { it.copy(loading = false, error = error) }
             }
         }
+    }
+
+    /** Reads the doors of [rows]' libraries; a part that fails is left out, the rows stay. */
+    private suspend fun loadDoors(rows: HomeRows) {
+        val doors = suspendRunCatching { readDoors(provider(), rows.libraries, rows.sections, pick) }
+            .onFailure { Log.w(TAG, "Doors", it) }.getOrNull() ?: return
+        load.update { it.copy(doors = doors) }
     }
 
     /** Reloads after a library change, recomputing the library's rows along with Home's own. */
@@ -176,6 +223,8 @@ class HomeViewModel(
                     libraryRows = app.libraryRows,
                     afterLaunch = { app.launch.awaitOpen() },
                     shown = { app.roomPosters.shown(app.settings.state.value.source, it) },
+                    pick = app.unseenPick,
+                    traktAvailable = app.trakt.available,
                 )
             }
         }
@@ -201,6 +250,19 @@ internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<SourceEn
         else -> HomeContent.ServerEmpty
     }
 }
+
+/** What home's settings door states from [settings], the [folders] (null until read) and the [scan]. */
+internal fun homeStatus(settings: AppSettings, folders: List<SourceEntity>?, scan: ScanState, traktAvailable: Boolean): HomeStatus? =
+    when (val source = settings.source) {
+        null -> null
+        SourceConfig.Local -> HomeStatus(
+            StatusSource.Folders(folders.orEmpty().map { it.host }.distinct(), folders.orEmpty().size),
+            trakt = (settings.trakt?.ended == false).takeIf { traktAvailable },
+            scannedAt = folders?.maxOfOrNull { it.lastScanAt } ?: 0L,
+            scanning = scan.running,
+        )
+        is SourceConfig.Jellyfin -> HomeStatus(StatusSource.Server(source.serverName))
+    }
 
 /** A folder's first scan, or any scan while Home has nothing to show. */
 internal fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEntity>?): Boolean =
