@@ -30,7 +30,9 @@ class LanguagesTest {
             .forEach { assertEquals(it, "fr", Languages.named(it)) }
         assertEquals("pt", Languages.named("Film.pt-BR.hi.srt"))
         assertEquals("en", Languages.named("Film.eng.default.srt"))
-        listOf("Film (2020).srt", "Désactivé", "Spider-Man.srt", "", null).forEach { assertNull(it, Languages.named(it)) }
+        assertEquals("fr", Languages.named("French(FR [PGS]) PGS"))
+        listOf("Film (2020).srt", "Désactivé", "Spider-Man.srt", "Film.VO.srt", "Film VOSTFR", "", null)
+            .forEach { assertNull(it, Languages.named(it)) }
     }
 
     @Test

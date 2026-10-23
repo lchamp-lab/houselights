@@ -59,6 +59,15 @@ class ZidooStatusTest {
         assertEquals(PlayerTrack(4, "fr", forced = true), subtitles.last())
     }
 
+    /** "Forcé" is read in capitals and as a Mac writes it, its accent apart. */
+    @Test
+    fun forcedIsReadHoweverItIsWritten() {
+        listOf("Film.fr.FORCÉ.srt", "Film.fr.force\u0301.srt", "Film.fr.Forced.srt").forEach { name ->
+            val body = """{"status":200,"currentIndex":0,"subtitles":[{"title":"$name","laungaue":"","index":1}]}"""
+            assertEquals(name, PlayerTrack(1, "fr", forced = true), checkNotNull(ZidooStatus.parseTracks(body)).second.single())
+        }
+    }
+
     /** One list the player did not give leaves the other, which can still be checked. */
     @Test
     fun eachListIsReadOnItsOwn() {

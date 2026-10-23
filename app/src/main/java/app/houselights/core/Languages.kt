@@ -54,6 +54,7 @@ object Languages {
     /** What a subtitle file's name ends with besides its language: its kind, its format, the player's own words. */
     private val NOT_A_LANGUAGE = setOf(
         "forced", "force", "forces", "sdh", "hi", "cc", "full", "complet", "default", "external", "internal",
-        "srt", "ass", "ssa", "sub", "sup", "idx", "vtt", "smi", "txt", "subs", "subtitles",
+        "srt", "ass", "ssa", "sub", "sup", "idx", "vtt", "smi", "txt", "subs", "subtitles", "pgs", "vobsub", "dvdsub",
+        "vo", "vf", "vff", "vfq", "vost", "vostfr",
     )
 }

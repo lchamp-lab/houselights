@@ -16,6 +16,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import okhttp3.Request
+import java.text.Normalizer
 import java.util.concurrent.TimeUnit
 
 /** Native player state, read from the Zidoo local control API (port 9529). */
@@ -143,7 +144,8 @@ object ZidooStatus {
 
     private fun track(entry: JsonObject): PlayerTrack? {
         val index = entry["index"]?.jsonPrimitive?.intOrNull ?: return null
-        val title = (entry["title"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+        // A name written on a Mac comes decomposed ("forcé" as "force" and its accent).
+        val title = Normalizer.normalize((entry["title"] as? JsonPrimitive)?.contentOrNull.orEmpty(), Normalizer.Form.NFC)
         // The API's own spelling.
         val language = (entry["laungaue"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null } ?: Languages.named(title)
         return PlayerTrack(index, language, forced = FORCED.containsMatchIn(title), hearingImpaired = SDH.containsMatchIn(title))
