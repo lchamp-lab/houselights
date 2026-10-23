@@ -48,10 +48,15 @@ class PlaybackManager(
         var key: String? = null,
         /** The player a secret goes to, remembered only once it has started ([onPlayerLaunched]). */
         val trusting: ZidooPlayer.Choice? = null,
+        /** The URI launched, then the part followed: the player's result is read against it if no status named the file. */
+        var file: String? = null,
     ) {
         /** The length of the title, from the player's first status (see [follow]). */
         var durationMs: Long? = null
         var paused = false
+
+        /** The file as the player names it in its first status that does, then the part followed (see [follow]). */
+        var path: String? = null
 
         /** The player moved on to another file: its statuses no longer concern this title. */
         var switched = false
@@ -106,7 +111,7 @@ class PlaybackManager(
             else -> anyPlayerIntent(plan, chooser = secret)
         }
         val trusting = choice.takeIf { secret && intent.component != null }
-        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting)
+        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting, file = plan.uri)
         // Pending apply() writes complete before our activity stops, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
         return intent
@@ -230,13 +235,13 @@ class PlaybackManager(
     }
 
     /**
-     * Applies a player status. Another length means another file (the next in its folder, at the end or on
-     * "next"), followed if it is the title's next part ([nextPart]). Only a disc changes length within a
-     * title, its film following a menu or intro, unless a title had played to its end and the menu returned.
+     * Applies a player status. Another file ([anotherFile]: the next in its folder, at the end or on "next") is
+     * followed if it is the title's next part ([nextPart]). Only a disc changes length within a title, its film
+     * following a menu or intro, unless a title had played to its end and the menu returned.
      */
     private suspend fun follow(s: Session, state: ZidooPlayState) {
         val launched = s.durationMs
-        if (launched != null && abs(state.durationMs - launched) > maxOf(SAME_FILE_MS, launched / SAME_FILE_SHARE)) {
+        if (launched != null && s.anotherFile(state, launched)) {
             val titleEnded = launched >= TITLE_MIN_MS && s.positionMs >= launched - END_POLLS * POLL_MS
             if (!s.disc || titleEnded) {
                 val next = s.nextPart(state, titleEnded)
@@ -248,6 +253,8 @@ class PlaybackManager(
                 Log.i(TAG, "The player went on to the title's next part ($launched -> ${state.durationMs} ms)")
                 s.reporter = next.reporter
                 s.key = next.resumeKey
+                s.path = state.path
+                s.file = next.path
                 // So a new process receiving the result reports this part; skipped once the result ended the session.
                 if (session === s) saved.edit().putString(KEY_RESUME, next.resumeKey).apply()
             } else {
@@ -257,6 +264,23 @@ class PlaybackManager(
         s.positionMs = state.positionMs
         s.durationMs = state.durationMs
         s.paused = state.paused
+        if (s.path == null) s.path = state.path
+    }
+
+    /**
+     * Whether [state] is another file than the one followed, [launched] long: of another length, or named
+     * otherwise. Unnamed, a file as long that starts over right after the end is the folder's next one. A disc
+     * changes title and length while it stays the same disc: only its length counts (see [follow]).
+     */
+    private fun Session.anotherFile(state: ZidooPlayState, launched: Long): Boolean {
+        if (abs(state.durationMs - launched) > maxOf(SAME_FILE_MS, launched / SAME_FILE_SHARE)) return true
+        val followed = path
+        val played = state.path
+        return when {
+            disc -> false
+            followed != null && played != null -> !names(played, followed)
+            else -> positionMs >= launched - END_POLLS * POLL_MS && state.positionMs < minOf(positionMs, RESTART_MS)
+        }
     }
 
     /**
@@ -269,11 +293,19 @@ class PlaybackManager(
         return next.takeIf { if (played != null) names(played, next.path) else ended && !disc }
     }
 
-    /** Whether the player's [path] names the file at [relativePath], escaped or not, whatever its mount. */
-    private fun names(path: String, relativePath: String): Boolean {
-        val name = relativePath.substringAfterLast('/')
+    /** Whether the player's [path] names the file at [other], either escaped or not, whatever their mounts. */
+    private fun names(path: String, other: String): Boolean {
+        val name = other.substringAfterLast('/')
         val played = path.substringAfterLast('/')
-        return played.equals(name, ignoreCase = true) || Uri.decode(played).equals(name, ignoreCase = true)
+        val decoded = Uri.decode(played)
+        return played.equals(name, ignoreCase = true) || decoded.equals(name, ignoreCase = true) ||
+            decoded.equals(Uri.decode(name), ignoreCase = true)
+    }
+
+    /** Whether the player ended on [played], another file than the one followed; a disc's is not compared. */
+    private fun Session.endedElsewhere(played: String?): Boolean {
+        val followed = (path ?: file)?.takeUnless { disc }
+        return played != null && followed != null && !names(played, followed)
     }
 
     /** Persists the session's position for a new process if Android kills this one (see [saved]). */
@@ -293,6 +325,8 @@ class PlaybackManager(
         val poll = pollJob
         pollJob = null
         val returned = data?.getIntExtra("position", -1) ?: -1
+        // The file the player played last: empty when none, another when it went on to the folder's next file.
+        val played = data?.getStringExtra("url")?.ifBlank { null }
         scope.launch {
             // The last progress report and the "started" report finish before the final one is sent.
             poll?.cancelAndJoin()
@@ -300,7 +334,7 @@ class PlaybackManager(
             // No live session: the app was stopped while the film played.
             val s = live ?: Session(resumeKey?.let { reporterFor(it) }, savedPosition, key = resumeKey)
             // A position the player returns for another file is not this title's.
-            if (returned > 0 && !s.switched) s.positionMs = returned.toLong()
+            if (returned > 0 && !s.switched && !s.endedElsewhere(played)) s.positionMs = returned.toLong()
             Log.i(TAG, "Playback ended at ${s.positionMs} / ${s.durationMs} ms")
             report(s, "stopped") { s.reporter?.stopped(s.positionMs, s.durationMs) }
             _playbackEnded.emit(Unit)
@@ -348,8 +382,11 @@ class PlaybackManager(
          */
         private const val UNHEARD_MAX_MS = 4 * 60 * 60_000L
 
-        /** Within this many polls of its end, a disc title that changes length has played out to its menu. */
+        /** Within this many polls of its end, a title has played out: to a disc's menu, or to the folder's next file. */
         private const val END_POLLS = 3
+
+        /** Back within this of the start right after the end, a file the player does not name is the next one. */
+        private const val RESTART_MS = 30_000L
 
         /** Shorter than this, what a disc plays first is its menu or an intro, never its title. */
         private const val TITLE_MIN_MS = 5 * 60_000L
