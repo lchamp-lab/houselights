@@ -95,6 +95,7 @@
     <string name="resume">Wznów</string>
     <string name="time_left">Pozostało %s</string>
     <string name="nav_home">Strona główna</string>
+    <string name="back_again_to_quit">Naciśnij ponownie Wstecz, aby wyjść</string>
     <string name="from_start">Od początku</string>
     <string name="part_of">Część %1$d z %2$d</string>
     <string name="parts">Części</string>

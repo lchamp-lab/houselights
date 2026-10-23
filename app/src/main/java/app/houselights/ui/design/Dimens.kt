@@ -92,7 +92,7 @@ object HlSize {
     /** A button on a detail page; [controlCompact] in a screen's header. */
     val control = 48.dp
     val controlCompact = 44.dp
-    /** A square icon button; [tileCompact] in a screen's header and home's bar. */
+    /** A square icon button; [tileCompact] in a screen's header and the bar. */
     val tile = 48.dp
     val tileCompact = 40.dp
     val icon = 20.dp
@@ -164,7 +164,7 @@ object HlSize {
      */
     val galleryWide = 244.dp
     const val LOGO_BOX_RATIO = 244f / 85f
-    /** Gradation as home's place in its bar, as tall as its words' capitals. */
+    /** Gradation signing the bar, as tall as its words' capitals. */
     val barMark = 18.dp
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
     val focusBorder = 2.dp
@@ -292,6 +292,15 @@ internal object HlIconButtonDefaults {
 
     /** Closest the label may come to a screen side: past the safe area, so an edge button keeps it centred. */
     val labelEdge = HlSpace.l
+}
+
+/** The bar of places ([app.houselights.ui.design.components.HlNavBar]) and a wall under it. */
+internal object HlNavBarDefaults {
+    /** From Gradation to the first place's word: its plate stands [HlSpace.xl] off the mark. */
+    val markGap = HlSpace.xl + HlControl.tabPaddingH
+
+    /** How much lower a wall lies under the open bar: the bar, then the gap above the wall's header. */
+    val fold = HlSize.tileCompact + HlSpace.s
 }
 
 /** Menus anchored to a button (sort); their height is the room the screen leaves them. */

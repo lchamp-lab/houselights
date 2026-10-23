@@ -27,7 +27,6 @@ import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.HlIconButtonDefaults
-import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
@@ -36,8 +35,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlIconButton
-import app.houselights.ui.design.components.HlSegmented
-import app.houselights.ui.design.components.HeaderControls
+import app.houselights.ui.design.components.HlNavBar
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.textRoom
@@ -62,10 +60,14 @@ internal fun LazyListScope.catalogStress() {
 
 @Composable
 private fun StressTopBarSection() {
-    Group("Home top bar on the brightest image") {
+    Group("The bar on the brightest image") {
         Column {
             StressTopBar(STRESS_LIBRARIES)
             StressCaption("Nine libraries with long names")
+        }
+        Column {
+            StressTopBar(STRESS_LIBRARIES, status = stringResource(R.string.back_again_to_quit))
+            StressCaption("Nine libraries and Back once on home: the places scroll beside the line")
         }
         Column {
             StressTopBar(listOf(stringResource(R.string.library_movies), stringResource(R.string.library_shows), "Documentaires"))
@@ -180,27 +182,19 @@ private fun StressDeviceSection() {
     }
 }
 
-/** The home top bar as HomeScreen composes it, on projector white, the lightest backdrop a film can bring. */
+/** The bar as home composes it, on projector white, the lightest backdrop a film can bring. */
 @Composable
-private fun StressTopBar(libraries: List<String>) = OnArtwork { HeaderControls {
-    Row(
+private fun StressTopBar(libraries: List<String>, status: String? = null) {
+    var current by remember { mutableIntStateOf(0) }
+    HlNavBar(
+        listOf(stringResource(R.string.nav_home)) + libraries,
+        current,
+        onPlace = { current = it },
         // The label of the settings button shows on the image, under the bar, as it does at home.
         Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlIconButtonDefaults.labelRoom),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        var current by remember { mutableIntStateOf(0) }
-        HlSegmented(
-            options = listOf(stringResource(R.string.nav_home)) + libraries,
-            selected = current,
-            onSelect = { current = it },
-            modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l),
-            scrollable = true,
-            markFirst = true,
-        )
-        HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = {})
-    }
-} }
+        status = status,
+    ) { HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = {}) }
+}
 
 /** The line naming the focused title above the library's wall, at the height LibraryScreen gives it. */
 @Composable

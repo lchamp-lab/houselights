@@ -88,6 +88,7 @@
     <string name="resume">Reprendre</string>
     <string name="time_left">Il reste %s</string>
     <string name="nav_home">Accueil</string>
+    <string name="back_again_to_quit">Appuyez encore sur Retour pour quitter</string>
     <string name="from_start">Depuis le début</string>
     <string name="part_of">Partie %1$d/%2$d</string>
     <string name="parts">Parties</string>

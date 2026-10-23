@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import android.util.Log
@@ -116,6 +117,10 @@ class HomeViewModel(
         SharingStarted.WhileSubscribed(STOP_AFTER_MS),
         HomeState(content = homeContent(load.value, scan.value, folders = null, local = settings.value.source == SourceConfig.Local)),
     )
+
+    /** The source's libraries as last read: the places of the bar over a wall. */
+    val libraries: StateFlow<List<Library>> =
+        load.map { it.libraries }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), load.value.libraries)
 
     init {
         load()

@@ -96,6 +96,8 @@
     <string name="resume">Resume</string>
     <string name="time_left">%s left</string>
     <string name="nav_home">Home</string>
+    <!-- Said in home's bar after a first Back; a second within moments leaves the app. -->
+    <string name="back_again_to_quit">Press Back again to quit</string>
     <string name="from_start">From the beginning</string>
     <!-- A film in several files: the part a button plays, then how many there are. -->
     <string name="part_of">Part %1$d of %2$d</string>

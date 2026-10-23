@@ -40,7 +40,7 @@ internal fun MacrobenchmarkScope.browseLibrary() {
     down()
     left(2)
     down()
-    // Back to the first poster, then home.
+    // Back to the bar, then home.
     back(2)
 }
 

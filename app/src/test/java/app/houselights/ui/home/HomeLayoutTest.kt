@@ -29,11 +29,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /** Home's bands on the TV canvas: the first row, a focused poster's frame included, stays inside the safe area. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class HomeLayoutTest {
+
     @get:Rule
     val compose = createComposeRule()
 
@@ -50,17 +52,23 @@ class HomeLayoutTest {
     /** Where a row's cards start: its header in the poster's voice and the room kept above a framed card. */
     private val cardsTop = rowsTop + sp(HouselightsType.rowTitle.lineHeight.value) + HlSpace.xxs + HlFocus.room
 
-    /** The bar as composed, Gradation, words and tiles, at the default text size and at the largest. */
+    /** The bar as composed, Gradation, words and tiles, then with Back's line, at the default text size and at the largest. */
     @Test
+    // Real fonts: Back's line is the one part of the bar its text sizes.
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun theBarIsAsTallAsACompactTile() {
         val libraries = listOf(Library("1", LibraryKind.MOVIES, "Films"), Library("2", LibraryKind.SHOWS, "Séries"))
+        val places = Places(libraries, null, { _, _ -> }, onSettings = {}, onSearch = {})
+        val statuses = listOf(null, "Appuyez encore sur Retour pour quitter")
         compose.setContent {
             Column {
                 listOf(1f, LARGEST).forEach { scale ->
                     CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
                         HouselightsTheme {
-                            Box(Modifier.testTag("bar at $scale")) {
-                                TopBar(libraries, FocusMemory(), null, {}, {}, onSettings = {}, intoRows = { null }, onSearch = {})
+                            statuses.forEach { status ->
+                                Box(Modifier.testTag("bar at $scale, $status")) {
+                                    PlacesBar(places, here = null, FocusMemory(), down = { null }, status = status)
+                                }
                             }
                         }
                     }
@@ -68,7 +76,7 @@ class HomeLayoutTest {
             }
         }
         listOf(1f, LARGEST).forEach { scale ->
-            compose.onNodeWithTag("bar at $scale").assertHeightIsEqualTo(HlSpace.safeV + bar)
+            statuses.forEach { status -> compose.onNodeWithTag("bar at $scale, $status").assertHeightIsEqualTo(HlSpace.safeV + bar) }
         }
     }
 

@@ -89,6 +89,7 @@
     <string name="resume">Fortsetzen</string>
     <string name="time_left">Noch %s</string>
     <string name="nav_home">Startseite</string>
+    <string name="back_again_to_quit">Drücken Sie erneut Zurück, um zu beenden</string>
     <string name="from_start">Von Anfang an</string>
     <string name="part_of">Teil %1$d von %2$d</string>
     <string name="parts">Teile</string>

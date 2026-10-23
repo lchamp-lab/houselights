@@ -1,7 +1,9 @@
 package app.houselights.ui.home
 
+import androidx.compose.runtime.remember
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
@@ -13,16 +15,19 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
+import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** DESIGN.md, Focus: down from home's bar, focus enters the first row on its last card, else its first. */
+/** DESIGN.md, Focus: up from the first row, the bar on the current place; down from it, the first row on its last card, else its first. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class HomeBarFocusTest {
@@ -64,6 +69,54 @@ class HomeBarFocusTest {
         compose.onNode(isFocused()).assert(hasContentDescription("Settings"))
     }
 
+    /** Up from anywhere on the first row: the bar, on the current place, home; Left from it stays there. */
+    @Test
+    fun upFromTheFirstRowLandsOnTheCurrentPlace() {
+        open()
+        compose.waitForIdle()
+        compose.press(Key.DirectionRight, times = 4)
+        focusIsOn("Film 5")
+        compose.press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Home")).assertIsSelected()
+        compose.press(Key.DirectionLeft)
+        compose.onNode(isFocused()).assert(hasText("Home"))
+    }
+
+    /** A place opens on OK: focus passing over Home and the libraries neither prefetches nor opens one. */
+    @Test
+    fun aPlaceOpensOnOkNeverAsFocusPasses() {
+        val ahead = mutableListOf<String>()
+        val opened = mutableListOf<String>()
+        compose.setContent {
+            HouselightsTheme {
+                HomeBands(
+                    home,
+                    remember { MutableStateFlow(ScanState()) },
+                    onOpenItem = {},
+                    onOpenLibrary = { library, _ -> opened += library.id },
+                    onOpenSettings = {},
+                    onAddFolder = {},
+                    onReload = {},
+                    onRescan = {},
+                    onLibraryAhead = { ahead += it.id },
+                )
+            }
+        }
+        compose.waitForIdle()
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight, times = 2)
+        focusIsOn("TV shows")
+        compose.press(Key.DirectionLeft, times = 2)
+        compose.press(Key.DirectionRight, times = 2)
+        focusIsOn("TV shows")
+        assertEquals(emptyList<String>(), ahead)
+        assertEquals(emptyList<String>(), opened)
+
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf("shows"), ahead)
+        assertEquals(listOf("shows"), opened)
+    }
+
     @Test
     fun downFromTheSettingsButtonComesBackToTheCardTheRowHad() {
         open()
@@ -83,7 +136,7 @@ class HomeBarFocusTest {
         backFromTheSettings()
         // From the tabs: the track, on its current tab, then the row under it.
         compose.press(Key.DirectionLeft)
-        compose.onNode(isFocused()).assert(hasContentDescription("Home"))
+        compose.onNode(isFocused()).assert(hasText("Home"))
         compose.press(Key.DirectionDown)
         focusIsOn("Film 1")
 

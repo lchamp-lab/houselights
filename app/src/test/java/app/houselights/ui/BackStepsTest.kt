@@ -11,12 +11,13 @@ import org.junit.Test
 class BackStepsTest {
 
     @Test
-    fun homeGoesUpToTheTabsFromBelowTheFirstRow() {
+    fun homeGoesUpToTheBarFromBelowTheFirstRow() {
         assertTrue(backGoesUp(focusedRow = 2))
-        assertFalse("the first row: Back leaves", backGoesUp(focusedRow = 0))
-        assertFalse("the tabs or the settings button: Back leaves", backGoesUp(focusedRow = null))
+        assertFalse("the first row: Back asks before leaving (QuitAgainTest)", backGoesUp(focusedRow = 0))
+        assertFalse("the bar: Back asks before leaving", backGoesUp(focusedRow = null))
     }
 
+    /** A wall opened filtered, without the bar; under the bar, Back goes to it (BarFoldTest). */
     @Test
     fun theWallReturnsToItsFirstPosterFromPastTheFirstLine() {
         assertFalse(backReturnsToFirst(focusedIndex = 0))

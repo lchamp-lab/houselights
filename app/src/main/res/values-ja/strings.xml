@@ -86,6 +86,7 @@
     <string name="resume">続きから再生</string>
     <string name="time_left">残り%s</string>
     <string name="nav_home">ホーム</string>
+    <string name="back_again_to_quit">もう一度戻るボタンを押すと終了します</string>
     <string name="from_start">最初から再生</string>
     <string name="part_of">パート%1$d/%2$d</string>
     <string name="parts">パート</string>

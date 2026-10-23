@@ -144,8 +144,8 @@ class ContrastTest {
         ("emberFrom" on "VEIL on a white image").mark(), ("emberTo" on "VEIL on a white image").mark(),
         // The main action's words and icon on the ember light, at both ends and in its middle.
         "onEmber" on "emberFrom", "onEmber" on "ember", "onEmber" on "emberTo",
-        // What stays lit on a focused plate: a chosen check, the current place's dot, home's Gradation, a scan's line
-        // (on the plate itself, with no track).
+        // What stays lit on a focused plate: a chosen check, the current place's dot, a scan's line (on the plate
+        // itself, with no track).
         ("emberOnLight" on "focus").mark(),
         // On a picture's own dark: a title's words, the quietest, and the place in ember.
         "content" on "ambientDeep", "contentSecondary" on "ambientDeep", "contentTertiary" on "ambientDeep",
@@ -153,12 +153,13 @@ class ContrastTest {
         // A state's light: pending, and the ring of off, on the room, in a sheet and in a busy button.
         ("contentTertiary" on "background").mark(), ("contentTertiary" on "glass").mark(),
         ("contentTertiary" on "FILL").mark(),
-        // A control's plate over a picture: its words, its detail, its words disabled or a tile's hint, a chosen glyph, a lit value.
+        // A control's plate over a picture: its words, its detail, its words disabled or a tile's hint, a chosen glyph, a lit value;
+        // the bar's passing line and its quiet dot, on a tile label's plate.
         "content" on "plate on the veil's floor on a white image", "contentSecondary" on "plate on the veil's floor on a white image",
         "contentTertiary" on "plate on the veil's floor on a white image",
         ("ember" on "plate on the veil's floor on a white image").mark(),
         "emberFrom" on "plate on the veil's floor on a white image", "emberTo" on "plate on the veil's floor on a white image",
-        // Words in the ember light: a screen's title, a value chosen on a glass plate, and the place in home's bar,
+        // Words in the ember light: a screen's title, a value chosen on a glass plate, and the place in the bar,
         // where the top and left veils meet at the picture's own dark.
         "emberFrom" on "background", "emberTo" on "background", "emberFrom" on "glass", "emberTo" on "glass",
         "emberFrom" on "ambientDeep",

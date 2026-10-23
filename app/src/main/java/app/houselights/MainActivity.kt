@@ -56,6 +56,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import app.houselights.core.Library
+import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.PlaybackOptions
@@ -86,6 +87,12 @@ import app.houselights.ui.detail.DetailScreen
 import app.houselights.ui.edit.ArtworkScreen
 import app.houselights.ui.edit.IdentifyScreen
 import app.houselights.ui.home.HomeScreen
+import app.houselights.ui.home.HomeState
+import app.houselights.ui.home.HomeViewModel
+import app.houselights.ui.home.Places
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import app.houselights.ui.library.LibraryScreen
 import app.houselights.ui.onboarding.AddFolderScreen
 import app.houselights.ui.onboarding.JellyfinLoginScreen
@@ -374,8 +381,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     val start: Any = remember { if (settings.source != null) Route.Home else Route.Welcome }
 
     fun openItem(id: String) = nav.navigate(Route.Item(id))
-    fun openLibrary(library: Library, sagas: Library? = null) =
-        nav.navigate(Route.Library(library.id, library.kind, library.title, sagas = sagas?.id))
+    fun openLibrary(library: Library, sagas: Library? = null) = nav.openPlace(library, sagas)
     fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
 
     // Why choosing folders on the welcome screen failed (storage refused it), shown there until it is left.
@@ -451,6 +457,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                     opensOn = route.filter,
                     personName = route.personName,
                     sagas = route.sagas?.let { Library(id = it, kind = LibraryKind.COLLECTIONS, title = null) },
+                    places = homePlaces(nav, entry, shown = route.place),
                 )
             }
         }
@@ -485,7 +492,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                     onSignIn = { nav.navigate(Route.JellyfinLogin.of(it)) },
                     onSourceResumed = ::goHome,
                     onOpenCatalog = { nav.navigate(Route.Catalog) },
-                    onOpenWall = { library, filter -> nav.navigate(Route.Library.of(library, filter)) },
+                    onOpenWall = nav::openWall,
                     onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
                 )
             }
@@ -494,6 +501,58 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         if (BuildConfig.DEBUG) composable<Route.Catalog> { CatalogScreen() }
     }
     WelcomeWhenLost(nav, settings.source)
+}
+
+/**
+ * The bar's places over the wall at [entry] when opened as one ([shown]): the [libraries] home read, from home's screen
+ * beneath it; null for a wall opened from elsewhere, or when home is not there.
+ */
+@Composable
+internal fun homePlaces(
+    nav: NavController,
+    entry: NavBackStackEntry,
+    shown: Boolean,
+    libraries: @Composable (home: NavBackStackEntry) -> List<Library> = { homeLibraries(it) },
+): Places? {
+    if (!shown) return null
+    val home = remember(entry) {
+        try {
+            nav.getBackStackEntry<Route.Home>()
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    } ?: return null
+    val places = HomeState(libraries(home))
+    return Places(
+        places.tabs,
+        places.sagas,
+        onPlace = { library, sagas -> nav.openPlace(library, sagas) },
+        onSettings = { nav.navigate(Route.Settings) },
+        onSearch = { nav.navigate(Route.Search) },
+    )
+}
+
+/** The libraries home's screen at [home] read. */
+@Composable
+private fun homeLibraries(home: NavBackStackEntry): List<Library> {
+    val vm: HomeViewModel = viewModel(home, factory = HomeViewModel.factory(appContainer()))
+    return vm.libraries.collectAsStateWithLifecycle().value
+}
+
+/** Opens [library]'s wall filtered by [filter], a page over the one shown rather than a place: it has no bar. */
+internal fun NavController.openWall(library: Library, filter: LibraryFilter) = navigate(Route.Library.of(library, filter))
+
+/** Opens home (null) or [library]'s wall as a place of the bar, a films' wall able to show the source's [sagas]. */
+internal fun NavController.openPlace(library: Library?, sagas: Library? = null) =
+    openPlace(library?.let { Route.Library(it.id, it.kind, it.title, sagas = sagas?.id, place = true) } ?: Route.Home)
+
+/**
+ * Opens a place of the bar, home or a library's wall, in place of the one shown: home stays beneath, so changing place
+ * piles up no history and Back from any wall's bar is home.
+ */
+internal fun NavController.openPlace(place: Any) = navigate(place) {
+    popUpTo<Route.Home>()
+    launchSingleTop = true
 }
 
 /** [content], a screen that shows the source, composed only while there is one ([source]): it would read it at once. */

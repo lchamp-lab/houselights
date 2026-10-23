@@ -1,6 +1,8 @@
 package app.houselights.ui.home
 
 import app.houselights.core.HomeSection
+import app.houselights.core.Library
+import app.houselights.core.LibraryKind
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ScanError
@@ -65,6 +67,17 @@ class HomeViewModelTest {
         }
 
     private fun HomeViewModel.content() = state.value.content
+
+    /** A wall's bar takes its places from home beneath it: the libraries home read, without its rows or the scan. */
+    @Test
+    fun theLibrariesHomeReadAreTheBarsPlaces() = runTest {
+        val libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"), Library("shows", LibraryKind.SHOWS, "Séries"))
+        provider.libraries = libraries
+        val vm = HomeViewModel({ provider }, scan, folders.filterNotNull(), settings, scanAll = {})
+        backgroundScope.launch { vm.libraries.collect {} }
+        advanceUntilIdle()
+        assertEquals(libraries, vm.libraries.value)
+    }
 
     @Test
     fun theLibrarysRowsComeAfterTheLaunch() = runTest {

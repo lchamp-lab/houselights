@@ -44,7 +44,8 @@ object Route {
 
     /**
      * A library's wall, opened pre-filtered from a facet ([filter]; [quality] by enum name, [person] labelled
-     * [personName]). A films wall may show the source's [sagas] (a library id) instead.
+     * [personName]). A films wall may show the source's [sagas] (a library id) instead. Opened as a [place] of the
+     * bar, it lies under it.
      */
     @Serializable
     data class Library(
@@ -58,6 +59,7 @@ object Route {
         val person: String? = null,
         val personName: String? = null,
         val sagas: String? = null,
+        val place: Boolean = false,
     ) {
         /** What the wall starts filtered by; null for the whole library. */
         val filter: LibraryFilter?

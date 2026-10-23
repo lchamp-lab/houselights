@@ -329,7 +329,6 @@ fun CatalogScreen() {
                         ),
                         selected = library,
                         onSelect = { library = it },
-                        markFirst = true,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10+", "HDR10", "TrueHD Atmos", "DTS:X", "7.1", "16").forEach { Badge(it) }
