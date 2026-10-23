@@ -128,13 +128,15 @@ object ZidooStatus {
 
     /**
      * Parses a getAudioList or getSubtitleList answer: the index playing and the tracks, null if unusable. Both list
-     * under "subtitles"; whether a subtitle is forced or for the hearing impaired shows only in its title.
+     * under "subtitles"; whether a subtitle is forced or for the hearing impaired shows only in its title. Until the
+     * player has read the file, it answers each list empty, numbered 0: not given yet (its subtitles always list "none").
      */
     internal fun parseTracks(body: String): Pair<Int, List<PlayerTrack>>? = runCatching {
         val root = lenientJson.parseToJsonElement(body).jsonObject
         if (root["status"]?.jsonPrimitive?.intOrNull != HttpStatus.OK) return@runCatching null
         val current = root["currentIndex"]?.jsonPrimitive?.intOrNull ?: return@runCatching null
-        current to root["subtitles"]?.jsonArray.orEmpty().mapNotNull { (it as? JsonObject)?.let(::track) }
+        val tracks = root["subtitles"]?.jsonArray.orEmpty().mapNotNull { (it as? JsonObject)?.let(::track) }
+        tracks.takeIf { it.isNotEmpty() }?.let { current to it }
     }.getOrNull()
 
     private fun track(entry: JsonObject): PlayerTrack? {

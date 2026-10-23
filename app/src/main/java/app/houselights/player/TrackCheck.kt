@@ -16,7 +16,8 @@ data class TrackFix(val kind: TrackKind, val index: Int)
 object TrackCheck {
     /**
      * At most one fix per kind still played as asked ([TrackPlan.pick]), so that what the player [plays] matches [plan];
-     * tracks matched by language and kind. Without its audio list, the audio is taken to be the one [plan] expects.
+     * tracks matched by language and kind. Without its audio list, the audio is taken to be the one asked; one left to
+     * the player is only guessed, and subtitles that would follow it are not fixed until the list tells it.
      */
     fun fixes(plan: TrackPlan, plays: PlayerTracks): List<TrackFix> = buildList {
         val index = plays.audioIndex
@@ -26,10 +27,15 @@ object TrackCheck {
             heard = TrackPlan.known(audio.language)
         }
         val asked = plan.pick.subtitle?.takeIf { it == plays.subtitleIndex } ?: return@buildList
+        if (index == null && followsPlayersAudio(plan)) return@buildList
         val wanted = plan.subtitle(heard) ?: return@buildList
         val target = if (wanted == TrackPlan.NONE) wanted else playerNumber(wanted, plan.subtitleTrack(wanted), plays)
         if (target != null && target != asked) add(TrackFix(TrackKind.SUBTITLE, target))
     }
+
+    /** The subtitles asked depend on which of the file's audio tracks the player chose by itself. */
+    private fun followsPlayersAudio(plan: TrackPlan): Boolean = plan.pick.audio == null &&
+        plan.audioTracks.map { TrackPlan.known(it.language) }.distinct().map(plan::subtitle).distinct().size > 1
 
     /**
      * The audio to switch to when the player plays the number asked in another language than the file's: the track of

@@ -190,6 +190,8 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         },
         forget = { database.trackChoices().forget(it) },
         playerAudio = { ZidooSettings.audio(app.contentResolver) },
+        // The player speaks the device's language, whatever the app's.
+        deviceLanguage = { deviceLocale.value.language },
     )
 
     /** The Zidoo player takes the tracks asked of it ([ZidooPlayer.takesTracks]); another ignores them. Debug builds show them anywhere. */

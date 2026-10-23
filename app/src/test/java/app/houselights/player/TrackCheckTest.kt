@@ -75,6 +75,19 @@ class TrackCheckTest {
         assertEquals(listOf(TrackFix(TrackKind.AUDIO, 2)), TrackCheck.fixes(plan(TrackPreferences("ko", SubtitleMode.OFF)), audioOnly))
     }
 
+    /**
+     * The audio left to the player, its list missing: subtitles that follow it wait for it, rather than being fixed for
+     * the audio guessed; chosen for the title, they do not follow it.
+     */
+    @Test
+    fun subtitlesWaitForTheAudioThePlayerChoseToBeListed() {
+        val noAudio = shifted.copy(audio = emptyList(), audioIndex = null, subtitleIndex = 1)
+        assertEquals(emptyList<TrackFix>(), TrackCheck.fixes(plan(TrackPreferences(subtitles = SubtitleMode.FOREIGN)), noAudio))
+        val forcedFrench = TrackChoice(subtitles = SubtitleChoice.Track("fr", SubtitleKind.FORCED))
+        val chosen = plan(TrackPreferences(subtitles = SubtitleMode.FOREIGN), forcedFrench)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 2)), TrackCheck.fixes(chosen, noAudio))
+    }
+
     /** The VFQ asked, third in the file: numbered otherwise, it is the player's second French track, as in the file. */
     @Test
     fun anAudioNumberedOtherwiseIsTheSameRankInItsLanguage() {

@@ -81,6 +81,8 @@ data class TrackPlan(
      * [PLAYER_DEFAULT]; null when unset, the player then looking for the device's language.
      */
     val playerAudio: String? = null,
+    /** The device's language, the player's own, which it looks for when its setting finds no audio. */
+    val deviceLanguage: String = language,
 ) {
     /** The file's own tracks, in the player's order: a server's files beside it are not among them. */
     val audioTracks: List<AudioTrack> = media.audio.filterNot { it.external }
@@ -152,20 +154,20 @@ data class TrackPlan(
         get() = audio?.let(audioTracks::get) ?: playersOwnAudio()
 
     /**
-     * The track the player plays when asked none, as its [playerAudio] setting leads it, else in [language] (its own
-     * being the device's), else its first. Its memory of the file, if any, comes first and is not known here.
+     * The track the player plays when asked none, as its [playerAudio] setting leads it, else in [deviceLanguage], else
+     * its first. Its memory of the file, if any, comes first and is not known here.
      */
     private fun playersOwnAudio(): AudioTrack? {
         val set = when (val setting = playerAudio) {
             null -> null
             PLAYER_FIRST -> audioTracks.firstOrNull()
-            PLAYER_DEFAULT -> audioTracks.filter { it.default }.let { all -> all.firstOrNull(::inAppLanguage) ?: all.firstOrNull() }
+            PLAYER_DEFAULT -> audioTracks.filter { it.default }.let { all -> all.firstOrNull(::inDeviceLanguage) ?: all.firstOrNull() }
             else -> known(setting)?.let { wanted -> audioTracks.firstOrNull { known(it.language) == wanted } }
         }
-        return set ?: audioTracks.firstOrNull(::inAppLanguage) ?: audioTracks.firstOrNull()
+        return set ?: audioTracks.firstOrNull(::inDeviceLanguage) ?: audioTracks.firstOrNull()
     }
 
-    private fun inAppLanguage(track: AudioTrack) = known(track.language) == language
+    private fun inDeviceLanguage(track: AudioTrack) = known(track.language) == known(deviceLanguage)
 
     /** The track a choice of [tag] ("fr", "fr-CA") leads to. */
     private fun audioFor(tag: String): Int? = known(tag)?.let { bestAudio(it, regionOf(tag)) }

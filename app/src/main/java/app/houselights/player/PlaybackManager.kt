@@ -365,8 +365,9 @@ class PlaybackManager(
 
     /**
      * Once the film has played a few statuses ([CHECK_AFTER]), past the player's own choice of tracks, switches to
-     * the tracks asked if it plays others under their numbers ([TrackCheck]). Tried again at the next statuses while
-     * a list is missing ([CHECK_TRIES]); a track the user chose meanwhile is theirs, never undone.
+     * the tracks asked if it plays others under their numbers ([TrackCheck]). Tried again at the next statuses until
+     * the player gives both lists at once, the subtitles checked against the audio they play with ([CHECK_TRIES] at
+     * most); a track the user chose meanwhile is theirs, never undone.
      */
     private suspend fun check(s: Session) {
         val plan = s.tracks ?: return
@@ -375,7 +376,7 @@ class PlaybackManager(
         val read = tracks()
         s.plays = (s.plays ?: read)?.with(read)
         if (read != null) switch(s, read, TrackCheck.fixes(plan, read))
-        if (s.plays?.complete == true || ++s.tries >= CHECK_TRIES) s.settled = true
+        if (read?.complete == true || ++s.tries >= CHECK_TRIES) s.settled = true
     }
 
     /** Switches the player to [fixes], found in what it played ([read]). */

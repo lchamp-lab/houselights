@@ -23,6 +23,8 @@ class TrackChooser(
     private val forget: suspend (String) -> Unit,
     /** The player's own audio setting ([ZidooSettings.audio]), read for each plan. */
     private val playerAudio: () -> String? = { null },
+    /** The device's language ([TrackPlan.deviceLanguage]); null takes the app's. */
+    private val deviceLanguage: () -> String? = { null },
 ) {
     /** One change at a time: each reads what the one before wrote. */
     private val changes = Mutex()
@@ -40,7 +42,8 @@ class TrackChooser(
         }
         val locale = locale()
         val language = TrackPlan.known(locale.language) ?: FALLBACK_LANGUAGE
-        return TrackPlan(media, preferences(), choice, language, locale.country.ifEmpty { null }, key, playerAudio())
+        val device = TrackPlan.known(deviceLanguage()) ?: language
+        return TrackPlan(media, preferences(), choice, language, locale.country.ifEmpty { null }, key, playerAudio(), device)
     }
 
     /** Changes the title's choice by [change]; an empty one leaves it to Settings again. */

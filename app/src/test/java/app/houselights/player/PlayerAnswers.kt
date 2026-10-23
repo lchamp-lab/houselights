@@ -21,4 +21,7 @@ object PlayerAnswers {
             """"isClose":false,"index":3},""" +
             """{"title":"French(FR [PGS]) PGS","laungaue":"fre","subtitleFormat":3,"isExternal":false,"isClose":false,"index":4},""" +
             """{"title":"French(FR (SDH) [PGS]) PGS","laungaue":"fre","subtitleFormat":3,"isExternal":false,"isClose":false,"index":5}]}"""
+
+    /** Either list before the player has read the file, as its code answers it (not seen on the Zidoo). */
+    const val NOT_READ_YET = """{"status":200,"currentIndex":0,"size":0,"subtitles":[]}"""
 }

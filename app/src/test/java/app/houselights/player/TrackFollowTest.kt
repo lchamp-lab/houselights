@@ -133,6 +133,53 @@ class TrackFollowTest {
         closed(manager, audio = 0, subtitle = 2)
     }
 
+    /** Before it has read the file, the player answers each list empty: they are asked again, then checked. */
+    @Test
+    fun emptyListsAreAskedAgain() = runTest {
+        plays = ZidooStatus.lists(PlayerAnswers.NOT_READ_YET, PlayerAnswers.NOT_READ_YET)
+        val manager = started(plan(TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.FORCED)))
+        advanceTimeBy(4_000 + 2_000 * 2L + 1)
+        assertEquals(1 to emptyList<TrackFix>(), listed to switched)
+        plays = shifted(audio = 0, subtitle = 1)
+        advanceTimeBy(2_000 * 3L)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 2)), switched)
+        closed(manager, audio = 0, subtitle = 3)
+        assertEquals(listOf("local:3" to TrackChoice(subtitles = SubtitleChoice.Track("fr", SubtitleKind.FULL))), kept)
+    }
+
+    /**
+     * The audio left to the player, which remembered Korean, its list missing at first: the subtitles wait for it,
+     * then follow the Korean in full, not the French guessed. An English file beside the video moves them by one.
+     */
+    @Test
+    fun theSubtitlesWaitForTheAudioList() = runTest {
+        val both = shifted(audio = 1, subtitle = 1, beside = "eng")
+        plays = both.copy(audio = emptyList(), audioIndex = null)
+        val manager = started(plan(TrackPreferences(subtitles = SubtitleMode.FOREIGN)))
+        advanceTimeBy(4_000 + 2_000 * 2L + 1)
+        assertEquals(1 to emptyList<TrackFix>(), listed to switched)
+        plays = both
+        advanceTimeBy(2_000 * 3L)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 3)), switched)
+        closed(manager, audio = 1, subtitle = 3)
+    }
+
+    /** One list at a time: the subtitles are checked once a read gives both, against the audio playing with them. */
+    @Test
+    fun theSubtitlesAreCheckedWithTheAudioReadAlongside() = runTest {
+        val both = colony(audio = 1, subtitle = 1)
+        plays = both.copy(subtitles = emptyList(), subtitleIndex = null)
+        val manager = started(plan(TrackPreferences(subtitles = SubtitleMode.FOREIGN)))
+        advanceTimeBy(4_000 + 2_000 * 2L + 1)
+        plays = both.copy(audio = emptyList(), audioIndex = null)
+        advanceTimeBy(2_000)
+        assertEquals(2 to emptyList<TrackFix>(), listed to switched)
+        plays = both
+        advanceTimeBy(2_000 * 3L)
+        assertEquals(listOf(TrackFix(TrackKind.SUBTITLE, 2)), switched)
+        closed(manager, audio = 1, subtitle = 2)
+    }
+
     @Test
     fun whatTheUserChangesIsKeptForTheTitle() = runTest {
         plays = colony(audio = 0, subtitle = 1)
@@ -230,9 +277,9 @@ class TrackFollowTest {
         assertEquals(0 to emptyList<Pair<String, TrackChoice>>(), listed to kept)
     }
 
-    /** Colony's lists with a subtitle file beside it listed first. */
-    private fun shifted(audio: Int, subtitle: Int) = colony(audio, subtitle).let { c ->
-        c.copy(subtitles = listOf(PlayerTrack(0, null), PlayerTrack(1, "fre")) + c.subtitles.drop(1).map { it.copy(index = it.index + 1) })
+    /** Colony's lists with a subtitle file beside it, in [beside], listed first. */
+    private fun shifted(audio: Int, subtitle: Int, beside: String = "fre") = colony(audio, subtitle).let { c ->
+        c.copy(subtitles = listOf(PlayerTrack(0, null), PlayerTrack(1, beside)) + c.subtitles.drop(1).map { it.copy(index = it.index + 1) })
     }
 
     private fun colony(audio: Int, subtitle: Int) = PlayerTracks(

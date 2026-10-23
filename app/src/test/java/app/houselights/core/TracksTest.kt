@@ -101,6 +101,7 @@ class TracksTest {
     /**
      * The audio left to the player, which follows its own setting before the file's default: French there, with an
      * English dub flagged default, makes the French audio heard and its forced subtitles fit, never the full ones.
+     * Unset, it looks for the device's language, not the app's.
      */
     @Test
     fun thePlayersOwnAudioSettingComesBeforeTheFilesDefault() {
@@ -112,14 +113,15 @@ class TracksTest {
                 SubtitleTrack("fre", format = Codecs.SRT),
             ),
         )
-        fun subtitle(mode: SubtitleMode, player: String?) =
-            TrackPlan(multi, TrackPreferences(subtitles = mode), null, "fr", "FR", "local:1", playerAudio = player).pick.subtitle
+        fun subtitle(mode: SubtitleMode, player: String?, device: String = "fr") =
+            TrackPlan(multi, TrackPreferences(subtitles = mode), null, "fr", "FR", "local:1", player, device).pick.subtitle
         assertEquals("French forced, the audio French", 2, subtitle(SubtitleMode.FOREIGN, "fr-FR"))
         assertEquals("forced in the audio's language", 2, subtitle(SubtitleMode.FORCED, "fr-FR"))
         assertEquals("set to the file's default: English, French in full", 3, subtitle(SubtitleMode.FOREIGN, TrackPlan.PLAYER_DEFAULT))
         assertEquals("set to the first track", 3, subtitle(SubtitleMode.FOREIGN, TrackPlan.PLAYER_FIRST))
         assertEquals("unset: the device's language", 2, subtitle(SubtitleMode.FOREIGN, null))
         assertEquals("a language the file lacks: the device's", 2, subtitle(SubtitleMode.FOREIGN, "de-DE"))
+        assertEquals("unset, the device in English: French in full", 3, subtitle(SubtitleMode.FOREIGN, null, device = "en"))
     }
 
     /** A choice keeps a dub's region: the VFQ can be chosen where the device prefers the VFF. */

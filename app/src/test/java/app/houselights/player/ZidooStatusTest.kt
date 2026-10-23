@@ -64,6 +64,15 @@ class ZidooStatusTest {
         assertEquals("a list read later completes them", true, subtitles.with(audio).complete)
     }
 
+    /** Lists the player answers before it has read the file are not given yet, though numbered 0. */
+    @Test
+    fun emptyListsAreNotGivenYet() {
+        assertNull(ZidooStatus.parseTracks(PlayerAnswers.NOT_READ_YET))
+        assertNull(ZidooStatus.lists(PlayerAnswers.NOT_READ_YET, PlayerAnswers.NOT_READ_YET))
+        val subtitles = checkNotNull(ZidooStatus.lists(PlayerAnswers.NOT_READ_YET, PlayerAnswers.COLONY_SUBTITLES))
+        assertEquals(null to false, subtitles.audioIndex to subtitles.complete)
+    }
+
     /** The player's audio setting as Settings.System numbers it (28: fr-FR on the Z1000 Pro). */
     @Test
     fun thePlayersAudioSetting() {
