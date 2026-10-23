@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # The workflows' actions, pinned by SHA: one pull request a week for them all. Gradle's own dependencies are
+  # upgraded by hand (CONTRIBUTING); their security fixes come from Dependabot's security updates.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    ignore:
+      # v5.0.2 is v5's last release, and v6 caches through a proprietary component (ci.yml): bumped by hand.
+      - dependency-name: gradle/actions

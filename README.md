@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/houselights.svg" alt="Houselights: a cinema-style media browser for Zidoo players and Android TV" width="100%">
+  <img src="docs/images/houselights.svg" alt="Houselights: a cinema-style media browser for Zidoo players" width="100%">
 </p>
 
 <h3 align="center">Your films and shows, on the big screen.</h3>
@@ -24,8 +24,14 @@
 
 ![Home: the focused film's backdrop, logo and summary above a row of posters](docs/images/home.jpg)
 
-> **Beta.** Made for the Zidoo Z1000 Pro, Z9X and UHD series (Android 9 with Zidoo's launcher) and for Android TV
-> boxes running Android 9 or later. Not affiliated with Zidoo, Jellyfin, Emby or Plex.
+> **Beta.** Made for Zidoo players (Android 9 with Zidoo's launcher), tested on a Z1000 Pro: reports from other
+> models are welcome in the [issues](https://github.com/lchamp-lab/houselights/issues). Not affiliated with Zidoo,
+> Jellyfin, Emby or Plex.
+
+**En français.** Houselights est une médiathèque façon salle de cinéma pour les lecteurs **Zidoo** (testée sur le
+Z1000 Pro) : vos films et séries d’un **NAS** (NFS ou SMB, avec les NFO Kodi et TMDB) ou d’un serveur **Jellyfin**,
+lus par le **lecteur natif Zidoo** (HDR10, HDR10+, Dolby Vision, passthrough audio), avec le suivi **Trakt**. Libre et
+gratuite, l’application est entièrement en français. [Installer](#install)
 
 ## Features
 
@@ -88,7 +94,6 @@ changes. A new release installs over the previous one and keeps your library, hi
 | Method | How |
 |---|---|
 | Zidoo | Copy `Houselights-x.y.z.apk` to a USB stick and open it from the player's file manager. |
-| Other Android boxes | In [Downloader](https://www.aftvnews.com/downloader/), enter `https://github.com/lchamp-lab/houselights/releases/latest/download/Houselights.apk`. |
 | Automatic updates | Add `https://github.com/lchamp-lab/houselights` to [Obtainium](https://github.com/ImranR98/Obtainium). |
 | Computer | `adb install -r Houselights-x.y.z.apk` |
 
@@ -133,6 +138,8 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   servers are reached by their address, which no rule can name.
 - `nfs-client` depends on Netty 3.10 (end of life). Its known vulnerabilities affect HTTP and compression
   codecs that NFS does not use; it will be replaced when a maintained NFS client is available.
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Support
 
