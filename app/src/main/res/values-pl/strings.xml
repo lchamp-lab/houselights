@@ -691,6 +691,43 @@
     <string name="trakt_sync_failed">Synchronizacja z Trakt nie została ukończona. Wznowi się sama.</string>
     <string name="trakt_sync_refused">Trakt odrzuca synchronizację: konto może być zablokowane albo klucz tej wersji odrzucony. Sprawdź swoje konto na trakt.tv.</string>
     <string name="trakt_sync_unreadable">Trakt odpowiedział w sposób, którego ta wersja nie potrafi odczytać. Aktualizacja Houselights powinna to naprawić.</string>
+    <plurals name="trakt_skipped">
+        <item quantity="one">Pominięto %d element</item>
+        <item quantity="few">Pominięto %d elementy</item>
+        <item quantity="many">Pominięto %d elementów</item>
+        <item quantity="other">Pominięto %d elementu</item>
+    </plurals>
+    <plurals name="trakt_skipped_desc">
+        <item quantity="one">Trakt wysyła go w formie, której aplikacja nie odczyta</item>
+        <item quantity="few">Trakt wysyła je w formie, której aplikacja nie odczyta</item>
+        <item quantity="many">Trakt wysyła je w formie, której aplikacja nie odczyta</item>
+        <item quantity="other">Trakt wysyła je w formie, której aplikacja nie odczyta</item>
+    </plurals>
+    <plurals name="trakt_skipped_text">
+        <item quantity="one">Trakt wysyła go w formie, której ta wersja nie potrafi odczytać; często jest to wstrzymane odtwarzanie pozostawione przez inną aplikację. Reszta jest zsynchronizowana, a Twoje oznaczenia są wysyłane normalnie.</item>
+        <item quantity="few">Trakt wysyła je w formie, której ta wersja nie potrafi odczytać; często jest to wstrzymane odtwarzanie pozostawione przez inną aplikację. Reszta jest zsynchronizowana, a Twoje oznaczenia są wysyłane normalnie.</item>
+        <item quantity="many">Trakt wysyła je w formie, której ta wersja nie potrafi odczytać; często jest to wstrzymane odtwarzanie pozostawione przez inną aplikację. Reszta jest zsynchronizowana, a Twoje oznaczenia są wysyłane normalnie.</item>
+        <item quantity="other">Trakt wysyła je w formie, której ta wersja nie potrafi odczytać; często jest to wstrzymane odtwarzanie pozostawione przez inną aplikację. Reszta jest zsynchronizowana, a Twoje oznaczenia są wysyłane normalnie.</item>
+    </plurals>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="one">%d element bez tytułu</item>
+        <item quantity="few">%d elementy bez tytułu</item>
+        <item quantity="many">%d elementów bez tytułu</item>
+        <item quantity="other">%d elementu bez tytułu</item>
+    </plurals>
+    <string name="trakt_skipped_movies">Historia filmów</string>
+    <string name="trakt_skipped_episodes">Historia odcinków</string>
+    <string name="trakt_skipped_paused">Wstrzymane odtwarzanie</string>
+    <string name="trakt_skipped_partial_movies">Dopóki historii filmów nie da się odczytać w całości, Houselights nie wysyła do Trakt filmów obejrzanych tutaj, których tam brakuje, aby nie tworzyć duplikatów.</string>
+    <string name="trakt_skipped_partial_episodes">Dopóki historii odcinków nie da się odczytać w całości, Houselights nie wysyła do Trakt odcinków obejrzanych tutaj, których tam brakuje, aby nie tworzyć duplikatów.</string>
+    <string name="trakt_skipped_partial_both">Dopóki historii filmów i odcinków nie da się odczytać w całości, Houselights nie wysyła do Trakt filmów ani odcinków obejrzanych tutaj, których tam brakuje, aby nie tworzyć duplikatów.</string>
+    <string name="trakt_skipped_fix_label">Jak to naprawić:</string>
+    <plurals name="trakt_skipped_fix">
+        <item quantity="one">Jak to naprawić: usuń go na trakt.tv, w sekcji Postęp lub Historia, albo zaktualizuj Houselights, gdy jakaś wersja będzie potrafiła go odczytać.</item>
+        <item quantity="few">Jak to naprawić: usuń je na trakt.tv, w sekcji Postęp lub Historia, albo zaktualizuj Houselights, gdy jakaś wersja będzie potrafiła je odczytać.</item>
+        <item quantity="many">Jak to naprawić: usuń je na trakt.tv, w sekcji Postęp lub Historia, albo zaktualizuj Houselights, gdy jakaś wersja będzie potrafiła je odczytać.</item>
+        <item quantity="other">Jak to naprawić: usuń je na trakt.tv, w sekcji Postęp lub Historia, albo zaktualizuj Houselights, gdy jakaś wersja będzie potrafiła je odczytać.</item>
+    </plurals>
     <string name="trakt_certificate">Certyfikat Trakt został odrzucony. Sprawdź datę i godzinę na urządzeniu, a potem spróbuj ponownie.</string>
     <string name="settings_lost_trakt">Nie udało się ponownie odczytać połączenia z Trakt zapisanego na tym odtwarzaczu. Połącz konto ponownie.</string>
 </resources>

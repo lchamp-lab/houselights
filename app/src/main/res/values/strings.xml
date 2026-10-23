@@ -667,6 +667,33 @@
     <string name="trakt_sync_failed">Syncing with Trakt didn’t complete. It resumes on its own.</string>
     <string name="trakt_sync_refused">Trakt refuses to sync: the account may be locked, or this build’s key refused. Check your account on trakt.tv.</string>
     <string name="trakt_sync_unreadable">Trakt answered in a way this version can’t read. Updating Houselights should fix it.</string>
+    <plurals name="trakt_skipped">
+        <item quantity="one">%d item skipped</item>
+        <item quantity="other">%d items skipped</item>
+    </plurals>
+    <plurals name="trakt_skipped_desc">
+        <item quantity="one">Trakt sends it in a form the app can’t read</item>
+        <item quantity="other">Trakt sends them in a form the app can’t read</item>
+    </plurals>
+    <plurals name="trakt_skipped_text">
+        <item quantity="one">Trakt sends it in a form this version can’t read, often a paused playback left by another app. The rest is synced, and your marks go out as usual.</item>
+        <item quantity="other">Trakt sends them in a form this version can’t read, often a paused playback left by another app. The rest is synced, and your marks go out as usual.</item>
+    </plurals>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="one">%d item without a title</item>
+        <item quantity="other">%d items without a title</item>
+    </plurals>
+    <string name="trakt_skipped_movies">Film history</string>
+    <string name="trakt_skipped_episodes">Episode history</string>
+    <string name="trakt_skipped_paused">Paused playback</string>
+    <string name="trakt_skipped_partial_movies">While the film history can’t be read in full, Houselights doesn’t send Trakt the films watched here that it lacks, so as not to create duplicates.</string>
+    <string name="trakt_skipped_partial_episodes">While the episode history can’t be read in full, Houselights doesn’t send Trakt the episodes watched here that it lacks, so as not to create duplicates.</string>
+    <string name="trakt_skipped_partial_both">While the film and episode histories can’t be read in full, Houselights doesn’t send Trakt the films and episodes watched here that it lacks, so as not to create duplicates.</string>
+    <string name="trakt_skipped_fix_label">To fix:</string>
+    <plurals name="trakt_skipped_fix">
+        <item quantity="one">To fix: delete it on trakt.tv, under Progress or History, or update Houselights once a version can read it.</item>
+        <item quantity="other">To fix: delete them on trakt.tv, under Progress or History, or update Houselights once a version can read them.</item>
+    </plurals>
     <string name="trakt_certificate">Trakt’s certificate is refused. Check this device’s date and time, then try again.</string>
     <string name="settings_lost_trakt">The Trakt connection saved on this player could not be read again. Connect your account again.</string>
 </resources>

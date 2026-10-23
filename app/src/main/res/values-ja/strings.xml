@@ -631,6 +631,28 @@
     <string name="trakt_sync_failed">Traktとの同期を完了できませんでした。自動的に再開されます。</string>
     <string name="trakt_sync_refused">Traktが同期を拒否しています。アカウントがロックされているか、このビルドのキーが拒否された可能性があります。trakt.tvでアカウントを確認してください。</string>
     <string name="trakt_sync_unreadable">Traktの応答をこのバージョンでは読み取れません。Houselightsを更新すると解決するはずです。</string>
+    <plurals name="trakt_skipped">
+        <item quantity="other">%d件をスキップ</item>
+    </plurals>
+    <plurals name="trakt_skipped_desc">
+        <item quantity="other">アプリが読み取れない形式でTraktから届いています</item>
+    </plurals>
+    <plurals name="trakt_skipped_text">
+        <item quantity="other">このバージョンでは読み取れない形式でTraktから届いています。多くの場合、ほかのアプリが残した一時停止中の再生です。それ以外は同期済みで、視聴済みの記録も通常どおり送信されます。</item>
+    </plurals>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="other">タイトルのない項目 %d件</item>
+    </plurals>
+    <string name="trakt_skipped_movies">映画の履歴</string>
+    <string name="trakt_skipped_episodes">エピソードの履歴</string>
+    <string name="trakt_skipped_paused">一時停止中の再生</string>
+    <string name="trakt_skipped_partial_movies">映画の履歴をすべて読み取れるまで、Houselightsはここで観た映画のうちTraktにないものを送信しません。重複を作らないためです。</string>
+    <string name="trakt_skipped_partial_episodes">エピソードの履歴をすべて読み取れるまで、Houselightsはここで観たエピソードのうちTraktにないものを送信しません。重複を作らないためです。</string>
+    <string name="trakt_skipped_partial_both">映画とエピソードの履歴をすべて読み取れるまで、Houselightsはここで観た映画とエピソードのうちTraktにないものを送信しません。重複を作らないためです。</string>
+    <string name="trakt_skipped_fix_label">解決方法：</string>
+    <plurals name="trakt_skipped_fix">
+        <item quantity="other">解決方法：trakt.tvの「進捗」または「履歴」で削除するか、読み取れるバージョンが出たらHouselightsを更新してください。</item>
+    </plurals>
     <string name="trakt_certificate">Traktの証明書が拒否されました。このデバイスの日付と時刻を確認して、もう一度お試しください。</string>
     <string name="settings_lost_trakt">このプレーヤーに保存されたTraktの接続を読み込み直せませんでした。もう一度アカウントを接続してください。</string>
 </resources>

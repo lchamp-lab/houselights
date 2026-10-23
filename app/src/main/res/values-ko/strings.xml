@@ -631,6 +631,28 @@
     <string name="trakt_sync_failed">Trakt와의 동기화를 완료하지 못했습니다. 자동으로 다시 시작됩니다.</string>
     <string name="trakt_sync_refused">Trakt가 동기화를 거부합니다. 계정이 잠겼거나 이 버전의 키가 거부되었을 수 있습니다. trakt.tv에서 계정을 확인하세요.</string>
     <string name="trakt_sync_unreadable">이 버전에서는 Trakt의 응답을 읽을 수 없습니다. Houselights를 업데이트하면 해결될 것입니다.</string>
+    <plurals name="trakt_skipped">
+        <item quantity="other">항목 %d개 건너뜀</item>
+    </plurals>
+    <plurals name="trakt_skipped_desc">
+        <item quantity="other">앱이 읽을 수 없는 형식으로 Trakt가 보냅니다</item>
+    </plurals>
+    <plurals name="trakt_skipped_text">
+        <item quantity="other">Trakt가 이 버전이 읽을 수 없는 형식으로 보냅니다. 대개 다른 앱이 남긴 일시 정지된 재생입니다. 나머지는 동기화되었으며, 시청 표시도 평소처럼 전송됩니다.</item>
+    </plurals>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="other">제목 없는 항목 %d개</item>
+    </plurals>
+    <string name="trakt_skipped_movies">영화 기록</string>
+    <string name="trakt_skipped_episodes">에피소드 기록</string>
+    <string name="trakt_skipped_paused">일시 정지된 재생</string>
+    <string name="trakt_skipped_partial_movies">영화 기록을 모두 읽을 수 있을 때까지 Houselights는 여기서 본 영화 중 Trakt에 없는 것을 보내지 않습니다. 중복을 만들지 않기 위해서입니다.</string>
+    <string name="trakt_skipped_partial_episodes">에피소드 기록을 모두 읽을 수 있을 때까지 Houselights는 여기서 본 에피소드 중 Trakt에 없는 것을 보내지 않습니다. 중복을 만들지 않기 위해서입니다.</string>
+    <string name="trakt_skipped_partial_both">영화와 에피소드 기록을 모두 읽을 수 있을 때까지 Houselights는 여기서 본 영화와 에피소드 중 Trakt에 없는 것을 보내지 않습니다. 중복을 만들지 않기 위해서입니다.</string>
+    <string name="trakt_skipped_fix_label">해결 방법:</string>
+    <plurals name="trakt_skipped_fix">
+        <item quantity="other">해결 방법: trakt.tv의 진행 상황 또는 기록에서 삭제하거나, 읽을 수 있는 버전이 나오면 Houselights를 업데이트하세요.</item>
+    </plurals>
     <string name="trakt_certificate">Trakt의 인증서가 거부되었습니다. 이 기기의 날짜와 시간을 확인한 후 다시 시도하세요.</string>
     <string name="settings_lost_trakt">이 플레이어에 저장된 Trakt 연결을 다시 읽을 수 없습니다. 계정을 다시 연결하세요.</string>
 </resources>

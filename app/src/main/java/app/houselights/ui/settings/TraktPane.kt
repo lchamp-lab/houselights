@@ -47,8 +47,8 @@ import app.houselights.ui.util.formatDuration
 
 /**
  * Trakt, for the folders, as a state said beside its title: not connected, what it keeps and the row that connects;
- * connecting, its code in the pane, Back cancelling; connected, the account and its last sync, then the rows that sync
- * and disconnect. A build without Trakt's keys says so and offers nothing.
+ * connecting, its code in the pane, Back cancelling; connected, the account and its last sync, then the rows that sync,
+ * open what a sync left out, and disconnect. A build without Trakt's keys says so and offers nothing.
  */
 internal fun LazyListScope.traktPane(vm: TraktViewModel, session: TraktSession?) {
     item { Trakt(vm, session) }
@@ -182,8 +182,8 @@ private fun Account(name: String?, sync: TraktSyncState) {
 }
 
 /**
- * Sync, then connect or disconnect: one row whose words follow the account, so focus stays on it as the account
- * comes and goes. A failure is said under its row ([RowFailureNote]).
+ * Sync, what the last sync left out when it did, then connect or disconnect: one row whose words follow the account,
+ * so focus stays on it as the account comes and goes. A failure is said under its row ([RowFailureNote]).
  */
 @Composable
 private fun TraktRows(vm: TraktViewModel, connected: Boolean, modifier: Modifier, onConnect: () -> Unit) {
@@ -192,6 +192,7 @@ private fun TraktRows(vm: TraktViewModel, connected: Boolean, modifier: Modifier
         if (connected) {
             val sync by vm.syncState.collectAsStateWithLifecycle()
             SyncRow(vm, sync)
+            if (sync.skipped.isNotEmpty()) SkippedRow(sync.skipped)
         }
         HlSettingRow(
             stringResource(if (connected) R.string.trakt_disconnect else R.string.trakt_connect),

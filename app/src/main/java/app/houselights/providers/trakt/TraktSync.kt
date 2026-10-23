@@ -45,6 +45,11 @@ data class TraktSyncState(
     val watched: Int = 0,
     val inProgress: Int = 0,
     val error: TraktSyncError? = null,
+    /**
+     * What the last sync that read Trakt left out unread, in the order read, and so which histories it read in part
+     * ([readInPart]); empty once one reads everything. Kept in memory only, as the next sync reading Trakt says it again.
+     */
+    val skipped: List<SkippedEntry> = emptyList(),
 )
 
 /** What the Trakt pane sees of the sync; an interface so tests can stand in for it. */
@@ -264,13 +269,14 @@ class TraktSync(
         val movies = trakt(WATCHED_MOVIES) { it.watchedMovies() }
         val shows = trakt(WATCHED_SHOWS) { it.watchedShows() }
         val paused = trakt(PLAYBACK) { it.playback() }
+        _state.update { it.copy(skipped = skippedOf(movies.left, shows.left, paused.left)) }
         val rows = dao.rows()
         val played = rows.mapNotNullTo(HashSet()) { it.versionOf }.mapNotNullTo(HashSet()) { dao.playedCopy(it) }
         val union = mode == SyncMode.UNION || saved.syncedAt == null
         val whole = WholeHistory(movies = movies.skipped == 0, episodes = shows.skipped == 0)
         if (union && !(whole.movies && whole.episodes)) Log.w(TAG, "Trakt's history read in part: what it seems to lack of it is not sent")
         val seenThere = movies.entries.watched() + shows.entries.watched()
-        val plan = withContext(Dispatchers.Default) { SyncPlan.of(rows, seenThere, paused, union, played, whole) }
+        val plan = withContext(Dispatchers.Default) { SyncPlan.of(rows, seenThere, paused.entries, union, played, whole) }
         local.withLock { dao.apply(plan.watched, plan.resumes, plan.titles) }
         if (plan.changes) changed()
         // Never in place of a mark waiting since the queue was sent.
@@ -451,7 +457,7 @@ class TraktSync(
         private var shows: Decoded<WatchedShow>? = null
         private var pauses: List<PlaybackProgress>? = null
 
-        suspend fun paused(): List<PlaybackProgress> = pauses ?: trakt(PLAYBACK) { it.playback() }.also { pauses = it }
+        suspend fun paused(): List<PlaybackProgress> = pauses ?: trakt(PLAYBACK) { it.playback().entries }.also { pauses = it }
 
         /** Whether Trakt paused [title] after [at] (ms). */
         suspend fun paused(title: TraktTitle, at: Long): Boolean =

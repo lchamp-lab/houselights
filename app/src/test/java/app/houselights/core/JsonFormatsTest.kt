@@ -37,6 +37,15 @@ class JsonFormatsTest {
     }
 
     @Test
+    fun theEntriesLeftOutAreGivenAsTheyCame() {
+        val list = serverJson.parseToJsonElement("""[{"id":1},{"id":"x","name":"b"},{"name":"c"}]""").jsonArray
+        val read = serverJson.decodeCounted(Entry.serializer(), list, "Test list")
+        assertEquals(listOf(Entry(1)), read.entries)
+        assertEquals(listOf(list[1], list[2]), read.left)
+        assertEquals(2, read.skipped)
+    }
+
+    @Test
     fun manyEntriesLeftOutAreCountedPastTheFirst() {
         assertEquals(listOf(Entry(9)), decoded("""[{},{},{},{},{},{"id":9}]"""))
         assertEquals(4, told().size)

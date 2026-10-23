@@ -634,6 +634,28 @@
     <string name="trakt_sync_failed">与 Trakt 的同步未完成。它将自动继续。</string>
     <string name="trakt_sync_refused">Trakt 拒绝同步：账户可能已被锁定，或此版本的密钥被拒绝。请在 trakt.tv 上检查您的账户。</string>
     <string name="trakt_sync_unreadable">此版本无法读取 Trakt 的响应。更新 Houselights 应能解决此问题。</string>
+    <plurals name="trakt_skipped">
+        <item quantity="other">已跳过 %d 项</item>
+    </plurals>
+    <plurals name="trakt_skipped_desc">
+        <item quantity="other">Trakt 发送的格式此应用无法读取</item>
+    </plurals>
+    <plurals name="trakt_skipped_text">
+        <item quantity="other">Trakt 发送的格式此版本无法读取，通常是其他应用留下的暂停播放。其余内容已同步，您的标记也会照常发送。</item>
+    </plurals>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="other">%d 项无标题</item>
+    </plurals>
+    <string name="trakt_skipped_movies">电影历史记录</string>
+    <string name="trakt_skipped_episodes">剧集历史记录</string>
+    <string name="trakt_skipped_paused">暂停的播放</string>
+    <string name="trakt_skipped_partial_movies">在电影历史记录能够完整读取之前，Houselights 不会把在这里看过而 Trakt 缺少的电影发送给它，以免产生重复。</string>
+    <string name="trakt_skipped_partial_episodes">在剧集历史记录能够完整读取之前，Houselights 不会把在这里看过而 Trakt 缺少的剧集发送给它，以免产生重复。</string>
+    <string name="trakt_skipped_partial_both">在电影和剧集历史记录能够完整读取之前，Houselights 不会把在这里看过而 Trakt 缺少的电影和剧集发送给它，以免产生重复。</string>
+    <string name="trakt_skipped_fix_label">解决方法：</string>
+    <plurals name="trakt_skipped_fix">
+        <item quantity="other">解决方法：在 trakt.tv 的“进度”或“历史记录”中删除它们，或在有版本能够读取时更新 Houselights。</item>
+    </plurals>
     <string name="trakt_certificate">Trakt 的证书被拒绝。请检查此设备的日期和时间，然后重试。</string>
     <string name="settings_lost_trakt">无法重新读取本播放器上保存的 Trakt 连接。请重新连接您的账户。</string>
 </resources>

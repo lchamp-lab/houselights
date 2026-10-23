@@ -42,6 +42,9 @@ import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.ui.edit.EditMenu
 import app.houselights.core.MediaKind
+import app.houselights.providers.trakt.SkippedEntry
+import app.houselights.providers.trakt.SkippedKind
+import app.houselights.ui.settings.SkippedSheet
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
@@ -212,18 +215,23 @@ fun CatalogScreen() {
                     var keyed by remember { mutableStateOf(false) }
                     var long by remember { mutableStateOf(false) }
                     var code by remember { mutableStateOf(false) }
+                    var skipped by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Modifier: a gallery of its images", { side = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
                         HlButton("More rows than it holds", { long = true })
                     }
-                    // A sheet with nothing to focus, on a line of its own: five buttons pass the safe area.
-                    HlButton("A code to scan", { code = true })
+                    // Sheets with nothing to focus, on a line of their own: five buttons pass the safe area.
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                        HlButton("A code to scan", { code = true })
+                        HlButton("What a sync left out", { skipped = true })
+                    }
                     if (asking) SheetQuestion(onDismiss = { asking = false })
                     if (keyed) SheetStatusField(onDismiss = { keyed = false })
                     if (long) SheetLong(onDismiss = { long = false })
                     if (code) SheetCode(onDismiss = { code = false })
+                    if (skipped) SkippedSheet(CATALOG_SKIPPED, onDismiss = { skipped = false })
                     if (side) {
                         // Its poster and backdrop from the app's own art, a logo that never loads.
                         val art = shippedImage(R.drawable.banner)
@@ -497,6 +505,13 @@ private fun SheetCode(onDismiss: () -> Unit) {
 
 /** More rows than a side sheet holds. */
 private const val CATALOG_LONG_ROWS = 14
+
+/** Trakt's entries a sync could not read (Réglages > Trakt): named, named by their show, naming nothing. */
+private val CATALOG_SKIPPED = listOf(
+    SkippedEntry(SkippedKind.EPISODE_HISTORY, "Breaking Bad", 2008),
+    SkippedEntry(SkippedKind.PAUSED, "The Matrix", 1999),
+    SkippedEntry(SkippedKind.PAUSED),
+)
 
 
 @Composable

@@ -20,7 +20,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
 
-/** Answers Trakt keeps in a shape this version cannot read: left out and logged, never the whole sync lost. */
+/** Answers Trakt keeps in a shape this version cannot read: left out, logged and said, never the whole sync lost. */
 @RunWith(RobolectricTestRunner::class)
 class TraktUnreadableTest : TraktSyncFixture() {
     @Test
@@ -44,6 +44,53 @@ class TraktUnreadableTest : TraktSyncFixture() {
         assertTrue(dao.item(first)!!.played)
         assertFalse(dao.item(second)!!.played)
         assertEquals(60 * MINUTE, dao.item(paused)!!.positionMs)
+    }
+
+    /** What a sync left out is kept by what Trakt still names of it, until a sync that reads Trakt reads everything. */
+    @Test
+    fun whatASyncLeftOutIsKeptByNameUntilOneReadsEverything() = runTest {
+        trakt.movies = """[{"plays":"twice","movie":{"title":"Ocean's Eleven","year":2001,"ids":{"tmdb":161}}},${movie(61, T2)}]"""
+        trakt.shows = """[{"show":{"title":" Breaking Bad ","year":2008,"ids":{"tmdb":1396}},"seasons":"all"}]"""
+        // Nothing named, an episode named by its show, a title that is no text.
+        trakt.playback = """[{"id":"x"},{"id":"y","type":"episode","show":{"title":"Severance","year":2022}},""" +
+            """{"id":"z","type":"movie","movie":{"title":42,"year":1999}},${pausedMovie(83, 62, 60f, T2)}]"""
+
+        val sync = connected()
+
+        val left = listOf(
+            SkippedEntry(SkippedKind.MOVIE_HISTORY, "Ocean’s Eleven", 2001),
+            SkippedEntry(SkippedKind.EPISODE_HISTORY, "Breaking Bad", 2008),
+            SkippedEntry(SkippedKind.PAUSED),
+            SkippedEntry(SkippedKind.PAUSED, "Severance", 2022),
+            SkippedEntry(SkippedKind.PAUSED),
+        )
+        assertEquals(left, sync.state.value.skipped)
+        assertEquals(setOf(SkippedKind.MOVIE_HISTORY, SkippedKind.EPISODE_HISTORY), sync.state.value.skipped.readInPart)
+        assertNull("not an error: the sync went through", sync.state.value.error)
+
+        // Trakt unchanged, a check reads none of its lists: what the last read left out stands.
+        sync.scanned(changedLibrary = false)
+        waitFor("the check done") { trakt.count("GET /sync/last_activities") == 2 && !sync.state.value.running }
+        assertEquals(1, trakt.count("GET /sync/watched/movies"))
+        assertEquals(left, sync.state.value.skipped)
+
+        trakt.movies = "[${movie(61, T2)}]"
+        trakt.shows = "[]"
+        trakt.playback = "[${pausedMovie(83, 62, 60f, T2)}]"
+        sync.syncNow()
+        waitFor("a sync reading everything") { trakt.count("GET /sync/watched/movies") == 2 && !sync.state.value.running }
+        assertEquals(emptyList<SkippedEntry>(), sync.state.value.skipped)
+    }
+
+    /** A pause left out hides nothing of the histories, read whole. */
+    @Test
+    fun aPauseLeftOutLeavesTheHistoriesWhole() = runTest {
+        trakt.playback = """[{"id":84,"progress":"half","type":"movie","movie":{"title":"Heat","year":1995}}]"""
+
+        val sync = connected()
+
+        assertEquals(listOf(SkippedEntry(SkippedKind.PAUSED, "Heat", 1995)), sync.state.value.skipped)
+        assertEquals(emptySet<SkippedKind>(), sync.state.value.skipped.readInPart)
     }
 
     /** A history read in part may hide what it seems to lack: a first sync sends none of that kind, the other kind still. */

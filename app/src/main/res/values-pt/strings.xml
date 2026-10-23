@@ -669,6 +669,38 @@
     <string name="trakt_sync_failed">A sincronização com o Trakt não foi concluída. Ela será retomada sozinha.</string>
     <string name="trakt_sync_refused">O Trakt recusa a sincronização: a conta pode estar bloqueada ou a chave desta versão foi recusada. Verifique sua conta em trakt.tv.</string>
     <string name="trakt_sync_unreadable">O Trakt respondeu de um jeito que esta versão não consegue ler. Atualizar o Houselights deve resolver.</string>
+    <plurals name="trakt_skipped">
+        <item quantity="one">%d item ignorado</item>
+        <item quantity="many">%d itens ignorados</item>
+        <item quantity="other">%d itens ignorados</item>
+    </plurals>
+    <plurals name="trakt_skipped_desc">
+        <item quantity="one">O Trakt o envia em um formato que o app não sabe ler</item>
+        <item quantity="many">O Trakt os envia em um formato que o app não sabe ler</item>
+        <item quantity="other">O Trakt os envia em um formato que o app não sabe ler</item>
+    </plurals>
+    <plurals name="trakt_skipped_text">
+        <item quantity="one">O Trakt o envia em um formato que esta versão não sabe ler, muitas vezes uma reprodução pausada deixada por outro app. O resto está sincronizado, e suas marcações são enviadas normalmente.</item>
+        <item quantity="many">O Trakt os envia em um formato que esta versão não sabe ler, muitas vezes uma reprodução pausada deixada por outro app. O resto está sincronizado, e suas marcações são enviadas normalmente.</item>
+        <item quantity="other">O Trakt os envia em um formato que esta versão não sabe ler, muitas vezes uma reprodução pausada deixada por outro app. O resto está sincronizado, e suas marcações são enviadas normalmente.</item>
+    </plurals>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="one">%d item sem título</item>
+        <item quantity="many">%d itens sem título</item>
+        <item quantity="other">%d itens sem título</item>
+    </plurals>
+    <string name="trakt_skipped_movies">Histórico de filmes</string>
+    <string name="trakt_skipped_episodes">Histórico de episódios</string>
+    <string name="trakt_skipped_paused">Reprodução pausada</string>
+    <string name="trakt_skipped_partial_movies">Enquanto o histórico de filmes não puder ser lido por inteiro, o Houselights não envia ao Trakt os filmes vistos aqui que faltam lá, para não criar duplicatas.</string>
+    <string name="trakt_skipped_partial_episodes">Enquanto o histórico de episódios não puder ser lido por inteiro, o Houselights não envia ao Trakt os episódios vistos aqui que faltam lá, para não criar duplicatas.</string>
+    <string name="trakt_skipped_partial_both">Enquanto os históricos de filmes e de episódios não puderem ser lidos por inteiro, o Houselights não envia ao Trakt os filmes e episódios vistos aqui que faltam lá, para não criar duplicatas.</string>
+    <string name="trakt_skipped_fix_label">Para resolver:</string>
+    <plurals name="trakt_skipped_fix">
+        <item quantity="one">Para resolver: exclua-o em trakt.tv, em Progresso ou Histórico, ou atualize o Houselights quando uma versão souber lê-lo.</item>
+        <item quantity="many">Para resolver: exclua-os em trakt.tv, em Progresso ou Histórico, ou atualize o Houselights quando uma versão souber lê-los.</item>
+        <item quantity="other">Para resolver: exclua-os em trakt.tv, em Progresso ou Histórico, ou atualize o Houselights quando uma versão souber lê-los.</item>
+    </plurals>
     <string name="trakt_certificate">O certificado do Trakt foi recusado. Verifique a data e a hora do dispositivo e tente de novo.</string>
     <string name="settings_lost_trakt">Não foi possível reler a conexão com o Trakt salva neste player. Conecte sua conta de novo.</string>
 </resources>
