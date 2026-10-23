@@ -327,7 +327,7 @@
     </plurals>
     <plurals name="folder_count">
         <item quantity="one">%d Ordner</item>
-        <item quantity="other">%d Ordnern</item>
+        <item quantity="other">%d Ordner</item>
     </plurals>
     <string name="sign_out">Abmelden</string>
     <string name="sign_out_confirm">Von „%s“ abmelden?</string>
@@ -352,7 +352,7 @@
     <string name="label_user">Benutzer</string>
     <string name="label_render">Darstellung der Oberfläche</string>
     <string name="add_folder_row_desc">Filme oder Serien auf Ihrem NAS</string>
-    <string name="library_in_folders">%1$s in %2$s</string>
+    <string name="library_in_folders">%1$s, %2$s</string>
     <string name="display_desc_player">Der Player legt seine Ausgabe fest; Houselights passt sich an.</string>
     <string name="display_desc_system">Houselights folgt der Ausgabe, die dieses Gerät festlegt.</string>
     <string name="display_interface">Oberfläche</string>

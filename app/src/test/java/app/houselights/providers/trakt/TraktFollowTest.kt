@@ -27,28 +27,37 @@ class TraktFollowTest : TraktSyncFixture() {
     private val waiting = TraktPendingEntity("movie:70", TraktAction.UNWATCHED, NOW - MINUTE)
 
     /** The sync following [settings], as the app's container runs it. */
-    private fun TestScope.following(settings: AppSettings): TraktSync {
-        val state = MutableStateFlow(settings)
-        val follow = TraktFollow(state)
+    private fun TestScope.following(settings: MutableStateFlow<AppSettings>): TraktSync {
+        val follow = TraktFollow(settings)
         return sync(following = follow::queues).also { backgroundScope.launch { follow.drive(it) } }
     }
 
-    /** Android 9's keystore daemon restarting at launch: the session reads as unset, yet nothing is signed out. */
+    /**
+     * Android 9's keystore daemon restarting at launch: the session reads as unset, yet nothing is signed out nor
+     * forgotten, and once it opens again the sync goes on from where it was.
+     */
     @Test
-    fun aSessionTheKeystoreCouldNotOpenKeepsWhatWaitsAndQueuesMarks() = runTest {
+    fun aSessionTheKeystoreCouldNotOpenForgetsNothingAndQueuesMarks() = runTest {
         val id = film(71)
         queue.queue(listOf(waiting))
-        queue.saveState(TraktStateEntity(syncedAt = NOW - MINUTE, activities = "x"))
+        val synced = TraktStateEntity(syncedAt = NOW - MINUTE, activities = "x")
+        queue.saveState(synced)
+        val saved = session
         session = null
-        val sync = following(AppSettings(loaded = true, source = SourceConfig.Local, lostSecrets = setOf(SecretSetting.TRAKT)))
-        // The sync's state goes, so the next one joins both sides; what waits stays.
-        waitFor("the settings followed") { queue.state() == null }
-        assertEquals(listOf(waiting.title), queue.pending().map { it.title })
-
+        val settings = MutableStateFlow(AppSettings(loaded = true, source = SourceConfig.Local, lostSecrets = setOf(SecretSetting.TRAKT)))
+        val sync = following(settings)
         provider(sync).mark(id, played = true)
         advanceUntilIdle()
+        assertEquals(synced, queue.state())
         assertEquals(setOf(waiting.title, "movie:71"), queue.pending().map { it.title }.toSet())
         assertEquals(emptyList<String>(), trakt.routes)
+
+        // Synced a minute before: what waited goes alone, Trakt's history is not read again from the start.
+        session = saved
+        settings.value = AppSettings(loaded = true, source = SourceConfig.Local, trakt = saved)
+        waitFor("what waited sent") { queue.pending().isEmpty() && !sync.state.value.running }
+        assertEquals(listOf(1, 1), listOf(trakt.count("POST /sync/history/remove"), trakt.count("POST /sync/history")))
+        assertEquals(0, trakt.count("GET /sync/last_activities") + trakt.count("GET /sync/watched/movies"))
     }
 
     @Test
@@ -56,7 +65,7 @@ class TraktFollowTest : TraktSyncFixture() {
         val id = film(72)
         queue.queue(listOf(waiting))
         session = null
-        val sync = following(AppSettings(loaded = true, source = SourceConfig.Local))
+        val sync = following(MutableStateFlow(AppSettings(loaded = true, source = SourceConfig.Local)))
         waitFor("the queue forgotten") { queue.pending().isEmpty() }
 
         provider(sync).mark(id, played = true)

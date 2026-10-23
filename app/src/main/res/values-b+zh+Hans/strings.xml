@@ -310,7 +310,7 @@
     <string name="tracks_hint_pair">%1$s，%2$s</string>
     <string name="tmdb_desc">海报和资料来自 TMDB。</string>
     <string name="change_source_local_desc">您的文件夹会保留</string>
-    <string name="change_source_jellyfin_desc">切换后服务器仍保持连接</string>
+    <string name="change_source_jellyfin_desc">切换后仍保持连接</string>
     <string name="change_source_jellyfin_sheet">切换后服务器仍保持连接</string>
     <string name="change_source">更换来源</string>
     <string name="reconnect">重新登录</string>

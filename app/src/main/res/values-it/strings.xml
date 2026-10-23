@@ -322,7 +322,7 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Locandine e informazioni provengono da TMDB.</string>
     <string name="change_source_local_desc">Le cartelle vengono conservate</string>
-    <string name="change_source_jellyfin_desc">Il server resta connesso anche cambiando</string>
+    <string name="change_source_jellyfin_desc">Resta connesso anche cambiando</string>
     <string name="change_source_jellyfin_sheet">Il server resta connesso anche cambiando</string>
     <string name="change_source">Cambia sorgente</string>
     <string name="reconnect">Accedi di nuovo</string>

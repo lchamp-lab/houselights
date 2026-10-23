@@ -622,11 +622,12 @@ screen succeeds. Sources change in one place, `SourceSwitcher`, and changing sig
 checked, focus on what changes the source; apart, on its own plate, the row that ends a server's session
 (`HlIcons.SignOut`), the one choice asked first. A server left for the folders stays signed in, kept, one at most:
 under its name, "Jellyfin · léa · sans vous reconnecter", it comes back in one OK once the server takes its token
-(the Source row says "Connexion…" meanwhile; a token refused opens the sign-in filled in, address and account), and
-"Oublier « … »" forgets it. On a server, "Mes fichiers" switches at once, its line "2 dossiers · Trakt reprend"
-once Trakt is connected, and "Se déconnecter de « … »" signs out. A row's line joins its parts with a middle dot,
-each row on one line at the largest text size (`PaneRowLineTest`), a long account's name ending in an ellipsis. The
-head says the server stays connected in a sentence; the Source row, beside its value, in fewer words.
+(the Source row says "Connexion…" meanwhile and OK on it does nothing; a token refused opens the sign-in filled in,
+address and account; a server forgotten or replaced meanwhile is left so), and "Oublier « … »" forgets it. On a
+server, "Mes fichiers" switches at once, its line "2 dossiers · Trakt reprend" once Trakt is connected, and "Se
+déconnecter de « … »" signs out. A row's line joins its parts with a middle dot, each row on one line at the largest
+text size (`PaneRowLineTest`), a long account's name ending in an ellipsis. The head says the server stays connected
+in a sentence; the Source row, beside its value, in fewer words, in every language.
 
 ## Messages
 

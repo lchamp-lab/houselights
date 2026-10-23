@@ -316,7 +316,7 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Posters en gegevens komen van TMDB.</string>
     <string name="change_source_local_desc">Uw mappen blijven bewaard</string>
-    <string name="change_source_jellyfin_desc">De server blijft verbonden als u wisselt</string>
+    <string name="change_source_jellyfin_desc">Blijft verbonden als u wisselt</string>
     <string name="change_source_jellyfin_sheet">De server blijft verbonden als u wisselt</string>
     <string name="change_source">Bron wijzigen</string>
     <string name="reconnect">Opnieuw inloggen</string>

@@ -466,47 +466,65 @@ private fun metadataLanguageName(tag: String, locale: Locale = Locale.forLanguag
     return name.replaceFirstChar { it.titlecase(locale) }
 }
 
-/** The current source and what changing it keeps; OK opens [SourceSheet], whose every choice closes it at once. */
+/** The Source row as Settings has it, each choice of its sheet carried out. */
 @Composable
 private fun SourceRow(doors: SourceDoors, modifier: Modifier = Modifier) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val folders by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val titles by vm.library.titleCount.collectAsStateWithLifecycle(0)
-    var choose by remember { mutableStateOf(false) }
-    val server = s.source is SourceConfig.Jellyfin
     // Switching failed (storage), or the kept server could not be resumed or forgotten: shown here, where focus returns.
     val failure = rowFailure(vm.errorOf(SettingAction.SOURCE)) ?: rowFailure(vm.errorOf(SettingAction.KEPT_SERVER), notDone = true)
+    SourceSetting(
+        SourceSheetFacts(s.source, s.keptServer, folders.size, titles, trakt = s.trakt?.ended == false),
+        failure,
+        resuming = vm.resuming,
+        modifier,
+    ) { choice ->
+        when (choice) {
+            is SourceChoice.Folders -> doors.useFolders(true)
+            // A token the server refuses: the sign-in opens filled in, on the password.
+            is SourceChoice.Server -> vm.resumeServer(choice.server, doors.resumed) { refused ->
+                doors.signIn(LoginFill.Server(refused.serverUrl, refused.userName))
+            }
+            is SourceChoice.SignIn -> doors.signIn(LoginFill.Blank)
+            is SourceChoice.Leave -> if (choice.current) doors.useFolders(false) else vm.forgetServer()
+        }
+    }
+}
+
+/**
+ * The current source and what changing it keeps; OK opens [SourceSheet], whose every choice closes it at once. While
+ * the kept server is asked ([resuming]) the row says so and OK does nothing: its coming back would undo a choice made
+ * meanwhile, or leave the sign-in being typed.
+ */
+@Composable
+internal fun SourceSetting(
+    facts: SourceSheetFacts,
+    failure: RowFailure?,
+    resuming: Boolean,
+    modifier: Modifier = Modifier,
+    onChoose: (SourceChoice) -> Unit,
+) {
+    var choose by remember { mutableStateOf(false) }
     HlSettingRow(
         stringResource(R.string.change_source_row),
         modifier,
         value = when {
-            vm.resuming -> stringResource(R.string.signing_in)
+            resuming -> stringResource(R.string.signing_in)
             failure != null -> failure.value
-            else -> stringResource(if (server) R.string.source_jellyfin else R.string.source_local)
+            else -> stringResource(if (facts.source is SourceConfig.Jellyfin) R.string.source_jellyfin else R.string.source_local)
         },
-        description = stringResource(sourceKeeps(s.source)),
+        description = stringResource(sourceKeeps(facts.source)),
         valueAttention = failure != null,
-        onClick = { choose = true },
+        onClick = { if (!resuming) choose = true },
     )
     RowFailureNote(failure)
     if (choose) {
-        SourceSheet(
-            SourceSheetFacts(s.source, s.keptServer, folders.size, titles, trakt = s.trakt?.ended == false),
-            onDismiss = { choose = false },
-            onChoose = { choice ->
-                choose = false
-                when (choice) {
-                    is SourceChoice.Folders -> doors.useFolders(true)
-                    // A token the server refuses: the sign-in opens filled in, on the password.
-                    is SourceChoice.Server -> vm.resumeServer(choice.server, doors.resumed) { refused ->
-                        doors.signIn(LoginFill.Server(refused.serverUrl, refused.userName))
-                    }
-                    is SourceChoice.SignIn -> doors.signIn(LoginFill.Blank)
-                    is SourceChoice.Leave -> if (choice.current) doors.useFolders(false) else vm.forgetServer()
-                }
-            },
-        )
+        SourceSheet(facts, onDismiss = { choose = false }) { choice ->
+            choose = false
+            onChoose(choice)
+        }
     }
 }
 

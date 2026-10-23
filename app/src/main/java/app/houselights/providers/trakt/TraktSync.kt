@@ -107,13 +107,15 @@ class TraktSync(
 
     /**
      * The account and the source as the settings have them: a connection starts; signing out forgets what waits,
-     * which stays for the next connection when Trakt ended this one.
+     * which stays for the next connection when Trakt ended this one. A session saved but [unread] at this launch
+     * forgets nothing, so that the sync goes on from where it was once the session opens again.
      */
-    fun follow(connected: Boolean, folders: Boolean, signedOut: Boolean = !connected) {
+    fun follow(connected: Boolean, folders: Boolean, signedOut: Boolean = !connected, unread: Boolean = false) {
         active = connected && folders
         follows = !signedOut && folders
         when {
             signedOut -> scope.launch { disconnected(keepQueue = false) }
+            unread -> Unit
             !connected -> scope.launch { disconnected(keepQueue = true) }
             folders -> scope.launch { begin() }
         }

@@ -322,7 +322,7 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Los pósteres y los detalles provienen de TMDB.</string>
     <string name="change_source_local_desc">Sus carpetas se conservan</string>
-    <string name="change_source_jellyfin_desc">El servidor sigue conectado si cambia</string>
+    <string name="change_source_jellyfin_desc">Sigue conectado si cambia</string>
     <string name="change_source_jellyfin_sheet">El servidor sigue conectado si cambia</string>
     <string name="change_source">Cambiar de fuente</string>
     <string name="reconnect">Iniciar sesión de nuevo</string>

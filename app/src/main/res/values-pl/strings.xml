@@ -328,7 +328,7 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Plakaty i informacje pochodzą z TMDB.</string>
     <string name="change_source_local_desc">Foldery zostają zachowane</string>
-    <string name="change_source_jellyfin_desc">Serwer pozostaje połączony po zmianie</string>
+    <string name="change_source_jellyfin_desc">Pozostaje połączony po zmianie</string>
     <string name="change_source_jellyfin_sheet">Serwer pozostaje połączony po zmianie</string>
     <string name="change_source">Zmień źródło</string>
     <string name="reconnect">Zaloguj się ponownie</string>

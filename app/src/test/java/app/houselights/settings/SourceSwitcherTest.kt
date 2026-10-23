@@ -3,9 +3,12 @@ package app.houselights.settings
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import app.houselights.testing.http
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -155,6 +158,50 @@ class SourceSwitcherTest {
     fun aServerForgottenMeanwhileIsNeverResumed() = runTest {
         assertEquals(Resumed.Refused(home), switcher(SourceConfig.Local, this, kept = null).resume(home))
         assertEquals(emptyList<String>(), done)
+    }
+
+    /** Settings that each save changes, as the store's do, on the folders with [home] kept. */
+    private var settings = AppSettings(loaded = true, source = SourceConfig.Local, keptServer = home, deviceId = "device")
+
+    /** A switcher on [settings], its server answering once [answer] completes. */
+    private fun saving(scope: CoroutineScope, answer: CompletableDeferred<Unit>) = SourceSwitcher(
+        current = { settings },
+        save = { source, keeps ->
+            done += "save ${source.name()}" + keeps?.let { ", keep ${it.accessToken}" }.orEmpty()
+            settings = settings.copy(source = source, keptServer = keeps)
+        },
+        scope = scope,
+        signOut = { server, deviceId -> done += "sign out ${server.accessToken} on $deviceId" },
+        check = { _, _ -> answer.await() },
+    )
+
+    /** Forgotten while the server was asked, its token revoked: the server's answer never makes it the source. */
+    @Test
+    fun aServerForgottenWhileItIsAskedIsNeverResumed() = runTest {
+        val answer = CompletableDeferred<Unit>()
+        val switcher = saving(this, answer)
+        val resumed = async { switcher.resume(home) }
+        runCurrent()
+        switcher.forget()
+        answer.complete(Unit)
+        assertEquals(Resumed.Overtaken, resumed.await())
+        advanceUntilIdle()
+        assertEquals(listOf("save folders", "sign out old-token on device"), done)
+        assertEquals(SourceConfig.Local, settings.source)
+    }
+
+    @Test
+    fun anotherServerSignedInWhileTheKeptOneIsAskedStaysTheSource() = runTest {
+        val answer = CompletableDeferred<Unit>()
+        val switcher = saving(this, answer)
+        val resumed = async { switcher.resume(home) }
+        runCurrent()
+        switcher.switchTo(office)
+        answer.complete(Unit)
+        assertEquals(Resumed.Overtaken, resumed.await())
+        advanceUntilIdle()
+        assertEquals(listOf("save office-token", "sign out old-token on device"), done)
+        assertEquals(office, settings.source)
     }
 
     /** A sleeping server says so where the choice was made: nothing changes, and it stays kept. */

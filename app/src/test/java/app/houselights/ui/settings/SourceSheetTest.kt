@@ -1,6 +1,10 @@
 package app.houselights.ui.settings
 
 import android.view.KeyEvent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
@@ -10,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import app.houselights.core.SourceConfig
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
@@ -19,7 +24,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The "Changer de source" sheet: its rows on the folders with or without a kept server, and on the server. */
+/** The "Changer de source" sheet: its rows on the folders with or without a kept server, and on the server; the row that opens it. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr-$TV")
 class SourceSheetTest {
@@ -78,6 +83,32 @@ class SourceSheetTest {
         row("Mes fichiers").assertIsFocused()
         ok("Mes fichiers")
         assertEquals(listOf(SourceChoice.Folders(current = false, traktResumes = true)), chosen)
+    }
+
+    /** German counts its folders alone in the nominative, "in" taking the dative only in the library's summary. */
+    @Test
+    @Config(qualifiers = "de-$TV")
+    fun theFoldersAreCountedAloneInEachLanguage() {
+        show(salon, trakt = true)
+        shows("2 Ordner · Trakt läuft weiter")
+    }
+
+    /** While the kept server is asked, the Source row says so and opens nothing: its coming back would undo another choice. */
+    @Test
+    fun whileTheKeptServerIsAskedTheSourceRowOpensNothing() {
+        var resuming by mutableStateOf(true)
+        compose.setTvContent {
+            val facts = SourceSheetFacts(SourceConfig.Local, salon, folders = 2, titles = 11, trakt = false)
+            SourceSetting(facts, failure = null, resuming) { chosen += it }
+        }
+        row("Source").requestFocus()
+        compose.press(Key.DirectionCenter)
+        shows("Connexion…")
+        compose.onNodeWithText("Changer de source").assertDoesNotExist()
+
+        resuming = false
+        compose.press(Key.DirectionCenter)
+        shows("Changer de source")
     }
 
     @Test

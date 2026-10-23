@@ -327,7 +327,7 @@
     <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Posters and details come from TMDB.</string>
     <string name="change_source_local_desc">Your folders are kept</string>
-    <string name="change_source_jellyfin_desc">The server stays connected if you switch</string>
+    <string name="change_source_jellyfin_desc">Stays connected if you switch</string>
     <string name="change_source_jellyfin_sheet">The server stays connected if you switch</string>
     <string name="change_source">Change source</string>
     <string name="reconnect">Sign in again</string>

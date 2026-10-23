@@ -152,6 +152,8 @@ internal class SettingsViewModel(
                 when (val resumed = sources.resume(server)) {
                     Resumed.Done -> onResumed()
                     is Resumed.Refused -> onRefused(resumed.server)
+                    // Forgotten or replaced meanwhile: that choice stands.
+                    Resumed.Overtaken -> Unit
                 }
             } finally {
                 resuming = false
