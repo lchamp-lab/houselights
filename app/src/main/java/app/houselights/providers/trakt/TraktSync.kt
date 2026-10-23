@@ -350,7 +350,7 @@ class TraktSync(
     private suspend fun watch(entries: List<Queued>, lookup: Lookup) {
         val (reached, left) = entries.partition { (entry, title) ->
             val sentAt = entry.sentAt
-            sentAt != null && lookup.watched(title, entry.at, since = sentAt)
+            sentAt != null && lookup.watched(title, entry.at, sent = true, since = sentAt)
         }
         dao.sent(reached.map { it.first })
         left.chunked(BATCH).forEach { history(it, remove = false) }
@@ -387,7 +387,7 @@ class TraktSync(
         val late = now() - entry.at > LATE_MS
         val watched = percent >= SyncPlan.WATCHED_PERCENT
         when {
-            late && (lookup.watched(title, entry.at) || !watched && lookup.paused(title, entry.at)) -> Unit
+            late && (lookup.watched(title, entry.at, entry.sentAt != null) || !watched && lookup.paused(title, entry.at)) -> Unit
             late && watched -> write(listOf(entry), HISTORY) { it.addToHistory(historyOf(listOf(title to entry.at))) }
             else -> write(listOf(entry), SCROBBLE_STOP) { it.scrobbleStop(scrobbleOf(title, percent)) }
         }
@@ -472,9 +472,10 @@ class TraktSync(
 
         /**
          * Whether Trakt has a play of [title] at [at] (ms) or later; its history is read only once its last activities
-         * say it changed [since] then, give or take [CLOCK_SKEW_MS] of the device's clock.
+         * say it changed [since] then, give or take [CLOCK_SKEW_MS] of the device's clock. Whether it was [sent] before
+         * decides when a history read in part does not show it.
          */
-        suspend fun watched(title: TraktTitle, at: Long, since: Long = at): Boolean {
+        suspend fun watched(title: TraktTitle, at: Long, sent: Boolean, since: Long = at): Boolean {
             val last = activities ?: trakt(LAST_ACTIVITIES) { it.lastActivities() }.also { activities = it }
             val movie = title is TraktTitle.Movie
             val changed = millisOf(if (movie) last.movies.watchedAt else last.episodes.watchedAt) ?: return false
@@ -486,9 +487,9 @@ class TraktSync(
                 val read = shows ?: trakt(WATCHED_SHOWS) { it.watchedShows() }.also { shows = it }
                 read.entries.watched() to (read.skipped == 0)
             }
-            // Not found in a history read in part, it may be among what was left out: taken as there, never sent twice.
-            // Trakt keeps a play's date to the second.
-            return (seen[title] ?: return !whole) >= at - MS_PER_S
+            // Not found in a history read in part, a play sent before may be among what was left out: taken as there,
+            // never sent twice. Trakt keeps a play's date to the second.
+            return (seen[title] ?: return !whole && sent) >= at - MS_PER_S
         }
     }
 

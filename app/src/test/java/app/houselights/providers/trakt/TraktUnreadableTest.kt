@@ -144,6 +144,30 @@ class TraktUnreadableTest : TraktSyncFixture() {
         assertEquals(1, trakt.count("POST /sync/history"))
     }
 
+    /** Over a history read in part, a late stop never sent goes at its date; one sent without an answer may be there. */
+    @Test
+    fun aLateStopWatchedGoesOverAHistoryReadInPartUnlessItMayHaveReachedTrakt() = runTest {
+        val sync = connected()
+        val hourAgo = NOW - 60 * MINUTE
+        trakt.movies = """[{"plays":"twice","movie":{"ids":{"tmdb":69}}}]"""
+        trakt.activities = activities(iso(NOW - 30 * MINUTE))
+        queue.queue(
+            listOf(
+                TraktPendingEntity("movie:51", TraktAction.PROGRESS, hourAgo, progress = 90f),
+                TraktPendingEntity("movie:52", TraktAction.PROGRESS, hourAgo, progress = 90f),
+            )
+        )
+        queue.sending(queue.pending().filter { it.title == "movie:52" }, at = hourAgo)
+
+        sync.scanned(changedLibrary = false)
+        waitFor("the stops sent") { queue.pending().isEmpty() && !sync.state.value.running }
+
+        val sent = trakt.sent("POST /sync/history").single()
+        assertEquals(listOf(51), sent.tmdbs)
+        assertEquals(iso(hourAgo), sent.movieDate())
+        assertEquals(0, trakt.count("POST /scrobble/stop"))
+    }
+
     @Test
     fun aRemovalWaitingGoesThoughTraktKeepsAPauseItCannotRead() = runTest {
         film(64)

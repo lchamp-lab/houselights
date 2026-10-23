@@ -63,7 +63,8 @@ Three moments carry the identity:
   prepared underneath appears without a fade. A warm start shows at once.
 - **House lights.** Playing a title runs `HouseLightCue` over `DIM`: the room dims (`Modifier.houseLit`), the
   veils lift, then black (`HouseLights`) and the player. The player starts once the room is dark, not after a
-  fixed delay; returning runs the cue backwards. During the cue, OK is ignored and Back cancels.
+  fixed delay; returning runs the cue backwards. During the cue, OK and Menu are ignored and Back cancels
+  (`UnseenKeysTest`).
 - **The credits.** Director and lead cast read as one sentence, "un film de NAME avec NAME, NAME et NAME"
   (`BillingBlock`): condensed capitals, small words receding, on one line, keeping as many whole names as
   fit.
