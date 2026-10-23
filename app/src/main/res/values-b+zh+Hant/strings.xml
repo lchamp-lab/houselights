@@ -646,6 +646,9 @@
     <plurals name="trakt_skipped_untitled">
         <item quantity="other">%d 個無標題項目</item>
     </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="other">另有 %d 個項目</item>
+    </plurals>
     <string name="trakt_skipped_movies">電影觀看記錄</string>
     <string name="trakt_skipped_episodes">劇集觀看記錄</string>
     <string name="trakt_skipped_paused">暫停的播放</string>

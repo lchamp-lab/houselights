@@ -390,6 +390,30 @@ class TraktPaneTest {
         compose.onNodeWithText("Film 1", useUnmergedTree = true).assertIsDisplayed()
     }
 
+    /**
+     * A history Trakt changed the shape of leaves hundreds out: ten are named, the rest of each kind counted on one line,
+     * those naming nothing among them, and the fix stays a few presses away.
+     */
+    @Test
+    fun hundredsLeftOutAreNamedTenAndTheRestCountedByKind() {
+        session = lea
+        sync.state.value = TraktSyncState(
+            syncedAt = System.currentTimeMillis(),
+            skipped = (1..600).map { SkippedEntry(SkippedKind.EPISODE_HISTORY, "Série $it") } +
+                SkippedEntry(SkippedKind.EPISODE_HISTORY) + (1..3).map { SkippedEntry(SkippedKind.PAUSED, "Film $it") },
+        )
+        show()
+        ok("604 éléments ignorés")
+        compose.onNodeWithText("Série 10", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Série 11", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("Et 591 autres", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Et 3 autres", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Film 1", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("sans titre", substring = true, useUnmergedTree = true).assertDoesNotExist()
+        repeat(8) { compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN) }
+        compose.onNodeWithText(FIX, substring = true).assertIsDisplayed()
+    }
+
     /** A sheet that fits takes no focus, as the code's: Back is the one key, and focus is back on the row. */
     @Test
     fun aSheetThatFitsTakesNoFocus() {

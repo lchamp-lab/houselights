@@ -82,6 +82,25 @@ class TraktUnreadableTest : TraktSyncFixture() {
         assertEquals(emptyList<SkippedEntry>(), sync.state.value.skipped)
     }
 
+    /** Nothing of what a sync left out is stored: a new process reads Trakt at launch, though unchanged and synced lately. */
+    @Test
+    fun aNewProcessSaysAgainWhatTheLastSyncLeftOut() = runTest {
+        trakt.playback = """[{"id":84,"progress":"half","type":"movie","movie":{"title":"Heat","year":1995}}]"""
+        connected()
+        val heat = listOf(SkippedEntry(SkippedKind.PAUSED, "Heat", 1995))
+
+        val relaunched = sync()
+        relaunched.follow(connected = true, folders = true)
+        waitFor("Trakt read again") { relaunched.state.value.skipped == heat && !relaunched.state.value.running }
+        assertEquals(2, trakt.count("GET /sync/playback"))
+
+        // Read once a process: a check after that reads its lists only if Trakt changed.
+        relaunched.scanned(changedLibrary = false)
+        waitFor("the check done") { trakt.count("GET /sync/last_activities") == 3 && !relaunched.state.value.running }
+        assertEquals(2, trakt.count("GET /sync/playback"))
+        assertEquals(heat, relaunched.state.value.skipped)
+    }
+
     /** A pause left out hides nothing of the histories, read whole. */
     @Test
     fun aPauseLeftOutLeavesTheHistoriesWhole() = runTest {

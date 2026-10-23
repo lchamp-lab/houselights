@@ -695,6 +695,11 @@
         <item quantity="many">%d elementos sin título</item>
         <item quantity="other">%d elementos sin título</item>
     </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="one">Y %d más</item>
+        <item quantity="many">Y %d más</item>
+        <item quantity="other">Y %d más</item>
+    </plurals>
     <string name="trakt_skipped_movies">Historial de películas</string>
     <string name="trakt_skipped_episodes">Historial de episodios</string>
     <string name="trakt_skipped_paused">Reproducción en pausa</string>

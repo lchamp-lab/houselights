@@ -643,6 +643,9 @@
     <plurals name="trakt_skipped_untitled">
         <item quantity="other">제목 없는 항목 %d개</item>
     </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="other">그 외 %d개</item>
+    </plurals>
     <string name="trakt_skipped_movies">영화 기록</string>
     <string name="trakt_skipped_episodes">에피소드 기록</string>
     <string name="trakt_skipped_paused">일시 정지된 재생</string>

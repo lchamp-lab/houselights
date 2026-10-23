@@ -683,6 +683,10 @@
         <item quantity="one">%d item without a title</item>
         <item quantity="other">%d items without a title</item>
     </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="one">And %d more</item>
+        <item quantity="other">And %d more</item>
+    </plurals>
     <string name="trakt_skipped_movies">Film history</string>
     <string name="trakt_skipped_episodes">Episode history</string>
     <string name="trakt_skipped_paused">Paused playback</string>

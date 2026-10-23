@@ -669,6 +669,10 @@
         <item quantity="one">%d item zonder titel</item>
         <item quantity="other">%d items zonder titel</item>
     </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="one">En nog %d</item>
+        <item quantity="other">En nog %d</item>
+    </plurals>
     <string name="trakt_skipped_movies">Filmgeschiedenis</string>
     <string name="trakt_skipped_episodes">Afleveringengeschiedenis</string>
     <string name="trakt_skipped_paused">Gepauzeerde weergave</string>

@@ -239,16 +239,21 @@ class TraktSyncTest : TraktSyncFixture() {
     }
 
     @Test
-    fun atLaunchTraktIsReadOnlyAfterSixHours() = runTest {
+    fun traktIsReadAtLaunchThenWhenFollowedAnewOnlyAfterSixHours() = runTest {
         queue.saveState(TraktStateEntity(syncedAt = NOW - 60 * MINUTE, activities = "x"))
         val sync = sync()
         sync.follow(connected = true, folders = true)
+        waitFor("Trakt read at launch") { trakt.count("GET /sync/watched/movies") == 1 && !sync.state.value.running }
+
+        queue.saveState(TraktStateEntity(syncedAt = NOW - 60 * MINUTE, activities = "x"))
+        sync.follow(connected = true, folders = true)
         advanceUntilIdle()
-        assertEquals(emptyList<String>(), trakt.routes)
+        assertFalse(sync.state.value.running)
+        assertEquals(1, trakt.count("GET /sync/last_activities"))
 
         queue.saveState(TraktStateEntity(syncedAt = NOW - 7 * 60 * MINUTE, activities = "x"))
         sync.follow(connected = true, folders = true)
-        waitFor("Trakt read") { trakt.count("GET /sync/watched/movies") == 1 && !sync.state.value.running }
+        waitFor("Trakt read") { trakt.count("GET /sync/watched/movies") == 2 && !sync.state.value.running }
     }
 
     @Test

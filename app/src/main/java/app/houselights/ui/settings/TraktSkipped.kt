@@ -69,10 +69,11 @@ internal fun SkippedSheet(skipped: List<SkippedEntry>, onDismiss: () -> Unit) {
     val count = skipped.size
     val scroll = rememberScrollState()
     val overflows = scroll.maxValue > 0
+    val lines = remember(skipped) { skippedLines(skipped) }
     HlSideSheet(pluralStringResource(R.plurals.trakt_skipped, count, count), onDismiss, scroll = scroll) { _ ->
         Text(pluralStringResource(R.plurals.trakt_skipped_text, count), style = Hl.type.body, color = c.contentSecondary)
         ReadingPlate(Modifier.fillMaxWidth().focusProperties { canFocus = overflows }.readsThrough(scroll)) {
-            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) { skippedLines(skipped).forEach { SkippedItem(it) } }
+            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) { lines.forEach { SkippedItem(it) } }
         }
         heldBack(skipped.readInPart)?.let { Text(stringResource(it), style = Hl.type.meta, color = c.contentSecondary) }
         Fix(count)
@@ -96,16 +97,37 @@ private fun Modifier.readsThrough(scroll: ScrollState): Modifier {
     }
 }
 
-/** A line of the list: an entry Trakt still names, or how many of a kind it names nothing of. */
-internal data class SkippedLine(val kind: SkippedKind, val title: String? = null, val year: Int? = null, val untitled: Int = 0)
+/** A line of the list: an entry Trakt still names, how many of a kind it names nothing of, or how many more there are. */
+internal data class SkippedLine(
+    val kind: SkippedKind,
+    val title: String? = null,
+    val year: Int? = null,
+    val untitled: Int = 0,
+    val more: Int = 0,
+)
 
-/** The entries by kind, in the order read; those naming nothing counted on one line after the others of their kind. */
-internal fun skippedLines(skipped: List<SkippedEntry>): List<SkippedLine> =
-    skipped.groupBy { it.kind }.flatMap { (kind, entries) ->
+/**
+ * The entries by kind, in the order read, the first [MAX_NAMED] by name. After those of a kind, one line counts the
+ * rest of it, those naming nothing included ("Et 590 autres"), else those naming nothing ("1 élément sans titre"): a
+ * history Trakt changed the shape of stays a few presses long.
+ */
+internal fun skippedLines(skipped: List<SkippedEntry>): List<SkippedLine> {
+    var room = MAX_NAMED
+    return skipped.groupBy { it.kind }.flatMap { (kind, entries) ->
         val (named, unnamed) = entries.partition { it.title != null }
-        val untitled = if (unnamed.isEmpty()) emptyList() else listOf(SkippedLine(kind, untitled = unnamed.size))
-        named.map { SkippedLine(kind, it.title, it.year) } + untitled
+        val shown = named.take(room)
+        room -= shown.size
+        val rest = when {
+            shown.size < named.size -> SkippedLine(kind, more = entries.size - shown.size)
+            unnamed.isNotEmpty() -> SkippedLine(kind, untitled = unnamed.size)
+            else -> null
+        }
+        shown.map { SkippedLine(kind, it.title, it.year) } + listOfNotNull(rest)
     }
+}
+
+/** Entries the sheet names at most. */
+private const val MAX_NAMED = 10
 
 /** What a history read in part holds back: the films or episodes watched here that Trakt seems to lack. */
 @StringRes
@@ -120,12 +142,15 @@ internal fun heldBack(partial: Set<SkippedKind>): Int? {
     }
 }
 
-/** An entry by its title and year, else how many name nothing, over where Trakt keeps it. */
+/** An entry by its title and year, else how many more there are or name nothing, over where Trakt keeps it. */
 @Composable
 private fun SkippedItem(line: SkippedLine) {
     val c = Hl.colors
-    val name = line.title?.let { listOfNotNull(it, line.year?.toString()).joinToString(FACT_GAP) }
-        ?: pluralStringResource(R.plurals.trakt_skipped_untitled, line.untitled, line.untitled)
+    val name = when {
+        line.title != null -> listOfNotNull(line.title, line.year?.toString()).joinToString(FACT_GAP)
+        line.more > 0 -> pluralStringResource(R.plurals.trakt_skipped_more, line.more, line.more)
+        else -> pluralStringResource(R.plurals.trakt_skipped_untitled, line.untitled, line.untitled)
+    }
     Column {
         Text(name, style = Hl.type.lead, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(HlSpace.xxs))

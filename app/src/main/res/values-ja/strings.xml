@@ -643,6 +643,9 @@
     <plurals name="trakt_skipped_untitled">
         <item quantity="other">タイトルのない項目 %d件</item>
     </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="other">ほか%d件</item>
+    </plurals>
     <string name="trakt_skipped_movies">映画の履歴</string>
     <string name="trakt_skipped_episodes">エピソードの履歴</string>
     <string name="trakt_skipped_paused">一時停止中の再生</string>

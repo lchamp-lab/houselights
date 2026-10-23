@@ -47,7 +47,7 @@ data class TraktSyncState(
     val error: TraktSyncError? = null,
     /**
      * What the last sync that read Trakt left out unread, in the order read, and so which histories it read in part
-     * ([readInPart]); empty once one reads everything. Kept in memory only, as the next sync reading Trakt says it again.
+     * ([readInPart]); empty once one reads everything. Kept in memory only: each process's first sync reads Trakt again.
      */
     val skipped: List<SkippedEntry> = emptyList(),
 )
@@ -67,9 +67,10 @@ private typealias Queued = Pair<TraktPendingEntity, TraktTitle>
  * Keeps the folders' history and the Trakt account's together, in the background. Connecting joins both sides
  * ([SyncMode.UNION]), as every sync does until one completes; then each mark and each stop goes to Trakt at once,
  * queued while Trakt cannot be reached and sent at the next occasion (launch, end of a scan, a sync, a stop). Trakt is
- * read again at launch after [STALE_MS] and at the end of each scan, only when it changed unless the scan found
- * titles, and read even when what waits cannot be sent. One exchange at a time; Trakt's limits are waited out
- * ([RETRY_AFTER]), its writes spaced by [WRITE_GAP_MS], and a write it keeps failing dropped after [MAX_ATTEMPTS].
+ * read at launch, as what it leaves out is kept in memory only ([TraktSyncState.skipped]); then again when followed
+ * anew after [STALE_MS] and at the end of each scan, only when it changed unless the scan found titles, and read even
+ * when what waits cannot be sent. One exchange at a time; Trakt's limits are waited out ([RETRY_AFTER]), its writes
+ * spaced by [WRITE_GAP_MS], and a write it keeps failing dropped after [MAX_ATTEMPTS].
  */
 class TraktSync(
     private val account: TraktAccount,
@@ -106,6 +107,13 @@ class TraktSync(
     private var again: SyncMode? = null
 
     private var lastWrite: Long? = null
+
+    /**
+     * Whether Trakt's lists were read since launch, or since the sync's state was forgotten: until then a check reads
+     * them, as what they leave out is kept in memory only.
+     */
+    @Volatile
+    private var listsRead = false
 
     /** The last call to Trakt that failed, by its route, so that the log says where a failure came from. */
     private var failed: Pair<String, Throwable>? = null
@@ -192,14 +200,17 @@ class TraktSync(
         val at = saved?.syncedAt
         when {
             at == null -> request(SyncMode.UNION)
-            now() - at >= STALE_MS -> request(SyncMode.CHECK)
+            !listsRead || now() - at >= STALE_MS -> request(SyncMode.CHECK)
             else -> sendQueue()
         }
     }
 
     /** Forgets the sync's state, and what waits unless [keepQueue], after the exchange running and a mark being queued. */
     private suspend fun disconnected(keepQueue: Boolean) {
-        busy.withLock { local.withLock { read("forgetting") { if (keepQueue) clearState() else forget() } } }
+        busy.withLock {
+            local.withLock { read("forgetting") { if (keepQueue) clearState() else forget() } }
+            listsRead = false
+        }
         _state.update { TraktSyncState(running = it.running) }
     }
 
@@ -263,13 +274,15 @@ class TraktSync(
         val activities = trakt(LAST_ACTIVITIES) { it.lastActivities() }.key()
         // Trakt answers: what it did not take counts against those titles.
         unsent?.let { counted(it) }
-        if (mode == SyncMode.CHECK && saved.syncedAt != null && saved.activities == activities) {
+        val unchanged = listsRead && saved.syncedAt != null && saved.activities == activities
+        if (mode == SyncMode.CHECK && unchanged) {
             return saved.copy(syncedAt = now(), error = unsent?.let(::errorOf))
         }
         val movies = trakt(WATCHED_MOVIES) { it.watchedMovies() }
         val shows = trakt(WATCHED_SHOWS) { it.watchedShows() }
         val paused = trakt(PLAYBACK) { it.playback() }
         _state.update { it.copy(skipped = skippedOf(movies.left, shows.left, paused.left)) }
+        listsRead = true
         val rows = dao.rows()
         val played = rows.mapNotNullTo(HashSet()) { it.versionOf }.mapNotNullTo(HashSet()) { dao.playedCopy(it) }
         val union = mode == SyncMode.UNION || saved.syncedAt == null

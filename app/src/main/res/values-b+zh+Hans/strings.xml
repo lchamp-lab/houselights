@@ -646,6 +646,9 @@
     <plurals name="trakt_skipped_untitled">
         <item quantity="other">%d 项无标题</item>
     </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="other">另有 %d 项</item>
+    </plurals>
     <string name="trakt_skipped_movies">电影历史记录</string>
     <string name="trakt_skipped_episodes">剧集历史记录</string>
     <string name="trakt_skipped_paused">暂停的播放</string>
