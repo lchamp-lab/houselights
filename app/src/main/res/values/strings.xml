@@ -108,8 +108,8 @@
     <string name="mark_season_unwatched">Mark season as unwatched</string>
     <string name="mark_series_watched">Mark series as watched</string>
     <string name="mark_series_unwatched">Mark series as unwatched</string>
-    <string name="long_press_series_watched">Hold OK: whole series watched</string>
-    <string name="long_press_series_unwatched">Hold OK: whole series unwatched</string>
+    <string name="menu_series_watched">Menu: whole series watched</string>
+    <string name="menu_series_unwatched">Menu: whole series unwatched</string>
     <string name="mark_episode_watched">Mark episode as watched</string>
     <string name="mark_episode_unwatched">Mark episode as unwatched</string>
     <string name="add_favorite">Add to favorites</string>

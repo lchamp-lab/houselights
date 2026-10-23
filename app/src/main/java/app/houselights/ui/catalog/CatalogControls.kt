@@ -166,7 +166,7 @@ private fun TileStates() {
                 stringResource(R.string.mark_season_watched),
                 {},
                 onLongClick = {},
-                hint = stringResource(R.string.long_press_series_watched),
+                hint = stringResource(R.string.menu_series_watched),
             )
         }
         Specimen("chosen", gap = HlSpace.xs) { HlIconButton(HlIcons.HeartFilled, stringResource(R.string.remove_favorite), {}, lit = true) }

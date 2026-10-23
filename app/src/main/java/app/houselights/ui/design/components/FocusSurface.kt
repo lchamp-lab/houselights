@@ -114,6 +114,7 @@ internal fun HlFocusSurface(
             .then(inRow ?: Modifier)
             .then(rememberRaise(framed && (glows || frame != null), focus, lights))
             .pressWithOk(interaction, onClick.takeIf { enabled }, onLongClick.takeIf { enabled })
+            .menuForLongClick(onLongClick.takeIf { enabled })
             .focusable(interactionSource = interaction)
             .semantics(mergeDescendants = true) { describe(role, selected, enabled, onClick, onLongClick, onLongClickLabel) }
             .then(light),
@@ -397,6 +398,30 @@ private fun Modifier.pressWithOk(
     }
 }
 
+/**
+ * Menu or Pop Menu does [onLongClick] on its way up, if it went down here: remotes that send no repeats reach it so
+ * (the Zidoo's turns a held OK into a click; AVA and Unfolded Circle remotes never repeat). Without one, it goes on.
+ */
+@Composable
+private fun Modifier.menuForLongClick(onLongClick: (() -> Unit)?): Modifier {
+    val down = remember { mutableStateOf(false) }
+    return onFocusChanged { if (!it.isFocused) down.value = false }.onKeyEvent { event ->
+        val native = event.nativeKeyEvent
+        if (onLongClick == null || native.keyCode !in MENU_KEYS) return@onKeyEvent false
+        when (native.action) {
+            KeyEvent.ACTION_DOWN -> if (native.repeatCount == 0) down.value = true
+            KeyEvent.ACTION_UP -> if (down.value) {
+                down.value = false
+                onLongClick()
+            }
+        }
+        true
+    }
+}
+
 private const val HALF = 0.5f
 
 private val OK_KEYS = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER)
+
+/** Menu, and the Zidoo remote's Pop Menu, which its firmware sends as F12. */
+private val MENU_KEYS = setOf(KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_F12)

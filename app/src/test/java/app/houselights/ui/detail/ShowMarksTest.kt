@@ -123,6 +123,20 @@ class ShowMarksTest {
         assertEquals(listOf("s1e1"), played)
     }
 
+    /** Remotes without repeats mark with Menu: the episode on its card, the whole show on the tile. */
+    @Test
+    fun menuMarksAnEpisodeAndTheWholeShow() {
+        showPage()
+        downToTheEpisodes()
+        compose.press(Key.Menu)
+        assertTrue("played s1e1 true" in provider.calls)
+        assertEquals(emptyList<String>(), played)
+
+        tile(R.string.mark_season_watched).requestFocus()
+        compose.press(Key.Menu)
+        assertTrue("played show true" in provider.calls)
+    }
+
     @Test
     fun aSourceThatCannotMarkHasNeitherTheTileNorALongOk() {
         provider.capabilities = provider.capabilities.copy(markPlayed = false)

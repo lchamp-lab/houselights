@@ -96,8 +96,8 @@
     <string name="mark_season_unwatched">시즌을 미시청으로 표시</string>
     <string name="mark_series_watched">TV 프로그램을 시청 완료로 표시</string>
     <string name="mark_series_unwatched">TV 프로그램을 미시청으로 표시</string>
-    <string name="long_press_series_watched">길게 누르기: TV 프로그램 시청 완료</string>
-    <string name="long_press_series_unwatched">길게 누르기: TV 프로그램 미시청</string>
+    <string name="menu_series_watched">메뉴: TV 프로그램 시청 완료</string>
+    <string name="menu_series_unwatched">메뉴: TV 프로그램 미시청</string>
     <string name="mark_episode_watched">에피소드를 시청 완료로 표시</string>
     <string name="mark_episode_unwatched">에피소드를 미시청으로 표시</string>
     <string name="add_favorite">즐겨찾기에 추가</string>

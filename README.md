@@ -42,8 +42,8 @@
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
   - Films of a saga are gathered, with a page per saga showing the films you own and those you don't.
-  - A film, a season or an episode is marked watched or unwatched from its page; a long press on a show's
-    mark sets the whole show.
+  - A film, a season or an episode is marked watched or unwatched from its page; Menu or Pop Menu (or a long
+    press) on a show's mark sets the whole show, and on an episode marks that episode.
   - Your [Trakt](https://trakt.tv) account connects in Settings > Trakt, with a code entered on your phone
     or computer, and keeps what you watch in your folders (Jellyfin has its own Trakt plugin):
     - a title watched on either side is watched on both, at the date it was seen; in every folder, a title

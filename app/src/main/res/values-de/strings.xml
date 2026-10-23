@@ -99,8 +99,8 @@
     <string name="mark_season_unwatched">Staffel als ungesehen markieren</string>
     <string name="mark_series_watched">Serie als gesehen markieren</string>
     <string name="mark_series_unwatched">Serie als ungesehen markieren</string>
-    <string name="long_press_series_watched">Lange drücken: Serie gesehen</string>
-    <string name="long_press_series_unwatched">Lange drücken: Serie ungesehen</string>
+    <string name="menu_series_watched">Menü: Serie gesehen</string>
+    <string name="menu_series_unwatched">Menü: Serie ungesehen</string>
     <string name="mark_episode_watched">Folge als gesehen markieren</string>
     <string name="mark_episode_unwatched">Folge als ungesehen markieren</string>
     <string name="add_favorite">Zu Favoriten hinzufügen</string>

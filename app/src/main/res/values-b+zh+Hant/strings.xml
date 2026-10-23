@@ -96,8 +96,8 @@
     <string name="mark_season_unwatched">將本季標示為未觀看</string>
     <string name="mark_series_watched">將影集標示為已觀看</string>
     <string name="mark_series_unwatched">將影集標示為未觀看</string>
-    <string name="long_press_series_watched">長按：將影集標示為已觀看</string>
-    <string name="long_press_series_unwatched">長按：將影集標示為未觀看</string>
+    <string name="menu_series_watched">選單：將影集標示為已觀看</string>
+    <string name="menu_series_unwatched">選單：將影集標示為未觀看</string>
     <string name="mark_episode_watched">將本集標示為已觀看</string>
     <string name="mark_episode_unwatched">將本集標示為未觀看</string>
     <string name="add_favorite">加入我的最愛</string>

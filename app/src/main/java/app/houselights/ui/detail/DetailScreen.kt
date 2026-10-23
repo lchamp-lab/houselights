@@ -589,7 +589,7 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
         else -> R.string.mark_season_watched
     }
     val whole = stringResource(if (show) R.string.mark_series_unwatched else R.string.mark_series_watched)
-    val hint = stringResource(if (show) R.string.long_press_series_unwatched else R.string.long_press_series_watched)
+    val hint = stringResource(if (show) R.string.menu_series_unwatched else R.string.menu_series_watched)
     HlIconButton(
         if (watched) HlIcons.CheckFilled else HlIcons.Check,
         stringResource(label),
