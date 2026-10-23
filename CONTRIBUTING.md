@@ -1,5 +1,8 @@
 # Contributing to Houselights
 
+Everyone taking part follows the [Code of conduct](CODE_OF_CONDUCT.md). Security flaws are reported privately
+([SECURITY.md](SECURITY.md)).
+
 ## Setup
 
 Requirements: JDK 17 and the Android SDK (platform 35).
@@ -105,16 +108,18 @@ A tag `vX.Y.Z` publishes a release; `vX.Y.Z-beta.N` a pre-release (`.github/work
 
 1. Set `versionName` in `app/build.gradle.kts` to the tag's version (the workflow checks it).
 2. `git tag -a v0.2.0 -m "Houselights 0.2.0" && git push origin v0.2.0`
+3. Once the checks pass, approve the release job (Actions, the run, Review deployments).
 
 The workflow runs the CI checks in a job with no secret. Once they pass, a second job writes the project key,
 builds the release alone, erases the key, verifies the APK's certificate against the fingerprint in the README,
 and publishes the APK (also as `Houselights.apk`), its SHA-256 and notes drawn from the commits since the
 previous tag.
 
-Repository secrets: `HOUSELIGHTS_KEYSTORE` (`base64 -w0 houselights-release.jks`),
-`HOUSELIGHTS_KEYSTORE_PASSWORD` and, optionally, `TMDB_API_KEY` (a project key), `TRAKT_CLIENT_ID` (the
-project's Trakt app), `TRAKT_CLIENT_SECRET` (only for a Trakt app that has one) and `TRAKT_REDIRECT_URI`
-(only for one declared with another URI). CI reads the client ID and secret too.
+The key lives in the `release` environment, which only `v*` tags reach and whose jobs wait for the maintainer's
+approval: `HOUSELIGHTS_KEYSTORE` (`base64 -w0 houselights-release.jks`) and `HOUSELIGHTS_KEYSTORE_PASSWORD`.
+Repository secrets, optional: `TMDB_API_KEY` (a project key), `TRAKT_CLIENT_ID` (the project's Trakt app),
+`TRAKT_CLIENT_SECRET` (only for a Trakt app that has one) and `TRAKT_REDIRECT_URI` (only for one declared with
+another URI); CI reads the key and the client ID and secret too. `v*` tags can be neither moved nor deleted.
 
 ## Performance
 
