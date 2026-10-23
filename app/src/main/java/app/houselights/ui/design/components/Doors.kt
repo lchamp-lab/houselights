@@ -948,9 +948,18 @@ private object CutPostersMade {
         if (underWay[keys] === making) underWay.remove(keys)
     }
 
+    @Synchronized
+    fun forget() {
+        made.clear()
+        underWay.clear()
+    }
+
     /** Home's library doors, and the one gathering the rest. */
     private const val KEPT = 5
 }
+
+/** Forgets every cut made, as a new process would: tests that share one stay apart. */
+internal fun forgetCutPosters() = CutPostersMade.forget()
 
 /** Each poster of [items] loaded once, though a count may be cut in one twice. */
 private suspend fun loadCutPosters(context: Context, items: List<MediaItem>, px: (Dp) -> Int): CutPosters = coroutineScope {
