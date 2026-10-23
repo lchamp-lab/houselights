@@ -44,9 +44,9 @@ object MediaProbe {
      * Probe version stored with each result; files probed by an older version get a headers-only re-probe at the
      * next scan. 1: frame rate. 2: formats from first frames (Atmos, DTS layers, HDR10+), audio bitrates from
      * tags. 3: video bitrate, Dolby Vision base layer. 4: AVI-muxed tracks by FOURCC and format tag (XviD and DivX
-     * are MPEG-4, not VC-1). 5: tracks marked in the file's order ([MediaInfo.tracksInOrder]).
+     * are MPEG-4, not VC-1). [MediaInfo.tracksInOrder] takes none: the migration to schema 16 marks what 4 read.
      */
-    const val VERSION = 5
+    const val VERSION = 4
 
     fun isStale(mediaInfo: String?): Boolean = (decode(mediaInfo)?.probedWith ?: -1) < VERSION
 

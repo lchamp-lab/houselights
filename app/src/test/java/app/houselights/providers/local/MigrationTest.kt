@@ -5,6 +5,8 @@ import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Job
+import app.houselights.core.MediaInfo
+import app.houselights.core.NfoParser
 import app.houselights.core.Secrets
 import app.houselights.core.SubtitleChoice
 import app.houselights.core.TrackChoice
@@ -290,6 +292,41 @@ class MigrationTest {
         assertNull(db.trackChoices().choice("local:1"))
         db.trackChoices().save(TrackChoiceEntity("local:1", "ko", SubtitleChoice.Off.stored, at = 5))
         assertEquals(TrackChoice("ko", SubtitleChoice.Off), db.trackChoices().choice("local:1")?.choice())
+    }
+
+    /**
+     * Version 16 marks the tracks the probe read in the file's order, so no file is read again for it. Never an NFO's:
+     * an MKV the probe found no picture in takes its <streamdetails>, picture and tracks in the NFO's order.
+     */
+    @Test
+    fun version16MarksTheTracksTheProbeReadInTheFilesOrder() = runTest {
+        val probed = (MkvProbe.probe(Matroska.sample()) as MkvProbe.Result.Found).info.copy(sizeBytes = 42, probedWith = 4)
+        val streams = "<fileinfo><streamdetails><video><codec>hevc</codec><width>3840</width><height>2160</height></video>" +
+            "<audio><codec>ac3</codec><language>fre</language></audio><audio><codec>truehd</codec><language>eng</language></audio>" +
+            "</streamdetails></fileinfo>"
+        val nfo = checkNotNull(NfoParser.parse("<movie><title>Heat</title>$streams</movie>")?.streams)
+        val fromNfo = NfoStreamDetails.toMediaInfo(nfo, MediaInfo(container = "MKV", sizeBytes = 42, probedWith = 4))
+        assertEquals("an MKV with a picture", "MKV" to "HEVC", fromNfo.container to fromNfo.video?.codec)
+        val stored = listOf(
+            probed, fromNfo, MediaInfo(container = "MP4", sizeBytes = 42, probedWith = 4),
+            // A read that failed midway: read again at the next scan.
+            probed.copy(probedWith = 0),
+        ).map(MediaProbe::encode)
+        val db = migrated(from = 15) {
+            filmsFolder()
+            stored.forEachIndexed { i, mediaInfo ->
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
+                        "badges, mediaInfo, probeVersion, addedAt, positionMs, played, favorite) " +
+                        "VALUES (?, 'MOVIE', 1, 'Film', 'film', 0, '', '', ?, '', '', ?, ?, 0, 0, 0, 0)",
+                    arrayOf<Any?>(i + 1, "Film ${i + 1}.mkv", mediaInfo, MediaProbe.decode(mediaInfo)?.probedWith),
+                )
+            }
+        }
+        val films = (1L..stored.size).map { checkNotNull(db.dao().item(it)) }
+        assertEquals(probed.copy(tracksInOrder = true), MediaProbe.decode(films[0].mediaInfo))
+        assertEquals("the others as they were", stored.drop(1), films.drop(1).map { it.mediaInfo })
+        assertEquals(listOf(4, 4, 4, 0), films.map { it.probeVersion })
     }
 
     /** What [version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas] finds once migrated. */

@@ -546,6 +546,14 @@ interface LibraryDao {
     @Query("DELETE FROM credits WHERE itemId NOT IN (SELECT id FROM items)")
     suspend fun deleteOrphanCredits(): Int
 
+    /** Deletes the local titles' choices of tracks no film or show keys any more ([LocalProvider.tracksKey]). */
+    @Query(
+        "DELETE FROM track_choices WHERE title LIKE 'local:%' AND title NOT IN (SELECT CASE " +
+            "WHEN kind = 'MOVIE' AND tmdbId IS NOT NULL THEN 'local:film:' || tmdbId ELSE 'local:' || id END " +
+            "FROM items WHERE kind IN ('MOVIE', 'SERIES'))"
+    )
+    suspend fun deleteOrphanTrackChoices(): Int
+
     /** Deletes search words of deleted titles and sagas, and of person keys no credit uses any more. */
     @Query(
         "DELETE FROM search_words WHERE (kind = 'TITLE' AND ref NOT IN (SELECT CAST(id AS TEXT) FROM items)) " +

@@ -9,6 +9,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.houselights.core.Job
+import app.houselights.core.MediaInfo
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.suspendRunCatching
@@ -221,13 +222,50 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        /** v15 → v16: each title's choice of tracks; the tracks the probe read are marked in the file's order. */
         private val MIGRATION_15_16 = object : Migration(15, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `track_choices` (`title` TEXT NOT NULL, `audio` TEXT, `subtitles` TEXT, " +
                         "`at` INTEGER NOT NULL, PRIMARY KEY(`title`))"
                 )
+                markTracksInOrder(db)
             }
+        }
+
+        /**
+         * Sets [MediaInfo.tracksInOrder] where the probe read the tracks, so that no file is read again for it; decoded
+         * in Kotlin as in [MIGRATION_10_11], by batches so a large library's JSON is never held whole.
+         */
+        private fun markTracksInOrder(db: SupportSQLiteDatabase) {
+            var after = 0L
+            do {
+                val rows = db.query(
+                    "SELECT id, mediaInfo FROM items WHERE id > ? AND probeVersion > 0 AND mediaInfo IS NOT NULL " +
+                        "ORDER BY id LIMIT $MARK_BATCH",
+                    arrayOf<Any>(after),
+                ).use { c -> buildList { while (c.moveToNext()) add(c.getLong(0) to c.getString(1)) } }
+                db.compileStatement("UPDATE items SET mediaInfo = ? WHERE id = ?").use { update ->
+                    for ((id, text) in rows) {
+                        val info = MediaProbe.decode(text)?.takeIf(::probedTracks) ?: continue
+                        update.bindString(1, MediaProbe.encode(info.copy(tracksInOrder = true)))
+                        update.bindLong(2, id)
+                        update.executeUpdateDelete()
+                        update.clearBindings()
+                    }
+                }
+                after = rows.lastOrNull()?.first ?: after
+            } while (rows.size == MARK_BATCH)
+        }
+
+        /**
+         * An MKV whose video carries what only the probe reads. An NFO's video, filled in when the probe found none
+         * ([withNfoStreams]), has a codec, size and HDR alone, and its tracks are in the NFO's order.
+         */
+        private fun probedTracks(info: MediaInfo): Boolean {
+            val video = info.video ?: return false
+            val probed = video.bitDepth != null || video.frameRate != null || video.dolbyVisionProfile != null || video.bitrateKbps != null
+            return info.container == "MKV" && probed
         }
 
         /** Tables, columns and indexes added in v12, as in Room's exported schema. */
@@ -384,6 +422,9 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         private const val TAG = "Library"
+
+        /** Rows decoded at a time by [markTracksInOrder]. */
+        private const val MARK_BATCH = 500
 
         /** l' or l’ glued to the first word of a key; v9 stripped it only before a space. */
         private val GLUED_L = Regex("""^l['’](?=\S)""")
