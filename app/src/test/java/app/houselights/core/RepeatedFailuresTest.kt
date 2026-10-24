@@ -44,9 +44,10 @@ class RepeatedFailuresTest {
     fun aKeyFailingAnotherWayIsLoggedWholeAgain() {
         fail("a.nfo")
         failures.failed("a.nfo", "Could not parse a.nfo", IllegalStateException("Malformed"))
+        // Back and forth between the two: each was logged whole once.
         fail("a.nfo")
-        fail("a.nfo")
+        failures.failed("a.nfo", "Could not parse a.nfo", IllegalStateException("Malformed"))
         failures.summarize { "$it more" }
-        assertEquals(listOf("Could not read a.nfo +", "Could not parse a.nfo +", "Could not read a.nfo +", "1 more"), told())
+        assertEquals(listOf("Could not read a.nfo +", "Could not parse a.nfo +", "2 more"), told())
     }
 }
