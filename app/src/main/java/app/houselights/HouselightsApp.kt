@@ -103,7 +103,7 @@ class HouselightsApp : Application(), ImageLoaderFactory {
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        // Coil trims its own memory cache; the doors' cut posters are copies it does not hold.
+        // Coil trims its own memory cache, which the doors' cut posters outlive.
         container.cutPosters.trim(level)
     }
 

@@ -806,7 +806,8 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
   (`cutPosterRequest`), drawn through a shader at their drawn size; tints and glows come from averaged posters
   enlarged with bilinear filtering, never a blur. The app keeps the cuts of its library doors and one more
   (`CutPosterCache`); before the player, and in the background when the system is short of memory (`trim`), their
-  posters go, their tones and tint stay: a door comes back glowing, its digits ink until they are cut again.
+  posters go, their tones and tint stay: a door comes back glowing, its digits ink until they are cut again. A door
+  on screen keeps the posters it draws, which it holds anyway.
 - **Light nothing that focus only crosses** (`Scrub`), and nothing moves for ever but the welcome wall.
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
   `dumpsys gfxinfo <package> framestats` and `setprop debug.hwui.overdraw show`. See CONTRIBUTING.md.

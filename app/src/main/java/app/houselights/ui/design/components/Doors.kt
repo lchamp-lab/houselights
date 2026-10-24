@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -842,7 +843,7 @@ private const val CUT = "houselights.cut"
 /**
  * The posters of [items] a door's count is cut in, with their tint: those made last at once, else loaded off the main
  * thread, the posters shown until then staying, so a count reloaded never falls back to ink; let go, their colours at
- * once. Kept in the app's [LocalCutPosters], else in the door's own.
+ * once. Kept in the app's [LocalCutPosters], else in the door's own; never let go while drawn.
  */
 @Composable
 fun rememberCutPosters(items: List<MediaItem>): CutPosters {
@@ -851,6 +852,10 @@ fun rememberCutPosters(items: List<MediaItem>): CutPosters {
     val cuts = LocalCutPosters.current ?: remember { CutPosterCache() }
     val keys = remember(items) { cutKeys(items) }
     var shown by remember { mutableStateOf(cuts.shown(keys) ?: CutPosters()) }
+    DisposableEffect(cuts, keys) {
+        cuts.hold(keys)
+        onDispose { cuts.release(keys) }
+    }
     LaunchedEffect(keys) {
         shown = cuts.of(keys)
             ?: if (items.isEmpty()) CutPosters() else cuts.make(context, items) { with(density) { it.roundToPx() } }
@@ -875,6 +880,9 @@ class CutPosterCache(private val kept: Int = HomeGridDefaults.SHELF_DOORS + 1) {
     }
     private val underWay = HashMap<List<Any?>, CompletableDeferred<CutPosters>>()
 
+    /** The cuts doors on screen draw, and how many doors each. */
+    private val drawn = HashMap<List<Any?>, Int>()
+
     /** The cut of [keys], its posters loaded; null when not made, or let go. */
     @Synchronized
     internal fun of(keys: List<Any?>): CutPosters? = made[keys]?.takeIf { it.whole }
@@ -888,10 +896,25 @@ class CutPosterCache(private val kept: Int = HomeGridDefaults.SHELF_DOORS + 1) {
         made[keys] = posters
     }
 
-    /** Lets every poster go, software copies the memory clear of Coil does not reach; tones and tints stay. */
+    /** A door draws [keys] until it [release]s them: their posters stay, as the door holds them anyway ([clear]). */
+    @Synchronized
+    internal fun hold(keys: List<Any?>) {
+        drawn[keys] = (drawn[keys] ?: 0) + 1
+    }
+
+    @Synchronized
+    internal fun release(keys: List<Any?>) {
+        val doors = (drawn[keys] ?: return) - 1
+        if (doors > 0) drawn[keys] = doors else drawn.remove(keys)
+    }
+
+    /**
+     * Lets go the posters no door on screen draws, software copies the memory clear of Coil does not reach; tones and
+     * tints stay. A door drawn keeps its own: letting them go would free nothing, and cut them again once it is back.
+     */
     @Synchronized
     fun clear() {
-        made.replaceAll { _, cut -> cut.faded() }
+        made.replaceAll { keys, cut -> if (keys in drawn) cut else cut.faded() }
     }
 
     /** As Coil trims its own memory: in the background, short of memory, the posters go ([clear]). */

@@ -115,6 +115,26 @@ class CutPostersTest {
         compose.waitUntil(TIMEOUT_MS) { shown?.posters?.singleOrNull() != null }
     }
 
+    /** Let go, the cut a door on screen draws stays: the door holds its posters anyway, and would cut them again once back. */
+    @Test
+    fun theCutADoorOnScreenDrawsStaysWhenTheRestGo() {
+        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
+        val drawn = listOf(poster("cut-drawn"))
+        val away = listOf(poster("cut-away"))
+        runBlocking { cuts.make(context, away, px) }
+        var open by mutableStateOf(true)
+        var shown: CutPosters? = null
+        compose.setContent { CompositionLocalProvider(LocalCutPosters provides cuts) { if (open) shown = rememberCutPosters(drawn) } }
+        compose.waitUntil(TIMEOUT_MS) { shown?.posters?.singleOrNull() != null }
+        cuts.clear()
+        assertSame("drawn: kept", shown, cuts.of(cutKeys(drawn)))
+        assertNull("drawn by no door: let go", cuts.of(cutKeys(away)))
+        open = false
+        compose.waitForIdle()
+        cuts.trim(ComponentCallbacks2.TRIM_MEMORY_BACKGROUND)
+        assertNull("its door gone: let go", cuts.of(cutKeys(drawn)))
+    }
+
     /** Short of memory in the background, the cuts go as Coil's own pictures do; merely hidden, they stay. */
     @Test
     fun theSystemShortOfMemoryInTheBackgroundLetsTheCutsGo() {
