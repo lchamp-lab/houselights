@@ -29,7 +29,6 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.samePlace
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.launchAction
-import app.houselights.ui.util.reported
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -202,6 +201,14 @@ class AddFolderViewModel(
     var ready by mutableStateOf(!edits)
         private set
 
+    /** The edited folder could not be read: nothing of it shows, nor can be saved, until [readAgain] reads it. */
+    var unread by mutableStateOf(false)
+        private set
+
+    /** Reading the edited folder again, after it could not be read. */
+    var rereading by mutableStateOf(false)
+        private set
+
     /** The edited folder was removed from the library meanwhile: nothing can be saved. */
     var gone by mutableStateOf(false)
         private set
@@ -225,19 +232,7 @@ class AddFolderViewModel(
     init {
         viewModelScope.launch {
             if (folderId != null) {
-                // Unread, the folder stays unsaveable: an empty password field would erase its own.
-                suspendRunCatching { library.folder(folderId) }
-                    .onSuccess { folder ->
-                        if (folder != null) {
-                            editing = folder
-                            form = kept ?: FolderForm.of(folder)
-                            keepsPassword = folder.password.value.isNotEmpty() || folder.password.unopened != null
-                        } else {
-                            gone = true
-                        }
-                        ready = true
-                    }
-                    .onFailure { check = FolderCheck.SaveFailed(it.reported(TAG, "Reading folder $folderId")) }
+                read(folderId)
             } else if (kept == null) {
                 // A second folder is most often on the same NAS: start from the last one added. Its share only if
                 // it was a folder inside: the same whole share again could only be refused as already added.
@@ -252,6 +247,40 @@ class AddFolderViewModel(
                             user = last.username,
                         )
                     }
+            }
+        }
+    }
+
+    /** Reads the edited folder [id]; unread, it stays unsaveable, as an empty password field would erase its own. */
+    private suspend fun read(id: Long) {
+        suspendRunCatching { library.folder(id) }
+            .onSuccess { folder ->
+                if (folder != null) {
+                    editing = folder
+                    form = kept ?: FolderForm.of(folder)
+                    keepsPassword = folder.password.value.isNotEmpty() || folder.password.unopened != null
+                } else {
+                    gone = true
+                }
+                unread = false
+                ready = true
+            }
+            .onFailure {
+                Log.w(TAG, "Reading folder $id failed", it)
+                unread = true
+            }
+    }
+
+    /** Reads the edited folder again (Réessayer), after it could not be read. */
+    fun readAgain() {
+        val id = folderId
+        if (id == null || !unread || rereading) return
+        rereading = true
+        viewModelScope.launch {
+            try {
+                read(id)
+            } finally {
+                rereading = false
             }
         }
     }

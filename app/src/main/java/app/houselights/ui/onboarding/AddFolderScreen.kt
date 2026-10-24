@@ -31,6 +31,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.revealOnOpen
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingGroup
@@ -87,6 +88,7 @@ internal fun AddFolderForm(
     val folder = "/" + listOf(s.share, s.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
     val (state, stateText) = connectionState(check, testing = vm.testing, gone = vm.gone)
     val identity = identityText(form).takeIf { protocol == Protocol.NFS }
+    val unknown = vm.gone || vm.unread
 
     HlFormScaffold(
         title = stringResource(if (vm.edits) R.string.edit_folder else R.string.add_folder),
@@ -98,21 +100,35 @@ internal fun AddFolderForm(
                 label = stringResource(R.string.label_address),
                 value = s.host.ifBlank { stringResource(R.string.placeholder_pending) },
                 detail = folder.takeIf { it.length > 1 },
-                // A deleted folder was never read: its protocol and kind would be the form's defaults.
-                badges = if (vm.gone) emptyList() else listOf(protocol.name),
-                facts = if (vm.gone) emptyList() else listOf(sourceKindName(kind), identity),
+                // A folder deleted or unread was never read: its protocol and kind would be the form's defaults.
+                badges = if (unknown) emptyList() else listOf(protocol.name),
+                facts = if (unknown) emptyList() else listOf(sourceKindName(kind), identity),
                 result = result,
                 resultIsError = !success,
             )
-            Spacer(Modifier.height(HlSpace.l))
-            Text(
-                stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
-                style = Hl.type.meta,
-                color = Hl.colors.contentSecondary,
-            )
+            if (!vm.unread) {
+                Spacer(Modifier.height(HlSpace.l))
+                Text(
+                    stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
+                    style = Hl.type.meta,
+                    color = Hl.colors.contentSecondary,
+                )
+            }
         },
         room = room,
     ) {
+        if (vm.unread) {
+            // In the form's place: none of it is the folder's, and saving it would erase the folder's password.
+            HlEmptyState(
+                stringResource(R.string.folder_unread),
+                attention = true,
+                action = stringResource(R.string.retry),
+                actionIcon = HlIcons.Refresh,
+                onAction = vm::readAgain,
+                busy = stringResource(R.string.retrying).takeIf { vm.rereading },
+            )
+            return@HlFormScaffold
+        }
         // The choices over the fields' columns, a little further from them than the fields from each other.
         Row(Modifier.padding(bottom = HlSpace.xs), horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             // An edited folder keeps its kind (its titles stay): the panel beside shows it.

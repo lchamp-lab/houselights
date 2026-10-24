@@ -109,9 +109,13 @@ class AddFolderViewModelTest {
         db.openHelper.writableDatabase.delete("sources", "id = ?", arrayOf(id))
     }
 
-    /** The folders' table gone: reading them fails as a failing database does. */
+    /** The folders' table out of reach: reading them fails as a failing database does, until [readableFolders]. */
     private fun unreadableFolders() {
-        db.openHelper.writableDatabase.execSQL("DROP TABLE sources")
+        db.openHelper.writableDatabase.execSQL("ALTER TABLE sources RENAME TO sources_away")
+    }
+
+    private fun readableFolders() {
+        db.openHelper.writableDatabase.execSQL("ALTER TABLE sources_away RENAME TO sources")
     }
 
     /** The form for [folderId] (null: a new one), as a screen holds it; [forms] clears it when the screen goes. */
@@ -338,19 +342,35 @@ class AddFolderViewModelTest {
         assertEquals(emptyList<String>(), calls)
     }
 
-    /** An edited folder the library cannot read says so, and is not saved: an empty password would erase its own. */
+    /**
+     * An edited folder the library cannot read says so, not as a save that failed, and is not saved: an empty password
+     * would erase its own. Réessayer reads it again, until it is read.
+     */
     @Test
-    fun aFolderThatCannotBeReadSaysSo() = runTest {
+    fun aFolderThatCannotBeReadSaysSoUntilReadAgain() = runTest {
         val id = smbFolder()
         unreadableFolders()
         val vm = form(id)
         advanceUntilIdle()
 
+        assertTrue(vm.unread)
         assertFalse(vm.ready)
-        assertTrue(vm.check is FolderCheck.SaveFailed)
+        assertNull(vm.check)
         vm.submit { fail("saved a folder never read") }
+        vm.readAgain()
         advanceUntilIdle()
+        assertTrue("still out of reach", vm.unread)
         assertEquals(emptyList<String>(), calls)
+
+        readableFolders()
+        vm.readAgain()
+        assertTrue(vm.rereading)
+        advanceUntilIdle()
+        assertFalse(vm.unread)
+        assertFalse(vm.rereading)
+        assertTrue(vm.ready)
+        assertEquals("192.168.1.10", vm.form.host)
+        assertTrue(vm.keepsPassword)
     }
 
     /** After a folder inside a share, a new one starts on its NAS and share, path and password empty. */
