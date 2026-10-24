@@ -177,7 +177,8 @@ fun TitleArt(
 
 /**
  * A title set to its measure: on one line at [HlType.titleSignature] when it fits ("Ran"), else in [style]
- * on balanced lines ("Les Sept / Samouraïs"), which Android 9 does not do itself. At most four measures.
+ * on balanced lines ("Les Sept / Samouraïs"), which Android 9 does not do itself. At most four measures. Under the
+ * standard text size the signature is chosen as at it, then set at the viewer's: a smaller size never grows a title.
  */
 @Composable
 private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLines: Int, modifier: Modifier) {
@@ -185,7 +186,10 @@ private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLine
     val signature = Hl.type.titleSignature
     val density = LocalDensity.current
     val widthPx = with(density) { maxWidth.roundToPx() }
-    val plan = remember(title, style, signature, widthPx, maxLines) { measurer.titlePlan(title, style, signature, widthPx, maxLines) }
+    val choosing = remember(density) { if (density.fontScale < 1f) Density(density.density) else density }
+    val plan = remember(title, style, signature, widthPx, maxLines, choosing) {
+        measurer.titlePlan(title, style, signature, widthPx, maxLines, choosing)
+    }
     Text(
         title,
         style = plan.style,
@@ -199,14 +203,17 @@ private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLine
 /** A title's style and the width that balances its lines (null: the full width). */
 private class TitlePlan(val style: TextStyle, val widthPx: Int?)
 
+/** [title]'s plan in a box [widthPx] wide; its signature chosen at [choosing]'s text size. */
 private fun TextMeasurer.titlePlan(
     title: String,
     style: TextStyle,
     signature: TextStyle,
     widthPx: Int,
     maxLines: Int,
+    choosing: Density,
 ): TitlePlan {
-    if (measure(title, signature, maxLines = 1, softWrap = false).size.width <= widthPx) return TitlePlan(signature, null)
+    val signed = measure(title, signature, maxLines = 1, softWrap = false, density = choosing).size.width
+    if (signed <= widthPx) return TitlePlan(signature, null)
     val oneLine = measure(title, style, maxLines = 1, softWrap = false).size.width
     if (oneLine <= widthPx || maxLines < 2) return TitlePlan(style, null)
     // Two lines: the narrowest candidate width that still fits the title on two.

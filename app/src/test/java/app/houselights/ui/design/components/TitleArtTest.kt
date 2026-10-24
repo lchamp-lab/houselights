@@ -1,14 +1,21 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
+import app.houselights.settings.TextSize
+import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.HouselightsType
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
@@ -71,6 +78,45 @@ class TitleArtTest {
         val set = layout(title)
         assertEquals(HouselightsType.display.fontSize, set.layoutInput.style.fontSize)
         assertEquals(2, set.lineCount)
+    }
+
+    /**
+     * Under Standard the signature is chosen as at Standard, then set at the viewer's size: at Compacte « Top Gun :
+     * Maverick » would fit the signature, now 61 sp, but stays in `display`, smaller, and « Bugonia » keeps its signature.
+     */
+    @Test
+    fun aSmallerTextSizeNeverGrowsATitle() {
+        val title = "Top Gun\u00A0: Maverick"
+        var signed = 0
+        compose.setTvContent(TextSize.COMPACT.step) {
+            val measurer = rememberTextMeasurer()
+            signed = measurer.measure(title, Hl.type.titleSignature, softWrap = false, maxLines = 1).size.width
+            Column {
+                listOf("Bugonia", title).forEach {
+                    TitleArt(it, logo = null, maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight, measured = true)
+                }
+            }
+        }
+        compose.waitForIdle()
+        assertTrue("its signature fits at Compacte: $signed", signed <= HlLayout.titleArtWidth.value)
+        assertEquals(HouselightsType.display.fontSize, layout(title).layoutInput.style.fontSize)
+        assertEquals(TextSize.COMPACT.step, layout(title).layoutInput.density.fontScale)
+        assertEquals(HouselightsType.titleSignature.fontSize, layout("Bugonia").layoutInput.style.fontSize)
+    }
+
+    /** Android set under 1 too: the product decides, not the app's step. */
+    @Test
+    fun androidUnderOneNeverGrowsATitle() {
+        val title = "Top Gun\u00A0: Maverick"
+        compose.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(1f, 0.85f)) {
+                HouselightsTheme {
+                    TitleArt(title, logo = null, maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight, measured = true)
+                }
+            }
+        }
+        compose.waitForIdle()
+        assertEquals(HouselightsType.display.fontSize, layout(title).layoutInput.style.fontSize)
     }
 
     @Test
