@@ -225,11 +225,15 @@ class SettingsStore(
         if (unread) rereads.update { it + 1 } else readNow.trySend(Unit)
     }
 
-    /** The settings in this file; secrets the Keystore did not open are opened again after each of [SECRET_WAITS_MS]. */
+    /**
+     * The settings in this file. Secrets the Keystore newly failed to open are opened again after each of
+     * [SECRET_WAITS_MS]; those already unread are not waited for again, so that a write is read back at once.
+     */
     private suspend fun Preferences.toSettings(): AppSettings {
+        val known = _state.value.unreadSecrets
         var settings = readSettings()
         for (wait in SECRET_WAITS_MS) {
-            if (settings.unreadSecrets.isEmpty()) break
+            if ((settings.unreadSecrets - known).isEmpty()) break
             delay(wait)
             settings = readSettings()
         }

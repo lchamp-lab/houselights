@@ -255,7 +255,8 @@ class SettingsStoreTest {
 
     /**
      * The Keystore failing for good at launch: after three tries over two seconds the connection is unread, not lost.
-     * Nothing rewrites it; Réessayer opens it once the Keystore answers.
+     * Nothing rewrites it, a write is read back without waiting for it again, and Réessayer opens it once the Keystore
+     * answers.
      */
     @Test
     fun aSecretTheKeystoreDoesNotOpenIsUnreadNotLost() = runTest {
@@ -277,10 +278,10 @@ class SettingsStoreTest {
         assertEquals(3, keystore.loads)
 
         settings.setForceHttp(true)
-        advanceTimeBy(2_100)
-        assertEquals(sealed[sourceKey], store.file.value[sourceKey])
         assertTrue(settings.state.value.forceHttp)
         assertTrue(settings.state.value.unreadSource)
+        assertEquals("tried once", 4, keystore.loads)
+        assertEquals(sealed[sourceKey], store.file.value[sourceKey])
 
         keystore.down = false
         settings.readAgain()
