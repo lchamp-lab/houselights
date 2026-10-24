@@ -51,7 +51,8 @@ class ServerFoundTest {
     private object Salon : JellyfinNetwork {
         override suspend fun discover() = listOf(DiscoveredServer("http://192.168.1.20:8096", "Salon"))
 
-        override suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo> = throw IOException("offline")
+        override suspend fun reach(input: String, deviceId: String, announced: Boolean): Pair<String, PublicSystemInfo> =
+            throw IOException("offline")
 
         override suspend fun authenticate(url: String, deviceId: String, request: AuthRequest): AuthResult = throw IOException("offline")
     }

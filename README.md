@@ -123,10 +123,11 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
   held in the Android Keystore. Android backup is disabled. Disconnecting Trakt revokes the app's token there.
 - Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in
-  rather than fall back to plain HTTP, which only typing `http://` chooses; the settings show when a connection
-  is not encrypted. Requests carrying the token or the password follow no redirect to another host, or from
-  HTTPS to HTTP. A stream played without path mappings carries the token in its URL and is only handed to
-  another app through Android's app chooser.
+  rather than fall back to plain HTTP, which typing `http://` chooses. A server picked among those found gives
+  its own address, over HTTP unless it requires HTTPS: its HTTPS port (8920) is tried first, then that address,
+  as a certificate rarely names it. The settings show when a connection is not encrypted. Requests carrying
+  the token or the password follow no redirect to another host, or from HTTPS to HTTP. A stream played without
+  path mappings carries the token in its URL and is only handed to another app through Android's app chooser.
 - Changing source signs out of nothing. A Jellyfin server left for your folders keeps its token, encrypted
   like the source's under its own key, so that it comes back without signing in; one server at most, signed out
   of instead when the Keystore cannot encrypt it. Its token is revoked on the server when you forget it or sign

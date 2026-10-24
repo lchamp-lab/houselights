@@ -80,6 +80,37 @@ class JellyfinReachTest {
         assertEquals(LoginError.NotJellyfin("http://nas:8096"), signIn("nas:8096", server))
     }
 
+    /** A found server announces plain HTTP unless it requires HTTPS: its HTTPS port is tried first. */
+    @Test
+    fun aFoundServerIsReachedOverHttpsWhenItAnswersThere() = runTest {
+        val server = FakeServer { Answer(200, info("10.10.3")) }
+        assertEquals("https://192.168.1.5:8920", JellyfinClient.reach(ANNOUNCED, "device", server.http, announced = true).first)
+        assertEquals("a short wait", 3_000, server.connectTimeouts.getValue("https://192.168.1.5:8920/System/Info/Public"))
+    }
+
+    /** Its certificate names a domain, not this address, or signs itself: it signs in as announced, as it did before. */
+    @Test
+    fun aFoundServerWhoseCertificateDoesNotFitItsAddressIsReachedAsAnnounced() = runTest {
+        val server = FakeServer { request -> if (request.url.isHttps) throw certificateRefused() else Answer(200, info("10.10.3")) }
+        assertEquals(ANNOUNCED, JellyfinClient.reach(ANNOUNCED, "device", server.http, announced = true).first)
+    }
+
+    @Test
+    fun aFoundServerOutOfReachIsNamedByTheAddressItAnnounced() = runTest {
+        val server = FakeServer { request -> if (request.url.isHttps) throw certificateRefused() else throw ConnectException("Connection refused") }
+        val failure = runCatching { JellyfinClient.reach(ANNOUNCED, "device", server.http, announced = true) }.exceptionOrNull()
+        assertEquals(LoginError.Unreachable(ANNOUNCED), failure?.let { loginError(it, ANNOUNCED) })
+    }
+
+    /** Typed with its scheme, or announced on another port than Jellyfin's: as it is written. */
+    @Test
+    fun anAddressTypedWithItsSchemeOrOnAnotherPortIsReachedAsWritten() = runTest {
+        val server = FakeServer { Answer(200, info("10.10.3")) }
+        assertEquals(ANNOUNCED, JellyfinClient.reach(ANNOUNCED, "device", server.http).first)
+        assertEquals("http://192.168.1.5:9000", JellyfinClient.reach("http://192.168.1.5:9000", "device", server.http, announced = true).first)
+        assertTrue(server.requests.none { it.url.isHttps })
+    }
+
     @Test
     fun theEncryptedProbeWaitsLessThanThePlainAddress() = runTest {
         val server = FakeServer { request ->
@@ -111,5 +142,10 @@ class JellyfinReachTest {
         assertFalse(supported("10.11.0", product = "Emby Server"))
         assertTrue(supported(null, product = null))
         assertTrue(supported("unstable"))
+    }
+
+    private companion object {
+        /** What a server on the network says it is at, unless it requires HTTPS. */
+        const val ANNOUNCED = "http://192.168.1.5:8096"
     }
 }

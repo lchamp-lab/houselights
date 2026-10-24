@@ -146,9 +146,20 @@ class JellyfinClient(
         /**
          * The first supported server among [candidateUrls], with its public info. Throws [InvalidServerAddress],
          * [UnsupportedServer], or [ReachFailure] when none answers or a certificate is refused: plain HTTP after it
-         * would carry the password in the clear, so only typing http:// chooses it.
+         * would carry the password in the clear, so only typing http:// chooses it, or a found server announcing it
+         * ([announced]). Such a server announces HTTP unless it requires HTTPS: its HTTPS port is tried first, and
+         * any failure there falls back to its announcement, a certificate refused included (issued to a name, or
+         * self-signed, it rarely fits the address announced).
          */
-        suspend fun reach(input: String, deviceId: String, http: OkHttpClient = Http.client): Pair<String, PublicSystemInfo> {
+        suspend fun reach(
+            input: String,
+            deviceId: String,
+            http: OkHttpClient = Http.client,
+            announced: Boolean = false,
+        ): Pair<String, PublicSystemInfo> {
+            if (announced) encryptedTwin(input)?.let { https ->
+                publicInfo(https, deviceId, http, PROBE_CONNECT_MS).getOrNull()?.takeIf(::isSupported)?.let { return https to it }
+            }
             val candidates = checkedCandidates(input)
             val failures = mutableListOf<Pair<String, Exception>>()
             for ((i, url) in candidates.withIndex()) {
@@ -163,6 +174,13 @@ class JellyfinClient(
             // On a tie, report the last address tried: the plain HTTP one, closest to the input.
             val (url, cause) = failures.asReversed().maxBy { (_, e) -> e.meaning() }
             throw ReachFailure(url, cause)
+        }
+
+        /** https://host:8920 for a server announced at http://host:8096; null for any other address. */
+        internal fun encryptedTwin(announced: String): String? {
+            val url = "${normalizeUrl(announced)}/".toHttpUrlOrNull() ?: return null
+            if (url.isHttps || url.port != HTTP_PORT || url.encodedPath != "/") return null
+            return url.newBuilder().scheme("https").port(HTTPS_PORT).build().toString().trimEnd('/')
         }
 
         /** [candidateUrls] for [input]; throws [InvalidServerAddress] unless all of them parse as URLs. */
