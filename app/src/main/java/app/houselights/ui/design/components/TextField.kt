@@ -134,13 +134,18 @@ private fun FieldBox(
     val fieldFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    // The remote cannot move the cursor: text the field did not type, and every start of typing, puts it after the
-    // text, where erase reaches all of it. Not a selection, which TV keyboards' erase skips.
+    // The remote cannot move the cursor: every start of typing, and text the field did not type while typing, puts it
+    // after the text, where erase reaches all of it. Not a selection, which TV keyboards' erase skips. At rest it is
+    // at the start, which a one-line field scrolls to, focused or not.
     val latest by rememberUpdatedState(value)
     var typed by remember { mutableStateOf(atEnd(value)) }
     // The last text told to the owner: the keyboard may send several edits between two compositions.
     var told by remember(value) { mutableStateOf(value) }
-    val shown = if (typed.text == value) typed else atEnd(value)
+    val shown = when {
+        !editing -> TextFieldValue(value)
+        typed.text == value -> typed
+        else -> atEnd(value)
+    }
     val shape = HlShapes.field
     val c = Hl.colors
 
@@ -154,7 +159,6 @@ private fun FieldBox(
 
     LaunchedEffect(editing) {
         if (editing) {
-            typed = atEnd(latest)
             fieldFocus.requestFocus()
             keyboard?.show()
         }
@@ -166,7 +170,10 @@ private fun FieldBox(
             .heightIn(min = HlSize.field)
             .focusRequester(boxFocus)
             .onFocusChanged { boxFocused = it.isFocused }
-            .openOnOk(waiting = !editing) { editing = true }
+            .openOnOk(waiting = !editing) {
+                typed = atEnd(latest)
+                editing = true
+            }
             .focusable()
             .clip(shape)
             .background(c.glass)

@@ -109,12 +109,27 @@ class TextFieldCaretTest {
         text().assertCaretAt(5)
     }
 
-    /** A letter, then the text as it was, from the keyboard before the field composes again: the owner gets both. */
+    /** A one-line field scrolls to its cursor, focused or not: at rest, typed or not, a value shows its start. */
+    @Test
+    fun aFieldAtRestShowsItsStart() {
+        show(below = true)
+        text().assertCaretAt(0)
+
+        startTyping()
+        text().performTextInput("2")
+        compose.press(Key.DirectionDown)
+        text().assertCaretAt(0)
+    }
+
+    /**
+     * A letter, then the text as it was, from the keyboard before the field composes again: the owner gets both,
+     * unless the second is exactly what was composed, cursor included, which Compose itself drops.
+     */
     @Test
     fun anEditUndoneBeforeAFrameReachesTheOwner() {
         show()
         startTyping()
-        // Mid-text: Compose itself drops an edit back to exactly what was composed, cursor included.
+        // So the text as it was comes with its cursor elsewhere than composed.
         compose.press(Key.DirectionLeft, 2)
         val field = text().fetchSemanticsNode().config
         compose.runOnIdle {
