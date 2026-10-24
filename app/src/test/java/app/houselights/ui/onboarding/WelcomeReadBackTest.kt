@@ -27,7 +27,7 @@ class WelcomeReadBackTest {
     fun aConnectionReadAtLastLeadsHome() {
         var settings by mutableStateOf(unread)
         var homes = 0
-        compose.setContent { rememberReadBack(settings) { homes++ } }
+        compose.setContent { rememberReadBack(settings, reading = false) { homes++ } }
         compose.waitForIdle()
         assertEquals(0, homes)
         settings = AppSettings(loaded = true, source = server)
@@ -42,7 +42,7 @@ class WelcomeReadBackTest {
         var homes = 0
         var chosen = false
         lateinit var choosing: (() -> Unit) -> () -> Unit
-        compose.setContent { choosing = rememberReadBack(settings) { homes++ } }
+        compose.setContent { choosing = rememberReadBack(settings, reading = false) { homes++ } }
         compose.runOnIdle { choosing { chosen = true }() }
         settings = AppSettings(loaded = true, source = SourceConfig.Local, unreadSecrets = setOf(SecretSetting.KEPT_SERVER))
         compose.waitForIdle()
@@ -50,11 +50,28 @@ class WelcomeReadBackTest {
         assertEquals(0, homes)
     }
 
+    /** A choice that failed, the screen still there: Réessayer, or coming back to the app, leads home once it reads. */
+    @Test
+    fun aReadAskedAfterAChoiceThatFailedLeadsHome() {
+        var settings by mutableStateOf(unread)
+        var reading by mutableStateOf(false)
+        var homes = 0
+        lateinit var choosing: (() -> Unit) -> () -> Unit
+        compose.setContent { choosing = rememberReadBack(settings, reading) { homes++ } }
+        compose.runOnIdle { choosing {}() }
+        reading = true
+        compose.waitForIdle()
+        settings = AppSettings(loaded = true, source = server)
+        reading = false
+        compose.waitForIdle()
+        assertEquals(1, homes)
+    }
+
     @Test
     fun aSourceSetWhenNoneWasUnreadIsNoReadBack() {
         var settings by mutableStateOf(AppSettings(loaded = true))
         var homes = 0
-        compose.setContent { rememberReadBack(settings) { homes++ } }
+        compose.setContent { rememberReadBack(settings, reading = false) { homes++ } }
         compose.waitForIdle()
         settings = AppSettings(loaded = true, source = SourceConfig.Local)
         compose.waitForIdle()

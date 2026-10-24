@@ -481,7 +481,7 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   title on one line over the two choices, raised on glass, a focused one's frame inside the safe area
   (`WelcomeLayoutTest`). A saved connection the Keystore did not open for now is no lost one: a `PartFailed`
   (`SECRETS_UNREAD`) as wide as the tagline, its Réessayer focused, and home once it is read, unless a choice was
-  made meanwhile (`rememberReadBack`); « Mes fichiers » keeps that server, sealed as stored.
+  made since the last read asked (`rememberReadBack`); « Mes fichiers » keeps that server, sealed as stored.
 
 ## Focus
 

@@ -62,7 +62,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
     val posters by vm.posters.collectAsStateWithLifecycle()
     // Returning from a choice retries a wall that TMDB left empty.
     LaunchedEffect(Unit) { vm.show() }
-    val choosing = rememberReadBack(s, onReadBack)
+    val choosing = rememberReadBack(s, reading, onReadBack)
     Welcome(
         posters, choosing(onLocal), choosing(onJellyfin), s.lostSource, problem,
         readAgain = app.settings::readAgain.takeIf { s.unreadSource }, reading = reading,
@@ -162,13 +162,14 @@ internal fun welcomeProblem(problem: UiError): Int = when (problem) {
 /**
  * Leads home ([onReadBack]) once a saved connection the Keystore did not open ([AppSettings.unreadSource]) is read at
  * last, by Réessayer or on coming back to the app, as at a launch that read it. A choice wrapped by the function
- * returned replaces that connection, and leads where it leads.
+ * returned replaces that connection, and leads where it leads; a read asked after it ([reading]), the choice having
+ * failed, leads home again.
  */
 @Composable
-internal fun rememberReadBack(s: AppSettings, onReadBack: () -> Unit): (() -> Unit) -> () -> Unit {
+internal fun rememberReadBack(s: AppSettings, reading: Boolean, onReadBack: () -> Unit): (() -> Unit) -> () -> Unit {
     var awaiting by remember { mutableStateOf(false) }
     val readBack by rememberUpdatedState(onReadBack)
-    LaunchedEffect(s.unreadSource) { if (s.unreadSource) awaiting = true }
+    LaunchedEffect(s.unreadSource, reading) { if (s.unreadSource) awaiting = true }
     LaunchedEffect(awaiting, s.source) { if (awaiting && s.source != null) readBack() }
     return { choice ->
         {
