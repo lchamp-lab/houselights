@@ -862,7 +862,7 @@ rest.
 | `ResourceTokensTest`, `StringsTest`, `BrandTest` | resources in step with tokens; typography of resources, every translation complete; the mark's vectors and the lockup |
 | `CatalogCoverageTest` | every public component, shape, `HlIcons` glyph, colour role and type style in the catalogue |
 | `DesignDocTest` | every system name this document cites still exists |
-| `RunCatchingGuardTest`, `LayersGuardTest` | no `runCatching` around focus requests (`tryRequestFocus`) or in suspending code (`suspendRunCatching`); no layer under the screens depending on the UI |
+| `RunCatchingGuardTest`, `LayersGuardTest` | no `runCatching` around focus requests (`tryRequestFocus`) or in suspending code (`suspendRunCatching`); no layer under the screens depending on the UI or on the app's container (`AppContainer`, `HouselightsApp`) |
 
 Deliberate exceptions go in a guard's `allowed` list with their reason; a value needed twice belongs in the
 design system.

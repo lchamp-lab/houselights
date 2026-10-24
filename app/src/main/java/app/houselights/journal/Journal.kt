@@ -2,7 +2,6 @@ package app.houselights.journal
 
 import android.content.Context
 import android.util.Log
-import app.houselights.AppContainer
 import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.core.SourceConfig
@@ -14,7 +13,6 @@ import app.houselights.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.InetAddress
@@ -51,12 +49,6 @@ class LocalJournal(
     private val log: AppLog = AppLog(),
     private val host: () -> InetAddress? = { HomeAddress.find(context) },
 ) : JournalOpener {
-    constructor(context: Context, container: AppContainer) : this(
-        context,
-        settings = { container.settings.state.value },
-        protocols = { container.library.folders.first().map { it.protocol } },
-    )
-
     override suspend fun serve(opened: (JournalAccess) -> Unit) = coroutineScope {
         val address = withContext(Dispatchers.IO) { host() } ?: return@coroutineScope opened(JournalAccess.Offline)
         // The player's firmware may take its API's time to answer: the page waits for it, not the sheet.
