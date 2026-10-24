@@ -238,7 +238,7 @@ internal fun placeDoors(spans: List<List<Int>>, heights: List<Float>, gap: Float
 internal val DEFAULT_WIDTH = HlLayout.CANVAS_WIDTH - HlSpace.safeH.value * 2 - HomeGridDefaults.case.value - HlSpace.s.value
 
 /** How wide a door of [span] parts of four stands in a row of the grid on the TV canvas. */
-fun doorWidth(span: Int): Dp {
+internal fun doorWidth(span: Int): Dp {
     val gap = HlSpace.s.value
     val unit = (DEFAULT_WIDTH - gap * (PARTS - 1)) / PARTS
     return (unit * span + gap * (span - 1)).dp
@@ -250,7 +250,7 @@ private const val PARTS = 4
  * The grid's rows' heights, top to bottom, together as tall as the case: what is watched, the libraries, the tools;
  * a row left out gives its room to the one under it.
  */
-fun gridHeights(watch: Boolean, libraries: Boolean): List<Dp> {
+internal fun gridHeights(watch: Boolean, libraries: Boolean): List<Dp> {
     val gap = HlSpace.s
     val (w, l, t) = Triple(HomeGridDefaults.watchRow, HomeGridDefaults.libraryRow, HomeGridDefaults.toolRow)
     return when {

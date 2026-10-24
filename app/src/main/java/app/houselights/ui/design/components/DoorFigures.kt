@@ -211,7 +211,7 @@ internal fun figureSize(widths: List<Float>, boxes: List<Size>, reference: Float
  * the signature's size, then scaled to their pictures ([figureSize]); unspecified until there is a count.
  */
 @Composable
-fun rememberFigureSize(counts: List<String>, spans: List<Int>, rowHeight: Dp): TextUnit {
+internal fun rememberFigureSize(counts: List<String>, spans: List<Int>, rowHeight: Dp): TextUnit {
     val measurer = rememberTextMeasurer(cacheSize = FIGURE_MEASURES)
     val style = Hl.type.figureSignature
     val density = LocalDensity.current

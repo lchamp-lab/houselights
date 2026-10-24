@@ -89,7 +89,7 @@ private const val CUT = "houselights.cut"
  * once. Kept in the app's [LocalCutPosters], else in the door's own; never let go while drawn.
  */
 @Composable
-fun rememberCutPosters(items: List<MediaItem>): CutPosters {
+internal fun rememberCutPosters(items: List<MediaItem>): CutPosters {
     val context = LocalContext.current
     val density = LocalDensity.current
     val cuts = LocalCutPosters.current ?: remember { CutPosterCache() }
@@ -110,7 +110,7 @@ fun rememberCutPosters(items: List<MediaItem>): CutPosters {
 internal fun cutKeys(items: List<MediaItem>): List<Any?> = items.flatMap { listOf(it.id, it.poster) }
 
 /** The cut posters the app keeps ([CutPosterCache]); null outside it, each door keeping its own. */
-val LocalCutPosters = staticCompositionLocalOf<CutPosterCache?> { null }
+internal val LocalCutPosters = staticCompositionLocalOf<CutPosterCache?> { null }
 
 /**
  * The cut posters made last, by their titles and posters: a door coming back, or opened under the launch screen, draws
