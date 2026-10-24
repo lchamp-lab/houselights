@@ -15,6 +15,9 @@ import javax.crypto.spec.GCMParameterSpec
 /** The device's Keystore could not seal a secret, even with a new key; nothing was written. */
 class SecretsUnavailableException(cause: Throwable) : IllegalStateException("Secrets cannot be sealed on this device", cause)
 
+/** A saved secret the device's Keystore did not open for now ([Opened.Unavailable]) was needed: it is kept, never used empty. */
+class SecretUnreadException : IllegalStateException("A saved secret is not opened for now")
+
 /** What opening a stored secret gave. */
 sealed interface Opened {
     /** Its plain text. */

@@ -122,8 +122,8 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   or that one signed by someone else, receives none.
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
   held in the Android Keystore, never replaced once made: one the Keystore does not open for now is kept, said as
-  such, and read again with Réessayer or on coming back to the app. Android backup is disabled. Disconnecting Trakt
-  revokes the app's token there.
+  such, never tried empty on the NAS, and read again with Réessayer or on coming back to the app. Android backup is
+  disabled. Disconnecting Trakt revokes the app's token there.
 - Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in
   rather than fall back to plain HTTP, which only typing `http://` chooses; the settings show when a connection
   is not encrypted. Requests carrying the token or the password follow no redirect to another host, or from

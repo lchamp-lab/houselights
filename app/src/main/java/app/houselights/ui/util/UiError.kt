@@ -84,6 +84,7 @@ fun FailureKind.toUiError(): UiError = when (this) {
     FailureKind.REFUSED -> UiError.DENIED
     FailureKind.GONE -> UiError.GONE
     FailureKind.KEYSTORE -> UiError.KEYSTORE
+    FailureKind.SECRET_UNREAD -> UiError.SECRETS_UNREAD
     // Only raised by writes: what was written is not saved.
     FailureKind.STORAGE_FULL -> UiError.NOT_SAVED
     // NAS refusals and missing paths show in Settings, per folder; a failing disk can fail reads too.
