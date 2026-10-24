@@ -104,6 +104,10 @@ private fun SavingFailed.loginError(): LoginError = when (cause.toWriteError()) 
 /** Runs [block], a write to the device itself, wrapping any failure in [SavingFailed]. */
 private suspend fun <T> saving(block: suspend () -> T): T = suspendRunCatching { block() }.getOrElse { throw SavingFailed(it) }
 
+/** Whether this address and [typed] name one server: the same once both are written in full. */
+private fun String.sameServer(typed: String): Boolean =
+    typed.isNotBlank() && JellyfinClient.normalizeUrl(this) == JellyfinClient.normalizeUrl(typed)
+
 /** What the sign-in form starts with. */
 sealed interface LoginFill {
     /** The current server's address and user, to sign in to it again. */
@@ -195,6 +199,10 @@ class JellyfinLoginViewModel(
     /** The check of [pickedServer], which signing in follows. */
     val pickedCheck: ServerCheck?
         get() = pickedServer?.let(::checkOf)
+
+    /** The server picked, else the one found that the address names, as announced or where its check reaches it. */
+    val chosen: DiscoveredServer?
+        get() = pickedServer ?: discovered.find { addressOf(it).sameServer(server) || it.address.sameServer(server) }
 
     /** A form field: changing it clears the last attempt's error, which no longer applies. */
     private inner class Field : ReadWriteProperty<Any?, String> {

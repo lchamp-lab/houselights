@@ -19,7 +19,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.providers.jellyfin.DiscoveredServer
-import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoicePlace
@@ -63,8 +62,7 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
         }.tryRequestFocus()
     }
     val server = vm.server
-    // The server picked, else the one found that the address names, as announced or where its check reaches it.
-    val chosen = vm.pickedServer ?: vm.discovered.find { vm.addressOf(it).sameServer(server) || it.address.sameServer(server) }
+    val chosen = vm.chosen
     // While the address is the one picking it gave, signing in follows its check, which the panel says.
     val check = vm.pickedCheck
     val error = vm.error?.let { loginErrorText(it) }
@@ -186,10 +184,6 @@ private fun FoundServers(vm: JellyfinLoginViewModel, chosen: DiscoveredServer?, 
         }
     }
 }
-
-/** Whether this address and [typed] name one server: the same once both are written in full. */
-private fun String.sameServer(typed: String): Boolean =
-    typed.isNotBlank() && JellyfinClient.normalizeUrl(this) == JellyfinClient.normalizeUrl(typed)
 
 /** The sign-in error message, worded to say what to check. */
 @Composable
