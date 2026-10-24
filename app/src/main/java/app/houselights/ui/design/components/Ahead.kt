@@ -55,9 +55,9 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     fun cut(items: List<MediaItem>): List<ImageRequest> =
         items.distinctBy { it.id }.mapNotNull { cutPosterRequest(context, it) { d -> d.px() } }
 
-    /** Cuts a door's count in [items]' posters ahead ([makeCutPosters]), so the door draws them on its first frame. */
-    suspend fun cutAhead(items: List<MediaItem>) {
-        makeCutPosters(context, items) { it.px() }
+    /** Cuts a door's count in [items]' posters ahead into [cuts] ([CutPosterCache.make]), so the door draws them on its first frame. */
+    suspend fun cutAhead(items: List<MediaItem>, cuts: CutPosterCache) {
+        cuts.make(context, items) { it.px() }
     }
 
     /** Two sagas' posters ([DoorSagas]). */

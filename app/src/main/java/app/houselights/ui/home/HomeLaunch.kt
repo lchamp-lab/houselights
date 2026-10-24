@@ -10,6 +10,7 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.settings.AppSettings
+import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
 import coil.imageLoader
@@ -154,18 +155,19 @@ class HomeLaunch(
 
 /**
  * Preloads Home's first-view pictures for a [screenWidthPx] screen; Home awaits each one ([LoadingAhead]). The
- * library doors' counts are cut in their posters too, so they show on home's first frame.
+ * library doors' counts are cut in their posters too, into [cuts], so they show on home's first frame.
  */
 internal fun loadFirstPictures(
     context: Context,
     screenWidthPx: Int,
+    cuts: CutPosterCache,
     canSearch: () -> Boolean = { true },
 ): suspend (HomeRows) -> Unit = { rows ->
     val ahead = PicturesAhead(context, screenWidthPx)
     val plan = planOf(rows, canSearch())
     coroutineScope {
         launch { LoadingAhead.load(context.imageLoader, firstPictures(ahead, plan)) }
-        plan.doors.mapNotNull(::cutIn).forEach { posters -> launch { ahead.cutAhead(posters) } }
+        plan.doors.mapNotNull(::cutIn).forEach { posters -> launch { ahead.cutAhead(posters, cuts) } }
     }
 }
 

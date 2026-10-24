@@ -1,6 +1,8 @@
 package app.houselights.ui.design.components
 
 import android.app.Application
+import android.content.ComponentCallbacks2
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -13,6 +15,7 @@ import app.houselights.core.MediaKind
 import app.houselights.ui.testing.pictureServer
 import coil.Coil
 import coil.ImageLoader
+import coil.request.CachePolicy
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
@@ -20,15 +23,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Rule
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** A count's posters made once ([makeCutPosters]), whoever asks and whoever goes away. */
+/** A count's posters made once ([CutPosterCache.make]), whoever asks and whoever goes away; let go, their colours stay. */
 @RunWith(RobolectricTestRunner::class)
 class CutPostersTest {
     @get:Rule
@@ -38,8 +43,10 @@ class CutPostersTest {
 
     private val px: (Dp) -> Int = { it.value.toInt() }
 
-    @Before
-    fun forgetTheCuts() = forgetCutPosters()
+    /** Each test's own, as a new process's. */
+    private val cuts = CutPosterCache()
+
+    private fun poster(id: String) = MediaItem(id, MediaKind.MOVIE, id, poster = ImageRef("p-$id") { "https://img.test/$id?w=$it" })
 
     @After
     fun forgetTheLoader() = Coil.reset()
@@ -52,12 +59,12 @@ class CutPostersTest {
         val server = pictureServer { _, _ -> held.await() }
         Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(server) }.build())
         val items = listOf(MediaItem("cut-waiter", MediaKind.MOVIE, "Heat", poster = ImageRef("p-cut") { "https://img.test/cut?w=$it" }))
-        val maker = launch { makeCutPosters(context, items, px) }
+        val maker = launch { cuts.make(context, items, px) }
         // The maker in its load.
         yield()
         var made: CutPosters? = null
         // Resumed at once by the maker's cancelling, in the middle of it.
-        val waiter = launch(Dispatchers.Unconfined) { made = makeCutPosters(context, items, px) }
+        val waiter = launch(Dispatchers.Unconfined) { made = cuts.make(context, items, px) }
         maker.cancelAndJoin()
         held.complete(Unit)
         waiter.join()
@@ -70,10 +77,9 @@ class CutPostersTest {
         val held = CompletableDeferred<Unit>()
         val server = pictureServer { data, _ -> if ("next" in data.toString()) held.await() }
         Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(server) }.build())
-        fun poster(id: String) = MediaItem(id, MediaKind.MOVIE, id, poster = ImageRef("p-$id") { "https://img.test/$id?w=$it" })
         var items by mutableStateOf(listOf(poster("cut-first")))
         var shown: CutPosters? = null
-        compose.setContent { shown = rememberCutPosters(items) }
+        compose.setContent { CompositionLocalProvider(LocalCutPosters provides cuts) { shown = rememberCutPosters(items) } }
         compose.waitUntil(TIMEOUT_MS) { shown?.posters?.singleOrNull() != null }
         val first = shown
         items = listOf(poster("cut-next"))
@@ -83,7 +89,47 @@ class CutPostersTest {
         compose.waitUntil(TIMEOUT_MS) { shown !== first && shown?.posters?.singleOrNull() != null }
     }
 
+    /** Let go before playback ([CutPosterCache.clear]): a door draws its tones and tint at once while its posters are cut again. */
+    @Test
+    fun aCutLetGoKeepsItsColoursWhileItsPostersAreCutAgain() {
+        val held = CompletableDeferred<Unit>()
+        var hold = false
+        val server = pictureServer(fill = RED) { _, _ -> if (hold) held.await() }
+        // Every poster fetched again, as after Coil's memory is cleared too.
+        Coil.setImageLoader(
+            ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).memoryCachePolicy(CachePolicy.DISABLED)
+                .components { add(server) }.build(),
+        )
+        val items = listOf(poster("cut-again"))
+        val made = runBlocking { cuts.make(context, items, px) }
+        cuts.clear()
+        assertNull("its posters let go", cuts.of(cutKeys(items)))
+        hold = true
+        var shown: CutPosters? = null
+        compose.setContent { CompositionLocalProvider(LocalCutPosters provides cuts) { shown = rememberCutPosters(items) } }
+        compose.waitForIdle()
+        assertEquals("its glow at once", made.tones, shown?.tones)
+        assertSame("its tint at once", made.tint, shown?.tint)
+        assertTrue("its digits ink until cut again", shown?.posters.orEmpty().none { it != null })
+        held.complete(Unit)
+        compose.waitUntil(TIMEOUT_MS) { shown?.posters?.singleOrNull() != null }
+    }
+
+    /** Short of memory in the background, the cuts go as Coil's own pictures do; merely hidden, they stay. */
+    @Test
+    fun theSystemShortOfMemoryInTheBackgroundLetsTheCutsGo() {
+        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
+        val items = listOf(poster("cut-trimmed"))
+        val made = runBlocking { cuts.make(context, items, px) }
+        cuts.trim(ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN)
+        assertSame("hidden: kept", made, cuts.of(cutKeys(items)))
+        cuts.trim(ComponentCallbacks2.TRIM_MEMORY_BACKGROUND)
+        assertNull("in the background: let go", cuts.of(cutKeys(items)))
+        assertEquals("its glow kept", made.tones, cuts.shown(cutKeys(items))?.tones)
+    }
+
     private companion object {
+        const val RED = 0xFFC0392B.toInt()
         const val TIMEOUT_MS = 5_000L
     }
 }

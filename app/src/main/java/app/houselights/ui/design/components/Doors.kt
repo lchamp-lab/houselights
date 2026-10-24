@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -44,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -805,10 +807,19 @@ class CutPoster(val bitmap: Bitmap, val tone: Color) {
     }
 }
 
-/** The posters a door's count is cut in and its tint ([doorTint]), loaded; empty until they are. */
+/**
+ * The posters a door's count is cut in, their [tones] and their tint ([doorTint]), loaded; empty until they are. Let go
+ * ([CutPosterCache.clear]), only the tones and the tint stay, the digits ink until the posters are cut again.
+ */
 @Immutable
-class CutPosters(val posters: List<CutPoster?> = emptyList(), val tint: Bitmap? = null) {
-    val tones: List<Color> get() = posters.mapNotNull { it?.tone }
+class CutPosters(
+    val posters: List<CutPoster?> = emptyList(),
+    val tint: Bitmap? = null,
+    val tones: List<Color> = posters.mapNotNull { it?.tone },
+) {
+    internal val whole: Boolean get() = posters.any { it != null }
+
+    internal fun faded() = CutPosters(tint = tint, tones = tones)
 }
 
 /** The request of a poster a count is cut in, its pixels readable and kept apart from its card's in memory. */
@@ -826,66 +837,91 @@ private const val CUT = "houselights.cut"
 
 /**
  * The posters of [items] a door's count is cut in, with their tint: those made last at once, else loaded off the main
- * thread, the posters shown until then staying, so a count reloaded never falls back to ink.
+ * thread, the posters shown until then staying, so a count reloaded never falls back to ink; let go, their colours at
+ * once. Kept in the app's [LocalCutPosters], else in the door's own.
  */
 @Composable
 fun rememberCutPosters(items: List<MediaItem>): CutPosters {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val cuts = LocalCutPosters.current ?: remember { CutPosterCache() }
     val keys = remember(items) { cutKeys(items) }
-    var shown by remember { mutableStateOf(CutPostersMade.of(keys) ?: CutPosters()) }
+    var shown by remember { mutableStateOf(cuts.shown(keys) ?: CutPosters()) }
     LaunchedEffect(keys) {
-        shown = CutPostersMade.of(keys)
-            ?: if (items.isEmpty()) CutPosters() else makeCutPosters(context, items) { with(density) { it.roundToPx() } }
+        shown = cuts.of(keys)
+            ?: if (items.isEmpty()) CutPosters() else cuts.make(context, items) { with(density) { it.roundToPx() } }
     }
     return shown
 }
 
-/**
- * Loads the posters of [items] a door's count is cut in and keeps them, so the door shows them at once; for preloads
- * too. A making already under way for the same posters is awaited, not made again.
- */
-suspend fun makeCutPosters(context: Context, items: List<MediaItem>, px: (Dp) -> Int): CutPosters {
-    val keys = cutKeys(items)
-    CutPostersMade.of(keys)?.let { return it }
-    val (making, mine) = CutPostersMade.making(keys)
-    if (!mine) {
-        return try {
-            making.await()
-        } catch (gone: CancellationException) {
-            // Its maker went away: this one makes them, unless it is going away itself.
-            if (!currentCoroutineContext().isActive) throw gone
-            makeCutPosters(context, items, px)
-        }
-    }
-    return try {
-        loadCutPosters(context, items, px).also { made ->
-            if (made.posters.any { it != null }) CutPostersMade.keep(keys, made)
-            making.complete(made)
-        }
-    } finally {
-        // Cancelled or failed: whoever waits makes them again.
-        if (!making.isCompleted) making.cancel()
-        CutPostersMade.done(keys, making)
-    }
-}
-
 /** The titles and their posters a cut is made of: a poster changed is another cut. */
-private fun cutKeys(items: List<MediaItem>): List<Any?> = items.flatMap { listOf(it.id, it.poster) }
+internal fun cutKeys(items: List<MediaItem>): List<Any?> = items.flatMap { listOf(it.id, it.poster) }
 
-/** The cut posters made last, by their titles and posters: a door coming back, or opened under the launch screen, draws them at once. */
-private object CutPostersMade {
-    private val made = object : LinkedHashMap<List<Any?>, CutPosters>(KEPT, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<Any?>, CutPosters>) = size > KEPT
+/** The cut posters the app keeps ([CutPosterCache]); null outside it, each door keeping its own. */
+val LocalCutPosters = staticCompositionLocalOf<CutPosterCache?> { null }
+
+/**
+ * The cut posters made last, by their titles and posters: a door coming back, or opened under the launch screen, draws
+ * them at once. [kept]: home's library doors, and one more for a door whose posters changed, so it never takes another's.
+ * The app holds one ([app.houselights.AppContainer.cutPosters]) and lets its posters go when the player needs the memory.
+ */
+class CutPosterCache(private val kept: Int = HomeGridDefaults.SHELF_DOORS + 1) {
+    private val made = object : LinkedHashMap<List<Any?>, CutPosters>(kept, LOAD_FACTOR, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<Any?>, CutPosters>) = size > kept
     }
     private val underWay = HashMap<List<Any?>, CompletableDeferred<CutPosters>>()
 
+    /** The cut of [keys], its posters loaded; null when not made, or let go. */
     @Synchronized
-    fun of(keys: List<Any?>): CutPosters? = made[keys]
+    internal fun of(keys: List<Any?>): CutPosters? = made[keys]?.takeIf { it.whole }
+
+    /** What a door draws of [keys] at once: its cut, else its tones and tint once let go ([clear]). */
+    @Synchronized
+    internal fun shown(keys: List<Any?>): CutPosters? = made[keys]
 
     @Synchronized
-    fun keep(keys: List<Any?>, posters: CutPosters) {
+    internal fun keep(keys: List<Any?>, posters: CutPosters) {
         made[keys] = posters
+    }
+
+    /** Lets every poster go, software copies the memory clear of Coil does not reach; tones and tints stay. */
+    @Synchronized
+    fun clear() {
+        made.replaceAll { _, cut -> cut.faded() }
+    }
+
+    /** As Coil trims its own memory: in the background, short of memory, the posters go ([clear]). */
+    fun trim(level: Int) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) clear()
+    }
+
+    /**
+     * Loads the posters of [items] a door's count is cut in and keeps them, so the door shows them at once; for preloads
+     * too. A making already under way for the same posters is awaited, not made again.
+     */
+    suspend fun make(context: Context, items: List<MediaItem>, px: (Dp) -> Int): CutPosters {
+        val keys = cutKeys(items)
+        of(keys)?.let { return it }
+        val (making, mine) = making(keys)
+        if (!mine) {
+            return try {
+                making.await()
+            } catch (gone: CancellationException) {
+                // Its maker went away: this one makes them, unless it is going away itself.
+                if (!currentCoroutineContext().isActive) throw gone
+                make(context, items, px)
+            }
+        }
+        return try {
+            loadCutPosters(context, items, px).also { made ->
+                if (made.whole) keep(keys, made)
+                making.complete(made)
+            }
+        } finally {
+            // Cancelled or failed: whoever waits makes them again.
+            if (!making.isCompleted) making.cancel()
+            done(keys, making)
+        }
     }
 
     /**
@@ -893,27 +929,19 @@ private object CutPostersMade {
      * its cancelling resumes before its maker is [done] makes them itself rather than await it again.
      */
     @Synchronized
-    fun making(keys: List<Any?>): Pair<CompletableDeferred<CutPosters>, Boolean> =
+    private fun making(keys: List<Any?>): Pair<CompletableDeferred<CutPosters>, Boolean> =
         underWay[keys]?.takeIf { !it.isCancelled }?.let { it to false }
             ?: CompletableDeferred<CutPosters>().also { underWay[keys] = it }.let { it to true }
 
     @Synchronized
-    fun done(keys: List<Any?>, making: CompletableDeferred<CutPosters>) {
+    private fun done(keys: List<Any?>, making: CompletableDeferred<CutPosters>) {
         if (underWay[keys] === making) underWay.remove(keys)
     }
 
-    @Synchronized
-    fun forget() {
-        made.clear()
-        underWay.clear()
+    private companion object {
+        const val LOAD_FACTOR = 0.75f
     }
-
-    /** Home's library doors, and the one gathering the rest. */
-    private const val KEPT = 5
 }
-
-/** Forgets every cut made, as a new process would: tests that share one stay apart. */
-internal fun forgetCutPosters() = CutPostersMade.forget()
 
 /** Each poster of [items] loaded once, though a count may be cut in one twice. */
 private suspend fun loadCutPosters(context: Context, items: List<MediaItem>, px: (Dp) -> Int): CutPosters = coroutineScope {

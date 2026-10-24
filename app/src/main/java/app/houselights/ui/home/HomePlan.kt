@@ -7,6 +7,7 @@ import app.houselights.core.MediaKind
 import app.houselights.core.NEW_FOR_MS
 import app.houselights.core.SectionType
 import app.houselights.ui.design.FocusKey
+import app.houselights.ui.design.HomeGridDefaults.SHELF_DOORS
 import app.houselights.ui.design.components.cycledTo
 import app.houselights.ui.design.components.wearsNewDot
 
@@ -177,9 +178,6 @@ private fun postersFor(posters: List<MediaItem>, digits: Int, used: MutableSet<S
 
 /** A row's parts: a door of two is half the row, one of one a quarter. */
 private const val PARTS = 4
-
-/** Library doors in their row; past it, the last gathers the rest. */
-private const val SHELF_DOORS = 4
 
 /** Posters the news door shows across half the row, and across the whole of it. */
 private const val STRIP = 5

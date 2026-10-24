@@ -14,7 +14,6 @@ import app.houselights.core.UserState
 import app.houselights.ui.design.components.AwaitAhead
 import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
-import app.houselights.ui.design.components.forgetCutPosters
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.setTvContent
@@ -34,7 +33,6 @@ import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,10 +71,6 @@ class HomePicturesAheadTest {
     /** Every address answers at once, on the thread that asks: each load is over when it returns. */
     private val loader = ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }
         .memoryCache(::memory).eventListener(listener).build()
-
-    /** A count cut by an earlier test is drawn at once, never asked of Coil: each test starts as the launch does. */
-    @Before
-    fun forgetTheCuts() = forgetCutPosters()
 
     @After
     fun forgetTheLoader() = Coil.reset()

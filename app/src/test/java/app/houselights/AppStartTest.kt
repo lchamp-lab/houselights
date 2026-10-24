@@ -1,7 +1,12 @@
 package app.houselights
 
+import android.content.ComponentCallbacks2
+import android.graphics.Bitmap
 import android.os.Looper
+import androidx.compose.ui.graphics.Color
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.ui.design.components.CutPoster
+import app.houselights.ui.design.components.CutPosters
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -12,8 +17,9 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
- * The app starts as Android starts it, the only test that does: every part of its container is wired, and the
- * first launch records the language the library is read in. One test, as the settings' DataStore is one per process.
+ * The app starts as Android starts it, the only test that does: every part of its container is wired, the first
+ * launch records the language the library is read in, and the system short of memory takes the doors' cut posters.
+ * One test, as the settings' DataStore is one per process.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HouselightsApp::class)
@@ -34,6 +40,11 @@ class AppStartTest {
             Thread.sleep(POLL_MS)
         }
         assertEquals(container.metadataLocale().toLanguageTag(), container.settings.state.value.libraryLanguage)
+
+        val cut = listOf("door")
+        container.cutPosters.keep(cut, CutPosters(listOf(CutPoster(Bitmap.createBitmap(2, 3, Bitmap.Config.ARGB_8888), Color.Red))))
+        app.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_BACKGROUND)
+        assertNull("in the background, short of memory: the cut posters go", container.cutPosters.of(cut))
     }
 
     private companion object {
