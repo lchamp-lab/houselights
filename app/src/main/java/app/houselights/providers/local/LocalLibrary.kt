@@ -51,7 +51,7 @@ class LocalLibrary(
 
     suspend fun hasFolders(): Boolean = dao.sources().isNotEmpty()
 
-    /** The most recently added source, as the next one is usually on the same server. */
+    /** The most recently added source: the next one is usually on the same server, often in the same share. */
     suspend fun lastFolder(): SourceEntity? = dao.sources().maxByOrNull { it.id }
 
     /** An existing source other than [except] that [folder] [overlaps]; null if none. */

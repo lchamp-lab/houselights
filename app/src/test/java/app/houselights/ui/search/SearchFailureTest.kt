@@ -16,6 +16,7 @@ import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.UiError
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -46,7 +47,7 @@ class SearchFailureTest {
 
     @Test
     fun aFailedSearchSaysWhyAndOffersRetry() {
-        results(Found("Dune", SearchResults(), UiError.OFFLINE))
+        results(Found("Dune", LoadState.Failed(UiError.OFFLINE)))
         compose.onNodeWithText(context.getString(R.string.search_none, "Dune")).assertDoesNotExist()
         compose.onNodeWithText(context.getString(UiError.OFFLINE.title)).assertExists()
         compose.onNode(hasText(context.getString(R.string.retry)) and hasClickAction()).requestFocus()
@@ -56,7 +57,7 @@ class SearchFailureTest {
 
     @Test
     fun aSearchThatFoundNothingSaysSo() {
-        results(Found("Dune", SearchResults()))
+        results(Found("Dune", LoadState.Ready(SearchResults())))
         compose.onNodeWithText(context.getString(R.string.search_none, "Dune")).assertExists()
         compose.onNodeWithText(context.getString(R.string.retry)).assertDoesNotExist()
     }

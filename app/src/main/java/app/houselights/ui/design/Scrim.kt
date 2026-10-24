@@ -38,7 +38,7 @@ object HlScrim {
      */
     val LEFT_CONTRAST = listOf(4.5f, 4.5f, 3.5f, 3f)
 
-    /** The top veil, under the top bar: 0.74 at the edge, 0.44 at 72 dp, gone at 164 dp. */
+    /** A hero's top veil: 0.74 at the edge, 0.44 at 72 dp, gone at 164 dp. */
     val TOP = listOf(
         VeilStop(0f, 0.74f), VeilStop(dp(34f), 0.64f), VeilStop(dp(72f), 0.44f),
         VeilStop(dp(110f), 0.22f), VeilStop(dp(140f), 0.07f), VeilStop(dp(164f), 0f),

@@ -66,8 +66,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -279,20 +277,14 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     override fun libraryChanged() = changes.userChanged()
 
     init {
-        // A new TMDB key (or back to the built-in one) forgets the old key's results and retries unmatched titles.
-        scope.launch {
-            settings.state.filter { it.loaded }.map { it.tmdbApiKey }.distinctUntilChanged().drop(1).collect {
-                if (settings.state.value.source == SourceConfig.Local) scanner.tmdbKeyChanged()
-            }
-        }
+        scope.launch { retryOnTmdbKeyChange(settings.state, scanner::tmdbKeyChanged) }
         // Text from elsewhere is typeset for the language it comes in, whatever the app speaks.
         scope.launch {
             combine(settings.state, deviceLocale) { s, device ->
                 (if (s.source == SourceConfig.Local) metadataLocale(s, device) else device).language
             }.collect { Typeset.language = it }
         }
-        // Titles the library words itself ("Season 1") are made again in a new interface language.
-        scope.launch { language.chosen.drop(1).collect { libraryChanged() } }
+        scope.launch { rewordOnLanguageChange(language.chosen, ::libraryChanged) }
         // Details read in another language than TMDB's are read again, folder by folder.
         scope.launch {
             val languages = combine(settings.state.filter { it.loaded }, deviceLocale) { s, device ->

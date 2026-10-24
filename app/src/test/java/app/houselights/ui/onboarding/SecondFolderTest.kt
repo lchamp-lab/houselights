@@ -84,7 +84,7 @@ class SecondFolderTest {
     @Test
     fun aSecondFoldersShareIsErasedAndTyped() {
         val vm = form(FolderField.FIRST, edit = false)
-        // The share of the last folder, read after the form showed.
+        // The share the last folder is inside, read after the form showed.
         assertEquals("media", vm.form.share)
 
         compose.onNodeWithContentDescription("Share").requestFocus()

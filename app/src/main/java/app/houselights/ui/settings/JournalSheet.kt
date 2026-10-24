@@ -51,7 +51,13 @@ internal fun JournalRow(modifier: Modifier = Modifier, journal: JournalOpener = 
 private fun rememberJournal(): JournalOpener {
     val context = LocalContext.current.applicationContext
     val container = appContainer()
-    return remember(context, container) { LocalJournal(context, container) }
+    return remember(context, container) {
+        LocalJournal(
+            context,
+            settings = { container.settings.state.value },
+            protocols = { container.library.folders.first().map { it.protocol } },
+        )
+    }
 }
 
 /**

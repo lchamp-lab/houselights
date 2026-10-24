@@ -10,9 +10,11 @@ import kotlinx.coroutines.launch
 sealed interface LoadState<out T> {
     data object Loading : LoadState<Nothing>
 
-    data class Ready<T>(val value: T) : LoadState<T>
+    /** [value], shown; [refreshing] while it is read again. */
+    data class Ready<T>(val value: T, val refreshing: Boolean = false) : LoadState<T>
 
-    data class Failed(val error: UiError) : LoadState<Nothing>
+    /** Why it isn't there; [retrying] while it is read again, the error shown meanwhile with its button busy. */
+    data class Failed(val error: UiError, val retrying: Boolean = false) : LoadState<Nothing>
 }
 
 /** The value loaded, or null while it loads or when it failed. */
@@ -23,8 +25,19 @@ val LoadState<*>.errorOrNull: UiError? get() = (this as? LoadState.Failed)?.erro
 /** Reloading: a shown error gives way at once; a shown value stays until the new one comes. */
 fun <T> LoadState<T>.reloading(): LoadState<T> = if (this is LoadState.Ready) this else LoadState.Loading
 
+/** Read again with what shows kept: a value [LoadState.Ready.refreshing], an error [LoadState.Failed.retrying]. */
+fun <T> LoadState<T>.readingAgain(): LoadState<T> = when (this) {
+    is LoadState.Ready -> copy(refreshing = true)
+    is LoadState.Failed -> copy(retrying = true)
+    LoadState.Loading -> LoadState.Loading
+}
+
+/** What shows once [loaded] comes: it, unless it failed where a value showed, which then stays. */
+fun <T> LoadState<T>.after(loaded: LoadState<T>): LoadState<T> =
+    if (loaded is LoadState.Failed && this is LoadState.Ready) copy(refreshing = false) else loaded
+
 inline fun <T, R> LoadState<T>.map(transform: (T) -> R): LoadState<R> = when (this) {
-    is LoadState.Ready -> LoadState.Ready(transform(value))
+    is LoadState.Ready -> LoadState.Ready(transform(value), refreshing)
     is LoadState.Failed -> this
     LoadState.Loading -> LoadState.Loading
 }

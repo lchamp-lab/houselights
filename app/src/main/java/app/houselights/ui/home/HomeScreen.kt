@@ -180,7 +180,7 @@ private fun ClosedWithout(sheet: MutableState<Boolean>, element: Boolean) {
 private fun rememberPlan(state: HomeState, canSearch: Boolean): HomePlan? {
     val rows = state.content as? HomeContent.Rows ?: return null
     return remember(rows, state.libraries, state.doors, canSearch) {
-        homePlan(rows.sections, state.tabs, state.sagas, state.doors, canSearch)
+        homePlan(rows.sections, state.browsable, state.sagas, state.doors, canSearch)
     }
 }
 

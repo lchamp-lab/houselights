@@ -7,6 +7,7 @@ import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
+import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -47,7 +48,7 @@ class NumbersViewModelTest {
         vm.count()
         advanceUntilIdle()
         assertEquals(listOf("numbers"), catalog.calls)
-        val counted = vm.state as NumbersState.Counted
+        val counted = (vm.state as LoadState.Ready).value
         assertEquals(412, counted.numbers.films)
         assertEquals(mapOf(LibraryKind.MOVIES to films, LibraryKind.SHOWS to shows), counted.walls)
     }
@@ -58,13 +59,13 @@ class NumbersViewModelTest {
         val vm = NumbersViewModel { provider }
         vm.count()
         advanceUntilIdle()
-        assertEquals(NumbersState.Failed(UiError.OFFLINE), vm.state)
+        assertEquals(LoadState.Failed(UiError.OFFLINE), vm.state)
 
         catalog.fail = { null }
         vm.retry()
-        assertEquals(NumbersState.Failed(UiError.OFFLINE, retrying = true), vm.state)
+        assertEquals(LoadState.Failed(UiError.OFFLINE, retrying = true), vm.state)
         advanceUntilIdle()
-        assertEquals(412, (vm.state as NumbersState.Counted).numbers.films)
+        assertEquals(412, (vm.state as LoadState.Ready).value.numbers.films)
     }
 
     /** A source gone meanwhile (signed out) is a failure said, not a crash. */
@@ -73,6 +74,6 @@ class NumbersViewModelTest {
         val vm = NumbersViewModel { error("No library source configured") }
         vm.count()
         advanceUntilIdle()
-        assertEquals(NumbersState.Failed(UiError.FAILED), vm.state)
+        assertEquals(LoadState.Failed(UiError.FAILED), vm.state)
     }
 }

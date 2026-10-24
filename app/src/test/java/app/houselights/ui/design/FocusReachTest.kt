@@ -103,8 +103,8 @@ class FocusReachTest {
     }
 
     @Test
-    fun sevenPostersFillAWall() {
-        val across = HlSize.wallPoster * 7 + HlLayout.wallGutter * 6
+    fun aWallsPostersFillTheSafeArea() {
+        val across = HlSize.wallPoster * HlLayout.WALL_COLUMNS + HlLayout.wallGutter * (HlLayout.WALL_COLUMNS - 1)
         assertEquals(HlLayout.CANVAS_WIDTH - 2 * HlSpace.safeH.value, across.value, 0.01f)
     }
 

@@ -11,6 +11,8 @@ import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.SourceConfig
+import app.houselights.core.browsable
+import app.houselights.core.sagas
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
@@ -71,14 +73,14 @@ data class HomeState(
     val doors: HomeDoors? = null,
     val status: HomeStatus? = null,
 ) {
-    /** The tabs: every library except the sagas, which a films' wall shows among its films ([sagas]). */
-    val tabs: List<Library> get() = libraries.filter { it.kind != LibraryKind.COLLECTIONS }
+    /** Every library but the sagas ([sagas]), each with its own wall. */
+    val browsable: List<Library> get() = libraries.browsable()
 
     /** The source's sagas, if it has any: a films' wall shows them among its films, or alone. */
-    val sagas: Library? get() = libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
+    val sagas: Library? get() = libraries.sagas()
 
     /** The first films library, whose wall the sagas door opens on its sagas alone. */
-    val films: Library? get() = tabs.firstOrNull { it.kind == LibraryKind.MOVIES }
+    val films: Library? get() = browsable.firstOrNull { it.kind == LibraryKind.MOVIES }
 }
 
 /** The source's last result for Home, kept while reloading so an intertitle and its focused button stay. */

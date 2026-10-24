@@ -9,13 +9,13 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
+import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -46,16 +46,39 @@ class PersonViewModelTest {
     fun readsThePage() = runTest {
         val vm = PersonViewModel("tmdb:1") { provider }
         advanceUntilIdle()
-        assertEquals(page, vm.state.value.page)
-        assertFalse(vm.state.value.loading)
-        assertNull(vm.state.value.error)
+        assertEquals(LoadState.Ready(page), vm.state.value)
     }
 
     @Test
     fun noneOfTheirTitlesLeftSaysSo() = runTest {
         val vm = PersonViewModel("tmdb:2") { provider }
         advanceUntilIdle()
-        assertEquals(UiError.PERSON_GONE, vm.state.value.error)
+        assertEquals(LoadState.Failed(UiError.PERSON_GONE), vm.state.value)
+    }
+
+    /** Their last title gone while the page shows, the page says so in its place. */
+    @Test
+    fun aPageWhoseTitlesWentSaysSo() = runTest {
+        val vm = PersonViewModel("tmdb:1") { provider }
+        advanceUntilIdle()
+        catalog.pages = emptyMap()
+        vm.load()
+        advanceUntilIdle()
+        assertEquals(LoadState.Failed(UiError.PERSON_GONE), vm.state.value)
+    }
+
+    /** A failed read shows its error, kept with its button busy while it is read again. */
+    @Test
+    fun aFailureStaysShownWhileRetrying() = runTest {
+        catalog.fail = { IOException("NAS away") }
+        val vm = PersonViewModel("tmdb:1") { provider }
+        advanceUntilIdle()
+        val failed = vm.state.value as LoadState.Failed
+        vm.load()
+        assertEquals(failed.copy(retrying = true), vm.state.value)
+        catalog.fail = { null }
+        advanceUntilIdle()
+        assertEquals(LoadState.Ready(page), vm.state.value)
     }
 
     @Test
@@ -65,8 +88,7 @@ class PersonViewModelTest {
         catalog.fail = { IOException("NAS away") }
         vm.load()
         advanceUntilIdle()
-        assertEquals(page, vm.state.value.page)
-        assertNull(vm.state.value.error)
+        assertEquals(LoadState.Ready(page), vm.state.value)
     }
 
     @Test

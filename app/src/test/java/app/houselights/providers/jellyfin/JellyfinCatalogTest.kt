@@ -4,8 +4,6 @@ import app.houselights.core.Job
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
-import app.houselights.core.PlaybackOptions
-import app.houselights.core.PlaybackPlan
 import app.houselights.core.SortOption
 import app.houselights.testing.Answer
 import app.houselights.testing.FakeServer
@@ -76,7 +74,7 @@ class JellyfinCatalogTest {
     }
 
     @Test
-    fun aFilmsMediaSourcesAreItsCopiesAndOnePlaysByItsId() = runTest {
+    fun aFilmsMediaSourcesAreItsCopies() = runTest {
         val server = server()
         val catalog = provider(server).catalog
         val versions = catalog.versions(film)
@@ -85,9 +83,6 @@ class JellyfinCatalogTest {
         assertEquals(listOf(false, true), versions.map { it.best })
         assertEquals("Director's Cut", versions.last().edition)
         assertEquals(60L, versions.last().sizeBytes)
-
-        val plan = catalog.playback(versions.last(), resume = false, PlaybackOptions(emptyList(), forceHttp = true)) as PlaybackPlan.Launch
-        assertTrue(plan.uri, "mediaSourceId=s2" in plan.uri)
     }
 
     @Test

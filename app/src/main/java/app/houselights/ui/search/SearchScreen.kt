@@ -52,8 +52,10 @@ import app.houselights.ui.design.components.ResultName
 import app.houselights.ui.design.components.ResultsHeading
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SearchQuery
+import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.rememberSettled
+import app.houselights.ui.util.valueOrNull
 
 /**
  * Library search, a place lying in the light of the result in focus as a wall does (`Diffuse`): its title, then
@@ -73,7 +75,7 @@ fun SearchScreen(onOpenItem: (MediaItem) -> Unit, onOpenPerson: (String) -> Unit
     RestoreFocus(memory, firstKey)
     // The title or saga last in focus lends the page its light while it is among the results; a person keeps it.
     val focusedId = remember { mutableStateOf<String?>(null) }
-    val shown = rememberSettled { found.value?.results?.lit(focusedId.value) }
+    val shown = rememberSettled { found.value?.results?.valueOrNull?.lit(focusedId.value) }
     DetailAhead(shown.value)
     AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse) {
         Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV)) {
@@ -113,12 +115,13 @@ internal fun Results(
     modifier: Modifier = Modifier,
 ) {
     val now = found.value ?: return
-    val results = now.results
-    if (now.error != null) {
+    val failed = now.results as? LoadState.Failed
+    if (failed != null) {
         // The keys keep focus; Retry lies to their right.
-        HlErrorState(now.error, onRetry, modifier.padding(start = HlSpace.safeH), now.retrying, focusOnAppear = false)
+        HlErrorState(failed.error, onRetry, modifier.padding(start = HlSpace.safeH), failed.retrying, focusOnAppear = false)
         return
     }
+    val results = now.results.valueOrNull ?: return
     if (results.isEmpty()) {
         // An intertitle, as every message, on the rows' margin; the keys keep focus.
         HlEmptyState(

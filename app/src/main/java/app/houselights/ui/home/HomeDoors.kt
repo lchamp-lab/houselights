@@ -12,6 +12,8 @@ import app.houselights.core.NEW_FOR_MS
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
+import app.houselights.core.browsable
+import app.houselights.core.sagas
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -58,7 +60,7 @@ class UnseenPick(private val random: Random = Random.Default) {
         // One proposed as not seen goes once seen; any other stays while nothing not seen comes.
         val held = last?.let { k -> suspendRunCatching { source.item(k.id) }.getOrNull()?.takeIf { it.notSeen || !k.notSeen } }
         if (held != null && last.notSeen) return held
-        val shelves = libraries.filter { it.kind != LibraryKind.COLLECTIONS }
+        val shelves = libraries.browsable()
         val unwatched = LibraryFilter(status = WatchStatus.UNWATCHED)
         val drawn = draw(source, shelves.filter { it.kind == LibraryKind.MOVIES }, unwatched)
             ?: draw(source, shelves.filter { it.kind == LibraryKind.SHOWS }, unwatched)
@@ -99,9 +101,10 @@ suspend fun readDoors(
     val proposed = async { part("Proposed") { pick.of(source, libraries) }.also(onProposed) }
     val next = nextUp(sections)
     val season = next?.let { async { part("Season") { seasonOf(source, it) } } }
-    val tabs = libraries.filter { it.kind != LibraryKind.COLLECTIONS }.take(SHELVES)
-    val sagas = libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
-    val shelves = tabs.map { library -> async { shelf(source, library, SortOption.RATING, SHELF_POSTERS, now) } }
+    val shelves = libraries.browsable().take(SHELVES).map { library ->
+        async { shelf(source, library, SortOption.RATING, SHELF_POSTERS, now) }
+    }
+    val sagas = libraries.sagas()
     val sagaShelf = sagas?.let { async { shelf(source, it, SortOption.ADDED, SAGA_POSTERS, now) } }
     HomeDoors(proposed.await(), shelves.awaitAll(), sagaShelf?.await(), season?.await(), next?.id.takeIf { season != null })
 }

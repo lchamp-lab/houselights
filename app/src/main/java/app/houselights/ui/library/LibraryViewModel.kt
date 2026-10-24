@@ -20,6 +20,7 @@ import app.houselights.core.ProviderCapabilities
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
+import app.houselights.core.sagas
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.UiError
@@ -127,7 +128,7 @@ class LibraryViewModel(
      */
     private fun followSagas() {
         sagaReads.launch {
-            val now = suspendRunCatching { source().libraries().firstOrNull { it.kind == LibraryKind.COLLECTIONS } }
+            val now = suspendRunCatching { source().libraries().sagas() }
                 .getOrElse { sagas }
             if (now?.id == sagas?.id) {
                 refresh()

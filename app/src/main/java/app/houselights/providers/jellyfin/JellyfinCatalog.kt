@@ -13,8 +13,6 @@ import app.houselights.core.MediaKind
 import app.houselights.core.Person
 import app.houselights.core.PersonPage
 import app.houselights.core.PersonTitle
-import app.houselights.core.PlaybackOptions
-import app.houselights.core.PlaybackPlan
 import app.houselights.core.Quality
 import app.houselights.core.Saga
 import app.houselights.core.SagaPart
@@ -94,7 +92,10 @@ internal class JellyfinCatalog(
             MediaKind.SERIES -> "Series"
             else -> return emptyList()
         }
-        val items = api.items(userId, null, type, true, "CommunityRating,SortName", "Descending", 0, limit, ROW_FIELDS).items
+        val items = api.items(
+            userId = userId, parentId = null, includeItemTypes = type, recursive = true,
+            sortBy = "CommunityRating,SortName", sortOrder = "Descending", startIndex = 0, limit = limit, fields = ROW_FIELDS,
+        ).items
         return withContext(mapping) { items.filter { it.communityRating != null }.map(mapper::toMedia) }
     }
 
@@ -135,13 +136,12 @@ internal class JellyfinCatalog(
     /** No-op: the server cannot store a version choice ([ProviderCapabilities.versionChoice]). */
     override suspend fun chooseVersion(item: MediaItem, version: Version?) = Unit
 
-    override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
-        provider.play(version.item.id, version.key.ifEmpty { null }, resume, options)
-
     /** Server-side counts plus 4K films; size and runtime are unknown. */
     override suspend fun numbers(): LibraryNumbers = coroutineScope {
-        suspend fun count(type: String, is4K: Boolean? = null) =
-            api.items(userId, null, type, true, "SortName", "Ascending", 0, 0, "", is4K = is4K).totalRecordCount
+        suspend fun count(type: String, is4K: Boolean? = null) = api.items(
+            userId = userId, parentId = null, includeItemTypes = type, recursive = true,
+            sortBy = "SortName", sortOrder = "Ascending", startIndex = 0, limit = 0, fields = "", is4K = is4K,
+        ).totalRecordCount
         val films = async { count("Movie") }
         val shows = async { count("Series") }
         val episodes = async { count("Episode") }
@@ -158,8 +158,10 @@ internal class JellyfinCatalog(
     /** Server-side search of titles, people and box sets, as three parallel requests. */
     override suspend fun search(query: String, limit: Int): SearchResults = coroutineScope {
         val term = query.trim().ifEmpty { return@coroutineScope SearchResults() }
-        suspend fun found(types: String) =
-            api.items(userId, null, types, true, "SortName", "Ascending", 0, limit, ROW_FIELDS, searchTerm = term).items
+        suspend fun found(types: String) = api.items(
+            userId = userId, parentId = null, includeItemTypes = types, recursive = true,
+            sortBy = "SortName", sortOrder = "Ascending", startIndex = 0, limit = limit, fields = ROW_FIELDS, searchTerm = term,
+        ).items
         val titles = async { found("Movie,Series") }
         val sagas = async { found("BoxSet") }
         val people = api.persons(userId, term, limit).items

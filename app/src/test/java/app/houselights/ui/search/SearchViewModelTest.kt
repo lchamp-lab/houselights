@@ -9,6 +9,8 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.errorOrNull
+import app.houselights.ui.util.valueOrNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
@@ -44,7 +46,7 @@ class SearchViewModelTest {
         assertEquals("not while typing", emptyList<String>(), catalog.calls)
         advanceUntilIdle()
         assertEquals(listOf("search AME"), catalog.calls)
-        assertEquals("amelie", vm.found.value?.results?.titles?.single()?.id)
+        assertEquals("amelie", vm.found.value?.results?.valueOrNull?.titles?.single()?.id)
     }
 
     @Test
@@ -75,13 +77,13 @@ class SearchViewModelTest {
         backgroundScope.launch { vm.found.collect {} }
         "AME".forEach(vm::type)
         advanceUntilIdle()
-        assertEquals("not that nothing matches", UiError.OFFLINE, vm.found.value?.error)
+        assertEquals("not that nothing matches", UiError.OFFLINE, vm.found.value?.results?.errorOrNull)
 
         catalog.fail = { null }
         vm.retry()
         advanceUntilIdle()
-        assertNull(vm.found.value?.error)
-        assertEquals("amelie", vm.found.value?.results?.titles?.single()?.id)
+        assertNull(vm.found.value?.results?.errorOrNull)
+        assertEquals("amelie", vm.found.value?.results?.valueOrNull?.titles?.single()?.id)
         assertEquals(listOf("search AME", "search AME"), catalog.calls)
 
         vm.retry()
@@ -102,6 +104,6 @@ class SearchViewModelTest {
         backgroundScope.launch { after.found.collect {} }
         assertEquals("AME", after.query.value)
         advanceUntilIdle()
-        assertEquals("amelie", after.found.value?.results?.titles?.single()?.id)
+        assertEquals("amelie", after.found.value?.results?.valueOrNull?.titles?.single()?.id)
     }
 }

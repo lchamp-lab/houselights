@@ -108,6 +108,12 @@ data class MediaItem(
 
 data class Library(val id: String, val kind: LibraryKind, val title: String?)
 
+/** The libraries that open on a wall of their own: all but the sagas, which a films' wall shows among its films. */
+fun List<Library>.browsable(): List<Library> = filter { it.kind != LibraryKind.COLLECTIONS }
+
+/** The source's sagas, if it has any: a films' wall shows them among its films, or alone. */
+fun List<Library>.sagas(): Library? = firstOrNull { it.kind == LibraryKind.COLLECTIONS }
+
 /** Home's rows: the standard ones, then the library's own below them ([DIRECTOR], [BEST_RATED]). */
 enum class SectionType { CONTINUE, NEXT_UP, LATEST, DIRECTOR, BEST_RATED }
 

@@ -12,8 +12,6 @@ import app.houselights.core.PERSON_MIN_TITLES
 import app.houselights.core.Person
 import app.houselights.core.PersonPage
 import app.houselights.core.PersonTitle
-import app.houselights.core.PlaybackOptions
-import app.houselights.core.PlaybackPlan
 import app.houselights.core.Saga
 import app.houselights.core.SagaPart
 import app.houselights.core.SearchResults
@@ -155,10 +153,6 @@ internal class LocalCatalog(
         val row = row(item)?.takeIf { it.kind == ItemKind.MOVIE } ?: return
         dao.setVersionChoice(row.versionOf ?: row.id, version?.key?.toLongOrNull())
     }
-
-    /** Plays this exact copy, regardless of the film's chosen version. */
-    override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
-        provider.play(version.key.toLong(), part = null, resume)
 
     override suspend fun numbers(): LibraryNumbers {
         val files = dao.fileFacts()

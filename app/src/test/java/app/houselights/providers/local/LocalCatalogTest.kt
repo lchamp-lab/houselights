@@ -290,7 +290,7 @@ class LocalCatalogTest {
         assertEquals(emptyList<Any>(), catalog.versions(item(dao.latest(ItemKind.MOVIE, 10).first { it.tmdbId == 335984 }.id)))
     }
 
-    /** Lire plays the chosen copy, else the best; a copy played directly is that copy. */
+    /** Lire plays the chosen copy, else the best. */
     @Test
     fun aTitlePlaysItsChosenCopyElseItsBest() = runTest {
         val first = film("Heat", 1995, tmdbId = 949, path = "Heat.1080p.mkv", badges = listOf("1080p"), genres = listOf("Policier"))
@@ -304,8 +304,6 @@ class LocalCatalogTest {
         val versions = catalog.versions(item(first))
         catalog.chooseVersion(item(first), versions.single { it.key == first.toString() })
         assertTrue(played(provider.item(first.toString())).endsWith("Heat.1080p.mkv"))
-        val plan = catalog.playback(versions.single { it.key == uhd.toString() }, resume = false, options) as PlaybackPlan.Launch
-        assertTrue(plan.uri.endsWith("Heat.2160p.mkv"))
         assertEquals(listOf("Ronin"), provider.similar(provider.item(uhd.toString())).map { it.title })
 
         // Once its title is gone, a copy becomes a title of its own at once.
