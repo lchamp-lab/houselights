@@ -51,6 +51,8 @@ gratuite, l’application est entièrement en français. [Installer](#install)
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids identify titles exactly.
   - Technical details (resolution, HDR, Dolby Vision, audio formats, subtitles) are read from the files.
+  - Over NFS, symbolic links are followed within the export, as the player follows them; an absolute link, which
+    the player cannot follow, is left out and logged.
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
   - Films of a saga are gathered, with a page per saga showing the films you own and those you don't.

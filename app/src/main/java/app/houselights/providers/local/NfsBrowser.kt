@@ -38,7 +38,8 @@ internal class NfsBrowser(
 
     override suspend fun list(source: SourceEntity): Listing = withMount(source) { mounted ->
         val export = mounted.export
-        walk(folder(export, export.folder(root(source))), unreadable.of(source)) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        val folder = Folders(export).folder(remotePath(source), export.folder(root(source)))
+        walk(folder, unreadable.of(source)) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     /** Uses a fresh mount so the NAS checks access now. */
@@ -69,22 +70,39 @@ internal class NfsBrowser(
     private fun root(source: SourceEntity) = "/" + remotePath(source)
 
     /**
-     * The folder with handle [dir]. READDIRPLUS returns each entry's type, size, date and handle in about one
-     * request per folder; entries without them (a NAS may omit them, READDIR never has them) are looked up lazily.
+     * Folders of one listing, each by its path from the export root without links. Symbolic links are followed
+     * ([NfsLinks]), except to a folder the walk is in, which would list it again down to [RemoteBrowser.MAX_DEPTH].
      */
-    private fun folder(export: NfsExport, dir: ByteArray): RemoteFolder = RemoteFolder {
-        entries(export, dir).map { listed ->
-            object : RemoteEntry {
-                override val name: String = listed.name
+    private class Folders(private val export: NfsExport) {
+        private val handles = HashMap<String, ByteArray>()
+        private val links = NfsLinks(export) { path -> handles.getOrPut(path) { export.folder("/$path") } }
 
-                // A failed lookup throws (file gone, NAS silent) and is retried on the next access.
-                private val entry by lazy { if (listed.isWhole) listed else export.lookup(dir, listed.name) }
+        /**
+         * The folder at [path] with handle [dir], within the folders [above]. READDIRPLUS returns each entry's type,
+         * size, date and handle in about one request per folder; entries without them (a NAS may omit them, READDIR
+         * never has them) are looked up lazily.
+         */
+        fun folder(path: String, dir: ByteArray, above: Set<String> = emptySet()): RemoteFolder {
+            handles[path] = dir
+            val within = above + path
+            return RemoteFolder {
+                entries(export, dir).map { listed ->
+                    object : RemoteEntry {
+                        override val name: String = listed.name
 
-                override fun folder() = entry.handle?.takeIf { entry.attributes?.isFolder == true }?.let { folder(export, it) }
+                        // A failed lookup throws (file gone, NAS silent, broken link) and is retried on the next access.
+                        private val target by lazy { links.reached(path, if (listed.isWhole) listed else export.lookup(dir, listed.name)) }
 
-                override fun size() = entry.attributes?.size ?: 0L
+                        override fun folder() = target.entry.handle?.takeIf { target.entry.attributes?.isFolder == true }?.let {
+                            if (target.path in within) throw UnfollowedLinkException("it leads back up the walk")
+                            folder(target.path, it, within)
+                        }
 
-                override fun lastModified() = entry.attributes?.lastModified
+                        override fun size() = target.entry.attributes?.size ?: 0L
+
+                        override fun lastModified() = target.entry.attributes?.lastModified
+                    }
+                }
             }
         }
     }
@@ -129,10 +147,15 @@ internal class NfsBrowser(
  * as the mount; [KeptConnections] runs one operation at a time.
  */
 private class NfsMount(val export: NfsExport) {
-    /** LRU of handles by path from the export root ("" for the root), capped at [MAX_HANDLES]. */
-    private val handles = object : LinkedHashMap<String, ByteArray>(MAX_HANDLES, LOAD_FACTOR, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ByteArray>) = size > MAX_HANDLES
+    /** LRU of what paths from the export root lead to ("" for the root), capped at [MAX_HANDLES]. */
+    private val handles = object : LinkedHashMap<String, Reached>(MAX_HANDLES, LOAD_FACTOR, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Reached>) = size > MAX_HANDLES
     }
+
+    /** A path's handle, and its path without links, from which a link beneath it is followed. */
+    private class Reached(val handle: ByteArray, val path: String)
+
+    private val links = NfsLinks(export) { path -> handle(path) }
 
     /**
      * Reads up to [length] bytes at [offset]. A stale cached handle (file replaced by a Radarr upgrade, folder
@@ -147,17 +170,18 @@ private class NfsMount(val export: NfsExport) {
             export.read(handle(path), offset, length)
         }
 
-    /** Handle of [path], with a LOOKUP per segment below the deepest cached folder. */
+    /** Handle of [path], with a LOOKUP per segment below the deepest cached folder, links followed ([NfsLinks]). */
     private fun handle(path: String): ByteArray {
         val names = path.split('/').filter { it.isNotEmpty() }
-        val paths = names.runningFold("") { folder, name -> if (folder.isEmpty()) name else "$folder/$name" }
+        val paths = names.runningFold("") { folder, name -> NfsLinks.joined(folder, name) }
         val known = paths.indexOfLast { it in handles }
-        var handle = if (known < 0) export.folder("/").also { handles[""] = it } else handles.getValue(paths[known])
+        var reached = if (known < 0) Reached(export.folder("/"), "").also { handles[""] = it } else handles.getValue(paths[known])
         for (depth in maxOf(known, 0) + 1 until paths.size) {
-            handle = export.lookup(handle, names[depth - 1]).handle ?: throw FileNotFoundException(path)
-            handles[paths[depth]] = handle
+            val target = links.reached(reached.path, export.lookup(reached.handle, names[depth - 1]))
+            reached = Reached(target.entry.handle ?: throw FileNotFoundException(path), target.path)
+            handles[paths[depth]] = reached
         }
-        return handle
+        return reached.handle
     }
 
     /** Drops the cached handles of [path], its folders and the root. */
@@ -172,13 +196,13 @@ private class NfsMount(val export: NfsExport) {
     }
 }
 
-/** Entry attributes from READDIRPLUS, LOOKUP or GETATTR. */
-internal class NfsAttributes(val isFolder: Boolean, val size: Long, val lastModified: Long?)
+/** Entry attributes from READDIRPLUS, LOOKUP or GETATTR; a symbolic link's are its own, not its target's. */
+internal class NfsAttributes(val isFolder: Boolean, val size: Long, val lastModified: Long?, val isLink: Boolean = false)
 
 /** A folder entry; [handle] and [attributes] are null when the NAS omitted them. */
 internal class NfsEntry(val name: String, val handle: ByteArray?, val attributes: NfsAttributes?) {
-    /** True when no LOOKUP is needed: attributes are present, and a folder has its handle. */
-    val isWhole: Boolean get() = attributes != null && (!attributes.isFolder || handle != null)
+    /** True when no LOOKUP is needed: attributes are present, and a folder or link has its handle. */
+    val isWhole: Boolean get() = attributes != null && (!attributes.isFolder && !attributes.isLink || handle != null)
 }
 
 /** One READDIRPLUS page; the next starts from [cookie] and [verifier] unless [isLast]. */
@@ -196,6 +220,9 @@ internal interface NfsExport {
     fun lookup(dir: ByteArray, name: String): NfsEntry
 
     fun read(file: ByteArray, offset: Long, length: Int): ByteArray
+
+    /** READLINK: the target of the symbolic link [link], as written. */
+    fun readlink(link: ByteArray): String
 }
 
 /** nfs-client export; falls back to READDIR with per-entry lookups when READDIRPLUS is unsupported. */
@@ -245,7 +272,10 @@ private class Nfs3Export(private val nfs: Nfs3) : NfsExport {
         }
     }
 
-    private fun attributes(told: NfsGetAttributes) = NfsAttributes(told.type == NfsType.NFS_DIR, told.size, told.mtime?.timeInMillis)
+    override fun readlink(link: ByteArray): String = nfs.wrapped_getReadlink(nfs.makeReadlinkRequest(link)).data
+
+    private fun attributes(told: NfsGetAttributes) =
+        NfsAttributes(told.type == NfsType.NFS_DIR, told.size, told.mtime?.timeInMillis, isLink = told.type == NfsType.NFS_LNK)
 
     companion object {
         /** READDIRPLUS dircount and maxcount limits: about 150 entries per answer. */
