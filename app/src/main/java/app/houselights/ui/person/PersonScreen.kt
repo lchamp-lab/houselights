@@ -61,7 +61,8 @@ import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.jobName
 import app.houselights.ui.util.rememberSettled
-import app.houselights.ui.util.retainedError
+import app.houselights.ui.util.LoadState
+import app.houselights.ui.util.valueOrNull
 import app.houselights.ui.util.toPx
 
 /**
@@ -74,12 +75,14 @@ fun PersonScreen(personId: String, onOpenItem: (MediaItem) -> Unit) {
     val vm: PersonViewModel = viewModel(key = "person-$personId", factory = PersonViewModel.factory(app, personId))
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
-    val page = state.page
+    val page = state.valueOrNull
     if (page == null) {
         // While retrying, the error stays on screen with its button busy.
-        val error = retainedError(state.error, retrying = state.loading)
+        val failed = state as? LoadState.Failed
         Box(Modifier.fillMaxSize().padding(top = HlLayout.errorTop)) {
-            if (error != null) HlErrorState(error, vm::load, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), state.loading)
+            if (failed != null) {
+                HlErrorState(failed.error, vm::load, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), failed.retrying)
+            }
         }
         return
     }
