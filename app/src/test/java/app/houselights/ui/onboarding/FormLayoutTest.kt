@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.text.TextLayoutResult
@@ -148,7 +149,27 @@ class FormLayoutTest {
     @Config(qualifiers = "de-$TV")
     fun foundServersInGermanAtTheLargestText() = foundServersHoldAtTheLargestText()
 
-    /** At the largest text, the states take the widest of their words; names and addresses hold whole beside them. */
+    // The languages whose words run longest or widest.
+    @Test
+    @Config(qualifiers = "pt-$TV")
+    fun foundServersInPortugueseAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "nl-$TV")
+    fun foundServersInDutchAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "pl-$TV")
+    fun foundServersInPolishAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "ja-$TV")
+    fun foundServersInJapaneseAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    /**
+     * At the largest text, the states take the widest of their words; names and addresses hold whole beside them, and
+     * the connection a server picked makes holds whole beside its protocol in the panel.
+     */
     private fun foundServersHoldAtTheLargestText() {
         val vm = runBlocking {
             val settings = testSettings(folder.root, scope)
@@ -168,16 +189,22 @@ class FormLayoutTest {
         val names = FourServers.servers.mapNotNull { it.name }
         val addresses = listOf("jellyfin.mondomaine.fr", "192.168.1.31:8096", "192.168.1.42:8096", "192.168.1.57:8096")
         (states + names + addresses).forEach { assertFalse("$it cut", cut(it)) }
+        mapOf(0 to R.string.connection_is_encrypted, 1 to R.string.connection_is_plain).forEach { (i, connection) ->
+            vm.choose(FourServers.servers[i])
+            compose.waitForIdle()
+            val words = compose.activity.getString(connection)
+            assertFalse("$words cut", cut(words))
+        }
     }
 
-    /** True when [text]'s own layout runs past its box or ends in an ellipsis. */
-    private fun cut(text: String): Boolean {
-        val layouts = mutableListOf<TextLayoutResult>()
-        compose.onNodeWithText(text, useUnmergedTree = true).fetchSemanticsNode()
-            .config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
-        val layout = layouts.first()
-        return layout.hasVisualOverflow || (0 until layout.lineCount).any(layout::isLineEllipsized)
-    }
+    /** True when [text]'s own layout runs past its box or ends in an ellipsis, wherever it is (a row and the panel). */
+    private fun cut(text: String): Boolean =
+        compose.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().any { node ->
+            val layouts = mutableListOf<TextLayoutResult>()
+            node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+            val layout = layouts.first()
+            layout.hasVisualOverflow || (0 until layout.lineCount).any(layout::isLineEllipsized)
+        }
 
     /** Two servers answer discovery, checked for ever; none signs in. */
     private object TwoServers : JellyfinNetwork {

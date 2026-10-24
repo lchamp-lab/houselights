@@ -282,8 +282,8 @@
     <string name="server_encrypted">Szyfrowany</string>
     <string name="server_plain">Nieszyfrowany</string>
     <string name="server_silent">Nie odpowiada</string>
-    <string name="connection_is_encrypted">Połączenie szyfrowane</string>
-    <string name="connection_is_plain">Połączenie nieszyfrowane</string>
+    <string name="connection_is_encrypted">Z szyfrowaniem</string>
+    <string name="connection_is_plain">Bez szyfrowania</string>
     <string name="field_server">Adres serwera</string>
     <string name="placeholder_server">np. 192.168.1.10:8096</string>
     <string name="sign_in">Zaloguj się</string>

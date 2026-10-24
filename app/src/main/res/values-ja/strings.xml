@@ -261,8 +261,8 @@
     <string name="server_encrypted">暗号化あり</string>
     <string name="server_plain">暗号化なし</string>
     <string name="server_silent">応答なし</string>
-    <string name="connection_is_encrypted">暗号化された接続</string>
-    <string name="connection_is_plain">暗号化されていない接続</string>
+    <string name="connection_is_encrypted">暗号化ありの接続</string>
+    <string name="connection_is_plain">暗号化なしの接続</string>
     <string name="field_server">サーバーのアドレス</string>
     <string name="placeholder_server">例：192.168.1.10:8096</string>
     <string name="sign_in">ログイン</string>
