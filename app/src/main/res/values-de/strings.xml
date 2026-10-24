@@ -581,7 +581,7 @@
     <string name="text_size_standard_desc">Empfohlen</string>
     <string name="text_size_large">Groß</string>
     <string name="text_size_large_desc">Zum Lesen aus der Ferne</string>
-    <string name="text_size_large_reached">Durch die Android-Einstellung bereits erreicht</string>
+    <string name="text_size_large_reached">Bereits durch Androids Einstellung erreicht</string>
     <string name="ui_4k_desc">Eine scharfe Oberfläche in 4K</string>
     <string name="ui_system_desc">Der vom System gewählte Modus</string>
     <string name="current_output">Ausgabe</string>
