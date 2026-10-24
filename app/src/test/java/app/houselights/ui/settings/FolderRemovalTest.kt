@@ -24,6 +24,7 @@ import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.nfsFolder
+import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
@@ -75,7 +76,9 @@ class FolderRemovalTest {
     @Before
     fun open() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        db = testDatabase { allowMainThreadQueries() }
+        // Room answers on the main thread, as in the app: from its own threads, two flows answering at once can lose a
+        // showcase's change in the test's recomposer, which runs on whichever thread wakes it.
+        db = testDatabase { onCallingThread() }
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // No scan runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
@@ -113,7 +116,8 @@ class FolderRemovalTest {
                 LazyColumn { libraryPane(s, { _, _ -> }, SourceDoors({}, {}, {}), rows) }
             }
         }
-        waitFor { compose.onAllNodes(hasText(folders.last()) and hasClickAction()).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForIdle()
+        compose.onNode(hasText(folders.last()) and hasClickAction()).assertExists()
     }
 
     /** OK on [folder]'s showcase, then on Retirer ce dossier in its sheet: the question it asks. */
@@ -152,20 +156,7 @@ class FolderRemovalTest {
         ).assertExists()
     }
 
-    /** Waits for [done], running what DataStore and Room send back to the main thread meanwhile. */
-    private fun waitFor(done: () -> Boolean) {
-        val until = System.currentTimeMillis() + TIMEOUT_MS
-        while (!done()) {
-            check(System.currentTimeMillis() < until) { "Still waiting after $TIMEOUT_MS ms" }
-            compose.waitForIdle()
-            Thread.sleep(POLL_MS)
-        }
-        compose.waitForIdle()
-    }
-
     private companion object {
         const val NB = Typography.nbsp
-        const val TIMEOUT_MS = 10_000L
-        const val POLL_MS = 10L
     }
 }
