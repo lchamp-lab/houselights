@@ -22,6 +22,7 @@ import app.houselights.core.PathMapping
 import app.houselights.player.PathResolver
 import app.houselights.player.Redact
 import app.houselights.settings.AppSettings
+import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
@@ -50,7 +51,13 @@ internal fun LazyListScope.playbackPane(s: AppSettings, server: Boolean, tracks:
             }
         }
     }
-    if (server) item { HlSettingGroup(stringResource(R.string.path_mappings), Modifier.revealOnFocus()) { PathMappings() } }
+    if (server) {
+        item {
+            HlSettingGroup(stringResource(R.string.path_mappings), Modifier.revealOnFocus()) {
+                PathMappings(unread = SecretSetting.PATH_MAPPINGS in s.unreadSecrets)
+            }
+        }
+    }
 }
 
 @Composable
@@ -77,9 +84,12 @@ private fun FileAccessGroup(s: AppSettings) {
     }
 }
 
-/** The mappings, each read as a sentence ("/media/films devient nfs://…"); OK opens it in a sheet, as Add does a new one. */
+/**
+ * The mappings, each read as a sentence ("/media/films devient nfs://…"); OK opens it in a sheet, as Add does a new one.
+ * Add waits while the stored ones are [unread], so that none is written over them.
+ */
 @Composable
-private fun PathMappings() {
+private fun PathMappings(unread: Boolean) {
     val vm = settingsViewModel()
     // The mapping open in the sheet: its line, or -1 for a new one; null with the sheet closed.
     var editing by remember { mutableStateOf<Int?>(null) }
@@ -94,6 +104,7 @@ private fun PathMappings() {
         stringResource(R.string.add_mapping),
         description = stringResource(R.string.add_mapping_desc),
         onClick = { editing = NEW },
+        enabled = !unread,
     )
     // Mappings save as the sheet closes, so the error shows under them, where focus returns.
     vm.errorOf(SettingAction.PATH_MAPPINGS)?.let { error ->
