@@ -34,18 +34,18 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     /** A hero showing [item]: the [AmbientBackdrop] picture and sample in [style], and the [HeroInfo] logo. */
     fun hero(item: MediaItem, style: BackdropStyle = BackdropStyle.Hero): List<ImageRequest> =
         item.backdrop?.let { backdropRequests(context, it, style, screenWidthPx) }.orEmpty() +
-            listOfNotNull(item.logo?.let { titleArtRequest(context, it, HeroDefaults.titleWidth.px(), HeroDefaults.titleHeight.px()) })
+            listOfNotNull(item.logo?.let { titleArtRequest(context, it, HeroDefaults.titleWidth, HeroDefaults.titleHeight, density) })
 
     /** Home's case showing [item] ([ResumeCase]): its picture, cropped upright, and its logo. */
     fun case(item: MediaItem): List<ImageRequest> = listOfNotNull(
         caseRequest(context, item) { it.px() },
-        item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.caseLogoWidth.px(), HomeGridDefaults.caseLogoHeight.px()) },
+        item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.caseLogoWidth, HomeGridDefaults.caseLogoHeight, density) },
     )
 
     /** A door's still showing [item] ([DoorStill]): its backdrop at the door's width, and its logo. */
     fun still(item: MediaItem): List<ImageRequest> = listOfNotNull(
         stillDoorRequest(context, item) { it.px() },
-        item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.stillLogoWidth.px(), HomeGridDefaults.stillLogoHeight.px()) },
+        item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.stillLogoWidth, HomeGridDefaults.stillLogoHeight, density) },
     )
 
     /** The posters of a door's band ([DoorPosters]). */
@@ -73,7 +73,7 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
 
     /** The logo a detail page of [item] shows, at its [TitleArt] size; its backdrop is decoded as the page opens. */
     fun detail(item: MediaItem): List<ImageRequest> =
-        listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.titleArtWidth.px(), HlLayout.titleArtHeight.px()) })
+        listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.titleArtWidth, HlLayout.titleArtHeight, density) })
 
     /**
      * The posters, or stills when [landscape], that a [MediaRow] of [items] shows before it scrolls, at the size its

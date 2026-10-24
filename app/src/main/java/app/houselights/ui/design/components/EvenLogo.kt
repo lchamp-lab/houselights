@@ -13,15 +13,16 @@ import kotlin.math.sqrt
 
 /**
  * Sets a clear logo to a constant visual weight in a [boxWidth] by [boxHeight] px box ([planLogo]): its
- * transparent margin trimmed, sized to the same optical surface, so heavy and thin logos read alike.
+ * transparent margin trimmed, sized to the same optical surface, so heavy and thin logos read alike; enlarged at
+ * most [enlarge] times.
  */
-internal class EvenLogo(private val boxWidth: Int, private val boxHeight: Int) : Transformation {
-    override val cacheKey = "evenLogo$VERSION-${boxWidth}x$boxHeight"
+internal class EvenLogo(private val boxWidth: Int, private val boxHeight: Int, private val enlarge: Float = 1f) : Transformation {
+    override val cacheKey = "evenLogo$VERSION-${boxWidth}x$boxHeight-$enlarge"
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
         val pixels = IntArray(input.width * input.height)
         input.getPixels(pixels, 0, input.width, 0, 0, input.width, input.height)
-        val plan = planLogo(pixels, input.width, input.height, boxWidth, boxHeight) ?: return input
+        val plan = planLogo(pixels, input.width, input.height, boxWidth, boxHeight, enlarge) ?: return input
         val output = Bitmap.createBitmap(plan.width, plan.height, Bitmap.Config.ARGB_8888)
         val ink = Rect(plan.left, plan.top, plan.right, plan.bottom)
         Canvas(output).drawBitmap(input, ink, Rect(0, 0, plan.width, plan.height), Paint(Paint.FILTER_BITMAP_FLAG))
@@ -39,9 +40,9 @@ internal class LogoPlan(val left: Int, val top: Int, val right: Int, val bottom:
 
 /**
  * The ink box (alpha above [INK_FLOOR]) of a logo and the size whose area, weighted by ink coverage to the
- * power [INK_WEIGHT], is [SURFACE] of the box, fitted and never upscaled; null without ink.
+ * power [INK_WEIGHT], is [SURFACE] of the box, fitted and at most [enlarge] times its own pixels; null without ink.
  */
-internal fun planLogo(pixels: IntArray, width: Int, height: Int, boxWidth: Int, boxHeight: Int): LogoPlan? {
+internal fun planLogo(pixels: IntArray, width: Int, height: Int, boxWidth: Int, boxHeight: Int, enlarge: Float = 1f): LogoPlan? {
     val found = inkOf(pixels, width, height) ?: return null
     val left = found.left
     val top = found.top
@@ -52,7 +53,7 @@ internal fun planLogo(pixels: IntArray, width: Int, height: Int, boxWidth: Int, 
     val ratio = inkWidth.toDouble() / inkHeight
     val h = sqrt(area / ratio)
     val w = h * ratio
-    val fit = minOf(1.0, boxWidth / w, boxHeight / h, inkWidth / w)
+    val fit = minOf(1.0, boxWidth / w, boxHeight / h, inkWidth * enlarge / w)
     return LogoPlan(
         left, top, found.right + 1, found.bottom + 1,
         (w * fit).roundToInt().coerceAtLeast(1),

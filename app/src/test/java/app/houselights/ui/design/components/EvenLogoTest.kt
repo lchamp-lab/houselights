@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.pow
 
-/** Logos are trimmed and sized to the same optical area in their room, never past it, never enlarged. */
+/** Logos are trimmed and sized to the same optical area in their room, never past it, enlarged only as far as allowed. */
 class EvenLogoTest {
     private val room = 600 to 120
 
@@ -65,6 +65,16 @@ class EvenLogoTest {
     fun itIsNeverEnlargedPastItsOwnPixels() {
         val plan = plan(logo(120, 40, Block(0, 0, 120, 40), coverage = 0.2), 120, 40)!!
         assertTrue("${plan.width} px from 120", plan.width <= 120 && plan.height <= 40)
+    }
+
+    /** Held by its own pixels in its room, a logo allowed twice them fills a room twice as large as it did the first. */
+    @Test
+    fun itIsEnlargedAsFarAsItIsAllowed() {
+        val pixels = logo(300, 60, Block(0, 0, 300, 60))
+        val once = plan(pixels, 300, 60)!!
+        assertEquals(300 to 60, once.width to once.height)
+        val twice = planLogo(pixels, 300, 60, room.first * 2, room.second * 2, enlarge = 2f)!!
+        assertEquals(600 to 120, twice.width to twice.height)
     }
 
     @Test

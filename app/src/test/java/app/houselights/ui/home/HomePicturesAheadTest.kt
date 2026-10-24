@@ -183,6 +183,15 @@ class HomePicturesAheadTest {
         assertEquals(listOf("https://img.test/backdrop/heat?w=1280"), loaded.mapNotNull { it.key?.key }.filter { "backdrop/heat" in it })
     }
 
+    /** At 4K, where a logo may be enlarged past its file's pixels, home still finds each picture loaded ahead. */
+    @Test
+    @Config(qualifiers = "w960dp-h540dp-land-xxxhdpi")
+    fun at4kTheLaunchLoadsWhatTheGridShows() {
+        val (loaded, shown) = loadAheadThenShow()
+        assertTheSame(loaded, shown)
+        assertTrue("the case's logo", loaded.mapNotNull { it.key?.key }.any { "logo/heat" in it })
+    }
+
     /** The launch loads what the rows show at once, the case once what it proposes is drawn, the doors' once they are read. */
     @Test
     fun theLaunchLoadsEachPictureOnceWhatShowsItIsRead() = runBlocking {
