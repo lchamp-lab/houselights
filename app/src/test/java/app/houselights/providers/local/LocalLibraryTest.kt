@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -19,6 +21,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.Collections
 
 /**
  * Adding and editing folders: one the library already holds is refused, one removed meanwhile stays removed, and the
@@ -117,6 +120,35 @@ class LocalLibraryTest {
 
         assertEquals("192.168.1.20", dao.source(id)!!.host)
         assertEquals("the folder at its new address was scanned", 1, listings)
+    }
+
+    /**
+     * A scan writing a film every 50 ms: Réglages › Bibliothèque counts it and shows its posters every 2 s at most,
+     * not at each write. In real time, as Room's queries run on its own threads.
+     */
+    @Test
+    fun aScansWritesMoveTheFolderCountsEveryTwoSecondsAtMost() = runBlocking {
+        val id = dao.insertSource(nfs("nas", "volume1/media", "films"))
+        val counted = Collections.synchronizedList(mutableListOf<Int>())
+        val posters = Collections.synchronizedList(mutableListOf<List<String>>())
+        val watch = launch(Dispatchers.Default) {
+            launch { library.folderCounts.collect { counted += it[id]?.titles ?: 0 } }
+            library.latestPosters(dao.source(id)!!, 4).collect { posters += it }
+        }
+        delay(200)
+        repeat(10) { n ->
+            dao.insert(
+                ItemEntity(
+                    kind = ItemKind.MOVIE, sourceId = id, title = "Film $n", sortTitle = "film $n", filePath = "Film $n.mkv",
+                    posterPath = "/p$n.jpg", addedAt = n.toLong(),
+                )
+            )
+            delay(50)
+        }
+        watch.cancel()
+        // Within 2 s: the first counts alone, though ten films were written.
+        assertEquals(listOf(0), counted.toList())
+        assertEquals(listOf(emptyList<String>()), posters.toList())
     }
 
     private companion object {
