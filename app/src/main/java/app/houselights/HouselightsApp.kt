@@ -108,7 +108,7 @@ class HouselightsApp : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
-        .okHttpClient { imageHttpClient(Http.client) }
+        .callFactory { ImageCalls(Http.client) }
         // A fixed budget: on a 2 GB player, a share of the large heap would hold 100 MB or more of pictures.
         .memoryCache { MemoryCache.Builder(this).maxSizeBytes(IMAGE_MEMORY_BYTES).build() }
         .diskCache {
