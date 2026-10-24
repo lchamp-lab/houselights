@@ -15,7 +15,6 @@ import app.houselights.ui.design.components.FIELD_POSTERS
 import app.houselights.ui.util.RoomPosters
 import app.houselights.core.MediaProvider
 import app.houselights.core.PlaybackOptions
-import app.houselights.core.PlaybackPlan
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.core.TrackPlan
@@ -106,7 +105,7 @@ class HouselightsApp : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
-        .okHttpClient { imageHttpClient(Http.client) }
+        .callFactory { ImageCalls(Http.client) }
         // A fixed budget: on a 2 GB player, a share of the large heap would hold 100 MB or more of pictures.
         .memoryCache { MemoryCache.Builder(this).maxSizeBytes(IMAGE_MEMORY_BYTES).build() }
         .diskCache {
@@ -221,8 +220,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     suspend fun tracksOf(item: MediaItem): TrackPlan? {
         if (!asksTracks) return null
         val s = settings.state.value
-        val launch = provider.playback(item, resume = false, PlaybackOptions(s.pathMappings, s.forceHttp)) as? PlaybackPlan.Launch
-        return launch?.let { tracks.table(it) }
+        return provider.playedTracks(item, PlaybackOptions(s.pathMappings, s.forceHttp))?.let { tracks.table(it) }
     }
 
     /** Launches the external player for a title and follows it while it plays. */
