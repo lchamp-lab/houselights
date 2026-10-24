@@ -70,8 +70,13 @@ class LibraryScanner(
 
     private val _changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
-    /** Emits while scanning, so screens show new entries progressively. */
+    /** Emits for a change screens show at once: an edit, a folder removed, the end of a pass that changed the library. */
     val changed: SharedFlow<Unit> = _changed
+
+    private val _progress = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** Emits while a pass writes, so screens show new entries progressively. */
+    val progress: SharedFlow<Unit> = _progress
 
     private val _passEnded = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
 
@@ -232,6 +237,7 @@ class LibraryScanner(
     }
 
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
+        stoppedAfterWriting = false
         // Under the lock, as an identification reads and fills the indexers' per-pass state.
         lock.withLock {
             movies.startPass()
@@ -283,8 +289,8 @@ class LibraryScanner(
             lastScanEnd = elapsed()
             closeIdle()
         }
-        // No change, no refresh of the screens.
-        if (changed) _changed.emit(Unit)
+        // No change, no refresh of the screens; titles a folder wrote before it stopped are one, its progress showed them.
+        if (changed || stoppedAfterWriting) _changed.emit(Unit)
         _passEnded.tryEmit(changed)
     }
 
@@ -376,7 +382,7 @@ class LibraryScanner(
         dao.markScanned(source.id, clock())
         // Renames and part changes count even without a re-read, as screens show file names and parts.
         val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || missing.parts.isNotEmpty() || written > 0
-        if (changed) _changed.emit(Unit)
+        if (changed) _progress.emit(Unit)
         return changed
     }
 
@@ -386,6 +392,9 @@ class LibraryScanner(
         val apart = MissingFiles.split(listed, all)
         return if (apart.isEmpty()) all else Stacks.of(kind, videos, apart)
     }
+
+    /** Whether a folder of the pass under way stopped after writing titles, which its end then tells screens of. */
+    private var stoppedAfterWriting = false
 
     /**
      * Re-evaluates [due] per file, as TMDB may close meanwhile; returns how many files changed the library. A file
@@ -412,11 +421,14 @@ class LibraryScanner(
                     if (folder.known[file.relativePath] == null) written++
                     if (ScanErrors.isUnreachable(e)) unreachable++
                     // Device full or NAS unreachable: every remaining file would fail the same way, after long timeouts.
-                    if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) throw e
+                    if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) {
+                        if (written > 0) stoppedAfterWriting = true
+                        throw e
+                    }
                 }
                 if (index % TELL_EVERY == TELL_EVERY - 1 && written > told) {
                     told = written
-                    _changed.emit(Unit)
+                    _progress.emit(Unit)
                 }
             }
         } finally {

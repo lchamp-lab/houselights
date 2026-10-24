@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
+import app.houselights.core.nextIn
 import app.houselights.core.NfoParser
 import app.houselights.core.NotFoundException
 import app.houselights.core.BadgeTokens
@@ -353,17 +354,10 @@ class LocalProvider(
         return next.mapNotNull { rows[it] }
     }
 
-    /** Regular seasons before specials, so a show starts with S01E01, as in [MediaProvider.nextUp]. */
+    /** Regular seasons before specials, so a show starts with S01E01. */
     private fun nextEpisode(episodes: List<EpisodeState>): EpisodeState? {
         val (specials, seasons) = episodes.partition { (it.seasonNumber ?: 0) == 0 }
         return nextOf(seasons) ?: nextOf(specials)
-    }
-
-    /** First in-progress episode, else the one after the last watched, else the first unwatched. */
-    private fun nextOf(episodes: List<EpisodeState>): EpisodeState? {
-        episodes.firstOrNull { it.positionMs > 0 && !it.played }?.let { return it }
-        val lastWatched = episodes.indexOfLast { it.played }
-        return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }
     }
 
     private fun person(c: TitleCredit) =
@@ -379,14 +373,16 @@ class LocalProvider(
         private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
 
+        /** The episode that plays next ([nextIn]). */
+        internal fun nextOf(episodes: List<EpisodeState>): EpisodeState? = nextIn(episodes, { it.played }, { it.positionMs > 0 })
+
         /**
-         * Per saga ([LibraryDao.startedSagas]), the first unwatched film after the last watched one, dated by the
+         * Per saga ([LibraryDao.startedSagas]), its film that plays next ([nextIn], as a show's episode), dated by the
          * saga's last viewing; none when it is in progress, as Continue already shows it.
          */
         internal fun nextInSagas(films: List<SagaFilmState>): List<Recent> =
             films.groupBy { it.collectionId }.values.mapNotNull { saga ->
-                val last = saga.indexOfLast { it.played }
-                val next = saga.drop(last + 1).firstOrNull { !it.played }?.takeIf { it.positionMs == 0L } ?: return@mapNotNull null
+                val next = nextIn(saga, { it.played }, { it.positionMs > 0 })?.takeIf { it.positionMs == 0L } ?: return@mapNotNull null
                 Recent(next.id, saga.mapNotNull { it.lastPlayedAt }.maxOrNull() ?: 0)
             }
 

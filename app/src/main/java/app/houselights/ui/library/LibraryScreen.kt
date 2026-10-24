@@ -120,7 +120,7 @@ fun LibraryScreen(
 ) {
     val app = appContainer()
     val vm: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(app, library, opensOn, sagas))
-    ReloadOnLibraryChange { vm.onLibraryChanged() }
+    ReloadOnLibraryChange { scanOnly -> vm.onLibraryChanged(scanOnly) }
     // The person the wall was opened for, offered by the filter menu.
     Wall(vm, library, title, onOpenItem, person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } })
 }

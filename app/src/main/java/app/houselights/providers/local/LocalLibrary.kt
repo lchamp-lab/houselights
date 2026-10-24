@@ -3,9 +3,12 @@ package app.houselights.providers.local
 import android.content.Context
 import app.houselights.core.Definition
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
@@ -33,15 +36,15 @@ class LocalLibrary(
 ) {
     val folders: Flow<List<SourceEntity>> = dao.observeSources()
 
-    val titleCount: Flow<Int> = dao.observeAllTitleCount()
+    val titleCount: Flow<Int> = dao.observeAllTitleCount().paced()
 
     val scan: StateFlow<ScanState> = scanner.state
 
     /** One query for all sources rather than two each, as Flow queries rerun on every scan write. */
     val folderCounts: Flow<Map<Long, FolderCounts>> =
-        dao.observeFolderCounts(Definition.ULTRA_HD.token).map { counts -> counts.associateBy { it.sourceId } }
+        dao.observeFolderCounts(Definition.ULTRA_HD.token).paced().map { counts -> counts.associateBy { it.sourceId } }
 
-    fun latestPosters(folder: SourceEntity, limit: Int): Flow<List<String>> = dao.observePosters(folder.id, limit)
+    fun latestPosters(folder: SourceEntity, limit: Int): Flow<List<String>> = dao.observePosters(folder.id, limit).paced()
 
     /** The [limit] posters last added to the whole library. */
     fun latestPosters(limit: Int): Flow<List<String>> = dao.observeAllPosters(limit)
@@ -103,6 +106,18 @@ class LocalLibrary(
         )
     }
 }
+
+/**
+ * A query a scan reruns at each write, run at most every [PANE_PACE_MS] and shown when its answer changes. Room runs
+ * the next query once an answer is taken, so the wait holds the answer (up to a period old) and no buffer may take it.
+ */
+private fun <T> Flow<T>.paced(): Flow<T> = transform {
+    emit(it)
+    delay(PANE_PACE_MS)
+}.distinctUntilChanged()
+
+/** How often the settings' counts and posters follow a scan. */
+private const val PANE_PACE_MS = 2_000L
 
 /** True when both read the same files: same protocol and host, and one path (share included) contains the other. */
 internal fun SourceEntity.overlaps(other: SourceEntity): Boolean {

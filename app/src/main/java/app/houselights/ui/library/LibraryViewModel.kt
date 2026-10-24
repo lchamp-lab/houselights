@@ -111,8 +111,12 @@ class LibraryViewModel(
         loadFacets()
     }
 
-    /** Shows what the library holds after a change (a scan, a film watched, the Sagas setting), without losing the place. */
-    fun onLibraryChanged() {
+    /**
+     * Shows what the library holds after a change (a scan, a film watched, the Sagas setting), without losing the
+     * place; a running scan's progress ([scanOnly]) reloads the titles alone, the filters and sagas waiting for its end.
+     */
+    fun onLibraryChanged(scanOnly: Boolean = false) {
+        if (scanOnly) return refresh()
         if (followsSagas) followSagas() else refresh()
         loadFacets()
     }

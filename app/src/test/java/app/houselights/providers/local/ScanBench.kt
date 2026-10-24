@@ -99,14 +99,23 @@ class ScanBench(
     /** Cuts the scans under way short, as when the app's process is stopped. */
     suspend fun cancelScans() = passes.children.toList().forEach { it.cancelAndJoin() }
 
-    /** How many times screens are told the library changed while [block] runs. */
-    suspend fun changesDuring(block: suspend () -> Unit): Int = coroutineScope {
+    /** How many times screens are told the library changed while [block] runs, a pass's progress included. */
+    suspend fun changesDuring(block: suspend () -> Unit): Int = toldDuring(block).let { it.progress + it.changes }
+
+    /** What screens are told while [block] runs: a pass's progress, and changes to show at once. */
+    suspend fun toldDuring(block: suspend () -> Unit): Told = coroutineScope {
+        val progress = AtomicInteger()
         val changes = AtomicInteger()
-        val watch = launch(Dispatchers.Unconfined) { scanner.changed.collect { changes.incrementAndGet() } }
+        val watch = launch(Dispatchers.Unconfined) {
+            launch { scanner.progress.collect { progress.incrementAndGet() } }
+            scanner.changed.collect { changes.incrementAndGet() }
+        }
         block()
         watch.cancel()
-        changes.get()
+        Told(progress.get(), changes.get())
     }
+
+    class Told(val progress: Int, val changes: Int)
 
     /** What one pass read on [nas] and [showsNas], asked of TMDB, and how often it told screens of a change. */
     class Pass(val reads: List<String>, val requests: List<String>, val changes: Int)

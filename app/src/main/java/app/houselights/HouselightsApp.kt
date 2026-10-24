@@ -253,7 +253,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     val libraryAhead = LibraryAhead({ provider })
 
     /** Library-generated rows shown below home's own, chosen once a day. */
-    val libraryRows = LibraryRows({ provider })
+    val libraryRows = LibraryRows({ provider }, { settledVersion.value })
 
     /** NAS browsers, with the sessions and mounts they keep open between files. */
     val remoteBrowsers = RemoteBrowsers()
@@ -270,9 +270,11 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
-    private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed))
+    private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed), scanner.progress)
 
     override val libraryVersion: StateFlow<Long> = changes.version
+
+    override val settledVersion: StateFlow<Long> = changes.settled
 
     override fun libraryChanged() = changes.userChanged()
 

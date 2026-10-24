@@ -41,8 +41,8 @@ import app.houselights.ui.design.HlSpace
 
 /**
  * A place in the settings' list (DESIGN.md, Secondary screens): its icon and its name alone, grey until it is the
- * open one ([selected]: white, its icon lit, raspberry on focus's white); focus whitens it and selects it. Its plate
- * hangs [HlSpace.s] past the column's start, so its icon lines up with the title above.
+ * open one ([selected]: white, its icon lit, raspberry on focus's white); focus whitens it and tells [onFocused], OK
+ * [onClick]. Its plate hangs [HlSpace.s] past the column's start, so its icon lines up with the title above.
  */
 @Composable
 fun HlNavItem(
@@ -51,10 +51,11 @@ fun HlNavItem(
     selected: Boolean,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit = onFocused,
 ) {
     val c = Hl.colors
     HlRowSurface(
-        onClick = onFocused,
+        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .hang(HlSpace.s)

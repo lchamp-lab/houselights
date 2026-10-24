@@ -47,6 +47,15 @@ class LibraryScannerTest {
     /** Time passes since boot, as the scanner measures how long ago a pass ended. */
     private fun elapse(ms: Long) = ShadowSystemClock.advanceBy(Duration.ofMillis(ms))
 
+    /** A pass tells screens of its progress as it writes, and of the change once, at its end. */
+    @Test
+    fun aPassTellsItsProgressApartFromItsEnd() = runTest {
+        repeat(12) { nas.put("Film $it (2001).mkv") }
+        val told = bench.toldDuring { bench.scan() }
+        assertTrue("progress told", told.progress > 0)
+        assertEquals("the change told once", 1, told.changes)
+    }
+
     @Test
     fun indexesFilmsAndShowsThenReadsNothingAgain() = runTest {
         val shows = bench.folder("Séries", SourceKind.SHOWS)

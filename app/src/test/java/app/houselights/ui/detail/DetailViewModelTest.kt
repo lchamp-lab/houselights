@@ -583,10 +583,27 @@ class DetailViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("item m1", "played m1 true", "item m1"), provider.calls)
 
-        // A change from elsewhere (a scan) loads it again.
+        // A change from elsewhere (another screen, a scan's end) loads it again.
         vm.onLibraryChanged()
         advanceUntilIdle()
         assertEquals(3, provider.calls.count { it == "item m1" })
+    }
+
+    /** A scan's progress elsewhere costs the page one light read; once it rewrites this title, the page loads again. */
+    @Test
+    fun aScansProgressReloadsThePageOnlyWhenItsTitleChanged() = runTest {
+        val vm = detail()
+        advanceUntilIdle()
+        provider.calls.clear()
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals(listOf("item m1"), provider.calls)
+
+        provider.items["m1"] = film("m1", "Heat (1995)")
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals(3, provider.calls.count { it == "item m1" })
+        assertEquals("Heat (1995)", vm.state.value.item?.title)
     }
 
     /** Marked watched during a scan, then Identify and Artwork: back on the page, the late signal reloads it. */

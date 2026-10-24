@@ -163,14 +163,9 @@ interface MediaProvider {
     /** The reporter of a playback started earlier, from its [PlaybackPlan.Launch.resumeKey]. */
     fun reporter(resumeKey: String): PlaybackReporter? = null
 
-    /** What "Play" starts: a series' first unwatched or in-progress episode, or a collection's film per [nextUpIn]. */
-    suspend fun nextUp(series: MediaItem): MediaItem? {
-        if (series.kind == MediaKind.COLLECTION) return nextUpIn(collectionItems(series))
-        for (season in seasons(series).filter { (it.seasonNumber ?: 0) > 0 }) {
-            episodes(series, season).firstOrNull { !it.user.played }?.let { return it }
-        }
-        return null
-    }
+    /** What "Play" starts: a collection's film per [nextUpIn]; a series' episode is the provider's to say. */
+    suspend fun nextUp(series: MediaItem): MediaItem? =
+        if (series.kind == MediaKind.COLLECTION) nextUpIn(collectionItems(series)) else null
 
     /** The collection (saga) a film belongs to, when the library shows it. */
     suspend fun collectionOf(item: MediaItem): MediaItem? = null
@@ -195,8 +190,18 @@ interface MediaProvider {
 const val NEW_EPISODES_CAP = 99
 
 /**
- * The film "Play" starts in a collection's [films] (release order): the first in progress, else unwatched,
- * else the first. Outside the provider so a page holding the films need not fetch them again.
+ * The film "Play" starts in a collection's [films] (release order), per [nextIn], else the first. Outside the
+ * provider so a page holding the films need not fetch them again.
  */
 fun nextUpIn(films: List<MediaItem>): MediaItem? =
-    films.firstOrNull { it.user.positionMs > 0 && !it.user.played } ?: films.firstOrNull { !it.user.played } ?: films.firstOrNull()
+    nextIn(films, { it.user.played }, { it.user.positionMs > 0 }) ?: films.firstOrNull()
+
+/**
+ * What plays next in [titles] (episodes, a saga's films, in order): the first in progress ([started], not [played]),
+ * else the first unwatched after the last watched, else the first unwatched; null when all are watched.
+ */
+fun <T> nextIn(titles: List<T>, played: (T) -> Boolean, started: (T) -> Boolean): T? {
+    titles.firstOrNull { started(it) && !played(it) }?.let { return it }
+    val lastWatched = titles.indexOfLast(played)
+    return titles.drop(lastWatched + 1).firstOrNull { !played(it) } ?: titles.firstOrNull { !played(it) }
+}

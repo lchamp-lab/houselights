@@ -84,6 +84,18 @@ class LibraryViewModelTest {
         assertEquals(240, vm.state.value.items.size)
     }
 
+    /** A scan's progress reloads the titles shown; what the filters offer and the sagas wait for its end. */
+    @Test
+    fun aScansProgressReloadsOnlyTheTitles() = runTest {
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        provider.calls.clear()
+
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals(listOf("page 0 120"), provider.calls)
+    }
+
     @Test
     fun aFailedReloadKeepsWhatIsShown() = runTest {
         val vm = LibraryViewModel({ provider }, library)

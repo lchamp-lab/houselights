@@ -78,6 +78,21 @@ class ScanStorageTest {
         assertEquals("one image tried", 1, nas.reads.size)
     }
 
+    /** A pass the full device stops after some titles tells screens of them at its end, as a whole pass would. */
+    @Test
+    fun aPassStoppedAfterItsFirstTitlesTellsTheirChange() = runTest {
+        val films = bench.folder("Films")
+        repeat(6) { nas.put("Film $it (2020).mp4") }
+        nas.put("Zodiac (2007).mp4")
+        nas.putImage("Zodiac (2007)-poster.jpg")
+        nas.onRead = { _, _, _ -> throw IOException("write failed: ENOSPC (No space left on device)") }
+        val told = bench.toldDuring { bench.scan() }
+
+        assertEquals(ScanErrorKind.STORAGE_FULL, bench.error(films))
+        assertTrue("the titles before it written", bench.paths(films).size >= 6)
+        assertEquals("the change told once, at the pass's end", 1, told.changes)
+    }
+
     @Test
     fun theFoldersAPassStopsBeforeKeepTheirLastError() = runTest {
         val films = bench.folder("Films")

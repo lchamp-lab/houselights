@@ -116,7 +116,8 @@ What is not the picture (settings, sheets, forms, search) keeps one grammar, rea
    its word stays white.
 8. **Focus.** Pictures are framed (`Showcase`, `GalleryTile`), plates fill white, all on `HlFocusSurface`; what is
    read is ringed (`ReadingPlate`, `HlScrollArea`).
-9. **Places.** The settings' places are words alone, `HlSize.navRow` tall, seven inside the safe area.
+9. **Places.** The settings' places are words alone, `HlSize.navRow` tall, seven inside the safe area. Focus lights
+   a place at once; its pane opens once focus settles there (`HlMotion.SETTLE`) or on OK (`SettingsPlaces`).
 10. **Sheets** say what they do in `subject` and what about on the line under it, with no hint at their foot;
     their glass and plates keep their film's light; reading ones are wide (`HlSideSheetDefaults.wideWidth`) to hold
     the reading measure. Under a sheet, the screen shows no focus.
@@ -427,7 +428,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     the case changes in place, focus kept; only an empty library has none, focus then on the first door. OK plays; Menu
     opens its options, which the Menu key says at the end of its action's plate while it has focus: its page, and from
     its start once started.
-  - **What is watched**: À suivre, the next episode not already in progress (`nextUp`), its still and logo
+  - **What is watched**: À suivre, the next episode or saga film not already in progress (`nextUp`: as a saga's Lire,
+    the one in progress, else the one after the last watched, else the first not seen, `nextIn`), its still and logo
     (`DoorStill`), its season's episodes along the band's top edge, those watched in the ember light, "S1 · É4" in
     `jaquette`; without one, the second title in progress and its part seen; without either, Nouveautés takes the
     row. Nouveautés: the latest titles' posters side by side, newest first (`DoorPosters`), and how many joined this
@@ -636,7 +638,7 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton`, `HlRowSurface` | the one panel recipe (`Raised` is glass) and its focusable form, framed, raised the same way; the row menu options, navigation entries and setting rows are made of |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | list choices on a panel button, raised over the welcome wall, what one does in `meta`; a search result with its poster and its overview in `meta`, the one in use edged in ember ("Actuel"); a small poster at a width, or as tall as it is given (a sheet's header) |
 | `HlPlate` | the plate of a group (see *Secondary screens*): its field's dark on a `PosterField`, `glassPlate` on glass, glass on the bare room, read while drawing; what it holds lies on glass |
-| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: the places, words alone (`navRow`), no well nor chevron, focus selecting them, the open one white with its icon lit (raspberry with focus); a group's rows on one plate, no rule between them, white with focus, no chevron: OK does what the words say. A row is `row` 60 in a pane as in a sheet, an icon included, its name in `lead`, its description in secondary `meta` on one line beside its value (`PaneRowLineTest`), its value in `meta` or `jaquette` (`valueStyle`); a value it only states is not focusable, 48 tall. A value lights with `valueLit` or `valueAttention`. Disabled in a `FILL_FAINT` well, in a pane only (`SettingRowTest`). What a pane only states is a `FactPlate`, not a row. A pane's secret that can no longer be read is said at its head by an `AttentionNote` asking for it again; one the Keystore did not open for now by a `PartFailed` whose Réessayer reads it again, Add mapping disabled meanwhile so that no mapping is written over those kept |
+| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: the places, words alone (`navRow`), no well nor chevron, focus opening the one it settles on (OK at once), the open one white with its icon lit (raspberry with focus); a group's rows on one plate, no rule between them, white with focus, no chevron: OK does what the words say. A row is `row` 60 in a pane as in a sheet, an icon included, its name in `lead`, its description in secondary `meta` on one line beside its value (`PaneRowLineTest`), its value in `meta` or `jaquette` (`valueStyle`); a value it only states is not focusable, 48 tall. A value lights with `valueLit` or `valueAttention`. Disabled in a `FILL_FAINT` well, in a pane only (`SettingRowTest`). What a pane only states is a `FactPlate`, not a row. A pane's secret that can no longer be read is said at its head by an `AttentionNote` asking for it again; one the Keystore did not open for now by a `PartFailed` whose Réessayer reads it again, Add mapping disabled meanwhile so that no mapping is written over those kept |
 | `FactPlate`, `PlateFact` | what a pane states, as a case's back (see *Gestures*): facts across a plate, each label over its value, then a note; nothing in it takes focus |
 | `HlChoiceSheet`, `HlChoiceSetting` | a setting's choices on one plate in a side sheet: the current one checked and focused; choosing applies and closes. A change that failed says so in the row ("Non enregistré") |
 | `traktPane` | Trakt (`HlIcons.History`), with "Mes fichiers", a state said beside its title by its dot: not connected, what it keeps to read and the row that connects; connecting, the `DeviceCodePlate` in the pane, never ember, Back cancelling, focus going to the code from its row only and returning to the row; connected, a plate with the account's name in `headline`, its last sync, and what it holds watched and in progress in `spec`, then the rows that sync now (disabled while a sync runs, which its value says, a failed exchange said under it) and disconnect, the one row whose words follow the account so focus stays on it. Between them, while the last sync that read Trakt left entries out, a row counts them ("2 éléments ignorés"), never in ember: the sync went through. Its sheet (`SkippedSheet`) says why, lists the entries by their title and year, ten at most, then on one line a kind what it leaves unnamed, the rest past ten ("Et 590 autres") else those naming nothing ("1 élément sans titre"), over where Trakt keeps it, on a `ReadingPlate`, then the marks a history read in part holds back and how to fix it, its label set as a name; nothing takes focus but, in a sheet taller than the screen, the plate, which Down rings and the remote reads the sheet through from. An `AttentionNote` once Trakt ended the connection; a build without Trakt's keys says so beside the title. Under a server, while it keeps an account (connected, or its session not opened at this launch), Trakt pauses: "En pause" by the pending dot, "Trakt suit vos dossiers ; il reprend quand vous y revenez." read in place of what it keeps, the account's plate when its session was read, its last sync alone while a name Trakt could not say waits for the folders (nothing is asked of Trakt meanwhile), then disconnecting, the one row, no note asking to connect again; disconnected there, its place leaves the settings and the place after it opens, focused (`SettingsPlaces`) |
@@ -819,6 +821,10 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
   posters go, their tones and tint stay: a door comes back glowing, its digits ink until they are cut again. A door
   on screen keeps the posters it draws, which it holds anyway.
 - **Light nothing that focus only crosses** (`Scrub`), and nothing moves for ever but the welcome wall.
+- **A scan reloads screens every 20 s at most** (`LibraryChanges`), its first titles and its end at once, as any
+  other change: a title's page reads its title again and reloads only if it changed, a wall reloads its titles, its
+  filters and sagas waiting for the end, as home's library rows do (`settledVersion`). The settings' counts and
+  posters follow it every 2 s at most (`LocalLibrary`).
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
   `dumpsys gfxinfo <package> framestats` and `setprop debug.hwui.overdraw show`. See CONTRIBUTING.md.
 
@@ -836,9 +842,10 @@ Each screen from a fresh start, an arrow every 400 ms, then an arrow held 3 s.
 | Cold start to home's first frame | `am start -W` | 1.5 s | 0.60–0.64 s (0.62–0.69 s); 0.50–0.55 s compiled `speed-profile` with the baseline profile | — | — | — |
 
 Settings' janky frames are its pane, recomposed whole when its entry changes (120 to 150 ms in `draw`), as before
-the identity. Home's slowest frames on a row wait on the main thread for a picture (40 to 48 ms); a row's hold
-draws at 12 to 15 ms of GPU per frame, as a wall's scroll does. The room is painted twice, by the window and
-the screen: the only overdraw left at rest.
+the identity; places crossed now open no pane, only the one focus settles on (to measure again). Home's slowest
+frames on a row wait on the main thread for a picture (40 to 48 ms); a row's hold draws at 12 to 15 ms of GPU per
+frame, as a wall's scroll does. The room is painted twice, by the window and the screen: the only overdraw left at
+rest.
 
 ## Guard
 
