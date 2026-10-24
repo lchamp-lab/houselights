@@ -3,6 +3,13 @@ package app.houselights.ui.onboarding
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.font.createFontFamilyResolver
+import androidx.compose.ui.unit.LayoutDirection
+import app.houselights.ui.design.HouselightsType
+import org.robolectric.RuntimeEnvironment
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -146,6 +153,28 @@ class NfsIdentityTest {
         compose.onNodeWithText(text(R.string.nfs_identity_hint)).assertDoesNotExist()
     }
 
+    /**
+     * At the largest text size, or with long numbers, the identity goes onto two lines at its dot rather than cutting
+     * the row's name or what it does: nothing in the row ends in an ellipsis.
+     */
+    @Test
+    fun aLongIdentityCutsNoneOfTheRowsWords() {
+        RuntimeEnvironment.setFontScale(LARGEST)
+        form(FOLDER.copy(uid = 1026, gid = 100))
+        val measurer = TextMeasurer(createFontFamilyResolver(compose.activity), compose.density, LayoutDirection.Ltr)
+        val inRow = hasAnyAncestor(hasClickAction())
+        listOf(
+            hasText(text(R.string.nfs_identity_title)) to HouselightsType.lead,
+            hasText(text(R.string.nfs_identity_desc)) to HouselightsType.meta,
+            hasText("1026", substring = true) to HouselightsType.jaquette,
+        ).forEach { (words, style) ->
+            val node = compose.onNode(words and inRow, useUnmergedTree = true).fetchSemanticsNode()
+            val shown = node.config[SemanticsProperties.Text].joinToString()
+            val width = measurer.measure(shown, style, softWrap = false).size.width
+            assertTrue("«$shown» $width wide in ${node.size.width}", width <= node.size.width)
+        }
+    }
+
     /** SMB says who reads by its account. */
     @Test
     fun anSmbFolderHasNoIdentity() {
@@ -155,6 +184,9 @@ class NfsIdentityTest {
 
     private companion object {
         val SCREEN_H = 540.dp
+
+        /** Android's largest text size. */
+        const val LARGEST = 1.3f
 
         val FOLDER = SourceEntity(
             name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/media",

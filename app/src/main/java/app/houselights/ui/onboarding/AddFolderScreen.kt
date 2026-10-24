@@ -180,6 +180,8 @@ private fun NfsIdentity(vm: AddFolderViewModel, identity: String?) {
                 value = identity ?: stringResource(R.string.nfs_identity_root),
                 valueStyle = if (identity != null) Hl.type.jaquette else Hl.type.meta,
                 onClick = vm::toggleIdentity,
+                // At the largest text size, or with long numbers, the user over the group.
+                valueBreaks = true,
             )
         }
         if (vm.identityOpen) {

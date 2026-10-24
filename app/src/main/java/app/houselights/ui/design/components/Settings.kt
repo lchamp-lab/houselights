@@ -1,6 +1,7 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,10 +25,15 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
@@ -102,7 +108,8 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * value on the right, in `meta` or, for a format or a figure, `jaquette` ([valueStyle]); with [onClick] a control,
  * white with focus, else a value it only states. [valueLit] (a user choice) and [valueAttention] set the value in
  * ember; [trailing] replaces the value. Disabled, it sits in a well, in a pane's plate only: sheets omit
- * unavailable actions.
+ * unavailable actions. With [valueBreaks], a value of parts (" · ") takes a line each where on one line it would cut
+ * the name or the description.
  */
 @Composable
 fun HlSettingRow(
@@ -117,11 +124,12 @@ fun HlSettingRow(
     onClick: (() -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
+    valueBreaks: Boolean = false,
 ) {
     val c = Hl.colors
     val least = if (onClick == null) HlSize.control else HlSize.row
     @Composable
-    fun Content(focused: Boolean) {
+    fun Line(focused: Boolean, shown: String?) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = least).padding(horizontal = HlSpace.m, vertical = HlSettingRowDefaults.paddingV),
             verticalAlignment = Alignment.CenterVertically,
@@ -149,8 +157,19 @@ fun HlSettingRow(
             Spacer(Modifier.width(HlSpace.l))
             when {
                 trailing != null -> trailing()
-                value != null -> SettingValue(value, valueStyle, valueLit, valueAttention, focused, enabled)
+                shown != null -> SettingValue(shown, valueStyle, valueLit, valueAttention, focused, enabled)
             }
+        }
+    }
+
+    @Composable
+    fun Content(focused: Boolean) {
+        if (valueBreaks && value != null && VALUE_PARTS in value) {
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                Line(focused, valueLines(value, valueStyle, title, description, icon != null, maxWidth))
+            }
+        } else {
+            Line(focused, value)
         }
     }
 
@@ -172,7 +191,25 @@ fun HlSettingRow(
     }
 }
 
-/** A setting's value in [style], quiet; in ember when [lit], or after the attention mark. */
+/** Between the parts of a value that may take a line each ([HlSettingRow]'s valueBreaks). */
+private const val VALUE_PARTS = " · "
+
+/**
+ * [value] as a row [width] wide shows it beside its [title] and [description]: on one line, or its parts on a line each
+ * where one line would cut them.
+ */
+@Composable
+private fun valueLines(value: String, style: TextStyle, title: String, description: String?, icon: Boolean, width: Dp): String {
+    val measurer = rememberTextMeasurer()
+    fun wide(text: String, style: TextStyle) = measurer.measure(text, style, softWrap = false, maxLines = 1).size.width
+    val words = maxOf(wide(title, Hl.type.lead), description?.let { wide(it, Hl.type.meta) } ?: 0)
+    // The row's sides, the room before its value, and its icon.
+    val beside = HlSpace.m * 2 + HlSpace.l + if (icon) HlSize.icon + HlSpace.m else 0.dp
+    val room = with(LocalDensity.current) { (width - beside).roundToPx() }
+    return if (words + wide(value, style) <= room) value else value.replace(VALUE_PARTS, "\n")
+}
+
+/** A setting's value in [style], quiet; in ember when [lit], or after the attention mark; a line per line it has. */
 @Composable
 private fun SettingValue(value: String, style: TextStyle, lit: Boolean, attention: Boolean, focused: Boolean, enabled: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -184,7 +221,8 @@ private fun SettingValue(value: String, style: TextStyle, lit: Boolean, attentio
             value,
             style = style,
             color = FocusStyle.quietInk(focused, enabled, lit || attention, onFocus = LocalContentColor.current),
-            maxLines = 1,
+            textAlign = TextAlign.End,
+            maxLines = value.lines().size,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = HlSettingRowDefaults.valueWidth),
         )

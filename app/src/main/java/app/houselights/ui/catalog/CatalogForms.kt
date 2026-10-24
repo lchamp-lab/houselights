@@ -252,6 +252,7 @@ private fun FormFoldedFields() {
                         value = stringResource(R.string.nfs_identity, uid, gid),
                         valueStyle = Hl.type.jaquette,
                         onClick = {},
+                        valueBreaks = true,
                     )
                 }
                 Text(
@@ -273,7 +274,25 @@ private fun FormFoldedFields() {
             }
         }
     }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        Specimen("long figures, or the largest text size: the user over the group, the row's words whole", Modifier.weight(1f), gap = HlSpace.xs) {
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.nfs_identity_title),
+                    description = stringResource(R.string.nfs_identity_desc),
+                    value = stringResource(R.string.nfs_identity, LONG_ID, LONG_ID),
+                    valueStyle = Hl.type.jaquette,
+                    onClick = {},
+                    valueBreaks = true,
+                )
+            }
+        }
+        Spacer(Modifier.weight(1f))
+    }
 }
+
+/** A user or group number as a directory service hands out, too long for one line beside the row's words. */
+private const val LONG_ID = "2000001"
 
 @Composable
 private fun FormStatusPanels() {
