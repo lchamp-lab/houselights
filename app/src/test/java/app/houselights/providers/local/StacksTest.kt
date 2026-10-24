@@ -128,7 +128,7 @@ class StacksTest {
     private fun row(id: Long, path: String, parts: List<String> = emptyList()) = KnownFile(id = id, filePath = path, parts = parts)
 
     private fun settle(rows: List<KnownFile>, vararg paths: String) =
-        MissingFiles.settle(SourceKind.MOVIES, rows, stacks(*paths), NOW)
+        MissingFiles.settle(SourceKind.MOVIES, rows, stacks(*paths), MissingFiles.PassTime(NOW))
 
     @Test
     fun aPartRenamedIsAChangeOfItsFilm() {

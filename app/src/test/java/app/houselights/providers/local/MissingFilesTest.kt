@@ -1,6 +1,9 @@
 package app.houselights.providers.local
 
+import app.houselights.providers.local.MissingFiles.PassTime
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -14,8 +17,9 @@ class MissingFilesTest {
     private val arrival = film(2, "Private/Arrival (2016)/Arrival (2016).mkv")
     private val heat = film(3, "Private films/Heat (1995).mkv")
 
-    private fun settle(vararg unreadable: String) =
-        MissingFiles.settle(SourceKind.MOVIES, listOf(dune, arrival, heat), Listing(emptyList(), emptyList(), unreadable.toList()), NOW)
+    private fun settle(vararg unreadable: String) = MissingFiles.settle(
+        SourceKind.MOVIES, listOf(dune, arrival, heat), Listing(emptyList(), emptyList(), unreadable.toList()), PassTime(NOW),
+    )
 
     /** A file the NAS could not be asked about (gone between listing and query) is out of sight, not missing. */
     @Test
@@ -29,7 +33,7 @@ class MissingFilesTest {
     }
 
     private fun stacked(rows: List<KnownFile>, vararg paths: String) =
-        MissingFiles.settle(SourceKind.MOVIES, rows, Stacks.of(SourceKind.MOVIES, paths.map { RemoteFile(it, 1_000) }), NOW)
+        MissingFiles.settle(SourceKind.MOVIES, rows, Stacks.of(SourceKind.MOVIES, paths.map { RemoteFile(it, 1_000) }), PassTime(NOW))
 
     /** "Kill Bill CD1" and "CD2" read as one film, but each matched its own: two films, each keeping its row. */
     @Test
@@ -71,6 +75,54 @@ class MissingFilesTest {
         // Its first part renamed is still the film.
         val renamed = stacked(listOf(heat), "$dir/Heat (1995).avi")
         assertEquals(listOf(1L to RemoteFile("$dir/Heat (1995).avi", 1_000)), renamed.relinked)
+    }
+
+    /** A film missing for an hour by the clock. */
+    private val gone = film(4, "Gone (2001).mkv").copy(missingSince = NOW - MissingFiles.BRIEF_HOLD_MS)
+
+    /** What a pass at [time] decides for [gone], listed with nothing else. */
+    private fun missing(time: PassTime) =
+        MissingFiles.settle(SourceKind.MOVIES, listOf(gone), Stacks.of(SourceKind.MOVIES, emptyList()), time)
+
+    @Test
+    fun aFileMissingAnHourGoesOnceThisProcessSawItMissingLongEnough() {
+        assertEquals(listOf(gone.id), missing(PassTime(NOW) { true }).removed)
+        val unseen = missing(PassTime(NOW) { false })
+        assertEquals(emptyList<Long>(), unseen.removed)
+        assertEquals(listOf(gone.id), unseen.waiting)
+    }
+
+    /** The clock set back since the last pass: the hour is over by the clock, yet nothing goes in that pass. */
+    @Test
+    fun aPassEarlierThanTheLastDeletesNothing() {
+        val outcome = missing(PassTime(NOW, lastScanAt = NOW + 1))
+        assertEquals(emptyList<Long>(), outcome.removed)
+        assertEquals(listOf(gone.id), outcome.waiting)
+    }
+
+    /** Held at a time the clock, set back since, has not reached: held again from now rather than until then. */
+    @Test
+    fun aFileMissingSinceATimeToComeWaitsFromNow() {
+        val outcome = missing(PassTime(NOW - MissingFiles.BRIEF_HOLD_MS - 1))
+        assertEquals(listOf(gone.id), outcome.held)
+        assertEquals(emptyList<Long>(), outcome.removed + outcome.waiting)
+    }
+
+    /** Timed on the clock no setting moves, from the first pass that saw the file missing; forgotten once it is back. */
+    @Test
+    fun aFileIsSeenMissingLongEnoughAnHourAfterTheFirstPassThatSawIt() {
+        var elapsed = 0L
+        val sightings = MissingSightings { elapsed }
+        val held = MissingFiles.Outcome(relinked = emptyList(), back = emptyList(), held = listOf(gone.id), removed = emptyList())
+        sightings.note(listOf(gone), held)
+        elapsed = MissingFiles.BRIEF_HOLD_MS - 1
+        sightings.note(listOf(gone), held.copy(held = emptyList(), waiting = listOf(gone.id)))
+        assertFalse(sightings.seenLong(gone.id))
+        elapsed += 1
+        assertTrue(sightings.seenLong(gone.id))
+
+        sightings.note(listOf(gone), held.copy(held = emptyList(), back = listOf(gone.id)))
+        assertFalse("a new absence starts over", sightings.seenLong(gone.id))
     }
 
     private companion object {

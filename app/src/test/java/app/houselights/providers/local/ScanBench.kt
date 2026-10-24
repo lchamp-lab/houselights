@@ -72,6 +72,12 @@ class ScanBench(
 
     fun close() = db.close()
 
+    /** Time passes: [now] and the time since boot move on together, as on a device whose clock is right. */
+    fun later(ms: Long) {
+        now += ms
+        ShadowSystemClock.advanceBy(Duration.ofMillis(ms))
+    }
+
     /** Folders on a NAS of their own; the others on [nas] or [showsNas], by kind. */
     private val own = mutableMapOf<Long, FakeRemoteBrowser>()
 
