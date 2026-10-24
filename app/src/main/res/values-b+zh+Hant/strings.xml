@@ -39,6 +39,7 @@
     <string name="home_scan_failed">掃描未完成</string>
     <string name="home_scan_tmdb_refused">TMDB 拒絕此金鑰：作品會依據您的檔案加入，但不含資料。</string>
     <string name="home_scan_tmdb_offline">TMDB 沒有回應：作品會依據您的檔案加入，資料將在之後的掃描中取得。</string>
+    <string name="home_scan_tmdb_certificate">TMDB 的憑證遭到拒絕：作品會依據您的檔案加入。請檢查此裝置的日期和時間。</string>
     <string name="home_see_folders">查看資料夾</string>
 
     <!-- Browsing -->
@@ -423,6 +424,7 @@
     <string name="tmdb_key_unchecked">已儲存但未驗證：TMDB 沒有回應。</string>
     <string name="tmdb_scan_key_refused">TMDB 在上次掃描時拒絕了此金鑰：作品的資料有待取得。</string>
     <string name="tmdb_scan_offline">TMDB 在上次掃描時沒有回應：作品將在之後的掃描中取得資料。</string>
+    <string name="tmdb_scan_certificate">TMDB 的憑證在上次掃描時遭到拒絕：請檢查此裝置的日期和時間。</string>
     <string name="tmdb_key_revert">改回內建金鑰</string>
     <string name="tmdb_key_revert_desc">Houselights 會忘記您的金鑰</string>
     <string name="save">儲存</string>
@@ -482,6 +484,8 @@
     <string name="result_current">目前</string>
     <string name="error_offline_title">無法存取媒體庫</string>
     <string name="error_offline">伺服器或 NAS 沒有回應。請檢查其是否已開機，然後重試。</string>
+    <string name="error_certificate_title">憑證遭到拒絕</string>
+    <string name="error_certificate">安全憑證遭到拒絕。請更新伺服器的憑證，或檢查此裝置的日期和時間，然後重試。</string>
     <string name="error_denied_title">連線遭拒</string>
     <string name="error_denied">伺服器拒絕了連線。請重新登入以繼續。</string>
     <string name="error_gone_title">此作品已不存在</string>

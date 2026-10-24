@@ -1,11 +1,14 @@
 package app.houselights.providers.local
 
 import android.os.SystemClock
+import app.houselights.core.FailureKind
 import app.houselights.core.Http
 import app.houselights.core.HttpStatus
+import app.houselights.core.TmdbCertificateException
 import app.houselights.core.TmdbKeyRefusedException
 import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
+import app.houselights.core.failureKind
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
@@ -100,8 +103,9 @@ class TmdbClient(
     }
 
     /**
-     * Proceeds with the body buffered; throws [TmdbUnreachableException] on IO failure. Only network failures pause a
-     * scan client; others (stream reset, oversized answer) say nothing about the next request.
+     * Proceeds with the body buffered; throws [TmdbUnreachableException] on IO failure, [TmdbCertificateException] for a
+     * refused certificate. Only network failures pause a scan client; others (stream reset, oversized answer, a
+     * certificate) say nothing about the next request.
      */
     private fun answer(chain: Interceptor.Chain): Response {
         if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbPausedException()
@@ -112,7 +116,11 @@ class TmdbClient(
             // A cancelled call (search replaced, screen left) says nothing about TMDB.
             val canceled = chain.call().isCanceled()
             if (!canceled && isNetworkFailure(e)) pause()
-            throw if (canceled) e else TmdbUnreachableException(e)
+            throw when {
+                canceled -> e
+                e.failureKind() == FailureKind.CERTIFICATE -> TmdbCertificateException(e)
+                else -> TmdbUnreachableException(e)
+            }
         }
     }
 

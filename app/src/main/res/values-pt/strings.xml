@@ -43,6 +43,7 @@
     <string name="home_scan_failed">A análise não foi concluída</string>
     <string name="home_scan_tmdb_refused">O TMDB recusa a chave: os títulos são adicionados a partir dos seus arquivos, sem os detalhes.</string>
     <string name="home_scan_tmdb_offline">O TMDB não responde: os títulos são adicionados a partir dos seus arquivos e recebem os detalhes em uma análise posterior.</string>
+    <string name="home_scan_tmdb_certificate">O certificado do TMDB foi recusado: os títulos são adicionados a partir dos seus arquivos. Verifique a data e a hora do dispositivo.</string>
     <string name="home_see_folders">Ver as pastas</string>
 
     <!-- Browsing -->
@@ -448,6 +449,7 @@
     <string name="tmdb_key_unchecked">Salva sem verificação: o TMDB não está respondendo.</string>
     <string name="tmdb_scan_key_refused">O TMDB recusou esta chave na última análise: os títulos aguardam os detalhes.</string>
     <string name="tmdb_scan_offline">O TMDB não respondeu na última análise: os títulos recebem os detalhes em uma análise posterior.</string>
+    <string name="tmdb_scan_certificate">O certificado do TMDB foi recusado na última análise: verifique a data e a hora do dispositivo.</string>
     <string name="tmdb_key_revert">Voltar à chave integrada</string>
     <string name="tmdb_key_revert_desc">O Houselights esquece sua chave</string>
     <string name="save">Salvar</string>
@@ -511,6 +513,8 @@
     <string name="result_current">Atual</string>
     <string name="error_offline_title">Biblioteca inacessível</string>
     <string name="error_offline">O servidor ou o NAS não responde. Verifique se está ligado e tente de novo.</string>
+    <string name="error_certificate_title">Certificado recusado</string>
+    <string name="error_certificate">O certificado de segurança foi recusado. Renove o certificado do servidor ou verifique a data e a hora do dispositivo e tente de novo.</string>
     <string name="error_denied_title">Conexão recusada</string>
     <string name="error_denied">O servidor recusou a conexão. Entre de novo para continuar.</string>
     <string name="error_gone_title">Este título não está mais aqui</string>

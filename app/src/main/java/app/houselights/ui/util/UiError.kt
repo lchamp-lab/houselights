@@ -26,6 +26,9 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** The library's server or NAS does not answer. */
     OFFLINE(R.string.error_offline_title, R.string.error_offline, ErrorAction.RETRY),
 
+    /** TLS refused the server's or TMDB's certificate: expired, or the device's clock is wrong. */
+    CERTIFICATE(R.string.error_certificate_title, R.string.error_certificate, ErrorAction.RETRY),
+
     /** TMDB does not answer. */
     TMDB_OFFLINE(R.string.error_tmdb_offline_title, R.string.error_tmdb_offline, ErrorAction.RETRY),
 
@@ -73,7 +76,8 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
 fun Throwable.toUiError(): UiError = failureKind().toUiError()
 
 fun FailureKind.toUiError(): UiError = when (this) {
-    FailureKind.UNREACHABLE, FailureKind.IO, FailureKind.CERTIFICATE -> UiError.OFFLINE
+    FailureKind.UNREACHABLE, FailureKind.IO -> UiError.OFFLINE
+    FailureKind.CERTIFICATE -> UiError.CERTIFICATE
     FailureKind.TMDB_UNREACHABLE -> UiError.TMDB_OFFLINE
     FailureKind.NO_TMDB_KEY -> UiError.NO_TMDB_KEY
     FailureKind.TMDB_KEY_REFUSED -> UiError.TMDB_KEY_REFUSED

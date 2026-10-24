@@ -447,7 +447,7 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     nowhere else first, then those shown elsewhere, then the same again. Réglages: the app's state as a case's back
     (`DoorFacts`): Source ("Mes fichiers · NAS", only the dot quiet), Trakt where it follows the source, the last scan
     ("Il y a 2 h") or the one running, and a problem TMDB had in the last scan ("TMDB", its words in ember after the
-    attention mark); what the app does not know is left out, and what the door cannot hold goes by rank (`keptFacts`):
+    attention mark: "Clé refusée", "Certificat refusé", else "Injoignable"); what the app does not know is left out, and what the door cannot hold goes by rank (`keptFacts`):
     the source's host, then the source, then Trakt, the last scan staying, alone at the largest text.
   A door (`HomeDoor`) is its picture over a band of the picture's dark (`ambientDeep`) set off by a hairline: its icon
   (18), its name in `cardName`, what it says at its end in `meta` (`jaquette` for a mark), dropped whole when the

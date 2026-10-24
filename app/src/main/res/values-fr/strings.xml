@@ -40,6 +40,7 @@
     <string name="home_scan_failed">L’analyse n’a pas abouti</string>
     <string name="home_scan_tmdb_refused">TMDB refuse la clé : les titres sont ajoutés d’après vos fichiers, sans leurs détails.</string>
     <string name="home_scan_tmdb_offline">TMDB ne répond pas : les titres sont ajoutés d’après vos fichiers, et recevront leurs détails lors d’une prochaine analyse.</string>
+    <string name="home_scan_tmdb_certificate">Le certificat de TMDB est refusé : les titres sont ajoutés d’après vos fichiers. Vérifiez la date et l’heure de l’appareil.</string>
     <string name="home_see_folders">Voir les dossiers</string>
     <!-- Home, its tab focused: how many titles are started -->
 
@@ -443,6 +444,7 @@
     <string name="tmdb_key_unchecked">Enregistrée sans vérification : TMDB ne répond pas.</string>
     <string name="tmdb_scan_key_refused">TMDB a refusé cette clé pendant la dernière analyse : les titres attendent leurs détails.</string>
     <string name="tmdb_scan_offline">TMDB n’a pas répondu pendant la dernière analyse : les titres recevront leurs détails lors d’une prochaine analyse.</string>
+    <string name="tmdb_scan_certificate">Le certificat de TMDB a été refusé pendant la dernière analyse : vérifiez la date et l’heure de l’appareil.</string>
     <string name="tmdb_key_revert">Revenir à la clé intégrée</string>
     <string name="tmdb_key_revert_desc">Houselights oublie votre clé</string>
     <string name="save">Enregistrer</string>
@@ -506,6 +508,8 @@
     <string name="result_current">Actuel</string>
     <string name="error_offline_title">Bibliothèque injoignable</string>
     <string name="error_offline">Le serveur ou le NAS ne répond pas. Vérifiez qu’il est allumé, puis réessayez.</string>
+    <string name="error_certificate_title">Certificat refusé</string>
+    <string name="error_certificate">Le certificat de sécurité est refusé. Renouvelez le certificat du serveur, ou vérifiez la date et l’heure de l’appareil, puis réessayez.</string>
     <string name="error_denied_title">Connexion refusée</string>
     <string name="error_denied">Le serveur a refusé la connexion. Reconnectez-vous pour continuer.</string>
     <string name="error_gone_title">Ce titre n’est plus là</string>

@@ -802,7 +802,13 @@ private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boo
         issue != null && (personal || hasBuiltIn) -> HlStatus(
             StatusState.Attention,
             stringResource(if (personal) R.string.tmdb_key_personal else R.string.tmdb_key_builtin_state),
-            detail = stringResource(if (issue == UiError.TMDB_KEY_REFUSED) R.string.tmdb_scan_key_refused else R.string.tmdb_scan_offline),
+            detail = stringResource(
+                when (issue) {
+                    UiError.TMDB_KEY_REFUSED -> R.string.tmdb_scan_key_refused
+                    UiError.CERTIFICATE -> R.string.tmdb_scan_certificate
+                    else -> R.string.tmdb_scan_offline
+                }
+            ),
         )
         personal -> HlStatus(
             StatusState.On,

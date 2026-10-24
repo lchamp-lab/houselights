@@ -1,9 +1,11 @@
 package app.houselights.providers.local
 
+import app.houselights.core.FailureKind
 import app.houselights.core.Http
 import app.houselights.core.TmdbKeyRefusedException
 import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
+import app.houselights.core.failureKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -28,9 +30,11 @@ import java.net.NoRouteToHostException
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.security.cert.CertificateNotYetValidException
 import java.time.Duration
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLHandshakeException
 
 /** TMDB's answers as the client reports them, against [FakeTmdb], on the device's clock. */
 @OptIn(ExperimentalCoroutinesApi::class) // currentTime: the waits are counted on the test's clock.
@@ -107,6 +111,19 @@ class TmdbClientTest {
         val client = tmdb.client(pauseWhenUnreachable = true)
         tmdb.failure = IOException("stream was reset: PROTOCOL_ERROR")
         failure<TmdbUnreachableException> { client.movieById(438631) }
+        tmdb.failure = null
+        assertEquals(438631, client.movieById(438631)?.id)
+    }
+
+    /** A certificate refused (the device's clock reset) is said as such, and a scan asks the next file anyway. */
+    @Test
+    fun aCertificateRefusedIsSaidAsSuchAndPausesNothing() = runTest {
+        val client = tmdb.client(pauseWhenUnreachable = true)
+        tmdb.failure = SSLHandshakeException("Chain validation failed").apply {
+            initCause(CertificateNotYetValidException("not valid before 2025"))
+        }
+        val refused = failure<TmdbUnreachableException> { client.movieById(438631) }
+        assertEquals(FailureKind.CERTIFICATE, refused.failureKind())
         tmdb.failure = null
         assertEquals(438631, client.movieById(438631)?.id)
     }

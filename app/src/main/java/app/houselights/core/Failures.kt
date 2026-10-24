@@ -110,6 +110,8 @@ private fun typed(chain: List<Throwable>): FailureKind? = when {
     chain.any { it is SecretsUnavailableException } -> FailureKind.KEYSTORE
     chain.any { it is NoTmdbKeyException } -> FailureKind.NO_TMDB_KEY
     chain.any { it is TmdbKeyRefusedException } -> FailureKind.TMDB_KEY_REFUSED
+    // Before TMDB out of reach, which it extends so a scan counts it among TMDB's failures.
+    chain.any { it is TmdbCertificateException } -> FailureKind.CERTIFICATE
     chain.any { it is TmdbUnreachableException } -> FailureKind.TMDB_UNREACHABLE
     chain.any { it is TmdbNotFoundException } -> FailureKind.TMDB_NOT_FOUND
     chain.any { it is NotFoundException } -> FailureKind.GONE

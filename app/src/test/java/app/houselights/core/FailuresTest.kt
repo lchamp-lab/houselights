@@ -86,7 +86,15 @@ class FailuresTest {
             IOException("wrapped", ConnectException("Connection refused")) to
                 Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
             IOException("NAS away") to Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
-            certificateRefused() to Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
+        )
+    )
+
+    /** A certificate refused is said as one, the server's or TMDB's, never as no answer. */
+    @Test
+    fun aCertificateRefusedIsSaidAsOne() = check(
+        mapOf(
+            certificateRefused() to Told(UiError.CERTIFICATE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
+            TmdbCertificateException(certificateRefused()) to Told(UiError.CERTIFICATE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
         )
     )
 

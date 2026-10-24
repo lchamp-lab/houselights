@@ -39,6 +39,7 @@
     <string name="home_scan_failed">스캔이 완료되지 않았습니다</string>
     <string name="home_scan_tmdb_refused">TMDB가 키를 거부합니다. 작품은 파일을 바탕으로 추가되며, 작품 정보는 가져오지 않습니다.</string>
     <string name="home_scan_tmdb_offline">TMDB가 응답하지 않습니다. 작품은 파일을 바탕으로 추가되며, 작품 정보는 이후 스캔에서 가져옵니다.</string>
+    <string name="home_scan_tmdb_certificate">TMDB의 인증서가 거부되었습니다. 작품은 파일을 바탕으로 추가됩니다. 이 기기의 날짜와 시간을 확인하세요.</string>
     <string name="home_see_folders">폴더 보기</string>
 
     <!-- Browsing -->
@@ -422,6 +423,7 @@
     <string name="tmdb_key_unchecked">확인하지 않고 저장했습니다. TMDB가 응답하지 않습니다.</string>
     <string name="tmdb_scan_key_refused">지난 스캔 중 TMDB가 이 키를 거부했습니다. 작품 정보를 아직 가져오지 못했습니다.</string>
     <string name="tmdb_scan_offline">지난 스캔 중 TMDB가 응답하지 않았습니다. 작품 정보는 이후 스캔에서 가져옵니다.</string>
+    <string name="tmdb_scan_certificate">지난 스캔 중 TMDB의 인증서가 거부되었습니다. 이 기기의 날짜와 시간을 확인하세요.</string>
     <string name="tmdb_key_revert">내장 키로 되돌리기</string>
     <string name="tmdb_key_revert_desc">입력한 키를 지웁니다</string>
     <string name="save">저장</string>
@@ -481,6 +483,8 @@
     <string name="result_current">현재</string>
     <string name="error_offline_title">라이브러리에 연결할 수 없음</string>
     <string name="error_offline">서버 또는 NAS가 응답하지 않습니다. 켜져 있는지 확인한 후 다시 시도하세요.</string>
+    <string name="error_certificate_title">인증서 거부됨</string>
+    <string name="error_certificate">보안 인증서가 거부되었습니다. 서버의 인증서를 갱신하거나 이 기기의 날짜와 시간을 확인한 후 다시 시도하세요.</string>
     <string name="error_denied_title">연결 거부됨</string>
     <string name="error_denied">서버가 연결을 거부했습니다. 계속하려면 다시 로그인하세요.</string>
     <string name="error_gone_title">이 작품은 더 이상 없습니다</string>

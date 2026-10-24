@@ -426,8 +426,13 @@ private fun stateFacts(status: HomeStatus, progress: Pair<Int, Int>?): List<Stat
         StateFact(stringResource(R.string.home_state_scan), ago, wide = true, rank = 2)
     }
     val tmdb = status.tmdb?.let { issue ->
-        // Refused, or out of reach whatever failed, as the first scan's counter says it; the label already names TMDB.
-        val said = if (issue == UiError.TMDB_KEY_REFUSED) R.string.home_state_tmdb_refused else R.string.home_state_tmdb_offline
+        // Refused, a certificate refused, or out of reach whatever else failed, as the first scan's counter says it; the
+        // label already names TMDB.
+        val said = when (issue) {
+            UiError.TMDB_KEY_REFUSED -> R.string.home_state_tmdb_refused
+            UiError.CERTIFICATE -> R.string.error_certificate_title
+            else -> R.string.home_state_tmdb_offline
+        }
         StateFact(stringResource(R.string.home_state_tmdb), stringResource(said), wide = true, attention = true, rank = 3)
     }
     return listOfNotNull(source, trakt, tmdb, scan)
@@ -552,8 +557,11 @@ private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier) {
     }
 }
 
-private fun noteOf(issue: UiError): Int =
-    if (issue == UiError.TMDB_KEY_REFUSED) R.string.home_scan_tmdb_refused else R.string.home_scan_tmdb_offline
+private fun noteOf(issue: UiError): Int = when (issue) {
+    UiError.TMDB_KEY_REFUSED -> R.string.home_scan_tmdb_refused
+    UiError.CERTIFICATE -> R.string.home_scan_tmdb_certificate
+    else -> R.string.home_scan_tmdb_offline
+}
 
 /** The counter's fix for [issue]: edit a refused TMDB key. */
 internal fun scanNoteAction(issue: UiError?): ErrorAction? = issue?.action?.takeIf { it == ErrorAction.EDIT_TMDB_KEY }

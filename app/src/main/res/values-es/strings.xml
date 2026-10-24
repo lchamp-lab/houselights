@@ -43,6 +43,7 @@
     <string name="home_scan_failed">El análisis no se completó</string>
     <string name="home_scan_tmdb_refused">TMDB rechaza la clave: los títulos se añaden a partir de sus archivos, sin detalles.</string>
     <string name="home_scan_tmdb_offline">TMDB no responde: los títulos se añaden a partir de sus archivos y recibirán sus detalles en un próximo análisis.</string>
+    <string name="home_scan_tmdb_certificate">Se rechaza el certificado de TMDB: los títulos se añaden a partir de sus archivos. Compruebe la fecha y la hora del dispositivo.</string>
     <string name="home_see_folders">Ver las carpetas</string>
 
     <!-- Browsing -->
@@ -448,6 +449,7 @@
     <string name="tmdb_key_unchecked">Guardada sin comprobar: TMDB no responde.</string>
     <string name="tmdb_scan_key_refused">TMDB rechazó esta clave durante el último análisis: los títulos esperan sus detalles.</string>
     <string name="tmdb_scan_offline">TMDB no respondió durante el último análisis: los títulos recibirán sus detalles en un próximo análisis.</string>
+    <string name="tmdb_scan_certificate">Se rechazó el certificado de TMDB durante el último análisis: compruebe la fecha y la hora del dispositivo.</string>
     <string name="tmdb_key_revert">Volver a la clave integrada</string>
     <string name="tmdb_key_revert_desc">Houselights olvida su clave</string>
     <string name="save">Guardar</string>
@@ -512,6 +514,8 @@
     <string name="result_current">Actual</string>
     <string name="error_offline_title">Biblioteca inaccesible</string>
     <string name="error_offline">El servidor o el NAS no responde. Compruebe que está encendido y vuelva a intentarlo.</string>
+    <string name="error_certificate_title">Certificado rechazado</string>
+    <string name="error_certificate">Se rechaza el certificado de seguridad. Renueve el certificado del servidor o compruebe la fecha y la hora del dispositivo y vuelva a intentarlo.</string>
     <string name="error_denied_title">Conexión rechazada</string>
     <string name="error_denied">El servidor rechazó la conexión. Inicie sesión de nuevo para continuar.</string>
     <string name="error_gone_title">Este título ya no está</string>

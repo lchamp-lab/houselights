@@ -43,6 +43,7 @@
     <string name="home_scan_failed">La scansione non si è conclusa</string>
     <string name="home_scan_tmdb_refused">TMDB rifiuta la chiave: i titoli vengono aggiunti in base ai file, senza le relative informazioni.</string>
     <string name="home_scan_tmdb_offline">TMDB non risponde: i titoli vengono aggiunti in base ai file e riceveranno le informazioni a una scansione successiva.</string>
+    <string name="home_scan_tmdb_certificate">Il certificato di TMDB viene rifiutato: i titoli vengono aggiunti in base ai file. Verificare la data e l’ora del dispositivo.</string>
     <string name="home_see_folders">Vedi le cartelle</string>
 
     <!-- Browsing -->
@@ -448,6 +449,7 @@
     <string name="tmdb_key_unchecked">Salvata senza verifica: TMDB non risponde.</string>
     <string name="tmdb_scan_key_refused">TMDB ha rifiutato questa chiave durante l’ultima scansione: i titoli attendono le loro informazioni.</string>
     <string name="tmdb_scan_offline">TMDB non ha risposto durante l’ultima scansione: i titoli riceveranno le informazioni a una scansione successiva.</string>
+    <string name="tmdb_scan_certificate">Il certificato di TMDB è stato rifiutato durante l’ultima scansione: verificare la data e l’ora del dispositivo.</string>
     <string name="tmdb_key_revert">Torna alla chiave integrata</string>
     <string name="tmdb_key_revert_desc">Houselights dimentica la sua chiave</string>
     <string name="save">Salva</string>
@@ -512,6 +514,8 @@
     <string name="result_current">Attuale</string>
     <string name="error_offline_title">Libreria non raggiungibile</string>
     <string name="error_offline">Il server o il NAS non risponde. Verificare che sia acceso, poi riprovare.</string>
+    <string name="error_certificate_title">Certificato rifiutato</string>
+    <string name="error_certificate">Il certificato di sicurezza viene rifiutato. Rinnovare il certificato del server o verificare la data e l’ora del dispositivo, poi riprovare.</string>
     <string name="error_denied_title">Connessione rifiutata</string>
     <string name="error_denied">Il server ha rifiutato la connessione. Accedere di nuovo per continuare.</string>
     <string name="error_gone_title">Questo titolo non c’è più</string>
