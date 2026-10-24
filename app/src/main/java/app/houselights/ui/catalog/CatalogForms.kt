@@ -224,6 +224,55 @@ private fun FormTextFields() {
             )
         }
     }
+    FormFoldedFields()
+}
+
+/** An NFS folder's identity under its form's actions: folded, its value said; open, what it changes over two fields. */
+@Composable
+private fun FormFoldedFields() {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        Specimen("a setting folded under a form's actions, its value said; root in words", Modifier.weight(1f), gap = HlSpace.xs) {
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.nfs_identity_title),
+                    description = stringResource(R.string.nfs_identity_desc),
+                    value = stringResource(R.string.nfs_identity_root),
+                    onClick = {},
+                )
+            }
+        }
+        var uid by remember { mutableStateOf("1026") }
+        var gid by remember { mutableStateOf("100") }
+        Specimen("open: what it changes over its two fields, its figures in the technical voice", Modifier.weight(1f), gap = HlSpace.xs) {
+            Column {
+                HlSettingGroup(null) {
+                    HlSettingRow(
+                        stringResource(R.string.nfs_identity_title),
+                        description = stringResource(R.string.nfs_identity_desc),
+                        value = stringResource(R.string.nfs_identity, uid, gid),
+                        valueStyle = Hl.type.jaquette,
+                        onClick = {},
+                    )
+                }
+                Text(
+                    stringResource(R.string.nfs_identity_hint),
+                    style = Hl.type.meta,
+                    color = Hl.colors.contentSecondary,
+                    modifier = Modifier.padding(top = HlSpace.s, bottom = HlSpace.l),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                    HlTextField(
+                        stringResource(R.string.field_uid), uid, { uid = it }, Modifier.weight(1f),
+                        placeholder = stringResource(R.string.placeholder_uid), keyboardType = KeyboardType.Number,
+                    )
+                    HlTextField(
+                        stringResource(R.string.field_gid), gid, { gid = it }, Modifier.weight(1f),
+                        placeholder = stringResource(R.string.placeholder_gid), keyboardType = KeyboardType.Number,
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -285,6 +334,14 @@ private fun FormStatusPanels() {
             StatusPanel(
                 StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "http://192.168.1.20:8096",
                 name = "Jellyfin du salon",
+            )
+        }
+        Specimen("on: an NFS folder presenting another user, among its facts", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
+            StatusPanel(
+                StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.20",
+                detail = "/volume1/media/films", badges = listOf("NFS"),
+                facts = listOf(films, stringResource(R.string.nfs_identity, "1026", "100")),
+                result = pluralStringResource(R.plurals.entries_found, 128, 128),
             )
         }
     }

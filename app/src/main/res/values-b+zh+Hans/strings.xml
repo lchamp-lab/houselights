@@ -213,6 +213,11 @@
     <string name="field_host">NAS 地址</string>
     <string name="field_export">NFS 导出路径</string>
     <string name="nfs_hint">无需密码：请在 NAS 上以只读方式允许本设备的地址，并允许来自非特权端口的连接。</string>
+    <string name="nfs_identity_title">连接身份</string>
+    <string name="nfs_identity_desc">NAS 看到的用户</string>
+    <string name="nfs_identity_hint">留空时，Houselights 以 root（UID 0，GID 0）身份连接。Zidoo 播放器以自己的账号打开视频。</string>
+    <string name="field_uid">用户（UID）</string>
+    <string name="field_gid">组（GID）</string>
     <string name="smb_hint">密码保存在本设备上，并会传给 Zidoo 播放器。建议使用专用的只读账号。</string>
     <string name="field_share">共享文件夹</string>
     <string name="field_path">文件夹</string>
@@ -227,6 +232,8 @@
     <string name="placeholder_share">例如：media</string>
     <string name="placeholder_path_movies">例如：电影</string>
     <string name="placeholder_path_shows">例如：剧集</string>
+    <string name="placeholder_uid">例如：1026</string>
+    <string name="placeholder_gid">例如：100</string>
     <string name="test_connection">测试</string>
     <string name="connection_untested">尚未测试连接</string>
     <string name="server_found">已找到服务器</string>
@@ -239,6 +246,7 @@
     <string name="folder_overlaps">此文件夹与媒体库中已有的“%s”重叠：其中的作品会出现两次。请选择其他文件夹，或在设置中编辑那个文件夹。</string>
     <string name="folder_overlaps_state">已在媒体库中</string>
     <string name="folder_not_saved_state">未保存</string>
+    <string name="folder_unread">无法读取此文件夹</string>
     <string name="saving">正在保存…</string>
     <plurals name="entries_found">
         <item quantity="other">找到 %d 项</item>
@@ -250,6 +258,8 @@
     <string name="error_host_missing">请输入 NAS 地址。</string>
     <string name="error_export_missing">请输入 NFS 导出路径，例如 /volume1/media。</string>
     <string name="error_share_missing">请输入共享文件夹的名称，例如 media。</string>
+    <string name="error_uid_missing">请同时输入用户（UID）。</string>
+    <string name="error_gid_missing">请同时输入组（GID）。</string>
     <string name="error_scan_other">无法读取此文件夹。请重试，或检查 NAS 上的共享文件夹。</string>
     <string name="error_folder_empty">此文件夹在 NAS 上似乎是空的：未移除任何内容。请检查其所在磁盘是否已挂载；如果它将一直为空，请将其移除。</string>
     <string name="error_storage_full">本设备已没有剩余空间：扫描已停止。请在设置的“存储空间”中释放空间。</string>

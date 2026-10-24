@@ -28,10 +28,13 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.revealOnOpen
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HlSettingGroup
+import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
@@ -83,6 +86,7 @@ internal fun AddFolderForm(
     val s = form.toSource()
     val folder = "/" + listOf(s.share, s.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
     val (state, stateText) = connectionState(check, testing = vm.testing, gone = vm.gone)
+    val identity = identityText(form).takeIf { protocol == Protocol.NFS }
 
     HlFormScaffold(
         title = stringResource(if (vm.edits) R.string.edit_folder else R.string.add_folder),
@@ -96,7 +100,7 @@ internal fun AddFolderForm(
                 detail = folder.takeIf { it.length > 1 },
                 // A deleted folder was never read: its protocol and kind would be the form's defaults.
                 badges = if (vm.gone) emptyList() else listOf(protocol.name),
-                facts = if (vm.gone) emptyList() else listOf(sourceKindName(kind)),
+                facts = if (vm.gone) emptyList() else listOf(sourceKindName(kind), identity),
                 result = result,
                 resultIsError = !success,
             )
@@ -167,7 +171,60 @@ internal fun AddFolderForm(
             }
         }
         FolderActions(vm, onDone)
+        // Under the actions, so the form above stays whole on screen; SMB says who reads by its account.
+        if (protocol == Protocol.NFS) NfsIdentity(vm, identity)
     }
+}
+
+/**
+ * Who the NFS client presents itself as to the NAS, on its own row under the actions, saying its value: [identity],
+ * else root. OK opens what it changes and its two fields, empty for root, and folds them, what they hold kept.
+ */
+@Composable
+private fun NfsIdentity(vm: AddFolderViewModel, identity: String?) {
+    val form = vm.form
+    // Opened with OK, what it changes and its fields come into view under the row, which keeps focus.
+    Column(Modifier.revealOnOpen(vm.identityOpen)) {
+        HlSettingGroup(null) {
+            HlSettingRow(
+                stringResource(R.string.nfs_identity_title),
+                description = stringResource(R.string.nfs_identity_desc),
+                value = identity ?: stringResource(R.string.nfs_identity_root),
+                valueStyle = if (identity != null) Hl.type.jaquette else Hl.type.meta,
+                onClick = vm::toggleIdentity,
+            )
+        }
+        if (vm.identityOpen) {
+            // Over the fields, so it reads whole while they have focus.
+            Text(
+                stringResource(R.string.nfs_identity_hint),
+                style = Hl.type.meta,
+                color = Hl.colors.contentSecondary,
+                modifier = Modifier.padding(top = HlSpace.s, bottom = HlSpace.l),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                HlTextField(
+                    stringResource(R.string.field_uid), form.uid, { v -> if (FolderForm.isId(v)) vm.edit { copy(uid = v) } },
+                    Modifier.weight(1f),
+                    placeholder = stringResource(R.string.placeholder_uid), keyboardType = KeyboardType.Number,
+                )
+                HlTextField(
+                    stringResource(R.string.field_gid), form.gid, { v -> if (FolderForm.isId(v)) vm.edit { copy(gid = v) } },
+                    Modifier.weight(1f),
+                    placeholder = stringResource(R.string.placeholder_gid), keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done,
+                )
+            }
+        }
+    }
+}
+
+/** The NFS user and group typed, in the technical voice ("UID 1026 · GID 100"), one left empty a dash; null for root. */
+@Composable
+private fun identityText(form: FolderForm): String? {
+    if (form.uid.isEmpty() && form.gid.isEmpty()) return null
+    val none = stringResource(R.string.placeholder_none)
+    return stringResource(R.string.nfs_identity, form.uid.ifEmpty { none }, form.gid.ifEmpty { none })
 }
 
 /** Add (or Save) and Test, both testing first: the pressed one shows progress, the other is disabled meanwhile. */

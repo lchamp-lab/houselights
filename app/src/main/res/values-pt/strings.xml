@@ -225,6 +225,11 @@
     <string name="field_host">Endereço do NAS</string>
     <string name="field_export">Exportação NFS</string>
     <string name="nfs_hint">Sem senha: no NAS, autorize o endereço deste dispositivo em somente leitura, a partir de portas não privilegiadas.</string>
+    <string name="nfs_identity_title">Conectar como</string>
+    <string name="nfs_identity_desc">Usuário visto pelo NAS</string>
+    <string name="nfs_identity_hint">Campos vazios: o Houselights se conecta como root (UID 0, GID 0). O player Zidoo abre os vídeos com a própria conta.</string>
+    <string name="field_uid">Usuário (UID)</string>
+    <string name="field_gid">Grupo (GID)</string>
     <string name="smb_hint">A senha fica salva neste dispositivo e é passada ao player Zidoo. Prefira uma conta dedicada, somente leitura.</string>
     <string name="field_share">Compartilhamento</string>
     <string name="field_path">Pasta</string>
@@ -239,6 +244,8 @@
     <string name="placeholder_share">Ex.: media</string>
     <string name="placeholder_path_movies">Ex.: filmes</string>
     <string name="placeholder_path_shows">Ex.: séries</string>
+    <string name="placeholder_uid">Ex.: 1026</string>
+    <string name="placeholder_gid">Ex.: 100</string>
     <string name="test_connection">Testar</string>
     <string name="connection_untested">Conexão não testada</string>
     <string name="server_found">Servidor encontrado</string>
@@ -251,6 +258,7 @@
     <string name="folder_overlaps">Esta pasta se sobrepõe a “%s”, que já está na biblioteca: os títulos apareceriam duas vezes. Escolha outra pasta, ou edite aquela em Configurações.</string>
     <string name="folder_overlaps_state">Já está na biblioteca</string>
     <string name="folder_not_saved_state">Não salvo</string>
+    <string name="folder_unread">Não foi possível ler esta pasta</string>
     <string name="saving">Salvando…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item encontrado</item>
@@ -264,6 +272,8 @@
     <string name="error_host_missing">Digite o endereço do NAS.</string>
     <string name="error_export_missing">Digite a exportação NFS, por exemplo /volume1/media.</string>
     <string name="error_share_missing">Digite o nome da pasta compartilhada, por exemplo media.</string>
+    <string name="error_uid_missing">Digite também o usuário (UID).</string>
+    <string name="error_gid_missing">Digite também o grupo (GID).</string>
     <string name="error_scan_other">Não foi possível ler a pasta. Tente de novo, ou verifique o compartilhamento no NAS.</string>
     <string name="error_folder_empty">A pasta parece vazia no NAS: nada foi removido. Verifique se o disco dela está montado; se estiver vazia de vez, remova-a.</string>
     <string name="error_storage_full">Este dispositivo está sem espaço livre: a análise parou. Libere espaço em Configurações, Armazenamento.</string>

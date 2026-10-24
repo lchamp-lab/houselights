@@ -232,6 +232,13 @@
     <string name="field_host">NAS address</string>
     <string name="field_export">NFS export</string>
     <string name="nfs_hint">No password: on the NAS, allow this device’s address, read-only, from non-privileged ports.</string>
+    <string name="nfs_identity_title">Connect as</string>
+    <string name="nfs_identity_desc">The user the NAS sees</string>
+    <string name="nfs_identity_root" translatable="false">root</string>
+    <string name="nfs_identity" translatable="false">UID %1$s · GID %2$s</string>
+    <string name="nfs_identity_hint">Left empty, Houselights connects as root (UID 0, GID 0). The Zidoo player opens videos under its own account.</string>
+    <string name="field_uid">User (UID)</string>
+    <string name="field_gid">Group (GID)</string>
     <string name="smb_hint">The password is stored on this device and passed to the Zidoo player. Prefer a dedicated read-only account.</string>
     <string name="field_share">Share</string>
     <string name="field_path">Folder</string>
@@ -246,6 +253,8 @@
     <string name="placeholder_share">e.g. media</string>
     <string name="placeholder_path_movies">e.g. movies</string>
     <string name="placeholder_path_shows">e.g. shows</string>
+    <string name="placeholder_uid">e.g. 1026</string>
+    <string name="placeholder_gid">e.g. 100</string>
     <string name="test_connection">Test</string>
     <string name="connection_untested">Connection not tested</string>
     <string name="server_found">Server found</string>
@@ -258,6 +267,7 @@
     <string name="folder_overlaps">This folder overlaps “%s”, already in the library: its titles would show twice. Choose another folder, or edit that one in Settings.</string>
     <string name="folder_overlaps_state">Already in the library</string>
     <string name="folder_not_saved_state">Not saved</string>
+    <string name="folder_unread">This folder could not be read</string>
     <string name="saving">Saving…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item found</item>
@@ -271,6 +281,8 @@
     <!-- /volume1 is how a Synology NAS names its first volume. -->
     <string name="error_export_missing" tools:ignore="Typos">Enter the NFS export, for example /volume1/media.</string>
     <string name="error_share_missing">Enter the name of the shared folder, for example media.</string>
+    <string name="error_uid_missing">Enter the user (UID) as well.</string>
+    <string name="error_gid_missing">Enter the group (GID) as well.</string>
     <string name="error_scan_other">The folder could not be read. Try again, or check the share on the NAS.</string>
     <string name="error_folder_empty">The folder looks empty on the NAS: nothing was removed. Check that its disk is mounted; if it is empty for good, remove it.</string>
     <string name="error_storage_full">This device has no space left: the scan stopped. Free some in Settings, Storage.</string>

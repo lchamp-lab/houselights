@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.R
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.LibraryDao
@@ -508,6 +509,103 @@ class AddFolderViewModelTest {
         assertEquals(true, (vm.check as FolderCheck.Overlaps).same)
         assertEquals(1, dao.sources().size)
         assertFalse(vm.busy)
+    }
+
+    private suspend fun nfsFolder(uid: Int? = null, gid: Int? = null): Long = dao.insertSource(
+        SourceEntity(
+            name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/media",
+            path = "films", username = "", password = Secret(""), uid = uid, gid = gid,
+        )
+    )
+
+    /** The user and group typed are what the test presents to the NAS, and what the folder keeps. */
+    @Test
+    fun anNfsFolderIsTestedAndAddedAsTheUserTyped() = runTest {
+        val tested = mutableListOf<Pair<Int?, Int?>>()
+        val vm = form(null, probe = { folder -> 12.also { tested += folder.uid to folder.gid } })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media", path = "films") }
+        vm.test()
+        advanceUntilIdle()
+        vm.edit { copy(uid = "1026", gid = "100") }
+        assertNull("another identity, not tested yet", vm.check)
+        vm.submit {}
+        advanceUntilIdle()
+        assertEquals(listOf(null to null, 1026 to 100), tested)
+        assertEquals(1026 to 100, dao.sources().single().let { it.uid to it.gid })
+    }
+
+    /** One field of two: the test asks for the other, its row opened to type it, and nothing goes to the NAS. */
+    @Test
+    fun anIdentityHalfTypedAsksForTheOtherField() = runTest {
+        val vm = form(null)
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media", uid = "1026") }
+        assertFalse(vm.identityOpen)
+        vm.test()
+        assertEquals(FolderCheck.Incomplete(R.string.error_gid_missing), vm.check)
+        assertTrue("its fields shown", vm.identityOpen)
+
+        vm.toggleIdentity()
+        vm.edit { copy(uid = "", gid = "100") }
+        vm.submit { fail("added half an identity") }
+        advanceUntilIdle()
+        assertEquals(FolderCheck.Incomplete(R.string.error_uid_missing), vm.check)
+        assertTrue(vm.identityOpen)
+        assertEquals(emptyList<String>(), calls)
+    }
+
+    /** SMB says who reads by its account: an identity typed for NFS is neither tested nor kept, nor asked for. */
+    @Test
+    fun anSmbFolderPresentsNoIdentity() = runTest {
+        val tested = mutableListOf<Pair<Int?, Int?>>()
+        val vm = form(null, probe = { folder -> 12.also { tested += folder.uid to folder.gid } })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, uid = "1026") }
+        vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }
+        vm.submit {}
+        advanceUntilIdle()
+        assertEquals(listOf<Pair<Int?, Int?>>(null to null), tested)
+        assertEquals(null to null, dao.sources().single().let { it.uid to it.gid })
+    }
+
+    /** An edited folder shows the identity it keeps, folded; emptied, it is saved as root again. */
+    @Test
+    fun anEditedFolderKeepsItsIdentityUntilEmptied() = runTest {
+        network.complete(Unit)
+        val id = nfsFolder(uid = 1026, gid = 100)
+        val vm = form(id)
+        advanceUntilIdle()
+        assertEquals("1026" to "100", vm.form.uid to vm.form.gid)
+        assertFalse(vm.identityOpen)
+
+        vm.edit { copy(uid = "", gid = "") }
+        vm.submit {}
+        advanceUntilIdle()
+        assertEquals(null to null, dao.source(id)!!.let { it.uid to it.gid })
+    }
+
+    /** Digits alone, as many as a user or group number holds. */
+    @Test
+    fun anIdentityFieldTakesWholeNumbersOnly() {
+        listOf("", "0", "1026", "2147483647").forEach { assertTrue(it, FolderForm.isId(it)) }
+        listOf("-1", "+5", "10a", "1 026", "2147483648").forEach { assertFalse(it, FolderForm.isId(it)) }
+    }
+
+    /** The user and group typed, and whether their row is open, outlive a stopped process. */
+    @Test
+    fun anIdentityTypedOutlivesAStoppedProcess() = runTest {
+        val saved = SavedStateHandle()
+        val before = form(null, saved = saved)
+        advanceUntilIdle()
+        before.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media") }
+        before.toggleIdentity()
+        before.edit { copy(uid = "1026", gid = "100") }
+
+        val after = form(null, saved = afterAStoppedProcess(saved))
+        advanceUntilIdle()
+        assertEquals("1026" to "100", after.form.uid to after.form.gid)
+        assertTrue(after.identityOpen)
     }
 
     /** The Keystore refuses to seal the password: the folder is not added, and the form says why. */

@@ -213,6 +213,11 @@
     <string name="field_host">NAS 位址</string>
     <string name="field_export">NFS 匯出路徑</string>
     <string name="nfs_hint">不需密碼：請在 NAS 上以唯讀方式允許本裝置的位址，並允許來自非特權連接埠的連線。</string>
+    <string name="nfs_identity_title">連線身分</string>
+    <string name="nfs_identity_desc">NAS 看到的使用者</string>
+    <string name="nfs_identity_hint">留空時，Houselights 以 root（UID 0，GID 0）身分連線。Zidoo 播放器以自己的帳號開啟影片。</string>
+    <string name="field_uid">使用者（UID）</string>
+    <string name="field_gid">群組（GID）</string>
     <string name="smb_hint">密碼儲存在本裝置上，並會傳給 Zidoo 播放器。建議使用專用的唯讀帳號。</string>
     <string name="field_share">共用資料夾</string>
     <string name="field_path">資料夾</string>
@@ -227,6 +232,8 @@
     <string name="placeholder_share">例如：media</string>
     <string name="placeholder_path_movies">例如：電影</string>
     <string name="placeholder_path_shows">例如：影集</string>
+    <string name="placeholder_uid">例如：1026</string>
+    <string name="placeholder_gid">例如：100</string>
     <string name="test_connection">測試</string>
     <string name="connection_untested">尚未測試連線</string>
     <string name="server_found">已找到伺服器</string>
@@ -239,6 +246,7 @@
     <string name="folder_overlaps">此資料夾與媒體庫中已有的「%s」重疊：其中的作品會出現兩次。請選擇其他資料夾，或在設定中編輯該資料夾。</string>
     <string name="folder_overlaps_state">已在媒體庫中</string>
     <string name="folder_not_saved_state">未儲存</string>
+    <string name="folder_unread">無法讀取此資料夾</string>
     <string name="saving">正在儲存…</string>
     <plurals name="entries_found">
         <item quantity="other">找到 %d 個項目</item>
@@ -250,6 +258,8 @@
     <string name="error_host_missing">請輸入 NAS 位址。</string>
     <string name="error_export_missing">請輸入 NFS 匯出路徑，例如 /volume1/media。</string>
     <string name="error_share_missing">請輸入共用資料夾的名稱，例如 media。</string>
+    <string name="error_uid_missing">請同時輸入使用者（UID）。</string>
+    <string name="error_gid_missing">請同時輸入群組（GID）。</string>
     <string name="error_scan_other">無法讀取此資料夾。請重試，或檢查 NAS 上的共用資料夾。</string>
     <string name="error_folder_empty">此資料夾在 NAS 上似乎是空的：未移除任何內容。請檢查其所在磁碟是否已掛載；如果它將一直是空的，請將其移除。</string>
     <string name="error_storage_full">本裝置已無剩餘空間：掃描已停止。請在設定的「儲存空間」中釋放空間。</string>
