@@ -207,7 +207,8 @@ class AddFolderViewModel(
                     }
                     .onFailure { check = FolderCheck.SaveFailed(it.reported(TAG, "Reading folder $folderId")) }
             } else if (kept == null) {
-                // A second folder is most often on the same NAS: start from the last one added.
+                // A second folder is most often on the same NAS: start from the last one added. Its share only if
+                // it was a folder inside: the same whole share again could only be refused as already added.
                 suspendRunCatching { library.lastFolder() }
                     .onFailure { Log.w(TAG, "Reading the last folder failed", it) }
                     .getOrNull()
@@ -215,7 +216,7 @@ class AddFolderViewModel(
                         form = form.copy(
                             protocol = last.protocol,
                             host = last.host,
-                            share = FolderForm.exportOrShare(last),
+                            share = if (last.path.isNotBlank()) FolderForm.exportOrShare(last) else "",
                             user = last.username,
                         )
                     }

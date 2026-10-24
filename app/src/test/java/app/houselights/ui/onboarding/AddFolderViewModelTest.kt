@@ -352,6 +352,46 @@ class AddFolderViewModelTest {
         assertEquals(emptyList<String>(), calls)
     }
 
+    /** After a folder inside a share, a new one starts on its NAS and share, path and password empty. */
+    @Test
+    fun aNewFolderStartsInTheShareOfTheLastSubfolder() = runTest {
+        smbFolder()
+        val vm = form(null)
+        advanceUntilIdle()
+
+        assertEquals(FolderForm(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi"), vm.form)
+    }
+
+    /** After a whole share, the share starts empty: the same one again could only be refused as already added. */
+    @Test
+    fun aNewFolderAfterAWholeShareStartsWithoutIt() = runTest {
+        dao.insertSource(
+            SourceEntity(
+                name = "media", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
+                path = "", username = "kodi", password = Secret("stored"),
+            )
+        )
+        val vm = form(null)
+        advanceUntilIdle()
+
+        assertEquals(FolderForm(protocol = Protocol.SMB, host = "192.168.1.10", share = "", user = "kodi"), vm.form)
+    }
+
+    /** An NFS export inside which the last folder was starts as a path, with its leading slash. */
+    @Test
+    fun aNewFolderStartsInTheExportOfTheLastSubfolder() = runTest {
+        dao.insertSource(
+            SourceEntity(
+                name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas.local", share = "volume1/media",
+                path = "films", username = "", password = Secret(""),
+            )
+        )
+        val vm = form(null)
+        advanceUntilIdle()
+
+        assertEquals(FolderForm(protocol = Protocol.NFS, host = "nas.local", share = "/volume1/media"), vm.form)
+    }
+
     /** A new folder starts empty when the last one cannot be read. */
     @Test
     fun aNewFolderStartsEmptyWhenTheLastCannotBeRead() = runTest {
