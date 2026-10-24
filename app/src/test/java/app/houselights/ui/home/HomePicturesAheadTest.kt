@@ -142,6 +142,15 @@ class HomePicturesAheadTest {
         assertTrue("the latest titles' band", keys.any { "poster/film1?" in it })
     }
 
+    /** At the player's density, the case asks for TMDB's largest picture short of the original, ahead as on screen. */
+    @Test
+    @Config(qualifiers = "w960dp-h540dp-land-xhdpi")
+    fun theCaseAsksForAPictureOf1280AtMost() {
+        val (loaded, shown) = loadAheadThenShow()
+        assertTheSame(loaded, shown)
+        assertEquals(listOf("https://img.test/backdrop/heat?w=1280"), loaded.mapNotNull { it.key?.key }.filter { "backdrop/heat" in it })
+    }
+
     /** Each picture home asks for while the launch is loading it waits for that load ([AwaitAhead]). */
     @Test
     fun homeComposedWhileThePicturesLoadFetchesNoneTwice() {

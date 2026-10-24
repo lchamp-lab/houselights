@@ -416,8 +416,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   row shares its 600 by parts of four (`placeDoors`), so a door of two parts is as wide as two of one and their gap,
   and the doors of different rows line up: 294 + 294, 141 + 141 + 294, four of 141, three of 192 (`DoorGridTest`).
   A row left out gives its height to the one under it (`gridHeights`). `HomePlan` composes it from what home read:
-  - **The case** (`ResumeCase`) resumes the title last in progress: its backdrop cropped upright from its top (else its
-    poster), melting into its dark (`HlScrim.CASE_FOOT`), its logo or name in `headline`, its facts 12 apart
+  - **The case** (`ResumeCase`) resumes the title last in progress: its backdrop cropped upright from its top, a file
+    of 1280 px at most (else its poster), melting into its dark (`HlScrim.CASE_FOOT`), its logo or name in `headline`, its facts 12 apart
     (`MetaLine`), its progress and time left, then its action, a plate the case's focus fills white. With nothing in
     progress, it proposes a film not seen, drawn once a session, else a show not seen, whose page it opens ("Voir la
     série", no Play glyph), else any title (`UnseenPick`): "Pas encore vu" in `jaquette` over one not seen, its genres,

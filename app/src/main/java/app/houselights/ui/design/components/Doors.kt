@@ -609,20 +609,23 @@ private fun CaseAction(action: String, lit: Boolean, plays: Boolean, menu: Boole
 /** How tall the case stands: the grid's three rows and their gaps. */
 internal fun caseHeight(): Dp = HomeGridDefaults.watchRow + HomeGridDefaults.libraryRow + HomeGridDefaults.toolRow + HlSpace.s * 2
 
-/** The case's picture: its backdrop, asked as wide as it is cropped from, else its poster. */
+/** The case's picture: its backdrop ([caseBackdropWidth]), else its poster. */
 @Composable
 private fun caseUrl(item: MediaItem): String? {
     val height = caseHeight().toPx()
     val width = HomeGridDefaults.case.toPx()
-    return item.backdrop?.url(height * WIDE_W / WIDE_H) ?: item.poster?.url(width)
+    return item.backdrop?.url(caseBackdropWidth(height)) ?: item.poster?.url(width)
 }
 
 /** The request [ResumeCase] makes for [item] on a canvas of [density] px a dp, as a preload must make it. */
 internal fun caseRequest(context: Context, item: MediaItem, px: (Dp) -> Int): ImageRequest? {
     val height = px(caseHeight())
-    val url = item.backdrop?.url(height * WIDE_W / WIDE_H) ?: item.poster?.url(px(HomeGridDefaults.case)) ?: return null
+    val url = item.backdrop?.url(caseBackdropWidth(height)) ?: item.poster?.url(px(HomeGridDefaults.case)) ?: return null
     return doorRequest(context, url, px(HomeGridDefaults.case), height)
 }
+
+/** The case's backdrop for a case [heightPx] tall: as wide as it is cropped from, short of TMDB's original (1280). */
+private fun caseBackdropWidth(heightPx: Int): Int = minOf(heightPx * WIDE_W / WIDE_H, CASE_BACKDROP_PX)
 
 /** The request of a picture laid out [widthPx] by [heightPx], cropped to that shape, as [ArtworkImage] makes it. */
 private fun doorRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
@@ -630,6 +633,7 @@ private fun doorRequest(context: Context, url: String, widthPx: Int, heightPx: I
 
 private const val WIDE_W = 16
 private const val WIDE_H = 9
+private const val CASE_BACKDROP_PX = 1280
 private const val CASE_GENRES = 3
 private const val FACT_JOIN = " · "
 
