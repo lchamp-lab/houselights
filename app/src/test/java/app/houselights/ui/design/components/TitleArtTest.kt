@@ -35,7 +35,9 @@ class TitleArtTest {
 
     private fun show(vararg titles: String) = compose.setTvContent {
         Column {
-            titles.forEach { TitleArt(it, logo = null, maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight, measured = true) }
+            titles.forEach { title ->
+                TitleArt(title, logo = null, maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight, measured = true)
+            }
         }
     }
 

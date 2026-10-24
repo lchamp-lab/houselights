@@ -66,7 +66,10 @@ class TypeRolesTest {
     @Test
     fun aChoiceAndAVersionAreEntries() {
         val film = MediaItem("f1", MediaKind.MOVIE, "Dune")
-        val version = Version(film, edition = null, label = "Version longue", media = null, sizeBytes = null, runtimeMs = null, chosen = true, best = true, key = "v1")
+        val version = Version(
+            film, edition = null, label = "Version longue", media = null, sizeBytes = null, runtimeMs = null,
+            chosen = true, best = true, key = "v1",
+        )
         compose.setTvContent {
             Column {
                 HlListItem("Français", description = "Audio", onClick = {})
