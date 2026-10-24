@@ -196,6 +196,9 @@
     <string name="no_player">未安裝 Zidoo 播放器。</string>
     <string name="player_credentials">此資料夾需要密碼：只有 Zidoo 播放器可以播放。</string>
     <string name="player_changed">Zidoo 播放器已變更，Houselights 不再將您的密碼或伺服器存取權交給它。請重新安裝 Zidoo 內建的播放器，或清除 Houselights 的資料以信任新的播放器。</string>
+    <string name="play_failed_no_player">未安裝 Zidoo 播放器</string>
+    <string name="play_failed_credentials">需要 Zidoo 播放器</string>
+    <string name="play_failed_player_changed">Zidoo 播放器已變更</string>
 
     <!-- Local folders -->
     <string name="add_folder">加入資料夾</string>
@@ -483,6 +486,8 @@
     <string name="identify_state_matched">已識別</string>
     <string name="result_current">目前</string>
     <string name="error_offline_title">無法存取媒體庫</string>
+    <string name="error_offline_nas_title">無法存取 NAS</string>
+    <string name="error_offline_server_title">無法存取伺服器</string>
     <string name="error_offline">伺服器或 NAS 沒有回應。請檢查其是否已開機，然後重試。</string>
     <string name="error_certificate_title">憑證遭到拒絕</string>
     <string name="error_certificate">安全憑證遭到拒絕。請更新伺服器的憑證，或檢查此裝置的日期和時間，然後重試。</string>

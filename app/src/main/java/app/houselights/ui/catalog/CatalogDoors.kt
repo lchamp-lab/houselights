@@ -1,11 +1,13 @@
 package app.houselights.ui.catalog
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.MediaItem
@@ -43,6 +45,7 @@ internal fun LazyListScope.catalogDoors() {
         }
     }
     item { Group("Home's case: resuming, then a film not seen; its action fills white with the case's focus") { Cases() } }
+    item { Group("Home's case after a failed play: why in a word in its facts' room, its plate doing what fixes it") { FailedCases() } }
     item { Group("Doors of what is watched: the next episode and its season, the latest titles") { WatchDoors() } }
     item { Group("Library doors: one size of figure for all, cut in posters, in ink while they load") { LibraryDoors() } }
     item { Group("Tool doors: sagas stacked, the search's wall out, the app's state as a case's back") { ToolDoors() } }
@@ -90,18 +93,38 @@ private fun Cases() {
                 label = stringResource(R.string.home_unseen),
             )
         }
-        Specimen("Lecture impossible: why, under its action", width = HomeGridDefaults.case) {
-            ResumeCase(
-                doorFilm("Top Gun : Maverick", positionMs = 4_900_000),
-                stringResource(R.string.resume),
-                {},
-                Modifier.size(HomeGridDefaults.case, caseHeight()),
-                says = {
-                    HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(R.string.no_player))
-                },
-            )
+    }
+}
+
+/** The case saying why it did not play: a new try may fix it, the server refused the app, nothing a try fixes. */
+@Composable
+private fun FailedCases() {
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+        Specimen("Réessayer: the NAS out of reach", width = HomeGridDefaults.case) {
+            FailedCase(R.string.error_offline_nas_title, stringResource(R.string.retry), HlIcons.Refresh)
+        }
+        Specimen("Se reconnecter: the server refused the app", width = HomeGridDefaults.case) {
+            FailedCase(R.string.error_denied_title, stringResource(R.string.error_action_reconnect), icon = null)
+        }
+        Specimen("Its own plate: nothing a try fixes", width = HomeGridDefaults.case) {
+            FailedCase(R.string.play_failed_player_changed, stringResource(R.string.resume), HlIcons.Play)
         }
     }
+}
+
+@Composable
+private fun FailedCase(@StringRes reason: Int, action: String, icon: ImageVector?) {
+    ResumeCase(
+        doorFilm("Top Gun : Maverick", positionMs = 4_900_000),
+        action,
+        {},
+        Modifier.size(HomeGridDefaults.case, caseHeight()),
+        icon = icon,
+        onLongClick = {},
+        says = {
+            HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(reason), maxLines = 1)
+        },
+    )
 }
 
 @Composable

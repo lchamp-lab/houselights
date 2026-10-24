@@ -202,6 +202,9 @@
     <string name="no_player">De Zidoo-speler is niet geïnstalleerd.</string>
     <string name="player_credentials">Deze map vraagt een wachtwoord: alleen de Zidoo-speler kan eruit afspelen.</string>
     <string name="player_changed">De Zidoo-speler is gewijzigd en Houselights vertrouwt hem uw wachtwoorden en uw servertoegang niet meer toe. Installeer de speler die bij de Zidoo hoorde opnieuw, of wis de gegevens van Houselights om de nieuwe te vertrouwen.</string>
+    <string name="play_failed_no_player">Zidoo-speler niet geïnstalleerd</string>
+    <string name="play_failed_credentials">Zidoo-speler vereist</string>
+    <string name="play_failed_player_changed">Zidoo-speler gewijzigd</string>
 
     <!-- Local folders -->
     <string name="add_folder">Map toevoegen</string>
@@ -498,6 +501,8 @@
     <string name="identify_state_matched">Geïdentificeerd</string>
     <string name="result_current">Huidig</string>
     <string name="error_offline_title">Bibliotheek onbereikbaar</string>
+    <string name="error_offline_nas_title">NAS onbereikbaar</string>
+    <string name="error_offline_server_title">Server onbereikbaar</string>
     <string name="error_offline">De server of de NAS reageert niet. Controleer of die aan staat en probeer het opnieuw.</string>
     <string name="error_certificate_title">Certificaat geweigerd</string>
     <string name="error_certificate">Het beveiligingscertificaat wordt geweigerd. Vernieuw het certificaat van de server of controleer de datum en tijd van het apparaat en probeer het opnieuw.</string>

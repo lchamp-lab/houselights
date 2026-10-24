@@ -215,6 +215,9 @@
     <string name="no_player">The Zidoo player isn’t installed.</string>
     <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
     <string name="player_changed">The Zidoo player has changed, and Houselights no longer trusts it with your passwords or your server access. Reinstall the player that came with the Zidoo, or clear Houselights’ data to trust the new one.</string>
+    <string name="play_failed_no_player">Zidoo player not installed</string>
+    <string name="play_failed_credentials">Zidoo player required</string>
+    <string name="play_failed_player_changed">Zidoo player changed</string>
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
@@ -512,6 +515,8 @@
     <string name="identify_state_matched">Identified</string>
     <string name="result_current">Current</string>
     <string name="error_offline_title">Library unreachable</string>
+    <string name="error_offline_nas_title">NAS unreachable</string>
+    <string name="error_offline_server_title">Server unreachable</string>
     <string name="error_offline">The server or the NAS doesn’t answer. Check that it is on, then try again.</string>
     <string name="error_certificate_title">Certificate refused</string>
     <string name="error_certificate">The security certificate is refused. Renew the server’s certificate, or check this device’s date and time, then try again.</string>

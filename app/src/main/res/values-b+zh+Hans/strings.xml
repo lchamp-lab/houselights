@@ -196,6 +196,9 @@
     <string name="no_player">未安装 Zidoo 播放器。</string>
     <string name="player_credentials">此文件夹需要密码：只有 Zidoo 播放器可以播放。</string>
     <string name="player_changed">Zidoo 播放器已更改，Houselights 不再将您的密码或服务器访问权限交给它。请重新安装 Zidoo 自带的播放器，或清除 Houselights 的数据以信任新的播放器。</string>
+    <string name="play_failed_no_player">未安装 Zidoo 播放器</string>
+    <string name="play_failed_credentials">需要 Zidoo 播放器</string>
+    <string name="play_failed_player_changed">Zidoo 播放器已更改</string>
 
     <!-- Local folders -->
     <string name="add_folder">添加文件夹</string>
@@ -483,6 +486,8 @@
     <string name="identify_state_matched">已识别</string>
     <string name="result_current">当前</string>
     <string name="error_offline_title">无法访问媒体库</string>
+    <string name="error_offline_nas_title">无法访问 NAS</string>
+    <string name="error_offline_server_title">无法访问服务器</string>
     <string name="error_offline">服务器或 NAS 无响应。请检查其是否已开机，然后重试。</string>
     <string name="error_certificate_title">证书被拒绝</string>
     <string name="error_certificate">安全证书被拒绝。请更新服务器的证书，或检查此设备的日期和时间，然后重试。</string>

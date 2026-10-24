@@ -196,6 +196,9 @@
     <string name="no_player">Zidooプレーヤーがインストールされていません。</string>
     <string name="player_credentials">このフォルダはパスワードで保護されています。再生できるのはZidooプレーヤーだけです。</string>
     <string name="player_changed">Zidooプレーヤーが変更されたため、Houselightsはパスワードもサーバーへのアクセスも預けなくなりました。Zidoo付属のプレーヤーを再インストールするか、新しいプレーヤーを信頼する場合はHouselightsのデータを消去してください。</string>
+    <string name="play_failed_no_player">Zidooプレーヤーがありません</string>
+    <string name="play_failed_credentials">Zidooプレーヤーが必要です</string>
+    <string name="play_failed_player_changed">Zidooプレーヤーが変わりました</string>
 
     <!-- Local folders -->
     <string name="add_folder">フォルダを追加</string>
@@ -482,6 +485,8 @@
     <string name="identify_state_matched">特定済み</string>
     <string name="result_current">現在</string>
     <string name="error_offline_title">ライブラリに接続できません</string>
+    <string name="error_offline_nas_title">NASに接続できません</string>
+    <string name="error_offline_server_title">サーバーに接続できません</string>
     <string name="error_offline">サーバーまたはNASが応答しません。電源が入っているか確認して、もう一度お試しください。</string>
     <string name="error_certificate_title">証明書が拒否されました</string>
     <string name="error_certificate">セキュリティ証明書が拒否されました。サーバーの証明書を更新するか、このデバイスの日付と時刻を確認して、もう一度お試しください。</string>

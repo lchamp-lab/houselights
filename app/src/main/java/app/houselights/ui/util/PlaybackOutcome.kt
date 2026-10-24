@@ -18,7 +18,10 @@ data class PlaybackProblem(val error: UiError, val origin: PlayOrigin)
 class PlaybackOutcome(val playbackEnded: SharedFlow<Unit>) {
     private val problem = MutableStateFlow<PlaybackProblem?>(null)
 
-    /** Why the last play did not start, said where it was asked until an OK there, another play or another screen. */
+    /**
+     * Why the last play did not start, said where it was asked until dismissed there (an OK on a page, a click on home's
+     * case), another play or another screen.
+     */
     val playbackProblem: StateFlow<PlaybackProblem?> = problem
 
     fun reportProblem(problem: PlaybackProblem) {

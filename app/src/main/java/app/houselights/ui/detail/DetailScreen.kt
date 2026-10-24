@@ -98,7 +98,10 @@ import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.edit.EditMenu
+import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.PartFailed
+import app.houselights.ui.util.run
 import app.houselights.ui.util.okClears
 import app.houselights.ui.util.PlayOrigin
 import app.houselights.ui.util.PlaybackOutcome
@@ -230,7 +233,7 @@ internal fun DetailPage(
         onEdit = { showEdit = true }.takeIf { state.canEdit },
         season = state.shownSeason,
         onShowMarks = { showMarks = true },
-        nextUpError = state.nextUpError,
+        nextUpError = state.lireError,
         retrying = state.retrying,
         onRetry = vm::retry,
     )
@@ -323,9 +326,12 @@ internal fun DetailPage(
     }
 }
 
-/** What failed once the title showed (its seasons, a saga's films), under the hero, with Réessayer ([onRetry]). */
+/**
+ * What failed once the title showed (its seasons, a saga's films), under the hero, with Réessayer ([onRetry]); with
+ * Lire's failure, it is said in Lire's place instead.
+ */
 private fun LazyListScope.partFailed(state: DetailState, memory: FocusMemory, onRetry: () -> Unit) {
-    val error = state.error ?: return
+    val error = state.error?.takeUnless { state.failedWithLire } ?: return
     item(key = "failed") {
         Box(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
             PartFailed(error, state.retrying, onRetry, action = Modifier.focusKey(RETRY_PAGE, memory))
@@ -364,7 +370,7 @@ private fun LazyListScope.seasonRows(
             when {
                 failed != null -> EpisodesFailed(
                     single?.title,
-                    failed,
+                    failed.takeUnless { state.failedWithLire },
                     retrying = state.episodesLoading,
                     onRetry = vm::retrySeason,
                     action = Modifier.focusKey(RETRY_EPISODES, memory),
@@ -558,7 +564,10 @@ private data class DetailActions(
     val season: MediaItem? = null,
     /** Opens the watched tile's options, the season and the whole show, where it marks a [season]. */
     val onShowMarks: () -> Unit = {},
-    /** Why what a series' Lire starts could not be read: Réessayer ([onRetry]) in Lire's place, busy while [retrying]. */
+    /**
+     * Why what a series' Lire starts could not be read, or what failed with it ([DetailState.lireError]): what fixes it
+     * in Lire's place, Réessayer ([onRetry]) busy while [retrying].
+     */
     val nextUpError: UiError? = null,
     val retrying: Boolean = false,
     val onRetry: () -> Unit = {},
@@ -739,19 +748,23 @@ private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?, nex
 
 /**
  * Lire or Reprendre (one button, so focus stays put), then start-over; a series or saga plays its next title. A series
- * whose next episode could not be read has Réessayer in Lire's place, keyed as Lire, why said at the row's end.
+ * whose next episode could not be read has what fixes it in Lire's place, as `PartFailed` does (Réessayer, Se
+ * reconnecter; nothing when nothing does), keyed as Lire, why said at the row's end.
  */
 @Composable
 private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, actions: DetailActions) {
     val onPlay = actions.onPlay
     val series = item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION
-    if (series && actions.nextUpError != null) {
+    val failed = actions.nextUpError
+    if (series && failed != null) {
+        val fixedBy = failed.action ?: return
+        val fix = LocalErrorFix.current
         HlButton(
-            stringResource(R.string.retry),
-            onClick = actions.onRetry,
+            stringResource(fixedBy.label),
+            onClick = { fixedBy.run(actions.onRetry, fix) },
             modifier = Modifier.focusKey(PLAY, memory),
-            icon = HlIcons.Refresh,
-            busy = actions.retrying,
+            icon = HlIcons.Refresh.takeIf { fixedBy == ErrorAction.RETRY },
+            busy = actions.retrying && fixedBy == ErrorAction.RETRY,
             busyLabel = stringResource(R.string.retrying),
         )
         return
@@ -924,12 +937,15 @@ private fun EpisodesSkeleton(header: String?) {
     }
 }
 
-/** The episode row's error and its fix; while [retrying], the row stays, its button busy and focused. */
+/**
+ * The episode row's error and its fix, its header alone when the error is said in Lire's place (null); while
+ * [retrying], the row stays, its button busy and focused.
+ */
 @Composable
-private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, onRetry: () -> Unit, action: Modifier) {
+private fun EpisodesFailed(header: String?, error: UiError?, retrying: Boolean, onRetry: () -> Unit, action: Modifier) {
     Column(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
         header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }
-        PartFailed(error, retrying, onRetry, action = action)
+        error?.let { PartFailed(it, retrying, onRetry, action = action) }
     }
 }
 
