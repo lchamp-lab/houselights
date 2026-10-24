@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -37,6 +38,7 @@ import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.components.AttentionNote
@@ -52,6 +54,7 @@ import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.UiError
+import kotlinx.coroutines.delay
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
     Library(R.string.section_source, HlIcons.Folder),
@@ -130,8 +133,9 @@ fun SettingsScreen(
 }
 
 /**
- * The settings' places, a word each, focus opening its pane ([onOpen]). Once the settings are [ready], a place leaving
- * the list while [open], Trakt disconnected under a server, gives way to the place after it, else the last, which takes
+ * The settings' places, a word each, opening its pane ([onOpen]) once focus has settled on it ([HlMotion.SETTLE]) or
+ * on OK, so stepping down the list builds no pane it only crosses. Once the settings are [ready], a place leaving the
+ * list while [open], Trakt disconnected under a server, gives way to the place after it, else the last, which takes
  * focus from it.
  */
 @Composable
@@ -143,15 +147,25 @@ internal fun SettingsPlaces(panes: List<Pane>, open: Pane, memory: FocusMemory, 
             memory.focus(paneKey(next))
         }
     }
-    Column(Modifier.keepVerticalFocus()) {
+    val shown by rememberUpdatedState(open)
+    val opening by rememberUpdatedState(onOpen)
+    // The place focus is on; null once focus leaves the list, as into the pane shown.
+    var focused by remember { mutableStateOf<Pane?>(null) }
+    LaunchedEffect(focused) {
+        val place = focused ?: return@LaunchedEffect
+        delay(HlMotion.SETTLE)
+        if (place != shown) opening(place)
+    }
+    Column(Modifier.keepVerticalFocus().onFocusChanged { if (!it.hasFocus) focused = null }) {
         panes.forEach { p ->
             HlNavItem(
                 icon = p.icon,
                 title = stringResource(p.label),
                 selected = p == open,
                 // The window's own first focus, before the screen is restored, leaves the pane that was open.
-                onFocused = { if (!memory.arriving) onOpen(p) },
+                onFocused = { if (!memory.arriving) focused = p },
                 modifier = Modifier.focusKey(paneKey(p), memory),
+                onClick = { if (p != open) onOpen(p) },
             )
         }
     }

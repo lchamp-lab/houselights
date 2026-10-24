@@ -114,7 +114,8 @@ What is not the picture (settings, sheets, forms, search) keeps one grammar, rea
    its word stays white.
 8. **Focus.** Pictures are framed (`Showcase`, `GalleryTile`), plates fill white, all on `HlFocusSurface`; what is
    read is ringed (`ReadingPlate`, `HlScrollArea`).
-9. **Places.** The settings' places are words alone, `HlSize.navRow` tall, seven inside the safe area.
+9. **Places.** The settings' places are words alone, `HlSize.navRow` tall, seven inside the safe area. Focus lights
+   a place at once; its pane opens once focus settles there (`HlMotion.SETTLE`) or on OK (`SettingsPlaces`).
 10. **Sheets** say what they do in `subject` and what about on the line under it, with no hint at their foot;
     their glass and plates keep their film's light; reading ones are wide (`HlSideSheetDefaults.wideWidth`) to hold
     the reading measure. Under a sheet, the screen shows no focus.
@@ -826,7 +827,7 @@ Each screen from a fresh start, an arrow every 400 ms, then an arrow held 3 s.
 | Cold start to home's first frame | `am start -W` | 1.5 s | 0.60–0.64 s (0.62–0.69 s); 0.50–0.55 s compiled `speed-profile` with the baseline profile | — | — | — |
 
 Settings' janky frames are its pane, recomposed whole when its entry changes (120 to 150 ms in `draw`), as before
-the identity. Home's slowest frames on a row wait on the main thread for a picture (40 to 48 ms); a row's hold
+the identity; places crossed open no pane, only the one focus settles on. Home's slowest frames on a row wait on the main thread for a picture (40 to 48 ms); a row's hold
 draws at 12 to 15 ms of GPU per frame, as a wall's scroll does. The room is painted twice, by the window and
 the screen: the only overdraw left at rest.
 
