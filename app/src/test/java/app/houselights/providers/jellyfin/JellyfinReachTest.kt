@@ -5,6 +5,7 @@ import app.houselights.testing.FakeServer
 import app.houselights.testing.certificateRefused
 import app.houselights.ui.onboarding.LoginError
 import app.houselights.ui.onboarding.loginError
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,6 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLException
 
 /** Reaching the server typed when signing in: which address, which failure, which server. */
@@ -82,17 +84,16 @@ class JellyfinReachTest {
 
     /** A found server announces plain HTTP unless it requires HTTPS: its HTTPS port is checked first, briefly. */
     @Test
-    fun aFoundServerIsEncryptedWhenItsHttpsAddressAnswersAsItself() = runTest {
+    fun aFoundServerIsEncryptedWhenItsHttpsAddressAnswersAsItself() = runBlocking {
         val server = FakeServer { Answer(200, info("10.10.3")) }
         assertEquals(ServerCheck.Encrypted(TWIN), JellyfinClient.check(FOUND, server.http))
-        assertEquals("a short wait, all told", 3_000L, server.callTimeouts.getValue("$TWIN/System/Info/Public"))
-        assertEquals(3_000, server.connectTimeouts.getValue("$TWIN/System/Info/Public"))
+        assertEquals("a short wait", 3_000, server.connectTimeouts.getValue("$TWIN/System/Info/Public"))
         assertTrue(server.requests.all { it.url.isHttps })
     }
 
     /** Another service on 8920, or another Jellyfin: not the server found, which is then reached as announced. */
     @Test
-    fun anotherServerOnItsHttpsPortLeavesItPlain() = runTest {
+    fun anotherServerOnItsHttpsPortLeavesItPlain() = runBlocking {
         val server = FakeServer { request -> Answer(200, if (request.url.isHttps) info("10.10.3", id = "other") else info("10.10.3")) }
         assertEquals(ServerCheck.Plain(ANNOUNCED), JellyfinClient.check(FOUND, server.http))
         assertEquals(ServerCheck.Plain(ANNOUNCED), JellyfinClient.check(FOUND.copy(id = null), server.http))
@@ -100,14 +101,14 @@ class JellyfinReachTest {
 
     /** Its certificate names a domain, not this address, or signs itself: plain, as the connection will be. */
     @Test
-    fun aFoundServerWhoseCertificateIsRefusedIsPlain() = runTest {
+    fun aFoundServerWhoseCertificateIsRefusedIsPlain() = runBlocking {
         val server = FakeServer { request -> if (request.url.isHttps) throw certificateRefused() else Answer(200, info("10.10.3")) }
         assertEquals(ServerCheck.Plain(ANNOUNCED), JellyfinClient.check(FOUND, server.http))
-        assertEquals("as briefly", 3_000L, server.callTimeouts.getValue("$ANNOUNCED/System/Info/Public"))
+        assertEquals("as briefly", 3_000, server.connectTimeouts.getValue("$ANNOUNCED/System/Info/Public"))
     }
 
     @Test
-    fun aFoundServerAnsweringNeitherIsSilent() = runTest {
+    fun aFoundServerAnsweringNeitherIsSilent() = runBlocking {
         val server = FakeServer { request ->
             if (request.url.isHttps) throw certificateRefused() else throw ConnectException("Connection refused")
         }
@@ -117,7 +118,7 @@ class JellyfinReachTest {
 
     /** A server announcing its HTTPS address, on its own name, is checked there alone; elsewhere, on Jellyfin's HTTPS port. */
     @Test
-    fun aFoundServerIsCheckedAtTheHttpsAddressItAnnouncesElseOnPort8920() = runTest {
+    fun aFoundServerIsCheckedAtTheHttpsAddressItAnnouncesElseOnPort8920() = runBlocking {
         val server = FakeServer { Answer(200, info("10.10.3")) }
         val named = "https://jellyfin.example.org"
         assertEquals(ServerCheck.Encrypted(named), JellyfinClient.check(FOUND.copy(address = named), server.http))
@@ -126,9 +127,22 @@ class JellyfinReachTest {
         assertTrue(server.requests.all { it.url.isHttps })
     }
 
+    /**
+     * A server that stalls, as a name looked up in vain does, is given up on once the wait is over, each address:
+     * OkHttp's own call timeout cannot cut a lookup short. Checks are timed on the clock, so their tests run on it.
+     */
+    @Test
+    fun aFoundServerThatStallsIsGivenUpOnInTime() = runBlocking {
+        val server = FakeServer { Thread.sleep(STALL_MS); Answer(200, info("10.10.3")) }
+        val start = System.nanoTime()
+        assertEquals(ServerCheck.Silent, JellyfinClient.check(FOUND, server.http, waitMs = 100))
+        val took = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)
+        assertTrue("$took ms for both addresses", took < STALL_MS)
+    }
+
     /** Asked anonymously: the device's name and id go to the server signed in to, not to whatever answered. */
     @Test
-    fun aFoundServerIsCheckedAnonymously() = runTest {
+    fun aFoundServerIsCheckedAnonymously() = runBlocking {
         val server = FakeServer { Answer(200, info("10.10.3")) }
         JellyfinClient.check(FOUND, server.http)
         assertTrue(server.requests.none { it.header("Authorization") != null || it.header("X-Emby-Authorization") != null })
@@ -185,6 +199,9 @@ class JellyfinReachTest {
 
         /** Its HTTPS address, on Jellyfin's port. */
         const val TWIN = "https://192.168.1.5:8920"
+
+        /** Longer than a server found is waited for. */
+        const val STALL_MS = 2_000L
 
         /** The server as discovery found it; its id is the one its public info gives. */
         val FOUND = DiscoveredServer(ANNOUNCED, "Maison", "s1")

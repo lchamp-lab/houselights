@@ -7,26 +7,21 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import java.util.Collections
-import java.util.concurrent.TimeUnit
 
 /** What a test server says to a request: a status, a body and headers. Throw an IOException for a network failure. */
 data class Answer(val code: Int, val body: String = "", val headers: Map<String, String> = emptyMap())
 
-/** Answers every request with [answer] on OkHttp's threads, and records it with its connect and call timeouts. */
+/** Answers every request with [answer] on OkHttp's threads, and records it with its connect timeout. */
 class FakeServer(private val answer: (Request) -> Answer) {
     val requests: MutableList<Request> = Collections.synchronizedList(mutableListOf())
 
     val connectTimeouts: MutableMap<String, Int> = Collections.synchronizedMap(mutableMapOf())
-
-    /** The whole call's timeout by URL, in milliseconds; 0 for none. */
-    val callTimeouts: MutableMap<String, Long> = Collections.synchronizedMap(mutableMapOf())
 
     val http: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
             val request = chain.request()
             requests += request
             connectTimeouts[request.url.toString()] = chain.connectTimeoutMillis()
-            callTimeouts[request.url.toString()] = TimeUnit.NANOSECONDS.toMillis(chain.call().timeout().timeoutNanos())
             val (code, body, headers) = answer(request)
             Response.Builder()
                 .request(request)

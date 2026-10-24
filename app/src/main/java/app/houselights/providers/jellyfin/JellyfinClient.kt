@@ -110,7 +110,7 @@ class JellyfinClient(
         /** Short connect timeout for the HTTPS probe, so a firewall dropping it does not delay the HTTP fallback. */
         private const val PROBE_CONNECT_MS = 3_000L
 
-        /** How long checking a server found waits on each of its addresses, all told. */
+        /** How long checking a server found waits on each of its addresses, lookup and answer included. */
         private const val CHECK_MS = 3_000L
 
         /** ProductName reported by System/Info/Public on Jellyfin. */
@@ -156,11 +156,11 @@ class JellyfinClient(
          * discovery gave, so another service on 8920 does not pass; plain when only HTTP answers, a refused
          * certificate included; silent when neither does.
          */
-        suspend fun check(found: DiscoveredServer, http: OkHttpClient = Http.client): ServerCheck {
+        suspend fun check(found: DiscoveredServer, http: OkHttpClient = Http.client, waitMs: Long = CHECK_MS): ServerCheck {
             val announced = normalizeUrl(found.address)
             val url = "$announced/".toHttpUrlOrNull() ?: return ServerCheck.Silent
-            val brief = http.newBuilder().callTimeout(CHECK_MS, TimeUnit.MILLISECONDS).build()
-            suspend fun info(at: String) = publicInfo(at, deviceId = null, brief, CHECK_MS).getOrNull()
+            // Cancelling the coroutine, not OkHttp's call timeout, which cannot cut a name's lookup short.
+            suspend fun info(at: String) = withTimeoutOrNull(waitMs) { publicInfo(at, deviceId = null, http, waitMs) }?.getOrNull()
             val https = if (url.isHttps) announced else url.newBuilder().scheme("https").port(HTTPS_PORT).build().toString().trimEnd('/')
             if (info(https)?.id?.equals(found.id, ignoreCase = true) == true) return ServerCheck.Encrypted(https)
             return if (!url.isHttps && info(announced) != null) ServerCheck.Plain(announced) else ServerCheck.Silent
