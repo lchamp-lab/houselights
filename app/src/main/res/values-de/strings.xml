@@ -572,6 +572,16 @@
     <string name="ui_resolution_desc">Filme im Modus des Players</string>
     <string name="interface_language">Sprache der Oberfläche</string>
     <string name="interface_language_desc">Menüs, Einstellungen und Meldungen</string>
+    <string name="text_size">Textgröße</string>
+    <string name="text_size_desc">Alle Texte der App</string>
+    <string name="text_size_sheet">Vergrößert oder verkleinert alle Texte von Houselights. Raster und Ränder bleiben unverändert.</string>
+    <string name="text_size_compact">Kompakt</string>
+    <string name="text_size_compact_desc">Zum Lesen aus der Nähe</string>
+    <string name="text_size_standard">Standard</string>
+    <string name="text_size_standard_desc">Empfohlen</string>
+    <string name="text_size_large">Groß</string>
+    <string name="text_size_large_desc">Zum Lesen aus der Ferne</string>
+    <string name="text_size_large_reached">Durch die Android-Einstellung bereits erreicht</string>
     <string name="ui_4k_desc">Eine scharfe Oberfläche in 4K</string>
     <string name="ui_system_desc">Der vom System gewählte Modus</string>
     <string name="current_output">Ausgabe</string>

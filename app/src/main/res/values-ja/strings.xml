@@ -556,6 +556,16 @@
     <string name="ui_resolution_desc">再生中はプレーヤーのモード</string>
     <string name="interface_language">表示言語</string>
     <string name="interface_language_desc">メニュー、設定、メッセージ</string>
+    <string name="text_size">文字サイズ</string>
+    <string name="text_size_desc">アプリのすべての文字</string>
+    <string name="text_size_sheet">Houselightsのすべての文字を大きく、または小さくします。グリッドと余白は変わりません。</string>
+    <string name="text_size_compact">コンパクト</string>
+    <string name="text_size_compact_desc">近くで読むとき</string>
+    <string name="text_size_standard">標準</string>
+    <string name="text_size_standard_desc">おすすめ</string>
+    <string name="text_size_large">大</string>
+    <string name="text_size_large_desc">離れて読むとき</string>
+    <string name="text_size_large_reached">Androidの設定ですでにこの大きさです</string>
     <string name="ui_4k_desc">4Kで鮮明なインターフェース</string>
     <string name="ui_system_desc">システムが選択したモード</string>
     <string name="current_output">出力</string>

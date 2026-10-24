@@ -11,10 +11,12 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
 import app.houselights.core.UserState
+import app.houselights.settings.TextSize
 import app.houselights.ui.design.components.AwaitAhead
 import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
+import app.houselights.ui.design.textScaleOf
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.setTvContent
@@ -112,20 +114,26 @@ class HomePicturesAheadTest {
         doors = checkNotNull(rows.doors).copy(sagas = Shelf(sagaLibrary, 9, (1..6).map { titled("saga$it") })),
     )
 
+    /** The launch's preloads on this screen, its text at [step]. */
+    private fun ahead(step: Float = 1f) = PicturesAhead(context, context.resources.displayMetrics.widthPixels, textScale(step))
+
+    /** The text size home opens at, as the launch reads it: the system's times [step]. */
+    private fun textScale(step: Float) = textScaleOf(context.resources.configuration.fontScale, step)
+
     /**
-     * Loads ahead what the launch does ([loadFirstPictures]) for [rows], then lays home out, searching if [canSearch]:
-     * what each asked, in that order.
+     * Loads ahead what the launch does ([loadFirstPictures]) for [rows], then lays home out, searching if [canSearch],
+     * its text at [step]: what each asked, in that order.
      */
-    private fun loadAheadThenShow(rows: HomeRows = this.rows, canSearch: Boolean = true): Pair<List<Asked>, List<Asked>> {
+    private fun loadAheadThenShow(rows: HomeRows = this.rows, canSearch: Boolean = true, step: Float = 1f): Pair<List<Asked>, List<Asked>> {
         Coil.setImageLoader(loader)
         val width = context.resources.displayMetrics.widthPixels
-        runBlocking { loadFirstPictures(context, width, CutPosterCache()) { canSearch }(rows) }
+        runBlocking { loadFirstPictures(context, width, { textScale(step) }, CutPosterCache()) { canSearch }(rows) }
         // A count's posters are asked twice, loaded ahead then cut ahead from memory.
         val loaded = asked.distinctBy { it.key }.also { asked.clear() }
-        assertEquals("loaded ahead: home's first view", firstPictures(PicturesAhead(context, width), rows, canSearch).size, loaded.size)
+        assertEquals("loaded ahead: home's first view", firstPictures(ahead(step), rows, canSearch).size, loaded.size)
 
         val home = HomeState(rows.libraries, HomeContent.Rows(rows.sections), rows.doors)
-        compose.setTvContent { HomeGrid(home, HomeActions(onOpenSearch = {}.takeIf { canSearch })) }
+        compose.setTvContent(step) { HomeGrid(home, HomeActions(onOpenSearch = {}.takeIf { canSearch })) }
         compose.waitForIdle()
         return loaded to asked.toList()
     }
@@ -167,7 +175,7 @@ class HomePicturesAheadTest {
     /** Without search, Rechercher's wall is neither shown nor loaded ahead; the sagas take its place. */
     @Test
     fun withoutSearchTheLaunchLoadsNoWall() {
-        val searching = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), withSagas).size
+        val searching = firstPictures(ahead(), withSagas).size
         val (loaded, shown) = loadAheadThenShow(withSagas, canSearch = false)
         assertTheSame(loaded, shown)
         assertTrue("fewer pictures without Rechercher's wall: ${loaded.size} of $searching", loaded.size < searching)
@@ -181,6 +189,21 @@ class HomePicturesAheadTest {
         val (loaded, shown) = loadAheadThenShow()
         assertTheSame(loaded, shown)
         assertEquals(listOf("https://img.test/backdrop/heat?w=1280"), loaded.mapNotNull { it.key?.key }.filter { "backdrop/heat" in it })
+    }
+
+    /**
+     * At Compacte, where the doors' band is shorter, their pictures taller and their counts larger, home finds each
+     * picture loaded ahead, its counts cut, its sagas' and its wall's posters at their size.
+     */
+    @Test
+    fun atCompacteTheLaunchLoadsWhatTheGridShows() {
+        val (loaded, shown) = loadAheadThenShow(withSagas, step = TextSize.COMPACT.step)
+        assertTheSame(loaded, shown)
+        val keys = loaded.mapNotNull { it.key?.key }
+        assertEquals("cut", 5, loaded.count { it.key?.extras?.containsKey("houselights.cut") == true })
+        listOf("logo/heat", "backdrop/mobland", "poster/film1?", "poster/saga1?").forEach { picture ->
+            assertTrue("$picture loaded ahead: $keys", keys.any { picture in it })
+        }
     }
 
     /** At 4K, where a logo may be enlarged past its file's pixels, home still finds each picture loaded ahead. */
@@ -201,7 +224,7 @@ class HomePicturesAheadTest {
         val proposed = titled("alien")
         val sections = rows.sections.filter { it.type != SectionType.CONTINUE }
         val launched = HomeRows(rows.libraries, sections, doorsAhead = DoorsRead(first, whole))
-        val pictures = loadFirstPictures(context, context.resources.displayMetrics.widthPixels, CutPosterCache())
+        val pictures = loadFirstPictures(context, context.resources.displayMetrics.widthPixels, { textScale(1f) }, CutPosterCache())
         val loading = launch(Dispatchers.Unconfined) { pictures(launched) }
         fun keys() = synchronized(asked) { asked.mapNotNull { it.key?.key } }
         fun cut() = synchronized(asked) { asked.mapNotNull { it.key }.filter { it.extras.containsKey("houselights.cut") }.distinct() }
@@ -233,7 +256,7 @@ class HomePicturesAheadTest {
             add(AwaitAhead)
         }.memoryCache(::memory).eventListener(listener).build()
         Coil.setImageLoader(waiting)
-        val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), rows)
+        val ahead = firstPictures(ahead(), rows)
         val launch = CoroutineScope(Dispatchers.Default)
         try {
             launch.launch { LoadingAhead.load(waiting, ahead) }

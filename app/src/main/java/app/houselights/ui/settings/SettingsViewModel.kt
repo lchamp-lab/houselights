@@ -27,6 +27,7 @@ import app.houselights.settings.Resumed
 import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
+import app.houselights.settings.TextSize
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toWriteError
@@ -72,6 +73,7 @@ internal enum class SettingAction {
     COLLECTIONS,
     METADATA_LANGUAGE,
     INTERFACE_LANGUAGE,
+    TEXT_SIZE,
     REMOVE_FOLDER,
     CLEANUP,
     CLEAR_IMAGE_CACHE,
@@ -254,6 +256,9 @@ internal class SettingsViewModel(
     fun setInterfaceLanguage(tag: String?) = change("Saving the interface language", SettingAction.INTERFACE_LANGUAGE) {
         chooseLanguage(tag)
     }
+
+    /** Saves « Taille du texte »; every screen is laid out again at it. */
+    fun setTextSize(size: TextSize) = change("Saving the text size", SettingAction.TEXT_SIZE) { store.setTextSize(size) }
 
     /**
      * Saves a personal TMDB key unless TMDB refuses it (blank reverts to the built-in one), in [work] as the sheet

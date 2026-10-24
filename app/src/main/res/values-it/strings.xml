@@ -588,6 +588,16 @@
     <string name="ui_resolution_desc">Nei film decide il lettore</string>
     <string name="interface_language">Lingua dell’interfaccia</string>
     <string name="interface_language_desc">Menu, impostazioni e messaggi</string>
+    <string name="text_size">Dimensione del testo</string>
+    <string name="text_size_desc">Tutti i testi dell’app</string>
+    <string name="text_size_sheet">Ingrandisce o riduce tutti i testi di Houselights. La griglia e i margini non cambiano.</string>
+    <string name="text_size_compact">Compatta</string>
+    <string name="text_size_compact_desc">Per leggere da vicino</string>
+    <string name="text_size_standard">Standard</string>
+    <string name="text_size_standard_desc">Consigliata</string>
+    <string name="text_size_large">Grande</string>
+    <string name="text_size_large_desc">Per leggere da lontano</string>
+    <string name="text_size_large_reached">Già raggiunta con l’impostazione di Android</string>
     <string name="ui_4k_desc">Un’interfaccia nitida sui televisori 4K</string>
     <string name="ui_system_desc">La modalità scelta dal sistema</string>
     <string name="current_output">Uscita</string>

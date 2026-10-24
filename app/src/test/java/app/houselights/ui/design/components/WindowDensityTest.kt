@@ -11,8 +11,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import app.houselights.settings.TextSize
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSideSheetDefaults
 import app.houselights.ui.design.HlSize
@@ -64,6 +66,31 @@ class WindowDensityTest {
         }
         compose.waitForIdle()
         assertEquals(Density(canvas.density, LARGER), inside)
+    }
+
+    /** « Taille du texte » reaches a sheet's window: it opens at the step its screen is at. */
+    @Test
+    fun aSheetTakesTheTextSizeStep() {
+        var sheet: Density? = null
+        compose.setTvContent(TextSize.COMPACT.step) { HlSideSheet("Modifier", onDismiss = {}) { sheet = LocalDensity.current } }
+        compose.waitForIdle()
+        assertEquals(canvasDensityOf(SCREEN_PX, TextSize.COMPACT.step), sheet)
+    }
+
+    /** And a menu's window: its words are laid out at the step. */
+    @Test
+    fun aMenuTakesTheTextSizeStep() {
+        compose.setTvContent(TextSize.COMPACT.step) {
+            val options = listOf(MenuOption("Titre", selected = true) {}, MenuOption("Année", selected = false) {})
+            HlMenuButton("Trier", HlIcons.Sort, listOf(MenuSection(null, options)))
+        }
+        compose.onNodeWithText("Trier").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText("Année").fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+        val words = layouts.first().layoutInput.density
+        assertEquals(canvas.density, words.density)
+        assertEquals(TextSize.COMPACT.step, words.fontScale)
     }
 
     @Test

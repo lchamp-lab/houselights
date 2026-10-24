@@ -572,6 +572,16 @@
     <string name="ui_resolution_desc">Bij afspelen kiest de speler zelf</string>
     <string name="interface_language">Taal van de interface</string>
     <string name="interface_language_desc">Menu’s, instellingen en meldingen</string>
+    <string name="text_size">Tekstgrootte</string>
+    <string name="text_size_desc">Alle teksten van de app</string>
+    <string name="text_size_sheet">Vergroot of verkleint alle teksten van Houselights. Het raster en de marges blijven gelijk.</string>
+    <string name="text_size_compact">Compact</string>
+    <string name="text_size_compact_desc">Om van dichtbij te lezen</string>
+    <string name="text_size_standard">Standaard</string>
+    <string name="text_size_standard_desc">Aanbevolen</string>
+    <string name="text_size_large">Groot</string>
+    <string name="text_size_large_desc">Om van ver te lezen</string>
+    <string name="text_size_large_reached">Al bereikt met de instelling van Android</string>
     <string name="ui_4k_desc">Een scherpe interface op 4K-tv’s</string>
     <string name="ui_system_desc">De modus die het systeem kiest</string>
     <string name="current_output">Uitvoer</string>

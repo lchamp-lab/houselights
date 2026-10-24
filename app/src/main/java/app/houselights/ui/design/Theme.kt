@@ -24,9 +24,10 @@ object Hl {
         @Composable @ReadOnlyComposable get() = LocalHlType.current
 }
 
+/** The design system on the canvas, its text at the system's size times [textStep] (« Taille du texte », [textScaleOf]). */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HouselightsTheme(content: @Composable () -> Unit) {
+fun HouselightsTheme(textStep: Float = 1f, content: @Composable () -> Unit) {
     val c = HouselightsColors
     // tv-material's defaults in the system's colours; its Text and Icon take the content colour set below.
     val scheme = darkColorScheme(
@@ -40,7 +41,7 @@ fun HouselightsTheme(content: @Composable () -> Unit) {
         onSurfaceVariant = c.contentSecondary,
         border = c.focus,
     )
-    CompositionLocalProvider(LocalDensity provides canvasDensity()) {
+    CompositionLocalProvider(LocalDensity provides canvasDensity(textStep)) {
         CompositionLocalProvider(
             LocalHlColors provides c,
             LocalHlType provides HouselightsType,
@@ -69,13 +70,28 @@ internal val materialTypography = with(HouselightsType) {
     )
 }
 
-/** Density that fits the canvas ([HlLayout.CANVAS_WIDTH] dp) to the real screen width; font scale kept. */
+/** Density that fits the canvas ([HlLayout.CANVAS_WIDTH] dp) to the real screen width, at the system's text size times [step]. */
 @Composable
-private fun canvasDensity(): Density {
+private fun canvasDensity(step: Float): Density {
     val width = screenWidthPx()
-    val fontScale = LocalDensity.current.fontScale
-    return remember(width, fontScale) { canvasDensityOf(width, fontScale) }
+    val textScale = textScaleOf(LocalDensity.current.fontScale, step)
+    return remember(width, textScale) { canvasDensityOf(width, textScale) }
 }
 
-/** The density that lays the canvas across a screen [widthPx] wide, outside a composition too. */
-fun canvasDensityOf(widthPx: Int, fontScale: Float = 1f): Density = Density(widthPx / HlLayout.CANVAS_WIDTH, fontScale)
+/**
+ * The density that lays the canvas across a screen [widthPx] wide at [textScale] ([textScaleOf]), outside a
+ * composition too. Compose follows Android's curve from 1.03: the smaller sizes grow most, 30 sp and up not at all.
+ */
+fun canvasDensityOf(widthPx: Int, textScale: Float = 1f): Density = Density(widthPx / HlLayout.CANVAS_WIDTH, textScale)
+
+/**
+ * The text size every screen, sheet, menu and preload is laid out at: the system's ([system]) times the app's [step]
+ * (« Taille du texte »), within [TEXT_SCALE_MIN]..[TEXT_SCALE_MAX].
+ */
+fun textScaleOf(system: Float, step: Float = 1f): Float = (system * step).coerceIn(TEXT_SCALE_MIN, TEXT_SCALE_MAX)
+
+/** 1.5 px a sp at 1080p, the Zidoo menus' own: reached only with Android set under 1 and Compacte. */
+const val TEXT_SCALE_MIN = 0.75f
+
+/** Android's largest text size on these players, which the layouts are checked at: Grande adds nothing past it. */
+const val TEXT_SCALE_MAX = 1.3f

@@ -24,10 +24,10 @@ import org.robolectric.shadows.ShadowDialog
 
 /**
  * Sets [content] in the app's theme on the TV canvas (960 × 540 dp at density 1): a canvas dp is a test pixel. Its
- * doors' counts are cut into a cache of its own, as in a new process.
+ * doors' counts are cut into a cache of its own, as in a new process; its text at [textStep] (« Taille du texte »).
  */
-fun ComposeContentTestRule.setTvContent(content: @Composable () -> Unit) = setContent {
-    CompositionLocalProvider(LocalCutPosters provides remember { CutPosterCache() }) { HouselightsTheme(content) }
+fun ComposeContentTestRule.setTvContent(textStep: Float = 1f, content: @Composable () -> Unit) = setContent {
+    CompositionLocalProvider(LocalCutPosters provides remember { CutPosterCache() }) { HouselightsTheme(textStep, content) }
 }
 
 /** The screen of a television, as Robolectric qualifiers. */

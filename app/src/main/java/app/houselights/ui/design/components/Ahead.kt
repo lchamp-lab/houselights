@@ -21,13 +21,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.util.screenWidthPx
 import coil.imageLoader
 
-/** The requests a screen's components will make, so the pictures loaded ahead of it hit memory. */
-class PicturesAhead(private val context: Context, private val screenWidthPx: Int) {
-    private val density = canvasDensityOf(screenWidthPx)
+/**
+ * The requests a screen's components will make on a screen [screenWidthPx] wide at [textScale] ([textScaleOf]), so the
+ * pictures loaded ahead of it hit memory.
+ */
+class PicturesAhead(private val context: Context, private val screenWidthPx: Int, textScale: Float) {
+    private val density = canvasDensityOf(screenWidthPx, textScale)
 
     private fun Dp.px(): Int = with(density) { roundToPx() }
 
@@ -88,13 +92,21 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     }
 }
 
+/** The [PicturesAhead] of the screen composing it: its width, its text size. */
+@Composable
+fun rememberPicturesAhead(): PicturesAhead {
+    val context = LocalContext.current
+    val screen = screenWidthPx()
+    val textScale = LocalDensity.current.fontScale
+    return remember(context, screen, textScale) { PicturesAhead(context, screen, textScale) }
+}
+
 /** Preloads the focused [item]'s detail page pictures so OK never waits; not under the launch screen. */
 @Composable
 internal fun DetailAhead(item: MediaItem?) {
     val context = LocalContext.current
-    val screen = screenWidthPx()
     val covered = LocalLaunchScreen.current.covers
-    val ahead = remember(context, screen) { PicturesAhead(context, screen) }
+    val ahead = rememberPicturesAhead()
     LaunchedEffect(item?.id, item?.logo, covered) {
         if (item != null && !covered) LoadingAhead.load(context.imageLoader, ahead.detail(item))
     }
