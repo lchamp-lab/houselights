@@ -91,6 +91,7 @@ import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
@@ -315,8 +316,8 @@ internal fun placeDoors(spans: List<List<Int>>, heights: List<Float>, gap: Float
     }
 }
 
-/** The grid's width beside the case on the TV canvas, for neighbours worked out before it is measured. */
-private const val DEFAULT_WIDTH = 600f
+/** The grid's width beside the case on the TV canvas (600), for neighbours worked out before it is measured. */
+private val DEFAULT_WIDTH = HlLayout.CANVAS_WIDTH - HlSpace.safeH.value * 2 - HomeGridDefaults.case.value - HlSpace.s.value
 
 /** How wide a door of [span] parts of four stands in a row of the grid on the TV canvas. */
 fun doorWidth(span: Int): Dp {
@@ -401,11 +402,15 @@ private fun DoorBand(name: String, icon: ImageVector, note: DoorNote?, progress:
     }
 }
 
-/** A band's icon, then its name, then at its end its note while the three fit; a name too long for its icon goes without it. */
+/**
+ * A band's icon, then its name, then at its end its note while the three fit; a name too long for its icon goes without
+ * it. A door of one part ([doorWidth]) keeps them closer.
+ */
 @Composable
 private fun BandLine(modifier: Modifier, content: @Composable () -> Unit) {
     Layout(content, modifier.fillMaxWidth()) { measurables, constraints ->
-        val gap = HlSpace.xs.roundToPx()
+        val narrow = constraints.maxWidth < (doorWidth(2) - HlSpace.s * 2).roundToPx()
+        val gap = (if (narrow) HomeGridDefaults.bandGapNarrow else HlSpace.xs).roundToPx()
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val nameWidth = measurables[1].maxIntrinsicWidth(loose.maxHeight)
         val icon = measurables[0].measure(loose)
@@ -434,7 +439,7 @@ private fun NoteWords(note: DoorNote) {
         is DoorNote.Mark -> Text(note.text, style = Hl.type.jaquette, color = c.contentSecondary, maxLines = 1)
         is DoorNote.News -> Row(verticalAlignment = Alignment.CenterVertically) {
             // The ember dot says new; the words say how many.
-            Box(Modifier.size(HlSize.newsDot).background(c.ember, CircleShape))
+            Box(Modifier.size(HlSize.doorDot).background(c.ember, CircleShape))
             Spacer(Modifier.width(HlSpace.xs))
             Text(note.text, style = Hl.type.meta, color = c.content, maxLines = 1)
         }
@@ -674,7 +679,7 @@ fun DoorPosters(items: List<MediaItem>, modifier: Modifier = Modifier) {
         },
         modifier = modifier.fillMaxSize(),
     ) { measurables, constraints ->
-        val gap = HomeGridDefaults.posterGap.roundToPx()
+        val gap = HlSpace.xxs.roundToPx()
         val h = constraints.maxHeight
         val w = (h * HlSize.POSTER_RATIO).roundToInt()
         val placeables = measurables.map { it.measure(Constraints.fixed(w, h)) }
@@ -714,8 +719,8 @@ private fun SagaPoster(item: MediaItem, px: Int, decoded: IntSize, modifier: Mod
 }
 
 /**
- * A wall of [items]' small posters, out, from the door's top: what a search reaches. It fills the door, [items] taken
- * again in turn when fewer than it holds ([wallThumbs]).
+ * A wall of [items]' small posters, out, from the door's top, fading into its glass at its foot: what a search reaches.
+ * It fills the door, [items] taken again in turn when fewer than it holds ([wallThumbs]).
  */
 @Composable
 fun DoorWall(items: List<MediaItem>, modifier: Modifier = Modifier) {
@@ -726,9 +731,12 @@ fun DoorWall(items: List<MediaItem>, modifier: Modifier = Modifier) {
         m *= ColorMatrix().apply { setToScale(WALL, WALL, WALL, 1f) }
         ColorFilter.colorMatrix(m)
     }
+    val c = Hl.colors
     BoxWithConstraints(modifier.fillMaxSize()) {
         val shown = remember(items, maxWidth, maxHeight) { items.cycledTo(wallThumbs(maxWidth, maxHeight)) }
         WallThumbs(shown, width, decoded, out)
+        // The wall fades into the door's glass towards its band.
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(*HlScrim.WALL_FOOT.colorStops(c.glass))))
     }
 }
 
@@ -744,7 +752,7 @@ private fun WallThumbs(items: List<MediaItem>, width: Int, decoded: IntSize, out
         },
         modifier = Modifier.fillMaxSize(),
     ) { measurables, constraints ->
-        val gap = HomeGridDefaults.posterGap.roundToPx()
+        val gap = HlSpace.xxs.roundToPx()
         val thumb = HomeGridDefaults.wallThumb.roundToPx()
         val columns = ((constraints.maxWidth + gap) / (thumb + gap)).coerceAtLeast(1)
         val w = (constraints.maxWidth - gap * (columns - 1)) / columns
@@ -766,7 +774,7 @@ internal fun <T> List<T>.cycledTo(count: Int): List<T> = if (isEmpty()) emptyLis
 
 /** How many small posters [DoorWall] lays across [width] and down [height] (dp). */
 internal fun wallThumbs(width: Dp, height: Dp): Int {
-    val gap = HomeGridDefaults.posterGap.value
+    val gap = HlSpace.xxs.value
     val thumb = HomeGridDefaults.wallThumb.value
     val columns = floor((width.value + gap) / (thumb + gap)).toInt().coerceAtLeast(1)
     val w = (width.value - gap * (columns - 1)) / columns
@@ -912,7 +920,21 @@ private fun Fact(fact: StateFact, modifier: Modifier = Modifier) {
 
 /** A poster a count is cut in, read for its pixels, with its tone for the door's glow. */
 @Immutable
-class CutPoster(val bitmap: Bitmap, val tone: Color)
+class CutPoster(val bitmap: Bitmap, val tone: Color) {
+    @Volatile
+    private var scaled: Bitmap? = null
+
+    /** This poster [height] px tall, as its digit draws it, if made already ([scaledTo]). */
+    internal fun scaledOrNull(height: Int): Bitmap? = if (height == bitmap.height) bitmap else scaled?.takeIf { it.height == height }
+
+    /** This poster [height] px tall, made once and kept: never on the main thread, as the door draws on. */
+    internal fun scaledTo(height: Int): Bitmap = scaledOrNull(height) ?: synchronized(this) {
+        scaledOrNull(height) ?: run {
+            val width = (bitmap.width * height / bitmap.height.toFloat()).roundToInt().coerceAtLeast(1)
+            Bitmap.createScaledBitmap(bitmap, width, height, true).also { scaled = it }
+        }
+    }
+}
 
 /** The posters a door's count is cut in and its tint ([doorTint]), loaded; empty until they are. */
 @Immutable
@@ -933,18 +955,21 @@ internal fun cutPosterRequest(context: Context, item: MediaItem, px: (Dp) -> Int
 /** Added to a cut poster's memory cache key: its software copy never stands for its card's. */
 private const val CUT = "houselights.cut"
 
-/** The posters of [items] a door's count is cut in, with their tint: those made last at once, else loaded off the main thread. */
+/**
+ * The posters of [items] a door's count is cut in, with their tint: those made last at once, else loaded off the main
+ * thread, the posters shown until then staying, so a count reloaded never falls back to ink.
+ */
 @Composable
 fun rememberCutPosters(items: List<MediaItem>): CutPosters {
     val context = LocalContext.current
     val density = LocalDensity.current
     val keys = remember(items) { cutKeys(items) }
-    var loaded by remember(keys) { mutableStateOf(CutPostersMade.of(keys) ?: CutPosters()) }
+    var shown by remember { mutableStateOf(CutPostersMade.of(keys) ?: CutPosters()) }
     LaunchedEffect(keys) {
-        if (loaded.posters.isNotEmpty() || items.isEmpty()) return@LaunchedEffect
-        loaded = makeCutPosters(context, items) { with(density) { it.roundToPx() } }
+        shown = CutPostersMade.of(keys)
+            ?: if (items.isEmpty()) CutPosters() else makeCutPosters(context, items) { with(density) { it.roundToPx() } }
     }
-    return loaded
+    return shown
 }
 
 /**
@@ -1116,11 +1141,16 @@ fun DoorFigures(count: String, posters: CutPosters, size: TextUnit, lit: Boolean
     val measurer = rememberTextMeasurer(cacheSize = 1)
     val style = Hl.type.figureSignature
     // Laid out and cut once for a count, its posters and its size: focus only lights the tint.
-    val figure = remember(count, posters, size, style, measurer) {
-        if (!size.isSpecified) return@remember null
-        val layout = measurer.measure(count, style.figureAt(size), softWrap = false, maxLines = 1)
-        CutFigure(layout, cutBrushes(layout, posters.posters))
+    val layout = remember(count, size, style, measurer) {
+        if (size.isSpecified) measurer.measure(count, style.figureAt(size), softWrap = false, maxLines = 1) else null
     }
+    // Cut at once when its posters are scaled to its line; else they are, off the main thread, the last cut drawn meanwhile.
+    val ready = remember(layout, posters) { layout?.let { cutFigure(it, posters.posters, scale = false) } }
+    var last by remember { mutableStateOf<CutFigure?>(null) }
+    LaunchedEffect(layout, posters) {
+        last = ready ?: layout?.let { withContext(Dispatchers.Default) { cutFigure(it, posters.posters, scale = true) } }
+    }
+    val figure = if (layout == null) null else ready ?: last
     val tints = remember { ScaledTint() }
     val tint = animateFloatAsState(
         if (lit) 1f else HlAlpha.DOOR_TINT,
@@ -1164,32 +1194,33 @@ private class CutFigure(val layout: TextLayoutResult, val digits: List<Cut>)
 private class Cut(val left: Float, val right: Float, val brush: Brush?)
 
 /**
- * The digits of [layout], each with the next of [posters] as its brush, in the layout's own coordinates: the poster
- * at the size that makes it 2.1 times the line's height, centred across the digit and from a tenth down, so its upper
- * half shows. Each digit reaches half way to its neighbours, so no stroke of it is lost.
+ * [layout]'s digits, each with the next of [posters] as its brush, in the layout's own coordinates: the poster at the
+ * size that makes it 2.1 times the line's height, centred across the digit and from a tenth down, so its upper half
+ * shows. Each digit reaches half way to its neighbours, so no stroke of it is lost. The posters are scaled to that
+ * size once when [scale]s (off the main thread); without, null until they are.
  */
-private fun cutBrushes(layout: TextLayoutResult, posters: List<CutPoster?>): List<Cut> {
+private fun cutFigure(layout: TextLayoutResult, posters: List<CutPoster?>, scale: Boolean): CutFigure? {
     val text = layout.layoutInput.text.text
     val boxes = text.indices.filter { text[it].isDigit() }.map { layout.getBoundingBox(it) }
     val line = layout.size.height.toFloat()
-    return boxes.mapIndexed { k, box ->
+    val height = (line * POSTER_OVER_LINE).roundToInt().coerceAtLeast(1)
+    val digits = boxes.mapIndexed { k, box ->
         val left = if (k == 0) -BIG else (boxes[k - 1].right + box.left) / 2
         val right = if (k == boxes.lastIndex) BIG else (box.right + boxes[k + 1].left) / 2
-        val brush = posters.getOrNull(k)?.let { posterBrush(it.bitmap, Rect(box.left, 0f, box.right, line)) }
+        val brush = posters.getOrNull(k)?.let { poster ->
+            val drawn = if (scale) poster.scaledTo(height) else poster.scaledOrNull(height) ?: return null
+            posterBrush(drawn, Rect(box.left, 0f, box.right, line))
+        }
         Cut(left, right, brush)
     }
+    return CutFigure(layout, digits)
 }
 
-/** [bitmap] scaled once to its drawn size, so the text paint, which does not filter, draws it point for point. */
-private fun posterBrush(bitmap: Bitmap, digit: Rect): Brush {
-    val height = digit.height * POSTER_OVER_LINE
-    val scale = height / bitmap.height
-    val w = (bitmap.width * scale).roundToInt().coerceAtLeast(1)
-    val h = height.roundToInt().coerceAtLeast(1)
-    val drawn = if (w == bitmap.width && h == bitmap.height) bitmap else Bitmap.createScaledBitmap(bitmap, w, h, true)
+/** A poster at its drawn size ([CutPoster.scaledTo]) on its [digit]: the text paint, which does not filter, draws it point for point. */
+private fun posterBrush(drawn: Bitmap, digit: Rect): Brush {
     val shader = BitmapShader(drawn, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
-        val x = digit.left + (digit.width - w) * POSTER_ACROSS
-        val y = digit.top + (digit.height - h) * POSTER_DOWN
+        val x = digit.left + (digit.width - drawn.width) * POSTER_ACROSS
+        val y = digit.top + (digit.height - drawn.height) * POSTER_DOWN
         setLocalMatrix(Matrix().apply { setTranslate(x.roundToInt().toFloat(), y.roundToInt().toFloat()) })
     }
     return ShaderBrush(shader)

@@ -295,9 +295,9 @@ private fun CacheDrawScope.drawLight(shape: Shape, frame: Brush?, tones: (() -> 
         if (lit.size > 1) {
             val brush = across?.takeIf { it.first == lit }?.second
                 ?: Brush.horizontalGradient(lit, startX = 0f, endX = size.width).also { across = lit to it }
-            drawGlow(Color.White.copy(alpha = glowing), band, corner, brush)
+            drawGlow(glowing, band, corner, across = brush)
         } else {
-            lit.firstOrNull()?.let { tone -> drawGlow(tone.copy(alpha = tone.alpha * glowing), band, corner) }
+            lit.firstOrNull()?.let { tone -> drawGlow(tone.alpha * glowing, band, corner, tone = tone) }
         }
         drawContent()
         val on = lights.on.value
@@ -308,18 +308,18 @@ private fun CacheDrawScope.drawLight(shape: Shape, frame: Brush?, tones: (() -> 
 }
 
 /**
- * The glow around a picture, in [HlScrim.GLOW_STEPS] rings [ring] wide: each ring is drawn once at the combined
- * alpha of stacked layers, so each layer costs a ring's fill, not a picture's, on the player's GPU. With [across],
- * the rings take its colours at [tone]'s strength.
+ * The glow around a picture at [strength], in [HlScrim.GLOW_STEPS] rings [ring] wide: each ring is drawn once at the
+ * combined alpha of stacked layers, so each layer costs a ring's fill, not a picture's, on the player's GPU. In its
+ * [tone], or across the colours of [across].
  */
-private fun DrawScope.drawGlow(tone: Color, ring: Stroke, corner: Float, across: Brush? = null) {
-    if (tone.alpha == 0f) return
+private fun DrawScope.drawGlow(strength: Float, ring: Stroke, corner: Float, tone: Color = Color.Unspecified, across: Brush? = null) {
+    if (strength == 0f) return
     val steps = HlScrim.GLOW_STEPS
     val band = ring.width
     // Transmittance of the stacked layers, accumulated from the outermost lit ring inward; the last ring is clear.
     var through = 1f
     for (k in steps - 1 downTo 1) {
-        through *= 1f - tone.alpha * HlScrim.GLOW_LAYER * (1f - k / steps.toFloat())
+        through *= 1f - strength * HlScrim.GLOW_LAYER * (1f - k / steps.toFloat())
         // The band's middle line: a stroke is drawn half inside, half outside it.
         val middle = band * k - band / 2
         val topLeft = Offset(-middle, -middle)

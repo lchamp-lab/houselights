@@ -1,6 +1,8 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -12,11 +14,14 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
@@ -98,6 +103,28 @@ class MenuKeyTest {
         val tile = compose.onNodeWithTag(TILE).fetchSemanticsNode().boundsInRoot
         val key = keys().single()
         assertTrue("$key under $tile", key.top >= tile.bottom)
+    }
+
+    /** Home's case: its facts keep their score, the key showing at its action's end with focus, taking none of their room. */
+    @Test
+    fun theCasesKeyIsInItsActionAndItsFactsKeepTheirScore() {
+        val film = MediaItem(
+            "tgm", MediaKind.MOVIE, "Top Gun: Maverick", year = 2022, runtimeMs = 7_800_000, officialRating = "TP", communityRating = 8.2,
+        )
+        compose.setTvContent {
+            Box(Modifier.size(HomeGridDefaults.case, caseHeight())) {
+                ResumeCase(film, "Resume", {}, Modifier.focusRequester(first), onLongClick = {}, onLongClickLabel = "More options")
+            }
+        }
+        compose.onNodeWithText("8.2", useUnmergedTree = true).assertIsDisplayed()
+        assertEquals("no key at rest", emptyList<Rect>(), keys())
+        compose.runOnIdle { first.requestFocus() }
+        compose.waitForIdle()
+        compose.onNodeWithText("8.2", useUnmergedTree = true).assertIsDisplayed()
+        val key = keys().single()
+        val action = compose.onNodeWithText("Resume", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertEquals("on the action's line", action.center.y, key.center.y, 1f)
+        assertTrue("after its words: $action, $key", key.left > action.right)
     }
 
     private companion object {

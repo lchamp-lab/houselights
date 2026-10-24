@@ -70,6 +70,9 @@ object HlScrim {
     /** A door's still: black rising under its logo from the middle, to 0.55 at its foot. */
     val STILL_FOOT = listOf(VeilStop(0.45f, 0f), VeilStop(1f, 0.55f))
 
+    /** The search door's wall: its glass rising from a third of its height, to 0.65 at its foot. */
+    val WALL_FOOT = listOf(VeilStop(0.3f, 0f), VeilStop(1f, 0.65f))
+
     /** A door's posters as its tint: their light lowered to [DOOR_TINT_LIGHT], their colour lifted [DOOR_TINT_SATURATION] times. */
     const val DOOR_TINT_LIGHT = 0.36f
     const val DOOR_TINT_SATURATION = 1.2f

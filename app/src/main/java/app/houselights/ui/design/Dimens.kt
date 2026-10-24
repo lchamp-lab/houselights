@@ -114,8 +114,9 @@ object HlSize {
     /** The dot of a title new to the library, ringed in black ([newDotRing]) to stand off any picture. */
     val newDot = 10.dp
     val newDotRing = 2.5.dp
-    /** The ember dot before a row's count of new titles. */
+    /** The ember dot before a row's count of new titles; [doorDot] before a door's, a size up. */
     val newsDot = 7.dp
+    val doorDot = 8.dp
     /** The box a state's light sits in, so text lines up after a dot or the attention mark. */
     val statusLight = 16.dp
     /** An icon in a line of text (rating star). */
@@ -268,9 +269,10 @@ internal object HomeGridDefaults {
     val libraryRow = 148.dp
     val toolRow = 136.dp
 
-    /** A door's band, under its picture: its icon, its name and what it says, at the default text size. */
+    /** A door's band, under its picture: its icon, its name and what it says, at the default text size; on one part, closer. */
     val band = 38.dp
     val bandIcon = 18.dp
+    val bandGapNarrow = 6.dp
 
     /** The case's logo, and the next episode's over its still. */
     val caseLogoWidth = 188.dp
@@ -290,9 +292,6 @@ internal object HomeGridDefaults {
     val figureAirX = 14.dp
     val figureAirY = 13.dp
     val figureStart = 13.dp
-
-    /** Between the posters of a band of them and of a wall of them. */
-    val posterGap = 4.dp
 
     /** A poster of the news door's band, as wide as its picture's height makes it at the default text size. */
     val stripPoster = 66.dp
