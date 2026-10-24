@@ -84,7 +84,7 @@ object Route {
             ).takeIf { it.activeCount > 0 }
 
         /** The library the wall shows; a blank title, as a server may send one, is none. */
-        val library: app.houselights.core.Library
+        val wallLibrary: app.houselights.core.Library
             get() = app.houselights.core.Library(id, kind, title?.ifBlank { null })
 
         /** The source's sagas, which a films' wall shows among its films or alone; null when it shows none. */
@@ -92,7 +92,7 @@ object Route {
             get() = sagas?.let { app.houselights.core.Library(it, LibraryKind.COLLECTIONS, null) }
 
         /** The wall's name: its library's title, else [kindName], what its kind is called. */
-        fun wallTitle(kindName: String): String = library.title ?: kindName
+        fun wallTitle(kindName: String): String = wallLibrary.title ?: kindName
 
         companion object {
             /** [library]'s wall filtered by [filter]'s facets; status, genre and decade stay the wall's own. */

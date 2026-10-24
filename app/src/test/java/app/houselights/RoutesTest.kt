@@ -45,11 +45,11 @@ class RoutesTest {
     @Test
     fun aWallIsNamedByItsLibraryElseByItsKind() {
         val named = Route.Library("4k", LibraryKind.MOVIES, title = "Films 4K")
-        assertEquals(Library("4k", LibraryKind.MOVIES, "Films 4K"), named.library)
+        assertEquals(Library("4k", LibraryKind.MOVIES, "Films 4K"), named.wallLibrary)
         assertEquals("Films 4K", named.wallTitle("Movies"))
         listOf(null, "", "  ").forEach { title ->
             val unnamed = Route.Library("movies", LibraryKind.MOVIES, title = title)
-            assertEquals(films, unnamed.library)
+            assertEquals(films, unnamed.wallLibrary)
             assertEquals("Movies", unnamed.wallTitle("Movies"))
         }
     }

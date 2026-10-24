@@ -25,6 +25,7 @@ import androidx.navigation.toRoute
 import app.houselights.core.LibraryFilter
 import app.houselights.core.MediaItem
 import app.houselights.ui.home.HomeGrid
+import app.houselights.ui.home.WatchRow
 import app.houselights.ui.home.films
 import app.houselights.ui.home.fullHome
 import app.houselights.ui.home.sagaLibrary
@@ -40,6 +41,7 @@ import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.libraryName
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -87,14 +89,15 @@ class PagesNavigationTest {
     @Composable
     private fun WallAt(entry: NavBackStackEntry, onOpenItem: (MediaItem) -> Unit) {
         val route = entry.toRoute<Route.Library>()
+        val library = route.wallLibrary
         val vm: LibraryViewModel = viewModel(
             factory = viewModelFactory {
                 initializer {
-                    LibraryViewModel({ source }, route.library, createSavedStateHandle(), opensOn = route.filter, sagas = route.sagasLibrary)
+                    LibraryViewModel({ source }, library, createSavedStateHandle(), opensOn = route.filter, sagas = route.sagasLibrary)
                 }
             },
         )
-        Wall(vm, route.library, route.wallTitle(libraryName(route.kind)), onOpenItem)
+        Wall(vm, library, route.wallTitle(libraryName(route.kind)), onOpenItem)
     }
 
     private fun focusIsOn(text: String) = compose.onNode(isFocused()).assert(hasText(text, substring = true))
@@ -162,6 +165,24 @@ class PagesNavigationTest {
             back()
             compose.runOnIdle { assertTrue("one Back from $door's page", nav.on(Route.Home::class)) }
             focusIsOn(door)
+        }
+    }
+
+    /** « À regarder » opened over home shares home's state, the rows its doors showed; opened alone, it keeps its own. */
+    @Test
+    fun theWatchPageSharesHomesStateOverHome() {
+        val nav = app()
+        compose.runOnIdle { nav.homeActions().onOpenWatch(WatchRow.LATEST) }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            val watch = checkNotNull(nav.currentBackStackEntry)
+            assertSame(nav.getBackStackEntry<Route.Home>(), nav.watchOwner(watch))
+        }
+        compose.runOnIdle { nav.navigate(Route.Watch.of(WatchRow.CONTINUE)) { popUpTo<Route.Home> { inclusive = true } } }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            val alone = checkNotNull(nav.currentBackStackEntry)
+            assertSame(alone, nav.watchOwner(alone))
         }
     }
 

@@ -463,7 +463,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
             val route = entry.toRoute<Route.Library>()
             WithSource(settings.source) {
                 LibraryScreen(
-                    library = route.library,
+                    library = route.wallLibrary,
                     title = route.wallTitle(libraryName(route.kind)),
                     onOpenItem = { openItem(it.id) },
                     opensOn = route.filter,
@@ -521,10 +521,13 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
 @Composable
 private fun WatchPage(nav: NavController, entry: NavBackStackEntry, onOpenItem: (MediaItem) -> Unit) {
     val row = entry.toRoute<Route.Watch>().watchRow
-    val owner = remember(entry) { nav.homeEntry() } ?: entry
+    val owner = remember(entry) { nav.watchOwner(entry) }
     val vm: HomeViewModel = viewModel(owner, factory = HomeViewModel.factory(appContainer()))
     WatchScreen(vm, row, onOpenItem)
 }
+
+/** Whose state « À regarder » at [entry] shares: home's beneath it, so it shows the rows home read, read once; else its own. */
+internal fun NavController.watchOwner(entry: NavBackStackEntry): NavBackStackEntry = homeEntry() ?: entry
 
 /** Home's entry in the back stack, beneath every other screen; null when it is not there. */
 internal fun NavController.homeEntry(): NavBackStackEntry? = try {
