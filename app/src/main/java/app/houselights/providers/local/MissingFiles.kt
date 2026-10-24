@@ -5,7 +5,8 @@ package app.houselights.providers.local
  * - a renamed or moved file (Radarr or Sonarr upgrade, renamed folder) keeps its row;
  * - a missing file waits an hour and a pass, as Radarr and Sonarr remove the old file before importing the new one;
  * - a NAS can list short without failing (pool disk offline, disk not mounted yet): many missing wait a day;
- * - the wall clock can jump ([PassTime]), so a row also waits to be seen missing an hour apart by this process.
+ * - the wall clock can jump ([PassTime]), so a row also waits its hold on the monotonic clock when this process held
+ *   it, else to be seen missing an hour apart by this process.
  */
 internal object MissingFiles {
     /** More missing files than this wait a day, whatever the source size, as one pool disk holds a small share. */
@@ -18,9 +19,9 @@ internal object MissingFiles {
     /**
      * When a pass runs. The wall clock dates rows, but a device without a battery starts on its build date and jumps
      * once the network sets it: a pass earlier than the folder's last one ([lastScanAt]) deletes nothing, and a row
-     * is deleted only once [seenLong] tells this process saw it missing long enough ([MissingSightings]).
+     * is deleted only once [seenLong] tells this process saw it missing long enough for its hold ([MissingSightings]).
      */
-    class PassTime(val now: Long, val lastScanAt: Long = 0, val seenLong: (Long) -> Boolean = { true })
+    class PassTime(val now: Long, val lastScanAt: Long = 0, val seenLong: (id: Long, hold: Long) -> Boolean = { _, _ -> true })
 
     /** Decisions by row id. */
     data class Outcome(
@@ -87,7 +88,7 @@ internal object MissingFiles {
         val hold = if (gone.size > FEW) HOLD_MS else BRIEF_HOLD_MS
         // A clock set back since the folder's last pass deletes nothing.
         val due = waiting.takeUnless { time.now < time.lastScanAt }.orEmpty()
-            .filter { time.now - (it.missingSince ?: time.now) >= hold && time.seenLong(it.id) }.mapTo(HashSet()) { it.id }
+            .filter { time.now - (it.missingSince ?: time.now) >= hold && time.seenLong(it.id, hold) }.mapTo(HashSet()) { it.id }
         val titles = listed.map { it to it.filePath } + relinked.map { (row, file) -> row to file.relativePath }
         return Outcome(
             relinked = relinked.map { (row, file) -> row.id to file },
@@ -189,15 +190,31 @@ internal object MissingFiles {
  * wall clock moves. A restart forgets them, so rows then wait once more: the safe side. Used by one pass at a time.
  */
 internal class MissingSightings(private val elapsed: () -> Long) {
-    private val since = HashMap<Long, Long>()
+    /** First seen missing, and whether this process dated the row ([MissingFiles.Outcome.held]). */
+    private class Sighting(val at: Long, var heldHere: Boolean)
 
-    /** Whether row [id] was first seen missing [MissingFiles.BRIEF_HOLD_MS] ago or more. */
-    fun seenLong(id: Long): Boolean = since[id]?.let { elapsed() - it >= MissingFiles.BRIEF_HOLD_MS } == true
+    private val since = HashMap<Long, Sighting>()
+
+    /**
+     * Whether row [id] was seen missing long enough: its whole [hold] when this process dated it, as a clock jump
+     * since would shorten its age; else [MissingFiles.BRIEF_HOLD_MS], its date coming from an earlier process.
+     */
+    fun seenLong(id: Long, hold: Long): Boolean {
+        val seen = since[id] ?: return false
+        return elapsed() - seen.at >= if (seen.heldHere) hold else MissingFiles.BRIEF_HOLD_MS
+    }
 
     /** Notes a pass over [known] rows: those still missing are seen, from now if not before; the others forgotten. */
     fun note(known: Collection<KnownFile>, outcome: MissingFiles.Outcome) {
-        val missing = (outcome.held + outcome.waiting).toHashSet()
+        val held = outcome.held.toHashSet()
+        val waiting = outcome.waiting.toHashSet()
         val now = elapsed()
-        for (row in known) if (row.id in missing) since.getOrPut(row.id) { now } else since.remove(row.id)
+        for (row in known) {
+            when (row.id) {
+                in held -> since.getOrPut(row.id) { Sighting(now, heldHere = true) }.heldHere = true
+                in waiting -> since.getOrPut(row.id) { Sighting(now, heldHere = false) }
+                else -> since.remove(row.id)
+            }
+        }
     }
 }

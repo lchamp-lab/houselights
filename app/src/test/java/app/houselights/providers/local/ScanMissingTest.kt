@@ -263,6 +263,27 @@ class ScanMissingTest {
         assertTrue(checkNotNull(dao.item(watched)).favorite)
     }
 
+    /** The same jump with the disk offline for hours: its files wait the day they would wait with a clock always right. */
+    @Test
+    fun aClockJumpingForwardStillHoldsManyFilesADay() = runTest {
+        filmFolder(40)
+        val offline = (0 until 21).map(::film)
+        bench.now = START - 2 * YEAR
+        offline.forEach(nas::remove)
+        bench.scan()
+
+        bench.later(10 * MINUTE)
+        bench.now = START + DAY
+        bench.scan()
+        bench.later(3 * HOUR)
+        bench.scan()
+        assertEquals("hours after the jump", 40, filePaths().size)
+
+        bench.later(DAY)
+        bench.scan()
+        assertEquals("a day after they went", (21 until 40).map(::film).sorted(), filePaths())
+    }
+
     private companion object {
         const val START = ScanBench.START
         const val MINUTE = 60_000L

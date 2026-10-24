@@ -86,8 +86,8 @@ class MissingFilesTest {
 
     @Test
     fun aFileMissingAnHourGoesOnceThisProcessSawItMissingLongEnough() {
-        assertEquals(listOf(gone.id), missing(PassTime(NOW) { true }).removed)
-        val unseen = missing(PassTime(NOW) { false })
+        assertEquals(listOf(gone.id), missing(PassTime(NOW) { _, _ -> true }).removed)
+        val unseen = missing(PassTime(NOW) { _, _ -> false })
         assertEquals(emptyList<Long>(), unseen.removed)
         assertEquals(listOf(gone.id), unseen.waiting)
     }
@@ -117,12 +117,30 @@ class MissingFilesTest {
         sightings.note(listOf(gone), held)
         elapsed = MissingFiles.BRIEF_HOLD_MS - 1
         sightings.note(listOf(gone), held.copy(held = emptyList(), waiting = listOf(gone.id)))
-        assertFalse(sightings.seenLong(gone.id))
+        assertFalse(sightings.seenLong(gone.id, MissingFiles.BRIEF_HOLD_MS))
         elapsed += 1
-        assertTrue(sightings.seenLong(gone.id))
+        assertTrue(sightings.seenLong(gone.id, MissingFiles.BRIEF_HOLD_MS))
 
         sightings.note(listOf(gone), held.copy(held = emptyList(), back = listOf(gone.id)))
-        assertFalse("a new absence starts over", sightings.seenLong(gone.id))
+        assertFalse("a new absence starts over", sightings.seenLong(gone.id, MissingFiles.BRIEF_HOLD_MS))
+    }
+
+    /**
+     * A file this process held waits its whole hold on the clock no setting moves, its date being of the same clock;
+     * one held before, maybe by a clock since set right, waits an hour, so a restart does not hold it ever again.
+     */
+    @Test
+    fun aFileHeldByThisProcessWaitsItsWholeHoldOnTheClockNoSettingMoves() {
+        var elapsed = 0L
+        val sightings = MissingSightings { elapsed }
+        val before = film(5, "Before (1999).mkv").copy(missingSince = NOW - MissingFiles.HOLD_MS)
+        val pass = MissingFiles.Outcome(relinked = emptyList(), back = emptyList(), held = listOf(gone.id), removed = emptyList())
+        sightings.note(listOf(gone, before), pass.copy(waiting = listOf(before.id)))
+        elapsed = MissingFiles.BRIEF_HOLD_MS
+        assertTrue("held before this process", sightings.seenLong(before.id, MissingFiles.HOLD_MS))
+        assertFalse("held by this process", sightings.seenLong(gone.id, MissingFiles.HOLD_MS))
+        elapsed = MissingFiles.HOLD_MS
+        assertTrue(sightings.seenLong(gone.id, MissingFiles.HOLD_MS))
     }
 
     private companion object {
