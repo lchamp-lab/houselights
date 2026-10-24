@@ -106,16 +106,26 @@ class HomePicturesAheadTest {
 
     private val state = HomeState(rows.libraries, HomeContent.Rows(rows.sections), rows.doors)
 
-    /** Loads ahead what the launch does ([loadFirstPictures]), then lays home out: what each asked, in that order. */
-    private fun loadAheadThenShow(): Pair<List<Asked>, List<Asked>> {
+    /** The same home with sagas, their door showing their posters. */
+    private val withSagas = rows.copy(
+        libraries = rows.libraries + sagaLibrary,
+        doors = checkNotNull(rows.doors).copy(sagas = Shelf(sagaLibrary, 9, (1..6).map { titled("saga$it") })),
+    )
+
+    /**
+     * Loads ahead what the launch does ([loadFirstPictures]) for [rows], then lays home out, searching if [canSearch]:
+     * what each asked, in that order.
+     */
+    private fun loadAheadThenShow(rows: HomeRows = this.rows, canSearch: Boolean = true): Pair<List<Asked>, List<Asked>> {
         Coil.setImageLoader(loader)
         val width = context.resources.displayMetrics.widthPixels
-        runBlocking { loadFirstPictures(context, width, CutPosterCache())(rows) }
+        runBlocking { loadFirstPictures(context, width, CutPosterCache()) { canSearch }(rows) }
         // A count's posters are asked twice, loaded ahead then cut ahead from memory.
         val loaded = asked.distinctBy { it.key }.also { asked.clear() }
-        assertEquals("loaded ahead: home's first view", firstPictures(PicturesAhead(context, width), rows).size, loaded.size)
+        assertEquals("loaded ahead: home's first view", firstPictures(PicturesAhead(context, width), rows, canSearch).size, loaded.size)
 
-        compose.setTvContent { HomeGrid(state) }
+        val home = HomeState(rows.libraries, HomeContent.Rows(rows.sections), rows.doors)
+        compose.setTvContent { HomeGrid(home, HomeActions(onOpenSearch = {}.takeIf { canSearch })) }
         compose.waitForIdle()
         return loaded to asked.toList()
     }
@@ -143,6 +153,25 @@ class HomePicturesAheadTest {
         val cut = loaded.filter { it.key?.extras?.containsKey("houselights.cut") == true }
         assertEquals("a poster per digit of 412 and of 38, read for its pixels", 5, cut.size)
         assertTrue("the latest titles' band", keys.any { "poster/film1?" in it })
+    }
+
+    /** With sagas, their door's posters are loaded ahead as it shows them, beside Rechercher's wall. */
+    @Test
+    fun theLaunchLoadsTheSagasDoor() {
+        val (loaded, shown) = loadAheadThenShow(withSagas)
+        assertTheSame(loaded, shown)
+        val keys = loaded.mapNotNull { it.key?.key }
+        assertTrue("the sagas' posters: $keys", keys.any { "poster/saga1?" in it })
+    }
+
+    /** Without search, Rechercher's wall is neither shown nor loaded ahead; the sagas take its place. */
+    @Test
+    fun withoutSearchTheLaunchLoadsNoWall() {
+        val searching = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), withSagas).size
+        val (loaded, shown) = loadAheadThenShow(withSagas, canSearch = false)
+        assertTheSame(loaded, shown)
+        assertTrue("fewer pictures without Rechercher's wall: ${loaded.size} of $searching", loaded.size < searching)
+        assertTrue("the sagas' posters", loaded.mapNotNull { it.key?.key }.any { "poster/saga1?" in it })
     }
 
     /** At the player's density, the case asks for TMDB's largest picture short of the original, ahead as on screen. */

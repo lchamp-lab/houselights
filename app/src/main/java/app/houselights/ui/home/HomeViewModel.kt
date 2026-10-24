@@ -1,5 +1,6 @@
 package app.houselights.ui.home
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -11,6 +12,8 @@ import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.SourceConfig
+import app.houselights.core.browsable
+import app.houselights.core.sagas
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
@@ -25,9 +28,7 @@ import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,7 +36,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import android.util.Log
+import kotlinx.coroutines.isActive
+import kotlin.coroutines.cancellation.CancellationException
 
 /** What Home shows under its head: the grid of its [Rows], or a [Message] saying why there is none. */
 sealed interface HomeContent {
@@ -71,14 +73,14 @@ data class HomeState(
     val doors: HomeDoors? = null,
     val status: HomeStatus? = null,
 ) {
-    /** The tabs: every library except the sagas, which a films' wall shows among its films ([sagas]). */
-    val tabs: List<Library> get() = libraries.filter { it.kind != LibraryKind.COLLECTIONS }
+    /** Every library but the sagas ([sagas]), each with its own wall. */
+    val browsable: List<Library> get() = libraries.browsable()
 
     /** The source's sagas, if it has any: a films' wall shows them among its films, or alone. */
-    val sagas: Library? get() = libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
+    val sagas: Library? get() = libraries.sagas()
 
     /** The first films library, whose wall the sagas door opens on its sagas alone. */
-    val films: Library? get() = tabs.firstOrNull { it.kind == LibraryKind.MOVIES }
+    val films: Library? get() = browsable.firstOrNull { it.kind == LibraryKind.MOVIES }
 }
 
 /** The source's last result for Home, kept while reloading so an intertitle and its focused button stay. */

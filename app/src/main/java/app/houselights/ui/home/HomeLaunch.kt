@@ -4,10 +4,11 @@ import android.content.Context
 import app.houselights.LaunchGate
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
-import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaProvider
 import app.houselights.core.SourceConfig
+import app.houselights.core.browsable
+import app.houselights.core.sagas
 import app.houselights.core.suspendRunCatching
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.components.CutPosterCache
@@ -185,11 +186,8 @@ internal fun loadFirstPictures(
 }
 
 /** Home's grid for the launch's [rows]. */
-private fun planOf(rows: HomeRows, canSearch: Boolean): HomePlan {
-    val tabs = rows.libraries.filter { it.kind != LibraryKind.COLLECTIONS }
-    val sagas = rows.libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
-    return homePlan(rows.sections, tabs, sagas, rows.doors, canSearch)
-}
+private fun planOf(rows: HomeRows, canSearch: Boolean): HomePlan =
+    homePlan(rows.sections, rows.libraries.browsable(), rows.libraries.sagas(), rows.doors, canSearch)
 
 /** The posters a door's count is cut in; none for a door that shows no count. */
 private fun cutIn(door: Door): List<MediaItem>? = when (door) {
