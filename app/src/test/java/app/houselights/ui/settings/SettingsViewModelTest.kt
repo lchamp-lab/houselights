@@ -338,6 +338,8 @@ class SettingsViewModelTest {
         assertFalse(unreadSecretIn(Pane.Trakt, unread, folders = false))
         assertFalse(unreadSecretIn(Pane.Display, unread, folders = true))
         assertFalse(unreadSecretIn(Pane.Library, setOf(SecretSetting.SOURCE), folders = true))
+        // The server kept beside the folders, which the pane would otherwise leave out unsaid.
+        assertTrue(unreadSecretIn(Pane.Library, setOf(SecretSetting.KEPT_SERVER), folders = true))
     }
 
     /** Paused under a server, Trakt's pane can only disconnect: it never asks to connect again there. */

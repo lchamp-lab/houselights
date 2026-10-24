@@ -190,9 +190,12 @@ internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>, folders: Boole
     else -> null
 }
 
-/** Whether [pane] shows a secret the Keystore did not open for now ([unread]); Trakt's only with the [folders]. */
+/**
+ * Whether [pane] shows a secret the Keystore did not open for now ([unread]): the library's TMDB key or kept server,
+ * Trakt's session only with the [folders].
+ */
 internal fun unreadSecretIn(pane: Pane, unread: Set<SecretSetting>, folders: Boolean): Boolean = when (pane) {
-    Pane.Library -> SecretSetting.TMDB_KEY in unread
+    Pane.Library -> SecretSetting.TMDB_KEY in unread || SecretSetting.KEPT_SERVER in unread
     Pane.Playback -> SecretSetting.PATH_MAPPINGS in unread
     Pane.Trakt -> folders && SecretSetting.TRAKT in unread
     else -> false
