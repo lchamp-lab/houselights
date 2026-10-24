@@ -1,6 +1,7 @@
 package app.houselights.ui.detail
 
 import android.content.Context
+import android.os.Looper
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsDisplayed
@@ -8,6 +9,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -17,6 +19,7 @@ import app.houselights.R
 import app.houselights.core.NotFoundException
 import app.houselights.core.UserState
 import app.houselights.testing.http
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
@@ -43,8 +46,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.io.IOException
+import java.time.Duration
 
 /**
  * A title's page says what failed where it happened: a play where it was asked, a part under the title, with Réessayer;
@@ -325,6 +330,39 @@ class DetailFailuresTest {
         compose.waitForIdle()
         button(R.string.play).assertIsFocused()
         compose.onNode(hasText("s1e1") and hasClickAction()).assertIsDisplayed()
+    }
+
+    /** Lire's episode answering before the seasons: Réessayer stays busy in its place, nothing said under the title. */
+    @Test
+    fun retryStaysBusyUntilAllOfTheReloadAnswers() {
+        bothFail(IOException("Server away"))
+        provider.fail = { null }
+        val seasons = provider.gate("seasons show")
+        compose.press(Key.DirectionCenter)
+        button(R.string.play).assertDoesNotExist()
+        said(R.string.retrying).assertIsDisplayed()
+        assertEquals(1, times(R.string.error_offline_title))
+
+        seasons.complete(Unit)
+        compose.waitForIdle()
+        button(R.string.play).assertIsFocused()
+        assertEquals(0, times(R.string.error_offline_title))
+    }
+
+    /** A season chosen after Lire's episode failed whose episodes fail too: a failure of its own, said on its row. */
+    @Test
+    fun episodesFailingAfterLireAreSaidOnTheirRow() {
+        provider.fail = { if (it == "nextUp show") IOException("Server away") else null }
+        page("show")
+        provider.fail = { if (it == "nextUp show" || it == "episodes s2") IOException("Server away") else null }
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight)
+        compose.onNode(isSelected() and hasText("Season 2", substring = true)).assertIsFocused()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(HlMotion.SETTLE + 1))
+        compose.waitForIdle()
+
+        compose.press(Key.DirectionDown)
+        compose.onNode(hasText(text(R.string.retry)) and hasClickAction() and isFocused()).assertExists()
     }
 
     /** Alone, what Lire starts refused by the server puts Se reconnecter in its place, as its message says. */

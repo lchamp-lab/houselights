@@ -55,6 +55,8 @@ data class DetailState(
     val episodes: List<MediaItem> = emptyList(),
     val episodesLoading: Boolean = false,
     val episodesError: UiError? = null,
+    /** [episodes] or [episodesError] came from the season's own read (a tab chosen, its row's Réessayer), not the page's. */
+    val episodesReadApart: Boolean = false,
     val similar: List<MediaItem> = emptyList(),
     /** Artwork and identification can be changed. */
     val canEdit: Boolean = false,
@@ -95,8 +97,8 @@ data class DetailState(
     /** The source keeps the copy chosen ([ProviderCapabilities.versionChoice]); else the versions only read. */
     val canChooseVersion: Boolean get() = capabilities?.versionChoice == true
 
-    /** What Lire starts failed with the seasons or their episodes: one failure, said once, in Lire's place. */
-    val failedWithLire: Boolean get() = nextUpError != null && (error != null || episodesError != null)
+    /** What Lire starts failed with the seasons or, in the same read, their episodes: one failure, said once in Lire's place. */
+    val failedWithLire: Boolean get() = nextUpError != null && (error != null || episodesError != null && !episodesReadApart)
 
     /** What is said in Lire's place: the seasons' or their episodes' failure when it came with Lire's, else Lire's own. */
     val lireError: UiError? get() = if (failedWithLire) error ?: episodesError else nextUpError
@@ -147,6 +149,8 @@ class DetailViewModel(
         // With no title shown, a retry clears the error to show the load.
         if (_state.value.item == null) _state.update { it.copy(error = null) }
         loads.launch {
+            // What Lire starts, read by this load: shown even should the rest of the page fail after it.
+            var lire: DetailState.() -> DetailState = { this }
             // In a scope of its own, a failed parallel request ends up here instead of crashing the app.
             suspendRunCatching { coroutineScope {
                 val source = provider()
@@ -157,7 +161,7 @@ class DetailViewModel(
                     suspendRunCatching { source.catalog?.credits(item) }.onFailure { Log.w(TAG, "Credits of $itemId", it) }.getOrNull()
                 }
                 when (item.kind) {
-                    MediaKind.SERIES -> seriesPage(source, item, similar)
+                    MediaKind.SERIES -> seriesPage(source, item, similar) { next -> lire = { copy(nextUp = next, nextUpError = null) } }
                     MediaKind.COLLECTION -> collectionPage(source, item)
                     else -> {
                         sayFirst(source, item)
@@ -178,6 +182,7 @@ class DetailViewModel(
                     _state.update { s ->
                         val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
                         s.copy(error = error, episodesLoading = false, episodesError = rowError, partial = false, retrying = false)
+                            .lire()
                     }
                 }
         }
@@ -204,12 +209,18 @@ class DetailViewModel(
 
     /**
      * A series' page: what Lire starts, its seasons, the chosen season's episodes, then [similar] titles. What Lire starts
-     * fails apart, said in its place, and so do episodes not shown yet, on their row; the seasons fail the page.
+     * fails apart, said in its place, and so do episodes not shown yet, on their row; the seasons fail the page, which
+     * still shows what Lire starts once [read].
      */
-    private suspend fun seriesPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState =
+    private suspend fun seriesPage(
+        source: MediaProvider,
+        item: MediaItem,
+        similar: Deferred<List<MediaItem>>,
+        read: (next: MediaItem?) -> Unit,
+    ): DetailState =
         coroutineScope {
-            // Read again after it failed, Lire shows at once, whatever fails after it.
-            val nextUp = async { suspendRunCatching { source.nextUp(item) }.onSuccess(::lireReadAgain) }
+            // Told as soon as read: the seasons may fail before it is awaited.
+            val nextUp = async { suspendRunCatching { source.nextUp(item) }.onSuccess(read) }
             val seasonsLoad = async { source.seasons(item) }
             val nextRead = nextUp.await()
             val next = nextRead.getOrNull()
@@ -238,11 +249,6 @@ class DetailViewModel(
                 tracks = tracks.await(),
             )
         }
-
-    /** What Lire starts, read after it failed: in place of the failure at once. */
-    private fun lireReadAgain(next: MediaItem?) = _state.update {
-        if (it.nextUpError != null) it.copy(nextUp = next, nextUpError = null) else it
-    }
 
     /** A collection's page: its films (requested once; Lire picks from them) and the whole saga if known. */
     private suspend fun collectionPage(source: MediaProvider, item: MediaItem): DetailState {
@@ -323,7 +329,10 @@ class DetailViewModel(
             val error = result.exceptionOrNull()?.reported(TAG, "Episodes of $seasonId")
             _state.update {
                 if (it.selectedSeasonId != seasonId) return@update it
-                it.copy(episodes = result.getOrDefault(emptyList()), episodesLoading = false, episodesError = error)
+                it.copy(
+                    episodes = result.getOrDefault(emptyList()), episodesLoading = false, episodesError = error,
+                    episodesReadApart = true,
+                )
             }
         }
     }
@@ -493,6 +502,7 @@ internal fun DetailState.keepingSeasonOf(current: DetailState): DetailState {
         episodes = current.episodes,
         episodesLoading = current.episodesLoading,
         episodesError = current.episodesError,
+        episodesReadApart = current.episodesReadApart,
     )
 }
 

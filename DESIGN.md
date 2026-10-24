@@ -748,11 +748,11 @@ What fails on a title's page once its title shows is said where it shows, with R
 a saga under the hero, a season's episodes on their row, what a reload cannot read again kept and said under the hero;
 what a show's Lire starts, unread, puts what fixes it in Lire's place as `PartFailed`'s button (Réessayer, Se
 reconnecter, nothing when nothing does, focus then on the first action) and why at the row's end, focus following from
-one to the other. Failing with the seasons or a season's episodes, it is one failure said once, there: theirs, its
-Réessayer reloading all that failed, nothing under the hero, the episode row keeping its title alone
-(`DetailFailuresTest`); Lire read again alone takes its place, and what still fails goes back to its own. A screen that
-cannot load, or has nothing yet, shows an intertitle with what fixes it (`HlEmptyState`). Exception text never reaches
-the screen; it goes to the log.
+one to the other. Failing with the seasons or, in the same read, a season's episodes, it is one failure said once,
+there: theirs, its Réessayer reloading all that failed, busy until all of it answers, nothing under the hero, the
+episode row keeping its title alone (`DetailFailuresTest`); Lire read again alone takes its place, and what still fails
+goes back to its own, as do episodes failing later, on a season chosen. A screen that cannot load, or has nothing yet,
+shows an intertitle with what fixes it (`HlEmptyState`). Exception text never reaches the screen; it goes to the log.
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt.
