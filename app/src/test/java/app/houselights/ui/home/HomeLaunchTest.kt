@@ -5,8 +5,8 @@ import app.houselights.LaunchGate.Reason
 import app.houselights.core.HomeSection
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
-import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.Folder
+import app.houselights.providers.local.ScanState
 import app.houselights.settings.AppSettings
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule

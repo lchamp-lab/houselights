@@ -7,7 +7,7 @@ data class Folder(
     val kind: SourceKind,
     val protocol: Protocol,
     val host: String,
-    /** Where it is, without scheme nor credentials: "nas/volume1/media/films". */
+    /** Where it is, without scheme or credentials: "nas/volume1/media/films". */
     val address: String,
     /** When its last scan ended; 0 until one has. */
     val lastScanAt: Long,

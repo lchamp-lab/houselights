@@ -16,6 +16,10 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.requestFocus
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
@@ -68,6 +72,7 @@ class TmdbKeySheetTest {
     private val tmdb = CompletableDeferred<TmdbKeyCheck>()
     private val files = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val work = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val screens = ViewModelStore()
     private lateinit var db: LibraryDatabase
     private lateinit var store: SettingsStore
     private lateinit var vm: SettingsViewModel
@@ -84,12 +89,18 @@ class TmdbKeySheetTest {
         val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
         store = testSettings(folder.root, files)
-        val sources = SourceSwitcher({ store.state.value }, store::setSource, work)
-        vm = SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = null, checkTmdbKey = { tmdb.await() })
+        val factory = viewModelFactory {
+            initializer {
+                val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> }, check = { _, _ -> })
+                SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = null, checkTmdbKey = { tmdb.await() })
+            }
+        }
+        vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
     }
 
     @After
     fun close() {
+        screens.clear()
         work.cancel()
         files.cancel()
         db.close()

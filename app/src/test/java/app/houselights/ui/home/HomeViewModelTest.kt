@@ -7,10 +7,10 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
 import app.houselights.core.UserState
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
-import app.houselights.providers.local.Folder
 import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.toFolder
 import app.houselights.settings.AppSettings
