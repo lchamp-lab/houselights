@@ -267,6 +267,38 @@ class JellyfinProviderTest {
         assertEquals(listOf(false, true), media.audio.map { it.external })
     }
 
+    private val heatWithTracks = """{"Id":"f1","Name":"Heat","Type":"Movie","MediaSources":[{"Id":"s1","Container":"mkv",""" +
+        """"VideoType":"VideoFile","MediaStreams":[{"Type":"Audio","Codec":"eac3","Language":"fre","Index":1}]}]}"""
+
+    /** A film's page asks the server for the film once: its tracks are read from it, as its launch reads them. */
+    @Test
+    fun aPagesTracksAreReadFromItsItem() = runTest {
+        val server = FakeServer { Answer(200, heatWithTracks) }
+        val jellyfin = provider(server)
+        val options = PlaybackOptions(emptyList(), forceHttp = true)
+        val item = jellyfin.item("f1")
+        val tracks = jellyfin.playedTracks(item, options)
+        assertEquals(listOf("/Items/f1"), server.paths)
+        assertEquals((jellyfin.playback(item, resume = false, options) as PlaybackPlan.Launch).tracks, tracks)
+        assertEquals("Lire reads the film again", 2, server.paths.size)
+        assertEquals("jellyfin:f1", tracks.titleKey)
+    }
+
+    /** Tracks asked a while after the page, or of another title (a show's next episode), ask the server. */
+    @Test
+    fun tracksAskedLaterOrOfAnotherTitleAskTheServer() = runTest {
+        var clock = 0L
+        val server = FakeServer { Answer(200, heatWithTracks) }
+        val jellyfin = JellyfinProvider(account, "device", server.http, now = { clock })
+        val options = PlaybackOptions(emptyList(), forceHttp = true)
+        val item = jellyfin.item("f1")
+        jellyfin.playedTracks(MediaItem("e1", MediaKind.EPISODE, "Pilot"), options)
+        assertEquals(listOf("/Items/f1", "/Items/e1"), server.paths)
+        clock = 6_000
+        jellyfin.playedTracks(item, options)
+        assertEquals(listOf("/Items/f1", "/Items/e1", "/Items/f1"), server.paths)
+    }
+
     /** Home loads the libraries, then its rows, which need them too: the server is asked for them once. */
     @Test
     fun homeAsksForTheLibrariesOnce() = runTest {

@@ -547,6 +547,34 @@ class LocalProviderTest {
         assertNull((provider.playback(provider.item(iso.toString()), resume = false, options) as PlaybackPlan.Launch).media)
     }
 
+    /** A page reads the tracks without the whole plan, as the plan plays them: the chosen copy, a part, a disc, an episode. */
+    @Test
+    fun aPageReadsTheTracksThePlanPlays() = runTest {
+        val options = PlaybackOptions(emptyList(), false)
+        val read = readInOrder()
+        val dubbed = read.copy(audio = listOf(AudioTrack(Codecs.EAC3, 6, "eng")))
+        val heat = movie("Heat") { withMedia(read).copy(tmdbId = 949) }
+        val copy = movie("Heat", path = "Heat 2160p.mkv") { withMedia(dubbed).copy(tmdbId = 949) }
+        dao.groupVersions()
+        dao.setVersionChoice(heat, copy)
+        val unmatched = movie("Ronin") { withMedia(read) }
+        val iso = movie("Ronin", path = "Ronin.iso") { withMedia(read) }
+        val parts = movie("Kill Bill", path = "Kill Bill CD1.mkv") { withMedia(read).copy(parts = listOf("Kill Bill CD2.mkv")) }
+        val show = dao.insert(ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = "Show", sortTitle = "show", addedAt = 0))
+        val episode = dao.insert(
+            ItemEntity(
+                kind = ItemKind.EPISODE, sourceId = source, seriesId = show, title = "E1", sortTitle = "001-0001",
+                seasonNumber = 1, episodeNumber = 1, filePath = "Show/S01E01.mkv", addedAt = 0,
+            ).withMedia(dubbed)
+        )
+        val titles = listOf(heat, unmatched, iso, parts, episode).map { provider.item(it.toString()) }
+        for (item in titles + titles.flatMap { it.parts }) {
+            val plan = provider.playback(item, resume = false, options) as PlaybackPlan.Launch
+            assertEquals(item.id, plan.tracks, provider.playedTracks(item, options))
+        }
+        assertEquals("the chosen copy's", dubbed, provider.playedTracks(titles[0], options).media)
+    }
+
     /** A film's choice of tracks is kept under its TMDB id, which groups its copies: it outlives the copy it was made on. */
     @Test
     fun aChoiceOfTracksOutlivesTheCopyItWasMadeOn() = runTest {

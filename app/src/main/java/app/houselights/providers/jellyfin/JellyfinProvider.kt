@@ -16,6 +16,7 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.Page
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.PlayedTracks
 import app.houselights.core.PlaybackReporter
 import app.houselights.core.launch
 import app.houselights.core.ProviderCapabilities
@@ -52,6 +53,8 @@ class JellyfinProvider(
     private val retryDelaysMs: List<Long> = REPORT_RETRY_MS,
     /** Context for mapping responses to titles; typesetting runs regexes, so keep it off the main thread. */
     private val mapping: CoroutineContext = Dispatchers.Default,
+    /** Monotonic milliseconds, which date the last item read ([lastItem]). */
+    private val now: () -> Long = { System.nanoTime() / NANOS_PER_MS },
 ) : MediaProvider {
     private val client = JellyfinClient(config.serverUrl, deviceId, config.accessToken, http)
     private val api = client.api
@@ -172,7 +175,12 @@ class JellyfinProvider(
         qualities = listOf(Quality.UHD_4K),
     )
 
-    override suspend fun item(id: String): MediaItem = toMedia(api.item(id, userId))
+    override suspend fun item(id: String): MediaItem = toMedia(api.item(id, userId).also { lastItem.set(ItemRead(it, now())) })
+
+    /** The last full item read ([item]), whose page asks for its tracks right after ([playedTracks]). */
+    private val lastItem = AtomicReference<ItemRead?>(null)
+
+    private class ItemRead(val item: BaseItem, val at: Long)
 
     override suspend fun seasons(series: MediaItem): List<MediaItem> =
         titles(api.seasons(series.id, userId, SEASON_FIELDS).items)
@@ -221,12 +229,21 @@ class JellyfinProvider(
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
         play(item.id, sourceId = null, resume, options)
 
+    /** As [playback] reads them, from the item its page has just read when it is that one. */
+    override suspend fun playedTracks(item: MediaItem, options: PlaybackOptions): PlayedTracks {
+        val read = lastItem.get()?.takeIf { it.item.id == item.id && now() - it.at < ITEM_REUSE_MS }?.item
+        val full = read ?: api.item(item.id, userId)
+        val source = full.source(null)
+        val disc = isDisc(source, container(full, source))
+        return PlayedTracks(JellyfinMapper.mediaInfo(full, source).takeUnless { disc }, tracksKey(full))
+    }
+
     /** Plays media source [sourceId] of item [itemId]; falls back to the first source when null or missing. */
     internal suspend fun play(itemId: String, sourceId: String?, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
         // List entries lack MediaSources: reload the full item.
         val full = api.item(itemId, userId)
-        val source = full.mediaSources.firstOrNull { it.id == sourceId } ?: full.mediaSources.firstOrNull()
-        val container = (source?.container ?: full.container)?.substringBefore(',')
+        val source = full.source(sourceId)
+        val container = container(full, source)
         val networkUri = if (options.forceHttp) null else PathResolver.resolve(source?.path ?: full.path, options.pathMappings)
         val uri = networkUri ?: client.streamUrl(full.id, source?.id, container)
         val media = toMedia(full)
@@ -238,12 +255,21 @@ class JellyfinProvider(
             uri, container, startMs,
             reporter = Reporter(full.id, source?.id),
             resumeKey = listOfNotNull(full.id, source?.id).joinToString(RESUME_KEY_SEPARATOR),
-            disc = source?.videoType in DISC_VIDEO_TYPES || container.equals(DISC_IMAGE, ignoreCase = true),
+            disc = isDisc(source, container),
             // The source played, which a stream sends unchanged (static).
             media = JellyfinMapper.mediaInfo(full, source),
-            titleKey = "$TRACKS_KEY${full.seriesId ?: full.id}",
+            titleKey = tracksKey(full),
         )
     }
+
+    private fun BaseItem.source(id: String?): MediaSource? = mediaSources.firstOrNull { it.id == id } ?: mediaSources.firstOrNull()
+
+    private fun container(full: BaseItem, source: MediaSource?) = (source?.container ?: full.container)?.substringBefore(',')
+
+    private fun isDisc(source: MediaSource?, container: String?) =
+        source?.videoType in DISC_VIDEO_TYPES || container.equals(DISC_IMAGE, ignoreCase = true)
+
+    private fun tracksKey(full: BaseItem) = "$TRACKS_KEY${full.seriesId ?: full.id}"
 
     override fun reporter(resumeKey: String): PlaybackReporter? =
         resumeKey.split(RESUME_KEY_SEPARATOR).let { parts -> Reporter(parts[0], parts.getOrNull(1)) }
@@ -352,6 +378,10 @@ class JellyfinProvider(
 
         /** Prefix of a title's key for its choice of tracks ([PlaybackPlan.Launch.titleKey]). */
         private const val TRACKS_KEY = "jellyfin:"
+
+        /** How long a page's item stands for its tracks: they are asked as it shows. */
+        private const val ITEM_REUSE_MS = 5_000L
+        private const val NANOS_PER_MS = 1_000_000L
 
         private const val COLLECTION_LIMIT = 200
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)

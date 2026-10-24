@@ -28,6 +28,7 @@ import app.houselights.core.NfoDocument
 import app.houselights.core.Page
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.PlayedTracks
 import app.houselights.core.PlaybackReporter
 import app.houselights.core.launch
 import app.houselights.core.Person
@@ -301,11 +302,24 @@ class LocalProvider(
 
     /** A part ([MediaItem.parts]) plays from its start; the film plays its first part, which holds the resume point. */
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
+        val (rowId, part) = played(item)
+        return play(rowId, part, resume)
+    }
+
+    /** As [playback] reads them, from the row without its NFO: no source, artwork or player's title. */
+    override suspend fun playedTracks(item: MediaItem, options: PlaybackOptions): PlayedTracks {
+        val (rowId, part) = played(item)
+        val entity = dao.itemRow(rowId) ?: throw NotFoundException("Item $rowId")
+        val file = fileOf(entity, part)
+        return PlayedTracks(firstFileMedia(entity, part).takeUnless { isDisc(file) }, tracksKey(entity))
+    }
+
+    /** The row [item] plays and its part: a multi-copy film plays the chosen copy, else the best ([LocalCatalog.versions]). */
+    private suspend fun played(item: MediaItem): Pair<Long, Int?> {
         val key = itemKey(item) ?: throw NotFoundException("Item ${item.id}")
         val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
-        // A multi-copy film plays the chosen copy, else the best ([LocalCatalog.versions]).
         val copy = if (part == null) chosenCopy(key) else null
-        return play(copy ?: key, part, resume)
+        return (copy ?: key) to part
     }
 
     private suspend fun chosenCopy(titleId: Long): Long? = VersionRank.played(dao.copies(titleId))
@@ -314,9 +328,8 @@ class LocalProvider(
     internal suspend fun play(rowId: Long, part: Int?, resume: Boolean): PlaybackPlan {
         // Full row with NFO, whose artwork URLs may be the only web ones (see LocalMapper.forPlayer).
         val entity = dao.item(rowId) ?: throw NotFoundException("Item $rowId")
-        val files = listOfNotNull(entity.filePath) + entity.parts
-        // A part removed since the page was shown is reported as not found.
-        val file = files.getOrNull((part ?: 1) - 1) ?: throw NotFoundException("No file for $rowId")
+        val files = filesOf(entity)
+        val file = fileOf(entity, part)
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${entity.title} was removed")
         val mapper = LocalMapper(dao, context)
         val container = FilenameParser.extension(file)
@@ -327,13 +340,23 @@ class LocalProvider(
             startMs = if (resume && part == null) entity.positionMs else 0L,
             reporter = LocalReporter(dao, entity.id, part ?: 1, history),
             resumeKey = if (part == null) entity.id.toString() else LocalId.ofPart(entity.id, part),
-            // A disc image, or the stream a scan chose for a Blu-ray or DVD title (see ScanTitles).
-            disc = container == DISC_IMAGE || FilenameParser.discOf(file) != null,
-            // What the scan read is the first file's.
-            media = MediaProbe.decode(entity.mediaInfo).takeIf { (part ?: 1) == 1 },
+            disc = isDisc(file),
+            media = firstFileMedia(entity, part),
             titleKey = tracksKey(entity),
         )
     }
+
+    private fun filesOf(entity: ItemEntity) = listOfNotNull(entity.filePath) + entity.parts
+
+    /** [entity]'s file for [part], else its first; a part removed since the page was shown is reported as not found. */
+    private fun fileOf(entity: ItemEntity, part: Int?): String =
+        filesOf(entity).getOrNull((part ?: 1) - 1) ?: throw NotFoundException("No file for ${entity.id}")
+
+    /** A disc image, or the stream a scan chose for a Blu-ray or DVD title (see ScanTitles). */
+    private fun isDisc(file: String) = FilenameParser.extension(file) == DISC_IMAGE || FilenameParser.discOf(file) != null
+
+    /** What the scan read, which is the first file's. */
+    private fun firstFileMedia(entity: ItemEntity, part: Int?) = MediaProbe.decode(entity.mediaInfo).takeIf { (part ?: 1) == 1 }
 
     private fun partTitle(title: String, part: Int, parts: Int) = "$title · ${context.getString(R.string.part_of, part, parts)}"
 

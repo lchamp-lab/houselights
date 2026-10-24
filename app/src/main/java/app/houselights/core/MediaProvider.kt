@@ -56,8 +56,13 @@ sealed interface PlaybackPlan {
         val media: MediaInfo? = null,
         /** Where the title's choice of tracks is kept: the film, all its copies, or the whole show for an episode. */
         val titleKey: String? = null,
-    ) : PlaybackPlan
+    ) : PlaybackPlan {
+        val tracks: PlayedTracks get() = PlayedTracks(media, titleKey)
+    }
 }
+
+/** What a title's track table reads of the file "Lire" plays ([PlaybackPlan.Launch.media], [PlaybackPlan.Launch.titleKey]). */
+data class PlayedTracks(val media: MediaInfo?, val titleKey: String?)
 
 private const val PLAYER_BACKDROP_PX = 1920
 
@@ -159,6 +164,10 @@ interface MediaProvider {
     suspend fun setPlayed(item: MediaItem, played: Boolean) {}
     suspend fun setFavorite(item: MediaItem, favorite: Boolean) {}
     suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan
+
+    /** The tracks [playback] would play for [item]; a source may read them without building the whole plan. */
+    suspend fun playedTracks(item: MediaItem, options: PlaybackOptions): PlayedTracks? =
+        (playback(item, resume = false, options) as? PlaybackPlan.Launch)?.tracks
 
     /** The reporter of a playback started earlier, from its [PlaybackPlan.Launch.resumeKey]. */
     fun reporter(resumeKey: String): PlaybackReporter? = null

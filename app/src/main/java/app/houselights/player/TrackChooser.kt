@@ -2,6 +2,7 @@ package app.houselights.player
 
 import android.util.Log
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.PlayedTracks
 import app.houselights.core.TrackChoice
 import app.houselights.core.TrackPlan
 import app.houselights.core.TrackPreferences
@@ -37,16 +38,16 @@ class TrackChooser(
      * what the user chose in the player then, which the app could not keep and only the player remembers.
      */
     suspend fun plan(launch: PlaybackPlan.Launch): TrackPlan? {
-        val table = table(launch) ?: return null
+        val table = table(launch.tracks) ?: return null
         val unfollowed = launch.startMs > 0 && launch.resumeKey?.let(playersOwn) == true
         val plan = if (unfollowed) table.copy(preferences = TrackPreferences()) else table
         return plan.takeUnless { it.pick.isEmpty }
     }
 
-    /** [launch]'s tracks and what Settings and the title's choice make of them; null when their order is unknown. */
-    suspend fun table(launch: PlaybackPlan.Launch): TrackPlan? {
-        val media = launch.media?.takeIf { it.tracksInOrder } ?: return null
-        val key = launch.titleKey
+    /** The tracks [played] and what Settings and the title's choice make of them; null when their order is unknown. */
+    suspend fun table(played: PlayedTracks): TrackPlan? {
+        val media = played.media?.takeIf { it.tracksInOrder } ?: return null
+        val key = played.titleKey
         // A choice that cannot be read leaves Settings to decide, never the film unplayed.
         val choice = key?.let { k ->
             suspendRunCatching { load(k) }.onFailure { Log.w(TAG, "Could not read the tracks chosen", it) }.getOrNull()
