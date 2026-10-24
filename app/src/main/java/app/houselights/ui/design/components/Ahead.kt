@@ -94,7 +94,7 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
 
 /** The [PicturesAhead] of the screen composing it: its width, its text size. */
 @Composable
-fun rememberPicturesAhead(): PicturesAhead {
+internal fun rememberPicturesAhead(): PicturesAhead {
     val context = LocalContext.current
     val screen = screenWidthPx()
     val textScale = LocalDensity.current.fontScale

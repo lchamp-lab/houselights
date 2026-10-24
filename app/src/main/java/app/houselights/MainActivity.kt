@@ -239,10 +239,13 @@ class MainActivity : ComponentActivity() {
         val launch = container.launch
         val held = !launch.isOpen
         covered = held
+        val system = resources.configuration.fontScale
+        val settings = container.settings
         val pictures = loadFirstPictures(
             applicationContext,
             resources.displayMetrics.widthPixels,
-            textScale = { textScaleOf(resources.configuration.fontScale, container.settings.state.value.textSize.step) },
+            // Read once the settings are, as home is laid out.
+            textScale = { textScaleOf(system, settings.state.value.textSize.step) },
             cuts = container.cutPosters,
         ) { container.providerOrNull()?.capabilities?.search == true }
         container.homeLaunch.begin(container.scope, restored, pictures)

@@ -6,6 +6,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
@@ -14,12 +15,14 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.text.TextLayoutResult
 import app.houselights.settings.TextSize
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -128,19 +131,20 @@ class TextSizeRowTest {
         compose.onNode(hasText("Recommandée") and hasClickAction()).assertIsSelected().assertIsFocused()
     }
 
-    /** Choosing applies and closes: the step is saved, and the screen behind is laid out again at it. */
+    /** Choosing applies and closes: the step is saved, the screen behind laid out again at it, focus back on the row. */
     @Test
     fun choosingCompacteSavesItAndLaysTheScreenOutAgain() {
         show()
         assertEquals(1f, scaleOf("Taille du texte"))
-        row().performSemanticsAction(SemanticsActions.OnClick)
-        compose.waitForIdle()
+        row().requestFocus()
+        compose.press(Key.DirectionCenter)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_UP)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         waitFor { store.state.value.textSize == TextSize.COMPACT }
         assertNull("the sheet has gone", sheet())
         compose.onNodeWithText("Compacte").assertExists()
         assertEquals(TextSize.COMPACT.step, scaleOf("Taille du texte"))
+        row().assertIsFocused()
     }
 
     /** With Android at its largest, Grande can add nothing: its description says so, and it stays a choice. */
