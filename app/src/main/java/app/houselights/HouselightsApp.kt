@@ -157,7 +157,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         SupervisorJob() + Dispatchers.Main.immediate +
             CoroutineExceptionHandler { _, e -> Log.e("Houselights", "Background task failed", e) }
     )
-    val settings = SettingsStore(app, scope, Secrets.device)
+    val settings = SettingsStore(app, scope, Secrets.device(app))
 
     private val _deviceLocale = MutableStateFlow(InterfaceLanguage.deviceLocales()[0])
 
@@ -184,8 +184,8 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     )
 
     /** The only way to change the source: the current one stays active until the new one is saved. */
-    val sources = SourceSwitcher({ settings.state.value }, settings::setSource, scope)
-    val database = LibraryDatabase.create(app, Secrets.device)
+    val sources = SourceSwitcher({ settings.state.value }, settings::setSource, scope, keepUnopened = settings::setSourceKeepingUnopened)
+    val database = LibraryDatabase.create(app, Secrets.device(app))
 
     /** Trakt follows the account and the source as the settings have them. */
     private val traktFollow = TraktFollow(settings.state)
@@ -371,7 +371,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     init {
         scope.launch { settings.ensureDeviceId() }
         // Seals passwords left in plain text by a failing Keystore (migration 6 to 7) once it works again.
-        scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device) }
+        scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device(app)) }
         // Trakt follows the account and the source; the end of a scan reads it again.
         scope.launch { traktFollow.drive(traktSync) }
         scope.launch { scanner.passEnded.collect(traktSync::scanned) }

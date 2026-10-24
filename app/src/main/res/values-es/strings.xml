@@ -533,6 +533,7 @@
     <string name="error_keystore_title">Almacén de claves no disponible</string>
     <string name="error_keystore">El almacén de claves de este dispositivo se negó a cifrar la contraseña, así que no se guardó nada. Reinicie el reproductor y vuelva a intentarlo.</string>
     <string name="error_keystore_sign_in">Sesión iniciada, pero el almacén de claves de este dispositivo se negó a cifrar el token del servidor, así que no se guardó nada. Reinicie el reproductor e inicie sesión de nuevo.</string>
+    <string name="error_secrets_unread">El almacén de claves de este dispositivo no respondió, pero no se ha perdido nada de lo guardado. Vuelva a intentarlo y, si persiste, reinicie el reproductor.</string>
     <string name="error_settings_title">No se pudieron leer los ajustes</string>
     <string name="error_settings">El almacenamiento de este reproductor no respondió. Vuelva a intentarlo y, si persiste, reinicie el reproductor.</string>
     <string name="error_not_saved_title">No se guardó nada</string>

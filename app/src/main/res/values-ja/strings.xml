@@ -502,6 +502,7 @@
     <string name="error_keystore_title">デバイスのキーストアを利用できません</string>
     <string name="error_keystore">このデバイスのキーストアがパスワードの暗号化を拒否したため、何も保存されませんでした。プレーヤーを再起動して、もう一度お試しください。</string>
     <string name="error_keystore_sign_in">ログインしましたが、このデバイスのキーストアがサーバーのトークンの暗号化を拒否したため、何も保存されませんでした。プレーヤーを再起動して、再ログインしてください。</string>
+    <string name="error_secrets_unread">このデバイスのキーストアが応答しませんでしたが、保存した内容は失われていません。もう一度お試しいただき、解決しない場合はプレーヤーを再起動してください。</string>
     <string name="error_settings_title">設定を読み込めませんでした</string>
     <string name="error_settings">このプレーヤーのストレージが応答しませんでした。もう一度お試しいただき、解決しない場合はプレーヤーを再起動してください。</string>
     <string name="error_not_saved_title">何も保存されませんでした</string>

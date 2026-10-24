@@ -518,6 +518,7 @@
     <string name="error_keystore_title">Sleutelkluis van apparaat niet beschikbaar</string>
     <string name="error_keystore">De sleutelkluis van dit apparaat weigerde het wachtwoord te versleutelen, dus er is niets opgeslagen. Start de speler opnieuw en probeer het nog eens.</string>
     <string name="error_keystore_sign_in">Ingelogd, maar de sleutelkluis van dit apparaat weigerde het token van de server te versleutelen, dus er is niets opgeslagen. Start de speler opnieuw en log daarna opnieuw in.</string>
+    <string name="error_secrets_unread">De sleutelkluis van dit apparaat reageerde niet, maar niets van wat is opgeslagen is verloren. Probeer het nog eens, en start de speler opnieuw als het aanhoudt.</string>
     <string name="error_settings_title">Instellingen konden niet worden gelezen</string>
     <string name="error_settings">De opslag van deze speler reageerde niet. Probeer het nog eens, en start de speler opnieuw als het aanhoudt.</string>
     <string name="error_not_saved_title">Er is niets opgeslagen</string>

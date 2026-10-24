@@ -424,7 +424,8 @@ class LocalProvider(
 
         /**
          * URI the Zidoo player opens: smb://user:password@host/share/path (domain;user for a domain account) or
-         * nfs://host/export/path. Credentials are percent-encoded, as an @, : or / would end the user info.
+         * nfs://host/export/path. Credentials are percent-encoded, as an @, : or / would end the user info; a password
+         * the Keystore did not open for now throws [app.houselights.core.SecretUnreadException].
          */
         fun fileUri(source: SourceEntity, relativePath: String): String {
             val path = listOf(source.share.trim('/'), source.path.trim('/'), relativePath).filter { it.isNotEmpty() }
@@ -433,7 +434,7 @@ class LocalProvider(
                 Protocol.NFS -> "nfs://${source.host}/$path"
                 Protocol.SMB -> {
                     val user = listOf(source.domain, source.username).filter { it.isNotBlank() }.joinToString(";") { Uri.encode(it) }
-                    val auth = if (source.username.isBlank()) "" else "$user:${Uri.encode(source.password.value)}@"
+                    val auth = if (source.username.isBlank()) "" else "$user:${Uri.encode(source.password.forSignIn())}@"
                     "smb://$auth${source.host}/$path"
                 }
             }

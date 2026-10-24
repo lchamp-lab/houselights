@@ -549,6 +549,7 @@ class TraktPaneTest {
         // Kept while connected or not opened at this launch, not once Trakt ended it.
         assertTrue(AppSettings(trakt = lea).keepsTrakt)
         assertTrue(AppSettings(lostSecrets = setOf(SecretSetting.TRAKT)).keepsTrakt)
+        assertTrue(AppSettings(unreadSecrets = setOf(SecretSetting.TRAKT)).keepsTrakt)
         assertFalse(AppSettings(trakt = lea.copy(ended = true)).keepsTrakt)
         assertFalse(AppSettings().keepsTrakt)
     }

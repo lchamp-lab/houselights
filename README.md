@@ -126,7 +126,9 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   gid 0). On an export that does not squash root (Synology's "No mapping"), it reads the chosen folder with
   root's rights: export it **read-only, with root squashed** or mapped to a guest or media account.
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
-  held in the Android Keystore. Android backup is disabled. Disconnecting Trakt revokes the app's token there.
+  held in the Android Keystore, never replaced once made: one the Keystore does not open for now is kept, said as
+  such, never tried empty on the NAS, and read again with Réessayer or on coming back to the app. Android backup is
+  disabled. Disconnecting Trakt revokes the app's token there.
 - Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in
   rather than fall back to plain HTTP, which typing `http://` chooses; refused later (expired, or the player's clock
   wrong), as TMDB's may be, screens say « Certificat refusé ». A server picked among those found gives its own
@@ -136,9 +138,9 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   carries the token in its URL and is only handed to another app through Android's app chooser.
 - Changing source signs out of nothing. A Jellyfin server left for your folders keeps its token, encrypted
   like the source's under its own key, so that it comes back without signing in; one server at most, signed out
-  of instead when the Keystore cannot encrypt it. Its token is revoked on the server when you forget it or sign
-  out of it, or when a new sign-in replaces it, and is never used again after; a token the server refuses is
-  forgotten.
+  of instead when the Keystore cannot encrypt it, and kept as stored when the Keystore has not opened it yet. Its
+  token is revoked on the server when you forget it or sign out of it, or when a new sign-in replaces it, and is
+  never used again after; a token the server refuses is forgotten.
 - Send the log (Settings > About) serves the app's own log on your home network only while its panel is open and the
   app on screen, ten minutes at most: read-only, on the player's private IPv4 address on its home network, never a
   VPN's, at an address holding a random 100-bit code that only the panel shows, each line masked of passwords and

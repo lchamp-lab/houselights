@@ -1,6 +1,8 @@
 package app.houselights.providers.local
 
+import app.houselights.core.SecretUnreadException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -26,5 +28,18 @@ class FileUriTest {
                 LocalProvider.fileUri(source(Protocol.NFS), "Fast # Furious 100%?.mkv"),
         )
         uris.forEach { (expected, uri) -> assertEquals(expected, uri) }
+    }
+
+    /** A password the Keystore did not open for now is never handed to the player empty; a guest needs none. */
+    @Test
+    fun aPasswordNotOpenedIsNeverGivenEmpty() {
+        val unopened = Secret("", unopened = "sealed1:AAAA")
+        assertThrows(SecretUnreadException::class.java) {
+            LocalProvider.fileUri(source(Protocol.SMB, "zidoo").copy(password = unopened), "Top Gun.mkv")
+        }
+        assertEquals(
+            "smb://nas/volume1/media/films/Top Gun.mkv",
+            LocalProvider.fileUri(source(Protocol.SMB).copy(password = unopened), "Top Gun.mkv"),
+        )
     }
 }

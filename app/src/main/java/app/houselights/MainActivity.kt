@@ -308,6 +308,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Back from the player, or from elsewhere during the cue: the lights come up and nothing plays.
         cancelCue()
+        // Secrets the Keystore did not open are tried again.
+        container.settings.readAgain()
     }
 
     // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.
@@ -421,6 +423,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
                 },
                 onJellyfin = { nav.navigate(Route.JellyfinLogin.of(LoginFill.Blank)) },
                 problem = sourceProblem,
+                onReadBack = ::goHome,
             )
         }
         composable<Route.JellyfinLogin> { entry -> JellyfinLoginScreen(entry.toRoute<Route.JellyfinLogin>().fill, onLoggedIn = ::goHome) }

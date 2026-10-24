@@ -24,6 +24,7 @@ import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.settings.AppSettings
 import app.houselights.settings.Resumed
+import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.util.UiError
@@ -37,6 +38,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** What Houselights keeps on the device. */
@@ -284,11 +287,30 @@ internal class SettingsViewModel(
 
     private var mappingsEdited = false
 
+    /** The stored mappings were not opened when this screen opened: [mappings] takes them in once they are. */
+    private var mappingsAwaited = SecretSetting.PATH_MAPPINGS in store.state.value.unreadSecrets
+
+    init {
+        if (mappingsAwaited) viewModelScope.launch { store.state.first { mappingsReadable(it) } }
+    }
+
+    /** Whether [s] holds the stored mappings, then taken in if awaited; never while unread, which an edit would write over. */
+    private fun mappingsReadable(s: AppSettings = store.state.value): Boolean {
+        if (SecretSetting.PATH_MAPPINGS in s.unreadSecrets) return false
+        if (mappingsAwaited) {
+            mappingsAwaited = false
+            _mappings.clear()
+            _mappings.addAll(s.pathMappings)
+        }
+        return true
+    }
+
     /**
      * Saves [mapping] at line [index], or as a new line when null, kept only once both paths are given: a line whose
-     * paths are emptied goes.
+     * paths are emptied goes. Nothing changes while the stored mappings are not opened.
      */
     fun putMapping(index: Int?, mapping: PathMapping) {
+        if (!mappingsReadable()) return
         val incomplete = mapping.from.isBlank() || mapping.to.isBlank()
         when {
             index == null -> if (incomplete) return else _mappings += mapping
@@ -301,6 +323,7 @@ internal class SettingsViewModel(
     }
 
     fun removeMapping(index: Int) {
+        if (!mappingsReadable()) return
         _mappings.removeAt(index)
         mappingsEdited = true
         saveMappings()

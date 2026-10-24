@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.SecretUnreadException
 import app.houselights.testing.smbStatus
 import com.hierynomus.mserref.NtStatus
 import com.hierynomus.mssmb2.SMBApiException
@@ -7,6 +8,7 @@ import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -126,6 +128,17 @@ class SmbBrowserTest {
         browser.list(folder())
         assertEquals(2, opened.size)
         assertEquals(listOf(true), opened[0].closes)
+    }
+
+    /**
+     * A password the Keystore did not open for now is never tried on the NAS as an empty one, which it would refuse as a
+     * wrong password: signing in stops before connecting, here to a port nothing listens on.
+     */
+    @Test
+    fun aPasswordNotOpenedIsNeverTriedOnTheNas() = runTest {
+        val unopened = folder().copy(host = "127.0.0.1", password = Secret("", unopened = "sealed1:AAAA"))
+        val refused = runCatching { SmbBrowser().test(unopened) }.exceptionOrNull()
+        assertTrue("$refused", refused is SecretUnreadException)
     }
 
     /** The form tests what it was given: a scan's session, signed in with the stored password, is not reused. */

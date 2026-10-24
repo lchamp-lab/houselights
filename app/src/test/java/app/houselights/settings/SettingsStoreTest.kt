@@ -11,6 +11,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.SubtitleMode
 import app.houselights.core.TrackPreferences
 import app.houselights.core.TraktSession
+import app.houselights.testing.secretsOf
 import app.houselights.testing.testKey
 import app.houselights.testing.testSecrets
 import app.houselights.ui.testing.SettleMainLooper
@@ -22,6 +23,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -46,6 +48,7 @@ import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
 import java.util.concurrent.Executors
+import javax.crypto.SecretKey
 import kotlin.coroutines.EmptyCoroutineContext
 
 /** Reading the settings when the file or the Keystore fails. */
@@ -73,6 +76,25 @@ class SettingsStoreTest {
         override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = transform(prefs)
     }
 
+    /** A settings file in memory that emits again only when a write changes it, as DataStore does. */
+    private class MemoryStore(prefs: Preferences) : DataStore<Preferences> {
+        val file = MutableStateFlow(prefs)
+
+        override val data: Flow<Preferences> = file
+
+        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+            transform(file.value).also { file.value = it }
+    }
+
+    /** A Keystore that gives no key while [down], then [key]; [loads] counts its answers. */
+    private class FlakyKeystore(val key: SecretKey = testKey(), var down: Boolean = true) {
+        var loads = 0
+        val secrets = secretsOf {
+            loads++
+            if (down) throw ProviderException("Keystore operation failed") else key
+        }
+    }
+
     private fun stored(secrets: Secrets) = mutablePreferencesOf(sourceKey to secrets.seal(Json.encodeToString<SourceConfig>(home)))
 
     /** Settings read apart from where they are collected, as on the device, on the test's scheduler for both. */
@@ -84,7 +106,7 @@ class SettingsStoreTest {
     fun secretsAreOpenedAwayFromTheThreadThatCollects() = runTest {
         val key = testKey()
         val keyAskedOn = Collections.synchronizedList(mutableListOf<Thread>())
-        val reader = Secrets {
+        val reader = secretsOf {
             keyAskedOn += Thread.currentThread()
             key
         }
@@ -92,7 +114,7 @@ class SettingsStoreTest {
         val collector = Executors.newSingleThreadExecutor { Thread(it, "settings collector").also(collecting::add) }.asCoroutineDispatcher()
         val scope = CoroutineScope(collector + SupervisorJob())
         try {
-            val settings = SettingsStore(FlakyStore(0, stored(Secrets { key })), scope, reader)
+            val settings = SettingsStore(FlakyStore(0, stored(secretsOf { key })), scope, reader)
             assertEquals(home, settings.state.first { it.loaded }.source)
             assertTrue("The key was never asked for", keyAskedOn.isNotEmpty())
             assertTrue("Opened on the collector's thread", keyAskedOn.none { it in collecting })
@@ -107,7 +129,7 @@ class SettingsStoreTest {
     fun aSourceSavedIsReadBeforeItsSaveReturns() = runTest {
         val key = testKey()
         // A Keystore as slow as a player's.
-        val slow = Secrets {
+        val slow = secretsOf {
             Thread.sleep(SLOW_KEYSTORE_MS)
             key
         }
@@ -233,9 +255,112 @@ class SettingsStoreTest {
         assertFalse(settings.reading.value)
     }
 
+    /** The Keystore failing at the first opening, as a restarting daemon does: the read waits and opens it again. */
+    @Test
+    fun aKeystoreFailingBrieflyIsTriedAgainWithinTheRead() = runTest {
+        val keystore = FlakyKeystore()
+        val settings = settingsOf(FlakyStore(0, stored(secretsOf { keystore.key })), keystore.secrets)
+        runCurrent()
+        keystore.down = false
+        assertFalse("Said before the Keystore was asked again", settings.state.value.loaded)
+        advanceTimeBy(600)
+        val read = settings.state.value
+        assertEquals(home, read.source)
+        assertEquals(emptySet<SecretSetting>(), read.unreadSecrets)
+        assertEquals(emptySet<SecretSetting>(), read.lostSecrets)
+    }
+
+    /**
+     * The Keystore failing for good at launch: after three tries over two seconds the connection is unread, not lost.
+     * Nothing rewrites it, a write is read back without waiting for it again, and Réessayer opens it once the Keystore
+     * answers.
+     */
+    @Test
+    fun aSecretTheKeystoreDoesNotOpenIsUnreadNotLost() = runTest {
+        val keystore = FlakyKeystore()
+        val sealed = stored(secretsOf { keystore.key })
+        val store = MemoryStore(sealed)
+        val settings = settingsOf(store, keystore.secrets)
+        advanceTimeBy(1_900)
+        assertFalse(settings.state.value.loaded)
+        advanceTimeBy(200)
+        val read = settings.state.value
+        assertTrue(read.loaded)
+        assertFalse(read.readFailed)
+        assertNull(read.source)
+        assertEquals(setOf(SecretSetting.SOURCE), read.unreadSecrets)
+        assertTrue(read.unreadSource)
+        assertEquals(emptySet<SecretSetting>(), read.lostSecrets)
+        assertFalse(read.lostSource)
+        assertEquals(3, keystore.loads)
+
+        settings.setForceHttp(true)
+        assertTrue(settings.state.value.forceHttp)
+        assertTrue(settings.state.value.unreadSource)
+        assertEquals("tried once", 4, keystore.loads)
+        assertEquals(sealed[sourceKey], store.file.value[sourceKey])
+
+        keystore.down = false
+        settings.readAgain()
+        assertTrue(settings.reading.value)
+        runCurrent()
+        assertEquals(home, settings.state.value.source)
+        assertEquals(emptySet<SecretSetting>(), settings.state.value.unreadSecrets)
+        assertFalse(settings.reading.value)
+        // Nothing left to read: nothing is read.
+        val loads = keystore.loads
+        settings.readAgain()
+        runCurrent()
+        assertFalse(settings.reading.value)
+        assertEquals(loads, keystore.loads)
+    }
+
+    /** A Keystore that stays broken locks nothing: the folders can still be chosen, which replace the unread connection. */
+    @Test
+    fun aKeystoreThatStaysBrokenStillLetsTheFoldersBeChosen() = runTest {
+        val keystore = FlakyKeystore()
+        val settings = settingsOf(MemoryStore(stored(secretsOf { keystore.key })), keystore.secrets)
+        advanceTimeBy(2_100)
+        assertTrue(settings.state.value.unreadSource)
+        settings.setSource(SourceConfig.Local)
+        advanceTimeBy(100)
+        assertEquals(SourceConfig.Local, settings.state.value.source)
+        assertEquals(emptySet<SecretSetting>(), settings.state.value.unreadSecrets)
+    }
+
+    /**
+     * "Mes fichiers" chosen while the connection is unread keeps its server, as a server left for the folders always is:
+     * moved sealed as stored, nothing revoked nor waited for, and resumable once the Keystore opens it.
+     */
+    @Test
+    fun theFoldersChosenWhileTheConnectionIsUnreadKeepItsServer() = runTest {
+        val keystore = FlakyKeystore()
+        val sealed = stored(secretsOf { keystore.key })
+        val store = MemoryStore(sealed)
+        val settings = settingsOf(store, keystore.secrets)
+        advanceTimeBy(2_100)
+        assertTrue(settings.state.value.unreadSource)
+        val sources = SourceSwitcher(
+            { settings.state.value }, settings::setSource, backgroundScope,
+            signOut = { _, _ -> error("Nothing is revoked") }, keepUnopened = settings::setSourceKeepingUnopened,
+        )
+
+        sources.switchTo(SourceConfig.Local)
+        assertEquals(SourceConfig.Local, settings.state.value.source)
+        assertEquals(setOf(SecretSetting.KEPT_SERVER), settings.state.value.unreadSecrets)
+        assertEquals(sealed[sourceKey], store.file.value[stringPreferencesKey("kept_server")])
+
+        keystore.down = false
+        settings.readAgain()
+        runCurrent()
+        assertEquals(home, settings.state.value.keptServer)
+        assertEquals(SourceConfig.Local, settings.state.value.source)
+        assertEquals(emptySet<SecretSetting>(), settings.state.value.unreadSecrets)
+    }
+
     @Test
     fun aKeystoreThatCannotSealLeavesThePlainValue() = runTest {
-        val broken = Secrets { throw ProviderException("Failed to generate key") }
+        val broken = secretsOf { throw ProviderException("Failed to generate key") }
         val plain = mutablePreferencesOf(sourceKey to Json.encodeToString<SourceConfig>(home))
         val migration = SealSecrets(broken)
         assertTrue(migration.shouldMigrate(plain))
@@ -261,7 +386,7 @@ class SettingsStoreTest {
     /** "My files" holds no secret: chosen while the Keystore fails, it is still written, never a crash. */
     @Test
     fun theFoldersAreChosenWithoutTheKeystore() = runTest {
-        val broken = Secrets { throw ProviderException("Failed to generate key") }
+        val broken = secretsOf { throw ProviderException("Failed to generate key") }
         val settings = testSettings(folder.root, backgroundScope, broken)
         settings.setSource(SourceConfig.Local)
         assertEquals(SourceConfig.Local, settings.state.first { it.source != null }.source)
@@ -326,7 +451,7 @@ class SettingsStoreTest {
     /** A kept server the Keystore cannot seal leaves the file as it was: the source does not change without it. */
     @Test
     fun aKeptServerTheKeystoreCannotSealWritesNothing() = runTest {
-        val broken = Secrets { throw ProviderException("Failed to generate key") }
+        val broken = secretsOf { throw ProviderException("Failed to generate key") }
         val settings = testSettings(folder.root, backgroundScope, broken)
         val refused = runCatching { settings.setSource(SourceConfig.Local, kept = home) }.exceptionOrNull()
         assertTrue("$refused", refused is SecretsUnavailableException)

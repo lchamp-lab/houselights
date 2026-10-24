@@ -503,6 +503,7 @@
     <string name="error_keystore_title">设备密钥库不可用</string>
     <string name="error_keystore">本设备的密钥库拒绝加密密码，因此未保存任何内容。请重启播放器，然后重试。</string>
     <string name="error_keystore_sign_in">已登录，但本设备的密钥库拒绝加密服务器的令牌，因此未保存任何内容。请重启播放器，然后重新登录。</string>
+    <string name="error_secrets_unread">本设备的密钥库没有响应，但已保存的内容没有丢失。请重试；如果问题持续，请重启播放器。</string>
     <string name="error_settings_title">无法读取设置</string>
     <string name="error_settings">本播放器的存储没有响应。请重试；如果问题持续，请重启播放器。</string>
     <string name="error_not_saved_title">未保存任何内容</string>

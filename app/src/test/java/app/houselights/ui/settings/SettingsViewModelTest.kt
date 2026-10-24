@@ -1,6 +1,7 @@
 package app.houselights.ui.settings
 
 import android.content.Context
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
@@ -8,7 +9,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.PathMapping
-import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
@@ -23,6 +23,8 @@ import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.testing.http
+import app.houselights.testing.secretsOf
+import app.houselights.testing.testKey
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
@@ -56,6 +58,7 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
+import kotlin.coroutines.EmptyCoroutineContext
 
 /** The settings' changes: never a crash, and what must not be cut off goes on once the settings are left. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -288,7 +291,7 @@ class SettingsViewModelTest {
     /** The Keystore refuses to seal the key: the sheet says nothing was saved, the app goes on. */
     @Test
     fun aTmdbKeyTheKeystoreCannotSealSaysSo() = runTest {
-        val broken = Secrets { throw ProviderException("Keystore operation failed") }
+        val broken = secretsOf { throw ProviderException("Keystore operation failed") }
         val store = testSettings(folder.root, backgroundScope, broken)
         val vm = settings(store, work = backgroundScope)
         vm.saveTmdbApiKey("k3y")
@@ -325,12 +328,55 @@ class SettingsViewModelTest {
         assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE), folders = true))
     }
 
+    /** A secret the Keystore did not open for now is said where it shows, as one lost is; Trakt's with the folders. */
+    @Test
+    fun eachPaneSaysWhatOfItsOwnWasNotOpened() {
+        val unread = setOf(SecretSetting.TMDB_KEY, SecretSetting.PATH_MAPPINGS, SecretSetting.TRAKT)
+        assertTrue(unreadSecretIn(Pane.Library, unread, folders = true))
+        assertTrue(unreadSecretIn(Pane.Playback, unread, folders = true))
+        assertTrue(unreadSecretIn(Pane.Trakt, unread, folders = true))
+        assertFalse(unreadSecretIn(Pane.Trakt, unread, folders = false))
+        assertFalse(unreadSecretIn(Pane.Display, unread, folders = true))
+        assertFalse(unreadSecretIn(Pane.Library, setOf(SecretSetting.SOURCE), folders = true))
+        // The server kept beside the folders, which the pane would otherwise leave out unsaid.
+        assertTrue(unreadSecretIn(Pane.Library, setOf(SecretSetting.KEPT_SERVER), folders = true))
+    }
+
     /** Paused under a server, Trakt's pane can only disconnect: it never asks to connect again there. */
     @Test
     fun aLostTraktSessionIsNotToldUnderAServer() {
         val lost = setOf(SecretSetting.TMDB_KEY, SecretSetting.TRAKT)
         assertNull(lostSecretNote(Pane.Trakt, lost, folders = false))
         assertEquals(R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost, folders = false))
+    }
+
+    /**
+     * Mappings the Keystore did not open when the settings opened are never written over: nothing is added to them
+     * meanwhile, and they show once Réessayer reads them.
+     */
+    @Test
+    fun mappingsNotOpenedAreKeptAndShowOnceRead() = runTest {
+        val key = testKey()
+        val file = PreferenceDataStoreFactory.create(scope = backgroundScope) { folder.root.resolve("settings.preferences_pb") }
+        val films = PathMapping("/media/films", "nfs://192.168.1.20/volume1/films")
+        SettingsStore(file, backgroundScope, secretsOf { key }, readOn = EmptyCoroutineContext).setPathMappings(listOf(films))
+        var down = true
+        val flaky = secretsOf { if (down) throw ProviderException("Keystore operation failed") else key }
+        val store = SettingsStore(file, backgroundScope, flaky, readOn = EmptyCoroutineContext)
+        assertEquals(setOf(SecretSetting.PATH_MAPPINGS), store.state.first { it.loaded }.unreadSecrets)
+
+        val vm = settings(store, backgroundScope)
+        assertTrue(vm.mappings.isEmpty())
+        vm.putMapping(null, PathMapping("/media/series", "nfs://192.168.1.20/volume1/series"))
+        advanceUntilIdle()
+        assertTrue(vm.mappings.isEmpty())
+
+        down = false
+        store.readAgain()
+        store.state.first { it.unreadSecrets.isEmpty() }
+        advanceUntilIdle()
+        assertEquals(listOf(films), store.state.value.pathMappings)
+        assertEquals(listOf(films), vm.mappings)
     }
 
     /** A mapping whose path is emptied goes at once, rather than stay as an empty row until the next start. */

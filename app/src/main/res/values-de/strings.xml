@@ -518,6 +518,7 @@
     <string name="error_keystore_title">Schlüsselspeicher des Geräts nicht verfügbar</string>
     <string name="error_keystore">Der Schlüsselspeicher des Geräts hat das Verschlüsseln des Passworts verweigert, daher wurde nichts gespeichert. Starten Sie den Player neu und versuchen Sie es erneut.</string>
     <string name="error_keystore_sign_in">Angemeldet, aber der Schlüsselspeicher des Geräts hat das Verschlüsseln des Server-Tokens verweigert, daher wurde nichts gespeichert. Starten Sie den Player neu und melden Sie sich erneut an.</string>
+    <string name="error_secrets_unread">Der Schlüsselspeicher des Geräts hat nicht geantwortet, doch nichts Gespeichertes ist verloren. Versuchen Sie es erneut; hält das an, starten Sie den Player neu.</string>
     <string name="error_settings_title">Einstellungen konnten nicht gelesen werden</string>
     <string name="error_settings">Der Speicher dieses Players hat nicht geantwortet. Versuchen Sie es erneut; hält das an, starten Sie den Player neu.</string>
     <string name="error_not_saved_title">Es wurde nichts gespeichert</string>

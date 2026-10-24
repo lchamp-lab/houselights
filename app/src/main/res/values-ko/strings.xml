@@ -502,6 +502,7 @@
     <string name="error_keystore_title">기기 키 저장소를 사용할 수 없음</string>
     <string name="error_keystore">이 기기의 키 저장소가 비밀번호 암호화를 거부해 아무것도 저장되지 않았습니다. 플레이어를 다시 시작한 후 다시 시도하세요.</string>
     <string name="error_keystore_sign_in">로그인했지만 이 기기의 키 저장소가 서버 토큰 암호화를 거부해 아무것도 저장되지 않았습니다. 플레이어를 다시 시작한 후 다시 로그인하세요.</string>
+    <string name="error_secrets_unread">이 기기의 키 저장소가 응답하지 않았지만 저장된 내용은 사라지지 않았습니다. 다시 시도하고, 계속되면 플레이어를 다시 시작하세요.</string>
     <string name="error_settings_title">설정을 읽을 수 없음</string>
     <string name="error_settings">이 플레이어의 저장소가 응답하지 않았습니다. 다시 시도하고, 계속되면 플레이어를 다시 시작하세요.</string>
     <string name="error_not_saved_title">아무것도 저장되지 않음</string>

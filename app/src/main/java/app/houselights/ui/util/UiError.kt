@@ -62,6 +62,9 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** The device's Keystore refused to seal a password or a token: nothing was written. */
     KEYSTORE(R.string.error_keystore_title, R.string.error_keystore, ErrorAction.RETRY),
 
+    /** The device's Keystore did not open a saved secret for now: it is kept, and read again. */
+    SECRETS_UNREAD(R.string.error_keystore_title, R.string.error_secrets_unread, ErrorAction.RETRY),
+
     /** The device's storage refused a write (full, or failing): nothing was saved. */
     NOT_SAVED(R.string.error_not_saved_title, R.string.error_not_saved, ErrorAction.RETRY),
 
@@ -85,6 +88,7 @@ fun FailureKind.toUiError(): UiError = when (this) {
     FailureKind.REFUSED -> UiError.DENIED
     FailureKind.GONE -> UiError.GONE
     FailureKind.KEYSTORE -> UiError.KEYSTORE
+    FailureKind.SECRET_UNREAD -> UiError.SECRETS_UNREAD
     // Only raised by writes: what was written is not saved.
     FailureKind.STORAGE_FULL -> UiError.NOT_SAVED
     // NAS refusals and missing paths show in Settings, per folder; a failing disk can fail reads too.
