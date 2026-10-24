@@ -9,6 +9,7 @@ import android.util.Log
 import app.houselights.R
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
+import app.houselights.core.RepeatedFailures
 import app.houselights.core.TrackChoice
 import app.houselights.core.TrackPlan
 import app.houselights.core.isWebUrl
@@ -72,6 +73,9 @@ class PlaybackManager(
 
         /** The "started" report, which the "stopped" report waits for. */
         var started: Job? = null
+
+        /** Its failed reports, one every few seconds while a server is away: the first logged whole, the next counted. */
+        val failedReports = RepeatedFailures(TAG)
 
         /** Statuses heard while it played, until the tracks are checked ([CHECK_AFTER]). */
         var heard = 0
@@ -467,20 +471,32 @@ class PlaybackManager(
             if (returned > 0 && !s.switched && !s.endedElsewhere(played)) s.positionMs = returned.toLong()
             Log.i(TAG, "Playback ended at ${s.positionMs} / ${s.durationMs} ms")
             report(s, "stopped") { s.reporter?.stopped(s.positionMs, s.durationMs) }
+            s.toldFailedReports()
             _playbackEnded.emit(Unit)
         }
     }
 
-    /** Reports [s] at [step] (started, progress, stopped); a failure is only logged. */
+    /** Reports [s] at [step] (started, progress, stopped); a failure is only logged, whole the first time in a row. */
     private suspend fun report(s: Session, step: String, block: suspend () -> Unit) {
-        suspendRunCatching { block() }.onFailure { Log.w(TAG, "Report that ${s.key} $step at ${s.positionMs} ms failed", it) }
+        suspendRunCatching { block() }
+            .onSuccess {
+                s.failedReports.recovered(REPORTS)
+                s.toldFailedReports()
+            }
+            .onFailure { s.failedReports.failed(REPORTS, "Report that ${s.key} $step at ${s.positionMs} ms failed", it) }
     }
+
+    /** One line for the reports that failed after the one logged, once they work again or the title ends. */
+    private fun Session.toldFailedReports() = failedReports.summarize { "Reports of $key: $it more failed" }
 
     /** The file needs credentials only the trusted Zidoo player may receive; [playerChanged] if it changed. */
     class CredentialsNotShared(val playerChanged: Boolean = false) : Exception("Credentials are only given to the Zidoo player")
 
     companion object {
         private const val TAG = "Playback"
+
+        /** What [RepeatedFailures] keys a session's reports by: all of them, whichever step. */
+        private const val REPORTS = "reports"
 
         /** Appended to the launch warning when the player found does not handle a stream's address. */
         private const val UNANSWERED_STREAM = "; the player does not answer this stream's address: not handed it"

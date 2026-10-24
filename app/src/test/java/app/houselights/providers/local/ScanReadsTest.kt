@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import android.util.Log
 import app.houselights.core.NfoParser
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -13,10 +14,14 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import java.io.IOException
 import java.net.SocketTimeoutException
 
-/** A failed read is retried at the next scan, keeping what was read before; a silent NAS ends the pass. */
+/**
+ * A failed read is retried at the next scan, keeping what was read before; a silent NAS ends the pass. What fails at
+ * every pass is logged whole once, then counted.
+ */
 @RunWith(RobolectricTestRunner::class)
 class ScanReadsTest {
     @get:Rule
@@ -45,6 +50,36 @@ class ScanReadsTest {
         nas.put("Dune (2021).mkv")
         nas.putText("Dune (2021).nfo", "<movie><title>Dune: Part One</title><year>2021</year></movie>")
         nas.putImage("Dune (2021)-poster.jpg")
+    }
+
+    /** Warnings of [tag]: each line, and whether it carries its stack. */
+    private fun warnings(tag: String) = ShadowLog.getLogsForTag(tag).filter { it.type == Log.WARN }.map { it.msg to (it.throwable != null) }
+
+    /** An NFO locked at every pass (a media manager holding it open): logged whole once, then counted per pass. */
+    @Test
+    fun anNfoLockedAtEveryPassIsLoggedWholeOnce() = runTest {
+        filmWithItsNfo()
+        nas.onRead = { path, _, _ -> if (path.endsWith(".nfo")) throw locked() }
+        ShadowLog.clear()
+        repeat(3) { bench.scan() }
+        assertEquals(
+            listOf("Could not read Dune (2021).nfo; it is read again at the next scan" to true) +
+                List(2) { "Films: files unreadable again, each logged before: 1" to false },
+            warnings("ScanFiles"),
+        )
+    }
+
+    /** A file whose processing fails the same way at every pass, as a row the database refuses: one stack, then counts. */
+    @Test
+    fun aFileFailingAtEveryPassIsLoggedWholeOnce() = runTest {
+        nas.put("Dune (2021).mkv")
+        bench.db.openHelper.writableDatabase.execSQL("CREATE TRIGGER refused BEFORE INSERT ON items BEGIN SELECT RAISE(ABORT, 'refused'); END")
+        ShadowLog.clear()
+        repeat(3) { bench.scan() }
+        assertEquals(
+            listOf("Failed on Dune (2021).mkv" to true) + List(2) { "Films: files failing again, each logged at an earlier pass: 1" to false },
+            warnings("LibraryScanner").filter { "Dune" in it.first || "again" in it.first },
+        )
     }
 
     @Test

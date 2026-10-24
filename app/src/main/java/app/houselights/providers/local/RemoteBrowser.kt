@@ -1,7 +1,8 @@
 package app.houselights.providers.local
 
-import android.util.Log
+import app.houselights.core.RepeatedFailures
 import app.houselights.core.suspendRunCatching
+import java.util.concurrent.ConcurrentHashMap
 
 data class RemoteFile(
     /** Path relative to the source folder, with "/" separators. */
@@ -76,15 +77,29 @@ internal interface RemoteEntry {
 /**
  * Videos and sidecars under [root], at most [RemoteBrowser.MAX_DEPTH] levels deep. Unreadable subfolders
  * (lost+found, another user's) and entries that fail (a file Radarr replaced mid-listing) are skipped and recorded
- * in [Listing.unreadable]. A failure on [root], or one [isFatal] accepts (NAS gone, connection broken), throws.
+ * in [Listing.unreadable], and logged in [failures]. A failure on [root], or one [isFatal] accepts (NAS gone,
+ * connection broken), throws.
  */
-internal fun walk(root: RemoteFolder, isFatal: (Throwable) -> Boolean): Listing =
-    Walk(isFatal).run {
-        visit(root, "", 0)
+internal fun walk(root: RemoteFolder, failures: RepeatedFailures, isFatal: (Throwable) -> Boolean): Listing =
+    Walk(isFatal, failures).run {
+        try {
+            visit(root, "", 0)
+        } finally {
+            failures.summarize { "Paths unreadable again, each logged before: $it" }
+        }
         Listing(videos, sidecars, unreadable)
     }
 
-private class Walk(private val isFatal: (Throwable) -> Boolean) {
+/** Paths of each source that could not be read, for the process: [walk] logs each whole only the first time. */
+internal class UnreadablePaths {
+    private val bySource = ConcurrentHashMap<Long, RepeatedFailures>()
+
+    fun of(source: SourceEntity): RepeatedFailures = bySource.getOrPut(source.id) { RepeatedFailures(WALK_TAG) }
+}
+
+private const val WALK_TAG = "RemoteBrowser"
+
+private class Walk(private val isFatal: (Throwable) -> Boolean, private val failures: RepeatedFailures) {
     val videos = mutableListOf<RemoteFile>()
     val sidecars = mutableListOf<RemoteFile>()
     val unreadable = mutableListOf<String>()
@@ -96,14 +111,18 @@ private class Walk(private val isFatal: (Throwable) -> Boolean) {
             passOver(relative, e)
             return
         }
+        failures.recovered(relative)
         for (entry in entries) {
             if (RemoteBrowser.skip(entry.name)) continue
             val path = if (relative.isEmpty()) entry.name else "$relative/${entry.name}"
             // Type and size may each cost a request (an NFS GETATTR), so failures are per entry.
-            val subfolder = suspendRunCatching { take(entry, path) }.getOrElse { e ->
-                passOver(path, e)
-                null
-            }
+            val subfolder = suspendRunCatching { take(entry, path) }
+                // A subfolder reads again once it lists.
+                .onSuccess { if (it == null) failures.recovered(path) }
+                .getOrElse { e ->
+                    passOver(path, e)
+                    null
+                }
             subfolder?.let { visit(it, path, depth + 1) }
         }
     }
@@ -120,7 +139,7 @@ private class Walk(private val isFatal: (Throwable) -> Boolean) {
 
     private fun passOver(path: String, e: Throwable) {
         if (isFatal(e)) throw e
-        Log.w("RemoteBrowser", "Could not read $path", e)
+        failures.failed(path, "Could not read $path", e)
         unreadable += path
     }
 }

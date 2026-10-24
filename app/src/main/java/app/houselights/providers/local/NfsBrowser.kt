@@ -33,9 +33,11 @@ internal class NfsBrowser(
         closingWaits = false,
     )
 
+    private val unreadable = UnreadablePaths()
+
     override suspend fun list(source: SourceEntity): Listing = withMount(source) { mounted ->
         val export = mounted.export
-        walk(folder(export, export.folder(root(source)))) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        walk(folder(export, export.folder(root(source))), unreadable.of(source)) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     /** Uses a fresh mount so the NAS checks access now. */

@@ -35,8 +35,10 @@ internal class SmbBrowser(
         clock = clock,
     )
 
+    private val unreadable = UnreadablePaths()
+
     override suspend fun list(source: SourceEntity): Listing = withSession(source) { share ->
-        walk(folder(share, remotePath(source, separator = '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        walk(folder(share, remotePath(source, separator = '\\')), unreadable.of(source)) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     /** Uses a fresh session with the form's credentials, as a kept session would accept a wrong password. */

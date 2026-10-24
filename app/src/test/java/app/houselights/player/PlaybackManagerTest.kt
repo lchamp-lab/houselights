@@ -3,6 +3,7 @@ package app.houselights.player
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
@@ -19,6 +20,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
+import java.net.ConnectException
 
 /** Following the player through its local API, with a fake player in its place (launching it: [PlayerLaunchTest]). */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -32,6 +35,9 @@ class PlaybackManagerTest {
     /** Held until the test lets it go, when set. */
     private var startGate: CompletableDeferred<Unit>? = null
 
+    /** Thrown by every progress report while set. */
+    private var progressFailure: Exception? = null
+
     private val reporter = object : PlaybackReporter {
         override suspend fun started(positionMs: Long) {
             startGate?.await()
@@ -39,6 +45,7 @@ class PlaybackManagerTest {
         }
 
         override suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean) {
+            progressFailure?.let { throw it }
             reports += "progress $positionMs"
         }
 
@@ -88,6 +95,19 @@ class PlaybackManagerTest {
         // A report at the first status; the fifth and tenth polls had no answer, so nothing was reported.
         assertEquals(listOf("started 0", "progress 10000"), reports)
         assertEquals("stopped 31000 / $HEAT", closedAt(manager, 31_000))
+    }
+
+    /** A server away for the whole film: its first failed report is logged whole, the others counted in one line. */
+    @Test
+    fun reportsThatFailAllFilmLongAreLoggedWholeOnceThenCounted() = runTest {
+        ShadowLog.clear()
+        progressFailure = ConnectException("Connection refused")
+        val manager = started(answers = (1..50).map { playing(it * 2_000L) })
+        advanceTimeBy(4_000 + 2_000 * 50L)
+        assertEquals("stopped 100000 / $HEAT", closedAt(manager, 100_000))
+        val told = ShadowLog.getLogsForTag("Playback").filter { it.type == Log.WARN }
+        assertEquals(told.map { it.msg }.toString(), 1, told.count { it.throwable != null })
+        assertEquals(listOf("Reports of m1: 9 more failed"), told.filter { it.throwable == null }.map { it.msg })
     }
 
     /** Each write syncs a file to flash: done at the report pace, not every status, and once more at the end. */
