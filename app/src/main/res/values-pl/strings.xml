@@ -264,7 +264,7 @@
     <string name="folder_overlaps">Ten folder pokrywa się z folderem „%s”, który jest już w bibliotece: jego tytuły pojawiłyby się dwukrotnie. Wybierz inny folder albo edytuj tamten w Ustawieniach.</string>
     <string name="folder_overlaps_state">Już w bibliotece</string>
     <string name="folder_not_saved_state">Nie zapisano</string>
-    <string name="folder_unread">Nie udało się odczytać tego folderu</string>
+    <string name="folder_unread">Nie udało się ponownie odczytać tego folderu</string>
     <string name="saving">Zapisywanie…</string>
     <plurals name="entries_found">
         <item quantity="one">Znaleziono %d element</item>

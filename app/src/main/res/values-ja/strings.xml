@@ -246,7 +246,7 @@
     <string name="folder_overlaps">このフォルダは、ライブラリにある「%s」と重なっています。このままでは作品が二重に表示されます。別のフォルダを選ぶか、設定で既存のフォルダを編集してください。</string>
     <string name="folder_overlaps_state">ライブラリに追加済み</string>
     <string name="folder_not_saved_state">保存されていません</string>
-    <string name="folder_unread">このフォルダを読み込めませんでした</string>
+    <string name="folder_unread">このフォルダを読み込み直せませんでした</string>
     <string name="saving">保存中…</string>
     <plurals name="entries_found">
         <item quantity="other">%d件を検出</item>

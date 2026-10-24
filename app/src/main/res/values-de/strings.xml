@@ -252,7 +252,7 @@
     <string name="folder_overlaps">Dieser Ordner überschneidet sich mit „%s“, der bereits in der Bibliothek ist: Seine Titel würden doppelt erscheinen. Wählen Sie einen anderen Ordner, oder bearbeiten Sie jenen in den Einstellungen.</string>
     <string name="folder_overlaps_state">Bereits in der Bibliothek</string>
     <string name="folder_not_saved_state">Nicht gespeichert</string>
-    <string name="folder_unread">Dieser Ordner konnte nicht gelesen werden</string>
+    <string name="folder_unread">Dieser Ordner konnte nicht erneut gelesen werden</string>
     <string name="saving">Wird gespeichert…</string>
     <plurals name="entries_found">
         <item quantity="one">%d Eintrag gefunden</item>

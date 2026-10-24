@@ -246,7 +246,7 @@
     <string name="folder_overlaps">이 폴더는 이미 라이브러리에 있는 ‘%s’ 폴더와 겹칩니다. 그대로 추가하면 작품이 두 번 표시됩니다. 다른 폴더를 선택하거나 설정에서 기존 폴더를 편집하세요.</string>
     <string name="folder_overlaps_state">이미 라이브러리에 있음</string>
     <string name="folder_not_saved_state">저장되지 않음</string>
-    <string name="folder_unread">이 폴더를 읽을 수 없습니다</string>
+    <string name="folder_unread">이 폴더를 다시 읽을 수 없습니다</string>
     <string name="saving">저장 중…</string>
     <plurals name="entries_found">
         <item quantity="other">항목 %d개 발견</item>

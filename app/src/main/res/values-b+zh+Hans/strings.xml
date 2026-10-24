@@ -246,7 +246,7 @@
     <string name="folder_overlaps">此文件夹与媒体库中已有的“%s”重叠：其中的作品会出现两次。请选择其他文件夹，或在设置中编辑那个文件夹。</string>
     <string name="folder_overlaps_state">已在媒体库中</string>
     <string name="folder_not_saved_state">未保存</string>
-    <string name="folder_unread">无法读取此文件夹</string>
+    <string name="folder_unread">无法重新读取此文件夹</string>
     <string name="saving">正在保存…</string>
     <plurals name="entries_found">
         <item quantity="other">找到 %d 项</item>

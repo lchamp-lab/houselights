@@ -267,7 +267,7 @@
     <string name="folder_overlaps">This folder overlaps “%s”, already in the library: its titles would show twice. Choose another folder, or edit that one in Settings.</string>
     <string name="folder_overlaps_state">Already in the library</string>
     <string name="folder_not_saved_state">Not saved</string>
-    <string name="folder_unread">This folder could not be read</string>
+    <string name="folder_unread">This folder could not be read again</string>
     <string name="saving">Saving…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item found</item>

@@ -258,7 +258,7 @@
     <string name="folder_overlaps">Esta pasta se sobrepõe a “%s”, que já está na biblioteca: os títulos apareceriam duas vezes. Escolha outra pasta, ou edite aquela em Configurações.</string>
     <string name="folder_overlaps_state">Já está na biblioteca</string>
     <string name="folder_not_saved_state">Não salvo</string>
-    <string name="folder_unread">Não foi possível ler esta pasta</string>
+    <string name="folder_unread">Não foi possível reler esta pasta</string>
     <string name="saving">Salvando…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item encontrado</item>

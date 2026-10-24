@@ -252,7 +252,7 @@
     <string name="folder_overlaps">Deze map overlapt met “%s”, die al in de bibliotheek staat: de titels zouden dubbel verschijnen. Kies een andere map, of bewerk die in Instellingen.</string>
     <string name="folder_overlaps_state">Al in de bibliotheek</string>
     <string name="folder_not_saved_state">Niet opgeslagen</string>
-    <string name="folder_unread">Deze map kon niet worden gelezen</string>
+    <string name="folder_unread">Deze map kon niet opnieuw worden gelezen</string>
     <string name="saving">Opslaan…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item gevonden</item>

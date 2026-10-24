@@ -258,7 +258,7 @@
     <string name="folder_overlaps">Esta carpeta se superpone con «%s», que ya está en la biblioteca: sus títulos aparecerían dos veces. Elija otra carpeta o edite aquella en Ajustes.</string>
     <string name="folder_overlaps_state">Ya está en la biblioteca</string>
     <string name="folder_not_saved_state">Sin guardar</string>
-    <string name="folder_unread">No se ha podido leer esta carpeta</string>
+    <string name="folder_unread">No se pudo volver a leer esta carpeta</string>
     <string name="saving">Guardando…</string>
     <plurals name="entries_found">
         <item quantity="one">%d elemento encontrado</item>
