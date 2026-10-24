@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -35,10 +36,16 @@ class LocalLibraryTest {
     private lateinit var context: Context
     private lateinit var artwork: ArtworkCache
 
+    /** Statements the library ran, from any thread. */
+    private val statements = Collections.synchronizedList(mutableListOf<String>())
+
     @Before
     fun open() = runBlocking {
         context = ApplicationProvider.getApplicationContext()
-        db = testDatabase { allowMainThreadQueries() }
+        db = testDatabase {
+            allowMainThreadQueries()
+            setQueryCallback({ sql, _ -> statements += sql }, Runnable::run)
+        }
         dao = db.dao()
         artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan requested after an edit never runs: it would go to the network.
@@ -123,11 +130,11 @@ class LocalLibraryTest {
     }
 
     /**
-     * A scan writing a film every 50 ms: Réglages › Bibliothèque counts it and shows its posters every 2 s at most,
-     * not at each write. In real time, as Room's queries run on its own threads.
+     * A scan writing a film every 50 ms: Réglages › Bibliothèque asks its counts and posters again every 2 s at most,
+     * not at each write, and shows the first answers alone meanwhile. In real time, as Room's queries run on its own threads.
      */
     @Test
-    fun aScansWritesMoveTheFolderCountsEveryTwoSecondsAtMost() = runBlocking {
+    fun aScansWritesAskTheFolderCountsAgainEveryTwoSecondsAtMost() = runBlocking {
         val id = dao.insertSource(nfs("nas", "volume1/media", "films"))
         val counted = Collections.synchronizedList(mutableListOf<Int>())
         val posters = Collections.synchronizedList(mutableListOf<List<String>>())
@@ -135,7 +142,8 @@ class LocalLibraryTest {
             launch { library.folderCounts.collect { counted += it[id]?.titles ?: 0 } }
             library.latestPosters(dao.source(id)!!, 4).collect { posters += it }
         }
-        delay(200)
+        withTimeout(5_000) { while (counted.isEmpty() || posters.isEmpty()) delay(10) }
+        statements.clear()
         repeat(10) { n ->
             dao.insert(
                 ItemEntity(
@@ -146,9 +154,12 @@ class LocalLibraryTest {
             delay(50)
         }
         watch.cancel()
-        // Within 2 s: the first counts alone, though ten films were written.
+        // Within 2 s of the first answers, though ten films were written: those answers alone, each query asked once more.
         assertEquals(listOf(0), counted.toList())
         assertEquals(listOf(emptyList<String>()), posters.toList())
+        val asked = statements.toList()
+        assertTrue("counts asked ${asked.count { "GROUP BY sourceId" in it }} times", asked.count { "GROUP BY sourceId" in it } <= 1)
+        assertTrue("posters asked again", asked.count { "sourceId = ? AND kind IN" in it && "ORDER BY addedAt" in it } <= 1)
     }
 
     private companion object {

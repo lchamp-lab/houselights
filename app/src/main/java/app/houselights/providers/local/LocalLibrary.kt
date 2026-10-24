@@ -2,12 +2,13 @@ package app.houselights.providers.local
 
 import android.content.Context
 import app.houselights.core.Definition
-import app.houselights.core.throttleLatest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
@@ -106,8 +107,14 @@ class LocalLibrary(
     }
 }
 
-/** A query a scan reruns at each write, read at most every [PANE_PACE_MS] and only when its answer changes. */
-private fun <T> Flow<T>.paced(): Flow<T> = throttleLatest(PANE_PACE_MS).distinctUntilChanged()
+/**
+ * A query a scan reruns at each write, run at most every [PANE_PACE_MS] and shown when its answer changes. Room runs
+ * the next query once an answer is taken, so the wait holds the answer (up to a period old) and no buffer may take it.
+ */
+private fun <T> Flow<T>.paced(): Flow<T> = transform {
+    emit(it)
+    delay(PANE_PACE_MS)
+}.distinctUntilChanged()
 
 /** How often the settings' counts and posters follow a scan. */
 private const val PANE_PACE_MS = 2_000L
