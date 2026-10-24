@@ -326,6 +326,11 @@ class MainActivity : ComponentActivity() {
                 .onSuccess { plan ->
                     // The cue ran while the plan resolved: the room is dark before the player takes over.
                     snapshotFlow { lightsLevel.value }.first { it >= 1f }
+                    // Home pressed meanwhile: nothing opens over the app gone to, and no session starts.
+                    if (!lifecycle.onScreen()) {
+                        lightsDown.value = false
+                        return@onSuccess
+                    }
                     when (plan) {
                         is PlaybackPlan.Launch -> try {
                             // The player needs the memory more than pictures that reload from disk.
@@ -619,6 +624,9 @@ internal fun dispatchUnseen(
         else -> true
     }
 }
+
+/** Started, if only paused under an overlay: Home always stops the app, so the player never opens from behind. */
+internal fun Lifecycle.onScreen(): Boolean = currentState.isAtLeast(Lifecycle.State.STARTED)
 
 /** Navigates to where an error is fixed; retrying is left to each screen. */
 private fun NavHostController.fixError(action: ErrorAction) = when (action) {
