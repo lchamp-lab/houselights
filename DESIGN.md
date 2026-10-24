@@ -491,6 +491,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   inside the safe area (`WelcomeLayoutTest`). A saved connection the Keystore did not open for now is no lost one: a
   `PartFailed` (`SECRETS_UNREAD`) as wide as the tagline, its Réessayer focused, and home once it is read, unless a
   choice was made since the last read asked (`rememberReadBack`); « Mes fichiers » keeps that server, sealed as stored.
+  Reached with no library left it adds no note, the confirmation having said why. Back quits at once, nothing being
+  under it; « Mes fichiers » without a folder opens the form empty (Films, NFS), Back coming back to it.
 
 ## Focus
 
@@ -725,6 +727,14 @@ meanwhile. Opening another screen closes the sheet at once. Menus share the moti
 A choice that needs another screen (a new source needs a folder or a sign-in) changes nothing until that
 screen succeeds. Sources change in one place, `SourceSwitcher`, and changing signs out of nothing.
 
+A library is a Jellyfin server or one folder at least, derived from the source and the folders (`shownSource`),
+never stored: without one the welcome screen shows, alone (`WelcomeWhenLost`), at launch and as soon as a removal or a
+sign-out leaves none; folders that cannot be read count as some, home saying why (`NoLibraryTest`). Removing a folder
+says what leaves; the last one not already being removed adds where the app goes, "C’est votre dernier dossier :
+vous reviendrez à l’écran de bienvenue.", or "vous retrouverez « Salon », sans vous reconnecter." when a server
+is kept: it then takes the folder's place unasked, as at a launch, the source first, home shown, the folder removed
+after; if it cannot, nothing is removed and the folder's card says why (`FolderRemovalTest`).
+
 **Changer de source** lists the folders, a Jellyfin server, then another one (`HlIcons.Add`), the current one
 checked, focus on what changes the source; apart, on its own plate, the row that ends a server's session
 (`HlIcons.SignOut`), the one choice asked first. A server left for the folders stays signed in, kept, one at most:
@@ -732,9 +742,10 @@ under its name, "Jellyfin · léa · sans vous reconnecter", it comes back in on
 (the Source row says "Connexion…" meanwhile and OK on it does nothing; a token refused opens the sign-in filled in,
 address and account; a server forgotten or replaced meanwhile is left so), and "Oublier « … »" forgets it. On a
 server, "Mes fichiers" switches at once, its line "2 dossiers · Trakt reprend" once Trakt is connected, and "Se
-déconnecter de « … »" signs out. A row's line joins its parts with a middle dot, each row on one line at the largest
-text size (`PaneRowLineTest`), a long account's name ending in an ellipsis. The head says the server stays connected
-in a sentence; the Source row, beside its value, in fewer words, in every language.
+déconnecter de « … »" signs out, the folders taking its place, or with none at once, the welcome screen following
+("vous choisirez de nouveau votre bibliothèque"). A row's line joins its parts with a middle dot, each row on one
+line at the largest text size (`PaneRowLineTest`), a long account's name ending in an ellipsis. The head says the
+server stays connected in a sentence; the Source row, beside its value, in fewer words, in every language.
 
 ## Messages
 
@@ -756,7 +767,9 @@ one to the other. Failing with the seasons or, in the same read, a season's epis
 there: theirs, its Réessayer reloading all that failed, busy until all of it answers, nothing under the hero, the
 episode row keeping its title alone (`DetailFailuresTest`); Lire read again alone takes its place, and what still fails
 goes back to its own, as do episodes failing later, on a season chosen. A screen that cannot load, or has nothing yet,
-shows an intertitle with what fixes it (`HlEmptyState`). Exception text never reaches the screen; it goes to the log.
+shows an intertitle with what fixes it (`HlEmptyState`): home's folders without a film, Ajouter un dossier and Voir
+les dossiers; without a folder home draws nothing, the welcome screen taking its place. Exception text never reaches
+the screen; it goes to the log.
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt.
@@ -915,6 +928,6 @@ Debug builds show **Settings > About > Design system**: every token and componen
 2. Add a token or component here before using a new value twice.
 3. End a vertical list with `contentPadding(bottom = HlFocus.edge)`; if it starts below the top of the screen,
    wrap it in `ListScroll(top = its top padding)`. `HlTwoPane` does both for its content pane.
-4. A screen that shows the source is composed in `WithSource` (`AppNavigation`): restored after its connection
-   could no longer be read, or not opened for now, it gives way to the welcome screen (`mustWelcome`), never reading
-   a source there is not.
+4. A screen that shows the source is composed in `WithSource` (`AppNavigation`): with no library left, or restored
+   after its connection could no longer be read, or not opened for now, it gives way to the welcome screen
+   (`mustWelcome`), never reading a source there is not.
