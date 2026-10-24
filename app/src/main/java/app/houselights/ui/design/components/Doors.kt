@@ -483,8 +483,8 @@ private fun BoxScope.BandEdge(progress: DoorProgress) {
 /**
  * Home's case (DESIGN.md, Layout): a title's backdrop cropped upright (else its poster) melting into its dark, under
  * its [label], its logo or name, its facts, then its progress and time left or its genres, and its [action], a plate
- * the case's focus fills white, after the Play glyph when it [plays]. OK does [onClick]; Menu or a long OK,
- * [onLongClick], which the Menu key says at the plate's end while the case has focus.
+ * the case's focus fills white, after the Play glyph when it [plays]; under it, what it [says] (why it did not play).
+ * OK does [onClick]; Menu or a long OK, [onLongClick], which the Menu key says at the plate's end while the case has focus.
  */
 @Composable
 fun ResumeCase(
@@ -496,6 +496,7 @@ fun ResumeCase(
     plays: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
+    says: (@Composable () -> Unit)? = null,
 ) {
     val c = Hl.colors
     val interaction = remember { MutableInteractionSource() }
@@ -555,6 +556,10 @@ fun ResumeCase(
                 }
                 Spacer(Modifier.height(HlSpace.s))
                 CaseAction(action, lit, plays, menu = onLongClick != null)
+                says?.let {
+                    Spacer(Modifier.height(HlSpace.s))
+                    it()
+                }
             }
         }
     }

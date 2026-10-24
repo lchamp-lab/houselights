@@ -68,12 +68,14 @@ import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HomeDoor
 import app.houselights.ui.design.components.HomeHead
 import app.houselights.ui.design.components.ResumeCase
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.StateFact
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.gridHeights
 import app.houselights.ui.design.components.rememberCutPosters
 import app.houselights.ui.design.components.rememberFigureSize
@@ -85,6 +87,7 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.libraryName
+import app.houselights.ui.util.okClears
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.toUiError
@@ -105,28 +108,32 @@ data class HomeActions(
     val onOpenSearch: (() -> Unit)? = null,
     val onOpenSettings: () -> Unit = {},
     val onAddFolder: () -> Unit = {},
+    /** Dismisses why the case did not play. */
+    val onClearProblem: () -> Unit = {},
     val onReload: () -> Unit = {},
     val onRescan: () -> Unit = {},
     /** Prefetches a library's wall as its door is chosen. */
     val onLibraryAhead: (Library, sagas: Library?) -> Unit = { _, _ -> },
 )
 
+/** Home; [playProblem] says why a play asked from it did not start. */
 @Composable
-fun HomeScreen(actions: HomeActions) {
+fun HomeScreen(actions: HomeActions, playProblem: UiError? = null) {
     val app = appContainer()
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
     ReloadOnLibraryChange(vm.libraryShown) { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
     val search = actions.onOpenSearch.takeIf { app.providerOrNull()?.capabilities?.search == true }
-    HomeGrid(state, vm.scan, actions.copy(onOpenSearch = search, onReload = vm::load, onRescan = vm::rescan))
+    HomeGrid(state, vm.scan, actions.copy(onOpenSearch = search, onReload = vm::load, onRescan = vm::rescan), playProblem)
 }
 
 /**
  * Home for [state] (DESIGN.md, Layout): the lockup, then the grid of the case and its doors, or what says why there is
- * none. Focus comes back to the door left; Back says once that a second one quits.
+ * none. Focus comes back to the door left; Back says once that a second one quits. Why the case did not play
+ * ([playProblem]) is said under its action until an OK there.
  */
 @Composable
-internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: HomeActions) {
+internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: HomeActions, playProblem: UiError? = null) {
     val content = state.content
     val memory = rememberFocusMemory()
     // The line saying a second Back quits goes as soon as focus moves to another door.
@@ -151,8 +158,9 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
         }
         HomeHead(stringResource(R.string.back_again_to_quit).takeIf { quitting }, end = settings)
         when {
-            plan != null ->
-                Grid(plan, state, scan, actions, memory, onList = { listing.value = true }, onOptions = { options.value = true })
+            plan != null -> Grid(
+                plan, state, scan, actions, memory, playProblem, onList = { listing.value = true }, onOptions = { options.value = true },
+            )
             content is HomeContent.Message -> NoRows(content, scan, actions, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
             else -> Unit
         }
@@ -187,6 +195,7 @@ private fun Grid(
     scan: StateFlow<ScanState>,
     actions: HomeActions,
     memory: FocusMemory,
+    playProblem: UiError?,
     onList: () -> Unit,
     onOptions: () -> Unit,
 ) {
@@ -208,15 +217,16 @@ private fun Grid(
         },
         heights = heights,
         modifier = Modifier.padding(horizontal = HlSpace.safeH),
-    ) { modifier -> CaseOf(plan.case, actions, onOptions, modifier) }
+    ) { modifier -> CaseOf(plan.case, actions, onOptions, modifier, playProblem) }
 }
 
 /**
  * The case: the title last in progress, resumed on OK; else what it proposes, a film played, a show's page opened.
- * One case either way, so focus stays on it as what it shows changes.
+ * One case either way, so focus stays on it as what it shows changes. Why it did not play ([problem]) is said under
+ * its action, where OK was pressed, until the next OK there.
  */
 @Composable
-private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit, modifier: Modifier) {
+private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit, modifier: Modifier, problem: UiError?) {
     if (case == null) {
         // Nothing to propose: the grid moves focus to its first door.
         Box(modifier.fillMaxSize().clearAndSetSemantics {})
@@ -234,11 +244,14 @@ private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit
         case.item,
         stringResource(action),
         onClick = { if (opens) actions.onOpenItem(case.item) else actions.onPlay(case.item, proposed == null) },
-        modifier = modifier,
+        modifier = modifier.okClears(actions.onClearProblem),
         label = stringResource(R.string.home_unseen).takeIf { proposed?.notSeen == true },
         plays = !opens,
         onLongClick = onOptions,
         onLongClickLabel = stringResource(R.string.more_options),
+        says = problem?.let { error ->
+            { HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(error.message)) }
+        },
     )
 }
 

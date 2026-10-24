@@ -417,7 +417,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   A row left out gives its height to the one under it (`gridHeights`). `HomePlan` composes it from what home read:
   - **The case** (`ResumeCase`) resumes the title last in progress: its backdrop cropped upright from its top (else its
     poster), melting into its dark (`HlScrim.CASE_FOOT`), its logo or name in `headline`, its facts 12 apart
-    (`MetaLine`), its progress and time left, then its action, a plate the case's focus fills white. With nothing in
+    (`MetaLine`), its progress and time left, then its action, a plate the case's focus fills white, and under it why
+    it did not play when it failed (see *Messages*). With nothing in
     progress, it proposes a film not seen, drawn once a session, else a show not seen, whose page it opens ("Voir la
     série", no Play glyph), else any title (`UnseenPick`): "Pas encore vu" in `jaquette` over one not seen, its genres,
     Lire. What it proposes is read with every read of the doors, before the libraries' (`readDoorsAsync`), so the case
@@ -726,8 +727,12 @@ in a sentence; the Source row, beside its value, in fewer words, in every langua
 
 A message appears where the action was, in the app's voice: no Toast (a test forbids it), no snackbar, no
 dialog. Back once on home is said at the end of its head (`HomeHead`'s `status`), gone after 2.5 s. A title that
-fails to play says so at the end of its actions (`HlStatus` `Attention`, "Lecture impossible", the reason in
-`meta`). A screen that cannot load, or has nothing yet, shows an intertitle with what fixes it (`HlEmptyState`).
+fails to play says so where play was asked (`PlayOrigin`): at the end of a page's actions, under the episode row for
+an episode, under the case's action on home (`HlStatus` `Attention`, "Lecture impossible", the reason in `meta`),
+until an OK there, another play or another screen (`PlaybackOutcome`). What fails on a title's page once its title
+shows is said where it shows, with Réessayer (`PartFailed`): the seasons or a saga under the hero, a season's
+episodes on their row; what a show's Lire starts, unread, puts Réessayer on Lire's button and why at the
+row's end. A screen that cannot load, or has nothing yet, shows an intertitle with what fixes it (`HlEmptyState`).
 Exception text never reaches the screen; it goes to the log.
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or

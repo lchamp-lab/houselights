@@ -72,7 +72,8 @@ class DetailVersionsTest {
             DetailPage(
                 vm,
                 PlaybackOutcome(MutableSharedFlow()),
-                onPlay = { _, _ -> },
+                screen = "page",
+                onPlay = { _, _, _ -> },
                 onOpenItem = {},
                 onEditArtwork = { _, _ -> },
                 onIdentify = {},

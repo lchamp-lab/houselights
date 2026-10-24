@@ -31,6 +31,8 @@ import app.houselights.ui.design.components.caseHeight
 import app.houselights.ui.design.components.doorWidth
 import app.houselights.ui.design.components.rememberCutPosters
 import app.houselights.ui.design.components.rememberFigureSize
+import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.StatusState
 
 /** Home's grid, part by part: its head, its case, and each door at its size, every picture from the app's resources. */
 internal fun LazyListScope.catalogDoors() {
@@ -86,6 +88,17 @@ private fun Cases() {
                 {},
                 Modifier.size(HomeGridDefaults.case, caseHeight()),
                 label = stringResource(R.string.home_unseen),
+            )
+        }
+        Specimen("Lecture impossible: why, under its action", width = HomeGridDefaults.case) {
+            ResumeCase(
+                doorFilm("Top Gun : Maverick", positionMs = 4_900_000),
+                stringResource(R.string.resume),
+                {},
+                Modifier.size(HomeGridDefaults.case, caseHeight()),
+                says = {
+                    HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(R.string.no_player))
+                },
             )
         }
     }

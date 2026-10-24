@@ -11,12 +11,13 @@ import app.houselights.core.SectionType
 import app.houselights.core.UserState
 import app.houselights.providers.local.ScanState
 import app.houselights.ui.testing.FakeProvider
+import app.houselights.ui.util.UiError
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /** Home's grid over [state], no scan running, every action doing nothing unless [actions] says. */
 @Composable
-internal fun HomeGrid(state: HomeState, actions: HomeActions = HomeActions(onOpenSearch = {})) =
-    HomeGrid(state, remember { MutableStateFlow(ScanState()) }, actions)
+internal fun HomeGrid(state: HomeState, actions: HomeActions = HomeActions(onOpenSearch = {}), playProblem: UiError? = null) =
+    HomeGrid(state, remember { MutableStateFlow(ScanState()) }, actions, playProblem)
 
 /** What home asked the source for its rows, leaving out what its doors read. */
 internal val FakeProvider.rowCalls: List<String> get() = calls.filter { it == "home" || it == "libraries" }

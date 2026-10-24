@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
@@ -38,11 +37,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -105,7 +99,10 @@ import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.util.PartFailed
+import app.houselights.ui.util.okClears
+import app.houselights.ui.util.PlayOrigin
 import app.houselights.ui.util.PlaybackOutcome
+import app.houselights.ui.util.PlaybackProblem
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
@@ -139,7 +136,9 @@ import app.houselights.core.hasPage
 @Composable
 fun DetailScreen(
     itemId: String,
-    onPlay: (MediaItem, Boolean) -> Unit,
+    /** The page's back stack entry, which its plays are asked from. */
+    screen: String,
+    onPlay: (MediaItem, Boolean, PlayOrigin) -> Unit,
     onOpenItem: (String) -> Unit,
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
@@ -148,15 +147,19 @@ fun DetailScreen(
     val app = appContainer()
     val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
     ReloadOnLibraryChange { vm.onLibraryChanged() }
-    DetailPage(vm, app.playback, onPlay, onOpenItem, onEditArtwork, onIdentify, onOpenPerson)
+    DetailPage(vm, app.playback, screen, onPlay, onOpenItem, onEditArtwork, onIdentify, onOpenPerson)
 }
 
-/** A title's page as [vm] has it; [playback] says when a title ended and why one did not play. */
+/**
+ * A title's page as [vm] has it; [playback] says when a title ended and why one asked from this [screen] did not play:
+ * beside the actions, or on the episode row for an episode.
+ */
 @Composable
 internal fun DetailPage(
     vm: DetailViewModel,
     playback: PlaybackOutcome,
-    onPlay: (MediaItem, Boolean) -> Unit,
+    screen: String,
+    onPlay: (MediaItem, Boolean, PlayOrigin) -> Unit,
     onOpenItem: (String) -> Unit,
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
@@ -164,9 +167,10 @@ internal fun DetailPage(
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
-    val problem by playback.playbackProblem.collectAsStateWithLifecycle()
-    // A failure to play stays until the next action (OK, wherever it is pressed) or the next screen.
-    DisposableEffect(Unit) { onDispose { playback.clearProblem() } }
+    // A failure to play stays until the next OK on the page, another play or another screen.
+    val asked = playback.playbackProblem.collectAsStateWithLifecycle().value?.takeIf { it.origin.screen == screen }
+    val problem = asked?.takeIf { it.origin.episode == null }?.error
+    val episodeProblem = asked?.takeIf { it.origin.episode != null }
 
     // Focus returns to what opened another screen; a first visit starts on the play button.
     val memory = rememberFocusMemory()
@@ -209,7 +213,7 @@ internal fun DetailPage(
     var episodeOptions by remember { mutableStateOf<String?>(null) }
     var showMarks by remember { mutableStateOf(false) }
     val actions = DetailActions(
-        onPlay = onPlay,
+        onPlay = { title, resume -> onPlay(title, resume, PlayOrigin(screen)) },
         onTogglePlayed = vm::togglePlayed,
         onToggleSeasonPlayed = vm::toggleSeasonPlayed,
         onToggleFavorite = vm::toggleFavorite,
@@ -226,7 +230,13 @@ internal fun DetailPage(
         onEdit = { showEdit = true }.takeIf { state.canEdit },
         season = state.shownSeason,
         onShowMarks = { showMarks = true },
+        nextUpError = state.nextUpError,
+        retrying = state.retrying,
+        onRetry = vm::retry,
     )
+    // Réessayer gone with the failure it said, or Lire again: focus goes to Lire.
+    FocusAfterRetry(failing = state.error != null, held = RETRY_PAGE, memory, actionRow)
+    FocusAfterRetry(failing = state.nextUpError != null, held = PLAY, memory, actionRow)
 
     val recede = rememberRecede { scrolled }
 
@@ -269,7 +279,13 @@ internal fun DetailPage(
                     }
                 }
 
-                seasonRows(state, memory, focusedEpisode, vm, EpisodeLinks(onPlay, onOptions = { episodeOptions = it.id }))
+                partFailed(state, memory, vm::retry)
+                val links = EpisodeLinks(
+                    onPlay = { ep, resume -> onPlay(ep, resume, PlayOrigin(screen, ep.id)) },
+                    onOptions = { episodeOptions = it.id },
+                    problem = episodeProblem,
+                )
+                seasonRows(state, memory, focusedEpisode, vm, links)
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
             } }
         // Over the page, in its light.
@@ -281,7 +297,7 @@ internal fun DetailPage(
         TitleTracks(item, tracks, open = showTracks, onChoose = vm::chooseTracks, onDismiss = { showTracks = false })
         val episodeActions = EpisodeActions(
             onMark = vm::toggleEpisodePlayed.takeIf { state.capabilities?.markPlayed == true },
-            onPlayFromStart = { onPlay(it, false) },
+            onPlayFromStart = { onPlay(it, false, PlayOrigin(screen, it.id)) },
             onTracks = { showTracks = true },
         )
         EpisodeOptions(state, episodeOptions, episodeActions, onDismiss = { episodeOptions = null })
@@ -303,6 +319,16 @@ internal fun DetailPage(
                 onArtwork = { kind -> showEdit = false; onEditArtwork(item.id, kind) },
                 onIdentify = { showEdit = false; onIdentify(item.id) },
             )
+        }
+    }
+}
+
+/** What failed once the title showed (its seasons, a saga's films), under the hero, with Réessayer ([onRetry]). */
+private fun LazyListScope.partFailed(state: DetailState, memory: FocusMemory, onRetry: () -> Unit) {
+    val error = state.error ?: return
+    item(key = "failed") {
+        Box(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
+            PartFailed(error, state.retrying, onRetry, action = Modifier.focusKey(RETRY_PAGE, memory))
         }
     }
 }
@@ -356,6 +382,7 @@ private fun LazyListScope.seasonRows(
                     },
                     markError = state.episodeMarkError,
                     onClearMarkError = vm::clearEpisodeMarkError,
+                    playError = links.problem?.takeIf { p -> state.episodes.any { it.id == p.origin.episode } }?.error,
                 )
             }
         }
@@ -449,6 +476,27 @@ private fun NoTitleYet(error: UiError?, onRetry: () -> Unit) {
     }
 }
 
+/** Focuses Lire, else the actions ([fallback]), once [failing] ends while the Réessayer keyed [held] had focus. */
+@Composable
+private fun FocusAfterRetry(failing: Boolean, held: String, memory: FocusMemory, fallback: FocusRequester) {
+    // Followed while failing: once that Réessayer goes, focus has moved on before this runs.
+    val had = remember { HeldFocus() }
+    LaunchedEffect(failing) {
+        if (failing) {
+            snapshotFlow { memory.last }.collect { had.held = it == held }
+        } else if (had.held) {
+            had.held = false
+            withFrameNanos { }
+            if (!memory.focus(PLAY)) fallback.tryRequestFocus()
+        }
+    }
+}
+
+/** Whether a Réessayer had focus, read once it is gone. */
+private class HeldFocus {
+    var held = false
+}
+
 /** How far the backdrop recedes once scrolled ([away]), so rows read on the room; snaps at first, then animates. */
 @Composable
 private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
@@ -467,9 +515,16 @@ private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
 @Immutable
 private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (String) -> Unit)
 
-/** What an episode's card does: OK plays it, from where it was left; Menu or a long OK opens its options. */
+/**
+ * What an episode's card does: OK plays it, from where it was left; Menu or a long OK opens its options. A play asked
+ * from one that failed ([problem]) is said under the row while that episode is in it.
+ */
 @Immutable
-private class EpisodeLinks(val onPlay: (MediaItem, Boolean) -> Unit, val onOptions: (MediaItem) -> Unit)
+private class EpisodeLinks(
+    val onPlay: (MediaItem, Boolean) -> Unit,
+    val onOptions: (MediaItem) -> Unit,
+    val problem: PlaybackProblem? = null,
+)
 
 /** A tile says a second line: a show's watched tile the Menu key, the tracks tile what Lire plays. */
 private fun hintsUnderTiles(item: MediaItem, capabilities: ProviderCapabilities?, tracks: TrackPlan?): Boolean =
@@ -511,6 +566,10 @@ private data class DetailActions(
     val season: MediaItem? = null,
     /** Opens the watched tile's options, the season and the whole show, where it marks a [season]. */
     val onShowMarks: () -> Unit = {},
+    /** Why what a series' Lire starts could not be read: Réessayer ([onRetry]) in Lire's place, busy while [retrying]. */
+    val nextUpError: UiError? = null,
+    val retrying: Boolean = false,
+    val onRetry: () -> Unit = {},
 )
 
 @Composable
@@ -639,7 +698,7 @@ private fun Actions(
         if (actions.onEdit != null) {
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
-        ActionFailure(problem, actionError)
+        ActionFailure(problem, actionError, actions.nextUpError)
     } }
 }
 
@@ -668,10 +727,16 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
     )
 }
 
-/** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
+/**
+ * Beside the actions, the latest first: why the last play request failed ([problem]), a change did not save
+ * ([actionError]), or what Lire starts could not be read ([nextUpError]).
+ */
 @Composable
-private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?) {
-    val (title, error) = problem?.let { R.string.play_failed to it } ?: actionError?.let { R.string.action_not_saved to it } ?: return
+private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?, nextUpError: UiError?) {
+    val (title, error) = problem?.let { R.string.play_failed to it }
+        ?: actionError?.let { R.string.action_not_saved to it }
+        ?: nextUpError?.let { it.title to it }
+        ?: return
     HlStatus(
         StatusState.Attention,
         stringResource(title),
@@ -680,24 +745,31 @@ private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?) {
     )
 }
 
-/** Lire or Reprendre (one button, so focus stays put), then start-over; a series or saga plays its next title. */
+/**
+ * Lire or Reprendre (one button, so focus stays put), then start-over; a series or saga plays its next title. A series
+ * whose next episode could not be read has Réessayer on that button instead, why said at the row's end.
+ */
 @Composable
 private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, actions: DetailActions) {
     val onPlay = actions.onPlay
     val series = item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION
+    val unread = series && actions.nextUpError != null
     // A film in several copies plays the one chosen, from where that copy was left.
     val copy = actions.copy
-    val target = (if (series) nextUp else copy?.item ?: item.takeIf { it.isPlayable }) ?: return
-    val resume = target.user.positionMs > 0
-    val episode = whatLirePlays(item, target, copy, actions.copyIndex)
+    val target = if (unread) null else if (series) nextUp else copy?.item ?: item.takeIf { it.isPlayable }
+    if (target == null && !unread) return
+    val resume = target != null && target.user.positionMs > 0
     HlButton(
-        stringResource(if (resume) R.string.resume else R.string.play),
-        onClick = { onPlay(target, resume) },
+        stringResource(if (target == null) R.string.retry else if (resume) R.string.resume else R.string.play),
+        onClick = { if (target != null) onPlay(target, resume) else actions.onRetry() },
         modifier = Modifier.focusKey(PLAY, memory),
-        icon = HlIcons.Play,
-        detail = playDetail(episode, target, resume, copy != null),
-        emphasis = Emphasis.Primary,
+        icon = if (target != null) HlIcons.Play else HlIcons.Refresh,
+        detail = target?.let { playDetail(whatLirePlays(item, it, copy, actions.copyIndex), it, resume, copy != null) },
+        emphasis = if (target != null) Emphasis.Primary else Emphasis.Secondary,
+        busy = target == null && actions.retrying,
+        busyLabel = stringResource(R.string.retrying),
     )
+    if (target == null) return
     // A film in several files starts over with its first part, beside this button (see Parts).
     if (resume && item.parts.isEmpty()) {
         HlIconButton(
@@ -778,8 +850,8 @@ private fun episodeState(ep: MediaItem): String? =
     if (ep.user.played) stringResource(R.string.watched) else timeLeft(ep)
 
 /**
- * A season's episodes: OK plays one, Menu or a long OK opens its options ([onOptions], null for a card without); a
- * mark that did not save ([markError]) is said under them until an OK there.
+ * A season's episodes: OK plays one, Menu or a long OK opens its options ([onOptions], null for a card without); a play
+ * that failed ([playError]), else a mark that did not save ([markError]), is said under them until an OK there.
  */
 @Composable
 private fun Episodes(
@@ -792,6 +864,7 @@ private fun Episodes(
     onOptions: (MediaItem) -> (() -> Unit)?,
     markError: UiError?,
     onClearMarkError: () -> Unit,
+    playError: UiError? = null,
 ) {
     // The row and the overview of its focused episode come into view together.
     Column(Modifier.scrollsAsBlock().okClears(onClearMarkError)) {
@@ -820,7 +893,9 @@ private fun Episodes(
                 .heightIn(min = textRoom(HlLayout.episodeOverview))
                 .fadeOutsideSafeArea(),
         ) {
-            if (markError != null) {
+            if (playError != null) {
+                HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(playError.message))
+            } else if (markError != null) {
                 HlStatus(StatusState.Attention, stringResource(R.string.action_not_saved), detail = stringResource(markError.message))
             } else {
                 Text(
@@ -859,12 +934,6 @@ private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, o
     }
 }
 
-/** The first OK pressed within does [clear], not its repeats: held, OK is still one action and leaves what it caused. */
-private fun Modifier.okClears(clear: () -> Unit) = onPreviewKeyEvent {
-    if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS && it.nativeKeyEvent.repeatCount == 0) clear()
-    false
-}
-
 /** Parts go in a menu from three on: two buttons beside Lire still leave room for the tiles. */
 internal fun partsInMenu(count: Int): Boolean = count > INLINE_PARTS
 
@@ -898,6 +967,9 @@ private val PARTS = FocusKey.action("parts")
 private const val INLINE_PARTS = 2
 private const val EPISODES = "episodes"
 
+/** Réessayer of a page whose part failed once its title showed. */
+private val RETRY_PAGE = FocusKey.action("retry-page")
+
 /** Réessayer of a failed season, keyed within its row so returning focus finds the row. */
 private val RETRY_EPISODES = FocusKey.within(FocusKey.row(EPISODES), FocusKey.action("retry"))
 private const val FILMS = "films"
@@ -916,5 +988,3 @@ internal fun peopleOf(item: MediaItem, credits: Credits?, directing: String, cre
 
 /** Placeholders while a season loads: as many episodes as the screen shows whole. */
 private const val EPISODE_SKELETONS = 3
-
-private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

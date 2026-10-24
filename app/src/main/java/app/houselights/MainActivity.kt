@@ -63,6 +63,8 @@ import app.houselights.core.PlaybackPlan
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.PlayOrigin
+import app.houselights.ui.util.PlaybackProblem
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
@@ -313,7 +315,8 @@ class MainActivity : ComponentActivity() {
         return dispatchUnseen(event, covered, lightsDown.value, ::cancelCue) { super.dispatchKeyEvent(it) }
     }
 
-    private fun play(item: MediaItem, resume: Boolean) {
+    /** Plays [item] after the house-light cue; a failure is said where play was asked ([origin]). */
+    private fun play(item: MediaItem, resume: Boolean, origin: PlayOrigin) {
         // One cue at a time.
         if (lightsDown.value) return
         container.playback.clearProblem()
@@ -330,21 +333,21 @@ class MainActivity : ComponentActivity() {
                             tracks = { container.tracks.plan(plan) },
                             freeMemory = { imageLoader.memoryCache?.clear() },
                             start = playerLauncher::launch,
-                            failed = ::failed,
+                            failed = { failed(it, origin) },
                         )
                     }
                 }
                 .onFailure {
                     Log.w("Playback", "Playback failed", it)
-                    failed(it.toUiError())
+                    failed(it.toUiError(), origin)
                 }
         }
     }
 
-    /** Brings the lights back up; the detail page shows why nothing plays. */
-    private fun failed(error: UiError) {
+    /** Brings the lights back up; the screen play was asked from ([origin]) says why nothing plays. */
+    private fun failed(error: UiError, origin: PlayOrigin) {
         lightsDown.value = false
-        container.playback.reportProblem(error)
+        container.playback.reportProblem(PlaybackProblem(error, origin))
     }
 
     private fun cancelCue() {
@@ -355,7 +358,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -> Unit) {
+private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, PlayOrigin) -> Unit) {
     val app = appContainer()
     val settings by app.settings.state.collectAsStateWithLifecycle()
     if (!settings.loaded) {
@@ -366,6 +369,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
 
     val scope = rememberCoroutineScope()
     val start: Any = remember { if (settings.source != null) Route.Home else Route.Welcome }
+    val playProblem by app.playback.playbackProblem.collectAsStateWithLifecycle()
 
     fun openItem(id: String) = nav.navigate(Route.Item(id))
     fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
@@ -416,14 +420,15 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 if (switched || !nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
             })
         }
-        composable<Route.Home> {
+        composable<Route.Home> { entry ->
             val context = LocalContext.current
             val screen = screenWidthPx()
             WithSource(settings.source) {
                 HomeScreen(
                     nav.homeActions(
                         HomeActions(
-                            onPlay = onPlay,
+                            onPlay = { item, resume -> onPlay(item, resume, PlayOrigin(entry.id)) },
+                            onClearProblem = app.playback::clearProblem,
                             onOpenItem = { openItem(it.id) },
                             onAddFolder = { nav.navigate(Route.AddFolder()) },
                             onLibraryAhead = { library, sagas ->
@@ -431,6 +436,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                             },
                         ),
                     ),
+                    playProblem = playProblem?.takeIf { it.origin.screen == entry.id }?.error,
                 )
             }
         }
@@ -460,6 +466,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
             WithSource(settings.source) {
                 DetailScreen(
                     itemId = entry.toRoute<Route.Item>().id,
+                    screen = entry.id,
                     onPlay = onPlay,
                     onOpenItem = ::openItem,
                     onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
@@ -496,6 +503,8 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         if (BuildConfig.DEBUG) composable<Route.Catalog> { CatalogScreen() }
     }
     WelcomeWhenLost(nav, settings.source)
+    // A play's problem belongs to the screen it was asked from: another one shown clears it.
+    LaunchedEffect(nav) { nav.currentBackStackEntryFlow.collect { app.playback.screenShown(it.id) } }
 }
 
 /** « À regarder » at [entry], on the row it was opened on, with home's rows as home read them: what its doors showed. */
