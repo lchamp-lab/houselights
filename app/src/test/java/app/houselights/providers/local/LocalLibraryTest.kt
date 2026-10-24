@@ -101,8 +101,10 @@ class LocalLibraryTest {
 
         library.removeFolder(shown)
         assertTrue(dao.sources().isEmpty())
-        // Already gone: nothing happens, and nothing fails.
+        // Already gone: nothing is deleted, and nothing fails.
+        statements.clear()
         library.removeFolder(shown)
+        assertTrue("deleted: $statements", statements.none { it.trimStart().startsWith("DELETE", ignoreCase = true) })
     }
 
     @Test
