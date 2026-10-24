@@ -40,7 +40,7 @@ gratuite, l’application est entièrement en français. [Installer](#install)
 - **A 10-foot interface built for the living room**: full-screen backdrops, clear logos, poster rows and
   walls, detail pages with cast, seasons and episodes, in 4K60 where the device allows it. Built with Jetpack
   Compose for TV on its own design system ([DESIGN.md](DESIGN.md)).
-  - Home is a grid of doors: the title you were watching to resume in one OK (or a film not seen yet), the next
+  - Home is a grid of doors: the title you were watching to resume in one OK (or a film or show not seen yet), the next
     episode and what is new, a door per library with its number of titles cut in its posters, the sagas, search
     and the app's state. The rows of what to watch are one door away. Back on home asks once more before leaving
     the app.

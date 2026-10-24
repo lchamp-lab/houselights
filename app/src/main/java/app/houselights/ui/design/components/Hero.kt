@@ -41,8 +41,8 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.util.timeLeft
 
 /**
- * The focused title atop browsing screens: logo or name, a line of facts (an episode's number and name),
- * then progress and time left or two lines of overview; changes with its picture ([WithItsPicture]).
+ * The focused title atop « À regarder » and a person's page: logo or name, a line of facts (an episode's number and
+ * name), then progress and time left or two lines of overview; changes with its picture ([WithItsPicture]).
  */
 @Composable
 fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier) {

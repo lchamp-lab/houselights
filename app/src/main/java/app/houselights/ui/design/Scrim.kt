@@ -17,7 +17,7 @@ import kotlin.math.roundToInt
  * picture's own dark, the bottom one is the room.
  */
 object HlScrim {
-    /** Home's left veil at the column's band edges, raised where the picture needs it ([ArtworkSample.leftVeil]). */
+    /** A hero's left veil (« À regarder », a person's page) at the column's band edges, raised where needed ([ArtworkSample.leftVeil]). */
     val LEFT_HOME = listOf(
         VeilStop(0f, 0.95f), VeilStop(0.25f, 0.94f), VeilStop(0.5f, 0.905f), VeilStop(0.75f, 0.785f), VeilStop(1f, 0.48f),
     )
@@ -44,7 +44,7 @@ object HlScrim {
         VeilStop(dp(110f), 0.22f), VeilStop(dp(140f), 0.07f), VeilStop(dp(164f), 0f),
     )
 
-    /** Home's bottom veil: the rows sit on the room from 77 % of the height. */
+    /** A hero's bottom veil: its rows sit on the room from 77 % of the height. */
     val BOTTOM_HOME = listOf(
         VeilStop(0.4f, 0f), VeilStop(0.47f, 0.2f), VeilStop(0.54f, 0.48f), VeilStop(0.6f, 0.74f),
         VeilStop(0.66f, 0.9f), VeilStop(0.72f, 0.98f), VeilStop(0.77f, 1f), VeilStop(1f, 1f),

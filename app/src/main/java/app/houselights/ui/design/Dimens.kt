@@ -140,7 +140,7 @@ object HlSize {
     const val PREVIEW_RATIO = 16f / 9f
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
-    /** The progress of home's hero title, before its time left. */
+    /** The progress in a hero (« À regarder », a person's page), before its time left; [heroProgressWeight] on home's case too. */
     val heroProgress = 220.dp
     val heroProgressWeight = 4.dp
     /** Placeholder rules for a title and its facts while a page loads. */
@@ -185,12 +185,12 @@ object HlLayout {
     /** Text set beside artwork (heroes, detail pages). */
     val readableNarrow = 520.dp
     val fieldShort = 120.dp
-    /** Clear logo or title of a detail page, and of a browsing hero. */
+    /** Clear logo or title of a detail page. */
     val titleArtWidth = 440.dp
     val titleArtHeight = 112.dp
     /**
-     * The hero band of « À regarder », [HlSpace.l] from its title and its rows: logo, facts, two overview lines, [HlSpace.s]
-     * apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
+     * The hero band of « À regarder » (and of a person's page), [HlSpace.l] from its title and its rows: logo, facts, two
+     * overview lines, [HlSpace.s] apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
      */
     val hero = 148.dp
     /** Title line above a poster wall, in `rowTitle`: 28 at the default text size, growing with it. */
@@ -311,7 +311,7 @@ internal object HomeGridDefaults {
     val stateRows = 11.dp
 }
 
-/** The logo or title of a browsing hero (home's). */
+/** The logo or title of a hero: « À regarder », a person's page. */
 internal object HeroDefaults {
     val titleWidth = 380.dp
     val titleHeight = 56.dp

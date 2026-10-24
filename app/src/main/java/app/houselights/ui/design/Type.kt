@@ -140,7 +140,7 @@ data class HlType(
     // The voice of the poster (condensed).
     /** Title of a detail page when there is no clear logo. */
     val display: TextStyle,
-    /** Screen titles, the home hero title without logo. */
+    /** Screen titles; a title without its logo in a hero or on home's case. */
     val headline: TextStyle,
     /** What a panel or sheet is about ("Modifier"), an intertitle's line, a figure that states something. */
     val subject: TextStyle,

@@ -69,8 +69,8 @@ private fun StressInfoLineSection() {
 
 @Composable
 private fun StressHeroSection() {
-    // The home hero keeps one height whatever has focus, growing with the text scale (textRoom).
-    Group("Home hero", still = true) {
+    // A hero (« À regarder », a person's page) keeps one height whatever has focus, growing with the text scale (textRoom).
+    Group("Hero", still = true) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
             Column {
                 StressHero()

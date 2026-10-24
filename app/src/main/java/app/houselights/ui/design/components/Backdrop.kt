@@ -88,7 +88,7 @@ enum class BackdropStyle(
     /** Drawn from the picture's diffuse field ([diffuseField]), never decoding the picture itself. */
     val diffuse: Boolean = false,
 ) {
-    /** Home: the picture fills the top of the screen; rows sit on black below. */
+    /** « À regarder », a person's page with few titles: the picture fills the top of the screen; rows sit on black below. */
     Hero(Veils(1f, HlScrim.LEFT_HOME, HlScrim.TOP, HlScrim.BOTTOM_HOME), BackdropDefaults.homeFade),
     /** Detail: the picture fills the screen behind the text and fades to black under its rows. */
     Full(Veils(1f, HlScrim.LEFT_DETAIL, HlScrim.TOP, HlScrim.BOTTOM_DETAIL), BackdropDefaults.detailFade),
