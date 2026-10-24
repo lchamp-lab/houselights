@@ -10,9 +10,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.MediaProvider
 import app.houselights.core.SearchResults
-import app.houselights.core.suspendRunCatching
-import app.houselights.ui.util.UiError
-import app.houselights.ui.util.reported
+import app.houselights.ui.util.LoadState
+import app.houselights.ui.util.loadState
+import app.houselights.ui.util.readingAgain
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,8 +24,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 
-/** The results of a search for [query], or why it failed ([error]), kept while it is [retrying]. */
-data class Found(val query: String, val results: SearchResults, val error: UiError? = null, val retrying: Boolean = false)
+/** The search for [query]: its [results], or why it failed, kept while it is retried. */
+data class Found(val query: String, val results: LoadState<SearchResults>)
 
 /**
  * Library search: [query] updates on each key; [found] follows [WAIT_MS] after the last key, null while the query
@@ -49,8 +49,8 @@ class SearchViewModel(
                 var found = search(words)
                 emit(found)
                 retries.collect {
-                    if (found.error == null) return@collect
-                    emit(found.copy(retrying = true))
+                    if (found.results !is LoadState.Failed) return@collect
+                    emit(found.copy(results = found.results.readingAgain()))
                     found = search(words)
                     emit(found)
                 }
@@ -58,10 +58,8 @@ class SearchViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), null)
 
-    private suspend fun search(words: String): Found = suspendRunCatching { provider().catalog?.search(words) }.fold(
-        { Found(words, it ?: SearchResults()) },
-        { Found(words, SearchResults(), error = it.reported(TAG, "Search")) },
-    )
+    private suspend fun search(words: String): Found =
+        Found(words, loadState(TAG, "Search") { provider().catalog?.search(words) ?: SearchResults() })
 
     /** Runs the search that failed again, its failure shown meanwhile. */
     fun retry() {
