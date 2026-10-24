@@ -389,7 +389,7 @@ class LibraryScanner(
 
     /**
      * Re-evaluates [due] per file, as TMDB may close meanwhile; returns how many files changed the library. A file
-     * that failed at an earlier pass and fails again is counted in one line rather than logged whole.
+     * that failed at an earlier pass and fails again the same way is counted in one line rather than logged whole.
      */
     private suspend fun processAll(folder: Folder, todo: List<RemoteFile>, due: (RemoteFile) -> Work?): Int {
         var unreachable = 0

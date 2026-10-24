@@ -38,4 +38,15 @@ class RepeatedFailuresTest {
         failures.summarize { "$it more" }
         assertEquals(listOf("Could not read a.nfo +", "Could not read a.nfo +"), told())
     }
+
+    /** The NAS away at one pass, the file malformed at the next: the new cause is not hidden in a count. */
+    @Test
+    fun aKeyFailingAnotherWayIsLoggedWholeAgain() {
+        fail("a.nfo")
+        failures.failed("a.nfo", "Could not parse a.nfo", IllegalStateException("Malformed"))
+        fail("a.nfo")
+        fail("a.nfo")
+        failures.summarize { "$it more" }
+        assertEquals(listOf("Could not read a.nfo +", "Could not parse a.nfo +", "Could not read a.nfo +", "1 more"), told())
+    }
 }
