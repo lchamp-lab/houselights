@@ -250,12 +250,15 @@ class MainActivity : ComponentActivity() {
             cuts = container.cutPosters,
         ) { container.providerOrNull()?.capabilities?.search == true }
         container.homeLaunch.begin(container.scope, restored, pictures)
+        // The launch screen lifts once the gate opens, on a complete home or at its cap: the start-up's full display.
         splash.setOnExitAnimationListener { view ->
             if (!held) {
                 view.remove()
+                reportFullyDrawn()
             } else {
                 lifecycleScope.launch {
                     launch.awaitOpen()
+                    reportFullyDrawn()
                     lightsDown(view)
                 }
             }

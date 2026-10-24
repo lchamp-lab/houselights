@@ -1,12 +1,13 @@
 package app.houselights.baselineprofile
 
-import android.view.KeyEvent
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.Until
 import java.util.regex.Pattern
 
 // A viewer's most common journeys, which the baseline profile compiles and the benchmarks measure. Each
-// starts from a fresh home, focus on its case, and navigates by on-screen text.
+// starts from a fresh home, focus on its case, and reaches a door by where it lies on screen (focusTo): a
+// library of films alone, its door across the whole row, or of films and shows, takes the same journeys.
 
 /** Home freshly started: its grid shown, focus on its case. */
 internal fun MacrobenchmarkScope.startHome() {
@@ -15,40 +16,55 @@ internal fun MacrobenchmarkScope.startHome() {
     awaitHome()
 }
 
+/** Home's grid shown and the launch screen lifted: until then it takes no key. */
 internal fun MacrobenchmarkScope.awaitHome() {
     await(By.textStartsWith(appString("home_news")), "home's grid")
+    device.wait(Until.gone(By.res(Pattern.compile(".*:id/splashscreen_icon_view"))), SCREEN_MS)
 }
 
-/** Round home's grid, door by door, back to the case. */
+/** Home's doors in reading order: what is watched, the libraries, the tools. */
+private val HOME_DOORS = listOf(
+    "section_next_up",
+    "section_continue",
+    "home_news",
+    "library_movies",
+    "library_shows",
+    "home_libraries",
+    "library_collections",
+    "search",
+    "nav_settings",
+)
+
+/** Each door home shows in turn, then left along the last row to the case. */
 internal fun MacrobenchmarkScope.browseHome() {
-    right()
-    up()
-    right()
-    down(2)
-    left(2)
-    left()
+    HOME_DOORS.map { appString(it) }.filter { device.hasObject(By.text(it)) }.forEach { focusTo(it) }
+    left(3)
 }
 
-/** The films' door, then its wall, browsed. */
+/** The films' wall from its door: along and down its posters, then back to the first and home. */
 internal fun MacrobenchmarkScope.browseLibrary() {
-    focusOn(appString("library_movies"), KeyEvent.KEYCODE_DPAD_RIGHT, max = 2)
-    ok()
-    await(By.textStartsWith(appString("sort")), "the films' wall")
+    openWall("library_movies")
     right(4)
     down()
     left(2)
     down()
-    // Back to the first poster, then home.
+    back(2)
+}
+
+/** The sagas' wall from its door, where the source has some. */
+internal fun MacrobenchmarkScope.browseSagas() {
+    if (!device.hasObject(By.text(appString("library_collections")))) return
+    openWall("library_collections")
+    right(3)
+    down()
     back(2)
 }
 
 /** A film's page from « À regarder »: down its rows and along its cast, then back up to its actions and home. */
 internal fun MacrobenchmarkScope.browseDetail() {
-    right()
-    up()
-    focusOn(appString("home_news"), KeyEvent.KEYCODE_DPAD_RIGHT, max = 2)
+    focusTo(appString("home_news"))
     ok()
-    await(By.text(appString("watch_title")), "the rows to watch")
+    await(By.text(appString("watch_title")), "the page to watch")
     ok()
     awaitDetail()
     down(3)
@@ -61,9 +77,7 @@ internal fun MacrobenchmarkScope.browseDetail() {
 /** A series' page from its wall: its episodes, the overview following focus, then its cast. */
 internal fun MacrobenchmarkScope.browseShow() {
     if (!device.hasObject(By.text(appString("library_shows")))) return
-    focusOn(appString("library_shows"), KeyEvent.KEYCODE_DPAD_RIGHT, max = 3)
-    ok()
-    await(By.textStartsWith(appString("sort")), "the series' wall")
+    openWall("library_shows")
     ok()
     awaitDetail()
     down()
@@ -74,21 +88,23 @@ internal fun MacrobenchmarkScope.browseShow() {
     back(2)
 }
 
-/** The settings: each pane in turn, then the library's rows. */
+/** The settings: down their places, each pane shown in turn, then into the library's rows. */
 internal fun MacrobenchmarkScope.browseSettings() {
     openSettings()
-    down(3)
-    up(3)
+    down(SETTINGS_PLACES)
+    up(SETTINGS_PLACES)
     right()
     down(4)
     back(2)
 }
 
+/** The settings' places past the first: Numbers, Playback, Trakt, Display, Storage, About, where shown. */
+private const val SETTINGS_PLACES = 6
+
 /** A search from home's door: a few letters typed, the results read, then home. None for a source that cannot search. */
 internal fun MacrobenchmarkScope.browseSearch() {
-    right()
-    down()
-    focusOn(appString("search"), KeyEvent.KEYCODE_DPAD_RIGHT, max = 2)
+    if (!device.hasObject(By.text(appString("search")))) return
+    focusTo(appString("search"))
     ok()
     await(By.text(appString("search_hint")), "the search")
     // A, M, E: down the keys, then up and along them.
@@ -102,6 +118,13 @@ internal fun MacrobenchmarkScope.browseSearch() {
     val none = Pattern.quote(appString("search_none").substringBefore("%"))
     await(By.text(Pattern.compile("$found|$none.*")), "what the search found")
     back()
+}
+
+/** A wall from home's [door], named by its string, once its menus show. */
+private fun MacrobenchmarkScope.openWall(door: String) {
+    focusTo(appString(door))
+    ok()
+    await(By.textStartsWith(appString("sort")), "the wall \"${appString(door)}\"")
 }
 
 /** Waits for a detail page: its play button, Lire or Reprendre. */
