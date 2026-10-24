@@ -7,14 +7,18 @@ import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
 import app.houselights.core.Job
 import app.houselights.core.MediaInfo
+import app.houselights.core.Opened
 import app.houselights.core.Secrets
 
 enum class SourceKind { MOVIES, SHOWS }
 
 enum class Protocol { SMB, NFS }
 
-/** A plain-text password in memory; stored sealed (see [SecretConverter]) and redacted from toString. */
-data class Secret(val value: String) {
+/**
+ * A plain-text password in memory; stored sealed (see [SecretConverter]) and redacted from toString. [unopened] is the
+ * sealed text the Keystore did not open for now: saved back as it was, never as an empty password.
+ */
+data class Secret(val value: String, val unopened: String? = null) {
     override fun toString() = "Secret(***)"
 }
 
@@ -71,11 +75,18 @@ data class GenreList(val genres: String, val folded: String)
 @ProvidedTypeConverter
 class SecretConverter(private val secrets: Secrets) {
     @TypeConverter
-    fun seal(secret: Secret): String = secrets.seal(secret.value)
+    fun seal(secret: Secret): String = secret.unopened ?: secrets.seal(secret.value)
 
-    /** A secret that can no longer be unsealed reads as empty, so the source asks for its password again. */
+    /**
+     * A secret that can no longer be unsealed reads as empty, so the source asks for its password again; one the
+     * Keystore did not open for now reads as empty too, its sealed text kept.
+     */
     @TypeConverter
-    fun open(stored: String): Secret = Secret(secrets.open(stored) ?: "")
+    fun open(stored: String): Secret = when (val read = secrets.read(stored)) {
+        is Opened.Text -> Secret(read.plain)
+        Opened.Unavailable -> Secret("", unopened = stored)
+        Opened.Undecryptable -> Secret("")
+    }
 }
 
 /** A network folder holding either movies or TV shows. */

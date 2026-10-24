@@ -59,6 +59,9 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** The device's Keystore refused to seal a password or a token: nothing was written. */
     KEYSTORE(R.string.error_keystore_title, R.string.error_keystore, ErrorAction.RETRY),
 
+    /** The device's Keystore did not open a saved secret for now: it is kept, and read again. */
+    SECRETS_UNREAD(R.string.error_keystore_title, R.string.error_secrets_unread, ErrorAction.RETRY),
+
     /** The device's storage refused a write (full, or failing): nothing was saved. */
     NOT_SAVED(R.string.error_not_saved_title, R.string.error_not_saved, ErrorAction.RETRY),
 

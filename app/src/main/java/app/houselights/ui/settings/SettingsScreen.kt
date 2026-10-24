@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,7 +52,9 @@ import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.roomPosters
+import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.appContainer
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
     Library(R.string.section_source, HlIcons.Folder),
@@ -187,6 +190,31 @@ internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>, folders: Boole
     else -> null
 }
 
+/** Whether [pane] shows a secret the Keystore did not open for now ([unread]); Trakt's only with the [folders]. */
+internal fun unreadSecretIn(pane: Pane, unread: Set<SecretSetting>, folders: Boolean): Boolean = when (pane) {
+    Pane.Library -> SecretSetting.TMDB_KEY in unread
+    Pane.Playback -> SecretSetting.PATH_MAPPINGS in unread
+    Pane.Trakt -> folders && SecretSetting.TRAKT in unread
+    else -> false
+}
+
+/** The pane's secret is kept but not opened for now: said so, Réessayer reading it again. */
+@Composable
+private fun SecretUnread() {
+    val settings = appContainer().settings
+    val reading by settings.reading.collectAsStateWithLifecycle()
+    PartFailed(UiError.SECRETS_UNREAD, reading, settings::readAgain)
+}
+
+/** [pane]'s secret lost or not opened for now, said at its head. */
+private fun LazyListScope.secretNote(pane: Pane, s: AppSettings, folders: Boolean) {
+    if (unreadSecretIn(pane, s.unreadSecrets, folders)) {
+        item(key = LOST_SECRET) { SecretUnread() }
+    } else {
+        lostSecretNote(pane, s.lostSecrets, folders)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
+    }
+}
+
 private const val LOST_SECRET = "lost-secret"
 
 private fun paneKey(pane: Pane) = FocusKey.pane(pane.name)
@@ -207,7 +235,8 @@ internal fun panesFor(source: SourceConfig?, pathMapping: Boolean, counts: Boole
     }
 
 /** A Trakt account is kept: connected, or saved but not opened at this launch. */
-internal val AppSettings.keepsTrakt: Boolean get() = trakt?.ended == false || SecretSetting.TRAKT in lostSecrets
+internal val AppSettings.keepsTrakt: Boolean
+    get() = trakt?.ended == false || SecretSetting.TRAKT in lostSecrets || SecretSetting.TRAKT in unreadSecrets
 
 /** The rows of [pane]. Focus returning from the navigation goes back to the row it left. */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -242,9 +271,9 @@ private fun PaneContent(
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.safeH),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
-        // A lost secret shows at the pane's head; a failed change shows on its own row, where focus is.
+        // A lost or unread secret shows at the pane's head; a failed change shows on its own row, where focus is.
         val folders = s.source == SourceConfig.Local
-        lostSecretNote(pane, s.lostSecrets, folders)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
+        secretNote(pane, s, folders)
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, sources, rows)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }

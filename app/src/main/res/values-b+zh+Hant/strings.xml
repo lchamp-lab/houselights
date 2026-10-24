@@ -499,6 +499,7 @@
     <string name="error_keystore_title">裝置金鑰庫無法使用</string>
     <string name="error_keystore">本裝置的金鑰庫拒絕加密密碼，因此未儲存任何內容。請重新啟動播放器，然後重試。</string>
     <string name="error_keystore_sign_in">已登入，但本裝置的金鑰庫拒絕加密伺服器的權杖，因此未儲存任何內容。請重新啟動播放器，然後重新登入。</string>
+    <string name="error_secrets_unread">本裝置的金鑰庫沒有回應，但已儲存的內容沒有遺失。請重試；如果問題持續，請重新啟動播放器。</string>
     <string name="error_settings_title">無法讀取設定</string>
     <string name="error_settings">本播放器的儲存空間沒有回應。請重試；如果問題持續，請重新啟動播放器。</string>
     <string name="error_not_saved_title">未儲存任何內容</string>

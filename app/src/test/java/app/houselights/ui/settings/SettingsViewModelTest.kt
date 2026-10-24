@@ -325,6 +325,18 @@ class SettingsViewModelTest {
         assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE), folders = true))
     }
 
+    /** A secret the Keystore did not open for now is said where it shows, as one lost is; Trakt's with the folders. */
+    @Test
+    fun eachPaneSaysWhatOfItsOwnWasNotOpened() {
+        val unread = setOf(SecretSetting.TMDB_KEY, SecretSetting.PATH_MAPPINGS, SecretSetting.TRAKT)
+        assertTrue(unreadSecretIn(Pane.Library, unread, folders = true))
+        assertTrue(unreadSecretIn(Pane.Playback, unread, folders = true))
+        assertTrue(unreadSecretIn(Pane.Trakt, unread, folders = true))
+        assertFalse(unreadSecretIn(Pane.Trakt, unread, folders = false))
+        assertFalse(unreadSecretIn(Pane.Display, unread, folders = true))
+        assertFalse(unreadSecretIn(Pane.Library, setOf(SecretSetting.SOURCE), folders = true))
+    }
+
     /** Paused under a server, Trakt's pane can only disconnect: it never asks to connect again there. */
     @Test
     fun aLostTraktSessionIsNotToldUnderAServer() {

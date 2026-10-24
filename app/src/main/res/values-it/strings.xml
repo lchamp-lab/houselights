@@ -529,6 +529,7 @@
     <string name="error_keystore_title">Archivio chiavi non disponibile</string>
     <string name="error_keystore">L’archivio chiavi del dispositivo ha rifiutato di cifrare la password: non è stato salvato nulla. Riavviare il lettore, poi riprovare.</string>
     <string name="error_keystore_sign_in">Accesso riuscito, ma l’archivio chiavi del dispositivo ha rifiutato di cifrare il token del server: non è stato salvato nulla. Riavviare il lettore, poi accedere di nuovo.</string>
+    <string name="error_secrets_unread">L’archivio chiavi del dispositivo non ha risposto, ma nulla di ciò che è salvato è andato perso. Riprovare e, se il problema persiste, riavviare il lettore.</string>
     <string name="error_settings_title">Impossibile leggere le impostazioni</string>
     <string name="error_settings">La memoria del lettore non ha risposto. Riprovare e, se il problema persiste, riavviare il lettore.</string>
     <string name="error_not_saved_title">Non è stato salvato nulla</string>

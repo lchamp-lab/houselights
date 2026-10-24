@@ -528,6 +528,7 @@
     <string name="error_keystore_title">Device keystore unavailable</string>
     <string name="error_keystore">This device’s keystore refused to seal the password, so nothing was saved. Restart the player, then try again.</string>
     <string name="error_keystore_sign_in">Signed in, but this device’s keystore refused to seal the server’s token, so nothing was saved. Restart the player, then sign in again.</string>
+    <string name="error_secrets_unread">This device’s keystore did not answer, but nothing saved is lost. Try again, and if it lasts, restart the player.</string>
     <string name="error_settings_title">Settings could not be read</string>
     <string name="error_settings">This player’s storage did not answer. Try again, and if it lasts, restart the player.</string>
     <string name="error_not_saved_title">Nothing was saved</string>

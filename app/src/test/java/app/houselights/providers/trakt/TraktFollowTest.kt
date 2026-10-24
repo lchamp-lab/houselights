@@ -44,7 +44,7 @@ class TraktFollowTest : TraktSyncFixture() {
         queue.saveState(synced)
         val saved = session
         session = null
-        val settings = MutableStateFlow(AppSettings(loaded = true, source = SourceConfig.Local, lostSecrets = setOf(SecretSetting.TRAKT)))
+        val settings = MutableStateFlow(AppSettings(loaded = true, source = SourceConfig.Local, unreadSecrets = setOf(SecretSetting.TRAKT)))
         val sync = following(settings)
         provider(sync).mark(id, played = true)
         advanceUntilIdle()
@@ -80,5 +80,7 @@ class TraktFollowTest : TraktSyncFixture() {
         assertTrue(TraktFollow.queues(unread))
         assertFalse(TraktFollow.queues(unread.copy(source = SourceConfig.Jellyfin("https://nas", null, "u1", null, "t"))))
         assertFalse(TraktFollow.queues(unread.copy(lostSecrets = emptySet())))
+        // Not opened for now, the Keystore unavailable, as when it can never be: no sign-out either.
+        assertTrue(TraktFollow.queues(unread.copy(lostSecrets = emptySet(), unreadSecrets = setOf(SecretSetting.TRAKT))))
     }
 }

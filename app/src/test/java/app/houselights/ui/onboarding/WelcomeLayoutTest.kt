@@ -51,8 +51,19 @@ class WelcomeLayoutTest {
     @Config(qualifiers = "pt-$TV")
     fun inPortuguese() = holds()
 
-    private fun holds() {
-        compose.setTvContent { Welcome(emptyList(), {}, {}, lostSource = true, problem = UiError.OFFLINE) }
+    /** The connection kept but not opened for now: its note, in its column, and Réessayer, in the safe area. */
+    @Test
+    @Config(qualifiers = "de-$TV")
+    fun unreadInGerman() = holds(unread = true)
+
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun unreadInFrench() = holds(unread = true)
+
+    private fun holds(unread: Boolean = false) {
+        compose.setTvContent {
+            Welcome(emptyList(), {}, {}, lostSource = !unread, problem = UiError.OFFLINE, readAgain = {}.takeIf { unread })
+        }
         fun bounds(id: Int) = compose.onNodeWithText(compose.activity.getString(id)).getUnclippedBoundsInRoot()
         val name = compose.onNodeWithContentDescription(compose.activity.getString(R.string.wordmark)).getUnclippedBoundsInRoot()
         val caps = HlSize.wordmarkHero
@@ -72,7 +83,9 @@ class WelcomeLayoutTest {
 
         val reach = HlFocus.reach
         val framed = choices.map { DpRect(it.left - reach, it.top - reach, it.right + reach, it.bottom + reach) }
-        val notes = listOf(bounds(R.string.welcome_lost_secrets), bounds(welcomeProblem(UiError.OFFLINE)))
+        val said = if (unread) listOf(R.string.error_secrets_unread, R.string.retry) else listOf(R.string.welcome_lost_secrets)
+        val notes = (said + welcomeProblem(UiError.OFFLINE)).map(::bounds)
+        notes.forEach { assertTrue("$it in the left column", it.right <= title.left - HlSpace.xl) }
         (listOf(lockup, title) + framed + notes).forEach { box ->
             assertTrue(
                 "$box inside the safe area",

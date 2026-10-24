@@ -32,7 +32,7 @@ class TraktFollow(private val settings: StateFlow<AppSettings>) {
     internal companion object {
         fun queues(s: AppSettings): Boolean = (s.trakt != null || unread(s)) && s.source == SourceConfig.Local
 
-        /** The session is saved but could not be opened at this launch. */
-        private fun unread(s: AppSettings) = SecretSetting.TRAKT in s.lostSecrets
+        /** The session is saved but could not be opened at this launch, for now or for good. */
+        private fun unread(s: AppSettings) = SecretSetting.TRAKT in s.unreadSecrets || SecretSetting.TRAKT in s.lostSecrets
     }
 }

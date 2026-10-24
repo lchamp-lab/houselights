@@ -528,6 +528,7 @@
     <string name="error_keystore_title">Cofre do dispositivo indisponível</string>
     <string name="error_keystore">O cofre de chaves deste dispositivo se recusou a criptografar a senha, então nada foi salvo. Reinicie o player e tente de novo.</string>
     <string name="error_keystore_sign_in">Login efetuado, mas o cofre de chaves deste dispositivo se recusou a criptografar o token do servidor, então nada foi salvo. Reinicie o player e entre de novo.</string>
+    <string name="error_secrets_unread">O cofre de chaves deste dispositivo não respondeu, mas nada do que foi salvo se perdeu. Tente de novo e, se persistir, reinicie o player.</string>
     <string name="error_settings_title">Não foi possível ler as configurações</string>
     <string name="error_settings">O armazenamento deste player não respondeu. Tente de novo e, se persistir, reinicie o player.</string>
     <string name="error_not_saved_title">Nada foi salvo</string>

@@ -196,7 +196,7 @@ class AddFolderViewModel(
                 if (folder != null) {
                     editing = folder
                     form = kept ?: FolderForm.of(folder)
-                    keepsPassword = folder.password.value.isNotEmpty()
+                    keepsPassword = folder.password.value.isNotEmpty() || folder.password.unopened != null
                 } else {
                     gone = true
                 }

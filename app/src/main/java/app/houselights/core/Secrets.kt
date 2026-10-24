@@ -187,8 +187,9 @@ class Secrets(private val keyring: Keyring, private val record: KeyRecord) {
         private var device: Secrets? = null
 
         /** Secrets sealed with this device's Keystore keys, the versions made recorded in [context]'s preferences. */
-        fun device(context: Context): Secrets =
-            device ?: synchronized(this) { device ?: Secrets(DeviceKeyring, SavedKeyRecord.of(context.applicationContext)).also { device = it } }
+        fun device(context: Context): Secrets = device ?: synchronized(this) {
+            device ?: Secrets(DeviceKeyring, SavedKeyRecord.of(context.applicationContext)).also { device = it }
+        }
 
         /** Keystore alias of a key version: the first is unnumbered, later ones are numbered. */
         internal fun aliasOf(version: Int) = if (version == FIRST_KEY) ALIAS else "$ALIAS.$version"

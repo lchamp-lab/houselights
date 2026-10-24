@@ -544,6 +544,7 @@
     <string name="error_keystore_title">Magazyn kluczy urządzenia niedostępny</string>
     <string name="error_keystore">Magazyn kluczy tego urządzenia odmówił zaszyfrowania hasła, więc niczego nie zapisano. Uruchom ponownie odtwarzacz i spróbuj jeszcze raz.</string>
     <string name="error_keystore_sign_in">Zalogowano, ale magazyn kluczy tego urządzenia odmówił zaszyfrowania tokenu serwera, więc niczego nie zapisano. Uruchom ponownie odtwarzacz i zaloguj się jeszcze raz.</string>
+    <string name="error_secrets_unread">Magazyn kluczy tego urządzenia nie odpowiedział, ale nic z zapisanych danych nie zostało utracone. Spróbuj jeszcze raz, a jeśli problem się utrzymuje, uruchom ponownie odtwarzacz.</string>
     <string name="error_settings_title">Nie udało się odczytać ustawień</string>
     <string name="error_settings">Pamięć tego odtwarzacza nie odpowiedziała. Spróbuj jeszcze raz, a jeśli problem się utrzymuje, uruchom ponownie odtwarzacz.</string>
     <string name="error_not_saved_title">Niczego nie zapisano</string>

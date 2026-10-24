@@ -523,6 +523,7 @@
     <string name="error_keystore_title">Coffre de l’appareil indisponible</string>
     <string name="error_keystore">Le coffre de clés de l’appareil a refusé de chiffrer le mot de passe, rien n’a été enregistré. Redémarrez le lecteur, puis réessayez.</string>
     <string name="error_keystore_sign_in">La connexion a réussi, mais le coffre de clés de l’appareil a refusé de chiffrer le jeton du serveur. Rien n’a été enregistré. Redémarrez le lecteur, puis reconnectez-vous.</string>
+    <string name="error_secrets_unread">Le coffre de clés de l’appareil n’a pas répondu, mais rien de ce qui est enregistré n’est perdu. Réessayez, et si cela dure, redémarrez le lecteur.</string>
     <string name="error_settings_title">Les réglages n’ont pas pu être lus</string>
     <string name="error_settings">Le stockage du lecteur n’a pas répondu. Réessayez, et si cela dure, redémarrez le lecteur.</string>
     <string name="error_not_saved_title">Rien n’a été enregistré</string>
