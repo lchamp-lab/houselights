@@ -200,14 +200,18 @@ class HomeViewModelTest {
         assertEquals(HomeContent.ReadingFolders, vm.content())
     }
 
-    /** Folders the database cannot read are none, never a crash; the rows still show. */
+    /** Folders the database cannot read are never a crash, nor taken for none; the rows still show, else the settings door. */
     @Test
-    fun foldersThatCannotBeReadAreNone() = runTest {
+    fun foldersThatCannotBeReadAreNeverNone() = runTest {
         val unreadable = flow<List<Folder>> { throw SQLiteException("disk I/O error") }
         val vm = HomeViewModel({ provider }, scan, unreadable, settings, scanAll = {})
         backgroundScope.launch { vm.state.collect {} }
         advanceUntilIdle()
         assertEquals(HomeContent.Rows(rows), vm.content())
+        provider.home = emptyList()
+        vm.load()
+        advanceUntilIdle()
+        assertEquals(HomeContent.ReadingFolders, vm.content())
     }
 
     @Test
@@ -225,21 +229,29 @@ class HomeViewModelTest {
         assertEquals("trying again scans the folders", 1, scans)
     }
 
+    /** Without a folder there is no library: Welcome takes over, and home draws nothing meanwhile, never « Aucun film ». */
     @Test
-    fun noFolderOrNoFilmAsksForTheFolderThatHoldsThem() = runTest {
+    fun withoutAFolderHomeDrawsNothing() = runTest {
         provider.home = emptyList()
         val vm = home()
         advanceUntilIdle()
-        assertEquals(HomeContent.NoFilms(hasFolders = false), vm.content())
+        assertEquals(HomeContent.Loading, vm.content())
+    }
+
+    @Test
+    fun foldersWithoutAFilmAskForTheFolderThatHoldsThem() = runTest {
+        provider.home = emptyList()
         folders.value = listOf(folder(1, lastScanAt = 1_800_000_000_000L))
+        val vm = home()
         advanceUntilIdle()
-        assertEquals(HomeContent.NoFilms(hasFolders = true), vm.content())
+        assertEquals(HomeContent.NoFilms, vm.content())
     }
 
     /** Back on home after a while away, its intertitle stays while the database reads the folders again. */
     @Test
     fun comingBackAfterAWhileShowsNoBlankBeforeTheFolders() = runTest {
         provider.home = emptyList()
+        folders.value = listOf(folder(1))
         // The database answers a little after it is asked, as Room does.
         val database = flow {
             delay(10)
@@ -248,7 +260,7 @@ class HomeViewModelTest {
         val vm = HomeViewModel({ provider }, scan, database, settings, scanAll = {})
         val screen = backgroundScope.launch { vm.state.collect {} }
         advanceUntilIdle()
-        assertEquals(HomeContent.NoFilms(hasFolders = false), vm.content())
+        assertEquals(HomeContent.NoFilms, vm.content())
         screen.cancel()
         advanceTimeBy(60_000)
 
@@ -258,7 +270,7 @@ class HomeViewModelTest {
         runCurrent()
         advanceTimeBy(100)
         runCurrent()
-        assertEquals(listOf<HomeContent>(HomeContent.NoFilms(hasFolders = false)), seen)
+        assertEquals(listOf<HomeContent>(HomeContent.NoFilms), seen)
     }
 
     @Test
@@ -289,12 +301,13 @@ class HomeViewModelTest {
     @Test
     fun anEmptyHomeLoadingAgainStaysStill() = runTest {
         provider.home = emptyList()
+        folders.value = listOf(folder(1))
         val vm = home()
         advanceUntilIdle()
         provider.gate("libraries")
         vm.load()
         advanceUntilIdle()
-        assertEquals(HomeContent.NoFilms(hasFolders = false), vm.content())
+        assertEquals(HomeContent.NoFilms, vm.content())
     }
 
     @Test

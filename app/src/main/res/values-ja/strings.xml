@@ -362,7 +362,7 @@
     <string name="sign_out">ログアウト</string>
     <string name="sign_out_confirm">「%s」からログアウトしますか？</string>
     <string name="sign_out_desc">Houselightsはこのデバイス上のこのサーバーの情報を消去します。代わりにフォルダが使われます。再び使うには、もう一度ログインする必要があります。</string>
-    <string name="sign_out_first_folder">最初のフォルダを追加すると、Houselightsはこのデバイス上のこのサーバーの情報を消去します。</string>
+    <string name="sign_out_no_folder_desc">Houselightsはこのデバイス上のこのサーバーの情報を消去します。ライブラリをもう一度選ぶことになります。再び使うには、もう一度ログインする必要があります。</string>
     <string name="source_jellyfin_another">別のJellyfinサーバー</string>
     <string name="source_jellyfin_another_desc">別のアドレスまたは別のアカウント</string>
     <string name="source_kept_resume">再ログイン不要</string>
@@ -544,6 +544,8 @@
     <string name="device_language">デバイスの言語</string>
     <string name="remove_folder">このフォルダを削除</string>
     <string name="remove_folder_desc">このフォルダの作品はライブラリから外れます。NAS上では何も削除されません。</string>
+    <string name="remove_last_folder_desc">このフォルダの作品はライブラリから外れます。NAS上では何も削除されません。これが最後のフォルダです。ようこそ画面に戻ります。</string>
+    <string name="remove_last_folder_kept_desc">このフォルダの作品はライブラリから外れます。NAS上では何も削除されません。これが最後のフォルダです。再ログインせずに「%s」に戻ります。</string>
     <string name="remove_folder_row_desc">作品はライブラリから外れます</string>
     <string name="folder_not_removed">このフォルダは削除されませんでした。%s</string>
     <string name="remove_folder_confirm">「%s」を削除しますか？</string>

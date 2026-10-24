@@ -376,7 +376,7 @@
     <string name="sign_out">Se déconnecter</string>
     <string name="sign_out_confirm">Se déconnecter de « %s » ?</string>
     <string name="sign_out_desc">Houselights oubliera ce serveur sur cet appareil ; vos dossiers prendront sa place. Pour le retrouver, il faudra vous reconnecter.</string>
-    <string name="sign_out_first_folder">Houselights oubliera ce serveur sur cet appareil une fois votre premier dossier ajouté.</string>
+    <string name="sign_out_no_folder_desc">Houselights oubliera ce serveur sur cet appareil ; vous choisirez de nouveau votre bibliothèque. Pour le retrouver, il faudra vous reconnecter.</string>
     <string name="source_jellyfin_another">Un autre serveur Jellyfin</string>
     <string name="source_jellyfin_another_desc">Une autre adresse ou un autre compte</string>
     <string name="source_kept_resume">sans vous reconnecter</string>
@@ -569,6 +569,8 @@
     <string name="device_language">Langue de l’appareil</string>
     <string name="remove_folder">Retirer ce dossier</string>
     <string name="remove_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.</string>
+    <string name="remove_last_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS. C’est votre dernier dossier : vous reviendrez à l’écran de bienvenue.</string>
+    <string name="remove_last_folder_kept_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS. C’est votre dernier dossier : vous retrouverez « %s », sans vous reconnecter.</string>
     <string name="remove_folder_row_desc">Ses titres quittent la bibliothèque</string>
     <string name="folder_not_removed">Ce dossier n’a pas été retiré. %s</string>
     <string name="remove_folder_confirm">Retirer « %s » ?</string>

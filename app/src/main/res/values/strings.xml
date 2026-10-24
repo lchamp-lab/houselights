@@ -388,7 +388,7 @@
     <string name="sign_out">Sign out</string>
     <string name="sign_out_confirm">Sign out of “%s”?</string>
     <string name="sign_out_desc">Houselights will forget this server on this device; your folders take its place. To use it again, you will need to sign in.</string>
-    <string name="sign_out_first_folder">Houselights will forget this server on this device once your first folder is added.</string>
+    <string name="sign_out_no_folder_desc">Houselights will forget this server on this device; you will choose your library again. To use it again, you will need to sign in.</string>
     <string name="source_jellyfin_another">Another Jellyfin server</string>
     <string name="source_jellyfin_another_desc">Another address or another account</string>
     <string name="source_kept_resume">without signing in</string>
@@ -577,6 +577,8 @@
     <string name="device_language">Device language</string>
     <string name="remove_folder">Remove this folder</string>
     <string name="remove_folder_desc">Its titles leave the library; nothing is deleted on the NAS.</string>
+    <string name="remove_last_folder_desc">Its titles leave the library; nothing is deleted on the NAS. This is your last folder: you will be back on the welcome screen.</string>
+    <string name="remove_last_folder_kept_desc">Its titles leave the library; nothing is deleted on the NAS. This is your last folder: you will be back on “%s”, without signing in.</string>
     <string name="remove_folder_row_desc">Its titles leave the library</string>
     <string name="folder_not_removed">This folder was not removed. %s</string>
     <string name="remove_folder_confirm">Remove “%s”?</string>

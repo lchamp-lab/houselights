@@ -642,15 +642,15 @@ private fun NoRows(content: HomeContent.Message, progress: StateFlow<ScanState>,
         is HomeContent.Failed -> HlErrorState(content.error, actions.onReload, modifier, content.retrying)
         HomeContent.ReadingFolders -> Unit
         is HomeContent.ScanFailed -> ScanFailed(content.folder, content.error, actions, modifier)
-        is HomeContent.NoFilms -> NoFilms(content.hasFolders, actions, modifier)
+        HomeContent.NoFilms -> NoFilms(actions, modifier)
         HomeContent.ServerEmpty ->
             HlEmptyState(stringResource(R.string.empty_title), modifier, message = stringResource(R.string.empty_server))
     }
 }
 
-/** No films yet: an action to add the folder holding them and, with [hasFolders], a link to the folders. */
+/** Folders without a film yet: an action to add the folder holding them, and a link to the folders. */
 @Composable
-private fun NoFilms(hasFolders: Boolean, actions: HomeActions, modifier: Modifier) {
+private fun NoFilms(actions: HomeActions, modifier: Modifier) {
     HlEmptyState(
         stringResource(R.string.home_empty_title),
         modifier,
@@ -658,7 +658,7 @@ private fun NoFilms(hasFolders: Boolean, actions: HomeActions, modifier: Modifie
         action = stringResource(R.string.add_folder),
         actionIcon = HlIcons.Add,
         onAction = actions.onAddFolder,
-        secondaryAction = stringResource(R.string.home_see_folders).takeIf { hasFolders },
+        secondaryAction = stringResource(R.string.home_see_folders),
         onSecondaryAction = actions.onOpenSettings,
     )
 }

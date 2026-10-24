@@ -76,7 +76,11 @@ internal fun LazyListScope.libraryPane(
 ) {
     when (val source = s.source) {
         SourceConfig.Local -> {
-            item { Section(stringResource(R.string.section_source), aside = librarySummary()) { Showcases(rows, onEdit = onFolderForm) } }
+            item {
+                Section(stringResource(R.string.section_source), aside = librarySummary()) {
+                    Showcases(rows, onEdit = onFolderForm, onResumed = sources.resumed)
+                }
+            }
             item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, rows) }
             item { FilmData() }
             item { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(sources, rows.focus(SOURCE)) } }
@@ -131,11 +135,15 @@ private fun librarySummary(): String? {
     )
 }
 
-/** One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. */
+/**
+ * One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. The last
+ * one removed gives way to the kept server, its home then shown ([onResumed]), else to the welcome screen.
+ */
 @Composable
-private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit) {
+private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit, onResumed: () -> Unit) {
     val vm = settingsViewModel()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
+    val kept = vm.settings.collectAsStateWithLifecycle().value.keptServer
     val scan by vm.library.scan.collectAsStateWithLifecycle()
     // Collected once for all showcases: each scan write re-runs it.
     val counts by vm.library.folderCounts.collectAsStateWithLifecycle(emptyMap())
@@ -168,8 +176,14 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
         }
     }
     actionsFor?.let { source ->
+        val last = vm.isLast(source, sources)
         SourceActions(
             source,
+            consequence = when {
+                !last -> stringResource(R.string.remove_folder_desc)
+                kept != null -> stringResource(R.string.remove_last_folder_kept_desc, serverName(kept))
+                else -> stringResource(R.string.remove_last_folder_desc)
+            },
             error = scan.errors[source.id],
             onDismiss = { actionsFor = null },
             onEdit = { focus -> onEdit(source.id, focus) },
@@ -177,16 +191,20 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
             onRemove = {
                 val next = sources.getOrNull(sources.indexOfFirst { it.id == source.id } + 1)
                 removing = source.id to rows.requester(next?.let { folderRow(it.id) } ?: ADD_FOLDER)
-                vm.removeFolder(source)
+                vm.removeFolder(source, last, onResumed)
             },
         )
     }
 }
 
-/** A folder's sheet: scan, edit or remove (confirmed in place); Edit comes first after a failure it can fix. */
+/**
+ * A folder's sheet: scan, edit or remove (confirmed in place, saying its [consequence]); Edit comes first after a failure
+ * it can fix.
+ */
 @Composable
 private fun SourceActions(
     source: Folder,
+    consequence: String,
     error: ScanError?,
     onDismiss: () -> Unit,
     onEdit: (focus: FolderField) -> Unit,
@@ -219,7 +237,7 @@ private fun SourceActions(
     ) { sheet ->
         SheetConfirm(
             question = stringResource(R.string.remove_folder_confirm, sourceName(source)),
-            consequence = stringResource(R.string.remove_folder_desc),
+            consequence = consequence,
             confirm = stringResource(R.string.remove),
             onConfirm = { sheet.dismiss(onRemove) },
         ) { ask, origin ->
@@ -621,7 +639,7 @@ private fun LeaveConfirm(
         consequence = stringResource(
             when {
                 !signsOut -> R.string.forget_server_consequence
-                folders == 0 -> R.string.sign_out_first_folder
+                folders == 0 -> R.string.sign_out_no_folder_desc
                 else -> R.string.sign_out_desc
             }
         ),

@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import android.content.Context
+import android.util.Log
 import app.houselights.core.Definition
 import app.houselights.core.ImageRef
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
@@ -8,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transform
@@ -52,6 +54,12 @@ class LocalLibrary(
     fun latestPosters(limit: Int): Flow<List<ImageRef>> = dao.observeAllPosters(limit).map(::posters)
 
     suspend fun hasFolders(): Boolean = dao.sources().isNotEmpty()
+
+    /** Whether there is a folder at least, followed; true once they cannot be read, so that home says why. */
+    val anyFolder: Flow<Boolean> = dao.observeAnySource().catch { e ->
+        Log.w(TAG, "Reading whether there are folders failed", e)
+        emit(true)
+    }
 
     /** The most recently added source: the next one is usually on the same server, often in the same share. */
     suspend fun lastFolder(): SourceEntity? = dao.sources().maxByOrNull { it.id }
@@ -125,6 +133,8 @@ private fun <T> Flow<T>.paced(): Flow<T> = transform {
 
 /** How often the settings' counts and posters follow a scan. */
 private const val PANE_PACE_MS = 2_000L
+
+private const val TAG = "Library"
 
 /** True when both read the same files: same protocol and host, and one path (share included) contains the other. */
 internal fun SourceEntity.overlaps(other: SourceEntity): Boolean {

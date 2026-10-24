@@ -19,6 +19,9 @@ interface SourceDao {
     @Query("SELECT * FROM sources ORDER BY kind, name")
     suspend fun sources(): List<SourceEntity>
 
+    @Query("SELECT EXISTS(SELECT 1 FROM sources)")
+    fun observeAnySource(): Flow<Boolean>
+
     @Query("SELECT id, firstScanAt FROM sources")
     suspend fun firstScans(): List<SourceFirstScan>
 

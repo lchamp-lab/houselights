@@ -277,12 +277,24 @@ internal class SettingsViewModel(
         return attempt.number
     }
 
-    /** Removes [folder] and its titles in [work], waiting for a scan's open file; [removing] holds it meanwhile. */
-    fun removeFolder(folder: Folder) {
+    /** Whether [folder] is the last of [folders] not already being removed: removing it leaves no folder. */
+    fun isLast(folder: Folder, folders: List<Folder>): Boolean = folders.none { it.id != folder.id && it.id !in removing }
+
+    /**
+     * Removes [folder] and its titles in [work], waiting for a scan's open file; [removing] holds it meanwhile. The
+     * [last] one gives way to the kept server: made the source first, without asking it, then [onResumed]; if it
+     * cannot be, nothing is removed.
+     */
+    fun removeFolder(folder: Folder, last: Boolean = false, onResumed: () -> Unit = {}) {
         if (folder.id in removing) return
         removing += folder.id
+        val kept = store.state.value.keptServer.takeIf { last }
         change("Removing the folder ${folder.id}", SettingAction.REMOVE_FOLDER, work, folder.id) {
             try {
+                if (kept != null) {
+                    sources.switchTo(kept)
+                    onResumed()
+                }
                 library.removeFolder(folder)
             } finally {
                 removing -= folder.id

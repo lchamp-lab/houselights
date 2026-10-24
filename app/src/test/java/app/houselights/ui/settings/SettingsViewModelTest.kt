@@ -105,10 +105,11 @@ class SettingsViewModelTest {
         checkKey: suspend (String) -> TmdbKeyCheck = { TmdbKeyCheck.ACCEPTED },
         images: ImageLoader? = null,
         check: suspend (SourceConfig.Jellyfin, String) -> Unit = { _, _ -> },
+        save: suspend (SourceConfig, SourceConfig.Jellyfin?) -> Unit = store::setSource,
     ): SettingsViewModel {
         val factory = viewModelFactory {
             initializer {
-                val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> }, check = check)
+                val sources = SourceSwitcher({ store.state.value }, save, work, signOut = { _, _ -> }, check = check)
                 SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = images, checkTmdbKey = checkKey)
             }
         }
@@ -229,6 +230,51 @@ class SettingsViewModelTest {
         assertTrue(id in vm.removing)
         screens.clear()
         waitFor("the folder removed") { dao.sources().isEmpty() }
+    }
+
+    /** Removing A, then B while A waits: B is the last folder, A no longer counting. */
+    @Test
+    fun aFolderBeingRemovedLeavesTheNextOneLast() = runTest {
+        val vm = settings(testSettings(folder.root, backgroundScope), work = backgroundScope)
+        val (a, b) = listOf("films", "séries").map { dao.source(dao.insertSource(nfsFolder(it)))!!.toFolder() }
+        assertFalse(vm.isLast(b, listOf(a, b)))
+        assertTrue(vm.isLast(a, listOf(a)))
+        vm.removeFolder(a)
+        assertTrue(a.id in vm.removing)
+        assertTrue(vm.isLast(b, listOf(a, b)))
+    }
+
+    /** The kept server takes the last folder's place: the source first, home then, and the folder removed after. */
+    @Test
+    fun theKeptServerTakesTheLastFoldersPlace() = runTest {
+        val store = keeping(home)
+        val id = dao.insertSource(nfsFolder("films"))
+        val vm = settings(store, work = backgroundScope)
+        var homeShown: Boolean? = null
+        vm.removeFolder(dao.source(id)!!.toFolder(), last = true, onResumed = {
+            assertEquals(home, store.state.value.source)
+            homeShown = runBlocking { dao.source(id) } != null
+        })
+        waitFor("the folder removed") { id !in vm.removing }
+        assertEquals("home shown, the folder still there", true, homeShown)
+        assertTrue(dao.sources().isEmpty())
+        assertEquals(home, store.state.value.source)
+        assertNull(store.state.value.keptServer)
+        assertNull(vm.actionError)
+    }
+
+    /** A kept server that cannot be made the source changes nothing: the folder stays, and its card says why. */
+    @Test
+    fun aKeptServerThatCannotTakeOverLeavesTheFolder() = runTest {
+        val store = keeping(home)
+        val id = dao.insertSource(nfsFolder("films"))
+        val vm = settings(store, work = backgroundScope, save = { _, _ -> throw IOException("No space left on device") })
+        vm.removeFolder(dao.source(id)!!.toFolder(), last = true, onResumed = { error("Not resumed") })
+        waitFor("the removal over") { id !in vm.removing }
+        assertEquals(UiError.NOT_SAVED, vm.errorOf(SettingAction.REMOVE_FOLDER, id))
+        assertEquals(1, dao.sources().size)
+        assertEquals(SourceConfig.Local, store.state.value.source)
+        assertEquals(home, store.state.value.keptServer)
     }
 
     /** TMDB checks a key for a few seconds; leaving the sheet and the settings meanwhile still saves it. */

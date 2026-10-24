@@ -46,6 +46,8 @@ data class HomeRows(
 class HomeLaunch(
     private val gate: LaunchGate,
     private val settings: StateFlow<AppSettings>,
+    /** Whether the folders hold one at least, once read. */
+    private val hasFolders: suspend () -> Boolean,
     private val provider: () -> MediaProvider,
     private val version: () -> Long,
     /** The film the case proposes when nothing is in progress, as home keeps it. */
@@ -94,8 +96,8 @@ class HomeLaunch(
     private suspend fun prepare(pictures: suspend (HomeRows) -> Unit, answer: CompletableDeferred<Asked?>) {
         val read = settings.first { it.loaded || it.readFailed }
         gate.settingsRead()
-        // No source yet (Welcome) or unreadable settings: the app does not start on Home.
-        val source = read.source?.takeIf { read.loaded }
+        // No source yet, folders without a folder (Welcome), or unreadable settings: the app does not start on Home.
+        val source = read.source?.takeIf { read.loaded && (it != SourceConfig.Local || hasFolders()) }
         if (source == null) {
             gate.startsElsewhere()
             return

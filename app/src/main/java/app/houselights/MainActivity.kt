@@ -110,6 +110,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import app.houselights.settings.DisplayModes
 import app.houselights.settings.SettingsStore
+import app.houselights.settings.SourceSwitcher
 import app.houselights.settings.outputModes
 import app.houselights.ui.design.Scrub
 import androidx.compose.animation.EnterTransition
@@ -371,14 +372,17 @@ class MainActivity : ComponentActivity() {
 private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, PlayOrigin) -> Unit) {
     val app = appContainer()
     val settings by app.settings.state.collectAsStateWithLifecycle()
+    val folders by app.hasFolders.collectAsStateWithLifecycle()
     if (!settings.loaded) {
         // Never a black screen: unreadable settings show an error with a retry.
         if (settings.readFailed) SettingsUnread(app.settings)
         return
     }
+    // The first screen waits for the folders' first read too, under the launch screen; never unknown again after.
+    val source = shownSource(settings.source, folders ?: return)
 
     val scope = rememberCoroutineScope()
-    val start: Any = remember { if (settings.source != null) Route.Home else Route.Welcome }
+    val start: Any = remember { if (source != null) Route.Home else Route.Welcome }
     val playProblem by app.playback.playbackProblem.collectAsStateWithLifecycle()
 
     fun openItem(id: String) = nav.navigate(Route.Item(id))
@@ -393,12 +397,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
      */
     fun useFolders(keepServer: Boolean, onError: (UiError) -> Unit) {
         scope.launchAction("Sources", "Choosing the folders", onError = onError, errorOf = Throwable::toWriteError) {
-            if (!app.library.hasFolders()) {
-                nav.navigate(Route.AddFolder(signOut = !keepServer))
-            } else {
-                app.sources.switchTo(SourceConfig.Local, keepServer)
-                goHome()
-            }
+            chooseFolders(keepServer, app.library::hasFolders, app.sources, addFolder = { nav.navigate(Route.AddFolder()) }, ::goHome)
         }
     }
 
@@ -426,7 +425,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
         composable<Route.JellyfinLogin> { entry -> JellyfinLoginScreen(entry.toRoute<Route.JellyfinLogin>().fill, onLoggedIn = ::goHome) }
         composable<Route.AddFolder> { entry ->
             val route = entry.toRoute<Route.AddFolder>()
-            AddFolderScreen(route.folderId, route.focus, route.signOut, onDone = { switched ->
+            AddFolderScreen(route.folderId, route.focus, onDone = { switched ->
                 // A new source or a first folder: the home screen; another folder, or one edited: back to settings.
                 if (switched || !nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
             })
@@ -434,7 +433,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
         composable<Route.Home> { entry ->
             val context = LocalContext.current
             val screen = screenWidthPx()
-            WithSource(settings.source) {
+            WithSource(source) {
                 HomeScreen(
                     nav.homeActions(
                         HomeActions(
@@ -452,16 +451,16 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
             }
         }
         composable<Route.Watch> { entry ->
-            WithSource(settings.source) { WatchPage(nav, entry, onOpenItem = { openItem(it.id) }) }
+            WithSource(source) { WatchPage(nav, entry, onOpenItem = { openItem(it.id) }) }
         }
         composable<Route.Search> {
-            WithSource(settings.source) {
+            WithSource(source) {
                 SearchScreen(onOpenItem = { found -> openItem(found.id) }, onOpenPerson = { id -> nav.navigate(Route.Person(id)) })
             }
         }
         composable<Route.Library> { entry ->
             val route = entry.toRoute<Route.Library>()
-            WithSource(settings.source) {
+            WithSource(source) {
                 LibraryScreen(
                     library = route.wallLibrary,
                     title = route.wallTitle(libraryName(route.kind)),
@@ -473,7 +472,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
             }
         }
         composable<Route.Item> { entry ->
-            WithSource(settings.source) {
+            WithSource(source) {
                 DetailScreen(
                     itemId = entry.toRoute<Route.Item>().id,
                     screen = entry.id,
@@ -487,17 +486,17 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
         }
         composable<Route.Artwork> { entry ->
             val route = entry.toRoute<Route.Artwork>()
-            WithSource(settings.source) { ArtworkScreen(itemId = route.id, kind = route.kind, onDone = { nav.popBackStack() }) }
+            WithSource(source) { ArtworkScreen(itemId = route.id, kind = route.kind, onDone = { nav.popBackStack() }) }
         }
         composable<Route.Identify> { entry ->
-            WithSource(settings.source) { IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() }) }
+            WithSource(source) { IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() }) }
         }
         composable<Route.Person> { entry ->
-            WithSource(settings.source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
+            WithSource(source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
         }
         composable<Route.Settings> {
             // Source changes keep Settings on the back stack: Back returns to it, the source unchanged.
-            WithSource(settings.source) {
+            WithSource(source) {
                 SettingsScreen(
                     onFolderForm = { folderId, focus -> nav.navigate(Route.AddFolder(folderId, focus)) },
                     onUseFolders = ::useFolders,
@@ -512,7 +511,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
         // Debug builds only: every component in its states, for design review.
         if (BuildConfig.DEBUG) composable<Route.Catalog> { CatalogScreen() }
     }
-    WelcomeWhenLost(nav, settings.source)
+    WelcomeWhenLost(nav, source)
     // A play's problem belongs to the screen it was asked from: another one shown clears it.
     LaunchedEffect(nav) { nav.currentBackStackEntryFlow.collect { app.playback.screenShown(it.id) } }
 }
@@ -581,14 +580,44 @@ private fun WithSource(source: SourceConfig?, content: @Composable () -> Unit) {
 }
 
 /**
- * Sends a screen that shows the source to the welcome screen while there is none: restored after the process died,
- * its connection could not be read back. Apart, so that only it follows each navigation.
+ * Sends a screen that shows the source to the welcome screen, alone, while there is none ([shownSource]): no folder
+ * left, or restored after the process died, its connection could not be read back. Apart, so that only it follows each
+ * navigation.
  */
 @Composable
-private fun WelcomeWhenLost(nav: NavHostController, source: SourceConfig?) {
+internal fun WelcomeWhenLost(nav: NavHostController, source: SourceConfig?) {
     val entry by nav.currentBackStackEntryAsState()
     val lost = mustWelcome(source, entry?.destination)
     LaunchedEffect(lost) { if (lost) nav.navigate(Route.Welcome) { popUpTo(0) { inclusive = true } } }
+}
+
+/**
+ * The source the screens show, derived and never stored: [source], but none for the folders without a folder
+ * ([hasFolders]), which the welcome screen replaces as on a first launch.
+ */
+internal fun shownSource(source: SourceConfig?, hasFolders: Boolean): SourceConfig? =
+    source.takeUnless { it == SourceConfig.Local && !hasFolders }
+
+/**
+ * "Mes fichiers": the folders added before become the source, then [goHome]; a server left stays kept unless
+ * [keepServer] is false. Without a folder, [addFolder] opens the form; signing out instead leaves no library, and the
+ * welcome screen follows ([WelcomeWhenLost]).
+ */
+internal suspend fun chooseFolders(
+    keepServer: Boolean,
+    hasFolders: suspend () -> Boolean,
+    sources: SourceSwitcher,
+    addFolder: () -> Unit,
+    goHome: () -> Unit,
+) {
+    when {
+        hasFolders() -> {
+            sources.switchTo(SourceConfig.Local, keepServer)
+            goHome()
+        }
+        keepServer -> addFolder()
+        else -> sources.switchTo(SourceConfig.Local, keepServer = false)
+    }
 }
 
 /** Shown when the settings keep failing to load: an error with Réessayer, busy while they are read again. */

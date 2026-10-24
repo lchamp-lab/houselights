@@ -33,12 +33,9 @@ object Route {
         }
     }
 
-    /**
-     * Adds a folder, or edits the folder [folderId] in place, focus starting on [focus]. A first folder added with
-     * [signOut] signs out of the server it replaces rather than keep it.
-     */
+    /** Adds a folder, or edits the folder [folderId] in place, focus starting on [focus]. */
     @Serializable
-    data class AddFolder(val folderId: Long? = null, val focus: FolderField = FolderField.FIRST, val signOut: Boolean = false)
+    data class AddFolder(val folderId: Long? = null, val focus: FolderField = FolderField.FIRST)
 
     @Serializable
     data object Home
