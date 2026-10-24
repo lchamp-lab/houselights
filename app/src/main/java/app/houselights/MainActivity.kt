@@ -397,7 +397,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
      */
     fun useFolders(keepServer: Boolean, onError: (UiError) -> Unit) {
         scope.launchAction("Sources", "Choosing the folders", onError = onError, errorOf = Throwable::toWriteError) {
-            useFolders(keepServer, app.library::hasFolders, app.sources, addFolder = { nav.navigate(Route.AddFolder()) }, ::goHome)
+            chooseFolders(keepServer, app.library::hasFolders, app.sources, addFolder = { nav.navigate(Route.AddFolder()) }, ::goHome)
         }
     }
 
@@ -603,7 +603,7 @@ internal fun shownSource(source: SourceConfig?, hasFolders: Boolean): SourceConf
  * [keepServer] is false. Without a folder, [addFolder] opens the form; signing out instead leaves no library, and the
  * welcome screen follows ([WelcomeWhenLost]).
  */
-internal suspend fun useFolders(
+internal suspend fun chooseFolders(
     keepServer: Boolean,
     hasFolders: suspend () -> Boolean,
     sources: SourceSwitcher,

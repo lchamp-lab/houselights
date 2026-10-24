@@ -162,7 +162,7 @@ class AddFolderViewModel(
         folderId = folderId,
         background = app.scope,
         useFolders = {
-            // Seen by the app first, or the folders without it would give way to the welcome screen (shownSource).
+            // The app sees the folder first: until then, the folders are no library and give way to Welcome (shownSource).
             app.hasFolders.first { it == true }
             val switched = app.settings.state.value.source != SourceConfig.Local
             if (switched) app.sources.switchTo(SourceConfig.Local)

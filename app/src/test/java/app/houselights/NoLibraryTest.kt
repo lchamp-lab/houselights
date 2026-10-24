@@ -2,6 +2,7 @@ package app.houselights
 
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -85,14 +86,16 @@ class NoLibraryTest {
         bench.close()
     }
 
-    /** The app's screens as AppNavigation holds them, on Home, each giving way to Welcome as it does. */
+    /** The app's screens as AppNavigation holds them, each giving way to Welcome as it does. */
     private fun app() {
         compose.setContent {
             nav = rememberNavController()
             val s by store.state.collectAsStateWithLifecycle()
             val folders by library.anyFolder.collectAsStateWithLifecycle(null)
             val source = shownSource(s.source, folders ?: return@setContent)
-            NavHost(nav, startDestination = if (source != null) Route.Home else Route.Welcome) {
+            // Chosen once: another start would make navigation set a new graph, its back stack cleared.
+            val start = remember { if (source != null) Route.Home else Route.Welcome }
+            NavHost(nav, startDestination = start) {
                 composable<Route.Welcome> {}
                 composable<Route.Home> {}
                 composable<Route.Settings> {
@@ -123,6 +126,13 @@ class NoLibraryTest {
         assertEquals(SourceConfig.Local, shownSource(SourceConfig.Local, hasFolders = true))
         assertEquals(salon, shownSource(salon, hasFolders = false))
         assertNull(shownSource(null, hasFolders = true))
+    }
+
+    /** On the folders without one, as after a library lost, the app starts on Welcome, alone. */
+    @Test
+    fun aLaunchWithoutAFolderStartsOnWelcome() {
+        app()
+        assertWelcomeAlone()
     }
 
     @Test
@@ -175,7 +185,7 @@ class NoLibraryTest {
         app()
         openSettings()
         runBlocking {
-            useFolders(
+            chooseFolders(
                 keepServer = false,
                 hasFolders = library::hasFolders,
                 sources = sources,
