@@ -95,6 +95,12 @@ data class DetailState(
     /** The source keeps the copy chosen ([ProviderCapabilities.versionChoice]); else the versions only read. */
     val canChooseVersion: Boolean get() = capabilities?.versionChoice == true
 
+    /** What Lire starts failed with the seasons or their episodes: one failure, said once, in Lire's place. */
+    val failedWithLire: Boolean get() = nextUpError != null && (error != null || episodesError != null)
+
+    /** What is said in Lire's place: the seasons' or their episodes' failure when it came with Lire's, else Lire's own. */
+    val lireError: UiError? get() = if (failedWithLire) error ?: episodesError else nextUpError
+
     /** The chosen season, when the page shows a season track (two seasons or more) and it holds episodes: what the tile marks. */
     val shownSeason: MediaItem?
         get() = seasons.takeIf { item?.kind == MediaKind.SERIES && it.size > 1 }
@@ -202,7 +208,8 @@ class DetailViewModel(
      */
     private suspend fun seriesPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState =
         coroutineScope {
-            val nextUp = async { suspendRunCatching { source.nextUp(item) } }
+            // Read again after it failed, Lire shows at once, whatever fails after it.
+            val nextUp = async { suspendRunCatching { source.nextUp(item) }.onSuccess(::lireReadAgain) }
             val seasonsLoad = async { source.seasons(item) }
             val nextRead = nextUp.await()
             val next = nextRead.getOrNull()
@@ -231,6 +238,9 @@ class DetailViewModel(
                 tracks = tracks.await(),
             )
         }
+
+    /** What Lire starts, read after it failed: in place of the failure at once. */
+    private fun lireReadAgain(next: MediaItem?) = _state.update { if (it.nextUpError != null) it.copy(nextUp = next, nextUpError = null) else it }
 
     /** A collection's page: its films (requested once; Lire picks from them) and the whole saga if known. */
     private suspend fun collectionPage(source: MediaProvider, item: MediaItem): DetailState {

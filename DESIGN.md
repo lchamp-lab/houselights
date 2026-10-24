@@ -742,12 +742,17 @@ moving: "Lecture impossible" and the reason on a line each (`HlStatus` `Attentio
 error's title in a word, the player's own ("Lecteur Zidoo non installé", "requis", "changé"), the source out of reach by
 its name ("NAS injoignable", "Serveur injoignable"); its plate does what fixes it, as `PartFailed`'s button (Réessayer
 and its arrow plays it again, Se reconnecter), else stays its own. A click dismisses it, a held OK keeps it for the
-options: the whole sentence first, then only what may work (`HomePlayFailureTest`). What fails on a title's page once
-its title shows is said where it shows, with Réessayer (`PartFailed`): the seasons or a saga under the hero, a season's
-episodes on their row, what a reload cannot read again kept and said under the hero; what a show's Lire starts, unread,
-puts Réessayer on Lire's button and why at the row's end, focus following from one to the other. A screen that cannot
-load, or has nothing yet, shows an intertitle with what fixes it (`HlEmptyState`). Exception text never reaches the
-screen; it goes to the log.
+options: the whole sentence first, then only what may work (`HomePlayFailureTest`).
+
+What fails on a title's page once its title shows is said where it shows, with Réessayer (`PartFailed`): the seasons or
+a saga under the hero, a season's episodes on their row, what a reload cannot read again kept and said under the hero;
+what a show's Lire starts, unread, puts what fixes it in Lire's place as `PartFailed`'s button (Réessayer, Se
+reconnecter, nothing when nothing does, focus then on the first action) and why at the row's end, focus following from
+one to the other. Failing with the seasons or a season's episodes, it is one failure said once, there: theirs, its
+Réessayer reloading all that failed, nothing under the hero, the episode row keeping its title alone
+(`DetailFailuresTest`); Lire read again alone takes its place, and what still fails goes back to its own. A screen that
+cannot load, or has nothing yet, shows an intertitle with what fixes it (`HlEmptyState`). Exception text never reaches
+the screen; it goes to the log.
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt.

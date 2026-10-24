@@ -1,17 +1,22 @@
 package app.houselights.ui.detail
 
 import android.content.Context
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
+import app.houselights.core.NotFoundException
 import app.houselights.core.UserState
+import app.houselights.testing.http
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
@@ -21,6 +26,8 @@ import app.houselights.ui.testing.press
 import app.houselights.ui.testing.season
 import app.houselights.ui.testing.series
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.PlayOrigin
 import app.houselights.ui.util.PlaybackOutcome
 import app.houselights.ui.util.PlaybackProblem
@@ -39,7 +46,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.IOException
 
-/** A title's page says what failed where it happened: a play where it was asked, a part under the title, with Réessayer. */
+/**
+ * A title's page says what failed where it happened: a play where it was asked, a part under the title, with Réessayer;
+ * what Lire starts failing with the seasons or their episodes, once, in Lire's place.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class DetailFailuresTest {
@@ -61,22 +71,27 @@ class DetailFailuresTest {
     /** Each play asked, and where from. */
     private val asked = mutableListOf<Pair<String, PlayOrigin>>()
 
+    /** Each fix an error's button led to. */
+    private val fixed = mutableListOf<ErrorAction>()
+
     @After
     fun stop() = work.cancel()
 
     private fun page(id: String): DetailViewModel {
         val vm = DetailViewModel(id, { provider }, FakeEvents(), work, tracksOf = { null })
         compose.setTvContent {
-            DetailPage(
-                vm,
-                playback,
-                screen = PAGE,
-                onPlay = { item, _, origin -> asked += item.id to origin },
-                onOpenItem = {},
-                onEditArtwork = { _, _ -> },
-                onIdentify = {},
-                onOpenPerson = {},
-            )
+            CompositionLocalProvider(LocalErrorFix provides { fixed += it }) {
+                DetailPage(
+                    vm,
+                    playback,
+                    screen = PAGE,
+                    onPlay = { item, _, origin -> asked += item.id to origin },
+                    onOpenItem = {},
+                    onEditArtwork = { _, _ -> },
+                    onIdentify = {},
+                    onOpenPerson = {},
+                )
+            }
         }
         compose.waitForIdle()
         return vm
@@ -87,6 +102,30 @@ class DetailFailuresTest {
     private fun said(id: Int) = compose.onNodeWithText(text(id), useUnmergedTree = true)
 
     private fun button(id: Int) = compose.onNode(hasText(text(id)) and hasClickAction())
+
+    /** How many times [id] is said on the page. */
+    private fun times(id: Int) = compose.onAllNodesWithText(text(id), useUnmergedTree = true).fetchSemanticsNodes().size
+
+    /** How many buttons say [id]. */
+    private fun buttons(id: Int) = compose.onAllNodes(hasText(text(id)) and hasClickAction()).fetchSemanticsNodes().size
+
+    /** The show's page as Lire's episode and then the seasons fail, each with [lire] and [seasons]. */
+    private fun bothFail(lire: Throwable, seasons: Throwable = lire): DetailViewModel {
+        val read = provider.gate("seasons show")
+        provider.fail = { if (it == "nextUp show") lire else null }
+        val vm = page("show")
+        provider.fail = {
+            when (it) {
+                "nextUp show" -> lire
+                "seasons show" -> seasons
+                else -> null
+            }
+        }
+        read.complete(Unit)
+        compose.waitForIdle()
+        provider.gates.clear()
+        return vm
+    }
 
     @Test
     fun aPlayAskedFromTheActionsIsSaidBesideThem() {
@@ -192,6 +231,109 @@ class DetailFailuresTest {
         compose.waitForIdle()
         button(R.string.play).assertIsDisplayed()
         tab.assertIsFocused()
+    }
+
+    /** Lire's episode and the seasons failing together: one message at the actions' end, one Réessayer in Lire's place. */
+    @Test
+    fun lireAndTheSeasonsFailingTogetherAreSaidOnce() {
+        bothFail(IOException("Server away"))
+        assertEquals(1, times(R.string.error_offline_title))
+        assertEquals(1, buttons(R.string.retry))
+        button(R.string.retry).assertIsFocused()
+    }
+
+    /** That Réessayer reloads all that failed, busy meanwhile; read, Lire takes its place under focus, the seasons below. */
+    @Test
+    fun retryInLiresPlaceReloadsEverything() {
+        bothFail(IOException("Server away"))
+        provider.fail = { null }
+        val answer = provider.gate("nextUp show")
+        compose.press(Key.DirectionCenter)
+        said(R.string.retrying).assertIsDisplayed()
+        answer.complete(Unit)
+        compose.waitForIdle()
+        button(R.string.play).assertIsFocused()
+        assertEquals(0, times(R.string.error_offline_title))
+        compose.onNode(isSelected() and hasText("Season 1", substring = true)).assertIsDisplayed()
+    }
+
+    /** Still failing, the same message comes back and focus stays on the button. */
+    @Test
+    fun failingAgainSaysTheSameOnce() {
+        bothFail(IOException("Server away"))
+        compose.press(Key.DirectionCenter)
+        compose.waitForIdle()
+        assertEquals(1, times(R.string.error_offline_title))
+        button(R.string.retry).assertIsFocused()
+    }
+
+    /** Lire's episode read again but not the seasons: Lire comes, and the seasons' failure goes under the title. */
+    @Test
+    fun lireReadAloneLeavesTheSeasonsFailureUnderTheTitle() {
+        bothFail(IOException("Server away"))
+        provider.fail = { if (it == "seasons show") IOException("Server away") else null }
+        compose.press(Key.DirectionCenter)
+        compose.waitForIdle()
+        button(R.string.play).assertIsFocused()
+        assertEquals(1, times(R.string.error_offline_title))
+        compose.press(Key.DirectionDown)
+        button(R.string.retry).assertIsFocused()
+    }
+
+    /** Two reasons: the seasons' is said, and its fix is the button's. */
+    @Test
+    fun twoReasonsSayTheSeasons() {
+        bothFail(http(401), IOException("Server away"))
+        assertEquals(1, times(R.string.error_offline_title))
+        assertEquals(0, times(R.string.error_denied_title))
+        button(R.string.retry).assertIsFocused()
+    }
+
+    /** The server refused the app: Se reconnecter in Lire's place, leading to the sign-in. */
+    @Test
+    fun aRefusalTogetherSignsInAgain() {
+        bothFail(http(401))
+        assertEquals(1, times(R.string.error_denied_title))
+        assertEquals(0, buttons(R.string.retry))
+        button(R.string.error_action_reconnect).assertIsFocused()
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf(ErrorAction.RECONNECT), fixed)
+    }
+
+    /** Nothing fixes it: the message alone, no button, focus on the first action. */
+    @Test
+    fun withoutAFixThereIsNoButtonAndFocusIsOnTheFirstAction() {
+        bothFail(NotFoundException("show"))
+        assertEquals(1, times(R.string.error_gone_title))
+        assertEquals(0, buttons(R.string.retry))
+        compose.onNode(hasContentDescription(text(R.string.mark_watched))).assertIsFocused()
+    }
+
+    /** Lire's episode and a season's episodes failing together: once, in Lire's place; the row keeps its title alone. */
+    @Test
+    fun lireAndTheEpisodesFailingTogetherAreSaidOnce() {
+        provider.seasons = mapOf("show" to listOf(season("s1", 1, "show").copy(childCount = 2)))
+        provider.fail = { if (it == "nextUp show" || it == "episodes s1") IOException("Server away") else null }
+        page("show")
+        assertEquals(1, times(R.string.error_offline_title))
+        assertEquals(1, buttons(R.string.retry))
+        button(R.string.retry).assertIsFocused()
+        compose.onNodeWithText("Season 1", useUnmergedTree = true).assertIsDisplayed()
+
+        provider.fail = { null }
+        compose.press(Key.DirectionCenter)
+        compose.waitForIdle()
+        button(R.string.play).assertIsFocused()
+        compose.onNode(hasText("s1e1") and hasClickAction()).assertIsDisplayed()
+    }
+
+    /** Alone, what Lire starts refused by the server puts Se reconnecter in its place, as its message says. */
+    @Test
+    fun aNextEpisodeRefusedPutsSignInOnLire() {
+        provider.fail = { if (it == "nextUp show") http(401) else null }
+        page("show")
+        button(R.string.error_action_reconnect).assertIsFocused()
+        said(R.string.error_denied_title).assertIsDisplayed()
     }
 
     private companion object {
