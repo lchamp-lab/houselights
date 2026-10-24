@@ -233,6 +233,7 @@ class LibraryScanner(
     }
 
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
+        stoppedAfterWriting = false
         // Under the lock, as an identification reads and fills the indexers' per-pass state.
         lock.withLock {
             movies.startPass()
@@ -284,8 +285,8 @@ class LibraryScanner(
             lastScanEnd = elapsed()
             closeIdle()
         }
-        // No change, no refresh of the screens.
-        if (changed) _changed.emit(Unit)
+        // No change, no refresh of the screens; titles a folder wrote before it stopped are one, its progress showed them.
+        if (changed || stoppedAfterWriting) _changed.emit(Unit)
         _passEnded.tryEmit(changed)
     }
 
@@ -388,6 +389,9 @@ class LibraryScanner(
         return if (apart.isEmpty()) all else Stacks.of(kind, videos, apart)
     }
 
+    /** Whether a folder of the pass under way stopped after writing titles, which its end then tells screens of. */
+    private var stoppedAfterWriting = false
+
     /** Re-evaluates [due] per file, as TMDB may close meanwhile; returns how many files changed the library. */
     private suspend fun processAll(folder: Folder, todo: List<RemoteFile>, due: (RemoteFile) -> Work?): Int {
         var unreachable = 0
@@ -406,7 +410,10 @@ class LibraryScanner(
                 if (folder.known[file.relativePath] == null) written++
                 if (ScanErrors.isUnreachable(e)) unreachable++
                 // Device full or NAS unreachable: every remaining file would fail the same way, after long timeouts.
-                if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) throw e
+                if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) {
+                    if (written > 0) stoppedAfterWriting = true
+                    throw e
+                }
             }
             if (index % TELL_EVERY == TELL_EVERY - 1 && written > told) {
                 told = written
