@@ -180,8 +180,11 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         return Fetched(answer, nfo, plan, details, tmdb.client, askAgain = refresh || (untold && answer !is TmdbAnswer.Given))
     }
 
-    /** Saves details ([MetadataMerge]), edition and credits ([CreditRules]). */
-    private suspend fun saveMovie(base: ItemEntity, nfoInfo: NfoInfo?, fetched: Fetched, art: LocalArt, now: Long) {
+    /**
+     * Saves details ([MetadataMerge]), edition, collection and credits ([CreditRules]) at once: a film matched without
+     * its credits would never be read again for them.
+     */
+    private suspend fun saveMovie(base: ItemEntity, nfoInfo: NfoInfo?, fetched: Fetched, art: LocalArt, now: Long) = dao.inTransaction {
         val movie = fetched.movie
         val tmdb = fetched.client
         val nfo = fetched.nfo
