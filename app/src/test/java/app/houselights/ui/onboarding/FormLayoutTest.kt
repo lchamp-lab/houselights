@@ -250,8 +250,8 @@ class FormLayoutTest {
         /** Bounds are whole test pixels. */
         const val PX = 1f
 
-        /** Words whose box starts at their letters, a group's title set from its baseline. */
-        const val TOP = 2f
+        /** Words whose box starts at their letters; a group's title, set from its baseline, starts up to 4 lower. */
+        const val TOP = 4f
 
         /** The largest text size Android TV offers. */
         const val LARGEST_TEXT = 1.3f

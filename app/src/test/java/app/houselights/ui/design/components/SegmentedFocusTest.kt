@@ -70,7 +70,8 @@ class SegmentedFocusTest {
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun choosingAWordMovesNone() {
         val above = FocusRequester()
-        val seasons = (1..4).map { "Saison $it" }
+        // Long names, so the weights measure apart by a whole dp at `place`'s size.
+        val seasons = listOf("Première saison", "Deuxième saison", "Troisième saison", "Quatrième saison")
         compose.setTvContent {
             var selected by remember { mutableIntStateOf(0) }
             Column {
@@ -81,14 +82,14 @@ class SegmentedFocusTest {
         fun bounds(word: String) = compose.onNodeWithText(word, useUnmergedTree = true).getUnclippedBoundsInRoot()
         fun words() = seasons.map { bounds(it).left }
         val atRest = words()
-        val bold = bounds("Saison 1").width
+        val bold = bounds(seasons[0]).width
         compose.runOnIdle { above.requestFocus() }
         compose.press(Key.DirectionDown)
-        compose.onNodeWithText("Saison 1").assertIsFocused().assertIsSelected()
+        compose.onNodeWithText(seasons[0]).assertIsFocused().assertIsSelected()
         compose.press(Key.DirectionRight, times = 2)
-        compose.onNodeWithText("Saison 3").assertIsFocused().assertIsSelected()
-        compose.onNodeWithText("Saison 1").assertIsNotSelected()
-        assertTrue("the weights measure apart, so a move would show", bounds("Saison 1").width < bold)
+        compose.onNodeWithText(seasons[2]).assertIsFocused().assertIsSelected()
+        compose.onNodeWithText(seasons[0]).assertIsNotSelected()
+        assertTrue("the weights measure apart, so a move would show", bounds(seasons[0]).width < bold)
         assertEquals(atRest, words())
     }
 }
