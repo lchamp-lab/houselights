@@ -142,6 +142,9 @@ class JellyfinLoginViewModel(
     /** Signing in again to a server known here: its address and user are prefilled, only the password is asked. */
     val again: Boolean
 
+    /** The address of the server last picked among [discovered], as it announced it. */
+    private var picked: String? = null
+
     init {
         val known = prefill(fill, settings.state.value.source)
         again = known != null
@@ -164,6 +167,12 @@ class JellyfinLoginViewModel(
         }
     }
 
+    /** Picks a server found on the network: reached as it announces itself while the address stays as it gave it. */
+    fun choose(found: DiscoveredServer) {
+        server = found.address
+        picked = found.address
+    }
+
     fun login(onLoggedIn: () -> Unit) {
         if (busy) return
         busy = true
@@ -173,7 +182,7 @@ class JellyfinLoginViewModel(
             var address = JellyfinClient.normalizeUrl(server)
             suspendRunCatching {
                 val deviceId = saving { settings.ensureDeviceId() }
-                val (reached, info) = network.reach(server, deviceId)
+                val (reached, info) = network.reach(server, deviceId, announced = server == picked)
                 address = reached
                 val auth = network.authenticate(reached, deviceId, AuthRequest(user.trim(), password))
                 saving { sources.switchTo(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken)) }

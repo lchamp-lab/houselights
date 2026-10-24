@@ -59,7 +59,11 @@ class JellyfinLoginViewModelTest {
 
         override suspend fun discover() = listOf(DiscoveredServer("http://192.168.1.5:8096", "Maison"))
 
-        override suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo> {
+        /** Each address asked, and whether as a found server announced it. */
+        val reached = mutableListOf<Pair<String, Boolean>>()
+
+        override suspend fun reach(input: String, deviceId: String, announced: Boolean): Pair<String, PublicSystemInfo> {
+            reached += input to announced
             asked.complete(Unit)
             answer?.await()
             reachFailure?.let { throw it }
@@ -99,6 +103,21 @@ class JellyfinLoginViewModelTest {
         assertTrue(done)
         assertFalse(vm.busy)
         assertEquals(listOf(SourceConfig.Jellyfin("https://nas:8920", "Maison", "u1", "lea", "token")), saved)
+    }
+
+    /** A found server is reached as it announces itself (HTTPS tried first), an address typed as it is written. */
+    @Test
+    fun aServerPickedAmongThoseFoundIsReachedAsAnnounced() = runTest {
+        val vm = login()
+        advanceUntilIdle()
+        vm.choose(vm.discovered.single())
+        assertEquals("http://192.168.1.5:8096", vm.server)
+        vm.login {}
+        settle(vm)
+        vm.server = "http://192.168.1.5:8096/"
+        vm.login {}
+        settle(vm)
+        assertEquals(listOf("http://192.168.1.5:8096" to true, "http://192.168.1.5:8096/" to false), network.reached)
     }
 
     @Test

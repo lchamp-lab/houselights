@@ -91,7 +91,7 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
         room = room,
     ) {
         FoundServers(discovered, chosen) { s ->
-            vm.server = s.address
+            vm.choose(s)
             (if (vm.user.isBlank()) userField else passwordField).tryRequestFocus()
         }
         HlTextField(

@@ -5,6 +5,7 @@ import android.util.Log
 import app.houselights.core.FailureKind
 import app.houselights.core.NfoParser
 import app.houselights.core.NoTmdbKeyException
+import app.houselights.core.RepeatedFailures
 import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.CoroutineScope
@@ -80,6 +81,9 @@ class LibraryScanner(
     private val lock = Mutex()
 
     private val files = ScanFiles(dao, artwork, browsers)
+
+    /** Files whose processing fails, often at every pass: each logged whole the first time, then counted. */
+    private val failures = RepeatedFailures(TAG)
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
     private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
@@ -383,30 +387,41 @@ class LibraryScanner(
         return if (apart.isEmpty()) all else Stacks.of(kind, videos, apart)
     }
 
-    /** Re-evaluates [due] per file, as TMDB may close meanwhile; returns how many files changed the library. */
+    /**
+     * Re-evaluates [due] per file, as TMDB may close meanwhile; returns how many files changed the library. A file
+     * that failed at an earlier pass and fails again the same way is counted in one line rather than logged whole.
+     */
     private suspend fun processAll(folder: Folder, todo: List<RemoteFile>, due: (RemoteFile) -> Work?): Int {
         var unreachable = 0
         var written = 0
         var told = 0
-        todo.forEachIndexed { index, file ->
-            val work = due(file) ?: return@forEachIndexed
-            waitForThePlayer()
-            _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
-            suspendRunCatching { process(folder, file, work) }.onSuccess { wrote ->
-                unreachable = 0
-                if (wrote) written++
-            }.onFailure { e ->
-                Log.w(TAG, "Failed on ${file.relativePath}", e)
-                // A new file may have been inserted before failing.
-                if (folder.known[file.relativePath] == null) written++
-                if (ScanErrors.isUnreachable(e)) unreachable++
-                // Device full or NAS unreachable: every remaining file would fail the same way, after long timeouts.
-                if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) throw e
+        val source = folder.pass.source
+        try {
+            todo.forEachIndexed { index, file ->
+                val work = due(file) ?: return@forEachIndexed
+                waitForThePlayer()
+                _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
+                val key = "${source.id}/${file.relativePath}"
+                suspendRunCatching { process(folder, file, work) }.onSuccess { wrote ->
+                    unreachable = 0
+                    failures.recovered(key)
+                    if (wrote) written++
+                }.onFailure { e ->
+                    failures.failed(key, "Failed on ${file.relativePath}", e)
+                    // A new file may have been inserted before failing.
+                    if (folder.known[file.relativePath] == null) written++
+                    if (ScanErrors.isUnreachable(e)) unreachable++
+                    // Device full or NAS unreachable: every remaining file would fail the same way, after long timeouts.
+                    if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) throw e
+                }
+                if (index % TELL_EVERY == TELL_EVERY - 1 && written > told) {
+                    told = written
+                    _changed.emit(Unit)
+                }
             }
-            if (index % TELL_EVERY == TELL_EVERY - 1 && written > told) {
-                told = written
-                _changed.emit(Unit)
-            }
+        } finally {
+            failures.summarize { "${source.name}: files failing again, each logged at an earlier pass: $it" }
+            files.summarize(source)
         }
         return written
     }

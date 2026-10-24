@@ -551,6 +551,7 @@
     <string name="error_not_saved_player">Pamięć tego odtwarzacza odrzuciła zapis, więc niczego nie zapisano. Zwolnij miejsce na odtwarzaczu i spróbuj ponownie.</string>
     <string name="mappings_not_saved">Nie zapisano mapowań. %s</string>
     <string name="welcome_lost_secrets">Nie udało się ponownie odczytać połączenia zapisanego na tym odtwarzaczu. Wskaż jeszcze raz, gdzie są filmy.</string>
+    <string name="welcome_settings_reset">Nie udało się ponownie odczytać ustawień zapisanych na tym odtwarzaczu, więc przywrócono domyślne. Wskaż jeszcze raz, gdzie są filmy.</string>
     <string name="settings_lost_tmdb_key">Nie udało się ponownie odczytać osobistego klucza TMDB na tym odtwarzaczu. Wpisz go jeszcze raz w polu Klucz API TMDB.</string>
     <string name="settings_lost_mappings">Nie udało się ponownie odczytać mapowań ścieżek zapisanych na tym odtwarzaczu. Wpisz je jeszcze raz poniżej.</string>
     <string name="error_action_reconnect">Zaloguj się ponownie</string>

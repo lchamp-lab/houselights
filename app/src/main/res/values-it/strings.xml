@@ -536,6 +536,7 @@
     <string name="error_not_saved_player">La memoria del lettore ha rifiutato la scrittura: non è stato salvato nulla. Liberare spazio sul lettore, poi riprovare.</string>
     <string name="mappings_not_saved">Le corrispondenze non sono state salvate. %s</string>
     <string name="welcome_lost_secrets">Impossibile rileggere la connessione salvata su questo lettore. Indicare di nuovo dove si trovano i film.</string>
+    <string name="welcome_settings_reset">Impossibile rileggere le impostazioni salvate su questo lettore, che sono state ripristinate. Indicare di nuovo dove si trovano i film.</string>
     <string name="settings_lost_tmdb_key">Impossibile rileggere la chiave TMDB personale su questo lettore. Reinserirla in Chiave API TMDB.</string>
     <string name="settings_lost_mappings">Impossibile rileggere le corrispondenze di percorso salvate su questo lettore. Reinserirle qui sotto.</string>
     <string name="error_action_reconnect">Accedi di nuovo</string>

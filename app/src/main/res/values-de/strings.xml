@@ -521,6 +521,7 @@
     <string name="error_not_saved_player">Der Speicher dieses Players hat das Schreiben verweigert, daher wurde nichts gespeichert. Schaffen Sie Platz auf dem Player und versuchen Sie es erneut.</string>
     <string name="mappings_not_saved">Die Zuordnungen wurden nicht gespeichert. %s</string>
     <string name="welcome_lost_secrets">Die auf diesem Player gespeicherte Verbindung konnte nicht erneut gelesen werden. Wählen Sie noch einmal, wo Ihre Filme liegen.</string>
+    <string name="welcome_settings_reset">Die auf diesem Player gespeicherten Einstellungen konnten nicht erneut gelesen werden und wurden zurückgesetzt. Wählen Sie noch einmal, wo Ihre Filme liegen.</string>
     <string name="settings_lost_tmdb_key">Ihr eigener TMDB-Schlüssel konnte auf diesem Player nicht erneut gelesen werden. Geben Sie ihn unter TMDB-API-Schlüssel erneut ein.</string>
     <string name="settings_lost_mappings">Die auf diesem Player gespeicherten Pfadzuordnungen konnten nicht erneut gelesen werden. Geben Sie sie unten erneut ein.</string>
     <string name="error_action_reconnect">Erneut anmelden</string>

@@ -62,6 +62,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SourceConfig
+import app.houselights.core.TrackPlan
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
 import app.houselights.ui.util.ErrorAction
@@ -330,11 +331,14 @@ class MainActivity : ComponentActivity() {
                     snapshotFlow { lightsLevel.value }.first { it >= 1f }
                     when (plan) {
                         is PlaybackPlan.Launch -> try {
-                            // The player needs the memory more than pictures that reload from disk.
-                            imageLoader.memoryCache?.clear()
-                            container.cutPosters.clear()
-                            playerLauncher.launch(container.player.intentFor(plan, container.tracks.plan(plan)))
-                            container.player.onPlayerLaunched()
+                            // Home pressed meanwhile: nothing opens over the app gone to, and no session starts.
+                            val launched = lifecycle.launchOnScreen({ container.tracks.plan(plan) }) { tracks ->
+                                // The player needs the memory more than pictures that reload from disk.
+                                imageLoader.memoryCache?.clear()
+                                container.cutPosters.clear()
+                                playerLauncher.launch(container.player.intentFor(plan, tracks))
+                            }
+                            if (launched) container.player.onPlayerLaunched() else lightsDown.value = false
                         } catch (_: ActivityNotFoundException) {
                             container.player.onLaunchFailed()
                             failed(UiError.NO_PLAYER)
@@ -621,6 +625,20 @@ internal fun dispatchUnseen(
         system -> pass(event)
         else -> true
     }
+}
+
+/** Started, if only paused under an overlay: Home always stops the app, so the player never opens from behind. */
+internal fun Lifecycle.onScreen(): Boolean = currentState.isAtLeast(Lifecycle.State.STARTED)
+
+/**
+ * Reads the [tracks] to ask for, then hands them to [launch] if the app is still [onScreen]: checked after that last
+ * wait, right before the player's intent is made. False when nothing was launched.
+ */
+internal suspend fun Lifecycle.launchOnScreen(tracks: suspend () -> TrackPlan?, launch: (TrackPlan?) -> Unit): Boolean {
+    val asked = tracks()
+    if (!onScreen()) return false
+    launch(asked)
+    return true
 }
 
 /** Navigates to where an error is fixed; retrying is left to each screen. */

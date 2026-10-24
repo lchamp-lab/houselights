@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.RepeatedFailures
 import com.emc.ecs.nfsclient.nfs.NfsException
 import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.emc.ecs.nfsclient.rpc.RpcException
@@ -9,6 +10,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import java.io.FileNotFoundException
 
 /** Walking a NAS's folders: what is listed or skipped, what fails the whole walk. On Robolectric for the log. */
@@ -44,7 +46,10 @@ class RemoteWalkTest {
         }
     }
 
-    private fun listing(isFatal: (Throwable) -> Boolean = ScanErrors::isUnreachable) = walk(folder(""), isFatal)
+    /** The source's unreadable paths, kept from one walk to the next as the app keeps them. */
+    private val unreadable = RepeatedFailures("RemoteBrowser")
+
+    private fun listing(isFatal: (Throwable) -> Boolean = ScanErrors::isUnreachable) = walk(folder(""), unreadable, isFatal)
 
     /** What nfs-client throws for a READDIR the NAS refuses. */
     private fun refused() = NfsException(NfsStatus.NFS3ERR_ACCES, "readdir error code: NfsStatus:13")
@@ -57,6 +62,20 @@ class RemoteWalkTest {
 
     /** What nfs-client throws for a query about a file no longer there (NFS3ERR_NOENT). */
     private fun gone(path: String) = FileNotFoundException("lookup /volume1/media/$path")
+
+    /** Another user's folder, refused at every pass: logged whole once, then counted in one line per walk. */
+    @Test
+    fun aFolderRefusedAtEveryWalkIsLoggedWholeOnce() {
+        tree[""] = listOf("Private/", "Arrival (2016).mkv")
+        failures["Private"] = refused()
+        ShadowLog.clear()
+        repeat(3) { assertEquals(listOf("Private"), listing().unreadable) }
+        val told = ShadowLog.getLogsForTag("RemoteBrowser").map { it.msg to (it.throwable != null) }
+        assertEquals(
+            listOf("Could not read Private" to true) + List(2) { "Paths unreadable again, each logged before: 1" to false },
+            told,
+        )
+    }
 
     @Test
     fun aFolderThatCannotBeReadIsNamedAndPassedOver() {

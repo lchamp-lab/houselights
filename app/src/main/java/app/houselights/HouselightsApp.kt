@@ -171,8 +171,17 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** TMDB's language: the one chosen in Settings, else the device's. */
     fun metadataLocale(): Locale = metadataLocale(settings.state.value, deviceLocale.value)
 
+    /** Whether the app is on screen, whichever activity shows it. */
+    private val onScreen = ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) }
+
     /** The Trakt account the folders' watch history goes to, its tokens in the settings. */
-    val trakt = TraktAccount(TraktKeys.builtIn, session = { settings.state.value.trakt }, save = settings::setTrakt)
+    val trakt = TraktAccount(
+        TraktKeys.builtIn,
+        session = { settings.state.value.trakt },
+        save = settings::setTrakt,
+        retries = scope,
+        started = onScreen,
+    )
 
     /** The only way to change the source: the current one stays active until the new one is saved. */
     val sources = SourceSwitcher({ settings.state.value }, settings::setSource, scope)
@@ -257,7 +266,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         playing = player.playing,
         browsers = remoteBrowsers::of,
         closeIdle = remoteBrowsers::closeIdle,
-        started = ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) },
+        started = onScreen,
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 

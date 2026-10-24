@@ -17,7 +17,8 @@ import java.net.SocketException
 
 /**
  * Lists and reads an NFSv3 export; a single instance lives in [RemoteBrowsers]. The NAS trusts the client IP (no
- * credentials), and the export must allow non-privileged ports, as an app cannot bind ports below 1024.
+ * password; [CredentialUnix] says uid 0, gid 0), and the export must allow non-privileged ports, as an app cannot
+ * bind ports below 1024.
  */
 internal class NfsBrowser(
     /** Mounts a source's export (a request to the NAS); replaceable in tests. */
@@ -33,9 +34,11 @@ internal class NfsBrowser(
         closingWaits = false,
     )
 
+    private val unreadable = UnreadablePaths()
+
     override suspend fun list(source: SourceEntity): Listing = withMount(source) { mounted ->
         val export = mounted.export
-        walk(folder(export, export.folder(root(source)))) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        walk(folder(export, export.folder(root(source))), unreadable.of(source)) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     /** Uses a fresh mount so the NAS checks access now. */

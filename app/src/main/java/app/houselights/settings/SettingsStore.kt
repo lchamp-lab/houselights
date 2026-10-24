@@ -8,8 +8,8 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import android.util.Log
@@ -38,10 +38,18 @@ import java.util.UUID
 import app.houselights.core.CollectionThreshold
 import kotlin.coroutines.CoroutineContext
 
+/**
+ * A corrupt settings file resets to the defaults rather than crashing the app at launch: logged, and flagged
+ * ([AppSettings.settingsReset]) so Welcome says why it shows. Declared before the store, which it is given to.
+ */
+internal val resetWhenCorrupt = ReplaceFileCorruptionHandler<Preferences> { e ->
+    Log.w(TAG, "Settings file unreadable, reset: ${e.javaClass.simpleName}")
+    mutablePreferencesOf(Keys.settingsReset to true)
+}
+
 private val Context.dataStore by preferencesDataStore(
     name = "settings",
-    // A corrupt settings file resets to the defaults rather than crashing the app at launch.
-    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+    corruptionHandler = resetWhenCorrupt,
     produceMigrations = { listOf(SealSecrets(Secrets.device)) },
 )
 
@@ -60,6 +68,7 @@ private object Keys {
     val audioLanguage = stringPreferencesKey("audio_language")
     val subtitleMode = stringPreferencesKey("subtitle_mode")
     val subtitleLanguage = stringPreferencesKey("subtitle_language")
+    val settingsReset = booleanPreferencesKey("settings_reset")
 }
 
 private val SECRET_KEYS = listOf(Keys.source, Keys.keptServer, Keys.tmdbKey, Keys.mappings, Keys.trakt)
@@ -139,6 +148,8 @@ data class AppSettings(
     val lostSecrets: Set<SecretSetting> = emptySet(),
     /** The file keeps failing to read: retried ever less often, never replaced by defaults (which open Welcome). */
     val readFailed: Boolean = false,
+    /** The file was corrupt and reset to the defaults; Welcome says so until a source is saved. */
+    val settingsReset: Boolean = false,
 ) {
     /** The saved connection (server and token) could not be read back; the welcome screen says so. */
     val lostSource: Boolean get() = SecretSetting.SOURCE in lostSecrets
@@ -148,7 +159,7 @@ data class AppSettings(
         "AppSettings(loaded=$loaded, source=$source, keptServer=$keptServer, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
             "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
             "collectionMinFilms=$collectionMinFilms, metadataLanguage=$metadataLanguage, libraryLanguage=$libraryLanguage, " +
-            "trakt=$trakt, tracks=$tracks, lostSecrets=$lostSecrets, readFailed=$readFailed)"
+            "trakt=$trakt, tracks=$tracks, lostSecrets=$lostSecrets, readFailed=$readFailed, settingsReset=$settingsReset)"
 }
 
 class SettingsStore(
@@ -228,6 +239,7 @@ class SettingsStore(
                 subtitleLanguage = this[Keys.subtitleLanguage],
             ),
             lostSecrets = lost,
+            settingsReset = this[Keys.settingsReset] ?: false,
         )
     }
 
@@ -290,6 +302,7 @@ class SettingsStore(
     }
 
     private fun MutablePreferences.putSource(source: SourceConfig?) {
+        remove(Keys.settingsReset)
         when (source) {
             null -> remove(Keys.source)
             SourceConfig.Local -> this[Keys.source] = lenientJson.encodeToString<SourceConfig>(source)

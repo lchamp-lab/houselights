@@ -318,10 +318,13 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))
         val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh || untold }
         val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)
-        dao.saveScanned(series)
         val credits = CreditRules.credits(series.id, show = true, nfo, tv?.let { TmdbPeople(it.credits, it.createdBy) })
         val answered = lookup is TmdbAnswer.Given
-        dao.saveCredits(series.id, credits, tmdbAnswered = answered, complete = answered || series.tmdbId == null, at = now)
+        // At once: a show matched without its credits would never be looked up again for them.
+        dao.inTransaction {
+            dao.saveScanned(series)
+            dao.saveCredits(series.id, credits, tmdbAnswered = answered, complete = answered || series.tmdbId == null, at = now)
+        }
         return series
     }
 

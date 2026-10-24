@@ -48,17 +48,27 @@ import app.houselights.ui.util.toPx
 @Composable
 fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError? = null) {
     val app = appContainer()
-    val lostSource = app.settings.state.collectAsStateWithLifecycle().value.lostSource
+    val settings by app.settings.state.collectAsStateWithLifecycle()
     val vm: WelcomeViewModel = viewModel(factory = WelcomeViewModel.factory(app, HlSize.welcomePoster.toPx()))
     val posters by vm.posters.collectAsStateWithLifecycle()
     // Returning from a choice retries a wall that TMDB left empty.
     LaunchedEffect(Unit) { vm.show() }
-    Welcome(posters, onLocal, onJellyfin, lostSource, problem)
+    Welcome(posters, onLocal, onJellyfin, settings.lostSource, problem, settings.settingsReset)
 }
 
-/** The welcome screen as drawn: [posters] on the wall, the source choice focused; [lostSource] and [problem] noted. */
+/**
+ * The welcome screen as drawn: [posters] on the wall, the source choice focused; [lostSource], [problem] and
+ * [settingsReset] noted.
+ */
 @Composable
-internal fun Welcome(posters: List<String>, onLocal: () -> Unit, onJellyfin: () -> Unit, lostSource: Boolean, problem: UiError?) {
+internal fun Welcome(
+    posters: List<String>,
+    onLocal: () -> Unit,
+    onJellyfin: () -> Unit,
+    lostSource: Boolean,
+    problem: UiError?,
+    settingsReset: Boolean = false,
+) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.tryRequestFocus() }
     val black = Hl.colors.background
@@ -82,8 +92,10 @@ internal fun Welcome(posters: List<String>, onLocal: () -> Unit, onJellyfin: () 
                     modifier = Modifier.widthIn(max = HlLayout.welcomeTagline),
                 )
                 Column(Modifier.weight(1f).padding(top = HlSpace.xl), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    // The saved connection could not be read back: say so rather than leave it unexplained.
+                    // The saved connection, or the whole settings file, could not be read back: say so rather than
+                    // leave it unexplained.
                     if (lostSource) AttentionNote(stringResource(R.string.welcome_lost_secrets))
+                    if (settingsReset) AttentionNote(stringResource(R.string.welcome_settings_reset))
                     problem?.let { AttentionNote(stringResource(welcomeProblem(it))) }
                 }
             }

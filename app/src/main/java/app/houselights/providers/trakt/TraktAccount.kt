@@ -8,8 +8,15 @@ import app.houselights.core.TraktSession
 import app.houselights.core.serverJson
 import app.houselights.core.suspendRunCatching
 import app.houselights.core.unreadable
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -58,7 +65,8 @@ interface TraktLink {
 /**
  * The Trakt account of this device: connected with a device code, its tokens renewed before they end, revoked on
  * signing out. Its session lives in the settings, sealed: read with [session] until this account changes it, then
- * held in memory, which every call and its token read, and written with [save], again at the next call if that failed.
+ * held in memory, which every call and its token read, and written with [save]; if that failed, again soon in
+ * [retries], as the app leaves the screen, and at the next call.
  */
 class TraktAccount(
     private val keys: TraktKeys,
@@ -69,6 +77,10 @@ class TraktAccount(
     private val now: () -> Long = { System.currentTimeMillis() / MS_PER_S },
     /** A clock in milliseconds that runs on in sleep, which a code's life counts in. */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
+    /** Where a failed save is tried again ([RETRIES_MS]); without it, only at the next call. */
+    private val retries: CoroutineScope? = null,
+    /** Whether the app is on screen: leaving it, the process may be stopped, and a session held only in memory lost. */
+    started: Flow<Boolean> = emptyFlow(),
 ) : TraktLink {
     private val client by lazy { TraktClient(keys, token = { current()?.accessToken }, base = http) }
 
@@ -80,6 +92,13 @@ class TraktAccount(
 
     @Volatile
     private var held: Held? = null
+
+    /** The save tried again after a failure, while it waits. */
+    private var resaving: Job? = null
+
+    init {
+        retries?.launch { started.distinctUntilChanged().filter { !it }.collect { savePending() } }
+    }
 
     /** The session in memory, else the settings'. */
     private fun current(): TraktSession? = held.let { if (it != null) it.session else session() }
@@ -153,7 +172,7 @@ class TraktAccount(
      * if Trakt refuses it. Throws [TraktSignedOutException] when there is no account, or Trakt refuses to renew it.
      */
     suspend fun <T> call(block: suspend (TraktApi) -> T): T {
-        if (held?.saved == false) lock.withLock { held?.takeUnless { it.saved }?.let { keep(it.session) } }
+        if (held?.saved == false) savePending()
         var current = live()
         if (current.expiresAt - now() < current.lifetime / RENEW_PART) {
             current = suspendRunCatching { renew(current) }.getOrElse { e ->
@@ -233,7 +252,31 @@ class TraktAccount(
         held = Held(next, saved = false)
         return suspendRunCatching { save(next) }
             .onSuccess { if (held?.session === next) held = Held(next, saved = true) }
-            .onFailure { Log.w(TAG, "The Trakt session could not be saved: ${described(it)}") }
+            .onFailure {
+                Log.w(TAG, "The Trakt session could not be saved: ${described(it)}")
+                saveSoon()
+            }
+    }
+
+    /**
+     * Tries the save again after each of [RETRIES_MS] until it is made: once Trakt has spent the old refresh token,
+     * a stopped process would lose the new one, and the account with it. Called under [lock], as [keep] is.
+     */
+    private fun saveSoon() {
+        val scope = retries ?: return
+        if (resaving?.isActive == true) return
+        resaving = scope.launch {
+            for (wait in RETRIES_MS) {
+                delay(wait)
+                if (savePending()) return@launch
+            }
+        }
+    }
+
+    /** Saves the session held in memory if it is not yet; true once none waits. */
+    private suspend fun savePending(): Boolean = lock.withLock {
+        val pending = held?.takeUnless { it.saved } ?: return@withLock true
+        keep(pending.session).isSuccess
     }
 
     /** Trakt refuses the refresh token itself (invalid_grant), not the request. */
@@ -268,5 +311,8 @@ class TraktAccount(
         const val RENEW_PART = 4
 
         const val SIGN_OUT_MS = 3_000L
+
+        /** The waits before each new try of a failed save: 5 s, 30 s, 2 min. */
+        val RETRIES_MS = longArrayOf(5_000L, 30_000L, 120_000L)
     }
 }
