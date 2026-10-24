@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.ImageRef
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +11,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -90,6 +92,19 @@ class LocalLibraryTest {
         }
     }
 
+    /** Home and the settings read a folder's address and last scan, never its account. */
+    @Test
+    fun theScreensReadAFolderWithoutItsAccount() = runTest {
+        val id = folder()
+        val shown = Folder(id, "films", SourceKind.MOVIES, Protocol.SMB, "192.168.1.10", "192.168.1.10/media/films", lastScanAt = 2_000)
+        assertEquals(listOf(shown), library.folders.first())
+
+        library.removeFolder(shown)
+        assertTrue(dao.sources().isEmpty())
+        // Already gone: nothing happens, and nothing fails.
+        library.removeFolder(shown)
+    }
+
     @Test
     fun aFolderRemovedMeanwhileStaysRemoved() = runTest {
         val id = folder()
@@ -137,10 +152,10 @@ class LocalLibraryTest {
     fun aScansWritesAskTheFolderCountsAgainEveryTwoSecondsAtMost() = runBlocking {
         val id = dao.insertSource(nfs("nas", "volume1/media", "films"))
         val counted = Collections.synchronizedList(mutableListOf<Int>())
-        val posters = Collections.synchronizedList(mutableListOf<List<String>>())
+        val posters = Collections.synchronizedList(mutableListOf<List<ImageRef>>())
         val watch = launch(Dispatchers.Default) {
             launch { library.folderCounts.collect { counted += it[id]?.titles ?: 0 } }
-            library.latestPosters(dao.source(id)!!, 4).collect { posters += it }
+            library.latestPosters(dao.source(id)!!.toFolder(), 4).collect { posters += it }
         }
         withTimeout(5_000) { while (counted.isEmpty() || posters.isEmpty()) delay(10) }
         statements.clear()
@@ -156,7 +171,7 @@ class LocalLibraryTest {
         watch.cancel()
         // Within 2 s of the first answers, though ten films were written: those answers alone, each query asked once more.
         assertEquals(listOf(0), counted.toList())
-        assertEquals(listOf(emptyList<String>()), posters.toList())
+        assertEquals(listOf(emptyList<ImageRef>()), posters.toList())
         val asked = statements.toList()
         assertTrue("counts asked ${asked.count { "GROUP BY sourceId" in it }} times", asked.count { "GROUP BY sourceId" in it } <= 1)
         assertTrue("posters asked again", asked.count { "sourceId = ? AND kind IN" in it && "ORDER BY addedAt" in it } <= 1)

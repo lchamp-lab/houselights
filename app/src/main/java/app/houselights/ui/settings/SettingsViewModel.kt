@@ -17,8 +17,8 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.TrackPreferences
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.CleanupResult
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.LocalLibrary
-import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.settings.AppSettings
@@ -278,7 +278,7 @@ internal class SettingsViewModel(
     }
 
     /** Removes [folder] and its titles in [work], waiting for a scan's open file; [removing] holds it meanwhile. */
-    fun removeFolder(folder: SourceEntity) {
+    fun removeFolder(folder: Folder) {
         if (folder.id in removing) return
         removing += folder.id
         change("Removing the folder ${folder.id}", SettingAction.REMOVE_FOLDER, work, folder.id) {

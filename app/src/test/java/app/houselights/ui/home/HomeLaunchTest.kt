@@ -6,7 +6,7 @@ import app.houselights.core.HomeSection
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ScanState
-import app.houselights.providers.local.SourceEntity
+import app.houselights.providers.local.Folder
 import app.houselights.settings.AppSettings
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
@@ -73,7 +73,7 @@ class HomeLaunchTest {
     private fun TestScope.home(launch: HomeLaunch): HomeViewModel = HomeViewModel(
         { provider },
         MutableStateFlow(ScanState()),
-        MutableStateFlow(emptyList<SourceEntity>()),
+        MutableStateFlow(emptyList<Folder>()),
         settings,
         scanAll = {},
         launched = { launch.take(settings.value.source) },

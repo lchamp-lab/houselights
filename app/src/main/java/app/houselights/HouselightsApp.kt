@@ -361,7 +361,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         source = { settings.state.first { it.loaded || it.readFailed }.source },
         latest = { library.latestPosters(FIELD_POSTERS).first() },
         hasFolders = { library.hasFolders() },
-        trending = ::trendingPosters,
+        trending = { widthPx -> trendingPosters(widthPx).map { LocalProvider.image(it, TmdbClient.Companion.ImageType.POSTER) } },
     )
 
     /** Poster URLs of trending films, or nothing when TMDB is unreachable. */

@@ -2,6 +2,8 @@ package app.houselights.providers.local
 
 import android.content.Context
 import app.houselights.core.Definition
+import app.houselights.core.ImageRef
+import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +36,7 @@ class LocalLibrary(
     /** Closes sessions and mounts kept open on a source's address; replaceable in tests. */
     private val forget: suspend (SourceEntity) -> Unit,
 ) {
-    val folders: Flow<List<SourceEntity>> = dao.observeSources()
+    val folders: Flow<List<Folder>> = dao.observeSources().map { sources -> sources.map(SourceEntity::toFolder) }
 
     val titleCount: Flow<Int> = dao.observeAllTitleCount().paced()
 
@@ -44,10 +46,10 @@ class LocalLibrary(
     val folderCounts: Flow<Map<Long, FolderCounts>> =
         dao.observeFolderCounts(Definition.ULTRA_HD.token).paced().map { counts -> counts.associateBy { it.sourceId } }
 
-    fun latestPosters(folder: SourceEntity, limit: Int): Flow<List<String>> = dao.observePosters(folder.id, limit).paced()
+    fun latestPosters(folder: Folder, limit: Int): Flow<List<ImageRef>> = dao.observePosters(folder.id, limit).paced().map(::posters)
 
     /** The [limit] posters last added to the whole library. */
-    fun latestPosters(limit: Int): Flow<List<String>> = dao.observeAllPosters(limit)
+    fun latestPosters(limit: Int): Flow<List<ImageRef>> = dao.observeAllPosters(limit).map(::posters)
 
     suspend fun hasFolders(): Boolean = dao.sources().isNotEmpty()
 
@@ -86,7 +88,10 @@ class LocalLibrary(
         return FolderSave.Saved
     }
 
-    suspend fun removeFolder(folder: SourceEntity) = scanner.removeSource(folder)
+    /** Removes [folder] and its titles, once a scan's open file in it is closed; nothing when it is already gone. */
+    suspend fun removeFolder(folder: Folder) {
+        dao.source(folder.id)?.let { scanner.removeSource(it) }
+    }
 
     fun scan(refreshMetadata: Boolean = false) = scanner.scanAll(refreshMetadata)
 
@@ -106,6 +111,8 @@ class LocalLibrary(
         )
     }
 }
+
+private fun posters(paths: List<String>) = paths.map { LocalProvider.image(it, ImageType.POSTER) }
 
 /**
  * A query a scan reruns at each write, run at most every [PANE_PACE_MS] and shown when its answer changes. Room runs

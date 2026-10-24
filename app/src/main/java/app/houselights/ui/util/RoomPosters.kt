@@ -9,8 +9,6 @@ import androidx.compose.runtime.setValue
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
 import app.houselights.core.SourceConfig
-import app.houselights.providers.local.LocalProvider
-import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.components.FIELD_POSTERS
 
@@ -21,11 +19,11 @@ import app.houselights.ui.design.components.FIELD_POSTERS
 class RoomPosters(
     /** The source in use, once the settings are read. */
     private val source: suspend () -> SourceConfig?,
-    /** The folders' latest posters, as stored. */
-    private val latest: suspend () -> List<String>,
+    /** The folders' latest posters. */
+    private val latest: suspend () -> List<ImageRef>,
     private val hasFolders: suspend () -> Boolean,
     /** The welcome wall's posters, at a width in px. */
-    private val trending: suspend (Int) -> List<String>,
+    private val trending: suspend (Int) -> List<ImageRef>,
 ) {
     private val kept = mutableMapOf<SourceConfig?, List<ImageRef>>()
 
@@ -47,8 +45,7 @@ class RoomPosters(
     suspend fun read(widthPx: Int): List<ImageRef> {
         val from = source()
         val read = when (from) {
-            SourceConfig.Local -> latest().map { LocalProvider.image(it, ImageType.POSTER) }
-                .ifEmpty { if (hasFolders()) emptyList() else welcome(widthPx) }
+            SourceConfig.Local -> latest().ifEmpty { if (hasFolders()) emptyList() else welcome(widthPx) }
             is SourceConfig.Jellyfin -> last(from)
             null -> welcome(widthPx)
         }
@@ -56,7 +53,7 @@ class RoomPosters(
         return read
     }
 
-    private suspend fun welcome(widthPx: Int) = trending(widthPx).take(FIELD_POSTERS).map { LocalProvider.image(it, ImageType.POSTER) }
+    private suspend fun welcome(widthPx: Int) = trending(widthPx).take(FIELD_POSTERS)
 }
 
 /** The room's posters for this visit: the last ones at once, then those [RoomPosters.read] finds, once. */
