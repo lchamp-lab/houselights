@@ -33,7 +33,8 @@ class LibraryRowsTest {
         best = (1..6).map { film("best$it") }
     }
     private var clock = at(17, 20)
-    private val rows = LibraryRows({ FakeProvider().also { it.catalog = catalog } }, now = { clock }, zone = { zone })
+    private var source = FakeProvider().also { it.catalog = catalog }
+    private val rows = LibraryRows({ source }, now = { clock }, zone = { zone })
 
     @Test
     fun theDayTurnsAtSixInTheMorning() {
@@ -58,6 +59,15 @@ class LibraryRowsTest {
         assertEquals("drawn once", emptyList<String>(), catalog.calls)
         clock = at(18, 9)
         assertTrue(rows.today().first().person != tonight)
+    }
+
+    /** Folders, then a server the same evening: its own rows, never the folders' titles. */
+    @Test
+    fun anotherSourceTheSameDayDrawsItsOwn() = runTest {
+        rows.today()
+        val server = FakeCatalog().apply { best = (1..6).map { film("server$it") } }
+        source = FakeProvider().also { it.catalog = server }
+        assertEquals(listOf(server.best), rows.today().map { it.items })
     }
 
     @Test
