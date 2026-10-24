@@ -91,6 +91,8 @@ internal fun AddFolderForm(
             // In the form's place: none of it is the folder's, and saving it would erase the folder's password.
             HlEmptyState(
                 stringResource(R.string.folder_unread),
+                // The library is read from the player's storage, as the settings are.
+                message = stringResource(R.string.error_settings),
                 attention = true,
                 action = stringResource(R.string.retry),
                 actionIcon = HlIcons.Refresh,

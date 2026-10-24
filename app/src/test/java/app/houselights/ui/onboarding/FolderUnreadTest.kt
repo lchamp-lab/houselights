@@ -87,6 +87,8 @@ class FolderUnreadTest {
         compose.waitForIdle()
 
         compose.onNodeWithText(text(R.string.folder_unread)).assertExists()
+        // Its line as every message has one: what failed, and what to do if Réessayer does not help.
+        compose.onNodeWithText(text(R.string.error_settings)).assertExists()
         compose.onNodeWithText(text(R.string.folder_not_saved_state)).assertDoesNotExist()
         button(R.string.retry).assertIsFocused()
         button(R.string.save).assertDoesNotExist()
@@ -95,6 +97,7 @@ class FolderUnreadTest {
         folders(readable = true)
         compose.press(Key.DirectionCenter)
         compose.onNodeWithText(text(R.string.folder_unread)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.error_settings)).assertDoesNotExist()
         compose.onNodeWithContentDescription(text(R.string.field_host)).assertExists()
         assertEquals("192.168.1.10", vm.form.host)
         button(R.string.save).assertExists()
