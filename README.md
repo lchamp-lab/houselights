@@ -124,9 +124,11 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   or that one signed by someone else, receives none. On a firmware signed with Android's public test keys
   (the Z1000 Pro's), anyone can sign an update of the system player that Android installs over it, and it
   would receive them too: install the player's updates from Zidoo alone.
-- NFS sends no password: the NAS trusts the player's address, and the app presents itself as root (uid 0,
-  gid 0). On an export that does not squash root (Synology's "No mapping"), it reads the chosen folder with
-  root's rights: export it **read-only, with root squashed** or mapped to a guest or media account.
+- NFS sends no password: the NAS trusts the player's address and the user it claims, root (uid 0, gid 0)
+  unless the folder's « Se présenter comme » names another user and group. Any app on the player can claim root
+  too: on an export that does not squash root (Synology's "No mapping"), the export is open with root's rights.
+  Export it **read-only, with root squashed** or mapped to a guest or media account; the user the app presents
+  only chooses whose rights it reads with, and the Zidoo player opens videos with its own NFS access.
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
   held in the Android Keystore, never replaced once made: one the Keystore does not open for now is kept, said as
   such, never tried empty on the NAS, and read again with Réessayer or on coming back to the app. Android backup is

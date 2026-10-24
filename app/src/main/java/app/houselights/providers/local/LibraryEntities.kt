@@ -113,6 +113,9 @@ data class SourceEntity(
     val firstScanAt: Long = 0,
     /** Language tag its titles are to be read again in, whole ([LibraryScanner.refreshAllIn]); null when none. */
     val refreshIn: String? = null,
+    /** NFS: the user the app presents itself as to the NAS (AUTH_SYS), with [gid]; both null for root. */
+    val uid: Int? = null,
+    val gid: Int? = null,
 )
 
 data class SourceFirstScan(val id: Long, val firstScanAt: Long)

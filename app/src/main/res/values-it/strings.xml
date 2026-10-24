@@ -228,6 +228,11 @@
     <string name="field_host">Indirizzo del NAS</string>
     <string name="field_export">Export NFS</string>
     <string name="nfs_hint">Senza password: sul NAS, autorizzare l’indirizzo di questo dispositivo in sola lettura, da porte non privilegiate.</string>
+    <string name="nfs_identity_title">Connetti come</string>
+    <string name="nfs_identity_desc">Utente visto dal NAS</string>
+    <string name="nfs_identity_hint">Campi vuoti: Houselights si connette come root (UID 0, GID 0). Il lettore Zidoo apre i video con il proprio account.</string>
+    <string name="field_uid">Utente (UID)</string>
+    <string name="field_gid">Gruppo (GID)</string>
     <string name="smb_hint">La password viene salvata su questo dispositivo e trasmessa al lettore Zidoo. È preferibile un account dedicato in sola lettura.</string>
     <string name="field_share">Condivisione</string>
     <string name="field_path">Cartella</string>
@@ -242,6 +247,8 @@
     <string name="placeholder_share">Es. media</string>
     <string name="placeholder_path_movies">Es. film</string>
     <string name="placeholder_path_shows">Es. serie</string>
+    <string name="placeholder_uid">Es. 1026</string>
+    <string name="placeholder_gid">Es. 100</string>
     <string name="test_connection">Verifica</string>
     <string name="connection_untested">Connessione non verificata</string>
     <string name="server_found">Server trovato</string>
@@ -254,6 +261,7 @@
     <string name="folder_overlaps">Questa cartella si sovrappone a «%s», già nella libreria: i suoi titoli comparirebbero due volte. Scegliere un’altra cartella, o modificare quella nelle Impostazioni.</string>
     <string name="folder_overlaps_state">Già nella libreria</string>
     <string name="folder_not_saved_state">Non salvata</string>
+    <string name="folder_unread">Impossibile rileggere questa cartella</string>
     <string name="saving">Salvataggio…</string>
     <plurals name="entries_found">
         <item quantity="one">%d elemento trovato</item>
@@ -267,6 +275,8 @@
     <string name="error_host_missing">Inserire l’indirizzo del NAS.</string>
     <string name="error_export_missing">Inserire l’export NFS, ad esempio /volume1/media.</string>
     <string name="error_share_missing">Inserire il nome della cartella condivisa, ad esempio media.</string>
+    <string name="error_uid_missing">Inserire anche l’utente (UID).</string>
+    <string name="error_gid_missing">Inserire anche il gruppo (GID).</string>
     <string name="error_scan_other">Impossibile leggere la cartella. Riprovare, o verificare la condivisione sul NAS.</string>
     <string name="error_folder_empty">La cartella sembra vuota sul NAS: non è stato rimosso nulla. Verificare che il disco sia montato; se è vuota definitivamente, rimuoverla.</string>
     <string name="error_storage_full">Spazio esaurito su questo dispositivo: la scansione si è interrotta. Liberarne un po’ in Impostazioni, Archiviazione.</string>

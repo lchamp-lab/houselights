@@ -295,6 +295,17 @@ class MigrationTest {
         assertEquals(TrackChoice("ko", SubtitleChoice.Off), db.trackChoices().choice("local:1")?.choice())
     }
 
+    /** Version 17 lets an NFS folder present another user; every folder kept presents itself as root, as before. */
+    @Test
+    fun version17KeepsEveryFolderPresentingItselfAsRoot() = runTest {
+        // From the previous version, and from 0.2.0's.
+        for (from in listOf(16, 15)) {
+            val films = checkNotNull(migrated(from) { filmsFolder() }.dao().source(1))
+            assertEquals("from $from", "Films" to 1000L, films.name to films.lastScanAt)
+            assertEquals("from $from", null to null, films.uid to films.gid)
+        }
+    }
+
     /**
      * Version 16 marks the tracks the probe read in the file's order, so no file is read again for it. Never an NFO's:
      * an MKV the probe found no picture in takes its <streamdetails>, picture and tracks in the NFO's order.

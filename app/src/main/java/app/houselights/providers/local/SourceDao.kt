@@ -28,10 +28,13 @@ interface SourceDao {
     @Update
     suspend fun updateSource(source: SourceEntity)
 
-    /** Updates address and credentials in place, keeping id, kind and scan dates, so titles keep their user state. */
+    /**
+     * Updates address, credentials and NFS identity in place, keeping id, kind and scan dates, so titles keep their
+     * user state.
+     */
     @Query(
         "UPDATE sources SET name = :name, protocol = :protocol, host = :host, share = :share, path = :path, " +
-            "username = :username, password = :password WHERE id = :id"
+            "username = :username, password = :password, uid = :uid, gid = :gid WHERE id = :id"
     )
     @Suppress("LongParameterList") // One per column written.
     suspend fun updateConnection(
@@ -43,6 +46,8 @@ interface SourceDao {
         path: String,
         username: String,
         password: Secret,
+        uid: Int?,
+        gid: Int?,
     )
 
     @Query("SELECT * FROM sources WHERE id = :id")

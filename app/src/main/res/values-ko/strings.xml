@@ -216,6 +216,11 @@
     <string name="field_host">NAS 주소</string>
     <string name="field_export">NFS 익스포트</string>
     <string name="nfs_hint">비밀번호가 필요 없습니다. NAS에서 이 기기의 주소를 읽기 전용으로, 비특권 포트의 연결까지 허용하세요.</string>
+    <string name="nfs_identity_title">연결할 사용자</string>
+    <string name="nfs_identity_desc">NAS에 표시되는 사용자</string>
+    <string name="nfs_identity_hint">비워 두면 Houselights는 root(UID 0, GID 0)로 연결합니다. Zidoo 플레이어는 자체 계정으로 동영상을 엽니다.</string>
+    <string name="field_uid">사용자(UID)</string>
+    <string name="field_gid">그룹(GID)</string>
     <string name="smb_hint">비밀번호는 이 기기에 저장되어 Zidoo 플레이어로 전달됩니다. 읽기 권한만 있는 별도 계정을 권장합니다.</string>
     <string name="field_share">공유 폴더</string>
     <string name="field_path">폴더</string>
@@ -230,6 +235,8 @@
     <string name="placeholder_share">예: media</string>
     <string name="placeholder_path_movies">예: movies</string>
     <string name="placeholder_path_shows">예: shows</string>
+    <string name="placeholder_uid">예: 1026</string>
+    <string name="placeholder_gid">예: 100</string>
     <string name="test_connection">테스트</string>
     <string name="connection_untested">연결 테스트 전</string>
     <string name="server_found">서버를 찾았습니다</string>
@@ -242,6 +249,7 @@
     <string name="folder_overlaps">이 폴더는 이미 라이브러리에 있는 ‘%s’ 폴더와 겹칩니다. 그대로 추가하면 작품이 두 번 표시됩니다. 다른 폴더를 선택하거나 설정에서 기존 폴더를 편집하세요.</string>
     <string name="folder_overlaps_state">이미 라이브러리에 있음</string>
     <string name="folder_not_saved_state">저장되지 않음</string>
+    <string name="folder_unread">이 폴더를 다시 읽을 수 없습니다</string>
     <string name="saving">저장 중…</string>
     <plurals name="entries_found">
         <item quantity="other">항목 %d개 발견</item>
@@ -253,6 +261,8 @@
     <string name="error_host_missing">NAS 주소를 입력하세요.</string>
     <string name="error_export_missing">NFS 익스포트를 입력하세요(예: /volume1/media).</string>
     <string name="error_share_missing">공유 폴더 이름을 입력하세요(예: media).</string>
+    <string name="error_uid_missing">사용자(UID)도 입력하세요.</string>
+    <string name="error_gid_missing">그룹(GID)도 입력하세요.</string>
     <string name="error_scan_other">폴더를 읽을 수 없습니다. 다시 시도하거나 NAS의 공유 폴더를 확인하세요.</string>
     <string name="error_folder_empty">NAS의 폴더가 비어 있는 것 같습니다. 아무것도 제거하지 않았습니다. 디스크가 마운트되어 있는지 확인하고, 정말 비어 있다면 폴더를 제거하세요.</string>
     <string name="error_storage_full">이 기기에 남은 공간이 없어 스캔이 중단되었습니다. 설정의 ‘저장 공간’에서 공간을 확보하세요.</string>

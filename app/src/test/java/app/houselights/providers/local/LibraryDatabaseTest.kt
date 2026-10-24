@@ -73,7 +73,7 @@ class LibraryDatabaseTest {
 
             val read = checkNotNull(dao.source(id))
             assertEquals("", read.password.value)
-            with(read) { dao.updateConnection(id, "Films 4K", protocol, host, share, path, username, password) }
+            with(read) { dao.updateConnection(id, "Films 4K", protocol, host, share, path, username, password, uid, gid) }
             val stored = flaky.openHelper.readableDatabase.query("SELECT password FROM sources").use { it.moveToFirst(); it.getString(0) }
             assertEquals(sealed, stored)
 

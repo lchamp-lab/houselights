@@ -102,7 +102,7 @@ class NfsListingTest {
 
     private var mounts = 0
 
-    private fun browser(export: Export) = NfsBrowser(mount = { export.also { mounts++ } }, clock = { 0L })
+    private fun browser(export: Export) = NfsBrowser(mount = { _, _, _ -> export.also { mounts++ } }, clock = { 0L })
 
     private val films = nfsFolder(host = "192.168.1.20", share = "volume1/media", path = "")
 

@@ -216,6 +216,11 @@
     <string name="field_host">NASのアドレス</string>
     <string name="field_export">NFSエクスポート</string>
     <string name="nfs_hint">パスワードは不要です。NAS側で、このデバイスのアドレスを読み取り専用で、非特権ポートからの接続も含めて許可してください。</string>
+    <string name="nfs_identity_title">接続するユーザー</string>
+    <string name="nfs_identity_desc">NASから見えるユーザー</string>
+    <string name="nfs_identity_hint">空欄のときは、Houselights は root（UID 0、GID 0）として接続します。Zidooプレーヤーは自身のアカウントで動画を開きます。</string>
+    <string name="field_uid">ユーザー（UID）</string>
+    <string name="field_gid">グループ（GID）</string>
     <string name="smb_hint">パスワードはこのデバイスに保存され、Zidooプレーヤーに渡されます。読み取り権限のみの専用アカウントをおすすめします。</string>
     <string name="field_share">共有フォルダ</string>
     <string name="field_path">フォルダ</string>
@@ -230,6 +235,8 @@
     <string name="placeholder_share">例：media</string>
     <string name="placeholder_path_movies">例：movies</string>
     <string name="placeholder_path_shows">例：shows</string>
+    <string name="placeholder_uid">例：1026</string>
+    <string name="placeholder_gid">例：100</string>
     <string name="test_connection">テスト</string>
     <string name="connection_untested">接続テスト未実施</string>
     <string name="server_found">サーバーが見つかりました</string>
@@ -242,6 +249,7 @@
     <string name="folder_overlaps">このフォルダは、ライブラリにある「%s」と重なっています。このままでは作品が二重に表示されます。別のフォルダを選ぶか、設定で既存のフォルダを編集してください。</string>
     <string name="folder_overlaps_state">ライブラリに追加済み</string>
     <string name="folder_not_saved_state">保存されていません</string>
+    <string name="folder_unread">このフォルダを読み込み直せませんでした</string>
     <string name="saving">保存中…</string>
     <plurals name="entries_found">
         <item quantity="other">%d件を検出</item>
@@ -253,6 +261,8 @@
     <string name="error_host_missing">NASのアドレスを入力してください。</string>
     <string name="error_export_missing">NFSエクスポートを入力してください（例：/volume1/media）。</string>
     <string name="error_share_missing">共有フォルダ名を入力してください（例：media）。</string>
+    <string name="error_uid_missing">ユーザー（UID）も入力してください。</string>
+    <string name="error_gid_missing">グループ（GID）も入力してください。</string>
     <string name="error_scan_other">フォルダを読み取れませんでした。もう一度お試しいただくか、NASの共有フォルダを確認してください。</string>
     <string name="error_folder_empty">NAS上のフォルダが空のようです。何も削除されていません。ディスクがマウントされているか確認し、本当に空であればフォルダを削除してください。</string>
     <string name="error_storage_full">このデバイスの空き容量がないため、スキャンを中止しました。設定の「ストレージ」で空き容量を確保してください。</string>

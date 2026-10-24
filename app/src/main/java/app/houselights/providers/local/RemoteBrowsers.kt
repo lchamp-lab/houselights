@@ -20,7 +20,8 @@ class RemoteBrowsers internal constructor(private val smb: SmbBrowser, private v
     }
 
     /**
-     * Closes sessions or mounts kept on [source]'s address, for any account, after its address or password changed.
+     * Closes sessions or mounts kept on [source]'s address, for any account or NFS identity, after its address,
+     * password or identity changed.
      * An SMB session signs off after its current operation; an NFS mount is dropped at once.
      */
     suspend fun forget(source: SourceEntity) = withContext(Dispatchers.IO) {

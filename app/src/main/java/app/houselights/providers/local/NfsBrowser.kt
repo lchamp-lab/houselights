@@ -7,6 +7,7 @@ import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.emc.ecs.nfsclient.nfs.NfsType
 import com.emc.ecs.nfsclient.nfs.io.Nfs3File
 import com.emc.ecs.nfsclient.nfs.nfs3.Nfs3
+import com.emc.ecs.nfsclient.rpc.Credential
 import com.emc.ecs.nfsclient.rpc.CredentialUnix
 import com.emc.ecs.nfsclient.rpc.RpcException
 import com.emc.ecs.nfsclient.rpc.RpcStatus
@@ -17,15 +18,17 @@ import java.net.SocketException
 
 /**
  * Lists and reads an NFSv3 export; a single instance lives in [RemoteBrowsers]. The NAS trusts the client IP (no
- * password; [CredentialUnix] says uid 0, gid 0), and the export must allow non-privileged ports, as an app cannot
- * bind ports below 1024.
+ * password) and the user the folder presents itself as ([credential]), and the export must allow non-privileged
+ * ports, as an app cannot bind ports below 1024.
  */
 internal class NfsBrowser(
-    /** Mounts a source's export (a request to the NAS); replaceable in tests. */
-    private val mount: (SourceEntity) -> NfsExport = { Nfs3Export(Nfs3(it.host, export(it), CredentialUnix(), RETRIES)) },
+    /** Mounts an export as a user and group (a request to the NAS); replaceable in tests. */
+    private val mount: (host: String, export: String, credential: Credential) -> NfsExport = { host, export, credential ->
+        Nfs3Export(Nfs3(host, export, credential, RETRIES))
+    },
     clock: () -> Long = SystemClock::elapsedRealtime,
 ) : RemoteBrowser {
-    /** One mount per export; nfs-client owns its sockets, so closing a mount is just dropping it. */
+    /** One mount per export and identity; nfs-client owns its sockets, so closing a mount is just dropping it. */
     private val mounts = KeptConnections<NfsMount>(
         close = { _, _ -> },
         isOpen = { true },
@@ -44,7 +47,7 @@ internal class NfsBrowser(
 
     /** Uses a fresh mount so the NAS checks access now. */
     override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
-        mounts.once({ NfsMount(mount(source)) }) { mounted ->
+        mounts.once({ mounted(source) }) { mounted ->
             entries(mounted.export, mounted.export.folder(root(source))).count { !RemoteBrowser.skip(it.name) }
         }
     }
@@ -52,16 +55,22 @@ internal class NfsBrowser(
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
         withMount(source) { it.read(remotePath(source, relativePath), offset, length) }
 
-    private fun key(source: SourceEntity) = "${source.host}:${export(source)}"
+    /** The identity, then the export: "1026:100@nas:/volume1/media". */
+    private fun key(source: SourceEntity) = "${source.uid ?: 0}:${source.gid ?: 0}@${place(source)}"
+
+    private fun place(source: SourceEntity) = "${source.host}:${export(source)}"
 
     private suspend fun <T> withMount(source: SourceEntity, block: (NfsMount) -> T): T = withContext(Dispatchers.IO) {
-        mounts.use(key(source), { NfsMount(mount(source)) }, block)
+        mounts.use(key(source), { mounted(source) }, block)
     }
 
-    /** Drops the mount of [source]'s export, after its address changed. */
+    /** [source]'s export, mounted as [source] presents itself. */
+    private fun mounted(source: SourceEntity) = NfsMount(mount(source.host, export(source), credential(source)))
+
+    /** Drops the mounts of [source]'s export, under any identity, after its address or identity changed. */
     suspend fun forget(source: SourceEntity) {
-        val key = key(source)
-        mounts.forget { it == key }
+        val place = place(source)
+        mounts.forget { it.substringAfter('@') == place }
     }
 
     /** Drops unused mounts; called when a scan ends. */
@@ -112,6 +121,9 @@ internal class NfsBrowser(
         private const val RETRIES = 3
 
         private fun export(source: SourceEntity) = "/" + source.share.trim('/')
+
+        /** AUTH_SYS as [source] presents itself: its user and group, root (0, 0) unless it has its own. */
+        private fun credential(source: SourceEntity) = CredentialUnix(source.uid ?: 0, source.gid ?: 0, null)
 
         /** All entries of [dir] except "." and "..", paging READDIRPLUS by cookie. */
         private fun entries(export: NfsExport, dir: ByteArray): List<NfsEntry> {

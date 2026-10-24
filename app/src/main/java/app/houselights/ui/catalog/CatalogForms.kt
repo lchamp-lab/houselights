@@ -228,6 +228,7 @@ private fun FormTextFields() {
             )
         }
     }
+    FormFoldedFields()
 }
 
 /** A sign-in's servers found as their checks left them, the one picked checked after its state. */
@@ -259,6 +260,73 @@ private fun FormFoundServers() {
         }
     }
 }
+
+/** An NFS folder's identity under its form's actions: folded, its value said; open, what it changes over two fields. */
+@Composable
+private fun FormFoldedFields() {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        Specimen("a setting folded under a form's actions, its value said; root in words", Modifier.weight(1f), gap = HlSpace.xs) {
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.nfs_identity_title),
+                    description = stringResource(R.string.nfs_identity_desc),
+                    value = stringResource(R.string.nfs_identity_root),
+                    onClick = {},
+                )
+            }
+        }
+        var uid by remember { mutableStateOf("1026") }
+        var gid by remember { mutableStateOf("100") }
+        Specimen("open: what it changes over its two fields, its figures in the technical voice", Modifier.weight(1f), gap = HlSpace.xs) {
+            Column {
+                HlSettingGroup(null) {
+                    HlSettingRow(
+                        stringResource(R.string.nfs_identity_title),
+                        description = stringResource(R.string.nfs_identity_desc),
+                        value = stringResource(R.string.nfs_identity, uid, gid),
+                        valueStyle = Hl.type.jaquette,
+                        onClick = {},
+                        valueBreaks = true,
+                    )
+                }
+                Text(
+                    stringResource(R.string.nfs_identity_hint),
+                    style = Hl.type.meta,
+                    color = Hl.colors.contentSecondary,
+                    modifier = Modifier.padding(top = HlSpace.s, bottom = HlSpace.l),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                    HlTextField(
+                        stringResource(R.string.field_uid), uid, { uid = it }, Modifier.weight(1f),
+                        placeholder = stringResource(R.string.placeholder_uid), keyboardType = KeyboardType.Number,
+                    )
+                    HlTextField(
+                        stringResource(R.string.field_gid), gid, { gid = it }, Modifier.weight(1f),
+                        placeholder = stringResource(R.string.placeholder_gid), keyboardType = KeyboardType.Number,
+                    )
+                }
+            }
+        }
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        Specimen("long figures, or the largest text size: the user over the group, words whole", Modifier.weight(1f), gap = HlSpace.xs) {
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.nfs_identity_title),
+                    description = stringResource(R.string.nfs_identity_desc),
+                    value = stringResource(R.string.nfs_identity, LONG_ID, LONG_ID),
+                    valueStyle = Hl.type.jaquette,
+                    onClick = {},
+                    valueBreaks = true,
+                )
+            }
+        }
+        Spacer(Modifier.weight(1f))
+    }
+}
+
+/** A user or group number as a directory service hands out, too long for one line beside the row's words. */
+private const val LONG_ID = "2000001"
 
 @Composable
 private fun FormStatusPanels() {
@@ -328,6 +396,14 @@ private fun FormStatusPanels() {
                 StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "192.168.1.42:8096",
                 name = "Chambre",
                 facts = listOf(stringResource(R.string.checking)),
+            )
+        }
+        Specimen("on: an NFS folder presenting another user, among its facts", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
+            StatusPanel(
+                StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.20",
+                detail = "/volume1/media/films", badges = listOf("NFS"),
+                facts = listOf(films, stringResource(R.string.nfs_identity, "1026", "100")),
+                result = pluralStringResource(R.plurals.entries_found, 128, 128),
             )
         }
     }

@@ -266,6 +266,21 @@ fun Modifier.revealOnFocus(): Modifier = composed {
         .onFocusChanged { if (it.hasFocus) scope.launch { requester.bringIntoView() } }
 }
 
+/** Scrolls the whole element into view as it [opens], once laid out at its new size: a block unfolding under its row. */
+@OptIn(ExperimentalFoundationApi::class)
+fun Modifier.revealOnOpen(opens: Boolean): Modifier = composed {
+    val requester = remember { BringIntoViewRequester() }
+    var was by remember { mutableStateOf(opens) }
+    LaunchedEffect(opens) {
+        if (opens && !was) {
+            withFrameNanos { }
+            requester.bringIntoView()
+        }
+        was = opens
+    }
+    bringIntoViewRequester(requester)
+}
+
 /**
  * State of a row whose content changes while shown: a row at its start stays there, so titles arriving in
  * front show instead of landing off screen; a row the viewer moved along stays put.

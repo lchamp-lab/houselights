@@ -28,10 +28,14 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.revealOnOpen
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HlSettingGroup
+import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
@@ -73,42 +77,30 @@ internal fun AddFolderForm(
     val focus = remember { FormFocus() }
     // Wait until an edited folder is read, so its fields are laid out (the password only for SMB).
     LaunchedEffect(vm.ready) { if (vm.ready) focus.request(focusOn, vm.form.user) }
-    val check = vm.check
-    val result = resultText(check, gone = vm.gone)
-    val success = check is FolderCheck.Reachable && !vm.gone
     val kind = form.kind
     val protocol = form.protocol
-
-    // Live preview of the address the player will open, without credentials: the host, then its path.
-    val s = form.toSource()
-    val folder = "/" + listOf(s.share, s.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
-    val (state, stateText) = connectionState(check, testing = vm.testing, gone = vm.gone)
+    val identity = identityText(form).takeIf { protocol == Protocol.NFS }
 
     HlFormScaffold(
         title = stringResource(if (vm.edits) R.string.edit_folder else R.string.add_folder),
         description = stringResource(if (vm.edits) R.string.edit_folder_desc else R.string.add_folder_desc),
-        aside = {
-            StatusPanel(
-                state = state,
-                stateText = stringResource(stateText),
-                label = stringResource(R.string.label_address),
-                value = s.host.ifBlank { stringResource(R.string.placeholder_pending) },
-                detail = folder.takeIf { it.length > 1 },
-                // A deleted folder was never read: its protocol and kind would be the form's defaults.
-                badges = if (vm.gone) emptyList() else listOf(protocol.name),
-                facts = if (vm.gone) emptyList() else listOf(sourceKindName(kind)),
-                result = result,
-                resultIsError = !success,
-            )
-            Spacer(Modifier.height(HlSpace.l))
-            Text(
-                stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
-                style = Hl.type.meta,
-                color = Hl.colors.contentSecondary,
-            )
-        },
+        aside = { FolderStatus(vm, identity) },
         room = room,
     ) {
+        if (vm.unread) {
+            // In the form's place: none of it is the folder's, and saving it would erase the folder's password.
+            HlEmptyState(
+                stringResource(R.string.folder_unread),
+                // The library is read from the player's storage, as the settings are.
+                message = stringResource(R.string.error_settings),
+                attention = true,
+                action = stringResource(R.string.retry),
+                actionIcon = HlIcons.Refresh,
+                onAction = vm::readAgain,
+                busy = stringResource(R.string.retrying).takeIf { vm.rereading },
+            )
+            return@HlFormScaffold
+        }
         // The choices over the fields' columns, a little further from them than the fields from each other.
         Row(Modifier.padding(bottom = HlSpace.xs), horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             // An edited folder keeps its kind (its titles stay): the panel beside shows it.
@@ -167,6 +159,95 @@ internal fun AddFolderForm(
             }
         }
         FolderActions(vm, onDone)
+        // Under the actions, so the form above stays whole on screen; SMB says who reads by its account.
+        if (protocol == Protocol.NFS) NfsIdentity(vm, identity)
+    }
+}
+
+/**
+ * Who the NFS client presents itself as to the NAS, on its own row under the actions, saying its value: [identity],
+ * else root. OK opens what it changes and its two fields, empty for root, and folds them, what they hold kept.
+ */
+@Composable
+private fun NfsIdentity(vm: AddFolderViewModel, identity: String?) {
+    val form = vm.form
+    // Opened with OK, what it changes and its fields come into view under the row, which keeps focus.
+    Column(Modifier.revealOnOpen(vm.identityOpen)) {
+        HlSettingGroup(null) {
+            HlSettingRow(
+                stringResource(R.string.nfs_identity_title),
+                description = stringResource(R.string.nfs_identity_desc),
+                value = identity ?: stringResource(R.string.nfs_identity_root),
+                valueStyle = if (identity != null) Hl.type.jaquette else Hl.type.meta,
+                onClick = vm::toggleIdentity,
+                // At the largest text size, or with long numbers, the user over the group.
+                valueBreaks = true,
+            )
+        }
+        if (vm.identityOpen) {
+            // Over the fields, so it reads whole while they have focus.
+            Text(
+                stringResource(R.string.nfs_identity_hint),
+                style = Hl.type.meta,
+                color = Hl.colors.contentSecondary,
+                modifier = Modifier.padding(top = HlSpace.s, bottom = HlSpace.l),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                HlTextField(
+                    stringResource(R.string.field_uid), form.uid, { v -> if (FolderForm.isId(v)) vm.edit { copy(uid = v) } },
+                    Modifier.weight(1f),
+                    placeholder = stringResource(R.string.placeholder_uid), keyboardType = KeyboardType.Number,
+                )
+                HlTextField(
+                    stringResource(R.string.field_gid), form.gid, { v -> if (FolderForm.isId(v)) vm.edit { copy(gid = v) } },
+                    Modifier.weight(1f),
+                    placeholder = stringResource(R.string.placeholder_gid), keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done,
+                )
+            }
+        }
+    }
+}
+
+/** The NFS user and group typed, in the technical voice ("UID 1026 · GID 100"), one left empty a dash; null for root. */
+@Composable
+private fun identityText(form: FolderForm): String? {
+    if (form.uid.isEmpty() && form.gid.isEmpty()) return null
+    val none = stringResource(R.string.placeholder_none)
+    return stringResource(R.string.nfs_identity, form.uid.ifEmpty { none }, form.gid.ifEmpty { none })
+}
+
+/**
+ * Where the folder of [vm] stands beside its form: the address the player will open, without credentials, its
+ * protocol, kind and NFS [identity], the last test's result; then what the NAS must allow.
+ */
+@Composable
+private fun FolderStatus(vm: AddFolderViewModel, identity: String?) {
+    val check = vm.check
+    val protocol = vm.form.protocol
+    val s = vm.form.toSource()
+    val folder = "/" + listOf(s.share, s.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
+    val (state, stateText) = connectionState(check, testing = vm.testing, gone = vm.gone)
+    // A folder deleted or unread was never read: its protocol and kind would be the form's defaults.
+    val unknown = vm.gone || vm.unread
+    StatusPanel(
+        state = state,
+        stateText = stringResource(stateText),
+        label = stringResource(R.string.label_address),
+        value = s.host.ifBlank { stringResource(R.string.placeholder_pending) },
+        detail = folder.takeIf { it.length > 1 },
+        badges = if (unknown) emptyList() else listOf(protocol.name),
+        facts = if (unknown) emptyList() else listOf(sourceKindName(vm.form.kind), identity),
+        result = resultText(check, gone = vm.gone),
+        resultIsError = check !is FolderCheck.Reachable || vm.gone,
+    )
+    if (!vm.unread) {
+        Spacer(Modifier.height(HlSpace.l))
+        Text(
+            stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
+            style = Hl.type.meta,
+            color = Hl.colors.contentSecondary,
+        )
     }
 }
 

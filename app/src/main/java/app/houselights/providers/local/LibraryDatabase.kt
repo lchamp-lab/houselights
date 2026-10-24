@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
         SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
         SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class, TrackChoiceEntity::class,
     ],
-    version = 16,
+    version = 17,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
@@ -233,6 +233,14 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        /** v16 → v17: an NFS folder can present another user than root ([SourceEntity.uid]). */
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sources ADD COLUMN uid INTEGER")
+                db.execSQL("ALTER TABLE sources ADD COLUMN gid INTEGER")
+            }
+        }
+
         /**
          * Sets [MediaInfo.tracksInOrder] where the probe read the tracks, so that no file is read again for it; decoded
          * in Kotlin as in [MIGRATION_10_11], by batches so a large library's JSON is never held whole.
@@ -396,7 +404,7 @@ abstract class LibraryDatabase : RoomDatabase() {
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-            MIGRATION_14_15, MIGRATION_15_16,
+            MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
