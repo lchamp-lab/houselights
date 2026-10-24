@@ -62,7 +62,6 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
@@ -426,7 +425,7 @@ private fun CollectionsRow() {
 private fun MetadataLanguageRow() {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    val device by appContainer().deviceLocale.collectAsStateWithLifecycle()
+    val device by vm.deviceLocale.collectAsStateWithLifecycle()
     val tags = remember { TmdbClient.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::metadataLanguageName)) }
     var choosing by remember { mutableStateOf(false) }
     val failure = rowFailure(vm.errorOf(SettingAction.METADATA_LANGUAGE))
@@ -701,7 +700,7 @@ private fun foldersLine(count: Int): String =
 
 /** The TMDB key sheet; the outcome lives in the ViewModel, as the sheet may close during the check. */
 @Composable
-private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
+internal fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val attempt = vm.tmdbKey

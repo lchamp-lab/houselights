@@ -40,7 +40,6 @@ import app.houselights.ui.design.components.SpecTable
 import app.houselights.ui.design.components.SpecTableRow
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.NBSP
-import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatDimensions
 import java.text.Collator
 import java.util.Locale
@@ -100,7 +99,7 @@ private fun InterfaceResolution(s: AppSettings) {
 @Composable
 private fun InterfaceLanguageRow(modifier: Modifier) {
     val vm = settingsViewModel()
-    val chosen by appContainer().language.chosen.collectAsStateWithLifecycle()
+    val chosen by vm.interfaceLanguage.collectAsStateWithLifecycle()
     val tags = remember { InterfaceLanguage.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::interfaceLanguageName)) }
     var choosing by remember { mutableStateOf(false) }
     val failure = rowFailure(vm.errorOf(SettingAction.INTERFACE_LANGUAGE))

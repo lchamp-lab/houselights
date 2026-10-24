@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,8 +27,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
@@ -57,6 +60,7 @@ import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
+import coil.imageLoader
 import kotlinx.coroutines.delay
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
@@ -85,7 +89,9 @@ fun SettingsScreen(
     onOpenWall: (Library, LibraryFilter) -> Unit = { _, _ -> },
     onOpenPerson: (personId: String) -> Unit = {},
 ) {
-    val vm = settingsViewModel()
+    val app = appContainer()
+    val images = LocalContext.current.imageLoader
+    val vm = viewModel { SettingsViewModel(app, images) }
     val sources = SourceDoors(
         useFolders = { keepServer ->
             vm.clearActionError()
@@ -125,12 +131,14 @@ fun SettingsScreen(
             },
         ) {
             val rows = remember(pane) { PaneRows(memory, pane.name) }
-            PaneContent(
-                pane, s, storage, onFolderForm, sources, onOpenCatalog, rows, list,
-                entry = memory.requester(paneKey(pane)),
-                onFocusIn = { inPane = it },
-                numbers = NumbersDoors(onOpenWall, onOpenPerson),
-            )
+            CompositionLocalProvider(LocalSettingsViewModel provides vm) {
+                PaneContent(
+                    pane, s, storage, onFolderForm, sources, onOpenCatalog, rows, list,
+                    entry = memory.requester(paneKey(pane)),
+                    onFocusIn = { inPane = it },
+                    numbers = NumbersDoors(onOpenWall, onOpenPerson),
+                )
+            }
         }
     }
 }
@@ -218,9 +226,9 @@ internal fun unreadSecretIn(pane: Pane, unread: Set<SecretSetting>, folders: Boo
 /** The pane's secret is kept but not opened for now: said so, Réessayer reading it again. */
 @Composable
 private fun SecretUnread() {
-    val settings = appContainer().settings
-    val reading by settings.reading.collectAsStateWithLifecycle()
-    PartFailed(UiError.SECRETS_UNREAD, reading, settings::readAgain)
+    val vm = settingsViewModel()
+    val reading by vm.readingSecrets.collectAsStateWithLifecycle()
+    PartFailed(UiError.SECRETS_UNREAD, reading, vm::readSecretsAgain)
 }
 
 /** [pane]'s secret lost or not opened for now, said at its head. */
