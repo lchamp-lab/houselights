@@ -10,6 +10,7 @@ import app.houselights.core.NfoParser
 import app.houselights.core.Secrets
 import app.houselights.core.SubtitleChoice
 import app.houselights.core.TrackChoice
+import app.houselights.testing.secretsOf
 import app.houselights.testing.testSecrets
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -101,7 +102,7 @@ class MigrationTest {
     /** A Keystore that cannot seal leaves the password plain: the library still opens and the folder signs in. */
     @Test
     fun version7KeepsAPasswordTheKeystoreCannotSeal() = runTest {
-        val broken = Secrets { throw ProviderException("Keystore operation failed") }
+        val broken = secretsOf { throw ProviderException("Keystore operation failed") }
         val db = migrated(from = 6, keys = broken) {
             execSQL("$FOLDER_UP_TO_7 VALUES (1, 'Films', 'MOVIES', 'SMB', 'nas', 'media', 'films', 'zidoo', 's3cret', '', 0)")
         }

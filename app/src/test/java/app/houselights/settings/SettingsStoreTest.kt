@@ -11,6 +11,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.SubtitleMode
 import app.houselights.core.TrackPreferences
 import app.houselights.core.TraktSession
+import app.houselights.testing.secretsOf
 import app.houselights.testing.testKey
 import app.houselights.testing.testSecrets
 import app.houselights.ui.testing.SettleMainLooper
@@ -83,7 +84,7 @@ class SettingsStoreTest {
     fun secretsAreOpenedAwayFromTheThreadThatCollects() = runTest {
         val key = testKey()
         val keyAskedOn = Collections.synchronizedList(mutableListOf<Thread>())
-        val reader = Secrets {
+        val reader = secretsOf {
             keyAskedOn += Thread.currentThread()
             key
         }
@@ -91,7 +92,7 @@ class SettingsStoreTest {
         val collector = Executors.newSingleThreadExecutor { Thread(it, "settings collector").also(collecting::add) }.asCoroutineDispatcher()
         val scope = CoroutineScope(collector + SupervisorJob())
         try {
-            val settings = SettingsStore(FlakyStore(0, stored(Secrets { key })), scope, reader)
+            val settings = SettingsStore(FlakyStore(0, stored(secretsOf { key })), scope, reader)
             assertEquals(home, settings.state.first { it.loaded }.source)
             assertTrue("The key was never asked for", keyAskedOn.isNotEmpty())
             assertTrue("Opened on the collector's thread", keyAskedOn.none { it in collecting })
@@ -106,7 +107,7 @@ class SettingsStoreTest {
     fun aSourceSavedIsReadBeforeItsSaveReturns() = runTest {
         val key = testKey()
         // A Keystore as slow as a player's.
-        val slow = Secrets {
+        val slow = secretsOf {
             Thread.sleep(SLOW_KEYSTORE_MS)
             key
         }
@@ -218,7 +219,7 @@ class SettingsStoreTest {
 
     @Test
     fun aKeystoreThatCannotSealLeavesThePlainValue() = runTest {
-        val broken = Secrets { throw ProviderException("Failed to generate key") }
+        val broken = secretsOf { throw ProviderException("Failed to generate key") }
         val plain = mutablePreferencesOf(sourceKey to Json.encodeToString<SourceConfig>(home))
         val migration = SealSecrets(broken)
         assertTrue(migration.shouldMigrate(plain))
@@ -244,7 +245,7 @@ class SettingsStoreTest {
     /** "My files" holds no secret: chosen while the Keystore fails, it is still written, never a crash. */
     @Test
     fun theFoldersAreChosenWithoutTheKeystore() = runTest {
-        val broken = Secrets { throw ProviderException("Failed to generate key") }
+        val broken = secretsOf { throw ProviderException("Failed to generate key") }
         val settings = testSettings(folder.root, backgroundScope, broken)
         settings.setSource(SourceConfig.Local)
         assertEquals(SourceConfig.Local, settings.state.first { it.source != null }.source)
@@ -309,7 +310,7 @@ class SettingsStoreTest {
     /** A kept server the Keystore cannot seal leaves the file as it was: the source does not change without it. */
     @Test
     fun aKeptServerTheKeystoreCannotSealWritesNothing() = runTest {
-        val broken = Secrets { throw ProviderException("Failed to generate key") }
+        val broken = secretsOf { throw ProviderException("Failed to generate key") }
         val settings = testSettings(folder.root, backgroundScope, broken)
         val refused = runCatching { settings.setSource(SourceConfig.Local, kept = home) }.exceptionOrNull()
         assertTrue("$refused", refused is SecretsUnavailableException)

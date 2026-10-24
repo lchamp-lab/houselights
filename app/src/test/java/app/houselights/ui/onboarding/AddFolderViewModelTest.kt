@@ -7,7 +7,6 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
-import app.houselights.core.Secrets
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.LibraryDao
@@ -21,6 +20,7 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
+import app.houselights.testing.secretsOf
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.afterProcessDeath
@@ -441,7 +441,7 @@ class AddFolderViewModelTest {
     @Test
     fun aPasswordTheKeystoreCannotSealSaysWhy() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val broken = testDatabase(Secrets { throw ProviderException("Keystore operation failed") }) { onCallingThread() }
+        val broken = testDatabase(secretsOf { throw ProviderException("Keystore operation failed") }) { onCallingThread() }
         try {
             val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
             val idle = CoroutineScope(Job().apply { cancel() })

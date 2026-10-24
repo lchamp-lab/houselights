@@ -1,5 +1,7 @@
 package app.houselights.core
 
+import app.houselights.testing.TestKeyRecord
+import app.houselights.testing.secretsOf
 import app.houselights.testing.testKey
 import app.houselights.testing.testSecrets
 import org.junit.Assert.assertEquals
@@ -10,6 +12,8 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
+import java.security.InvalidKeyException
+import java.security.KeyStoreException
 import java.security.ProviderException
 import java.security.UnrecoverableKeyException
 import javax.crypto.SecretKey
@@ -17,37 +21,54 @@ import javax.crypto.spec.SecretKeySpec
 
 /** Secrets sealed under versioned Keystore keys, and what a failing Keystore leaves of them. */
 class SecretsTest {
-    /** Numbered keys created on first request; a version in [unusable] fails with a bare InvalidKeyException. */
-    private inner class FakeKeystore {
+    /**
+     * A Keystore of numbered keys, absent until made; a version in [unusable] fails with a bare InvalidKeyException,
+     * one in [absent] gives no key that many times, as a restarting keystore daemon does. Without [listing], it lists
+     * nothing, as Android 9 does when listing fails.
+     */
+    private inner class FakeKeystore(val record: TestKeyRecord = TestKeyRecord(), val listing: Boolean = true) : Keyring {
         val keys = mutableMapOf<Int, SecretKey>()
         val unusable = mutableSetOf<Int>()
+        val absent = mutableMapOf<Int, Int>()
+        val made = mutableListOf<Int>()
 
-        fun newest() = keys.keys.maxOrNull() ?: Secrets.FIRST_KEY
+        override fun listed() = if (listing) keys.keys.toSet() else emptySet()
 
-        fun keyOf(version: Int): SecretKey {
-            val key = keys.getOrPut(version) { testKey() }
+        override fun load(version: Int): SecretKey? {
+            val misses = absent[version] ?: 0
+            if (misses > 0) {
+                absent[version] = misses - 1
+                return null
+            }
+            val key = keys[version] ?: return null
+            return if (version in unusable) SecretKeySpec(ByteArray(7), "AES") else key
+        }
+
+        override fun create(version: Int): SecretKey {
+            made += version
+            val key = testKey().also { keys[version] = it }
             return if (version in unusable) SecretKeySpec(ByteArray(7), "AES") else key
         }
 
         /** [Secrets] as a fresh app process sees them, with nothing cached. */
-        fun secrets() = Secrets(::newest, ::keyOf)
+        fun secrets() = Secrets(this, record)
     }
 
     @Test
     fun sealsAndOpensWithTheSameKeyOnly() {
         val key = testKey()
-        val sealed = Secrets { key }.seal("p@ss:wörd")
-        assertTrue(Secrets { key }.isSealed(sealed))
+        val sealed = secretsOf { key }.seal("p@ss:wörd")
+        assertTrue(secretsOf { key }.isSealed(sealed))
         assertFalse(sealed.contains("p@ss"))
         // A fresh instance has nothing cached: this decrypts.
-        assertEquals("p@ss:wörd", Secrets { key }.open(sealed))
+        assertEquals("p@ss:wörd", secretsOf { key }.open(sealed))
         assertNull("Opened with another key", testSecrets().open(sealed))
     }
 
     @Test
     fun eachSealIsDifferent() {
         val key = testKey()
-        val secrets = Secrets { key }
+        val secrets = secretsOf { key }
         assertNotEquals(secrets.seal("same"), secrets.seal("same"))
     }
 
@@ -82,13 +103,114 @@ class SecretsTest {
         }
     }
 
-    /** A faulty keymaster throws outside its contract: the secret reads as missing and the app carries on. */
+    /** A faulty keymaster throws outside its contract: the secret reads as unavailable and the app carries on. */
     @Test
-    fun aKeystoreThatFailsOpensNothing() {
+    fun aKeystoreThatFailsOpensNothingForNow() {
+        val key = testKey()
+        val sealed = secretsOf { key }.seal("secret")
+        listOf(
+            ProviderException("Keystore operation failed"),
+            KeyStoreException("System error"),
+            UnrecoverableKeyException("Failed to obtain information about key"),
+            InvalidKeyException("Keystore operation failed"),
+            IOException("Keystore unavailable"),
+        ).forEach { failure ->
+            assertEquals("$failure", Opened.Unavailable, secretsOf { throw failure }.read(sealed))
+        }
+        assertNull(secretsOf { throw ProviderException("Keystore operation failed") }.open(sealed))
+    }
+
+    /** Only a key that is not the one that sealed it, or damaged text, makes a secret unreadable for good. */
+    @Test
+    fun aSecretSealedByAnotherKeyIsUndecryptable() {
         val sealed = testSecrets().seal("secret")
-        assertNull(Secrets { throw ProviderException("Keystore operation failed") }.open(sealed))
-        assertNull(Secrets { throw IOException("Keystore unavailable") }.open(sealed))
-        assertNull(testSecrets().open("sealed1:not base64!"))
+        assertEquals(Opened.Undecryptable, testSecrets().read(sealed))
+        assertEquals(Opened.Undecryptable, testSecrets().read("sealed1:not base64!"))
+        assertEquals(Opened.Undecryptable, testSecrets().read("sealed1:AAAA"))
+    }
+
+    /** A fresh install makes its first key when it first seals, and records it. */
+    @Test
+    fun aFreshInstallMakesItsFirstKeyOnce() {
+        val keystore = FakeKeystore()
+        val sealed = keystore.secrets().seal("token")
+        assertTrue(sealed, sealed.startsWith("sealed1:"))
+        assertEquals(listOf(1), keystore.made)
+        assertEquals(setOf(1), keystore.record.versions())
+        assertEquals("token", keystore.secrets().open(sealed))
+        assertTrue(keystore.secrets().seal("again").startsWith("sealed1:"))
+        assertEquals(listOf(1), keystore.made)
+    }
+
+    /** The key giving none once, as a restarting daemon does: opening says so and never makes one, the next open reads. */
+    @Test
+    fun openingNeverMakesAKey() {
+        val keystore = FakeKeystore()
+        val sealed = keystore.secrets().seal("token")
+        keystore.absent[1] = 1
+        val secrets = keystore.secrets()
+        assertEquals(Opened.Unavailable, secrets.read(sealed))
+        assertEquals(listOf(1), keystore.made)
+        assertEquals(Opened.Text("token"), secrets.read(sealed))
+    }
+
+    /** A key made before that gives none is failing, never made again: sealing tries it again, then the next version. */
+    @Test
+    fun aRecordedKeyGivingNoneIsNeverMadeAgain() {
+        val keystore = FakeKeystore()
+        val before = keystore.secrets().seal("password")
+
+        keystore.absent[1] = 1
+        assertTrue(keystore.secrets().seal("token").startsWith("sealed1:"))
+        assertEquals(listOf(1), keystore.made)
+
+        keystore.absent[1] = 2
+        val sealed = keystore.secrets().seal("token")
+        assertTrue(sealed, sealed.startsWith("sealed2:"))
+        assertEquals(listOf(1, 2), keystore.made)
+        assertEquals("password", keystore.secrets().open(before))
+    }
+
+    /**
+     * Installed over a version from before the record: sealed data and its key, no record, and a listing that fails.
+     * A key that loads is recorded at once; one giving none, even before anything was opened, is never made again.
+     */
+    @Test
+    fun anInstallFromBeforeTheRecordKeepsItsKeys() {
+        val earlier = FakeKeystore()
+        val sealed = earlier.secrets().seal("token")
+        fun upgraded(record: TestKeyRecord) = FakeKeystore(record, listing = false).apply { keys += earlier.keys }
+
+        // Opened first: the sealed text alone says its key was made.
+        val opened = upgraded(TestKeyRecord())
+        opened.absent[1] = 1
+        assertEquals(Opened.Unavailable, opened.secrets().read(sealed))
+        opened.absent[1] = 2
+        assertTrue(opened.secrets().seal("new").startsWith("sealed2:"))
+        assertEquals("token", opened.secrets().open(sealed))
+        assertEquals(listOf(2), opened.made)
+
+        // Sealed first: the record an update starts holds the first key (SavedKeyRecord).
+        val updated = upgraded(TestKeyRecord(Secrets.FIRST_KEY))
+        updated.absent[1] = 1
+        assertTrue(updated.secrets().seal("new").startsWith("sealed1:"))
+        assertEquals("token", updated.secrets().open(sealed))
+        assertEquals(emptyList<Int>(), updated.made)
+
+        // Loaded: recorded at once.
+        val loaded = upgraded(TestKeyRecord())
+        assertTrue(loaded.secrets().seal("new").startsWith("sealed1:"))
+        assertEquals(setOf(1), loaded.record.versions())
+        assertEquals(emptyList<Int>(), loaded.made)
+    }
+
+    /** A key the Keystore lists is made, even if the record missed it: the newest seals, none is made again. */
+    @Test
+    fun aListedKeyIsRecordedAndSealsWhenNewest() {
+        val keystore = FakeKeystore().apply { keys[2] = testKey() }
+        assertTrue(keystore.secrets().seal("token").startsWith("sealed2:"))
+        assertEquals(setOf(2), keystore.record.versions())
+        assertEquals(emptyList<Int>(), keystore.made)
     }
 
     /**
@@ -108,15 +230,15 @@ class SecretsTest {
         assertEquals("token", keystore.secrets().open(sealed))
         // The next launch seals with the newest key at once.
         assertTrue(keystore.secrets().seal("again").startsWith("sealed2:"))
-        assertNull("The first key still fails", keystore.secrets().open(before))
+        assertEquals(Opened.Unavailable, keystore.secrets().read(before))
 
         keystore.unusable -= 1
         assertEquals("password", keystore.secrets().open(before))
-        assertEquals(setOf(1, 2), keystore.keys.keys)
+        assertEquals(listOf(1, 2), keystore.made)
     }
 
     @Test
-    fun aNewKeyThatFailedIsFetchedAgainAtTheNextSeal() {
+    fun aNewKeyThatFailedIsLoadedAgainAtTheNextSeal() {
         val keystore = FakeKeystore()
         keystore.secrets().seal("password")
         keystore.unusable += listOf(1, 2)
@@ -124,7 +246,7 @@ class SecretsTest {
         assertThrows(SecretsUnavailableException::class.java) { secrets.seal("token") }
         keystore.unusable -= 2
         assertTrue(secrets.seal("token").startsWith("sealed2:"))
-        assertEquals(setOf(1, 2), keystore.keys.keys)
+        assertEquals(listOf(1, 2), keystore.made)
     }
 
     /** On Android 9 a restarting keystore daemon throws UnrecoverableKeyException, a busy one ProviderException. */
@@ -134,20 +256,20 @@ class SecretsTest {
             var tries = 0
             val good = testKey()
             val versions = mutableListOf<Int>()
-            val secrets = Secrets { version ->
+            val secrets = secretsOf { version ->
                 versions += version
                 if (tries++ == 0) throw failure else good
             }
             val sealed = secrets.seal("token")
             assertTrue("$failure: $sealed", sealed.startsWith("sealed1:"))
-            assertEquals("$failure", "token", Secrets { good }.open(sealed))
+            assertEquals("$failure", "token", secretsOf { good }.open(sealed))
             assertEquals("$failure", listOf(1, 1), versions)
         }
     }
 
     @Test
     fun aKeystoreThatStillFailsSaysSo() {
-        val secrets = Secrets { throw ProviderException("Failed to generate key") }
+        val secrets = secretsOf { throw ProviderException("Failed to generate key") }
         val e = assertThrows(SecretsUnavailableException::class.java) { secrets.seal("token") }
         assertTrue(e.cause is ProviderException)
     }

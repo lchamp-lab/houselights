@@ -8,7 +8,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.PathMapping
-import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
@@ -23,6 +22,7 @@ import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.testing.http
+import app.houselights.testing.secretsOf
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
@@ -288,7 +288,7 @@ class SettingsViewModelTest {
     /** The Keystore refuses to seal the key: the sheet says nothing was saved, the app goes on. */
     @Test
     fun aTmdbKeyTheKeystoreCannotSealSaysSo() = runTest {
-        val broken = Secrets { throw ProviderException("Keystore operation failed") }
+        val broken = secretsOf { throw ProviderException("Keystore operation failed") }
         val store = testSettings(folder.root, backgroundScope, broken)
         val vm = settings(store, work = backgroundScope)
         vm.saveTmdbApiKey("k3y")

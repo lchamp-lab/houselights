@@ -1,6 +1,6 @@
 package app.houselights.providers.local
 
-import app.houselights.core.Secrets
+import app.houselights.testing.secretsOf
 import app.houselights.testing.testSecrets
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -47,7 +47,7 @@ class LibraryDatabaseTest {
         val sealedBefore = raw().getValue(series)
 
         // The Keystore still fails: the password waits, nothing breaks.
-        LibraryDatabase.sealPlainPasswords(dao, Secrets { throw ProviderException("Keystore operation failed") })
+        LibraryDatabase.sealPlainPasswords(dao, secretsOf { throw ProviderException("Keystore operation failed") })
         assertEquals("pl@in", raw().getValue(films))
 
         LibraryDatabase.sealPlainPasswords(dao, secrets)

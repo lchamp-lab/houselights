@@ -1,58 +1,87 @@
 package app.houselights.core
 
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
+import android.content.Context
 import java.io.IOException
 import java.security.GeneralSecurityException
-import java.security.KeyStore
+import java.security.KeyStoreException
 import java.security.ProviderException
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
+import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** The device's Keystore could not seal a secret, even with a new key; nothing was written. */
 class SecretsUnavailableException(cause: Throwable) : IllegalStateException("Secrets cannot be sealed on this device", cause)
 
+/** What opening a stored secret gave. */
+sealed interface Opened {
+    /** Its plain text. */
+    data class Text(val plain: String) : Opened {
+        override fun toString() = "Text(***)"
+    }
+
+    /** Never readable again: the key under its alias is not the one that sealed it, or the text is damaged. */
+    data object Undecryptable : Opened
+
+    /** The Keystore failed or gave no key: the value is intact and may open on a later try. */
+    data object Unavailable : Opened
+}
+
 /**
  * Seals secrets kept on disk (SMB passwords, Jellyfin token, TMDB key) with AES-GCM under an Android Keystore
  * key that never leaves the device. Sealed text starts with its key version ("sealed1:"); anything else is
  * plain text, returned as is and sealed on its next write.
  *
- * A failing Keystore never takes the app down: [open] returns null, and [seal] retries once, then seals with a
- * new key version, throwing [SecretsUnavailableException] only if that fails too. A failing key is never
- * deleted: on Android 9 a restarting keystore daemon also throws UnrecoverableKeyException or a bare
- * InvalidKeyException, and deleting the key would lose every secret it sealed.
+ * A failing Keystore never takes the app down: [read] says the secret is unavailable for now, and [seal] retries
+ * once, then seals with a new key version, throwing [SecretsUnavailableException] only if that fails too. A key is
+ * never deleted, nor made again once made ([KeyRecord]): on Android 9 a restarting keystore daemon gives no key,
+ * UnrecoverableKeyException or a bare InvalidKeyException, and replacing the key would lose every secret it sealed.
  */
-class Secrets(
-    /** The newest key version, which seals; [FIRST_KEY] when none exists yet. */
-    private val newestKey: () -> Int = { FIRST_KEY },
-    /** The key of a version, created when missing. */
-    private val keyProvider: (Int) -> SecretKey,
-) {
+class Secrets(private val keyring: Keyring, private val record: KeyRecord) {
     /** The sealing version, resolved on first success: a lazy would cache a failing Keystore's first answer. */
     @Volatile
     private var inUse: Int? = null
 
-    /** Keys by version, fetched on first use and again after a failure. */
+    /** Keys by version, loaded on first use and again after a failure. */
     private val keys = ConcurrentHashMap<Int, SecretKey>()
 
     /** Sealed text to plain text, so a value read on every query is decrypted once. */
     private val opened = ConcurrentHashMap<String, String>()
 
-    private fun key(version: Int): SecretKey =
-        keys[version] ?: synchronized(this) { keys[version] ?: keyProvider(version).also { keys[version] = it } }
+    /** The key of [version], recorded as made once loaded; null when the Keystore gives none. Never makes one. */
+    private fun loaded(version: Int): SecretKey? =
+        keys[version] ?: keyring.load(version)?.also {
+            keys[version] = it
+            record.add(version)
+        }
 
-    private fun versionInUse(): Int =
-        inUse ?: synchronized(this) { inUse ?: keystore { newestKey() }.getOrNull()?.also { inUse = it } ?: FIRST_KEY }
+    /** The key [version] seals with: loaded, else made if this install never made it; one made before is failing. */
+    private fun sealingKey(version: Int): SecretKey = loaded(version) ?: synchronized(this) {
+        keys[version] ?: run {
+            if (version in record.versions()) throw KeyStoreException("Key $version gives no key")
+            keyring.create(version).also {
+                record.add(version)
+                keys[version] = it
+            }
+        }
+    }
+
+    /** The newest version listed or recorded, kept once listed; a listed one is recorded, as made. */
+    private fun versionInUse(): Int = inUse ?: synchronized(this) {
+        inUse ?: run {
+            val listed = keystore { keyring.listed() }.getOrNull()
+            listed?.forEach(record::add)
+            ((listed.orEmpty() + record.versions()).maxOrNull() ?: FIRST_KEY).also { if (listed != null) inUse = it }
+        }
+    }
 
     fun seal(plain: String): String {
         if (plain.isEmpty()) return ""
         val version = versionInUse()
         val sealed = keystore { sealWith(version, plain) }.getOrElse {
-            // Retry once with the key fetched again: a restarting keystore daemon fails briefly.
+            // Retry once with the key loaded again: a restarting keystore daemon fails briefly.
             keys.remove(version)
             keystore { sealWith(version, plain) }.getOrElse { sealWithNextKey(version, plain) }
         }
@@ -72,25 +101,44 @@ class Secrets(
     }
 
     private fun sealWith(version: Int, plain: String): String {
-        val cipher = Cipher.getInstance(TRANSFORMATION).apply { init(Cipher.ENCRYPT_MODE, key(version)) }
+        val cipher = Cipher.getInstance(TRANSFORMATION).apply { init(Cipher.ENCRYPT_MODE, sealingKey(version)) }
         return "$PREFIX$version$SEPARATOR" + Base64.getEncoder().encodeToString(cipher.iv + cipher.doFinal(plain.toByteArray()))
     }
 
-    /** The plain text, or null when it cannot be decrypted (key lost, Keystore failing): ask for it again. */
-    fun open(stored: String): String? {
-        val version = versionOf(stored) ?: return stored
-        opened[stored]?.let { return it }
-        return try {
-            keystore {
-                val bytes = Base64.getDecoder().decode(stored.substringAfter(SEPARATOR))
-                val cipher = Cipher.getInstance(TRANSFORMATION)
-                cipher.init(Cipher.DECRYPT_MODE, key(version), GCMParameterSpec(TAG_BITS, bytes, 0, IV_BYTES))
-                String(cipher.doFinal(bytes, IV_BYTES, bytes.size - IV_BYTES))
-            }.getOrNull()?.also { opened[stored] = it }
-        } catch (_: IllegalArgumentException) {
-            null // Not valid sealed text.
-        }
+    /** The plain text of [stored], or why there is none. */
+    fun read(stored: String): Opened {
+        val version = versionOf(stored) ?: return Opened.Text(stored)
+        opened[stored]?.let { return Opened.Text(it) }
+        // Text sealed under a version proves its key was made here: it is never made again.
+        record.add(version)
+        val bytes = sealedBytes(stored) ?: return Opened.Undecryptable
+        return decrypted(version, bytes).also { if (it is Opened.Text) opened[stored] = it.plain }
     }
+
+    private fun decrypted(version: Int, bytes: ByteArray): Opened = try {
+        loaded(version)?.let { key ->
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_BITS, bytes, 0, IV_BYTES))
+            Opened.Text(String(cipher.doFinal(bytes, IV_BYTES, bytes.size - IV_BYTES)))
+        } ?: Opened.Unavailable
+    } catch (_: AEADBadTagException) {
+        Opened.Undecryptable
+    } catch (_: GeneralSecurityException) {
+        unavailable(version)
+    } catch (_: ProviderException) {
+        unavailable(version)
+    } catch (_: IOException) {
+        unavailable(version)
+    }
+
+    /** A failing Keystore: the key is loaded again at the next try. */
+    private fun unavailable(version: Int): Opened {
+        keys.remove(version)
+        return Opened.Unavailable
+    }
+
+    /** The plain text, or null when it cannot be decrypted, for now or for good ([read] says which). */
+    fun open(stored: String): String? = (read(stored) as? Opened.Text)?.plain
 
     /** Sealed by any version of the key ("sealed1:", "sealed2:"…), not plain text. */
     fun isSealed(stored: String): Boolean = versionOf(stored) != null
@@ -106,9 +154,7 @@ class Secrets(
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val IV_BYTES = 12
         private const val TAG_BITS = 128
-        private const val KEYSTORE = "AndroidKeyStore"
         private const val ALIAS = "houselights.secrets"
-        private const val KEY_BITS = 256
 
         /** The version of the key [stored] was sealed with ("sealed2:…" is 2); null for plain text. */
         private fun versionOf(stored: String): Int? {
@@ -117,6 +163,13 @@ class Secrets(
             if (end - PREFIX.length !in 1..MAX_VERSION_DIGITS) return null
             val digits = stored.substring(PREFIX.length, end)
             return digits.takeIf { it.first() != '0' && it.all { c -> c in '0'..'9' } }?.toInt()
+        }
+
+        /** The IV and sealed bytes of [stored]; null when it is damaged. */
+        private fun sealedBytes(stored: String): ByteArray? = try {
+            Base64.getDecoder().decode(stored.substringAfter(SEPARATOR)).takeIf { it.size > IV_BYTES }
+        } catch (_: IllegalArgumentException) {
+            null
         }
 
         /** Runs [block], catching Keystore failures, including ProviderException and the store's IOException. */
@@ -130,8 +183,12 @@ class Secrets(
             Result.failure(e)
         }
 
-        /** Secrets sealed with this device's Keystore keys, the newest made on first use. */
-        val device: Secrets by lazy { Secrets(newestKey = ::newestKeystoreKey, keyProvider = ::keystoreKey) }
+        @Volatile
+        private var device: Secrets? = null
+
+        /** Secrets sealed with this device's Keystore keys, the versions made recorded in [context]'s preferences. */
+        fun device(context: Context): Secrets =
+            device ?: synchronized(this) { device ?: Secrets(DeviceKeyring, SavedKeyRecord.of(context.applicationContext)).also { device = it } }
 
         /** Keystore alias of a key version: the first is unnumbered, later ones are numbered. */
         internal fun aliasOf(version: Int) = if (version == FIRST_KEY) ALIAS else "$ALIAS.$version"
@@ -141,24 +198,6 @@ class Secrets(
             if (alias == ALIAS) return FIRST_KEY
             val version = alias.removePrefix("$ALIAS.").toIntOrNull() ?: return null
             return version.takeIf { it > FIRST_KEY && aliasOf(it) == alias }
-        }
-
-        private fun androidKeyStore(): KeyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-
-        private fun newestKeystoreKey(): Int = androidKeyStore().aliases().toList().mapNotNull(::versionOfAlias).maxOrNull() ?: FIRST_KEY
-
-        private fun keystoreKey(version: Int): SecretKey {
-            val alias = aliasOf(version)
-            (androidKeyStore().getKey(alias, null) as? SecretKey)?.let { return it }
-            val spec = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setKeySize(KEY_BITS)
-                .build()
-            return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).run {
-                init(spec)
-                generateKey()
-            }
         }
     }
 }

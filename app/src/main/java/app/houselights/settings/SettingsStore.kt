@@ -42,7 +42,7 @@ private val Context.dataStore by preferencesDataStore(
     name = "settings",
     // A corrupt settings file resets to the defaults rather than crashing the app at launch.
     corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
-    produceMigrations = { listOf(SealSecrets(Secrets.device)) },
+    produceMigrations = { context -> listOf(SealSecrets(Secrets.device(context))) },
 )
 
 private object Keys {
@@ -154,11 +154,11 @@ data class AppSettings(
 class SettingsStore(
     private val dataStore: DataStore<Preferences>,
     scope: CoroutineScope,
-    private val secrets: Secrets = Secrets.device,
+    private val secrets: Secrets,
     /** Where settings are read and secrets opened, never the main thread: each opening calls the keystore daemon. */
     private val readOn: CoroutineContext = Dispatchers.Default,
 ) {
-    constructor(context: Context, scope: CoroutineScope, secrets: Secrets = Secrets.device) : this(context.dataStore, scope, secrets)
+    constructor(context: Context, scope: CoroutineScope, secrets: Secrets = Secrets.device(context)) : this(context.dataStore, scope, secrets)
 
     private val _state = MutableStateFlow(AppSettings())
 
