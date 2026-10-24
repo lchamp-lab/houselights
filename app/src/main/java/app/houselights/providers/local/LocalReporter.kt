@@ -7,7 +7,7 @@ import app.houselights.core.PlaybackReporter
  * 1; later parts only record the play time, and the film is watched at the end of its last part.
  */
 internal class LocalReporter(
-    private val dao: LibraryDao,
+    private val dao: PlaybackStateDao,
     private val itemId: Long,
     private val part: Int = 1,
     private val history: WatchHistory = WatchHistory.None,
