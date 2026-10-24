@@ -217,7 +217,8 @@ class HomePlayFailureTest {
     }
 
     /** Where the case's title sets, its name standing for its logo: the lower of the two, under the fallback picture's. */
-    private fun logoTop(): Float = compose.onAllNodesWithText("Heat", useUnmergedTree = true).fetchSemanticsNodes().maxOf { it.boundsInRoot.top }
+    private fun logoTop(): Float =
+        compose.onAllNodesWithText("Heat", useUnmergedTree = true).fetchSemanticsNodes().maxOf { it.boundsInRoot.top }
 
     private fun reasonOf(error: UiError): String = text(
         when (error) {

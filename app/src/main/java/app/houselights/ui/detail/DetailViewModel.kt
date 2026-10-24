@@ -240,7 +240,9 @@ class DetailViewModel(
         }
 
     /** What Lire starts, read after it failed: in place of the failure at once. */
-    private fun lireReadAgain(next: MediaItem?) = _state.update { if (it.nextUpError != null) it.copy(nextUp = next, nextUpError = null) else it }
+    private fun lireReadAgain(next: MediaItem?) = _state.update {
+        if (it.nextUpError != null) it.copy(nextUp = next, nextUpError = null) else it
+    }
 
     /** A collection's page: its films (requested once; Lire picks from them) and the whole saga if known. */
     private suspend fun collectionPage(source: MediaProvider, item: MediaItem): DetailState {
