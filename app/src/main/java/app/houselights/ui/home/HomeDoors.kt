@@ -83,7 +83,8 @@ class UnseenPick(private val random: Random = Random.Default) {
 
 /**
  * Reads the doors of [libraries] and what [sections] leave out, each part on its own: a failure leaves it out. What the
- * case proposes is read beside the rest and handed to [onProposed] as it comes, so the case shows before the rest.
+ * case proposes is asked first, read beside the rest and handed to [onProposed] as it comes, so the case shows before
+ * the rest.
  */
 suspend fun readDoors(
     source: MediaProvider,
@@ -93,15 +94,16 @@ suspend fun readDoors(
     now: Long = System.currentTimeMillis(),
     onProposed: (MediaItem?) -> Unit = {},
 ): HomeDoors = coroutineScope {
+    // Read even while a title is in progress: the case proposes it as soon as nothing is. Its reads follow one another,
+    // so it asks first: a source answering a few at a time (OkHttp's five a host) answers it before the shelves.
+    val proposed = async { part("Proposed") { pick.of(source, libraries) }.also(onProposed) }
     val next = nextUp(sections)
     val season = next?.let { async { part("Season") { seasonOf(source, it) } } }
     val tabs = libraries.filter { it.kind != LibraryKind.COLLECTIONS }.take(SHELVES)
     val sagas = libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
     val shelves = tabs.map { library -> async { shelf(source, library, SortOption.RATING, SHELF_POSTERS, now) } }
     val sagaShelf = sagas?.let { async { shelf(source, it, SortOption.ADDED, SAGA_POSTERS, now) } }
-    // Read even while a title is in progress: the case proposes it as soon as nothing is.
-    val proposed = part("Proposed") { pick.of(source, libraries) }.also(onProposed)
-    HomeDoors(proposed, shelves.awaitAll(), sagaShelf?.await(), season?.await(), next?.id.takeIf { season != null })
+    HomeDoors(proposed.await(), shelves.awaitAll(), sagaShelf?.await(), season?.await(), next?.id.takeIf { season != null })
 }
 
 /** A read of home's doors under way: what the case proposes as soon as it is read ([first]), and the doors whole. */

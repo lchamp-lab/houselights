@@ -422,7 +422,7 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     (`MetaLine`), its progress and time left, then its action, a plate the case's focus fills white. With nothing in
     progress, it proposes a film not seen, drawn once a session, else a show not seen, whose page it opens ("Voir la
     série", no Play glyph), else any title (`UnseenPick`): "Pas encore vu" in `jaquette` over one not seen, its genres,
-    Lire. What it proposes is read with every read of the doors, beside the libraries' and shown as soon as it comes
+    Lire. What it proposes is read with every read of the doors, asked first, beside the libraries', shown as soon as it comes
     (`readDoorsAsync`), so the case changes in place, focus kept; only an empty library has none, focus then on the first door. OK plays; Menu opens
     its options, which the Menu key says at the end of its action's plate while it has focus: its page, and from its
     start once started.
