@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
+import app.houselights.core.MediaKind
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
 import kotlinx.coroutines.runBlocking
@@ -19,8 +20,8 @@ import org.robolectric.RobolectricTestRunner
 import java.util.Collections
 
 /**
- * The hand-written [ITEM_ROW] and [CARD_ROW] match Room's [ItemEntity] table (a missing column reads null
- * silently), and no list reads the NFO text or the media JSON, too heavy per card.
+ * The hand-written [ITEM_ROW], [CARD_ROW] and [WALL_ROW] match Room's [ItemEntity] table (a missing column reads null
+ * silently), no list reads the NFO text or the media JSON, too heavy per card, and no wall the text only a page shows.
  */
 @RunWith(RobolectricTestRunner::class)
 class ItemRowTest {
@@ -41,11 +42,14 @@ class ItemRowTest {
         fun item(kind: ItemKind, title: String, parentId: Long? = null, seriesId: Long? = null, positionMs: Long = 0) = ItemEntity(
             kind = kind, sourceId = source, title = title, sortTitle = title.lowercase(), parentId = parentId, seriesId = seriesId,
             filePath = "$title.mkv", nfoPath = "$title.nfo", nfo = "<movie><plot>$title</plot></movie>", genres = listOf("Drame"),
+            overview = "What $title tells", tagline = "In space no one can hear $title",
             collectionId = saga.takeIf { kind == ItemKind.MOVIE }, positionMs = positionMs, seasonNumber = 1, episodeNumber = 1,
             addedAt = 0,
         )
         dao.insert(item(ItemKind.MOVIE, "Alien"))
         dao.insert(item(ItemKind.MOVIE, "Aliens", positionMs = 60_000))
+        // A film of no saga, among a grouped wall's sagas.
+        dao.insert(item(ItemKind.MOVIE, "Heat").copy(collectionId = null))
         val series = dao.insert(item(ItemKind.SERIES, "Severance"))
         val season = dao.insert(item(ItemKind.SEASON, "Saison 1", parentId = series, seriesId = series))
         dao.insert(item(ItemKind.EPISODE, "Good News About Hell", parentId = season, seriesId = series, positionMs = 60_000))
@@ -67,6 +71,26 @@ class ItemRowTest {
 
         val card = CARD_ROW.split(',').map { it.trim() }
         assertEquals("CARD_ROW is ITEM_ROW but what the file holds", row.map { if (it == "mediaInfo") "NULL AS mediaInfo" else it }, card)
+        val wall = WALL_ROW.split(',').map { it.trim() }
+        val text = setOf("overview", "tagline")
+        assertEquals("WALL_ROW is CARD_ROW but the overview and tagline", card.map { if (it in text) "NULL AS $it" else it }, wall)
+    }
+
+    /** A wall's titles, the films of a wall of sagas and home's doors among them, leave out what only a page or a hero shows. */
+    @Test
+    fun wallsNeverReadTheTextOnlyAPageShows() = runTest {
+        val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
+        val shows = Library(LocalProvider.SHOWS, LibraryKind.SHOWS, null)
+        val walls = listOf(films, shows).flatMap { provider.libraryPage(it, SortOption.RATING, LibraryFilter(), 0, 50).items } +
+            provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 50, grouped = true).items
+        val read = queries.toList()
+        assertEquals(listOf("Alien", "Aliens", "Heat", "Severance", "Heat"), walls.filter { it.kind != MediaKind.COLLECTION }.map { it.title })
+        assertEquals("Walls reading the text", emptyList<String>(), read.filter { reads(it, "overview") || reads(it, "tagline") }.distinct())
+        assertTrue("Titles with it", walls.all { it.overview == null && it.tagline == null })
+
+        val heat = walls.first { it.title == "Heat" }
+        assertEquals("the title page shows it", "What Heat tells", provider.item(heat.id).overview)
+        assertTrue("home's heroes show it", provider.home().first().items.all { it.overview != null && it.tagline != null })
     }
 
     /** Every list a screen shows, each of its sorts and filters, as they query the library. */

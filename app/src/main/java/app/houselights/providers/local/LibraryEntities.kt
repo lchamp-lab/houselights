@@ -111,10 +111,12 @@ fun SourceEntity.address(withScheme: Boolean = true): String {
 
 enum class ItemKind { MOVIE, SERIES, SEASON, EPISODE }
 
-/** Item columns before [ItemEntity.mediaInfo]; see [ITEM_ROW]. */
-private const val ROW_HEAD =
-    "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, " +
-        "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
+/** Item columns before [ItemEntity.overview]; see [ITEM_ROW]. */
+private const val ROW_HEAD = "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, "
+
+/** Item columns between [ItemEntity.tagline] and [ItemEntity.mediaInfo]; see [ITEM_ROW]. */
+private const val ROW_BODY =
+    "year, endYear, continuing, runtimeMin, certification, rating, genres, " +
         "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
         "parts, fileSize, missingSince, badges, "
 
@@ -125,10 +127,13 @@ private const val ROW_TAIL =
         "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt"
 
 /** Every item column except the NFO text, which can reach 1 MB; such rows must never be written back. */
-const val ITEM_ROW = ROW_HEAD + "mediaInfo" + ROW_TAIL
+const val ITEM_ROW = ROW_HEAD + "overview, tagline, " + ROW_BODY + "mediaInfo" + ROW_TAIL
 
 /** [ITEM_ROW] without [ItemEntity.mediaInfo] (kilobytes of JSON per card), for lists; never written back either. */
-const val CARD_ROW = ROW_HEAD + "NULL AS mediaInfo" + ROW_TAIL
+const val CARD_ROW = ROW_HEAD + "overview, tagline, " + ROW_BODY + "NULL AS mediaInfo" + ROW_TAIL
+
+/** [CARD_ROW] without the overview and tagline, which walls and home's doors never show: neither read nor typeset. */
+const val WALL_ROW = ROW_HEAD + "NULL AS overview, NULL AS tagline, " + ROW_BODY + "NULL AS mediaInfo" + ROW_TAIL
 
 /** The columns a scan needs per known file, so an idle pass does not load thousands of full rows. */
 data class KnownFile(

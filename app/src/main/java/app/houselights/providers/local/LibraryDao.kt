@@ -276,6 +276,10 @@ interface LibraryDao {
     @Query("SELECT $CARD_ROW FROM items WHERE id IN (:ids)")
     suspend fun rows(ids: List<Long>): List<ItemEntity>
 
+    /** [rows] as a wall shows them, without the text only a page shows ([WALL_ROW]). */
+    @Query("SELECT $WALL_ROW FROM items WHERE id IN (:ids)")
+    suspend fun wallCards(ids: List<Long>): List<ItemEntity>
+
     /** Unwatched episodes and seasons per show, for a whole page in one query. */
     @Query(
         "SELECT seriesId, SUM(played = 0) AS unplayed, COUNT(DISTINCT parentId) AS seasons FROM items " +
