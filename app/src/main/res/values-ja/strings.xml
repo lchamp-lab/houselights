@@ -505,6 +505,7 @@
     <string name="error_not_saved_player">このプレーヤーのストレージへの書き込みが拒否されたため、何も保存されませんでした。プレーヤーの空き容量を確保してから、もう一度お試しください。</string>
     <string name="mappings_not_saved">パス変換ルールは保存されませんでした。%s</string>
     <string name="welcome_lost_secrets">このプレーヤーに保存された接続情報を読み込み直せませんでした。映画の場所をもう一度選択してください。</string>
+    <string name="welcome_settings_reset">このプレーヤーに保存された設定を読み込み直せなかったため、初期状態に戻しました。映画の場所をもう一度選択してください。</string>
     <string name="settings_lost_tmdb_key">このプレーヤーで個人用TMDBキーを読み込み直せませんでした。「TMDB APIキー」でもう一度入力してください。</string>
     <string name="settings_lost_mappings">このプレーヤーに保存されたパス変換ルールを読み込み直せませんでした。下でもう一度入力してください。</string>
     <string name="error_action_reconnect">再ログイン</string>

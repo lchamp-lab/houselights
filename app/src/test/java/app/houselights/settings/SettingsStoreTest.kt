@@ -41,6 +41,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
@@ -160,6 +161,22 @@ class SettingsStoreTest {
         assertTrue(settings.state.value.loaded)
         assertFalse(settings.state.value.readFailed)
         assertEquals(home, settings.state.value.source)
+    }
+
+    /** A file the device damaged: reset to the defaults, logged, and said on Welcome until a source is saved again. */
+    @Test
+    fun aDamagedFileIsResetLoggedAndSaidUntilASourceIsSaved() = runTest {
+        val file = folder.root.resolve("settings.preferences_pb").apply { writeBytes(byteArrayOf(0x7f, 0x7f, 0x7f)) }
+        ShadowLog.clear()
+        val store = PreferenceDataStoreFactory.create(corruptionHandler = resetWhenCorrupt, scope = backgroundScope, produceFile = { file })
+        val settings = SettingsStore(store, backgroundScope, testSecrets(), readOn = EmptyCoroutineContext)
+        val reset = settings.state.first { it.loaded }
+        assertTrue(reset.settingsReset)
+        assertNull(reset.source)
+        assertEquals(listOf("Settings file unreadable, reset: CorruptionException"), ShadowLog.getLogsForTag("Settings").map { it.msg })
+
+        settings.setSource(SourceConfig.Local)
+        assertFalse(settings.state.first { it.source != null }.settingsReset)
     }
 
     /** The Keystore's key is gone: the source reads as not set, and the settings report it lost. */

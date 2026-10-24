@@ -536,6 +536,7 @@
     <string name="error_not_saved_player">El almacenamiento de este reproductor rechazó la escritura, así que no se guardó nada. Libere espacio en el reproductor y vuelva a intentarlo.</string>
     <string name="mappings_not_saved">No se guardaron las correspondencias. %s</string>
     <string name="welcome_lost_secrets">No se pudo volver a leer la conexión guardada en este reproductor. Indique de nuevo dónde están sus películas.</string>
+    <string name="welcome_settings_reset">No se pudieron volver a leer los ajustes guardados en este reproductor y se han restablecido. Indique de nuevo dónde están sus películas.</string>
     <string name="settings_lost_tmdb_key">No se pudo volver a leer su clave personal de TMDB en este reproductor. Escríbala de nuevo en Clave de API de TMDB.</string>
     <string name="settings_lost_mappings">No se pudieron volver a leer las correspondencias de rutas guardadas en este reproductor. Escríbalas de nuevo más abajo.</string>
     <string name="error_action_reconnect">Iniciar sesión de nuevo</string>

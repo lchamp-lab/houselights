@@ -506,6 +506,7 @@
     <string name="error_not_saved_player">本播放器的存储拒绝写入，因此未保存任何内容。请在播放器上释放一些空间，然后重试。</string>
     <string name="mappings_not_saved">路径映射未保存。%s</string>
     <string name="welcome_lost_secrets">无法重新读取本播放器上保存的连接。请重新选择您的电影所在位置。</string>
+    <string name="welcome_settings_reset">无法重新读取本播放器上保存的设置，已将其重置。请重新选择您的电影所在位置。</string>
     <string name="settings_lost_tmdb_key">无法在本播放器上重新读取您的个人 TMDB 密钥。请在“TMDB API 密钥”中重新输入。</string>
     <string name="settings_lost_mappings">无法重新读取本播放器上保存的路径映射。请在下方重新输入。</string>
     <string name="error_action_reconnect">重新登录</string>
