@@ -14,9 +14,9 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.browsable
 import app.houselights.core.sagas
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
-import app.houselights.providers.local.SourceEntity
 import app.houselights.settings.AppSettings
 import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.LibraryShown
@@ -58,7 +58,7 @@ sealed interface HomeContent {
     data object ReadingFolders : Message
 
     /** Shown instead of "add a folder" when folders exist: [folder]'s last scan failed, [error] says why. */
-    data class ScanFailed(val folder: SourceEntity, val error: ScanError) : Message
+    data class ScanFailed(val folder: Folder, val error: ScanError) : Message
 
     /** No films yet: folders without any, or no folders at all ([hasFolders]; they can be opened from here). */
     data class NoFilms(val hasFolders: Boolean) : Message
@@ -124,7 +124,7 @@ data class HomeStatus(
 class HomeViewModel(
     private val provider: () -> MediaProvider,
     val scan: StateFlow<ScanState>,
-    folders: Flow<List<SourceEntity>>,
+    folders: Flow<List<Folder>>,
     settings: StateFlow<AppSettings>,
     private val scanAll: () -> Unit,
     /** Rows the launch already requested for Home ([HomeLaunch.take]), once; on null, Home asks the source. */
@@ -149,7 +149,7 @@ class HomeViewModel(
     private val doorReads = LatestJob(viewModelScope)
 
     /** Null until first read; on return, the last list stays until the database re-reads it, so Home never blanks. */
-    private val folderList: StateFlow<List<SourceEntity>?> = folders
+    private val folderList: StateFlow<List<Folder>?> = folders
         .catch { e ->
             Log.w(TAG, "Reading the folders failed", e)
             emit(emptyList())
@@ -263,7 +263,7 @@ class HomeViewModel(
  * What Home shows, from [load], [scan], [folders] (null until read) and whether the source is [local]. Shown rows
  * always stay; with none, nothing while loading, then the scan counter, an error, or why it is empty.
  */
-internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<SourceEntity>?, local: Boolean): HomeContent {
+internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<Folder>?, local: Boolean): HomeContent {
     val failed = failedFolder(scan.errors, folders.orEmpty())
     return when {
         load.sections.isNotEmpty() -> HomeContent.Rows(load.sections + load.drawn)
@@ -278,7 +278,7 @@ internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<SourceEn
 }
 
 /** What home's settings door states from [settings], the [folders] (null until read) and the [scan]. */
-internal fun homeStatus(settings: AppSettings, folders: List<SourceEntity>?, scan: ScanState, traktAvailable: Boolean): HomeStatus? =
+internal fun homeStatus(settings: AppSettings, folders: List<Folder>?, scan: ScanState, traktAvailable: Boolean): HomeStatus? =
     when (val source = settings.source) {
         null -> null
         SourceConfig.Local -> HomeStatus(
@@ -292,7 +292,7 @@ internal fun homeStatus(settings: AppSettings, folders: List<SourceEntity>?, sca
     }
 
 /** The first existing folder whose last scan failed, and why. */
-internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<SourceEntity>): Pair<SourceEntity, ScanError>? =
+internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<Folder>): Pair<Folder, ScanError>? =
     folders.firstNotNullOfOrNull { folder -> errors[folder.id]?.let { folder to it } }
 
 /** How long the screen may be away (a configuration change, a title opened and closed) before Home stops collecting. */

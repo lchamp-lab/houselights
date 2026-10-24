@@ -37,9 +37,9 @@ import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
-import app.houselights.providers.local.SourceEntity
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
@@ -613,7 +613,7 @@ private fun NoFilms(hasFolders: Boolean, actions: HomeActions, modifier: Modifie
 
 /** [folder] could not be read: the [error], a rescan and the folders. */
 @Composable
-private fun ScanFailed(folder: SourceEntity, error: ScanError, actions: HomeActions, modifier: Modifier) {
+private fun ScanFailed(folder: Folder, error: ScanError, actions: HomeActions, modifier: Modifier) {
     HlEmptyState(
         stringResource(R.string.home_scan_failed),
         modifier,

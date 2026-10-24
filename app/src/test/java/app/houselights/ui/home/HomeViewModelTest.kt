@@ -7,11 +7,12 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
 import app.houselights.core.UserState
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
-import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.nfsFolder
+import app.houselights.providers.local.toFolder
 import app.houselights.settings.AppSettings
 import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeProvider
@@ -61,12 +62,12 @@ class HomeViewModelTest {
     private val scan = MutableStateFlow(ScanState())
 
     /** The folders as the database gives them; null: not read yet. */
-    private val folders = MutableStateFlow<List<SourceEntity>?>(emptyList())
+    private val folders = MutableStateFlow<List<Folder>?>(emptyList())
     private val settings = MutableStateFlow(AppSettings(loaded = true, source = SourceConfig.Local))
     private var scans = 0
 
     private fun folder(id: Long, lastScanAt: Long = 0) =
-        nfsFolder(host = "nas$id", share = "volume1", path = "Films", id = id, lastScanAt = lastScanAt)
+        nfsFolder(host = "nas$id", share = "volume1", path = "Films", id = id, lastScanAt = lastScanAt).toFolder()
 
     /** Home as the screen holds it: [HomeViewModel.state] is read while the screen is there. */
     private fun TestScope.home(): HomeViewModel =
@@ -202,7 +203,7 @@ class HomeViewModelTest {
     /** Folders the database cannot read are none, never a crash; the rows still show. */
     @Test
     fun foldersThatCannotBeReadAreNone() = runTest {
-        val unreadable = flow<List<SourceEntity>> { throw SQLiteException("disk I/O error") }
+        val unreadable = flow<List<Folder>> { throw SQLiteException("disk I/O error") }
         val vm = HomeViewModel({ provider }, scan, unreadable, settings, scanAll = {})
         backgroundScope.launch { vm.state.collect {} }
         advanceUntilIdle()

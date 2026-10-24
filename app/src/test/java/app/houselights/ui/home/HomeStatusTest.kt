@@ -17,6 +17,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.TraktSession
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.nfsFolder
+import app.houselights.providers.local.toFolder
 import app.houselights.settings.AppSettings
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
@@ -46,7 +47,7 @@ class HomeStatusTest {
     private val local = AppSettings(loaded = true, source = SourceConfig.Local, trakt = session)
     private val server = SourceConfig.Jellyfin("https://jf.test", "Salon", "u", "léa", "token")
     private fun folder(id: Long, host: String, at: Long) =
-        nfsFolder(host = host, share = "volume1", path = "Films", id = id, lastScanAt = at)
+        nfsFolder(host = host, share = "volume1", path = "Films", id = id, lastScanAt = at).toFolder()
 
     @Test
     fun theFoldersSayTheirServerTraktAndTheirLastScan() {

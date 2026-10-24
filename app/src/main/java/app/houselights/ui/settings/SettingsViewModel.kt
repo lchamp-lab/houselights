@@ -6,10 +6,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.AppContainer
 import app.houselights.core.MediaProvider
 import app.houselights.core.PathMapping
@@ -18,22 +17,21 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.TrackPreferences
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.CleanupResult
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.LocalLibrary
-import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.settings.AppSettings
+import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.Resumed
 import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toWriteError
 import coil.ImageLoader
 import coil.annotation.ExperimentalCoilApi
-import coil.imageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +39,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /** What Houselights keeps on the device. */
 internal data class StorageStats(
@@ -101,15 +100,26 @@ internal class SettingsViewModel(
     private val images: ImageLoader?,
     private val checkTmdbKey: suspend (String) -> TmdbKeyCheck = { TmdbClient(it).checkKey() },
     private val chooseLanguage: suspend (String?) -> Unit = {},
+    /** The device's locale, which the details follow while no language is chosen for them. */
+    val deviceLocale: StateFlow<Locale> = MutableStateFlow(Locale.getDefault()),
+    /** The language chosen for the interface ([InterfaceLanguage.chosen]); null follows the device. */
+    val interfaceLanguage: StateFlow<String?> = MutableStateFlow(null),
     /** A Zidoo player takes the tracks asked of it: the tracks settings apply ([AppContainer.asksTracks]). */
     val asksTracks: Boolean = false,
 ) : ViewModel() {
     constructor(app: AppContainer, images: ImageLoader) : this(
         app.settings, app.library, app::providerOrNull, app.scope, app.sources, images,
-        chooseLanguage = app.language::choose, asksTracks = app.asksTracks,
+        chooseLanguage = app.language::choose, deviceLocale = app.deviceLocale, interfaceLanguage = app.language.chosen,
+        asksTracks = app.asksTracks,
     )
 
     val settings: StateFlow<AppSettings> = store.state
+
+    /** True while the secrets the Keystore did not open are read again ([readSecretsAgain]). */
+    val readingSecrets: StateFlow<Boolean> get() = store.reading
+
+    /** Réessayer: reads again the secrets the Keystore did not open. */
+    fun readSecretsAgain() = store.readAgain()
 
     /** What the current source can do; the settings show what applies to it. */
     val capabilities get() = provider()?.capabilities ?: ProviderCapabilities.NONE
@@ -268,7 +278,7 @@ internal class SettingsViewModel(
     }
 
     /** Removes [folder] and its titles in [work], waiting for a scan's open file; [removing] holds it meanwhile. */
-    fun removeFolder(folder: SourceEntity) {
+    fun removeFolder(folder: Folder) {
         if (folder.id in removing) return
         removing += folder.id
         change("Removing the folder ${folder.id}", SettingAction.REMOVE_FOLDER, work, folder.id) {
@@ -378,10 +388,11 @@ internal class SettingsViewModel(
     }
 }
 
+/** The ViewModel the panes share; none outside [SettingsScreen], where a pane fails at once rather than make another. */
+internal val LocalSettingsViewModel = staticCompositionLocalOf<SettingsViewModel> {
+    error("A settings pane is composed outside SettingsScreen, which provides its ViewModel")
+}
+
 /** The screen's ViewModel, shared by all its panes. */
 @Composable
-internal fun settingsViewModel(): SettingsViewModel {
-    val app = appContainer()
-    val images = LocalContext.current.imageLoader
-    return viewModel { SettingsViewModel(app, images) }
-}
+internal fun settingsViewModel(): SettingsViewModel = LocalSettingsViewModel.current

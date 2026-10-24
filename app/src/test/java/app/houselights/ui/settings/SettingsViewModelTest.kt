@@ -19,6 +19,7 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.testDatabase
+import app.houselights.providers.local.toFolder
 import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
@@ -208,7 +209,7 @@ class SettingsViewModelTest {
         val store = testSettings(folder.root, backgroundScope)
         val id = dao.insertSource(nfsFolder("films"))
         val vm = settings(store, work = backgroundScope)
-        val folder = dao.source(id)!!
+        val folder = dao.source(id)!!.toFolder()
         // The library's database refuses every write.
         db.openHelper.writableDatabase.execSQL("PRAGMA query_only = ON")
         vm.removeFolder(folder)
@@ -224,7 +225,7 @@ class SettingsViewModelTest {
         val store = testSettings(folder.root, backgroundScope)
         val id = dao.insertSource(nfsFolder("films"))
         val vm = settings(store, work = backgroundScope)
-        vm.removeFolder(dao.source(id)!!)
+        vm.removeFolder(dao.source(id)!!.toFolder())
         assertTrue(id in vm.removing)
         screens.clear()
         waitFor("the folder removed") { dao.sources().isEmpty() }

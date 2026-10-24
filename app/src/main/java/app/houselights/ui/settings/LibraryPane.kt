@@ -22,16 +22,13 @@ import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.JellyfinClient
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.FolderCounts
-import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
-import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.TmdbClient
-import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.providers.local.TmdbKeyCheck
-import app.houselights.providers.local.address
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.Hl
@@ -62,7 +59,6 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
@@ -143,7 +139,7 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
     val scan by vm.library.scan.collectAsStateWithLifecycle()
     // Collected once for all showcases: each scan write re-runs it.
     val counts by vm.library.folderCounts.collectAsStateWithLifecycle(emptyMap())
-    var actionsFor by remember { mutableStateOf<SourceEntity?>(null) }
+    var actionsFor by remember { mutableStateOf<Folder?>(null) }
     // The folder being removed, and where focus goes once its showcase has gone.
     var removing by remember { mutableStateOf<Pair<Long, FocusRequester>?>(null) }
     LaunchedEffect(sources) {
@@ -190,7 +186,7 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
 /** A folder's sheet: scan, edit or remove (confirmed in place); Edit comes first after a failure it can fix. */
 @Composable
 private fun SourceActions(
-    source: SourceEntity,
+    source: Folder,
     error: ScanError?,
     onDismiss: () -> Unit,
     onEdit: (focus: FolderField) -> Unit,
@@ -208,15 +204,14 @@ private fun SourceActions(
         onDismiss = onDismiss,
         facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }),
         badges = listOf(source.protocol.name),
-        description = source.address(withScheme = false),
+        description = source.address,
         artwork = if (posters.isEmpty()) {
             null
         } else {
             {
                 // Its latest posters, as tall as the title block; empty frames for the slots left.
-                val images = remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } }
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-                    repeat(HEADER_POSTERS) { PosterThumb(images.getOrNull(it), width = null) }
+                    repeat(HEADER_POSTERS) { PosterThumb(posters.getOrNull(it), width = null) }
                 }
             }
         },
@@ -276,12 +271,12 @@ internal fun editFixes(error: ScanError?): ScanErrorKind? = error?.kind?.takeIf 
 }
 
 @Composable
-private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it.uppercase() }
+private fun sourceName(source: Folder) = source.name.replaceFirstChar { it.uppercase() }
 
 /** A folder's [Showcase]: its [counts] (null until read), its last scan, or what it is doing ([scan], [removing]). */
 @Composable
 private fun FolderShowcase(
-    source: SourceEntity,
+    source: Folder,
     counts: FolderCounts?,
     scan: ScanState?,
     error: ScanError?,
@@ -299,7 +294,7 @@ private fun FolderShowcase(
     Showcase(
         name = sourceName(source),
         mark = source.protocol.name,
-        posters = remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } },
+        posters = posters,
         onClick = onClick,
         modifier = modifier,
         // Never read is no state done: a plain fact, first as the state would be; then its figures, the first in
@@ -426,7 +421,7 @@ private fun CollectionsRow() {
 private fun MetadataLanguageRow() {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    val device by appContainer().deviceLocale.collectAsStateWithLifecycle()
+    val device by vm.deviceLocale.collectAsStateWithLifecycle()
     val tags = remember { TmdbClient.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::metadataLanguageName)) }
     var choosing by remember { mutableStateOf(false) }
     val failure = rowFailure(vm.errorOf(SettingAction.METADATA_LANGUAGE))
@@ -701,7 +696,7 @@ private fun foldersLine(count: Int): String =
 
 /** The TMDB key sheet; the outcome lives in the ViewModel, as the sheet may close during the check. */
 @Composable
-private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
+internal fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val attempt = vm.tmdbKey
