@@ -119,7 +119,12 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   URI and Android logs started intents (readable over adb): use a **dedicated read-only NAS account**.
   Credentials only go to the Zidoo's player: a system app or one signed like the firmware's apps; failing
   those, the app under a Zidoo name that first received them, remembered by its certificate. Any other app,
-  or that one signed by someone else, receives none.
+  or that one signed by someone else, receives none. On a firmware signed with Android's public test keys
+  (the Z1000 Pro's), anyone can sign an update of the system player that Android installs over it, and it
+  would receive them too: install the player's updates from Zidoo alone.
+- NFS sends no password: the NAS trusts the player's address, and the app presents itself as root (uid 0,
+  gid 0). On an export that does not squash root (Synology's "No mapping"), it reads the chosen folder with
+  root's rights: export it **read-only, with root squashed** or mapped to a guest or media account.
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
   held in the Android Keystore. Android backup is disabled. Disconnecting Trakt revokes the app's token there.
 - Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in

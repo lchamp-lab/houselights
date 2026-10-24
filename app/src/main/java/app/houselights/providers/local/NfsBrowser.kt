@@ -17,7 +17,8 @@ import java.net.SocketException
 
 /**
  * Lists and reads an NFSv3 export; a single instance lives in [RemoteBrowsers]. The NAS trusts the client IP (no
- * credentials), and the export must allow non-privileged ports, as an app cannot bind ports below 1024.
+ * password; [CredentialUnix] says uid 0, gid 0), and the export must allow non-privileged ports, as an app cannot
+ * bind ports below 1024.
  */
 internal class NfsBrowser(
     /** Mounts a source's export (a request to the NAS); replaceable in tests. */

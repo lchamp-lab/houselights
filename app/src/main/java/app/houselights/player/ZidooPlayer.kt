@@ -102,7 +102,7 @@ class ZidooPlayer(
         /** Not a Zidoo: no password ever leaves the app. */
         NOT_A_ZIDOO(false),
 
-        /** A system app installed with the firmware, which no ordinary app can replace. */
+        /** A system app, which only an update signed with its key replaces: public on a test-keys build. */
         FIRMWARE(true),
 
         /** An ordinary app signed with a Zidoo system app's certificate. */
