@@ -55,8 +55,9 @@ Three moments carry the identity:
 
 - **Launch.** A cold start shows Gradation alone on black, in its ember light (`splash_mark`, drawn by Android
   at the device's density): no progress bar, no text. Home is composed underneath (its rows and its doors read,
-  the case's picture and the doors' posters preloaded with `PicturesAhead` and `AwaitAhead`, the counts cut ahead,
-  `makeCutPosters`). The launch screen leaves after
+  each picture preloaded with `PicturesAhead` and `AwaitAhead` as soon as what shows it is read: what the rows show
+  at once, the case proposed once drawn, the doors' posters once read, their counts cut ahead into the app's
+  `CutPosterCache`). The launch screen leaves after
   home's first complete frame (`drawnWhole`, `LocalLaunchScreen`), at most 1.5 s after process start, and at
   once when the app starts elsewhere. `LaunchCue` then plays over `SLOW`: the bars go out widest first, each
   over `FAST`, the last as the black starts to lift off home over `STANDARD`, every step easing out
@@ -64,7 +65,8 @@ Three moments carry the identity:
   prepared underneath appears without a fade. A warm start shows at once.
 - **House lights.** Playing a title runs `HouseLightCue` over `DIM`: the room dims (`Modifier.houseLit`), the
   veils lift, then black (`HouseLights`) and the player. The player starts once the room is dark, not after a
-  fixed delay; returning runs the cue backwards. During the cue, OK and Menu are ignored and Back cancels
+  fixed delay, the pictures held in memory let go first (Coil's, and the doors' cut posters but their colours,
+  `CutPosterCache.clear`); returning runs the cue backwards. During the cue, OK and Menu are ignored and Back cancels
   (`UnseenKeysTest`).
 - **The credits.** Director and lead cast read as one sentence, "un film de NAME avec NAME, NAME et NAME"
   (`BillingBlock`): condensed capitals, small words receding, on one line, keeping as many whole names as
@@ -415,13 +417,13 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   row shares its 600 by parts of four (`placeDoors`), so a door of two parts is as wide as two of one and their gap,
   and the doors of different rows line up: 294 + 294, 141 + 141 + 294, four of 141, three of 192 (`DoorGridTest`).
   A row left out gives its height to the one under it (`gridHeights`). `HomePlan` composes it from what home read:
-  - **The case** (`ResumeCase`) resumes the title last in progress: its backdrop cropped upright from its top (else its
-    poster), melting into its dark (`HlScrim.CASE_FOOT`), its logo or name in `headline`, its facts 12 apart
+  - **The case** (`ResumeCase`) resumes the title last in progress: its backdrop cropped upright from its top, a file
+    of 1280 px at most (else its poster), melting into its dark (`HlScrim.CASE_FOOT`), its logo or name in `headline`, its facts 12 apart
     (`MetaLine`), its progress and time left, then its action, a plate the case's focus fills white. With nothing in
     progress, it proposes a film not seen, drawn once a session, else a show not seen, whose page it opens ("Voir la
     série", no Play glyph), else any title (`UnseenPick`): "Pas encore vu" in `jaquette` over one not seen, its genres,
-    Lire. What it proposes is read with every read of the doors, before the libraries' (`readDoorsAsync`), so the case
-    changes in place, focus kept; only an empty library has none, focus then on the first door. OK plays; Menu opens
+    Lire. What it proposes is read with every read of the doors, asked first, beside the libraries', shown as soon as it comes
+    (`readDoorsAsync`), so the case changes in place, focus kept; only an empty library has none, focus then on the first door. OK plays; Menu opens
     its options, which the Menu key says at the end of its action's plate while it has focus: its page, and from its
     start once started.
   - **What is watched**: À suivre, the next episode not already in progress (`nextUp`), its still and logo
@@ -802,7 +804,10 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
 - **Home's grid holds two backdrops at most**, the case's and the next episode's; the rest are posters, at their
   laid-out size, the search door's small ones. A count is cut in software copies of its posters, kept apart in memory
   (`cutPosterRequest`), drawn through a shader at their drawn size; tints and glows come from averaged posters
-  enlarged with bilinear filtering, never a blur.
+  enlarged with bilinear filtering, never a blur. The app keeps the cuts of its library doors and one more
+  (`CutPosterCache`); before the player, and in the background when the system is short of memory (`trim`), their
+  posters go, their tones and tint stay: a door comes back glowing, its digits ink until they are cut again. A door
+  on screen keeps the posters it draws, which it holds anyway.
 - **Light nothing that focus only crosses** (`Scrub`), and nothing moves for ever but the welcome wall.
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
   `dumpsys gfxinfo <package> framestats` and `setprop debug.hwui.overdraw show`. See CONTRIBUTING.md.

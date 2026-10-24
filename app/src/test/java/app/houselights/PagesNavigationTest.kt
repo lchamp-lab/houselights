@@ -26,7 +26,6 @@ import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
-import app.houselights.ui.design.components.forgetCutPosters
 import app.houselights.ui.home.HomeGrid
 import app.houselights.ui.home.films
 import app.houselights.ui.home.fullHome
@@ -43,7 +42,6 @@ import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -66,10 +64,6 @@ class PagesNavigationTest {
     val compose = createAndroidComposeRule<ComponentActivity>()
 
     private val source = FakeProvider().apply { wall = (1..30).map { film("m$it", "Film $it") } }
-
-    /** A count cut by an earlier test is drawn at once: each test starts as the app does. */
-    @Before
-    fun forgetTheCuts() = forgetCutPosters()
 
     /** Home's grid with everything, its doors wired by the app's [homeActions]; each wall a real one, of a fake source. */
     private fun app(): NavHostController {

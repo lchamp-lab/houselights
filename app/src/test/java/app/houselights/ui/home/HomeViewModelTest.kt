@@ -17,6 +17,7 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
+import app.houselights.ui.testing.series
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -36,6 +38,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -322,6 +325,49 @@ class HomeViewModelTest {
         advanceUntilIdle()
         assertEquals(true, vm.state.value.doors?.shelvesRead)
         assertEquals(listOf(20), vm.state.value.doors?.shelves?.map { it.count })
+    }
+
+    /** The libraries' doors are read while what the case proposes is drawn, not after it. */
+    @Test
+    fun theShelvesAreReadWhileWhatTheCaseProposesIsDrawn() = runTest {
+        provider.home = listOf(HomeSection(SectionType.LATEST, listOf(film("m1")), landscape = false, libraryId = "films"))
+        provider.walls = mapOf("films" to (1..20).map { film("f$it") })
+        val drawing = provider.gate("page 0 1")
+        val vm = home()
+        advanceUntilIdle()
+        assertTrue("the shelves asked meanwhile: ${provider.calls}", "page 0 12" in provider.calls)
+        drawing.complete(Unit)
+        advanceUntilIdle()
+        assertNotNull(vm.state.value.doors?.proposed)
+        assertEquals(listOf(20), vm.state.value.doors?.shelves?.map { it.count })
+    }
+
+    /**
+     * What the case proposes is asked first, the shelves after it, however eagerly they start (the main thread's
+     * immediate dispatch): a source answering a few at a time (OkHttp's five a host) answers the case first.
+     */
+    @Test
+    fun whatTheCaseProposesIsAskedBeforeTheShelves() = runTest(UnconfinedTestDispatcher()) {
+        provider.libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"), Library("shows", LibraryKind.SHOWS, "Séries"))
+        provider.walls = mapOf("films" to (1..20).map { film("f$it") }, "shows" to (1..3).map { series("s$it") })
+        val doors = readDoors(provider, provider.libraries, emptyList(), UnseenPick())
+        assertEquals("the case's draw first: ${provider.calls}", "page 0 1", provider.calls.first())
+        assertEquals(listOf(20, 3), doors.shelves.map { it.count })
+    }
+
+    /** A shows library's new episodes are counted while its door's page is read, not after it. */
+    @Test
+    fun aShowsLibrarysNewEpisodesAreCountedWhileItsPageIsRead() = runTest {
+        provider.libraries = listOf(Library("shows", LibraryKind.SHOWS, "Séries"))
+        provider.walls = mapOf("shows" to (1..3).map { series("s$it") })
+        provider.newEpisodeCounts = mapOf("shows" to 2)
+        val page = provider.gate("page 0 12")
+        val vm = home()
+        advanceUntilIdle()
+        assertTrue("counted meanwhile: ${provider.calls}", "new episodes shows" in provider.calls)
+        page.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf(2), vm.state.value.doors?.shelves?.map { it.newEpisodes })
     }
 
     /** A film proposed, then watched to its end: back home, another takes its place before the shelves are read again. */

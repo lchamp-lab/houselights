@@ -49,6 +49,7 @@ import app.houselights.settings.TraktFollow
 import app.houselights.ui.home.HomeLaunch
 import app.houselights.ui.library.LibraryAhead
 import app.houselights.ui.design.components.AwaitAhead
+import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.util.PlaybackOutcome
 import coil.EventListener
 import coil.ImageLoader
@@ -98,6 +99,12 @@ class HouselightsApp : Application(), ImageLoaderFactory {
         super.onConfigurationChanged(newConfig)
         language.applyDefault()
         container.deviceLocaleChanged(newConfig.locales[0])
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        // Coil trims its own memory cache, which the doors' cut posters outlive.
+        container.cutPosters.trim(level)
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
@@ -226,6 +233,9 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 
     /** The film home's case proposes when nothing is in progress, the same all session. */
     val unseenPick = UnseenPick()
+
+    /** The posters home's doors cut their counts in, let go when the player or the system needs the memory. */
+    val cutPosters = CutPosterCache()
 
     /** Prefetches home's first rows and pictures while the launch screen holds. */
     val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value }, unseenPick)

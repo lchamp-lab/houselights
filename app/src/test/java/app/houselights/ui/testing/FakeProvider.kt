@@ -39,6 +39,9 @@ class FakeProvider : MediaProvider {
     /** A library's own wall, by its id. */
     var walls = mapOf<String, List<MediaItem>>()
 
+    /** The new episodes of a shows library, by its id; none for one not in it. */
+    var newEpisodeCounts = mapOf<String, Int>()
+
     /** Whether a grouped page counts its sagas; Jellyfin's never does. */
     var countsSagas = true
 
@@ -102,6 +105,11 @@ class FakeProvider : MediaProvider {
         val shown = (walls[library.id] ?: wall).filter { filter.status != WatchStatus.UNWATCHED || notSeen(it) }
         val sagas = shown.count { it.kind == MediaKind.COLLECTION }.takeIf { grouped && countsSagas }
         return Page(shown.drop(start).take(limit), shown.size, sagas)
+    }
+
+    override suspend fun newEpisodes(library: Library, since: Long, cap: Int): Int? {
+        call("new episodes ${library.id}")
+        return newEpisodeCounts[library.id]
     }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets {

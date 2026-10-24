@@ -111,7 +111,7 @@ class LocalProvider(
             SortOption.RATING -> "rating DESC, sortTitle ASC"
         }
         // Ties sort by id so pages never overlap or skip a title.
-        val page = "SELECT $CARD_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
+        val page = "SELECT $WALL_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
         val items = dao.query(SimpleSQLiteQuery(page, args.toTypedArray()))
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = LocalMapper(dao, context)
@@ -123,7 +123,7 @@ class LocalProvider(
         val rows = dao.wallRows(wall.page(sort, start, limit))
         val count = dao.wallCount(wall.count())
         val (sagaRows, filmRows) = rows.partition { it.saga }
-        val films = filmRows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }
+        val films = filmRows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.wallCards(it) }
         val sagas = sagaRows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.collections(it) }
         val filmItems = if (films.isEmpty()) emptyMap() else films.map { it.id }.zip(LocalMapper(dao, context).mapAll(films)).toMap()
         val sagaItems = if (sagas.isEmpty()) emptyMap() else sagas.map { it.id }.zip(collectionItems(sagas)).toMap()

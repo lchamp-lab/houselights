@@ -120,6 +120,7 @@ import androidx.compose.animation.core.snap
 import app.houselights.ui.design.components.BackdropRelay
 import app.houselights.ui.design.components.LeavingBackdrop
 import app.houselights.ui.design.components.LocalBackdropRelay
+import app.houselights.ui.design.components.LocalCutPosters
 import app.houselights.ui.person.PersonScreen
 import app.houselights.ui.search.SearchScreen
 
@@ -215,6 +216,7 @@ class MainActivity : ComponentActivity() {
                     LocalErrorFix provides fixError,
                     LocalLaunchScreen provides launchScreen,
                     LocalBackdropRelay provides relay,
+                    LocalCutPosters provides container.cutPosters,
                 ) {
                     // The window background is already the room (@color/room): no second black under every screen.
                     Box(Modifier.fillMaxSize()) {
@@ -236,7 +238,7 @@ class MainActivity : ComponentActivity() {
         val launch = container.launch
         val held = !launch.isOpen
         covered = held
-        val pictures = loadFirstPictures(applicationContext, resources.displayMetrics.widthPixels) {
+        val pictures = loadFirstPictures(applicationContext, resources.displayMetrics.widthPixels, container.cutPosters) {
             container.providerOrNull()?.capabilities?.search == true
         }
         container.homeLaunch.begin(container.scope, restored, pictures)
@@ -330,6 +332,7 @@ class MainActivity : ComponentActivity() {
                         is PlaybackPlan.Launch -> try {
                             // The player needs the memory more than pictures that reload from disk.
                             imageLoader.memoryCache?.clear()
+                            container.cutPosters.clear()
                             playerLauncher.launch(container.player.intentFor(plan, container.tracks.plan(plan)))
                             container.player.onPlayerLaunched()
                         } catch (_: ActivityNotFoundException) {

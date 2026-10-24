@@ -263,6 +263,9 @@ internal object HomeGridDefaults {
     /** The lockup's capitals: its bars as tall as the band less its air (16). */
     val lockup = 11.5.dp
 
+    /** Library doors in their row; past it, the last gathers the rest. */
+    const val SHELF_DOORS = 4
+
     /** The case: the title in progress, or one not seen yet. */
     val case = 252.dp
     val watchRow = 136.dp
