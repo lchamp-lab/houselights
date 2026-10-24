@@ -78,7 +78,7 @@ class LocalLibrary(
         val before = dao.source(id) ?: return FolderSave.Gone
         overlapping(folder, except = id)?.let { return FolderSave.Overlaps(it) }
         try {
-            with(folder) { dao.updateConnection(id, name, protocol, host, share, path, username, password) }
+            with(folder) { dao.updateConnection(id, name, protocol, host, share, path, username, password, uid, gid) }
             // A session or mount kept on the old address would otherwise still serve this source.
             forget(before)
         } finally {
