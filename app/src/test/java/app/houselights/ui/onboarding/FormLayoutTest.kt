@@ -140,10 +140,16 @@ class FormLayoutTest {
         assertTrue("$framed inside the safe area", framed.bottom <= SCREEN_H - HlSpace.safeV && framed.right <= SCREEN_W - HlSpace.safeH)
     }
 
-    /** At the largest text, the states take the widest of their words; names and addresses hold whole beside them. */
     @Test
     @Config(qualifiers = "fr-$TV")
-    fun foundServersHoldAtTheLargestText() {
+    fun foundServersInFrenchAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "de-$TV")
+    fun foundServersInGermanAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    /** At the largest text, the states take the widest of their words; names and addresses hold whole beside them. */
+    private fun foundServersHoldAtTheLargestText() {
         val vm = runBlocking {
             val settings = testSettings(folder.root, scope)
             val sources = SourceSwitcher({ settings.state.value }, { _, _ -> }, scope, signOut = { _, _ -> })
@@ -155,7 +161,8 @@ class FormLayoutTest {
         }
         compose.waitUntil { FourServers.servers.all { vm.checkOf(it) != ServerCheck.Checking || it.name == "Chambre" } }
         compose.waitForIdle()
-        val states = listOf("Chiffré", "Non chiffré", "Vérification…", "Ne répond pas")
+        val states = listOf(R.string.server_encrypted, R.string.server_plain, R.string.checking, R.string.server_silent)
+            .map { compose.activity.getString(it) }
         val starts = states.map { compose.onNodeWithText(it, useUnmergedTree = true).getUnclippedBoundsInRoot().left }
         assertEquals("one column: $starts", 1, starts.toSet().size)
         val names = FourServers.servers.mapNotNull { it.name }
