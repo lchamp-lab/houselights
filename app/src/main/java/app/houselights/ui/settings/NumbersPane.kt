@@ -24,6 +24,7 @@ import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.formatBytes
 import app.houselights.ui.util.formatCount
@@ -64,7 +65,7 @@ internal data class NumbersPage(
 )
 
 /** Builds the page from [counted]: a format opens its filtered films (else shows), a director their page. */
-internal fun numbersPage(counted: NumbersState.Counted): NumbersPage {
+internal fun numbersPage(counted: CountedLibrary): NumbersPage {
     val n = counted.numbers
     val can = counted.capabilities
     val formats = can.formatNumbers
@@ -104,7 +105,7 @@ internal fun numbersPage(counted: NumbersState.Counted): NumbersPage {
  * opening its films or a director's page. Rows are keyed in [rows], so returning refocuses the row left.
  */
 internal fun LazyListScope.numbersPane(
-    state: NumbersState,
+    state: LoadState<CountedLibrary>,
     rows: PaneRows,
     onOpenWall: (Library, LibraryFilter) -> Unit,
     onOpenPerson: (String) -> Unit,
@@ -118,14 +119,14 @@ internal fun LazyListScope.numbersPane(
     }
     when (state) {
         // Counting is quick: the title shows alone rather than over placeholder figures.
-        NumbersState.Counting -> item { Section(stringResource(R.string.numbers_title)) {} }
-        is NumbersState.Failed -> item {
+        LoadState.Loading -> item { Section(stringResource(R.string.numbers_title)) {} }
+        is LoadState.Failed -> item {
             Section(stringResource(R.string.numbers_title)) {
                 PartFailed(state.error, state.retrying, onRetry, action = rows.focus(RETRY))
             }
         }
-        is NumbersState.Counted -> {
-            val page = numbersPage(state)
+        is LoadState.Ready -> {
+            val page = numbersPage(state.value)
             // The first group shares the head's item, so scrolling back up shows the figures and title.
             item {
                 Section(stringResource(R.string.numbers_title)) {
