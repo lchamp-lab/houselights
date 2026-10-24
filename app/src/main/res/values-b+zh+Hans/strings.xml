@@ -261,6 +261,11 @@
     <!-- Jellyfin -->
     <string name="jellyfin_title">连接到 Jellyfin</string>
     <string name="servers_found">在网络上找到的服务器</string>
+    <string name="server_encrypted">已加密</string>
+    <string name="server_plain">未加密</string>
+    <string name="server_silent">无响应</string>
+    <string name="connection_is_encrypted">加密连接</string>
+    <string name="connection_is_plain">未加密连接</string>
     <string name="field_server">服务器地址</string>
     <string name="placeholder_server">例如：192.168.1.10:8096</string>
     <string name="sign_in">登录</string>

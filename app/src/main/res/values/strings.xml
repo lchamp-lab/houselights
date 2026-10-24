@@ -282,6 +282,11 @@
     <!-- Jellyfin -->
     <string name="jellyfin_title">Connect to Jellyfin</string>
     <string name="servers_found">Servers found on the network</string>
+    <string name="server_encrypted">Encrypted</string>
+    <string name="server_plain">Not encrypted</string>
+    <string name="server_silent">Not responding</string>
+    <string name="connection_is_encrypted">Encrypted connection</string>
+    <string name="connection_is_plain">Unencrypted connection</string>
     <string name="field_server">Server address</string>
     <string name="placeholder_server">e.g. 192.168.1.10:8096</string>
     <string name="sign_in">Sign in</string>

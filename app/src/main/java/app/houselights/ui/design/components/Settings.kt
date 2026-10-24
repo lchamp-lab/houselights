@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -24,13 +25,17 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.ui.design.HlSettingRowDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -231,6 +236,65 @@ internal fun ChoiceCheck() {
     val tint = if (LocalContentColor.current == c.onFocus) c.emberOnLight else c.ember
     Icon(HlIcons.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
 }
+
+/** The current choice's check after what a row states, [HlSpace.m] from it, its place kept on rows not [chosen]. */
+@Composable
+internal fun ChoicePlace(chosen: Boolean) {
+    Spacer(Modifier.width(HlSpace.m))
+    Box(Modifier.size(HlSize.icon)) { if (chosen) ChoiceCheck() }
+}
+
+/** A connection's security as a row states it: encrypted, plain, being checked, or no answer. */
+enum class ConnectionSecurity { Encrypted, Plain, Checking, Silent }
+
+/**
+ * A connection's [security] beside a row's name, its words in `meta` after its mark: the lock, closed and white when
+ * encrypted, open and grey when plain; the quiet dot while it is checked, the ring when nothing answers. Never ember:
+ * none is an error or a choice. As wide as the longest of the four at the viewer's text size, so states line up
+ * from row to row; focus's inks on a focused row.
+ */
+@Composable
+fun ConnectionState(security: ConnectionSecurity, modifier: Modifier = Modifier) {
+    val c = Hl.colors
+    val focused = LocalContentColor.current == c.onFocus
+    val encrypted = security == ConnectionSecurity.Encrypted
+    val ink = when {
+        focused -> if (encrypted) c.onFocus else c.onFocusSecondary
+        encrypted -> c.content
+        else -> c.contentSecondary
+    }
+    val words = ConnectionSecurity.entries.map { stringResource(it.words) }
+    val style = Hl.type.meta
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val widest = remember(words, style, density) {
+        with(density) { words.maxOf { measurer.measure(it, style, softWrap = false, maxLines = 1).size.width }.toDp() }
+    }
+    Row(modifier.width(HlSize.statusLight + HlSpace.xs + widest), verticalAlignment = Alignment.CenterVertically) {
+        when (security) {
+            ConnectionSecurity.Encrypted, ConnectionSecurity.Plain -> Icon(
+                if (encrypted) HlIcons.Lock else HlIcons.LockOpen,
+                contentDescription = null,
+                tint = ink,
+                modifier = Modifier.size(HlSize.statusLight),
+            )
+            // Their own quiet inks at rest, as a state's light.
+            ConnectionSecurity.Checking -> StatusLight(StatusState.Pending, ink = ink.takeIf { focused })
+            ConnectionSecurity.Silent -> StatusLight(StatusState.Off, ink = ink.takeIf { focused })
+        }
+        Spacer(Modifier.width(HlSpace.xs))
+        Text(words[security.ordinal], style = style, color = ink, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@get:StringRes
+private val ConnectionSecurity.words: Int
+    get() = when (this) {
+        ConnectionSecurity.Encrypted -> R.string.server_encrypted
+        ConnectionSecurity.Plain -> R.string.server_plain
+        ConnectionSecurity.Checking -> R.string.checking
+        ConnectionSecurity.Silent -> R.string.server_silent
+    }
 
 /**
  * A group's [title] in `group`, set from its baseline: [HlSpace.m] under what is above it (a block [HlSpace.l] away),

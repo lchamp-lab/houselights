@@ -5,6 +5,7 @@ import app.houselights.testing.FakeServer
 import app.houselights.testing.certificateRefused
 import app.houselights.ui.onboarding.LoginError
 import app.houselights.ui.onboarding.loginError
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,13 +14,14 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLException
 
 /** Reaching the server typed when signing in: which address, which failure, which server. */
 @RunWith(RobolectricTestRunner::class)
 class JellyfinReachTest {
-    private fun info(version: String, product: String? = "Jellyfin Server") =
-        """{"ServerName":"Maison","Version":"$version","Id":"s1"${product?.let { ",\"ProductName\":\"$it\"" }.orEmpty()}}"""
+    private fun info(version: String, product: String? = "Jellyfin Server", id: String = "s1") =
+        """{"ServerName":"Maison","Version":"$version","Id":"$id"${product?.let { ",\"ProductName\":\"$it\"" }.orEmpty()}}"""
 
     /** What signing in at [typed] says, against [server]. */
     private suspend fun signIn(typed: String, server: FakeServer): LoginError? = try {
@@ -80,37 +82,81 @@ class JellyfinReachTest {
         assertEquals(LoginError.NotJellyfin("http://nas:8096"), signIn("nas:8096", server))
     }
 
-    /** A found server announces plain HTTP unless it requires HTTPS: its HTTPS port is tried first. */
+    /** A found server announces plain HTTP unless it requires HTTPS: its HTTPS port is checked first, briefly. */
     @Test
-    fun aFoundServerIsReachedOverHttpsWhenItAnswersThere() = runTest {
+    fun aFoundServerIsEncryptedWhenItsHttpsAddressAnswersAsItself() = runBlocking {
         val server = FakeServer { Answer(200, info("10.10.3")) }
-        assertEquals("https://192.168.1.5:8920", JellyfinClient.reach(ANNOUNCED, "device", server.http, announced = true).first)
-        assertEquals("a short wait", 3_000, server.connectTimeouts.getValue("https://192.168.1.5:8920/System/Info/Public"))
+        assertEquals(ServerCheck.Encrypted(TWIN), JellyfinClient.check(FOUND, server.http))
+        assertEquals("a short wait", 3_000, server.connectTimeouts.getValue("$TWIN/System/Info/Public"))
+        assertTrue(server.requests.all { it.url.isHttps })
     }
 
-    /** Its certificate names a domain, not this address, or signs itself: it signs in as announced, as it did before. */
+    /** Another service on 8920, or another Jellyfin: not the server found, which is then reached as announced. */
     @Test
-    fun aFoundServerWhoseCertificateDoesNotFitItsAddressIsReachedAsAnnounced() = runTest {
+    fun anotherServerOnItsHttpsPortLeavesItPlain() = runBlocking {
+        val server = FakeServer { request -> Answer(200, if (request.url.isHttps) info("10.10.3", id = "other") else info("10.10.3")) }
+        assertEquals(ServerCheck.Plain(ANNOUNCED), JellyfinClient.check(FOUND, server.http))
+        assertEquals(ServerCheck.Plain(ANNOUNCED), JellyfinClient.check(FOUND.copy(id = null), server.http))
+    }
+
+    /** Its certificate names a domain, not this address, or signs itself: plain, as the connection will be. */
+    @Test
+    fun aFoundServerWhoseCertificateIsRefusedIsPlain() = runBlocking {
         val server = FakeServer { request -> if (request.url.isHttps) throw certificateRefused() else Answer(200, info("10.10.3")) }
-        assertEquals(ANNOUNCED, JellyfinClient.reach(ANNOUNCED, "device", server.http, announced = true).first)
+        assertEquals(ServerCheck.Plain(ANNOUNCED), JellyfinClient.check(FOUND, server.http))
+        assertEquals("as briefly", 3_000, server.connectTimeouts.getValue("$ANNOUNCED/System/Info/Public"))
     }
 
     @Test
-    fun aFoundServerOutOfReachIsNamedByTheAddressItAnnounced() = runTest {
+    fun aFoundServerAnsweringNeitherIsSilent() = runBlocking {
         val server = FakeServer { request ->
             if (request.url.isHttps) throw certificateRefused() else throw ConnectException("Connection refused")
         }
-        val failure = runCatching { JellyfinClient.reach(ANNOUNCED, "device", server.http, announced = true) }.exceptionOrNull()
-        assertEquals(LoginError.Unreachable(ANNOUNCED), failure?.let { loginError(it, ANNOUNCED) })
+        assertEquals(ServerCheck.Silent, JellyfinClient.check(FOUND, server.http))
+        assertEquals(ServerCheck.Silent, JellyfinClient.check(FOUND.copy(address = "nas salon"), server.http))
     }
 
-    /** Typed with its scheme, or announced on another port than Jellyfin's: as it is written. */
+    /** A server announcing its HTTPS address, on its own name, is checked there alone; elsewhere, on Jellyfin's HTTPS port. */
     @Test
-    fun anAddressTypedWithItsSchemeOrOnAnotherPortIsReachedAsWritten() = runTest {
+    fun aFoundServerIsCheckedAtTheHttpsAddressItAnnouncesElseOnPort8920() = runBlocking {
+        val server = FakeServer { Answer(200, info("10.10.3")) }
+        val named = "https://jellyfin.example.org"
+        assertEquals(ServerCheck.Encrypted(named), JellyfinClient.check(FOUND.copy(address = named), server.http))
+        val otherPort = FOUND.copy(address = "http://192.168.1.5:9000/jellyfin")
+        assertEquals(ServerCheck.Encrypted("https://192.168.1.5:8920/jellyfin"), JellyfinClient.check(otherPort, server.http))
+        assertTrue(server.requests.all { it.url.isHttps })
+    }
+
+    /**
+     * A server that stalls, as a name looked up in vain does, is given up on once the wait is over, each address:
+     * OkHttp's own call timeout cannot cut a lookup short. Checks are timed on the clock, so their tests run on it.
+     */
+    @Test
+    fun aFoundServerThatStallsIsGivenUpOnInTime() = runBlocking {
+        val server = FakeServer { Thread.sleep(STALL_MS); Answer(200, info("10.10.3")) }
+        val start = System.nanoTime()
+        assertEquals(ServerCheck.Silent, JellyfinClient.check(FOUND, server.http, waitMs = 100))
+        val took = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)
+        assertTrue("$took ms for both addresses", took < STALL_MS)
+    }
+
+    /** Asked anonymously: the device's name and id go to the server signed in to, not to whatever answered. */
+    @Test
+    fun aFoundServerIsCheckedAnonymously() = runBlocking {
+        val server = FakeServer { Answer(200, info("10.10.3")) }
+        JellyfinClient.check(FOUND, server.http)
+        assertTrue(server.requests.none { it.header("Authorization") != null || it.header("X-Emby-Authorization") != null })
+    }
+
+    /** What a check found is reached as written: HTTPS alone once encrypted, the announced address once plain. */
+    @Test
+    fun anAddressTypedWithItsSchemeIsReachedAsWritten() = runTest {
+        val silent = FakeServer { throw ConnectException("Connection refused") }
+        val failure = runCatching { JellyfinClient.reach(TWIN, "device", silent.http) }.exceptionOrNull()
+        assertEquals(LoginError.Unreachable(TWIN), failure?.let { loginError(it, TWIN) })
+        assertTrue(silent.requests.all { it.url.isHttps })
         val server = FakeServer { Answer(200, info("10.10.3")) }
         assertEquals(ANNOUNCED, JellyfinClient.reach(ANNOUNCED, "device", server.http).first)
-        val otherPort = "http://192.168.1.5:9000"
-        assertEquals(otherPort, JellyfinClient.reach(otherPort, "device", server.http, announced = true).first)
         assertTrue(server.requests.none { it.url.isHttps })
     }
 
@@ -150,5 +196,14 @@ class JellyfinReachTest {
     private companion object {
         /** What a server on the network says it is at, unless it requires HTTPS. */
         const val ANNOUNCED = "http://192.168.1.5:8096"
+
+        /** Its HTTPS address, on Jellyfin's port. */
+        const val TWIN = "https://192.168.1.5:8920"
+
+        /** Longer than a server found is waited for. */
+        const val STALL_MS = 2_000L
+
+        /** The server as discovery found it; its id is the one its public info gives. */
+        val FOUND = DiscoveredServer(ANNOUNCED, "Maison", "s1")
     }
 }

@@ -270,6 +270,11 @@
 
     <string name="jellyfin_title">Connexion à Jellyfin</string>
     <string name="servers_found">Serveurs trouvés sur le réseau</string>
+    <string name="server_encrypted">Chiffré</string>
+    <string name="server_plain">Non chiffré</string>
+    <string name="server_silent">Ne répond pas</string>
+    <string name="connection_is_encrypted">Connexion chiffrée</string>
+    <string name="connection_is_plain">Connexion non chiffrée</string>
     <string name="field_server">Adresse du serveur</string>
     <string name="placeholder_server">Ex. : 192.168.1.10:8096</string>
     <string name="sign_in">Se connecter</string>

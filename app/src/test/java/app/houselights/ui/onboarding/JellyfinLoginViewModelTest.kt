@@ -7,6 +7,7 @@ import app.houselights.providers.jellyfin.AuthResult
 import app.houselights.providers.jellyfin.DiscoveredServer
 import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.PublicSystemInfo
+import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.providers.jellyfin.UserDto
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
@@ -57,13 +58,22 @@ class JellyfinLoginViewModelTest {
         var answer: CompletableDeferred<Unit>? = null
         val asked = CompletableDeferred<Unit>()
 
-        override suspend fun discover() = listOf(DiscoveredServer("http://192.168.1.5:8096", "Maison"))
+        override suspend fun discover() = listOf(MAISON)
 
-        /** Each address asked, and whether as a found server announced it. */
-        val reached = mutableListOf<Pair<String, Boolean>>()
+        /** What checking a server found says, once it does, then checking it again. */
+        val check = CompletableDeferred<ServerCheck>()
+        val again = CompletableDeferred<ServerCheck>()
 
-        override suspend fun reach(input: String, deviceId: String, announced: Boolean): Pair<String, PublicSystemInfo> {
-            reached += input to announced
+        /** How many times a server found was checked. */
+        var checks = 0
+
+        override suspend fun check(found: DiscoveredServer): ServerCheck = (if (++checks == 1) check else again).await()
+
+        /** Each address asked. */
+        val reached = mutableListOf<String>()
+
+        override suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo> {
+            reached += input
             asked.complete(Unit)
             answer?.await()
             reachFailure?.let { throw it }
@@ -105,19 +115,137 @@ class JellyfinLoginViewModelTest {
         assertEquals(listOf(SourceConfig.Jellyfin("https://nas:8920", "Maison", "u1", "lea", "token")), saved)
     }
 
-    /** A found server is reached as it announces itself (HTTPS tried first), an address typed as it is written. */
+    /** Each server found is checked as soon as it appears, and says so meanwhile. */
     @Test
-    fun aServerPickedAmongThoseFoundIsReachedAsAnnounced() = runTest {
+    fun aServerFoundIsCheckedAsSoonAsItAppears() = runTest {
         val vm = login()
         advanceUntilIdle()
-        vm.choose(vm.discovered.single())
+        assertEquals(ServerCheck.Checking, vm.checkOf(MAISON))
+        assertEquals(MAISON.address, vm.addressOf(MAISON))
+        network.check.complete(ServerCheck.Encrypted(TWIN))
+        advanceUntilIdle()
+        assertEquals(ServerCheck.Encrypted(TWIN), vm.checkOf(MAISON))
+        assertEquals("where signing in reaches it", TWIN, vm.addressOf(MAISON))
+    }
+
+    /** Picked « Chiffré », it is reached over HTTPS alone: its address in the field, said in the panel. */
+    @Test
+    fun aServerPickedEncryptedIsReachedOverHttpsAlone() = runTest {
+        network.check.complete(ServerCheck.Encrypted(TWIN))
+        val vm = login()
+        advanceUntilIdle()
+        vm.choose(MAISON)
+        assertEquals(TWIN, vm.server)
+        assertEquals(ServerCheck.Encrypted(TWIN), vm.pickedCheck)
+        vm.login {}
+        settle(vm)
+        assertEquals(listOf(TWIN), network.reached)
+    }
+
+    /** Picked « Non chiffré », it is reached straight at the address it announced, with no new try over HTTPS. */
+    @Test
+    fun aServerPickedPlainIsReachedAtTheAddressItAnnounced() = runTest {
+        network.check.complete(ServerCheck.Plain(MAISON.address))
+        val vm = login()
+        advanceUntilIdle()
+        vm.choose(MAISON)
+        assertEquals(MAISON.address, vm.server)
+        vm.login {}
+        settle(vm)
+        assertEquals(listOf(MAISON.address), network.reached)
+    }
+
+    /**
+     * Picked though it did not answer, it is checked again before anything is sent, its row and the panel saying so,
+     * then reached as that check says: its HTTPS address is never skipped for the plain one.
+     */
+    @Test
+    fun aServerPickedSilentIsCheckedAgainBeforeSigningIn() = runTest {
+        network.check.complete(ServerCheck.Silent)
+        network.authFailure = http(401)
+        val vm = login()
+        advanceUntilIdle()
+        vm.choose(MAISON)
+        vm.login {}
+        waitFor("checked again") { network.checks == 2 }
+        assertEquals(ServerCheck.Checking, vm.checkOf(MAISON))
+        assertEquals(ServerCheck.Checking, vm.pickedCheck)
+        assertTrue(network.reached.isEmpty())
+        network.again.complete(ServerCheck.Encrypted(TWIN))
+        settle(vm)
+        assertEquals(listOf(TWIN), network.reached)
+        assertEquals(TWIN, vm.server)
+        assertEquals(ServerCheck.Encrypted(TWIN), vm.pickedCheck)
+        // Signing in again follows that check, without another.
+        vm.login {}
+        settle(vm)
+        assertEquals(listOf(TWIN, TWIN), network.reached)
+        assertEquals(2, network.checks)
+    }
+
+    /** Still silent once checked again, it is tried once at the address it announced, which names a failure. */
+    @Test
+    fun aServerStillSilentIsTriedAtTheAddressItAnnounced() = runTest {
+        network.check.complete(ServerCheck.Silent)
+        network.again.complete(ServerCheck.Silent)
+        network.reachFailure = IOException("Connection refused")
+        val vm = login()
+        advanceUntilIdle()
+        vm.choose(MAISON)
+        assertEquals(MAISON.address, vm.server)
+        vm.login {}
+        settle(vm)
+        assertEquals(2, network.checks)
+        assertEquals(listOf(MAISON.address), network.reached)
+        assertEquals(LoginError.Unreachable(MAISON.address), vm.error)
+    }
+
+    /** Picked while checked: its address without a protocol, then the one the check verified. */
+    @Test
+    fun aServerPickedWhileCheckedTakesTheVerifiedAddressOnceChecked() = runTest {
+        val vm = login()
+        advanceUntilIdle()
+        vm.choose(MAISON)
+        assertEquals("192.168.1.5:8096", vm.server)
+        assertEquals(ServerCheck.Checking, vm.pickedCheck)
+        network.check.complete(ServerCheck.Encrypted(TWIN))
+        advanceUntilIdle()
+        assertEquals(TWIN, vm.server)
+        assertEquals(ServerCheck.Encrypted(TWIN), vm.pickedCheck)
+    }
+
+    /** An address edited meanwhile is the user's: the check leaves it, and signing in reaches it as typed. */
+    @Test
+    fun anAddressEditedWhileCheckedIsKept() = runTest {
+        val vm = login()
+        advanceUntilIdle()
+        vm.choose(MAISON)
+        vm.server = "http://192.168.1.5:8096"
+        network.check.complete(ServerCheck.Encrypted(TWIN))
+        advanceUntilIdle()
         assertEquals("http://192.168.1.5:8096", vm.server)
+        assertNull(vm.pickedCheck)
         vm.login {}
         settle(vm)
-        vm.server = "http://192.168.1.5:8096/"
+        assertEquals("a typed http:// is honoured", listOf("http://192.168.1.5:8096"), network.reached)
+    }
+
+    /** Signing in while the server picked is checked waits for the check, then follows it, and says what failed. */
+    @Test
+    fun signingInWhileCheckedFollowsTheCheck() = runTest {
+        network.reachFailure = IOException("Connection refused")
+        val settings = testSettings(folder.root, backgroundScope)
+        val vm = login(settings)
+        advanceUntilIdle()
+        vm.choose(MAISON)
         vm.login {}
+        waitFor("the device's id saved") { settings.state.value.deviceId.isNotEmpty() }
+        assertTrue(vm.busy)
+        assertTrue(network.reached.isEmpty())
+        network.check.complete(ServerCheck.Plain(MAISON.address))
         settle(vm)
-        assertEquals(listOf("http://192.168.1.5:8096" to true, "http://192.168.1.5:8096/" to false), network.reached)
+        assertEquals(listOf(MAISON.address), network.reached)
+        assertEquals(LoginError.Unreachable(MAISON.address), vm.error)
     }
 
     @Test
@@ -230,5 +358,12 @@ class JellyfinLoginViewModelTest {
         assertFalse(done)
         assertTrue(saved.isEmpty())
         return vm.error
+    }
+
+    private companion object {
+        val MAISON = DiscoveredServer("http://192.168.1.5:8096", "Maison", "s1")
+
+        /** Its HTTPS address, on Jellyfin's port. */
+        const val TWIN = "https://192.168.1.5:8920"
     }
 }
