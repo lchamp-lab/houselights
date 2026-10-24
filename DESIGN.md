@@ -98,8 +98,8 @@ What is not the picture (settings, sheets, forms, search) keeps one grammar, rea
 
 1. **Scale.** A pane's title in `subject` on its screen title's baseline (`PaneHead`); a row `HlSize.row` (60) tall, its name in
    `entry`, what it does in secondary `meta` on one line beside its value (`PaneRowLineTest`); running text in `body` (16 on
-   24); a group's title in `group`. Nothing under 14: notes (`AttentionNote`), a scan's file and a state's reason are
-   `meta`, formats `jaquette`.
+   24); a group's title in `group`. Nothing under 14 but a mark in its box (`badge`): notes (`AttentionNote`), a scan's file
+   and a state's reason are `meta`, formats `jaquette`.
 2. **Air.** Groups `HlSpace.l` apart, never a rule: no `HlDivider` in a pane or a sheet. Words are spaced from their
    baselines, as the board measures them, not from their boxes (`SheetRhythmTest`).
 3. **Density.** Five or six things in view; the rest scrolls.
