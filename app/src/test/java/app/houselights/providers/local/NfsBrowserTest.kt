@@ -19,12 +19,20 @@ import kotlin.concurrent.thread
 
 /** Which NFS failures, as nfs-client 1.1 raises them, remount the export, what waits for a mount, and who mounts it. */
 class NfsBrowserTest {
-    /** A folder presents its user and group to the NAS, root when it has none, as AUTH_SYS writes them on the wire. */
+    /**
+     * A folder presents its user and group to the NAS, root when it has none, as AUTH_SYS writes them on the wire: for
+     * its listing, its test and the reads of its NFO, artwork and headers.
+     */
     @Test
-    fun aFolderPresentsItsIdentityToTheNas() {
+    fun aFolderPresentsItsIdentityToTheNas() = runBlocking {
+        val presented = mutableListOf<Pair<Int, Pair<Int, Int>>>()
+        val nfs = NfsBrowser(mount = { _, _, credential -> EmptyExport.also { presented += presented(credential) } }, clock = { 0L })
         val folder = nfsFolder(host = "192.168.1.20", share = "volume1/media")
-        assertEquals(1 to (0 to 0), presented(NfsBrowser.credential(folder)))
-        assertEquals(1 to (1026 to 100), presented(NfsBrowser.credential(folder.copy(uid = 1026, gid = 100))))
+        nfs.list(folder)
+        nfs.test(folder.copy(uid = 1026, gid = 100))
+        // Nothing to read in an empty export: the mount is what counts.
+        runCatching { nfs.readAt(folder.copy(uid = 1000, gid = 10), "Film.nfo", 0, 1) }
+        assertEquals(listOf(1 to (0 to 0), 1 to (1026 to 100), 1 to (1000 to 10)), presented)
     }
 
     /** AUTH_SYS's flavour, then the uid and gid that follow its stamp and machine name. */
@@ -44,10 +52,10 @@ class NfsBrowserTest {
      */
     @Test
     fun anExportIsMountedOncePerIdentity() = runBlocking {
-        val mounts = mutableListOf<Pair<Int?, Int?>>()
+        val mounts = mutableListOf<Pair<Int, Int>>()
         val nfs = NfsBrowser(
-            mount = { folder ->
-                mounts += folder.uid to folder.gid
+            mount = { _, _, credential ->
+                mounts += presented(credential).second
                 EmptyExport
             },
             clock = { 0L },
@@ -55,11 +63,11 @@ class NfsBrowserTest {
         val root = nfsFolder(host = "192.168.1.20", share = "volume1/media", path = "Films")
         val user = root.copy(uid = 1026, gid = 100)
         listOf(root, user, user.copy(path = "Series"), root).forEach { nfs.list(it) }
-        assertEquals(listOf(null to null, 1026 to 100), mounts)
+        assertEquals(listOf(0 to 0, 1026 to 100), mounts)
 
         nfs.forget(root)
         listOf(root, user).forEach { nfs.list(it) }
-        assertEquals(listOf(null to null, 1026 to 100, null to null, 1026 to 100), mounts)
+        assertEquals(listOf(0 to 0, 1026 to 100, 0 to 0, 1026 to 100), mounts)
     }
 
     /** An export with nothing in it. */
@@ -81,7 +89,7 @@ class NfsBrowserTest {
         val mounting = CountDownLatch(1)
         val answer = CountDownLatch(1)
         val nfs = NfsBrowser(
-            mount = {
+            mount = { _, _, _ ->
                 mounting.countDown()
                 answer.await()
                 throw IOException("rpc request timeout on the connection: /192.168.1.20:635")
