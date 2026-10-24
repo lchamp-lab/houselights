@@ -77,44 +77,14 @@ internal fun AddFolderForm(
     val focus = remember { FormFocus() }
     // Wait until an edited folder is read, so its fields are laid out (the password only for SMB).
     LaunchedEffect(vm.ready) { if (vm.ready) focus.request(focusOn, vm.form.user) }
-    val check = vm.check
-    val result = resultText(check, gone = vm.gone)
-    val success = check is FolderCheck.Reachable && !vm.gone
     val kind = form.kind
     val protocol = form.protocol
-
-    // Live preview of the address the player will open, without credentials: the host, then its path.
-    val s = form.toSource()
-    val folder = "/" + listOf(s.share, s.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
-    val (state, stateText) = connectionState(check, testing = vm.testing, gone = vm.gone)
     val identity = identityText(form).takeIf { protocol == Protocol.NFS }
-    val unknown = vm.gone || vm.unread
 
     HlFormScaffold(
         title = stringResource(if (vm.edits) R.string.edit_folder else R.string.add_folder),
         description = stringResource(if (vm.edits) R.string.edit_folder_desc else R.string.add_folder_desc),
-        aside = {
-            StatusPanel(
-                state = state,
-                stateText = stringResource(stateText),
-                label = stringResource(R.string.label_address),
-                value = s.host.ifBlank { stringResource(R.string.placeholder_pending) },
-                detail = folder.takeIf { it.length > 1 },
-                // A folder deleted or unread was never read: its protocol and kind would be the form's defaults.
-                badges = if (unknown) emptyList() else listOf(protocol.name),
-                facts = if (unknown) emptyList() else listOf(sourceKindName(kind), identity),
-                result = result,
-                resultIsError = !success,
-            )
-            if (!vm.unread) {
-                Spacer(Modifier.height(HlSpace.l))
-                Text(
-                    stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
-                    style = Hl.type.meta,
-                    color = Hl.colors.contentSecondary,
-                )
-            }
-        },
+        aside = { FolderStatus(vm, identity) },
         room = room,
     ) {
         if (vm.unread) {
@@ -241,6 +211,40 @@ private fun identityText(form: FolderForm): String? {
     if (form.uid.isEmpty() && form.gid.isEmpty()) return null
     val none = stringResource(R.string.placeholder_none)
     return stringResource(R.string.nfs_identity, form.uid.ifEmpty { none }, form.gid.ifEmpty { none })
+}
+
+/**
+ * Where the folder of [vm] stands beside its form: the address the player will open, without credentials, its
+ * protocol, kind and NFS [identity], the last test's result; then what the NAS must allow.
+ */
+@Composable
+private fun FolderStatus(vm: AddFolderViewModel, identity: String?) {
+    val check = vm.check
+    val protocol = vm.form.protocol
+    val s = vm.form.toSource()
+    val folder = "/" + listOf(s.share, s.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
+    val (state, stateText) = connectionState(check, testing = vm.testing, gone = vm.gone)
+    // A folder deleted or unread was never read: its protocol and kind would be the form's defaults.
+    val unknown = vm.gone || vm.unread
+    StatusPanel(
+        state = state,
+        stateText = stringResource(stateText),
+        label = stringResource(R.string.label_address),
+        value = s.host.ifBlank { stringResource(R.string.placeholder_pending) },
+        detail = folder.takeIf { it.length > 1 },
+        badges = if (unknown) emptyList() else listOf(protocol.name),
+        facts = if (unknown) emptyList() else listOf(sourceKindName(vm.form.kind), identity),
+        result = resultText(check, gone = vm.gone),
+        resultIsError = check !is FolderCheck.Reachable || vm.gone,
+    )
+    if (!vm.unread) {
+        Spacer(Modifier.height(HlSpace.l))
+        Text(
+            stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
+            style = Hl.type.meta,
+            color = Hl.colors.contentSecondary,
+        )
+    }
 }
 
 /** Add (or Save) and Test, both testing first: the pressed one shows progress, the other is disabled meanwhile. */
