@@ -71,7 +71,7 @@ class LibraryViewModel(
     private val provider: () -> MediaProvider?,
     private val library: Library,
     private val saved: SavedStateHandle = SavedStateHandle(),
-    /** The first page, prefetched while Home's track moved to this library. */
+    /** The first page, prefetched as its door on home was chosen. */
     private val ahead: LibraryAhead? = null,
     opensOn: LibraryFilter? = null,
     sagas: Library? = null,

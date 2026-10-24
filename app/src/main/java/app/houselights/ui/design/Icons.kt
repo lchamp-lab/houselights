@@ -177,6 +177,46 @@ object HlIcons {
         "M16 18L16 22",
     )
 
+    /** What follows: play to a bar, the next episode (`skip-forward`). */
+    val Next = icon("Next", "M5 4L15 12L5 20L5 4Z", "M19 5L19 19")
+
+    /** What is new: three sparks (`sparkles`). */
+    val Sparkles = icon(
+        "Sparkles",
+        "M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135" +
+            "a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063" +
+            "a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z",
+        "M20 3v4",
+        "M22 5h-4",
+    )
+
+    /** A library of films: a strip of film (`film`). */
+    val Film = icon(
+        "Film",
+        "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z",
+        "M7 3v18",
+        "M3 7.5h4",
+        "M3 12h18",
+        "M3 16.5h4",
+        "M17 3v18",
+        "M17 7.5h4",
+        "M17 16.5h4",
+    )
+
+    /** A library of shows: a set with its aerial (`tv`). */
+    val Tv = icon("Tv", "M4 7h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z", "m17 2-5 5-5-5")
+
+    /** Sagas: films stacked (`layers`). */
+    val Layers = icon(
+        "Layers",
+        "m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z",
+        "m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65",
+        "m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65",
+    )
+
+    /** The libraries of a server, gathered: spines on a shelf (`library`). */
+    val Library = icon("Library", "m16 6 4 14", "M12 6v14", "M8 8v12", "M4 4v16")
+
     /** Add: a plus (`plus`). */
     val Add = icon("Add", "M5 12h14", "M12 5v14")
 

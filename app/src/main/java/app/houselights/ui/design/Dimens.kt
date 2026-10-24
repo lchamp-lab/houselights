@@ -92,7 +92,7 @@ object HlSize {
     /** A button on a detail page; [controlCompact] in a screen's header. */
     val control = 48.dp
     val controlCompact = 44.dp
-    /** A square icon button; [tileCompact] in a screen's header and the bar. */
+    /** A square icon button; [tileCompact] in a screen's header. */
     val tile = 48.dp
     val tileCompact = 40.dp
     val icon = 20.dp
@@ -114,8 +114,9 @@ object HlSize {
     /** The dot of a title new to the library, ringed in black ([newDotRing]) to stand off any picture. */
     val newDot = 10.dp
     val newDotRing = 2.5.dp
-    /** The ember dot before a row's count of new titles. */
+    /** The ember dot before a row's count of new titles; [doorDot] before a door's, a size up. */
     val newsDot = 7.dp
+    val doorDot = 8.dp
     /** The box a state's light sits in, so text lines up after a dot or the attention mark. */
     val statusLight = 16.dp
     /** An icon in a line of text (rating star). */
@@ -139,7 +140,7 @@ object HlSize {
     const val PREVIEW_RATIO = 16f / 9f
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
-    /** The progress of home's hero title, before its time left. */
+    /** The progress in a hero (« À regarder », a person's page), before its time left; [heroProgressWeight] on home's case too. */
     val heroProgress = 220.dp
     val heroProgressWeight = 4.dp
     /** Placeholder rules for a title and its facts while a page loads. */
@@ -164,8 +165,6 @@ object HlSize {
      */
     val galleryWide = 244.dp
     const val LOGO_BOX_RATIO = 244f / 85f
-    /** Gradation signing the bar, as tall as its words' capitals. */
-    val barMark = 18.dp
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
     val focusBorder = 2.dp
     val hairline = 1.dp
@@ -186,12 +185,12 @@ object HlLayout {
     /** Text set beside artwork (heroes, detail pages). */
     val readableNarrow = 520.dp
     val fieldShort = 120.dp
-    /** Clear logo or title of a detail page, and of a browsing hero. */
+    /** Clear logo or title of a detail page. */
     val titleArtWidth = 440.dp
     val titleArtHeight = 112.dp
     /**
-     * Home hero band, [HlSpace.l] from the bar and the rows: logo, facts, two overview lines, [HlSpace.s]
-     * apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
+     * The hero band of « À regarder » (and of a person's page), [HlSpace.l] from its title and its rows: logo, facts, two
+     * overview lines, [HlSpace.s] apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
      */
     val hero = 148.dp
     /** Title line above a poster wall, in `rowTitle`: 28 at the default text size, growing with it. */
@@ -252,7 +251,67 @@ internal object TwoPaneDefaults {
     val sideWide = 344.dp
 }
 
-/** The logo or title of a browsing hero (home's). */
+/**
+ * Home's grid (DESIGN.md, Layout): the lockup's band, then the case on the left and three rows of doors across the
+ * safe area: what is watched, the libraries, the tools. A row's doors share its width by spans of four.
+ */
+internal object HomeGridDefaults {
+    /** The lockup's band under the safe area's top, and the gap from it to the grid. */
+    val head = 20.dp
+    val headGap = 20.dp
+
+    /** The lockup's capitals: its bars as tall as the band less its air (16). */
+    val lockup = 11.5.dp
+
+    /** The case: the title in progress, or one not seen yet. */
+    val case = 252.dp
+    val watchRow = 136.dp
+    val libraryRow = 148.dp
+    val toolRow = 136.dp
+
+    /** A door's band, under its picture: its icon, its name and what it says, at the default text size; on one part, closer. */
+    val band = 38.dp
+    val bandIcon = 18.dp
+    val bandGapNarrow = 6.dp
+
+    /** The case's logo, and the next episode's over its still. */
+    val caseLogoWidth = 188.dp
+    val caseLogoHeight = 96.dp
+    val stillLogoWidth = 108.dp
+    val stillLogoHeight = 40.dp
+
+    /** The case's action, a plate the case's focus fills. */
+    val action = 40.dp
+    val actionIcon = 17.dp
+
+    /** The episodes of a season along a band's top edge, and between two. */
+    val segment = 3.dp
+    val segmentGap = 2.dp
+
+    /** A count cut in posters: the air its longest keeps across and down, from the picture's start. */
+    val figureAirX = 14.dp
+    val figureAirY = 13.dp
+    val figureStart = 13.dp
+
+    /** A poster of the news door's band, as wide as its picture's height makes it at the default text size. */
+    val stripPoster = 66.dp
+
+    /** Two sagas stacked: their posters' width, and where each stands in the door's picture. */
+    val sagaPoster = 54.dp
+    val sagaBack = 62.dp
+    val sagaFront = 22.dp
+    val sagaBackTop = 8.dp
+    val sagaFrontTop = 12.dp
+
+    /** A small poster of the search door's wall, at least this wide. */
+    val wallThumb = 32.dp
+
+    /** The settings' state: between its two columns and its lines. */
+    val stateColumns = 28.dp
+    val stateRows = 11.dp
+}
+
+/** The logo or title of a hero: « À regarder », a person's page. */
 internal object HeroDefaults {
     val titleWidth = 380.dp
     val titleHeight = 56.dp
@@ -292,15 +351,6 @@ internal object HlIconButtonDefaults {
 
     /** Closest the label may come to a screen side: past the safe area, so an edge button keeps it centred. */
     val labelEdge = HlSpace.l
-}
-
-/** The bar of places ([app.houselights.ui.design.components.HlNavBar]) and a wall under it. */
-internal object HlNavBarDefaults {
-    /** From Gradation to the first place's word: its plate stands [HlSpace.xl] off the mark. */
-    val markGap = HlSpace.xl + HlControl.tabPaddingH
-
-    /** How much lower a wall lies under the open bar: the bar, then the gap above the wall's header. */
-    val fold = HlSize.tileCompact + HlSpace.s
 }
 
 /** Menus anchored to a button (sort); their height is the room the screen leaves them. */

@@ -6,9 +6,9 @@ import androidx.test.uiautomator.By
 import java.util.regex.Pattern
 
 // A viewer's most common journeys, which the baseline profile compiles and the benchmarks measure. Each
-// starts from a fresh home, focus on the first card, and navigates by on-screen text.
+// starts from a fresh home, focus on its case, and navigates by on-screen text.
 
-/** Home freshly started: its first row shown, focus on its first card. */
+/** Home freshly started: its grid shown, focus on its case. */
 internal fun MacrobenchmarkScope.startHome() {
     killProcess()
     startActivityAndWait()
@@ -16,50 +16,52 @@ internal fun MacrobenchmarkScope.startHome() {
 }
 
 internal fun MacrobenchmarkScope.awaitHome() {
-    await(By.textStartsWith(appString("section_latest_movies")), "home's rows")
+    await(By.textStartsWith(appString("home_news")), "home's grid")
 }
 
-/** Along the first row and back, the hero following focus; then the next row. */
+/** Round home's grid, door by door, back to the case. */
 internal fun MacrobenchmarkScope.browseHome() {
-    right(6)
-    left(6)
-    down()
-    right(4)
-    left(4)
+    right()
     up()
+    right()
+    down(2)
+    left(2)
+    left()
 }
 
-/** Up to the tabs and along them, then the films' wall, browsed. */
+/** The films' door, then its wall, browsed. */
 internal fun MacrobenchmarkScope.browseLibrary() {
-    up(2)
-    right(2)
-    focusOn(appString("library_movies"), KeyEvent.KEYCODE_DPAD_LEFT)
+    focusOn(appString("library_movies"), KeyEvent.KEYCODE_DPAD_RIGHT, max = 2)
     ok()
     await(By.textStartsWith(appString("sort")), "the films' wall")
     right(4)
     down()
     left(2)
     down()
-    // Back to the bar, then home.
+    // Back to the first poster, then home.
     back(2)
 }
 
-/** A film's page: down its rows and along its cast, then back up to its actions and home. */
+/** A film's page from « À regarder »: down its rows and along its cast, then back up to its actions and home. */
 internal fun MacrobenchmarkScope.browseDetail() {
+    right()
+    up()
+    focusOn(appString("home_news"), KeyEvent.KEYCODE_DPAD_RIGHT, max = 2)
+    ok()
+    await(By.text(appString("watch_title")), "the rows to watch")
     ok()
     awaitDetail()
     down(3)
     right(4)
     left(4)
     up(3)
-    back()
+    back(2)
 }
 
 /** A series' page from its wall: its episodes, the overview following focus, then its cast. */
 internal fun MacrobenchmarkScope.browseShow() {
-    up(2)
     if (!device.hasObject(By.text(appString("library_shows")))) return
-    focusOn(appString("library_shows"), KeyEvent.KEYCODE_DPAD_RIGHT)
+    focusOn(appString("library_shows"), KeyEvent.KEYCODE_DPAD_RIGHT, max = 3)
     ok()
     await(By.textStartsWith(appString("sort")), "the series' wall")
     ok()
@@ -82,11 +84,11 @@ internal fun MacrobenchmarkScope.browseSettings() {
     back(2)
 }
 
-/** A search from home's bar: a few letters typed, the results read, then home. None for a source that cannot search. */
+/** A search from home's door: a few letters typed, the results read, then home. None for a source that cannot search. */
 internal fun MacrobenchmarkScope.browseSearch() {
-    up(2)
-    right(4)
-    if (!focusSays(appString("search"))) focusOn(appString("search"), KeyEvent.KEYCODE_DPAD_LEFT, max = 3)
+    right()
+    down()
+    focusOn(appString("search"), KeyEvent.KEYCODE_DPAD_RIGHT, max = 2)
     ok()
     await(By.text(appString("search_hint")), "the search")
     // A, M, E: down the keys, then up and along them.

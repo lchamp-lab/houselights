@@ -99,7 +99,7 @@ enum class Emphasis { Primary, Secondary }
 /** Set by [HeaderControls]: buttons and tiles take their compact sizes. */
 private val LocalInHeader = staticCompositionLocalOf { false }
 
-/** Lays [content] out as a screen's header or home's bar: its buttons 44 tall, its tiles 40 square. */
+/** Lays [content] out as a screen's header: its buttons 44 tall, its tiles 40 square. */
 @Composable
 fun HeaderControls(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalInHeader provides true, content = content)
@@ -514,11 +514,11 @@ fun HlListItem(
 }
 
 /**
- * Where you are among a few places, as words in the poster's voice: home's bar, seasons, NFO views, a form's
- * choice. The current word is lit in ember, the others grey; focus is the white plate, a raspberry dot before
- * the current word. Words line up with the start edge and their plates hang past it, so nothing moves as focus
- * or the choice moves. Focus enters on [enterAt] (the current option by default), never the nearest; options
- * read as tabs. [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10".
+ * Where you are among a few places, as words in the poster's voice: seasons, NFO views, a form's choice. The
+ * current word is lit in ember, the others grey; focus is the white plate, a raspberry dot before the current word.
+ * Words line up with the start edge and their plates hang past it, so nothing moves as focus or the choice moves.
+ * Focus enters on [enterAt] (the current option by default), never the nearest; options read as tabs.
+ * [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10".
  */
 @Composable
 fun HlSegmented(

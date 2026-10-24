@@ -3,18 +3,13 @@ package app.houselights.ui.home
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import app.houselights.core.HomeSection
-import app.houselights.core.Library
-import app.houselights.core.LibraryKind
-import app.houselights.core.MediaItem
-import app.houselights.core.MediaKind
-import app.houselights.core.SectionType
 import app.houselights.ui.design.LaunchScreen
 import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.testing.TV
@@ -29,7 +24,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * DESIGN.md, Focus: Back at home's start says once that a second Back quits, in the bar, then quits; under the
+ * DESIGN.md, Focus: Back on home's grid says once that a second Back quits, in its head, then quits; under the
  * launch screen, the first quits.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -38,18 +33,7 @@ class QuitAgainTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
 
-    private fun film(n: Int) = MediaItem(id = "film$n", kind = MediaKind.MOVIE, title = "Film $n", year = 2000 + n)
-
-    private val home = HomeState(
-        libraries = listOf(Library("movies", LibraryKind.MOVIES, null), Library("shows", LibraryKind.SHOWS, null)),
-        content = HomeContent.Rows(
-            listOf(
-                HomeSection(SectionType.LATEST, (1..12).map(::film), landscape = false, libraryId = "movies"),
-                HomeSection(SectionType.LATEST, (20..32).map(::film), landscape = false, libraryId = "shows"),
-            ),
-            firstScan = false,
-        ),
-    )
+    private val home = fullHome()
 
     private val line = "Press Back again to quit"
 
@@ -62,7 +46,7 @@ class QuitAgainTest {
 
     private fun open(launch: LaunchScreen? = null) {
         compose.setTvContent {
-            if (launch == null) HomeBands(home) else CompositionLocalProvider(LocalLaunchScreen provides launch) { HomeBands(home) }
+            if (launch == null) HomeGrid(home) else CompositionLocalProvider(LocalLaunchScreen provides launch) { HomeGrid(home) }
         }
         compose.waitForIdle()
     }
@@ -75,19 +59,22 @@ class QuitAgainTest {
     private val quits get() = compose.activity.isFinishing
 
     @Test
-    fun aFirstBackFromTheFirstRowSaysASecondQuits() {
+    fun aFirstBackSaysASecondQuits() {
         open()
         back()
+        // Read out politely as it comes.
         compose.onNodeWithText(line).assertIsDisplayed()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
         assertFalse("one Back never quits", quits)
         back()
         assertTrue(quits)
     }
 
     @Test
-    fun theBarAsksTheSameWay() {
+    fun everyDoorAsksTheSameWay() {
         open()
-        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionDown)
         back()
         compose.onNodeWithText(line).assertIsDisplayed()
         assertFalse(quits)
@@ -111,15 +98,12 @@ class QuitAgainTest {
     }
 
     @Test
-    fun theLineGoesAsSoonAsFocusMovesDown() {
+    fun theLineGoesAsSoonAsFocusMoves() {
         open()
-        compose.press(Key.DirectionUp)
         back()
         compose.onNodeWithText(line).assertIsDisplayed()
-        // Along the bar it stays; down into the rows it goes, and Back asks again.
+        // To another door it goes, and Back asks again.
         compose.press(Key.DirectionRight)
-        compose.onNodeWithText(line).assertIsDisplayed()
-        compose.press(Key.DirectionDown)
         compose.onNodeWithText(line).assertDoesNotExist()
         back()
         assertFalse(quits)
@@ -145,16 +129,6 @@ class QuitAgainTest {
         assertFalse(quits)
         back()
         assertTrue(quits)
-    }
-
-    @Test
-    fun backFromALowerRowStillGoesUpToTheBarFirst() {
-        open()
-        compose.press(Key.DirectionDown)
-        back()
-        compose.onNode(isFocused()).assert(hasText("Home"))
-        compose.onNodeWithText(line).assertDoesNotExist()
-        assertFalse(quits)
     }
 
     private companion object {

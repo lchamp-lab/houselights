@@ -96,10 +96,11 @@ internal fun lastScanned(context: Context, at: Long, now: Long): String =
     if (at <= 0) context.getString(R.string.never_scanned) else context.getString(R.string.last_scan, relativeTime(context, at, now))
 
 /**
- * How long ago [at] was, for mid-sentence ("il y a 3 minutes", "hier"), capitalised with [alone]. The system's
- * casing is not used: it capitalises wherever the words fall ("Analyse : Il y a…").
+ * How long ago [at] was, for mid-sentence ("il y a 3 minutes", "hier"), capitalised with [alone], its unit
+ * abbreviated when [short] ("il y a 2 h"). The system's casing is not used: it capitalises wherever the words fall
+ * ("Analyse : Il y a…").
  */
-internal fun relativeTime(context: Context, at: Long, now: Long, alone: Boolean = false): String {
+internal fun relativeTime(context: Context, at: Long, now: Long, alone: Boolean = false, short: Boolean = false): String {
     val locale = context.resources.configuration.locales[0]
     val elapsed = now - at
     val text = when {
@@ -109,7 +110,7 @@ internal fun relativeTime(context: Context, at: Long, now: Long, alone: Boolean 
             val words = RelativeDateTimeFormatter.getInstance(
                 ULocale.forLocale(locale),
                 null,
-                RelativeDateTimeFormatter.Style.LONG,
+                if (short) RelativeDateTimeFormatter.Style.SHORT else RelativeDateTimeFormatter.Style.LONG,
                 DisplayContext.CAPITALIZATION_FOR_MIDDLE_OF_SENTENCE,
             )
             val (count, unit) = when {

@@ -154,12 +154,12 @@ class ContrastTest {
         ("contentTertiary" on "background").mark(), ("contentTertiary" on "glass").mark(),
         ("contentTertiary" on "FILL").mark(),
         // A control's plate over a picture: its words, its detail, its words disabled or a tile's hint, a chosen glyph, a lit value;
-        // the bar's passing line and its quiet dot, on a tile label's plate.
+        // home's passing line and its quiet dot, on a tile label's plate.
         "content" on "plate on the veil's floor on a white image", "contentSecondary" on "plate on the veil's floor on a white image",
         "contentTertiary" on "plate on the veil's floor on a white image",
         ("ember" on "plate on the veil's floor on a white image").mark(),
         "emberFrom" on "plate on the veil's floor on a white image", "emberTo" on "plate on the veil's floor on a white image",
-        // Words in the ember light: a screen's title, a value chosen on a glass plate, and the place in the bar,
+        // Words in the ember light: a screen's title, a value chosen on a glass plate, and a wall's title,
         // where the top and left veils meet at the picture's own dark.
         "emberFrom" on "background", "emberTo" on "background", "emberFrom" on "glass", "emberTo" on "glass",
         "emberFrom" on "ambientDeep",

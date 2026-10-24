@@ -6,6 +6,7 @@ import androidx.compose.ui.unit.Dp
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.design.canvasDensityOf
 import coil.ImageLoader
 import coil.intercept.Interceptor
@@ -34,6 +35,38 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     fun hero(item: MediaItem, style: BackdropStyle = BackdropStyle.Hero): List<ImageRequest> =
         item.backdrop?.let { backdropRequests(context, it, style, screenWidthPx) }.orEmpty() +
             listOfNotNull(item.logo?.let { titleArtRequest(context, it, HeroDefaults.titleWidth.px(), HeroDefaults.titleHeight.px()) })
+
+    /** Home's case showing [item] ([ResumeCase]): its picture, cropped upright, and its logo. */
+    fun case(item: MediaItem): List<ImageRequest> = listOfNotNull(
+        caseRequest(context, item) { it.px() },
+        item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.caseLogoWidth.px(), HomeGridDefaults.caseLogoHeight.px()) },
+    )
+
+    /** A door's still showing [item] ([DoorStill]): its backdrop at the door's width, and its logo. */
+    fun still(item: MediaItem): List<ImageRequest> = listOfNotNull(
+        stillDoorRequest(context, item) { it.px() },
+        item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.stillLogoWidth.px(), HomeGridDefaults.stillLogoHeight.px()) },
+    )
+
+    /** The posters of a door's band ([DoorPosters]). */
+    fun strip(items: List<MediaItem>): List<ImageRequest> = posters(items, HomeGridDefaults.stripPoster)
+
+    /** The posters a door's count is cut in ([DoorFigures]), read for their pixels, each once. */
+    fun cut(items: List<MediaItem>): List<ImageRequest> =
+        items.distinctBy { it.id }.mapNotNull { cutPosterRequest(context, it) { d -> d.px() } }
+
+    /** Cuts a door's count in [items]' posters ahead ([makeCutPosters]), so the door draws them on its first frame. */
+    suspend fun cutAhead(items: List<MediaItem>) {
+        makeCutPosters(context, items) { it.px() }
+    }
+
+    /** Two sagas' posters ([DoorSagas]). */
+    fun sagas(items: List<MediaItem>): List<ImageRequest> = posters(items.take(2), HomeGridDefaults.sagaPoster)
+
+    /** The search door's small posters ([DoorWall]). */
+    fun thumbs(items: List<MediaItem>): List<ImageRequest> = posters(items, HomeGridDefaults.wallThumb)
+
+    private fun posters(items: List<MediaItem>, width: Dp): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, width.px()) }
 
     /** The posters of a wall's [items], at the size a [PosterCard] cell requests ([requestedPoster]). */
     fun wall(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, requestedPoster(null).px()) }

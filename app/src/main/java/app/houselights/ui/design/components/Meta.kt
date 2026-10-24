@@ -59,9 +59,9 @@ fun filmCount(owned: Int, total: Int?): String = if (total != null) {
     pluralStringResource(R.plurals.film_count, owned, owned)
 }
 
-/** A title's facts on one line, space-separated: year, length, rating badge, score, then genres. */
+/** A title's facts on one line, [spacing] apart: year, length, rating badge, score, then genres. */
 @Composable
-fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true) {
+fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true, spacing: Dp = HlSpace.fact) {
     val c = Hl.colors
     val seasons = item.childCount?.takeIf { item.kind == MediaKind.SERIES && it > 0 }
         ?.let { pluralStringResource(R.plurals.season_count, it, it) }
@@ -80,7 +80,7 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
     }
 
     // In order of importance: when space runs out, genres go first, then the score.
-    OneLine(modifier) {
+    OneLine(modifier, spacing = spacing) {
         years?.let { Text(it, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         length?.let { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         item.officialRating?.let { Badge(it) }

@@ -19,6 +19,7 @@ class CatalogCoverageTest {
         "PosterWallScrim" to "the welcome screen's veil, full screen",
         "HouseLights" to "the playback cue, over the whole app",
         "LeavingBackdrop" to "the picture of a screen left going out, under the whole app",
+        "DoorGrid" to "home's whole screen: home is its specimen, its doors each in the catalogue",
     )
 
     @Test

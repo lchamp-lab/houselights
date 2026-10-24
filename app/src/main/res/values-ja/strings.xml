@@ -87,8 +87,24 @@
     <string name="play">再生</string>
     <string name="resume">続きから再生</string>
     <string name="time_left">残り%s</string>
-    <string name="nav_home">ホーム</string>
     <string name="back_again_to_quit">もう一度戻るボタンを押すと終了します</string>
+    <string name="watch_title">これから観る</string>
+    <string name="home_news">新着</string>
+    <string name="home_unseen">未視聴</string>
+    <string name="home_libraries">ライブラリ</string>
+    <string name="home_state_source">ソース</string>
+    <string name="home_state_scan">前回のスキャン</string>
+    <string name="home_state_tmdb_refused">キーが拒否されました</string>
+    <string name="home_state_tmdb_offline">接続できません</string>
+    <string name="home_scan_running">実行中…</string>
+    <string name="home_episode">S%1$d · E%2$s</string>
+    <string name="home_open_title">詳細を開く</string>
+    <plurals name="home_news_week">
+        <item quantity="other">今週%d件</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="other">新しいエピソード%d話</item>
+    </plurals>
     <string name="from_start">最初から再生</string>
     <string name="part_of">パート%1$d/%2$d</string>
     <string name="parts">パート</string>

@@ -22,6 +22,7 @@ import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.SortOption
+import app.houselights.core.WatchStatus
 import kotlinx.coroutines.CompletableDeferred
 
 /** A source whose answers each test sets: calls go to [calls], those in [gates] wait, those in [fail] throw. */
@@ -96,7 +97,9 @@ class FakeProvider : MediaProvider {
     ): Page {
         call("page $start $limit")
         pages += Asked(library.id, filter, grouped)
-        val shown = walls[library.id] ?: wall
+        // Not seen: as a source filters them, neither watched nor started.
+        val notSeen = { item: MediaItem -> !item.user.played && item.user.positionMs == 0L }
+        val shown = (walls[library.id] ?: wall).filter { filter.status != WatchStatus.UNWATCHED || notSeen(it) }
         val sagas = shown.count { it.kind == MediaKind.COLLECTION }.takeIf { grouped && countsSagas }
         return Page(shown.drop(start).take(limit), shown.size, sagas)
     }

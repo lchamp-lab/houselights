@@ -75,7 +75,8 @@ import kotlinx.coroutines.launch
  * nothing. It is one element to accessibility services, a [role] with its clicks, the long one named by
  * [onLongClickLabel]. [content], clipped to [shape], is told when it is [lit]: when its ink is focus's. Framed in
  * a [row], it leaves its frame to the row ([RowFrame]). What its content covers from the top ([covered], in px,
- * read while drawing) takes no plate under it.
+ * read while drawing) takes no plate under it. A picture made of several ([glowTones], left to right) glows in
+ * their tones across it rather than in [glow]'s one.
  */
 @Composable
 internal fun HlFocusSurface(
@@ -92,6 +93,7 @@ internal fun HlFocusSurface(
     interactionSource: MutableInteractionSource? = null,
     row: RowFrame? = null,
     covered: (() -> Float)? = null,
+    glowTones: (() -> List<Color>)? = null,
     content: @Composable BoxScope.(lit: Boolean) -> Unit,
 ) {
     val interaction = interactionSource ?: remember { MutableInteractionSource() }
@@ -101,13 +103,15 @@ internal fun HlFocusSurface(
     val focus = remember(held, inSheet) { derivedStateOf { held.value && (inSheet || OpenSheets.count == 0) } }
     val focused by focus
     val framed = look.gesture == Gesture.Frame
-    val glows = enabled && glow != null
+    // One tone, or several across the picture: what its glow is drawn with.
+    val tones = remember(glow, glowTones) { tonesOf(glow, glowTones) }
+    val glows = enabled && tones != null
     val lights = rememberLights(focused, framed, glows)
     val lit = if (framed) focused else lights.halfLit
     val ring = FocusStyle.ring()
     val inRow = row?.takeIf { framed && enabled }?.let { rememberRowCard(it, shape) }
     val frame = ring.brush.takeIf { enabled && inRow == null }
-    val light = remember(look, shape, frame, glow, lights) { framedLight(look, shape, frame, glow, lights) }
+    val light = remember(look, shape, frame, tones, lights) { framedLight(look, shape, frame, tones, lights) }
     val plate = remember(look, enabled, lights) { ColorProducer { look.plateAt(enabled, lights.on.value) } }
     Box(
         modifier
@@ -203,9 +207,13 @@ private val AtRest: () -> Float = { 0f }
 private const val ABOVE = 1f
 private const val ON_TOP = 2f
 
-/** A framed surface's glow and [frame], outside its plate; nothing for a plate that fills. */
-private fun framedLight(look: FocusLook, shape: Shape, frame: Brush?, glow: (() -> Color)?, lights: Lights): Modifier =
-    if (look.gesture == Gesture.Frame) Modifier.drawWithCache { drawLight(shape, frame, glow, lights) } else Modifier
+/** A glow's tones: several across a picture ([across]), else its [one] tone; none without either. */
+private fun tonesOf(one: (() -> Color)?, across: (() -> List<Color>)?): (() -> List<Color>)? =
+    across ?: one?.let { tone -> { listOf(tone()) } }
+
+/** A framed surface's glow in its [tones] and its [frame], outside its plate; nothing for a plate that fills. */
+private fun framedLight(look: FocusLook, shape: Shape, frame: Brush?, tones: (() -> List<Color>)?, lights: Lights): Modifier =
+    if (look.gesture == Gesture.Frame) Modifier.drawWithCache { drawLight(shape, frame, tones, lights) } else Modifier
 
 /** One element to accessibility services: its role, whether it is chosen, its clicks, whether it can act. */
 @Suppress("LongParameterList") // One per property it states.
@@ -271,18 +279,26 @@ private fun DrawScope.fillPlate(area: Outline, rest: Color, look: FocusLook, whi
  * parallel to the picture's ([shape]'s first corner). Without [frame], its row draws it ([RowFrame]), or,
  * disabled, its ring shows focus.
  */
-private fun CacheDrawScope.drawLight(shape: Shape, frame: Brush?, glow: (() -> Color)?, lights: Lights): DrawResult {
+private fun CacheDrawScope.drawLight(shape: Shape, frame: Brush?, tones: (() -> List<Color>)?, lights: Lights): DrawResult {
     val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
     val width = HlFocus.frame.toPx()
     val off = HlFocus.frameGap.toPx() + width / 2
     val stroke = Stroke(width)
     val band = Stroke(HlFocus.glow.toPx() / HlScrim.GLOW_STEPS)
     val framed = Size(size.width + 2 * off, size.height + 2 * off)
+    // Several tones lie across the glow, each over its share of the picture; made once per list.
+    var across: Pair<List<Color>, Brush>? = null
     return onDrawWithContent {
         val glowing = lights.glow.value
         // Read once glowing only: at rest, the light it follows redraws nothing.
-        val tone = if (glowing > 0f) glow?.invoke() else null
-        if (tone != null) drawGlow(tone.copy(alpha = tone.alpha * glowing), band, corner)
+        val lit = if (glowing > 0f) tones?.invoke().orEmpty() else emptyList()
+        if (lit.size > 1) {
+            val brush = across?.takeIf { it.first == lit }?.second
+                ?: Brush.horizontalGradient(lit, startX = 0f, endX = size.width).also { across = lit to it }
+            drawGlow(glowing, band, corner, across = brush)
+        } else {
+            lit.firstOrNull()?.let { tone -> drawGlow(tone.alpha * glowing, band, corner, tone = tone) }
+        }
         drawContent()
         val on = lights.on.value
         if (frame != null && on > 0f) {
@@ -292,26 +308,27 @@ private fun CacheDrawScope.drawLight(shape: Shape, frame: Brush?, glow: (() -> C
 }
 
 /**
- * The glow around a picture, in [HlScrim.GLOW_STEPS] rings [ring] wide: each ring is drawn once at the combined
- * alpha of stacked layers, so each layer costs a ring's fill, not a picture's, on the player's GPU.
+ * The glow around a picture at [strength], in [HlScrim.GLOW_STEPS] rings [ring] wide: each ring is drawn once at the
+ * combined alpha of stacked layers, so each layer costs a ring's fill, not a picture's, on the player's GPU. In its
+ * [tone], or across the colours of [across].
  */
-private fun DrawScope.drawGlow(tone: Color, ring: Stroke, corner: Float) {
-    if (tone.alpha == 0f) return
+private fun DrawScope.drawGlow(strength: Float, ring: Stroke, corner: Float, tone: Color = Color.Unspecified, across: Brush? = null) {
+    if (strength == 0f) return
     val steps = HlScrim.GLOW_STEPS
     val band = ring.width
     // Transmittance of the stacked layers, accumulated from the outermost lit ring inward; the last ring is clear.
     var through = 1f
     for (k in steps - 1 downTo 1) {
-        through *= 1f - tone.alpha * HlScrim.GLOW_LAYER * (1f - k / steps.toFloat())
+        through *= 1f - strength * HlScrim.GLOW_LAYER * (1f - k / steps.toFloat())
         // The band's middle line: a stroke is drawn half inside, half outside it.
         val middle = band * k - band / 2
-        drawRoundRect(
-            color = tone.copy(alpha = 1f - through),
-            topLeft = Offset(-middle, -middle),
-            size = Size(size.width + 2 * middle, size.height + 2 * middle),
-            cornerRadius = CornerRadius(corner + middle),
-            style = ring,
-        )
+        val topLeft = Offset(-middle, -middle)
+        val ringSize = Size(size.width + 2 * middle, size.height + 2 * middle)
+        if (across != null) {
+            drawRoundRect(across, topLeft, ringSize, CornerRadius(corner + middle), alpha = 1f - through, style = ring)
+        } else {
+            drawRoundRect(tone.copy(alpha = 1f - through), topLeft, ringSize, CornerRadius(corner + middle), style = ring)
+        }
     }
 }
 

@@ -146,6 +146,26 @@ class JellyfinProvider(
         return Page(titles(result.items), result.totalRecordCount)
     }
 
+    /** The library's unwatched episodes, latest added first, counted while they are recent enough. */
+    override suspend fun newEpisodes(library: Library, since: Long, cap: Int): Int? {
+        if (library.kind != LibraryKind.SHOWS) return null
+        return row("New episodes of ${library.title}") {
+            val recent = api.items(
+                userId = userId,
+                parentId = library.id,
+                includeItemTypes = "Episode",
+                recursive = true,
+                sortBy = "DateCreated,SortName",
+                sortOrder = "Descending",
+                startIndex = 0,
+                limit = cap,
+                fields = "DateCreated",
+                filters = statusFilter(WatchStatus.UNWATCHED),
+            ).items
+            titles(recent).takeWhile { (it.addedAt ?: 0L) >= since }.size
+        }.getOrNull()
+    }
+
     override suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets(
         genres = row("Genres") { api.genres(userId, library.id).items.mapNotNull { it.name } }.getOrDefault(emptyList()),
         // Jellyfin has no cheap decade listing; 4K is the only quality its API filters on.

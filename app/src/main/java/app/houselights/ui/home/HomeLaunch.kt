@@ -4,6 +4,8 @@ import android.content.Context
 import app.houselights.LaunchGate
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
+import app.houselights.core.LibraryKind
+import app.houselights.core.MediaItem
 import app.houselights.core.MediaProvider
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
@@ -23,8 +25,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 
-/** Home's first content: the tabs' libraries and the rows. */
-data class HomeRows(val libraries: List<Library>, val sections: List<HomeSection>)
+/**
+ * Home's first content: the source's libraries, the rows and what the doors show, read after them: [doors] once read,
+ * or the launch's read still under way ([doorsAhead]), which home awaits rather than read them again.
+ */
+data class HomeRows(
+    val libraries: List<Library>,
+    val sections: List<HomeSection>,
+    val doors: HomeDoors? = null,
+    val doorsAhead: DoorsRead? = null,
+)
 
 /**
  * Loads Home's first rows and first-view pictures once at a cold start, while the launch screen holds
@@ -36,6 +46,8 @@ class HomeLaunch(
     private val settings: StateFlow<AppSettings>,
     private val provider: () -> MediaProvider,
     private val version: () -> Long,
+    /** The film the case proposes when nothing is in progress, as home keeps it. */
+    private val pick: UnseenPick = UnseenPick(),
 ) {
     /** The launch's request: its source, the library version at the time, and the rows or the failure. */
     private class Asked(val source: SourceConfig, val version: Long, val rows: Result<HomeRows>)
@@ -87,25 +99,33 @@ class HomeLaunch(
             return
         }
         val at = version()
+        var home: MediaProvider? = null
         val rows = suspendRunCatching {
-            val home = provider()
+            val provided = provider().also { home = it }
             coroutineScope {
-                val libraries = async { home.libraries() }
-                val sections = async { home.home() }
+                val libraries = async { provided.libraries() }
+                val sections = async { provided.home() }
                 HomeRows(libraries.await(), sections.await())
             }
         }
         // A failure is first content too: Home takes it at once, composed under the launch screen.
         gate.homeLoaded()
-        answer.complete(Asked(source, at, rows))
-        rows.onSuccess { load(it, pictures) }
+        coroutineScope {
+            // The doors are read after the rows, which home shows meanwhile; it awaits this read rather than make its own.
+            val doors = rows.getOrNull()?.let { read -> readDoorsAsync(checkNotNull(home), read.libraries, read.sections, pick) }
+            answer.complete(Asked(source, at, rows.map { it.copy(doorsAhead = doors) }))
+            rows.onSuccess { read -> load({ read.copy(doors = doors?.whole?.await()) }, pictures) }
+        }
         gate.picturesLoaded()
     }
 
-    /** Preloads the pictures until done or the gate opens at its time cap; Home then loads the rest, never twice. */
-    private suspend fun load(rows: HomeRows, pictures: suspend (HomeRows) -> Unit) = coroutineScope {
+    /**
+     * Preloads the pictures of the [rows] to come (their doors read) until done or the gate opens at its time cap;
+     * Home then loads the rest, never twice.
+     */
+    private suspend fun load(rows: suspend () -> HomeRows, pictures: suspend (HomeRows) -> Unit) = coroutineScope {
         if (gate.isOpen) return@coroutineScope
-        val loading = launch { suspendRunCatching { pictures(rows) } }
+        val loading = launch { suspendRunCatching { pictures(rows()) } }
         val cap = launch {
             gate.awaitOpen()
             loading.cancel()
@@ -132,14 +152,54 @@ class HomeLaunch(
     fun drop() = synchronized(this) { asked = null }
 }
 
-/** Preloads Home's first-view pictures for a [screenWidthPx] screen; Home awaits each one ([LoadingAhead]). */
-internal fun loadFirstPictures(context: Context, screenWidthPx: Int): suspend (HomeRows) -> Unit = { rows ->
-    LoadingAhead.load(context.imageLoader, firstPictures(PicturesAhead(context, screenWidthPx), rows.sections))
+/**
+ * Preloads Home's first-view pictures for a [screenWidthPx] screen; Home awaits each one ([LoadingAhead]). The
+ * library doors' counts are cut in their posters too, so they show on home's first frame.
+ */
+internal fun loadFirstPictures(
+    context: Context,
+    screenWidthPx: Int,
+    canSearch: () -> Boolean = { true },
+): suspend (HomeRows) -> Unit = { rows ->
+    val ahead = PicturesAhead(context, screenWidthPx)
+    val plan = planOf(rows, canSearch())
+    coroutineScope {
+        launch { LoadingAhead.load(context.imageLoader, firstPictures(ahead, plan)) }
+        plan.doors.mapNotNull(::cutIn).forEach { posters -> launch { ahead.cutAhead(posters) } }
+    }
 }
 
-/** Home's first-view image requests, built as Home builds them: the hero's pictures, then the first row's cards. */
-internal fun firstPictures(ahead: PicturesAhead, sections: List<HomeSection>): List<ImageRequest> {
-    val first = sections.firstOrNull() ?: return emptyList()
-    val hero = selectedTitle(sections, null)?.let(ahead::hero).orEmpty()
-    return hero + ahead.row(first.items, first.landscape, first.spacing)
+/** Home's grid for the launch's [rows]. */
+private fun planOf(rows: HomeRows, canSearch: Boolean): HomePlan {
+    val tabs = rows.libraries.filter { it.kind != LibraryKind.COLLECTIONS }
+    val sagas = rows.libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
+    return homePlan(rows.sections, tabs, sagas, rows.doors, canSearch)
 }
+
+/** The posters a door's count is cut in; none for a door that shows no count. */
+private fun cutIn(door: Door): List<MediaItem>? = when (door) {
+    is Door.Library -> door.posters
+    is Door.Libraries -> door.posters
+    else -> null
+}
+
+/**
+ * Home's first-view image requests, built as its grid builds them: the case's picture and logo, the next episode's
+ * still and logo, then the doors' posters, those a count is cut in read for their pixels.
+ */
+internal fun firstPictures(ahead: PicturesAhead, rows: HomeRows, canSearch: Boolean = true): List<ImageRequest> =
+    firstPictures(ahead, planOf(rows, canSearch))
+
+private fun firstPictures(ahead: PicturesAhead, plan: HomePlan): List<ImageRequest> =
+    plan.case?.item?.let(ahead::case).orEmpty() + plan.doors.flatMap { door ->
+        when (door) {
+            is Door.Next -> ahead.still(door.item)
+            is Door.AlsoResume -> ahead.still(door.item)
+            is Door.News -> ahead.strip(door.posters)
+            is Door.Library -> ahead.cut(door.posters)
+            is Door.Libraries -> ahead.cut(door.posters)
+            is Door.Sagas -> ahead.sagas(door.shelf.posters)
+            is Door.Search -> ahead.thumbs(door.posters)
+            Door.Settings -> emptyList()
+        }
+    }

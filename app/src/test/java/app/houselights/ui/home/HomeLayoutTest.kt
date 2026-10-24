@@ -1,37 +1,29 @@
 package app.houselights.ui.home
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.unit.Density
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import app.houselights.core.Library
-import app.houselights.core.LibraryKind
-import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.HeroDefaults
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.HouselightsType
+import app.houselights.ui.design.components.forgetCutPosters
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.setTvContent
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
 
-/** Home's bands on the TV canvas: the first row, a focused poster's frame included, stays inside the safe area. */
+/** Home's grid fills the safe area under its head; « À regarder » keeps its first row, a focused poster's frame included, inside it. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class HomeLayoutTest {
@@ -39,45 +31,35 @@ class HomeLayoutTest {
     @get:Rule
     val compose = createComposeRule()
 
+    /** A count cut by an earlier test is drawn at once: each test starts as the app does. */
+    @Before
+    fun forgetTheCuts() = forgetCutPosters()
+
     private val screen = 540.dp
     private val safeBottom = screen - HlSpace.safeV
     private fun sp(value: Float): Dp = value.dp
 
-    /** Home's bar, as tall as a compact tile ([theBarIsAsTallAsACompactTile]). */
-    private val bar = HlSize.tileCompact
-
-    /** Where the rows start: the bar, a gap, the hero's band, a gap. */
-    private val rowsTop = HlSpace.safeV + bar + HlSpace.l + HlLayout.hero + HlSpace.l
+    /** Where the page's rows start: its title, a gap, the hero's band, a gap. */
+    private val rowsTop = HlSpace.safeV + sp(HouselightsType.headline.lineHeight.value) + HlSpace.l + HlLayout.hero + HlSpace.l
 
     /** Where a row's cards start: its header in the poster's voice and the room kept above a framed card. */
     private val cardsTop = rowsTop + sp(HouselightsType.rowTitle.lineHeight.value) + HlSpace.xxs + HlFocus.room
 
-    /** The bar as composed, Gradation, words and tiles, then with Back's line, at the default text size and at the largest. */
     @Test
-    // Real fonts: Back's line is the one part of the bar its text sizes.
-    @GraphicsMode(GraphicsMode.Mode.NATIVE)
-    fun theBarIsAsTallAsACompactTile() {
-        val libraries = listOf(Library("1", LibraryKind.MOVIES, "Films"), Library("2", LibraryKind.SHOWS, "Séries"))
-        val places = Places(libraries, null, { _, _ -> }, onSettings = {}, onSearch = {})
-        val statuses = listOf(null, "Appuyez encore sur Retour pour quitter")
-        compose.setContent {
-            Column {
-                listOf(1f, LARGEST).forEach { scale ->
-                    CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
-                        HouselightsTheme {
-                            statuses.forEach { status ->
-                                Box(Modifier.testTag("bar at $scale, $status")) {
-                                    PlacesBar(places, here = null, FocusMemory(), down = { null }, status = status)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        listOf(1f, LARGEST).forEach { scale ->
-            statuses.forEach { status -> compose.onNodeWithTag("bar at $scale, $status").assertHeightIsEqualTo(HlSpace.safeV + bar) }
-        }
+    fun theGridFillsTheSafeAreaUnderTheHead() {
+        compose.setTvContent { HomeGrid(fullHome()) }
+        val case = compose.onNodeWithText("Resume").getUnclippedBoundsInRoot()
+        assertEquals(HlSpace.safeH, case.left)
+        assertEquals(68.dp, case.top)
+        assertEquals(safeBottom, case.bottom)
+        assertEquals(252.dp, case.right - case.left)
+        val settings = compose.onNodeWithText("Settings").getUnclippedBoundsInRoot()
+        assertEquals(960.dp - HlSpace.safeH, settings.right)
+        assertEquals(safeBottom, settings.bottom)
+        assertEquals(294.dp, settings.right - settings.left)
+        val movies = compose.onNodeWithText("Movies").getUnclippedBoundsInRoot()
+        assertEquals("right of the case, a gap apart", case.right + HlSpace.s, movies.left)
+        assertEquals(148.dp, movies.bottom - movies.top)
     }
 
     @Test
@@ -100,10 +82,5 @@ class HomeLayoutTest {
         val content = HeroDefaults.titleHeight + HlSpace.s + sp(HouselightsType.meta.lineHeight.value) + HlSpace.s +
             sp(HouselightsType.body.lineHeight.value * 2)
         assertTrue("the hero's content takes $content", content <= HlLayout.hero)
-    }
-
-    private companion object {
-        /** Android's largest text size. */
-        const val LARGEST = 1.3f
     }
 }

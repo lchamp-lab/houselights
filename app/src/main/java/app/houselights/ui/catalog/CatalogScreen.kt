@@ -127,7 +127,7 @@ fun CatalogScreen() {
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,
                         "titleSignature" to t.titleSignature, "billing" to t.billing, "billingJoin" to t.billingJoin,
-                        "codeSignature" to t.codeSignature,
+                        "codeSignature" to t.codeSignature, "figureSignature" to t.figureSignature,
                     ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }
@@ -294,6 +294,7 @@ fun CatalogScreen() {
             catalogSecondary()
             catalogForms()
             catalogCards()
+            catalogDoors()
             catalogReading()
 
             item {
@@ -321,7 +322,7 @@ fun CatalogScreen() {
                     var library by remember { mutableIntStateOf(0) }
                     HlSegmented(
                         listOf(
-                            stringResource(R.string.nav_home),
+                            stringResource(R.string.library_movies),
                             "Films 4K HDR",
                             "Séries d’animation",
                             "Documentaires",

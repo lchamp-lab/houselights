@@ -42,10 +42,14 @@ object Route {
     @Serializable
     data object Home
 
+    /** « À regarder »: home's rows, opened on [row] (a `WatchRow` by name), over home. */
+    @Serializable
+    data class Watch(val row: String)
+
     /**
      * A library's wall, opened pre-filtered from a facet ([filter]; [quality] by enum name, [person] labelled
-     * [personName]). A films wall shows the source's [sagas] (a library id) among its films, or alone. Opened as a
-     * [place] of the bar, it lies under it.
+     * [personName]). A films wall shows the source's [sagas] (a library id) among its films, or alone ([view], a
+     * `WallView` by name, which its saved state starts with).
      */
     @Serializable
     data class Library(
@@ -59,7 +63,7 @@ object Route {
         val person: String? = null,
         val personName: String? = null,
         val sagas: String? = null,
-        val place: Boolean = false,
+        val view: String? = null,
     ) {
         /** What the wall starts filtered by; null for the whole library. */
         val filter: LibraryFilter?

@@ -97,9 +97,29 @@
     <string name="play">Play</string>
     <string name="resume">Resume</string>
     <string name="time_left">%s left</string>
-    <string name="nav_home">Home</string>
-    <!-- Said in home's bar after a first Back; a second within moments leaves the app. -->
+    <!-- Said at the end of home's head after a first Back; a second within moments leaves the app. -->
     <string name="back_again_to_quit">Press Back again to quit</string>
+    <string name="watch_title">To watch</string>
+    <string name="home_news">New</string>
+    <string name="home_unseen">Not seen yet</string>
+    <string name="home_libraries">Libraries</string>
+    <string name="home_state_source">Source</string>
+    <string name="home_state_scan">Last scan</string>
+    <string name="home_state_tmdb_refused">Key refused</string>
+    <string name="home_state_tmdb_offline">Unreachable</string>
+    <string name="home_scan_running">In progress…</string>
+    <string name="home_episode">S%1$d · E%2$s</string>
+    <string name="home_open_title">Open page</string>
+    <string name="home_state_trakt" translatable="false">Trakt</string>
+    <string name="home_state_tmdb" translatable="false">TMDB</string>
+    <plurals name="home_news_week">
+        <item quantity="one">%d this week</item>
+        <item quantity="other">%d this week</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="one">%d new episode</item>
+        <item quantity="other">%d new episodes</item>
+    </plurals>
     <string name="from_start">From the beginning</string>
     <!-- A film in several files: the part a button plays, then how many there are. -->
     <string name="part_of">Part %1$d of %2$d</string>

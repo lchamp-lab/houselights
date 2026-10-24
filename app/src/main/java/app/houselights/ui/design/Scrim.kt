@@ -17,7 +17,7 @@ import kotlin.math.roundToInt
  * picture's own dark, the bottom one is the room.
  */
 object HlScrim {
-    /** Home's left veil at the column's band edges, raised where the picture needs it ([ArtworkSample.leftVeil]). */
+    /** A hero's left veil (« À regarder », a person's page) at the column's band edges, raised where needed ([ArtworkSample.leftVeil]). */
     val LEFT_HOME = listOf(
         VeilStop(0f, 0.95f), VeilStop(0.25f, 0.94f), VeilStop(0.5f, 0.905f), VeilStop(0.75f, 0.785f), VeilStop(1f, 0.48f),
     )
@@ -44,7 +44,7 @@ object HlScrim {
         VeilStop(dp(110f), 0.22f), VeilStop(dp(140f), 0.07f), VeilStop(dp(164f), 0f),
     )
 
-    /** Home's bottom veil: the rows sit on the room from 77 % of the height. */
+    /** A hero's bottom veil: its rows sit on the room from 77 % of the height. */
     val BOTTOM_HOME = listOf(
         VeilStop(0.4f, 0f), VeilStop(0.47f, 0.2f), VeilStop(0.54f, 0.48f), VeilStop(0.6f, 0.74f),
         VeilStop(0.66f, 0.9f), VeilStop(0.72f, 0.98f), VeilStop(0.77f, 1f), VeilStop(1f, 1f),
@@ -60,6 +60,29 @@ object HlScrim {
     val SHOWCASE_FOOT = listOf(
         VeilStop(0.36f, 0f), VeilStop(0.53f, 0.22f), VeilStop(0.72f, 0.6f), VeilStop(0.89f, 0.88f), VeilStop(1f, 1f),
     )
+
+    /** Home's case: its picture whole to a third of its height, then melting into its dark under its words. */
+    val CASE_FOOT = listOf(
+        VeilStop(0.36f, 0f), VeilStop(0.47f, 0.42f), VeilStop(0.57f, 0.8f), VeilStop(0.65f, 0.95f), VeilStop(0.73f, 1f),
+        VeilStop(1f, 1f),
+    )
+
+    /** A door's still: black rising under its logo from the middle, to 0.55 at its foot. */
+    val STILL_FOOT = listOf(VeilStop(0.45f, 0f), VeilStop(1f, 0.55f))
+
+    /** The search door's wall: its glass rising from a third of its height, to 0.65 at its foot. */
+    val WALL_FOOT = listOf(VeilStop(0.3f, 0f), VeilStop(1f, 0.65f))
+
+    /** A door's posters as its tint: their light lowered to [DOOR_TINT_LIGHT], their colour lifted [DOOR_TINT_SATURATION] times. */
+    const val DOOR_TINT_LIGHT = 0.36f
+    const val DOOR_TINT_SATURATION = 1.2f
+
+    /** The search door's wall of posters, out: their light and colour lowered. */
+    const val WALL_THUMB_LIGHT = 0.44f
+    const val WALL_THUMB_SATURATION = 0.4f
+
+    /** A saga stacked behind another, in its shade. */
+    const val SAGA_BEHIND = 0.6f
 
     /** Over a wall's diffuse field, black: 0.66 at the top, gone at 200 dp; 0.5 at the foot. */
     val DIFFUSE_TOP = listOf(VeilStop(0f, 0.66f), VeilStop(dp(200f), 0f))

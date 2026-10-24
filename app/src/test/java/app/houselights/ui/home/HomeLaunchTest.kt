@@ -89,14 +89,14 @@ class HomeLaunchTest {
         val launch = coldStart(gate)
         val vm = home(launch)
         advanceTimeBy(100)
-        assertEquals("home is composed with its rows under the launch screen", HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals("home is composed with its rows under the launch screen", HomeContent.Rows(rows), vm.content())
         assertNull("the pictures are not in yet", gate.reason)
         loaded.complete(Unit)
         runCurrent()
         assertNull("home has yet to draw them", gate.reason)
         gate.homeDrawn()
         assertEquals(Reason.READY, gate.reason)
-        assertEquals(listOf(HomeRows(provider.libraries, rows)), picturesAsked)
+        assertEquals(listOf(provider.libraries to rows), picturesAsked.map { it.libraries to it.sections })
     }
 
     @Test
@@ -104,8 +104,8 @@ class HomeLaunchTest {
         val launch = coldStart(gate())
         val vm = home(launch)
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
-        assertEquals("each asked once", listOf("home", "libraries"), provider.calls.sorted())
+        assertEquals(HomeContent.Rows(rows), vm.content())
+        assertEquals("each asked once", listOf("home", "libraries"), provider.rowCalls.sorted())
     }
 
     @Test
@@ -115,7 +115,7 @@ class HomeLaunchTest {
         advanceUntilIdle()
         vm.load()
         advanceUntilIdle()
-        assertEquals("the launch's rows are taken once", listOf("home", "home", "libraries", "libraries"), provider.calls.sorted())
+        assertEquals("the launch's rows are taken once", listOf("home", "home", "libraries", "libraries"), provider.rowCalls.sorted())
     }
 
     @Test
@@ -131,7 +131,7 @@ class HomeLaunchTest {
         val gate = gate()
         val vm = home(coldStart(gate))
         advanceTimeBy(100)
-        assertEquals("the rows show at once", HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals("the rows show at once", HomeContent.Rows(rows), vm.content())
         gate.homeDrawn()
         advanceTimeBy(CAP - 100 - 1)
         assertNull(gate.reason)
@@ -148,11 +148,11 @@ class HomeLaunchTest {
         val vm = home(coldStart(gate))
         advanceTimeBy(CAP + 1)
         assertEquals(Reason.CAP, gate.reason)
-        assertEquals(HomeContent.Loading(firstScan = false), vm.content())
+        assertEquals(HomeContent.Loading, vm.content())
         answer.complete(Unit)
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
-        assertEquals(listOf("home", "libraries"), provider.calls.sorted())
+        assertEquals(HomeContent.Rows(rows), vm.content())
+        assertEquals(listOf("home", "libraries"), provider.rowCalls.sorted())
         assertTrue("home shows already: it asks for its pictures itself, not twice", picturesAsked.isEmpty())
     }
 
@@ -209,7 +209,7 @@ class HomeLaunchTest {
         assertEquals("home drew why: the launch screen leaves", Reason.READY, gate.reason)
         advanceUntilIdle()
         assertTrue("nothing to show: no pictures", picturesAsked.isEmpty())
-        assertEquals("no call twice", provider.calls.distinct(), provider.calls)
+        assertEquals("no call twice", provider.rowCalls.distinct(), provider.rowCalls)
     }
 
     @Test
@@ -219,7 +219,7 @@ class HomeLaunchTest {
         advanceUntilIdle()
         begin(launch)
         advanceUntilIdle()
-        assertEquals(listOf("home", "libraries"), provider.calls.sorted())
+        assertEquals(listOf("home", "libraries"), provider.rowCalls.sorted())
         assertEquals(1, picturesAsked.size)
         assertEquals(1, said.size)
     }
@@ -229,8 +229,8 @@ class HomeLaunchTest {
     fun withoutALaunchHomeAsksItself() = runTest {
         val vm = home(launchOf(gate()))
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
-        assertEquals(listOf("libraries", "home"), provider.calls)
+        assertEquals(HomeContent.Rows(rows), vm.content())
+        assertEquals(listOf("libraries", "home"), provider.rowCalls)
     }
 
     @Test
@@ -250,7 +250,7 @@ class HomeLaunchTest {
 
         val unchanged = coldStart(gate())
         advanceUntilIdle()
-        assertEquals(HomeRows(provider.libraries, rows), unchanged.take(SourceConfig.Local))
+        assertEquals(provider.libraries to rows, unchanged.take(SourceConfig.Local)?.let { it.libraries to it.sections })
     }
 
     /** Closing the first window drops the launch's rows: Jellyfin changes never move the library version. */
@@ -262,11 +262,21 @@ class HomeLaunchTest {
         assertNull(launch.take(SourceConfig.Local))
         val vm = home(launch)
         advanceUntilIdle()
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
-        assertEquals("home asked again", listOf("home", "home", "libraries", "libraries"), provider.calls.sorted())
+        assertEquals(HomeContent.Rows(rows), vm.content())
+        assertEquals("home asked again", listOf("home", "home", "libraries", "libraries"), provider.rowCalls.sorted())
     }
 
     private companion object {
         const val CAP = 1_500L
+    }
+    @Test
+    fun theLaunchReadsTheDoorsAndHomeKeepsThem() = runTest {
+        provider.walls = mapOf("films" to (1..20).map { film("f$it") })
+        val launch = coldStart(gate())
+        val vm = home(launch)
+        advanceUntilIdle()
+        assertEquals(listOf(20), vm.state.value.doors?.shelves?.map { it.count })
+        assertEquals("each door read once", 1, provider.calls.count { it == "page 0 12" })
+        assertEquals("the pictures of a home with its doors", listOf(20), picturesAsked.single().doors?.shelves?.map { it.count })
     }
 }

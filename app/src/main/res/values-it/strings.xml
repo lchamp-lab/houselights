@@ -93,8 +93,28 @@
     <string name="play">Riproduci</string>
     <string name="resume">Riprendi</string>
     <string name="time_left">%s rimanenti</string>
-    <string name="nav_home">Home</string>
     <string name="back_again_to_quit">Premere di nuovo Indietro per uscire</string>
+    <string name="watch_title">Da guardare</string>
+    <string name="home_news">Novità</string>
+    <string name="home_unseen">Non ancora visto</string>
+    <string name="home_libraries">Librerie</string>
+    <string name="home_state_source">Sorgente</string>
+    <string name="home_state_scan">Ultima scansione</string>
+    <string name="home_state_tmdb_refused">Chiave rifiutata</string>
+    <string name="home_state_tmdb_offline">Non raggiungibile</string>
+    <string name="home_scan_running">In corso…</string>
+    <string name="home_episode">S%1$d · E%2$s</string>
+    <string name="home_open_title">Apri la scheda</string>
+    <plurals name="home_news_week">
+        <item quantity="one">%d questa settimana</item>
+        <item quantity="many">%d questa settimana</item>
+        <item quantity="other">%d questa settimana</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="one">%d episodio nuovo</item>
+        <item quantity="many">%d episodi nuovi</item>
+        <item quantity="other">%d episodi nuovi</item>
+    </plurals>
     <string name="from_start">Dall’inizio</string>
     <string name="part_of">Parte %1$d di %2$d</string>
     <string name="parts">Parti</string>

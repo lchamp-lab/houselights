@@ -10,9 +10,11 @@ import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
+import app.houselights.core.UserState
 import app.houselights.ui.design.components.AwaitAhead
 import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
+import app.houselights.ui.design.components.forgetCutPosters
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.setTvContent
@@ -32,6 +34,7 @@ import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,7 +43,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.util.IdentityHashMap
 
-/** What the launch loads ahead is exactly what home's first view asks Coil for, by key and size. */
+/** What the launch loads ahead is exactly what home's grid asks Coil for, by key and size. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class HomePicturesAheadTest {
@@ -71,28 +74,51 @@ class HomePicturesAheadTest {
     private val loader = ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }
         .memoryCache(::memory).eventListener(listener).build()
 
+    /** A count cut by an earlier test is drawn at once, never asked of Coil: each test starts as the launch does. */
+    @Before
+    fun forgetTheCuts() = forgetCutPosters()
+
     @After
     fun forgetTheLoader() = Coil.reset()
 
-    private fun film(n: Int) = MediaItem(
-        id = "film$n",
-        kind = MediaKind.MOVIE,
-        title = "Film $n",
-        poster = ImageRef("poster$n") { "https://img.test/poster/$n?w=$it" },
-        backdrop = ImageRef("backdrop$n") { "https://img.test/backdrop/$n?w=$it" },
-        logo = ImageRef("logo$n") { "https://img.test/logo/$n?w=$it" },
-        thumb = ImageRef("still$n") { "https://img.test/still/$n?w=$it" },
+    private fun art(kind: String, id: String) = ImageRef("$kind$id") { "https://img.test/$kind/$id?w=$it" }
+
+    private fun titled(id: String, kind: MediaKind = MediaKind.MOVIE, positionMs: Long = 0) = MediaItem(
+        id = id,
+        kind = kind,
+        title = id,
+        poster = art("poster", id),
+        backdrop = art("backdrop", id),
+        logo = art("logo", id),
+        user = UserState(positionMs = positionMs),
+        seasonNumber = 1.takeIf { kind == MediaKind.EPISODE },
+        episodeNumber = 4.takeIf { kind == MediaKind.EPISODE },
     )
 
+    /** A home with a film in progress, a next episode, the latest films, and two libraries whose counts are cut. */
+    private val rows = HomeRows(
+        listOf(films, shows),
+        listOf(
+            HomeSection(SectionType.CONTINUE, listOf(titled("heat", positionMs = 1_000)), landscape = true),
+            HomeSection(SectionType.NEXT_UP, listOf(titled("mobland", MediaKind.EPISODE)), landscape = true),
+            HomeSection(SectionType.LATEST, (1..12).map { titled("film$it") }, landscape = false, libraryId = films.id),
+        ),
+        HomeDoors(
+            shelves = listOf(Shelf(films, 412, (1..8).map { titled("best$it") }), Shelf(shows, 38, (1..4).map { titled("show$it") })),
+        ),
+    )
+
+    private val state = HomeState(rows.libraries, HomeContent.Rows(rows.sections), rows.doors)
+
     /** Loads ahead what the launch would, then lays home out: what each asked, in that order. */
-    private fun loadAheadThenShow(sections: List<HomeSection>): Pair<List<Asked>, List<Asked>> {
+    private fun loadAheadThenShow(): Pair<List<Asked>, List<Asked>> {
         Coil.setImageLoader(loader)
-        val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), sections)
+        val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), rows)
         ahead.forEach(loader::enqueue)
         val loaded = asked.toList().also { asked.clear() }
         assertEquals("loaded ahead", ahead.size, loaded.size)
 
-        compose.setTvContent { HomeBands(HomeState(content = HomeContent.Rows(sections, firstScan = false))) }
+        compose.setTvContent { HomeGrid(state) }
         compose.waitForIdle()
         return loaded to asked.toList()
     }
@@ -110,28 +136,16 @@ class HomePicturesAheadTest {
     }
 
     @Test
-    fun aRowOfPosters() {
-        val sections = listOf(
-            HomeSection(SectionType.LATEST, (1..12).map(::film), landscape = false, libraryId = "films"),
-            HomeSection(SectionType.LATEST, (20..32).map(::film), landscape = false, libraryId = "shows"),
-        )
-        val (loaded, shown) = loadAheadThenShow(sections)
+    fun theLaunchLoadsWhatTheGridShows() {
+        val (loaded, shown) = loadAheadThenShow()
         assertTheSame(loaded, shown)
-        // The hero's three, and the posters of the first row that start on the screen.
-        assertEquals(3 + 7, loaded.size)
-        assertEquals("the first row's posters home asked for", firstRow(shown, "poster/"), firstRow(loaded, "poster/"))
-    }
-
-    @Test
-    fun aRowOfStills() {
-        val sections = listOf(
-            HomeSection(SectionType.CONTINUE, (1..9).map(::film), landscape = true),
-            HomeSection(SectionType.LATEST, (20..32).map(::film), landscape = false, libraryId = "films"),
-        )
-        val (loaded, shown) = loadAheadThenShow(sections)
-        assertTheSame(loaded, shown)
-        assertEquals(3 + 4, loaded.size)
-        assertEquals("the first row's stills home asked for", firstRow(shown, "still/"), firstRow(loaded, "still/"))
+        val keys = loaded.mapNotNull { it.key?.key }
+        listOf("backdrop/heat", "logo/heat", "backdrop/mobland", "logo/mobland").forEach { picture ->
+            assertTrue("$picture loaded ahead: $keys", keys.any { picture in it })
+        }
+        val cut = loaded.filter { it.key?.extras?.containsKey("houselights.cut") == true }
+        assertEquals("a poster per digit of 412 and of 38, read for its pixels", 5, cut.size)
+        assertTrue("the latest titles' band", keys.any { "poster/film1?" in it })
     }
 
     /** Each picture home asks for while the launch is loading it waits for that load ([AwaitAhead]). */
@@ -149,14 +163,13 @@ class HomePicturesAheadTest {
             add(AwaitAhead)
         }.memoryCache(::memory).eventListener(listener).build()
         Coil.setImageLoader(waiting)
-        val sections = listOf(HomeSection(SectionType.LATEST, (1..12).map(::film), landscape = false, libraryId = "films"))
-        val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), sections)
+        val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), rows)
         val launch = CoroutineScope(Dispatchers.Default)
         try {
             launch.launch { LoadingAhead.load(waiting, ahead) }
             waitFor { synchronized(fetched) { fetched.size } >= ahead.size }
-            compose.setTvContent { HomeBands(HomeState(content = HomeContent.Rows(sections, firstScan = false))) }
-            // Home laid out: its cards and its hero have asked for their pictures, which are on their way.
+            compose.setTvContent { HomeGrid(state) }
+            // Home laid out: its case and its doors have asked for their pictures, which are on their way.
             waitFor { sizes.size >= 2 * ahead.size }
             assertEquals("home waits for what is on its way", fetched.distinct(), synchronized(fetched) { fetched.toList() })
 
@@ -185,13 +198,8 @@ class HomePicturesAheadTest {
         }
     }
 
-    /** The cards of the first row (films 1 to 12) among what was [asked], by their addresses. */
-    private fun firstRow(asked: List<Asked>, kind: String): Set<String> = asked.mapNotNull { it.key?.key }
-        .filter { it.contains(kind) && it.substringAfter(kind).substringBefore('?').toInt() < FIRST_OF_SECOND_ROW }.toSet()
-
     private companion object {
         const val TIMEOUT_MS = 5_000L
         const val POLL_MS = 10L
-        const val FIRST_OF_SECOND_ROW = 20
     }
 }

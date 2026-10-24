@@ -90,8 +90,26 @@
     <string name="play">Afspelen</string>
     <string name="resume">Hervatten</string>
     <string name="time_left">Nog %s</string>
-    <string name="nav_home">Home</string>
     <string name="back_again_to_quit">Druk nogmaals op Terug om af te sluiten</string>
+    <string name="watch_title">Te bekijken</string>
+    <string name="home_news">Nieuw</string>
+    <string name="home_unseen">Nog niet gezien</string>
+    <string name="home_libraries">Bibliotheken</string>
+    <string name="home_state_source">Bron</string>
+    <string name="home_state_scan">Laatste scan</string>
+    <string name="home_state_tmdb_refused">Sleutel geweigerd</string>
+    <string name="home_state_tmdb_offline">Onbereikbaar</string>
+    <string name="home_scan_running">Bezig…</string>
+    <string name="home_episode">S%1$d · A%2$s</string>
+    <string name="home_open_title">Pagina openen</string>
+    <plurals name="home_news_week">
+        <item quantity="one">%d deze week</item>
+        <item quantity="other">%d deze week</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="one">%d nieuwe aflevering</item>
+        <item quantity="other">%d nieuwe afleveringen</item>
+    </plurals>
     <string name="from_start">Vanaf het begin</string>
     <string name="part_of">Deel %1$d van %2$d</string>
     <string name="parts">Delen</string>

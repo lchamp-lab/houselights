@@ -1,29 +1,21 @@
 package app.houselights.ui
 
 import app.houselights.ui.detail.backReturnsToActions
-import app.houselights.ui.home.backGoesUp
 import app.houselights.ui.library.backReturnsToFirst
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Where Back takes focus before it leaves a screen: from deep in it, back to where it starts. */
+/** Where Back takes focus before it leaves a screen: from deep in it, back to where it starts; home's grid asks at once (QuitAgainTest). */
 class BackStepsTest {
 
-    @Test
-    fun homeGoesUpToTheBarFromBelowTheFirstRow() {
-        assertTrue(backGoesUp(focusedRow = 2))
-        assertFalse("the first row: Back asks before leaving (QuitAgainTest)", backGoesUp(focusedRow = 0))
-        assertFalse("the bar: Back asks before leaving", backGoesUp(focusedRow = null))
-    }
-
-    /** A wall opened filtered, without the bar; under the bar, Back goes to it (BarFoldTest). */
+    /** A wall: past its first line, Back returns to its first poster; from it, or the menus, it leaves (PagesNavigationTest). */
     @Test
     fun theWallReturnsToItsFirstPosterFromPastTheFirstLine() {
         assertFalse(backReturnsToFirst(focusedIndex = 0))
         assertFalse("still the first line", backReturnsToFirst(focusedIndex = 6))
         assertTrue(backReturnsToFirst(focusedIndex = 7))
-        assertFalse("the filter or sort button: Back goes home", backReturnsToFirst(focusedIndex = null))
+        assertFalse("the filter or sort button: Back leaves", backReturnsToFirst(focusedIndex = null))
     }
 
     @Test
