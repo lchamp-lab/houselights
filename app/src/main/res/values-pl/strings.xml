@@ -45,6 +45,7 @@
     <string name="home_scan_failed">Skanowanie nie dobiegło końca</string>
     <string name="home_scan_tmdb_refused">TMDB odrzuca klucz: tytuły są dodawane na podstawie plików, bez informacji.</string>
     <string name="home_scan_tmdb_offline">TMDB nie odpowiada: tytuły są dodawane na podstawie plików i otrzymają informacje przy kolejnym skanowaniu.</string>
+    <string name="home_scan_tmdb_certificate">Certyfikat TMDB został odrzucony: tytuły są dodawane na podstawie plików. Sprawdź datę i godzinę na urządzeniu.</string>
     <string name="home_see_folders">Zobacz foldery</string>
 
     <!-- Browsing -->
@@ -462,6 +463,7 @@
     <string name="tmdb_key_unchecked">Zapisano bez sprawdzenia: TMDB nie odpowiada.</string>
     <string name="tmdb_scan_key_refused">Ten klucz został odrzucony przez TMDB podczas ostatniego skanowania: tytuły czekają na informacje.</string>
     <string name="tmdb_scan_offline">Podczas ostatniego skanowania nie było odpowiedzi z TMDB: tytuły otrzymają informacje przy kolejnym skanowaniu.</string>
+    <string name="tmdb_scan_certificate">Podczas ostatniego skanowania certyfikat TMDB został odrzucony: sprawdź datę i godzinę na urządzeniu.</string>
     <string name="tmdb_key_revert">Przywróć klucz wbudowany</string>
     <string name="tmdb_key_revert_desc">Houselights zapomina podany klucz</string>
     <string name="save">Zapisz</string>
@@ -527,6 +529,8 @@
     <string name="result_current">Bieżący</string>
     <string name="error_offline_title">Biblioteka niedostępna</string>
     <string name="error_offline">Serwer lub NAS nie odpowiada. Sprawdź, czy jest włączony, i spróbuj ponownie.</string>
+    <string name="error_certificate_title">Certyfikat odrzucony</string>
+    <string name="error_certificate">Certyfikat bezpieczeństwa został odrzucony. Odnów certyfikat serwera lub sprawdź datę i godzinę na urządzeniu, a potem spróbuj ponownie.</string>
     <string name="error_denied_title">Połączenie odrzucone</string>
     <string name="error_denied">Serwer odrzucił połączenie. Zaloguj się ponownie, aby kontynuować.</string>
     <string name="error_gone_title">Tego tytułu już nie ma</string>

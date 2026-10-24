@@ -88,7 +88,8 @@ class ShowMarksTest {
             DetailPage(
                 vm,
                 PlaybackOutcome(MutableSharedFlow()),
-                onPlay = { episode, resume -> played += episode.id to resume },
+                screen = "page",
+                onPlay = { episode, resume, _ -> played += episode.id to resume },
                 onOpenItem = {},
                 onEditArtwork = { _, _ -> },
                 onIdentify = {},

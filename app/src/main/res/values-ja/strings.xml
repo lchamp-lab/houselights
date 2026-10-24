@@ -39,6 +39,7 @@
     <string name="home_scan_failed">スキャンが完了しませんでした</string>
     <string name="home_scan_tmdb_refused">TMDBがキーを受け付けません。作品はファイルをもとに追加されますが、作品情報は付きません。</string>
     <string name="home_scan_tmdb_offline">TMDBが応答しません。作品はファイルをもとに追加され、作品情報は次回以降のスキャンで取得されます。</string>
+    <string name="home_scan_tmdb_certificate">TMDBの証明書が拒否されました。作品はファイルをもとに追加されます。このデバイスの日付と時刻を確認してください。</string>
     <string name="home_see_folders">フォルダを見る</string>
 
     <!-- Browsing -->
@@ -422,6 +423,7 @@
     <string name="tmdb_key_unchecked">確認せずに保存しました。TMDBが応答していません。</string>
     <string name="tmdb_scan_key_refused">前回のスキャン中にTMDBがこのキーを拒否しました。作品情報はまだ取得されていません。</string>
     <string name="tmdb_scan_offline">前回のスキャン中にTMDBが応答しませんでした。作品情報は次回以降のスキャンで取得されます。</string>
+    <string name="tmdb_scan_certificate">前回のスキャン中にTMDBの証明書が拒否されました。このデバイスの日付と時刻を確認してください。</string>
     <string name="tmdb_key_revert">内蔵キーに戻す</string>
     <string name="tmdb_key_revert_desc">お使いのキーを消去します</string>
     <string name="save">保存</string>
@@ -481,6 +483,8 @@
     <string name="result_current">現在</string>
     <string name="error_offline_title">ライブラリに接続できません</string>
     <string name="error_offline">サーバーまたはNASが応答しません。電源が入っているか確認して、もう一度お試しください。</string>
+    <string name="error_certificate_title">証明書が拒否されました</string>
+    <string name="error_certificate">セキュリティ証明書が拒否されました。サーバーの証明書を更新するか、このデバイスの日付と時刻を確認して、もう一度お試しください。</string>
     <string name="error_denied_title">接続が拒否されました</string>
     <string name="error_denied">サーバーが接続を拒否しました。続けるには再ログインしてください。</string>
     <string name="error_gone_title">この作品はもうありません</string>

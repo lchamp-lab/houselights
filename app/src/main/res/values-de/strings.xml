@@ -41,6 +41,7 @@
     <string name="home_scan_failed">Der Scan wurde nicht abgeschlossen</string>
     <string name="home_scan_tmdb_refused">TMDB lehnt den Schlüssel ab: Titel werden anhand Ihrer Dateien hinzugefügt, ohne ihre Infos.</string>
     <string name="home_scan_tmdb_offline">TMDB antwortet nicht: Titel werden anhand Ihrer Dateien hinzugefügt und erhalten ihre Infos bei einem späteren Scan.</string>
+    <string name="home_scan_tmdb_certificate">Das Zertifikat von TMDB wird abgelehnt: Titel werden anhand Ihrer Dateien hinzugefügt. Prüfen Sie Datum und Uhrzeit des Geräts.</string>
     <string name="home_see_folders">Ordner anzeigen</string>
 
     <!-- Browsing -->
@@ -436,6 +437,7 @@
     <string name="tmdb_key_unchecked">Ohne Prüfung gespeichert: TMDB antwortet nicht.</string>
     <string name="tmdb_scan_key_refused">TMDB hat diesen Schlüssel beim letzten Scan abgelehnt: Die Titel warten auf ihre Infos.</string>
     <string name="tmdb_scan_offline">TMDB hat beim letzten Scan nicht geantwortet: Die Titel erhalten ihre Infos bei einem späteren Scan.</string>
+    <string name="tmdb_scan_certificate">Das Zertifikat von TMDB wurde beim letzten Scan abgelehnt: Prüfen Sie Datum und Uhrzeit des Geräts.</string>
     <string name="tmdb_key_revert">Zurück zum integrierten Schlüssel</string>
     <string name="tmdb_key_revert_desc">Houselights vergisst Ihren Schlüssel</string>
     <string name="save">Speichern</string>
@@ -497,6 +499,8 @@
     <string name="result_current">Aktuell</string>
     <string name="error_offline_title">Bibliothek nicht erreichbar</string>
     <string name="error_offline">Der Server oder das NAS antwortet nicht. Prüfen Sie, ob das Gerät eingeschaltet ist, und versuchen Sie es erneut.</string>
+    <string name="error_certificate_title">Zertifikat abgelehnt</string>
+    <string name="error_certificate">Das Sicherheitszertifikat wird abgelehnt. Erneuern Sie das Zertifikat des Servers oder prüfen Sie Datum und Uhrzeit des Geräts und versuchen Sie es erneut.</string>
     <string name="error_denied_title">Verbindung abgelehnt</string>
     <string name="error_denied">Der Server hat die Verbindung abgelehnt. Melden Sie sich erneut an, um fortzufahren.</string>
     <string name="error_gone_title">Dieser Titel ist nicht mehr da</string>

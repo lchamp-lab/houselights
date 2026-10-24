@@ -41,6 +41,7 @@
     <string name="home_scan_failed">De scan is niet voltooid</string>
     <string name="home_scan_tmdb_refused">TMDB weigert de sleutel: titels worden toegevoegd op basis van uw bestanden, zonder hun gegevens.</string>
     <string name="home_scan_tmdb_offline">TMDB reageert niet: titels worden toegevoegd op basis van uw bestanden en krijgen hun gegevens bij een latere scan.</string>
+    <string name="home_scan_tmdb_certificate">Het certificaat van TMDB wordt geweigerd: titels worden toegevoegd op basis van uw bestanden. Controleer de datum en tijd van het apparaat.</string>
     <string name="home_see_folders">Mappen bekijken</string>
 
     <!-- Browsing -->
@@ -436,6 +437,7 @@
     <string name="tmdb_key_unchecked">Opgeslagen zonder controle: TMDB reageert niet.</string>
     <string name="tmdb_scan_key_refused">TMDB weigerde deze sleutel tijdens de laatste scan: titels wachten op hun gegevens.</string>
     <string name="tmdb_scan_offline">TMDB reageerde niet tijdens de laatste scan: titels krijgen hun gegevens bij een latere scan.</string>
+    <string name="tmdb_scan_certificate">Het certificaat van TMDB werd tijdens de laatste scan geweigerd: controleer de datum en tijd van het apparaat.</string>
     <string name="tmdb_key_revert">Terug naar de ingebouwde sleutel</string>
     <string name="tmdb_key_revert_desc">Houselights vergeet uw sleutel</string>
     <string name="save">Opslaan</string>
@@ -497,6 +499,8 @@
     <string name="result_current">Huidig</string>
     <string name="error_offline_title">Bibliotheek onbereikbaar</string>
     <string name="error_offline">De server of de NAS reageert niet. Controleer of die aan staat en probeer het opnieuw.</string>
+    <string name="error_certificate_title">Certificaat geweigerd</string>
+    <string name="error_certificate">Het beveiligingscertificaat wordt geweigerd. Vernieuw het certificaat van de server of controleer de datum en tijd van het apparaat en probeer het opnieuw.</string>
     <string name="error_denied_title">Verbinding geweigerd</string>
     <string name="error_denied">De server heeft de verbinding geweigerd. Log opnieuw in om verder te gaan.</string>
     <string name="error_gone_title">Deze titel is verdwenen</string>

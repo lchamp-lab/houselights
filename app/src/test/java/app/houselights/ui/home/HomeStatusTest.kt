@@ -106,6 +106,17 @@ class HomeStatusTest {
         assertFalse("TMDB said once", drawn("TMDB refuses this key"))
     }
 
+    /** TMDB's certificate refused (the device's clock reset) is said as such, not as TMDB out of reach. */
+    @Test
+    fun aRefusedCertificateIsSaidAsSuch() {
+        val scan = ScanState(tmdbIssue = FailureKind.CERTIFICATE)
+        val status = checkNotNull(homeStatus(local, listOf(folder(1, "nas", 0L)), scan, traktAvailable = true))
+        assertEquals(UiError.CERTIFICATE, status.tmdb)
+        compose.setTvContent { HomeGrid(fullHome(status = status)) }
+        listOf("TMDB", "Certificate refused").forEach { assertTrue(it, drawn(it)) }
+        assertFalse(drawn("Unreachable"))
+    }
+
     /** At the largest text, one line of facts fits: the last scan's, before Trakt's and the source's. */
     @Test
     fun atTheLargestTextTheLastScanStays() {

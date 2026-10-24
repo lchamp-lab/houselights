@@ -66,6 +66,16 @@ class JellyfinProviderTest {
         assertEquals(listOf("/UserPlayedItems/f1"), server.paths)
     }
 
+    /** What a title's page depends on fails as such, never as a show with nothing next or an empty saga. */
+    @Test
+    fun aPagesNextEpisodeAndSagaFailAsSuch() = runTest {
+        val server = FakeServer { Answer(500) }
+        val show = MediaItem("sh1", MediaKind.SERIES, "MobLand")
+        val saga = MediaItem("bs1", MediaKind.COLLECTION, "Alien")
+        assertEquals(500, httpFailure { provider(server).nextUp(show) }?.code())
+        assertEquals(500, httpFailure { provider(server).collectionItems(saga) }?.code())
+    }
+
     /** Seasons are asked for their episodes on disk: one without any, which the server calls watched, holds none. */
     @Test
     fun seasonsCountTheirEpisodesOnDisk() = runTest {

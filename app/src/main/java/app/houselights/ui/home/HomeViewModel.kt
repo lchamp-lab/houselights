@@ -31,6 +31,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -146,7 +147,12 @@ class HomeViewModel(
     private val doorReads = LatestJob(viewModelScope)
 
     /** Null until first read; on return, the last list stays until the database re-reads it, so Home never blanks. */
-    private val folderList: StateFlow<List<SourceEntity>?> = folders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
+    private val folderList: StateFlow<List<SourceEntity>?> = folders
+        .catch { e ->
+            Log.w(TAG, "Reading the folders failed", e)
+            emit(emptyList())
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     val state: StateFlow<HomeState> = combine(load, scan, folderList, settings) { loaded, progress, list, current ->
         HomeState(

@@ -11,6 +11,9 @@ class NoTmdbKeyException : IllegalStateException("No TMDB key")
 /** TMDB unreachable (network, DNS, timeout), now or recently, or still busy after retries (429, gateway failure). */
 open class TmdbUnreachableException(cause: Throwable?, message: String = "TMDB is unreachable") : IOException(message, cause)
 
+/** TLS refused TMDB's certificate, most often for the device's clock: worded as a certificate ([FailureKind.CERTIFICATE]). */
+class TmdbCertificateException(cause: Throwable) : TmdbUnreachableException(cause, "TMDB's certificate is refused")
+
 /** TMDB refused the API key (401, 403), fixed in Settings; an [IOException], as OkHttp interceptors require. */
 class TmdbKeyRefusedException : IOException("TMDB refused the API key")
 

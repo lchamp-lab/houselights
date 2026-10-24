@@ -790,6 +790,13 @@ private val ACCEPTED = TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED)
 private val REFUSED = TmdbKeySave.Checked(TmdbKeyCheck.REFUSED)
 private val UNCHECKED = TmdbKeySave.Checked(TmdbKeyCheck.UNCHECKED)
 
+/** What TMDB's problem in the last scan means for the titles: a key refused, a certificate refused, or no answer. */
+private fun scanIssueNote(issue: UiError): Int = when (issue) {
+    UiError.TMDB_KEY_REFUSED -> R.string.tmdb_scan_key_refused
+    UiError.CERTIFICATE -> R.string.tmdb_scan_certificate
+    else -> R.string.tmdb_scan_offline
+}
+
 /** The key in use: a lost saved key ([lost]) first, then personal, built-in or none, with the scan's [issue]. */
 @Composable
 private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boolean, lost: Boolean, issue: UiError?) {
@@ -802,7 +809,7 @@ private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boo
         issue != null && (personal || hasBuiltIn) -> HlStatus(
             StatusState.Attention,
             stringResource(if (personal) R.string.tmdb_key_personal else R.string.tmdb_key_builtin_state),
-            detail = stringResource(if (issue == UiError.TMDB_KEY_REFUSED) R.string.tmdb_scan_key_refused else R.string.tmdb_scan_offline),
+            detail = stringResource(scanIssueNote(issue)),
         )
         personal -> HlStatus(
             StatusState.On,

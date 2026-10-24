@@ -180,11 +180,13 @@ class JellyfinProvider(
     override suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem> =
         titles(api.episodes(series.id, userId, season.id, EPISODE_FIELDS).items)
 
+    // A title's page depends on these two: they fail as such, never as nothing next or an empty saga.
+
     override suspend fun nextUp(series: MediaItem): MediaItem? =
         if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
-        else row("Next up of ${series.id}") { api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia) }.getOrNull()
+        else api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia)
 
-    override suspend fun collectionItems(collection: MediaItem): List<MediaItem> = row("Films of ${collection.id}") {
+    override suspend fun collectionItems(collection: MediaItem): List<MediaItem> {
         val films = api.items(
             userId = userId,
             parentId = collection.id,
@@ -196,8 +198,8 @@ class JellyfinProvider(
             limit = COLLECTION_LIMIT,
             fields = ROW_FIELDS,
         ).items
-        titles(films)
-    }.getOrDefault(emptyList())
+        return titles(films)
+    }
 
     override suspend fun similar(item: MediaItem): List<MediaItem> =
         if (item.kind == MediaKind.EPISODE) emptyList()

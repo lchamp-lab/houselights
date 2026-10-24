@@ -29,6 +29,7 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.samePlace
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.launchAction
+import app.houselights.ui.util.reported
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -192,25 +193,32 @@ class AddFolderViewModel(
     init {
         viewModelScope.launch {
             if (folderId != null) {
-                val folder = library.folder(folderId)
-                if (folder != null) {
-                    editing = folder
-                    form = kept ?: FolderForm.of(folder)
-                    keepsPassword = folder.password.value.isNotEmpty()
-                } else {
-                    gone = true
-                }
-                ready = true
+                // Unread, the folder stays unsaveable: an empty password field would erase its own.
+                suspendRunCatching { library.folder(folderId) }
+                    .onSuccess { folder ->
+                        if (folder != null) {
+                            editing = folder
+                            form = kept ?: FolderForm.of(folder)
+                            keepsPassword = folder.password.value.isNotEmpty()
+                        } else {
+                            gone = true
+                        }
+                        ready = true
+                    }
+                    .onFailure { check = FolderCheck.SaveFailed(it.reported(TAG, "Reading folder $folderId")) }
             } else if (kept == null) {
                 // A second folder is most often on the same NAS: start from the last one added.
-                library.lastFolder()?.let { last ->
-                    form = form.copy(
-                        protocol = last.protocol,
-                        host = last.host,
-                        share = FolderForm.exportOrShare(last),
-                        user = last.username,
-                    )
-                }
+                suspendRunCatching { library.lastFolder() }
+                    .onFailure { Log.w(TAG, "Reading the last folder failed", it) }
+                    .getOrNull()
+                    ?.let { last ->
+                        form = form.copy(
+                            protocol = last.protocol,
+                            host = last.host,
+                            share = FolderForm.exportOrShare(last),
+                            user = last.username,
+                        )
+                    }
             }
         }
     }

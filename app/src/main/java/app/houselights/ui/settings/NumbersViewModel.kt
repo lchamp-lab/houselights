@@ -61,8 +61,8 @@ internal class NumbersViewModel(private val provider: () -> MediaProvider) : Vie
 
     private fun start() {
         counting.launch {
-            val source = provider()
             suspendRunCatching {
+                val source = provider()
                 val catalog = checkNotNull(source.catalog) { "The source counts nothing" }
                 coroutineScope {
                     val numbers = async { catalog.numbers() }
