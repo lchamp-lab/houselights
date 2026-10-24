@@ -12,6 +12,7 @@ import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
 import app.houselights.core.UserState
 import app.houselights.ui.design.components.AwaitAhead
+import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
 import app.houselights.ui.testing.TV
@@ -30,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -149,6 +151,32 @@ class HomePicturesAheadTest {
         val (loaded, shown) = loadAheadThenShow()
         assertTheSame(loaded, shown)
         assertEquals(listOf("https://img.test/backdrop/heat?w=1280"), loaded.mapNotNull { it.key?.key }.filter { "backdrop/heat" in it })
+    }
+
+    /** The launch loads what the rows show at once, the case once what it proposes is drawn, the doors' once they are read. */
+    @Test
+    fun theLaunchLoadsEachPictureOnceWhatShowsItIsRead() = runBlocking {
+        Coil.setImageLoader(loader)
+        val first = CompletableDeferred<HomeDoors>()
+        val whole = CompletableDeferred<HomeDoors>()
+        val proposed = titled("alien")
+        val sections = rows.sections.filter { it.type != SectionType.CONTINUE }
+        val launched = HomeRows(rows.libraries, sections, doorsAhead = DoorsRead(first, whole))
+        val pictures = loadFirstPictures(context, context.resources.displayMetrics.widthPixels, CutPosterCache())
+        val loading = launch(Dispatchers.Unconfined) { pictures(launched) }
+        fun keys() = synchronized(asked) { asked.mapNotNull { it.key?.key } }
+        fun cut() = synchronized(asked) { asked.filter { it.key?.extras?.containsKey("houselights.cut") == true }.map { it.key }.distinct() }
+        assertTrue("the next episode's still at once: ${keys()}", keys().any { "backdrop/mobland" in it })
+        assertTrue("the latest titles' band at once", keys().any { "poster/film1?" in it })
+        assertTrue("the case to come", keys().none { "alien" in it })
+
+        first.complete(HomeDoors(proposed, shelvesRead = false))
+        assertTrue("the case once drawn: ${keys()}", keys().any { "backdrop/alien" in it })
+        assertTrue("the counts to come", cut().isEmpty())
+
+        whole.complete(checkNotNull(rows.doors).copy(proposed = proposed))
+        loading.join()
+        assertEquals("a poster per digit of 412 and of 38, once the doors are read", 5, cut().size)
     }
 
     /** Each picture home asks for while the launch is loading it waits for that load ([AwaitAhead]). */

@@ -114,19 +114,20 @@ class HomeLaunch(
         coroutineScope {
             // The doors are read after the rows, which home shows meanwhile; it awaits this read rather than make its own.
             val doors = rows.getOrNull()?.let { read -> readDoorsAsync(checkNotNull(home), read.libraries, read.sections, pick) }
-            answer.complete(Asked(source, at, rows.map { it.copy(doorsAhead = doors) }))
-            rows.onSuccess { read -> load({ read.copy(doors = doors?.whole?.await()) }, pictures) }
+            val launched = rows.map { it.copy(doorsAhead = doors) }
+            answer.complete(Asked(source, at, launched))
+            launched.onSuccess { read -> load(read, pictures) }
         }
         gate.picturesLoaded()
     }
 
     /**
-     * Preloads the pictures of the [rows] to come (their doors read) until done or the gate opens at its time cap;
-     * Home then loads the rest, never twice.
+     * Preloads the pictures of [rows], their doors under way ([HomeRows.doorsAhead]), until done or the gate opens at
+     * its time cap; Home then loads the rest, never twice.
      */
-    private suspend fun load(rows: suspend () -> HomeRows, pictures: suspend (HomeRows) -> Unit) = coroutineScope {
+    private suspend fun load(rows: HomeRows, pictures: suspend (HomeRows) -> Unit) = coroutineScope {
         if (gate.isOpen) return@coroutineScope
-        val loading = launch { suspendRunCatching { pictures(rows()) } }
+        val loading = launch { suspendRunCatching { pictures(rows) } }
         val cap = launch {
             gate.awaitOpen()
             loading.cancel()
@@ -154,8 +155,9 @@ class HomeLaunch(
 }
 
 /**
- * Preloads Home's first-view pictures for a [screenWidthPx] screen; Home awaits each one ([LoadingAhead]). The
- * library doors' counts are cut in their posters too, into [cuts], so they show on home's first frame.
+ * Preloads Home's first-view pictures for a [screenWidthPx] screen, each as soon as what shows it is read; Home awaits
+ * each one ([LoadingAhead]). What the rows show loads at once, the case proposed once drawn ([DoorsRead.first]), the
+ * doors' posters once read ([DoorsRead.whole]), their counts cut into [cuts] so they show on home's first frame.
  */
 internal fun loadFirstPictures(
     context: Context,
@@ -164,10 +166,21 @@ internal fun loadFirstPictures(
     canSearch: () -> Boolean = { true },
 ): suspend (HomeRows) -> Unit = { rows ->
     val ahead = PicturesAhead(context, screenWidthPx)
-    val plan = planOf(rows, canSearch())
+    val search = canSearch()
+    val loader = context.imageLoader
     coroutineScope {
-        launch { LoadingAhead.load(context.imageLoader, firstPictures(ahead, plan)) }
-        plan.doors.mapNotNull(::cutIn).forEach { posters -> launch { ahead.cutAhead(posters, cuts) } }
+        launch { LoadingAhead.load(loader, rowPictures(ahead, planOf(rows, search))) }
+        // A read gone away (cancelled) ends its part alone.
+        launch {
+            val first = rows.doors ?: rows.doorsAhead?.first?.await() ?: return@launch
+            (planOf(rows.copy(doors = first), search).case as? CaseShows.Proposed)?.let { LoadingAhead.load(loader, ahead.case(it.item)) }
+        }
+        launch {
+            val doors = rows.doors ?: rows.doorsAhead?.whole?.await() ?: return@launch
+            val plan = planOf(rows.copy(doors = doors), search)
+            launch { LoadingAhead.load(loader, plan.doors.filterNot { it.ofRows }.flatMap { it.pictures(ahead) }) }
+            plan.doors.mapNotNull(::cutIn).forEach { posters -> launch { ahead.cutAhead(posters, cuts) } }
+        }
     }
 }
 
@@ -190,18 +203,23 @@ private fun cutIn(door: Door): List<MediaItem>? = when (door) {
  * still and logo, then the doors' posters, those a count is cut in read for their pixels.
  */
 internal fun firstPictures(ahead: PicturesAhead, rows: HomeRows, canSearch: Boolean = true): List<ImageRequest> =
-    firstPictures(ahead, planOf(rows, canSearch))
+    planOf(rows, canSearch).let { plan -> plan.case?.item?.let(ahead::case).orEmpty() + plan.doors.flatMap { it.pictures(ahead) } }
 
-private fun firstPictures(ahead: PicturesAhead, plan: HomePlan): List<ImageRequest> =
-    plan.case?.item?.let(ahead::case).orEmpty() + plan.doors.flatMap { door ->
-        when (door) {
-            is Door.Next -> ahead.still(door.item)
-            is Door.AlsoResume -> ahead.still(door.item)
-            is Door.News -> ahead.strip(door.posters)
-            is Door.Library -> ahead.cut(door.posters)
-            is Door.Libraries -> ahead.cut(door.posters)
-            is Door.Sagas -> ahead.sagas(door.shelf.posters)
-            is Door.Search -> ahead.thumbs(door.posters)
-            Door.Settings -> emptyList()
-        }
-    }
+/** What [plan] shows from the rows alone, before any door is read: the case resuming, the next episode, the latest titles. */
+private fun rowPictures(ahead: PicturesAhead, plan: HomePlan): List<ImageRequest> =
+    (plan.case as? CaseShows.Resume)?.item?.let(ahead::case).orEmpty() + plan.doors.filter { it.ofRows }.flatMap { it.pictures(ahead) }
+
+/** Whether the rows alone say what this door shows. */
+private val Door.ofRows: Boolean get() = this is Door.Next || this is Door.AlsoResume || this is Door.News
+
+/** The pictures this door shows, as it requests them. */
+private fun Door.pictures(ahead: PicturesAhead): List<ImageRequest> = when (this) {
+    is Door.Next -> ahead.still(item)
+    is Door.AlsoResume -> ahead.still(item)
+    is Door.News -> ahead.strip(posters)
+    is Door.Library -> ahead.cut(posters)
+    is Door.Libraries -> ahead.cut(posters)
+    is Door.Sagas -> ahead.sagas(shelf.posters)
+    is Door.Search -> ahead.thumbs(posters)
+    Door.Settings -> emptyList()
+}

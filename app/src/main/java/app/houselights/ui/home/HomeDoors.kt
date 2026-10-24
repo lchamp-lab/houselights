@@ -83,7 +83,7 @@ class UnseenPick(private val random: Random = Random.Default) {
 
 /**
  * Reads the doors of [libraries] and what [sections] leave out, each part on its own: a failure leaves it out. What the
- * case proposes is read first and handed to [onProposed], so the case shows before the rest is read.
+ * case proposes is read beside the rest and handed to [onProposed] as it comes, so the case shows before the rest.
  */
 suspend fun readDoors(
     source: MediaProvider,
@@ -95,16 +95,16 @@ suspend fun readDoors(
 ): HomeDoors = coroutineScope {
     val next = nextUp(sections)
     val season = next?.let { async { part("Season") { seasonOf(source, it) } } }
-    // Read even while a title is in progress: the case proposes it as soon as nothing is.
-    val proposed = part("Proposed") { pick.of(source, libraries) }.also(onProposed)
     val tabs = libraries.filter { it.kind != LibraryKind.COLLECTIONS }.take(SHELVES)
     val sagas = libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
     val shelves = tabs.map { library -> async { shelf(source, library, SortOption.RATING, SHELF_POSTERS, now) } }
     val sagaShelf = sagas?.let { async { shelf(source, it, SortOption.ADDED, SAGA_POSTERS, now) } }
+    // Read even while a title is in progress: the case proposes it as soon as nothing is.
+    val proposed = part("Proposed") { pick.of(source, libraries) }.also(onProposed)
     HomeDoors(proposed, shelves.awaitAll(), sagaShelf?.await(), season?.await(), next?.id.takeIf { season != null })
 }
 
-/** A read of home's doors under way: what the case proposes as soon as it is read ([first]), then the doors whole. */
+/** A read of home's doors under way: what the case proposes as soon as it is read ([first]), and the doors whole. */
 class DoorsRead(val first: Deferred<HomeDoors>, val whole: Deferred<HomeDoors>)
 
 /** Starts reading home's doors in this scope ([readDoors]); [DoorsRead.first] is cancelled if the read ends without it. */
@@ -126,10 +126,12 @@ internal fun nextUp(sections: List<HomeSection>): MediaItem? {
     return sections.firstOrNull { it.type == SectionType.NEXT_UP }?.items?.firstOrNull { it.id !in resuming }
 }
 
-private suspend fun shelf(source: MediaProvider, library: Library, sort: SortOption, posters: Int, now: Long): Shelf {
+private suspend fun shelf(source: MediaProvider, library: Library, sort: SortOption, posters: Int, now: Long): Shelf = coroutineScope {
+    val episodes = async {
+        if (library.kind == LibraryKind.SHOWS) part("New episodes") { source.newEpisodes(library, now - NEW_FOR_MS) } else null
+    }
     val page = part("Shelf ${library.kind}") { source.libraryPage(library, sort, LibraryFilter(), 0, posters) }
-    val episodes = if (library.kind == LibraryKind.SHOWS) part("New episodes") { source.newEpisodes(library, now - NEW_FOR_MS) } else null
-    return Shelf(library, page?.total, page?.items.orEmpty(), episodes)
+    Shelf(library, page?.total, page?.items.orEmpty(), episodes.await())
 }
 
 /** Whether each episode of [next]'s season is watched, in order; none for a film or a season too long to read so. */

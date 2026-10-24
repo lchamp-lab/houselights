@@ -55,8 +55,9 @@ Three moments carry the identity:
 
 - **Launch.** A cold start shows Gradation alone on black, in its ember light (`splash_mark`, drawn by Android
   at the device's density): no progress bar, no text. Home is composed underneath (its rows and its doors read,
-  the case's picture and the doors' posters preloaded with `PicturesAhead` and `AwaitAhead`, the counts cut ahead
-  into the app's `CutPosterCache`). The launch screen leaves after
+  each picture preloaded with `PicturesAhead` and `AwaitAhead` as soon as what shows it is read: what the rows show
+  at once, the case proposed once drawn, the doors' posters once read, their counts cut ahead into the app's
+  `CutPosterCache`). The launch screen leaves after
   home's first complete frame (`drawnWhole`, `LocalLaunchScreen`), at most 1.5 s after process start, and at
   once when the app starts elsewhere. `LaunchCue` then plays over `SLOW`: the bars go out widest first, each
   over `FAST`, the last as the black starts to lift off home over `STANDARD`, every step easing out
@@ -421,8 +422,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     (`MetaLine`), its progress and time left, then its action, a plate the case's focus fills white. With nothing in
     progress, it proposes a film not seen, drawn once a session, else a show not seen, whose page it opens ("Voir la
     série", no Play glyph), else any title (`UnseenPick`): "Pas encore vu" in `jaquette` over one not seen, its genres,
-    Lire. What it proposes is read with every read of the doors, before the libraries' (`readDoorsAsync`), so the case
-    changes in place, focus kept; only an empty library has none, focus then on the first door. OK plays; Menu opens
+    Lire. What it proposes is read with every read of the doors, beside the libraries' and shown as soon as it comes
+    (`readDoorsAsync`), so the case changes in place, focus kept; only an empty library has none, focus then on the first door. OK plays; Menu opens
     its options, which the Menu key says at the end of its action's plate while it has focus: its page, and from its
     start once started.
   - **What is watched**: À suivre, the next episode not already in progress (`nextUp`), its still and logo
