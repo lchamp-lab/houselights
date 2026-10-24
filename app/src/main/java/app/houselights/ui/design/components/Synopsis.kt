@@ -5,7 +5,6 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.paddingFromBaseline
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,7 +32,6 @@ import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import kotlinx.coroutines.launch
 
@@ -74,8 +72,8 @@ fun HeadOverview(text: String, onOpen: () -> Unit, modifier: Modifier = Modifier
 const val HEAD_OVERVIEW_LINES = 3
 
 /**
- * The whole overview in a reading sheet ([HlSideSheet] `wide`), its tagline in `lead` over it, its text in `body` at
- * the reading measure; the text is focused, down and up scroll it [READING_STEP] lines per press.
+ * The whole overview in a side sheet of the standard width, about 60 characters a line: its tagline in `lead` over its
+ * text in `body`; the text is focused, down and up scroll it [READING_STEP] lines per press.
  */
 @Composable
 fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
@@ -90,9 +88,8 @@ fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
         facts = listOf(item.title, item.year?.toString(), item.directors.firstOrNull()),
         initialFocus = words,
         scroll = scroll,
-        wide = true,
     ) { _ ->
-        Column(Modifier.widthIn(max = HlLayout.readable)) {
+        Column {
             // The tagline as far under the head as over the text, from its baseline.
             item.tagline?.takeIf { it.isNotBlank() }?.let {
                 val apart = HlSpace.l + HlSpace.xxs

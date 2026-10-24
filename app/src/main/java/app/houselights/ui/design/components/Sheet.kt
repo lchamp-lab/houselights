@@ -198,7 +198,7 @@ internal fun SheetWindow(
  * Sheets), its glass in the film's dark ([sheetGlass]): its task's [title], what it is about in [facts] after its printed
  * [badges], ended by a [stateText] with its [state]'s dot, beside its [artwork], as tall as they are, and the
  * [places] it shows (an NFO's views) at the end of the title's line; then its plates, [HlSpace.m] apart, in the
- * film's light ([HlPlate]). [wide], a reading sheet holding the reading measure. No Close button nor hint: Back or
+ * film's light ([HlPlate]). [wide], a sheet holding the reading measure (an NFO). No Close button nor hint: Back or
  * [SheetScope.dismiss] closes it; [scroll] lets a text-only panel scroll, and without [scrolls] the content takes
  * the sheet's height and scrolls itself.
  */

@@ -226,7 +226,7 @@ private fun SecondarySheets() {
                 Row(Modifier.padding(HlSpace.l), horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
                     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("A sheet in the film’s light", { acting = true })
-                        HlButton("A reading sheet, wide", { reading = true })
+                        HlButton("A synopsis: a standard sheet to read", { reading = true })
                         HlButton("An NFO: its views on the title's line", { nfo = true })
                     }
                     // A sheet's glass, and on it a plate a step up in the film's glow.
@@ -294,7 +294,7 @@ private fun SheetOfAnNfo(onDismiss: () -> Unit) {
 
 @Composable
 private fun SheetToRead(onDismiss: () -> Unit) {
-    HlSideSheet("Synopsis", onDismiss = onDismiss, facts = listOf("Le Samouraï", "1967", "Jean-Pierre Melville"), wide = true) {
+    HlSideSheet("Synopsis", onDismiss = onDismiss, facts = listOf("Le Samouraï", "1967", "Jean-Pierre Melville")) {
         Text("Le silence d’un homme seul.", style = Hl.type.lead, color = Hl.colors.content)
         Text(
             "Jef Costello, tueur à gages solitaire, se fabrique un alibi avant d’abattre le patron d’une boîte de nuit. " +
