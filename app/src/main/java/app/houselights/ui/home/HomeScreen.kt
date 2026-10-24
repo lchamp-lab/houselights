@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -134,15 +135,11 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
     // A first focus waits for the case: with nothing in progress, it proposes a title as soon as one is read.
     val ready = plan != null && (plan.case != null || state.doors != null)
     RestoreFocus(memory, fallback = plan?.start?.let { memory.requester(it) }, ready = ready)
-    var listing by rememberSaveable { mutableStateOf(false) }
-    var options by rememberSaveable { mutableStateOf(false) }
+    val listing = rememberSaveable { mutableStateOf(false) }
+    val options = rememberSaveable { mutableStateOf(false) }
     val case = plan?.case
-    val gathered = plan?.doors?.any { it is Door.Libraries } == true
-    // A sheet whose element went with a reload closes, and does not open again by itself when it comes back.
-    SideEffect {
-        if (case == null) options = false
-        if (!gathered) listing = false
-    }
+    ClosedWithout(options, case != null)
+    ClosedWithout(listing, plan?.doors?.any { it is Door.Libraries } == true)
     // Whole for the launch screen once the grid shows with its doors read, or a message.
     val whole = content !is HomeContent.Loading && (plan == null || state.doors?.shelvesRead == true)
     Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current).drawnWhole(whole)) {
@@ -154,13 +151,20 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
         }
         HomeHead(stringResource(R.string.back_again_to_quit).takeIf { quitting }, end = settings)
         when {
-            plan != null -> Grid(plan, state, scan, actions, memory, onList = { listing = true }, onOptions = { options = true })
+            plan != null ->
+                Grid(plan, state, scan, actions, memory, onList = { listing.value = true }, onOptions = { options.value = true })
             content is HomeContent.Message -> NoRows(content, scan, actions, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
             else -> Unit
         }
     }
-    if (listing && plan != null) LibrariesSheet(plan, state.sagas, actions) { listing = false }
-    if (options && case != null) CaseOptions(case, actions) { options = false }
+    if (listing.value && plan != null) LibrariesSheet(plan, state.sagas, actions) { listing.value = false }
+    if (options.value && case != null) CaseOptions(case, actions) { options.value = false }
+}
+
+/** A [sheet] whose [element] went with a reload closes, and does not open again by itself when it comes back. */
+@Composable
+private fun ClosedWithout(sheet: MutableState<Boolean>, element: Boolean) {
+    SideEffect { if (!element) sheet.value = false }
 }
 
 /** Home's grid for [state]'s rows, once there are; null for a message or while loading. */

@@ -98,7 +98,8 @@ class FakeProvider : MediaProvider {
         call("page $start $limit")
         pages += Asked(library.id, filter, grouped)
         // Not seen: as a source filters them, neither watched nor started.
-        val shown = (walls[library.id] ?: wall).filter { filter.status != WatchStatus.UNWATCHED || (!it.user.played && it.user.positionMs == 0L) }
+        val notSeen = { item: MediaItem -> !item.user.played && item.user.positionMs == 0L }
+        val shown = (walls[library.id] ?: wall).filter { filter.status != WatchStatus.UNWATCHED || notSeen(it) }
         val sagas = shown.count { it.kind == MediaKind.COLLECTION }.takeIf { grouped && countsSagas }
         return Page(shown.drop(start).take(limit), shown.size, sagas)
     }
