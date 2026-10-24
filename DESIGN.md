@@ -21,7 +21,8 @@ Settings > About > Design system (see *Catalogue*).
    overscan-safe area (`HlSpace.safeH`, `safeV`).
 4. **One canvas.** Screens are laid out on 960 × 540 dp (`HlLayout.CANVAS_WIDTH`). `HouselightsTheme` derives
    the density from the screen's real width, not the declared one (the Zidoo declares 240 dpi); the viewer's
-   text scale is kept.
+   text scale is kept. Sheets and menus, in windows of their own that would bring the declared density, are handed
+   the canvas's (`WindowDensityTest`).
 5. **Calm motion.** Motion answers the user, on the system's own curves. Two moments are orchestrated: the
    house lights (at launch and before playback) and the welcome wall's drift. Screens cut, never cross-fade:
    the backdrop is handed across the cut (`BackdropRelay`) and the words change at once.

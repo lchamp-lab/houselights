@@ -157,7 +157,8 @@ internal val LocalInSheet = staticCompositionLocalOf { false }
 
 /**
  * The dialog window under every sheet, with our own scrim instead of the platform's grey dim and window
- * animation. [content] reads the motion's progress while drawing. While it is open, the screen under it shows no
+ * animation, laid out at the density it is opened at: its window's own view would bring the system's, not the
+ * canvas's. [content] reads the motion's progress while drawing. While it is open, the screen under it shows no
  * focus: what opened it does not stay lit under the veil.
  */
 @Composable
@@ -172,6 +173,7 @@ internal fun SheetWindow(
         OpenSheets.count++
         onDispose { OpenSheets.count-- }
     }
+    val canvas = LocalDensity.current
     Dialog(onDismissRequest = { motion.sheet.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
@@ -186,7 +188,7 @@ internal fun SheetWindow(
                 .stillWhileLeaving(motion)
                 .drawBehind { drawRect(room.copy(alpha = scrim * motion.opacity)) },
         ) {
-            CompositionLocalProvider(LocalInSheet provides true) { content(motion) }
+            CompositionLocalProvider(LocalDensity provides canvas, LocalInSheet provides true) { content(motion) }
         }
     }
 }
