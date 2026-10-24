@@ -12,6 +12,7 @@ import app.houselights.providers.jellyfin.AuthResult
 import app.houselights.providers.jellyfin.DiscoveredServer
 import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.PublicSystemInfo
+import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.LibraryDatabase
@@ -68,8 +69,9 @@ class SignInFocusTest {
     private object Offline : JellyfinNetwork {
         override suspend fun discover() = emptyList<DiscoveredServer>()
 
-        override suspend fun reach(input: String, deviceId: String, announced: Boolean): Pair<String, PublicSystemInfo> =
-            throw IOException("offline")
+        override suspend fun check(found: DiscoveredServer): ServerCheck = ServerCheck.Silent
+
+        override suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo> = throw IOException("offline")
 
         override suspend fun authenticate(url: String, deviceId: String, request: AuthRequest): AuthResult = throw IOException("offline")
     }

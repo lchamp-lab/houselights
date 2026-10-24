@@ -20,6 +20,24 @@ data class DiscoveredServer(
     @SerialName("Id") val id: String? = null,
 )
 
+/** What checking a server found on the network said ([JellyfinClient.check]): where signing in reaches it, and how. */
+sealed interface ServerCheck {
+    /** The address signing in reaches, once the check found one. */
+    val url: String? get() = null
+
+    /** Not checked yet. */
+    data object Checking : ServerCheck
+
+    /** Its HTTPS address [url] answered as that server, with a certificate the player trusts. */
+    data class Encrypted(override val url: String) : ServerCheck
+
+    /** Only its HTTP address [url] answered, HTTPS silent, refused or another service. */
+    data class Plain(override val url: String) : ServerCheck
+
+    /** Neither answered. */
+    data object Silent : ServerCheck
+}
+
 /** Finds Jellyfin servers on the local network (UDP broadcast on port 7359). */
 object ServerDiscovery {
     private val BROADCAST = InetSocketAddress("255.255.255.255", 7359)

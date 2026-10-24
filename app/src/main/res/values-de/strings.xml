@@ -265,6 +265,11 @@
     <!-- Jellyfin -->
     <string name="jellyfin_title">Mit Jellyfin verbinden</string>
     <string name="servers_found">Im Netzwerk gefundene Server</string>
+    <string name="server_encrypted">Verschlüsselt</string>
+    <string name="server_plain">Unverschlüsselt</string>
+    <string name="server_silent">Antwortet nicht</string>
+    <string name="connection_is_encrypted">Verschlüsselte Verbindung</string>
+    <string name="connection_is_plain">Unverschlüsselte Verbindung</string>
     <string name="field_server">Serveradresse</string>
     <string name="placeholder_server">z. B. 192.168.1.10:8096</string>
     <string name="sign_in">Anmelden</string>

@@ -265,6 +265,11 @@
     <!-- Jellyfin -->
     <string name="jellyfin_title">Verbinden met Jellyfin</string>
     <string name="servers_found">Servers gevonden op het netwerk</string>
+    <string name="server_encrypted">Versleuteld</string>
+    <string name="server_plain">Niet versleuteld</string>
+    <string name="server_silent">Reageert niet</string>
+    <string name="connection_is_encrypted">Versleutelde verbinding</string>
+    <string name="connection_is_plain">Onversleutelde verbinding</string>
     <string name="field_server">Serveradres</string>
     <string name="placeholder_server">Bijv. 192.168.1.10:8096</string>
     <string name="sign_in">Inloggen</string>

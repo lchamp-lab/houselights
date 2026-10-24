@@ -236,6 +236,15 @@ object HlIcons {
             "A2 2 0 0 1 4.49 12H2",
     )
 
+    /** A connection encrypted: a lock, closed (`lock`). */
+    val Lock = icon("Lock", LOCK_BODY, "M7 11V7a5 5 0 0 1 10 0v4")
+
+    /** A connection not encrypted: the same lock, open (`lock-open`). */
+    val LockOpen = icon("LockOpen", LOCK_BODY, "M7 11V7a5 5 0 0 1 9.9-1")
+
+    /** The body of `lock` and `lock-open`, its rect drawn as a path. */
+    private const val LOCK_BODY = "M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"
+
     private const val HEART =
         "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2" +
             "A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"

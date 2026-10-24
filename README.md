@@ -133,11 +133,15 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   disabled. Disconnecting Trakt revokes the app's token there.
 - Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in
   rather than fall back to plain HTTP, which typing `http://` chooses; refused later (expired, or the player's clock
-  wrong), as TMDB's may be, screens say « Certificat refusé ». A server picked among those found gives its own
-  address, over HTTP unless it requires HTTPS: its HTTPS port (8920) is tried first, then that address, as a
-  certificate rarely names it. The settings show when a connection is not encrypted. Requests carrying the token or
-  the password follow no redirect to another host, or from HTTPS to HTTP. A stream played without path mappings
-  carries the token in its URL and is only handed to another app through Android's app chooser.
+  wrong), as TMDB's may be, screens say « Certificat refusé ». Each server found on the network is checked as it
+  appears, anonymously, 3 s at most an address: its HTTPS address (the one it announces, else port 8920), then the
+  HTTP one it announces. It is « Chiffré » only when HTTPS answers as that same server (its Jellyfin id) with a
+  certificate the player trusts; another service on 8920 does not pass. Picked, it is reached as its check says:
+  over HTTPS alone once « Chiffré », a failure said rather than a fall back to HTTP; at the HTTP address it announces
+  once « Non chiffré », as the list and the panel say before you sign in. The settings show when a connection is not
+  encrypted. Requests carrying the token or the password follow no redirect to another host, or from HTTPS to HTTP.
+  A stream played without path mappings carries the token in its URL and is only handed to another app through
+  Android's app chooser.
 - Changing source signs out of nothing. A Jellyfin server left for your folders keeps its token, encrypted
   like the source's under its own key, so that it comes back without signing in; one server at most, signed out
   of instead when the Keystore cannot encrypt it, and kept as stored when the Keystore has not opened it yet. Its

@@ -33,6 +33,9 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
+import app.houselights.ui.design.components.ChoicePlace
+import app.houselights.ui.design.components.ConnectionSecurity
+import app.houselights.ui.design.components.ConnectionState
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlChoiceSetting
@@ -58,6 +61,7 @@ import app.houselights.ui.util.libraryName
 /** Forms, menus, choice sheets and long text; HlTwoPane and HlFormScaffold fill the screen (see setup). */
 internal fun LazyListScope.catalogForms() {
     item { Group("Settings: entries and rows on the room, white with focus") { FormSettings() } }
+    item { Group("Servers found: how each will be reached, its check's place kept") { FormFoundServers() } }
     item { Group("Text fields") { FormTextFields() } }
     item { Group("Status panel", still = true) { FormStatusPanels() } }
     item { Group("Panel button") { FormPanelButtons() } }
@@ -226,6 +230,36 @@ private fun FormTextFields() {
     }
 }
 
+/** A sign-in's servers found as their checks left them, the one picked checked after its state. */
+@Composable
+private fun FormFoundServers() {
+    val rows = listOf(
+        Triple("Salon", "jellyfin.mondomaine.fr", ConnectionSecurity.Encrypted),
+        Triple("NAS du bureau", "192.168.1.31:8096", ConnectionSecurity.Plain),
+        Triple("Chambre", "192.168.1.42:8096", ConnectionSecurity.Checking),
+        Triple("Ancien NAS", "192.168.1.57:8096", ConnectionSecurity.Silent),
+    )
+    Specimen(
+        "the lock closed and white, open and grey, the quiet dot, the ring; never ember; focus inks them",
+        Modifier.width(HlLayout.readableNarrow),
+        gap = HlSpace.xs,
+    ) {
+        HlSettingGroup(stringResource(R.string.servers_found)) {
+            rows.forEach { (name, address, security) ->
+                HlSettingRow(
+                    name,
+                    description = address,
+                    onClick = {},
+                    trailing = {
+                        ConnectionState(security)
+                        ChoicePlace(chosen = security == ConnectionSecurity.Plain)
+                    },
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun FormStatusPanels() {
     val films = stringResource(R.string.library_movies)
@@ -281,10 +315,19 @@ private fun FormStatusPanels() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("done: a server found on the network, by its name", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
+        Specimen("done: a server found, by its name, its protocol verified", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "http://192.168.1.20:8096",
-                name = "Jellyfin du salon",
+                StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "jellyfin.mondomaine.fr",
+                name = "Salon",
+                badges = listOf("HTTPS"),
+                facts = listOf(stringResource(R.string.connection_is_encrypted)),
+            )
+        }
+        Specimen("picked while checked: no protocol yet", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
+            StatusPanel(
+                StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "192.168.1.42:8096",
+                name = "Chambre",
+                facts = listOf(stringResource(R.string.checking)),
             )
         }
     }

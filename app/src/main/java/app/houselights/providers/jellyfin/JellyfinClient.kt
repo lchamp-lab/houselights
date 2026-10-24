@@ -39,9 +39,10 @@ class UnsupportedServer(val url: String, val product: String?, val version: Stri
 fun Throwable.isCertificateFailure(): Boolean = generateSequence(this) { it.cause }
     .any { it is CertificateException || it is CertPathValidatorException || it is SSLPeerUnverifiedException }
 
+/** A client of the server at [serverUrl], as the device [deviceId], or anonymously when null. */
 class JellyfinClient(
     serverUrl: String,
-    private val deviceId: String,
+    private val deviceId: String?,
     private val token: String?,
     base: OkHttpClient = Http.client,
     connectTimeoutMs: Long = CONNECT_MS,
@@ -54,6 +55,8 @@ class JellyfinClient(
         .connectTimeout(connectTimeoutMs, TimeUnit.MILLISECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .addInterceptor { chain ->
+            // The device's name and id go only to a server it signs in to.
+            if (deviceId == null) return@addInterceptor chain.proceed(chain.request())
             val auth = buildString {
                 append("MediaBrowser Client=\"Houselights\", Device=\"")
                 append(Build.MODEL.orEmpty().replace("\"", ""))
@@ -107,6 +110,9 @@ class JellyfinClient(
         /** Short connect timeout for the HTTPS probe, so a firewall dropping it does not delay the HTTP fallback. */
         private const val PROBE_CONNECT_MS = 3_000L
 
+        /** How long checking a server found waits on each of its addresses, all told. */
+        private const val CHECK_MS = 3_000L
+
         /** ProductName reported by System/Info/Public on Jellyfin. */
         private const val PRODUCT = "Jellyfin Server"
 
@@ -144,23 +150,29 @@ class JellyfinClient(
         }
 
         /**
+         * Checks a server found on the network as signing in will reach it, anonymously, [CHECK_MS] at most an address:
+         * its HTTPS address first, the one it announces or else port 8920 on its host, then the HTTP one it announces.
+         * Encrypted only when HTTPS answers with a certificate the player trusts and as that server, its id the one
+         * discovery gave, so another service on 8920 does not pass; plain when only HTTP answers, a refused
+         * certificate included; silent when neither does.
+         */
+        suspend fun check(found: DiscoveredServer, http: OkHttpClient = Http.client): ServerCheck {
+            val announced = normalizeUrl(found.address)
+            val url = "$announced/".toHttpUrlOrNull() ?: return ServerCheck.Silent
+            val brief = http.newBuilder().callTimeout(CHECK_MS, TimeUnit.MILLISECONDS).build()
+            suspend fun info(at: String) = publicInfo(at, deviceId = null, brief, CHECK_MS).getOrNull()
+            val https = if (url.isHttps) announced else url.newBuilder().scheme("https").port(HTTPS_PORT).build().toString().trimEnd('/')
+            if (info(https)?.id?.equals(found.id, ignoreCase = true) == true) return ServerCheck.Encrypted(https)
+            return if (!url.isHttps && info(announced) != null) ServerCheck.Plain(announced) else ServerCheck.Silent
+        }
+
+        /**
          * The first supported server among [candidateUrls], with its public info. Throws [InvalidServerAddress],
          * [UnsupportedServer], or [ReachFailure] when none answers or a certificate is refused: plain HTTP after it
-         * would carry the password in the clear, so only typing http:// chooses it, or a found server announcing it
-         * ([announced]). Such a server announces HTTP unless it requires HTTPS: its HTTPS port is tried first, and
-         * any failure there falls back to its announcement, a certificate refused included (issued to a name, or
-         * self-signed, it rarely fits the address announced).
+         * would carry the password in the clear, so only typing http:// chooses it, or picking a server found that
+         * [check] found plain.
          */
-        suspend fun reach(
-            input: String,
-            deviceId: String,
-            http: OkHttpClient = Http.client,
-            announced: Boolean = false,
-        ): Pair<String, PublicSystemInfo> {
-            val twin = if (announced) encryptedTwin(input) else null
-            if (twin != null) {
-                publicInfo(twin, deviceId, http, PROBE_CONNECT_MS).getOrNull()?.takeIf(::isSupported)?.let { return twin to it }
-            }
+        suspend fun reach(input: String, deviceId: String, http: OkHttpClient = Http.client): Pair<String, PublicSystemInfo> {
             val candidates = checkedCandidates(input)
             val failures = mutableListOf<Pair<String, Exception>>()
             for ((i, url) in candidates.withIndex()) {
@@ -177,13 +189,6 @@ class JellyfinClient(
             throw ReachFailure(url, cause)
         }
 
-        /** https://host:8920 for a server announced at http://host:8096; null for any other address. */
-        internal fun encryptedTwin(announced: String): String? {
-            val url = "${normalizeUrl(announced)}/".toHttpUrlOrNull() ?: return null
-            if (url.isHttps || url.port != HTTP_PORT || url.encodedPath != "/") return null
-            return url.newBuilder().scheme("https").port(HTTPS_PORT).build().toString().trimEnd('/')
-        }
-
         /** [candidateUrls] for [input]; throws [InvalidServerAddress] unless all of them parse as URLs. */
         private fun checkedCandidates(input: String): List<String> {
             val candidates = candidateUrls(input)
@@ -192,7 +197,7 @@ class JellyfinClient(
         }
 
         /** Public info of the server at [url]; failures a server can cause are returned, others are thrown. */
-        private suspend fun publicInfo(url: String, deviceId: String, http: OkHttpClient, connectMs: Long): Result<PublicSystemInfo> =
+        private suspend fun publicInfo(url: String, deviceId: String?, http: OkHttpClient, connectMs: Long): Result<PublicSystemInfo> =
             try {
                 Result.success(JellyfinClient(url, deviceId, token = null, http, connectMs).api.publicInfo())
             } catch (e: IOException) {
