@@ -97,6 +97,8 @@
     <string name="home_libraries">Bibliotheken</string>
     <string name="home_state_source">Bron</string>
     <string name="home_state_scan">Laatste scan</string>
+    <string name="home_state_tmdb_refused">Sleutel geweigerd</string>
+    <string name="home_state_tmdb_offline">Onbereikbaar</string>
     <string name="home_scan_running">Bezig…</string>
     <string name="home_episode">S%1$d · A%2$s</string>
     <string name="home_open_title">Pagina openen</string>

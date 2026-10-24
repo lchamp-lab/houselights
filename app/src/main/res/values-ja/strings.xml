@@ -94,6 +94,8 @@
     <string name="home_libraries">ライブラリ</string>
     <string name="home_state_source">ソース</string>
     <string name="home_state_scan">前回のスキャン</string>
+    <string name="home_state_tmdb_refused">キーが拒否されました</string>
+    <string name="home_state_tmdb_offline">接続できません</string>
     <string name="home_scan_running">実行中…</string>
     <string name="home_episode">S%1$d · E%2$s</string>
     <string name="home_open_title">詳細を開く</string>

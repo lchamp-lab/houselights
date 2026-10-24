@@ -105,6 +105,8 @@
     <string name="home_libraries">Libraries</string>
     <string name="home_state_source">Source</string>
     <string name="home_state_scan">Last scan</string>
+    <string name="home_state_tmdb_refused">Key refused</string>
+    <string name="home_state_tmdb_offline">Unreachable</string>
     <string name="home_scan_running">In progress…</string>
     <string name="home_episode">S%1$d · E%2$s</string>
     <string name="home_open_title">Open page</string>

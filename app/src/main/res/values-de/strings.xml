@@ -97,6 +97,8 @@
     <string name="home_libraries">Bibliotheken</string>
     <string name="home_state_source">Quelle</string>
     <string name="home_state_scan">Letzter Scan</string>
+    <string name="home_state_tmdb_refused">Schlüssel abgelehnt</string>
+    <string name="home_state_tmdb_offline">Nicht erreichbar</string>
     <string name="home_scan_running">Läuft…</string>
     <string name="home_episode">S%1$d · F%2$s</string>
     <string name="home_open_title">Seite öffnen</string>

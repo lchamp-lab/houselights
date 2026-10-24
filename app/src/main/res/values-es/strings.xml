@@ -100,6 +100,8 @@
     <string name="home_libraries">Bibliotecas</string>
     <string name="home_state_source">Origen</string>
     <string name="home_state_scan">Último análisis</string>
+    <string name="home_state_tmdb_refused">Clave rechazada</string>
+    <string name="home_state_tmdb_offline">Inaccesible</string>
     <string name="home_scan_running">En curso…</string>
     <string name="home_episode">T%1$d · E%2$s</string>
     <string name="home_open_title">Abrir la ficha</string>

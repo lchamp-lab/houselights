@@ -101,8 +101,9 @@ class HomeStatusTest {
     fun aTmdbProblemTakesTheSourcesPlace() {
         val status = HomeStatus(StatusSource.Folders(listOf("nas"), 1), trakt = true, scannedAt = 0L, tmdb = UiError.TMDB_KEY_REFUSED)
         compose.setTvContent { HomeGrid(fullHome(status = status)) }
-        listOf("TMDB", "TMDB refuses this key", "Last scan").forEach { assertTrue(it, drawn(it)) }
+        listOf("TMDB", "Key refused", "Last scan").forEach { assertTrue(it, drawn(it)) }
         assertFalse(drawn("Source"))
+        assertFalse("TMDB said once", drawn("TMDB refuses this key"))
     }
 
     /** At the largest text, one line of facts fits: the last scan's, before Trakt's and the source's. */

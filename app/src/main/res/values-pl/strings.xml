@@ -103,6 +103,8 @@
     <string name="home_libraries">Biblioteki</string>
     <string name="home_state_source">Źródło</string>
     <string name="home_state_scan">Ostatnie skanowanie</string>
+    <string name="home_state_tmdb_refused">Klucz odrzucony</string>
+    <string name="home_state_tmdb_offline">Brak połączenia</string>
     <string name="home_scan_running">W toku…</string>
     <string name="home_episode">S%1$d · O%2$s</string>
     <string name="home_open_title">Otwórz kartę</string>

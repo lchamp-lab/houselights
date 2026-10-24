@@ -426,8 +426,8 @@ private fun stateFacts(status: HomeStatus, progress: Pair<Int, Int>?): List<Stat
         StateFact(stringResource(R.string.home_state_scan), ago, wide = true, rank = 2)
     }
     val tmdb = status.tmdb?.let { issue ->
-        // Refused, or out of reach whatever failed, as the first scan's counter says it.
-        val said = if (issue == UiError.TMDB_KEY_REFUSED) issue.title else UiError.TMDB_OFFLINE.title
+        // Refused, or out of reach whatever failed, as the first scan's counter says it; the label already names TMDB.
+        val said = if (issue == UiError.TMDB_KEY_REFUSED) R.string.home_state_tmdb_refused else R.string.home_state_tmdb_offline
         StateFact(stringResource(R.string.home_state_tmdb), stringResource(said), wide = true, attention = true, rank = 3)
     }
     return listOfNotNull(source, trakt, tmdb, scan)
