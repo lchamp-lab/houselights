@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,10 +48,12 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
@@ -131,6 +134,13 @@ private fun FieldBox(
     val fieldFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    // The remote cannot move the cursor: text the field did not type, and every start of typing, puts it after the
+    // text, where erase reaches all of it. Not a selection, which TV keyboards' erase skips.
+    val latest by rememberUpdatedState(value)
+    var typed by remember { mutableStateOf(atEnd(value)) }
+    // The last text told to the owner: the keyboard may send several edits between two compositions.
+    var told by remember(value) { mutableStateOf(value) }
+    val shown = if (typed.text == value) typed else atEnd(value)
     val shape = HlShapes.field
     val c = Hl.colors
 
@@ -144,6 +154,7 @@ private fun FieldBox(
 
     LaunchedEffect(editing) {
         if (editing) {
+            typed = atEnd(latest)
             fieldFocus.requestFocus()
             keyboard?.show()
         }
@@ -164,8 +175,14 @@ private fun FieldBox(
         contentAlignment = Alignment.CenterStart,
     ) {
         BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = shown,
+            onValueChange = { next ->
+                typed = next
+                if (next.text != told) {
+                    told = next.text
+                    onValueChange(next.text)
+                }
+            },
             singleLine = true,
             textStyle = textStyle,
             cursorBrush = SolidColor(if (editing) c.emberTo else Color.Transparent),
@@ -207,6 +224,9 @@ private fun FieldBox(
         }
     }
 }
+
+/** [text] with the cursor after it. */
+private fun atEnd(text: String) = TextFieldValue(text, TextRange(text.length))
 
 /** Back hides the keyboard without telling the app, so up or down while [editing] ends typing and leaves. */
 private fun Modifier.leaveVertically(editing: Boolean, leave: (FocusDirection) -> Unit): Modifier = onPreviewKeyEvent { event ->
