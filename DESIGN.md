@@ -477,10 +477,10 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   saga's films on the server (`collapseBoxSetItems`), but not under a filter, ranks it by the collection's own
   fields (when it was made, its year, its rating) and counts it as a title; its sagas alone are not filtered
   (`FilterMenuTest`, `FilmsWallTest`, `SagaWallTest`).
-- **The welcome screen**: the lockup and tagline in the middle of the left column, notes under them (a connection,
-  or a whole settings file reset, that could not be read back; the last choice's failure); the task's
-  title on one line over the two choices, raised on glass, a focused one's frame inside the safe area
-  (`WelcomeLayoutTest`).
+- **The welcome screen**: the lockup and tagline in the middle of the left column, notes under them (a connection
+  that could not be read back; settings that could not be and were reset, until a source is saved; the last
+  choice's failure); the task's title on one line over the two choices, raised on glass, a focused one's frame
+  inside the safe area (`WelcomeLayoutTest`).
 
 ## Focus
 
