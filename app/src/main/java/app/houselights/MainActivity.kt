@@ -2,7 +2,6 @@ package app.houselights
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
@@ -63,7 +62,6 @@ import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
-import app.houselights.player.PlaybackManager
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
@@ -327,21 +325,13 @@ class MainActivity : ComponentActivity() {
                     // The cue ran while the plan resolved: the room is dark before the player takes over.
                     snapshotFlow { lightsLevel.value }.first { it >= 1f }
                     when (plan) {
-                        is PlaybackPlan.Launch -> try {
-                            // The player needs the memory more than pictures that reload from disk.
-                            imageLoader.memoryCache?.clear()
-                            playerLauncher.launch(container.player.intentFor(plan, container.tracks.plan(plan)))
-                            container.player.onPlayerLaunched()
-                        } catch (_: ActivityNotFoundException) {
-                            container.player.onLaunchFailed()
-                            failed(UiError.NO_PLAYER)
-                        } catch (_: SecurityException) {
-                            // A player that refuses to be started by other apps is unusable here.
-                            container.player.onLaunchFailed()
-                            failed(UiError.NO_PLAYER)
-                        } catch (e: PlaybackManager.CredentialsNotShared) {
-                            failed(if (e.playerChanged) UiError.PLAYER_CHANGED else UiError.CREDENTIALS)
-                        }
+                        is PlaybackPlan.Launch -> container.player.handOff(
+                            plan,
+                            tracks = { container.tracks.plan(plan) },
+                            freeMemory = { imageLoader.memoryCache?.clear() },
+                            start = playerLauncher::launch,
+                            failed = ::failed,
+                        )
                     }
                 }
                 .onFailure {
