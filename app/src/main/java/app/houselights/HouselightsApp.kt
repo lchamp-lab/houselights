@@ -63,11 +63,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
@@ -242,8 +245,6 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** The posters home's doors cut their counts in, let go when the player or the system needs the memory. */
     val cutPosters = CutPosterCache()
 
-    /** Prefetches home's first rows and pictures while the launch screen holds. */
-    val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value }, unseenPick)
 
     /** Prefetches a wall's first page and posters as its door on home is chosen. */
     val libraryAhead = LibraryAhead({ provider })
@@ -265,6 +266,19 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         started = onScreen,
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
+
+    /** Whether the folders hold one at least ([LocalLibrary.anyFolder]); null until read. */
+    val hasFolders: StateFlow<Boolean?> = library.anyFolder.stateIn(scope, SharingStarted.Eagerly, null)
+
+    /** Prefetches home's first rows and pictures while the launch screen holds. */
+    val homeLaunch = HomeLaunch(
+        launch,
+        settings.state,
+        hasFolders = { hasFolders.filterNotNull().first() },
+        provider = { provider },
+        version = { libraryVersion.value },
+        pick = unseenPick,
+    )
 
     private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed), scanner.progress)
 

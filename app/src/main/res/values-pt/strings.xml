@@ -382,7 +382,7 @@
     <string name="sign_out">Sair</string>
     <string name="sign_out_confirm">Sair de “%s”?</string>
     <string name="sign_out_desc">O Houselights esquecerá este servidor neste dispositivo; suas pastas tomarão o lugar dele. Para usá-lo de novo, será preciso entrar novamente.</string>
-    <string name="sign_out_first_folder">O Houselights esquecerá este servidor neste dispositivo assim que sua primeira pasta for adicionada.</string>
+    <string name="sign_out_no_folder_desc">O Houselights esquecerá este servidor neste dispositivo; você escolherá sua biblioteca de novo. Para usá-lo de novo, será preciso entrar novamente.</string>
     <string name="source_jellyfin_another">Outro servidor Jellyfin</string>
     <string name="source_jellyfin_another_desc">Outro endereço ou outra conta</string>
     <string name="source_kept_resume">sem entrar de novo</string>
@@ -574,6 +574,8 @@
     <string name="device_language">Idioma do dispositivo</string>
     <string name="remove_folder">Remover esta pasta</string>
     <string name="remove_folder_desc">Os títulos saem da biblioteca; nada é apagado no NAS.</string>
+    <string name="remove_last_folder_desc">Os títulos saem da biblioteca; nada é apagado no NAS. Esta é sua última pasta: você voltará à tela de boas-vindas.</string>
+    <string name="remove_last_folder_kept_desc">Os títulos saem da biblioteca; nada é apagado no NAS. Esta é sua última pasta: você voltará a “%s”, sem entrar de novo.</string>
     <string name="remove_folder_row_desc">Os títulos saem da biblioteca</string>
     <string name="folder_not_removed">Esta pasta não foi removida. %s</string>
     <string name="remove_folder_confirm">Remover “%s”?</string>

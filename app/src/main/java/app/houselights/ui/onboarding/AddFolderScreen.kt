@@ -51,17 +51,12 @@ private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 
 /**
  * Adds a network folder, or edits folder [folderId] except its kind; [onDone] gets whether the source changed. A first
- * folder that replaces a server signs out of it with [signOut], else keeps it.
+ * folder that replaces a server keeps it signed in.
  */
 @Composable
-fun AddFolderScreen(
-    folderId: Long?,
-    focusOn: FolderField = FolderField.FIRST,
-    signOut: Boolean = false,
-    onDone: (switched: Boolean) -> Unit,
-) {
+fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, onDone: (switched: Boolean) -> Unit) {
     val app = appContainer()
-    val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, folderId, signOut))
+    val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, folderId))
     AddFolderForm(vm, focusOn, roomPosters(), onDone)
 }
 

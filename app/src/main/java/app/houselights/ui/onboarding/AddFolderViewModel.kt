@@ -32,6 +32,7 @@ import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** A network folder as typed in the form. */
@@ -156,14 +157,15 @@ class AddFolderViewModel(
     private val probe: suspend (SourceEntity) -> Int,
     private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
-    /** [signOut]: the server the folders replace is signed out of, not kept. */
-    constructor(app: AppContainer, folderId: Long?, signOut: Boolean, saved: SavedStateHandle) : this(
+    constructor(app: AppContainer, folderId: Long?, saved: SavedStateHandle) : this(
         library = app.library,
         folderId = folderId,
         background = app.scope,
         useFolders = {
+            // Seen by the app first, or the folders without it would give way to the welcome screen (shownSource).
+            app.hasFolders.first { it == true }
             val switched = app.settings.state.value.source != SourceConfig.Local
-            if (switched) app.sources.switchTo(SourceConfig.Local, keepServer = !signOut)
+            if (switched) app.sources.switchTo(SourceConfig.Local)
             switched
         },
         probe = { app.remoteBrowsers.of(it).test(it) },
@@ -409,8 +411,8 @@ class AddFolderViewModel(
     }
 
     companion object {
-        fun factory(app: AppContainer, folderId: Long?, signOut: Boolean): ViewModelProvider.Factory = viewModelFactory {
-            initializer { AddFolderViewModel(app, folderId, signOut, createSavedStateHandle()) }
+        fun factory(app: AppContainer, folderId: Long?): ViewModelProvider.Factory = viewModelFactory {
+            initializer { AddFolderViewModel(app, folderId, createSavedStateHandle()) }
         }
     }
 }

@@ -55,13 +55,14 @@ sealed interface HomeContent {
     /** The source could not be read; while [retrying], the intertitle stays with its button busy. */
     data class Failed(val error: UiError, val retrying: Boolean) : Message
 
+    /** The folders not read yet, or unreadable: nothing but the head and its settings. */
     data object ReadingFolders : Message
 
     /** Shown instead of "add a folder" when folders exist: [folder]'s last scan failed, [error] says why. */
     data class ScanFailed(val folder: Folder, val error: ScanError) : Message
 
-    /** No films yet: folders without any, or no folders at all ([hasFolders]; they can be opened from here). */
-    data class NoFilms(val hasFolders: Boolean) : Message
+    /** Folders without a film yet: they can be opened from here. */
+    data object NoFilms : Message
 
     data object ServerEmpty : Message
 }
@@ -148,12 +149,12 @@ class HomeViewModel(
     private val draws = LatestJob(viewModelScope)
     private val doorReads = LatestJob(viewModelScope)
 
-    /** Null until first read; on return, the last list stays until the database re-reads it, so Home never blanks. */
+    /**
+     * Null until first read, and when they cannot be read: never taken for none. On return, the last list stays until
+     * the database re-reads it, so Home never blanks.
+     */
     private val folderList: StateFlow<List<Folder>?> = folders
-        .catch { e ->
-            Log.w(TAG, "Reading the folders failed", e)
-            emit(emptyList())
-        }
+        .catch { e -> Log.w(TAG, "Reading the folders failed", e) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     val state: StateFlow<HomeState> = combine(load, scan, folderList, settings) { loaded, progress, list, current ->
@@ -261,7 +262,7 @@ class HomeViewModel(
 
 /**
  * What Home shows, from [load], [scan], [folders] (null until read) and whether the source is [local]. Shown rows
- * always stay; with none, nothing while loading, then the scan counter, an error, or why it is empty.
+ * always stay; with none, nothing while loading or without a folder, then the scan counter, an error, or why it is empty.
  */
 internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<Folder>?, local: Boolean): HomeContent {
     val failed = failedFolder(scan.errors, folders.orEmpty())
@@ -271,8 +272,10 @@ internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<Folder>?
         scan.running -> HomeContent.FirstScan
         load.error != null -> HomeContent.Failed(load.error, retrying = load.loading)
         local && folders == null -> HomeContent.ReadingFolders
+        // No folder is no library: the welcome screen takes over, nothing shows meanwhile.
+        local && folders.isNullOrEmpty() -> HomeContent.Loading
         local && failed != null -> HomeContent.ScanFailed(failed.first, failed.second)
-        local -> HomeContent.NoFilms(hasFolders = !folders.isNullOrEmpty())
+        local -> HomeContent.NoFilms
         else -> HomeContent.ServerEmpty
     }
 }

@@ -372,7 +372,7 @@
     <string name="sign_out">Abmelden</string>
     <string name="sign_out_confirm">Von „%s“ abmelden?</string>
     <string name="sign_out_desc">Houselights vergisst diesen Server auf diesem Gerät; Ihre Ordner treten an seine Stelle. Um ihn wieder zu nutzen, müssen Sie sich erneut anmelden.</string>
-    <string name="sign_out_first_folder">Houselights vergisst diesen Server auf diesem Gerät, sobald Ihr erster Ordner hinzugefügt ist.</string>
+    <string name="sign_out_no_folder_desc">Houselights vergisst diesen Server auf diesem Gerät; Sie wählen Ihre Bibliothek neu. Um ihn wieder zu nutzen, müssen Sie sich erneut anmelden.</string>
     <string name="source_jellyfin_another">Ein anderer Jellyfin-Server</string>
     <string name="source_jellyfin_another_desc">Andere Adresse oder anderes Konto</string>
     <string name="source_kept_resume">ohne neue Anmeldung</string>
@@ -560,6 +560,8 @@
     <string name="device_language">Gerätesprache</string>
     <string name="remove_folder">Diesen Ordner entfernen</string>
     <string name="remove_folder_desc">Seine Titel verlassen die Bibliothek; auf dem NAS wird nichts gelöscht.</string>
+    <string name="remove_last_folder_desc">Seine Titel verlassen die Bibliothek; auf dem NAS wird nichts gelöscht. Dies ist Ihr letzter Ordner: Sie kehren zum Begrüßungsbildschirm zurück.</string>
+    <string name="remove_last_folder_kept_desc">Seine Titel verlassen die Bibliothek; auf dem NAS wird nichts gelöscht. Dies ist Ihr letzter Ordner: Sie kehren zu „%s“ zurück, ohne neue Anmeldung.</string>
     <string name="remove_folder_row_desc">Seine Titel verlassen die Bibliothek</string>
     <string name="folder_not_removed">Dieser Ordner wurde nicht entfernt. %s</string>
     <string name="remove_folder_confirm">„%s“ entfernen?</string>

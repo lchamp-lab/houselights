@@ -107,6 +107,23 @@ class LocalLibraryTest {
         assertTrue("deleted: $statements", statements.none { it.trimStart().startsWith("DELETE", ignoreCase = true) })
     }
 
+    /** Whether there is a library of folders, followed as they come and go. */
+    @Test
+    fun anyFolderFollowsTheFolders() = runTest {
+        assertFalse(library.anyFolder.first())
+        val id = folder()
+        assertTrue(library.anyFolder.first())
+        dao.removeSource(id)
+        assertFalse(library.anyFolder.first())
+    }
+
+    /** Folders that cannot be read are taken as there: home then says why, rather than the app offer to start again. */
+    @Test
+    fun foldersThatCannotBeReadCountAsFolders() = runTest {
+        db.openHelper.writableDatabase.execSQL("DROP TABLE sources")
+        assertTrue(library.anyFolder.first())
+    }
+
     @Test
     fun aFolderRemovedMeanwhileStaysRemoved() = runTest {
         val id = folder()

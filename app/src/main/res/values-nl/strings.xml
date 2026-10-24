@@ -372,7 +372,7 @@
     <string name="sign_out">Uitloggen</string>
     <string name="sign_out_confirm">Uitloggen bij “%s”?</string>
     <string name="sign_out_desc">Houselights vergeet deze server op dit apparaat; uw mappen nemen zijn plaats in. Om hem weer te gebruiken, moet u opnieuw inloggen.</string>
-    <string name="sign_out_first_folder">Houselights vergeet deze server op dit apparaat zodra uw eerste map is toegevoegd.</string>
+    <string name="sign_out_no_folder_desc">Houselights vergeet deze server op dit apparaat; u kiest opnieuw uw bibliotheek. Om hem weer te gebruiken, moet u opnieuw inloggen.</string>
     <string name="source_jellyfin_another">Een andere Jellyfin-server</string>
     <string name="source_jellyfin_another_desc">Een ander adres of een ander account</string>
     <string name="source_kept_resume">zonder in te loggen</string>
@@ -560,6 +560,8 @@
     <string name="device_language">Taal van het apparaat</string>
     <string name="remove_folder">Deze map verwijderen</string>
     <string name="remove_folder_desc">De titels verdwijnen uit de bibliotheek; er wordt niets gewist op de NAS.</string>
+    <string name="remove_last_folder_desc">De titels verdwijnen uit de bibliotheek; er wordt niets gewist op de NAS. Dit is uw laatste map: u keert terug naar het welkomstscherm.</string>
+    <string name="remove_last_folder_kept_desc">De titels verdwijnen uit de bibliotheek; er wordt niets gewist op de NAS. Dit is uw laatste map: u keert terug naar “%s”, zonder in te loggen.</string>
     <string name="remove_folder_row_desc">De titels verdwijnen uit de bibliotheek</string>
     <string name="folder_not_removed">Deze map is niet verwijderd. %s</string>
     <string name="remove_folder_confirm">“%s” verwijderen?</string>

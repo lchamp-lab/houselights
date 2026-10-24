@@ -392,7 +392,7 @@
     <string name="sign_out">Wyloguj się</string>
     <string name="sign_out_confirm">Wylogować się z „%s”?</string>
     <string name="sign_out_desc">Houselights zapomni o tym serwerze na tym urządzeniu; jego miejsce zajmą foldery. Aby znów z niego korzystać, trzeba będzie zalogować się ponownie.</string>
-    <string name="sign_out_first_folder">Houselights zapomni o tym serwerze na tym urządzeniu po dodaniu pierwszego folderu.</string>
+    <string name="sign_out_no_folder_desc">Houselights zapomni o tym serwerze na tym urządzeniu; wybierzesz bibliotekę od nowa. Aby znów z niego korzystać, trzeba będzie zalogować się ponownie.</string>
     <string name="source_jellyfin_another">Inny serwer Jellyfin</string>
     <string name="source_jellyfin_another_desc">Inny adres lub inne konto</string>
     <string name="source_kept_resume">bez logowania</string>
@@ -590,6 +590,8 @@
     <string name="device_language">Język urządzenia</string>
     <string name="remove_folder">Usuń ten folder</string>
     <string name="remove_folder_desc">Jego tytuły znikają z biblioteki; na serwerze NAS nic nie jest usuwane.</string>
+    <string name="remove_last_folder_desc">Jego tytuły znikają z biblioteki; na serwerze NAS nic nie jest usuwane. To ostatni folder: wrócisz do ekranu powitalnego.</string>
+    <string name="remove_last_folder_kept_desc">Jego tytuły znikają z biblioteki; na serwerze NAS nic nie jest usuwane. To ostatni folder: wrócisz do „%s” bez logowania.</string>
     <string name="remove_folder_row_desc">Jego tytuły znikają z biblioteki</string>
     <string name="folder_not_removed">Nie usunięto tego folderu. %s</string>
     <string name="remove_folder_confirm">Usunąć „%s”?</string>

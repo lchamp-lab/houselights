@@ -382,7 +382,7 @@
     <string name="sign_out">Disconnetti</string>
     <string name="sign_out_confirm">Disconnettersi da «%s»?</string>
     <string name="sign_out_desc">Houselights dimenticherà questo server su questo dispositivo; le cartelle ne prenderanno il posto. Per ritrovarlo occorrerà riconnettersi.</string>
-    <string name="sign_out_first_folder">Houselights dimenticherà questo server su questo dispositivo una volta aggiunta la prima cartella.</string>
+    <string name="sign_out_no_folder_desc">Houselights dimenticherà questo server su questo dispositivo; si sceglierà di nuovo la libreria. Per ritrovarlo occorrerà riconnettersi.</string>
     <string name="source_jellyfin_another">Un altro server Jellyfin</string>
     <string name="source_jellyfin_another_desc">Un altro indirizzo o un altro account</string>
     <string name="source_kept_resume">senza riconnettersi</string>
@@ -576,6 +576,8 @@
     <string name="device_language">Lingua del dispositivo</string>
     <string name="remove_folder">Rimuovi questa cartella</string>
     <string name="remove_folder_desc">I suoi titoli escono dalla libreria; sul NAS non viene eliminato nulla.</string>
+    <string name="remove_last_folder_desc">I suoi titoli escono dalla libreria; sul NAS non viene eliminato nulla. È l’ultima cartella: si tornerà alla schermata di benvenuto.</string>
+    <string name="remove_last_folder_kept_desc">I suoi titoli escono dalla libreria; sul NAS non viene eliminato nulla. È l’ultima cartella: si tornerà a «%s», senza riconnettersi.</string>
     <string name="remove_folder_row_desc">I suoi titoli escono dalla libreria</string>
     <string name="folder_not_removed">Questa cartella non è stata rimossa. %s</string>
     <string name="remove_folder_confirm">Rimuovere «%s»?</string>

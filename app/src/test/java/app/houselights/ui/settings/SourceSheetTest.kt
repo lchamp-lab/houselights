@@ -34,8 +34,8 @@ class SourceSheetTest {
     private val salon = SourceConfig.Jellyfin("https://nas:8920", "NAS du salon", "u1", "léa", "token")
     private val chosen = mutableListOf<SourceChoice>()
 
-    private fun show(source: SourceConfig, kept: SourceConfig.Jellyfin? = null, trakt: Boolean = false) {
-        compose.setTvContent { SourceSheet(SourceSheetFacts(source, kept, folders = 2, titles = 11, trakt), {}, { chosen += it }) }
+    private fun show(source: SourceConfig, kept: SourceConfig.Jellyfin? = null, trakt: Boolean = false, folders: Int = 2) {
+        compose.setTvContent { SourceSheet(SourceSheetFacts(source, kept, folders, titles = 11, trakt), {}, { chosen += it }) }
         compose.waitForIdle()
     }
 
@@ -119,6 +119,19 @@ class SourceSheetTest {
         shows(
             "Se déconnecter de «${NB}NAS du salon$NB»${NB}?",
             "Houselights oubliera ce serveur sur cet appareil${NB}; vos dossiers prendront sa place. " +
+                "Pour le retrouver, il faudra vous reconnecter.",
+        )
+        ok("Se déconnecter")
+        assertEquals(listOf(SourceChoice.Leave(salon, current = true)), chosen)
+    }
+
+    /** Signing out of the only library: the server is forgotten at once, and the library chosen again. */
+    @Test
+    fun signingOutOfTheOnlyLibrarySaysItIsChosenAgain() {
+        show(salon, folders = 0)
+        ok("Se déconnecter de «${NB}NAS du salon$NB»")
+        shows(
+            "Houselights oubliera ce serveur sur cet appareil${NB}; vous choisirez de nouveau votre bibliothèque. " +
                 "Pour le retrouver, il faudra vous reconnecter.",
         )
         ok("Se déconnecter")

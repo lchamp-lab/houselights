@@ -362,7 +362,7 @@
     <string name="sign_out">登出</string>
     <string name="sign_out_confirm">要登出「%s」嗎？</string>
     <string name="sign_out_desc">Houselights 將在本裝置上忘記此伺服器；您的資料夾將取而代之。如需再次使用，需要重新登入。</string>
-    <string name="sign_out_first_folder">加入第一個資料夾後，Houselights 將在本裝置上忘記此伺服器。</string>
+    <string name="sign_out_no_folder_desc">Houselights 將在本裝置上忘記此伺服器；您將重新選擇媒體庫。如需再次使用，需要重新登入。</string>
     <string name="source_jellyfin_another">其他 Jellyfin 伺服器</string>
     <string name="source_jellyfin_another_desc">其他位址或其他帳號</string>
     <string name="source_kept_resume">無需重新登入</string>
@@ -545,6 +545,8 @@
     <string name="device_language">裝置語言</string>
     <string name="remove_folder">移除此資料夾</string>
     <string name="remove_folder_desc">其中的作品將從媒體庫移除；NAS 上的內容不會被刪除。</string>
+    <string name="remove_last_folder_desc">其中的作品將從媒體庫移除；NAS 上的內容不會被刪除。這是您的最後一個資料夾：將返回歡迎畫面。</string>
+    <string name="remove_last_folder_kept_desc">其中的作品將從媒體庫移除；NAS 上的內容不會被刪除。這是您的最後一個資料夾：將返回「%s」，無需重新登入。</string>
     <string name="remove_folder_row_desc">其中的作品將從媒體庫移除</string>
     <string name="folder_not_removed">此資料夾未被移除。%s</string>
     <string name="remove_folder_confirm">要移除「%s」嗎？</string>

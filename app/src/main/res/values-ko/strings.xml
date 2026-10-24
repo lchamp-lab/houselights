@@ -362,7 +362,7 @@
     <string name="sign_out">로그아웃</string>
     <string name="sign_out_confirm">‘%s’에서 로그아웃하시겠습니까?</string>
     <string name="sign_out_desc">Houselights가 이 기기에서 이 서버 정보를 지웁니다. 대신 폴더를 사용합니다. 다시 사용하려면 다시 로그인해야 합니다.</string>
-    <string name="sign_out_first_folder">첫 폴더를 추가하면 Houselights가 이 기기에서 이 서버 정보를 지웁니다.</string>
+    <string name="sign_out_no_folder_desc">Houselights가 이 기기에서 이 서버 정보를 지웁니다. 라이브러리를 다시 선택하게 됩니다. 다시 사용하려면 다시 로그인해야 합니다.</string>
     <string name="source_jellyfin_another">다른 Jellyfin 서버</string>
     <string name="source_jellyfin_another_desc">다른 주소 또는 다른 계정</string>
     <string name="source_kept_resume">다시 로그인할 필요 없음</string>
@@ -544,6 +544,8 @@
     <string name="device_language">기기 언어</string>
     <string name="remove_folder">이 폴더 제거</string>
     <string name="remove_folder_desc">이 폴더의 작품이 라이브러리에서 빠집니다. NAS에서는 아무것도 삭제되지 않습니다.</string>
+    <string name="remove_last_folder_desc">이 폴더의 작품이 라이브러리에서 빠집니다. NAS에서는 아무것도 삭제되지 않습니다. 마지막 폴더입니다. 시작 화면으로 돌아갑니다.</string>
+    <string name="remove_last_folder_kept_desc">이 폴더의 작품이 라이브러리에서 빠집니다. NAS에서는 아무것도 삭제되지 않습니다. 마지막 폴더입니다. 다시 로그인하지 않고 ‘%s’ 서버로 돌아갑니다.</string>
     <string name="remove_folder_row_desc">작품이 라이브러리에서 빠집니다</string>
     <string name="folder_not_removed">이 폴더는 제거되지 않았습니다. %s</string>
     <string name="remove_folder_confirm">‘%s’ 폴더를 제거하시겠습니까?</string>
