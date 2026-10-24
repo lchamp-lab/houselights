@@ -84,8 +84,10 @@ class ItemRowTest {
         val walls = listOf(films, shows).flatMap { provider.libraryPage(it, SortOption.RATING, LibraryFilter(), 0, 50).items } +
             provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 50, grouped = true).items
         val read = queries.toList()
-        assertEquals(listOf("Alien", "Aliens", "Heat", "Severance", "Heat"), walls.filter { it.kind != MediaKind.COLLECTION }.map { it.title })
-        assertEquals("Walls reading the text", emptyList<String>(), read.filter { reads(it, "overview") || reads(it, "tagline") }.distinct())
+        val titles = walls.filter { it.kind != MediaKind.COLLECTION }.map { it.title }
+        assertEquals(listOf("Alien", "Aliens", "Heat", "Severance", "Heat"), titles)
+        val reading = read.filter { reads(it, "overview") || reads(it, "tagline") }.distinct()
+        assertEquals("Walls reading the text", emptyList<String>(), reading)
         assertTrue("Titles with it", walls.all { it.overview == null && it.tagline == null })
 
         val heat = walls.first { it.title == "Heat" }

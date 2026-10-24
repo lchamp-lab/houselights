@@ -277,7 +277,8 @@ class HomeLaunchTest {
         advanceUntilIdle()
         assertEquals(listOf(20), vm.state.value.doors?.shelves?.map { it.count })
         assertEquals("each door read once", 1, provider.calls.count { it == "page 0 12" })
-        assertEquals("the pictures of a home with its doors", listOf(20), picturesAsked.single().doorsAhead?.whole?.await()?.shelves?.map { it.count })
+        val doors = picturesAsked.single().doorsAhead?.whole?.await()
+        assertEquals("the pictures of a home with its doors", listOf(20), doors?.shelves?.map { it.count })
     }
 
     /** The pictures are asked for as the rows come, the doors still being read: each loads once what shows it is read. */

@@ -165,7 +165,7 @@ class HomePicturesAheadTest {
         val pictures = loadFirstPictures(context, context.resources.displayMetrics.widthPixels, CutPosterCache())
         val loading = launch(Dispatchers.Unconfined) { pictures(launched) }
         fun keys() = synchronized(asked) { asked.mapNotNull { it.key?.key } }
-        fun cut() = synchronized(asked) { asked.filter { it.key?.extras?.containsKey("houselights.cut") == true }.map { it.key }.distinct() }
+        fun cut() = synchronized(asked) { asked.mapNotNull { it.key }.filter { it.extras.containsKey("houselights.cut") }.distinct() }
         assertTrue("the next episode's still at once: ${keys()}", keys().any { "backdrop/mobland" in it })
         assertTrue("the latest titles' band at once", keys().any { "poster/film1?" in it })
         assertTrue("the case to come", keys().none { "alien" in it })
