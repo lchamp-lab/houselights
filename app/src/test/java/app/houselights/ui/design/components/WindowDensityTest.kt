@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlSideSheetDefaults
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.canvasDensityOf
 import app.houselights.ui.testing.setTvContent
@@ -42,7 +43,7 @@ class WindowDensityTest {
     fun aSheetIsLaidOutOnTheCanvas() {
         var inside: Density? = null
         compose.setTvContent {
-            HlSideSheet("Modifier", onDismiss = {}) {
+            HlSideSheet("Modifier", onDismiss = {}, modifier = Modifier.testTag(SHEET)) {
                 inside = LocalDensity.current
                 Box(Modifier.size(HlSize.control).testTag(INSIDE))
             }
@@ -50,6 +51,7 @@ class WindowDensityTest {
         compose.waitForIdle()
         assertEquals(canvas, inside)
         assertEquals(px(HlSize.control), compose.onNodeWithTag(INSIDE).fetchSemanticsNode().size.height)
+        assertEquals(px(HlSideSheetDefaults.width), compose.onNodeWithTag(SHEET).fetchSemanticsNode().size.width)
     }
 
     @Test
@@ -78,6 +80,7 @@ class WindowDensityTest {
     private companion object {
         const val SCREEN_PX = 1920
         const val INSIDE = "inside"
+        const val SHEET = "sheet"
         const val LARGER = 1.3f
     }
 }
