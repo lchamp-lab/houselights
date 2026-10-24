@@ -108,6 +108,11 @@ class AddFolderViewModelTest {
         db.openHelper.writableDatabase.delete("sources", "id = ?", arrayOf(id))
     }
 
+    /** The folders' table gone: reading them fails as a failing database does. */
+    private fun unreadableFolders() {
+        db.openHelper.writableDatabase.execSQL("DROP TABLE sources")
+    }
+
     /** The form for [folderId] (null: a new one), as a screen holds it; [forms] clears it when the screen goes. */
     private fun form(
         folderId: Long?,
@@ -330,6 +335,34 @@ class AddFolderViewModelTest {
         vm.test()
         advanceUntilIdle()
         assertEquals(emptyList<String>(), calls)
+    }
+
+    /** An edited folder the library cannot read says so, and is not saved: an empty password would erase its own. */
+    @Test
+    fun aFolderThatCannotBeReadSaysSo() = runTest {
+        val id = smbFolder()
+        unreadableFolders()
+        val vm = form(id)
+        advanceUntilIdle()
+
+        assertFalse(vm.ready)
+        assertTrue(vm.check is FolderCheck.SaveFailed)
+        vm.submit { fail("saved a folder never read") }
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), calls)
+    }
+
+    /** A new folder starts empty when the last one cannot be read. */
+    @Test
+    fun aNewFolderStartsEmptyWhenTheLastCannotBeRead() = runTest {
+        smbFolder()
+        unreadableFolders()
+        val vm = form(null)
+        advanceUntilIdle()
+
+        assertTrue(vm.ready)
+        assertEquals("", vm.form.host)
+        assertNull(vm.check)
     }
 
     @Test

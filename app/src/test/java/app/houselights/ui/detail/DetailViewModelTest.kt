@@ -94,6 +94,16 @@ class DetailViewModelTest {
         assertEquals(UiError.GONE, vm.state.value.error)
     }
 
+    /** The source is asked once per load: one gone right after (signed out) never crashes the page. */
+    @Test
+    fun aSourceGoneOnceReadNeverCrashesThePage() = runTest {
+        var asked = 0
+        val vm = DetailViewModel("m1", { if (asked++ == 0) provider else error("No library source configured") }, events, this)
+        advanceUntilIdle()
+        assertEquals("Heat", vm.state.value.item?.title)
+        assertTrue(vm.state.value.canEdit)
+    }
+
     @Test
     fun aNewerLoadReplacesAnOlderOne() = runTest {
         val first = provider.gate("item m1")

@@ -1,5 +1,6 @@
 package app.houselights.ui.home
 
+import android.database.sqlite.SQLiteException
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
@@ -169,6 +170,16 @@ class HomeViewModelTest {
         val vm = home()
         advanceUntilIdle()
         assertEquals(HomeContent.ReadingFolders, vm.content())
+    }
+
+    /** Folders the database cannot read are none, never a crash; the rows still show. */
+    @Test
+    fun foldersThatCannotBeReadAreNone() = runTest {
+        val unreadable = flow<List<SourceEntity>> { throw SQLiteException("disk I/O error") }
+        val vm = HomeViewModel({ provider }, scan, unreadable, settings, scanAll = {})
+        backgroundScope.launch { vm.state.collect {} }
+        advanceUntilIdle()
+        assertEquals(HomeContent.Rows(rows), vm.content())
     }
 
     @Test

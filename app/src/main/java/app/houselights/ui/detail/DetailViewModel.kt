@@ -149,12 +149,11 @@ class DetailViewModel(
                         sayFirst(source, item)
                         filmPage(source, item, similar)
                     }
-                }.copy(credits = credits.await())
+                }.copy(credits = credits.await(), canEdit = source.editor?.canEdit(item) == true)
             } }.onSuccess { loaded ->
-                val canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true
                 // Keep the errors, any season chosen during the reload, and a change still being saved.
                 _state.update {
-                    val page = loaded.copy(canEdit = canEdit, actionError = it.actionError, episodeMarkError = it.episodeMarkError)
+                    val page = loaded.copy(actionError = it.actionError, episodeMarkError = it.episodeMarkError)
                         .keepingSeasonOf(it)
                     pending?.invoke(page) ?: page
                 }

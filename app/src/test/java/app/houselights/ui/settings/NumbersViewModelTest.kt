@@ -66,4 +66,13 @@ class NumbersViewModelTest {
         advanceUntilIdle()
         assertEquals(412, (vm.state as NumbersState.Counted).numbers.films)
     }
+
+    /** A source gone meanwhile (signed out) is a failure said, not a crash. */
+    @Test
+    fun aSourceGoneIsSaid() = runTest {
+        val vm = NumbersViewModel { error("No library source configured") }
+        vm.count()
+        advanceUntilIdle()
+        assertEquals(NumbersState.Failed(UiError.FAILED), vm.state)
+    }
 }
