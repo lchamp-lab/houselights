@@ -85,13 +85,16 @@ class LibraryScanner(
 
     private val lock = Mutex()
 
-    private val files = ScanFiles(dao, artwork, browsers)
+    private val files = ScanFiles(artwork, browsers)
 
     /** Files whose processing fails, often at every pass: each logged whole the first time, then counted. */
     private val failures = RepeatedFailures(TAG)
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
     private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
+
+    /** Rows this process saw missing, timed on [elapsed] as the wall clock can jump. */
+    private val sightings = MissingSightings(elapsed)
 
     /** Scans every source; [asked] (user-initiated, unlike [scanIfStale]) retries unmatched titles on TMDB at once. */
     fun scanAll(refreshMetadata: Boolean = false, asked: Boolean = true) {
@@ -352,7 +355,7 @@ class LibraryScanner(
         val files = stacks.titles
         val sidecars = Sidecars(listing.sidecars, files, stacks)
         if (found.videos.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
-        val missing = settleMissing(source.kind, listed, listing, stacks)
+        val missing = settleMissing(source, listed, listing, stacks)
         // Renamed files moved their rows, and films their parts, so reload the known files.
         val rewritten = missing.relinked.isNotEmpty() || missing.parts.isNotEmpty()
         val known = (if (rewritten) dao.knownFiles(source.id) else listed).associateBy { it.filePath }
@@ -549,10 +552,17 @@ class LibraryScanner(
         started.first { it }
     }
 
-    private suspend fun settleMissing(kind: SourceKind, known: List<KnownFile>, listing: Listing, stacks: Stacks): MissingFiles.Outcome {
+    private suspend fun settleMissing(
+        source: SourceEntity,
+        known: List<KnownFile>,
+        listing: Listing,
+        stacks: Stacks,
+    ): MissingFiles.Outcome {
         val now = clock()
-        val missing = MissingFiles.settle(kind, known, listing, now, stacks)
+        val time = MissingFiles.PassTime(now, source.lastScanAt, sightings::seenLong)
+        val missing = MissingFiles.settle(source.kind, known, listing, time, stacks)
         lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, now) }
+        sightings.note(known, missing)
         return missing
     }
 

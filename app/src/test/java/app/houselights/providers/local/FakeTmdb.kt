@@ -69,6 +69,10 @@ class FakeTmdb : Interceptor {
     @Volatile
     var held = CountDownLatch(1)
 
+    /** Runs at each request, on OkHttp's thread, before TMDB answers. */
+    @Volatile
+    var onRequest: ((path: String) -> Unit)? = null
+
     fun client(pauseWhenUnreachable: Boolean = false) = TmdbClient("key", pauseWhenUnreachable, this)
 
     fun movie(id: Int, title: String, year: Int? = null, imdbId: String? = null, collection: TmdbCollectionRef? = null) =
@@ -102,6 +106,7 @@ class FakeTmdb : Interceptor {
         val url = chain.request().url
         val path = url.encodedPath.removePrefix("/3/")
         requests += path
+        onRequest?.invoke(path)
         if (hold) {
             held.countDown()
             while (!chain.call().isCanceled()) Thread.sleep(WAIT_MS)

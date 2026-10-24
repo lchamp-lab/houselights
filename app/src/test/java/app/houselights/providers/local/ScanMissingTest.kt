@@ -89,7 +89,7 @@ class ScanMissingTest {
         nas.unreadable = listOf("Private")
         nas.put("Blade Runner (1982)/Blade Runner (1982).mkv")
         bench.scan()
-        bench.now += MissingFiles.HOLD_MS
+        bench.later(MissingFiles.HOLD_MS)
         bench.scan()
 
         assertEquals(null, bench.error(films))
@@ -121,11 +121,11 @@ class ScanMissingTest {
         assertEquals(setOf(START), dao.filesOf(films.id).filter { it.filePath in offline }.map { it.missingSince }.toSet())
         assertEquals(null, bench.error(films))
 
-        bench.now += 23 * HOUR
+        bench.later(23 * HOUR)
         bench.scan()
         assertEquals("held for a day", 40, filePaths().size)
 
-        bench.now += 2 * HOUR
+        bench.later(2 * HOUR)
         bench.scan()
         assertEquals("still missing a day later", (21 until 40).map(::film).sorted(), filePaths())
     }
@@ -140,7 +140,7 @@ class ScanMissingTest {
         assertEquals(1_000, filePaths().size)
         assertEquals(setOf(START), dao.filesOf(films.id).filter { it.filePath in offline }.map { it.missingSince }.toSet())
 
-        bench.now += 2 * HOUR
+        bench.later(2 * HOUR)
         bench.scan()
         assertEquals("held past the hour", 1_000, filePaths().size)
     }
@@ -152,7 +152,7 @@ class ScanMissingTest {
         bench.scan()
 
         nas.put(film(0))
-        bench.now += 25 * HOUR
+        bench.later(25 * HOUR)
         bench.scan()
 
         val back = dao.filesOf(films.id).single { it.filePath == film(0) }
@@ -167,11 +167,11 @@ class ScanMissingTest {
         bench.scan()
         assertEquals("held until a later pass", 40, filePaths().size)
 
-        bench.now += HOUR - 1
+        bench.later(HOUR - 1)
         bench.scan()
         assertEquals("held for an hour", 40, filePaths().size)
 
-        bench.now += 1
+        bench.later(1)
         bench.scan()
         assertEquals((20 until 40).map(::film).sorted(), filePaths())
     }
@@ -185,14 +185,110 @@ class ScanMissingTest {
         assertEquals(null, bench.error(films))
         assertEquals("held", 1_201, filePaths().size)
 
-        bench.now += 25 * HOUR
+        bench.later(25 * HOUR)
         bench.scan()
         assertEquals(listOf(film(1_200)), filePaths())
         log.assertNoStatementTooWideForAndroid9()
     }
 
+    private suspend fun missingSince(paths: List<String>) =
+        dao.filesOf(films.id).filter { it.filePath in paths }.map { it.missingSince }.toSet()
+
+    /** The clock set back a day (by hand, or a device without a battery started offline): files held wait from its time. */
+    @Test
+    fun aClockSetBackHoldsFilesFromItsTime() = runTest {
+        filmFolder(40)
+        val gone = (0 until 20).map(::film)
+        gone.forEach(nas::remove)
+        bench.scan()
+
+        bench.later(10 * MINUTE)
+        bench.now -= DAY
+        bench.scan()
+        assertEquals(40, filePaths().size)
+        assertEquals(setOf(bench.now), missingSince(gone))
+
+        bench.later(HOUR)
+        bench.scan()
+        assertEquals("an hour later by its time", (20 until 40).map(::film).sorted(), filePaths())
+    }
+
+    /** Files missing a day by the clock, which is then set back behind the folder's last pass: none goes in that pass. */
+    @Test
+    fun aPassEarlierThanTheLastDeletesNothing() = runTest {
+        filmFolder(40)
+        val gone = (0 until 20).map(::film)
+        gone.forEach(nas::remove)
+        // Held a day ago, by a process since stopped.
+        val ids = dao.filesOf(films.id).filter { it.filePath in gone }.map { it.id }
+        dao.settleMissing(emptyList(), emptyList(), held = ids, removed = emptyList(), parts = emptyList(), now = START - DAY)
+        bench.later(2 * HOUR)
+        bench.scan()
+        assertEquals("not yet seen missing an hour apart by this process", 40, filePaths().size)
+
+        bench.later(2 * HOUR)
+        bench.now -= 3 * HOUR
+        bench.scan()
+        assertEquals("the clock behind the last pass", 40, filePaths().size)
+
+        bench.later(HOUR)
+        bench.scan()
+        assertEquals((20 until 40).map(::film).sorted(), filePaths())
+    }
+
+    /**
+     * A device without a battery starts on its build date, offline, before a disk of the NAS's pool is up; the network
+     * then sets its clock years ahead: the disk still has an hour to come back, not none.
+     */
+    @Test
+    fun aClockJumpingForwardLeavesTheFilesTimeToComeBack() = runTest {
+        filmFolder(40)
+        val offline = (0 until 21).map(::film)
+        val watched = dao.filesOf(films.id).single { it.filePath == film(0) }.id
+        dao.setFavorite(watched, true)
+        bench.now = START - 2 * YEAR
+        offline.forEach(nas::remove)
+        bench.scan()
+        assertEquals(40, filePaths().size)
+
+        bench.later(10 * MINUTE)
+        bench.now = START + DAY
+        bench.scan()
+        assertEquals("years by the clock, minutes in fact", 40, filePaths().size)
+
+        offline.forEach { nas.put(it) }
+        bench.later(30 * MINUTE)
+        bench.scan()
+        assertEquals(setOf(null), missingSince(offline))
+        assertTrue(checkNotNull(dao.item(watched)).favorite)
+    }
+
+    /** The same jump with the disk offline for hours: its files wait the day they would wait with a clock always right. */
+    @Test
+    fun aClockJumpingForwardStillHoldsManyFilesADay() = runTest {
+        filmFolder(40)
+        val offline = (0 until 21).map(::film)
+        bench.now = START - 2 * YEAR
+        offline.forEach(nas::remove)
+        bench.scan()
+
+        bench.later(10 * MINUTE)
+        bench.now = START + DAY
+        bench.scan()
+        bench.later(3 * HOUR)
+        bench.scan()
+        assertEquals("hours after the jump", 40, filePaths().size)
+
+        bench.later(DAY)
+        bench.scan()
+        assertEquals("a day after they went", (21 until 40).map(::film).sorted(), filePaths())
+    }
+
     private companion object {
         const val START = ScanBench.START
-        const val HOUR = 60 * 60_000L
+        const val MINUTE = 60_000L
+        const val HOUR = 60 * MINUTE
+        const val DAY = 24 * HOUR
+        const val YEAR = 365 * DAY
     }
 }

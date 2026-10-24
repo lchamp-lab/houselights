@@ -267,7 +267,7 @@ class ScanCreditsTest {
         // The first file goes: the copy is a title of its own again.
         nas.remove("Dune (2021).mkv")
         bench.scan()
-        bench.now += MissingFiles.BRIEF_HOLD_MS
+        bench.later(MissingFiles.BRIEF_HOLD_MS)
         bench.scan()
         assertNull(bench.item(films4k, "Dune (2021) 2160p.mkv").versionOf)
     }
