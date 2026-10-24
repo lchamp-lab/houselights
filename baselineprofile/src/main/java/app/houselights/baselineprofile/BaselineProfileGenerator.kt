@@ -25,6 +25,8 @@ class BaselineProfileGenerator {
         startHome()
         browseLibrary()
         startHome()
+        browseSagas()
+        startHome()
         browseDetail()
         startHome()
         browseShow()

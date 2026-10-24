@@ -94,11 +94,10 @@ internal fun MacrobenchmarkScope.backHome() {
 /** The most presses of Back from a screen to home: a pane, its entry, the settings. */
 private const val BACK_STEPS = 3
 
-/** From home's case: to its settings door, down the grid's last column, then OK. */
+/** From home: to its settings door, wherever the grid lays it, then OK; the settings show by their places. */
 internal fun MacrobenchmarkScope.openSettings() {
-    right()
-    down()
-    focusOn(appString("nav_settings"), KeyEvent.KEYCODE_DPAD_RIGHT, max = 3)
+    focusTo(appString("nav_settings"))
     ok()
-    await(By.text(appString("settings_title")), "the settings")
+    // Not by their title, which the door says too.
+    await(By.text(appString("section_about")), "the settings")
 }

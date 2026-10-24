@@ -10,7 +10,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/** Frame timing on home and a film's page, uncompiled and with the baseline profile, as right after an install. */
+/**
+ * Frame timing on home, a wall, a film's page, the search and the settings, uncompiled and with the baseline profile,
+ * as right after an install.
+ */
 @RunWith(Parameterized::class)
 class BrowseBenchmark(private val compilation: CompilationMode) {
     @get:Rule
@@ -20,7 +23,16 @@ class BrowseBenchmark(private val compilation: CompilationMode) {
     fun home() = measure { browseHome() }
 
     @Test
+    fun library() = measure { browseLibrary() }
+
+    @Test
     fun detail() = measure { browseDetail() }
+
+    @Test
+    fun search() = measure { browseSearch() }
+
+    @Test
+    fun settings() = measure { browseSettings() }
 
     private fun measure(journey: MacrobenchmarkScope.() -> Unit) = rule.measureRepeated(
         packageName = targetPackage,

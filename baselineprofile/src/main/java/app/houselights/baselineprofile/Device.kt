@@ -1,5 +1,6 @@
 package app.houselights.baselineprofile
 
+import android.graphics.Rect
 import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.benchmark.macro.MacrobenchmarkScope
@@ -65,4 +66,34 @@ internal fun MacrobenchmarkScope.focusOn(text: String, key: Int, max: Int = 12) 
         press(key)
     }
     check(focusSays(text)) { "Focus never reached \"$text\"" }
+}
+
+/** What on screen says [text]: its exact text first, then a text or description beginning with it. */
+internal fun MacrobenchmarkScope.find(text: String): UiObject2? =
+    device.findObject(By.text(text)) ?: device.findObject(By.textStartsWith(text)) ?: device.findObject(By.descStartsWith(text))
+
+/**
+ * Moves focus to what says [text] wherever it lies on screen: each press goes from the element with focus toward
+ * it, down or up while it lies under or over, else right or left. A grid's layout (a door across the whole row or
+ * half of it) changes no journey; [max] presses at most.
+ */
+internal fun MacrobenchmarkScope.focusTo(text: String, max: Int = 12) {
+    repeat(max) {
+        if (focusSays(text)) return
+        val target = checkNotNull(find(text)) { "Nothing on screen says \"$text\"" }.visibleBounds
+        // None while a screen is still covered or settling: waited for, not pressed.
+        val from = device.findObject(By.focused(true))?.visibleBounds
+        val key = from?.let { towards(it, target) }
+        if (key == null) SystemClock.sleep(PRESS_MS) else press(key)
+    }
+    check(focusSays(text)) { "Focus never reached \"$text\"" }
+}
+
+/** The arrow from [from] toward [to]; none when [to] lies inside it. */
+private fun towards(from: Rect, to: Rect): Int? = when {
+    to.centerY() > from.bottom -> KeyEvent.KEYCODE_DPAD_DOWN
+    to.centerY() < from.top -> KeyEvent.KEYCODE_DPAD_UP
+    to.centerX() > from.right -> KeyEvent.KEYCODE_DPAD_RIGHT
+    to.centerX() < from.left -> KeyEvent.KEYCODE_DPAD_LEFT
+    else -> null
 }
