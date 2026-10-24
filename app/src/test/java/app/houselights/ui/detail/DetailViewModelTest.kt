@@ -479,6 +479,83 @@ class DetailViewModelTest {
         assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
     }
 
+    /** What Lire starts unread, a show keeps its seasons and says why in Lire's place, until Réessayer reads it. */
+    @Test
+    fun aShowWhoseNextEpisodeFailsKeepsItsSeasons() = runTest {
+        provider.fail = { if (it == "nextUp show") IOException("Server away") else null }
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.nextUpError)
+        assertNull(vm.state.value.error)
+        assertEquals(3, vm.state.value.seasons.size)
+        assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
+
+        provider.fail = { null }
+        provider.nextUps = mapOf("show" to "s1e2")
+        val answer = provider.gate("nextUp show")
+        vm.retry()
+        advanceUntilIdle()
+        assertTrue("its Réessayer at work", vm.state.value.retrying)
+        assertEquals(UiError.OFFLINE, vm.state.value.nextUpError)
+        answer.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.retrying)
+        assertNull(vm.state.value.nextUpError)
+        assertEquals("s1e2", vm.state.value.nextUp?.id)
+    }
+
+    /** The chosen season's episodes unread on a first load: the seasons show, the row says why and offers Réessayer. */
+    @Test
+    fun episodesThatFailOnAFirstLoadSayItOnTheirRow() = runTest {
+        provider.fail = { if (it == "episodes s1") IOException("Server away") else null }
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertNull(vm.state.value.error)
+        assertEquals(3, vm.state.value.seasons.size)
+        assertEquals(UiError.OFFLINE, vm.state.value.episodesError)
+
+        provider.fail = { null }
+        vm.retrySeason()
+        advanceUntilIdle()
+        assertNull(vm.state.value.episodesError)
+        assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
+    }
+
+    /** A part failing once the title shows is said with the title, and Réessayer loads the page again. */
+    @Test
+    fun aPartThatFailsOnceTheTitleShowsIsSaid() = runTest {
+        // The title shows once Lire's episode is read; the seasons fail after.
+        val seasons = provider.gate("seasons show")
+        val vm = detail("show")
+        advanceUntilIdle()
+        provider.fail = { if (it == "seasons show") IOException("Server away") else null }
+        seasons.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("show", vm.state.value.item?.id)
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+
+        provider.fail = { null }
+        vm.retry()
+        assertTrue(vm.state.value.retrying)
+        advanceUntilIdle()
+        assertNull(vm.state.value.error)
+        assertFalse(vm.state.value.retrying)
+        assertEquals(3, vm.state.value.seasons.size)
+    }
+
+    /** A saga whose films cannot be read fails as such, never as an empty saga. */
+    @Test
+    fun aSagaWhoseFilmsFailSaysSo() = runTest {
+        provider.items["saga"] = MediaItem("saga", MediaKind.COLLECTION, "Alien")
+        val failing = object : MediaProvider by provider {
+            override suspend fun collectionItems(collection: MediaItem): List<MediaItem> = throw IOException("Server away")
+        }
+        val vm = detail("saga", failing)
+        advanceUntilIdle()
+        assertNull(vm.state.value.item)
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+    }
+
     /** Marked watched, then the library's signal of that change: the page loads once, not twice. */
     @Test
     fun aChangeOfItsOwnLoadsThePageOnce() = runTest {

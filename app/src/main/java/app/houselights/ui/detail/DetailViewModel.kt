@@ -40,10 +40,15 @@ import app.houselights.core.Version
 
 data class DetailState(
     val item: MediaItem? = null,
+    /** Why the page did not load: in place of the title, else under it, with Réessayer ([retrying] meanwhile). */
     val error: UiError? = null,
     val capabilities: ProviderCapabilities? = null,
     /** For a series: the episode Lire starts. */
     val nextUp: MediaItem? = null,
+    /** For a series: why what Lire starts could not be read, said in Lire's place with Réessayer. */
+    val nextUpError: UiError? = null,
+    /** The page loads again after a part failed ([DetailViewModel.retry]): its Réessayer stays, busy. */
+    val retrying: Boolean = false,
     val seasons: List<MediaItem> = emptyList(),
     val selectedSeasonId: String? = null,
     /** Episodes of [selectedSeasonId]; empty while loading or failed; on retry the error row stays, busy. */
@@ -163,40 +168,60 @@ class DetailViewModel(
                     // A season load this one superseded is not left busy: its row shows the error, with Réessayer.
                     _state.update { s ->
                         val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
-                        s.copy(error = error, episodesLoading = false, episodesError = rowError, partial = false)
+                        s.copy(error = error, episodesLoading = false, episodesError = rowError, partial = false, retrying = false)
                     }
                 }
         }
     }
 
-    /** On a first load, shows the title once what Lire starts is known; rows follow ([DetailState.partial]). */
-    private fun sayFirst(source: MediaProvider, item: MediaItem, nextUp: MediaItem? = null) {
-        if (_state.value.item != null) return
-        val canEdit = source.editor?.canEdit(item) == true
-        _state.update { it.copy(item = item, capabilities = source.capabilities, nextUp = nextUp, canEdit = canEdit, partial = true) }
+    /** Loads the page again after a part of it failed, its Réessayer busy ([DetailState.retrying]) until the answer. */
+    fun retry() {
+        if (_state.value.retrying) return
+        _state.update { it.copy(retrying = true) }
+        load()
     }
 
-    /** A series' page: what Lire starts, its seasons, the chosen season's episodes, then [similar] titles. */
+    /** On a first load, shows the title once what Lire starts is known, or why not; rows follow ([DetailState.partial]). */
+    private fun sayFirst(source: MediaProvider, item: MediaItem, nextUp: MediaItem? = null, nextUpError: UiError? = null) {
+        if (_state.value.item != null) return
+        val canEdit = source.editor?.canEdit(item) == true
+        _state.update {
+            it.copy(
+                item = item, capabilities = source.capabilities, nextUp = nextUp, nextUpError = nextUpError, canEdit = canEdit,
+                partial = true,
+            )
+        }
+    }
+
+    /**
+     * A series' page: what Lire starts, its seasons, the chosen season's episodes, then [similar] titles. What Lire starts
+     * and the episodes fail apart, each said where it shows; the seasons fail the page.
+     */
     private suspend fun seriesPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState =
         coroutineScope {
-            val nextUp = async { source.nextUp(item) }
+            val nextUp = async { suspendRunCatching { source.nextUp(item) } }
             val seasonsLoad = async { source.seasons(item) }
-            val next = nextUp.await()
-            sayFirst(source, item, next)
+            val nextRead = nextUp.await()
+            val next = nextRead.getOrNull()
+            val nextUpError = nextRead.exceptionOrNull()?.reported(TAG, "Next up of $itemId")
+            sayFirst(source, item, next, nextUpError)
             val tracks = async { next?.let { readTracks(it, keep = it) } }
             val seasons = seasonsLoad.await()
             val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
                 ?: next?.seasonId
                 ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
                 ?: seasons.firstOrNull()?.id
-            val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) }.orEmpty()
+            val season = seasons.firstOrNull { it.id == seasonId }
+            val episodes = season?.let { suspendRunCatching { source.episodes(item, it) } }
             DetailState(
                 item = item,
                 capabilities = source.capabilities,
                 nextUp = next,
+                nextUpError = nextUpError,
                 seasons = seasons,
                 selectedSeasonId = seasonId,
-                episodes = episodes,
+                episodes = episodes?.getOrNull().orEmpty(),
+                episodesError = episodes?.exceptionOrNull()?.reported(TAG, "Episodes of $seasonId"),
                 similar = similar.await(),
                 tracks = tracks.await(),
             )
