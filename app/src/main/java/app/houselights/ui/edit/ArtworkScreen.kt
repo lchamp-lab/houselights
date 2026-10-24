@@ -130,10 +130,13 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
     }
 }
 
-/** Why TMDB's images are missing: a key problem (fixed in Settings), else identify the title or check the network. */
+/**
+ * Why TMDB's images are missing: a key problem (fixed in Settings) or a refused certificate, else identify the title or
+ * check the network.
+ */
 @StringRes
-private fun onlineNote(error: UiError?): Int = when (error) {
-    UiError.NO_TMDB_KEY, UiError.TMDB_KEY_REFUSED -> error.message
+internal fun onlineNote(error: UiError?): Int = when (error) {
+    UiError.NO_TMDB_KEY, UiError.TMDB_KEY_REFUSED, UiError.CERTIFICATE -> error.message
     else -> R.string.artwork_offline
 }
 

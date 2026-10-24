@@ -747,29 +747,36 @@ private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?, nex
 
 /**
  * Lire or Reprendre (one button, so focus stays put), then start-over; a series or saga plays its next title. A series
- * whose next episode could not be read has Réessayer on that button instead, why said at the row's end.
+ * whose next episode could not be read has Réessayer in Lire's place, keyed as Lire, why said at the row's end.
  */
 @Composable
 private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, actions: DetailActions) {
     val onPlay = actions.onPlay
     val series = item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION
-    val unread = series && actions.nextUpError != null
+    if (series && actions.nextUpError != null) {
+        HlButton(
+            stringResource(R.string.retry),
+            onClick = actions.onRetry,
+            modifier = Modifier.focusKey(PLAY, memory),
+            icon = HlIcons.Refresh,
+            busy = actions.retrying,
+            busyLabel = stringResource(R.string.retrying),
+        )
+        return
+    }
     // A film in several copies plays the one chosen, from where that copy was left.
     val copy = actions.copy
-    val target = if (unread) null else if (series) nextUp else copy?.item ?: item.takeIf { it.isPlayable }
-    if (target == null && !unread) return
-    val resume = target != null && target.user.positionMs > 0
+    val target = (if (series) nextUp else copy?.item ?: item.takeIf { it.isPlayable }) ?: return
+    val resume = target.user.positionMs > 0
+    val episode = whatLirePlays(item, target, copy, actions.copyIndex)
     HlButton(
-        stringResource(if (target == null) R.string.retry else if (resume) R.string.resume else R.string.play),
-        onClick = { if (target != null) onPlay(target, resume) else actions.onRetry() },
+        stringResource(if (resume) R.string.resume else R.string.play),
+        onClick = { onPlay(target, resume) },
         modifier = Modifier.focusKey(PLAY, memory),
-        icon = if (target != null) HlIcons.Play else HlIcons.Refresh,
-        detail = target?.let { playDetail(whatLirePlays(item, it, copy, actions.copyIndex), it, resume, copy != null) },
-        emphasis = if (target != null) Emphasis.Primary else Emphasis.Secondary,
-        busy = target == null && actions.retrying,
-        busyLabel = stringResource(R.string.retrying),
+        icon = HlIcons.Play,
+        detail = playDetail(episode, target, resume, copy != null),
+        emphasis = Emphasis.Primary,
     )
-    if (target == null) return
     // A film in several files starts over with its first part, beside this button (see Parts).
     if (resume && item.parts.isEmpty()) {
         HlIconButton(
