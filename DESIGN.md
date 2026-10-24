@@ -555,7 +555,8 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
 2. The screen keeps a `FocusMemory` (`rememberFocusMemory`) and restores it once laid out (`RestoreFocus`):
    the element if it is placed, else scrolled to, else its group; it then keeps it in view while the screen
    settles. The window's own first focus is ignored, and a reload never moves focus (`RestoreFocusTest`).
-3. An action that changes its words stays one element (Lire becomes Reprendre on the same button).
+3. An action that changes its words stays one element (Lire becomes Reprendre on the same button). Lire and the
+   Réessayer in its place are two, one in ember: focus on one goes to the other (`FocusOnPlayAfter`).
 4. A row or pane returns to the child it last had (`keepChildFocus`, children marked `rememberedInGroup`,
    `MediaRowFocusTest`). Never `focusRestorer` (it crashes in Compose 1.7 when the list changes) nor a manual
    restore that cancels the move (`FocusStyleGuardTest`).
