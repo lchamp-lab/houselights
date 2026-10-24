@@ -200,7 +200,8 @@ private fun cutIn(door: Door): List<MediaItem>? = when (door) {
 
 /**
  * Home's first-view image requests, built as its grid builds them: the case's picture and logo, the next episode's
- * still and logo, then the doors' posters, those a count is cut in read for their pixels.
+ * still and logo, then the doors' posters, those a count is cut in read for their pixels: what [loadFirstPictures]
+ * loads, part by part.
  */
 internal fun firstPictures(ahead: PicturesAhead, rows: HomeRows, canSearch: Boolean = true): List<ImageRequest> =
     planOf(rows, canSearch).let { plan -> plan.case?.item?.let(ahead::case).orEmpty() + plan.doors.flatMap { it.pictures(ahead) } }

@@ -106,13 +106,14 @@ class HomePicturesAheadTest {
 
     private val state = HomeState(rows.libraries, HomeContent.Rows(rows.sections), rows.doors)
 
-    /** Loads ahead what the launch would, then lays home out: what each asked, in that order. */
+    /** Loads ahead what the launch does ([loadFirstPictures]), then lays home out: what each asked, in that order. */
     private fun loadAheadThenShow(): Pair<List<Asked>, List<Asked>> {
         Coil.setImageLoader(loader)
-        val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), rows)
-        ahead.forEach(loader::enqueue)
-        val loaded = asked.toList().also { asked.clear() }
-        assertEquals("loaded ahead", ahead.size, loaded.size)
+        val width = context.resources.displayMetrics.widthPixels
+        runBlocking { loadFirstPictures(context, width, CutPosterCache())(rows) }
+        // A count's posters are asked twice, loaded ahead then cut ahead from memory.
+        val loaded = asked.distinctBy { it.key }.also { asked.clear() }
+        assertEquals("loaded ahead: home's first view", firstPictures(PicturesAhead(context, width), rows).size, loaded.size)
 
         compose.setTvContent { HomeGrid(state) }
         compose.waitForIdle()
