@@ -218,14 +218,11 @@ class JellyfinProvider(
         api.items(userId, null, "Movie,Episode", true, "Random", "Ascending", 0, 1, "Path").items.firstOrNull()?.path
     }.getOrNull()
 
-    override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
-        play(item.id, sourceId = null, resume, options)
-
-    /** Plays media source [sourceId] of item [itemId]; falls back to the first source when null or missing. */
-    internal suspend fun play(itemId: String, sourceId: String?, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
+    /** Plays the item's first media source, the one the server plays. */
+    override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
         // List entries lack MediaSources: reload the full item.
-        val full = api.item(itemId, userId)
-        val source = full.mediaSources.firstOrNull { it.id == sourceId } ?: full.mediaSources.firstOrNull()
+        val full = api.item(item.id, userId)
+        val source = full.mediaSources.firstOrNull()
         val container = (source?.container ?: full.container)?.substringBefore(',')
         val networkUri = if (options.forceHttp) null else PathResolver.resolve(source?.path ?: full.path, options.pathMappings)
         val uri = networkUri ?: client.streamUrl(full.id, source?.id, container)

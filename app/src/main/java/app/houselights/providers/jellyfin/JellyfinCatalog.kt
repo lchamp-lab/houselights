@@ -13,8 +13,6 @@ import app.houselights.core.MediaKind
 import app.houselights.core.Person
 import app.houselights.core.PersonPage
 import app.houselights.core.PersonTitle
-import app.houselights.core.PlaybackOptions
-import app.houselights.core.PlaybackPlan
 import app.houselights.core.Quality
 import app.houselights.core.Saga
 import app.houselights.core.SagaPart
@@ -134,9 +132,6 @@ internal class JellyfinCatalog(
 
     /** No-op: the server cannot store a version choice ([ProviderCapabilities.versionChoice]). */
     override suspend fun chooseVersion(item: MediaItem, version: Version?) = Unit
-
-    override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
-        provider.play(version.item.id, version.key.ifEmpty { null }, resume, options)
 
     /** Server-side counts plus 4K films; size and runtime are unknown. */
     override suspend fun numbers(): LibraryNumbers = coroutineScope {
