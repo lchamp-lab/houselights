@@ -22,9 +22,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
-import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.ui.home.HomeGrid
 import app.houselights.ui.home.films
@@ -39,6 +37,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.film
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.libraryName
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -88,14 +87,14 @@ class PagesNavigationTest {
     @Composable
     private fun WallAt(entry: NavBackStackEntry, onOpenItem: (MediaItem) -> Unit) {
         val route = entry.toRoute<Route.Library>()
-        val library = Library(route.id, route.kind, route.title)
-        val sagas = route.sagas?.let { Library(it, LibraryKind.COLLECTIONS, null) }
         val vm: LibraryViewModel = viewModel(
             factory = viewModelFactory {
-                initializer { LibraryViewModel({ source }, library, createSavedStateHandle(), opensOn = route.filter, sagas = sagas) }
+                initializer {
+                    LibraryViewModel({ source }, route.library, createSavedStateHandle(), opensOn = route.filter, sagas = route.sagasLibrary)
+                }
             },
         )
-        Wall(vm, library, route.title ?: "Wall", onOpenItem)
+        Wall(vm, route.library, route.wallTitle(libraryName(route.kind)), onOpenItem)
     }
 
     private fun focusIsOn(text: String) = compose.onNode(isFocused()).assert(hasText(text, substring = true))

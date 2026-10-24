@@ -56,7 +56,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
-import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
@@ -88,7 +87,6 @@ import app.houselights.ui.edit.ArtworkScreen
 import app.houselights.ui.edit.IdentifyScreen
 import app.houselights.ui.home.HomeActions
 import app.houselights.ui.home.HomeScreen
-import app.houselights.ui.home.WatchRow
 import app.houselights.ui.home.WatchScreen
 import app.houselights.ui.library.WallView
 import app.houselights.ui.design.components.PicturesAhead
@@ -463,15 +461,14 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
         }
         composable<Route.Library> { entry ->
             val route = entry.toRoute<Route.Library>()
-            val library = Library(id = route.id, kind = route.kind, title = route.title?.ifBlank { null })
             WithSource(settings.source) {
                 LibraryScreen(
-                    library = library,
-                    title = library.title ?: libraryName(library.kind),
+                    library = route.library,
+                    title = route.wallTitle(libraryName(route.kind)),
                     onOpenItem = { openItem(it.id) },
                     opensOn = route.filter,
                     personName = route.personName,
-                    sagas = route.sagas?.let { Library(id = it, kind = LibraryKind.COLLECTIONS, title = null) },
+                    sagas = route.sagasLibrary,
                 )
             }
         }
@@ -523,7 +520,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
 /** « À regarder » at [entry], on the row it was opened on, with home's rows as home read them: what its doors showed. */
 @Composable
 private fun WatchPage(nav: NavController, entry: NavBackStackEntry, onOpenItem: (MediaItem) -> Unit) {
-    val row = WatchRow.entries.find { it.name == entry.toRoute<Route.Watch>().row } ?: WatchRow.CONTINUE
+    val row = entry.toRoute<Route.Watch>().watchRow
     val owner = remember(entry) { nav.homeEntry() } ?: entry
     val vm: HomeViewModel = viewModel(owner, factory = HomeViewModel.factory(appContainer()))
     WatchScreen(vm, row, onOpenItem)
@@ -540,7 +537,7 @@ internal fun NavController.homeEntry(): NavBackStackEntry? = try {
 
 /** Home's doors wired to the pages they open over it; the rest of what home does, from [base]. */
 internal fun NavController.homeActions(base: HomeActions = HomeActions()): HomeActions = base.copy(
-    onOpenWatch = { row -> openOnce(Route.Watch(row.name)) },
+    onOpenWatch = { row -> openOnce(Route.Watch.of(row)) },
     onOpenLibrary = { library, sagas -> openLibrary(library, sagas) },
     onOpenSagas = { films, sagas -> openSagas(films, sagas) },
     onOpenSearch = { openOnce(Route.Search) },
