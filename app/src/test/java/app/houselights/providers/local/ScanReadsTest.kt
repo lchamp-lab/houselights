@@ -73,11 +73,13 @@ class ScanReadsTest {
     @Test
     fun aFileFailingAtEveryPassIsLoggedWholeOnce() = runTest {
         nas.put("Dune (2021).mkv")
-        bench.db.openHelper.writableDatabase.execSQL("CREATE TRIGGER refused BEFORE INSERT ON items BEGIN SELECT RAISE(ABORT, 'refused'); END")
+        val db = bench.db.openHelper.writableDatabase
+        db.execSQL("CREATE TRIGGER refused BEFORE INSERT ON items BEGIN SELECT RAISE(ABORT, 'refused'); END")
         ShadowLog.clear()
         repeat(3) { bench.scan() }
         assertEquals(
-            listOf("Failed on Dune (2021).mkv" to true) + List(2) { "Films: files failing again, each logged at an earlier pass: 1" to false },
+            listOf("Failed on Dune (2021).mkv" to true) +
+                List(2) { "Films: files failing again, each logged at an earlier pass: 1" to false },
             warnings("LibraryScanner").filter { "Dune" in it.first || "again" in it.first },
         )
     }

@@ -157,8 +157,9 @@ class JellyfinClient(
             http: OkHttpClient = Http.client,
             announced: Boolean = false,
         ): Pair<String, PublicSystemInfo> {
-            if (announced) encryptedTwin(input)?.let { https ->
-                publicInfo(https, deviceId, http, PROBE_CONNECT_MS).getOrNull()?.takeIf(::isSupported)?.let { return https to it }
+            val twin = if (announced) encryptedTwin(input) else null
+            if (twin != null) {
+                publicInfo(twin, deviceId, http, PROBE_CONNECT_MS).getOrNull()?.takeIf(::isSupported)?.let { return twin to it }
             }
             val candidates = checkedCandidates(input)
             val failures = mutableListOf<Pair<String, Exception>>()

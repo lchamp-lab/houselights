@@ -97,7 +97,9 @@ class JellyfinReachTest {
 
     @Test
     fun aFoundServerOutOfReachIsNamedByTheAddressItAnnounced() = runTest {
-        val server = FakeServer { request -> if (request.url.isHttps) throw certificateRefused() else throw ConnectException("Connection refused") }
+        val server = FakeServer { request ->
+            if (request.url.isHttps) throw certificateRefused() else throw ConnectException("Connection refused")
+        }
         val failure = runCatching { JellyfinClient.reach(ANNOUNCED, "device", server.http, announced = true) }.exceptionOrNull()
         assertEquals(LoginError.Unreachable(ANNOUNCED), failure?.let { loginError(it, ANNOUNCED) })
     }
@@ -107,7 +109,8 @@ class JellyfinReachTest {
     fun anAddressTypedWithItsSchemeOrOnAnotherPortIsReachedAsWritten() = runTest {
         val server = FakeServer { Answer(200, info("10.10.3")) }
         assertEquals(ANNOUNCED, JellyfinClient.reach(ANNOUNCED, "device", server.http).first)
-        assertEquals("http://192.168.1.5:9000", JellyfinClient.reach("http://192.168.1.5:9000", "device", server.http, announced = true).first)
+        val otherPort = "http://192.168.1.5:9000"
+        assertEquals(otherPort, JellyfinClient.reach(otherPort, "device", server.http, announced = true).first)
         assertTrue(server.requests.none { it.url.isHttps })
     }
 
