@@ -304,7 +304,7 @@ private fun FieldMessage(error: String?, supporting: String?) {
 
 /** A field's name in white, then what [named] adds to it ("(facultatif)") in grey: a name, then a remark. */
 @Composable
-private fun FieldName(label: String, named: String, modifier: Modifier) {
+internal fun FieldName(label: String, named: String, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val t = Hl.type
     val text = remember(label, named, c, t) {
@@ -318,5 +318,5 @@ private fun FieldName(label: String, named: String, modifier: Modifier) {
             }
         }
     }
-    Text(text, style = t.entry, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
+    Text(text, style = t.group, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
 }

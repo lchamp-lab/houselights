@@ -141,9 +141,9 @@ fun CatalogScreen() {
             item {
                 Group("Panels and status") {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                        HlPanel(Modifier.weight(1f)) { Text("Quiet panel", style = t.lead, color = c.content) }
-                        HlPanel(Modifier.weight(1f), lit = true) { Text("Lit panel", style = t.lead, color = c.content) }
-                        HlPanel(Modifier.weight(1f), level = PanelLevel.Raised) { Text("Raised panel", style = t.lead, color = c.content) }
+                        HlPanel(Modifier.weight(1f)) { Text("Quiet panel", style = t.entry, color = c.content) }
+                        HlPanel(Modifier.weight(1f), lit = true) { Text("Lit panel", style = t.entry, color = c.content) }
+                        HlPanel(Modifier.weight(1f), level = PanelLevel.Raised) { Text("Raised panel", style = t.entry, color = c.content) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.CenterVertically) {
                         HlStatus(StatusState.On, "Online")

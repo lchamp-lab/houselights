@@ -164,7 +164,7 @@ class NfsIdentityTest {
         val measurer = TextMeasurer(createFontFamilyResolver(compose.activity), compose.density, LayoutDirection.Ltr)
         val inRow = hasAnyAncestor(hasClickAction())
         listOf(
-            hasText(text(R.string.nfs_identity_title)) to HouselightsType.lead,
+            hasText(text(R.string.nfs_identity_title)) to HouselightsType.entry,
             hasText(text(R.string.nfs_identity_desc)) to HouselightsType.meta,
             hasText("1026", substring = true) to HouselightsType.jaquette,
         ).forEach { (words, style) ->

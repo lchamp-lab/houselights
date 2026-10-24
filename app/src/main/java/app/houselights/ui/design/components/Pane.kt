@@ -242,7 +242,7 @@ fun PlateDefinition(label: String, modifier: Modifier = Modifier, note: String? 
 
 /**
  * A part of a meter stated as a case's back (Stockage): its ink's square before its [label] in secondary `meta`, then
- * its [value], a figure in `spec` or, not [technical], words in `lead`; an [empty] part's square is its ring.
+ * its [value], a figure in `spec` or, not [technical], words in `entry`; an [empty] part's square is its ring.
  */
 @Composable
 fun MeterFact(
@@ -271,6 +271,6 @@ fun MeterFact(
             Text(label, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.height(HlSpace.xs))
-        Text(value, style = if (technical) Hl.type.spec else Hl.type.lead, color = c.content, maxLines = 1)
+        Text(value, style = if (technical) Hl.type.spec else Hl.type.entry, color = c.content, maxLines = 1)
     }
 }

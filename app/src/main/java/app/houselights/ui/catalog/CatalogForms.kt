@@ -427,11 +427,11 @@ private fun FormPanelButtons() {
     }
 }
 
-/** A choice on a panel button as a list item says it: its name in `lead`, what it is in secondary `meta`. */
+/** A choice on a panel button as a list item says it: its name in `entry`, what it is in secondary `meta`. */
 @Composable
 private fun FormChoice(name: String, line: String, enabled: Boolean = true) {
     Column(Modifier.padding(HlInset.card)) {
-        Text(name, style = Hl.type.lead)
+        Text(name, style = Hl.type.entry)
         Spacer(Modifier.height(HlSpace.xs))
         // Disabled, its words keep LocalContentColor, which follows the state.
         Text(line, style = Hl.type.meta, color = if (enabled) Hl.colors.contentSecondary else Color.Unspecified)

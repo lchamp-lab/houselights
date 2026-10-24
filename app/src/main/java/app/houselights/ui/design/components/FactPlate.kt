@@ -46,7 +46,7 @@ fun FactPlate(
 }
 
 /**
- * One thing a [FactPlate] states: its [label] in secondary `meta` over its [value], words in `lead` or, when
+ * One thing a [FactPlate] states: its [label] in secondary `meta` over its [value], words in `entry` or, when
  * [technical] (a format, a figure), in `spec`; a [measure] follows on its baseline in secondary `meta`
  * ("1920 × 1080"), and a [state] says itself by its dot before it.
  */
@@ -70,7 +70,7 @@ fun PlateFact(
             }
             Text(
                 value,
-                style = if (technical) Hl.type.spec else Hl.type.lead,
+                style = if (technical) Hl.type.spec else Hl.type.entry,
                 color = c.content,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

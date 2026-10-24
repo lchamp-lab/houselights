@@ -95,6 +95,7 @@ object HlSize {
     /** A square icon button; [tileCompact] in a screen's header. */
     val tile = 48.dp
     val tileCompact = 40.dp
+    /** An icon beside words: a place's, the search field's. */
     val icon = 20.dp
     /** An icon on a [tile]. */
     val tileIcon = 22.dp

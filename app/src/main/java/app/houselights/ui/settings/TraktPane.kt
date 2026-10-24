@@ -180,7 +180,7 @@ private fun Account(name: String?, sync: TraktSyncState) {
                 if (name != null) {
                     Text(stringResource(R.string.trakt_account), style = Hl.type.meta, color = c.contentSecondary)
                     Spacer(Modifier.height(HlSpace.xxs))
-                    Text(name, style = Hl.type.headline, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(name, style = Hl.type.subject, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(HlSpace.m))
                 }
                 Row {

@@ -74,7 +74,7 @@ fun SearchQuery(query: String, hint: String, modifier: Modifier = Modifier) {
                 .padding(horizontal = HlSpace.m),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(HlIcons.Search, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.tileIcon))
+            Icon(HlIcons.Search, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.icon))
             Spacer(Modifier.width(HlSpace.s))
             Text(
                 query,

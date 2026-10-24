@@ -151,7 +151,7 @@ private fun SecondaryPanes() {
                     PlateDefinition("Données des films", note = stringResource(R.string.tmdb_attribution)) {
                         Text("TMDB", style = Hl.type.spec, color = Hl.colors.content)
                     }
-                    PlateDefinition("Police") { Text("Archivo, SIL Open Font License", style = Hl.type.lead, color = Hl.colors.content) }
+                    PlateDefinition("Police") { Text("Archivo, SIL Open Font License", style = Hl.type.entry, color = Hl.colors.content) }
                 }
             }
             HlPlate(Modifier.fillMaxWidth()) {
