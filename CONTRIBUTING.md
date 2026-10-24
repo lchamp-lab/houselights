@@ -129,9 +129,10 @@ run it (see below): a debug or freshly installed build runs interpreted and show
 
 ### Baseline profile
 
-The baseline profile lists the code of the main journeys (start-up, home, a library wall, a detail page,
-a series, settings) so Android compiles it ahead of time. It is checked in
-(`app/src/main/generated/baselineProfiles/`).
+The baseline profile lists the code of the main journeys (start-up, home's doors, a library wall, the
+sagas, a detail page from « À regarder », a series, the search, settings) so Android compiles it ahead of
+time. It is checked in (`app/src/main/generated/baselineProfiles/`); `BaselineProfileGuardTest` fails once it
+names files since removed or lacks home's grid.
 
 - **Installed with `scripts/install.sh`** (APK and `.dm` in one session): compiled at install.
 - **APK alone**: `profileinstaller` hands the profile to Android, which compiles it only while the device is
@@ -146,7 +147,8 @@ Zidoo Z1000 Pro, bench build, share of frames over 16.7 ms:
 | APK alone, after background compilation | 0.5–0.7 % | 0.4–0.9 % |
 
 Regenerate it after changing screens, before a release. The journeys (`baselineprofile/…/Journeys.kt`)
-browse a NAS library the emulator reads over NFS, configured in `local.properties`:
+reach each door by where it lies on screen and browse a NAS library the emulator reads over NFS, films
+alone or films and shows, configured in `local.properties`:
 
 ```sh
 cat >> local.properties <<'PROPS'
