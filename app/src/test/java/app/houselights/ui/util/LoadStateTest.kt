@@ -22,6 +22,12 @@ class LoadStateTest {
         assertEquals(LoadState.Failed(UiError.OFFLINE), LoadState.Loading.after(LoadState.Failed(UiError.OFFLINE)))
     }
 
+    /** A value made into another is still being read again. */
+    @Test
+    fun aMappedValueKeepsRefreshing() {
+        assertEquals(LoadState.Ready(5, refreshing = true), LoadState.Ready("pages", refreshing = true).map { it.length })
+    }
+
     /** A value shown stays when reading it again fails: the failure is logged, not shown in its place. */
     @Test
     fun aFailedRefreshKeepsTheValue() {

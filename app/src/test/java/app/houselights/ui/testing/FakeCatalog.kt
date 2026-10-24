@@ -58,7 +58,6 @@ class FakeCatalog : Catalog {
         copies = copies + (item.id to copies[item.id].orEmpty().map { it.copy(chosen = if (chosen == null) it.best else it.key == chosen) })
     }
 
-
     override suspend fun numbers(): LibraryNumbers = numbers.also { call("numbers") }
 
     override suspend fun search(query: String, limit: Int): SearchResults = found.also { call("search $query") }

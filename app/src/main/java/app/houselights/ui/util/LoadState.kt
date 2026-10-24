@@ -37,7 +37,7 @@ fun <T> LoadState<T>.after(loaded: LoadState<T>): LoadState<T> =
     if (loaded is LoadState.Failed && this is LoadState.Ready) copy(refreshing = false) else loaded
 
 inline fun <T, R> LoadState<T>.map(transform: (T) -> R): LoadState<R> = when (this) {
-    is LoadState.Ready -> LoadState.Ready(transform(value))
+    is LoadState.Ready -> LoadState.Ready(transform(value), refreshing)
     is LoadState.Failed -> this
     LoadState.Loading -> LoadState.Loading
 }
