@@ -212,6 +212,8 @@ object HlLayout {
     fun detailHeroMin(screen: Dp): Dp = detailHeroMin(screen, textRoom(Hl.type.rowTitle))
     /** Where an error sits on an otherwise empty detail page. */
     val errorTop = 96.dp
+    /** Columns of a poster wall ([app.houselights.ui.design.components.PosterWallGrid]). */
+    const val WALL_COLUMNS = 7
     /** Between a wall's columns: [WALL_COLUMNS] posters of [HlSize.wallPoster] across the safe area. */
     val wallGutter = (CANVAS_WIDTH.dp - HlSpace.safeH * 2 - HlSize.wallPoster * WALL_COLUMNS) / (WALL_COLUMNS - 1)
     /** Artwork picker choices; a poster, being its own preview, takes a preview's room (180 × 270). */
@@ -225,9 +227,6 @@ object HlLayout {
     /** Label column of a reading sheet's definitions (an NFO's), its values at 20 beside it. */
     val readingLabel = 180.dp
 }
-
-/** Columns of a poster wall (`LibraryScreen`, `PersonScreen`). */
-private const val WALL_COLUMNS = 7
 
 // Component parts: measures a component keeps to itself; screens lay out with HlLayout.
 

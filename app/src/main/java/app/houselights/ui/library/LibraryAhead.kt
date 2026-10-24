@@ -7,6 +7,7 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.Page
 import app.houselights.core.SortOption
 import app.houselights.core.suspendRunCatching
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
 import coil.ImageLoader
@@ -36,7 +37,7 @@ class LibraryAhead(private val provider: () -> MediaProvider, private val now: (
         }
         ahead = Ahead(library.id, grouped, page, now())
         scope.launch {
-            page.await().onSuccess { LoadingAhead.load(loader, pictures.wall(it.items.take(COLUMNS * FIRST_LINES))) }
+            page.await().onSuccess { LoadingAhead.load(loader, pictures.wall(it.items.take(HlLayout.WALL_COLUMNS * FIRST_LINES))) }
         }
     }
 

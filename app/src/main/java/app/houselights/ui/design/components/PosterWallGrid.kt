@@ -1,0 +1,35 @@
+package app.houselights.ui.design.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.ListScroll
+
+/**
+ * A wall of posters (a library's, a person's): [HlLayout.WALL_COLUMNS] across the safe area, [HlLayout.wallGutter]
+ * apart, so a [PosterCard] without a width fills a cell of [requestedPoster], the size its picture is decoded and
+ * loaded ahead at ([PicturesAhead.wall]). A scrolled line comes to where the first line rests.
+ */
+@Composable
+fun PosterWallGrid(state: LazyGridState, modifier: Modifier = Modifier, content: LazyGridScope.() -> Unit) {
+    ListScroll(top = HlFocus.wallRoom) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(HlLayout.WALL_COLUMNS),
+            state = state,
+            contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom, bottom = HlFocus.edge),
+            horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
+            verticalArrangement = Arrangement.spacedBy(HlSpace.l),
+            modifier = Modifier.fillMaxSize().then(modifier),
+            content = content,
+        )
+    }
+}

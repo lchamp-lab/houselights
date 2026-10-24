@@ -7,7 +7,6 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,9 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -43,7 +40,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.RestoreFocus
@@ -78,6 +74,7 @@ import app.houselights.ui.design.components.MenuOption
 import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.LocalGroupFocused
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.PosterWallGrid
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.HlEmptyState
@@ -102,8 +99,6 @@ import app.houselights.ui.design.HlSize
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import app.houselights.ui.design.FocusMemory
-
-internal const val COLUMNS = 7
 
 /** Placeholder rows while the wall loads: more than the screen shows, like the wall. */
 private const val SKELETON_ROWS = 3
@@ -297,13 +292,9 @@ private fun Posters(
     var gridHasFocus by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
-        ListScroll(top = HlFocus.wallRoom) { LazyVerticalGrid(
-            columns = GridCells.Fixed(COLUMNS),
-            state = grid.state,
-            contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom, bottom = HlFocus.edge),
-            horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
-            verticalArrangement = Arrangement.spacedBy(HlSpace.l),
-            modifier = Modifier.fillMaxSize().onFocusChanged {
+        PosterWallGrid(
+            grid.state,
+            Modifier.onFocusChanged {
                 gridHasFocus = it.hasFocus
                 // Leaving for the buttons above keeps the selected title.
                 if (!it.hasFocus) grid.focusedIndex.value = null
@@ -318,8 +309,8 @@ private fun Posters(
                         grid.selectedId.value = item.id
                         grid.focusedIndex.value = index
                         // The first line sits under the padding: show it all.
-                        if (index < COLUMNS) scope.launch { grid.state.animateScrollToItem(0) }
-                        if (index > state.items.size - COLUMNS * 3) vm.loadMore()
+                        if (index < HlLayout.WALL_COLUMNS) scope.launch { grid.state.animateScrollToItem(0) }
+                        if (index > state.items.size - HlLayout.WALL_COLUMNS * 3) vm.loadMore()
                     },
                     modifier = Modifier
                         .focusKey(FocusKey.item(item.id), memory)
@@ -338,7 +329,7 @@ private fun Posters(
                     )
                 }
             }
-        } }
+        }
     }
 }
 
@@ -349,7 +340,7 @@ private const val PAGE_FAILED = "page-failed"
 private val RETRY_PAGE = FocusKey.action("retry-page")
 
 /** Back returns to the first poster from past the first line; from the first line, it leaves. */
-internal fun backReturnsToFirst(focusedIndex: Int?): Boolean = focusedIndex != null && focusedIndex >= COLUMNS
+internal fun backReturnsToFirst(focusedIndex: Int?): Boolean = focusedIndex != null && focusedIndex >= HlLayout.WALL_COLUMNS
 
 /** The title [id] in [items], or the first when absent (a filter may remove it). */
 private fun selectedIn(items: List<MediaItem>, id: String?): MediaItem? = items.find { it.id == id } ?: items.firstOrNull()
@@ -370,7 +361,7 @@ private fun SkeletonWall() {
     ) {
         repeat(SKELETON_ROWS) {
             Row(horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter)) {
-                repeat(COLUMNS) { CardSkeleton(null, HlSize.POSTER_RATIO, Modifier.weight(1f)) }
+                repeat(HlLayout.WALL_COLUMNS) { CardSkeleton(null, HlSize.POSTER_RATIO, Modifier.weight(1f)) }
             }
         }
     }
@@ -615,7 +606,7 @@ private fun WallFolio(
 ) {
     val item = shown.value
     val index = item?.let { selected -> items.indexOfFirst { it.id == selected.id } } ?: -1
-    val folio = item?.takeIf { index >= COLUMNS * FOLIO_FROM_LINE }?.let { folioOf(it, sort) }
+    val folio = item?.takeIf { index >= HlLayout.WALL_COLUMNS * FOLIO_FROM_LINE }?.let { folioOf(it, sort) }
     if (folio == null) {
         Text(count, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = modifier)
         return

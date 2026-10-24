@@ -1,10 +1,8 @@
 package app.houselights.ui.person
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,8 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
@@ -40,12 +36,10 @@ import app.houselights.core.Person
 import app.houselights.core.PersonPage
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
@@ -59,10 +53,10 @@ import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.PosterWallGrid
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.WithItsPicture
-import app.houselights.ui.library.COLUMNS
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.jobName
@@ -140,16 +134,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                 ) {
                     WithItsPicture(shown) { TitleLine(it) }
                 }
-                ListScroll(top = HlFocus.wallRoom) { LazyVerticalGrid(
-                    columns = GridCells.Fixed(COLUMNS),
-                    state = grid,
-                    contentPadding = PaddingValues(
-                        start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom, bottom = HlFocus.edge,
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
-                    verticalArrangement = Arrangement.spacedBy(HlSpace.l),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
+                PosterWallGrid(grid) {
                     itemsIndexed(titles, key = { _, title -> title.id }) { i, item ->
                         PosterCard(
                             item,
@@ -159,14 +144,14 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                             onFocused = { selectedId.value = item.id },
                         )
                     }
-                } }
+                }
             }
         }
     }
 }
 
 /** Whether a page of [titles] titles uses a small library's layout: at most two lines of posters. */
-internal fun smallPage(titles: Int): Boolean = titles <= COLUMNS * SMALL_LINES
+internal fun smallPage(titles: Int): Boolean = titles <= HlLayout.WALL_COLUMNS * SMALL_LINES
 
 /** Poster lines up to which a page uses the small library layout. */
 private const val SMALL_LINES = 2

@@ -12,7 +12,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.requestedPoster
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
@@ -78,8 +80,18 @@ class WallPageTest {
     fun twoWholeLinesOfPostersShowFromTheStart() {
         open()
         val first = poster(1)
-        val second = poster(COLUMNS + 1)
+        val second = poster(HlLayout.WALL_COLUMNS + 1)
         assertTrue("a second line under the first", second.top > first.bottom)
-        assertTrue("the second line whole on the screen: ${poster(2 * COLUMNS).bottom}", poster(2 * COLUMNS).bottom <= 540.dp)
+        val last = poster(2 * HlLayout.WALL_COLUMNS)
+        assertTrue("the second line whole on the screen: ${last.bottom}", last.bottom <= 540.dp)
+    }
+
+    /** A poster fills its cell at the width its picture is decoded and loaded ahead at, a pixel's rounding aside. */
+    @Test
+    fun aPosterIsAsWideAsItsPictureIsRequested() {
+        open()
+        (1..HlLayout.WALL_COLUMNS).map(::poster).forEach { cell ->
+            assertEquals(requestedPoster(null).value, (cell.right - cell.left).value, 1f)
+        }
     }
 }
