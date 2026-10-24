@@ -275,7 +275,7 @@ private fun FormFoldedFields() {
         }
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("long figures, or the largest text size: the user over the group, the row's words whole", Modifier.weight(1f), gap = HlSpace.xs) {
+        Specimen("long figures, or the largest text size: the user over the group, words whole", Modifier.weight(1f), gap = HlSpace.xs) {
             HlSettingGroup(null) {
                 HlSettingRow(
                     stringResource(R.string.nfs_identity_title),
