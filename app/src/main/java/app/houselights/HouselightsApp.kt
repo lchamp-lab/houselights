@@ -168,7 +168,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     val trakt = TraktAccount(TraktKeys.builtIn, session = { settings.state.value.trakt }, save = settings::setTrakt)
 
     /** The only way to change the source: the current one stays active until the new one is saved. */
-    val sources = SourceSwitcher({ settings.state.value }, settings::setSource, scope)
+    val sources = SourceSwitcher({ settings.state.value }, settings::setSource, scope, keepUnopened = settings::setSourceKeepingUnopened)
     val database = LibraryDatabase.create(app, Secrets.device(app))
 
     /** Trakt follows the account and the source as the settings have them. */

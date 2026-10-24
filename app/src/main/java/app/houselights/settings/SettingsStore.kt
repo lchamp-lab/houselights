@@ -225,50 +225,55 @@ class SettingsStore(
         if (unread) rereads.update { it + 1 } else readNow.trySend(Unit)
     }
 
+    /** The sealed values the last read did not open: read again, they are not waited for. */
+    @Volatile
+    private var waited = emptySet<String>()
+
     /**
-     * The settings in this file. Secrets the Keystore newly failed to open are opened again after each of
-     * [SECRET_WAITS_MS]; those already unread are not waited for again, so that a write is read back at once.
+     * The settings in this file. Values the Keystore newly failed to open are opened again after each of
+     * [SECRET_WAITS_MS]; those already unread, wherever stored, are not waited for again, so that a write is read back
+     * at once.
      */
     private suspend fun Preferences.toSettings(): AppSettings {
-        val known = _state.value.unreadSecrets
-        var settings = readSettings()
+        var unopened = Unopened()
+        var settings = readSettings(unopened)
         for (wait in SECRET_WAITS_MS) {
-            if ((settings.unreadSecrets - known).isEmpty()) break
+            if ((unopened.unreadValues - waited).isEmpty()) break
             delay(wait)
-            settings = readSettings()
+            unopened = Unopened()
+            settings = readSettings(unopened)
         }
+        waited = unopened.unreadValues
         return settings
     }
 
-    private fun Preferences.readSettings(): AppSettings {
-        val unopened = Unopened()
-        return AppSettings(
-            loaded = true,
-            source = sealed<SourceConfig>(Keys.source, unopened),
-            keptServer = sealed<SourceConfig.Jellyfin>(Keys.keptServer, unopened),
-            deviceId = this[Keys.deviceId] ?: "",
-            pathMappings = sealed<List<PathMapping>>(Keys.mappings, unopened).orEmpty(),
-            forceHttp = this[Keys.forceHttp] ?: false,
-            ui4k = this[Keys.ui4k] ?: true,
-            tmdbApiKey = this[Keys.tmdbKey]?.let { opened(Keys.tmdbKey, it, unopened) }?.takeIf { it.isNotBlank() },
-            collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
-            metadataLanguage = this[Keys.metadataLanguage],
-            libraryLanguage = this[Keys.libraryLanguage],
-            trakt = sealed<TraktSession>(Keys.trakt, unopened),
-            tracks = TrackPreferences(
-                audio = this[Keys.audioLanguage],
-                subtitles = SubtitleMode.entries.firstOrNull { it.name == this[Keys.subtitleMode] } ?: SubtitleMode.PLAYER,
-                subtitleLanguage = this[Keys.subtitleLanguage],
-            ),
-            lostSecrets = unopened.lost,
-            unreadSecrets = unopened.unread,
-        )
-    }
+    private fun Preferences.readSettings(unopened: Unopened) = AppSettings(
+        loaded = true,
+        source = sealed<SourceConfig>(Keys.source, unopened),
+        keptServer = sealed<SourceConfig.Jellyfin>(Keys.keptServer, unopened),
+        deviceId = this[Keys.deviceId] ?: "",
+        pathMappings = sealed<List<PathMapping>>(Keys.mappings, unopened).orEmpty(),
+        forceHttp = this[Keys.forceHttp] ?: false,
+        ui4k = this[Keys.ui4k] ?: true,
+        tmdbApiKey = this[Keys.tmdbKey]?.let { opened(Keys.tmdbKey, it, unopened) }?.takeIf { it.isNotBlank() },
+        collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
+        metadataLanguage = this[Keys.metadataLanguage],
+        libraryLanguage = this[Keys.libraryLanguage],
+        trakt = sealed<TraktSession>(Keys.trakt, unopened),
+        tracks = TrackPreferences(
+            audio = this[Keys.audioLanguage],
+            subtitles = SubtitleMode.entries.firstOrNull { it.name == this[Keys.subtitleMode] } ?: SubtitleMode.PLAYER,
+            subtitleLanguage = this[Keys.subtitleLanguage],
+        ),
+        lostSecrets = unopened.lost,
+        unreadSecrets = unopened.unread,
+    )
 
-    /** The secrets a read could not open: [lost] for good, [unread] for now. */
+    /** The secrets a read could not open: [lost] for good, [unread] for now, as stored in [unreadValues]. */
     private class Unopened {
         val lost = mutableSetOf<SecretSetting>()
         val unread = mutableSetOf<SecretSetting>()
+        val unreadValues = mutableSetOf<String>()
     }
 
     /** The value sealed at [key], opened and decoded; null when absent, or not opened and recorded in [unopened]. */
@@ -281,6 +286,7 @@ class SettingsStore(
         Opened.Unavailable -> {
             Log.w(TAG, "${key.name} not opened: the Keystore is unavailable")
             unopened.unread += key.secret
+            unopened.unreadValues += stored
             null
         }
         Opened.Undecryptable -> {
@@ -331,6 +337,19 @@ class SettingsStore(
             val sealed = kept?.let { secrets.seal(lenientJson.encodeToString(it)) }
             prefs.putSource(source)
             if (sealed == null) prefs.remove(Keys.keptServer) else prefs[Keys.keptServer] = sealed
+        }
+    }
+
+    /**
+     * Saves [source], keeping the server source it replaces as the kept server, still sealed: the Keystore did not open
+     * it ([AppSettings.unreadSource]), so it is moved as stored, never dropped nor opened.
+     */
+    suspend fun setSourceKeepingUnopened(source: SourceConfig) {
+        write { prefs ->
+            val left = prefs[Keys.source]?.takeIf(secrets::isSealed)
+            prefs.putSource(source)
+            // One kept server at most: one already stored stays.
+            if (left != null && Keys.keptServer !in prefs) prefs[Keys.keptServer] = left
         }
     }
 

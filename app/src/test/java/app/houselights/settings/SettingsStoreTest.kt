@@ -311,6 +311,36 @@ class SettingsStoreTest {
         assertEquals(emptySet<SecretSetting>(), settings.state.value.unreadSecrets)
     }
 
+    /**
+     * "Mes fichiers" chosen while the connection is unread keeps its server, as a server left for the folders always is:
+     * moved sealed as stored, nothing revoked nor waited for, and resumable once the Keystore opens it.
+     */
+    @Test
+    fun theFoldersChosenWhileTheConnectionIsUnreadKeepItsServer() = runTest {
+        val keystore = FlakyKeystore()
+        val sealed = stored(secretsOf { keystore.key })
+        val store = MemoryStore(sealed)
+        val settings = settingsOf(store, keystore.secrets)
+        advanceTimeBy(2_100)
+        assertTrue(settings.state.value.unreadSource)
+        val sources = SourceSwitcher(
+            { settings.state.value }, settings::setSource, backgroundScope,
+            signOut = { _, _ -> error("Nothing is revoked") }, keepUnopened = settings::setSourceKeepingUnopened,
+        )
+
+        sources.switchTo(SourceConfig.Local)
+        assertEquals(SourceConfig.Local, settings.state.value.source)
+        assertEquals(setOf(SecretSetting.KEPT_SERVER), settings.state.value.unreadSecrets)
+        assertEquals(sealed[sourceKey], store.file.value[stringPreferencesKey("kept_server")])
+
+        keystore.down = false
+        settings.readAgain()
+        runCurrent()
+        assertEquals(home, settings.state.value.keptServer)
+        assertEquals(SourceConfig.Local, settings.state.value.source)
+        assertEquals(emptySet<SecretSetting>(), settings.state.value.unreadSecrets)
+    }
+
     @Test
     fun aKeystoreThatCannotSealLeavesThePlainValue() = runTest {
         val broken = secretsOf { throw ProviderException("Failed to generate key") }

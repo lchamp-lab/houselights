@@ -41,6 +41,8 @@ class SourceSwitcher(
     private val check: suspend (SourceConfig.Jellyfin, String) -> Unit = { server, deviceId ->
         JellyfinClient.checkToken(server, deviceId)
     },
+    /** Saves the source, keeping the server source it replaces, which the Keystore did not open for now, as stored. */
+    private val keepUnopened: suspend (SourceConfig) -> Unit = { save(it, null) },
 ) {
     private val changing = Mutex()
 
@@ -49,6 +51,10 @@ class SourceSwitcher(
 
     private suspend fun switch(source: SourceConfig, keepServer: Boolean) {
         val before = current()
+        // A server the Keystore did not open for now is kept all the same, sealed as it is stored.
+        if (before.unreadSource && keepServer && source !is SourceConfig.Jellyfin) {
+            return keepUnopened(source)
+        }
         val left = before.source as? SourceConfig.Jellyfin
         val kept = when {
             source is SourceConfig.Jellyfin -> null
