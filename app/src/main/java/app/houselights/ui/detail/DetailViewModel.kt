@@ -123,6 +123,9 @@ class DetailViewModel(
 
     private val trackLoads = LatestJob(viewModelScope)
 
+    /** Whether a scan's progress changed the title shown, one read at a time. */
+    private val titleChecks = LatestJob(viewModelScope)
+
     init {
         load()
     }
@@ -229,12 +232,24 @@ class DetailViewModel(
         )
     }
 
-    /** Reloads after a library change, unless it is this page's own change, signalled within [OWN_CHANGE_MS]. */
-    fun onLibraryChanged() {
+    /**
+     * Reloads after a library change, unless it is this page's own change, signalled within [OWN_CHANGE_MS]; after a
+     * running scan's progress ([scanOnly]), only once the title itself reads differently, its end reloading the rest.
+     */
+    fun onLibraryChanged(scanOnly: Boolean = false) {
         val own = ownChangeAt
         ownChangeAt = null
         if (own != null && now() - own <= OWN_CHANGE_MS) return
-        load()
+        if (scanOnly) reloadIfChanged() else load()
+    }
+
+    /** Reads the title again, in one request, and reloads the page when it is no longer the one shown. */
+    private fun reloadIfChanged() {
+        val shown = _state.value.item ?: return load()
+        titleChecks.launch {
+            val now = suspendRunCatching { provider().item(itemId) }.onFailure { Log.w(TAG, "Check of $itemId", it) }.getOrNull()
+            if (now != null && now != shown) load()
+        }
     }
 
     /** Shows the season's tab at once, row emptied and its error gone; episodes load once focus settles (tabs select on focus). */

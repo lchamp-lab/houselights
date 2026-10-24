@@ -213,11 +213,8 @@ class HomeViewModel(
         null
     }
 
-    /** Reloads after a library change, recomputing the library's rows along with Home's own. */
-    fun onLibraryChanged() {
-        libraryRows?.forget()
-        load()
-    }
+    /** Reloads after a library change; the library's rows are drawn again unless a scan's progress alone moved it. */
+    fun onLibraryChanged() = load()
 
     /** Loads the library's rows, below Home's own, once the launch screen has closed; a failure leaves them out. */
     private fun drawLibraryRows() {

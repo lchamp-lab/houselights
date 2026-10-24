@@ -89,6 +89,30 @@ class HomeViewModelTest {
         assertEquals(listOf(SectionType.CONTINUE, SectionType.BEST_RATED), (vm.content() as HomeContent.Rows).sections.map { it.type })
     }
 
+    /** A scan's progress reloads home, its library rows kept as drawn until a change beyond it, such as the scan's end. */
+    @Test
+    fun aScansProgressLeavesTheLibraryRowsAsDrawn() = runTest {
+        val catalog = FakeCatalog().apply { best = (1..6).map { film("best$it") } }
+        provider.catalog = catalog
+        var settled = 0L
+        val drawnRows = LibraryRows({ provider }, { settled })
+        val vm = HomeViewModel({ provider }, scan, folders.filterNotNull(), settings, scanAll = {}, libraryRows = drawnRows)
+        backgroundScope.launch { vm.state.collect {} }
+        advanceUntilIdle()
+        fun best() = (vm.content() as HomeContent.Rows).sections.single { it.type == SectionType.BEST_RATED }.items
+        val drawn = best()
+
+        catalog.best = (1..6).map { film("found$it") }
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(drawn, best())
+
+        settled++
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(catalog.best, best())
+    }
+
     @Test
     fun theFirstLoadShowsNothingYet() = runTest {
         provider.gate("libraries")

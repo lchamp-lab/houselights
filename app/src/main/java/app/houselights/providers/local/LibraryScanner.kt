@@ -69,8 +69,13 @@ class LibraryScanner(
 
     private val _changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
-    /** Emits while scanning, so screens show new entries progressively. */
+    /** Emits for a change screens show at once: an edit, a folder removed, the end of a pass that changed the library. */
     val changed: SharedFlow<Unit> = _changed
+
+    private val _progress = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** Emits while a pass writes, so screens show new entries progressively. */
+    val progress: SharedFlow<Unit> = _progress
 
     private val _passEnded = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
 
@@ -372,7 +377,7 @@ class LibraryScanner(
         dao.markScanned(source.id, clock())
         // Renames and part changes count even without a re-read, as screens show file names and parts.
         val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || missing.parts.isNotEmpty() || written > 0
-        if (changed) _changed.emit(Unit)
+        if (changed) _progress.emit(Unit)
         return changed
     }
 
@@ -405,7 +410,7 @@ class LibraryScanner(
             }
             if (index % TELL_EVERY == TELL_EVERY - 1 && written > told) {
                 told = written
-                _changed.emit(Unit)
+                _progress.emit(Unit)
             }
         }
         return written

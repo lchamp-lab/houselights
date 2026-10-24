@@ -147,7 +147,7 @@ fun DetailScreen(
 ) {
     val app = appContainer()
     val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
-    ReloadOnLibraryChange { vm.onLibraryChanged() }
+    ReloadOnLibraryChange { scanOnly -> vm.onLibraryChanged(scanOnly) }
     DetailPage(vm, app.playback, onPlay, onOpenItem, onEditArtwork, onIdentify, onOpenPerson)
 }
 

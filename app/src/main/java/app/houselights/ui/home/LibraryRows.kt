@@ -11,31 +11,30 @@ import java.time.ZoneId
 
 /**
  * The library's rows below Home's own: one director's films (rotating daily) and the best rated films. Computed
- * once a day from [DAY_STARTS] and per source, so Home stays the same all evening and Back returns to the same card.
+ * once a day from [DAY_STARTS] and per source, so Home stays the same all evening and Back returns to the same card,
+ * and again after a change of the library but a running scan's progress ([settled]), so a scan never swaps them.
  */
 class LibraryRows(
     private val provider: () -> MediaProvider,
+    /** The library's settled version ([app.houselights.core.LibraryEvents.settledVersion]). */
+    private val settled: () -> Long = { 0L },
     private val now: () -> Long = System::currentTimeMillis,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
-    private class Drawn(val source: MediaProvider, val day: Long, val rows: List<HomeSection>)
+    private class Drawn(val source: MediaProvider, val day: Long, val settled: Long, val rows: List<HomeSection>)
 
     private var drawn: Drawn? = null
 
-    /** Today's rows, computed on the day's first call and reused until [forget]; a new source draws its own. */
+    /** Today's rows, computed on the day's first call and reused while the source and the settled library stay. */
     suspend fun today(): List<HomeSection> {
         val day = dayOf(now(), zone())
         // The provider is made anew with any change of source.
         val source = provider()
-        drawn?.takeIf { it.day == day && it.source === source }?.let { return it.rows }
+        val version = settled()
+        drawn?.takeIf { it.day == day && it.source === source && it.settled == version }?.let { return it.rows }
         val rows = draw(source, day)
-        drawn = Drawn(source, day, rows)
+        drawn = Drawn(source, day, version, rows)
         return rows
-    }
-
-    /** Drops the cached rows after a library change; the next call recomputes them for the same day. */
-    fun forget() {
-        drawn = null
     }
 
     private suspend fun draw(source: MediaProvider, day: Long): List<HomeSection> {

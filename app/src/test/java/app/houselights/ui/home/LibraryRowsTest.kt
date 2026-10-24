@@ -34,7 +34,8 @@ class LibraryRowsTest {
     }
     private var clock = at(17, 20)
     private var source = FakeProvider().also { it.catalog = catalog }
-    private val rows = LibraryRows({ source }, now = { clock }, zone = { zone })
+    private var settled = 0L
+    private val rows = LibraryRows({ source }, { settled }, now = { clock }, zone = { zone })
 
     @Test
     fun theDayTurnsAtSixInTheMorning() {
@@ -58,6 +59,16 @@ class LibraryRowsTest {
         assertEquals(tonight, rows.today().first().person)
         assertEquals("drawn once", emptyList<String>(), catalog.calls)
         clock = at(18, 9)
+        assertTrue(rows.today().first().person != tonight)
+    }
+
+    /** Directors found while a scan runs leave tonight's as drawn; a change beyond its progress (its end) draws again. */
+    @Test
+    fun theSameAllAScanAndDrawnAgainAfterIt() = runTest {
+        val tonight = rows.today().first().person
+        catalog.directors = catalog.directors.drop(1) + catalog.directors.take(1)
+        assertEquals(tonight, rows.today().first().person)
+        settled++
         assertTrue(rows.today().first().person != tonight)
     }
 

@@ -805,6 +805,9 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
   (`cutPosterRequest`), drawn through a shader at their drawn size; tints and glows come from averaged posters
   enlarged with bilinear filtering, never a blur.
 - **Light nothing that focus only crosses** (`Scrub`), and nothing moves for ever but the welcome wall.
+- **A scan reloads screens every 20 s at most** (`LibraryChanges`), its first titles and its end at once, as any
+  other change: a title's page reads its title again and reloads only if it changed, a wall reloads its titles, its
+  filters and sagas waiting for the end, as home's library rows do (`settledVersion`).
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
   `dumpsys gfxinfo <package> framestats` and `setprop debug.hwui.overdraw show`. See CONTRIBUTING.md.
 
