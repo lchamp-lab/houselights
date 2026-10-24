@@ -208,6 +208,9 @@
     <string name="no_player">O player Zidoo não está instalado.</string>
     <string name="player_credentials">Esta pasta exige senha: só o player Zidoo pode reproduzi-la.</string>
     <string name="player_changed">O player Zidoo mudou, e o Houselights não lhe confia mais suas senhas nem seu acesso ao servidor. Reinstale o player que veio com o Zidoo, ou apague os dados do Houselights para confiar no novo.</string>
+    <string name="play_failed_no_player">Player Zidoo não instalado</string>
+    <string name="play_failed_credentials">Player Zidoo necessário</string>
+    <string name="play_failed_player_changed">Player Zidoo alterado</string>
 
     <!-- Local folders -->
     <string name="add_folder">Adicionar pasta</string>
@@ -512,6 +515,8 @@
     <string name="identify_state_matched">Identificado</string>
     <string name="result_current">Atual</string>
     <string name="error_offline_title">Biblioteca inacessível</string>
+    <string name="error_offline_nas_title">NAS inacessível</string>
+    <string name="error_offline_server_title">Servidor inacessível</string>
     <string name="error_offline">O servidor ou o NAS não responde. Verifique se está ligado e tente de novo.</string>
     <string name="error_certificate_title">Certificado recusado</string>
     <string name="error_certificate">O certificado de segurança foi recusado. Renove o certificado do servidor ou verifique a data e a hora do dispositivo e tente de novo.</string>

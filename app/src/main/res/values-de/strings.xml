@@ -202,6 +202,9 @@
     <string name="no_player">Der Zidoo-Player ist nicht installiert.</string>
     <string name="player_credentials">Dieser Ordner braucht ein Passwort: Nur der Zidoo-Player kann ihn abspielen.</string>
     <string name="player_changed">Der Zidoo-Player wurde verändert, und Houselights vertraut ihm weder Ihre Passwörter noch Ihren Serverzugang mehr an. Installieren Sie den mit dem Zidoo gelieferten Player neu, oder löschen Sie die Daten von Houselights, um dem neuen zu vertrauen.</string>
+    <string name="play_failed_no_player">Zidoo-Player nicht installiert</string>
+    <string name="play_failed_credentials">Zidoo-Player erforderlich</string>
+    <string name="play_failed_player_changed">Zidoo-Player geändert</string>
 
     <!-- Local folders -->
     <string name="add_folder">Ordner hinzufügen</string>
@@ -498,6 +501,8 @@
     <string name="identify_state_matched">Identifiziert</string>
     <string name="result_current">Aktuell</string>
     <string name="error_offline_title">Bibliothek nicht erreichbar</string>
+    <string name="error_offline_nas_title">NAS nicht erreichbar</string>
+    <string name="error_offline_server_title">Server nicht erreichbar</string>
     <string name="error_offline">Der Server oder das NAS antwortet nicht. Prüfen Sie, ob das Gerät eingeschaltet ist, und versuchen Sie es erneut.</string>
     <string name="error_certificate_title">Zertifikat abgelehnt</string>
     <string name="error_certificate">Das Sicherheitszertifikat wird abgelehnt. Erneuern Sie das Zertifikat des Servers oder prüfen Sie Datum und Uhrzeit des Geräts und versuchen Sie es erneut.</string>

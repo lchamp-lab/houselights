@@ -214,6 +214,9 @@
     <string name="no_player">Odtwarzacz Zidoo nie jest zainstalowany.</string>
     <string name="player_credentials">Ten folder wymaga hasła: może go odtworzyć tylko odtwarzacz Zidoo.</string>
     <string name="player_changed">Odtwarzacz Zidoo się zmienił, więc Houselights nie powierza mu już haseł ani dostępu do serwera. Zainstaluj ponownie odtwarzacz dostarczony z urządzeniem Zidoo albo wyczyść dane aplikacji Houselights, aby zaufać nowemu.</string>
+    <string name="play_failed_no_player">Brak odtwarzacza Zidoo</string>
+    <string name="play_failed_credentials">Wymagany odtwarzacz Zidoo</string>
+    <string name="play_failed_player_changed">Zmieniony odtwarzacz Zidoo</string>
 
     <!-- Local folders -->
     <string name="add_folder">Dodaj folder</string>
@@ -528,6 +531,8 @@
     <string name="identify_state_matched">Zidentyfikowano</string>
     <string name="result_current">Bieżący</string>
     <string name="error_offline_title">Biblioteka niedostępna</string>
+    <string name="error_offline_nas_title">NAS niedostępny</string>
+    <string name="error_offline_server_title">Serwer niedostępny</string>
     <string name="error_offline">Serwer lub NAS nie odpowiada. Sprawdź, czy jest włączony, i spróbuj ponownie.</string>
     <string name="error_certificate_title">Certyfikat odrzucony</string>
     <string name="error_certificate">Certyfikat bezpieczeństwa został odrzucony. Odnów certyfikat serwera lub sprawdź datę i godzinę na urządzeniu, a potem spróbuj ponownie.</string>

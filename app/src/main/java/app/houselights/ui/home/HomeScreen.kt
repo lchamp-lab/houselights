@@ -2,6 +2,7 @@ package app.houselights.ui.home
 
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -87,7 +88,7 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.libraryName
-import app.houselights.ui.util.okClears
+import app.houselights.ui.util.run
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.toUiError
@@ -130,7 +131,7 @@ fun HomeScreen(actions: HomeActions, playProblem: UiError? = null) {
 /**
  * Home for [state] (DESIGN.md, Layout): the lockup, then the grid of the case and its doors, or what says why there is
  * none. Focus comes back to the door left; Back says once that a second one quits. Why the case did not play
- * ([playProblem]) is said under its action until an OK there.
+ * ([playProblem]) is said in place of its facts until a click on it, and first in its options.
  */
 @Composable
 internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: HomeActions, playProblem: UiError? = null) {
@@ -166,7 +167,7 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
         }
     }
     if (listing.value && plan != null) LibrariesSheet(plan, state.sagas, actions) { listing.value = false }
-    if (options.value && case != null) CaseOptions(case, actions) { options.value = false }
+    if (options.value && case != null) CaseOptions(case, actions, playProblem) { options.value = false }
 }
 
 /** A [sheet] whose [element] went with a reload closes, and does not open again by itself when it comes back. */
@@ -217,16 +218,37 @@ private fun Grid(
         },
         heights = heights,
         modifier = Modifier.padding(horizontal = HlSpace.safeH),
-    ) { modifier -> CaseOf(plan.case, actions, onOptions, modifier, playProblem) }
+    ) { modifier -> CaseOf(plan.case, actions, onOptions, modifier, playProblem?.let { CaseFailure(it, state.status?.source) }) }
+}
+
+/** Why the case did not play, and the [source] it played from (null unknown), to name what is out of reach. */
+private class CaseFailure(val error: UiError, val source: StatusSource?)
+
+/**
+ * Why a play failed, in a word on the case's line: the error's title; the player's errors, whose title is the
+ * failure itself, what is wrong with it; the library out of reach, by its source.
+ */
+@StringRes
+private fun CaseFailure.reason(): Int = when (error) {
+    UiError.NO_PLAYER -> R.string.play_failed_no_player
+    UiError.CREDENTIALS -> R.string.play_failed_credentials
+    UiError.PLAYER_CHANGED -> R.string.play_failed_player_changed
+    UiError.OFFLINE -> when (source) {
+        is StatusSource.Server -> R.string.error_offline_server_title
+        is StatusSource.Folders -> R.string.error_offline_nas_title
+        null -> error.title
+    }
+    else -> error.title
 }
 
 /**
  * The case: the title last in progress, resumed on OK; else what it proposes, a film played, a show's page opened.
- * One case either way, so focus stays on it as what it shows changes. Why it did not play ([problem]) is said under
- * its action, where OK was pressed, until the next OK there.
+ * One case either way, so focus stays on it as what it shows changes. Why it did not play ([failed]) is said in place
+ * of its facts, where OK was pressed, its plate then doing what fixes it, as `PartFailed` does (Réessayer plays it
+ * again), else its own; a click dismisses it, a long one keeps it for the options.
  */
 @Composable
-private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit, modifier: Modifier, problem: UiError?) {
+private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit, modifier: Modifier, failed: CaseFailure?) {
     if (case == null) {
         // Nothing to propose: the grid moves focus to its first door.
         Box(modifier.fillMaxSize().clearAndSetSemantics {})
@@ -240,17 +262,27 @@ private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit
         case.item.kind == MediaKind.SERIES -> R.string.view_series
         else -> R.string.home_open_title
     }
+    val own = { if (opens) actions.onOpenItem(case.item) else actions.onPlay(case.item, proposed == null) }
+    val fixedBy = failed?.error?.action
+    val fix = LocalErrorFix.current
     ResumeCase(
         case.item,
-        stringResource(action),
-        onClick = { if (opens) actions.onOpenItem(case.item) else actions.onPlay(case.item, proposed == null) },
-        modifier = modifier.okClears(actions.onClearProblem),
+        stringResource(fixedBy?.label ?: action),
+        onClick = {
+            actions.onClearProblem()
+            if (fixedBy != null) fixedBy.run(own, fix) else own()
+        },
+        modifier = modifier,
         label = stringResource(R.string.home_unseen).takeIf { proposed?.notSeen == true },
-        plays = !opens,
+        icon = when {
+            fixedBy == ErrorAction.RETRY -> HlIcons.Refresh
+            fixedBy != null || opens -> null
+            else -> HlIcons.Play
+        },
         onLongClick = onOptions,
         onLongClickLabel = stringResource(R.string.more_options),
-        says = problem?.let { error ->
-            { HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(error.message)) }
+        says = failed?.let {
+            { HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(it.reason()), maxLines = 1) }
         },
     )
 }
@@ -479,13 +511,26 @@ private fun LibrariesSheet(plan: HomePlan, sagas: Library?, actions: HomeActions
     }
 }
 
-/** The case's options: its title's page, and, once started, playing it from the start. */
+/**
+ * The case's options: its title's page, and, once started, playing it from the start. After a failed play ([problem]),
+ * said first in full, only what may still work: from the start when a new try may, signing in again when refused.
+ */
 @Composable
-private fun CaseOptions(case: CaseShows, actions: HomeActions, onDismiss: () -> Unit) {
+private fun CaseOptions(case: CaseShows, actions: HomeActions, problem: UiError?, onDismiss: () -> Unit) {
     val item = case.item
     val first = remember { FocusRequester() }
     val title = if (item.kind == MediaKind.EPISODE) item.seriesTitle ?: item.title else item.title
-    HlSideSheet(title, onDismiss, facts = listOf(item.episodeLabel ?: item.year?.toString()), initialFocus = first) { sheet ->
+    val fixedBy = problem?.action
+    val fix = LocalErrorFix.current
+    HlSideSheet(
+        title,
+        onDismiss,
+        facts = listOf(item.episodeLabel ?: item.year?.toString()),
+        stateText = problem?.let { stringResource(R.string.play_failed) },
+        state = StatusState.Attention,
+        description = problem?.let { stringResource(it.message) },
+        initialFocus = first,
+    ) { sheet ->
         HlSettingGroup(null) {
             HlSettingRow(
                 stringResource(R.string.home_open_title),
@@ -493,7 +538,14 @@ private fun CaseOptions(case: CaseShows, actions: HomeActions, onDismiss: () -> 
                 icon = HlIcons.Info,
                 onClick = { sheet.dismiss { actions.onOpenItem(item) } },
             )
-            if (item.user.positionMs > 0) {
+            if (fixedBy == ErrorAction.RECONNECT) {
+                HlSettingRow(
+                    stringResource(fixedBy.label),
+                    icon = HlIcons.Server,
+                    onClick = { sheet.dismiss { fix(fixedBy) } },
+                )
+            }
+            if (item.user.positionMs > 0 && (problem == null || fixedBy == ErrorAction.RETRY)) {
                 HlSettingRow(
                     stringResource(R.string.play_from_start),
                     icon = HlIcons.Restart,

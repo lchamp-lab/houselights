@@ -23,7 +23,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -42,6 +45,7 @@ import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.design.Scrub
 import app.houselights.ui.design.colorStops
 import app.houselights.ui.design.plateEdge
+import app.houselights.ui.design.textRoom
 import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.toPx
 import coil.request.ImageRequest
@@ -51,8 +55,10 @@ import coil.request.ImageRequest
 /**
  * Home's case (DESIGN.md, Layout): a title's backdrop cropped upright (else its poster) melting into its dark, under
  * its [label], its logo or name, its facts, then its progress and time left or its genres, and its [action], a plate
- * the case's focus fills white, after the Play glyph when it [plays]; under it, what it [says] (why it did not play).
- * OK does [onClick]; Menu or a long OK, [onLongClick], which the Menu key says at the plate's end while the case has focus.
+ * the case's focus fills white, after its [icon] (Play; none for a page it opens). What it [says] (why it did not
+ * play, two lines of `meta` at most) takes the facts' place; their room is kept at two such lines, so the logo never
+ * moves. OK does [onClick]; Menu or a long OK, [onLongClick], which the Menu key says at the plate's end while the case
+ * has focus.
  */
 @Composable
 fun ResumeCase(
@@ -61,7 +67,7 @@ fun ResumeCase(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     label: String? = null,
-    plays: Boolean = true,
+    icon: ImageVector? = HlIcons.Play,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
     says: (@Composable () -> Unit)? = null,
@@ -97,38 +103,53 @@ fun ResumeCase(
                     style = Hl.type.headline,
                 )
                 Spacer(Modifier.height(HlSpace.s))
-                if (episode) {
-                    EpisodeHeading(item.episodeLabel, item.title, style = Hl.type.entry)
-                } else {
-                    // Closer than a page's facts: the case's column is narrow, and its score stays.
-                    MetaLine(item, showGenres = false, spacing = HlSpace.s)
-                }
-                Spacer(Modifier.height(HlSpace.s))
-                val left = timeLeft(item)
-                if (item.progress > 0f) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ProgressLine(item.progress, Modifier.weight(1f), thickness = HlSize.heroProgressWeight)
-                        left?.let {
-                            Spacer(Modifier.width(HlSpace.s))
-                            Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
-                        }
+                // A message's two lines at least, whatever takes the room.
+                Box(Modifier.fillMaxWidth().heightIn(min = textRoom(Hl.type.meta) * 2 + HlSpace.xxs)) {
+                    if (says == null) {
+                        CaseFacts(item)
+                    } else {
+                        // Laid out unseen, the facts keep their height: nothing above the message moves.
+                        Box(Modifier.alpha(0f).clearAndSetSemantics {}) { CaseFacts(item) }
+                        Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterStart) { says() }
                     }
-                } else if (item.genres.isNotEmpty()) {
-                    Text(
-                        item.genres.take(CASE_GENRES).joinToString(FACT_JOIN),
-                        style = Hl.type.meta,
-                        color = c.contentSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
                 Spacer(Modifier.height(HlSpace.s))
-                CaseAction(action, lit, plays, menu = onLongClick != null)
-                says?.let {
-                    Spacer(Modifier.height(HlSpace.s))
-                    it()
+                CaseAction(action, lit, icon, menu = onLongClick != null)
+            }
+        }
+    }
+}
+
+/** The case's facts: an episode's heading or a title's (`MetaLine`), then its progress and time left, else its genres. */
+@Composable
+private fun CaseFacts(item: MediaItem) {
+    val c = Hl.colors
+    Column {
+        if (item.kind == MediaKind.EPISODE) {
+            EpisodeHeading(item.episodeLabel, item.title, style = Hl.type.entry)
+        } else {
+            // Closer than a page's facts: the case's column is narrow, and its score stays.
+            MetaLine(item, showGenres = false, spacing = HlSpace.s)
+        }
+        val left = timeLeft(item)
+        if (item.progress > 0f) {
+            Spacer(Modifier.height(HlSpace.s))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ProgressLine(item.progress, Modifier.weight(1f), thickness = HlSize.heroProgressWeight)
+                left?.let {
+                    Spacer(Modifier.width(HlSpace.s))
+                    Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
                 }
             }
+        } else if (item.genres.isNotEmpty()) {
+            Spacer(Modifier.height(HlSpace.s))
+            Text(
+                item.genres.take(CASE_GENRES).joinToString(FACT_JOIN),
+                style = Hl.type.meta,
+                color = c.contentSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -151,11 +172,11 @@ private fun BoxScope.CasePicture(item: MediaItem, picture: String?) {
 }
 
 /**
- * The case's action: its words on a quiet plate, white with black ink once the case is [lit], then with the Menu key at
- * its end when it has options ([menu]); nothing moves for it.
+ * The case's action: its words after its [icon] on a quiet plate, white with black ink once the case is [lit], then
+ * with the Menu key at its end when it has options ([menu]); nothing moves for it.
  */
 @Composable
-private fun CaseAction(action: String, lit: Boolean, plays: Boolean, menu: Boolean) {
+private fun CaseAction(action: String, lit: Boolean, icon: ImageVector?, menu: Boolean) {
     val c = Hl.colors
     val ink = FocusStyle.ink(lit)
     Box(
@@ -167,8 +188,8 @@ private fun CaseAction(action: String, lit: Boolean, plays: Boolean, menu: Boole
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (plays) {
-                Icon(HlIcons.Play, contentDescription = null, tint = ink, modifier = Modifier.size(HomeGridDefaults.actionIcon))
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HomeGridDefaults.actionIcon))
                 Spacer(Modifier.width(HlSpace.xs))
             }
             Text(action, style = Hl.type.cardName, color = ink, maxLines = 1)

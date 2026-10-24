@@ -208,6 +208,9 @@
     <string name="no_player">Il lettore Zidoo non è installato.</string>
     <string name="player_credentials">Questa cartella richiede una password: solo il lettore Zidoo può riprodurla.</string>
     <string name="player_changed">Il lettore Zidoo è cambiato e Houselights non gli affida più né le password né l’accesso al server. Reinstallare il lettore fornito con lo Zidoo, o cancellare i dati di Houselights perché si fidi di quello nuovo.</string>
+    <string name="play_failed_no_player">Lettore Zidoo non installato</string>
+    <string name="play_failed_credentials">Lettore Zidoo necessario</string>
+    <string name="play_failed_player_changed">Lettore Zidoo cambiato</string>
 
     <!-- Local folders -->
     <string name="add_folder">Aggiungi una cartella</string>
@@ -513,6 +516,8 @@
     <string name="identify_state_matched">Identificato</string>
     <string name="result_current">Attuale</string>
     <string name="error_offline_title">Libreria non raggiungibile</string>
+    <string name="error_offline_nas_title">NAS non raggiungibile</string>
+    <string name="error_offline_server_title">Server non raggiungibile</string>
     <string name="error_offline">Il server o il NAS non risponde. Verificare che sia acceso, poi riprovare.</string>
     <string name="error_certificate_title">Certificato rifiutato</string>
     <string name="error_certificate">Il certificato di sicurezza viene rifiutato. Rinnovare il certificato del server o verificare la data e l’ora del dispositivo, poi riprovare.</string>

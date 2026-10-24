@@ -196,6 +196,9 @@
     <string name="no_player">Zidoo 플레이어가 설치되어 있지 않습니다.</string>
     <string name="player_credentials">이 폴더에는 비밀번호가 필요합니다. Zidoo 플레이어에서만 재생할 수 있습니다.</string>
     <string name="player_changed">Zidoo 플레이어가 변경되어, Houselights는 이 플레이어에 비밀번호도 서버 접근 권한도 더 이상 맡기지 않습니다. Zidoo에 기본 탑재된 플레이어를 다시 설치하거나, 새 플레이어를 신뢰하려면 Houselights 데이터를 삭제하세요.</string>
+    <string name="play_failed_no_player">Zidoo 플레이어 미설치</string>
+    <string name="play_failed_credentials">Zidoo 플레이어 필요</string>
+    <string name="play_failed_player_changed">Zidoo 플레이어 변경됨</string>
 
     <!-- Local folders -->
     <string name="add_folder">폴더 추가</string>
@@ -482,6 +485,8 @@
     <string name="identify_state_matched">식별됨</string>
     <string name="result_current">현재</string>
     <string name="error_offline_title">라이브러리에 연결할 수 없음</string>
+    <string name="error_offline_nas_title">NAS에 연결할 수 없음</string>
+    <string name="error_offline_server_title">서버에 연결할 수 없음</string>
     <string name="error_offline">서버 또는 NAS가 응답하지 않습니다. 켜져 있는지 확인한 후 다시 시도하세요.</string>
     <string name="error_certificate_title">인증서 거부됨</string>
     <string name="error_certificate">보안 인증서가 거부되었습니다. 서버의 인증서를 갱신하거나 이 기기의 날짜와 시간을 확인한 후 다시 시도하세요.</string>
