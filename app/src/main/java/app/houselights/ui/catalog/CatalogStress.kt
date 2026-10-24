@@ -24,6 +24,8 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.TEXT_SCALE_MAX
+import app.houselights.ui.design.TEXT_SCALE_MIN
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.PosterCard
@@ -57,11 +59,12 @@ private fun StressInfoLineSection() {
                 StressCaption("60-character title, a rating, a score and seven formats: the formats go first, then the title")
             }
             Column {
-                val density = LocalDensity.current
-                CompositionLocalProvider(LocalDensity provides Density(density.density, STRESS_LARGEST_TEXT)) {
-                    StressInfoLine(STRESS_INFO)
-                }
-                StressCaption("The same at Android’s largest text size, 1.3")
+                AtTextScale(TEXT_SCALE_MAX) { StressInfoLine(STRESS_INFO) }
+                StressCaption("The same at the largest text size the app lays out at, 1.3: Android’s largest, or Grande on 1.15")
+            }
+            Column {
+                AtTextScale(TEXT_SCALE_MIN) { StressInfoLine(STRESS_INFO) }
+                StressCaption("The same at the smallest, 0.75: Compacte on Android’s smallest")
             }
         }
     }
@@ -77,9 +80,12 @@ private fun StressHeroSection() {
                 StressCaption("Two-line title without logo, badges, progress and overview, in the hero's frame (on a fill)")
             }
             Column {
-                val density = LocalDensity.current
-                CompositionLocalProvider(LocalDensity provides Density(density.density, STRESS_LARGEST_TEXT)) { StressHero() }
-                StressCaption("The same at Android’s largest text size, 1.3: the frame grows with it")
+                AtTextScale(TEXT_SCALE_MAX) { StressHero() }
+                StressCaption("The same at the largest text size the app lays out at, 1.3: the frame grows with it")
+            }
+            Column {
+                AtTextScale(TEXT_SCALE_MIN) { StressHero() }
+                StressCaption("The same at the smallest, 0.75: the frame shrinks with it")
             }
         }
     }
@@ -153,6 +159,13 @@ private fun StressDeviceSection() {
     }
 }
 
+/** [content] on the canvas at [textScale], as « Taille du texte » and Android's setting together may set it. */
+@Composable
+private fun AtTextScale(textScale: Float, content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(density.density, textScale), content = content)
+}
+
 /** The line naming the focused title above the library's wall, at the height LibraryScreen gives it. */
 @Composable
 private fun StressInfoLine(item: MediaItem) {
@@ -215,5 +228,3 @@ private val STRESS_FACTS = listOf(
     "24,3${NBSP}Go",
 )
 
-/** Android's largest text size setting. */
-private const val STRESS_LARGEST_TEXT = 1.3f
