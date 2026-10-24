@@ -17,6 +17,9 @@ interface Keyring {
     /** The key of [version]; null when none is given: absent, or a keystore daemon restarting. */
     fun load(version: Int): SecretKey?
 
+    /** Whether a key is under [version]'s alias; false also when the Keystore did not answer (Android 9). */
+    fun holds(version: Int): Boolean
+
     /** Makes the key of [version], replacing any key under its alias. */
     fun create(version: Int): SecretKey
 }
@@ -38,6 +41,8 @@ internal object DeviceKeyring : Keyring {
     override fun listed(): Set<Int> = store().aliases().toList().mapNotNull(Secrets::versionOfAlias).toSet()
 
     override fun load(version: Int): SecretKey? = store().getKey(Secrets.aliasOf(version), null) as? SecretKey
+
+    override fun holds(version: Int): Boolean = store().containsAlias(Secrets.aliasOf(version))
 
     override fun create(version: Int): SecretKey {
         val spec = KeyGenParameterSpec.Builder(Secrets.aliasOf(version), KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)

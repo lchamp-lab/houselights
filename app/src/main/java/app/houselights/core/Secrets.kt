@@ -39,8 +39,9 @@ sealed interface Opened {
  *
  * A failing Keystore never takes the app down: [read] says the secret is unavailable for now, and [seal] retries
  * once, then seals with a new key version, throwing [SecretsUnavailableException] only if that fails too. A key is
- * never deleted, nor made again once made ([KeyRecord]): on Android 9 a restarting keystore daemon gives no key,
- * UnrecoverableKeyException or a bare InvalidKeyException, and replacing the key would lose every secret it sealed.
+ * never deleted, nor made again once made ([KeyRecord]) or while the Keystore holds it: on Android 9 a restarting
+ * keystore daemon gives no key, UnrecoverableKeyException or a bare InvalidKeyException, and replacing the key would
+ * lose every secret it sealed.
  */
 class Secrets(private val keyring: Keyring, private val record: KeyRecord) {
     /** The sealing version, resolved on first success: a lazy would cache a failing Keystore's first answer. */
@@ -60,10 +61,13 @@ class Secrets(private val keyring: Keyring, private val record: KeyRecord) {
             record.add(version)
         }
 
-    /** The key [version] seals with: loaded, else made if this install never made it; one made before is failing. */
+    /**
+     * The key [version] seals with: loaded, else made if this install never made it and the Keystore holds none under
+     * its alias (made by a version from before the record); one made before is failing.
+     */
     private fun sealingKey(version: Int): SecretKey = loaded(version) ?: synchronized(this) {
         keys[version] ?: run {
-            if (version in record.versions()) throw KeyStoreException("Key $version gives no key")
+            if (version in record.versions() || keyring.holds(version)) throw KeyStoreException("Key $version gives no key")
             keyring.create(version).also {
                 record.add(version)
                 keys[version] = it

@@ -34,6 +34,8 @@ class SecretsTest {
 
         override fun listed() = if (listing) keys.keys.toSet() else emptySet()
 
+        override fun holds(version: Int) = version in keys
+
         override fun load(version: Int): SecretKey? {
             val misses = absent[version] ?: 0
             if (misses > 0) {
@@ -202,6 +204,29 @@ class SecretsTest {
         assertTrue(loaded.secrets().seal("new").startsWith("sealed1:"))
         assertEquals(setOf(1), loaded.record.versions())
         assertEquals(emptyList<Int>(), loaded.made)
+    }
+
+    /**
+     * Installed over a version from before the record that had moved on to a second key: unrecorded, unlisted, and
+     * giving none once. The Keystore holding it, it is never made again, which would delete it with all it sealed.
+     */
+    @Test
+    fun aKeyTheKeystoreHoldsIsNeverMadeAgainThoughUnrecorded() {
+        val earlier = FakeKeystore()
+        earlier.secrets().seal("password")
+        earlier.unusable += 1
+        val sealed = earlier.secrets().seal("token")
+        assertTrue(sealed, sealed.startsWith("sealed2:"))
+
+        val updated = FakeKeystore(TestKeyRecord(Secrets.FIRST_KEY), listing = false).apply {
+            keys += earlier.keys
+            unusable += 1
+            absent[2] = 1
+        }
+        assertThrows(SecretsUnavailableException::class.java) { updated.secrets().seal("new") }
+        assertEquals(emptyList<Int>(), updated.made)
+        assertEquals("token", updated.secrets().open(sealed))
+        assertTrue(updated.secrets().seal("new").startsWith("sealed2:"))
     }
 
     /** A key the Keystore lists is made, even if the record missed it: the newest seals, none is made again. */

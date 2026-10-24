@@ -25,6 +25,8 @@ fun secretsOf(key: (Int) -> SecretKey): Secrets = Secrets(
     object : Keyring {
         override fun listed(): Set<Int> = emptySet()
 
+        override fun holds(version: Int) = false
+
         override fun load(version: Int): SecretKey = key(version)
 
         override fun create(version: Int): SecretKey = key(version)
