@@ -105,24 +105,21 @@ class DesignTokenGuardTest {
         !file.isFile || file.readLines().none { line -> exception.allows(path, line) && rules.any { it.first.containsMatchIn(line) } }
     }
 
-    /** Where 14 sp is read outside the catalogue, each time beside a larger line it completes (DESIGN.md, Type). */
-    private val captions = mapOf(
-        "design/components/Cards.kt" to "a card's facts under its name, a role under a name, a row's count beside its title",
-        "design/components/Hero.kt" to "time left beside the hero's progress, under its title",
-        "design/components/Meta.kt" to "a case back's names beside its formats",
-        "design/components/Picker.kt" to "an artwork choice's facts under its name",
-        "design/components/ScanProgress.kt" to "the file under a counter's label",
+    /** Where 12 sp is set outside the catalogue, each time in a mark's box (DESIGN.md, Type). */
+    private val marks = mapOf(
+        "design/components/Cards.kt" to "a one-sheet's year, the count of a card's unwatched episodes",
+        "design/components/Meta.kt" to "a printed mark: an age rating, a protocol",
     )
 
-    /** What is read keeps to 16 sp: `caption` only where [captions] says. */
+    /** What is read keeps to 14 sp: `badge` only where [marks] says. */
     @Test
     fun whatIsReadKeepsToTheFloor() {
-        val caption = Regex("""\btype\.caption\b""")
+        val badge = Regex("""\btype\.badge\b""")
         val catalogue = ui.resolve("catalog")
         val set = kotlinSources(ui).filter { !it.startsWith(catalogue) }
-            .filter { file -> file.readLines().any { caption.containsMatchIn(it) } }
+            .filter { file -> file.readLines().any { badge.containsMatchIn(it) } }
             .map { it.relativeTo(ui).path }.toSortedSet()
-        assertEquals("Files setting text in caption", captions.keys.toSortedSet(), set)
+        assertEquals("Files setting text in badge", marks.keys.toSortedSet(), set)
     }
 
     /** The screens titled as a place, in ember (`ScreenTitle`); a task or a form is titled in white (`TaskTitle`). */

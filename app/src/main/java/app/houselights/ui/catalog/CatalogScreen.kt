@@ -123,8 +123,7 @@ fun CatalogScreen() {
                         "display" to t.display, "headline" to t.headline, "subject" to t.subject,
                         "place" to t.place, "placeCurrent, ember lit" to t.placeCurrent.emberLit(c), "rowTitle" to t.rowTitle,
                         "cardName" to t.cardName, "cardTitle" to t.cardTitle,
-                        "title" to t.title, "lead" to t.lead, "read" to t.read, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
-                        "caption" to t.caption, "group" to t.group, "code" to t.code,
+                        "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,
                         "titleSignature" to t.titleSignature, "billing" to t.billing, "billingJoin" to t.billingJoin,
                         "codeSignature" to t.codeSignature, "figureSignature" to t.figureSignature,
@@ -404,7 +403,7 @@ private fun BlackLevels() {
             }
             Text(
                 "Black levels: on the TV each step stands apart from the room, or its blacks are crushed.",
-                style = Hl.type.caption,
+                style = Hl.type.meta,
                 color = c.contentSecondary,
                 modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
             )
@@ -541,7 +540,7 @@ private fun Swatch(name: String, brush: Brush) {
     Column {
         Box(Modifier.size(CatalogSwatch).clip(HlShapes.panel).background(brush))
         Spacer(Modifier.height(HlSpace.xxs))
-        Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)
+        Text(name, style = Hl.type.meta, color = Hl.colors.contentSecondary)
     }
 }
 
@@ -549,8 +548,8 @@ private fun Swatch(name: String, brush: Brush) {
 private fun StyleSpecimen(name: String, style: TextStyle) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(PaneDefaults.specName)) {
-            Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)
-            Text(specimenMeasure(style), style = Hl.type.caption, color = Hl.colors.contentTertiary)
+            Text(name, style = Hl.type.meta, color = Hl.colors.contentSecondary)
+            Text(specimenMeasure(style), style = Hl.type.meta, color = Hl.colors.contentTertiary)
         }
         Text(
             "Houselights 2,39:1 · Réglages",

@@ -64,7 +64,7 @@ private fun screenTitleBaseline(): Dp {
 /**
  * A settings pane's head (DESIGN.md, Secondary screens): its [title] in `subject` on the screen title's baseline,
  * an [aside] on that line in secondary `meta` after its [state]'s dot, then a [sentence] in secondary `body` or a
- * paragraph to [read] in `read`. Its box ends on the title's baseline, or under its text, so what follows is
+ * paragraph to [read] in white `body`. Its box ends on the title's baseline, or under its text, so what follows is
  * [HlSpace.l] away.
  */
 @Composable
@@ -111,7 +111,7 @@ fun PaneHead(
         if (read != null) {
             Text(
                 read,
-                style = Hl.type.read,
+                style = Hl.type.body,
                 color = c.content,
                 // The lines' room under the last, as a page of running text keeps it.
                 modifier = Modifier.widthIn(max = HlLayout.readableNarrow).paddingFromBaseline(top = HlSpace.xxl, bottom = HlSpace.m),

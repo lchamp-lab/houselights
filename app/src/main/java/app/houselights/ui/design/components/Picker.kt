@@ -88,7 +88,7 @@ fun ArtworkChoiceCard(
         Spacer(Modifier.height(HlSpace.s))
         Text(title, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (caption != null) {
-            Text(caption, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(caption, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

@@ -175,7 +175,7 @@ private fun RowHeading(modifier: Modifier, count: String?, news: Int, title: @Co
         title(Modifier.alignByBaseline())
         count?.let {
             Spacer(Modifier.width(HlSpace.s))
-            Text(it, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1, modifier = Modifier.alignByBaseline())
+            Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, modifier = Modifier.alignByBaseline())
         }
         if (news > 0) {
             Spacer(Modifier.width(HlSpace.s))
@@ -184,7 +184,7 @@ private fun RowHeading(modifier: Modifier, count: String?, news: Int, title: @Co
                 Box(Modifier.size(HlSize.newsDot).background(c.ember, CircleShape))
                 Spacer(Modifier.width(HlSpace.xs))
                 val words = pluralStringResource(R.plurals.row_news, news, news)
-                Text(words, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1)
+                Text(words, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
             }
         }
     }
@@ -496,7 +496,7 @@ private fun CardCaption(name: String?, number: String?, facts: List<String?>?, m
     Layout(
         contents = listOf(
             { if (name != null) CardName(name, number) },
-            { if (facts != null) FactRow(facts, style = Hl.type.caption) },
+            { if (facts != null) FactRow(facts, style = Hl.type.meta) },
             { key?.invoke() },
         ),
         modifier = modifier,
@@ -583,7 +583,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Uni
         person.role?.let {
             Text(
                 it,
-                style = Hl.type.caption,
+                style = Hl.type.meta,
                 color = Hl.colors.contentTertiary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -628,7 +628,7 @@ fun AbsentCard(title: String, year: Int?, modifier: Modifier = Modifier, width: 
             // Shown on focus only; at rest the grey conveys it.
             if (focused) {
                 Spacer(Modifier.height(HlSpace.xs))
-                Text(absent, style = Hl.type.caption, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(absent, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }

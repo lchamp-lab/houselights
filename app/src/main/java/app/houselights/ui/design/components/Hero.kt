@@ -69,7 +69,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ProgressLine(shown.progress, Modifier.width(HlSize.heroProgress), thickness = HlSize.heroProgressWeight)
                     Spacer(Modifier.width(HlSpace.s))
-                    timeLeft(shown)?.let { Text(it, style = Hl.type.caption, color = Hl.colors.contentSecondary) }
+                    timeLeft(shown)?.let { Text(it, style = Hl.type.meta, color = Hl.colors.contentSecondary) }
                 }
             } else if (!shown.overview.isNullOrBlank()) {
                 Text(
@@ -136,7 +136,7 @@ private const val HERO_OVERVIEW_LINES = 2
 
 /** "S1 E3" then the episode's name, aligned on their baseline; the name in [style]. */
 @Composable
-fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.title) {
+fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.lead) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
         label?.let { Text(it, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = Modifier.alignByBaseline()) }
         Text(

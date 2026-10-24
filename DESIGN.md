@@ -16,7 +16,7 @@ Settings > About > Design system (see *Catalogue*).
 2. **Focus is projector white, in two gestures.** A picture is lifted by its frame and its glow, a panel
    button and the main action by their frame, a plate fills; nothing grows. In a row, one frame travels from card to card
    (see *Focus*). Ember never marks focus.
-3. **Ten-foot first.** What is read is 16 sp or more, 14 only beside a larger line, 12 for printed marks (see
+3. **Ten-foot first.** The core is read at 16 sp, what surrounds it at 14, 12 only for marks in their box (see
    *Type*); text reaches 4.5:1 and marks 3:1 on what they sit on (see *Contrast*). Content stays inside the
    overscan-safe area (`HlSpace.safeH`, `safeV`).
 4. **One canvas.** Screens are laid out on 960 × 540 dp (`HlLayout.CANVAS_WIDTH`). `HouselightsTheme` derives
@@ -40,7 +40,7 @@ The app is recognised by its type, its vocabulary and three moments, not by deco
 | Voice | Width | Says | Styles |
 |---|---|---|---|
 | Poster | condensed (70) | where you are and what things are called: titles, the words of a track (`place`), rows (`rowTitle`), names under cards (`cardName`), what a panel is about, large figures, the billing block | `display`, `headline`, `subject`, `place`, `placeCurrent`, `rowTitle`, `cardName`, `cardTitle`, `titleSignature`, `figureSignature`, `billing`, `billingJoin`, `codeSignature` |
-| Reading | normal (100) | everything read or chosen: overviews, running text, row names, button words, values | `title`, `lead`, `read`, `body`, `entry`, `meta`, `caption`, `group` |
+| Reading | normal (100) | everything read or chosen: overviews, running text, taglines, names to choose, button words, values | `lead`, `body`, `entry`, `meta`, `group` |
 | Technical | expanded (125), tabular figures | formats as on a case's back (`jaquette`), specifications, printed marks | `spec`, `jaquette`, `badge` |
 
 - **No fourth voice.** An intermediate width reads as a mistake.
@@ -87,7 +87,7 @@ Small surfaces (a settings pane, a message, a running scan) borrow exactly one g
 |---|---|---|
 | **Case back** | what a pane states | A `FactPlate` of `PlateFact`s: each label in secondary `meta` over its value, words in `lead`, a format or a figure in `spec`, its measure after it in `meta`, a state by its dot. Several of a kind in a `SpecTable` on a plate, the one in use by its white dot. Measures (sizes, counts, rates, durations) are tabular. Only what acts is a row. Unknown values are omitted, never shown as zero. No charts. |
 | **Intertitle** | every message | A short rule, one line in `subject`, one line of secondary `body` (`readableNarrow`), at most one action and a quieter one. An ember rule means attention. It replaces the content it concerns, aligned on the screen margin: never centred, never a snackbar, Toast or dialog. `HlEmptyState` on a screen, `SheetConfirm` in a sheet. |
-| **Counter** | progress | The ember line with its count in tabular figures ("3 / 9", `scan_progress`) and the current file, quiet, in `meta` on its line or `caption` under a label (`ScanProgress`); before the files are counted, a sliver and no count. On a focused plate, a raspberry line on the plate itself. Durations read "2 h 02", time left "Il reste 20 min"; a timecode only names a frame. |
+| **Counter** | progress | The ember line with its count in tabular figures ("3 / 9", `scan_progress`) and the current file, quiet, in `meta` on its line or under a label (`ScanProgress`); before the files are counted, a sliver and no count. On a focused plate, a raspberry line on the plate itself. Durations read "2 h 02", time left "Il reste 20 min"; a timecode only names a frame. |
 
 The library in numbers follows the case back: its figures on a plate (`FactPlate`), each in `spec` over what it
 counts in secondary `meta`, then a group of rows per kind, each row opening what it counts.
@@ -97,9 +97,9 @@ counts in secondary `meta`, then a group of rows per kind, each row opening what
 What is not the picture (settings, sheets, forms, search) keeps one grammar, read from three metres:
 
 1. **Scale.** A pane's title in `subject` on its screen title's baseline (`PaneHead`); a row `HlSize.row` (60) tall, its name in
-   `lead`, what it does in secondary `meta` on one line beside its value (`PaneRowLineTest`); running text in `read` (20 on
-   32); a group's title in `group`. Nothing under 16 but `jaquette`: notes (`AttentionNote`), a scan's file and a state's
-   reason are `meta` there.
+   `lead`, what it does in secondary `meta` on one line beside its value (`PaneRowLineTest`); running text in `body` (16 on
+   24); a group's title in `group`. Nothing under 14: notes (`AttentionNote`), a scan's file and a state's reason are
+   `meta`, formats `jaquette`.
 2. **Air.** Groups `HlSpace.l` apart, never a rule: no `HlDivider` in a pane or a sheet. Words are spaced from their
    baselines, as the board measures them, not from their boxes (`SheetRhythmTest`).
 3. **Density.** Five or six things in view; the rest scrolls.
@@ -135,7 +135,7 @@ What is not the picture (settings, sheets, forms, search) keeps one grammar, rea
 | `HlSideSheet` | its glass in the film's dark (`sheetGlass`), read while drawing; `subject` title, its baseline `HlSpace.xl` under the safe area's top, the facts' first in white, then a state by its dot (`stateText`), the `places` it shows at the end of the title's line, a description `HlSpace.l` under them; `HlSpace.fact`, then plates `HlSpace.m` apart, or without `scrolls` one that takes the height left, scrolling under nothing of the head; `wide`: `HlSideSheetDefaults.wideWidth`, inset `safeH` on both sides |
 | `HlFormScaffold` | its column `TwoPaneDefaults.sideWide`: title, what it does in `body` from its baselines, `HlSpace.xl` under the title's foot and over a `StatusPanel`; the form from the safe area's top, `HlSpace.xxl` beside it, its parts `HlSpace.l` apart, a choice's track and the actions `HlSpace.xs` further; with `room`, on its posters and `OnArtwork` |
 | `StatusPanel` | an `HlPlate`, `HlInset.card` across, `HlInset.reading` over its state and `HlInset.plate` at its foot: the state, `HlSpace.fact`, a label in secondary `meta` (`HlSpace.xs`) or a `name` in `lead` (`HlSpace.xxs`) over the value in `spec`, its detail, `HlSpace.m`, its protocol printed and its kind in white `HlSpace.s` apart |
-| `HlTextField` | its name in white `entry` (an `optional` one adds its remark in grey `meta`), `HlSpace.s`, the field `HlSize.field` tall, its text in `read`, its example in tertiary `read`; two side by side `HlSpace.m` apart |
+| `HlTextField` | its name in white `entry` (an `optional` one adds its remark in grey `meta`), `HlSpace.s`, the field `HlSize.field` tall, its text in `body`, its example in tertiary `body`; two side by side `HlSpace.m` apart |
 | `AddFolderForm`, `NfsIdentity` | a folder's fields, then its actions; for NFS only, one row under them on its plate, no title: who the app presents itself as to the NAS, its value root in `meta` or "UID 1026 · GID 100" in `jaquette`, the user over the group where one line would cut the row's words (the largest text size, long numbers). OK unfolds what it changes over its two fields side by side, empty for root, whole numbers only, both or neither (the test asks for the other); OK folds them, what they hold kept. The panel adds it to its facts when it is not root. An edited folder that cannot be read says "Ce dossier n’a pas pu être relu" in the form's place, the storage's line under it, with Réessayer (`HlEmptyState`): nothing to save, or its password would be erased |
 | `SearchQuery`, `LetterGrid` | the query `HlSize.field` tall, its icon `tileIcon`, the words in `lead`, the hint `HlSpace.s` under it in secondary `meta`; the keys `HlSpace.m` under it, `tileCompact` square, `HlSpace.xs` apart, a letter in `lead`, Erase and Space `HlSpace.s` aside in `entry`; all in the dark of the light the page lies on, no edge |
 | `ResultsHeading`, `ResultName` | a row's title in `rowTitle`, its count in secondary `meta` `HlSpace.s` after it; under it, the result lending the page its light in `cardName`, its year in `meta`, the line kept; rows `HlSpace.xl` apart |
@@ -313,52 +313,56 @@ line still reaches 3.5:1.
 
 ### Type (`Type.kt`)
 
-Nine sizes: **12 · 14 · 16 · 20 · 24 · 26 · 32 · 44 · 64 sp**, line heights on a 2 sp grid; the signatures, each
-set to its own measure, add two (18, 96) and a count sized to home's doors. Each style has one job; neither a screen nor a component overrides its
-size, line height, family, weight or tracking: type is made in `Type.kt` only (`DesignTokenGuardTest`). Unstyled
-text is `body`; `HouselightsTheme` maps tv-material's roles onto the scale.
+Eight sizes, **12 · 14 · 16 · 18 · 22 · 28 · 36 · 48 sp**, and the signature **72**; eight line heights on the 4 sp
+grid (16, 20, 24, 28, 32, 40, 56, 72), one a size but 16's: a name's 20, a paragraph's 24. The doors' count is sized
+to them. Each style has one job; neither a screen nor a component overrides its size, line height, family, weight or
+tracking: type is made in `Type.kt` only (`DesignTokenGuardTest`). Unstyled text is `body`; `HouselightsTheme` maps
+tv-material's roles onto the scale (display L/M/S: `display`, `headline`, `subject`; headline: `headline`, `subject`,
+`rowTitle`; title: `lead`, `entry`, `entry`; body: `body`, `meta`, `meta`; label: `entry`, `group`, `badge`).
 
-**The floor.** What is read is 16 sp or more: a paragraph in `body`, a line under a name in `meta` (a description, a
-hint, a result's overview, a status's reason, a note). 14 sp only beside a larger line it completes: `caption` (facts
-under a card, a row's count, time left, a case back's names, a scan's file under its label), `jaquette`,
-`billingJoin`. 12 sp for printed marks (`badge`).
+**The core reads at 16:** overviews and paragraphs (`body`), button words and every name to choose (`entry`). What
+surrounds it is 14: facts, descriptions, values, notes, counts (`meta`), a group's title (`group`), formats (`jaquette`).
+
+**A floor a voice.** Reading: 14, formats included. 12 only in a mark's box (`badge`: an age rating, a protocol, a
+card's year). The poster: 18, but the billing block (capitals 16, small words 14). Taglines, an episode's name and
+the keyboard's letters are `lead` (18), a step over the names.
 
 | Style | Size / line | Voice, weight | Role |
 |---|---|---|---|
-| `display` | 64 / 72 | poster, Bold | a title's page without logo |
-| `headline` | 44 / 48 | poster, Bold | screen titles (`ScreenTitle`, `TaskTitle`); a hero's title without logo, the case's |
-| `subject` | 32 / 36 | poster, SemiBold | what a pane is about, what a sheet does; a showcase's name; an intertitle's line; a stated figure |
-| `place`, `placeCurrent` | 26 / 30 | poster, SemiBold; Bold | the words of a track (`HlSegmented`): Bold and lit for the current one |
-| `rowTitle` | 24 / 28 | poster, SemiBold | a row's title; the selected title over a wall |
-| `cardName` | 20 / 24 | poster, SemiBold | a name under a card |
-| `cardTitle` | 20 / 24 | poster, Bold | a title on a card without artwork |
-| `title` | 24 / 30 | reading, SemiBold | a tagline set large; an episode's name in its heading |
-| `lead` | 20 / 26 | reading, SemiBold | a row's name and the settings' places; a tagline under a title, a list choice's name, the typed query; a stated value in words |
-| `read` | 20 / 32 | reading, Regular | running text read at length: a synopsis, an NFO's values |
-| `body` | 16 / 24 | reading, Regular | overviews, descriptions |
-| `entry` | 16 / 20 | reading, SemiBold | a name to choose or fill in: menu options, button words, a field's name, a key |
-| `meta` | 16 / 20 | reading, Regular | facts and values: year, runtime, score, sizes, a path; the line read under a name: what a row or a choice does, a hint, a result's overview, a status's reason, a note; a stated value's label |
-| `caption` | 14 / 18 | reading, Regular | a line beside a larger one: facts under a card, a role under a name, a row's count, time left, a case back's names |
-| `group` | 16 / 20 | reading, SemiBold | `entry` under another name: the title over a group ("Image", "État"), above its plate; a reading plate's name |
-| `code` | 20 / 32 | monospace, Regular | raw text (NFO XML), at the reading size |
-| `spec` | 20 / 26 | technical, SemiBold | a technical value stated large ("Ultra HD 60 Hz"), a technical sheet's marks |
-| `jaquette` | 14 / 18 | technical, SemiBold | formats as on a case's back, never a measure but on a title's plate (`FormatLines`); a duration inside a button |
-| `badge` | 12 / 14 | technical, Bold | printed marks: an age rating, a protocol; a card's year |
-| `titleSignature` | 96 / 96 | signature | a short title without logo on one line; else `display` on two even lines (`TitleArt(measured = true)`) |
-| `billing` / `billingJoin` | 18 and 14 / 24 | signature | the billing block's capitals and small words |
-| `codeSignature` | 64 / 72 | signature | a code to type elsewhere (`DeviceCodePlate`): `display`'s letters set apart |
-| `figureSignature` | the doors' / 0.74 em | signature, width 62, Bold | a library's count on its home door, its digits cut in posters (`DoorFigures`), proportional figures; sized by `figureAt`, one size for every door |
+| `titleSignature` | 72 / 72 | poster, Bold | a short title without logo on one line, measured against the logo's box (440); else `display` on two even lines (`TitleArt(measured = true)`) |
+| `display` | 48 / 56 | poster, Bold | a title's page without logo: two lines fill the logo's box (112) |
+| `codeSignature` | 48 / 56 | poster, Bold, +0.06 em | a code to type elsewhere (`DeviceCodePlate`): `display`'s letters set apart |
+| `headline` | 36 / 40 | poster, Bold | screen and task titles (`ScreenTitle`, `TaskTitle`); a hero's title without logo, the case's |
+| `subject` | 28 / 32 | poster, SemiBold, tabular | what a pane is about, what a sheet does; an intertitle's line; a folder's or a showcase's name; a figure or a name stated (the storage's total, the Trakt account) |
+| `rowTitle` | 22 / 28 | poster, SemiBold | a row's title; the selected title over a wall; a door's title without logo |
+| `place`, `placeCurrent` | 22 / 28 | poster, SemiBold; Bold | the words of a track (`HlSegmented`): Bold and lit for the current one |
+| `cardName` | 18 / 24 | poster, SemiBold | a name under a card or on a door, the case's action, a result's name |
+| `cardTitle` | 18 / 24 | poster, Bold | a title on a card without artwork |
+| `lead` | 18 / 24 | reading, SemiBold | a tagline, an episode's name in its heading, the typed query and the keyboard's letters |
+| `body` | 16 / 24 | reading, Regular | overviews, paragraphs, a synopsis, an NFO's values, what is typed in a field |
+| `entry` | 16 / 20 | reading, SemiBold | a name to choose: button and menu words, a key's word, a setting, a place, a version, a value in words |
+| `code` | 16 / 24 | monospace, Regular | raw text (NFO XML) |
+| `spec` | 16 / 20 | technical, SemiBold | a technical value a pane or a plate states ("Ultra HD 60 Hz"), a technical sheet's marks, the panel's address |
+| `billing` / `billingJoin` | 16 and 14 / 20 | poster, Medium; Regular | the billing block's capitals and small words |
+| `meta` | 14 / 20 | reading, Regular, tabular | facts and values: year, runtime, score, sizes, a path; what a row or a choice does, a hint, a status's reason, a note; a row's count, time left, a role under a name, a measure beside a format |
+| `group` | 14 / 20 | reading, SemiBold | the title over a group ("Image", "État") or a plate, a field's name, a reading plate's name: a step under the names it heads |
+| `jaquette` | 14 / 20 | technical, SemiBold | formats as on a case's back, never a measure but on a title's plate (`FormatLines`); a duration inside a button; a door's labels; an address under a QR code |
+| `badge` | 12 / 16 | technical, Bold | printed marks in their box: an age rating, a protocol, a card's year |
+| `figureSignature` | the doors' / 0.74 em | width 62, Bold | a library's count on its home door, its digits cut in posters (`DoorFigures`), proportional figures; sized by `figureAt`, one size for every door |
+
+The lines that set a frame keep it (`meta` 20, `cardName` 24, `rowTitle` 28, `body` 24, `entry` 20): home's grid,
+its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a field 60) do not move with the scale.
 
 - **The ember light on words** (`emberLit`): the place you are in, a place's title. A component sets it,
   never a screen (`DesignTokenGuardTest`).
-- **Tabular figures** (`tnum`) in technical styles and wherever a figure changes (`subject`, `meta`,
-  `caption`). `case` only for billing capitals, never with `tnum`.
-- **Tracking follows size** (`trackingFor`): −0.01 em from 44 sp, none from 16 to 32, +0.01 em at 14,
+- **Tabular figures** (`tnum`) in technical styles and wherever a figure changes (`subject`, `meta`). `case` only
+  for billing capitals, never with `tnum`.
+- **Tracking follows size** (`trackingFor`): −0.01 em from 36 sp, none from 16 to 28, +0.01 em at 14,
   +0.02 em at 12. Billing capitals +0.04 em, a code to type +0.06 em.
 - **Boxes keep to their letters** (`LineHeightStyle`, `Trim.Both`): spacing is measured from the type. A text
   laid out line by line (an NFO's XML) trims only its first and last lines (`TextLines`).
-- **Line breaking:** titles balance their lines (`LineBreak.Heading`), paragraphs break for reading
-  (`LineBreak.Paragraph`), nothing is hyphenated.
+- **Line breaking:** titles and taglines balance their lines (`LineBreak.Heading`), paragraphs and facts break for
+  reading (`LineBreak.Paragraph`), nothing is hyphenated.
 - **Fallback scripts.** Archivo covers Latin and Vietnamese; line heights leave room for stacked marks and
   for fallback fonts. The catalogue's stress section shows the extremes.
 - **Text scale.** A frame holding text is never a fixed height: use `heightIn(min = …)`, or `textRoom(height)`
@@ -609,7 +613,7 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 | `ScreenTitle`, `TaskTitle` | a screen's title in `headline`. A place's name (a wall, Réglages, Rechercher, a person) is lit in ember, one per screen; a task or a form (Identifier, Ajouter un dossier, a choice of artwork) is white, as a sheet's, in `subject`; never a film's title. `DesignTokenGuardTest` lists the places |
 | `TitleLine` | the selected title over a wall: name in `rowTitle` and facts on one baseline, ellipsised |
 | `PosterWallGrid` | a wall of posters, a library's or a person's: `HlLayout.WALL_COLUMNS` across the safe area, each poster as wide as its picture is requested (`requestedPoster`, `PicturesAhead.wall`); a scrolled line comes to where the first rests |
-| `FormatLines`, `Badge`, `FactRow`, `Score` | formats in the technical voice, nothing said twice (`Formats`), read from the file (`MkvProbe`), with the frame rate and the best track's bitrate: on a title's page, a case's back open on the picture like the facts above it (`plate`), a line for picture and one for sound, each after its grey glyph (`HlIcons.Display`, `HlIcons.Sound`, named for screen readers), the formats in white `jaquette`, the codec in grey `jaquette`, and their measures (frame rate, channels, bitrate) in a secondary `caption`; the sound is the track Lire asks of the player, its language last among the measures, else the file's best track; in a version row, unframed words, measures in `caption`. A `Badge` is a printed mark, never a format or state. A score is a quiet fact |
+| `FormatLines`, `Badge`, `FactRow`, `Score` | formats in the technical voice, nothing said twice (`Formats`), read from the file (`MkvProbe`), with the frame rate and the best track's bitrate: on a title's page, a case's back open on the picture like the facts above it (`plate`), a line for picture and one for sound, each after its grey glyph (`HlIcons.Display`, `HlIcons.Sound`, named for screen readers), the formats in white `jaquette`, the codec in grey `jaquette`, and their measures (frame rate, channels, bitrate) in a secondary `meta`; the sound is the track Lire asks of the player, its language last among the measures, else the file's best track; in a version row, unframed words, measures in `meta`. A `Badge` is a printed mark, never a format or state. A score is a quiet fact |
 | `HeadOverview`, `SynopsisSheet` | three lines of overview; when cut, focusable and opening the full text in a side sheet |
 | `MediaRow`, `FilmsOfHeading` | a horizontal row under its header (`SectionHeader`, in `rowTitle`) with its `count` ("1 film sur 4", `filmCount`) and its `news` (an ember dot, "3 nouveaux": the cards wearing the new dot, `wearsNewDot`); focus returns to its last card. Its cards share one travelling frame and it holds framed cards only (see *Focus*). Library rows (`LibraryRows`) bill a director's films or the best rated |
 | `VersionsSheet`, `VersionRow` | several copies of a film are one title; the Versions button lists them and sets which one Lire plays; the current copy carries the ember check and "Votre choix"; from a server that keeps no choice the sheet only reads, says the server plays its first copy and marks none |
@@ -703,10 +707,10 @@ motion it came in with. Focus stays inside and returns where it was (`SheetFocus
   Modifier shows the images it changes as a gallery (`Gallery`), Identifier on a plate under them. Its lines fall
   within 3 dp of the board's baselines (`SheetRhythmTest`).
 - **Reading sheets** (a synopsis, an NFO) are wide (`HlSideSheetDefaults.wideWidth`, 736), set `safeH` in on both
-  sides, so their text keeps the reading measure (`HlLayout.readable`) in `read`: the synopsis under its tagline in
-  `title`, set `HlSpace.l` + `HlSpace.xxs` from its baseline to the head and the text, its director among its facts; the NFO with how it reads after its facts, its views (Informations, XML) as
+  sides, so their text keeps the reading measure (`HlLayout.readable`) in `body`: the synopsis under its tagline in
+  `lead`, set `HlSpace.l` + `HlSpace.xxs` from its baseline to the head and the text, its director among its facts; the NFO with how it reads after its facts, its views (Informations, XML) as
   places at the end of its title's line, its details as definitions (a label in secondary `meta`,
-  `HlLayout.readingLabel` wide, beside its value in `read`, `HlSpace.fact` apart) or its XML in `code`, on a plate
+  `HlLayout.readingLabel` wide, beside its value in `body`, `HlSpace.fact` apart) or its XML in `code`, on a plate
   focused to be read.
 - **`SheetConfirm`**: an irreversible action asks in the sheet, as an intertitle in place of the rows: ember
   rule, the question in `subject`, the consequence, then Cancel (focused) and the action, its label in ember.
@@ -865,7 +869,7 @@ rest.
 
 | Test | Holds |
 |---|---|
-| `DesignTokenGuardTest` | no size, text size, tracking, font, text style (its line height style included), colour, palette, opacity, shape or gradient in a screen, and no type of a component's own (a named exception: an empty field measured one line tall); `caption` only where its files are listed, beside a larger line; no ember named in a screen; no arithmetic on tokens; images only through `ArtworkImage` or `PosterThumb`; one place lit per screen, and only the places; no Toast; no Material icon, drawn or declared; no shadow or blur |
+| `DesignTokenGuardTest` | no size, text size, tracking, font, text style (its line height style included), colour, palette, opacity, shape or gradient in a screen, and no type of a component's own (a named exception: an empty field measured one line tall); `badge` only where its files are listed, in a mark's box; no ember named in a screen; no arithmetic on tokens; images only through `ArtworkImage` or `PosterThumb`; one place lit per screen, and only the places; no Toast; no Material icon, drawn or declared; no shadow or blur |
 | `FocusStyleGuardTest` | focus said in one place, drawn by one surface, never by a screen; every surface takes a gesture and what takes focus shows it; a row holds framed cards only; nothing grows with focus and a surface's light takes no layer; OK clicks through the surface only; no tv-material surface, no Compose Material; never `focusRestorer` |
 | `MotionGuardTest` | the system's own curves only, drawn in `Motion.kt`; every tween names its easing and every animation its spec; no spring, no cross-fading container |
 | `ShapesTest` | radii by hierarchy and in dp, nested corners parallel, a sheet square against the edge; nothing round but dots |

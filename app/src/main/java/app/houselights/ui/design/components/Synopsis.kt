@@ -74,7 +74,7 @@ fun HeadOverview(text: String, onOpen: () -> Unit, modifier: Modifier = Modifier
 const val HEAD_OVERVIEW_LINES = 3
 
 /**
- * The whole overview in a reading sheet ([HlSideSheet] `wide`), its tagline in `title` over it, its text in `read` at
+ * The whole overview in a reading sheet ([HlSideSheet] `wide`), its tagline in `lead` over it, its text in `body` at
  * the reading measure; the text is focused, down and up scroll it [READING_STEP] lines per press.
  */
 @Composable
@@ -83,7 +83,7 @@ fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
     val words = remember { FocusRequester() }
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val step = with(LocalDensity.current) { Hl.type.read.lineHeight.toPx() * READING_STEP }
+    val step = with(LocalDensity.current) { Hl.type.body.lineHeight.toPx() * READING_STEP }
     HlSideSheet(
         stringResource(R.string.synopsis),
         onDismiss = onDismiss,
@@ -96,11 +96,11 @@ fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
             // The tagline as far under the head as over the text, from its baseline.
             item.tagline?.takeIf { it.isNotBlank() }?.let {
                 val apart = HlSpace.l + HlSpace.xxs
-                Text(it, style = Hl.type.title, color = c.content, modifier = Modifier.paddingFromBaseline(top = apart, bottom = apart))
+                Text(it, style = Hl.type.lead, color = c.content, modifier = Modifier.paddingFromBaseline(top = apart, bottom = apart))
             }
             Text(
                 item.overview.orEmpty(),
-                style = Hl.type.read,
+                style = Hl.type.body,
                 color = c.contentSecondary,
                 modifier = Modifier
                     .focusRequester(words)

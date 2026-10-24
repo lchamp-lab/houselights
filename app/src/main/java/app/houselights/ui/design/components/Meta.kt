@@ -129,9 +129,9 @@ private fun FormatWord(word: FormatMark, ink: Color?) {
     Text(word.label, style = word.style, color = ink ?: Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
 }
 
-/** A format in the technical voice, `jaquette`; a measure of it (a rate, channels) in the text voice, `caption`. */
+/** A format in the technical voice, `jaquette`; a measure of it (a rate, channels) in the text voice, `meta`. */
 private val FormatMark.style: TextStyle
-    @Composable get() = if (measure) Hl.type.caption else Hl.type.jaquette
+    @Composable get() = if (measure) Hl.type.meta else Hl.type.jaquette
 
 /**
  * A title's formats ([Formats]), picture then sound, from the file's media info, else the stored badges. On its
@@ -181,7 +181,7 @@ private class CaseLine(val name: String, val glyph: ImageVector, val words: List
 
 /**
  * The back of a case, open on the picture like the facts above it: a line per family of [lines], its glyph in grey,
- * then its formats in `jaquette`, a detail (the codec) in grey, and their measures in a secondary `caption`.
+ * then its formats in `jaquette`, a detail (the codec) in grey, and their measures in a secondary `meta`.
  */
 @Composable
 private fun Jaquette(lines: List<CaseLine>, modifier: Modifier) {

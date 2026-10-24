@@ -295,12 +295,12 @@ private fun SheetOfAnNfo(onDismiss: () -> Unit) {
 @Composable
 private fun SheetToRead(onDismiss: () -> Unit) {
     HlSideSheet("Synopsis", onDismiss = onDismiss, facts = listOf("Le Samouraï", "1967", "Jean-Pierre Melville"), wide = true) {
-        Text("Le silence d’un homme seul.", style = Hl.type.title, color = Hl.colors.content)
+        Text("Le silence d’un homme seul.", style = Hl.type.lead, color = Hl.colors.content)
         Text(
             "Jef Costello, tueur à gages solitaire, se fabrique un alibi avant d’abattre le patron d’une boîte de nuit. " +
                 "Vu par les témoins, relâché faute de preuves, il est désormais traqué par la police et par ceux qui " +
                 "l’ont engagé. Il ne lui reste qu’à suivre jusqu’au bout le code qu’il s’est donné.",
-            style = Hl.type.read,
+            style = Hl.type.body,
             color = Hl.colors.contentSecondary,
         )
     }

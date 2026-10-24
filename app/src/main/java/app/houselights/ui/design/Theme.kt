@@ -58,14 +58,14 @@ fun HouselightsTheme(content: @Composable () -> Unit) {
     }
 }
 
-/** tv-material's type roles in Archivo, so none of its defaults falls back to another face. */
-private val materialTypography = with(HouselightsType) {
+/** tv-material's type roles on the scale, so none of its defaults falls back to another face or size. */
+internal val materialTypography = with(HouselightsType) {
     Typography(
         displayLarge = display, displayMedium = headline, displaySmall = subject,
-        headlineLarge = headline, headlineMedium = subject, headlineSmall = title,
-        titleLarge = title, titleMedium = lead, titleSmall = entry,
-        bodyLarge = body, bodyMedium = body, bodySmall = caption,
-        labelLarge = entry, labelMedium = entry, labelSmall = badge,
+        headlineLarge = headline, headlineMedium = subject, headlineSmall = rowTitle,
+        titleLarge = lead, titleMedium = entry, titleSmall = entry,
+        bodyLarge = body, bodyMedium = meta, bodySmall = meta,
+        labelLarge = entry, labelMedium = group, labelSmall = badge,
     )
 }
 

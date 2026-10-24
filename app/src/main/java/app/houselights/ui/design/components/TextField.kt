@@ -150,7 +150,7 @@ private fun FieldBox(
     val c = Hl.colors
 
     // One line tall: empty, it would take the platform font's taller line height.
-    val textStyle = Hl.type.read.copy(color = c.content)
+    val textStyle = Hl.type.body.copy(color = c.content)
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val oneLine = remember(textStyle, density) {
@@ -276,7 +276,7 @@ private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
 @Composable
 private fun Placeholder(text: String, shown: Boolean) {
     if (shown && text.isNotEmpty()) {
-        Text(text, style = Hl.type.read, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text, style = Hl.type.body, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

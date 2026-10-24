@@ -169,7 +169,7 @@ private fun StressScriptRow(cell: @Composable (StressScript) -> Unit) {
 
 @Composable
 private fun StressCaption(text: String) {
-    Text(text, style = Hl.type.caption, color = Hl.colors.contentTertiary, modifier = Modifier.padding(top = HlSpace.xxs))
+    Text(text, style = Hl.type.meta, color = Hl.colors.contentTertiary, modifier = Modifier.padding(top = HlSpace.xxs))
 }
 
 /** "2,0", "2,625", "1,15": French decimals, at least one and up to three. */

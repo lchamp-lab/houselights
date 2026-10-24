@@ -121,7 +121,7 @@ private fun FormSettings() {
             Text(
                 "Above: a value, a value of your choice in ember, an icon grey until focus, a disabled row in its well " +
                     "(focus rings it), a figure in the technical voice, a row that only states its value.",
-                style = Hl.type.caption,
+                style = Hl.type.meta,
                 color = Hl.colors.contentTertiary,
             )
         }
@@ -155,7 +155,7 @@ private fun FormTextFields() {
         "A field is a glass plate 60 tall edged by a hairline, its name in white over it. Focus rings it in projector " +
             "white and shows, at its end, that OK types; OK opens the keyboard, and while typing the ring is the ember " +
             "light and the cursor raspberry, and only then. Every field has a name, read out even when hidden.",
-        style = Hl.type.caption,
+        style = Hl.type.meta,
         color = Hl.colors.contentTertiary,
     )
     // Bottom-aligned, so a field without its label shows next to the others.
@@ -472,7 +472,7 @@ private fun FormMenus() {
                 "It grows from the button's corner and leaves the same way. Sort closes on a choice and applies once " +
                 "the menu has gone; filters stay open so choices combine, and an active one lights the detail. A films " +
                 "wall with sagas first shows its films and sagas, or the sagas alone, named before the filters.",
-            style = Hl.type.caption,
+            style = Hl.type.meta,
             color = Hl.colors.contentTertiary,
             modifier = Modifier.weight(1f),
         )
