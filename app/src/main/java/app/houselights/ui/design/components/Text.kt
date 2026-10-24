@@ -188,7 +188,8 @@ private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLine
     val widthPx = with(density) { maxWidth.roundToPx() }
     val choosing = remember(density) { if (density.fontScale < 1f) Density(density.density) else density }
     val plan = remember(title, style, signature, widthPx, maxLines, choosing) {
-        measurer.titlePlan(title, style, signature, widthPx, maxLines, choosing)
+        val signed = measurer.measure(title, signature, maxLines = 1, softWrap = false, density = choosing).size.width
+        if (signed <= widthPx) TitlePlan(signature, null) else measurer.titlePlan(title, style, widthPx, maxLines)
     }
     Text(
         title,
@@ -203,17 +204,8 @@ private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLine
 /** A title's style and the width that balances its lines (null: the full width). */
 private class TitlePlan(val style: TextStyle, val widthPx: Int?)
 
-/** [title]'s plan in a box [widthPx] wide; its signature chosen at [choosing]'s text size. */
-private fun TextMeasurer.titlePlan(
-    title: String,
-    style: TextStyle,
-    signature: TextStyle,
-    widthPx: Int,
-    maxLines: Int,
-    choosing: Density,
-): TitlePlan {
-    val signed = measure(title, signature, maxLines = 1, softWrap = false, density = choosing).size.width
-    if (signed <= widthPx) return TitlePlan(signature, null)
+/** [title] in [style] in a box [widthPx] wide: on one line, else on two even ones. */
+private fun TextMeasurer.titlePlan(title: String, style: TextStyle, widthPx: Int, maxLines: Int): TitlePlan {
     val oneLine = measure(title, style, maxLines = 1, softWrap = false).size.width
     if (oneLine <= widthPx || maxLines < 2) return TitlePlan(style, null)
     // Two lines: the narrowest candidate width that still fits the title on two.
