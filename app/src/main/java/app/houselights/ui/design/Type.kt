@@ -56,7 +56,7 @@ internal fun trackingFor(size: TextUnit): TextUnit =
     TRACKING_FROM.firstOrNull { (from, _) -> size.value >= from }?.second ?: TRACKING_SMALLEST
 
 /** From which size, in sp, each tracking holds; below the last, [TRACKING_SMALLEST]. */
-private val TRACKING_FROM = listOf(44f to (-0.01).em, 16f to 0.em, 14f to 0.01.em)
+private val TRACKING_FROM = listOf(36f to (-0.01).em, 16f to 0.em, 14f to 0.01.em)
 private val TRACKING_SMALLEST = 0.02.em
 
 /**
@@ -130,56 +130,50 @@ private fun signature(family: FontFamily, weight: FontWeight, size: Int, line: I
     )
 
 /**
- * Type scale for a TV seen from the couch (DESIGN.md, Type): 12 to 64 sp, and two signature sizes (18, 96), line
- * heights on a 2 sp grid. What is read is 16 sp or more; 14 only beside a larger line, 12 for printed marks. Poster
- * titles ([display], [cardTitle]) fit Vietnamese: in condensed bold a stacked mark rises to 0.92 em and a descender
- * falls to 0.20 em, hence lines 1.125 and 1.2 em apart.
+ * Type scale for a TV seen from the couch (DESIGN.md, Type): eight sizes from 12 to 48 sp and the signature 72, a line
+ * height a size on the 4 sp grid (16 has a name's and a paragraph's). A floor a voice: 14 for what is read, 12 in a
+ * mark's box, 18 for the poster. Poster titles fit Vietnamese: in condensed bold a stacked mark rises to 0.92 em and a
+ * descender falls to 0.20 em, hence [display] and [cardTitle] lines at least 1.125 em apart.
  */
 @Immutable
 data class HlType(
     // The voice of the poster (condensed).
-    /** Title of a detail page when there is no clear logo. */
+    /** Title of a detail page when there is no clear logo: two lines fill the logo's box. */
     val display: TextStyle,
-    /** Screen titles; a title without its logo in a hero or on home's case. */
+    /** Screen and task titles; a title without its logo in a hero or on home's case. */
     val headline: TextStyle,
-    /** What a panel or sheet is about ("Modifier"), an intertitle's line, a figure that states something. */
+    /** What a pane or sheet is about, an intertitle's line, a folder's name, a figure or a name stated. */
     val subject: TextStyle,
     /** The words of a track (a season, an NFO's view); [placeCurrent] for the one you are in. */
     val place: TextStyle,
     val placeCurrent: TextStyle,
-    /** A row's title over its cards; the selected title over a wall. */
+    /** A row's title over its cards; the selected title over a wall; a door's title without its logo. */
     val rowTitle: TextStyle,
-    /** A name under a card. */
+    /** A name under a card or on a door, home's case's action, a result's name. */
     val cardName: TextStyle,
     /** A title set on a card without artwork, like a plain one-sheet. */
     val cardTitle: TextStyle,
 
     // The voice of reading (normal width).
-    /** A tagline set large, an episode's name in its heading. */
-    val title: TextStyle,
-    /** A tagline under a title, a row's name, a name heading a list choice, a typed query. */
+    /** A tagline, an episode's name in its heading, a typed query and the keyboard's letters. */
     val lead: TextStyle,
-    /** Running text read at length (a synopsis, an NFO's values), at the reading measure. */
-    val read: TextStyle,
-    /** Overviews, descriptions, paragraphs. */
+    /** Overviews, paragraphs, a synopsis, an NFO's values, what is typed in a field. */
     val body: TextStyle,
-    /** A name to choose: a menu option, a version, a button's words. */
+    /** A name to choose: a button's or a menu's words, a setting, a place, a version, a value in words. */
     val entry: TextStyle,
-    /** Facts and values, and the line read under a name: a hint, a description, a status's reason; tabular figures. */
+    /** Facts, descriptions, values, notes, counts, time left; tabular figures. */
     val meta: TextStyle,
-    /** A line beside a larger one: facts under a card, a row's count, time left; set tight to read as one block. */
-    val caption: TextStyle,
-    /** Title over a group of facts or settings ("Image", "État"), above its plate: [entry] under another name. */
+    /** Title over a group of facts or settings ("Image", "État"), a field's name: a step under the names it heads. */
     val group: TextStyle,
     /** Raw text to read as written (NFO XML). */
     val code: TextStyle,
 
     // The technical voice (expanded, tabular figures).
-    /** The headline of a technical sheet: definition, ratio, codec. */
+    /** A technical value a pane or a plate states: definition, ratio, codec, an address. */
     val spec: TextStyle,
-    /** Formats set as on a case's back, a duration inside a button. */
+    /** Formats set as on a case's back, a duration inside a button, a door's labels, an address under a QR code. */
     val jaquette: TextStyle,
-    /** Printed marks: an age rating, a protocol. */
+    /** Printed marks in their box: an age rating, a protocol, a card's year. */
     val badge: TextStyle,
 
     // Signatures, each set to its own measure.
@@ -195,37 +189,31 @@ data class HlType(
     val figureSignature: TextStyle,
 )
 
-/** A name to choose, and the title over a group. */
-private val ENTRY = scale(HlFonts.text, FontWeight.SemiBold, 16, 20)
-
 val HouselightsType = HlType(
-    display = scale(HlFonts.condensed, FontWeight.Bold, 64, 72, lineBreak = TITLE),
-    headline = scale(HlFonts.condensed, FontWeight.Bold, 44, 48, lineBreak = TITLE),
-    subject = scale(HlFonts.condensed, FontWeight.SemiBold, 32, 36, FIGURES, TITLE),
-    place = scale(HlFonts.condensed, FontWeight.SemiBold, 26, 30),
-    placeCurrent = scale(HlFonts.condensed, FontWeight.Bold, 26, 30),
-    rowTitle = scale(HlFonts.condensed, FontWeight.SemiBold, 24, 28, lineBreak = TITLE),
-    cardName = scale(HlFonts.condensed, FontWeight.SemiBold, 20, 24, lineBreak = TITLE),
-    cardTitle = scale(HlFonts.condensed, FontWeight.Bold, 20, 24, lineBreak = TITLE),
+    display = scale(HlFonts.condensed, FontWeight.Bold, 48, 56, lineBreak = TITLE),
+    headline = scale(HlFonts.condensed, FontWeight.Bold, 36, 40, lineBreak = TITLE),
+    subject = scale(HlFonts.condensed, FontWeight.SemiBold, 28, 32, FIGURES, TITLE),
+    place = scale(HlFonts.condensed, FontWeight.SemiBold, 22, 28),
+    placeCurrent = scale(HlFonts.condensed, FontWeight.Bold, 22, 28),
+    rowTitle = scale(HlFonts.condensed, FontWeight.SemiBold, 22, 28, lineBreak = TITLE),
+    cardName = scale(HlFonts.condensed, FontWeight.SemiBold, 18, 24, lineBreak = TITLE),
+    cardTitle = scale(HlFonts.condensed, FontWeight.Bold, 18, 24, lineBreak = TITLE),
 
-    title = scale(HlFonts.text, FontWeight.SemiBold, 24, 30, lineBreak = TITLE),
-    lead = scale(HlFonts.text, FontWeight.SemiBold, 20, 26, lineBreak = TITLE),
-    read = scale(HlFonts.text, FontWeight.Normal, 20, 32, lineBreak = PROSE),
+    lead = scale(HlFonts.text, FontWeight.SemiBold, 18, 24, lineBreak = TITLE),
     body = scale(HlFonts.text, FontWeight.Normal, 16, 24, lineBreak = PROSE),
-    entry = ENTRY,
-    meta = scale(HlFonts.text, FontWeight.Normal, 16, 20, FIGURES),
-    caption = scale(HlFonts.text, FontWeight.Normal, 14, 18, FIGURES, PROSE),
-    group = ENTRY,
-    code = scale(HlFonts.mono, FontWeight.Normal, 20, 32),
+    entry = scale(HlFonts.text, FontWeight.SemiBold, 16, 20),
+    meta = scale(HlFonts.text, FontWeight.Normal, 14, 20, FIGURES, PROSE),
+    group = scale(HlFonts.text, FontWeight.SemiBold, 14, 20),
+    code = scale(HlFonts.mono, FontWeight.Normal, 16, 24),
 
-    spec = scale(HlFonts.expanded, FontWeight.SemiBold, 20, 26, FIGURES),
-    jaquette = scale(HlFonts.expanded, FontWeight.SemiBold, 14, 18, FIGURES),
-    badge = scale(HlFonts.expanded, FontWeight.Bold, 12, 14, FIGURES),
+    spec = scale(HlFonts.expanded, FontWeight.SemiBold, 16, 20, FIGURES),
+    jaquette = scale(HlFonts.expanded, FontWeight.SemiBold, 14, 20, FIGURES),
+    badge = scale(HlFonts.expanded, FontWeight.Bold, 12, 16, FIGURES),
 
-    titleSignature = scale(HlFonts.condensed, FontWeight.Bold, 96, 96, lineBreak = TITLE),
-    billing = signature(HlFonts.condensed, FontWeight.Medium, 18, 24, CAPITALS_TRACKING, CAPITALS),
-    billingJoin = signature(HlFonts.condensed, FontWeight.Normal, 14, 24, BILLING_JOIN_TRACKING),
-    codeSignature = signature(HlFonts.condensed, FontWeight.Bold, 64, 72, CODE_TRACKING),
+    titleSignature = scale(HlFonts.condensed, FontWeight.Bold, 72, 72, lineBreak = TITLE),
+    billing = signature(HlFonts.condensed, FontWeight.Medium, 16, 20, CAPITALS_TRACKING, CAPITALS),
+    billingJoin = signature(HlFonts.condensed, FontWeight.Normal, 14, 20, BILLING_JOIN_TRACKING),
+    codeSignature = signature(HlFonts.condensed, FontWeight.Bold, 48, 56, CODE_TRACKING),
     figureSignature = signature(HlFonts.figures, FontWeight.Bold, 120, 88, FIGURE_TRACKING, PROPORTIONAL),
 )
 
@@ -262,7 +250,7 @@ fun TextStyle.emberLit(colors: HlColors): TextStyle = copy(brush = colors.emberL
 @ReadOnlyComposable
 fun textRoom(height: Dp): Dp = with(LocalDensity.current) { height.value.sp.toDp() }
 
-/** Room kept for one line of [style], at the viewer's text size: its line height (`lead`: 26 at 1). */
+/** Room kept for one line of [style], at the viewer's text size: its line height (`lead`: 24 at 1). */
 @Composable
 @ReadOnlyComposable
 fun textRoom(style: TextStyle): Dp = with(LocalDensity.current) { style.lineHeight.toDp() }

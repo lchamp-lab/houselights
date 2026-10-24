@@ -227,10 +227,10 @@ private fun Jackets() {
             HlGroup(stringResource(R.string.about_credits)) {
                 DefinitionPlate {
                     PlateDefinition(stringResource(R.string.credit_data)) {
-                        Text("TMDB", style = Hl.type.lead, color = Hl.colors.content)
+                        Text("TMDB", style = Hl.type.entry, color = Hl.colors.content)
                     }
                     PlateDefinition(stringResource(R.string.credit_font)) {
-                        Text(stringResource(R.string.credit_font_value), style = Hl.type.lead, color = Hl.colors.content)
+                        Text(stringResource(R.string.credit_font_value), style = Hl.type.entry, color = Hl.colors.content)
                     }
                 }
             }

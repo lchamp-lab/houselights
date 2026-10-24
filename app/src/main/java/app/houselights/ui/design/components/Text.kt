@@ -161,7 +161,8 @@ fun TitleArt(
             modifier = modifier.heightIn(max = maxHeight).widthIn(max = maxWidth),
         )
     } else if (measured) {
-        MeasuredTitle(title, style, maxWidth + HlSpace.xxl * 3, maxLines, modifier)
+        // Within the logo's box, so a title weighs as much as a logo would.
+        MeasuredTitle(title, style, maxWidth, maxLines, modifier)
     } else {
         Text(
             title,

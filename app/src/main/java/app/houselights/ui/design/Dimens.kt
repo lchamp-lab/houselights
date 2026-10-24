@@ -95,6 +95,7 @@ object HlSize {
     /** A square icon button; [tileCompact] in a screen's header. */
     val tile = 48.dp
     val tileCompact = 40.dp
+    /** An icon beside words: a place's, the search field's. */
     val icon = 20.dp
     /** An icon on a [tile]. */
     val tileIcon = 22.dp
@@ -224,7 +225,7 @@ object HlLayout {
     val welcomeChoices = 456.dp
     /** A table's value column ([app.houselights.ui.design.components.SpecTable]): Affichage's frame sizes. */
     val specFormat = 136.dp
-    /** Label column of a reading sheet's definitions (an NFO's), its values at 20 beside it. */
+    /** Label column of a reading sheet's definitions (an NFO's), its values at 16 beside it. */
     val readingLabel = 180.dp
 }
 
@@ -234,7 +235,7 @@ object HlLayout {
 internal object HlSideSheetDefaults {
     val width = 520.dp
 
-    /** A reading sheet (a synopsis, an NFO): the reading measure ([HlLayout.readable]) between the safe areas. */
+    /** A sheet holding the reading measure ([HlLayout.readable]) between the safe areas: an NFO, its XML's lines whole. */
     val wideWidth = 736.dp
 }
 

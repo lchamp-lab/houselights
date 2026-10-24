@@ -497,7 +497,7 @@ fun HlListItem(
                     )
                     Spacer(Modifier.width(HlSpace.s))
                 }
-                Text(title, style = Hl.type.lead, color = c.content, modifier = Modifier.weight(1f))
+                Text(title, style = Hl.type.entry, color = c.content, modifier = Modifier.weight(1f))
             }
             if (description != null) {
                 Spacer(Modifier.height(HlSpace.xs))

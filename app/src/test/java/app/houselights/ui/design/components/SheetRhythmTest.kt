@@ -33,9 +33,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * DESIGN.md, Secondary screens: a sheet reads at the board's rhythm (`board2/second.html`, its CSS at 960 × 540), each
- * line's baseline within [CLOSE] of the board's: the head, then a technical sheet's blocks, an NFO's definitions, a
- * synopsis's tagline and text.
+ * DESIGN.md, Secondary screens: a sheet reads at the boards' rhythm (the head and a technical sheet's blocks from
+ * `board2/second.html`; an NFO's definitions and a synopsis from « Échelle de texte »), each line's baseline within
+ * [CLOSE] of the board's.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr-$TV")
@@ -94,9 +94,9 @@ class SheetRhythmTest {
             NfoSheet(film, NfoState("Colony", read), onRetry = {}, onDismiss = {})
         }
         assertAt("the title", 58.7f, at("Fichier NFO"))
-        assertAt("what it is", 131.35f, at("Écrite par votre gestionnaire de médias, elle prime sur TMDB."))
+        assertAt("what it is", 126f, at("Écrite par votre gestionnaire de médias, elle prime sur TMDB."))
         val title = compose.onNodeWithText("Titre").baseline()
-        assertAt("the first definition", 187.7f, title)
+        assertAt("the first definition", 179f, title)
         assertAt("the next, a definition's pitch under it", title + PITCH, at("Année"))
         // The year in the head first, then in its definition.
         assertAt("a label and its value, one baseline", at("Année"), compose.onAllNodesWithText("2026")[1].baseline())
@@ -113,8 +113,8 @@ class SheetRhythmTest {
             overview = "Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine.",
         )
         compose.setTvContent { SynopsisSheet(film, onDismiss = {}) }
-        assertAt("its tagline", 141f, at("Ressentez le besoin… Le besoin de vitesse."))
-        assertAt("its text", 184.7f, at("Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine."))
+        assertAt("its tagline", 137f, at("Ressentez le besoin… Le besoin de vitesse."))
+        assertAt("its text", 179f, at("Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine."))
     }
 
     /** The block read first as [name]. */
@@ -126,7 +126,7 @@ class SheetRhythmTest {
         /** Within 3 dp of the board. */
         const val CLOSE = 3f
 
-        /** An NFO's definitions on the board: 26 dp lines, 16 apart. */
-        const val PITCH = 42f
+        /** An NFO's definitions on the board: their values in `body`, 20 apart. */
+        const val PITCH = 37f
     }
 }

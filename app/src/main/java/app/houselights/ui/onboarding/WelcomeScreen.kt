@@ -105,7 +105,7 @@ internal fun Welcome(
                 Spacer(Modifier.height(HlSpace.l))
                 Text(
                     stringResource(R.string.welcome_tagline),
-                    style = Hl.type.title,
+                    style = Hl.type.lead,
                     color = Hl.colors.contentSecondary,
                     modifier = Modifier.widthIn(max = HlLayout.welcomeTagline),
                 )

@@ -58,7 +58,7 @@ private fun StorageSummary(st: StorageStats?) {
     HlPlate(Modifier.fillMaxWidth(), padding = room) {
         Row(Modifier.fillMaxWidth()) {
             val total = st?.let { formatBytes(it.total) } ?: dash
-            Text(total, style = Hl.type.headline, color = c.content, modifier = Modifier.alignByBaseline())
+            Text(total, style = Hl.type.subject, color = c.content, modifier = Modifier.alignByBaseline())
             Spacer(Modifier.width(HlSpace.s))
             val used = stringResource(R.string.storage_used)
             Text(used, style = Hl.type.meta, color = c.contentSecondary, modifier = Modifier.alignByBaseline())

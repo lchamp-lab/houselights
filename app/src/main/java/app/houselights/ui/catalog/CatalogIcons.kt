@@ -76,7 +76,7 @@ private fun Glyph(icon: ImageVector, modifier: Modifier) {
         Sizes(icon, c.content, Modifier.padding(HlSpace.xs))
         Sizes(icon, c.onFocus, Modifier.clip(HlShapes.row).background(c.focus).padding(HlSpace.xs))
         val name = icon.name.substringAfterLast('.')
-        Text(name, style = Hl.type.caption, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(name, style = Hl.type.meta, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

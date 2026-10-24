@@ -80,11 +80,11 @@ fun HlNavItem(
                 focused -> LocalContentColor.current
                 else -> c.contentTertiary
             }
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.tileIcon))
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
             Spacer(Modifier.width(HlSpace.s))
             Text(
                 title,
-                style = Hl.type.lead,
+                style = Hl.type.entry,
                 color = if (focused || selected) LocalContentColor.current else c.contentSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -106,7 +106,7 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
 }
 
 /**
- * One setting, [HlSize.row] tall: its name in `lead` and its [description] in secondary `meta` on one line, its
+ * One setting, [HlSize.row] tall: its name in `entry` and its [description] in secondary `meta` on one line, its
  * value on the right, in `meta` or, for a format or a figure, `jaquette` ([valueStyle]); with [onClick] a control,
  * white with focus, else a value it only states. [valueLit] (a user choice) and [valueAttention] set the value in
  * ember; [trailing] replaces the value. Disabled, it sits in a well, in a pane's plate only: sheets omit
@@ -143,7 +143,7 @@ fun HlSettingRow(
                 Spacer(Modifier.width(HlSpace.m))
             }
             Column(Modifier.weight(1f)) {
-                Text(title, style = Hl.type.lead, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
                     // One line, so rows keep one height.
@@ -208,7 +208,7 @@ private fun ValueLines(
     if (VALUE_PARTS !in value) return line(value)
     val measurer = rememberTextMeasurer()
     fun wide(text: String, style: TextStyle) = measurer.measure(text, style, softWrap = false, maxLines = 1).size.width
-    val words = maxOf(wide(title, Hl.type.lead), description?.let { wide(it, Hl.type.meta) } ?: 0)
+    val words = maxOf(wide(title, Hl.type.entry), description?.let { wide(it, Hl.type.meta) } ?: 0)
     // The row's sides, the room before its value, and its icon.
     val beside = HlSpace.m * 2 + HlSpace.l + if (icon) HlSize.icon + HlSpace.m else 0.dp
     BoxWithConstraints(Modifier.fillMaxWidth()) {

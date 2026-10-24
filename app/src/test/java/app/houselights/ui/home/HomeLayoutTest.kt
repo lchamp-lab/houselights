@@ -66,7 +66,7 @@ class HomeLayoutTest {
     @Test
     fun theCaptionsOfAFirstLandscapeRowStayInsideTheSafeArea() {
         val still = HlSize.landscape * 9 / 16
-        val caption = HlSpace.s + sp(HouselightsType.cardName.lineHeight.value) + HlSpace.xxs + sp(HouselightsType.caption.lineHeight.value)
+        val caption = HlSpace.s + sp(HouselightsType.cardName.lineHeight.value) + HlSpace.xxs + sp(HouselightsType.meta.lineHeight.value)
         val bottom = cardsTop + still + caption
         assertTrue("captions end at $bottom", bottom <= safeBottom)
     }

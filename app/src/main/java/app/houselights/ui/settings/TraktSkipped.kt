@@ -153,7 +153,7 @@ private fun SkippedItem(line: SkippedLine) {
         else -> pluralStringResource(R.plurals.trakt_skipped_untitled, line.untitled, line.untitled)
     }
     Column {
-        Text(name, style = Hl.type.lead, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(name, style = Hl.type.entry, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(HlSpace.xxs))
         Text(stringResource(kindName(line.kind)), style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
     }

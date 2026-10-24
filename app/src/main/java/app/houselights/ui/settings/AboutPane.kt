@@ -163,10 +163,10 @@ private fun AboutCredits() {
                 Image(painterResource(R.drawable.tmdb_logo), contentDescription = "TMDB", modifier = Modifier.height(HlSize.inlineIcon))
             }
             PlateDefinition(stringResource(R.string.credit_font)) {
-                Text(stringResource(R.string.credit_font_value), style = Hl.type.lead, color = Hl.colors.content)
+                Text(stringResource(R.string.credit_font_value), style = Hl.type.entry, color = Hl.colors.content)
             }
             PlateDefinition(stringResource(R.string.credit_icons)) {
-                Text(stringResource(R.string.credit_icons_value), style = Hl.type.lead, color = Hl.colors.content)
+                Text(stringResource(R.string.credit_icons_value), style = Hl.type.entry, color = Hl.colors.content)
             }
         }
     }

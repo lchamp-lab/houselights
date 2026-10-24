@@ -81,7 +81,7 @@ private fun Board(under: Under) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(HlIcons.Check, contentDescription = null, tint = ink.color, modifier = Modifier.size(HlSize.icon))
                     Spacer(Modifier.width(HlSpace.xs))
-                    Text(says, style = Hl.type.caption, color = label)
+                    Text(says, style = Hl.type.meta, color = label)
                 }
             } else {
                 Text(says, style = Hl.type.meta, color = ink.color)

@@ -45,12 +45,14 @@ import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HouselightsType
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.testing.FakeTraktLink
 import app.houselights.ui.testing.FakeTraktSync
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.assertSetIn
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
@@ -211,6 +213,14 @@ class TraktPaneTest {
         compose.onNodeWithText("L’accès a été refusé sur Trakt. Connectez votre compte à nouveau pour l’autoriser.").assertExists()
         compose.onNodeWithText("Non effectué").assertExists()
         compose.onNodeWithText(CONNECT).assertIsFocused()
+    }
+
+    /** The account is a name stated, in `subject`: no larger than the pane's title. */
+    @Test
+    fun theAccountIsStatedUnderThePanesTitle() {
+        session = lea
+        show()
+        compose.assertSetIn(HouselightsType.subject, "lea")
     }
 
     @Test
