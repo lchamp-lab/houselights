@@ -357,7 +357,7 @@ class SettingsViewModelTest {
     @Test
     fun mappingsNotOpenedAreKeptAndShowOnceRead() = runTest {
         val key = testKey()
-        val file = PreferenceDataStoreFactory.create(scope = backgroundScope, produceFile = { folder.root.resolve("settings.preferences_pb") })
+        val file = PreferenceDataStoreFactory.create(scope = backgroundScope) { folder.root.resolve("settings.preferences_pb") }
         val films = PathMapping("/media/films", "nfs://192.168.1.20/volume1/films")
         SettingsStore(file, backgroundScope, secretsOf { key }, readOn = EmptyCoroutineContext).setPathMappings(listOf(films))
         var down = true
