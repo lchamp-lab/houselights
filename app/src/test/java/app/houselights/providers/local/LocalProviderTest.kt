@@ -24,6 +24,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -578,6 +579,26 @@ class LocalProviderTest {
         LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {}).cleanup()
         assertEquals(kept, kept.filter { db.trackChoices().choice(it) != null })
         assertEquals(emptyList<String>(), gone.filter { db.trackChoices().choice(it) != null })
+    }
+
+    /** The cleanup keys titles as playback does ([tracksKey]): no choice saved under a row's own key is deleted. */
+    @Test
+    fun theCleanupKeepsEveryKeyPlaybackSavesUnder() = runTest {
+        val first = movie("Dune", path = "Dune 1080p.mkv") { copy(tmdbId = 438631) }
+        val copy = movie("Dune", path = "Dune 2160p.mkv") { copy(tmdbId = 438631) }
+        val unmatched = movie("Heat")
+        val show = show("Severance")
+        val episode = show.episode(1, 1)
+        dao.groupVersions()
+        val rows = listOf(first, copy, unmatched, show.id, episode, checkNotNull(dao.item(episode)?.parentId))
+            .map { checkNotNull(dao.item(it)) }
+        assertEquals(setOf(ItemKind.MOVIE, ItemKind.SERIES, ItemKind.SEASON, ItemKind.EPISODE), rows.map { it.kind }.toSet())
+        assertNotNull("a copy", rows.firstOrNull { it.versionOf != null })
+        val keys = rows.map(::tracksKey).distinct()
+        for (key in keys) db.trackChoices().save(TrackChoiceEntity(key, "eng", null, at = 5))
+
+        dao.deleteOrphanTrackChoices()
+        assertEquals(keys, keys.filter { db.trackChoices().choice(it) != null })
     }
 
     /** French AC3 alone, read by the probe in the file's order. */
