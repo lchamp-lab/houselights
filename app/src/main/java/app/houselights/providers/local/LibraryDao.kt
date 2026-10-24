@@ -9,7 +9,6 @@ import androidx.room.RawQuery
 import androidx.room.Transaction
 import androidx.room.Update
 import androidx.sqlite.db.SupportSQLiteQuery
-import app.houselights.core.Job
 import kotlinx.coroutines.flow.Flow
 
 /** Max ids bound per statement: Android 9's SQLite (3.22) allows 999 variables; Robolectric more, so tests check it. */
@@ -20,7 +19,7 @@ private const val SET_PLAYED =
     "UPDATE items SET played = :played, positionMs = 0, lastPlayedAt = CASE WHEN :played THEN :now ELSE NULL END"
 
 /** Row :id plus, for a film, its other copies ([ItemEntity.versionOf]), which share watched and favourite state. */
-private const val COPIES =
+internal const val COPIES =
     "(id = :id OR id = (SELECT versionOf FROM items WHERE id = :id) " +
         "OR versionOf = (SELECT COALESCE(versionOf, id) FROM items WHERE id = :id AND kind = 'MOVIE'))"
 
@@ -35,39 +34,8 @@ private const val TRACK_KEYS =
     "SELECT CASE WHEN kind = 'MOVIE' AND tmdbId IS NOT NULL THEN 'local:film:' || tmdbId ELSE 'local:' || id END " +
         "FROM items WHERE kind IN ('MOVIE', 'SERIES')"
 
-/** Number of titles crediting c's person, counting a multi-copy film once (see [LibraryDao.creditsOf]). */
-private const val TITLES_OF_PERSON =
-    "(SELECT COUNT(DISTINCT o.itemId) FROM credits o JOIN items oi ON oi.id = o.itemId " +
-        "WHERE o.personKey = c.personKey AND oi.versionOf IS NULL)"
-
-private const val PERSON_SUMMARY =
-    "SELECT c.personKey, MIN(c.name) AS name, MAX(c.profilePath) AS profilePath, COUNT(DISTINCT c.itemId) AS titles " +
-        "FROM credits c JOIN items i ON i.id = c.itemId"
-/** A source password as stored: sealed, or plain text not yet sealed ([LibraryDatabase.sealPlainPasswords]). */
-data class StoredPassword(val id: Long, val password: String) {
-    override fun toString() = "StoredPassword($id, ***)"
-}
-
 /** Counts shown on a source's settings showcase: titles (films and shows), Ultra HD files, shows and their episodes. */
 data class FolderCounts(val sourceId: Long, val titles: Int, val ultraHd: Int, val shows: Int = 0, val episodes: Int = 0)
-
-/** A credit of a title, with the number of library titles crediting that person ([LibraryDao.creditsOf]). */
-data class TitleCredit(
-    val personKey: String,
-    val name: String,
-    val job: Job,
-    val ord: Int,
-    val character: String?,
-    val profilePath: String?,
-    val titles: Int,
-)
-
-data class PersonCredit(val itemId: Long, val job: Job, val ord: Int, val name: String, val character: String?, val profilePath: String?)
-
-data class PersonSummary(val personKey: String, val name: String, val profilePath: String?, val titles: Int)
-
-/** A person's TMDB key for a folded name ([LibraryDao.tmdbKeysOf]). */
-data class NamedKey(val foldedName: String, val personKey: String)
 
 /** A saga part as TMDB lists it, with the library's matching item, if any. */
 data class SagaPartRow(@Embedded val part: SagaPartEntity, val itemId: Long?)
@@ -96,76 +64,18 @@ data class FileFacts(
 /** A distinct file ending of the library ([LibraryDao.fileEnds]). */
 data class FileEnd(val tail: String, val bluRay: Boolean, val dvd: Boolean)
 
-data class SearchRef(val ref: String)
-
+/**
+ * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
+ * extends: [SourceDao], [PlaybackStateDao], [CreditDao] or [SearchWordDao].
+ */
 @Dao
-interface LibraryDao {
-    // Sources
-    @Query("SELECT * FROM sources ORDER BY kind, name")
-    fun observeSources(): Flow<List<SourceEntity>>
-
-    @Query("SELECT * FROM sources ORDER BY kind, name")
-    suspend fun sources(): List<SourceEntity>
-
-    @Query("SELECT id, firstScanAt FROM sources")
-    suspend fun firstScans(): List<SourceFirstScan>
-
-    @Insert
-    suspend fun insertSource(source: SourceEntity): Long
-
-    @Update
-    suspend fun updateSource(source: SourceEntity)
-
-    /** Updates address and credentials in place, keeping id, kind and scan dates, so titles keep their user state. */
-    @Query(
-        "UPDATE sources SET name = :name, protocol = :protocol, host = :host, share = :share, path = :path, " +
-            "username = :username, password = :password WHERE id = :id"
-    )
-    @Suppress("LongParameterList") // One per column written.
-    suspend fun updateConnection(
-        id: Long,
-        name: String,
-        protocol: Protocol,
-        host: String,
-        share: String,
-        path: String,
-        username: String,
-        password: Secret,
-    )
-
-    @Query("SELECT * FROM sources WHERE id = :id")
-    suspend fun source(id: Long): SourceEntity?
-
-    /** Raw stored passwords, sealed or not, read without unsealing ([LibraryDatabase.sealPlainPasswords]). */
-    @Query("SELECT id, password FROM sources WHERE password != ''")
-    suspend fun storedPasswords(): List<StoredPassword>
-
-    /** Replaces the [plain] password with [sealed], unless the source was saved since it was read. */
-    @Query("UPDATE sources SET password = :sealed WHERE id = :id AND password = :plain")
-    suspend fun sealPassword(id: Long, plain: String, sealed: String)
-
-    /** Writes only the scan columns: the row may have changed meanwhile, and rewriting it would reseal the password. */
-    @Query("UPDATE sources SET lastScanAt = :at, firstScanAt = CASE WHEN firstScanAt = 0 THEN :at ELSE firstScanAt END WHERE id = :id")
-    suspend fun markScanned(id: Long, at: Long)
-
-    /** Asks every folder to be read again whole in [language] ([SourceEntity.refreshIn]). */
-    @Query("UPDATE sources SET refreshIn = :language")
-    suspend fun refreshAllIn(language: String)
-
-    /** Clears [id]'s request once read whole in [language], unless another language was asked meanwhile. */
-    @Query("UPDATE sources SET refreshIn = NULL WHERE id = :id AND refreshIn = :language")
-    suspend fun refreshedIn(id: Long, language: String)
-
+interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
     /** Applies to all copies of a film ([COPIES]). */
     @Query("$SET_PLAYED WHERE $COPIES")
     suspend fun setPlayed(id: Long, played: Boolean, now: Long)
-
-    /** Marks the other copies of film [id] watched, keeping their resume points, after one copy was finished. */
-    @Query("UPDATE items SET played = 1 WHERE played = 0 AND $COPIES")
-    suspend fun setCopiesPlayed(id: Long)
 
     @Query("$SET_PLAYED WHERE kind = 'EPISODE' AND seriesId = :seriesId")
     suspend fun setSeriesPlayed(seriesId: Long, played: Boolean, now: Long)
@@ -183,19 +93,6 @@ interface LibraryDao {
     /** Sets the copy to play on main row [id] ([ItemEntity.versionChoice]); null plays the best copy. */
     @Query("UPDATE items SET versionChoice = :choice WHERE id = :id")
     suspend fun setVersionChoice(id: Long, choice: Long?)
-
-    /** Writes only lastPlayedAt, since a late report from the previous session may update the rest meanwhile. */
-    @Query("UPDATE items SET lastPlayedAt = :now WHERE id = :id")
-    suspend fun setLastPlayedAt(id: Long, now: Long)
-
-    @Query(
-        "UPDATE items SET positionMs = :positionMs, durationMs = :durationMs, played = :played, " +
-            "lastPlayedAt = :lastPlayedAt WHERE id = :id"
-    )
-    suspend fun savePlayback(id: Long, positionMs: Long, durationMs: Long?, played: Boolean, lastPlayedAt: Long)
-
-    @Query("DELETE FROM sources WHERE id = :id")
-    suspend fun deleteSource(id: Long)
 
     // Items
 
@@ -227,10 +124,6 @@ interface LibraryDao {
 
     @Query("SELECT sourceId, nfoPath, nfo FROM items WHERE id = :id")
     suspend fun nfoOf(id: Long): ItemNfo?
-
-    /** Columns needed by playback progress reports, read every ten seconds during playback. */
-    @Query("SELECT parts, positionMs, durationMs, fileDurationMs, runtimeMin, played FROM items WHERE id = :id")
-    suspend fun playState(id: Long): PlayState?
 
     /** A source's file rows without NFO text; used by tests to inspect a scan's result. */
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")
@@ -736,56 +629,7 @@ interface LibraryDao {
     )
     suspend fun sagaParts(collectionId: Long): List<SagaPartRow>
 
-    // Credits
-
-    @Query("SELECT * FROM credits WHERE itemId = :itemId AND job = 'CAST' ORDER BY ord")
-    suspend fun cast(itemId: Long): List<CreditEntity>
-
-    /** Credits of title [itemId] by job in billing order, each with its person's title count. */
-    @Query(
-        "SELECT c.personKey, c.name, c.job, c.ord, c.character, c.profilePath, $TITLES_OF_PERSON AS titles " +
-            "FROM credits c WHERE c.itemId = :itemId ORDER BY c.job, c.ord"
-    )
-    suspend fun creditsOf(itemId: Long): List<TitleCredit>
-
-    @Query(
-        "SELECT c.itemId, c.job, c.ord, c.name, c.character, c.profilePath FROM credits c JOIN items i ON i.id = c.itemId " +
-            "WHERE c.personKey = :personKey AND i.versionOf IS NULL"
-    )
-    suspend fun creditsOfPerson(personKey: String): List<PersonCredit>
-
-    /** People of [job] credited on at least [minTitles] titles of [kind] (any if null), most titles first. */
-    @Query(
-        "$PERSON_SUMMARY WHERE c.job = :job AND i.versionOf IS NULL AND (:kind IS NULL OR i.kind = :kind) " +
-            "GROUP BY c.personKey HAVING COUNT(DISTINCT c.itemId) >= :minTitles ORDER BY titles DESC, name LIMIT :limit"
-    )
-    suspend fun topPeople(job: Job, kind: ItemKind?, minTitles: Int, limit: Int): List<PersonSummary>
-
-    @Query("$PERSON_SUMMARY WHERE c.personKey IN (:personKeys) AND i.versionOf IS NULL GROUP BY c.personKey")
-    suspend fun people(personKeys: List<String>): List<PersonSummary>
-
-    @Query("DELETE FROM credits WHERE itemId = :itemId")
-    suspend fun deleteCredits(itemId: Long)
-
-    /** Deletes the credits of [itemId] for [jobs] (enum names). */
-    @Query("DELETE FROM credits WHERE itemId = :itemId AND job IN (:jobs)")
-    suspend fun deleteCreditsIn(itemId: Long, jobs: List<String>)
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCredits(credits: List<CreditEntity>)
-
-    @Query("SELECT DISTINCT personKey FROM credits WHERE personKey IN (:personKeys)")
-    suspend fun heldKeys(personKeys: List<String>): List<String>
-
-    /** TMDB keys already used in credits for [foldedNames]. */
-    @Query(
-        "SELECT foldedName, MIN(personKey) AS personKey FROM credits WHERE foldedName IN (:foldedNames) " +
-            "AND personKey LIKE '${PersonKeys.TMDB}%' GROUP BY foldedName"
-    )
-    suspend fun tmdbKeysOf(foldedNames: List<String>): List<NamedKey>
-
-    @Query("UPDATE credits SET personKey = :personKey WHERE personKey = :former")
-    suspend fun rekeyPerson(former: String, personKey: String)
+    // Credits, where they reach the titles or the search words (the credits table alone is CreditDao's)
 
     @Query("UPDATE items SET creditsAt = :at WHERE id = :id")
     suspend fun setCreditsAt(id: Long, at: Long)
@@ -832,16 +676,4 @@ interface LibraryDao {
     /** Writes only the backfill's votes, edition and credits time, never user state. */
     @Query("UPDATE items SET votes = :votes, edition = :edition, creditsAt = :at WHERE id = :id")
     suspend fun setBackfilled(id: Long, votes: Int?, edition: String?, at: Long)
-
-    // Search
-
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertSearchWords(words: List<SearchWordEntity>)
-
-    @Query("DELETE FROM search_words WHERE kind = :kind AND ref = :ref")
-    suspend fun deleteSearchWords(kind: SearchKind, ref: String)
-
-    /** Runs the search query built by [LocalCatalog]: one primary-key range per word and kind. */
-    @RawQuery
-    suspend fun searchRefs(query: SupportSQLiteQuery): List<SearchRef>
 }
