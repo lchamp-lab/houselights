@@ -215,7 +215,10 @@ class JellyfinProvider(
     }
 
     override suspend fun samplePath(): String? = row("Sample path") {
-        api.items(userId, null, "Movie,Episode", true, "Random", "Ascending", 0, 1, "Path").items.firstOrNull()?.path
+        api.items(
+            userId = userId, parentId = null, includeItemTypes = "Movie,Episode", recursive = true,
+            sortBy = "Random", sortOrder = "Ascending", startIndex = 0, limit = 1, fields = "Path",
+        ).items.firstOrNull()?.path
     }.getOrNull()
 
     /** Plays the item's first media source, the one the server plays. */

@@ -53,6 +53,7 @@ interface JellyfinApi {
         @Query("fields") fields: String,
     ): List<BaseItem>
 
+    /** Always called with named arguments: neighbours share their types, so a slip in order would still compile. */
     @GET("Items")
     @Suppress("LongParameterList") // One per query parameter of the route.
     suspend fun items(
