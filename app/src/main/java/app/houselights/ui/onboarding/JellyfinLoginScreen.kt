@@ -63,8 +63,8 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
         }.tryRequestFocus()
     }
     val server = vm.server
-    // The server found on the network that the address names, as it announced it or where its check reaches it.
-    val chosen = vm.discovered.find { vm.addressOf(it).sameServer(server) || it.address.sameServer(server) }
+    // The server picked, else the one found that the address names, as announced or where its check reaches it.
+    val chosen = vm.pickedServer ?: vm.discovered.find { vm.addressOf(it).sameServer(server) || it.address.sameServer(server) }
     // While the address is the one picking it gave, signing in follows its check, which the panel says.
     val check = vm.pickedCheck
     val error = vm.error?.let { loginErrorText(it) }

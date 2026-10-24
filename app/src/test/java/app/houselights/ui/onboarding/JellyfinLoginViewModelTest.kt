@@ -60,10 +60,14 @@ class JellyfinLoginViewModelTest {
 
         override suspend fun discover() = listOf(MAISON)
 
-        /** What checking a server found says, once it does. */
+        /** What checking a server found says, once it does, then checking it again. */
         val check = CompletableDeferred<ServerCheck>()
+        val again = CompletableDeferred<ServerCheck>()
 
-        override suspend fun check(found: DiscoveredServer): ServerCheck = check.await()
+        /** How many times a server found was checked. */
+        var checks = 0
+
+        override suspend fun check(found: DiscoveredServer): ServerCheck = (if (++checks == 1) check else again).await()
 
         /** Each address asked. */
         val reached = mutableListOf<String>()
@@ -151,10 +155,39 @@ class JellyfinLoginViewModelTest {
         assertEquals(listOf(MAISON.address), network.reached)
     }
 
-    /** Picked though it did not answer, it is tried at the address it announced, which names a failure. */
+    /**
+     * Picked though it did not answer, it is checked again before anything is sent, its row and the panel saying so,
+     * then reached as that check says: its HTTPS address is never skipped for the plain one.
+     */
     @Test
-    fun aServerPickedSilentIsTriedAtTheAddressItAnnounced() = runTest {
+    fun aServerPickedSilentIsCheckedAgainBeforeSigningIn() = runTest {
         network.check.complete(ServerCheck.Silent)
+        network.authFailure = http(401)
+        val vm = login()
+        advanceUntilIdle()
+        vm.choose(MAISON)
+        vm.login {}
+        waitFor("checked again") { network.checks == 2 }
+        assertEquals(ServerCheck.Checking, vm.checkOf(MAISON))
+        assertEquals(ServerCheck.Checking, vm.pickedCheck)
+        assertTrue(network.reached.isEmpty())
+        network.again.complete(ServerCheck.Encrypted(TWIN))
+        settle(vm)
+        assertEquals(listOf(TWIN), network.reached)
+        assertEquals(TWIN, vm.server)
+        assertEquals(ServerCheck.Encrypted(TWIN), vm.pickedCheck)
+        // Signing in again follows that check, without another.
+        vm.login {}
+        settle(vm)
+        assertEquals(listOf(TWIN, TWIN), network.reached)
+        assertEquals(2, network.checks)
+    }
+
+    /** Still silent once checked again, it is tried once at the address it announced, which names a failure. */
+    @Test
+    fun aServerStillSilentIsTriedAtTheAddressItAnnounced() = runTest {
+        network.check.complete(ServerCheck.Silent)
+        network.again.complete(ServerCheck.Silent)
         network.reachFailure = IOException("Connection refused")
         val vm = login()
         advanceUntilIdle()
@@ -162,6 +195,7 @@ class JellyfinLoginViewModelTest {
         assertEquals(MAISON.address, vm.server)
         vm.login {}
         settle(vm)
+        assertEquals(2, network.checks)
         assertEquals(listOf(MAISON.address), network.reached)
         assertEquals(LoginError.Unreachable(MAISON.address), vm.error)
     }

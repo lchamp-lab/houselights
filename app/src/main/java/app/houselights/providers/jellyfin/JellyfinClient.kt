@@ -170,7 +170,7 @@ class JellyfinClient(
          * The first supported server among [candidateUrls], with its public info. Throws [InvalidServerAddress],
          * [UnsupportedServer], or [ReachFailure] when none answers or a certificate is refused: plain HTTP after it
          * would carry the password in the clear, so only typing http:// chooses it, or picking a server found that
-         * [check] found plain.
+         * [check] found plain, or silent twice.
          */
         suspend fun reach(input: String, deviceId: String, http: OkHttpClient = Http.client): Pair<String, PublicSystemInfo> {
             val candidates = checkedCandidates(input)

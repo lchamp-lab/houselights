@@ -141,6 +141,19 @@ class ServerFoundTest {
         compose.onNodeWithText("HTTPS").assertDoesNotExist()
     }
 
+    /** One announcing its HTTPS address, picked while checked: chosen all the same, its address without a protocol. */
+    @Test
+    fun aServerAnnouncingHttpsPickedWhileCheckedIsChosen() {
+        val named = DiscoveredServer("https://jellyfin.example.org", "Salon", "a")
+        val vm = form(Found(listOf(named), emptyMap()))
+        vm.choose(named)
+        compose.waitForIdle()
+        assertEquals("jellyfin.example.org", vm.server)
+        compose.onNodeWithText("Server found").assertExists()
+        compose.onAllNodesWithText("Salon").assertCountEquals(2)
+        compose.onNode(hasText("Salon") and SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)).assertExists()
+    }
+
     private companion object {
         val SALON = DiscoveredServer("http://192.168.1.20:8096", "Salon", "a")
         val BUREAU = DiscoveredServer("http://192.168.1.31:8096", "NAS du bureau", "b")

@@ -188,9 +188,13 @@ class JellyfinLoginViewModel(
     /** Where signing in reaches [found]: the address its check verified, else the one it announced. */
     fun addressOf(found: DiscoveredServer): String = checkOf(found).url ?: found.address
 
-    /** The check of the server picked while the address field holds what picking it put there: signing in follows it. */
+    /** The server picked while the address field holds what picking it, then its check, put there. */
+    val pickedServer: DiscoveredServer?
+        get() = pick?.takeIf { server == picked }
+
+    /** The check of [pickedServer], which signing in follows. */
     val pickedCheck: ServerCheck?
-        get() = pick?.takeIf { server == picked }?.let(::checkOf)
+        get() = pickedServer?.let(::checkOf)
 
     /** A form field: changing it clears the last attempt's error, which no longer applies. */
     private inner class Field : ReadWriteProperty<Any?, String> {
@@ -216,13 +220,13 @@ class JellyfinLoginViewModel(
         busy = true
         error = null
         val asked = typed()
-        val found = pick?.takeIf { server == picked }
+        val found = pickedServer
         viewModelScope.launch {
             var address = JellyfinClient.normalizeUrl(server)
             suspendRunCatching {
                 val deviceId = saving { settings.ensureDeviceId() }
                 // A server picked is reached where its check says, over HTTPS alone once encrypted; else as typed.
-                val input = found?.let { (checking[it]?.await() ?: checkOf(it)).url ?: it.address } ?: server
+                val input = found?.let { target(it) } ?: server
                 address = JellyfinClient.normalizeUrl(input)
                 val (reached, info) = network.reach(input, deviceId)
                 address = reached
@@ -239,8 +243,21 @@ class JellyfinLoginViewModel(
         }
     }
 
+    /**
+     * Where signing in reaches [found], once its check has said: checked again first if it did not answer, so its
+     * HTTPS address is never passed over for the plain one; still silent, the address it announced.
+     */
+    private suspend fun target(found: DiscoveredServer): String {
+        var result = checks[found] ?: checking[found]?.await() ?: ServerCheck.Silent
+        if (result == ServerCheck.Silent) {
+            checks -= found
+            result = check(found)
+        }
+        return result.url ?: found.address
+    }
+
     /** What signing in used: a server picked stays the same while the field holds its address, its check's included. */
-    private fun typed() = listOf(pick?.takeIf { server == picked } ?: server, user, password)
+    private fun typed() = listOf(pickedServer ?: server, user, password)
 
     companion object {
         fun factory(app: AppContainer, fill: LoginFill): ViewModelProvider.Factory = viewModelFactory {
