@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
@@ -63,7 +64,7 @@ class DetailFailuresTest {
     @After
     fun stop() = work.cancel()
 
-    private fun page(id: String) {
+    private fun page(id: String): DetailViewModel {
         val vm = DetailViewModel(id, { provider }, FakeEvents(), work, tracksOf = { null })
         compose.setTvContent {
             DetailPage(
@@ -78,6 +79,7 @@ class DetailFailuresTest {
             )
         }
         compose.waitForIdle()
+        return vm
     }
 
     private fun text(id: Int) = context.getString(id)
@@ -159,6 +161,37 @@ class DetailFailuresTest {
         compose.waitForIdle()
         button(R.string.play).assertIsFocused()
         said(R.string.error_offline_title).assertDoesNotExist()
+    }
+
+    /** Lire focused as a reload cannot read the next episode: focus goes to the Réessayer in its place, never lost. */
+    @Test
+    fun lireFocusedGoesToTheRetryInItsPlace() {
+        val vm = page("show")
+        button(R.string.play).assertIsFocused()
+
+        provider.fail = { if (it == "nextUp show") IOException("Server away") else null }
+        vm.onLibraryChanged()
+        compose.waitForIdle()
+        button(R.string.retry).assertIsFocused()
+    }
+
+    /** Focus moved on while Réessayer reads, to the season tabs: Lire, read, leaves it there. */
+    @Test
+    fun focusMovedOnWhileRetryingStaysWhereItWent() {
+        provider.fail = { if (it == "nextUp show") IOException("Server away") else null }
+        page("show")
+        button(R.string.retry).assertIsFocused()
+
+        provider.fail = { null }
+        val answer = provider.gate("nextUp show")
+        compose.press(Key.DirectionCenter)
+        compose.press(Key.DirectionDown)
+        val tab = compose.onNode(isSelected() and hasText("Season 1", substring = true))
+        tab.assertIsFocused()
+        answer.complete(Unit)
+        compose.waitForIdle()
+        button(R.string.play).assertIsDisplayed()
+        tab.assertIsFocused()
     }
 
     private companion object {

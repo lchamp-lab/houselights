@@ -195,7 +195,7 @@ class DetailViewModel(
 
     /**
      * A series' page: what Lire starts, its seasons, the chosen season's episodes, then [similar] titles. What Lire starts
-     * and the episodes fail apart, each said where it shows; the seasons fail the page.
+     * fails apart, said in its place, and so do episodes not shown yet, on their row; the seasons fail the page.
      */
     private suspend fun seriesPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState =
         coroutineScope {
@@ -212,7 +212,9 @@ class DetailViewModel(
                 ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
                 ?: seasons.firstOrNull()?.id
             val season = seasons.firstOrNull { it.id == seasonId }
-            val episodes = season?.let { suspendRunCatching { source.episodes(item, it) } }
+            // Shown already, episodes unread fail the reload, which keeps them; else they fail on their row.
+            val shown = _state.value.let { it.selectedSeasonId == seasonId && it.episodes.isNotEmpty() }
+            val episodes = season?.let { s -> suspendRunCatching { source.episodes(item, s) }.onFailure { if (shown) throw it } }
             DetailState(
                 item = item,
                 capabilities = source.capabilities,

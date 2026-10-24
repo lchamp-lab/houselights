@@ -415,16 +415,15 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   row shares its 600 by parts of four (`placeDoors`), so a door of two parts is as wide as two of one and their gap,
   and the doors of different rows line up: 294 + 294, 141 + 141 + 294, four of 141, three of 192 (`DoorGridTest`).
   A row left out gives its height to the one under it (`gridHeights`). `HomePlan` composes it from what home read:
-  - **The case** (`ResumeCase`) resumes the title last in progress: its backdrop cropped upright from its top (else its
-    poster), melting into its dark (`HlScrim.CASE_FOOT`), its logo or name in `headline`, its facts 12 apart
+  - **The case** (`ResumeCase`) resumes the title last in progress: its backdrop cropped upright from its top (else
+    its poster), melting into its dark (`HlScrim.CASE_FOOT`), its logo or name in `headline`, its facts 12 apart
     (`MetaLine`), its progress and time left, then its action, a plate the case's focus fills white, and under it why
-    it did not play when it failed (see *Messages*). With nothing in
-    progress, it proposes a film not seen, drawn once a session, else a show not seen, whose page it opens ("Voir la
-    série", no Play glyph), else any title (`UnseenPick`): "Pas encore vu" in `jaquette` over one not seen, its genres,
-    Lire. What it proposes is read with every read of the doors, before the libraries' (`readDoorsAsync`), so the case
-    changes in place, focus kept; only an empty library has none, focus then on the first door. OK plays; Menu opens
-    its options, which the Menu key says at the end of its action's plate while it has focus: its page, and from its
-    start once started.
+    it did not play when it failed (see *Messages*). With nothing in progress, it proposes a film not seen, drawn once
+    a session, else a show not seen, whose page it opens ("Voir la série", no Play glyph), else any title
+    (`UnseenPick`): "Pas encore vu" in `jaquette` over one not seen, its genres, Lire. What it proposes is read with
+    every read of the doors, before the libraries' (`readDoorsAsync`), so the case changes in place, focus kept; only
+    an empty library has none, focus then on the first door. OK plays; Menu opens its options, which the Menu key says
+    at the end of its action's plate while it has focus: its page, and from its start once started.
   - **What is watched**: À suivre, the next episode not already in progress (`nextUp`), its still and logo
     (`DoorStill`), its season's episodes along the band's top edge, those watched in the ember light, "S1 · É4" in
     `jaquette`; without one, the second title in progress and its part seen; without either, Nouveautés takes the
@@ -448,8 +447,9 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     nowhere else first, then those shown elsewhere, then the same again. Réglages: the app's state as a case's back
     (`DoorFacts`): Source ("Mes fichiers · NAS", only the dot quiet), Trakt where it follows the source, the last scan
     ("Il y a 2 h") or the one running, and a problem TMDB had in the last scan ("TMDB", its words in ember after the
-    attention mark: "Clé refusée", "Certificat refusé", else "Injoignable"); what the app does not know is left out, and what the door cannot hold goes by rank (`keptFacts`):
-    the source's host, then the source, then Trakt, the last scan staying, alone at the largest text.
+    attention mark: "Clé refusée", "Certificat refusé", else "Injoignable"); what the app does not know is left out,
+    and what the door cannot hold goes by rank (`keptFacts`): the source's host, then the source, then Trakt, the last
+    scan staying, alone at the largest text.
   A door (`HomeDoor`) is its picture over a band of the picture's dark (`ambientDeep`) set off by a hairline: its icon
   (18), its name in `cardName`, what it says at its end in `meta` (`jaquette` for a mark), dropped whole when the
   name leaves it no room; a name too long for its icon goes without it, a door of one part keeping them 6 apart
@@ -725,15 +725,15 @@ in a sentence; the Source row, beside its value, in fewer words, in every langua
 
 ## Messages
 
-A message appears where the action was, in the app's voice: no Toast (a test forbids it), no snackbar, no
-dialog. Back once on home is said at the end of its head (`HomeHead`'s `status`), gone after 2.5 s. A title that
-fails to play says so where play was asked (`PlayOrigin`): at the end of a page's actions, under the episode row for
-an episode, under the case's action on home (`HlStatus` `Attention`, "Lecture impossible", the reason in `meta`),
-until an OK there, another play or another screen (`PlaybackOutcome`). What fails on a title's page once its title
-shows is said where it shows, with Réessayer (`PartFailed`): the seasons or a saga under the hero, a season's
-episodes on their row; what a show's Lire starts, unread, puts Réessayer on Lire's button and why at the
-row's end. A screen that cannot load, or has nothing yet, shows an intertitle with what fixes it (`HlEmptyState`).
-Exception text never reaches the screen; it goes to the log.
+A message appears where the action was, in the app's voice: no Toast (a test forbids it), no snackbar, no dialog. Back
+once on home is said at the end of its head (`HomeHead`'s `status`), gone after 2.5 s. A title that fails to play says
+so where play was asked (`PlayOrigin`): at the end of a page's actions, under the episode row for an episode, under
+the case's action on home (`HlStatus` `Attention`, "Lecture impossible", the reason in `meta`), until an OK there,
+another play or another screen (`PlaybackOutcome`). What fails on a title's page once its title shows is said where it
+shows, with Réessayer (`PartFailed`): the seasons or a saga under the hero, a season's episodes on their row, what a
+reload cannot read again kept and said under the hero; what a show's Lire starts, unread, puts Réessayer on Lire's
+button and why at the row's end, focus following from one to the other. A screen that cannot load, or has nothing yet,
+shows an intertitle with what fixes it (`HlEmptyState`). Exception text never reaches the screen; it goes to the log.
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt.

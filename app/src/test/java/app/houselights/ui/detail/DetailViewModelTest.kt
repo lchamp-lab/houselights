@@ -521,6 +521,21 @@ class DetailViewModelTest {
         assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
     }
 
+    /** Episodes shown, a reload that cannot read them again keeps them and says why with the title, not on their row. */
+    @Test
+    fun episodesShownStayWhenAReloadCannotReadThem() = runTest {
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
+
+        provider.fail = { if (it == "episodes s1") IOException("Server away") else null }
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
+        assertNull(vm.state.value.episodesError)
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+    }
+
     /** A part failing once the title shows is said with the title, and Réessayer loads the page again. */
     @Test
     fun aPartThatFailsOnceTheTitleShowsIsSaid() = runTest {

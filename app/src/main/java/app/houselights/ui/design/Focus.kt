@@ -132,6 +132,9 @@ class FocusMemory(initial: String? = null) {
         return requesters[key]?.tryRequestFocus() == true
     }
 
+    /** Whether [key]'s element holds focus now; read as a change composes, before it removes that element. */
+    fun hasFocus(key: String): Boolean = nodes[key]?.focused == true
+
     internal fun handles(key: String): KeyHandles = handles.getOrPut(key) { KeyHandles(requesters[key] ?: FocusRequester()) }
 
     internal fun attach(node: FocusKeyNode) {
@@ -282,6 +285,9 @@ internal class FocusKeyNode(key: String, private var memory: FocusMemory, handle
         private set
 
     private var focusState: FocusState? = null
+
+    /** Holds focus, itself or within. */
+    val focused: Boolean get() = focusState?.hasFocus == true
 
     fun update(key: String, memory: FocusMemory, handles: KeyHandles) {
         if (isAttached) this.memory.detach(this)

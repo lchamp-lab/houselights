@@ -234,9 +234,9 @@ internal fun DetailPage(
         retrying = state.retrying,
         onRetry = vm::retry,
     )
-    // Réessayer gone with the failure it said, or Lire again: focus goes to Lire.
-    FocusAfterRetry(failing = state.error != null, held = RETRY_PAGE, memory, actionRow)
-    FocusAfterRetry(failing = state.nextUpError != null, held = PLAY, memory, actionRow)
+    // Réessayer gone with the failure it said, or Lire and the Réessayer in its place swapped: focus goes to Lire.
+    FocusOnPlayAfter(swap = state.error != null, held = RETRY_PAGE, memory, actionRow)
+    FocusOnPlayAfter(swap = state.nextUpError != null, held = PLAY, memory, actionRow)
 
     val recede = rememberRecede { scrolled }
 
@@ -476,25 +476,17 @@ private fun NoTitleYet(error: UiError?, onRetry: () -> Unit) {
     }
 }
 
-/** Focuses Lire, else the actions ([fallback]), once [failing] ends while the Réessayer keyed [held] had focus. */
+/** Focuses Lire, else the actions ([fallback]), once [swap] changes while the element keyed [held] had focus. */
 @Composable
-private fun FocusAfterRetry(failing: Boolean, held: String, memory: FocusMemory, fallback: FocusRequester) {
-    // Followed while failing: once that Réessayer goes, focus has moved on before this runs.
-    val had = remember { HeldFocus() }
-    LaunchedEffect(failing) {
-        if (failing) {
-            snapshotFlow { memory.last }.collect { had.held = it == held }
-        } else if (had.held) {
-            had.held = false
+private fun FocusOnPlayAfter(swap: Boolean, held: String, memory: FocusMemory, fallback: FocusRequester) {
+    // Read as the change composes: the element it removes still has focus, focus moved elsewhere is left there.
+    val had = remember(swap) { memory.hasFocus(held) }
+    LaunchedEffect(swap) {
+        if (had) {
             withFrameNanos { }
             if (!memory.focus(PLAY)) fallback.tryRequestFocus()
         }
     }
-}
-
-/** Whether a Réessayer had focus, read once it is gone. */
-private class HeldFocus {
-    var held = false
 }
 
 /** How far the backdrop recedes once scrolled ([away]), so rows read on the room; snaps at first, then animates. */
