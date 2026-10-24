@@ -20,9 +20,10 @@ Settings > About > Design system (see *Catalogue*).
    *Type*); text reaches 4.5:1 and marks 3:1 on what they sit on (see *Contrast*). Content stays inside the
    overscan-safe area (`HlSpace.safeH`, `safeV`).
 4. **One canvas.** Screens are laid out on 960 × 540 dp (`HlLayout.CANVAS_WIDTH`). `HouselightsTheme` derives
-   the density from the screen's real width, not the declared one (the Zidoo declares 240 dpi); the viewer's
-   text scale is kept. Sheets and menus, in windows of their own that would bring the declared density, are handed
-   the canvas's (`WindowDensityTest`).
+   the density from the screen's real width, not the declared one (the Zidoo declares 240 dpi), and its text size
+   from the system's times « Taille du texte » (`textScaleOf`, see *Type*). Sheets and menus, in windows of their own
+   that would bring the declared density, are handed the canvas's, text size included (`WindowDensityTest`); the
+   pictures loaded ahead are asked at it too (`PicturesAhead`).
 5. **Calm motion.** Motion answers the user, on the system's own curves. Two moments are orchestrated: the
    house lights (at launch and before playback) and the welcome wall's drift. Screens cut, never cross-fade:
    the backdrop is handed across the cut (`BackdropRelay`) and the words change at once.
@@ -329,7 +330,7 @@ the keyboard's letters are `lead` (18), a step over the names.
 
 | Style | Size / line | Voice, weight | Role |
 |---|---|---|---|
-| `titleSignature` | 72 / 72 | poster, Bold | a short title without logo on one line, measured against the logo's box (440); else `display` on two even lines (`TitleArt(measured = true)`) |
+| `titleSignature` | 72 / 72 | poster, Bold | a short title without logo on one line, measured against the logo's box (440), under the standard text size as at it; else `display` on two even lines (`TitleArt(measured = true)`) |
 | `display` | 48 / 56 | poster, Bold | a title's page without logo: two lines fill the logo's box (112) |
 | `codeSignature` | 48 / 56 | poster, Bold, +0.06 em | a code to type elsewhere (`DeviceCodePlate`): `display`'s letters set apart |
 | `headline` | 36 / 40 | poster, Bold | screen and task titles (`ScreenTitle`, `TaskTitle`); a hero's title without logo, the case's |
@@ -367,6 +368,14 @@ its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a f
   for fallback fonts. The catalogue's stress section shows the extremes.
 - **Text scale.** A frame holding text is never a fixed height: use `heightIn(min = …)`, or `textRoom(height)`
   / `textRoom(style)` where the frame must not move with its content.
+- **Taille du texte** (Réglages › Affichage, `TextSize`) multiplies the system's text size by one step of Android's
+  on either side of Standard: Compacte 0.85, titles included, in a straight line; Grande 1.15 on Android's curve,
+  which Compose applies from 1.03 (12 and 14 grow 15 to 17 %, 16 13 %, 22 7 %, 30 sp and up keep their size). The
+  product stays within 0.75 (1.5 px a sp at 1080p, the Zidoo menus' step) and 1.3 (Android's largest, which the
+  layouts are checked at): Grande on Android's largest adds nothing, and its choice says so. Grid, margins, pictures,
+  focus, icons and fixed heights stay in dp; what is measured to text follows (`textRoom`: the doors' band, a plate,
+  a head). Under 1 a title chooses its signature as at 1, then takes the size, so a smaller step never grows one
+  (`TextScaleTest`, `TextSizeLayoutTest`, `TitleArtTest`).
 
 ### Space and size (`Dimens.kt`)
 
@@ -783,7 +792,8 @@ prompt.
 
 - French uses *vous*, typographic apostrophes (’) and a no-break space (U+00A0) before `: ; ! ?` and inside
   `« »`. Every other language keeps the same polite register (*Sie*, *usted*, *u*…) and its own typography.
-- The interface speaks the device's language, or the one chosen in Affichage (`InterfaceLanguage`).
+- The interface speaks the device's language, or the one chosen in Affichage (`InterfaceLanguage`), at the text size
+  chosen there (« Taille du texte »: Compacte, Standard, Grande), Standard until changed.
 - A number never leaves its unit: `3,27 Go`, `2 h 02`, `3840 × 1608` (`formatDuration`, `formatDimensions`,
   `formatBytes`, `formatRatio` in `ui/util/Format.kt`). Time left is a duration ("Il reste 1 h 26"); progress
   reads "3 / 9".
@@ -892,6 +902,7 @@ rest.
 | `RowFrameTest`, `CardRaiseTest`, `OkPressTest`, `RecedeTest`, `ScrubTest` | the frame that travels, without recomposing; the focused card on top; OK on its release; siblings stepping back in steps; an arrow held |
 | `FocusReachTest`, `HomeLayoutTest`, `DoorGridTest`, `DetailLayoutTest`, `WelcomeLayoutTest`, `FormLayoutTest`, `SettingRowTest`, `PaneRowLineTest`, `PaneHeadTest`, `SheetRhythmTest`, `DeviceCodeTest` | the frame inside the room kept for it and inside the safe area, a row's glow drawn whole past it, a wall's faded where its grid cuts it; home's grid and its doors' parts, a page's first view, the welcome screen and the forms; setting rows' heights; a pane's or a sheet's row described on one line; a pane's title and About's lockup on the screen title's baseline at every text size; a sheet's lines on the board's; a code never cut |
 | `TypeScaleTest`, `TypeRolesTest`, `SpacingGridTest`, `LayoutTokensTest`, `GroundTest`, `TextRoomTest` | type scale (sizes, lines, a floor a voice, tv-material's roles), the components' roles on it, 4 dp grid, screen grid read by screens (not the catalogue), grounds, text room at every text size |
+| `TextScaleTest`, `TextSizeLayoutTest`, `TextSizeRowTest` | « Taille du texte »: the system's size times the step, within 0.75 and 1.3, Grande on Android's curve; home, a title's page and the settings cutting nothing at 0.75 that 1.3 or 1 does not; its row and sheet, kept in the settings |
 | `ResourceTokensTest`, `StringsTest`, `BrandTest` | resources in step with tokens; typography of resources, every translation complete; the mark's vectors and the lockup |
 | `CatalogCoverageTest` | every public component, shape, `HlIcons` glyph, colour role and type style in the catalogue |
 | `DesignDocTest` | every system name this document cites still exists |
@@ -924,7 +935,7 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, people; progress lines, skeletons, artwork choices, results, thumbnails |
 | `CatalogDoors` | home's head, its case resuming and proposing, then after a failed play by each remedy, and each door at its size: a still and its season, a band of posters, counts cut in posters and in ink at one size, sagas, a wall out, the app's state |
 | `CatalogReading` | title art, episode headings, meta and title lines, formats, a row's billing, the billing block, hero info, the technical sheet, search and its keys, the synopsis, versions |
-| `CatalogStress` | the longest labels, the largest text size, fallback scripts, device metrics |
+| `CatalogStress` | the longest labels, the largest and smallest text sizes the app lays out at, fallback scripts, device metrics |
 | `CatalogBrand` | the icon and banner as a launcher draws them, the launch mark in its circle, the lockup |
 
 ## Adding a screen

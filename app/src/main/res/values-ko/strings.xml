@@ -558,6 +558,16 @@
     <string name="ui_resolution_desc">재생 중에는 플레이어의 모드</string>
     <string name="interface_language">인터페이스 언어</string>
     <string name="interface_language_desc">메뉴, 설정, 메시지</string>
+    <string name="text_size">글자 크기</string>
+    <string name="text_size_desc">앱의 모든 텍스트</string>
+    <string name="text_size_sheet">Houselights의 모든 텍스트를 키우거나 줄입니다. 격자와 여백은 바뀌지 않습니다.</string>
+    <string name="text_size_compact">컴팩트</string>
+    <string name="text_size_compact_desc">가까이에서 읽을 때</string>
+    <string name="text_size_standard">표준</string>
+    <string name="text_size_standard_desc">권장</string>
+    <string name="text_size_large">크게</string>
+    <string name="text_size_large_desc">멀리서 읽을 때</string>
+    <string name="text_size_large_reached">Android 설정에서 이미 이 크기입니다</string>
     <string name="ui_4k_desc">4K TV에서 선명한 인터페이스</string>
     <string name="ui_system_desc">시스템이 선택한 모드</string>
     <string name="current_output">출력</string>

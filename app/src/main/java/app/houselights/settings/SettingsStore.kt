@@ -72,6 +72,7 @@ private object Keys {
     val audioLanguage = stringPreferencesKey("audio_language")
     val subtitleMode = stringPreferencesKey("subtitle_mode")
     val subtitleLanguage = stringPreferencesKey("subtitle_language")
+    val textSize = stringPreferencesKey("text_size")
     val settingsReset = booleanPreferencesKey("settings_reset")
 }
 
@@ -148,6 +149,8 @@ data class AppSettings(
     val trakt: TraktSession? = null,
     /** The audio and subtitles asked of the player for every title; by default the player chooses. */
     val tracks: TrackPreferences = TrackPreferences(),
+    /** « Taille du texte »: the step on the system's text size every screen is laid out at. */
+    val textSize: TextSize = TextSize.STANDARD,
     /** Secrets that can never be read back (another key, a damaged or renamed value): each reads as unset until saved again. */
     val lostSecrets: Set<SecretSetting> = emptySet(),
     /** Secrets the Keystore did not open at this read, though stored intact: each reads as unset until read again. */
@@ -168,8 +171,8 @@ data class AppSettings(
         "AppSettings(loaded=$loaded, source=$source, keptServer=$keptServer, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
             "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
             "collectionMinFilms=$collectionMinFilms, metadataLanguage=$metadataLanguage, libraryLanguage=$libraryLanguage, " +
-            "trakt=$trakt, tracks=$tracks, lostSecrets=$lostSecrets, unreadSecrets=$unreadSecrets, readFailed=$readFailed, " +
-            "settingsReset=$settingsReset)"
+            "trakt=$trakt, tracks=$tracks, textSize=$textSize, lostSecrets=$lostSecrets, unreadSecrets=$unreadSecrets, " +
+            "readFailed=$readFailed, settingsReset=$settingsReset)"
 }
 
 class SettingsStore(
@@ -277,6 +280,7 @@ class SettingsStore(
             subtitles = SubtitleMode.entries.firstOrNull { it.name == this[Keys.subtitleMode] } ?: SubtitleMode.PLAYER,
             subtitleLanguage = this[Keys.subtitleLanguage],
         ),
+        textSize = TextSize.entries.firstOrNull { it.name == this[Keys.textSize] } ?: TextSize.STANDARD,
         lostSecrets = unopened.lost,
         unreadSecrets = unopened.unread,
         settingsReset = this[Keys.settingsReset] ?: false,
@@ -405,6 +409,10 @@ class SettingsStore(
             it[Keys.subtitleMode] = tracks.subtitles.name
             if (tracks.subtitleLanguage == null) it.remove(Keys.subtitleLanguage) else it[Keys.subtitleLanguage] = tracks.subtitleLanguage
         }
+    }
+
+    suspend fun setTextSize(size: TextSize) {
+        write { if (size == TextSize.STANDARD) it.remove(Keys.textSize) else it[Keys.textSize] = size.name }
     }
 
     /** Saves the Trakt account's tokens sealed, or forgets them ([session] null). */

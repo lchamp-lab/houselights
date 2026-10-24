@@ -89,8 +89,8 @@ import app.houselights.ui.home.HomeActions
 import app.houselights.ui.home.HomeScreen
 import app.houselights.ui.home.WatchScreen
 import app.houselights.ui.library.WallView
-import app.houselights.ui.design.components.PicturesAhead
-import app.houselights.ui.util.screenWidthPx
+import app.houselights.ui.design.components.rememberPicturesAhead
+import app.houselights.ui.design.textScaleOf
 import androidx.compose.ui.platform.LocalContext
 import app.houselights.ui.home.HomeViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -108,6 +108,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import app.houselights.settings.AppSettings
 import app.houselights.settings.DisplayModes
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
@@ -199,7 +200,9 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            HouselightsTheme {
+            // One read for the theme and the screens: nothing shows before the settings are read, then at their text size.
+            val settings = container.settings.state.collectAsStateWithLifecycle()
+            HouselightsTheme(textStep = settings.value.textSize.step) {
                 val nav = rememberNavController()
                 val fixError = remember(nav) { nav::fixError }
                 val relay = remember { BackdropRelay() }
@@ -220,7 +223,7 @@ class MainActivity : ComponentActivity() {
                     // The window background is already the room (@color/room): no second black under every screen.
                     Box(Modifier.fillMaxSize()) {
                         LeavingBackdrop(relay)
-                        AppNavigation(nav, onPlay = ::play)
+                        AppNavigation(nav, settings, onPlay = ::play)
                         HouseLights()
                     }
                 }
@@ -237,9 +240,15 @@ class MainActivity : ComponentActivity() {
         val launch = container.launch
         val held = !launch.isOpen
         covered = held
-        val pictures = loadFirstPictures(applicationContext, resources.displayMetrics.widthPixels, container.cutPosters) {
-            container.providerOrNull()?.capabilities?.search == true
-        }
+        val system = resources.configuration.fontScale
+        val settings = container.settings
+        val pictures = loadFirstPictures(
+            applicationContext,
+            resources.displayMetrics.widthPixels,
+            // Read once the settings are, as home is laid out.
+            textScale = { textScaleOf(system, settings.state.value.textSize.step) },
+            cuts = container.cutPosters,
+        ) { container.providerOrNull()?.capabilities?.search == true }
         container.homeLaunch.begin(container.scope, restored, pictures)
         splash.setOnExitAnimationListener { view ->
             if (!held) {
@@ -369,9 +378,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, PlayOrigin) -> Unit) {
+private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPlay: (MediaItem, Boolean, PlayOrigin) -> Unit) {
     val app = appContainer()
-    val settings by app.settings.state.collectAsStateWithLifecycle()
+    val settings by read
     val folders by app.hasFolders.collectAsStateWithLifecycle()
     if (!settings.loaded) {
         // Never a black screen: unreadable settings show an error with a retry.
@@ -432,7 +441,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
         }
         composable<Route.Home> { entry ->
             val context = LocalContext.current
-            val screen = screenWidthPx()
+            val ahead = rememberPicturesAhead()
             WithSource(source) {
                 HomeScreen(
                     nav.homeActions(
@@ -442,7 +451,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean, P
                             onOpenItem = { openItem(it.id) },
                             onAddFolder = { nav.navigate(Route.AddFolder()) },
                             onLibraryAhead = { library, sagas ->
-                                app.libraryAhead.ask(app.scope, library, sagas, PicturesAhead(context, screen), context.imageLoader)
+                                app.libraryAhead.ask(app.scope, library, sagas, ahead, context.imageLoader)
                             },
                         ),
                     ),

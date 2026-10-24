@@ -591,6 +591,16 @@
     <string name="ui_resolution_desc">In playback, the player’s own mode</string>
     <string name="interface_language">Interface language</string>
     <string name="interface_language_desc">Menus, settings and messages</string>
+    <string name="text_size">Text size</string>
+    <string name="text_size_desc">All the app’s text</string>
+    <string name="text_size_sheet">Makes all of Houselights’ text larger or smaller. The grid and the margins stay as they are.</string>
+    <string name="text_size_compact">Compact</string>
+    <string name="text_size_compact_desc">For reading up close</string>
+    <string name="text_size_standard">Standard</string>
+    <string name="text_size_standard_desc">Recommended</string>
+    <string name="text_size_large">Large</string>
+    <string name="text_size_large_desc">For reading from further away</string>
+    <string name="text_size_large_reached">Already reached by Android’s setting</string>
     <string name="ui_4k_desc">A sharp interface on 4K TVs</string>
     <string name="ui_system_desc">The mode chosen by the system</string>
     <string name="current_output">Output</string>

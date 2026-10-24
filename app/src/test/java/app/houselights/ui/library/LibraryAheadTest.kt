@@ -50,7 +50,7 @@ class LibraryAheadTest {
     private val sagas = Library("sagas", LibraryKind.COLLECTIONS, "Sagas")
 
     private fun TestScope.ask(library: Library, sagas: Library? = null) {
-        ahead.ask(this, library, sagas, PicturesAhead(context, SCREEN_PX), loader)
+        ahead.ask(this, library, sagas, PicturesAhead(context, SCREEN_PX, textScale = 1f), loader)
     }
 
     @Test

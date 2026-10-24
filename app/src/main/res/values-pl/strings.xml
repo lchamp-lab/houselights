@@ -604,6 +604,16 @@
     <string name="ui_resolution_desc">Przy odtwarzaniu decyduje Zidoo</string>
     <string name="interface_language">Język interfejsu</string>
     <string name="interface_language_desc">Menu, ustawienia i komunikaty</string>
+    <string name="text_size">Rozmiar tekstu</string>
+    <string name="text_size_desc">Wszystkie teksty w aplikacji</string>
+    <string name="text_size_sheet">Powiększa lub zmniejsza wszystkie teksty w Houselights. Siatka i marginesy się nie zmieniają.</string>
+    <string name="text_size_compact">Kompaktowy</string>
+    <string name="text_size_compact_desc">Do czytania z bliska</string>
+    <string name="text_size_standard">Standardowy</string>
+    <string name="text_size_standard_desc">Zalecany</string>
+    <string name="text_size_large">Duży</string>
+    <string name="text_size_large_desc">Do czytania z daleka</string>
+    <string name="text_size_large_reached">Już osiągnięty w ustawieniach Androida</string>
     <string name="ui_4k_desc">Ostry interfejs na telewizorach 4K</string>
     <string name="ui_system_desc">Tryb wybrany przez system</string>
     <string name="current_output">Wyjście</string>

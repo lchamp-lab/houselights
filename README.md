@@ -77,6 +77,8 @@ gratuite, l’application est entièrement en français. [Installer](#install)
 - **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,
   Polish, Chinese (simplified and traditional), Japanese and Korean, and details in the language of your
   choice. Both follow the device unless chosen in the settings.
+- **At your distance**: the text one step smaller or larger than Android's (Settings > Display > Text size),
+  for a screen read from close by or from the far end of the room; the grid and the pictures keep their size.
 
 ## Screenshots
 

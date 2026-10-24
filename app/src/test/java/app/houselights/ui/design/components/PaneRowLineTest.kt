@@ -114,6 +114,10 @@ class PaneRowLineTest {
             Line(local.resources.getString(R.string.trakt_skipped_desc), "$tag: trakt_skipped_desc", Beside.None),
             line(R.string.ui_resolution_desc, value = longest(R.string.ui_4k, R.string.ui_system)),
             line(R.string.interface_language_desc, value = language),
+            line(
+                R.string.text_size_desc,
+                value = longest(R.string.text_size_compact, R.string.text_size_standard, R.string.text_size_large),
+            ),
             line(R.string.cleanup_desc),
             line(R.string.clear_cache_desc, value = CACHE),
             line(R.string.support_desc),
@@ -157,6 +161,10 @@ class PaneRowLineTest {
             line(R.string.collections_off_desc, Beside.Check),
             line(R.string.ui_4k_desc, Beside.Check),
             line(R.string.ui_system_desc, Beside.Check),
+            line(R.string.text_size_compact_desc, Beside.Check),
+            line(R.string.text_size_standard_desc, Beside.Check),
+            line(R.string.text_size_large_desc, Beside.Check),
+            line(R.string.text_size_large_reached, Beside.Check),
         )
     }
 

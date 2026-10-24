@@ -158,17 +158,19 @@ class HomeLaunch(
 }
 
 /**
- * Preloads Home's first-view pictures for a [screenWidthPx] screen, each as soon as what shows it is read; Home awaits
- * each one ([LoadingAhead]). What the rows show loads at once, the case proposed once drawn ([DoorsRead.first]), the
- * doors' posters once read ([DoorsRead.whole]), their counts cut into [cuts] so they show on home's first frame.
+ * Preloads Home's first-view pictures for a [screenWidthPx] screen at the [textScale] home opens at, read once the
+ * settings are, each as soon as what shows it is read; Home awaits each one ([LoadingAhead]). What the rows show loads
+ * at once, the case proposed once drawn ([DoorsRead.first]), the doors' posters once read ([DoorsRead.whole]), their
+ * counts cut into [cuts] so they show on home's first frame.
  */
 internal fun loadFirstPictures(
     context: Context,
     screenWidthPx: Int,
+    textScale: () -> Float,
     cuts: CutPosterCache,
     canSearch: () -> Boolean = { true },
 ): suspend (HomeRows) -> Unit = { rows ->
-    val ahead = PicturesAhead(context, screenWidthPx)
+    val ahead = PicturesAhead(context, screenWidthPx, textScale())
     val search = canSearch()
     val loader = context.imageLoader
     coroutineScope {

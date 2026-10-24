@@ -559,6 +559,16 @@
     <string name="ui_resolution_desc">播放時由播放器選擇模式</string>
     <string name="interface_language">介面語言</string>
     <string name="interface_language_desc">選單、設定和訊息</string>
+    <string name="text_size">文字大小</string>
+    <string name="text_size_desc">應用程式中的所有文字</string>
+    <string name="text_size_sheet">放大或縮小 Houselights 的所有文字。格線和邊界維持不變。</string>
+    <string name="text_size_compact">緊湊</string>
+    <string name="text_size_compact_desc">適合近距離閱讀</string>
+    <string name="text_size_standard">標準</string>
+    <string name="text_size_standard_desc">建議</string>
+    <string name="text_size_large">大</string>
+    <string name="text_size_large_desc">適合遠距離閱讀</string>
+    <string name="text_size_large_reached">Android 設定已達到此大小</string>
     <string name="ui_4k_desc">在 4K 電視上介面更清晰</string>
     <string name="ui_system_desc">由系統選擇的模式</string>
     <string name="current_output">輸出</string>

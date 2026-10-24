@@ -18,14 +18,18 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.testSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.job
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -381,6 +385,22 @@ class SettingsStoreTest {
         assertEquals(vost, settings.state.first { it.tracks != TrackPreferences() }.tracks)
         settings.setTracks(TrackPreferences(subtitles = SubtitleMode.OFF, subtitleLanguage = "en"))
         assertEquals(TrackPreferences(null, SubtitleMode.OFF, "en"), settings.state.first { it.tracks.audio == null }.tracks)
+    }
+
+    /** « Taille du texte » is Standard until chosen, then read back from the file by the next launch. */
+    @Test
+    fun theTextSizeIsKeptForTheNextLaunch() = runTest {
+        val launch = Job(backgroundScope.coroutineContext.job)
+        val settings = testSettings(folder.root, backgroundScope + launch, testSecrets())
+        assertEquals(TextSize.STANDARD, settings.state.value.textSize)
+        settings.setTextSize(TextSize.COMPACT)
+        assertEquals(TextSize.COMPACT, settings.state.value.textSize)
+        launch.cancelAndJoin()
+
+        val next = testSettings(folder.root, backgroundScope, testSecrets())
+        assertEquals(TextSize.COMPACT, next.state.value.textSize)
+        next.setTextSize(TextSize.STANDARD)
+        assertEquals(TextSize.STANDARD, next.state.value.textSize)
     }
 
     /** "My files" holds no secret: chosen while the Keystore fails, it is still written, never a crash. */
