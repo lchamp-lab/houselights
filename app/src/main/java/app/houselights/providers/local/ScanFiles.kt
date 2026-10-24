@@ -23,7 +23,6 @@ internal data class KeptNfo(val path: String?, val text: String?, val stale: Boo
 
 /** File reads shared by both indexers: NFO text, media probing, local artwork. */
 internal class ScanFiles(
-    private val dao: LibraryDao,
     private val artwork: ArtworkCache,
     private val browsers: (SourceEntity) -> RemoteBrowser,
 ) {
@@ -54,13 +53,9 @@ internal class ScanFiles(
             is TextRead.Failed -> KeptNfo(item.nfoPath.takeIf { item.nfo != null }, item.nfo, stale = true)
         }
 
-    /** Probes the file when unprobed, probed by an older version, or changed, and stores media info and badges. */
-    suspend fun withMediaInfo(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
-        if (!MediaProbe.isStale(item.mediaInfo) && !item.sizeChanged(file)) return item
-        val updated = mediaFields(source, file, item)
-        dao.saveScanned(updated)
-        return updated
-    }
+    /** [item] with media info and badges, probed when unprobed, probed by an older version, or changed; not saved. */
+    suspend fun withMediaInfo(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity =
+        if (!MediaProbe.isStale(item.mediaInfo) && !item.sizeChanged(file)) item else mediaFields(source, file, item)
 
     suspend fun mediaFields(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
         val media = when (val probe = MediaProbe.probe(source, file, browsers(source))) {

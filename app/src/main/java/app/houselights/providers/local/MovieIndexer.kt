@@ -2,6 +2,8 @@ package app.houselights.providers.local
 
 import app.houselights.core.Editions
 import app.houselights.core.NfoInfo
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 /** Indexes films: file, NFO and artwork, TMDB match and collection. */
 internal class MovieIndexer(private val dao: LibraryDao, private val files: ScanFiles) {
@@ -17,24 +19,24 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val stack = pass.stacks.stackAt(file.relativePath)
         val parsed = LibraryScanner.parseMovie(stack?.namedPath ?: file.relativePath)
         val local = pass.sidecars.forVideo(file)
-        var item = files.withMediaInfo(source, file, existing ?: inserted(source, file, parsed, stack, now))
+        val row = existing ?: inserted(source, file, parsed, stack, now)
 
-        val kept = files.nfo(source, local.nfo, item)
+        val kept = files.nfo(source, local.nfo, row)
         val nfo = kept.info
-        val asked = asked(pass, item, existing, nfo, local)
-        if (!asked.write) {
+        val asked = asked(pass, row, existing, nfo, local)
+        // The probe reads the NAS while TMDB answers; the file's tracks and its match are then saved at once.
+        val (probed, answers) = coroutineScope {
+            val probed = async { files.withMediaInfo(source, file, row) }
+            val answers = if (asked.write) fetch(pass, row, nfo, parsed, asked) else null
+            probed.await() to answers
+        }
+        var item = probed
+        val fetched = answers ?: run {
             // Nothing usable (e.g. an unparsable release NFO): still record the sidecar key so scans skip it.
             val read = SidecarKey.of(local.copy(nfo = local.nfo.takeUnless { kept.stale }))
-            if (read != item.sidecarKey) dao.saveScanned(item.copy(sidecarKey = read))
+            if (item != row || read != item.sidecarKey) dao.saveScanned(item.copy(sidecarKey = read))
             return
         }
-
-        val known = item
-        val lookup: (suspend (TmdbClient) -> TmdbMovie?)? =
-            if (asked.tmdb) { client -> lookupMovie(client, known.userTmdbId, nfo, parsed, known = known.tmdbId) } else null
-        // No TMDB request and unchanged NFO ids: keep the collection; a film without one gets it from its NFO.
-        val keepCollection = lookup == null && !asked.newIds && item.collectionId != null
-        val fetched = fetch(pass.tmdb, item.userTmdbId, nfo, pass.refreshMetadata, keepCollection = keepCollection, lookup = lookup)
         // Details dropped without a TMDB answer: the next scan queries TMDB again.
         if (asked.sidecarsRemoved) {
             item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
@@ -160,6 +162,15 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         /** TMDB answered every request, so the film counts as matched until a refresh. */
         val answered: Boolean
             get() = lookup is TmdbAnswer.Given && (collection?.fetch == null || collectionDetails is TmdbAnswer.Given)
+    }
+
+    /** TMDB's answers for [item] as [asked] needs them. */
+    private suspend fun fetch(pass: ScanPass, item: ItemEntity, nfo: NfoInfo?, parsed: ParsedMovie, asked: Asked): Fetched {
+        val lookup: (suspend (TmdbClient) -> TmdbMovie?)? =
+            if (asked.tmdb) { client -> lookupMovie(client, item.userTmdbId, nfo, parsed, known = item.tmdbId) } else null
+        // No TMDB request and unchanged NFO ids: keep the collection; a film without one gets it from its NFO.
+        val keepCollection = lookup == null && !asked.newIds && item.collectionId != null
+        return fetch(pass.tmdb, item.userTmdbId, nfo, pass.refreshMetadata, keepCollection = keepCollection, lookup = lookup)
     }
 
     /** Runs [lookup] (skipped when null), then fetches collection details if needed, unless [keepCollection]. */

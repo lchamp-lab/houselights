@@ -85,7 +85,7 @@ class LibraryScanner(
 
     private val lock = Mutex()
 
-    private val files = ScanFiles(dao, artwork, browsers)
+    private val files = ScanFiles(artwork, browsers)
 
     /** Files whose processing fails, often at every pass: each logged whole the first time, then counted. */
     private val failures = RepeatedFailures(TAG)
