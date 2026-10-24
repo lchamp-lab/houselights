@@ -424,7 +424,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     changes in place, focus kept; only an empty library has none, focus then on the first door. OK plays; Menu opens
     its options, which the Menu key says at the end of its action's plate while it has focus: its page, and from its
     start once started.
-  - **What is watched**: À suivre, the next episode not already in progress (`nextUp`), its still and logo
+  - **What is watched**: À suivre, the next episode or saga film not already in progress (`nextUp`: as a saga's Lire,
+    the one in progress, else the one after the last watched, else the first not seen, `nextIn`), its still and logo
     (`DoorStill`), its season's episodes along the band's top edge, those watched in the ember light, "S1 · É4" in
     `jaquette`; without one, the second title in progress and its part seen; without either, Nouveautés takes the
     row. Nouveautés: the latest titles' posters side by side, newest first (`DoorPosters`), and how many joined this
