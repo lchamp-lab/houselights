@@ -307,6 +307,33 @@ class MigrationTest {
     }
 
     /**
+     * Version 18 keeps what the user did to titles whose files left, by title: nothing yet, every title's own state as
+     * it was, and the table ready for the first file to leave.
+     */
+    @Test
+    fun version18KeepsTheStateOfTitlesWhoseFilesLeft() = runTest {
+        // From the previous version, and from 0.2.0's.
+        for (from in listOf(17, 15)) {
+            val dao = migrated(from) {
+                filmsFolder()
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
+                        "badges, probeVersion, addedAt, positionMs, played, favorite) " +
+                        "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, '', '', 'Dune (2021).mkv', '', '', 0, 5, 600000, 0, 1)"
+                )
+            }.dao()
+            val dune = checkNotNull(dao.item(1))
+            assertEquals("from $from", Triple(600_000L, true, 5L), Triple(dune.positionMs, dune.favorite, dune.addedAt))
+            assertEquals("from $from", emptyList<KeptStateEntity>(), dao.keptNamed(ItemKind.MOVIE, "dune|2021"))
+
+            val row = dao.keptRows(listOf(1L)).single()
+            dao.keep(listOfNotNull(KeptStates.of(row)))
+            val kept = dao.keptNamed(ItemKind.MOVIE, "dune|2021")
+            assertEquals("from $from", listOf(true to 600_000L), kept.map { it.favorite to it.positionMs })
+        }
+    }
+
+    /**
      * Version 16 marks the tracks the probe read in the file's order, so no file is read again for it. Never an NFO's:
      * an MKV the probe found no picture in takes its <streamdetails>, picture and tracks in the NFO's order.
      */

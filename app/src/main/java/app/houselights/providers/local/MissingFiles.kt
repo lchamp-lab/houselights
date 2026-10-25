@@ -133,12 +133,13 @@ internal object MissingFiles {
                 // Missing paths are not titles, so one lookup serves rows and files alike.
                 val stacked = missing.filter { it.parts.isNotEmpty() }.associate { it.filePath to it.parts }
                 fun parts(path: String) = stacked[path] ?: stacks.partsOf(path)
-                fun named(path: String) = Stacks.filmPath(path, parts(path).isNotEmpty())
+                fun named(path: String) = filmName(path, parts(path).isNotEmpty())
                 listOf(
                     { path -> parts(path).firstOrNull() },
                     { path -> filmFolder(path)?.takeIf { videos[it] == 1 } },
-                    { path -> filmKey(named(path)) },
-                    { path -> titleKey(named(path)) },
+                    { path -> Sidecars.folderOf(path) to named(path) },
+                    // Anywhere, only with a year, as titles alone are often shared.
+                    { path -> named(path).takeIf { it.year != null } },
                 )
             }
             SourceKind.SHOWS -> listOf(::episodeKey)
@@ -170,13 +171,13 @@ internal object MissingFiles {
     private fun filmFolder(path: String): String? =
         Sidecars.folderOf(path).takeIf { FilenameParser.parseMovie(it.substringAfterLast('/')).year != null }
 
-    private fun filmKey(path: String): Pair<String, ParsedMovie> = Sidecars.folderOf(path) to film(path)
-
-    /** Key: title and year in any folder; requires a year, as titles alone are often shared. */
-    private fun titleKey(path: String): ParsedMovie? = film(path).takeIf { it.year != null }
-
-    private fun film(path: String): ParsedMovie =
-        LibraryScanner.parseMovie(path).let { it.copy(title = FilenameParser.showKey(it.title)) }
+    /**
+     * The name a film is known by at [path], without a part's suffix when [stacked] ("Heat (1995) CD1" is "Heat"):
+     * its title folded as [FilenameParser.showKey] folds it, and its year. Relinks pair files by it, and a title's
+     * kept state is found by it ([KeptKeys.filmName]), so both tell films apart alike.
+     */
+    fun filmName(path: String, stacked: Boolean): ParsedMovie =
+        LibraryScanner.parseMovie(Stacks.filmPath(path, stacked)).let { it.copy(title = FilenameParser.showKey(it.title)) }
 
     private fun episodeKey(path: String): Triple<String, Int, Int>? {
         val episode = FilenameParser.parseEpisode(path.substringAfterLast('/'), path.split('/').dropLast(1)) ?: return null

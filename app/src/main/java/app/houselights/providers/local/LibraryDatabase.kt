@@ -20,8 +20,9 @@ import kotlinx.coroutines.withContext
     entities = [
         SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
         SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class, TrackChoiceEntity::class,
+        KeptStateEntity::class,
     ],
-    version = 17,
+    version = 18,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
@@ -241,6 +242,23 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        /** v17 → v18: what the user did to titles whose files left, given back when they return ([KeptStateEntity]). */
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `kept_states` (`title` TEXT NOT NULL, `kind` TEXT NOT NULL, `nameKey` TEXT NOT NULL, " +
+                        "`tmdbId` INTEGER, `showTmdbId` INTEGER, `sourceId` INTEGER NOT NULL, `folder` TEXT, `seasonNumber` INTEGER, " +
+                        "`episodeNumber` INTEGER, `lastEpisodeNumber` INTEGER, `played` INTEGER NOT NULL, `positionMs` INTEGER NOT NULL, " +
+                        "`durationMs` INTEGER, `lastPlayedAt` INTEGER, `favorite` INTEGER NOT NULL, `userTmdbId` INTEGER, " +
+                        "`userPosterPath` TEXT, `userBackdropPath` TEXT, `userLogoPath` TEXT, `addedAt` INTEGER NOT NULL, " +
+                        "`audio` TEXT, `subtitles` TEXT, `tracksAt` INTEGER, PRIMARY KEY(`title`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_kept_states_nameKey` ON `kept_states` (`nameKey`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_kept_states_sourceId` ON `kept_states` (`sourceId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_kept_states_showTmdbId` ON `kept_states` (`showTmdbId`)")
+            }
+        }
+
         /**
          * Sets [MediaInfo.tracksInOrder] where the probe read the tracks, so that no file is read again for it; decoded
          * in Kotlin as in [MIGRATION_10_11], by batches so a large library's JSON is never held whole.
@@ -404,7 +422,7 @@ abstract class LibraryDatabase : RoomDatabase() {
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-            MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
+            MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =

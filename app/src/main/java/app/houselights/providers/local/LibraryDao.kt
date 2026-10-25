@@ -66,10 +66,10 @@ data class FileEnd(val tail: String, val bluRay: Boolean, val dvd: Boolean)
 
 /**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
- * extends: [SourceDao], [PlaybackStateDao], [CreditDao] or [SearchWordDao].
+ * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao] or [KeptStateDao].
  */
 @Dao
-interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao {
+interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
