@@ -83,7 +83,7 @@ class KeptStatesTest {
         val delToro = kept(film(2, "Films/Pinocchio (2022).mkv", tmdbId = DEL_TORO, played = true))
         assertEquals(disney.nameKey, delToro.nameKey)
         assertNull(KeptStates.usable(listOf(disney, delToro), identity = null))
-        assertNull(KeptStates.atBirth(listOf(disney, delToro), FOLDER, "", tmdbOpen = false))
+        assertNull(KeptStates.atBirth(listOf(disney, delToro), FOLDER, "", namedLater = false))
         assertEquals("once TMDB names it", delToro, KeptStates.usable(listOf(disney, delToro), DEL_TORO))
     }
 
@@ -98,18 +98,18 @@ class KeptStatesTest {
     @Test
     fun aMatchByHandIsGivenBackAtBirthOnlyInItsFolder() {
         val chosen = listOf(kept(film(1, "Pinocchio (2022)/Pinocchio (2022).mkv", DISNEY, userTmdbId = DEL_TORO, played = true)))
-        assertEquals(chosen.single(), KeptStates.atBirth(chosen, FOLDER, "Pinocchio (2022)", tmdbOpen = true))
-        assertNull("another folder", KeptStates.atBirth(chosen, FOLDER, "Films", tmdbOpen = false))
-        assertNull("another source", KeptStates.atBirth(chosen, FOLDER + 1, "Pinocchio (2022)", tmdbOpen = false))
+        assertEquals(chosen.single(), KeptStates.atBirth(chosen, FOLDER, "Pinocchio (2022)", namedLater = true))
+        assertNull("another folder", KeptStates.atBirth(chosen, FOLDER, "Films", namedLater = false))
+        assertNull("another source", KeptStates.atBirth(chosen, FOLDER + 1, "Pinocchio (2022)", namedLater = false))
     }
 
     @Test
     fun aTitleTmdbMatchedWaitsForItsMatchWhileTmdbCanBeAsked() {
         val matched = listOf(kept(film(1, "Dune (2021).mkv", tmdbId = DUNE, played = true)))
-        assertNull(KeptStates.atBirth(matched, FOLDER, "", tmdbOpen = true))
-        assertEquals("TMDB out of reach", matched.single(), KeptStates.atBirth(matched, FOLDER, "Elsewhere", tmdbOpen = false))
+        assertNull(KeptStates.atBirth(matched, FOLDER, "", namedLater = true))
+        assertEquals("TMDB out of reach", matched.single(), KeptStates.atBirth(matched, FOLDER, "Elsewhere", namedLater = false))
         val unmatched = listOf(kept(film(1, "Dune (2021).mkv", played = true)))
-        assertEquals(unmatched.single(), KeptStates.atBirth(unmatched, FOLDER, "Elsewhere", tmdbOpen = true))
+        assertEquals(unmatched.single(), KeptStates.atBirth(unmatched, FOLDER, "Elsewhere", namedLater = true))
 
         // TMDB knows the new file by no id: by name, from its own folder only.
         assertEquals(matched.single(), KeptStates.fromHere(matched, FOLDER, ""))
@@ -150,6 +150,28 @@ class KeptStatesTest {
         val pilot = episode(5, SEVERANCE, season = 1, number = 1, played = true)
         val others = listOf(episode(6, SEVERANCE, 1, 1, last = 2), episode(7, OTHER, 1, 1), episode(8, SEVERANCE, 1, 1))
         assertEquals(listOf(8L), KeptStates.plan(listOf(pilot), others).handed.map { it.first.id })
+    }
+
+    /**
+     * A title without a TMDB id goes to the row of its name in its folder, as when Radarr imported the new version a
+     * pass before the old one went, unless rows there name two films; one with a TMDB id never to a row by its name.
+     */
+    @Test
+    fun aTitleWithoutTmdbIdGoesToTheRowOfItsNameInItsFolder() {
+        fun heirs(leaving: KeptRow, staying: List<KeptRow>) = KeptStates.plan(listOf(leaving), staying).handed.map { it.first.id }
+        val leaving = film(1, "Dune (2021)/Dune (2021) Bluray-1080p.mkv", played = true)
+        val upgrade = film(2, "Dune (2021)/Dune (2021) Remux-2160p.mkv")
+        val elsewhere = film(3, "Films/Dune (2021).mkv")
+        assertEquals(listOf(2L), heirs(leaving, listOf(elsewhere, upgrade)))
+        val named = film(4, "Dune (2021)/Dune (2021) WEBDL-1080p.mkv", tmdbId = DUNE)
+        assertEquals("one film of that name there", listOf(2L), heirs(leaving, listOf(named, upgrade)))
+        val other = film(5, "Dune (2021)/Dune (2021) HDTV.mkv", tmdbId = OTHER)
+        val plan = KeptStates.plan(listOf(leaving), listOf(named, other))
+        assertEquals("two films of that name there", emptyList<KeptRow>(), plan.handed.map { it.first })
+        assertEquals(listOf("film:name:$FOLDER:Dune (2021):dune|2021"), plan.kept.map { it.title })
+
+        val matched = film(1, "Dune (2021)/Dune (2021) Bluray-1080p.mkv", tmdbId = DUNE, played = true)
+        assertEquals("TMDB may name the other another film", emptyList<Long>(), heirs(matched, listOf(upgrade)))
     }
 
     @Test

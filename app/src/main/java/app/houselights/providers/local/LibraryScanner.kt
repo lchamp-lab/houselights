@@ -275,7 +275,7 @@ class LibraryScanner(
                 suspendRunCatching {
                     // Rows added meanwhile under a source removed during the scan.
                     dao.deleteOrphanItems()
-                    dao.deleteEmptyShows()
+                    dao.deleteEmptyShows(handedOver = shows.handedOver())
                     dao.moveOrphanShows()
                     dao.deleteEmptyCollections()
                     if (dao.groupVersions() > 0) changed = true

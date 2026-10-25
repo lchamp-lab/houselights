@@ -12,13 +12,20 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     /** Seasons already refreshed from TMDB during the current pass. */
     private val refreshedSeasons = mutableSetOf<Long>()
 
+    /** Shows whose last episode went to another show this pass, their user state with it ([takenOver]). */
+    private val handedOver = mutableSetOf<Long>()
+
     fun startPass() {
         refreshedSeries.clear()
         refreshedSeasons.clear()
+        handedOver.clear()
     }
 
     /** Whether show [seriesId] was read this pass (sidecars, and TMDB when due). */
     fun readThisPass(seriesId: Long): Boolean = seriesId in refreshedSeries
+
+    /** Shows emptied this pass whose user state another show took ([LibraryDao.deleteEmptyShows] keeps nothing of them). */
+    fun handedOver(): Set<Long> = handedOver.toSet()
 
     suspend fun process(pass: ScanPass, file: RemoteFile, existing: ItemEntity?) {
         val source = pass.source
@@ -126,12 +133,13 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val source = pass.source
         val tmdb = pass.tmdb
         val refreshMetadata = pass.refreshMetadata
-        val series = showOf(source, path, existing, now, tmdb.open)
+        val local = pass.sidecars.forShow(showDir)
+        // TMDB, or a tvshow.nfo beside, names a new show once read, which may be another of that name.
+        val series = showOf(source, path, existing, now, namedLater = tmdb.open || local.nfo != null)
         // Its TMDB id before this read: one it gains gives it back what was kept under it ([saveShow]).
         val was = series.userTmdbId ?: series.tmdbId
 
         if (series.id in refreshedSeries) return series
-        val local = pass.sidecars.forShow(showDir)
         // tvshow.nfo or artwork added, rewritten in place or removed since the last read.
         val sidecarsChanged = SidecarKey.showDue(series.sidecarKey, source.id, showDir, pass.sidecars)
         val needsLookup = series.matchedAt == null || refreshMetadata || sidecarsChanged
@@ -179,17 +187,17 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
      * The show row: by [path]'s key ([seriesByKey]), else the episode's show keyed by another rule ([formerShow]),
      * else a new one ([newShow]). The last episode to leave a show hands over its user state ([takenOver]).
      */
-    private suspend fun showOf(source: SourceEntity, path: ShowPath, existing: ItemEntity?, now: Long, tmdbOpen: Boolean): ItemEntity {
+    private suspend fun showOf(source: SourceEntity, path: ShowPath, existing: ItemEntity?, now: Long, namedLater: Boolean): ItemEntity {
         val key = FilenameParser.showKey(path.title, path.year)
         val nameKey = FilenameParser.showKey(path.title)
         val show = seriesByKey(key, nameKey, path.year) ?: formerShow(source, path, existing, key, nameKey)
-            ?: newShow(source, path, key, now, tmdbOpen)
+            ?: newShow(source, path, key, now, namedLater)
         val left = existing?.seriesId?.takeIf { it != show.id } ?: return show
         return takenOver(show, left, existing.id)
     }
 
     /** A new show's row, born with what was kept of a show of its [key] ([KeptStates.atBirth]). */
-    private suspend fun newShow(source: SourceEntity, path: ShowPath, key: String, now: Long, tmdbOpen: Boolean): ItemEntity {
+    private suspend fun newShow(source: SourceEntity, path: ShowPath, key: String, now: Long, namedLater: Boolean): ItemEntity {
         val show = ItemEntity(
             kind = ItemKind.SERIES,
             sourceId = source.id,
@@ -202,7 +210,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             creditsAt = now,
         )
         // A show's key stands for its folder, where a match by hand is given back.
-        val kept = KeptStates.atBirth(dao.keptNamed(ItemKind.SERIES, key), source.id, folder = null, tmdbOpen)
+        val kept = KeptStates.atBirth(dao.keptNamed(ItemKind.SERIES, key), source.id, folder = null, namedLater)
             ?: return show.copy(id = dao.insert(show))
         val born = KeptStates.onto(show, kept)
         return born.copy(id = dao.insertGivenBack(born, kept))
@@ -241,12 +249,13 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
     /**
      * When episode [episodeId] is the last to leave [formerId] for [show], hands over the former show's user state
-     * ([LibraryDao.handOver]) before it is deleted, e.g. two season packs merging into one show. A user match handed
-     * over is looked up this pass or a later one.
+     * ([LibraryDao.handOver]) before it is deleted, e.g. two season packs merging into one show, and nothing is kept
+     * of it ([handedOver]). A user match handed over is looked up this pass or a later one.
      */
     private suspend fun takenOver(show: ItemEntity, formerId: Long, episodeId: Long): ItemEntity {
         if (dao.hasOtherEpisodes(formerId, episodeId)) return show
         dao.handOver(formerId, show.id)
+        handedOver += formerId
         val taken = dao.item(show.id) ?: return show
         if (taken.userTmdbId == show.userTmdbId || taken.userTmdbId == taken.tmdbId) return taken
         refreshedSeries -= taken.id

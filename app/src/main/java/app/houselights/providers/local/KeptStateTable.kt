@@ -149,6 +149,19 @@ interface KeptStateDao {
     @Query("$KEPT_ROW WHERE i.kind = 'EPISODE' AND i.seriesId = :seriesId")
     suspend fun keptRowsOfSeries(seriesId: Long): List<KeptRow>
 
+    /** Films at the root of folder [sourceId]. */
+    @Query("$KEPT_ROW WHERE i.kind = 'MOVIE' AND i.sourceId = :sourceId AND instr(i.filePath, '/') = 0")
+    suspend fun keptRowsAtRoot(sourceId: Long): List<KeptRow>
+
+    /** Films under [dir] (never ""): paths between "dir/" and "dir0", a range scan on the index. */
+    @Query("$KEPT_ROW WHERE i.kind = 'MOVIE' AND i.sourceId = :sourceId AND i.filePath > :dir || '/' AND i.filePath < :dir || '0'")
+    suspend fun keptRowsUnder(sourceId: Long, dir: String): List<KeptRow>
+
+    /** Films in [folder] of folder [sourceId] itself, not in its subfolders. */
+    suspend fun keptRowsIn(sourceId: Long, folder: String): List<KeptRow> =
+        (if (folder.isEmpty()) keptRowsAtRoot(sourceId) else keptRowsUnder(sourceId, folder))
+            .filter { row -> row.filePath?.let(Sidecars::folderOf) == folder }
+
     @Query("SELECT * FROM kept_states WHERE title = :title")
     suspend fun keptState(title: String): KeptStateEntity?
 
@@ -183,9 +196,19 @@ interface KeptStateDao {
     @Update(entity = ItemEntity::class)
     suspend fun restoreState(state: UserState)
 
-    /** Fills [row] with what [kept] holds that it lacks ([KeptStates.onto]), and offers it [kept]'s choice of tracks. */
+    /** Row [id] to be looked up again at the next pass. */
+    @Query("UPDATE items SET matchedAt = NULL WHERE id = :id")
+    suspend fun unmatch(id: Long)
+
+    /**
+     * Fills [row] with what [kept] holds that it lacks ([KeptStates.onto]), and offers it [kept]'s choice of tracks. A
+     * match by hand it takes, not the one TMDB gave it, has it looked up by it at the next pass, as when a show hands
+     * one over ([ShowIndexer]): scans look up only titles not matched yet.
+     */
     suspend fun restore(row: KeptRow, kept: KeptStateEntity) {
-        restoreState(KeptStates.onto(row.state, kept))
+        val state = KeptStates.onto(row.state, kept)
+        restoreState(state)
+        if (state.userTmdbId != row.state.userTmdbId && state.userTmdbId != row.tmdbId) unmatch(row.id)
         val at = kept.tracksAt ?: return
         offerTrackChoice(row.tracksKey, kept.audio, kept.subtitles, at)
     }
@@ -220,6 +243,13 @@ internal object KeptKeys {
     /** "dune|2021", or "home video" without a year. */
     private fun titled(name: ParsedMovie) = name.year?.let { "${name.title}${FilenameParser.YEAR_MARK}$it" } ?: name.title
 
+    /** A film's title by its name in its folder ([of] without a TMDB id), whatever its TMDB id. */
+    fun place(row: KeptRow): String? =
+        row.filePath?.takeIf { row.kind == ItemKind.MOVIE }?.let { place(row.sourceId, it, row.parts.isNotEmpty()) }
+
+    private fun place(sourceId: Long, path: String, stacked: Boolean) =
+        "film:name:$sourceId:${Sidecars.folderOf(path)}:${titled(MissingFiles.filmName(path, stacked))}"
+
     /**
      * [row]'s title and name key. Without a TMDB id, a title is kept per folder: two films sharing a name and a year
      * elsewhere are two entries, which a row born under that name then cannot tell apart ([KeptStates.usable]).
@@ -227,8 +257,7 @@ internal object KeptKeys {
     fun of(row: KeptRow): Pair<String, String>? = when (row.kind) {
         ItemKind.MOVIE -> row.filePath?.let { path ->
             val stacked = row.parts.isNotEmpty()
-            val named = "film:name:${row.sourceId}:${Sidecars.folderOf(path)}:${titled(MissingFiles.filmName(path, stacked))}"
-            (row.identity?.let(::film) ?: named) to filmName(path, stacked)
+            (row.identity?.let(::film) ?: place(row.sourceId, path, stacked)) to filmName(path, stacked)
         }
         ItemKind.SERIES -> row.matchKey?.let { key -> (row.identity?.let(::show) ?: "show:name:${row.sourceId}:$key") to key }
         ItemKind.EPISODE -> {
@@ -300,14 +329,15 @@ internal object KeptStates {
     /**
      * What a film or show born under [named]'s name takes at once ([usable]). A match by hand only in its own folder
      * of [sourceId] (a show's key standing for its folder), as Radarr and Sonarr upgrade in place: elsewhere a file
-     * of that name may be another film, the very case a match by hand settles. A title TMDB matched only while TMDB
-     * cannot be asked ([tmdbOpen] false): else its match confirms it ([LibraryDao.giveBack]) or not ([fromHere]).
+     * of that name may be another film, the very case a match by hand settles. A title TMDB matched only when nothing
+     * will name the new row ([namedLater] false): neither TMDB, to be asked, nor an NFO beside it, which may name
+     * another film of that name; else its TMDB id confirms it ([LibraryDao.giveBack]) or TMDB knows none ([fromHere]).
      */
-    fun atBirth(named: List<KeptStateEntity>, sourceId: Long, folder: String?, tmdbOpen: Boolean): KeptStateEntity? =
+    fun atBirth(named: List<KeptStateEntity>, sourceId: Long, folder: String?, namedLater: Boolean): KeptStateEntity? =
         usable(named, identity = null)?.takeIf { kept ->
             when {
                 kept.userTmdbId != null -> kept.sourceId == sourceId && kept.folder == folder
-                kept.identity != null -> !tmdbOpen
+                kept.identity != null -> !namedLater
                 else -> true
             }
         }
@@ -353,15 +383,12 @@ internal object KeptStates {
     fun onto(row: ItemEntity, kept: KeptStateEntity): ItemEntity = row.withUserState(onto(row.userState(), kept))
 
     /**
-     * What becomes of rows [leaving], before they are deleted: a row [staying] with the same TMDB identity (a copy,
-     * the film in another folder, a new version imported first; an episode of the show's in another folder) takes
+     * What becomes of rows [leaving], before they are deleted: a row [staying] of the same title ([heirs]) takes
      * their state, else it is kept by title, rows leaving together merged ([merge]), the main copy first. A title
      * whose rows held nothing forgets what was kept before, the latest removal being the user's latest state.
      */
     fun plan(leaving: List<KeptRow>, staying: List<KeptRow>): Plan {
-        val heirs = staying.filter { it.identity != null || it.showIdentity != null }
-            .mapNotNull { row -> KeptKeys.of(row)?.first?.let { it to row } }
-            .groupBy({ it.first }, { it.second }).mapValues { (_, rows) -> rows.minBy { it.id } }
+        val heirs = heirs(staying)
         val entries = leaving.sortedBy { it.versionOf != null }.mapNotNull(::of)
         val (handed, alone) = entries.partition { it.title in heirs }
         val merged = alone.groupBy { it.title }.values.map { it.reduce(::merge) }
@@ -372,6 +399,21 @@ internal object KeptStates {
             emptied = merged.filterNot { it.holdsAnything }.map { it.title },
         )
     }
+
+    /**
+     * Rows [staying] by the title whose state they take, the oldest of each: of the same TMDB identity (a copy, the
+     * film in another folder, a new version imported first; an episode of the show's in another folder); for a
+     * title without one, of its name in its folder ([KeptKeys.place]) or, for an episode, in its show, as when a new
+     * version was imported a pass before the old one went. Rows of one name naming two titles take nothing.
+     */
+    private fun heirs(staying: List<KeptRow>): Map<String, KeptRow> =
+        staying.flatMap { row -> listOfNotNull(KeptKeys.of(row)?.first, KeptKeys.place(row)).map { it to row } }
+            .groupBy({ it.first }, { it.second })
+            .filterValues { rows -> rows.mapNotNullTo(HashSet(), ::named).size <= 1 }
+            .mapValues { (_, rows) -> rows.minBy { it.id } }
+
+    /** The TMDB id naming [row]'s title: a film's or show's, an episode's show's. */
+    private fun named(row: KeptRow): Int? = if (row.kind == ItemKind.EPISODE) row.showIdentity else row.identity
 
     /** [plan]'s writes. */
     class Plan(

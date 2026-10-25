@@ -117,6 +117,34 @@ class ScanShowKeysTest {
         assertEquals(listOf(1, 2), dao.children(kept.id).map { it.seasonNumber })
     }
 
+    /**
+     * Merged into another show, a show TMDB matched keeps no copy of what the user did, which that show took: an
+     * unfavourite made since is not undone once that show is matched as it was.
+     */
+    @Test
+    fun aShowMergedIntoAnotherKeepsNoSecondCopyOfWhatTheUserDid() = runTest {
+        listOf(S01E01, S01E02, S02E01, S02E02).forEach { nas.put(it) }
+        bench.scan()
+        val first = showOf(S01E01)
+        dao.saveScanned(first.copy(matchKey = "slow horses s01", title = "Slow Horses S01"))
+        val second = dao.insert(
+            first.copy(id = 0, matchKey = "slow horses s02", title = "Slow Horses S02", sortTitle = "slow horses s02", tmdbId = REMASTERED),
+        )
+        moveSeason(first, 2, second, listOf(S02E01, S02E02))
+        keyedBefore(checkNotNull(dao.item(second)), "slow horses s02", "Slow Horses S02")
+
+        bench.scan(refreshMetadata = true)
+        val kept = showOf(S02E01)
+        assertEquals(SLOW_HORSES, kept.tmdbId)
+        assertTrue("handed over", kept.favorite)
+        assertEquals("nothing kept: the show it went to holds it", emptyList<String>(), bench.keptTitles())
+
+        dao.setFavorite(kept.id, false)
+        bench.scanner.identify(kept.id, REMASTERED)
+        assertEquals(REMASTERED, showOf(S02E01).tmdbId)
+        assertFalse(showOf(S02E01).favorite)
+    }
+
     /** Episodes naming two shows: the row stays the first one's, and is not rekeyed for the other later. */
     @Test
     fun aShowOfAnEarlierRuleNowTwoKeepsItsRowForOne() = runTest {

@@ -351,8 +351,9 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     /**
      * Keeps what the user did to rows [ids], about to be deleted with [alsoLeaving] ([KeptStates.plan]): a row staying
-     * with the same identity takes it, filling only what it lacks; else it is kept by title, replacing what an
-     * earlier removal kept, the newest [KEPT_MAX] entries kept. Runs in the deleting transaction; nothing without ids.
+     * of the same title takes it, filling only what it lacks; else it is kept by title, replacing what an earlier
+     * removal kept ([superseded] too), the newest [KEPT_MAX] entries kept. Runs in the deleting transaction; nothing
+     * without ids.
      */
     suspend fun keepStateOf(ids: List<Long>, alsoLeaving: List<Long> = emptyList()) {
         if (ids.isEmpty()) return
@@ -360,20 +361,40 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
         val leaving = (ids + alsoLeaving).toHashSet()
         val plan = KeptStates.plan(rows, staying(rows).filterNot { it.id in leaving })
         plan.handed.forEach { (row, kept) -> restore(row, kept) }
-        forgetKept(plan.emptied)
+        forgetKept(plan.emptied + superseded(rows))
         if (plan.kept.isEmpty()) return
         keep(plan.kept)
         trimKept(KEPT_MAX)
     }
 
-    /** Rows that may take the state of rows [leaving]: films and shows of their TMDB ids, episodes of their shows'. */
+    /**
+     * Rows that may take the state of rows [leaving]: films and shows of their TMDB ids, episodes of their shows'; for
+     * a title without one, films in its folder and episodes of its show ([KeptStates.plan] tells which).
+     */
     suspend fun staying(leaving: List<KeptRow>): List<KeptRow> {
         fun ids(kind: ItemKind, of: (KeptRow) -> Int?) =
             leaving.filter { it.kind == kind }.mapNotNull(of).distinct().chunked(SQL_IN_LIMIT)
+        val unnamed = leaving.filter { it.identity == null && it.showIdentity == null }
+        val folders = unnamed.filter { it.kind == ItemKind.MOVIE }
+            .mapNotNullTo(HashSet()) { row -> row.filePath?.let { row.sourceId to Sidecars.folderOf(it) } }
+        val shows = unnamed.filter { it.kind == ItemKind.EPISODE }.mapNotNullTo(HashSet()) { it.seriesId }
         return ids(ItemKind.MOVIE) { it.identity }.flatMap { titlesKnownAs(ItemKind.MOVIE, it) } +
             ids(ItemKind.SERIES) { it.identity }.flatMap { titlesKnownAs(ItemKind.SERIES, it) } +
-            ids(ItemKind.EPISODE) { it.showIdentity }.flatMap { episodesOfShowsKnownAs(it) }
+            ids(ItemKind.EPISODE) { it.showIdentity }.flatMap { episodesOfShowsKnownAs(it) } +
+            folders.flatMap { (source, folder) -> keptRowsIn(source, folder) } + shows.flatMap { keptRowsOfSeries(it) }
     }
+
+    /**
+     * Entries that rows [leaving] without a TMDB id would have taken back by name in their folder ([KeptStates.fromHere]):
+     * one TMDB matched waiting for TMDB to name the row, born while TMDB was out of reach. Their removal is the user's
+     * latest state of the title, so an unmark made meanwhile is not undone once the title is back and named.
+     */
+    suspend fun superseded(leaving: List<KeptRow>): List<String> = leaving.filter { it.identity == null && it.showIdentity == null }
+        .mapNotNull { row ->
+            val (title, nameKey) = KeptKeys.of(row) ?: return@mapNotNull null
+            val folder = row.filePath?.takeIf { row.kind == ItemKind.MOVIE }?.let(Sidecars::folderOf)
+            KeptStates.fromHere(keptNamed(row.kind, nameKey).filter { it.title != title }, row.sourceId, folder)?.title
+        }
 
     /**
      * Inserts [item], born with what [kept] held ([KeptStates.onto]), offers it [kept]'s choice of tracks and forgets
@@ -427,11 +448,13 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     /**
      * Deletes seasons and shows left without episodes, keeping what the user did to a show ([keepStateOf]), unless
-     * its folder went meanwhile: removing a folder forgets its titles ([removeSource]).
+     * its folder went meanwhile: removing a folder forgets its titles ([removeSource]). Shows [handedOver], whose
+     * episodes all went to another show along with their user state ([handOver]), keep nothing: a second copy would
+     * undo, once that show is matched as they were, what the user changed on it meanwhile.
      */
     @Transaction
-    suspend fun deleteEmptyShows() {
-        keepStateOf(emptySeries())
+    suspend fun deleteEmptyShows(handedOver: Set<Long> = emptySet()) {
+        keepStateOf(emptySeries().filterNot { it in handedOver })
         deleteEmptySeasons()
         deleteEmptySeries()
     }

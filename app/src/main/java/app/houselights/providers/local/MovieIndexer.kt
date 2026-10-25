@@ -37,8 +37,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             // Nothing usable (e.g. an unparsable release NFO): still record the sidecar key so scans skip it.
             val read = SidecarKey.of(local.copy(nfo = local.nfo.takeUnless { kept.stale }))
             if (item != row || read != item.sidecarKey) dao.saveScanned(item.copy(sidecarKey = read))
-            // Nothing asked of TMDB: a film it cannot name may be the one kept in its folder.
-            if (existing != null && was == null) givenBackByName(item)
+            // Nothing asked of TMDB nor read from an NFO: a film neither names may be the one kept in its folder.
+            if (was == null) givenBackByName(item)
             return
         }
         // Details dropped without a TMDB answer: the next scan queries TMDB again.
@@ -52,7 +52,10 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text, sidecarKey = read), nfo, fetched, art, now, was)
     }
 
-    /** A new film's row, born with what was kept of the film of its name, before its NFO and TMDB are read ([KeptStates.atBirth]). */
+    /**
+     * A new film's row, born with what was kept of the film of its name, before its NFO and TMDB are read
+     * ([KeptStates.atBirth]): TMDB, or an NFO beside it, names it once read, which may be another film of that name.
+     */
     private suspend fun inserted(pass: ScanPass, file: RemoteFile, parsed: ParsedMovie, stack: Stack?, now: Long): ItemEntity {
         val source = pass.source
         val item = ItemEntity(
@@ -73,7 +76,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         )
         val path = file.relativePath
         val named = dao.keptNamed(ItemKind.MOVIE, KeptKeys.filmName(path, stacked = stack != null))
-        val kept = KeptStates.atBirth(named, source.id, Sidecars.folderOf(path), pass.tmdb.open)
+        val namedLater = pass.tmdb.open || pass.sidecars.forVideo(file).nfo != null
+        val kept = KeptStates.atBirth(named, source.id, Sidecars.folderOf(path), namedLater)
             ?: return item.copy(id = dao.insert(item))
         val born = KeptStates.onto(item, kept)
         return born.copy(id = dao.insertGivenBack(born, kept))
@@ -157,8 +161,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
     /** TMDB answers for a film, all fetched before anything is written. */
     private class Fetched(
-        /** Also Unanswered when not requested. */
-        val lookup: TmdbAnswer<TmdbMovie>,
+        /** Null when TMDB was not asked for the film. */
+        val lookup: TmdbAnswer<TmdbMovie>?,
         /** The NFO, unless it describes another title than the match. */
         val nfo: NfoInfo?,
         val collection: CollectionPlan?,
@@ -168,7 +172,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         /** A refresh, or an NFO set aside until TMDB confirms it: if unanswered, a later pass asks again. */
         val askAgain: Boolean,
     ) {
-        val movie: TmdbMovie? get() = lookup.value
+        val movie: TmdbMovie? get() = lookup?.value
 
         /** TMDB answered every request, so the film counts as matched until a refresh. */
         val answered: Boolean
@@ -193,11 +197,12 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         keepCollection: Boolean = false,
         lookup: (suspend (TmdbClient) -> TmdbMovie?)?,
     ): Fetched {
-        val answer = lookup?.let { tmdb.ask(it) } ?: TmdbAnswer.Unanswered
+        val answer = lookup?.let { tmdb.ask(it) }
+        val movie = answer?.value
         // For a user match with no TMDB answer, an IMDb-only NFO is set aside until TMDB can confirm it.
-        val untold = userTmdbId != null && answer.value == null && nfoInfo?.tmdbId == null && nfoInfo?.imdbId != null
-        val nfo = nfoInfo?.takeUnless { untold || MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId) }
-        val plan = if (keepCollection) null else collectionOf(nfo, answer.value, refresh)
+        val untold = userTmdbId != null && movie == null && nfoInfo?.tmdbId == null && nfoInfo?.imdbId != null
+        val nfo = nfoInfo?.takeUnless { untold || MetadataMerge.describesOther(it, userTmdbId, movie?.imdbId) }
+        val plan = if (keepCollection) null else collectionOf(nfo, movie, refresh)
         val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
         return Fetched(answer, nfo, plan, details, tmdb.client, askAgain = refresh || (untold && answer !is TmdbAnswer.Given))
     }
@@ -241,12 +246,13 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
     /**
      * Gives the film what was kept of its title: under the TMDB id it gained since [was] ([LibraryDao.giveBack]), in
-     * the transaction writing it; or, TMDB knowing it by no id, what was kept in its folder by its name.
+     * the transaction writing it; or, TMDB knowing it by no id or not asked (its NFO naming none), what was kept in
+     * its folder by its name. Asked without an answer, TMDB may yet name it: a later pass asks again.
      */
     private suspend fun giveBack(item: ItemEntity, was: Int?, fetched: Fetched) {
         val identity = item.userTmdbId ?: item.tmdbId
         if (identity == null) {
-            if (fetched.lookup is TmdbAnswer.Given) givenBackByName(item)
+            if (fetched.lookup !is TmdbAnswer.Unanswered) givenBackByName(item)
         } else if (identity != was) {
             dao.giveBack(item.id, KeptKeys.film(identity))
         }
