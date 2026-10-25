@@ -13,8 +13,9 @@ import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
 
 /**
- * Rows of files a pass did not list: kept whole for a NAS off, an empty listing or a folder out of sight; held an
- * hour when a few files are gone, a day when many are, as when a disk of the NAS's pool is offline.
+ * Rows of files a pass did not list: kept whole for a NAS off, an empty listing or a folder out of sight; removed on
+ * the pass that misses them when a few files are gone, what the user did kept by title; held a day when many are, as
+ * when a disk of the NAS's pool is offline.
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanMissingTest {
@@ -161,19 +162,44 @@ class ScanMissingTest {
     }
 
     @Test
-    fun fewFilesGoneGoAnHourLater() = runTest {
+    fun fewFilesGoneGoOnTheNextPass() = runTest {
         filmFolder(40)
         (0 until 20).map(::film).forEach(nas::remove)
         bench.scan()
-        assertEquals("held until a later pass", 40, filePaths().size)
-
-        bench.later(HOUR - 1)
-        bench.scan()
-        assertEquals("held for an hour", 40, filePaths().size)
-
-        bench.later(1)
-        bench.scan()
         assertEquals((20 until 40).map(::film).sorted(), filePaths())
+    }
+
+    /** A film deleted goes on the pass that misses it, the app's own after a restart included; what the user did is kept. */
+    @Test
+    fun aFileDeletedIsRemovedOnTheNextPass() = runTest {
+        nas.put("Dune (2021).mkv")
+        nas.put("Heat (1995).mkv")
+        bench.scan()
+        dao.setFavorite(dao.filesOf(films.id).single { it.title == "Dune" }.id, true)
+
+        nas.remove("Dune (2021).mkv")
+        bench.autoScan()
+        assertEquals(listOf("Heat (1995).mkv"), filePaths())
+        assertEquals(listOf("film:name:${films.id}::dune|2021"), bench.keptTitles())
+    }
+
+    /** Held while a disk was offline, a file still missing once it is back waits the day it was held for. */
+    @Test
+    fun aFileHeldWithManyWaitsItsDayOnceTheOthersAreBack() = runTest {
+        filmFolder(40)
+        val offline = (0 until 21).map(::film)
+        offline.forEach(nas::remove)
+        bench.scan()
+
+        // The disk back, but for one file, deleted meanwhile.
+        offline.drop(1).forEach { nas.put(it) }
+        bench.later(HOUR)
+        bench.scan()
+        assertEquals("held from when many went", 40, filePaths().size)
+
+        bench.later(DAY - HOUR)
+        bench.scan()
+        assertEquals((1 until 40).map(::film).sorted(), filePaths())
     }
 
     @Test
@@ -198,7 +224,7 @@ class ScanMissingTest {
     @Test
     fun aClockSetBackHoldsFilesFromItsTime() = runTest {
         filmFolder(40)
-        val gone = (0 until 20).map(::film)
+        val gone = (0 until 21).map(::film)
         gone.forEach(nas::remove)
         bench.scan()
 
@@ -208,9 +234,9 @@ class ScanMissingTest {
         assertEquals(40, filePaths().size)
         assertEquals(setOf(bench.now), missingSince(gone))
 
-        bench.later(HOUR)
+        bench.later(DAY)
         bench.scan()
-        assertEquals("an hour later by its time", (20 until 40).map(::film).sorted(), filePaths())
+        assertEquals("a day later by its time", (21 until 40).map(::film).sorted(), filePaths())
     }
 
     /** Files missing a day by the clock, which is then set back behind the folder's last pass: none goes in that pass. */

@@ -324,7 +324,10 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     suspend fun setMissingSince(ids: List<Long>, since: Long?) =
         ids.chunked(SQL_IN_LIMIT).forEach { setMissingSinceBatch(it, since) }
 
-    /** Applies [MissingFiles] decisions in one transaction, as a library rename touches thousands of rows. */
+    /**
+     * Applies [MissingFiles] decisions in one transaction, as a library rename touches thousands of rows. What the user
+     * did to the titles [removed] is kept ([keepStateOf]); rows [absorbed] into a film hold nothing of their own.
+     */
     @Transaction
     @Suppress("LongParameterList") // One per outcome of [MissingFiles.Outcome].
     suspend fun settleMissing(
@@ -334,14 +337,79 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
         removed: List<Long>,
         parts: List<Pair<Long, List<String>>>,
         now: Long,
+        absorbed: List<Long> = emptyList(),
     ) {
         relinked.forEach { (id, file) -> relink(id, file.relativePath, file.size) }
         parts.forEach { (id, files) -> setParts(id, PipeList.toText(files)) }
         setMissingSince(back, null)
         setMissingSince(held, now)
-        deleteItems(removed)
+        keepStateOf(removed, alsoLeaving = absorbed)
+        deleteItems(removed + absorbed)
         // If a film's main row was removed, its next copy becomes the main row.
-        if (removed.isNotEmpty()) groupVersions()
+        if (removed.isNotEmpty() || absorbed.isNotEmpty()) groupVersions()
+    }
+
+    /**
+     * Keeps what the user did to rows [ids], about to be deleted with [alsoLeaving] ([KeptStates.plan]): a row staying
+     * with the same identity takes it, filling only what it lacks; else it is kept by title, replacing what an
+     * earlier removal kept, the newest [KEPT_MAX] entries kept. Runs in the deleting transaction; nothing without ids.
+     */
+    suspend fun keepStateOf(ids: List<Long>, alsoLeaving: List<Long> = emptyList()) {
+        if (ids.isEmpty()) return
+        val rows = ids.chunked(SQL_IN_LIMIT).flatMap { keptRows(it) }
+        val leaving = (ids + alsoLeaving).toHashSet()
+        val plan = KeptStates.plan(rows, staying(rows).filterNot { it.id in leaving })
+        plan.handed.forEach { (row, kept) -> restore(row, kept) }
+        forgetKept(plan.emptied)
+        if (plan.kept.isEmpty()) return
+        keep(plan.kept)
+        trimKept(KEPT_MAX)
+    }
+
+    /** Rows that may take the state of rows [leaving]: films and shows of their TMDB ids, episodes of their shows'. */
+    suspend fun staying(leaving: List<KeptRow>): List<KeptRow> {
+        fun ids(kind: ItemKind, of: (KeptRow) -> Int?) =
+            leaving.filter { it.kind == kind }.mapNotNull(of).distinct().chunked(SQL_IN_LIMIT)
+        return ids(ItemKind.MOVIE) { it.identity }.flatMap { titlesKnownAs(ItemKind.MOVIE, it) } +
+            ids(ItemKind.SERIES) { it.identity }.flatMap { titlesKnownAs(ItemKind.SERIES, it) } +
+            ids(ItemKind.EPISODE) { it.showIdentity }.flatMap { episodesOfShowsKnownAs(it) }
+    }
+
+    /**
+     * Inserts [item], born with what [kept] held ([KeptStates.onto]), offers it [kept]'s choice of tracks and forgets
+     * [kept], at once, as [giveBack] does.
+     */
+    @Transaction
+    suspend fun insertGivenBack(item: ItemEntity, kept: KeptStateEntity): Long {
+        val id = insert(item)
+        kept.tracksAt?.let { offerTrackChoice(tracksKey(item.copy(id = id)), kept.audio, kept.subtitles, it) }
+        forgetKept(listOf(kept.title))
+        return id
+    }
+
+    /**
+     * Gives row [id] what was kept under [title], filling only what it lacks, then forgets it; true when one was.
+     * Called in the transaction that writes the row's TMDB id, by which Trakt names a title, so Trakt never sees the
+     * title without what the user did. Written here, never reported ([WatchHistory]): nothing is queued for Trakt.
+     */
+    @Transaction
+    suspend fun giveBack(id: Long, title: String): Boolean {
+        val kept = keptState(title) ?: return false
+        val row = keptRows(listOf(id)).singleOrNull() ?: return false
+        restore(row, kept)
+        forgetKept(listOf(title))
+        return true
+    }
+
+    /** [giveBack] to show [seriesId], now known by TMDB as [show], and to its episodes by season and episodes. */
+    @Transaction
+    suspend fun giveBackShow(seriesId: Long, show: Int): Boolean {
+        val own = giveBack(seriesId, KeptKeys.show(show))
+        val kept = keptEpisodesOf(show).takeIf { it.isNotEmpty() } ?: return own
+        val given = KeptStates.onEpisodes(kept, keptRowsOfSeries(seriesId))
+        given.forEach { (episode, state) -> restore(episode, state) }
+        forgetKept(given.map { it.second.title }.distinct())
+        return own || given.isNotEmpty()
     }
 
     @Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")
@@ -349,6 +417,24 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     @Query("DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)")
     suspend fun deleteEmptySeries()
+
+    /** Shows of folders still there that have no episode left. */
+    @Query(
+        "SELECT id FROM items s WHERE kind = 'SERIES' AND sourceId IN (SELECT id FROM sources) " +
+            "AND NOT EXISTS (SELECT 1 FROM items e WHERE e.kind = 'EPISODE' AND e.seriesId = s.id)"
+    )
+    suspend fun emptySeries(): List<Long>
+
+    /**
+     * Deletes seasons and shows left without episodes, keeping what the user did to a show ([keepStateOf]), unless
+     * its folder went meanwhile: removing a folder forgets its titles ([removeSource]).
+     */
+    @Transaction
+    suspend fun deleteEmptyShows() {
+        keepStateOf(emptySeries())
+        deleteEmptySeasons()
+        deleteEmptySeries()
+    }
 
     /** Deletes films and episodes of removed sources; shows and seasons, which can span sources, go once empty. */
     @Query("DELETE FROM items WHERE kind IN ('MOVIE', 'EPISODE') AND sourceId NOT IN (SELECT id FROM sources)")
@@ -366,10 +452,11 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     )
     suspend fun moveOrphanShows()
 
-    /** Removes a source and its items atomically. */
+    /** Removes a source and its items atomically, forgetting what the user did to them: nothing is kept. */
     @Transaction
     suspend fun removeSource(id: Long) {
         deleteSource(id)
+        forgetKeptOf(id)
         deleteOrphanItems()
         deleteEmptySeasons()
         deleteEmptySeries()
@@ -384,8 +471,9 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     /**
      * Saves scan results, keeping columns the scan does not own, which may change meanwhile: user artwork and match,
-     * favourite, watched state, resume point, chosen copy, versionOf, creditsAt. Reindexes search words on rename; a
-     * film matched anew takes its choice of tracks to its new key.
+     * favourite, watched state, resume point, chosen copy, versionOf, creditsAt, and the arrival, which a title back
+     * takes again ([giveBack]) and a new episode moves ([setAddedAt]). Reindexes search words on rename; a film
+     * matched anew takes its choice of tracks to its new key.
      */
     @Transaction
     suspend fun saveScanned(item: ItemEntity) {
@@ -404,6 +492,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
                 versionChoice = current.versionChoice,
                 versionOf = current.versionOf,
                 creditsAt = current.creditsAt,
+                addedAt = current.addedAt,
             )
         )
         if (item.title != current.title || item.originalTitle != current.originalTitle) indexTitle(item)
@@ -429,6 +518,10 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     @Query("DELETE FROM track_choices WHERE title = :key AND :key NOT IN ($TRACK_KEYS)")
     suspend fun forgetTrackChoiceUnkeyed(key: String)
+
+    /** Moves show [id] up in "recently added", as a new episode does. */
+    @Query("UPDATE items SET addedAt = :at WHERE id = :id")
+    suspend fun setAddedAt(id: Long, at: Long)
 
     /** Copies favourite, user match and artwork from [fromId] where [toId] lacks them ([ShowIndexer]). */
     @Transaction
@@ -470,7 +563,11 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
             "UNION SELECT userPosterPath FROM items WHERE userPosterPath LIKE 'file:%' " +
             "UNION SELECT userBackdropPath FROM items WHERE userBackdropPath LIKE 'file:%' " +
             "UNION SELECT userLogoPath FROM items WHERE userLogoPath LIKE 'file:%' " +
-            "UNION SELECT profilePath FROM credits WHERE profilePath LIKE 'file:%'"
+            "UNION SELECT profilePath FROM credits WHERE profilePath LIKE 'file:%' " +
+            // Chosen for a title whose files left, which takes them again once back.
+            "UNION SELECT userPosterPath FROM kept_states WHERE userPosterPath LIKE 'file:%' " +
+            "UNION SELECT userBackdropPath FROM kept_states WHERE userBackdropPath LIKE 'file:%' " +
+            "UNION SELECT userLogoPath FROM kept_states WHERE userLogoPath LIKE 'file:%'"
     )
     suspend fun cachedArtworkPaths(): List<String>
 

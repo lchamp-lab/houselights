@@ -168,6 +168,11 @@ class ScanBench(
     /** The show of the episode at [path]. */
     suspend fun showOf(source: SourceEntity, path: String): ItemEntity = checkNotNull(dao.item(checkNotNull(item(source, path).seriesId)))
 
+    /** Titles of what is kept of titles whose files left ([KeptStateEntity.title]), sorted. */
+    fun keptTitles(): List<String> = db.openHelper.readableDatabase.query("SELECT title FROM kept_states ORDER BY title").use { c ->
+        buildList { while (c.moveToNext()) add(c.getString(0)) }
+    }
+
     /** The show keyed as folders naming [title] (and [year]) are. */
     suspend fun series(title: String, year: Int? = null): ItemEntity =
         checkNotNull(dao.seriesByKey(FilenameParser.showKey(title, year))) { "No show $title" }

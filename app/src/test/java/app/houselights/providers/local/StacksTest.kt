@@ -159,7 +159,8 @@ class StacksTest {
         val second = row(2, "Heat CD2.avi")
         val outcome = settle(listOf(first, second), "Heat CD1.avi", "Heat CD2.avi")
         assertEquals(listOf(1L to listOf("Heat CD2.avi")), outcome.parts)
-        assertEquals("not held: its file is there, in its film", listOf(2L), outcome.removed)
+        assertEquals("not held: its file is there, in its film", listOf(2L), outcome.absorbed)
+        assertTrue(outcome.removed.isEmpty())
         assertTrue(outcome.held.isEmpty())
 
         // The film has no row yet: the part's stands for it.

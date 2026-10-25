@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -37,25 +38,29 @@ class ScanRenamesTest {
     private fun film(n: Int) = "Film $n (2020).mkv"
 
     @Test
-    fun aFilmImportedInTwoStepsKeepsItsRow() = runTest {
+    fun aFilmImportedInTwoStepsKeepsWhatTheUserDid() = runTest {
         nas.put("Dune (2021) Bluray-1080p.mkv")
         nas.put("Heat (1995).mkv")
         bench.scan()
         val dune = dao.filesOf(films.id).single { it.title == "Dune" }
-        dao.setPlayed(dune.id, played = true, now = bench.now)
+        dao.savePlayback(dune.id, positionMs = 600_000, durationMs = 9_000_000, played = true, lastPlayedAt = bench.now)
+        dao.setFavorite(dune.id, true)
 
         // Radarr sends the old file to its recycle bin, then copies the new one from another volume.
         nas.remove("Dune (2021) Bluray-1080p.mkv")
         bench.scan()
-        bench.now += 2 * HOUR
+        assertNull(dao.item(dune.id))
         nas.put("Dune (2021) Remux-2160p.mkv")
         bench.scan()
 
         val upgraded = dao.filesOf(films.id).single { it.title == "Dune" }
-        assertEquals(dune.id, upgraded.id)
         assertEquals("Dune (2021) Remux-2160p.mkv", upgraded.filePath)
-        assertEquals(null, upgraded.missingSince)
         assertTrue(upgraded.played)
+        assertEquals(600_000L to bench.now, upgraded.positionMs to upgraded.lastPlayedAt)
+        assertTrue(upgraded.favorite)
+        assertEquals(dune.addedAt, upgraded.addedAt)
+        assertEquals("given back once", emptyList<String>(), bench.keptTitles())
+        assertEquals("nothing sent to Trakt", emptyList<TraktPendingEntity>(), bench.db.trakt().pending())
     }
 
     /** Sorted into a folder per letter, the whole library at once: written in a few transactions. */
@@ -171,7 +176,8 @@ class ScanRenamesTest {
         val arrival = dao.filesOf(films.id).single { it.title == "Arrival" }
         assertTrue(arrival.id != dune.id)
         assertEquals(false, arrival.favorite)
-        assertEquals("Dune waits on its own", ScanBench.START, dao.item(dune.id)?.missingSince)
+        assertNull("Dune is gone", dao.item(dune.id))
+        assertTrue("its state kept", dao.keptNamed(ItemKind.MOVIE, "dune|2021").single().favorite)
     }
 
     @Test
@@ -271,6 +277,5 @@ class ScanRenamesTest {
 
     private companion object {
         const val A_FEW_TRANSACTIONS = 20
-        const val HOUR = 60 * 60_000L
     }
 }
