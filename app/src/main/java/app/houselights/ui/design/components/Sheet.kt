@@ -24,7 +24,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.CompositionLocalProvider
+import app.houselights.ui.design.SheetScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -153,7 +157,8 @@ internal val LocalInSheet = staticCompositionLocalOf { false }
 
 /**
  * The dialog window under every sheet, with our own scrim instead of the platform's grey dim and window
- * animation. [content] reads the motion's progress while drawing. While it is open, the screen under it shows no
+ * animation, laid out at the density it is opened at: its window's own view would bring the system's, not the
+ * canvas's. [content] reads the motion's progress while drawing. While it is open, the screen under it shows no
  * focus: what opened it does not stay lit under the veil.
  */
 @Composable
@@ -168,6 +173,7 @@ internal fun SheetWindow(
         OpenSheets.count++
         onDispose { OpenSheets.count-- }
     }
+    val canvas = LocalDensity.current
     Dialog(onDismissRequest = { motion.sheet.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
@@ -182,7 +188,7 @@ internal fun SheetWindow(
                 .stillWhileLeaving(motion)
                 .drawBehind { drawRect(room.copy(alpha = scrim * motion.opacity)) },
         ) {
-            CompositionLocalProvider(LocalInSheet provides true) { content(motion) }
+            CompositionLocalProvider(LocalDensity provides canvas, LocalInSheet provides true) { content(motion) }
         }
     }
 }
@@ -192,10 +198,11 @@ internal fun SheetWindow(
  * Sheets), its glass in the film's dark ([sheetGlass]): its task's [title], what it is about in [facts] after its printed
  * [badges], ended by a [stateText] with its [state]'s dot, beside its [artwork], as tall as they are, and the
  * [places] it shows (an NFO's views) at the end of the title's line; then its plates, [HlSpace.m] apart, in the
- * film's light ([HlPlate]). [wide], a reading sheet holding the reading measure. No Close button nor hint: Back or
+ * film's light ([HlPlate]). [wide], a sheet holding the reading measure (an NFO). No Close button nor hint: Back or
  * [SheetScope.dismiss] closes it; [scroll] lets a text-only panel scroll, and without [scrolls] the content takes
  * the sheet's height and scrolls itself.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HlSideSheet(
     title: String,
@@ -242,15 +249,21 @@ fun HlSideSheet(
             ) {
                 SheetHeader(SheetHead(title, facts, badges, stateText, state, description), artwork, places, status)
                 // Its plates fade into the sheet where there are more, never rising under its head; the room above and
-                // below them keeps a framed picture's light inside the scroll.
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .padding(top = HlSpace.fact - HlFocus.room)
-                        .then(if (scrolls) Modifier.scrollEdges(scroll, glass).verticalScroll(scroll) else Modifier)
-                        .padding(vertical = HlFocus.room),
-                    verticalArrangement = Arrangement.spacedBy(HlSpace.m),
-                ) { content(motion.sheet) }
+                // below them keeps a framed picture's light inside the scroll. Near its ends it scrolls to them
+                // ([SheetScroll]); what it holds scrolls as anywhere else.
+                val inside = LocalBringIntoViewSpec.current
+                val density = LocalDensity.current
+                val ends = remember(scroll, density) { with(density) { SheetScroll(scroll, HlFocus.edge.toPx(), SHEET_ENDS.toPx()) } }
+                CompositionLocalProvider(LocalBringIntoViewSpec provides ends) {
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .padding(top = HlSpace.fact - HlFocus.room)
+                            .then(if (scrolls) Modifier.scrollEdges(scroll, glass).verticalScroll(scroll) else Modifier)
+                            .padding(vertical = HlFocus.room),
+                        verticalArrangement = Arrangement.spacedBy(HlSpace.m),
+                    ) { CompositionLocalProvider(LocalBringIntoViewSpec provides inside) { content(motion.sheet) } }
+                }
             }
         }
     }
@@ -434,3 +447,6 @@ internal fun BackHint(modifier: Modifier = Modifier) {
         Text(stringResource(R.string.sheet_back_hint), style = Hl.type.meta, color = c.contentTertiary)
     }
 }
+
+/** How near a sheet's first or last words focus brings it to show them whole: a group's title, a two-line note. */
+private val SHEET_ENDS = HlSpace.xxl * 2

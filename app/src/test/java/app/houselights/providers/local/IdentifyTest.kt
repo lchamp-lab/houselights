@@ -111,6 +111,21 @@ class IdentifyTest {
         assertNotNull(bench.dao.collection(checkNotNull(matched.collectionId))?.fetchedAt)
     }
 
+    /** Identified as another film, a film keeps the tracks chosen for it, under its new TMDB id. */
+    @Test
+    fun aFilmIdentifiedAsAnotherKeepsItsChoiceOfTracks() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(1, "Dune", 2021)
+        tmdb.movie(2, "Dune: Part Two", 2024)
+        bench.nas.put("Dune (2021).mkv")
+        bench.scan()
+        val choices = bench.db.trackChoices()
+        choices.save(TrackChoiceEntity("local:film:1", "eng", null, at = 5))
+        bench.scanner.identify(bench.item(films, "Dune (2021).mkv").id, 2)
+        assertEquals("eng", choices.choice("local:film:2")?.audio)
+        assertNull(choices.choice("local:film:1"))
+    }
+
     @Test
     fun aResultTmdbNoLongerHasIsTmdbsNotTheLibrarys() = runTest {
         val films = bench.folder("Films")

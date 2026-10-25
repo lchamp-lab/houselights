@@ -31,12 +31,15 @@ class ScanProbeTest {
     fun close() = bench.close()
 
     /** The library as the previous probe version left it; [read] is what it made of each file. */
-    private suspend fun readByAnOlderProbe(read: (MediaInfo) -> MediaInfo = { it }) {
+    private suspend fun readByAnOlderProbe(read: (MediaInfo) -> MediaInfo = { it }) = readBy(MediaProbe.VERSION - 1, read)
+
+    /** The library as probe [version] left it; [read] is what it made of each file. */
+    private suspend fun readBy(version: Int, read: (MediaInfo) -> MediaInfo = { it }) {
         for (source in bench.dao.sources()) {
             for (file in bench.dao.knownFiles(source.id)) {
                 val row = checkNotNull(bench.dao.item(file.id))
                 val info = checkNotNull(MediaProbe.decode(row.mediaInfo)) { "${row.filePath} never read" }
-                bench.dao.saveScanned(row.withMedia(read(info).copy(probedWith = MediaProbe.VERSION - 1)))
+                bench.dao.saveScanned(row.withMedia(read(info).copy(probedWith = version)))
             }
         }
     }
@@ -136,6 +139,47 @@ class ScanProbeTest {
         assertEquals(before.badges, heat.badges)
     }
 
+    /** Probe 4, the released one, read the tracks in the file's order already: a library it read is not read again. */
+    @Test
+    fun aLibraryTheReleasedProbeReadIsNotReadAgainForTheTracksOrder() = runTest {
+        bench.folder("Films")
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
+        nas.put("Heat (1995).mkv", size = 30_000_000_000, bytes = Matroska.sample())
+        bench.scan()
+        readBy(RELEASED_PROBE) { it.copy(tracksInOrder = false) }
+
+        bench.assertQuiet()
+    }
+
+    /** Tracks found in the file's order change nothing screens show: no reload while a pass reads them. */
+    @Test
+    fun tracksFoundInTheFilesOrderReloadNothing() = runTest {
+        val films = bench.folder("Films")
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
+        bench.scan()
+        readByAnOlderProbe { it.copy(tracksInOrder = false) }
+
+        val pass = bench.pass()
+        assertEquals(listOf("Dune (2021).mkv"), pass.reads.distinct())
+        assertEquals(0, pass.changes)
+        assertTrue(MediaProbe.decode(bench.item(films, "Dune (2021).mkv").mediaInfo)?.tracksInOrder == true)
+    }
+
+    /** A new film is read before the files a newer probe reads again, which may take a whole pass. */
+    @Test
+    fun aNewFileIsReadBeforeTheFilesReadAgain() = runTest {
+        val films = bench.folder("Films")
+        nas.put("Alien (1979).mkv", size = 30_000_000_000, bytes = Matroska.sample())
+        nas.put("Blade Runner (1982).mkv", size = 30_000_000_000, bytes = Matroska.sample())
+        bench.scan()
+        readByAnOlderProbe()
+        nas.put("Zodiac (2007).mkv", size = 30_000_000_000, bytes = Matroska.sample())
+
+        val reads = bench.pass().reads.distinct()
+        assertEquals(listOf("Zodiac (2007).mkv", "Alien (1979).mkv", "Blade Runner (1982).mkv"), reads)
+        assertEquals(MediaProbe.VERSION, bench.item(films, "Alien (1979).mkv").probeVersion)
+    }
+
     /** A file the newer probe reads differently (say, VC-1 that is really XviD) is shown anew. */
     @Test
     fun aFileReadOtherwiseIsShownAnew() = runTest {
@@ -146,5 +190,10 @@ class ScanProbeTest {
 
         assertTrue(bench.changesDuring { bench.scan() } > 0)
         assertEquals("HEVC", MediaProbe.decode(bench.item(films, "Dune (2021).mkv").mediaInfo)?.video?.codec)
+    }
+
+    private companion object {
+        /** The probe version of the libraries a released app left. */
+        const val RELEASED_PROBE = 4
     }
 }

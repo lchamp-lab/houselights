@@ -6,33 +6,41 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.AppContainer
 import app.houselights.core.MediaProvider
 import app.houselights.core.PathMapping
+import app.houselights.core.ProviderCapabilities
+import app.houselights.core.SourceConfig
+import app.houselights.core.TrackPreferences
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.CleanupResult
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.LocalLibrary
-import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.settings.AppSettings
+import app.houselights.settings.InterfaceLanguage
+import app.houselights.settings.Resumed
+import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
+import app.houselights.settings.SourceSwitcher
+import app.houselights.settings.TextSize
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toWriteError
 import coil.ImageLoader
 import coil.annotation.ExperimentalCoilApi
-import coil.imageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /** What Houselights keeps on the device. */
 internal data class StorageStats(
@@ -65,10 +73,15 @@ internal enum class SettingAction {
     COLLECTIONS,
     METADATA_LANGUAGE,
     INTERFACE_LANGUAGE,
+    TEXT_SIZE,
     REMOVE_FOLDER,
     CLEANUP,
     CLEAR_IMAGE_CACHE,
     SOURCE,
+
+    /** Resuming or forgetting the server kept beside the folders, said on the source's row. */
+    KEPT_SERVER,
+    TRACKS,
 }
 
 /** Why the change made from [action] failed; [folderId] is the folder a removal targeted. */
@@ -82,22 +95,39 @@ internal data class ActionError(val action: SettingAction, val error: UiError, v
 internal class SettingsViewModel(
     private val store: SettingsStore,
     val library: LocalLibrary,
-    private val provider: () -> MediaProvider,
+    /** The source's provider; null while there is none (its connection could not be read back). */
+    private val provider: () -> MediaProvider?,
     private val work: CoroutineScope,
+    private val sources: SourceSwitcher,
     private val images: ImageLoader?,
     private val checkTmdbKey: suspend (String) -> TmdbKeyCheck = { TmdbClient(it).checkKey() },
     private val chooseLanguage: suspend (String?) -> Unit = {},
+    /** The device's locale, which the details follow while no language is chosen for them. */
+    val deviceLocale: StateFlow<Locale> = MutableStateFlow(Locale.getDefault()),
+    /** The language chosen for the interface ([InterfaceLanguage.chosen]); null follows the device. */
+    val interfaceLanguage: StateFlow<String?> = MutableStateFlow(null),
+    /** A Zidoo player takes the tracks asked of it: the tracks settings apply ([AppContainer.asksTracks]). */
+    val asksTracks: Boolean = false,
 ) : ViewModel() {
-    constructor(app: AppContainer, images: ImageLoader) :
-        this(app.settings, app.library, app::provider, app.scope, images, chooseLanguage = app.language::choose)
+    constructor(app: AppContainer, images: ImageLoader) : this(
+        app.settings, app.library, app::providerOrNull, app.scope, app.sources, images,
+        chooseLanguage = app.language::choose, deviceLocale = app.deviceLocale, interfaceLanguage = app.language.chosen,
+        asksTracks = app.asksTracks,
+    )
 
     val settings: StateFlow<AppSettings> = store.state
 
+    /** True while the secrets the Keystore did not open are read again ([readSecretsAgain]). */
+    val readingSecrets: StateFlow<Boolean> get() = store.reading
+
+    /** Réessayer: reads again the secrets the Keystore did not open. */
+    fun readSecretsAgain() = store.readAgain()
+
     /** What the current source can do; the settings show what applies to it. */
-    val capabilities get() = provider().capabilities
+    val capabilities get() = provider()?.capabilities ?: ProviderCapabilities.NONE
 
     /** Whether the current source counts its library ([MediaProvider.catalog]), for the library in numbers. */
-    val counts get() = provider().catalog != null
+    val counts get() = provider()?.catalog != null
 
     private val _storage = MutableStateFlow<StorageStats?>(null)
     val storage: StateFlow<StorageStats?> = _storage
@@ -118,6 +148,36 @@ internal class SettingsViewModel(
     /** Folders being removed: each waits for any file a scan is reading in it. */
     var removing by mutableStateOf(emptySet<Long>())
         private set
+
+    /** The kept server is being asked whether it still takes its token. */
+    var resuming by mutableStateOf(false)
+        private set
+
+    /**
+     * Makes [server], the one kept beside the folders, the source again, then [onResumed]; one that no longer takes its
+     * token goes to [onRefused], for the sign-in. A server that cannot be asked says so on the source's row.
+     */
+    fun resumeServer(server: SourceConfig.Jellyfin, onResumed: () -> Unit, onRefused: (SourceConfig.Jellyfin) -> Unit) {
+        if (resuming) return
+        resuming = true
+        actionError = null
+        val failed = { error: UiError -> actionError = ActionError(SettingAction.KEPT_SERVER, error) }
+        viewModelScope.launchAction(TAG, "Resuming the kept server", onError = failed) {
+            try {
+                when (val resumed = sources.resume(server)) {
+                    Resumed.Done -> onResumed()
+                    is Resumed.Refused -> onRefused(resumed.server)
+                    // Forgotten or replaced meanwhile: that choice stands.
+                    Resumed.Overtaken -> Unit
+                }
+            } finally {
+                resuming = false
+            }
+        }
+    }
+
+    /** Forgets the server kept beside the folders and revokes its token. */
+    fun forgetServer() = change("Forgetting the kept server", SettingAction.KEPT_SERVER) { sources.forget() }
 
     /** A personal TMDB key is being checked with TMDB, then saved. */
     var savingTmdbKey by mutableStateOf(false)
@@ -184,6 +244,10 @@ internal class SettingsViewModel(
     }
 
     /** Saves TMDB's language ([tag], null for the device's); the app then reads every title again in it. */
+    fun setTracks(tracks: TrackPreferences) = change("Saving the tracks", SettingAction.TRACKS) {
+        store.setTracks(tracks)
+    }
+
     fun setMetadataLanguage(tag: String?) = change("Saving the details language", SettingAction.METADATA_LANGUAGE) {
         store.setMetadataLanguage(tag)
     }
@@ -192,6 +256,9 @@ internal class SettingsViewModel(
     fun setInterfaceLanguage(tag: String?) = change("Saving the interface language", SettingAction.INTERFACE_LANGUAGE) {
         chooseLanguage(tag)
     }
+
+    /** Saves « Taille du texte »; every screen is laid out again at it. */
+    fun setTextSize(size: TextSize) = change("Saving the text size", SettingAction.TEXT_SIZE) { store.setTextSize(size) }
 
     /**
      * Saves a personal TMDB key unless TMDB refuses it (blank reverts to the built-in one), in [work] as the sheet
@@ -215,12 +282,24 @@ internal class SettingsViewModel(
         return attempt.number
     }
 
-    /** Removes [folder] and its titles in [work], waiting for a scan's open file; [removing] holds it meanwhile. */
-    fun removeFolder(folder: SourceEntity) {
+    /** Whether [folder] is the last of [folders] not already being removed: removing it leaves no folder. */
+    fun isLast(folder: Folder, folders: List<Folder>): Boolean = folders.none { it.id != folder.id && it.id !in removing }
+
+    /**
+     * Removes [folder] and its titles in [work], waiting for a scan's open file; [removing] holds it meanwhile. The
+     * [last] one gives way to the kept server: made the source first, without asking it, then [onResumed]; if it
+     * cannot be, nothing is removed.
+     */
+    fun removeFolder(folder: Folder, last: Boolean = false, onResumed: () -> Unit = {}) {
         if (folder.id in removing) return
         removing += folder.id
+        val kept = store.state.value.keptServer.takeIf { last }
         change("Removing the folder ${folder.id}", SettingAction.REMOVE_FOLDER, work, folder.id) {
             try {
+                if (kept != null) {
+                    sources.switchTo(kept)
+                    onResumed()
+                }
                 library.removeFolder(folder)
             } finally {
                 removing -= folder.id
@@ -235,11 +314,30 @@ internal class SettingsViewModel(
 
     private var mappingsEdited = false
 
+    /** The stored mappings were not opened when this screen opened: [mappings] takes them in once they are. */
+    private var mappingsAwaited = SecretSetting.PATH_MAPPINGS in store.state.value.unreadSecrets
+
+    init {
+        if (mappingsAwaited) viewModelScope.launch { store.state.first { mappingsReadable(it) } }
+    }
+
+    /** Whether [s] holds the stored mappings, then taken in if awaited; never while unread, which an edit would write over. */
+    private fun mappingsReadable(s: AppSettings = store.state.value): Boolean {
+        if (SecretSetting.PATH_MAPPINGS in s.unreadSecrets) return false
+        if (mappingsAwaited) {
+            mappingsAwaited = false
+            _mappings.clear()
+            _mappings.addAll(s.pathMappings)
+        }
+        return true
+    }
+
     /**
      * Saves [mapping] at line [index], or as a new line when null, kept only once both paths are given: a line whose
-     * paths are emptied goes.
+     * paths are emptied goes. Nothing changes while the stored mappings are not opened.
      */
     fun putMapping(index: Int?, mapping: PathMapping) {
+        if (!mappingsReadable()) return
         val incomplete = mapping.from.isBlank() || mapping.to.isBlank()
         when {
             index == null -> if (incomplete) return else _mappings += mapping
@@ -252,6 +350,7 @@ internal class SettingsViewModel(
     }
 
     fun removeMapping(index: Int) {
+        if (!mappingsReadable()) return
         _mappings.removeAt(index)
         mappingsEdited = true
         saveMappings()
@@ -299,17 +398,18 @@ internal class SettingsViewModel(
     }
 
     /** A file path as the server reports it, to show what path mappings do. */
-    suspend fun samplePath(): String? = suspendRunCatching { provider().samplePath() }.getOrNull()
+    suspend fun samplePath(): String? = suspendRunCatching { provider()?.samplePath() }.getOrNull()
 
     private companion object {
         const val TAG = "Settings"
     }
 }
 
+/** The ViewModel the panes share; none outside [SettingsScreen], where a pane fails at once rather than make another. */
+internal val LocalSettingsViewModel = staticCompositionLocalOf<SettingsViewModel> {
+    error("A settings pane is composed outside SettingsScreen, which provides its ViewModel")
+}
+
 /** The screen's ViewModel, shared by all its panes. */
 @Composable
-internal fun settingsViewModel(): SettingsViewModel {
-    val app = appContainer()
-    val images = LocalContext.current.imageLoader
-    return viewModel { SettingsViewModel(app, images) }
-}
+internal fun settingsViewModel(): SettingsViewModel = LocalSettingsViewModel.current

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -57,7 +58,6 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,7 +71,6 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.AmbientLight
-import app.houselights.ui.design.GradationMark
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -100,7 +99,7 @@ enum class Emphasis { Primary, Secondary }
 /** Set by [HeaderControls]: buttons and tiles take their compact sizes. */
 private val LocalInHeader = staticCompositionLocalOf { false }
 
-/** Lays [content] out as a screen's header or home's bar: its buttons 44 tall, its tiles 40 square. */
+/** Lays [content] out as a screen's header: its buttons 44 tall, its tiles 40 square. */
 @Composable
 fun HeaderControls(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalInHeader provides true, content = content)
@@ -296,16 +295,6 @@ private fun rememberPlate(): PlateLook {
     }
 }
 
-/** A screen title naming one of two views, then a tile switching to the other; [label] names that one. */
-@Composable
-fun HlTitleSwitch(title: String, label: String, onSwitch: () -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        ScreenTitle(title)
-        Spacer(Modifier.width(HlSpace.s))
-        Tile(HlIcons.Swap, label, onSwitch)
-    }
-}
-
 /**
  * A square tile on its plate, white with focus; 40 in a header ([HeaderControls]), else 48. [chosen] lights
  * its glyph in ember, raspberry on the white of focus.
@@ -378,8 +367,9 @@ fun HlActionRow(
 /**
  * Square icon tile whose focus label overflows below it on a plate, without taking layout space (an
  * [HlActionRow] reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden
- * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit]. A long OK does
- * [onLongClick], which [onLongClickLabel] names to accessibility services and [hint], a quieter second line, on screen.
+ * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit]. Menu or a long OK
+ * opens its options ([onLongClick], which [onLongClickLabel] names to accessibility services), the Menu key saying so
+ * on the label's second line; without options, that line is its [hint], quieter.
  */
 @Composable
 fun HlIconButton(
@@ -427,7 +417,10 @@ fun HlIconButton(
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             ) {
                 Text(label, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (hint != null) {
+                if (onLongClick != null) {
+                    // On a hint's line, as tall as it, at its end.
+                    MenuKey(Modifier.align(Alignment.End).height(HlIconButtonDefaults.hintRoom).wrapContentHeight(unbounded = true))
+                } else if (hint != null) {
                     Text(hint, style = Hl.type.meta, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
@@ -450,7 +443,7 @@ fun HlIconButton(
 }
 
 /** A tile's label plate over the picture [light] comes from, and its hairline, read while drawing. */
-private fun Modifier.labelPlate(c: HlColors, light: AmbientLight): Modifier = drawWithCache {
+internal fun Modifier.labelPlate(c: HlColors, light: AmbientLight): Modifier = drawWithCache {
     val outline = HlShapes.mark.createOutline(size, layoutDirection, this)
     val hairline = Stroke(HlSize.hairline.toPx())
     onDrawBehind {
@@ -504,7 +497,7 @@ fun HlListItem(
                     )
                     Spacer(Modifier.width(HlSpace.s))
                 }
-                Text(title, style = Hl.type.lead, color = c.content, modifier = Modifier.weight(1f))
+                Text(title, style = Hl.type.entry, color = c.content, modifier = Modifier.weight(1f))
             }
             if (description != null) {
                 Spacer(Modifier.height(HlSpace.xs))
@@ -521,12 +514,11 @@ fun HlListItem(
 }
 
 /**
- * Where you are among a few places, as words in the poster's voice: home's bar, seasons, NFO views, a form's
- * choice. The current word is lit in ember, the others grey; focus is the white plate, a raspberry dot before
- * the current word. Words line up with the start edge and their plates hang past it, so nothing moves as focus
- * or the choice moves. Focus enters on [enterAt] (the current option by default), never the nearest; options
- * read as tabs. [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10"; [markFirst]
- * draws the first place as Gradation, read as its name: home, in home's bar.
+ * Where you are among a few places, as words in the poster's voice: seasons, NFO views, a form's choice. The
+ * current word is lit in ember, the others grey; focus is the white plate, a raspberry dot before the current word.
+ * Words line up with the start edge and their plates hang past it, so nothing moves as focus or the choice moves.
+ * Focus enters on [enterAt] (the current option by default), never the nearest; options read as tabs.
+ * [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10".
  */
 @Composable
 fun HlSegmented(
@@ -538,7 +530,6 @@ fun HlSegmented(
     scrollable: Boolean = false,
     enterAt: Int = selected,
     details: List<SegmentDetail?> = emptyList(),
-    markFirst: Boolean = false,
 ) {
     val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
     val scroll = rememberScrollState()
@@ -559,7 +550,6 @@ fun HlSegmented(
                         label,
                         detail = details.getOrNull(i),
                         current = i == selected,
-                        mark = markFirst && i == 0,
                         onClick = { onSelect(i) },
                         onFocused = { if (selectOnFocus) onSelect(i) },
                         modifier = Modifier.focusRequester(requesters[i]),
@@ -597,21 +587,18 @@ private fun SegmentItem(
     text: String,
     detail: SegmentDetail?,
     current: Boolean,
-    mark: Boolean,
     onClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = Hl.colors
-    // Gradation stays lit on focus's white: it takes no dot.
-    val dotted = current && !mark
     HlFocusSurface(
         onClick = onClick,
         look = FocusStyle.fill(rest = Color.Transparent, restInk = if (current) c.content else c.contentSecondary),
         shape = HlShapes.control,
         // The current plate takes its dot's room before the word, hanging over the gap: the word stays put.
         modifier = modifier
-            .then(if (dotted) Modifier.hang(DotRoom) else Modifier)
+            .then(if (current) Modifier.hang(DotRoom) else Modifier)
             .height(HlSize.segment)
             .onFocusChanged { if (it.isFocused) onFocused() },
         role = Role.Tab,
@@ -621,14 +608,14 @@ private fun SegmentItem(
             Modifier.align(Alignment.CenterStart).padding(horizontal = HlControl.tabPaddingH),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (dotted) {
+            if (current) {
                 Box(Modifier.width(DotRoom), contentAlignment = Alignment.CenterStart) {
                     // On the white of focus, the place stays marked: a raspberry dot.
                     val dot = Modifier.size(HlSize.wordDot)
                     if (lit) Box(dot.background(c.emberOnLight, CircleShape))
                 }
             }
-            if (mark) PlaceMark(text, current, lit) else Word(text, current, lit)
+            Word(text, current, lit)
             when (detail) {
                 null -> Unit
                 SegmentDetail.Done -> {
@@ -670,17 +657,6 @@ private fun Word(text: String, current: Boolean, lit: Boolean) {
         Text(text, style = t.placeCurrent, maxLines = 1, softWrap = false, modifier = Modifier.clearAndSetSemantics {}.unplaced())
         Text(text, style = style, maxLines = 1, softWrap = false)
     }
-}
-
-/** A place drawn as Gradation, read as [name]: its ember light when current, raspberry on focus's white, else a word's ink. */
-@Composable
-private fun PlaceMark(name: String, current: Boolean, lit: Boolean) {
-    val ink = when {
-        !current -> LocalContentColor.current
-        lit -> Hl.colors.emberOnLight
-        else -> Color.Unspecified
-    }
-    GradationMark(Modifier.semantics { contentDescription = name }, ink = ink)
 }
 
 /** Takes its room in the layout without being placed, so it is neither drawn nor read. */

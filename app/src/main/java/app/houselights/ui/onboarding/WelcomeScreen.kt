@@ -16,7 +16,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -24,6 +27,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
@@ -40,27 +44,51 @@ import app.houselights.ui.design.components.PosterWallScrim
 import app.houselights.ui.design.components.Lockup
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.TaskTitle
+import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.toPx
 
-/** First launch: trending films behind the lockup, then the source choice; [problem] is the last choice's failure. */
+/**
+ * First launch: trending films behind the lockup, then the source choice; [problem] is the last choice's failure.
+ * A saved connection the Keystore did not open is read again on Réessayer, and once read leads home ([onReadBack]).
+ */
 @Composable
-fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError? = null) {
+fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError? = null, onReadBack: () -> Unit = {}) {
     val app = appContainer()
-    val lostSource = app.settings.state.collectAsStateWithLifecycle().value.lostSource
+    val s = app.settings.state.collectAsStateWithLifecycle().value
+    val reading by app.settings.reading.collectAsStateWithLifecycle()
     val vm: WelcomeViewModel = viewModel(factory = WelcomeViewModel.factory(app, HlSize.welcomePoster.toPx()))
     val posters by vm.posters.collectAsStateWithLifecycle()
     // Returning from a choice retries a wall that TMDB left empty.
     LaunchedEffect(Unit) { vm.show() }
-    Welcome(posters, onLocal, onJellyfin, lostSource, problem)
+    val choosing = rememberReadBack(s, reading, onReadBack)
+    Welcome(
+        posters, choosing(onLocal), choosing(onJellyfin), s.lostSource, problem,
+        settingsReset = s.settingsReset,
+        readAgain = app.settings::readAgain.takeIf { s.unreadSource }, reading = reading,
+    )
 }
 
-/** The welcome screen as drawn: [posters] on the wall, the source choice focused; [lostSource] and [problem] noted. */
+/**
+ * The welcome screen as drawn: [posters] on the wall, the source choice focused; [lostSource], [problem] and
+ * [settingsReset] noted.
+ * With [readAgain], the saved connection was not opened for now: its note's Réessayer runs it, focused, busy while [reading].
+ */
 @Composable
-internal fun Welcome(posters: List<String>, onLocal: () -> Unit, onJellyfin: () -> Unit, lostSource: Boolean, problem: UiError?) {
+internal fun Welcome(
+    posters: List<String>,
+    onLocal: () -> Unit,
+    onJellyfin: () -> Unit,
+    lostSource: Boolean,
+    problem: UiError?,
+    settingsReset: Boolean = false,
+    readAgain: (() -> Unit)? = null,
+    reading: Boolean = false,
+) {
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.tryRequestFocus() }
+    val retry = remember { FocusRequester() }
+    LaunchedEffect(Unit) { (if (readAgain != null) retry else focus).tryRequestFocus() }
     val black = Hl.colors.background
 
     Box(Modifier.fillMaxSize().background(black)) {
@@ -77,13 +105,23 @@ internal fun Welcome(posters: List<String>, onLocal: () -> Unit, onJellyfin: () 
                 Spacer(Modifier.height(HlSpace.l))
                 Text(
                     stringResource(R.string.welcome_tagline),
-                    style = Hl.type.title,
+                    style = Hl.type.lead,
                     color = Hl.colors.contentSecondary,
                     modifier = Modifier.widthIn(max = HlLayout.welcomeTagline),
                 )
                 Column(Modifier.weight(1f).padding(top = HlSpace.xl), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    // The saved connection could not be read back: say so rather than leave it unexplained.
+                    // The saved connection, or the whole settings file, could not be read back: say so rather than
+                    // leave it unexplained.
                     if (lostSource) AttentionNote(stringResource(R.string.welcome_lost_secrets))
+                    if (settingsReset) AttentionNote(stringResource(R.string.welcome_settings_reset))
+                    // Kept, but not opened for now: said so, with a way to read it again.
+                    readAgain?.let {
+                        PartFailed(
+                            UiError.SECRETS_UNREAD, reading, it,
+                            Modifier.widthIn(max = HlLayout.welcomeTagline),
+                            action = Modifier.focusRequester(retry),
+                        )
+                    }
                     problem?.let { AttentionNote(stringResource(welcomeProblem(it))) }
                 }
             }
@@ -124,6 +162,26 @@ internal fun Welcome(posters: List<String>, onLocal: () -> Unit, onJellyfin: () 
 internal fun welcomeProblem(problem: UiError): Int = when (problem) {
     UiError.NOT_SAVED -> R.string.error_not_saved_player
     else -> problem.message
+}
+
+/**
+ * Leads home ([onReadBack]) once a saved connection the Keystore did not open ([AppSettings.unreadSource]) is read at
+ * last, by Réessayer or on coming back to the app, as at a launch that read it. A choice wrapped by the function
+ * returned replaces that connection, and leads where it leads; a read asked after it ([reading]), the choice having
+ * failed, leads home again.
+ */
+@Composable
+internal fun rememberReadBack(s: AppSettings, reading: Boolean, onReadBack: () -> Unit): (() -> Unit) -> () -> Unit {
+    var awaiting by remember { mutableStateOf(false) }
+    val readBack by rememberUpdatedState(onReadBack)
+    LaunchedEffect(s.unreadSource, reading) { if (s.unreadSource) awaiting = true }
+    LaunchedEffect(awaiting, s.source) { if (awaiting && s.source != null) readBack() }
+    return { choice ->
+        {
+            awaiting = false
+            choice()
+        }
+    }
 }
 
 /** Description lines each welcome choice reserves: as many as the longest needs. */

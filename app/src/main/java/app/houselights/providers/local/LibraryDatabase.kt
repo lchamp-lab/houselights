@@ -9,6 +9,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.houselights.core.Job
+import app.houselights.core.MediaInfo
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.suspendRunCatching
@@ -18,15 +19,17 @@ import kotlinx.coroutines.withContext
 @Database(
     entities = [
         SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
-        SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class,
+        SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class, TrackChoiceEntity::class,
     ],
-    version = 15,
+    version = 17,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 
     abstract fun trakt(): TraktDao
+
+    abstract fun trackChoices(): TrackChoiceDao
 
     companion object {
         const val NAME = "library.db"
@@ -219,6 +222,60 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        /** v15 → v16: each title's choice of tracks; the tracks the probe read are marked in the file's order. */
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `track_choices` (`title` TEXT NOT NULL, `audio` TEXT, `subtitles` TEXT, " +
+                        "`at` INTEGER NOT NULL, PRIMARY KEY(`title`))"
+                )
+                markTracksInOrder(db)
+            }
+        }
+
+        /** v16 → v17: an NFS folder can present another user than root ([SourceEntity.uid]). */
+        private val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sources ADD COLUMN uid INTEGER")
+                db.execSQL("ALTER TABLE sources ADD COLUMN gid INTEGER")
+            }
+        }
+
+        /**
+         * Sets [MediaInfo.tracksInOrder] where the probe read the tracks, so that no file is read again for it; decoded
+         * in Kotlin as in [MIGRATION_10_11], by batches so a large library's JSON is never held whole.
+         */
+        private fun markTracksInOrder(db: SupportSQLiteDatabase) {
+            var after = 0L
+            do {
+                val rows = db.query(
+                    "SELECT id, mediaInfo FROM items WHERE id > ? AND probeVersion > 0 AND mediaInfo IS NOT NULL " +
+                        "ORDER BY id LIMIT $MARK_BATCH",
+                    arrayOf<Any>(after),
+                ).use { c -> buildList { while (c.moveToNext()) add(c.getLong(0) to c.getString(1)) } }
+                db.compileStatement("UPDATE items SET mediaInfo = ? WHERE id = ?").use { update ->
+                    for ((id, text) in rows) {
+                        val info = MediaProbe.decode(text)?.takeIf(::probedTracks) ?: continue
+                        update.bindString(1, MediaProbe.encode(info.copy(tracksInOrder = true)))
+                        update.bindLong(2, id)
+                        update.executeUpdateDelete()
+                        update.clearBindings()
+                    }
+                }
+                after = rows.lastOrNull()?.first ?: after
+            } while (rows.size == MARK_BATCH)
+        }
+
+        /**
+         * An MKV whose video carries what only the probe reads. An NFO's video, filled in when the probe found none
+         * ([withNfoStreams]), has a codec, size and HDR alone, and its tracks are in the NFO's order.
+         */
+        private fun probedTracks(info: MediaInfo): Boolean {
+            val video = info.video ?: return false
+            val probed = video.bitDepth != null || video.frameRate != null || video.dolbyVisionProfile != null || video.bitrateKbps != null
+            return info.container == "MKV" && probed
+        }
+
         /** Tables, columns and indexes added in v12, as in Room's exported schema. */
         private fun createTables(db: SupportSQLiteDatabase) {
             db.execSQL(
@@ -347,7 +404,7 @@ abstract class LibraryDatabase : RoomDatabase() {
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-            MIGRATION_14_15,
+            MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
@@ -360,7 +417,7 @@ abstract class LibraryDatabase : RoomDatabase() {
          * Seals passwords left plain by v6 → v7 when the Keystore failed, as scans never rewrite them. Runs at each
          * launch; failures are logged and retried at the next one.
          */
-        suspend fun sealPlainPasswords(dao: LibraryDao, secrets: Secrets) {
+        suspend fun sealPlainPasswords(dao: SourceDao, secrets: Secrets) {
             suspendRunCatching {
                 withContext(Dispatchers.IO) {
                     val plain = dao.storedPasswords().filterNot { secrets.isSealed(it.password) }
@@ -373,6 +430,9 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         private const val TAG = "Library"
+
+        /** Rows decoded at a time by [markTracksInOrder]. */
+        private const val MARK_BATCH = 500
 
         /** l' or l’ glued to the first word of a key; v9 stripped it only before a space. */
         private val GLUED_L = Regex("""^l['’](?=\S)""")

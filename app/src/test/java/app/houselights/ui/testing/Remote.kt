@@ -5,6 +5,8 @@ import android.graphics.Canvas
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
@@ -16,10 +18,17 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import app.houselights.ui.design.HouselightsTheme
+import app.houselights.ui.design.components.CutPosterCache
+import app.houselights.ui.design.components.LocalCutPosters
 import org.robolectric.shadows.ShadowDialog
 
-/** Sets [content] in the app's theme on the TV canvas (960 × 540 dp at density 1): a canvas dp is a test pixel. */
-fun ComposeContentTestRule.setTvContent(content: @Composable () -> Unit) = setContent { HouselightsTheme(content) }
+/**
+ * Sets [content] in the app's theme on the TV canvas (960 × 540 dp at density 1): a canvas dp is a test pixel. Its
+ * doors' counts are cut into a cache of its own, as in a new process; its text at [textStep] (« Taille du texte »).
+ */
+fun ComposeContentTestRule.setTvContent(textStep: Float = 1f, content: @Composable () -> Unit) = setContent {
+    CompositionLocalProvider(LocalCutPosters provides remember { CutPosterCache() }) { HouselightsTheme(textStep, content) }
+}
 
 /** The screen of a television, as Robolectric qualifiers. */
 const val TV = "w960dp-h540dp-land-mdpi"

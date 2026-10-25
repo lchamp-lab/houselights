@@ -20,6 +20,7 @@ import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.LoadState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
@@ -64,7 +65,7 @@ class NumbersPaneTest {
     private val opened = mutableListOf<Pair<Library, LibraryFilter>>()
     private val pages = mutableListOf<String>()
 
-    private fun show(state: NumbersState) {
+    private fun show(state: LoadState<CountedLibrary>) {
         compose.setTvContent {
             val rows = PaneRows(rememberFocusMemory(), "Numbers")
             LazyColumn(Modifier.fillMaxSize()) {
@@ -88,7 +89,7 @@ class NumbersPaneTest {
 
     @Test
     fun itsHeadStatesTheTitlesTheRoomAndTheHoursEachOverWhatItCounts() {
-        show(NumbersState.Counted(numbers, local, walls))
+        show(LoadState.Ready(CountedLibrary(numbers, local, walls)))
         compose.onNodeWithText("La collection en chiffres").assertExists()
         compose.onNodeWithText("412${NB}films").assertExists()
         compose.onNodeWithText("38${NB}séries et 1${NB}204${NB}épisodes").assertExists()
@@ -100,7 +101,7 @@ class NumbersPaneTest {
 
     @Test
     fun itsRowsNameEachValueAsACaseDoesAndCountItsFilms() {
-        show(NumbersState.Counted(numbers, local, walls))
+        show(LoadState.Ready(CountedLibrary(numbers, local, walls)))
         listOf("Image", "Son", "Fichiers", "Réalisation").forEach(::seen)
         // A definition by its name, a sound by the case's, a kind of file as a case prints it.
         listOf("Ultra HD", "Dolby Vision", "Dolby TrueHD Atmos", "MKV", "Blu-ray", "Denis Villeneuve").forEach(::seen)
@@ -111,21 +112,21 @@ class NumbersPaneTest {
 
     @Test
     fun aFormatOpensItsFilmsOnTheirWallFilteredByIt() {
-        show(NumbersState.Counted(numbers, local, walls))
+        show(LoadState.Ready(CountedLibrary(numbers, local, walls)))
         choose("Dolby Vision")
         assertEquals(listOf(films to LibraryFilter(picture = "Dolby Vision")), opened)
     }
 
     @Test
     fun aValueNoFilmHoldsOpensTheShowsThatDo() {
-        show(NumbersState.Counted(numbers, local, walls))
+        show(LoadState.Ready(CountedLibrary(numbers, local, walls)))
         choose("Blu-ray")
         assertEquals(listOf(shows to LibraryFilter(fileType = "bdmv")), opened)
     }
 
     @Test
     fun aDirectorOpensTheirPage() {
-        show(NumbersState.Counted(numbers, local, walls))
+        show(LoadState.Ready(CountedLibrary(numbers, local, walls)))
         seen("7${NB}films")
         choose("Denis Villeneuve")
         assertEquals(listOf("p7"), pages)
@@ -135,7 +136,7 @@ class NumbersPaneTest {
     @Test
     fun aSourceThatTellsItsTitlesAloneShowsItsTitlesAlone() {
         // Its numbers carry a format all the same (Jellyfin counts its 4K films): the source does not tell the rest.
-        show(NumbersState.Counted(numbers.copy(sizeBytes = null, runtimeMs = null, directors = emptyList()), jellyfin, walls))
+        show(LoadState.Ready(CountedLibrary(numbers.copy(sizeBytes = null, runtimeMs = null, directors = emptyList()), jellyfin, walls)))
         compose.onNodeWithText("412${NB}films").assertExists()
         compose.onNodeWithText("38${NB}séries et 1${NB}204${NB}épisodes").assertExists()
         val unknown = listOf("de fichiers, toutes copies comprises", "pour tout voir, bout${NB}à${NB}bout")
@@ -144,7 +145,7 @@ class NumbersPaneTest {
 
     @Test
     fun aRoomOrHoursTheSourceDoesNotTellAreLeftOutNotSaidAsNothing() {
-        show(NumbersState.Counted(numbers.copy(sizeBytes = 0, runtimeMs = null), local, walls))
+        show(LoadState.Ready(CountedLibrary(numbers.copy(sizeBytes = 0, runtimeMs = null), local, walls)))
         compose.onNodeWithText("de fichiers, toutes copies comprises").assertDoesNotExist()
         compose.onNodeWithText("pour tout voir, bout${NB}à${NB}bout").assertDoesNotExist()
         compose.onNodeWithText("412${NB}films").assertExists()
@@ -152,14 +153,14 @@ class NumbersPaneTest {
 
     @Test
     fun aLibraryOfShowsAloneCountsItsShowsOverTheirEpisodes() {
-        show(NumbersState.Counted(numbers.copy(films = 0), local, walls))
+        show(LoadState.Ready(CountedLibrary(numbers.copy(films = 0), local, walls)))
         compose.onNodeWithText("38${NB}séries").assertExists()
         compose.onNodeWithText("1${NB}204${NB}épisodes").assertExists()
     }
 
     @Test
     fun aDirectorWhosePageTheSourceDoesNotOpenLeadsNowhere() {
-        val page = numbersPage(NumbersState.Counted(numbers, local.copy(people = false), walls))
+        val page = numbersPage(CountedLibrary(numbers, local.copy(people = false), walls))
         assertNull(page.groups.single { it.kind == TallyKind.DIRECTORS }.rows.single().door)
     }
 

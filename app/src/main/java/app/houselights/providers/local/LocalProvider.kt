@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
+import app.houselights.core.nextIn
 import app.houselights.core.NfoParser
 import app.houselights.core.NotFoundException
 import app.houselights.core.BadgeTokens
@@ -27,6 +28,7 @@ import app.houselights.core.NfoDocument
 import app.houselights.core.Page
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.PlayedTracks
 import app.houselights.core.PlaybackReporter
 import app.houselights.core.launch
 import app.houselights.core.Person
@@ -55,7 +57,8 @@ class LocalProvider(
 
     override val capabilities = ProviderCapabilities(
         markPlayed = true, favorites = true, similar = true, pathMapping = false, people = true, crew = true, sagaParts = true,
-        versions = true, versionChoice = true, formatNumbers = true, formatFilters = true, personFilter = true, search = true,
+        versions = true, versionChoice = true, formatNumbers = true, formatFilters = true, personFilter = true, sagaFilters = true,
+        search = true,
     )
 
     override val catalog: Catalog by lazy { LocalCatalog(context, dao, this, collectionMinFilms) }
@@ -83,8 +86,20 @@ class LocalProvider(
         }
     }
 
-    override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
-        if (library.id == COLLECTIONS) return collectionsPage(sort, start, limit)
+    override suspend fun libraryPage(
+        library: Library,
+        sort: SortOption,
+        filter: LibraryFilter,
+        start: Int,
+        limit: Int,
+        grouped: Boolean,
+    ): Page {
+        val min = collectionMinFilms()
+        if (library.id == COLLECTIONS) {
+            // Hidden by the setting, there are no sagas to show alone.
+            return if (min > 0) sagaPage(SagaWall(min, filter, films = false), sort, start, limit) else Page(emptyList(), 0, 0)
+        }
+        if (grouped && library.id == MOVIES && min > 0) return sagaPage(SagaWall(min, filter, films = true), sort, start, limit)
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows have no technical badges of their own: file filters match their episodes, as in libraryFacets.
         val filtered = LocalFilters.where(kind, filter)
@@ -98,31 +113,24 @@ class LocalProvider(
             SortOption.RATING -> "rating DESC, sortTitle ASC"
         }
         // Ties sort by id so pages never overlap or skip a title.
-        val page = "SELECT $CARD_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
+        val page = "SELECT $WALL_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
         val items = dao.query(SimpleSQLiteQuery(page, args.toTypedArray()))
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = LocalMapper(dao, context)
         return Page(mapper.mapAll(items), total)
     }
 
-    private suspend fun collectionsPage(sort: SortOption, start: Int, limit: Int): Page {
-        val min = collectionMinFilms().coerceAtLeast(1)
-        val order = when (sort) {
-            SortOption.TITLE -> "c.sortTitle COLLATE NOCASE ASC"
-            SortOption.ADDED -> "s.added DESC"
-            SortOption.YEAR -> "s.lastYear DESC, c.sortTitle ASC"
-            SortOption.RATING -> "s.rating DESC, c.sortTitle ASC"
-        }
-        val collections = dao.collectionQuery(
-            SimpleSQLiteQuery(
-                "SELECT c.* FROM collections c JOIN (SELECT collectionId, COUNT(*) AS n, MAX(addedAt) AS added, " +
-                    "MAX(year) AS lastYear, AVG(rating) AS rating FROM items WHERE kind = 'MOVIE' AND collectionId IS NOT NULL " +
-                    "AND versionOf IS NULL " +
-                    "GROUP BY collectionId HAVING n >= ?) s ON s.collectionId = c.id ORDER BY $order, c.id LIMIT $limit OFFSET $start",
-                arrayOf<Any>(min),
-            )
-        )
-        return Page(collectionItems(collections), dao.collectionCount(min))
+    /** A page of [wall]: its rows in order, then their films and sagas, a few queries for the whole page. */
+    private suspend fun sagaPage(wall: SagaWall, sort: SortOption, start: Int, limit: Int): Page {
+        val rows = dao.wallRows(wall.page(sort, start, limit))
+        val count = dao.wallCount(wall.count())
+        val (sagaRows, filmRows) = rows.partition { it.saga }
+        val films = filmRows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.wallCards(it) }
+        val sagas = sagaRows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.collections(it) }
+        val filmItems = if (films.isEmpty()) emptyMap() else films.map { it.id }.zip(LocalMapper(dao, context).mapAll(films)).toMap()
+        val sagaItems = if (sagas.isEmpty()) emptyMap() else sagas.map { it.id }.zip(collectionItems(sagas)).toMap()
+        val items = rows.mapNotNull { if (it.saga) sagaItems[it.id] else filmItems[it.id] }
+        return Page(items, count.total, count.sagas)
     }
 
     internal suspend fun collectionItems(collections: List<CollectionEntity>): List<MediaItem> {
@@ -134,8 +142,11 @@ class LocalProvider(
     internal suspend fun membersOf(ids: List<Long>): Map<Long, List<CollectionMember>> =
         ids.chunked(SQL_IN_LIMIT).flatMap { dao.collectionMembers(it) }.groupBy { it.collectionId }
 
+    override suspend fun newEpisodes(library: Library, since: Long, cap: Int): Int? =
+        if (library.id == SHOWS) dao.newEpisodes(since).coerceAtMost(cap) else null
+
+    /** A sagas wall offers its films' values: it is filtered through them. */
     override suspend fun libraryFacets(library: Library): LibraryFacets {
-        if (library.id == COLLECTIONS) return LibraryFacets()
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows have no technical badges of their own: read their episodes'.
         val files = if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind
@@ -213,6 +224,8 @@ class LocalProvider(
                 .sortedByDescending { it.size }.take(3).map(PipeList::spellingOf),
             poster = (c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })?.let { image(it, ImageType.POSTER) },
             backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })?.let { image(it, ImageType.BACKDROP) },
+            // As a film's: its latest film added since its folder's first scan, the month a wall sorted by Ajout shows.
+            addedAt = members.mapNotNull { it.addedLater }.maxOrNull(),
             user = UserState(played = members.isNotEmpty() && unplayed == 0, unplayedCount = unplayed),
             childCount = members.size,
             totalCount = c.partCount?.takeIf { it > members.size },
@@ -289,11 +302,24 @@ class LocalProvider(
 
     /** A part ([MediaItem.parts]) plays from its start; the film plays its first part, which holds the resume point. */
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
+        val (rowId, part) = played(item)
+        return play(rowId, part, resume)
+    }
+
+    /** As [playback] reads them, from the row without its NFO: no source, artwork or player's title. */
+    override suspend fun playedTracks(item: MediaItem, options: PlaybackOptions): PlayedTracks {
+        val (rowId, part) = played(item)
+        val entity = dao.itemRow(rowId) ?: throw NotFoundException("Item $rowId")
+        val file = fileOf(entity, part)
+        return PlayedTracks(firstFileMedia(entity, part).takeUnless { isDisc(file) }, tracksKey(entity))
+    }
+
+    /** The row [item] plays and its part: a multi-copy film plays the chosen copy, else the best ([LocalCatalog.versions]). */
+    private suspend fun played(item: MediaItem): Pair<Long, Int?> {
         val key = itemKey(item) ?: throw NotFoundException("Item ${item.id}")
         val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
-        // A multi-copy film plays the chosen copy, else the best ([LocalCatalog.versions]).
         val copy = if (part == null) chosenCopy(key) else null
-        return play(copy ?: key, part, resume)
+        return (copy ?: key) to part
     }
 
     private suspend fun chosenCopy(titleId: Long): Long? = VersionRank.played(dao.copies(titleId))
@@ -302,9 +328,8 @@ class LocalProvider(
     internal suspend fun play(rowId: Long, part: Int?, resume: Boolean): PlaybackPlan {
         // Full row with NFO, whose artwork URLs may be the only web ones (see LocalMapper.forPlayer).
         val entity = dao.item(rowId) ?: throw NotFoundException("Item $rowId")
-        val files = listOfNotNull(entity.filePath) + entity.parts
-        // A part removed since the page was shown is reported as not found.
-        val file = files.getOrNull((part ?: 1) - 1) ?: throw NotFoundException("No file for $rowId")
+        val files = filesOf(entity)
+        val file = fileOf(entity, part)
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${entity.title} was removed")
         val mapper = LocalMapper(dao, context)
         val container = FilenameParser.extension(file)
@@ -315,10 +340,23 @@ class LocalProvider(
             startMs = if (resume && part == null) entity.positionMs else 0L,
             reporter = LocalReporter(dao, entity.id, part ?: 1, history),
             resumeKey = if (part == null) entity.id.toString() else LocalId.ofPart(entity.id, part),
-            // A disc image, or the stream a scan chose for a Blu-ray or DVD title (see ScanTitles).
-            disc = container == DISC_IMAGE || FilenameParser.discOf(file) != null,
+            disc = isDisc(file),
+            media = firstFileMedia(entity, part),
+            titleKey = tracksKey(entity),
         )
     }
+
+    private fun filesOf(entity: ItemEntity) = listOfNotNull(entity.filePath) + entity.parts
+
+    /** [entity]'s file for [part], else its first; a part removed since the page was shown is reported as not found. */
+    private fun fileOf(entity: ItemEntity, part: Int?): String =
+        filesOf(entity).getOrNull((part ?: 1) - 1) ?: throw NotFoundException("No file for ${entity.id}")
+
+    /** A disc image, or the stream a scan chose for a Blu-ray or DVD title (see ScanTitles). */
+    private fun isDisc(file: String) = FilenameParser.extension(file) == DISC_IMAGE || FilenameParser.discOf(file) != null
+
+    /** What the scan read, which is the first file's. */
+    private fun firstFileMedia(entity: ItemEntity, part: Int?) = MediaProbe.decode(entity.mediaInfo).takeIf { (part ?: 1) == 1 }
 
     private fun partTitle(title: String, part: Int, parts: Int) = "$title · ${context.getString(R.string.part_of, part, parts)}"
 
@@ -339,17 +377,10 @@ class LocalProvider(
         return next.mapNotNull { rows[it] }
     }
 
-    /** Regular seasons before specials, so a show starts with S01E01, as in [MediaProvider.nextUp]. */
+    /** Regular seasons before specials, so a show starts with S01E01. */
     private fun nextEpisode(episodes: List<EpisodeState>): EpisodeState? {
         val (specials, seasons) = episodes.partition { (it.seasonNumber ?: 0) == 0 }
         return nextOf(seasons) ?: nextOf(specials)
-    }
-
-    /** First in-progress episode, else the one after the last watched, else the first unwatched. */
-    private fun nextOf(episodes: List<EpisodeState>): EpisodeState? {
-        episodes.firstOrNull { it.positionMs > 0 && !it.played }?.let { return it }
-        val lastWatched = episodes.indexOfLast { it.played }
-        return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }
     }
 
     private fun person(c: TitleCredit) =
@@ -365,14 +396,16 @@ class LocalProvider(
         private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
 
+        /** The episode that plays next ([nextIn]). */
+        internal fun nextOf(episodes: List<EpisodeState>): EpisodeState? = nextIn(episodes, { it.played }, { it.positionMs > 0 })
+
         /**
-         * Per saga ([LibraryDao.startedSagas]), the first unwatched film after the last watched one, dated by the
+         * Per saga ([LibraryDao.startedSagas]), its film that plays next ([nextIn], as a show's episode), dated by the
          * saga's last viewing; none when it is in progress, as Continue already shows it.
          */
         internal fun nextInSagas(films: List<SagaFilmState>): List<Recent> =
             films.groupBy { it.collectionId }.values.mapNotNull { saga ->
-                val last = saga.indexOfLast { it.played }
-                val next = saga.drop(last + 1).firstOrNull { !it.played }?.takeIf { it.positionMs == 0L } ?: return@mapNotNull null
+                val next = nextIn(saga, { it.played }, { it.positionMs > 0 })?.takeIf { it.positionMs == 0L } ?: return@mapNotNull null
                 Recent(next.id, saga.mapNotNull { it.lastPlayedAt }.maxOrNull() ?: 0)
             }
 
@@ -410,7 +443,8 @@ class LocalProvider(
 
         /**
          * URI the Zidoo player opens: smb://user:password@host/share/path (domain;user for a domain account) or
-         * nfs://host/export/path. Credentials are percent-encoded, as an @, : or / would end the user info.
+         * nfs://host/export/path. Credentials are percent-encoded, as an @, : or / would end the user info; a password
+         * the Keystore did not open for now throws [app.houselights.core.SecretUnreadException].
          */
         fun fileUri(source: SourceEntity, relativePath: String): String {
             val path = listOf(source.share.trim('/'), source.path.trim('/'), relativePath).filter { it.isNotEmpty() }
@@ -419,7 +453,7 @@ class LocalProvider(
                 Protocol.NFS -> "nfs://${source.host}/$path"
                 Protocol.SMB -> {
                     val user = listOf(source.domain, source.username).filter { it.isNotBlank() }.joinToString(";") { Uri.encode(it) }
-                    val auth = if (source.username.isBlank()) "" else "$user:${Uri.encode(source.password.value)}@"
+                    val auth = if (source.username.isBlank()) "" else "$user:${Uri.encode(source.password.forSignIn())}@"
                     "smb://$auth${source.host}/$path"
                 }
             }

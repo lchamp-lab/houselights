@@ -3,7 +3,9 @@ package app.houselights.providers.trakt
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// Trakt API types, named after its own. Dates are ISO 8601 in UTC, as Trakt writes them.
+// Trakt API types, named after its own. Dates are ISO 8601 in UTC, as Trakt writes them. The account's history and
+// pauses hold what every app sent: their fields may be missing, so they are nullable, and an entry the sync cannot
+// place is left out.
 
 @Serializable
 data class DeviceCodeRequest(@SerialName("client_id") val clientId: String)
@@ -90,14 +92,14 @@ data class TraktIds(
 
 @Serializable
 data class TraktMovie(
-    @SerialName("ids") val ids: TraktIds,
+    @SerialName("ids") val ids: TraktIds = TraktIds(),
     @SerialName("title") val title: String? = null,
     @SerialName("year") val year: Int? = null,
 )
 
 @Serializable
 data class TraktShow(
-    @SerialName("ids") val ids: TraktIds,
+    @SerialName("ids") val ids: TraktIds = TraktIds(),
     @SerialName("title") val title: String? = null,
     @SerialName("year") val year: Int? = null,
 )
@@ -126,7 +128,7 @@ data class LastActivities(
 /** A film the account has watched, [plays] times. */
 @Serializable
 data class WatchedMovie(
-    @SerialName("movie") val movie: TraktMovie,
+    @SerialName("movie") val movie: TraktMovie? = null,
     @SerialName("plays") val plays: Int = 0,
     @SerialName("last_watched_at") val lastWatchedAt: String? = null,
 )
@@ -134,7 +136,7 @@ data class WatchedMovie(
 /** A show and the episodes of it the account has watched, by season. */
 @Serializable
 data class WatchedShow(
-    @SerialName("show") val show: TraktShow,
+    @SerialName("show") val show: TraktShow? = null,
     @SerialName("plays") val plays: Int = 0,
     @SerialName("last_watched_at") val lastWatchedAt: String? = null,
     @SerialName("seasons") val seasons: List<WatchedSeason> = emptyList(),
@@ -142,13 +144,13 @@ data class WatchedShow(
 
 @Serializable
 data class WatchedSeason(
-    @SerialName("number") val number: Int,
+    @SerialName("number") val number: Int? = null,
     @SerialName("episodes") val episodes: List<WatchedEpisode> = emptyList(),
 )
 
 @Serializable
 data class WatchedEpisode(
-    @SerialName("number") val number: Int,
+    @SerialName("number") val number: Int? = null,
     @SerialName("plays") val plays: Int = 0,
     @SerialName("last_watched_at") val lastWatchedAt: String? = null,
 )
@@ -156,16 +158,16 @@ data class WatchedEpisode(
 /** A paused playback: a film, or an episode with its show ([type] "movie" or "episode"), at [progress] percent. */
 @Serializable
 data class PlaybackProgress(
-    @SerialName("id") val id: Long,
-    @SerialName("progress") val progress: Float,
-    @SerialName("paused_at") val pausedAt: String,
-    @SerialName("type") val type: String,
+    @SerialName("id") val id: Long? = null,
+    @SerialName("progress") val progress: Float? = null,
+    @SerialName("paused_at") val pausedAt: String? = null,
+    @SerialName("type") val type: String? = null,
     @SerialName("movie") val movie: TraktMovie? = null,
     @SerialName("episode") val episode: TraktEpisode? = null,
     @SerialName("show") val show: TraktShow? = null,
 )
 
-/** Titles to add to the watch history or remove from it; what Trakt did not find comes back in the same shape. */
+/** Titles to add to the watch history or remove from it. */
 @Serializable
 data class HistoryItems(
     @SerialName("movies") val movies: List<HistoryMovie> = emptyList(),
@@ -206,24 +208,6 @@ data class HistoryEpisode(
     @SerialName("watched_at") val watchedAt: String? = null,
 )
 
-@Serializable
-data class HistoryCounts(
-    @SerialName("movies") val movies: Int = 0,
-    @SerialName("episodes") val episodes: Int = 0,
-)
-
-@Serializable
-data class HistoryAdded(
-    @SerialName("added") val added: HistoryCounts = HistoryCounts(),
-    @SerialName("not_found") val notFound: HistoryItems = HistoryItems(),
-)
-
-@Serializable
-data class HistoryRemoved(
-    @SerialName("deleted") val deleted: HistoryCounts = HistoryCounts(),
-    @SerialName("not_found") val notFound: HistoryItems = HistoryItems(),
-)
-
 /** A playback that stopped at [progress] percent: a film, or an episode by its ids or by its show. */
 @Serializable
 data class ScrobbleRequest(
@@ -231,12 +215,4 @@ data class ScrobbleRequest(
     @SerialName("movie") val movie: TraktMovie? = null,
     @SerialName("episode") val episode: TraktEpisode? = null,
     @SerialName("show") val show: TraktShow? = null,
-)
-
-/** What Trakt made of a stop: "scrobble" (watched, from 80 %) or "pause" (progress kept). */
-@Serializable
-data class ScrobbleResult(
-    @SerialName("action") val action: String,
-    @SerialName("progress") val progress: Float,
-    @SerialName("id") val id: Long? = null,
 )

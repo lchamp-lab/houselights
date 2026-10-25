@@ -106,16 +106,16 @@ internal fun NfoSheet(item: MediaItem, state: NfoState, onRetry: () -> Unit, onD
     }
 }
 
-/** The NFO as definitions, a label in secondary `meta` beside each value in `read`, then the file it is read from. */
+/** The NFO as definitions, a label in secondary `meta` beside each value in `body`, then the file it is read from. */
 @Composable
 private fun NfoDetails(info: NfoInfo?, file: String) {
     val c = Hl.colors
     // A definition's baseline 42 under the last's: the board's rhythm.
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
         when {
-            info == null -> Text(stringResource(R.string.nfo_unreadable), style = Hl.type.read, color = c.contentSecondary)
+            info == null -> Text(stringResource(R.string.nfo_unreadable), style = Hl.type.body, color = c.contentSecondary)
             info.kind == NfoKind.LINK -> {
-                Text(stringResource(R.string.nfo_link_only), style = Hl.type.read, color = c.contentSecondary)
+                Text(stringResource(R.string.nfo_link_only), style = Hl.type.body, color = c.contentSecondary)
                 Identifiers(info)
             }
             else -> Details(info)
@@ -164,7 +164,7 @@ private fun Definition(label: String, value: String) {
     val c = Hl.colors
     Row {
         Text(label, style = Hl.type.meta, color = c.contentSecondary, modifier = Modifier.width(HlLayout.readingLabel).alignByBaseline())
-        Text(value, style = Hl.type.read, color = c.content, modifier = Modifier.weight(1f).alignByBaseline())
+        Text(value, style = Hl.type.body, color = c.content, modifier = Modifier.weight(1f).alignByBaseline())
     }
 }
 

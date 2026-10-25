@@ -47,8 +47,10 @@ class LibraryAheadTest {
     /** Posters come back at once, from nowhere. */
     private val loader = ImageLoader.Builder(context).components { add(pictureServer()) }.build()
 
-    private fun TestScope.ask(library: Library) {
-        ahead.ask(this, library, PicturesAhead(context, SCREEN_PX), loader)
+    private val sagas = Library("sagas", LibraryKind.COLLECTIONS, "Sagas")
+
+    private fun TestScope.ask(library: Library, sagas: Library? = null) {
+        ahead.ask(this, library, sagas, PicturesAhead(context, SCREEN_PX, textScale = 1f), loader)
     }
 
     @Test
@@ -66,21 +68,42 @@ class LibraryAheadTest {
     fun itIsTakenOnce() = runTest {
         ask(films)
         advanceUntilIdle()
-        assertNotNull(ahead.take(films, SortOption.TITLE, LibraryFilter()))
-        assertNull(ahead.take(films, SortOption.TITLE, LibraryFilter()))
+        assertNotNull(ahead.take(films, SortOption.TITLE, LibraryFilter(), grouped = false))
+        assertNull(ahead.take(films, SortOption.TITLE, LibraryFilter(), grouped = false))
     }
 
     @Test
     fun anotherWallAsksForItsOwn() = runTest {
         ask(films)
         advanceUntilIdle()
-        assertNull("another library", ahead.take(series, SortOption.TITLE, LibraryFilter()))
+        assertNull("another library", ahead.take(series, SortOption.TITLE, LibraryFilter(), grouped = false))
         ask(films)
         advanceUntilIdle()
-        assertNull("sorted otherwise", ahead.take(films, SortOption.YEAR, LibraryFilter()))
+        assertNull("sorted otherwise", ahead.take(films, SortOption.YEAR, LibraryFilter(), grouped = false))
         ask(films)
         advanceUntilIdle()
-        assertNull("filtered", ahead.take(films, SortOption.TITLE, LibraryFilter(status = WatchStatus.UNWATCHED)))
+        assertNull("filtered", ahead.take(films, SortOption.TITLE, LibraryFilter(status = WatchStatus.UNWATCHED), grouped = false))
+    }
+
+    /** From its door, the films wall is asked as it opens: its films and their sagas. */
+    @Test
+    fun aFilmsWallWithSagasOpensOnItsFilmsAndSagas() = runTest {
+        ask(films, sagas)
+        advanceUntilIdle()
+        assertEquals(listOf(true), provider.pages.map { it.grouped })
+        provider.calls.clear()
+        val vm = LibraryViewModel({ provider }, films, ahead = ahead, sagas = sagas)
+        advanceUntilIdle()
+        assertEquals(120, vm.state.value.items.size)
+        assertEquals("nothing asked again but the filters", listOf("facets"), provider.calls)
+
+        // Shown otherwise, the films one by one or the sagas alone, the wall asks for its own.
+        ask(films, sagas)
+        advanceUntilIdle()
+        assertNull(ahead.take(films, SortOption.TITLE, LibraryFilter(), grouped = false))
+        ask(films, sagas)
+        advanceUntilIdle()
+        assertNull(ahead.take(sagas, SortOption.TITLE, LibraryFilter(), grouped = false))
     }
 
     @Test
@@ -88,7 +111,7 @@ class LibraryAheadTest {
         ask(films)
         advanceUntilIdle()
         clock += 10_000
-        assertNull(ahead.take(films, SortOption.TITLE, LibraryFilter()))
+        assertNull(ahead.take(films, SortOption.TITLE, LibraryFilter(), grouped = false))
     }
 
     @Test
@@ -96,7 +119,7 @@ class LibraryAheadTest {
         provider.fail = { if (it.startsWith("page")) IOException("NAS away") else null }
         ask(films)
         advanceUntilIdle()
-        assertNull(ahead.take(films, SortOption.TITLE, LibraryFilter()))
+        assertNull(ahead.take(films, SortOption.TITLE, LibraryFilter(), grouped = false))
     }
 
     private companion object {

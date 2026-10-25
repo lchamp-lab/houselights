@@ -29,7 +29,7 @@ class RoomPostersTest {
     val compose = createComposeRule()
 
     private var source: SourceConfig? = SourceConfig.Local
-    private var latest = listOf("/a.jpg", "/b.jpg")
+    private var latest = listOf(poster("a"), poster("b"))
     private var folders = true
     private var trendingAsked = 0
 
@@ -39,7 +39,7 @@ class RoomPostersTest {
         hasFolders = { folders },
         trending = {
             trendingAsked++
-            listOf("https://image.tmdb.org/t/p/w300/wall.jpg")
+            listOf(poster("wall"))
         },
     )
 

@@ -16,6 +16,7 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.Page
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.PlayedTracks
 import app.houselights.core.PlaybackReporter
 import app.houselights.core.launch
 import app.houselights.core.ProviderCapabilities
@@ -52,6 +53,8 @@ class JellyfinProvider(
     private val retryDelaysMs: List<Long> = REPORT_RETRY_MS,
     /** Context for mapping responses to titles; typesetting runs regexes, so keep it off the main thread. */
     private val mapping: CoroutineContext = Dispatchers.Default,
+    /** Monotonic milliseconds, which date the last item read ([lastItem]). */
+    private val now: () -> Long = { System.nanoTime() / NANOS_PER_MS },
 ) : MediaProvider {
     private val client = JellyfinClient(config.serverUrl, deviceId, config.accessToken, http)
     private val api = client.api
@@ -101,7 +104,18 @@ class JellyfinProvider(
     private suspend fun <T> row(what: String, block: suspend () -> T): Result<T> =
         suspendRunCatching { block() }.onFailure { Log.w(TAG, "$what failed", it) }
 
-    override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
+    /**
+     * [grouped], the server gives a collection's films as the collection, ranked by the collection's own fields, but
+     * not under other filters; never counted.
+     */
+    override suspend fun libraryPage(
+        library: Library,
+        sort: SortOption,
+        filter: LibraryFilter,
+        start: Int,
+        limit: Int,
+        grouped: Boolean,
+    ): Page {
         val types = when (library.kind) {
             LibraryKind.MOVIES -> "Movie"
             LibraryKind.SHOWS -> "Series"
@@ -124,19 +138,35 @@ class JellyfinProvider(
             startIndex = start,
             limit = limit,
             fields = GRID_FIELDS,
-            filters = when (filter.status) {
-                WatchStatus.ALL -> null
-                WatchStatus.UNWATCHED -> "IsUnplayed"
-                WatchStatus.IN_PROGRESS -> "IsResumable"
-                WatchStatus.WATCHED -> "IsPlayed"
-                WatchStatus.FAVORITES -> "IsFavorite"
-            },
+            filters = statusFilter(filter.status),
             genres = filter.genre,
             years = filter.decade?.let { d -> (d..d + 9).joinToString(",") },
             is4K = if (filter.quality == Quality.UHD_4K) true else null,
             personIds = filter.person,
+            // Said either way for films, so the server's own setting never decides.
+            collapseBoxSetItems = grouped.takeIf { library.kind == LibraryKind.MOVIES },
         )
         return Page(titles(result.items), result.totalRecordCount)
+    }
+
+    /** The library's unwatched episodes, latest added first, counted while they are recent enough. */
+    override suspend fun newEpisodes(library: Library, since: Long, cap: Int): Int? {
+        if (library.kind != LibraryKind.SHOWS) return null
+        return row("New episodes of ${library.title}") {
+            val recent = api.items(
+                userId = userId,
+                parentId = library.id,
+                includeItemTypes = "Episode",
+                recursive = true,
+                sortBy = "DateCreated,SortName",
+                sortOrder = "Descending",
+                startIndex = 0,
+                limit = cap,
+                fields = "DateCreated",
+                filters = statusFilter(WatchStatus.UNWATCHED),
+            ).items
+            titles(recent).takeWhile { (it.addedAt ?: 0L) >= since }.size
+        }.getOrNull()
     }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets(
@@ -145,7 +175,12 @@ class JellyfinProvider(
         qualities = listOf(Quality.UHD_4K),
     )
 
-    override suspend fun item(id: String): MediaItem = toMedia(api.item(id, userId))
+    override suspend fun item(id: String): MediaItem = toMedia(api.item(id, userId).also { lastItem.set(ItemRead(it, now())) })
+
+    /** The last full item read ([item]), whose page asks for its tracks right after ([playedTracks]). */
+    private val lastItem = AtomicReference<ItemRead?>(null)
+
+    private class ItemRead(val item: BaseItem, val at: Long)
 
     override suspend fun seasons(series: MediaItem): List<MediaItem> =
         titles(api.seasons(series.id, userId, SEASON_FIELDS).items)
@@ -153,11 +188,13 @@ class JellyfinProvider(
     override suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem> =
         titles(api.episodes(series.id, userId, season.id, EPISODE_FIELDS).items)
 
+    // A title's page depends on these two: they fail as such, never as nothing next or an empty saga.
+
     override suspend fun nextUp(series: MediaItem): MediaItem? =
         if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
-        else row("Next up of ${series.id}") { api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia) }.getOrNull()
+        else api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia)
 
-    override suspend fun collectionItems(collection: MediaItem): List<MediaItem> = row("Films of ${collection.id}") {
+    override suspend fun collectionItems(collection: MediaItem): List<MediaItem> {
         val films = api.items(
             userId = userId,
             parentId = collection.id,
@@ -169,8 +206,8 @@ class JellyfinProvider(
             limit = COLLECTION_LIMIT,
             fields = ROW_FIELDS,
         ).items
-        titles(films)
-    }.getOrDefault(emptyList())
+        return titles(films)
+    }
 
     override suspend fun similar(item: MediaItem): List<MediaItem> =
         if (item.kind == MediaKind.EPISODE) emptyList()
@@ -186,31 +223,53 @@ class JellyfinProvider(
     }
 
     override suspend fun samplePath(): String? = row("Sample path") {
-        api.items(userId, null, "Movie,Episode", true, "Random", "Ascending", 0, 1, "Path").items.firstOrNull()?.path
+        api.items(
+            userId = userId, parentId = null, includeItemTypes = "Movie,Episode", recursive = true,
+            sortBy = "Random", sortOrder = "Ascending", startIndex = 0, limit = 1, fields = "Path",
+        ).items.firstOrNull()?.path
     }.getOrNull()
 
-    override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
-        play(item.id, sourceId = null, resume, options)
+    /** As [playback] reads them, from the item its page has just read when it is that one. */
+    override suspend fun playedTracks(item: MediaItem, options: PlaybackOptions): PlayedTracks {
+        val read = lastItem.get()?.takeIf { it.item.id == item.id && now() - it.at < ITEM_REUSE_MS }?.item
+        val full = read ?: api.item(item.id, userId)
+        val source = full.firstSource()
+        val disc = isDisc(source, container(full, source))
+        return PlayedTracks(JellyfinMapper.mediaInfo(full, source).takeUnless { disc }, tracksKey(full))
+    }
 
-    /** Plays media source [sourceId] of item [itemId]; falls back to the first source when null or missing. */
-    internal suspend fun play(itemId: String, sourceId: String?, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
+    /** Plays the item's first media source, the one the server plays. */
+    override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
         // List entries lack MediaSources: reload the full item.
-        val full = api.item(itemId, userId)
-        val source = full.mediaSources.firstOrNull { it.id == sourceId } ?: full.mediaSources.firstOrNull()
-        val container = (source?.container ?: full.container)?.substringBefore(',')
+        val full = api.item(item.id, userId)
+        val source = full.firstSource()
+        val container = container(full, source)
         val networkUri = if (options.forceHttp) null else PathResolver.resolve(source?.path ?: full.path, options.pathMappings)
         val uri = networkUri ?: client.streamUrl(full.id, source?.id, container)
         val media = toMedia(full)
         val startMs = if (resume) media.user.positionMs else 0L
-        Log.i(TAG, "Play ${full.name} -> ${Redact.uri(uri)} (start ${startMs} ms)")
+        // Debug only: a page reads the plan too, for its tracks; a launch is logged by the player.
+        Log.d(TAG, "Plan ${full.name} -> ${Redact.uri(uri)} (start ${startMs} ms)")
 
         return media.launch(
             uri, container, startMs,
             reporter = Reporter(full.id, source?.id),
             resumeKey = listOfNotNull(full.id, source?.id).joinToString(RESUME_KEY_SEPARATOR),
-            disc = source?.videoType in DISC_VIDEO_TYPES || container.equals(DISC_IMAGE, ignoreCase = true),
+            disc = isDisc(source, container),
+            // The source played, which a stream sends unchanged (static).
+            media = JellyfinMapper.mediaInfo(full, source),
+            titleKey = tracksKey(full),
         )
     }
+
+    private fun BaseItem.firstSource(): MediaSource? = mediaSources.firstOrNull()
+
+    private fun container(full: BaseItem, source: MediaSource?) = (source?.container ?: full.container)?.substringBefore(',')
+
+    private fun isDisc(source: MediaSource?, container: String?) =
+        source?.videoType in DISC_VIDEO_TYPES || container.equals(DISC_IMAGE, ignoreCase = true)
+
+    private fun tracksKey(full: BaseItem) = "$TRACKS_KEY${full.seriesId ?: full.id}"
 
     override fun reporter(resumeKey: String): PlaybackReporter? =
         resumeKey.split(RESUME_KEY_SEPARATOR).let { parts -> Reporter(parts[0], parts.getOrNull(1)) }
@@ -317,6 +376,13 @@ class JellyfinProvider(
         private val DISC_VIDEO_TYPES = setOf("Iso", "BluRay", "Dvd")
         private const val DISC_IMAGE = "iso"
 
+        /** Prefix of a title's key for its choice of tracks ([PlaybackPlan.Launch.titleKey]). */
+        private const val TRACKS_KEY = "jellyfin:"
+
+        /** How long a page's item stands for its tracks: they are asked as it shows. */
+        private const val ITEM_REUSE_MS = 5_000L
+        private const val NANOS_PER_MS = 1_000_000L
+
         private const val COLLECTION_LIMIT = 200
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)
         private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,DateCreated"
@@ -327,6 +393,15 @@ class JellyfinProvider(
         /** Seasons count their episodes on disk too: without the count, the server calls an empty season watched. */
         private const val SEASON_FIELDS = "$ROW_FIELDS,ChildCount,RecursiveItemCount"
         private const val EPISODE_FIELDS = "Overview"
+
+        /** The server's filter for a watch [status]; none for all. */
+        private fun statusFilter(status: WatchStatus) = when (status) {
+            WatchStatus.ALL -> null
+            WatchStatus.UNWATCHED -> "IsUnplayed"
+            WatchStatus.IN_PROGRESS -> "IsResumable"
+            WatchStatus.WATCHED -> "IsPlayed"
+            WatchStatus.FAVORITES -> "IsFavorite"
+        }
 
         private fun libraryKind(collectionType: String?) = when (collectionType) {
             "movies" -> LibraryKind.MOVIES

@@ -16,8 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.width
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
-import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HouselightsType
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.assertSetIn
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -64,9 +65,9 @@ class SynopsisTest {
         compose.onAllNodesWithText(story).assertCountEquals(1)
     }
 
-    /** A reading sheet: its tagline over the text, its director among its facts, its lines at the reading measure. */
+    /** A sheet of the standard width: its tagline over the text, its director among its facts, its lines 440 at most. */
     @Test
-    fun theSheetReadsAtTheMeasure() {
+    fun theSheetReadsAtASheetsWidth() {
         val film = MediaItem(
             "f1", MediaKind.MOVIE, "Zéro de conduite", year = 1933, overview = story + " " + story,
             tagline = "Une révolte au collège.", directors = listOf("Jean Vigo"),
@@ -76,6 +77,9 @@ class SynopsisTest {
         val tagline = compose.onNodeWithText("Une révolte au collège.").getUnclippedBoundsInRoot()
         val text = compose.onNodeWithText(story + " " + story).getUnclippedBoundsInRoot()
         assertTrue("the tagline over the text", tagline.bottom <= text.top)
-        assertTrue("wider than a sheet's 440, within the measure: ${text.width}", text.width > 440.dp && text.width <= HlLayout.readable)
+        // About 60 characters a line in body, where the wide sheet's 640 would set 90.
+        assertTrue("a sheet's 440: ${text.width}", text.width > 400.dp && text.width <= 440.dp)
+        compose.assertSetIn(HouselightsType.lead, "Une révolte au collège.")
+        compose.assertSetIn(HouselightsType.body, story + " " + story)
     }
 }

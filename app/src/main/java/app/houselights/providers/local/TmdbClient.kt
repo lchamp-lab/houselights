@@ -1,11 +1,14 @@
 package app.houselights.providers.local
 
 import android.os.SystemClock
+import app.houselights.core.FailureKind
 import app.houselights.core.Http
 import app.houselights.core.HttpStatus
+import app.houselights.core.TmdbCertificateException
 import app.houselights.core.TmdbKeyRefusedException
 import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
+import app.houselights.core.failureKind
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
@@ -100,8 +103,9 @@ class TmdbClient(
     }
 
     /**
-     * Proceeds with the body buffered; throws [TmdbUnreachableException] on IO failure. Only network failures pause a
-     * scan client; others (stream reset, oversized answer) say nothing about the next request.
+     * Proceeds with the body buffered; throws [TmdbUnreachableException] on IO failure, [TmdbCertificateException] for a
+     * refused certificate. Only network failures pause a scan client; others (stream reset, oversized answer, a
+     * certificate) say nothing about the next request.
      */
     private fun answer(chain: Interceptor.Chain): Response {
         if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbPausedException()
@@ -112,7 +116,11 @@ class TmdbClient(
             // A cancelled call (search replaced, screen left) says nothing about TMDB.
             val canceled = chain.call().isCanceled()
             if (!canceled && isNetworkFailure(e)) pause()
-            throw if (canceled) e else TmdbUnreachableException(e)
+            throw when {
+                canceled -> e
+                e.failureKind() == FailureKind.CERTIFICATE -> TmdbCertificateException(e)
+                else -> TmdbUnreachableException(e)
+            }
         }
     }
 
@@ -259,7 +267,9 @@ class TmdbClient(
         private const val GATEWAY_RETRY_MS = 1_000L
         private const val MAX_RETRY_AFTER_MS = 5_000L
         private const val MS_PER_SECOND = 1_000L
-        private const val IMAGE_BASE = "https://image.tmdb.org/t/p/"
+        /** TMDB's image CDN, whose pictures load more at once ([app.houselights.ImageCalls]). */
+        internal const val IMAGE_HOST = "image.tmdb.org"
+        private const val IMAGE_BASE = "https://$IMAGE_HOST/t/p/"
         private val POSTER_SIZES = listOf(92, 154, 185, 342, 500, 780)
         private val BACKDROP_SIZES = listOf(300, 780, 1280)
         private val LOGO_SIZES = listOf(92, 154, 185, 300, 500)

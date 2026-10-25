@@ -127,8 +127,6 @@ interface Catalog {
     /** Makes [version] the copy "Lire" plays for [item]'s film; null restores the best. */
     suspend fun chooseVersion(item: MediaItem, version: Version?)
 
-    suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan
-
     /** The library in numbers, computed once, off the main thread. */
     suspend fun numbers(): LibraryNumbers
 

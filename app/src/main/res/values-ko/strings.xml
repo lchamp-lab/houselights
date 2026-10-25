@@ -39,6 +39,7 @@
     <string name="home_scan_failed">스캔이 완료되지 않았습니다</string>
     <string name="home_scan_tmdb_refused">TMDB가 키를 거부합니다. 작품은 파일을 바탕으로 추가되며, 작품 정보는 가져오지 않습니다.</string>
     <string name="home_scan_tmdb_offline">TMDB가 응답하지 않습니다. 작품은 파일을 바탕으로 추가되며, 작품 정보는 이후 스캔에서 가져옵니다.</string>
+    <string name="home_scan_tmdb_certificate">TMDB의 인증서가 거부되었습니다. 작품은 파일을 바탕으로 추가됩니다. 이 기기의 날짜와 시간을 확인하세요.</string>
     <string name="home_see_folders">폴더 보기</string>
 
     <!-- Browsing -->
@@ -47,6 +48,8 @@
     <string name="sort_added">추가일</string>
     <string name="sort">정렬</string>
     <string name="filter">필터</string>
+    <string name="filter_show">보기</string>
+    <string name="show_grouped">영화와 시리즈</string>
     <string name="filter_status">시청 상태</string>
     <string name="status_in_progress">시청 중</string>
     <string name="status_watched">시청 완료</string>
@@ -85,7 +88,24 @@
     <string name="play">재생</string>
     <string name="resume">이어서 재생</string>
     <string name="time_left">%s 남음</string>
-    <string name="nav_home">홈</string>
+    <string name="back_again_to_quit">뒤로 버튼을 한 번 더 누르면 종료됩니다</string>
+    <string name="watch_title">볼 작품</string>
+    <string name="home_news">새로 추가됨</string>
+    <string name="home_unseen">아직 안 본 작품</string>
+    <string name="home_libraries">라이브러리</string>
+    <string name="home_state_source">소스</string>
+    <string name="home_state_scan">마지막 스캔</string>
+    <string name="home_state_tmdb_refused">키가 거부됨</string>
+    <string name="home_state_tmdb_offline">연결할 수 없음</string>
+    <string name="home_scan_running">진행 중…</string>
+    <string name="home_episode">S%1$d · E%2$s</string>
+    <string name="home_open_title">상세 페이지 열기</string>
+    <plurals name="home_news_week">
+        <item quantity="other">이번 주 %d편</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="other">새 에피소드 %d편</item>
+    </plurals>
     <string name="from_start">처음부터 재생</string>
     <string name="part_of">파트 %1$d/%2$d</string>
     <string name="parts">파트</string>
@@ -94,12 +114,12 @@
     <string name="mark_unwatched">미시청으로 표시</string>
     <string name="mark_season_watched">시즌을 시청 완료로 표시</string>
     <string name="mark_season_unwatched">시즌을 미시청으로 표시</string>
-    <string name="mark_series_watched">TV 프로그램을 시청 완료로 표시</string>
-    <string name="mark_series_unwatched">TV 프로그램을 미시청으로 표시</string>
-    <string name="long_press_series_watched">길게 누르기: TV 프로그램 시청 완료</string>
-    <string name="long_press_series_unwatched">길게 누르기: TV 프로그램 미시청</string>
-    <string name="mark_episode_watched">에피소드를 시청 완료로 표시</string>
-    <string name="mark_episode_unwatched">에피소드를 미시청으로 표시</string>
+    <string name="mark_series_watched">TV 프로그램 전체를 시청 완료로 표시</string>
+    <string name="mark_series_unwatched">TV 프로그램 전체를 미시청으로 표시</string>
+    <string name="mark_season_number_watched">시즌 %d을(를) 시청 완료로 표시</string>
+    <string name="mark_season_number_unwatched">시즌 %d을(를) 미시청으로 표시</string>
+    <string name="more_options">추가 옵션</string>
+    <string name="play_from_start">처음부터 재생</string>
     <string name="add_favorite">즐겨찾기에 추가</string>
     <string name="remove_favorite">즐겨찾기에서 삭제</string>
     <string name="view_series">TV 프로그램 보기</string>
@@ -176,6 +196,9 @@
     <string name="no_player">Zidoo 플레이어가 설치되어 있지 않습니다.</string>
     <string name="player_credentials">이 폴더에는 비밀번호가 필요합니다. Zidoo 플레이어에서만 재생할 수 있습니다.</string>
     <string name="player_changed">Zidoo 플레이어가 변경되어, Houselights는 이 플레이어에 비밀번호도 서버 접근 권한도 더 이상 맡기지 않습니다. Zidoo에 기본 탑재된 플레이어를 다시 설치하거나, 새 플레이어를 신뢰하려면 Houselights 데이터를 삭제하세요.</string>
+    <string name="play_failed_no_player">Zidoo 플레이어 미설치</string>
+    <string name="play_failed_credentials">Zidoo 플레이어 필요</string>
+    <string name="play_failed_player_changed">Zidoo 플레이어 변경됨</string>
 
     <!-- Local folders -->
     <string name="add_folder">폴더 추가</string>
@@ -193,6 +216,11 @@
     <string name="field_host">NAS 주소</string>
     <string name="field_export">NFS 익스포트</string>
     <string name="nfs_hint">비밀번호가 필요 없습니다. NAS에서 이 기기의 주소를 읽기 전용으로, 비특권 포트의 연결까지 허용하세요.</string>
+    <string name="nfs_identity_title">연결할 사용자</string>
+    <string name="nfs_identity_desc">NAS에 표시되는 사용자</string>
+    <string name="nfs_identity_hint">비워 두면 Houselights는 root(UID 0, GID 0)로 연결합니다. Zidoo 플레이어는 자체 계정으로 동영상을 엽니다.</string>
+    <string name="field_uid">사용자(UID)</string>
+    <string name="field_gid">그룹(GID)</string>
     <string name="smb_hint">비밀번호는 이 기기에 저장되어 Zidoo 플레이어로 전달됩니다. 읽기 권한만 있는 별도 계정을 권장합니다.</string>
     <string name="field_share">공유 폴더</string>
     <string name="field_path">폴더</string>
@@ -207,6 +235,8 @@
     <string name="placeholder_share">예: media</string>
     <string name="placeholder_path_movies">예: movies</string>
     <string name="placeholder_path_shows">예: shows</string>
+    <string name="placeholder_uid">예: 1026</string>
+    <string name="placeholder_gid">예: 100</string>
     <string name="test_connection">테스트</string>
     <string name="connection_untested">연결 테스트 전</string>
     <string name="server_found">서버를 찾았습니다</string>
@@ -219,6 +249,7 @@
     <string name="folder_overlaps">이 폴더는 이미 라이브러리에 있는 ‘%s’ 폴더와 겹칩니다. 그대로 추가하면 작품이 두 번 표시됩니다. 다른 폴더를 선택하거나 설정에서 기존 폴더를 편집하세요.</string>
     <string name="folder_overlaps_state">이미 라이브러리에 있음</string>
     <string name="folder_not_saved_state">저장되지 않음</string>
+    <string name="folder_unread">이 폴더를 다시 읽을 수 없습니다</string>
     <string name="saving">저장 중…</string>
     <plurals name="entries_found">
         <item quantity="other">항목 %d개 발견</item>
@@ -230,6 +261,8 @@
     <string name="error_host_missing">NAS 주소를 입력하세요.</string>
     <string name="error_export_missing">NFS 익스포트를 입력하세요(예: /volume1/media).</string>
     <string name="error_share_missing">공유 폴더 이름을 입력하세요(예: media).</string>
+    <string name="error_uid_missing">사용자(UID)도 입력하세요.</string>
+    <string name="error_gid_missing">그룹(GID)도 입력하세요.</string>
     <string name="error_scan_other">폴더를 읽을 수 없습니다. 다시 시도하거나 NAS의 공유 폴더를 확인하세요.</string>
     <string name="error_folder_empty">NAS의 폴더가 비어 있는 것 같습니다. 아무것도 제거하지 않았습니다. 디스크가 마운트되어 있는지 확인하고, 정말 비어 있다면 폴더를 제거하세요.</string>
     <string name="error_storage_full">이 기기에 남은 공간이 없어 스캔이 중단되었습니다. 설정의 ‘저장 공간’에서 공간을 확보하세요.</string>
@@ -238,6 +271,11 @@
     <!-- Jellyfin -->
     <string name="jellyfin_title">Jellyfin에 연결</string>
     <string name="servers_found">네트워크에서 찾은 서버</string>
+    <string name="server_encrypted">암호화됨</string>
+    <string name="server_plain">암호화 안 됨</string>
+    <string name="server_silent">응답 없음</string>
+    <string name="connection_is_encrypted">암호화된 연결</string>
+    <string name="connection_is_plain">암호화되지 않은 연결</string>
     <string name="field_server">서버 주소</string>
     <string name="placeholder_server">예: 192.168.1.10:8096</string>
     <string name="sign_in">로그인</string>
@@ -272,9 +310,46 @@
         <item quantity="other">파일 %d개</item>
     </plurals>
     <string name="playback_desc">Zidoo 플레이어가 서버의 파일에 접근하는 방식입니다.</string>
+    <string name="playback_desc_folders">Zidoo 플레이어가 재생할 트랙입니다. 모든 영화와 TV 프로그램에 적용됩니다.</string>
+    <string name="playback_desc_server">Zidoo 플레이어가 재생할 트랙과 서버 파일을 여는 방식입니다.</string>
+    <string name="tracks">오디오 및 자막</string>
+    <string name="tracks_for_all">모든 영화와 TV 프로그램에 적용</string>
+    <string name="tracks_per_title">영화별로 따로 선택하려면 작품 페이지의 ‘오디오 및 자막’ 버튼을 사용하세요.</string>
+    <string name="tracks_player">플레이어에 맡김</string>
+    <string name="tracks_player_desc">플레이어 자체 설정, 없으면 첫 번째 트랙</string>
+    <string name="audio_language">오디오 언어</string>
+    <string name="audio_language_desc">작품에 해당 트랙이 있을 때</string>
+    <string name="audio_language_player_desc">플레이어의 언어 설정</string>
+    <string name="subtitles">자막</string>
+    <string name="subtitles_off">끔</string>
+    <string name="subtitles_off_desc">자막을 표시하지 않음</string>
+    <string name="subtitles_forced">강제 자막만</string>
+    <string name="subtitles_forced_desc">다른 언어로 된 부분</string>
+    <string name="subtitles_auto">자동</string>
+    <string name="subtitles_auto_desc">오디오가 %1$s 이외의 언어일 때 전체 자막</string>
+    <string name="subtitles_always">항상 표시</string>
+    <string name="subtitles_always_desc">%1$s 전체 자막</string>
+    <string name="subtitle_language">자막 언어</string>
+    <string name="subtitle_language_interface_desc">인터페이스 언어와 동일</string>
+    <string name="subtitle_language_desc">표시할 자막의 언어</string>
+    <string name="tracks_settings">설정에 따름</string>
+    <string name="tracks_player_choice">플레이어가 선택</string>
+    <string name="tracks_audio">오디오</string>
+    <string name="tracks_none">없음</string>
+    <string name="tracks_forced">%1$s(강제)</string>
+    <string name="tracks_sdh">%1$s(SDH)</string>
+    <string name="tracks_for_film">이 영화에 적용</string>
+    <string name="tracks_for_show">TV 프로그램 전체에 적용</string>
+    <string name="tracks_note_film">선택한 항목은 이 영화와 모든 사본에 적용됩니다. 재생 중에 바꾼 내용도 유지됩니다.</string>
+    <string name="tracks_note_show">선택한 항목은 TV 프로그램 전체에 적용됩니다. 에피소드 재생 중에 바꾼 내용도 유지됩니다.</string>
+    <string name="tracks_hint_none">자막 없음</string>
+    <string name="tracks_hint_forced">강제 자막</string>
+    <string name="tracks_hint_full">%1$s 자막</string>
+    <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">포스터와 작품 정보는 TMDB에서 가져옵니다.</string>
     <string name="change_source_local_desc">폴더는 그대로 유지됩니다</string>
-    <string name="change_source_jellyfin_desc">전환할 때까지 연결이 유지됩니다</string>
+    <string name="change_source_jellyfin_desc">전환해도 연결이 유지됩니다</string>
+    <string name="change_source_jellyfin_sheet">전환해도 서버 연결이 유지됩니다</string>
     <string name="change_source">소스 변경</string>
     <string name="reconnect">다시 로그인</string>
     <string name="source_local_first">NAS에서 폴더를 추가하세요</string>
@@ -284,11 +359,21 @@
     <plurals name="folder_count">
         <item quantity="other">폴더 %d개</item>
     </plurals>
-    <string name="source_jellyfin_other">다른 서버 또는 다른 계정</string>
     <string name="sign_out">로그아웃</string>
     <string name="sign_out_confirm">‘%s’에서 로그아웃하시겠습니까?</string>
-    <string name="sign_out_desc">Houselights가 이 기기에서 이 서버 정보를 지웁니다. 대신 폴더를 사용합니다.</string>
-    <string name="sign_out_first_folder">첫 폴더를 추가하면 Houselights가 이 기기에서 이 서버 정보를 지웁니다.</string>
+    <string name="sign_out_desc">Houselights가 이 기기에서 이 서버 정보를 지웁니다. 대신 폴더를 사용합니다. 다시 사용하려면 다시 로그인해야 합니다.</string>
+    <string name="sign_out_no_folder_desc">Houselights가 이 기기에서 이 서버 정보를 지웁니다. 라이브러리를 다시 선택하게 됩니다. 다시 사용하려면 다시 로그인해야 합니다.</string>
+    <string name="source_jellyfin_another">다른 Jellyfin 서버</string>
+    <string name="source_jellyfin_another_desc">다른 주소 또는 다른 계정</string>
+    <string name="source_kept_resume">다시 로그인할 필요 없음</string>
+    <string name="source_trakt_resumes">Trakt 재개</string>
+    <string name="forget">지우기</string>
+    <string name="forget_server">‘%s’ 지우기</string>
+    <string name="forget_server_desc">이 기기에서 서버에서 로그아웃합니다</string>
+    <string name="forget_server_confirm">‘%s’ 정보를 지우시겠습니까?</string>
+    <string name="forget_server_consequence">Houselights가 이 기기에서 이 서버에서 로그아웃합니다. 다시 사용하려면 다시 로그인해야 합니다.</string>
+    <string name="sign_out_server">‘%s’에서 로그아웃</string>
+    <string name="sign_out_server_desc">이 기기에서 서버 정보를 지웁니다</string>
     <string name="label_server">서버</string>
     <string name="label_connection">연결</string>
     <string name="connection_encrypted">암호화됨(HTTPS)</string>
@@ -356,6 +441,7 @@
     <string name="tmdb_key_unchecked">확인하지 않고 저장했습니다. TMDB가 응답하지 않습니다.</string>
     <string name="tmdb_scan_key_refused">지난 스캔 중 TMDB가 이 키를 거부했습니다. 작품 정보를 아직 가져오지 못했습니다.</string>
     <string name="tmdb_scan_offline">지난 스캔 중 TMDB가 응답하지 않았습니다. 작품 정보는 이후 스캔에서 가져옵니다.</string>
+    <string name="tmdb_scan_certificate">지난 스캔 중 TMDB의 인증서가 거부되었습니다. 이 기기의 날짜와 시간을 확인하세요.</string>
     <string name="tmdb_key_revert">내장 키로 되돌리기</string>
     <string name="tmdb_key_revert_desc">입력한 키를 지웁니다</string>
     <string name="save">저장</string>
@@ -414,7 +500,11 @@
     <string name="identify_state_matched">식별됨</string>
     <string name="result_current">현재</string>
     <string name="error_offline_title">라이브러리에 연결할 수 없음</string>
+    <string name="error_offline_nas_title">NAS에 연결할 수 없음</string>
+    <string name="error_offline_server_title">서버에 연결할 수 없음</string>
     <string name="error_offline">서버 또는 NAS가 응답하지 않습니다. 켜져 있는지 확인한 후 다시 시도하세요.</string>
+    <string name="error_certificate_title">인증서 거부됨</string>
+    <string name="error_certificate">보안 인증서가 거부되었습니다. 서버의 인증서를 갱신하거나 이 기기의 날짜와 시간을 확인한 후 다시 시도하세요.</string>
     <string name="error_denied_title">연결 거부됨</string>
     <string name="error_denied">서버가 연결을 거부했습니다. 계속하려면 다시 로그인하세요.</string>
     <string name="error_gone_title">이 작품은 더 이상 없습니다</string>
@@ -432,6 +522,7 @@
     <string name="error_keystore_title">기기 키 저장소를 사용할 수 없음</string>
     <string name="error_keystore">이 기기의 키 저장소가 비밀번호 암호화를 거부해 아무것도 저장되지 않았습니다. 플레이어를 다시 시작한 후 다시 시도하세요.</string>
     <string name="error_keystore_sign_in">로그인했지만 이 기기의 키 저장소가 서버 토큰 암호화를 거부해 아무것도 저장되지 않았습니다. 플레이어를 다시 시작한 후 다시 로그인하세요.</string>
+    <string name="error_secrets_unread">이 기기의 키 저장소가 응답하지 않았지만 저장된 내용은 사라지지 않았습니다. 다시 시도하고, 계속되면 플레이어를 다시 시작하세요.</string>
     <string name="error_settings_title">설정을 읽을 수 없음</string>
     <string name="error_settings">이 플레이어의 저장소가 응답하지 않았습니다. 다시 시도하고, 계속되면 플레이어를 다시 시작하세요.</string>
     <string name="error_not_saved_title">아무것도 저장되지 않음</string>
@@ -439,6 +530,7 @@
     <string name="error_not_saved_player">이 플레이어의 저장소가 쓰기를 거부해 아무것도 저장되지 않았습니다. 플레이어의 공간을 확보한 후 다시 시도하세요.</string>
     <string name="mappings_not_saved">매핑이 저장되지 않았습니다. %s</string>
     <string name="welcome_lost_secrets">이 플레이어에 저장된 연결 정보를 다시 읽을 수 없습니다. 영화가 있는 위치를 다시 선택하세요.</string>
+    <string name="welcome_settings_reset">이 플레이어에 저장된 설정을 다시 읽을 수 없어 초기화했습니다. 영화가 있는 위치를 다시 선택하세요.</string>
     <string name="settings_lost_tmdb_key">이 플레이어에서 개인 TMDB 키를 다시 읽을 수 없습니다. ‘TMDB API 키’에서 다시 입력하세요.</string>
     <string name="settings_lost_mappings">이 플레이어에 저장된 경로 매핑을 다시 읽을 수 없습니다. 아래에서 다시 입력하세요.</string>
     <string name="error_action_reconnect">다시 로그인</string>
@@ -452,6 +544,8 @@
     <string name="device_language">기기 언어</string>
     <string name="remove_folder">이 폴더 제거</string>
     <string name="remove_folder_desc">이 폴더의 작품이 라이브러리에서 빠집니다. NAS에서는 아무것도 삭제되지 않습니다.</string>
+    <string name="remove_last_folder_desc">이 폴더의 작품이 라이브러리에서 빠집니다. NAS에서는 아무것도 삭제되지 않습니다. 마지막 폴더입니다. 시작 화면으로 돌아갑니다.</string>
+    <string name="remove_last_folder_kept_desc">이 폴더의 작품이 라이브러리에서 빠집니다. NAS에서는 아무것도 삭제되지 않습니다. 마지막 폴더입니다. 다시 로그인하지 않고 ‘%s’ 서버로 돌아갑니다.</string>
     <string name="remove_folder_row_desc">작품이 라이브러리에서 빠집니다</string>
     <string name="folder_not_removed">이 폴더는 제거되지 않았습니다. %s</string>
     <string name="remove_folder_confirm">‘%s’ 폴더를 제거하시겠습니까?</string>
@@ -464,6 +558,16 @@
     <string name="ui_resolution_desc">재생 중에는 플레이어의 모드</string>
     <string name="interface_language">인터페이스 언어</string>
     <string name="interface_language_desc">메뉴, 설정, 메시지</string>
+    <string name="text_size">글자 크기</string>
+    <string name="text_size_desc">앱의 모든 텍스트</string>
+    <string name="text_size_sheet">Houselights의 모든 텍스트를 키우거나 줄입니다. 격자와 여백은 바뀌지 않습니다.</string>
+    <string name="text_size_compact">컴팩트</string>
+    <string name="text_size_compact_desc">가까이에서 읽을 때</string>
+    <string name="text_size_standard">표준</string>
+    <string name="text_size_standard_desc">권장</string>
+    <string name="text_size_large">크게</string>
+    <string name="text_size_large_desc">멀리서 읽을 때</string>
+    <string name="text_size_large_reached">Android 설정에서 이미 이 크기입니다</string>
     <string name="ui_4k_desc">4K TV에서 선명한 인터페이스</string>
     <string name="ui_system_desc">시스템이 선택한 모드</string>
     <string name="current_output">출력</string>
@@ -492,6 +596,22 @@
     <string name="support">Houselights 후원하기</string>
     <string name="support_desc">휴대폰으로 프로젝트에 커피 한 잔을 사 주세요.</string>
     <string name="support_scan">휴대폰으로 이 코드를 스캔하면 프로젝트의 Ko-fi 페이지가 열립니다.</string>
+    <string name="journal">로그 보내기</string>
+    <string name="journal_desc">문제를 신고하려면 휴대폰에서</string>
+    <string name="journal_scan">휴대폰으로 이 코드를 스캔하면 Houselights 로그가 열립니다. 메시지에 첨부하세요.</string>
+    <string name="journal_masked">비밀번호와 토큰은 가려지지만 파일, 공유 폴더, NAS 이름은 남습니다. 게시하기 전에 확인하세요.</string>
+    <string name="journal_closes">이 페이지는 이 패널과 함께 닫히며, 늦어도 %1$s 후에 닫힙니다.</string>
+    <string name="journal_offline">플레이어가 로컬 네트워크에 연결되어 있지 않습니다. 공유기에 연결한 다음 이 패널을 다시 여세요.</string>
+    <string name="journal_failed">이 플레이어에서 페이지를 열 수 없습니다. 이 패널을 닫은 다음 다시 여세요.</string>
+    <string name="journal_few">이 코드를 스캔하면 로그가 열리지만 아직 거의 비어 있습니다. 문제가 생긴 직후 이 패널을 여세요.</string>
+    <string name="journal_page_title">로그</string>
+    <string name="journal_page_text">앱이 기록한 최근 줄입니다. 최신 순으로 표시됩니다.</string>
+    <string name="journal_copy">복사</string>
+    <string name="journal_copied">복사됨</string>
+    <string name="journal_download">다운로드</string>
+    <string name="journal_empty">Android에 남은 앱 기록이 없습니다.</string>
+    <string name="journal_trakt_on">Trakt 연결됨</string>
+    <string name="journal_trakt_off">Trakt 연결 안 됨</string>
     <string name="file_access">파일 접근</string>
     <string name="network_path_desc">NAS에서 직접 읽습니다</string>
     <string name="http_stream_desc">서버의 스트림을 읽습니다</string>
@@ -571,6 +691,8 @@
     <string name="trakt_no_keys">이 버전의 Houselights에는 Trakt 키가 없습니다.</string>
     <string name="trakt_signed_out">연결 안 됨</string>
     <string name="trakt_connected">연결됨</string>
+    <string name="trakt_paused">일시 중지됨</string>
+    <string name="trakt_paused_desc">Trakt는 폴더와 연동됩니다. 폴더로 돌아오면 재개됩니다.</string>
     <string name="trakt_connect">계정 연결</string>
     <string name="trakt_connect_desc">휴대폰이나 컴퓨터에서 코드를 입력합니다</string>
     <string name="trakt_disconnect">계정 연결 해제</string>
@@ -595,6 +717,28 @@
     <string name="trakt_sync_failed">Trakt와의 동기화를 완료하지 못했습니다. 자동으로 다시 시작됩니다.</string>
     <string name="trakt_sync_refused">Trakt가 동기화를 거부합니다. 계정이 잠겼거나 이 버전의 키가 거부되었을 수 있습니다. trakt.tv에서 계정을 확인하세요.</string>
     <string name="trakt_sync_unreadable">이 버전에서는 Trakt의 응답을 읽을 수 없습니다. Houselights를 업데이트하면 해결될 것입니다.</string>
+    <plurals name="trakt_skipped">
+        <item quantity="other">항목 %d개 건너뜀</item>
+    </plurals>
+    <string name="trakt_skipped_desc_one">앱이 읽을 수 없는 형식으로 Trakt가 보냅니다</string>
+    <string name="trakt_skipped_desc">앱이 읽을 수 없는 형식으로 Trakt가 보냅니다</string>
+    <string name="trakt_skipped_text_one">Trakt가 이 버전이 읽을 수 없는 형식으로 보냅니다. 대개 다른 앱이 남긴 일시 정지된 재생입니다. 나머지는 동기화되었으며, 시청 표시도 평소처럼 전송됩니다.</string>
+    <string name="trakt_skipped_text">Trakt가 이 버전이 읽을 수 없는 형식으로 보냅니다. 대개 다른 앱이 남긴 일시 정지된 재생입니다. 나머지는 동기화되었으며, 시청 표시도 평소처럼 전송됩니다.</string>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="other">제목 없는 항목 %d개</item>
+    </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="other">그 외 %d개</item>
+    </plurals>
+    <string name="trakt_skipped_movies">영화 기록</string>
+    <string name="trakt_skipped_episodes">에피소드 기록</string>
+    <string name="trakt_skipped_paused">일시 정지된 재생</string>
+    <string name="trakt_skipped_partial_movies">영화 기록을 모두 읽을 수 있을 때까지 Houselights는 여기서 본 영화 중 Trakt에 없는 것을 보내지 않습니다. 중복을 만들지 않기 위해서입니다.</string>
+    <string name="trakt_skipped_partial_episodes">에피소드 기록을 모두 읽을 수 있을 때까지 Houselights는 여기서 본 에피소드 중 Trakt에 없는 것을 보내지 않습니다. 중복을 만들지 않기 위해서입니다.</string>
+    <string name="trakt_skipped_partial_both">영화와 에피소드 기록을 모두 읽을 수 있을 때까지 Houselights는 여기서 본 영화와 에피소드 중 Trakt에 없는 것을 보내지 않습니다. 중복을 만들지 않기 위해서입니다.</string>
+    <string name="trakt_skipped_fix_label">해결 방법:</string>
+    <string name="trakt_skipped_fix_one">해결 방법: trakt.tv의 진행 상황 또는 기록에서 삭제하거나, 읽을 수 있는 버전이 나오면 Houselights를 업데이트하세요.</string>
+    <string name="trakt_skipped_fix">해결 방법: trakt.tv의 진행 상황 또는 기록에서 삭제하거나, 읽을 수 있는 버전이 나오면 Houselights를 업데이트하세요.</string>
     <string name="trakt_certificate">Trakt의 인증서가 거부되었습니다. 이 기기의 날짜와 시간을 확인한 후 다시 시도하세요.</string>
     <string name="settings_lost_trakt">이 플레이어에 저장된 Trakt 연결을 다시 읽을 수 없습니다. 계정을 다시 연결하세요.</string>
 </resources>

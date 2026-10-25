@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.DpSize
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Gradation
-import app.houselights.ui.design.GradationMark
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
@@ -37,7 +36,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Lockup
 import kotlin.math.roundToInt
 
-/** Gradation as Android draws it before the app runs (icon, banner, splash), then on screen: home's place, the lockup. */
+/** Gradation as Android draws it before the app runs (icon, banner, splash), then on screen: the lockup. */
 internal fun LazyListScope.catalogBrand() {
     item {
         Group("Brand: Gradation, the icon and the banner", still = true) {
@@ -53,11 +52,6 @@ internal fun LazyListScope.catalogBrand() {
     item {
         Group("Brand: the launch mark, as Android 9 draws it, in the circle it shows", still = true) {
             LaunchMark(R.drawable.splash_mark)
-        }
-    }
-    item {
-        Group("Brand: on screen, Gradation is home's place in its bar, as tall as its words' capitals", still = true) {
-            Specimen("in home's bar, where you are", gap = HlSpace.xs) { GradationMark() }
         }
     }
     item {

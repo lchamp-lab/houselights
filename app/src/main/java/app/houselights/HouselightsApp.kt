@@ -10,14 +10,20 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import app.houselights.core.Http
 import app.houselights.core.LibraryEvents
+import app.houselights.core.MediaItem
 import app.houselights.ui.design.components.FIELD_POSTERS
 import app.houselights.ui.util.RoomPosters
 import app.houselights.core.MediaProvider
+import app.houselights.core.PlaybackOptions
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
+import app.houselights.core.TrackPlan
 import app.houselights.core.Typeset
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
+import app.houselights.player.TrackChooser
+import app.houselights.player.ZidooPlayer
+import app.houselights.player.ZidooSettings
 import app.houselights.player.Redact
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
@@ -29,6 +35,7 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
+import app.houselights.providers.local.TrackChoiceEntity
 import app.houselights.providers.local.followDetailsLanguage
 import app.houselights.providers.trakt.TraktAccount
 import app.houselights.providers.trakt.TraktKeys
@@ -37,9 +44,11 @@ import app.houselights.settings.AppSettings
 import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
+import app.houselights.settings.TraktFollow
 import app.houselights.ui.home.HomeLaunch
 import app.houselights.ui.library.LibraryAhead
 import app.houselights.ui.design.components.AwaitAhead
+import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.util.PlaybackOutcome
 import coil.EventListener
 import coil.ImageLoader
@@ -54,19 +63,21 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import app.houselights.ui.home.LibraryRows
+import app.houselights.ui.home.UnseenPick
 
 class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -90,8 +101,14 @@ class HouselightsApp : Application(), ImageLoaderFactory {
         container.deviceLocaleChanged(newConfig.locales[0])
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        // Coil trims its own memory cache, which the doors' cut posters outlive.
+        container.cutPosters.trim(level)
+    }
+
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
-        .okHttpClient { imageHttpClient(Http.client) }
+        .callFactory { ImageCalls(Http.client) }
         // A fixed budget: on a 2 GB player, a share of the large heap would hold 100 MB or more of pictures.
         .memoryCache { MemoryCache.Builder(this).maxSizeBytes(IMAGE_MEMORY_BYTES).build() }
         .diskCache {
@@ -140,7 +157,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         SupervisorJob() + Dispatchers.Main.immediate +
             CoroutineExceptionHandler { _, e -> Log.e("Houselights", "Background task failed", e) }
     )
-    val settings = SettingsStore(app, scope, Secrets.device)
+    val settings = SettingsStore(app, scope, Secrets.device(app))
 
     private val _deviceLocale = MutableStateFlow(InterfaceLanguage.deviceLocales()[0])
 
@@ -154,12 +171,24 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** TMDB's language: the one chosen in Settings, else the device's. */
     fun metadataLocale(): Locale = metadataLocale(settings.state.value, deviceLocale.value)
 
+    /** Whether the app is on screen, whichever activity shows it. */
+    private val onScreen = ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) }
+
     /** The Trakt account the folders' watch history goes to, its tokens in the settings. */
-    val trakt = TraktAccount(TraktKeys.builtIn, session = { settings.state.value.trakt }, save = settings::setTrakt)
+    val trakt = TraktAccount(
+        TraktKeys.builtIn,
+        session = { settings.state.value.trakt },
+        save = settings::setTrakt,
+        retries = scope,
+        started = onScreen,
+    )
 
     /** The only way to change the source: the current one stays active until the new one is saved. */
-    val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope, leftFolders = { traktSync.leave() })
-    val database = LibraryDatabase.create(app, Secrets.device)
+    val sources = SourceSwitcher({ settings.state.value }, settings::setSource, scope, keepUnopened = settings::setSourceKeepingUnopened)
+    val database = LibraryDatabase.create(app, Secrets.device(app))
+
+    /** Trakt follows the account and the source as the settings have them. */
+    private val traktFollow = TraktFollow(settings.state)
 
     /** Keeps the folders' history and the Trakt account's together, in the background. */
     val traktSync = TraktSync(
@@ -168,11 +197,37 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         scope,
         changed = ::libraryChanged,
         // Read at a playback's end too, which a process restarted meanwhile may report before the settings are followed.
-        following = { settings.state.first { it.loaded }.let { it.trakt != null && it.source == SourceConfig.Local } },
+        following = traktFollow::queues,
     )
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
+    /** The audio and subtitles asked of the player: Settings', or each title's own choice. */
+    val tracks = TrackChooser(
+        preferences = { settings.state.value.tracks },
+        // The app's own language, which may not be the device's, in the device's region.
+        locale = { Locale(app.resources.configuration.locales[0].language, deviceLocale.value.country) },
+        load = { database.trackChoices().choice(it)?.choice() },
+        save = { key, choice ->
+            database.trackChoices().save(TrackChoiceEntity(key, choice.audio, choice.subtitles?.stored, System.currentTimeMillis()))
+        },
+        forget = { database.trackChoices().forget(it) },
+        playerAudio = { ZidooSettings.audio(app.contentResolver) },
+        // The player speaks the device's language, whatever the app's.
+        deviceLanguage = { deviceLocale.value.language },
+        playersOwn = { player.playersOwnTracks(it) },
+    )
+
+    /** The Zidoo player takes the tracks asked of it ([ZidooPlayer.takesTracks]); another ignores them. Debug builds show them anywhere. */
+    val asksTracks: Boolean by lazy { BuildConfig.DEBUG || ZidooPlayer.takesTracks(ZidooPlayer(app).choose().player?.component) }
+
+    /** The tracks Lire would ask of the player for [item], from the file it plays (its chosen copy); null when unknown. */
+    suspend fun tracksOf(item: MediaItem): TrackPlan? {
+        if (!asksTracks) return null
+        val s = settings.state.value
+        return provider.playedTracks(item, PlaybackOptions(s.pathMappings, s.forceHttp))?.let { tracks.table(it) }
+    }
+
     /** Launches the external player for a title and follows it while it plays. */
-    val player = PlaybackManager(app, scope) { resumeKey ->
+    val player: PlaybackManager = PlaybackManager(app, scope, remember = tracks::remember) { resumeKey ->
         // After a process restart, the source is known only once the settings are loaded.
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)
@@ -184,14 +239,18 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** Holds the launch screen on a cold start while home loads underneath. */
     val launch = LaunchGate()
 
-    /** Prefetches home's first rows and pictures while the launch screen holds. */
-    val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value })
+    /** The film home's case proposes when nothing is in progress, the same all session. */
+    val unseenPick = UnseenPick()
 
-    /** Prefetches a wall's first page and posters while its name lights in home's bar. */
+    /** The posters home's doors cut their counts in, let go when the player or the system needs the memory. */
+    val cutPosters = CutPosterCache()
+
+
+    /** Prefetches a wall's first page and posters as its door on home is chosen. */
     val libraryAhead = LibraryAhead({ provider })
 
     /** Library-generated rows shown below home's own, chosen once a day. */
-    val libraryRows = LibraryRows({ provider })
+    val libraryRows = LibraryRows({ provider }, { settledVersion.value })
 
     /** NAS browsers, with the sessions and mounts they keep open between files. */
     val remoteBrowsers = RemoteBrowsers()
@@ -204,31 +263,40 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         playing = player.playing,
         browsers = remoteBrowsers::of,
         closeIdle = remoteBrowsers::closeIdle,
-        started = ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) },
+        started = onScreen,
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
-    private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed))
+    /** Whether the folders hold one at least ([LocalLibrary.anyFolder]); null until read. */
+    val hasFolders: StateFlow<Boolean?> = library.anyFolder.stateIn(scope, SharingStarted.Eagerly, null)
+
+    /** Prefetches home's first rows and pictures while the launch screen holds. */
+    val homeLaunch = HomeLaunch(
+        launch,
+        settings.state,
+        hasFolders = { hasFolders.filterNotNull().first() },
+        provider = { provider },
+        version = { libraryVersion.value },
+        pick = unseenPick,
+    )
+
+    private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed), scanner.progress)
 
     override val libraryVersion: StateFlow<Long> = changes.version
+
+    override val settledVersion: StateFlow<Long> = changes.settled
 
     override fun libraryChanged() = changes.userChanged()
 
     init {
-        // A new TMDB key (or back to the built-in one) forgets the old key's results and retries unmatched titles.
-        scope.launch {
-            settings.state.filter { it.loaded }.map { it.tmdbApiKey }.distinctUntilChanged().drop(1).collect {
-                if (settings.state.value.source == SourceConfig.Local) scanner.tmdbKeyChanged()
-            }
-        }
+        scope.launch { retryOnTmdbKeyChange(settings.state, scanner::tmdbKeyChanged) }
         // Text from elsewhere is typeset for the language it comes in, whatever the app speaks.
         scope.launch {
             combine(settings.state, deviceLocale) { s, device ->
                 (if (s.source == SourceConfig.Local) metadataLocale(s, device) else device).language
             }.collect { Typeset.language = it }
         }
-        // Titles the library words itself ("Season 1") are made again in a new interface language.
-        scope.launch { language.chosen.drop(1).collect { libraryChanged() } }
+        scope.launch { rewordOnLanguageChange(language.chosen, ::libraryChanged) }
         // Details read in another language than TMDB's are read again, folder by folder.
         scope.launch {
             val languages = combine(settings.state.filter { it.loaded }, deviceLocale) { s, device ->
@@ -250,19 +318,22 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 
     /** Provider of the active source; rebuilt when the source changes. */
     val provider: MediaProvider
-        get() {
-            val source = settings.state.value.source ?: error("No library source configured")
-            cached?.takeIf { it.first == source }?.let { return it.second }
-            val created = when (source) {
-                SourceConfig.Local -> {
-                    val editor = LocalEditor(database.dao(), scanner, ::tmdbInteractive)
-                    LocalProvider(app, database.dao(), editor, traktSync) { settings.state.value.collectionMinFilms }
-                }
-                is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
+        get() = providerOrNull() ?: error("No library source configured")
+
+    /** Provider of the active source, or null while there is none (its connection could not be read back). */
+    fun providerOrNull(): MediaProvider? {
+        val source = settings.state.value.source ?: return null
+        cached?.takeIf { it.first == source }?.let { return it.second }
+        val created = when (source) {
+            SourceConfig.Local -> {
+                val editor = LocalEditor(database.dao(), scanner, ::tmdbInteractive)
+                LocalProvider(app, database.dao(), editor, traktSync) { settings.state.value.collectionMinFilms }
             }
-            cached = source to created
-            return created
+            is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
         }
+        cached = source to created
+        return created
+    }
 
     /** TMDB key in use: the one saved in Settings, else the one built into the APK. */
     fun tmdbKey(s: AppSettings = settings.state.value): String? = s.tmdbApiKey ?: BuildConfig.TMDB_API_KEY.ifBlank { null }
@@ -294,7 +365,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         source = { settings.state.first { it.loaded || it.readFailed }.source },
         latest = { library.latestPosters(FIELD_POSTERS).first() },
         hasFolders = { library.hasFolders() },
-        trending = ::trendingPosters,
+        trending = { widthPx -> trendingPosters(widthPx).map { LocalProvider.image(it, TmdbClient.Companion.ImageType.POSTER) } },
     )
 
     /** Poster URLs of trending films, or nothing when TMDB is unreachable. */
@@ -306,14 +377,9 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     init {
         scope.launch { settings.ensureDeviceId() }
         // Seals passwords left in plain text by a failing Keystore (migration 6 to 7) once it works again.
-        scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device) }
+        scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device(app)) }
         // Trakt follows the account and the source; the end of a scan reads it again.
-        scope.launch {
-            settings.state.filter { it.loaded }
-                .map { s -> Triple(s.trakt?.ended == false, s.source == SourceConfig.Local, s.trakt == null) }
-                .distinctUntilChanged()
-                .collect { (connected, folders, signedOut) -> traktSync.follow(connected, folders, signedOut) }
-        }
+        scope.launch { traktFollow.drive(traktSync) }
         scope.launch { scanner.passEnded.collect(traktSync::scanned) }
     }
 }

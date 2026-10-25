@@ -43,6 +43,7 @@
     <string name="home_scan_failed">A análise não foi concluída</string>
     <string name="home_scan_tmdb_refused">O TMDB recusa a chave: os títulos são adicionados a partir dos seus arquivos, sem os detalhes.</string>
     <string name="home_scan_tmdb_offline">O TMDB não responde: os títulos são adicionados a partir dos seus arquivos e recebem os detalhes em uma análise posterior.</string>
+    <string name="home_scan_tmdb_certificate">O certificado do TMDB foi recusado: os títulos são adicionados a partir dos seus arquivos. Verifique a data e a hora do dispositivo.</string>
     <string name="home_see_folders">Ver as pastas</string>
 
     <!-- Browsing -->
@@ -51,6 +52,8 @@
     <string name="sort_added">Data de adição</string>
     <string name="sort">Ordenar</string>
     <string name="filter">Filtrar</string>
+    <string name="filter_show">Mostrar</string>
+    <string name="show_grouped">Filmes e sagas</string>
     <string name="filter_status">Status</string>
     <string name="status_in_progress">Em andamento</string>
     <string name="status_watched">Vistos</string>
@@ -91,7 +94,28 @@
     <string name="play">Reproduzir</string>
     <string name="resume">Retomar</string>
     <string name="time_left">Restam %s</string>
-    <string name="nav_home">Início</string>
+    <string name="back_again_to_quit">Pressione Voltar de novo para sair</string>
+    <string name="watch_title">Para assistir</string>
+    <string name="home_news">Novidades</string>
+    <string name="home_unseen">Ainda não visto</string>
+    <string name="home_libraries">Bibliotecas</string>
+    <string name="home_state_source">Origem</string>
+    <string name="home_state_scan">Última análise</string>
+    <string name="home_state_tmdb_refused">Chave recusada</string>
+    <string name="home_state_tmdb_offline">Inacessível</string>
+    <string name="home_scan_running">Em andamento…</string>
+    <string name="home_episode">T%1$d · E%2$s</string>
+    <string name="home_open_title">Abrir a ficha</string>
+    <plurals name="home_news_week">
+        <item quantity="one">%d esta semana</item>
+        <item quantity="many">%d esta semana</item>
+        <item quantity="other">%d esta semana</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="one">%d episódio novo</item>
+        <item quantity="many">%d episódios novos</item>
+        <item quantity="other">%d episódios novos</item>
+    </plurals>
     <string name="from_start">Do início</string>
     <string name="part_of">Parte %1$d de %2$d</string>
     <string name="parts">Partes</string>
@@ -100,12 +124,12 @@
     <string name="mark_unwatched">Marcar como não visto</string>
     <string name="mark_season_watched">Marcar temporada como vista</string>
     <string name="mark_season_unwatched">Marcar temporada como não vista</string>
-    <string name="mark_series_watched">Marcar série como vista</string>
-    <string name="mark_series_unwatched">Marcar série como não vista</string>
-    <string name="long_press_series_watched">Segure OK: toda a série vista</string>
-    <string name="long_press_series_unwatched">Segure OK: toda a série não vista</string>
-    <string name="mark_episode_watched">Marcar episódio como visto</string>
-    <string name="mark_episode_unwatched">Marcar episódio como não visto</string>
+    <string name="mark_series_watched">Marcar toda a série como vista</string>
+    <string name="mark_series_unwatched">Marcar toda a série como não vista</string>
+    <string name="mark_season_number_watched">Marcar a temporada %d como vista</string>
+    <string name="mark_season_number_unwatched">Marcar a temporada %d como não vista</string>
+    <string name="more_options">Mais opções</string>
+    <string name="play_from_start">Reproduzir desde o início</string>
     <string name="add_favorite">Adicionar aos favoritos</string>
     <string name="remove_favorite">Remover dos favoritos</string>
     <string name="view_series">Ver série</string>
@@ -184,6 +208,9 @@
     <string name="no_player">O player Zidoo não está instalado.</string>
     <string name="player_credentials">Esta pasta exige senha: só o player Zidoo pode reproduzi-la.</string>
     <string name="player_changed">O player Zidoo mudou, e o Houselights não lhe confia mais suas senhas nem seu acesso ao servidor. Reinstale o player que veio com o Zidoo, ou apague os dados do Houselights para confiar no novo.</string>
+    <string name="play_failed_no_player">Player Zidoo não instalado</string>
+    <string name="play_failed_credentials">Player Zidoo necessário</string>
+    <string name="play_failed_player_changed">Player Zidoo alterado</string>
 
     <!-- Local folders -->
     <string name="add_folder">Adicionar pasta</string>
@@ -201,6 +228,11 @@
     <string name="field_host">Endereço do NAS</string>
     <string name="field_export">Exportação NFS</string>
     <string name="nfs_hint">Sem senha: no NAS, autorize o endereço deste dispositivo em somente leitura, a partir de portas não privilegiadas.</string>
+    <string name="nfs_identity_title">Conectar como</string>
+    <string name="nfs_identity_desc">Usuário visto pelo NAS</string>
+    <string name="nfs_identity_hint">Campos vazios: o Houselights se conecta como root (UID 0, GID 0). O player Zidoo abre os vídeos com a própria conta.</string>
+    <string name="field_uid">Usuário (UID)</string>
+    <string name="field_gid">Grupo (GID)</string>
     <string name="smb_hint">A senha fica salva neste dispositivo e é passada ao player Zidoo. Prefira uma conta dedicada, somente leitura.</string>
     <string name="field_share">Compartilhamento</string>
     <string name="field_path">Pasta</string>
@@ -215,6 +247,8 @@
     <string name="placeholder_share">Ex.: media</string>
     <string name="placeholder_path_movies">Ex.: filmes</string>
     <string name="placeholder_path_shows">Ex.: séries</string>
+    <string name="placeholder_uid">Ex.: 1026</string>
+    <string name="placeholder_gid">Ex.: 100</string>
     <string name="test_connection">Testar</string>
     <string name="connection_untested">Conexão não testada</string>
     <string name="server_found">Servidor encontrado</string>
@@ -227,6 +261,7 @@
     <string name="folder_overlaps">Esta pasta se sobrepõe a “%s”, que já está na biblioteca: os títulos apareceriam duas vezes. Escolha outra pasta, ou edite aquela em Configurações.</string>
     <string name="folder_overlaps_state">Já está na biblioteca</string>
     <string name="folder_not_saved_state">Não salvo</string>
+    <string name="folder_unread">Não foi possível reler esta pasta</string>
     <string name="saving">Salvando…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item encontrado</item>
@@ -240,6 +275,8 @@
     <string name="error_host_missing">Digite o endereço do NAS.</string>
     <string name="error_export_missing">Digite a exportação NFS, por exemplo /volume1/media.</string>
     <string name="error_share_missing">Digite o nome da pasta compartilhada, por exemplo media.</string>
+    <string name="error_uid_missing">Digite também o usuário (UID).</string>
+    <string name="error_gid_missing">Digite também o grupo (GID).</string>
     <string name="error_scan_other">Não foi possível ler a pasta. Tente de novo, ou verifique o compartilhamento no NAS.</string>
     <string name="error_folder_empty">A pasta parece vazia no NAS: nada foi removido. Verifique se o disco dela está montado; se estiver vazia de vez, remova-a.</string>
     <string name="error_storage_full">Este dispositivo está sem espaço livre: a análise parou. Libere espaço em Configurações, Armazenamento.</string>
@@ -248,6 +285,11 @@
     <!-- Jellyfin -->
     <string name="jellyfin_title">Conectar ao Jellyfin</string>
     <string name="servers_found">Servidores encontrados na rede</string>
+    <string name="server_encrypted">Criptografado</string>
+    <string name="server_plain">Sem criptografia</string>
+    <string name="server_silent">Não responde</string>
+    <string name="connection_is_encrypted">Com criptografia</string>
+    <string name="connection_is_plain">Sem criptografia</string>
     <string name="field_server">Endereço do servidor</string>
     <string name="placeholder_server">Ex.: 192.168.1.10:8096</string>
     <string name="sign_in">Entrar</string>
@@ -284,9 +326,46 @@
         <item quantity="other">%d arquivos</item>
     </plurals>
     <string name="playback_desc">Como o player Zidoo acessa os arquivos do seu servidor.</string>
+    <string name="playback_desc_folders">As faixas que o player Zidoo reproduz, para todos os seus filmes e séries.</string>
+    <string name="playback_desc_server">As faixas que o player Zidoo reproduz e como ele abre os arquivos do seu servidor.</string>
+    <string name="tracks">Áudio e legendas</string>
+    <string name="tracks_for_all">Para todos os seus filmes e séries</string>
+    <string name="tracks_per_title">Um filme pode manter sua própria escolha: botão “Áudio e legendas” na página dele.</string>
+    <string name="tracks_player">Escolha do player</string>
+    <string name="tracks_player_desc">A própria configuração, senão a primeira faixa</string>
+    <string name="audio_language">Idioma do áudio</string>
+    <string name="audio_language_desc">Quando o filme tem essa faixa</string>
+    <string name="audio_language_player_desc">A própria configuração de idioma</string>
+    <string name="subtitles">Legendas</string>
+    <string name="subtitles_off">Desativadas</string>
+    <string name="subtitles_off_desc">Legendas nunca exibidas</string>
+    <string name="subtitles_forced">Só forçadas</string>
+    <string name="subtitles_forced_desc">Trechos em outro idioma</string>
+    <string name="subtitles_auto">Automáticas</string>
+    <string name="subtitles_auto_desc">Completas quando o áudio não está em %1$s</string>
+    <string name="subtitles_always">Sempre</string>
+    <string name="subtitles_always_desc">Completas, em %1$s</string>
+    <string name="subtitle_language">Idioma das legendas</string>
+    <string name="subtitle_language_interface_desc">O da interface</string>
+    <string name="subtitle_language_desc">Para as legendas exibidas</string>
+    <string name="tracks_settings">Como nas Configurações</string>
+    <string name="tracks_player_choice">O player escolhe</string>
+    <string name="tracks_audio">Áudio</string>
+    <string name="tracks_none">Nenhuma</string>
+    <string name="tracks_forced">%1$s, forçada</string>
+    <string name="tracks_sdh">%1$s, SDH</string>
+    <string name="tracks_for_film">Para este filme</string>
+    <string name="tracks_for_show">Para a série inteira</string>
+    <string name="tracks_note_film">Sua escolha vale para este filme e todas as cópias dele. Uma mudança feita durante a reprodução também é mantida.</string>
+    <string name="tracks_note_show">Sua escolha vale para a série inteira. Uma mudança feita durante um episódio também é mantida.</string>
+    <string name="tracks_hint_none">sem legendas</string>
+    <string name="tracks_hint_forced">legendas forçadas</string>
+    <string name="tracks_hint_full">legendas em %1$s</string>
+    <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Os cartazes e os detalhes vêm do TMDB.</string>
     <string name="change_source_local_desc">Suas pastas são mantidas</string>
-    <string name="change_source_jellyfin_desc">Conectado até a troca</string>
+    <string name="change_source_jellyfin_desc">Continua conectado se você trocar</string>
+    <string name="change_source_jellyfin_sheet">O servidor continua conectado se você trocar</string>
     <string name="change_source">Mudar de fonte</string>
     <string name="reconnect">Entrar de novo</string>
     <string name="source_local_first">Adicione uma pasta do seu NAS</string>
@@ -300,11 +379,21 @@
         <item quantity="many">%d pastas</item>
         <item quantity="other">%d pastas</item>
     </plurals>
-    <string name="source_jellyfin_other">Outro servidor ou conta</string>
     <string name="sign_out">Sair</string>
     <string name="sign_out_confirm">Sair de “%s”?</string>
-    <string name="sign_out_desc">O Houselights esquecerá este servidor neste dispositivo; suas pastas tomarão o lugar dele.</string>
-    <string name="sign_out_first_folder">O Houselights esquecerá este servidor neste dispositivo assim que sua primeira pasta for adicionada.</string>
+    <string name="sign_out_desc">O Houselights esquecerá este servidor neste dispositivo; suas pastas tomarão o lugar dele. Para usá-lo de novo, será preciso entrar novamente.</string>
+    <string name="sign_out_no_folder_desc">O Houselights esquecerá este servidor neste dispositivo; você escolherá sua biblioteca de novo. Para usá-lo de novo, será preciso entrar novamente.</string>
+    <string name="source_jellyfin_another">Outro servidor Jellyfin</string>
+    <string name="source_jellyfin_another_desc">Outro endereço ou outra conta</string>
+    <string name="source_kept_resume">sem entrar de novo</string>
+    <string name="source_trakt_resumes">O Trakt retoma</string>
+    <string name="forget">Esquecer</string>
+    <string name="forget_server">Esquecer “%s”</string>
+    <string name="forget_server_desc">O Houselights sai dele aqui</string>
+    <string name="forget_server_confirm">Esquecer “%s”?</string>
+    <string name="forget_server_consequence">O Houselights sairá deste servidor neste dispositivo. Para usá-lo de novo, será preciso entrar novamente.</string>
+    <string name="sign_out_server">Sair de “%s”</string>
+    <string name="sign_out_server_desc">O Houselights o esquece aqui</string>
     <string name="label_server">Servidor</string>
     <string name="label_connection">Conexão</string>
     <string name="connection_encrypted">Criptografada (HTTPS)</string>
@@ -378,6 +467,7 @@
     <string name="tmdb_key_unchecked">Salva sem verificação: o TMDB não está respondendo.</string>
     <string name="tmdb_scan_key_refused">O TMDB recusou esta chave na última análise: os títulos aguardam os detalhes.</string>
     <string name="tmdb_scan_offline">O TMDB não respondeu na última análise: os títulos recebem os detalhes em uma análise posterior.</string>
+    <string name="tmdb_scan_certificate">O certificado do TMDB foi recusado na última análise: verifique a data e a hora do dispositivo.</string>
     <string name="tmdb_key_revert">Voltar à chave integrada</string>
     <string name="tmdb_key_revert_desc">O Houselights esquece sua chave</string>
     <string name="save">Salvar</string>
@@ -440,7 +530,11 @@
     <string name="identify_state_matched">Identificado</string>
     <string name="result_current">Atual</string>
     <string name="error_offline_title">Biblioteca inacessível</string>
+    <string name="error_offline_nas_title">NAS inacessível</string>
+    <string name="error_offline_server_title">Servidor inacessível</string>
     <string name="error_offline">O servidor ou o NAS não responde. Verifique se está ligado e tente de novo.</string>
+    <string name="error_certificate_title">Certificado recusado</string>
+    <string name="error_certificate">O certificado de segurança foi recusado. Renove o certificado do servidor ou verifique a data e a hora do dispositivo e tente de novo.</string>
     <string name="error_denied_title">Conexão recusada</string>
     <string name="error_denied">O servidor recusou a conexão. Entre de novo para continuar.</string>
     <string name="error_gone_title">Este título não está mais aqui</string>
@@ -458,6 +552,7 @@
     <string name="error_keystore_title">Cofre do dispositivo indisponível</string>
     <string name="error_keystore">O cofre de chaves deste dispositivo se recusou a criptografar a senha, então nada foi salvo. Reinicie o player e tente de novo.</string>
     <string name="error_keystore_sign_in">Login efetuado, mas o cofre de chaves deste dispositivo se recusou a criptografar o token do servidor, então nada foi salvo. Reinicie o player e entre de novo.</string>
+    <string name="error_secrets_unread">O cofre de chaves deste dispositivo não respondeu, mas nada do que foi salvo se perdeu. Tente de novo e, se persistir, reinicie o player.</string>
     <string name="error_settings_title">Não foi possível ler as configurações</string>
     <string name="error_settings">O armazenamento deste player não respondeu. Tente de novo e, se persistir, reinicie o player.</string>
     <string name="error_not_saved_title">Nada foi salvo</string>
@@ -465,6 +560,7 @@
     <string name="error_not_saved_player">O armazenamento deste player recusou a gravação, então nada foi salvo. Libere espaço no player e tente de novo.</string>
     <string name="mappings_not_saved">As correspondências não foram salvas. %s</string>
     <string name="welcome_lost_secrets">Não foi possível reler a conexão salva neste player. Escolha de novo onde estão seus filmes.</string>
+    <string name="welcome_settings_reset">Não foi possível reler as configurações salvas neste player, que foram redefinidas. Escolha de novo onde estão seus filmes.</string>
     <string name="settings_lost_tmdb_key">Não foi possível reler sua chave pessoal do TMDB neste player. Digite-a de novo em Chave de API do TMDB.</string>
     <string name="settings_lost_mappings">Não foi possível reler as correspondências de caminhos salvas neste player. Digite-as de novo abaixo.</string>
     <string name="error_action_reconnect">Entrar de novo</string>
@@ -478,6 +574,8 @@
     <string name="device_language">Idioma do dispositivo</string>
     <string name="remove_folder">Remover esta pasta</string>
     <string name="remove_folder_desc">Os títulos saem da biblioteca; nada é apagado no NAS.</string>
+    <string name="remove_last_folder_desc">Os títulos saem da biblioteca; nada é apagado no NAS. Esta é sua última pasta: você voltará à tela de boas-vindas.</string>
+    <string name="remove_last_folder_kept_desc">Os títulos saem da biblioteca; nada é apagado no NAS. Esta é sua última pasta: você voltará a “%s”, sem entrar de novo.</string>
     <string name="remove_folder_row_desc">Os títulos saem da biblioteca</string>
     <string name="folder_not_removed">Esta pasta não foi removida. %s</string>
     <string name="remove_folder_confirm">Remover “%s”?</string>
@@ -490,6 +588,16 @@
     <string name="ui_resolution_desc">Na reprodução, decide o Zidoo</string>
     <string name="interface_language">Idioma da interface</string>
     <string name="interface_language_desc">Menus, configurações e mensagens</string>
+    <string name="text_size">Tamanho do texto</string>
+    <string name="text_size_desc">Todos os textos do app</string>
+    <string name="text_size_sheet">Aumenta ou reduz todos os textos do Houselights. A grade e as margens não mudam.</string>
+    <string name="text_size_compact">Compacto</string>
+    <string name="text_size_compact_desc">Para ler de perto</string>
+    <string name="text_size_standard">Padrão</string>
+    <string name="text_size_standard_desc">Recomendado</string>
+    <string name="text_size_large">Grande</string>
+    <string name="text_size_large_desc">Para ler de longe</string>
+    <string name="text_size_large_reached">Já alcançado pela configuração do Android</string>
     <string name="ui_4k_desc">Uma interface nítida em TVs 4K</string>
     <string name="ui_system_desc">O modo escolhido pelo sistema</string>
     <string name="current_output">Saída</string>
@@ -518,6 +626,22 @@
     <string name="support">Apoiar o Houselights</string>
     <string name="support_desc">Ofereça um café ao projeto, pelo seu telefone.</string>
     <string name="support_scan">Escaneie este código com o telefone para abrir a página do projeto no Ko-fi.</string>
+    <string name="journal">Enviar o registro</string>
+    <string name="journal_desc">Para relatar um problema, pelo seu telefone</string>
+    <string name="journal_scan">Escaneie este código com o telefone: ele abre o registro do Houselights, para anexar à sua mensagem.</string>
+    <string name="journal_masked">Senhas e tokens ficam ocultos; os nomes dos seus arquivos, compartilhamentos e do NAS permanecem: releia-o antes de publicá-lo.</string>
+    <string name="journal_closes">A página fecha com este painel, em no máximo %1$s.</string>
+    <string name="journal_offline">O player não está conectado a nenhuma rede local: conecte-o ao seu roteador e abra este painel novamente.</string>
+    <string name="journal_failed">A página não pôde ser aberta neste player: feche este painel e abra-o novamente.</string>
+    <string name="journal_few">Escaneie este código para abrir o registro, quase vazio: volte aqui logo após o problema.</string>
+    <string name="journal_page_title">Registro</string>
+    <string name="journal_page_text">As últimas linhas escritas pelo app, da mais recente à mais antiga.</string>
+    <string name="journal_copy">Copiar</string>
+    <string name="journal_copied">Copiado</string>
+    <string name="journal_download">Baixar</string>
+    <string name="journal_empty">O Android não guardou nenhuma linha do app.</string>
+    <string name="journal_trakt_on">Trakt conectado</string>
+    <string name="journal_trakt_off">Trakt não conectado</string>
     <string name="file_access">Acesso aos arquivos</string>
     <string name="network_path_desc">O player lê direto do NAS</string>
     <string name="http_stream_desc">O player lê o fluxo do servidor</string>
@@ -560,9 +684,9 @@
     <string name="collections_off">Ocultas</string>
     <string name="collections_off_desc">Nem em Filmes nem em fileira</string>
     <plurals name="collection_count">
-        <item quantity="one">%d saga</item>
-        <item quantity="many">%d sagas</item>
-        <item quantity="other">%d sagas</item>
+        <item quantity="one">%d saga</item>
+        <item quantity="many">%d sagas</item>
+        <item quantity="other">%d sagas</item>
     </plurals>
     <!-- People -->
     <string name="job_cast">Elenco</string>
@@ -609,6 +733,8 @@
     <string name="trakt_no_keys">Esta versão do Houselights não tem chave do Trakt.</string>
     <string name="trakt_signed_out">Não conectado</string>
     <string name="trakt_connected">Conectado</string>
+    <string name="trakt_paused">Em pausa</string>
+    <string name="trakt_paused_desc">O Trakt acompanha suas pastas; ele retoma quando você voltar a elas.</string>
     <string name="trakt_connect">Conectar sua conta</string>
     <string name="trakt_connect_desc">Com um código digitado no seu telefone ou computador</string>
     <string name="trakt_disconnect">Desconectar sua conta</string>
@@ -633,6 +759,34 @@
     <string name="trakt_sync_failed">A sincronização com o Trakt não foi concluída. Ela será retomada sozinha.</string>
     <string name="trakt_sync_refused">O Trakt recusa a sincronização: a conta pode estar bloqueada ou a chave desta versão foi recusada. Verifique sua conta em trakt.tv.</string>
     <string name="trakt_sync_unreadable">O Trakt respondeu de um jeito que esta versão não consegue ler. Atualizar o Houselights deve resolver.</string>
+    <plurals name="trakt_skipped">
+        <item quantity="one">%d item ignorado</item>
+        <item quantity="many">%d itens ignorados</item>
+        <item quantity="other">%d itens ignorados</item>
+    </plurals>
+    <string name="trakt_skipped_desc_one">O Trakt o envia em um formato que o app não sabe ler</string>
+    <string name="trakt_skipped_desc">O Trakt os envia em um formato que o app não sabe ler</string>
+    <string name="trakt_skipped_text_one">O Trakt o envia em um formato que esta versão não sabe ler, muitas vezes uma reprodução pausada deixada por outro app. O resto está sincronizado, e suas marcações são enviadas normalmente.</string>
+    <string name="trakt_skipped_text">O Trakt os envia em um formato que esta versão não sabe ler, muitas vezes uma reprodução pausada deixada por outro app. O resto está sincronizado, e suas marcações são enviadas normalmente.</string>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="one">%d item sem título</item>
+        <item quantity="many">%d itens sem título</item>
+        <item quantity="other">%d itens sem título</item>
+    </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="one">E mais %d</item>
+        <item quantity="many">E mais %d</item>
+        <item quantity="other">E mais %d</item>
+    </plurals>
+    <string name="trakt_skipped_movies">Histórico de filmes</string>
+    <string name="trakt_skipped_episodes">Histórico de episódios</string>
+    <string name="trakt_skipped_paused">Reprodução pausada</string>
+    <string name="trakt_skipped_partial_movies">Enquanto o histórico de filmes não puder ser lido por inteiro, o Houselights não envia ao Trakt os filmes vistos aqui que faltam lá, para não criar duplicatas.</string>
+    <string name="trakt_skipped_partial_episodes">Enquanto o histórico de episódios não puder ser lido por inteiro, o Houselights não envia ao Trakt os episódios vistos aqui que faltam lá, para não criar duplicatas.</string>
+    <string name="trakt_skipped_partial_both">Enquanto os históricos de filmes e de episódios não puderem ser lidos por inteiro, o Houselights não envia ao Trakt os filmes e episódios vistos aqui que faltam lá, para não criar duplicatas.</string>
+    <string name="trakt_skipped_fix_label">Para resolver:</string>
+    <string name="trakt_skipped_fix_one">Para resolver: exclua-o em trakt.tv, em Progresso ou Histórico, ou atualize o Houselights quando uma versão souber lê-lo.</string>
+    <string name="trakt_skipped_fix">Para resolver: exclua-os em trakt.tv, em Progresso ou Histórico, ou atualize o Houselights quando uma versão souber lê-los.</string>
     <string name="trakt_certificate">O certificado do Trakt foi recusado. Verifique a data e a hora do dispositivo e tente de novo.</string>
     <string name="settings_lost_trakt">Não foi possível reler a conexão com o Trakt salva neste player. Conecte sua conta de novo.</string>
 </resources>

@@ -31,9 +31,9 @@ class HomeFocusTest {
     }
 
     @Test
-    fun theTabsAndTheSettingsButtonAreInNoRow() {
+    fun homesDoorsAreInNoRow() {
         val rows = listOf(HomeSection(SectionType.CONTINUE, listOf(film("1")), landscape = true))
-        assertNull(sectionIndex(rows, FocusKey.within("track", FocusKey.tab("movies"))))
-        assertNull(sectionIndex(rows, FocusKey.action("settings")))
+        assertNull(sectionIndex(rows, CASE))
+        assertNull(sectionIndex(rows, FocusKey.action("door:settings")))
     }
 }

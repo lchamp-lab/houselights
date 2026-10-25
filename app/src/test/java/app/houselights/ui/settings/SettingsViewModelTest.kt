@@ -1,6 +1,7 @@
 package app.houselights.ui.settings
 
 import android.content.Context
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
@@ -8,7 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.PathMapping
-import app.houselights.core.Secrets
+import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.LibraryDao
@@ -18,8 +19,13 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.testDatabase
+import app.houselights.providers.local.toFolder
 import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
+import app.houselights.settings.SourceSwitcher
+import app.houselights.testing.http
+import app.houselights.testing.secretsOf
+import app.houselights.testing.testKey
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
@@ -36,6 +42,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -49,8 +56,10 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
+import kotlin.coroutines.EmptyCoroutineContext
 
 /** The settings' changes: never a crash, and what must not be cut off goes on once the settings are left. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,6 +75,7 @@ class SettingsViewModelTest {
     val folder = TemporaryFolder()
 
     private val screens = ViewModelStore()
+    private val home = SourceConfig.Jellyfin("https://nas:8920", "Maison", "u1", "lea", "token")
     private lateinit var db: LibraryDatabase
     private lateinit var dao: LibraryDao
     private lateinit var library: LocalLibrary
@@ -94,9 +104,14 @@ class SettingsViewModelTest {
         work: CoroutineScope,
         checkKey: suspend (String) -> TmdbKeyCheck = { TmdbKeyCheck.ACCEPTED },
         images: ImageLoader? = null,
+        check: suspend (SourceConfig.Jellyfin, String) -> Unit = { _, _ -> },
+        save: suspend (SourceConfig, SourceConfig.Jellyfin?) -> Unit = store::setSource,
     ): SettingsViewModel {
         val factory = viewModelFactory {
-            initializer { SettingsViewModel(store, library, { FakeProvider() }, work, images = images, checkTmdbKey = checkKey) }
+            initializer {
+                val sources = SourceSwitcher({ store.state.value }, save, work, signOut = { _, _ -> }, check = check)
+                SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = images, checkTmdbKey = checkKey)
+            }
         }
         return ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
     }
@@ -129,12 +144,73 @@ class SettingsViewModelTest {
         assertNull(vm.errorOf(SettingAction.SOURCE))
     }
 
+    /** A sleeping kept server: nothing changes, the source's row says why, and the server stays kept. */
+    @Test
+    fun aKeptServerThatDoesNotAnswerSaysSoOnTheSourceRow() = runTest {
+        val store = keeping(home)
+        val vm = settings(store, backgroundScope, check = { _, _ -> throw IOException("Connection timed out") })
+        var resumed = false
+        vm.resumeServer(home, onResumed = { resumed = true }, onRefused = { error("Refused") })
+        waitFor("the server asked") { !vm.resuming }
+        assertFalse(resumed)
+        assertEquals(UiError.OFFLINE, vm.errorOf(SettingAction.KEPT_SERVER))
+        assertEquals(home, store.state.value.keptServer)
+    }
+
+    /** A token the server refuses: the sign-in opens for that server, which is no longer kept. */
+    @Test
+    fun aKeptServerThatRefusesItsTokenOpensItsSignIn() = runTest {
+        val store = keeping(home)
+        val vm = settings(store, backgroundScope, check = { _, _ -> throw http(401) })
+        var refused: SourceConfig.Jellyfin? = null
+        vm.resumeServer(home, onResumed = { error("Resumed") }, onRefused = { refused = it })
+        waitFor("the sign-in asked") { refused != null }
+        assertEquals(home, refused)
+        assertNull(store.state.first { it.keptServer == null }.keptServer)
+        assertEquals(SourceConfig.Local, store.state.value.source)
+        assertNull(vm.actionError)
+    }
+
+    @Test
+    fun aKeptServerThatTakesItsTokenIsTheSourceAgain() = runTest {
+        val store = keeping(home)
+        val vm = settings(store, backgroundScope)
+        var resumed = false
+        vm.resumeServer(home, onResumed = { resumed = true }, onRefused = { error("Refused") })
+        waitFor("the server resumed") { resumed }
+        assertEquals(home, store.state.value.source)
+        assertNull(store.state.value.keptServer)
+    }
+
+    /** Settings restored before the source could be read show what applies to no source, never a crash. */
+    @Test
+    fun withoutASourceTheSettingsShowWhatApplies() = runTest {
+        val factory = viewModelFactory {
+            initializer {
+                val store = fullSettings(backgroundScope)
+                val sources = SourceSwitcher({ store.state.value }, store::setSource, backgroundScope)
+                SettingsViewModel(store, library, { null }, backgroundScope, sources, images = null)
+            }
+        }
+        val vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
+        assertFalse(vm.capabilities.pathMapping)
+        assertFalse(vm.counts)
+    }
+
+    /** Settings on the folders, [server] kept beside them. */
+    private suspend fun TestScope.keeping(server: SourceConfig.Jellyfin): SettingsStore {
+        val store = testSettings(folder.root, backgroundScope)
+        store.setSource(SourceConfig.Local, kept = server)
+        store.state.first { it.keptServer != null }
+        return store
+    }
+
     @Test
     fun aFolderThatCannotBeRemovedSaysSoOnItsCard() = runTest {
         val store = testSettings(folder.root, backgroundScope)
         val id = dao.insertSource(nfsFolder("films"))
         val vm = settings(store, work = backgroundScope)
-        val folder = dao.source(id)!!
+        val folder = dao.source(id)!!.toFolder()
         // The library's database refuses every write.
         db.openHelper.writableDatabase.execSQL("PRAGMA query_only = ON")
         vm.removeFolder(folder)
@@ -150,10 +226,55 @@ class SettingsViewModelTest {
         val store = testSettings(folder.root, backgroundScope)
         val id = dao.insertSource(nfsFolder("films"))
         val vm = settings(store, work = backgroundScope)
-        vm.removeFolder(dao.source(id)!!)
+        vm.removeFolder(dao.source(id)!!.toFolder())
         assertTrue(id in vm.removing)
         screens.clear()
         waitFor("the folder removed") { dao.sources().isEmpty() }
+    }
+
+    /** Removing A, then B while A waits: B is the last folder, A no longer counting. */
+    @Test
+    fun aFolderBeingRemovedLeavesTheNextOneLast() = runTest {
+        val vm = settings(testSettings(folder.root, backgroundScope), work = backgroundScope)
+        val (a, b) = listOf("films", "séries").map { dao.source(dao.insertSource(nfsFolder(it)))!!.toFolder() }
+        assertFalse(vm.isLast(b, listOf(a, b)))
+        assertTrue(vm.isLast(a, listOf(a)))
+        vm.removeFolder(a)
+        assertTrue(a.id in vm.removing)
+        assertTrue(vm.isLast(b, listOf(a, b)))
+    }
+
+    /** The kept server takes the last folder's place: the source first, home then, and the folder removed after. */
+    @Test
+    fun theKeptServerTakesTheLastFoldersPlace() = runTest {
+        val store = keeping(home)
+        val id = dao.insertSource(nfsFolder("films"))
+        val vm = settings(store, work = backgroundScope)
+        var homeShown: Boolean? = null
+        vm.removeFolder(dao.source(id)!!.toFolder(), last = true, onResumed = {
+            assertEquals(home, store.state.value.source)
+            homeShown = runBlocking { dao.source(id) } != null
+        })
+        waitFor("the folder removed") { id !in vm.removing }
+        assertEquals("home shown, the folder still there", true, homeShown)
+        assertTrue(dao.sources().isEmpty())
+        assertEquals(home, store.state.value.source)
+        assertNull(store.state.value.keptServer)
+        assertNull(vm.actionError)
+    }
+
+    /** A kept server that cannot be made the source changes nothing: the folder stays, and its card says why. */
+    @Test
+    fun aKeptServerThatCannotTakeOverLeavesTheFolder() = runTest {
+        val store = keeping(home)
+        val id = dao.insertSource(nfsFolder("films"))
+        val vm = settings(store, work = backgroundScope, save = { _, _ -> throw IOException("No space left on device") })
+        vm.removeFolder(dao.source(id)!!.toFolder(), last = true, onResumed = { error("Not resumed") })
+        waitFor("the removal over") { id !in vm.removing }
+        assertEquals(UiError.NOT_SAVED, vm.errorOf(SettingAction.REMOVE_FOLDER, id))
+        assertEquals(1, dao.sources().size)
+        assertEquals(SourceConfig.Local, store.state.value.source)
+        assertEquals(home, store.state.value.keptServer)
     }
 
     /** TMDB checks a key for a few seconds; leaving the sheet and the settings meanwhile still saves it. */
@@ -217,7 +338,7 @@ class SettingsViewModelTest {
     /** The Keystore refuses to seal the key: the sheet says nothing was saved, the app goes on. */
     @Test
     fun aTmdbKeyTheKeystoreCannotSealSaysSo() = runTest {
-        val broken = Secrets { throw ProviderException("Keystore operation failed") }
+        val broken = secretsOf { throw ProviderException("Keystore operation failed") }
         val store = testSettings(folder.root, backgroundScope, broken)
         val vm = settings(store, work = backgroundScope)
         vm.saveTmdbApiKey("k3y")
@@ -247,11 +368,62 @@ class SettingsViewModelTest {
     @Test
     fun eachPaneSaysWhatOfItsOwnWasLost() {
         val lost = setOf(SecretSetting.TMDB_KEY, SecretSetting.PATH_MAPPINGS, SecretSetting.TRAKT)
-        assertEquals(R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost))
-        assertEquals(R.string.settings_lost_mappings, lostSecretNote(Pane.Playback, lost))
-        assertEquals(R.string.settings_lost_trakt, lostSecretNote(Pane.Trakt, lost))
-        assertNull(lostSecretNote(Pane.Display, lost))
-        assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE)))
+        assertEquals(R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost, folders = true))
+        assertEquals(R.string.settings_lost_mappings, lostSecretNote(Pane.Playback, lost, folders = true))
+        assertEquals(R.string.settings_lost_trakt, lostSecretNote(Pane.Trakt, lost, folders = true))
+        assertNull(lostSecretNote(Pane.Display, lost, folders = true))
+        assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE), folders = true))
+    }
+
+    /** A secret the Keystore did not open for now is said where it shows, as one lost is; Trakt's with the folders. */
+    @Test
+    fun eachPaneSaysWhatOfItsOwnWasNotOpened() {
+        val unread = setOf(SecretSetting.TMDB_KEY, SecretSetting.PATH_MAPPINGS, SecretSetting.TRAKT)
+        assertTrue(unreadSecretIn(Pane.Library, unread, folders = true))
+        assertTrue(unreadSecretIn(Pane.Playback, unread, folders = true))
+        assertTrue(unreadSecretIn(Pane.Trakt, unread, folders = true))
+        assertFalse(unreadSecretIn(Pane.Trakt, unread, folders = false))
+        assertFalse(unreadSecretIn(Pane.Display, unread, folders = true))
+        assertFalse(unreadSecretIn(Pane.Library, setOf(SecretSetting.SOURCE), folders = true))
+        // The server kept beside the folders, which the pane would otherwise leave out unsaid.
+        assertTrue(unreadSecretIn(Pane.Library, setOf(SecretSetting.KEPT_SERVER), folders = true))
+    }
+
+    /** Paused under a server, Trakt's pane can only disconnect: it never asks to connect again there. */
+    @Test
+    fun aLostTraktSessionIsNotToldUnderAServer() {
+        val lost = setOf(SecretSetting.TMDB_KEY, SecretSetting.TRAKT)
+        assertNull(lostSecretNote(Pane.Trakt, lost, folders = false))
+        assertEquals(R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost, folders = false))
+    }
+
+    /**
+     * Mappings the Keystore did not open when the settings opened are never written over: nothing is added to them
+     * meanwhile, and they show once Réessayer reads them.
+     */
+    @Test
+    fun mappingsNotOpenedAreKeptAndShowOnceRead() = runTest {
+        val key = testKey()
+        val file = PreferenceDataStoreFactory.create(scope = backgroundScope) { folder.root.resolve("settings.preferences_pb") }
+        val films = PathMapping("/media/films", "nfs://192.168.1.20/volume1/films")
+        SettingsStore(file, backgroundScope, secretsOf { key }, readOn = EmptyCoroutineContext).setPathMappings(listOf(films))
+        var down = true
+        val flaky = secretsOf { if (down) throw ProviderException("Keystore operation failed") else key }
+        val store = SettingsStore(file, backgroundScope, flaky, readOn = EmptyCoroutineContext)
+        assertEquals(setOf(SecretSetting.PATH_MAPPINGS), store.state.first { it.loaded }.unreadSecrets)
+
+        val vm = settings(store, backgroundScope)
+        assertTrue(vm.mappings.isEmpty())
+        vm.putMapping(null, PathMapping("/media/series", "nfs://192.168.1.20/volume1/series"))
+        advanceUntilIdle()
+        assertTrue(vm.mappings.isEmpty())
+
+        down = false
+        store.readAgain()
+        store.state.first { it.unreadSecrets.isEmpty() }
+        advanceUntilIdle()
+        assertEquals(listOf(films), store.state.value.pathMappings)
+        assertEquals(listOf(films), vm.mappings)
     }
 
     /** A mapping whose path is emptied goes at once, rather than stay as an empty row until the next start. */

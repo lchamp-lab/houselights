@@ -94,6 +94,16 @@ class DetailViewModelTest {
         assertEquals(UiError.GONE, vm.state.value.error)
     }
 
+    /** The source is asked once per load: one gone right after (signed out) never crashes the page. */
+    @Test
+    fun aSourceGoneOnceReadNeverCrashesThePage() = runTest {
+        var asked = 0
+        val vm = DetailViewModel("m1", { if (asked++ == 0) provider else error("No library source configured") }, events, this)
+        advanceUntilIdle()
+        assertEquals("Heat", vm.state.value.item?.title)
+        assertTrue(vm.state.value.canEdit)
+    }
+
     @Test
     fun aNewerLoadReplacesAnOlderOne() = runTest {
         val first = provider.gate("item m1")
@@ -469,6 +479,98 @@ class DetailViewModelTest {
         assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
     }
 
+    /** What Lire starts unread, a show keeps its seasons and says why in Lire's place, until Réessayer reads it. */
+    @Test
+    fun aShowWhoseNextEpisodeFailsKeepsItsSeasons() = runTest {
+        provider.fail = { if (it == "nextUp show") IOException("Server away") else null }
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.nextUpError)
+        assertNull(vm.state.value.error)
+        assertEquals(3, vm.state.value.seasons.size)
+        assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
+
+        provider.fail = { null }
+        provider.nextUps = mapOf("show" to "s1e2")
+        val answer = provider.gate("nextUp show")
+        vm.retry()
+        advanceUntilIdle()
+        assertTrue("its Réessayer at work", vm.state.value.retrying)
+        assertEquals(UiError.OFFLINE, vm.state.value.nextUpError)
+        answer.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.retrying)
+        assertNull(vm.state.value.nextUpError)
+        assertEquals("s1e2", vm.state.value.nextUp?.id)
+    }
+
+    /** The chosen season's episodes unread on a first load: the seasons show, the row says why and offers Réessayer. */
+    @Test
+    fun episodesThatFailOnAFirstLoadSayItOnTheirRow() = runTest {
+        provider.fail = { if (it == "episodes s1") IOException("Server away") else null }
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertNull(vm.state.value.error)
+        assertEquals(3, vm.state.value.seasons.size)
+        assertEquals(UiError.OFFLINE, vm.state.value.episodesError)
+
+        provider.fail = { null }
+        vm.retrySeason()
+        advanceUntilIdle()
+        assertNull(vm.state.value.episodesError)
+        assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
+    }
+
+    /** Episodes shown, a reload that cannot read them again keeps them and says why with the title, not on their row. */
+    @Test
+    fun episodesShownStayWhenAReloadCannotReadThem() = runTest {
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
+
+        provider.fail = { if (it == "episodes s1") IOException("Server away") else null }
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
+        assertNull(vm.state.value.episodesError)
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+    }
+
+    /** A part failing once the title shows is said with the title, and Réessayer loads the page again. */
+    @Test
+    fun aPartThatFailsOnceTheTitleShowsIsSaid() = runTest {
+        // The title shows once Lire's episode is read; the seasons fail after.
+        val seasons = provider.gate("seasons show")
+        val vm = detail("show")
+        advanceUntilIdle()
+        provider.fail = { if (it == "seasons show") IOException("Server away") else null }
+        seasons.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("show", vm.state.value.item?.id)
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+
+        provider.fail = { null }
+        vm.retry()
+        assertTrue(vm.state.value.retrying)
+        advanceUntilIdle()
+        assertNull(vm.state.value.error)
+        assertFalse(vm.state.value.retrying)
+        assertEquals(3, vm.state.value.seasons.size)
+    }
+
+    /** A saga whose films cannot be read fails as such, never as an empty saga. */
+    @Test
+    fun aSagaWhoseFilmsFailSaysSo() = runTest {
+        provider.items["saga"] = MediaItem("saga", MediaKind.COLLECTION, "Alien")
+        val failing = object : MediaProvider by provider {
+            override suspend fun collectionItems(collection: MediaItem): List<MediaItem> = throw IOException("Server away")
+        }
+        val vm = detail("saga", failing)
+        advanceUntilIdle()
+        assertNull(vm.state.value.item)
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+    }
+
     /** Marked watched, then the library's signal of that change: the page loads once, not twice. */
     @Test
     fun aChangeOfItsOwnLoadsThePageOnce() = runTest {
@@ -481,10 +583,27 @@ class DetailViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("item m1", "played m1 true", "item m1"), provider.calls)
 
-        // A change from elsewhere (a scan) loads it again.
+        // A change from elsewhere (another screen, a scan's end) loads it again.
         vm.onLibraryChanged()
         advanceUntilIdle()
         assertEquals(3, provider.calls.count { it == "item m1" })
+    }
+
+    /** A scan's progress elsewhere costs the page one light read; once it rewrites this title, the page loads again. */
+    @Test
+    fun aScansProgressReloadsThePageOnlyWhenItsTitleChanged() = runTest {
+        val vm = detail()
+        advanceUntilIdle()
+        provider.calls.clear()
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals(listOf("item m1"), provider.calls)
+
+        provider.items["m1"] = film("m1", "Heat (1995)")
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals(3, provider.calls.count { it == "item m1" })
+        assertEquals("Heat (1995)", vm.state.value.item?.title)
     }
 
     /** Marked watched during a scan, then Identify and Artwork: back on the page, the late signal reloads it. */

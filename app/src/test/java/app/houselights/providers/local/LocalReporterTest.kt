@@ -95,7 +95,7 @@ class LocalReporterTest {
     fun startingWritesWhenItWasPlayedAlone() = runTest {
         val id = film(positionMs = 5_400_000, played = true)
         // Reads come before the previous session's last report has landed.
-        val late = object : LibraryDao by dao {
+        val late = object : PlaybackStateDao by dao {
             override suspend fun playState(id: Long): PlayState? = dao.playState(id)?.copy(positionMs = 4_200_000, played = false)
         }
         LocalReporter(late, id).started(0)

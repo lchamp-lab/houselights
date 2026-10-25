@@ -21,8 +21,8 @@ class FakeRemoteBrowser : RemoteBrowser {
     /** Thrown by reads instead of bytes, while set. */
     var readFailure: Throwable? = null
 
-    /** Runs at each read, before its bytes are given: it may throw, to fail that read alone. */
-    var onRead: ((path: String, offset: Long, length: Int) -> Unit)? = null
+    /** Runs at each read, before its bytes are given: it may throw, to fail that read alone, or wait. */
+    var onRead: (suspend (path: String, offset: Long, length: Int) -> Unit)? = null
 
     /** Paths read, in order, failed reads included. */
     val reads = mutableListOf<String>()

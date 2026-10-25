@@ -1,14 +1,11 @@
 package app.houselights.ui.design.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,38 +14,38 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.AudioTrack
 import app.houselights.core.FormatFamily
+import app.houselights.core.FormatMark
 import app.houselights.core.Formats
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlControl
-import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.plate
-import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.util.formatDuration
+import app.houselights.ui.util.languageName
 import java.text.NumberFormat
 import java.util.Locale
 import app.houselights.ui.util.NBSP
@@ -62,9 +59,9 @@ fun filmCount(owned: Int, total: Int?): String = if (total != null) {
     pluralStringResource(R.plurals.film_count, owned, owned)
 }
 
-/** A title's facts on one line, space-separated: year, length, rating badge, score, then genres. */
+/** A title's facts on one line, [spacing] apart: year, length, rating badge, score, then genres. */
 @Composable
-fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true) {
+fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true, spacing: Dp = HlSpace.fact) {
     val c = Hl.colors
     val seasons = item.childCount?.takeIf { item.kind == MediaKind.SERIES && it > 0 }
         ?.let { pluralStringResource(R.plurals.season_count, it, it) }
@@ -83,7 +80,7 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
     }
 
     // In order of importance: when space runs out, genres go first, then the score.
-    OneLine(modifier) {
+    OneLine(modifier, spacing = spacing) {
         years?.let { Text(it, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         length?.let { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         item.officialRating?.let { Badge(it) }
@@ -128,31 +125,48 @@ fun Badge(text: String, modifier: Modifier = Modifier, ink: Color? = null) {
 }
 
 @Composable
-private fun FormatWord(text: String, ink: Color?) {
-    Text(text, style = Hl.type.jaquette, color = ink ?: Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
+private fun FormatWord(word: FormatMark, ink: Color?) {
+    Text(word.label, style = word.style, color = ink ?: Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
 }
+
+/** A format in the technical voice, `jaquette`; a measure of it (a rate, channels) in the text voice, `meta`. */
+private val FormatMark.style: TextStyle
+    @Composable get() = if (measure) Hl.type.meta else Hl.type.jaquette
 
 /**
  * A title's formats ([Formats]), picture then sound, from the file's media info, else the stored badges. On its
  * page, set as on a case's back ([plate]): a plate of two lines, "Image" and "Son", the words in `jaquette`.
- * In a row ([VersionsSheet]), unframed words, in [ink] when the row has focus.
+ * In a row ([VersionsSheet]), unframed words, in [ink] when the row has focus. The sound is the audio Lire asks of
+ * the player ([plays]), its language after it, else the file's best track.
  */
 @Composable
-fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = null, plate: Boolean = true) {
+fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = null, plate: Boolean = true, plays: AudioTrack? = null) {
     val video = item.media?.video
-    val audio = item.media?.audio.orEmpty()
+    val best = plays ?: Formats.bestTrack(item.media?.audio.orEmpty())
+    val language = plays?.let { languageName(it.language) }
     val marks = remember(item.badges) { Formats.fromBadges(item.badges) }
     val frames = video?.frameRate?.let { frameRateLabel(it) }
     val picture = remember(video, frames) {
-        video?.let { Formats.picture(it) + listOfNotNull(frames) } ?: marks.filter { it.family == FormatFamily.PICTURE }.map { it.label }
+        video?.let { v ->
+            // The codec, a detail beside what the picture promises.
+            marks(FormatFamily.PICTURE, Formats.picture(v), listOfNotNull(frames)).map { it.copy(detail = it.label == v.codec) }
+        }
+            ?: marks.filter { it.family == FormatFamily.PICTURE }
     }
-    val rate = Formats.bestTrack(audio)?.bitrateKbps?.let { audioBitrateLabel(it) }
-    val sound = remember(audio, rate) {
-        (Formats.sound(audio) + listOfNotNull(rate)).ifEmpty { marks.filter { it.family == FormatFamily.SOUND }.map { it.label } }
+    val rate = best?.bitrateKbps?.let { audioBitrateLabel(it) }
+    val sound = remember(best, rate, language) {
+        best?.let { marks(FormatFamily.SOUND, listOf(Formats.soundName(it)), listOfNotNull(it.layout, rate, language)) }
+            ?: marks.filter { it.family == FormatFamily.SOUND }
     }
     if (picture.isEmpty() && sound.isEmpty()) return
     if (plate) {
-        Jaquette(listOf(stringResource(R.string.tech_video) to picture, stringResource(R.string.tech_audio) to sound), modifier)
+        Jaquette(
+            listOf(
+                CaseLine(stringResource(R.string.tech_video), HlIcons.Display, picture),
+                CaseLine(stringResource(R.string.tech_audio), HlIcons.Sound, sound),
+            ),
+            modifier,
+        )
         return
     }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
@@ -162,40 +176,35 @@ fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = nu
     }
 }
 
+/** A line of a case's back: its family's [name] (read aloud) and [glyph], and its [words]. */
+private class CaseLine(val name: String, val glyph: ImageVector, val words: List<FormatMark>)
+
 /**
- * The back of a case: a plate in the picture's own dark, one line per family of [lines] with words, its name in
- * a caption, the words after it in `jaquette`, a hairline between lines. As wide as its longest line.
+ * The back of a case, open on the picture like the facts above it: a line per family of [lines], its glyph in grey,
+ * then its formats in `jaquette`, a detail (the codec) in grey, and their measures in a secondary `meta`.
  */
 @Composable
-private fun Jaquette(lines: List<Pair<String, List<String>>>, modifier: Modifier) {
+private fun Jaquette(lines: List<CaseLine>, modifier: Modifier) {
     val c = Hl.colors
-    val shown = lines.filter { it.second.isNotEmpty() }
-    // The names share a column, as wide as the widest, so the words start together.
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val caption = Hl.type.caption
-    val names = shown.map { it.first }
-    val column = remember(names, caption, density) { with(density) { names.maxOf { measurer.measure(it, caption).size.width }.toDp() } }
-    val light = LocalAmbient.current
-    val edge = c.plateEdge
-    Column(
-        modifier
-            .width(IntrinsicSize.Max)
-            .drawBehind { drawRoundRect(c.plate(light), cornerRadius = CornerRadius(HlShapes.control.topStart.toPx(size, this))) }
-            .border(HlSize.hairline, edge, HlShapes.control),
-    ) {
-        shown.forEachIndexed { i, (name, words) ->
-            if (i > 0) Spacer(Modifier.fillMaxWidth().height(HlSize.hairline).background(edge))
-            Row(Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs), verticalAlignment = Alignment.CenterVertically) {
-                Text(name, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1, modifier = Modifier.width(column))
-                Spacer(Modifier.width(HlSpace.m))
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+        lines.filter { it.words.isNotEmpty() }.forEach { line ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(line.glyph, contentDescription = line.name, tint = c.contentSecondary, modifier = Modifier.size(HlSize.inlineIcon))
+                Spacer(Modifier.width(HlSpace.l))
                 OneLine(spacing = HlSpace.m, squeezeFirst = false) {
-                    words.forEach { Text(it, style = Hl.type.jaquette, color = c.content, maxLines = 1, softWrap = false) }
+                    line.words.forEach {
+                        val ink = if (it.measure || it.detail) c.contentSecondary else c.content
+                        Text(it.label, style = it.style, color = ink, maxLines = 1, softWrap = false)
+                    }
                 }
             }
         }
     }
 }
+
+/** [formats] of a [family], then their [measures]. */
+private fun marks(family: FormatFamily, formats: List<String>, measures: List<String>): List<FormatMark> =
+    formats.map { FormatMark(it, family) } + measures.map { FormatMark(it, family, measure = true) }
 
 /** A frame rate as displayed: "23,976 i/s", "25 i/s". */
 @Composable

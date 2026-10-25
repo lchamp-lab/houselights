@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
@@ -23,9 +24,11 @@ import app.houselights.settings.AppSettings
 import app.houselights.settings.DisplayModes
 import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.OutputControl
+import app.houselights.settings.TextSize
 import app.houselights.settings.outputModes
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.textScaleOf
 import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
@@ -40,7 +43,6 @@ import app.houselights.ui.design.components.SpecTable
 import app.houselights.ui.design.components.SpecTableRow
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.NBSP
-import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatDimensions
 import java.text.Collator
 import java.util.Locale
@@ -49,8 +51,8 @@ import kotlin.math.roundToInt
 
 /**
  * What the screen receives, stated as a case's back: the current output and the render size; then the display's
- * modes, and the interface's language with its Ultra HD row where it applies. Where the player sets its own output
- * (Zidoo), the pane says so and hides the system's stand-in modes.
+ * modes, and the interface's language and text size with its Ultra HD row where it applies. Where the player sets its
+ * own output (Zidoo), the pane says so and hides the system's stand-in modes.
  */
 internal fun LazyListScope.displayPane(s: AppSettings, rows: PaneRows) {
     item {
@@ -63,6 +65,7 @@ internal fun LazyListScope.displayPane(s: AppSettings, rows: PaneRows) {
                 HlSettingGroup(stringResource(R.string.display_interface)) {
                     // Keyed: changing the language makes the screen again, and focus comes back here.
                     InterfaceLanguageRow(rows.focus("interface_language"))
+                    TextSizeRow(s.textSize)
                     if (control == OutputControl.Ui4k) InterfaceResolution(s)
                 }
             }
@@ -100,7 +103,7 @@ private fun InterfaceResolution(s: AppSettings) {
 @Composable
 private fun InterfaceLanguageRow(modifier: Modifier) {
     val vm = settingsViewModel()
-    val chosen by appContainer().language.chosen.collectAsStateWithLifecycle()
+    val chosen by vm.interfaceLanguage.collectAsStateWithLifecycle()
     val tags = remember { InterfaceLanguage.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::interfaceLanguageName)) }
     var choosing by remember { mutableStateOf(false) }
     val failure = rowFailure(vm.errorOf(SettingAction.INTERFACE_LANGUAGE))
@@ -130,6 +133,53 @@ private fun InterfaceLanguageRow(modifier: Modifier) {
             onSelect = { i -> vm.setInterfaceLanguage(tags.getOrNull(i - 1)) },
             onDismiss = { choosing = false },
             description = description,
+        )
+    }
+}
+
+/**
+ * « Taille du texte »: [current] of three steps, applied once the sheet has gone, so the screen behind it is drawn again
+ * at its new size. With Android at its largest, Grande says it adds nothing.
+ */
+@Composable
+private fun TextSizeRow(current: TextSize) {
+    val vm = settingsViewModel()
+    val failure = rowFailure(vm.errorOf(SettingAction.TEXT_SIZE))
+    val system = LocalConfiguration.current.fontScale
+    val grandeReached = textScaleOf(system, TextSize.LARGE.step) <= textScaleOf(system)
+    val options = TextSize.entries.map { size ->
+        when (size) {
+            TextSize.COMPACT -> ChoiceOption(stringResource(R.string.text_size_compact), stringResource(R.string.text_size_compact_desc))
+            TextSize.STANDARD -> ChoiceOption(stringResource(R.string.text_size_standard), stringResource(R.string.text_size_standard_desc))
+            TextSize.LARGE -> ChoiceOption(
+                stringResource(R.string.text_size_large),
+                stringResource(if (grandeReached) R.string.text_size_large_reached else R.string.text_size_large_desc),
+            )
+        }
+    }
+    var choosing by remember { mutableStateOf(false) }
+    var chosen by remember { mutableStateOf<TextSize?>(null) }
+    val title = stringResource(R.string.text_size)
+    HlSettingRow(
+        title,
+        value = failure?.value ?: options[current.ordinal].label,
+        description = stringResource(R.string.text_size_desc),
+        valueAttention = failure != null,
+        onClick = { choosing = true },
+    )
+    RowFailureNote(failure)
+    if (choosing) {
+        HlChoiceSheet(
+            title,
+            options,
+            selected = current.ordinal,
+            onSelect = { chosen = TextSize.entries[it] },
+            onDismiss = {
+                choosing = false
+                chosen?.takeIf { it != current }?.let(vm::setTextSize)
+                chosen = null
+            },
+            description = stringResource(R.string.text_size_sheet),
         )
     }
 }

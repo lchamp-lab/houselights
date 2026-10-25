@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
-import app.houselights.core.Secrets
+import app.houselights.testing.secretsOf
+import app.houselights.testing.testKey
 import app.houselights.testing.testSecrets
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -47,7 +48,7 @@ class LibraryDatabaseTest {
         val sealedBefore = raw().getValue(series)
 
         // The Keystore still fails: the password waits, nothing breaks.
-        LibraryDatabase.sealPlainPasswords(dao, Secrets { throw ProviderException("Keystore operation failed") })
+        LibraryDatabase.sealPlainPasswords(dao, secretsOf { throw ProviderException("Keystore operation failed") })
         assertEquals("pl@in", raw().getValue(films))
 
         LibraryDatabase.sealPlainPasswords(dao, secrets)
@@ -56,5 +57,30 @@ class LibraryDatabaseTest {
         assertEquals(sealedBefore, after.getValue(series))
         assertEquals("", after.getValue(open))
         assertEquals(mapOf(films to "pl@in", series to "s3cret", open to ""), dao.sources().associate { it.id to it.password.value })
+    }
+
+    /** A password the Keystore does not open for now reads as empty, yet saving the folder keeps it as stored. */
+    @Test
+    fun aPasswordTheKeystoreDoesNotOpenIsKeptAsStored() = runTest {
+        val key = testKey()
+        var down = true
+        val flaky = testDatabase(secretsOf { if (down) throw ProviderException("Keystore operation failed") else key })
+        try {
+            val dao = flaky.dao()
+            val id = dao.insertSource(source("Films", ""))
+            val sealed = secretsOf { key }.seal("s3cret")
+            flaky.openHelper.writableDatabase.execSQL("UPDATE sources SET password = ? WHERE id = ?", arrayOf<Any>(sealed, id))
+
+            val read = checkNotNull(dao.source(id))
+            assertEquals("", read.password.value)
+            with(read) { dao.updateConnection(id, "Films 4K", protocol, host, share, path, username, password, uid, gid) }
+            val stored = flaky.openHelper.readableDatabase.query("SELECT password FROM sources").use { it.moveToFirst(); it.getString(0) }
+            assertEquals(sealed, stored)
+
+            down = false
+            assertEquals("s3cret", checkNotNull(dao.source(id)).password.value)
+        } finally {
+            flaky.close()
+        }
     }
 }

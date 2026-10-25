@@ -5,7 +5,12 @@ import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Job
+import app.houselights.core.MediaInfo
+import app.houselights.core.NfoParser
 import app.houselights.core.Secrets
+import app.houselights.core.SubtitleChoice
+import app.houselights.core.TrackChoice
+import app.houselights.testing.secretsOf
 import app.houselights.testing.testSecrets
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -97,7 +102,7 @@ class MigrationTest {
     /** A Keystore that cannot seal leaves the password plain: the library still opens and the folder signs in. */
     @Test
     fun version7KeepsAPasswordTheKeystoreCannotSeal() = runTest {
-        val broken = Secrets { throw ProviderException("Keystore operation failed") }
+        val broken = secretsOf { throw ProviderException("Keystore operation failed") }
         val db = migrated(from = 6, keys = broken) {
             execSQL("$FOLDER_UP_TO_7 VALUES (1, 'Films', 'MOVIES', 'SMB', 'nas', 'media', 'films', 'zidoo', 's3cret', '', 0)")
         }
@@ -280,6 +285,60 @@ class MigrationTest {
         val films = checkNotNull(db.dao().source(1))
         assertEquals("Films" to 1000L, films.name to films.lastScanAt)
         assertNull(films.refreshIn)
+    }
+
+    @Test
+    fun version16KeepsEachTitlesChoiceOfTracks() = runTest {
+        val db = migrated(from = 15) { filmsFolder() }
+        assertNull(db.trackChoices().choice("local:1"))
+        db.trackChoices().save(TrackChoiceEntity("local:1", "ko", SubtitleChoice.Off.stored, at = 5))
+        assertEquals(TrackChoice("ko", SubtitleChoice.Off), db.trackChoices().choice("local:1")?.choice())
+    }
+
+    /** Version 17 lets an NFS folder present another user; every folder kept presents itself as root, as before. */
+    @Test
+    fun version17KeepsEveryFolderPresentingItselfAsRoot() = runTest {
+        // From the previous version, and from 0.2.0's.
+        for (from in listOf(16, 15)) {
+            val films = checkNotNull(migrated(from) { filmsFolder() }.dao().source(1))
+            assertEquals("from $from", "Films" to 1000L, films.name to films.lastScanAt)
+            assertEquals("from $from", null to null, films.uid to films.gid)
+        }
+    }
+
+    /**
+     * Version 16 marks the tracks the probe read in the file's order, so no file is read again for it. Never an NFO's:
+     * an MKV the probe found no picture in takes its <streamdetails>, picture and tracks in the NFO's order.
+     */
+    @Test
+    fun version16MarksTheTracksTheProbeReadInTheFilesOrder() = runTest {
+        val probed = (MkvProbe.probe(Matroska.sample()) as MkvProbe.Result.Found).info.copy(sizeBytes = 42, probedWith = 4)
+        val streams = "<fileinfo><streamdetails><video><codec>hevc</codec><width>3840</width><height>2160</height></video>" +
+            "<audio><codec>ac3</codec><language>fre</language></audio><audio><codec>truehd</codec><language>eng</language></audio>" +
+            "</streamdetails></fileinfo>"
+        val nfo = checkNotNull(NfoParser.parse("<movie><title>Heat</title>$streams</movie>")?.streams)
+        val fromNfo = NfoStreamDetails.toMediaInfo(nfo, MediaInfo(container = "MKV", sizeBytes = 42, probedWith = 4))
+        assertEquals("an MKV with a picture", "MKV" to "HEVC", fromNfo.container to fromNfo.video?.codec)
+        val stored = listOf(
+            probed, fromNfo, MediaInfo(container = "MP4", sizeBytes = 42, probedWith = 4),
+            // A read that failed midway: read again at the next scan.
+            probed.copy(probedWith = 0),
+        ).map(MediaProbe::encode)
+        val db = migrated(from = 15) {
+            filmsFolder()
+            stored.forEachIndexed { i, mediaInfo ->
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
+                        "badges, mediaInfo, probeVersion, addedAt, positionMs, played, favorite) " +
+                        "VALUES (?, 'MOVIE', 1, 'Film', 'film', 0, '', '', ?, '', '', ?, ?, 0, 0, 0, 0)",
+                    arrayOf<Any?>(i + 1, "Film ${i + 1}.mkv", mediaInfo, MediaProbe.decode(mediaInfo)?.probedWith),
+                )
+            }
+        }
+        val films = (1L..stored.size).map { checkNotNull(db.dao().item(it)) }
+        assertEquals(probed.copy(tracksInOrder = true), MediaProbe.decode(films[0].mediaInfo))
+        assertEquals("the others as they were", stored.drop(1), films.drop(1).map { it.mediaInfo })
+        assertEquals(listOf(4, 4, 4, 0), films.map { it.probeVersion })
     }
 
     /** What [version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas] finds once migrated. */

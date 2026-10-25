@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -90,7 +91,10 @@ fun HlMenuButton(
                 onDismissRequest = { motion.sheet.dismiss() },
                 properties = PopupProperties(focusable = true),
             ) {
-                MenuPanel(sections, maxHeight = with(density) { room.toDp() }, motion, position, closeOnSelect)
+                // The popup's window would bring the system's density: the canvas's is handed in.
+                CompositionLocalProvider(LocalDensity provides density) {
+                    MenuPanel(sections, maxHeight = with(density) { room.toDp() }, motion, position, closeOnSelect)
+                }
             }
         }
     }

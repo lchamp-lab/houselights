@@ -24,6 +24,7 @@ import app.houselights.HouselightsApp
 import app.houselights.ui.design.HlMotion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.random.Random
 
@@ -34,26 +35,58 @@ fun Context.appContainer(): AppContainer = (applicationContext as HouselightsApp
 
 /**
  * Calls [reload] when the library changed since the screen last showed it, at once or on its return to the
- * front. The shown version is saved with its process, as versions restart from 0 after process death.
+ * front, telling whether nothing but a running scan's progress moved it (scanOnly). What was shown is saved with its
+ * process, as versions restart from 0 after process death.
  */
 @Composable
-fun ReloadOnLibraryChange(reload: () -> Unit) {
-    val version by appContainer().libraryVersion.collectAsStateWithLifecycle()
-    var shown by rememberSaveable { mutableStateOf(shownAt(version)) }
-    LaunchedEffect(version) {
-        if (isBehind(shown, version)) reload()
-        shown = shownAt(version)
+fun ReloadOnLibraryChange(reload: (scanOnly: Boolean) -> Unit) {
+    val app = appContainer()
+    ReloadOnLibraryChange(app.libraryVersion, app.settledVersion, reload)
+}
+
+@Composable
+internal fun ReloadOnLibraryChange(version: StateFlow<Long>, settled: StateFlow<Long>, reload: (scanOnly: Boolean) -> Unit) {
+    val at by version.collectAsStateWithLifecycle()
+    var shown by rememberSaveable { mutableStateOf(shownAt(at, settled.value)) }
+    LaunchedEffect(at) {
+        if (isBehind(shown, at)) reload(scanOnly(shown, settled.value))
+        shown = shownAt(at, settled.value)
     }
+}
+
+/**
+ * The library version last shown by the screens of one view model (home and « À regarder »), so a change reloads it
+ * once, whichever shows it first. It lives with the view model: a new process makes both anew, reading the library then.
+ */
+class LibraryShown {
+    private var at: Long? = null
+
+    /** Whether the library moved on since it was last shown, now shown at [version]. */
+    @Synchronized
+    fun moveTo(version: Long): Boolean = (at != null && at != version).also { at = version }
+}
+
+/** Calls [reload] when the library changed since the screens sharing [shown] last showed it, at once or on their return. */
+@Composable
+fun ReloadOnLibraryChange(shown: LibraryShown, reload: () -> Unit) = ReloadOnLibraryChange(appContainer().libraryVersion, shown, reload)
+
+@Composable
+internal fun ReloadOnLibraryChange(version: StateFlow<Long>, shown: LibraryShown, reload: () -> Unit) {
+    val at by version.collectAsStateWithLifecycle()
+    LaunchedEffect(at) { if (shown.moveTo(at)) reload() }
 }
 
 /** Identifies this process: library versions from two processes do not compare. */
 private val PROCESS = Random.nextLong()
 
-/** What a screen showed, as its saved state keeps it: the process it was shown in, then the library version. */
-internal fun shownAt(version: Long, process: Long = PROCESS) = longArrayOf(process, version)
+/** What a screen showed, as its saved state keeps it: the process it was shown in, the library version, the settled one. */
+internal fun shownAt(version: Long, settled: Long, process: Long = PROCESS) = longArrayOf(process, version, settled)
 
 /** True when the library moved on to [current] since [shown]; a version shown in another process never is. */
 internal fun isBehind(shown: LongArray, current: Long, process: Long = PROCESS): Boolean = shown[0] == process && shown[1] != current
+
+/** True when the [settled] version is still the one [shown]: only a running scan's progress moved the library since. */
+internal fun scanOnly(shown: LongArray, settled: Long): Boolean = shown.getOrNull(2) == settled
 
 /** [error], or the last one while [retrying], so the intertitle and its busy button stay; else null. */
 @Composable

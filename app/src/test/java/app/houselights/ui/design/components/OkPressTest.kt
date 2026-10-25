@@ -6,6 +6,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -95,6 +99,42 @@ class OkPressTest {
 
         compose.press(Key.DirectionCenter)
         assertEquals(listOf("A"), clicks)
+    }
+
+    /** Menu or Pop Menu does the long click, on its way up, and clicks nothing; without a long click it goes on. */
+    @Test
+    fun menuIsTheLongClick() {
+        var passed = 0
+        compose.setTvContent {
+            val passOn = Modifier.onKeyEvent {
+                if (it.key == Key.Menu && it.type == KeyEventType.KeyUp) passed++
+                false
+            }
+            Row(passOn) {
+                Option("A", Modifier.focusRequester(first)) { longClicks++ }
+                Option("B")
+            }
+        }
+        compose.runOnIdle { first.requestFocus() }
+        compose.onRoot().performKeyInput { keyDown(Key.Menu) }
+        compose.waitForIdle()
+        assertEquals(0, longClicks)
+        compose.onRoot().performKeyInput { keyUp(Key.Menu) }
+        compose.waitForIdle()
+        assertEquals(1, longClicks)
+        assertEquals(0, passed)
+        assertEquals(emptyList<String>(), clicks)
+
+        compose.press(Key.DirectionRight)
+        compose.press(Key.Menu)
+        assertEquals(1, longClicks)
+        assertEquals(1, passed)
+        assertEquals(emptyList<String>(), clicks)
+
+        // The Zidoo remote's Pop Menu arrives as F12.
+        compose.press(Key.DirectionLeft)
+        compose.press(Key.F12)
+        assertEquals(2, longClicks)
     }
 
     /** The watched tile and an episode: held, OK does their long click alone, which each names to accessibility. */

@@ -2,15 +2,20 @@ package app.houselights.providers.local
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.ImageRef
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -19,6 +24,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.Collections
 
 /**
  * Adding and editing folders: one the library already holds is refused, one removed meanwhile stays removed, and the
@@ -32,10 +38,16 @@ class LocalLibraryTest {
     private lateinit var context: Context
     private lateinit var artwork: ArtworkCache
 
+    /** Statements the library ran, from any thread. */
+    private val statements = Collections.synchronizedList(mutableListOf<String>())
+
     @Before
     fun open() = runBlocking {
         context = ApplicationProvider.getApplicationContext()
-        db = testDatabase { allowMainThreadQueries() }
+        db = testDatabase {
+            allowMainThreadQueries()
+            setQueryCallback({ sql, _ -> statements += sql }, Runnable::run)
+        }
         dao = db.dao()
         artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan requested after an edit never runs: it would go to the network.
@@ -80,6 +92,38 @@ class LocalLibraryTest {
         }
     }
 
+    /** Home and the settings read a folder's address and last scan, never its account. */
+    @Test
+    fun theScreensReadAFolderWithoutItsAccount() = runTest {
+        val id = folder()
+        val shown = Folder(id, "films", SourceKind.MOVIES, Protocol.SMB, "192.168.1.10", "192.168.1.10/media/films", lastScanAt = 2_000)
+        assertEquals(listOf(shown), library.folders.first())
+
+        library.removeFolder(shown)
+        assertTrue(dao.sources().isEmpty())
+        // Already gone: nothing is deleted, and nothing fails.
+        statements.clear()
+        library.removeFolder(shown)
+        assertTrue("deleted: $statements", statements.none { it.trimStart().startsWith("DELETE", ignoreCase = true) })
+    }
+
+    /** Whether there is a library of folders, followed as they come and go. */
+    @Test
+    fun anyFolderFollowsTheFolders() = runTest {
+        assertFalse(library.anyFolder.first())
+        val id = folder()
+        assertTrue(library.anyFolder.first())
+        dao.removeSource(id)
+        assertFalse(library.anyFolder.first())
+    }
+
+    /** Folders that cannot be read are taken as there: home then says why, rather than the app offer to start again. */
+    @Test
+    fun foldersThatCannotBeReadCountAsFolders() = runTest {
+        db.openHelper.writableDatabase.execSQL("DROP TABLE sources")
+        assertTrue(library.anyFolder.first())
+    }
+
     @Test
     fun aFolderRemovedMeanwhileStaysRemoved() = runTest {
         val id = folder()
@@ -117,6 +161,39 @@ class LocalLibraryTest {
 
         assertEquals("192.168.1.20", dao.source(id)!!.host)
         assertEquals("the folder at its new address was scanned", 1, listings)
+    }
+
+    /**
+     * A scan writing a film every 50 ms: Réglages › Bibliothèque asks its counts and posters again every 2 s at most,
+     * not at each write, and shows the first answers alone meanwhile. In real time, as Room's queries run on its own threads.
+     */
+    @Test
+    fun aScansWritesAskTheFolderCountsAgainEveryTwoSecondsAtMost() = runBlocking {
+        val id = dao.insertSource(nfs("nas", "volume1/media", "films"))
+        val counted = Collections.synchronizedList(mutableListOf<Int>())
+        val posters = Collections.synchronizedList(mutableListOf<List<ImageRef>>())
+        val watch = launch(Dispatchers.Default) {
+            launch { library.folderCounts.collect { counted += it[id]?.titles ?: 0 } }
+            library.latestPosters(dao.source(id)!!.toFolder(), 4).collect { posters += it }
+        }
+        withTimeout(5_000) { while (counted.isEmpty() || posters.isEmpty()) delay(10) }
+        statements.clear()
+        repeat(10) { n ->
+            dao.insert(
+                ItemEntity(
+                    kind = ItemKind.MOVIE, sourceId = id, title = "Film $n", sortTitle = "film $n", filePath = "Film $n.mkv",
+                    posterPath = "/p$n.jpg", addedAt = n.toLong(),
+                )
+            )
+            delay(50)
+        }
+        watch.cancel()
+        // Within 2 s of the first answers, though ten films were written: those answers alone, each query asked once more.
+        assertEquals(listOf(0), counted.toList())
+        assertEquals(listOf(emptyList<ImageRef>()), posters.toList())
+        val asked = statements.toList()
+        assertTrue("counts asked ${asked.count { "GROUP BY sourceId" in it }} times", asked.count { "GROUP BY sourceId" in it } <= 1)
+        assertTrue("posters asked again", asked.count { "sourceId = ? AND kind IN" in it && "ORDER BY addedAt" in it } <= 1)
     }
 
     private companion object {

@@ -1,0 +1,76 @@
+package app.houselights.player
+
+import android.util.Log
+import app.houselights.core.PlaybackPlan
+import app.houselights.core.PlayedTracks
+import app.houselights.core.TrackChoice
+import app.houselights.core.TrackPlan
+import app.houselights.core.TrackPreferences
+import app.houselights.core.suspendRunCatching
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.Locale
+
+/**
+ * The tracks to ask of the player for a title: Settings', or the title's own choice, which [load] and [save] keep
+ * under its key ([PlaybackPlan.Launch.titleKey]).
+ */
+class TrackChooser(
+    private val preferences: () -> TrackPreferences,
+    /** The app's language, with the device's region: a dub of that region comes first. */
+    private val locale: () -> Locale,
+    private val load: suspend (String) -> TrackChoice?,
+    private val save: suspend (String, TrackChoice) -> Unit,
+    private val forget: suspend (String) -> Unit,
+    /** The player's own audio setting ([ZidooSettings.audio]), read for each plan. */
+    private val playerAudio: () -> String? = { null },
+    /** The device's language ([TrackPlan.deviceLanguage]); null takes the app's. */
+    private val deviceLanguage: () -> String? = { null },
+    /** Whether a file, by its resume key, was last played while the app was stopped ([PlaybackManager.playersOwnTracks]). */
+    private val playersOwn: (String) -> Boolean = { false },
+) {
+    /** One change at a time: each reads what the one before wrote. */
+    private val changes = Mutex()
+
+    /**
+     * The tracks to ask for [launch]; null when the player chooses them all, or when the file's order is unknown. A
+     * resume of a file last played while the app was stopped asks only the title's own choice: Settings would undo
+     * what the user chose in the player then, which the app could not keep and only the player remembers.
+     */
+    suspend fun plan(launch: PlaybackPlan.Launch): TrackPlan? {
+        val table = table(launch.tracks) ?: return null
+        val unfollowed = launch.startMs > 0 && launch.resumeKey?.let(playersOwn) == true
+        val plan = if (unfollowed) table.copy(preferences = TrackPreferences()) else table
+        return plan.takeUnless { it.pick.isEmpty }
+    }
+
+    /** The tracks [played] and what Settings and the title's choice make of them; null when their order is unknown. */
+    suspend fun table(played: PlayedTracks): TrackPlan? {
+        val media = played.media?.takeIf { it.tracksInOrder } ?: return null
+        val key = played.titleKey
+        // A choice that cannot be read leaves Settings to decide, never the film unplayed.
+        val choice = key?.let { k ->
+            suspendRunCatching { load(k) }.onFailure { Log.w(TAG, "Could not read the tracks chosen", it) }.getOrNull()
+        }
+        val locale = locale()
+        val language = TrackPlan.known(locale.language) ?: FALLBACK_LANGUAGE
+        val device = TrackPlan.known(deviceLanguage()) ?: language
+        return TrackPlan(media, preferences(), choice, language, locale.country.ifEmpty { null }, key, playerAudio(), device)
+    }
+
+    /** Changes the title's choice by [change]; an empty one leaves it to Settings again. */
+    suspend fun choose(key: String, change: (TrackChoice) -> TrackChoice) = changes.withLock {
+        val choice = change(load(key) ?: TrackChoice())
+        if (choice.isEmpty) forget(key) else save(key, choice)
+    }
+
+    /** Keeps [changed] as the title's choice, besides what it had chosen of the other kind. */
+    suspend fun remember(key: String, changed: TrackChoice) = changes.withLock {
+        save(key, (load(key) ?: TrackChoice()).with(changed))
+    }
+
+    private companion object {
+        const val TAG = "Tracks"
+        const val FALLBACK_LANGUAGE = "en"
+    }
+}

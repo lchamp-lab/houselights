@@ -32,6 +32,7 @@ import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** A network folder as typed in the form. */
@@ -43,8 +44,11 @@ data class FolderForm(
     val path: String = "",
     val user: String = "",
     val password: String = "",
+    /** The NFS user and group to present as, as typed ([isId]); both empty for root. */
+    val uid: String = "",
+    val gid: String = "",
 ) {
-    /** The folder, cleaned up: no scheme, no stray slashes, credentials for SMB only. */
+    /** The folder, cleaned up: no scheme, no stray slashes, credentials for SMB only, an identity for NFS only. */
     fun toSource() = SourceEntity(
         name = path.trim('/').substringAfterLast('/').ifBlank { share.trim('/').substringAfterLast('/') },
         kind = kind,
@@ -54,7 +58,17 @@ data class FolderForm(
         path = path.trim().trim('/'),
         username = if (protocol == Protocol.SMB) user.trim() else "",
         password = Secret(if (protocol == Protocol.SMB) password else ""),
+        uid = identity()?.first,
+        gid = identity()?.second,
     )
+
+    /** The NFS user and group typed, both or neither ([missing] asks for the other); null for root, or for SMB. */
+    private fun identity(): Pair<Int, Int>? {
+        if (protocol != Protocol.NFS) return null
+        val user = uid.toIntOrNull() ?: return null
+        val group = gid.toIntOrNull() ?: return null
+        return user to group
+    }
 
     /** [stored] with the form's changes, same id and kind; an empty password field keeps its password. */
     fun toSource(stored: SourceEntity): SourceEntity {
@@ -68,6 +82,8 @@ data class FolderForm(
     fun missing(): Int? = when {
         host.isBlank() -> R.string.error_host_missing
         share.isBlank() -> if (protocol == Protocol.NFS) R.string.error_export_missing else R.string.error_share_missing
+        protocol == Protocol.NFS && uid.isEmpty() != gid.isEmpty() ->
+            if (uid.isEmpty()) R.string.error_uid_missing else R.string.error_gid_missing
         else -> null
     }
 
@@ -80,10 +96,15 @@ data class FolderForm(
             share = exportOrShare(folder),
             path = folder.path,
             user = folder.username,
+            uid = folder.uid?.toString().orEmpty(),
+            gid = folder.gid?.toString().orEmpty(),
         )
 
         /** An NFS export reads as a path, with its leading slash. */
         fun exportOrShare(folder: SourceEntity) = if (folder.protocol == Protocol.NFS) "/${folder.share}" else folder.share
+
+        /** Whether [text] can be typed as a user or group: digits alone, a number an NFS identity holds. */
+        fun isId(text: String) = text.all { it in '0'..'9' } && (text.isEmpty() || text.toIntOrNull() != null)
     }
 }
 
@@ -141,6 +162,8 @@ class AddFolderViewModel(
         folderId = folderId,
         background = app.scope,
         useFolders = {
+            // The app sees the folder first: until then, the folders are no library and give way to Welcome (shownSource).
+            app.hasFolders.first { it == true }
             val switched = app.settings.state.value.source != SourceConfig.Local
             if (switched) app.sources.switchTo(SourceConfig.Local)
             switched
@@ -180,6 +203,14 @@ class AddFolderViewModel(
     var ready by mutableStateOf(!edits)
         private set
 
+    /** The edited folder could not be read: nothing of it shows, nor can be saved, until [readAgain] reads it. */
+    var unread by mutableStateOf(false)
+        private set
+
+    /** Reading the edited folder again, after it could not be read. */
+    var rereading by mutableStateOf(false)
+        private set
+
     /** The edited folder was removed from the library meanwhile: nothing can be saved. */
     var gone by mutableStateOf(false)
         private set
@@ -188,28 +219,70 @@ class AddFolderViewModel(
     var keepsPassword by mutableStateOf(false)
         private set
 
+    /** The NFS identity's fields show under its row; folded, the row still says its value. */
+    var identityOpen by mutableStateOf(saved.get<Boolean>(IDENTITY_OPEN) ?: false)
+        private set
+
+    /** Opens or folds the identity's fields; what they hold stays. */
+    fun toggleIdentity() = showIdentity(!identityOpen)
+
+    private fun showIdentity(open: Boolean) {
+        identityOpen = open
+        saved[IDENTITY_OPEN] = open
+    }
+
     init {
         viewModelScope.launch {
             if (folderId != null) {
-                val folder = library.folder(folderId)
+                read(folderId)
+            } else if (kept == null) {
+                // A second folder is most often on the same NAS: start from the last one added. Its share only if
+                // it was a folder inside: the same whole share again could only be refused as already added.
+                suspendRunCatching { library.lastFolder() }
+                    .onFailure { Log.w(TAG, "Reading the last folder failed", it) }
+                    .getOrNull()
+                    ?.let { last ->
+                        form = form.copy(
+                            protocol = last.protocol,
+                            host = last.host,
+                            share = if (last.path.isNotBlank()) FolderForm.exportOrShare(last) else "",
+                            user = last.username,
+                        )
+                    }
+            }
+        }
+    }
+
+    /** Reads the edited folder [id]; unread, it stays unsaveable, as an empty password field would erase its own. */
+    private suspend fun read(id: Long) {
+        suspendRunCatching { library.folder(id) }
+            .onSuccess { folder ->
                 if (folder != null) {
                     editing = folder
                     form = kept ?: FolderForm.of(folder)
-                    keepsPassword = folder.password.value.isNotEmpty()
+                    keepsPassword = folder.password.value.isNotEmpty() || folder.password.unopened != null
                 } else {
                     gone = true
                 }
+                unread = false
                 ready = true
-            } else if (kept == null) {
-                // A second folder is most often on the same NAS: start from the last one added.
-                library.lastFolder()?.let { last ->
-                    form = form.copy(
-                        protocol = last.protocol,
-                        host = last.host,
-                        share = FolderForm.exportOrShare(last),
-                        user = last.username,
-                    )
-                }
+            }
+            .onFailure {
+                Log.w(TAG, "Reading folder $id failed", it)
+                unread = true
+            }
+    }
+
+    /** Reads the edited folder again (Réessayer), after it could not be read. */
+    fun readAgain() {
+        val id = folderId
+        if (id == null || !unread || rereading) return
+        rereading = true
+        viewModelScope.launch {
+            try {
+                read(id)
+            } finally {
+                rereading = false
             }
         }
     }
@@ -232,6 +305,8 @@ class AddFolderViewModel(
     private fun toTest(): SourceEntity? {
         form.missing()?.let {
             check = FolderCheck.Incomplete(it)
+            // The user or the group asked for: their fields show, to type it.
+            if (it == R.string.error_uid_missing || it == R.string.error_gid_missing) showIdentity(true)
             return null
         }
         return source()
@@ -350,6 +425,9 @@ private const val HOST = "host"
 private const val SHARE = "share"
 private const val PATH = "path"
 private const val USER = "user"
+private const val UID = "uid"
+private const val GID = "gid"
+private const val IDENTITY_OPEN = "identityOpen"
 
 /** Keeps the form as plain values across a killed process; never the password, as saved state is written in clear. */
 private fun SavedStateHandle.keep(form: FolderForm) {
@@ -359,6 +437,8 @@ private fun SavedStateHandle.keep(form: FolderForm) {
     this[SHARE] = form.share
     this[PATH] = form.path
     this[USER] = form.user
+    this[UID] = form.uid
+    this[GID] = form.gid
 }
 
 /** The kept form, password empty; null when none was kept or its values are unknown. */
@@ -372,5 +452,7 @@ private fun SavedStateHandle.folderForm(): FolderForm? {
         share = get<String>(SHARE).orEmpty(),
         path = get<String>(PATH).orEmpty(),
         user = get<String>(USER).orEmpty(),
+        uid = get<String>(UID).orEmpty(),
+        gid = get<String>(GID).orEmpty(),
     )
 }

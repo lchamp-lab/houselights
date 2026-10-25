@@ -5,13 +5,23 @@ import android.util.Log
 import app.houselights.core.Http
 import app.houselights.core.HttpStatus
 import app.houselights.core.TraktSession
+import app.houselights.core.serverJson
 import app.houselights.core.suspendRunCatching
+import app.houselights.core.unreadable
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.SerializationException
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import retrofit2.Response
@@ -23,8 +33,16 @@ enum class DeviceCodeEnd { APPROVED, DENIED, EXPIRED, INVALID, USED }
 /** No Trakt account is connected, or Trakt ended its connection: it must be connected again. */
 class TraktSignedOutException : IllegalStateException("No Trakt account connected")
 
-/** A failure for the log: its status or its type, never its message, which may quote an answer and its tokens. */
-internal fun described(e: Throwable): String = if (e is HttpException) "HTTP ${e.code()}" else e.javaClass.simpleName
+/**
+ * A failure for the log: its status, where an answer could not be read, or its type; never its message, which may
+ * quote an answer and its tokens.
+ */
+internal fun described(e: Throwable): String = when (e) {
+    is HttpException -> "HTTP ${e.code()}"
+    // Its type alone would be renamed in a release build.
+    is SerializationException -> unreadable(e)
+    else -> e.javaClass.simpleName
+}
 
 /** What connecting and disconnecting an account takes ([TraktAccount]); an interface so tests can stand in for Trakt. */
 interface TraktLink {
@@ -47,7 +65,8 @@ interface TraktLink {
 /**
  * The Trakt account of this device: connected with a device code, its tokens renewed before they end, revoked on
  * signing out. Its session lives in the settings, sealed: read with [session] until this account changes it, then
- * held in memory, which every call and its token read, and written with [save], again at the next call if that failed.
+ * held in memory, which every call and its token read, and written with [save]; if that failed, again soon in
+ * [retries], as the app leaves the screen, and at the next call.
  */
 class TraktAccount(
     private val keys: TraktKeys,
@@ -58,6 +77,10 @@ class TraktAccount(
     private val now: () -> Long = { System.currentTimeMillis() / MS_PER_S },
     /** A clock in milliseconds that runs on in sleep, which a code's life counts in. */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
+    /** Where a failed save is tried again ([RETRIES_MS]); without it, only at the next call. */
+    private val retries: CoroutineScope? = null,
+    /** Whether the app is on screen: leaving it, the process may be stopped, and a session held only in memory lost. */
+    started: Flow<Boolean> = emptyFlow(),
 ) : TraktLink {
     private val client by lazy { TraktClient(keys, token = { current()?.accessToken }, base = http) }
 
@@ -69,6 +92,13 @@ class TraktAccount(
 
     @Volatile
     private var held: Held? = null
+
+    /** The save tried again after a failure, while it waits. */
+    private var resaving: Job? = null
+
+    init {
+        retries?.launch { started.distinctUntilChanged().filter { !it }.collect { savePending() } }
+    }
 
     /** The session in memory, else the settings'. */
     private fun current(): TraktSession? = held.let { if (it != null) it.session else session() }
@@ -142,7 +172,7 @@ class TraktAccount(
      * if Trakt refuses it. Throws [TraktSignedOutException] when there is no account, or Trakt refuses to renew it.
      */
     suspend fun <T> call(block: suspend (TraktApi) -> T): T {
-        if (held?.saved == false) lock.withLock { held?.takeUnless { it.saved }?.let { keep(it.session) } }
+        if (held?.saved == false) savePending()
         var current = live()
         if (current.expiresAt - now() < current.lifetime / RENEW_PART) {
             current = suspendRunCatching { renew(current) }.getOrElse { e ->
@@ -192,12 +222,12 @@ class TraktAccount(
         keep(current.copy(accessToken = "", refreshToken = "", ended = true))
     }
 
-    /** Revokes the access token on Trakt, giving up after a short wait, then forgets the session. */
+    /**
+     * Revokes the access token on Trakt, giving up after a short wait, then forgets the session; one the Keystore could
+     * not open, read as none, is forgotten all the same.
+     */
     override suspend fun signOut() = lock.withLock {
-        val current = current()
-        // Nothing to forget, unless forgetting it failed before.
-        if (current == null && held?.saved != false) return@withLock
-        current?.let { revoke(it.accessToken) }
+        current()?.let { revoke(it.accessToken) }
         keep(null).getOrThrow()
     }
 
@@ -222,14 +252,38 @@ class TraktAccount(
         held = Held(next, saved = false)
         return suspendRunCatching { save(next) }
             .onSuccess { if (held?.session === next) held = Held(next, saved = true) }
-            .onFailure { Log.w(TAG, "The Trakt session could not be saved: ${described(it)}") }
+            .onFailure {
+                Log.w(TAG, "The Trakt session could not be saved: ${described(it)}")
+                saveSoon()
+            }
+    }
+
+    /**
+     * Tries the save again after each of [RETRIES_MS] until it is made: once Trakt has spent the old refresh token,
+     * a stopped process would lose the new one, and the account with it. Called under [lock], as [keep] is.
+     */
+    private fun saveSoon() {
+        val scope = retries ?: return
+        if (resaving?.isActive == true) return
+        resaving = scope.launch {
+            for (wait in RETRIES_MS) {
+                delay(wait)
+                if (savePending()) return@launch
+            }
+        }
+    }
+
+    /** Saves the session held in memory if it is not yet; true once none waits. */
+    private suspend fun savePending(): Boolean = lock.withLock {
+        val pending = held?.takeUnless { it.saved } ?: return@withLock true
+        keep(pending.session).isSuccess
     }
 
     /** Trakt refuses the refresh token itself (invalid_grant), not the request. */
     private fun grantRefused(e: HttpException): Boolean {
         if (e.code() != BAD_REQUEST && e.code() != HttpStatus.UNAUTHORIZED) return false
         val body = runCatching { e.response()?.errorBody()?.string() }.getOrNull() ?: return false
-        return runCatching { TraktClient.json.decodeFromString<OAuthError>(body).error }.getOrNull() == INVALID_GRANT
+        return runCatching { serverJson.decodeFromString<OAuthError>(body).error }.getOrNull() == INVALID_GRANT
     }
 
     private companion object {
@@ -257,5 +311,8 @@ class TraktAccount(
         const val RENEW_PART = 4
 
         const val SIGN_OUT_MS = 3_000L
+
+        /** The waits before each new try of a failed save: 5 s, 30 s, 2 min. */
+        val RETRIES_MS = longArrayOf(5_000L, 30_000L, 120_000L)
     }
 }

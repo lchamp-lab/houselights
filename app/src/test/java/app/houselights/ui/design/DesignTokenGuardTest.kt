@@ -105,25 +105,21 @@ class DesignTokenGuardTest {
         !file.isFile || file.readLines().none { line -> exception.allows(path, line) && rules.any { it.first.containsMatchIn(line) } }
     }
 
-    /** Where 14 sp is read outside the catalogue, each time beside a larger line it completes (DESIGN.md, Type). */
-    private val captions = mapOf(
-        "design/components/Cards.kt" to "a card's facts under its name, a role under a name, a row's count beside its title",
-        "design/components/Hero.kt" to "time left beside the hero's progress, under its title",
-        "design/components/Meta.kt" to "a case back's names beside its formats",
-        "design/components/Picker.kt" to "an artwork choice's facts under its name",
-        "design/components/ScanProgress.kt" to "the file under a counter's label",
-        "home/HomeScreen.kt" to "TMDB's note in home's hero band, whose room is counted",
+    /** Where 12 sp is set outside the catalogue, each time in a mark's box (DESIGN.md, Type). */
+    private val marks = mapOf(
+        "design/components/Cards.kt" to "a one-sheet's year, the count of a card's unwatched episodes",
+        "design/components/Meta.kt" to "a printed mark: an age rating, a protocol",
     )
 
-    /** What is read keeps to 16 sp: `caption` only where [captions] says. */
+    /** What is read keeps to 14 sp: `badge` only where [marks] says. */
     @Test
     fun whatIsReadKeepsToTheFloor() {
-        val caption = Regex("""\btype\.caption\b""")
+        val badge = Regex("""\btype\.badge\b""")
         val catalogue = ui.resolve("catalog")
         val set = kotlinSources(ui).filter { !it.startsWith(catalogue) }
-            .filter { file -> file.readLines().any { caption.containsMatchIn(it) } }
+            .filter { file -> file.readLines().any { badge.containsMatchIn(it) } }
             .map { it.relativeTo(ui).path }.toSortedSet()
-        assertEquals("Files setting text in caption", captions.keys.toSortedSet(), set)
+        assertEquals("Files setting text in badge", marks.keys.toSortedSet(), set)
     }
 
     /** The screens titled as a place, in ember (`ScreenTitle`); a task or a form is titled in white (`TaskTitle`). */
@@ -132,28 +128,26 @@ class DesignTokenGuardTest {
         "settings/SettingsScreen.kt" to "Réglages",
         "search/SearchScreen.kt" to "Rechercher",
         "person/PersonScreen.kt" to "a person",
+        "home/WatchScreen.kt" to "À regarder, home's rows",
     )
 
     /** Ember says where you are: only a place lights its title, never a task, a form or a film. */
     @Test
     fun onlyAPlaceIsTitledInEmber() {
-        val lit = Regex("""(?<!fun )\b(ScreenTitle|HlTitleSwitch)\(""")
+        val lit = Regex("""(?<!fun )\bScreenTitle\(""")
         // The catalogue shows both titles.
         val elsewhere = listOf(ui.resolve("design"), ui.resolve("catalog"))
         val titled = kotlinSources(ui).filter { file -> elsewhere.none { file.startsWith(it) } }
             .filter { file -> file.readLines().any { !it.trimStart().startsWith("import ") && lit.containsMatchIn(it) } }
             .map { it.relativeTo(ui).path }.toSortedSet()
         assertEquals("Screens titled as a place", places.keys.toSortedSet(), titled)
-        // One place per screen: a title, or on a wall with sagas the title that switches to the other view.
-        val twice = titled.filter { path ->
-            val text = ui.resolve(path).readText()
-            listOf("ScreenTitle(", "HlTitleSwitch(").any { call -> Regex("""(?<!fun )\b${Regex.escape(call)}""").findAll(text).count() > 1 }
-        }
+        // One place per screen, a wall's whatever it shows.
+        val twice = titled.filter { path -> lit.findAll(ui.resolve(path).readText()).count() > 1 }
         assertTrue("A screen titled as more than one place: ${twice.joinToString()}", twice.isEmpty())
-        // In the design system, only the switch of a wall's title lights one.
+        // The design system lights no title of its own.
         val components = ui.resolve("design/components")
         val lighting = kotlinSources(components).filter { file -> file.readLines().any { lit.containsMatchIn(it) } }.map { it.name }
-        assertEquals(listOf("Controls.kt"), lighting)
+        assertEquals(emptyList<String>(), lighting)
     }
 
     /** Whether this exception, "path:fragment", covers [line] of the file at [path]. */

@@ -26,6 +26,9 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** The library's server or NAS does not answer. */
     OFFLINE(R.string.error_offline_title, R.string.error_offline, ErrorAction.RETRY),
 
+    /** TLS refused the server's or TMDB's certificate: expired, or the device's clock is wrong. */
+    CERTIFICATE(R.string.error_certificate_title, R.string.error_certificate, ErrorAction.RETRY),
+
     /** TMDB does not answer. */
     TMDB_OFFLINE(R.string.error_tmdb_offline_title, R.string.error_tmdb_offline, ErrorAction.RETRY),
 
@@ -59,6 +62,9 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** The device's Keystore refused to seal a password or a token: nothing was written. */
     KEYSTORE(R.string.error_keystore_title, R.string.error_keystore, ErrorAction.RETRY),
 
+    /** The device's Keystore did not open a saved secret for now: it is kept, and read again. */
+    SECRETS_UNREAD(R.string.error_keystore_title, R.string.error_secrets_unread, ErrorAction.RETRY),
+
     /** The device's storage refused a write (full, or failing): nothing was saved. */
     NOT_SAVED(R.string.error_not_saved_title, R.string.error_not_saved, ErrorAction.RETRY),
 
@@ -73,7 +79,8 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
 fun Throwable.toUiError(): UiError = failureKind().toUiError()
 
 fun FailureKind.toUiError(): UiError = when (this) {
-    FailureKind.UNREACHABLE, FailureKind.IO, FailureKind.CERTIFICATE -> UiError.OFFLINE
+    FailureKind.UNREACHABLE, FailureKind.IO -> UiError.OFFLINE
+    FailureKind.CERTIFICATE -> UiError.CERTIFICATE
     FailureKind.TMDB_UNREACHABLE -> UiError.TMDB_OFFLINE
     FailureKind.NO_TMDB_KEY -> UiError.NO_TMDB_KEY
     FailureKind.TMDB_KEY_REFUSED -> UiError.TMDB_KEY_REFUSED
@@ -81,6 +88,7 @@ fun FailureKind.toUiError(): UiError = when (this) {
     FailureKind.REFUSED -> UiError.DENIED
     FailureKind.GONE -> UiError.GONE
     FailureKind.KEYSTORE -> UiError.KEYSTORE
+    FailureKind.SECRET_UNREAD -> UiError.SECRETS_UNREAD
     // Only raised by writes: what was written is not saved.
     FailureKind.STORAGE_FULL -> UiError.NOT_SAVED
     // NAS refusals and missing paths show in Settings, per folder; a failing disk can fail reads too.

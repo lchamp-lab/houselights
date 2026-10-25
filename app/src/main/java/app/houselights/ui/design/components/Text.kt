@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.heightIn
 import androidx.tv.material3.Text
@@ -26,7 +27,6 @@ import app.houselights.ui.design.Gradation
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.drawGradation
-import app.houselights.ui.util.toPx
 import app.houselights.core.ImageRef
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -112,20 +112,27 @@ private const val WORDMARK_HEIGHT = 103.79f
 private const val WORDMARK_CAPITALS = 100f
 
 /**
- * The request of a [TitleArt] up to [maxWidthPx] by [maxHeightPx]: [logo] at constant weight ([EvenLogo]),
- * decoded larger so it is never upscaled. Preloads must use it to hit the memory cache.
+ * The request of a [TitleArt] up to [maxWidth] by [maxHeight] at [density]: [logo] at constant weight ([EvenLogo]),
+ * decoded larger; enlarged past its file's pixels only above 1080p, to the size it has there. Preloads must use it
+ * to hit the memory cache.
  */
-internal fun titleArtRequest(context: Context, logo: ImageRef, maxWidthPx: Int, maxHeightPx: Int): ImageRequest =
-    ImageRequest.Builder(context)
-        .data(logo.url(maxWidthPx))
-        .size((maxWidthPx * LOGO_DECODE).roundToInt(), (maxHeightPx * LOGO_DECODE).roundToInt())
+internal fun titleArtRequest(context: Context, logo: ImageRef, maxWidth: Dp, maxHeight: Dp, density: Density): ImageRequest {
+    val widthPx = with(density) { maxWidth.roundToPx() }
+    val heightPx = with(density) { maxHeight.roundToPx() }
+    return ImageRequest.Builder(context)
+        .data(logo.url(widthPx))
+        .size((widthPx * LOGO_DECODE).roundToInt(), (heightPx * LOGO_DECODE).roundToInt())
         .scale(Scale.FIT)
         .precision(Precision.INEXACT)
-        .transformations(EvenLogo(maxWidthPx, maxHeightPx))
+        .transformations(EvenLogo(widthPx, heightPx, enlarge = maxOf(1f, density.density / FULL_HD_DENSITY)))
         .build()
+}
 
 /** Decode size relative to the logo box, so [EvenLogo] sizes it from real pixels. */
 private const val LOGO_DECODE = 1.5f
+
+/** The canvas's density at 1080p (1920 px), above which a logo may be enlarged to the size it has there. */
+private const val FULL_HD_DENSITY = 2f
 
 /** The title's clear logo, or its name in condensed type; [measured] balances its lines ([MeasuredTitle]). */
 @Composable
@@ -140,10 +147,9 @@ fun TitleArt(
     measured: Boolean = false,
 ) {
     val context = LocalContext.current
-    val widthPx = maxWidth.toPx()
-    val heightPx = maxHeight.toPx()
+    val density = LocalDensity.current
     // Drawn at the size EvenLogo gave it, which fits the box.
-    val request = remember(logo, widthPx, heightPx) { logo?.let { titleArtRequest(context, it, widthPx, heightPx) } }
+    val request = remember(logo, maxWidth, maxHeight, density) { logo?.let { titleArtRequest(context, it, maxWidth, maxHeight, density) } }
     var failed by remember(request) { mutableStateOf(false) }
     if (request != null && !failed) {
         AsyncImage(
@@ -155,7 +161,8 @@ fun TitleArt(
             modifier = modifier.heightIn(max = maxHeight).widthIn(max = maxWidth),
         )
     } else if (measured) {
-        MeasuredTitle(title, style, maxWidth + HlSpace.xxl * 3, maxLines, modifier)
+        // Within the logo's box, so a title weighs as much as a logo would.
+        MeasuredTitle(title, style, maxWidth, maxLines, modifier)
     } else {
         Text(
             title,
@@ -170,7 +177,8 @@ fun TitleArt(
 
 /**
  * A title set to its measure: on one line at [HlType.titleSignature] when it fits ("Ran"), else in [style]
- * on balanced lines ("Les Sept / Samouraïs"), which Android 9 does not do itself. At most four measures.
+ * on balanced lines ("Les Sept / Samouraïs"), which Android 9 does not do itself. At most four measures. Under the
+ * standard text size the signature is chosen as at it, then set at the viewer's: a smaller size never grows a title.
  */
 @Composable
 private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLines: Int, modifier: Modifier) {
@@ -178,7 +186,11 @@ private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLine
     val signature = Hl.type.titleSignature
     val density = LocalDensity.current
     val widthPx = with(density) { maxWidth.roundToPx() }
-    val plan = remember(title, style, signature, widthPx, maxLines) { measurer.titlePlan(title, style, signature, widthPx, maxLines) }
+    val choosing = remember(density) { if (density.fontScale < 1f) Density(density.density) else density }
+    val plan = remember(title, style, signature, widthPx, maxLines, choosing) {
+        val signed = measurer.measure(title, signature, maxLines = 1, softWrap = false, density = choosing).size.width
+        if (signed <= widthPx) TitlePlan(signature, null) else measurer.titlePlan(title, style, widthPx, maxLines)
+    }
     Text(
         title,
         style = plan.style,
@@ -192,14 +204,8 @@ private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLine
 /** A title's style and the width that balances its lines (null: the full width). */
 private class TitlePlan(val style: TextStyle, val widthPx: Int?)
 
-private fun TextMeasurer.titlePlan(
-    title: String,
-    style: TextStyle,
-    signature: TextStyle,
-    widthPx: Int,
-    maxLines: Int,
-): TitlePlan {
-    if (measure(title, signature, maxLines = 1, softWrap = false).size.width <= widthPx) return TitlePlan(signature, null)
+/** [title] in [style] in a box [widthPx] wide: on one line, else on two even ones. */
+private fun TextMeasurer.titlePlan(title: String, style: TextStyle, widthPx: Int, maxLines: Int): TitlePlan {
     val oneLine = measure(title, style, maxLines = 1, softWrap = false).size.width
     if (oneLine <= widthPx || maxLines < 2) return TitlePlan(style, null)
     // Two lines: the narrowest candidate width that still fits the title on two.

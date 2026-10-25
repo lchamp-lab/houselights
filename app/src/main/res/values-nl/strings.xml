@@ -41,6 +41,7 @@
     <string name="home_scan_failed">De scan is niet voltooid</string>
     <string name="home_scan_tmdb_refused">TMDB weigert de sleutel: titels worden toegevoegd op basis van uw bestanden, zonder hun gegevens.</string>
     <string name="home_scan_tmdb_offline">TMDB reageert niet: titels worden toegevoegd op basis van uw bestanden en krijgen hun gegevens bij een latere scan.</string>
+    <string name="home_scan_tmdb_certificate">Het certificaat van TMDB wordt geweigerd: titels worden toegevoegd op basis van uw bestanden. Controleer de datum en tijd van het apparaat.</string>
     <string name="home_see_folders">Mappen bekijken</string>
 
     <!-- Browsing -->
@@ -49,6 +50,8 @@
     <string name="sort_added">Datum toegevoegd</string>
     <string name="sort">Sorteren</string>
     <string name="filter">Filteren</string>
+    <string name="filter_show">Weergeven</string>
+    <string name="show_grouped">Films en saga’s</string>
     <string name="filter_status">Status</string>
     <string name="status_in_progress">Begonnen</string>
     <string name="status_watched">Bekeken</string>
@@ -88,7 +91,26 @@
     <string name="play">Afspelen</string>
     <string name="resume">Hervatten</string>
     <string name="time_left">Nog %s</string>
-    <string name="nav_home">Home</string>
+    <string name="back_again_to_quit">Druk nogmaals op Terug om af te sluiten</string>
+    <string name="watch_title">Te bekijken</string>
+    <string name="home_news">Nieuw</string>
+    <string name="home_unseen">Nog niet gezien</string>
+    <string name="home_libraries">Bibliotheken</string>
+    <string name="home_state_source">Bron</string>
+    <string name="home_state_scan">Laatste scan</string>
+    <string name="home_state_tmdb_refused">Sleutel geweigerd</string>
+    <string name="home_state_tmdb_offline">Onbereikbaar</string>
+    <string name="home_scan_running">Bezig…</string>
+    <string name="home_episode">S%1$d · A%2$s</string>
+    <string name="home_open_title">Pagina openen</string>
+    <plurals name="home_news_week">
+        <item quantity="one">%d deze week</item>
+        <item quantity="other">%d deze week</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="one">%d nieuwe aflevering</item>
+        <item quantity="other">%d nieuwe afleveringen</item>
+    </plurals>
     <string name="from_start">Vanaf het begin</string>
     <string name="part_of">Deel %1$d van %2$d</string>
     <string name="parts">Delen</string>
@@ -97,12 +119,12 @@
     <string name="mark_unwatched">Markeren als niet bekeken</string>
     <string name="mark_season_watched">Seizoen markeren als bekeken</string>
     <string name="mark_season_unwatched">Seizoen markeren als niet bekeken</string>
-    <string name="mark_series_watched">Serie markeren als bekeken</string>
-    <string name="mark_series_unwatched">Serie markeren als niet bekeken</string>
-    <string name="long_press_series_watched">Lang drukken: serie bekeken</string>
-    <string name="long_press_series_unwatched">Lang drukken: serie niet bekeken</string>
-    <string name="mark_episode_watched">Aflevering markeren als bekeken</string>
-    <string name="mark_episode_unwatched">Aflevering markeren als niet bekeken</string>
+    <string name="mark_series_watched">Hele serie markeren als bekeken</string>
+    <string name="mark_series_unwatched">Hele serie markeren als niet bekeken</string>
+    <string name="mark_season_number_watched">Seizoen %d markeren als bekeken</string>
+    <string name="mark_season_number_unwatched">Seizoen %d markeren als niet bekeken</string>
+    <string name="more_options">Meer opties</string>
+    <string name="play_from_start">Afspelen vanaf het begin</string>
     <string name="add_favorite">Toevoegen aan favorieten</string>
     <string name="remove_favorite">Verwijderen uit favorieten</string>
     <string name="view_series">Naar de serie</string>
@@ -180,6 +202,9 @@
     <string name="no_player">De Zidoo-speler is niet geïnstalleerd.</string>
     <string name="player_credentials">Deze map vraagt een wachtwoord: alleen de Zidoo-speler kan eruit afspelen.</string>
     <string name="player_changed">De Zidoo-speler is gewijzigd en Houselights vertrouwt hem uw wachtwoorden en uw servertoegang niet meer toe. Installeer de speler die bij de Zidoo hoorde opnieuw, of wis de gegevens van Houselights om de nieuwe te vertrouwen.</string>
+    <string name="play_failed_no_player">Zidoo-speler niet geïnstalleerd</string>
+    <string name="play_failed_credentials">Zidoo-speler vereist</string>
+    <string name="play_failed_player_changed">Zidoo-speler gewijzigd</string>
 
     <!-- Local folders -->
     <string name="add_folder">Map toevoegen</string>
@@ -197,6 +222,11 @@
     <string name="field_host">NAS-adres</string>
     <string name="field_export">NFS-export</string>
     <string name="nfs_hint">Zonder wachtwoord: sta op de NAS het adres van dit apparaat toe, alleen-lezen, vanaf niet-geprivilegieerde poorten.</string>
+    <string name="nfs_identity_title">Verbinden als</string>
+    <string name="nfs_identity_desc">Gebruiker die de NAS ziet</string>
+    <string name="nfs_identity_hint">Lege velden: Houselights maakt verbinding als root (UID 0, GID 0). De Zidoo-speler opent video’s onder zijn eigen account.</string>
+    <string name="field_uid">Gebruiker (UID)</string>
+    <string name="field_gid">Groep (GID)</string>
     <string name="smb_hint">Het wachtwoord wordt op dit apparaat bewaard en aan de Zidoo-speler doorgegeven. Gebruik bij voorkeur een eigen account met alleen leesrechten.</string>
     <string name="field_share">Share</string>
     <string name="field_path">Map</string>
@@ -211,6 +241,8 @@
     <string name="placeholder_share">Bijv. media</string>
     <string name="placeholder_path_movies">Bijv. films</string>
     <string name="placeholder_path_shows">Bijv. series</string>
+    <string name="placeholder_uid">Bijv. 1026</string>
+    <string name="placeholder_gid">Bijv. 100</string>
     <string name="test_connection">Testen</string>
     <string name="connection_untested">Verbinding niet getest</string>
     <string name="server_found">Server gevonden</string>
@@ -223,6 +255,7 @@
     <string name="folder_overlaps">Deze map overlapt met “%s”, die al in de bibliotheek staat: de titels zouden dubbel verschijnen. Kies een andere map, of bewerk die in Instellingen.</string>
     <string name="folder_overlaps_state">Al in de bibliotheek</string>
     <string name="folder_not_saved_state">Niet opgeslagen</string>
+    <string name="folder_unread">Deze map kon niet opnieuw worden gelezen</string>
     <string name="saving">Opslaan…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item gevonden</item>
@@ -235,6 +268,8 @@
     <string name="error_host_missing">Voer het adres van de NAS in.</string>
     <string name="error_export_missing" tools:ignore="Typos">Voer de NFS-export in, bijvoorbeeld /volume1/media.</string>
     <string name="error_share_missing">Voer de naam van de gedeelde map in, bijvoorbeeld media.</string>
+    <string name="error_uid_missing">Voer ook de gebruiker (UID) in.</string>
+    <string name="error_gid_missing">Voer ook de groep (GID) in.</string>
     <string name="error_scan_other">De map kon niet worden gelezen. Probeer het opnieuw, of controleer de share op de NAS.</string>
     <string name="error_folder_empty">De map lijkt leeg op de NAS: er is niets verwijderd. Controleer of de schijf gekoppeld is; is de map definitief leeg, verwijder hem dan.</string>
     <string name="error_storage_full">Dit apparaat heeft geen ruimte meer: de scan is gestopt. Maak ruimte vrij in Instellingen, Opslag.</string>
@@ -243,6 +278,11 @@
     <!-- Jellyfin -->
     <string name="jellyfin_title">Verbinden met Jellyfin</string>
     <string name="servers_found">Servers gevonden op het netwerk</string>
+    <string name="server_encrypted">Versleuteld</string>
+    <string name="server_plain">Niet versleuteld</string>
+    <string name="server_silent">Reageert niet</string>
+    <string name="connection_is_encrypted">Met versleuteling</string>
+    <string name="connection_is_plain">Zonder versleuteling</string>
     <string name="field_server">Serveradres</string>
     <string name="placeholder_server">Bijv. 192.168.1.10:8096</string>
     <string name="sign_in">Inloggen</string>
@@ -278,9 +318,46 @@
         <item quantity="other">%d bestanden</item>
     </plurals>
     <string name="playback_desc">Hoe de Zidoo-speler de bestanden van uw server bereikt.</string>
+    <string name="playback_desc_folders">De sporen die de Zidoo-speler afspeelt, voor al uw films en series.</string>
+    <string name="playback_desc_server">De sporen die de Zidoo-speler afspeelt, en hoe hij de bestanden van uw server opent.</string>
+    <string name="tracks">Audio en ondertiteling</string>
+    <string name="tracks_for_all">Voor al uw films en series</string>
+    <string name="tracks_per_title">Een film kan een eigen keuze houden: knop “Audio en ondertiteling” op zijn pagina.</string>
+    <string name="tracks_player">Keuze van de speler</string>
+    <string name="tracks_player_desc">Zijn eigen instelling, anders het eerste spoor</string>
+    <string name="audio_language">Audiotaal</string>
+    <string name="audio_language_desc">Als de film dat spoor heeft</string>
+    <string name="audio_language_player_desc">Zijn eigen taalinstelling</string>
+    <string name="subtitles">Ondertiteling</string>
+    <string name="subtitles_off">Uit</string>
+    <string name="subtitles_off_desc">Nooit ondertiteling</string>
+    <string name="subtitles_forced">Alleen geforceerd</string>
+    <string name="subtitles_forced_desc">Passages in een andere taal</string>
+    <string name="subtitles_auto">Automatisch</string>
+    <string name="subtitles_auto_desc">Volledig als de audio niet in het %1$s is</string>
+    <string name="subtitles_always">Altijd</string>
+    <string name="subtitles_always_desc">Volledig, in het %1$s</string>
+    <string name="subtitle_language">Taal van de ondertiteling</string>
+    <string name="subtitle_language_interface_desc">Die van de interface</string>
+    <string name="subtitle_language_desc">Voor de getoonde ondertiteling</string>
+    <string name="tracks_settings">Zoals in Instellingen</string>
+    <string name="tracks_player_choice">Gekozen door de speler</string>
+    <string name="tracks_audio">Audio</string>
+    <string name="tracks_none">Geen</string>
+    <string name="tracks_forced">%1$s, geforceerd</string>
+    <string name="tracks_sdh">%1$s, SDH</string>
+    <string name="tracks_for_film">Voor deze film</string>
+    <string name="tracks_for_show">Voor de hele serie</string>
+    <string name="tracks_note_film">Uw keuze geldt voor deze film en al zijn kopieën. Een wijziging tijdens het afspelen blijft ook bewaard.</string>
+    <string name="tracks_note_show">Uw keuze geldt voor de hele serie. Een wijziging tijdens een aflevering blijft ook bewaard.</string>
+    <string name="tracks_hint_none">geen ondertiteling</string>
+    <string name="tracks_hint_forced">geforceerde ondertiteling</string>
+    <string name="tracks_hint_full">ondertiteling in het %1$s</string>
+    <string name="tracks_hint_pair">%1$s, %2$s</string>
     <string name="tmdb_desc">Posters en gegevens komen van TMDB.</string>
     <string name="change_source_local_desc">Uw mappen blijven bewaard</string>
-    <string name="change_source_jellyfin_desc">Blijft verbonden tot de wissel</string>
+    <string name="change_source_jellyfin_desc">Blijft verbonden als u wisselt</string>
+    <string name="change_source_jellyfin_sheet">De server blijft verbonden als u wisselt</string>
     <string name="change_source">Bron wijzigen</string>
     <string name="reconnect">Opnieuw inloggen</string>
     <string name="source_local_first">Voeg een map van uw NAS toe</string>
@@ -292,11 +369,21 @@
         <item quantity="one">%d map</item>
         <item quantity="other">%d mappen</item>
     </plurals>
-    <string name="source_jellyfin_other">Andere server of ander account</string>
     <string name="sign_out">Uitloggen</string>
     <string name="sign_out_confirm">Uitloggen bij “%s”?</string>
-    <string name="sign_out_desc">Houselights vergeet deze server op dit apparaat; uw mappen nemen zijn plaats in.</string>
-    <string name="sign_out_first_folder">Houselights vergeet deze server op dit apparaat zodra uw eerste map is toegevoegd.</string>
+    <string name="sign_out_desc">Houselights vergeet deze server op dit apparaat; uw mappen nemen zijn plaats in. Om hem weer te gebruiken, moet u opnieuw inloggen.</string>
+    <string name="sign_out_no_folder_desc">Houselights vergeet deze server op dit apparaat; u kiest opnieuw uw bibliotheek. Om hem weer te gebruiken, moet u opnieuw inloggen.</string>
+    <string name="source_jellyfin_another">Een andere Jellyfin-server</string>
+    <string name="source_jellyfin_another_desc">Een ander adres of een ander account</string>
+    <string name="source_kept_resume">zonder in te loggen</string>
+    <string name="source_trakt_resumes">Trakt gaat verder</string>
+    <string name="forget">Vergeten</string>
+    <string name="forget_server">“%s” vergeten</string>
+    <string name="forget_server_desc">Houselights logt hier uit</string>
+    <string name="forget_server_confirm">“%s” vergeten?</string>
+    <string name="forget_server_consequence">Houselights logt op dit apparaat uit bij deze server. Om hem weer te gebruiken, moet u opnieuw inloggen.</string>
+    <string name="sign_out_server">Uitloggen bij “%s”</string>
+    <string name="sign_out_server_desc">Houselights vergeet hem hier</string>
     <string name="label_server">Server</string>
     <string name="label_connection">Verbinding</string>
     <string name="connection_encrypted">Versleuteld (HTTPS)</string>
@@ -368,6 +455,7 @@
     <string name="tmdb_key_unchecked">Opgeslagen zonder controle: TMDB reageert niet.</string>
     <string name="tmdb_scan_key_refused">TMDB weigerde deze sleutel tijdens de laatste scan: titels wachten op hun gegevens.</string>
     <string name="tmdb_scan_offline">TMDB reageerde niet tijdens de laatste scan: titels krijgen hun gegevens bij een latere scan.</string>
+    <string name="tmdb_scan_certificate">Het certificaat van TMDB werd tijdens de laatste scan geweigerd: controleer de datum en tijd van het apparaat.</string>
     <string name="tmdb_key_revert">Terug naar de ingebouwde sleutel</string>
     <string name="tmdb_key_revert_desc">Houselights vergeet uw sleutel</string>
     <string name="save">Opslaan</string>
@@ -428,7 +516,11 @@
     <string name="identify_state_matched">Geïdentificeerd</string>
     <string name="result_current">Huidig</string>
     <string name="error_offline_title">Bibliotheek onbereikbaar</string>
+    <string name="error_offline_nas_title">NAS onbereikbaar</string>
+    <string name="error_offline_server_title">Server onbereikbaar</string>
     <string name="error_offline">De server of de NAS reageert niet. Controleer of die aan staat en probeer het opnieuw.</string>
+    <string name="error_certificate_title">Certificaat geweigerd</string>
+    <string name="error_certificate">Het beveiligingscertificaat wordt geweigerd. Vernieuw het certificaat van de server of controleer de datum en tijd van het apparaat en probeer het opnieuw.</string>
     <string name="error_denied_title">Verbinding geweigerd</string>
     <string name="error_denied">De server heeft de verbinding geweigerd. Log opnieuw in om verder te gaan.</string>
     <string name="error_gone_title">Deze titel is verdwenen</string>
@@ -446,6 +538,7 @@
     <string name="error_keystore_title">Sleutelkluis van apparaat niet beschikbaar</string>
     <string name="error_keystore">De sleutelkluis van dit apparaat weigerde het wachtwoord te versleutelen, dus er is niets opgeslagen. Start de speler opnieuw en probeer het nog eens.</string>
     <string name="error_keystore_sign_in">Ingelogd, maar de sleutelkluis van dit apparaat weigerde het token van de server te versleutelen, dus er is niets opgeslagen. Start de speler opnieuw en log daarna opnieuw in.</string>
+    <string name="error_secrets_unread">De sleutelkluis van dit apparaat reageerde niet, maar niets van wat is opgeslagen is verloren. Probeer het nog eens, en start de speler opnieuw als het aanhoudt.</string>
     <string name="error_settings_title">Instellingen konden niet worden gelezen</string>
     <string name="error_settings">De opslag van deze speler reageerde niet. Probeer het nog eens, en start de speler opnieuw als het aanhoudt.</string>
     <string name="error_not_saved_title">Er is niets opgeslagen</string>
@@ -453,6 +546,7 @@
     <string name="error_not_saved_player">De opslag van deze speler weigerde het schrijven, dus er is niets opgeslagen. Maak ruimte vrij op de speler en probeer het opnieuw.</string>
     <string name="mappings_not_saved">De toewijzingen zijn niet opgeslagen. %s</string>
     <string name="welcome_lost_secrets">De verbinding die op deze speler is opgeslagen, kon niet opnieuw worden gelezen. Kies opnieuw waar uw films staan.</string>
+    <string name="welcome_settings_reset">De instellingen die op deze speler zijn opgeslagen, konden niet opnieuw worden gelezen en zijn teruggezet. Kies opnieuw waar uw films staan.</string>
     <string name="settings_lost_tmdb_key">Uw persoonlijke TMDB-sleutel kon op deze speler niet opnieuw worden gelezen. Voer hem opnieuw in onder TMDB-API-sleutel.</string>
     <string name="settings_lost_mappings">De padtoewijzingen die op deze speler zijn opgeslagen, konden niet opnieuw worden gelezen. Voer ze hieronder opnieuw in.</string>
     <string name="error_action_reconnect">Opnieuw inloggen</string>
@@ -466,6 +560,8 @@
     <string name="device_language">Taal van het apparaat</string>
     <string name="remove_folder">Deze map verwijderen</string>
     <string name="remove_folder_desc">De titels verdwijnen uit de bibliotheek; er wordt niets gewist op de NAS.</string>
+    <string name="remove_last_folder_desc">De titels verdwijnen uit de bibliotheek; er wordt niets gewist op de NAS. Dit is uw laatste map: u keert terug naar het welkomstscherm.</string>
+    <string name="remove_last_folder_kept_desc">De titels verdwijnen uit de bibliotheek; er wordt niets gewist op de NAS. Dit is uw laatste map: u keert terug naar “%s”, zonder in te loggen.</string>
     <string name="remove_folder_row_desc">De titels verdwijnen uit de bibliotheek</string>
     <string name="folder_not_removed">Deze map is niet verwijderd. %s</string>
     <string name="remove_folder_confirm">“%s” verwijderen?</string>
@@ -478,6 +574,16 @@
     <string name="ui_resolution_desc">Bij afspelen kiest de speler zelf</string>
     <string name="interface_language">Taal van de interface</string>
     <string name="interface_language_desc">Menu’s, instellingen en meldingen</string>
+    <string name="text_size">Tekstgrootte</string>
+    <string name="text_size_desc">Alle teksten van de app</string>
+    <string name="text_size_sheet">Vergroot of verkleint alle teksten van Houselights. Het raster en de marges blijven gelijk.</string>
+    <string name="text_size_compact">Compact</string>
+    <string name="text_size_compact_desc">Om van dichtbij te lezen</string>
+    <string name="text_size_standard">Standaard</string>
+    <string name="text_size_standard_desc">Aanbevolen</string>
+    <string name="text_size_large">Groot</string>
+    <string name="text_size_large_desc">Om van ver te lezen</string>
+    <string name="text_size_large_reached">Al bereikt met de instelling van Android</string>
     <string name="ui_4k_desc">Een scherpe interface op 4K-tv’s</string>
     <string name="ui_system_desc">De modus die het systeem kiest</string>
     <string name="current_output">Uitvoer</string>
@@ -507,6 +613,22 @@
     <string name="support">Houselights steunen</string>
     <string name="support_desc">Trakteer het project op een koffie, vanaf uw telefoon.</string>
     <string name="support_scan">Scan deze code met uw telefoon om de Ko-fi-pagina van het project te openen.</string>
+    <string name="journal">Logboek versturen</string>
+    <string name="journal_desc">Om een probleem te melden, vanaf uw telefoon</string>
+    <string name="journal_scan">Scan deze code met uw telefoon: hij opent het logboek van Houselights, om bij uw bericht te voegen.</string>
+    <string name="journal_masked">Wachtwoorden en tokens zijn erin verborgen; de namen van uw bestanden, shares en NAS blijven staan: lees het na voordat u het publiceert.</string>
+    <string name="journal_closes">De pagina sluit met dit paneel, uiterlijk over %1$s.</string>
+    <string name="journal_offline">De speler is met geen enkel lokaal netwerk verbonden: verbind hem met uw router en open dit paneel opnieuw.</string>
+    <string name="journal_failed">De pagina kon op deze speler niet worden geopend: sluit dit paneel en open het opnieuw.</string>
+    <string name="journal_few">Deze code opent het logboek, nog bijna leeg: kom direct na het probleem terug.</string>
+    <string name="journal_page_title">Logboek</string>
+    <string name="journal_page_text">De laatste regels die de app schreef, de nieuwste eerst.</string>
+    <string name="journal_copy">Kopiëren</string>
+    <string name="journal_copied">Gekopieerd</string>
+    <string name="journal_download">Downloaden</string>
+    <string name="journal_empty">Android heeft geen regel van de app bewaard.</string>
+    <string name="journal_trakt_on">Trakt verbonden</string>
+    <string name="journal_trakt_off">Trakt niet verbonden</string>
     <string name="file_access">Bestandstoegang</string>
     <string name="network_path_desc">De speler leest direct van de NAS</string>
     <string name="http_stream_desc">De speler leest de stream van de server</string>
@@ -545,8 +667,8 @@
     <string name="collections_off">Verborgen</string>
     <string name="collections_off_desc">Geen saga’s in Films, geen saga-rij</string>
     <plurals name="collection_count">
-        <item quantity="one">%d saga</item>
-        <item quantity="other">%d saga’s</item>
+        <item quantity="one">%d saga</item>
+        <item quantity="other">%d saga’s</item>
     </plurals>
     <!-- People: their jobs, as the credits name them, their page, and the rows the library writes. -->
     <string name="job_cast">Cast</string>
@@ -593,6 +715,8 @@
     <string name="trakt_no_keys">Deze versie van Houselights heeft geen Trakt-sleutel.</string>
     <string name="trakt_signed_out">Niet verbonden</string>
     <string name="trakt_connected">Verbonden</string>
+    <string name="trakt_paused">Gepauzeerd</string>
+    <string name="trakt_paused_desc">Trakt volgt uw mappen; het gaat verder zodra u ernaar terugkeert.</string>
     <string name="trakt_connect">Uw account verbinden</string>
     <string name="trakt_connect_desc">Met een code die u op uw telefoon of computer invoert</string>
     <string name="trakt_disconnect">Uw account loskoppelen</string>
@@ -617,6 +741,31 @@
     <string name="trakt_sync_failed">Het synchroniseren met Trakt is niet voltooid. Het gaat vanzelf verder.</string>
     <string name="trakt_sync_refused">Trakt weigert te synchroniseren: de account is misschien vergrendeld, of de sleutel van deze versie geweigerd. Controleer uw account op trakt.tv.</string>
     <string name="trakt_sync_unreadable">Trakt antwoordde op een manier die deze versie niet kan lezen. Houselights bijwerken zou dit moeten verhelpen.</string>
+    <plurals name="trakt_skipped">
+        <item quantity="one">%d item overgeslagen</item>
+        <item quantity="other">%d items overgeslagen</item>
+    </plurals>
+    <string name="trakt_skipped_desc_one">Trakt stuurt het in een vorm die de app niet kan lezen</string>
+    <string name="trakt_skipped_desc">Trakt stuurt ze in een vorm die de app niet kan lezen</string>
+    <string name="trakt_skipped_text_one">Trakt stuurt het in een vorm die deze versie niet kan lezen, vaak een gepauzeerde weergave van een andere app. De rest is gesynchroniseerd, en uw markeringen gaan gewoon door.</string>
+    <string name="trakt_skipped_text">Trakt stuurt ze in een vorm die deze versie niet kan lezen, vaak een gepauzeerde weergave van een andere app. De rest is gesynchroniseerd, en uw markeringen gaan gewoon door.</string>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="one">%d item zonder titel</item>
+        <item quantity="other">%d items zonder titel</item>
+    </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="one">En nog %d</item>
+        <item quantity="other">En nog %d</item>
+    </plurals>
+    <string name="trakt_skipped_movies">Filmgeschiedenis</string>
+    <string name="trakt_skipped_episodes">Afleveringengeschiedenis</string>
+    <string name="trakt_skipped_paused">Gepauzeerde weergave</string>
+    <string name="trakt_skipped_partial_movies">Zolang de filmgeschiedenis niet volledig te lezen is, stuurt Houselights Trakt geen hier bekeken films die daar ontbreken, om geen dubbele te maken.</string>
+    <string name="trakt_skipped_partial_episodes">Zolang de afleveringengeschiedenis niet volledig te lezen is, stuurt Houselights Trakt geen hier bekeken afleveringen die daar ontbreken, om geen dubbele te maken.</string>
+    <string name="trakt_skipped_partial_both">Zolang de film- en afleveringengeschiedenis niet volledig te lezen zijn, stuurt Houselights Trakt geen hier bekeken films en afleveringen die daar ontbreken, om geen dubbele te maken.</string>
+    <string name="trakt_skipped_fix_label">Oplossen:</string>
+    <string name="trakt_skipped_fix_one">Oplossen: verwijder het op trakt.tv, onder Voortgang of Geschiedenis, of werk Houselights bij zodra een versie het kan lezen.</string>
+    <string name="trakt_skipped_fix">Oplossen: verwijder ze op trakt.tv, onder Voortgang of Geschiedenis, of werk Houselights bij zodra een versie ze kan lezen.</string>
     <string name="trakt_certificate">Het certificaat van Trakt wordt geweigerd. Controleer de datum en tijd van het apparaat en probeer het opnieuw.</string>
     <string name="settings_lost_trakt">De Trakt-verbinding die op deze speler is opgeslagen, kon niet opnieuw worden gelezen. Verbind uw account opnieuw.</string>
 </resources>

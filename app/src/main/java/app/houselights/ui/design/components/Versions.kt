@@ -95,7 +95,7 @@ fun VersionRow(name: String, version: Version, onChoose: (() -> Unit)?, modifier
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     name,
-                    style = Hl.type.lead,
+                    style = Hl.type.entry,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),

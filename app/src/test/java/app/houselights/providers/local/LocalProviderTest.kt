@@ -1,6 +1,9 @@
 package app.houselights.providers.local
 
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.AudioTrack
+import app.houselights.core.Codecs
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
@@ -14,11 +17,14 @@ import app.houselights.core.SortOption
 import app.houselights.core.UserState
 import app.houselights.core.WatchStatus
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -523,6 +529,110 @@ class LocalProviderTest {
         val mkv = movie("Ronin")
         assertFalse((provider.playback(provider.item(mkv.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
     }
+
+    /** The tracks the scan read in the file's order go with its launch, under its title's key; a disc's never do. */
+    @Test
+    fun theFilesTracksGoWithItsLaunch() = runTest {
+        val options = PlaybackOptions(emptyList(), false)
+        val read = readInOrder()
+        val heat = movie("Heat") { withMedia(read).copy(tmdbId = 949) }
+        val plan = provider.playback(provider.item(heat.toString()), resume = false, options) as PlaybackPlan.Launch
+        assertEquals(read to "local:film:949", plan.media to plan.titleKey)
+        val copy = movie("Heat", path = "Heat 2160p.mkv") { withMedia(read).copy(tmdbId = 949) }
+        dao.groupVersions()
+        val copyPlan = provider.play(copy, null, resume = false) as PlaybackPlan.Launch
+        assertEquals("one choice for every copy", "local:film:949", copyPlan.titleKey)
+        val unmatched = movie("Ronin") { withMedia(read) }
+        assertEquals("local:$unmatched", (provider.play(unmatched, null, resume = false) as PlaybackPlan.Launch).titleKey)
+        val iso = movie("Ronin", path = "Ronin.iso") { withMedia(read) }
+        assertNull((provider.playback(provider.item(iso.toString()), resume = false, options) as PlaybackPlan.Launch).media)
+    }
+
+    /** A page reads the tracks without the whole plan, as the plan plays them: the chosen copy, a part, a disc, an episode. */
+    @Test
+    fun aPageReadsTheTracksThePlanPlays() = runTest {
+        val options = PlaybackOptions(emptyList(), false)
+        val read = readInOrder()
+        val dubbed = read.copy(audio = listOf(AudioTrack(Codecs.EAC3, 6, "eng")))
+        val heat = movie("Heat") { withMedia(read).copy(tmdbId = 949) }
+        val copy = movie("Heat", path = "Heat 2160p.mkv") { withMedia(dubbed).copy(tmdbId = 949) }
+        dao.groupVersions()
+        dao.setVersionChoice(heat, copy)
+        val unmatched = movie("Ronin") { withMedia(read) }
+        val iso = movie("Ronin", path = "Ronin.iso") { withMedia(read) }
+        val parts = movie("Kill Bill", path = "Kill Bill CD1.mkv") { withMedia(read).copy(parts = listOf("Kill Bill CD2.mkv")) }
+        val show = dao.insert(ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = "Show", sortTitle = "show", addedAt = 0))
+        val episode = dao.insert(
+            ItemEntity(
+                kind = ItemKind.EPISODE, sourceId = source, seriesId = show, title = "E1", sortTitle = "001-0001",
+                seasonNumber = 1, episodeNumber = 1, filePath = "Show/S01E01.mkv", addedAt = 0,
+            ).withMedia(dubbed)
+        )
+        val titles = listOf(heat, unmatched, iso, parts, episode).map { provider.item(it.toString()) }
+        for (item in titles + titles.flatMap { it.parts }) {
+            val plan = provider.playback(item, resume = false, options) as PlaybackPlan.Launch
+            assertEquals(item.id, plan.tracks, provider.playedTracks(item, options))
+        }
+        assertEquals("the chosen copy's", dubbed, provider.playedTracks(titles[0], options).media)
+    }
+
+    /** A film's choice of tracks is kept under its TMDB id, which groups its copies: it outlives the copy it was made on. */
+    @Test
+    fun aChoiceOfTracksOutlivesTheCopyItWasMadeOn() = runTest {
+        val first = movie("Dune", path = "Dune 1080p.mkv") { withMedia(readInOrder()).copy(tmdbId = 438631) }
+        val copy = movie("Dune", path = "Dune 2160p.mkv") { withMedia(readInOrder()).copy(tmdbId = 438631) }
+        dao.groupVersions()
+        val key = checkNotNull((provider.play(first, null, resume = false) as PlaybackPlan.Launch).titleKey)
+        db.trackChoices().save(TrackChoiceEntity(key, "eng", null, at = 5))
+        // The 1080p file gone for good, as a scan settles it: the 4K copy becomes the title.
+        dao.settleMissing(emptyList(), emptyList(), emptyList(), removed = listOf(first), emptyList(), now = 10)
+        assertNull(dao.item(copy)?.versionOf)
+
+        val plan = provider.playback(provider.item(copy.toString()), resume = false, PlaybackOptions(emptyList(), false))
+        assertEquals("eng", (plan as PlaybackPlan.Launch).titleKey?.let { db.trackChoices().choice(it) }?.audio)
+    }
+
+    /** The library's cleanup deletes the choices no title keys any more: a matched film's, an unmatched one's and a show's stay. */
+    @Test
+    fun aChoiceOfTracksGoesWithItsTitle() = runTest {
+        movie("Dune") { copy(tmdbId = 438631) }
+        val heat = movie("Heat")
+        val show = show("Severance")
+        val kept = listOf("local:film:438631", "local:$heat", "local:${show.id}", "jellyfin:show1")
+        val gone = listOf("local:film:949", "local:999", "local:film:$heat")
+        for (key in kept + gone) db.trackChoices().save(TrackChoiceEntity(key, "eng", null, at = 5))
+
+        val idle = CoroutineScope(Job().apply { cancel() })
+        val artwork = ArtworkCache(ApplicationProvider.getApplicationContext<Context>().cacheDir.resolve("artwork"))
+        LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {}).cleanup()
+        assertEquals(kept, kept.filter { db.trackChoices().choice(it) != null })
+        assertEquals(emptyList<String>(), gone.filter { db.trackChoices().choice(it) != null })
+    }
+
+    /** The cleanup keys titles as playback does ([tracksKey]): no choice saved under a row's own key is deleted. */
+    @Test
+    fun theCleanupKeepsEveryKeyPlaybackSavesUnder() = runTest {
+        val first = movie("Dune", path = "Dune 1080p.mkv") { copy(tmdbId = 438631) }
+        val copy = movie("Dune", path = "Dune 2160p.mkv") { copy(tmdbId = 438631) }
+        val unmatched = movie("Heat")
+        val show = show("Severance")
+        val episode = show.episode(1, 1)
+        dao.groupVersions()
+        val rows = listOf(first, copy, unmatched, show.id, episode, checkNotNull(dao.item(episode)?.parentId))
+            .map { checkNotNull(dao.item(it)) }
+        assertEquals(setOf(ItemKind.MOVIE, ItemKind.SERIES, ItemKind.SEASON, ItemKind.EPISODE), rows.map { it.kind }.toSet())
+        assertNotNull("a copy", rows.firstOrNull { it.versionOf != null })
+        val keys = rows.map(::tracksKey).distinct()
+        for (key in keys) db.trackChoices().save(TrackChoiceEntity(key, "eng", null, at = 5))
+
+        dao.deleteOrphanTrackChoices()
+        assertEquals(keys, keys.filter { db.trackChoices().choice(it) != null })
+    }
+
+    /** French AC3 alone, read by the probe in the file's order. */
+    private fun readInOrder() = MediaInfo(
+        container = "MKV", audio = listOf(AudioTrack(Codecs.AC3, 6, "fre")), probedWith = MediaProbe.VERSION, tracksInOrder = true,
+    )
 
     /** No logo chosen (the title set in type): the player gets none either. */
     @Test

@@ -17,12 +17,17 @@ object TrackNames {
     }
 
     /** A track's title when it says more than its [language] (in English, French or itself), format and numbers. */
-    fun note(title: String?, language: String? = null): String? {
+    fun note(title: String?, language: String? = null): String? = note(title, language, emptySet())
+
+    /** A subtitle track's title when it says more than its language, kind (forced, SDH) and format: "Signs & Songs". */
+    fun subtitleNote(title: String?, language: String? = null): String? = note(title, language, SUBTITLE_WORDS)
+
+    private fun note(title: String?, language: String?, also: Set<String>): String? {
         val text = title?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         val names = languageNames(language)
         val rest = (PHRASES + NUMBERS).fold(text.lowercase()) { acc, pattern -> pattern.replace(acc, " ") }
             .let { words(it) }
-            .filterNot { it in REDUNDANT || it in names }
+            .filterNot { it in REDUNDANT || it in also || it in names }
         return text.takeIf { rest.sumOf { word -> word.count(Char::isLetter) } >= MIN_LETTERS }
     }
 
@@ -55,6 +60,12 @@ object TrackNames {
         Regex("""\d+\s*ch\b"""),
         Regex("""\b\d(?:\.\d){1,2}\b"""),
         Regex("""\b\d+\b"""),
+    )
+
+    /** Subtitle kinds and formats, as track titles spell them. */
+    private val SUBTITLE_WORDS = setOf(
+        "forced", "forcé", "forcés", "force", "forces", "full", "complet", "complets", "sdh", "cc",
+        "srt", "subrip", "pgs", "sup", "ass", "ssa", "vobsub", "webvtt", "subs", "subtitles", "sous-titres", "st", "stfr",
     )
 
     /** Languages and dubs, formats and their parts, as track titles spell them. */

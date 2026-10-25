@@ -124,6 +124,8 @@ data class MediaStream(
     @SerialName("Title") val title: String? = null,
     @SerialName("IsForced") val isForced: Boolean = false,
     @SerialName("IsHearingImpaired") val isHearingImpaired: Boolean = false,
+    /** An audio or subtitle file beside the video, which the server lists among the file's own streams. */
+    @SerialName("IsExternal") val isExternal: Boolean = false,
     @SerialName("DvProfile") val dvProfile: Int? = null,
     @SerialName("RealFrameRate") val realFrameRate: Float? = null,
     @SerialName("BitRate") val bitRate: Int? = null,

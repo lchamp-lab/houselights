@@ -1,5 +1,6 @@
 package app.houselights.ui.onboarding
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -18,9 +19,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.providers.jellyfin.DiscoveredServer
-import app.houselights.providers.jellyfin.JellyfinClient
+import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.ChoiceCheck
+import app.houselights.ui.design.components.ChoicePlace
+import app.houselights.ui.design.components.ConnectionSecurity
+import app.houselights.ui.design.components.ConnectionState
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlSettingGroup
@@ -32,10 +35,11 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.roomPosters
 
+/** Signs in to Jellyfin, the form starting as [fill] says. */
 @Composable
-fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
+fun JellyfinLoginScreen(fill: LoginFill, onLoggedIn: () -> Unit) {
     val app = appContainer()
-    val vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(app))
+    val vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(app, fill))
     JellyfinLoginForm(vm, roomPosters(), onLoggedIn)
 }
 
@@ -58,9 +62,9 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
         }.tryRequestFocus()
     }
     val server = vm.server
-    val discovered = vm.discovered
-    // The server found on the network that the address names.
-    val chosen = discovered.find { it.address.sameServer(server) }
+    val chosen = vm.chosen
+    // While the address is the one picking it gave, signing in follows its check, which the panel says.
+    val check = vm.pickedCheck
     val error = vm.error?.let { loginErrorText(it) }
 
     fun login() = vm.login(onLoggedIn)
@@ -81,16 +85,17 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
                 // Its protocol is printed beside it: the address says the rest.
                 value = server.withoutScheme().ifBlank { stringResource(R.string.placeholder_pending) },
                 name = chosen?.name,
-                // Its protocol printed once the address says it: HTTPS is encrypted, HTTP is not.
-                badges = listOfNotNull(server.schemeName()),
+                // Its protocol printed once the address says it, or the check verified it, with the connection it makes.
+                badges = listOfNotNull(if (check == null) server.schemeName() else check.protocol()),
+                facts = listOf(check?.let { stringResource(it.connection()) }),
                 result = error,
                 resultIsError = true,
             )
         },
         room = room,
     ) {
-        FoundServers(discovered, chosen) { s ->
-            vm.server = s.address
+        FoundServers(vm, chosen) { s ->
+            vm.choose(s)
             (if (vm.user.isBlank()) userField else passwordField).tryRequestFocus()
         }
         HlTextField(
@@ -127,31 +132,58 @@ private fun String.schemeName(): String? =
     trim().substringBefore("://", "").uppercase().takeIf { it == HTTP || it == HTTPS }
 
 /** An address without the protocol it names, which is printed beside it: "192.168.1.20:8096". */
-private fun String.withoutScheme(): String = trim().let { if (it.schemeName() != null) it.substringAfter("://") else it }.trimEnd('/')
+internal fun String.withoutScheme(): String = trim().let { if (it.schemeName() != null) it.substringAfter("://") else it }.trimEnd('/')
 
 private const val HTTP = "HTTP"
 private const val HTTPS = "HTTPS"
 
-/** The servers found on the network, on one plate, the [chosen] one checked; none, nothing. */
+/** The protocol a server's check verified, printed in the panel; none while it is checked or silent. */
+private fun ServerCheck.protocol(): String? = when (this) {
+    is ServerCheck.Encrypted -> HTTPS
+    is ServerCheck.Plain -> HTTP
+    else -> null
+}
+
+/** What the panel says of the connection to the server picked, in the words of Réglages › Bibliothèque. */
+@StringRes
+private fun ServerCheck.connection(): Int = when (this) {
+    is ServerCheck.Encrypted -> R.string.connection_is_encrypted
+    is ServerCheck.Plain -> R.string.connection_is_plain
+    ServerCheck.Checking -> R.string.checking
+    ServerCheck.Silent -> R.string.server_silent
+}
+
+private fun ServerCheck.security(): ConnectionSecurity = when (this) {
+    is ServerCheck.Encrypted -> ConnectionSecurity.Encrypted
+    is ServerCheck.Plain -> ConnectionSecurity.Plain
+    ServerCheck.Checking -> ConnectionSecurity.Checking
+    ServerCheck.Silent -> ConnectionSecurity.Silent
+}
+
+/**
+ * The servers found on the network, on one plate, each with its check and the address signing in reaches, the
+ * [chosen] one checked; none, nothing.
+ */
 @Composable
-private fun FoundServers(servers: List<DiscoveredServer>, chosen: DiscoveredServer?, onChoose: (DiscoveredServer) -> Unit) {
+private fun FoundServers(vm: JellyfinLoginViewModel, chosen: DiscoveredServer?, onChoose: (DiscoveredServer) -> Unit) {
+    val servers = vm.discovered
     if (servers.isEmpty()) return
     HlSettingGroup(stringResource(R.string.servers_found)) {
         servers.forEach { s ->
+            val address = vm.addressOf(s).withoutScheme()
             HlSettingRow(
-                s.name ?: s.address.withoutScheme(),
-                description = s.address.withoutScheme().takeIf { s.name != null },
+                s.name ?: address,
+                description = address.takeIf { s.name != null },
                 onClick = { onChoose(s) },
-                trailing = if (s == chosen) ({ ChoiceCheck() }) else null,
+                trailing = {
+                    ConnectionState(vm.checkOf(s).security())
+                    ChoicePlace(s == chosen)
+                },
                 modifier = Modifier.semantics { selected = s == chosen },
             )
         }
     }
 }
-
-/** Whether this address and [typed] name one server: the same once both are written in full. */
-private fun String.sameServer(typed: String): Boolean =
-    typed.isNotBlank() && JellyfinClient.normalizeUrl(this) == JellyfinClient.normalizeUrl(typed)
 
 /** The sign-in error message, worded to say what to check. */
 @Composable

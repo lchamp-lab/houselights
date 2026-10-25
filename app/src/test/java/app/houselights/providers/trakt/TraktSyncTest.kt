@@ -1,23 +1,11 @@
 package app.houselights.providers.trakt
 
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.TraktSession
 import app.houselights.testing.Answer
-import app.houselights.providers.local.ItemEntity
-import app.houselights.providers.local.ItemKind
-import app.houselights.providers.local.LibraryDao
-import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LocalProvider
-import app.houselights.providers.local.NoEditor
-import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.TraktAction
-import app.houselights.providers.local.TraktDao
 import app.houselights.providers.local.TraktPendingEntity
 import app.houselights.providers.local.TraktStateEntity
 import app.houselights.providers.local.TraktSyncError
-import app.houselights.providers.local.nfsFolder
-import app.houselights.providers.local.onCallingThread
-import app.houselights.providers.local.testDatabase
 import app.houselights.providers.trakt.FakeTrakt.Companion.activities
 import app.houselights.providers.trakt.FakeTrakt.Companion.movie
 import app.houselights.providers.trakt.FakeTrakt.Companion.pausedEpisode
@@ -25,19 +13,16 @@ import app.houselights.providers.trakt.FakeTrakt.Companion.pausedMovie
 import app.houselights.providers.trakt.FakeTrakt.Companion.show
 import app.houselights.ui.testing.waitFor
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -45,106 +30,7 @@ import java.time.Instant
 
 /** The sync against a test Trakt and an in-memory library: both sides joined, the latest pause, the queue, the limits. */
 @RunWith(RobolectricTestRunner::class)
-class TraktSyncTest {
-    private lateinit var db: LibraryDatabase
-    private lateinit var dao: LibraryDao
-    private lateinit var queue: TraktDao
-    private var films = 0L
-    private var shows = 0L
-
-    private val trakt = FakeTrakt()
-    private var session: TraktSession? = TraktSession("a1", "r1", expiresAt = NOW_S + DAY_S, username = "lea")
-    private var changes = 0
-
-    @Before
-    fun open() = runBlocking {
-        db = testDatabase { onCallingThread() }
-        dao = db.dao()
-        queue = db.trakt()
-        films = dao.insertSource(nfsFolder())
-        shows = dao.insertSource(nfsFolder("Séries", SourceKind.SHOWS))
-    }
-
-    @After
-    fun close() = db.close()
-
-    private fun TestScope.sync(following: (suspend () -> Boolean)? = null) = TraktSync(
-        TraktAccount(TraktKeys("id"), session = { session }, save = { session = it }, http = trakt.server.http, now = { NOW_S }),
-        queue,
-        backgroundScope,
-        changed = { changes++ },
-        following = following,
-        now = { NOW },
-        clock = { testScheduler.currentTime },
-    )
-
-    /** Connects [sync] with the folders and waits for its first sync. */
-    private suspend fun TestScope.connected(sync: TraktSync = sync()): TraktSync = sync.apply {
-        follow(connected = true, folders = true)
-        waitFor("the first sync") { state.value.syncedAt != null && !state.value.running }
-    }
-
-    private fun provider(sync: TraktSync) = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor, sync)
-
-    private suspend fun film(
-        tmdb: Int?,
-        played: Boolean = false,
-        positionMs: Long = 0,
-        lastPlayedAt: Long? = null,
-        runtimeMin: Int? = 100,
-        /** The main row of the film this file is another copy of. */
-        versionOf: Long? = null,
-    ) = dao.insert(
-        ItemEntity(
-            kind = ItemKind.MOVIE, sourceId = films, title = "F$tmdb", sortTitle = "f$tmdb", tmdbId = tmdb, runtimeMin = runtimeMin,
-            filePath = if (versionOf == null) "F$tmdb.mkv" else "F$tmdb 4K.mkv", addedAt = 0, played = played,
-            positionMs = positionMs, lastPlayedAt = lastPlayedAt, versionOf = versionOf,
-        )
-    )
-
-    /** A show and its first season, as (show, season) rows. */
-    private suspend fun series(tmdb: Int?): Pair<Long, Long> {
-        val show = dao.insert(
-            ItemEntity(kind = ItemKind.SERIES, sourceId = shows, title = "S$tmdb", sortTitle = "s$tmdb", tmdbId = tmdb, addedAt = 0)
-        )
-        val season = dao.insert(
-            ItemEntity(
-                kind = ItemKind.SEASON, sourceId = shows, parentId = show, seriesId = show, title = "Saison 1", sortTitle = "1",
-                seasonNumber = 1, addedAt = 0,
-            )
-        )
-        return show to season
-    }
-
-    private suspend fun episode(
-        show: Pair<Long, Long>,
-        number: Int,
-        last: Int? = null,
-        played: Boolean = false,
-        positionMs: Long = 0,
-        lastPlayedAt: Long? = null,
-    ) = dao.insert(
-        ItemEntity(
-            kind = ItemKind.EPISODE, sourceId = shows, parentId = show.second, seriesId = show.first, title = "E$number",
-            sortTitle = "e$number", seasonNumber = 1, episodeNumber = number, lastEpisodeNumber = last, filePath = "S01E$number.mkv",
-            runtimeMin = 40, addedAt = 0, played = played, positionMs = positionMs, lastPlayedAt = lastPlayedAt,
-        )
-    )
-
-    private suspend fun LocalProvider.mark(id: Long, played: Boolean) = setPlayed(item(id.toString()), played)
-
-    private val JsonObject.tmdbs
-        get() = this["movies"]!!.jsonArray.map { it.jsonObject["ids"]!!.jsonObject["tmdb"]!!.jsonPrimitive.content.toInt() }
-
-    private fun JsonObject.movieDate() = this["movies"]!!.jsonArray.single().jsonObject["watched_at"]?.jsonPrimitive?.content
-
-    /** The episode numbers of the first season sent. */
-    private val JsonObject.episodes
-        get() = this["shows"]!!.jsonArray.single().jsonObject["seasons"]!!.jsonArray.single().jsonObject["episodes"]!!.jsonArray
-            .map { it.jsonObject["number"]!!.jsonPrimitive.content.toInt() }
-
-    private val JsonObject.movieTmdb get() = this["movie"]!!.jsonObject["ids"]!!.jsonObject["tmdb"]!!.jsonPrimitive.content.toInt()
-
+class TraktSyncTest : TraktSyncFixture() {
     @Test
     fun connectingJoinsBothSidesWatchedWhereverEitherSawIt() = runTest {
         film(1, played = true, lastPlayedAt = ms(T1))
@@ -354,16 +240,21 @@ class TraktSyncTest {
     }
 
     @Test
-    fun atLaunchTraktIsReadOnlyAfterSixHours() = runTest {
+    fun traktIsReadAtLaunchThenWhenFollowedAnewOnlyAfterSixHours() = runTest {
         queue.saveState(TraktStateEntity(syncedAt = NOW - 60 * MINUTE, activities = "x"))
         val sync = sync()
         sync.follow(connected = true, folders = true)
+        waitFor("Trakt read at launch") { trakt.count("GET /sync/watched/movies") == 1 && !sync.state.value.running }
+
+        queue.saveState(TraktStateEntity(syncedAt = NOW - 60 * MINUTE, activities = "x"))
+        sync.follow(connected = true, folders = true)
         advanceUntilIdle()
-        assertEquals(emptyList<String>(), trakt.routes)
+        assertFalse(sync.state.value.running)
+        assertEquals(1, trakt.count("GET /sync/last_activities"))
 
         queue.saveState(TraktStateEntity(syncedAt = NOW - 7 * 60 * MINUTE, activities = "x"))
         sync.follow(connected = true, folders = true)
-        waitFor("Trakt read") { trakt.count("GET /sync/watched/movies") == 1 && !sync.state.value.running }
+        waitFor("Trakt read") { trakt.count("GET /sync/watched/movies") == 2 && !sync.state.value.running }
     }
 
     @Test
@@ -659,38 +550,27 @@ class TraktSyncTest {
     }
 
     @Test
-    fun leavingTheFoldersDisconnectsTheAccountAndForgetsWhatWaits() = runTest {
+    fun underAnotherSourceTraktPausesConnectedAndBackOnTheFoldersSendsWhatWaited() = runTest {
         val id = film(56)
         val sync = connected()
         trakt.offline = true
         provider(sync).mark(id, played = true)
         waitFor("the mark waiting") { queue.pending().isNotEmpty() && sync.state.value.error != null }
         trakt.offline = false
+        val before = trakt.routes.size
 
-        sync.leave()
+        sync.follow(connected = true, folders = false)
+        sync.syncNow()
+        advanceUntilIdle()
+        assertEquals(before, trakt.routes.size)
+        assertEquals(listOf(TraktAction.WATCHED), queue.pending().map { it.action })
+        assertNotNull(session)
 
-        assertNull(session)
-        assertEquals(1, trakt.count("POST /oauth/revoke"))
-        assertTrue(queue.pending().isEmpty())
-        assertNull(queue.state())
-        assertEquals(TraktSyncState(), sync.state.value)
-        assertTrue(dao.item(id)!!.played)
-    }
-
-    private companion object {
-        val NOW: Long = Instant.parse("2026-10-21T12:00:00Z").toEpochMilli()
-        val NOW_S = NOW / 1_000
-        const val DAY_S = 24 * 3_600L
-        const val MINUTE = 60_000L
-
-        const val ADDED = """{"added":{"movies":1,"episodes":0},"not_found":{}}"""
-
-        /** Before and after one another. */
-        const val T1 = "2026-10-10T20:00:00.000Z"
-        const val T2 = "2026-10-15T21:30:00.000Z"
-
-        fun ms(date: String) = Instant.parse(date).toEpochMilli()
-
-        fun iso(ms: Long) = Instant.ofEpochMilli(ms).toString()
+        // Synced a moment ago: the queue goes alone, Trakt's history is not read again.
+        sync.follow(connected = true, folders = true)
+        waitFor("what waited sent") { queue.pending().isEmpty() && !sync.state.value.running }
+        assertEquals(listOf(56), trakt.sent("POST /sync/history").single().tmdbs)
+        assertEquals(listOf("POST /sync/history"), trakt.routes.drop(before))
+        assertEquals(0, trakt.count("POST /oauth/revoke"))
     }
 }

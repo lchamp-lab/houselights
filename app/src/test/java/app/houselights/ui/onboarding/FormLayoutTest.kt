@@ -3,10 +3,16 @@ package app.houselights.ui.onboarding
 import app.houselights.ui.design.TwoPaneDefaults
 import android.content.Context
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
@@ -17,6 +23,7 @@ import app.houselights.providers.jellyfin.AuthResult
 import app.houselights.providers.jellyfin.DiscoveredServer
 import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.PublicSystemInfo
+import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.LibraryDatabase
@@ -35,10 +42,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -105,7 +114,8 @@ class FormLayoutTest {
     private fun jellyfinHolds() {
         val vm = runBlocking {
             val settings = testSettings(folder.root, scope)
-            JellyfinLoginViewModel(settings, SourceSwitcher({ settings.state.value }, {}, scope, signOut = { _, _ -> }), TwoServers)
+            val sources = SourceSwitcher({ settings.state.value }, { _, _ -> }, scope, signOut = { _, _ -> })
+            JellyfinLoginViewModel(settings, sources, TwoServers)
         }
         compose.setTvContent { JellyfinLoginForm(vm) {} }
         compose.waitForIdle()
@@ -131,12 +141,102 @@ class FormLayoutTest {
         assertTrue("$framed inside the safe area", framed.bottom <= SCREEN_H - HlSpace.safeV && framed.right <= SCREEN_W - HlSpace.safeH)
     }
 
-    /** Two servers answer discovery; none signs in. */
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun foundServersInFrenchAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "de-$TV")
+    fun foundServersInGermanAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    // The languages whose words run longest or widest.
+    @Test
+    @Config(qualifiers = "pt-$TV")
+    fun foundServersInPortugueseAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "nl-$TV")
+    fun foundServersInDutchAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "pl-$TV")
+    fun foundServersInPolishAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "ja-$TV")
+    fun foundServersInJapaneseAtTheLargestText() = foundServersHoldAtTheLargestText()
+
+    /**
+     * At the largest text, the states take the widest of their words; names and addresses hold whole beside them, and
+     * the connection a server picked makes holds whole beside its protocol in the panel.
+     */
+    private fun foundServersHoldAtTheLargestText() {
+        val vm = runBlocking {
+            val settings = testSettings(folder.root, scope)
+            val sources = SourceSwitcher({ settings.state.value }, { _, _ -> }, scope, signOut = { _, _ -> })
+            JellyfinLoginViewModel(settings, sources, FourServers)
+        }
+        compose.setTvContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, LARGEST_TEXT)) { JellyfinLoginForm(vm) {} }
+        }
+        compose.waitUntil { FourServers.servers.all { vm.checkOf(it) != ServerCheck.Checking || it.name == "Chambre" } }
+        compose.waitForIdle()
+        val states = listOf(R.string.server_encrypted, R.string.server_plain, R.string.checking, R.string.server_silent)
+            .map { compose.activity.getString(it) }
+        val starts = states.map { compose.onNodeWithText(it, useUnmergedTree = true).getUnclippedBoundsInRoot().left }
+        assertEquals("one column: $starts", 1, starts.toSet().size)
+        val names = FourServers.servers.mapNotNull { it.name }
+        val addresses = listOf("jellyfin.mondomaine.fr", "192.168.1.31:8096", "192.168.1.42:8096", "192.168.1.57:8096")
+        (states + names + addresses).forEach { assertFalse("$it cut", cut(it)) }
+        mapOf(0 to R.string.connection_is_encrypted, 1 to R.string.connection_is_plain).forEach { (i, connection) ->
+            vm.choose(FourServers.servers[i])
+            compose.waitForIdle()
+            val words = compose.activity.getString(connection)
+            assertFalse("$words cut", cut(words))
+        }
+    }
+
+    /** True when [text]'s own layout runs past its box or ends in an ellipsis, wherever it is (a row and the panel). */
+    private fun cut(text: String): Boolean =
+        compose.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().any { node ->
+            val layouts = mutableListOf<TextLayoutResult>()
+            node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+            val layout = layouts.first()
+            layout.hasVisualOverflow || (0 until layout.lineCount).any(layout::isLineEllipsized)
+        }
+
+    /** Two servers answer discovery, checked for ever; none signs in. */
     private object TwoServers : JellyfinNetwork {
         override suspend fun discover() = listOf(
             DiscoveredServer("http://192.168.1.20:8096", "Jellyfin du salon"),
             DiscoveredServer("http://192.168.1.31:8096", "Bureau"),
         )
+
+        override suspend fun check(found: DiscoveredServer): ServerCheck = awaitCancellation()
+
+        override suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo> = throw IOException("offline")
+
+        override suspend fun authenticate(url: String, deviceId: String, request: AuthRequest): AuthResult = throw IOException("offline")
+    }
+
+    /** The board's four servers: one encrypted on its own name, one plain, one checked for ever, one silent. */
+    private object FourServers : JellyfinNetwork {
+        val servers = listOf(
+            DiscoveredServer("https://jellyfin.mondomaine.fr", "Salon", "a"),
+            DiscoveredServer("http://192.168.1.31:8096", "NAS du bureau", "b"),
+            DiscoveredServer("http://192.168.1.42:8096", "Chambre", "c"),
+            DiscoveredServer("http://192.168.1.57:8096", "Ancien NAS", "d"),
+        )
+
+        override suspend fun discover() = servers
+
+        override suspend fun check(found: DiscoveredServer): ServerCheck = when (found.name) {
+            "Salon" -> ServerCheck.Encrypted(found.address)
+            "NAS du bureau" -> ServerCheck.Plain(found.address)
+            "Ancien NAS" -> ServerCheck.Silent
+            else -> awaitCancellation()
+        }
 
         override suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo> = throw IOException("offline")
 
@@ -150,7 +250,10 @@ class FormLayoutTest {
         /** Bounds are whole test pixels. */
         const val PX = 1f
 
-        /** Words whose box starts at their letters, a group's title set from its baseline. */
-        const val TOP = 2f
+        /** Words whose box starts at their letters; a group's title, set from its baseline, starts up to 4 lower. */
+        const val TOP = 4f
+
+        /** The largest text size Android TV offers. */
+        const val LARGEST_TEXT = 1.3f
     }
 }

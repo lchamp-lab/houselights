@@ -47,21 +47,20 @@ import app.houselights.ui.util.formatDuration
 
 /**
  * Trakt, for the folders, as a state said beside its title: not connected, what it keeps and the row that connects;
- * connecting, its code in the pane, Back cancelling; connected, the account and its last sync, then the rows that sync
- * and disconnect. A build without Trakt's keys says so and offers nothing.
+ * connecting, its code in the pane, Back cancelling; connected, the account and its last sync, then the rows that sync,
+ * open what a sync left out, and disconnect. Under another source than the [folders], paused: the account kept, and
+ * the row that disconnects it. A build without Trakt's keys says so and offers nothing.
  */
-internal fun LazyListScope.traktPane(vm: TraktViewModel, session: TraktSession?) {
-    item { Trakt(vm, session) }
+internal fun LazyListScope.traktPane(vm: TraktViewModel, session: TraktSession?, folders: Boolean = true) {
+    item { Trakt(vm, session, folders) }
 }
 
 @Composable
-private fun Trakt(vm: TraktViewModel, session: TraktSession?) {
+private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) {
     val live = session?.takeUnless { it.ended }
     val focus = rememberCodeFocus(vm.connecting)
     BackHandler(enabled = vm.connecting) { vm.cancel() }
-    // Connected while Trakt could not say the name: it is read once the pane shows.
-    val nameless = live != null && live.username == null
-    LaunchedEffect(nameless) { if (nameless) vm.readName() }
+    ReadMissingName(vm, live, folders)
 
     Column(Modifier.revealOnFocus()) {
         val title = stringResource(R.string.section_trakt)
@@ -70,6 +69,7 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?) {
             !vm.available -> PaneHead(title, aside = stringResource(R.string.trakt_no_keys), state = StatusState.Off)
             // The code until the row has taken its focus back: focus never leaves the pane.
             vm.connecting || focus.waited -> Waiting(vm, focus, title)
+            !folders -> Paused(vm, live, title)
             live != null -> {
                 PaneHead(title, aside = stringResource(R.string.trakt_connected), state = StatusState.On)
                 Spacer(Modifier.height(HlSpace.l))
@@ -87,8 +87,37 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?) {
         // The rows, but while the code waits; the row asking for it keeps focus until the code has it.
         if (vm.available && (!vm.connecting || focus.asked)) {
             Spacer(Modifier.height(HlSpace.l))
-            TraktRows(vm, connected = live != null, Modifier.focusRequester(focus.row)) { focus.asked = true }
+            TraktRows(vm, connected = live != null || !folders, syncs = folders, Modifier.focusRequester(focus.row)) { focus.asked = true }
         }
+    }
+}
+
+/**
+ * Connected while Trakt could not say the name: it is read once the pane shows with the [folders]. Paused, Trakt is not
+ * asked, as reading it may renew the token or end the session.
+ */
+@Composable
+private fun ReadMissingName(vm: TraktViewModel, live: TraktSession?, folders: Boolean) {
+    val nameless = folders && live != null && live.username == null
+    LaunchedEffect(nameless) { if (nameless) vm.readName() }
+}
+
+/**
+ * Paused under another source, still connected, said in place of what Trakt keeps; the account when its session could
+ * be read at this launch, its last sync alone while its name is unknown.
+ */
+@Composable
+private fun Paused(vm: TraktViewModel, live: TraktSession?, title: String) {
+    PaneHead(
+        title,
+        aside = stringResource(R.string.trakt_paused),
+        state = StatusState.Pending,
+        read = stringResource(R.string.trakt_paused_desc),
+    )
+    if (live != null) {
+        Spacer(Modifier.height(HlSpace.l))
+        val sync by vm.syncState.collectAsStateWithLifecycle()
+        Account(live.username, sync)
     }
 }
 
@@ -151,7 +180,7 @@ private fun Account(name: String?, sync: TraktSyncState) {
                 if (name != null) {
                     Text(stringResource(R.string.trakt_account), style = Hl.type.meta, color = c.contentSecondary)
                     Spacer(Modifier.height(HlSpace.xxs))
-                    Text(name, style = Hl.type.headline, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(name, style = Hl.type.subject, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(HlSpace.m))
                 }
                 Row {
@@ -182,16 +211,18 @@ private fun Account(name: String?, sync: TraktSyncState) {
 }
 
 /**
- * Sync, then connect or disconnect: one row whose words follow the account, so focus stays on it as the account
- * comes and goes. A failure is said under its row ([RowFailureNote]).
+ * Sync and what the last sync left out when it did, while Trakt [syncs], then connect or disconnect: one row whose words
+ * follow the account, so focus stays on it as the account comes and goes. A failure is said under its row
+ * ([RowFailureNote]).
  */
 @Composable
-private fun TraktRows(vm: TraktViewModel, connected: Boolean, modifier: Modifier, onConnect: () -> Unit) {
+private fun TraktRows(vm: TraktViewModel, connected: Boolean, syncs: Boolean, modifier: Modifier, onConnect: () -> Unit) {
     val failure = vm.note?.let { RowFailure(stringResource(R.string.action_not_done), stringResource(it)) }
     HlSettingGroup(null) {
-        if (connected) {
+        if (connected && syncs) {
             val sync by vm.syncState.collectAsStateWithLifecycle()
             SyncRow(vm, sync)
+            if (sync.skipped.isNotEmpty()) SkippedRow(sync.skipped)
         }
         HlSettingRow(
             stringResource(if (connected) R.string.trakt_disconnect else R.string.trakt_connect),

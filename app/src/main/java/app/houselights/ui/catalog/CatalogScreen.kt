@@ -42,6 +42,12 @@ import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.ui.edit.EditMenu
 import app.houselights.core.MediaKind
+import app.houselights.journal.JournalAccess
+import app.houselights.providers.trakt.SkippedEntry
+import app.houselights.providers.trakt.SkippedKind
+import app.houselights.ui.settings.JournalSheet
+import app.houselights.ui.settings.SkippedSheet
+import kotlinx.coroutines.awaitCancellation
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
@@ -117,11 +123,10 @@ fun CatalogScreen() {
                         "display" to t.display, "headline" to t.headline, "subject" to t.subject,
                         "place" to t.place, "placeCurrent, ember lit" to t.placeCurrent.emberLit(c), "rowTitle" to t.rowTitle,
                         "cardName" to t.cardName, "cardTitle" to t.cardTitle,
-                        "title" to t.title, "lead" to t.lead, "read" to t.read, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
-                        "caption" to t.caption, "group" to t.group, "code" to t.code,
+                        "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,
                         "titleSignature" to t.titleSignature, "billing" to t.billing, "billingJoin" to t.billingJoin,
-                        "codeSignature" to t.codeSignature,
+                        "codeSignature" to t.codeSignature, "figureSignature" to t.figureSignature,
                     ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }
@@ -136,9 +141,9 @@ fun CatalogScreen() {
             item {
                 Group("Panels and status") {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                        HlPanel(Modifier.weight(1f)) { Text("Quiet panel", style = t.lead, color = c.content) }
-                        HlPanel(Modifier.weight(1f), lit = true) { Text("Lit panel", style = t.lead, color = c.content) }
-                        HlPanel(Modifier.weight(1f), level = PanelLevel.Raised) { Text("Raised panel", style = t.lead, color = c.content) }
+                        HlPanel(Modifier.weight(1f)) { Text("Quiet panel", style = t.entry, color = c.content) }
+                        HlPanel(Modifier.weight(1f), lit = true) { Text("Lit panel", style = t.entry, color = c.content) }
+                        HlPanel(Modifier.weight(1f), level = PanelLevel.Raised) { Text("Raised panel", style = t.entry, color = c.content) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.CenterVertically) {
                         HlStatus(StatusState.On, "Online")
@@ -212,18 +217,36 @@ fun CatalogScreen() {
                     var keyed by remember { mutableStateOf(false) }
                     var long by remember { mutableStateOf(false) }
                     var code by remember { mutableStateOf(false) }
+                    var skipped by remember { mutableStateOf(false) }
+                    var journal by remember { mutableStateOf<JournalAccess?>(null) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Modifier: a gallery of its images", { side = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
                         HlButton("More rows than it holds", { long = true })
                     }
-                    // A sheet with nothing to focus, on a line of its own: five buttons pass the safe area.
-                    HlButton("A code to scan", { code = true })
+                    // Sheets with nothing to focus, on a line of their own: five buttons pass the safe area.
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                        HlButton("A code to scan", { code = true })
+                        HlButton("What a sync left out", { skipped = true })
+                        HlButton("An address made here", { journal = CATALOG_JOURNAL })
+                        HlButton("No home network", { journal = JournalAccess.Offline })
+                    }
+                    journal?.let { access ->
+                        // The log's sheet as it serves, its address encoded at run time, for as long as it stays open.
+                        JournalSheet(
+                            journal = { opened ->
+                                opened(access)
+                                awaitCancellation()
+                            },
+                            onDismiss = { journal = null },
+                        )
+                    }
                     if (asking) SheetQuestion(onDismiss = { asking = false })
                     if (keyed) SheetStatusField(onDismiss = { keyed = false })
                     if (long) SheetLong(onDismiss = { long = false })
                     if (code) SheetCode(onDismiss = { code = false })
+                    if (skipped) SkippedSheet(CATALOG_SKIPPED, onDismiss = { skipped = false })
                     if (side) {
                         // Its poster and backdrop from the app's own art, a logo that never loads.
                         val art = shippedImage(R.drawable.banner)
@@ -270,6 +293,7 @@ fun CatalogScreen() {
             catalogSecondary()
             catalogForms()
             catalogCards()
+            catalogDoors()
             catalogReading()
 
             item {
@@ -297,7 +321,7 @@ fun CatalogScreen() {
                     var library by remember { mutableIntStateOf(0) }
                     HlSegmented(
                         listOf(
-                            stringResource(R.string.nav_home),
+                            stringResource(R.string.library_movies),
                             "Films 4K HDR",
                             "Séries d’animation",
                             "Documentaires",
@@ -305,7 +329,6 @@ fun CatalogScreen() {
                         ),
                         selected = library,
                         onSelect = { library = it },
-                        markFirst = true,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10+", "HDR10", "TrueHD Atmos", "DTS:X", "7.1", "16").forEach { Badge(it) }
@@ -380,7 +403,7 @@ private fun BlackLevels() {
             }
             Text(
                 "Black levels: on the TV each step stands apart from the room, or its blacks are crushed.",
-                style = Hl.type.caption,
+                style = Hl.type.meta,
                 color = c.contentSecondary,
                 modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
             )
@@ -498,6 +521,16 @@ private fun SheetCode(onDismiss: () -> Unit) {
 /** More rows than a side sheet holds. */
 private const val CATALOG_LONG_ROWS = 14
 
+/** The log's page at its longest address, its journal almost empty: every line the sheet can say. */
+private val CATALOG_JOURNAL = JournalAccess.Open("http://192.168.100.200:65535/journal/k7f2m4q9x3w8r5t6y2zb", few = true)
+
+/** Trakt's entries a sync could not read (Réglages > Trakt): named, named by their show, naming nothing. */
+private val CATALOG_SKIPPED = listOf(
+    SkippedEntry(SkippedKind.EPISODE_HISTORY, "Breaking Bad", 2008),
+    SkippedEntry(SkippedKind.PAUSED, "The Matrix", 1999),
+    SkippedEntry(SkippedKind.PAUSED),
+)
+
 
 @Composable
 private fun Swatch(name: String, color: Color) = Swatch(name, SolidColor(color))
@@ -507,7 +540,7 @@ private fun Swatch(name: String, brush: Brush) {
     Column {
         Box(Modifier.size(CatalogSwatch).clip(HlShapes.panel).background(brush))
         Spacer(Modifier.height(HlSpace.xxs))
-        Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)
+        Text(name, style = Hl.type.meta, color = Hl.colors.contentSecondary)
     }
 }
 
@@ -515,8 +548,8 @@ private fun Swatch(name: String, brush: Brush) {
 private fun StyleSpecimen(name: String, style: TextStyle) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(PaneDefaults.specName)) {
-            Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)
-            Text(specimenMeasure(style), style = Hl.type.caption, color = Hl.colors.contentTertiary)
+            Text(name, style = Hl.type.meta, color = Hl.colors.contentSecondary)
+            Text(specimenMeasure(style), style = Hl.type.meta, color = Hl.colors.contentTertiary)
         }
         Text(
             "Houselights 2,39:1 · Réglages",

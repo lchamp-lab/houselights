@@ -22,6 +22,10 @@ interface JellyfinApi {
     @POST("Sessions/Logout")
     suspend fun logout()
 
+    /** The account the token signs in; refused (401) once the token is revoked. */
+    @GET("Users/Me")
+    suspend fun me()
+
     @GET("UserViews")
     suspend fun views(@Query("userId") userId: String): ItemsResult
 
@@ -49,6 +53,7 @@ interface JellyfinApi {
         @Query("fields") fields: String,
     ): List<BaseItem>
 
+    /** Always called with named arguments: neighbours share their types, so a slip in order would still compile. */
     @GET("Items")
     @Suppress("LongParameterList") // One per query parameter of the route.
     suspend fun items(
@@ -69,6 +74,8 @@ interface JellyfinApi {
         @Query("personIds") personIds: String? = null,
         /** Server-side search on item names. */
         @Query("searchTerm") searchTerm: String? = null,
+        /** Films of a collection given as the collection; the server keeps them apart when other filters are set. */
+        @Query("collapseBoxSetItems") collapseBoxSetItems: Boolean? = null,
     ): ItemsResult
 
     /** People whose names match [searchTerm], using the server's search. */

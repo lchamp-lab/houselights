@@ -125,7 +125,8 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
                     bitrateKbps = v.bitRate?.let { bpsToKbps(it.toLong()) },
                 )
             }
-            val audio = streams.filter { it.type == "Audio" }.map { a ->
+            // In the server's order, which is the file's: the player numbers tracks by it.
+            val audio = streams.filter { it.type == "Audio" }.sortedBy { it.index }.map { a ->
                 val profile = "${a.profile.orEmpty()} ${a.displayTitle.orEmpty()} ${a.title.orEmpty()}"
                 AudioTrack(
                     codec = Codecs.audio(a.codec, profile),
@@ -136,9 +137,10 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
                     dtsX = profile.contains("DTS:X", ignoreCase = true),
                     default = a.isDefault,
                     bitrateKbps = a.bitRate?.let { bpsToKbps(it.toLong()) },
+                    external = a.isExternal,
                 )
             }
-            val subtitles = streams.filter { it.type == "Subtitle" }.map { s ->
+            val subtitles = streams.filter { it.type == "Subtitle" }.sortedBy { it.index }.map { s ->
                 SubtitleTrack(
                     language = s.language,
                     title = s.title,
@@ -146,6 +148,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
                     forced = s.isForced,
                     hearingImpaired = s.isHearingImpaired || s.title?.contains("SDH", ignoreCase = true) == true,
                     default = s.isDefault,
+                    external = s.isExternal,
                 )
             }
             return MediaInfo(
@@ -155,6 +158,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
                 video = video,
                 audio = audio,
                 subtitles = subtitles,
+                tracksInOrder = true,
             )
         }
     }

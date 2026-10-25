@@ -8,8 +8,6 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
 import app.houselights.core.PersonPage
-import app.houselights.core.PlaybackOptions
-import app.houselights.core.PlaybackPlan
 import app.houselights.core.Saga
 import app.houselights.core.SearchResults
 import app.houselights.core.Version
@@ -59,8 +57,6 @@ class FakeCatalog : Catalog {
         val chosen = version?.key
         copies = copies + (item.id to copies[item.id].orEmpty().map { it.copy(chosen = if (chosen == null) it.best else it.key == chosen) })
     }
-
-    override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan = error("Not played here")
 
     override suspend fun numbers(): LibraryNumbers = numbers.also { call("numbers") }
 

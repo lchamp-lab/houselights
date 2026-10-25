@@ -1,6 +1,8 @@
 package app.houselights.ui.design.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,13 +26,19 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.ui.design.HlSettingRowDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -41,8 +49,8 @@ import app.houselights.ui.design.HlSpace
 
 /**
  * A place in the settings' list (DESIGN.md, Secondary screens): its icon and its name alone, grey until it is the
- * open one ([selected]: white, its icon lit, raspberry on focus's white); focus whitens it and selects it. Its plate
- * hangs [HlSpace.s] past the column's start, so its icon lines up with the title above.
+ * open one ([selected]: white, its icon lit, raspberry on focus's white); focus whitens it and tells [onFocused], OK
+ * [onClick]. Its plate hangs [HlSpace.s] past the column's start, so its icon lines up with the title above.
  */
 @Composable
 fun HlNavItem(
@@ -51,10 +59,11 @@ fun HlNavItem(
     selected: Boolean,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit = onFocused,
 ) {
     val c = Hl.colors
     HlRowSurface(
-        onClick = onFocused,
+        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .hang(HlSpace.s)
@@ -71,11 +80,11 @@ fun HlNavItem(
                 focused -> LocalContentColor.current
                 else -> c.contentTertiary
             }
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.tileIcon))
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
             Spacer(Modifier.width(HlSpace.s))
             Text(
                 title,
-                style = Hl.type.lead,
+                style = Hl.type.entry,
                 color = if (focused || selected) LocalContentColor.current else c.contentSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -97,11 +106,12 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
 }
 
 /**
- * One setting, [HlSize.row] tall: its name in `lead` and its [description] in secondary `meta` on one line, its
+ * One setting, [HlSize.row] tall: its name in `entry` and its [description] in secondary `meta` on one line, its
  * value on the right, in `meta` or, for a format or a figure, `jaquette` ([valueStyle]); with [onClick] a control,
  * white with focus, else a value it only states. [valueLit] (a user choice) and [valueAttention] set the value in
  * ember; [trailing] replaces the value. Disabled, it sits in a well, in a pane's plate only: sheets omit
- * unavailable actions.
+ * unavailable actions. With [valueBreaks], a value of parts (" · ") takes a line each where on one line it would cut
+ * the name or the description.
  */
 @Composable
 fun HlSettingRow(
@@ -116,11 +126,12 @@ fun HlSettingRow(
     onClick: (() -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
+    valueBreaks: Boolean = false,
 ) {
     val c = Hl.colors
     val least = if (onClick == null) HlSize.control else HlSize.row
     @Composable
-    fun Content(focused: Boolean) {
+    fun Line(focused: Boolean, shown: String?) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = least).padding(horizontal = HlSpace.m, vertical = HlSettingRowDefaults.paddingV),
             verticalAlignment = Alignment.CenterVertically,
@@ -132,7 +143,7 @@ fun HlSettingRow(
                 Spacer(Modifier.width(HlSpace.m))
             }
             Column(Modifier.weight(1f)) {
-                Text(title, style = Hl.type.lead, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
                     // One line, so rows keep one height.
@@ -148,9 +159,16 @@ fun HlSettingRow(
             Spacer(Modifier.width(HlSpace.l))
             when {
                 trailing != null -> trailing()
-                value != null -> SettingValue(value, valueStyle, valueLit, valueAttention, focused, enabled)
+                shown != null -> SettingValue(shown, valueStyle, valueLit, valueAttention, focused, enabled)
             }
         }
+    }
+
+    @Composable
+    fun Content(focused: Boolean) {
+        val shown = value?.takeIf { valueBreaks }
+        if (shown == null) return Line(focused, value)
+        ValueLines(shown, valueStyle, title, description, icon != null) { Line(focused, it) }
     }
 
     if (onClick == null) {
@@ -171,7 +189,35 @@ fun HlSettingRow(
     }
 }
 
-/** A setting's value in [style], quiet; in ember when [lit], or after the attention mark. */
+/** Between the parts of a value that may take a line each ([HlSettingRow]'s valueBreaks). */
+private const val VALUE_PARTS = " · "
+
+/**
+ * [line] with [value] as a row shows it beside its [title] and [description]: on one line, or its parts on a line each
+ * where one line would cut them.
+ */
+@Composable
+private fun ValueLines(
+    value: String,
+    style: TextStyle,
+    title: String,
+    description: String?,
+    icon: Boolean,
+    line: @Composable (String) -> Unit,
+) {
+    if (VALUE_PARTS !in value) return line(value)
+    val measurer = rememberTextMeasurer()
+    fun wide(text: String, style: TextStyle) = measurer.measure(text, style, softWrap = false, maxLines = 1).size.width
+    val words = maxOf(wide(title, Hl.type.entry), description?.let { wide(it, Hl.type.meta) } ?: 0)
+    // The row's sides, the room before its value, and its icon.
+    val beside = HlSpace.m * 2 + HlSpace.l + if (icon) HlSize.icon + HlSpace.m else 0.dp
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val room = with(LocalDensity.current) { (maxWidth - beside).roundToPx() }
+        line(if (words + wide(value, style) <= room) value else value.replace(VALUE_PARTS, "\n"))
+    }
+}
+
+/** A setting's value in [style], quiet; in ember when [lit], or after the attention mark; a line per line it has. */
 @Composable
 private fun SettingValue(value: String, style: TextStyle, lit: Boolean, attention: Boolean, focused: Boolean, enabled: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -183,7 +229,8 @@ private fun SettingValue(value: String, style: TextStyle, lit: Boolean, attentio
             value,
             style = style,
             color = FocusStyle.quietInk(focused, enabled, lit || attention, onFocus = LocalContentColor.current),
-            maxLines = 1,
+            textAlign = TextAlign.End,
+            maxLines = value.lines().size,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = HlSettingRowDefaults.valueWidth),
         )
@@ -230,6 +277,65 @@ internal fun ChoiceCheck() {
     val tint = if (LocalContentColor.current == c.onFocus) c.emberOnLight else c.ember
     Icon(HlIcons.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
 }
+
+/** The current choice's check after what a row states, [HlSpace.m] from it, its place kept on rows not [chosen]. */
+@Composable
+internal fun ChoicePlace(chosen: Boolean) {
+    Spacer(Modifier.width(HlSpace.m))
+    Box(Modifier.size(HlSize.icon)) { if (chosen) ChoiceCheck() }
+}
+
+/** A connection's security as a row states it: encrypted, plain, being checked, or no answer. */
+enum class ConnectionSecurity { Encrypted, Plain, Checking, Silent }
+
+/**
+ * A connection's [security] beside a row's name, its words in `meta` after its mark: the lock, closed and white when
+ * encrypted, open and grey when plain; the quiet dot while it is checked, the ring when nothing answers. Never ember:
+ * none is an error or a choice. As wide as the longest of the four at the viewer's text size, so states line up
+ * from row to row; focus's inks on a focused row.
+ */
+@Composable
+fun ConnectionState(security: ConnectionSecurity, modifier: Modifier = Modifier) {
+    val c = Hl.colors
+    val focused = LocalContentColor.current == c.onFocus
+    val encrypted = security == ConnectionSecurity.Encrypted
+    val ink = when {
+        focused -> if (encrypted) c.onFocus else c.onFocusSecondary
+        encrypted -> c.content
+        else -> c.contentSecondary
+    }
+    val words = ConnectionSecurity.entries.map { stringResource(it.words) }
+    val style = Hl.type.meta
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val widest = remember(words, style, density) {
+        with(density) { words.maxOf { measurer.measure(it, style, softWrap = false, maxLines = 1).size.width }.toDp() }
+    }
+    Row(modifier.width(HlSize.statusLight + HlSpace.xs + widest), verticalAlignment = Alignment.CenterVertically) {
+        when (security) {
+            ConnectionSecurity.Encrypted, ConnectionSecurity.Plain -> Icon(
+                if (encrypted) HlIcons.Lock else HlIcons.LockOpen,
+                contentDescription = null,
+                tint = ink,
+                modifier = Modifier.size(HlSize.statusLight),
+            )
+            // Their own quiet inks at rest, as a state's light.
+            ConnectionSecurity.Checking -> StatusLight(StatusState.Pending, ink = ink.takeIf { focused })
+            ConnectionSecurity.Silent -> StatusLight(StatusState.Off, ink = ink.takeIf { focused })
+        }
+        Spacer(Modifier.width(HlSpace.xs))
+        Text(words[security.ordinal], style = style, color = ink, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@get:StringRes
+private val ConnectionSecurity.words: Int
+    get() = when (this) {
+        ConnectionSecurity.Encrypted -> R.string.server_encrypted
+        ConnectionSecurity.Plain -> R.string.server_plain
+        ConnectionSecurity.Checking -> R.string.checking
+        ConnectionSecurity.Silent -> R.string.server_silent
+    }
 
 /**
  * A group's [title] in `group`, set from its baseline: [HlSpace.m] under what is above it (a block [HlSpace.l] away),

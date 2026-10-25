@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,10 +48,12 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
@@ -131,11 +134,23 @@ private fun FieldBox(
     val fieldFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    // The remote cannot move the cursor: every start of typing, and text the field did not type while typing, puts it
+    // after the text, where erase reaches all of it. Not a selection, which TV keyboards' erase skips. At rest it is
+    // at the start, which a one-line field scrolls to, focused or not.
+    val latest by rememberUpdatedState(value)
+    var typed by remember { mutableStateOf(atEnd(value)) }
+    // The last text told to the owner: the keyboard may send several edits between two compositions.
+    var told by remember(value) { mutableStateOf(value) }
+    val shown = when {
+        !editing -> TextFieldValue(value)
+        typed.text == value -> typed
+        else -> atEnd(value)
+    }
     val shape = HlShapes.field
     val c = Hl.colors
 
     // One line tall: empty, it would take the platform font's taller line height.
-    val textStyle = Hl.type.read.copy(color = c.content)
+    val textStyle = Hl.type.body.copy(color = c.content)
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val oneLine = remember(textStyle, density) {
@@ -155,7 +170,10 @@ private fun FieldBox(
             .heightIn(min = HlSize.field)
             .focusRequester(boxFocus)
             .onFocusChanged { boxFocused = it.isFocused }
-            .openOnOk(waiting = !editing) { editing = true }
+            .openOnOk(waiting = !editing) {
+                typed = atEnd(latest)
+                editing = true
+            }
             .focusable()
             .clip(shape)
             .background(c.glass)
@@ -164,8 +182,14 @@ private fun FieldBox(
         contentAlignment = Alignment.CenterStart,
     ) {
         BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = shown,
+            onValueChange = { next ->
+                typed = next
+                if (next.text != told) {
+                    told = next.text
+                    onValueChange(next.text)
+                }
+            },
             singleLine = true,
             textStyle = textStyle,
             cursorBrush = SolidColor(if (editing) c.emberTo else Color.Transparent),
@@ -208,6 +232,9 @@ private fun FieldBox(
     }
 }
 
+/** [text] with the cursor after it. */
+private fun atEnd(text: String) = TextFieldValue(text, TextRange(text.length))
+
 /** Back hides the keyboard without telling the app, so up or down while [editing] ends typing and leaves. */
 private fun Modifier.leaveVertically(editing: Boolean, leave: (FocusDirection) -> Unit): Modifier = onPreviewKeyEvent { event ->
     val direction = when (event.key) {
@@ -249,7 +276,7 @@ private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
 @Composable
 private fun Placeholder(text: String, shown: Boolean) {
     if (shown && text.isNotEmpty()) {
-        Text(text, style = Hl.type.read, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text, style = Hl.type.body, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -277,7 +304,7 @@ private fun FieldMessage(error: String?, supporting: String?) {
 
 /** A field's name in white, then what [named] adds to it ("(facultatif)") in grey: a name, then a remark. */
 @Composable
-private fun FieldName(label: String, named: String, modifier: Modifier) {
+internal fun FieldName(label: String, named: String, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val t = Hl.type
     val text = remember(label, named, c, t) {
@@ -291,5 +318,5 @@ private fun FieldName(label: String, named: String, modifier: Modifier) {
             }
         }
     }
-    Text(text, style = t.entry, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
+    Text(text, style = t.group, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
 }

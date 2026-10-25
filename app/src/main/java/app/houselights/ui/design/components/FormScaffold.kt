@@ -108,7 +108,7 @@ fun HlFormScaffold(
 }
 
 /**
- * Where a form stands, beside it, on a plate: the state with its light, then what it is about, [name] in `lead` or
+ * Where a form stands, beside it, on a plate: the state with its light, then what it is about, [name] in `entry` or
  * [label] in grey over [value] (an address, in the technical voice), [detail], its printed [badges] and [facts]; then
  * [content] and the last [result], an [AttentionNote] if [resultIsError].
  */
@@ -137,7 +137,7 @@ fun StatusPanel(
         HlStatus(state, stateText)
         Spacer(Modifier.height(HlSpace.fact))
         if (name != null) {
-            Text(name, style = Hl.type.lead, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(name, style = Hl.type.entry, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(HlSpace.xxs))
         } else {
             Text(label, style = Hl.type.meta, color = c.contentSecondary)

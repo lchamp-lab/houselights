@@ -6,6 +6,7 @@ import androidx.compose.ui.unit.Dp
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.design.canvasDensityOf
 import coil.ImageLoader
 import coil.intercept.Interceptor
@@ -20,27 +21,63 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.util.screenWidthPx
 import coil.imageLoader
 
-/** The requests a screen's components will make, so the pictures loaded ahead of it hit memory. */
-class PicturesAhead(private val context: Context, private val screenWidthPx: Int) {
-    private val density = canvasDensityOf(screenWidthPx)
+/**
+ * The requests a screen's components will make on a screen [screenWidthPx] wide at [textScale] ([textScaleOf]), so the
+ * pictures loaded ahead of it hit memory.
+ */
+class PicturesAhead(private val context: Context, private val screenWidthPx: Int, textScale: Float) {
+    private val density = canvasDensityOf(screenWidthPx, textScale)
 
     private fun Dp.px(): Int = with(density) { roundToPx() }
 
     /** A hero showing [item]: the [AmbientBackdrop] picture and sample in [style], and the [HeroInfo] logo. */
     fun hero(item: MediaItem, style: BackdropStyle = BackdropStyle.Hero): List<ImageRequest> =
         item.backdrop?.let { backdropRequests(context, it, style, screenWidthPx) }.orEmpty() +
-            listOfNotNull(item.logo?.let { titleArtRequest(context, it, HeroDefaults.titleWidth.px(), HeroDefaults.titleHeight.px()) })
+            listOfNotNull(item.logo?.let { titleArtRequest(context, it, HeroDefaults.titleWidth, HeroDefaults.titleHeight, density) })
+
+    /** Home's case showing [item] ([ResumeCase]): its picture, cropped upright, and its logo. */
+    fun case(item: MediaItem): List<ImageRequest> = listOfNotNull(
+        caseRequest(context, item) { it.px() },
+        item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.caseLogoWidth, HomeGridDefaults.caseLogoHeight, density) },
+    )
+
+    /** A door's still showing [item] ([DoorStill]): its backdrop at the door's width, and its logo. */
+    fun still(item: MediaItem): List<ImageRequest> = listOfNotNull(
+        stillDoorRequest(context, item) { it.px() },
+        item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.stillLogoWidth, HomeGridDefaults.stillLogoHeight, density) },
+    )
+
+    /** The posters of a door's band ([DoorPosters]). */
+    fun strip(items: List<MediaItem>): List<ImageRequest> = posters(items, HomeGridDefaults.stripPoster)
+
+    /** The posters a door's count is cut in ([DoorFigures]), read for their pixels, each once. */
+    fun cut(items: List<MediaItem>): List<ImageRequest> =
+        items.distinctBy { it.id }.mapNotNull { cutPosterRequest(context, it) { d -> d.px() } }
+
+    /** Cuts a door's count in [items]' posters ahead into [cuts] ([CutPosterCache.make]), so the door draws them on its first frame. */
+    suspend fun cutAhead(items: List<MediaItem>, cuts: CutPosterCache) {
+        cuts.make(context, items) { it.px() }
+    }
+
+    /** Two sagas' posters ([DoorSagas]). */
+    fun sagas(items: List<MediaItem>): List<ImageRequest> = posters(items.take(2), HomeGridDefaults.sagaPoster)
+
+    /** The search door's small posters ([DoorWall]). */
+    fun thumbs(items: List<MediaItem>): List<ImageRequest> = posters(items, HomeGridDefaults.wallThumb)
+
+    private fun posters(items: List<MediaItem>, width: Dp): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, width.px()) }
 
     /** The posters of a wall's [items], at the size a [PosterCard] cell requests ([requestedPoster]). */
     fun wall(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, requestedPoster(null).px()) }
 
     /** The logo a detail page of [item] shows, at its [TitleArt] size; its backdrop is decoded as the page opens. */
     fun detail(item: MediaItem): List<ImageRequest> =
-        listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.titleArtWidth.px(), HlLayout.titleArtHeight.px()) })
+        listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.titleArtWidth, HlLayout.titleArtHeight, density) })
 
     /**
      * The posters, or stills when [landscape], that a [MediaRow] of [items] shows before it scrolls, at the size its
@@ -55,13 +92,21 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     }
 }
 
+/** The [PicturesAhead] of the screen composing it: its width, its text size. */
+@Composable
+internal fun rememberPicturesAhead(): PicturesAhead {
+    val context = LocalContext.current
+    val screen = screenWidthPx()
+    val textScale = LocalDensity.current.fontScale
+    return remember(context, screen, textScale) { PicturesAhead(context, screen, textScale) }
+}
+
 /** Preloads the focused [item]'s detail page pictures so OK never waits; not under the launch screen. */
 @Composable
 internal fun DetailAhead(item: MediaItem?) {
     val context = LocalContext.current
-    val screen = screenWidthPx()
     val covered = LocalLaunchScreen.current.covers
-    val ahead = remember(context, screen) { PicturesAhead(context, screen) }
+    val ahead = rememberPicturesAhead()
     LaunchedEffect(item?.id, item?.logo, covered) {
         if (item != null && !covered) LoadingAhead.load(context.imageLoader, ahead.detail(item))
     }

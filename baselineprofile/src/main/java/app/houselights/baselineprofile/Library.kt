@@ -32,16 +32,16 @@ private const val SCAN_MS = 300_000L
 /** On a fresh install, adds the folders as a viewer would (Mes fichiers, then each) and awaits the scans. */
 internal fun MacrobenchmarkScope.ensureLibrary() {
     val welcome = appString("source_local")
-    // Home's place in its bar is Gradation, read by its description.
-    val home = appString("nav_home")
-    val shown = device.wait(Condition<UiDevice, Boolean> { it.hasObject(By.text(welcome)) || it.hasObject(By.desc(home)) }, SCREEN_MS)
+    // Home's settings door, which the welcome screen lacks.
+    val home = appString("nav_settings")
+    val shown = device.wait(Condition<UiDevice, Boolean> { it.hasObject(By.text(welcome)) || it.hasObject(By.text(home)) }, SCREEN_MS)
     check(shown == true) { "Waited ${SCREEN_MS / 1000} s for Welcome or home" }
     if (!shows(welcome)) return
     val setup = LibrarySetup.fromArguments()
     // Mes fichiers has focus on Welcome.
     ok()
     addFolder(setup, setup.movies, shows = false)
-    awaitScan("section_latest_movies")
+    awaitScan("library_movies")
     setup.shows?.let { folder ->
         openSettings()
         right()
@@ -50,7 +50,7 @@ internal fun MacrobenchmarkScope.ensureLibrary() {
         addFolder(setup, folder, shows = true)
         // Another folder leads back to the settings, focus in the pane: Back to its entry, then home.
         backHome()
-        awaitScan("section_latest_shows")
+        awaitScan("library_shows")
     }
 }
 
@@ -75,38 +75,29 @@ private fun MacrobenchmarkScope.addFolder(setup: LibrarySetup, folder: String, s
     check(device.wait(Until.gone(By.text(appString("add_folder_desc"))), SCAN_MS)) { "The folder $folder was not added" }
 }
 
-/** Waits for home to show the row a scan fills, named by [row], going down to a row below the fold. */
-private fun MacrobenchmarkScope.awaitScan(row: String) {
-    val heading = appString(row)
-    val end = System.currentTimeMillis() + SCAN_MS
-    while (!shows(heading)) {
-        check(System.currentTimeMillis() < end) { "Waited ${SCAN_MS / 1000} s for the first scan to fill the row \"$heading\"" }
-        down()
-        device.wait(Until.hasObject(By.textStartsWith(heading)), ROW_MS)
-    }
-    device.wait(Until.gone(By.text(appString("home_scanning"))), SCAN_MS)
+/** Waits for home to show the door a scan fills, named by [door], then for the scan to end. */
+private fun MacrobenchmarkScope.awaitScan(door: String) {
+    await(By.textStartsWith(appString(door)), "the first scan to fill the door \"${appString(door)}\"", SCAN_MS)
+    device.wait(Until.gone(By.textStartsWith(appString("home_scan_running"))), SCAN_MS)
 }
 
-/** How long to look for the row after each step down. */
-private const val ROW_MS = 2_000L
-
-/** Presses Back until home shows its rows: Back first returns to where a screen starts, then leaves it. */
+/** Presses Back until home shows its grid: Back first returns to where a screen starts, then leaves it. */
 internal fun MacrobenchmarkScope.backHome() {
-    val rows = appString("section_latest_movies")
+    val grid = appString("home_news")
     repeat(BACK_STEPS) {
-        if (shows(rows)) return
+        if (shows(grid)) return
         back()
     }
-    await(By.textStartsWith(rows), "home after Back")
+    await(By.textStartsWith(grid), "home after Back")
 }
 
 /** The most presses of Back from a screen to home: a pane, its entry, the settings. */
 private const val BACK_STEPS = 3
 
-/** From home: up to the bar, along it to the settings button, then OK. */
+/** From home: to its settings door, wherever the grid lays it, then OK; the settings show by their places. */
 internal fun MacrobenchmarkScope.openSettings() {
-    up(2)
-    focusOn(appString("nav_settings"), KeyEvent.KEYCODE_DPAD_RIGHT)
+    focusTo(appString("nav_settings"))
     ok()
-    await(By.text(appString("settings_title")), "the settings")
+    // Not by their title, which the door says too.
+    await(By.text(appString("section_about")), "the settings")
 }

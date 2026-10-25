@@ -72,6 +72,9 @@ enum class FailureKind {
     /** The device's Keystore could not seal a secret. */
     KEYSTORE,
 
+    /** The device's Keystore did not open a saved secret for now: it is kept, and opened again at the next try. */
+    SECRET_UNREAD,
+
     STORAGE_FULL,
 
     /** The device's storage (its disk) failed; on a write, nothing was saved. */
@@ -108,8 +111,11 @@ internal fun Throwable.causeChain(): List<Throwable> {
 /** Classifies the app's own exceptions and storage errors by type. */
 private fun typed(chain: List<Throwable>): FailureKind? = when {
     chain.any { it is SecretsUnavailableException } -> FailureKind.KEYSTORE
+    chain.any { it is SecretUnreadException } -> FailureKind.SECRET_UNREAD
     chain.any { it is NoTmdbKeyException } -> FailureKind.NO_TMDB_KEY
     chain.any { it is TmdbKeyRefusedException } -> FailureKind.TMDB_KEY_REFUSED
+    // Before TMDB out of reach, which it extends so a scan counts it among TMDB's failures.
+    chain.any { it is TmdbCertificateException } -> FailureKind.CERTIFICATE
     chain.any { it is TmdbUnreachableException } -> FailureKind.TMDB_UNREACHABLE
     chain.any { it is TmdbNotFoundException } -> FailureKind.TMDB_NOT_FOUND
     chain.any { it is NotFoundException } -> FailureKind.GONE

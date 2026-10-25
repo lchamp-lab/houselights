@@ -8,21 +8,20 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.MediaProvider
 import app.houselights.core.PersonPage
-import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.LatestJob
+import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.reported
+import app.houselights.ui.util.after
+import app.houselights.ui.util.loadState
+import app.houselights.ui.util.readingAgain
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
-/** A person's page as it loads: [page] once read, otherwise [error] says why. */
-data class PersonState(val page: PersonPage? = null, val loading: Boolean = true, val error: UiError? = null)
-
 /** Loads the page of person [personId] from the current source's [provider]. */
 class PersonViewModel(private val personId: String, private val provider: () -> MediaProvider) : ViewModel() {
-    private val _state = MutableStateFlow(PersonState())
-    val state: StateFlow<PersonState> = _state
+    private val _state = MutableStateFlow<LoadState<PersonPage>>(LoadState.Loading)
+    val state: StateFlow<LoadState<PersonPage>> = _state
 
     /** One load at a time: a new one cancels the previous. */
     private val loads = LatestJob(viewModelScope)
@@ -31,20 +30,19 @@ class PersonViewModel(private val personId: String, private val provider: () -> 
         load()
     }
 
-    /** Loads the page: at start, after a failure, or after the library changes. */
+    /** Loads the page: at start, after a failure, or after the library changes; a page shown stays if it fails. */
     fun load() {
-        _state.update { it.copy(loading = true) }
+        _state.update { it.readingAgain() }
         loads.launch {
-            suspendRunCatching { provider().catalog?.person(personId) }
-                .onSuccess { page ->
+            val read = loadState(TAG, "Person $personId") { provider().catalog?.person(personId) }
+            _state.update { shown ->
+                when (read) {
                     // Null when none of their titles remain in the library.
-                    _state.update { PersonState(page = page, loading = false, error = if (page == null) UiError.PERSON_GONE else null) }
+                    is LoadState.Ready -> read.value?.let { LoadState.Ready(it) } ?: LoadState.Failed(UiError.PERSON_GONE)
+                    is LoadState.Failed -> shown.after(read)
+                    LoadState.Loading -> shown
                 }
-                .onFailure { e ->
-                    val error = e.reported(TAG, "Person $personId")
-                    // A page already shown stays; the error shows only when there is nothing else.
-                    _state.update { it.copy(loading = false, error = if (it.page == null) error else it.error) }
-                }
+            }
         }
     }
 

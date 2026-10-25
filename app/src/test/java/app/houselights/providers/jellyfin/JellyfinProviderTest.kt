@@ -21,6 +21,7 @@ import okhttp3.Request
 import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -63,6 +64,16 @@ class JellyfinProviderTest {
         val server = FakeServer { Answer(500) }
         assertEquals(500, httpFailure { provider(server).setPlayed(film, true) }?.code())
         assertEquals(listOf("/UserPlayedItems/f1"), server.paths)
+    }
+
+    /** What a title's page depends on fails as such, never as a show with nothing next or an empty saga. */
+    @Test
+    fun aPagesNextEpisodeAndSagaFailAsSuch() = runTest {
+        val server = FakeServer { Answer(500) }
+        val show = MediaItem("sh1", MediaKind.SERIES, "MobLand")
+        val saga = MediaItem("bs1", MediaKind.COLLECTION, "Alien")
+        assertEquals(500, httpFailure { provider(server).nextUp(show) }?.code())
+        assertEquals(500, httpFailure { provider(server).collectionItems(saga) }?.code())
     }
 
     /** Seasons are asked for their episodes on disk: one without any, which the server calls watched, holds none. */
@@ -238,6 +249,56 @@ class JellyfinProviderTest {
         assertFalse((provider(file).playback(film, resume = false, options) as PlaybackPlan.Launch).disc)
     }
 
+    /** The source's tracks in the file's order go with its launch, a subtitle file beside it marked; one choice per show. */
+    @Test
+    fun theSourcesTracksGoWithItsLaunch() = runTest {
+        val streams = """[{"Type":"Audio","Codec":"eac3","Language":"fre","Index":1},""" +
+            """{"Type":"Audio","Codec":"ac3","Language":"eng","Index":4,"IsExternal":true},""" +
+            """{"Type":"Subtitle","Codec":"subrip","Language":"fre","Index":3,"IsExternal":true},""" +
+            """{"Type":"Subtitle","Codec":"pgssub","Language":"fre","Index":2,"IsForced":true}]"""
+        val episode = """{"Id":"e1","Name":"Pilot","Type":"Episode","SeriesId":"show1",""" +
+            """"MediaSources":[{"Id":"s1","Container":"mkv","VideoType":"VideoFile","MediaStreams":$streams}]}"""
+        val options = PlaybackOptions(emptyList(), forceHttp = true)
+        val plan = provider(FakeServer { Answer(200, episode) }).playback(film, resume = false, options) as PlaybackPlan.Launch
+        assertEquals("jellyfin:show1", plan.titleKey)
+        val media = checkNotNull(plan.media)
+        assertTrue(media.tracksInOrder)
+        assertEquals(listOf(true to false, false to true), media.subtitles.map { it.forced to it.external })
+        assertEquals(listOf(false, true), media.audio.map { it.external })
+    }
+
+    private val heatWithTracks = """{"Id":"f1","Name":"Heat","Type":"Movie","MediaSources":[{"Id":"s1","Container":"mkv",""" +
+        """"VideoType":"VideoFile","MediaStreams":[{"Type":"Audio","Codec":"eac3","Language":"fre","Index":1}]}]}"""
+
+    /** A film's page asks the server for the film once: its tracks are read from it, as its launch reads them. */
+    @Test
+    fun aPagesTracksAreReadFromItsItem() = runTest {
+        val server = FakeServer { Answer(200, heatWithTracks) }
+        val jellyfin = provider(server)
+        val options = PlaybackOptions(emptyList(), forceHttp = true)
+        val item = jellyfin.item("f1")
+        val tracks = jellyfin.playedTracks(item, options)
+        assertEquals(listOf("/Items/f1"), server.paths)
+        assertEquals((jellyfin.playback(item, resume = false, options) as PlaybackPlan.Launch).tracks, tracks)
+        assertEquals("Lire reads the film again", 2, server.paths.size)
+        assertEquals("jellyfin:f1", tracks.titleKey)
+    }
+
+    /** Tracks asked a while after the page, or of another title (a show's next episode), ask the server. */
+    @Test
+    fun tracksAskedLaterOrOfAnotherTitleAskTheServer() = runTest {
+        var clock = 0L
+        val server = FakeServer { Answer(200, heatWithTracks) }
+        val jellyfin = JellyfinProvider(account, "device", server.http, now = { clock })
+        val options = PlaybackOptions(emptyList(), forceHttp = true)
+        val item = jellyfin.item("f1")
+        jellyfin.playedTracks(MediaItem("e1", MediaKind.EPISODE, "Pilot"), options)
+        assertEquals(listOf("/Items/f1", "/Items/e1"), server.paths)
+        clock = 6_000
+        jellyfin.playedTracks(item, options)
+        assertEquals(listOf("/Items/f1", "/Items/e1", "/Items/f1"), server.paths)
+    }
+
     /** Home loads the libraries, then its rows, which need them too: the server is asked for them once. */
     @Test
     fun homeAsksForTheLibrariesOnce() = runTest {
@@ -263,6 +324,21 @@ class JellyfinProviderTest {
         assertFalse("Overview" in fields)
         assertFalse("Genres" in fields)
         assertTrue("ProductionYear" in fields)
+    }
+
+    /** The films and their sagas: the server gives a collection's films as the collection; else every film. */
+    @Test
+    fun theServerGroupsACollectionsFilmsOnlyWhenAsked() = runTest {
+        val server = FakeServer { Answer(200, oneFilm) }
+        val provider = provider(server)
+        val films = Library("lib1", LibraryKind.MOVIES, "Films")
+        val grouped = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), start = 0, limit = 120, grouped = true)
+        assertNull("the server does not count them", grouped.sagas)
+        provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), start = 0, limit = 120)
+        provider.libraryPage(Library("lib2", LibraryKind.SHOWS, "Séries"), SortOption.TITLE, LibraryFilter(), start = 0, limit = 120)
+        val collapsed = synchronized(server.requests) { server.requests.map { it.url.queryParameter("collapseBoxSetItems") } }
+        assertEquals(listOf("true", "false", null), collapsed)
+        assertFalse("a collection is never filtered by its films", provider.capabilities.sagaFilters)
     }
 
     @Test

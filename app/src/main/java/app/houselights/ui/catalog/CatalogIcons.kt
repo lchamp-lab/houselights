@@ -32,6 +32,7 @@ import app.houselights.ui.design.components.CheckMark
 import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.MenuKey
 import app.houselights.ui.design.components.Score
 import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.design.components.StatusState
@@ -41,17 +42,19 @@ internal fun LazyListScope.catalogIcons() {
     item { Group("Icons: Lucide, stroke 2 on a 24 grid, at 24 and 20; Play filled as on a remote", still = true) { IconSheet() } }
     item { Group("Done and your choice: one check, two inks; in words, a light") { Marks() } }
     item { Group("Ember, states only: a score is a fact; attention sits beside what it concerns", still = true) { Facts() } }
+    item { Group("The Menu key: what has focus has options, Menu opens them", still = true) { MenuKeys() } }
 }
 
 /** The glyphs in the order of [HlIcons], each on the room and on projector white. */
 @Composable
 private fun IconSheet() {
     val glyphs = listOf(
-        HlIcons.Folder, HlIcons.Server, HlIcons.Display, HlIcons.Playback, HlIcons.Play, HlIcons.Versions, HlIcons.Sort, HlIcons.Filter,
-        HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers, HlIcons.Edit, HlIcons.Search,
-        HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Erase, HlIcons.Swap, HlIcons.Settings, HlIcons.Add,
-        HlIcons.Refresh, HlIcons.Test, HlIcons.Heart, HlIcons.HeartFilled, HlIcons.Star,
-        HlIcons.Attention, HlIcons.History,
+        HlIcons.Folder, HlIcons.Server, HlIcons.SignOut, HlIcons.Display, HlIcons.Playback, HlIcons.Play, HlIcons.Versions,
+        HlIcons.Captions, HlIcons.Sound, HlIcons.Sort, HlIcons.Filter, HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers,
+        HlIcons.Edit, HlIcons.Search, HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Erase,
+        HlIcons.Settings, HlIcons.Next, HlIcons.Sparkles, HlIcons.Film, HlIcons.Tv, HlIcons.Layers, HlIcons.Library,
+        HlIcons.Add, HlIcons.Refresh, HlIcons.Test, HlIcons.Lock, HlIcons.LockOpen, HlIcons.Heart, HlIcons.HeartFilled,
+        HlIcons.Star, HlIcons.Attention, HlIcons.History, HlIcons.Menu,
     )
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
         glyphs.chunked(ICONS_PER_ROW).forEach { row ->
@@ -73,7 +76,7 @@ private fun Glyph(icon: ImageVector, modifier: Modifier) {
         Sizes(icon, c.content, Modifier.padding(HlSpace.xs))
         Sizes(icon, c.onFocus, Modifier.clip(HlShapes.row).background(c.focus).padding(HlSpace.xs))
         val name = icon.name.substringAfterLast('.')
-        Text(name, style = Hl.type.caption, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(name, style = Hl.type.meta, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -118,6 +121,21 @@ private fun Marks() {
             onClick = {},
             trailing = { ChoiceCheck() },
         )
+    }
+}
+
+/** The key alone, then where it shows: after an episode's name under its card, on a tile's label. */
+@Composable
+private fun MenuKeys() {
+    val c = Hl.colors
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
+        Specimen("the key: tertiary frame, secondary lines") { MenuKey() }
+        Specimen("at the end of a name's line", Modifier.width(HlSize.episode)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Puzzle", style = Hl.type.cardName, color = c.content, modifier = Modifier.weight(1f))
+                MenuKey()
+            }
+        }
     }
 }
 

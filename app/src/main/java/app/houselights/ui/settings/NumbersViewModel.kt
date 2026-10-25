@@ -13,32 +13,24 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.LibraryNumbers
 import app.houselights.core.MediaProvider
 import app.houselights.core.ProviderCapabilities
-import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.LatestJob
-import app.houselights.ui.util.UiError
+import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.appContainer
-import app.houselights.ui.util.reported
+import app.houselights.ui.util.loadState
+import app.houselights.ui.util.readingAgain
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
-/** State of the library in numbers: counting, counted, or failed. */
-internal sealed interface NumbersState {
-    data object Counting : NumbersState
-
-    /** The library's [numbers], its source's [capabilities], and the first films and shows libraries rows open. */
-    data class Counted(
-        val numbers: LibraryNumbers,
-        val capabilities: ProviderCapabilities,
-        val walls: Map<LibraryKind, Library>,
-    ) : NumbersState
-
-    /** Counting failed with [error]; [retrying] while it counts again. */
-    data class Failed(val error: UiError, val retrying: Boolean = false) : NumbersState
-}
+/** The library's [numbers], its source's [capabilities], and the first films and shows libraries rows open. */
+internal data class CountedLibrary(
+    val numbers: LibraryNumbers,
+    val capabilities: ProviderCapabilities,
+    val walls: Map<LibraryKind, Library>,
+)
 
 /** The library in numbers, counted off the main thread when its pane first shows and kept while Settings is open. */
 internal class NumbersViewModel(private val provider: () -> MediaProvider) : ViewModel() {
-    var state by mutableStateOf<NumbersState>(NumbersState.Counting)
+    var state by mutableStateOf<LoadState<CountedLibrary>>(LoadState.Loading)
         private set
 
     private val counting = LatestJob(viewModelScope)
@@ -53,25 +45,23 @@ internal class NumbersViewModel(private val provider: () -> MediaProvider) : Vie
 
     /** Counts again after a failure, which stays shown, its button busy, meanwhile. */
     fun retry() {
-        val failed = state as? NumbersState.Failed ?: return
+        val failed = state as? LoadState.Failed ?: return
         if (failed.retrying) return
-        state = failed.copy(retrying = true)
+        state = failed.readingAgain()
         start()
     }
 
     private fun start() {
         counting.launch {
-            val source = provider()
-            suspendRunCatching {
+            state = loadState(TAG, "Counting the library") {
+                val source = provider()
                 val catalog = checkNotNull(source.catalog) { "The source counts nothing" }
                 coroutineScope {
                     val numbers = async { catalog.numbers() }
                     val libraries = source.libraries()
-                    NumbersState.Counted(numbers.await(), source.capabilities, walls(libraries))
+                    CountedLibrary(numbers.await(), source.capabilities, walls(libraries))
                 }
             }
-                .onSuccess { state = it }
-                .onFailure { state = NumbersState.Failed(it.reported(TAG, "Counting the library")) }
         }
     }
 

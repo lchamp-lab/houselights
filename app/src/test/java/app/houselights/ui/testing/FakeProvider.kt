@@ -22,6 +22,7 @@ import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.SortOption
+import app.houselights.core.WatchStatus
 import kotlinx.coroutines.CompletableDeferred
 
 /** A source whose answers each test sets: calls go to [calls], those in [gates] wait, those in [fail] throw. */
@@ -32,8 +33,22 @@ class FakeProvider : MediaProvider {
     var libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"))
     var home = listOf<HomeSection>()
 
-    /** The wall of every library, in order. */
+    /** The wall of every library not in [walls], in order. */
     var wall = listOf<MediaItem>()
+
+    /** A library's own wall, by its id. */
+    var walls = mapOf<String, List<MediaItem>>()
+
+    /** The new episodes of a shows library, by its id; none for one not in it. */
+    var newEpisodeCounts = mapOf<String, Int>()
+
+    /** Whether a grouped page counts its sagas; Jellyfin's never does. */
+    var countsSagas = true
+
+    /** What each page was asked of: the library, its filter, and whether its sagas were grouped. */
+    val pages = mutableListOf<Asked>()
+
+    data class Asked(val library: String, val filter: LibraryFilter, val grouped: Boolean)
     var facets = LibraryFacets()
     var seasons = mapOf<String, List<MediaItem>>()
 
@@ -75,9 +90,26 @@ class FakeProvider : MediaProvider {
         return home
     }
 
-    override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
+    override suspend fun libraryPage(
+        library: Library,
+        sort: SortOption,
+        filter: LibraryFilter,
+        start: Int,
+        limit: Int,
+        grouped: Boolean,
+    ): Page {
         call("page $start $limit")
-        return Page(wall.drop(start).take(limit), wall.size)
+        pages += Asked(library.id, filter, grouped)
+        // Not seen: as a source filters them, neither watched nor started.
+        val notSeen = { item: MediaItem -> !item.user.played && item.user.positionMs == 0L }
+        val shown = (walls[library.id] ?: wall).filter { filter.status != WatchStatus.UNWATCHED || notSeen(it) }
+        val sagas = shown.count { it.kind == MediaKind.COLLECTION }.takeIf { grouped && countsSagas }
+        return Page(shown.drop(start).take(limit), shown.size, sagas)
+    }
+
+    override suspend fun newEpisodes(library: Library, since: Long, cap: Int): Int? {
+        call("new episodes ${library.id}")
+        return newEpisodeCounts[library.id]
     }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets {

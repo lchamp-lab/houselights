@@ -69,9 +69,9 @@ class ShapesTest {
     /** A disc or a pill: a circle, or a radius given as a share of the size. */
     private val round = Regex("""\bCircleShape\b|RoundedCornerShape\(\s*(percent\s*=\s*)?\d+\s*[,)]""")
 
-    /** The sizes of a status dot: a state, a new title, a row's new titles, the current place's word. */
-    private val dot = Regex("""\bHlSize\.(dot|newDot|newsDot|wordDot)\b""")
-    private val namedDot = Regex("""\bval dot = Modifier\.size\(HlSize\.(dot|newDot|newsDot|wordDot)\)""")
+    /** The sizes of a status dot: a state, a new title, a row's or a door's new titles, the current place's word. */
+    private val dot = Regex("""\bHlSize\.(dot|newDot|newsDot|doorDot|wordDot)\b""")
+    private val namedDot = Regex("""\bval dot = Modifier\.size\(HlSize\.(dot|newDot|newsDot|doorDot|wordDot)\)""")
     private val localDot = Regex("""\bdot\.\w+\(""")
 
     @Test

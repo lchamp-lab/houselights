@@ -8,7 +8,10 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.ui.testing.FakeProvider
+import app.houselights.ui.testing.FakeProvider.Asked
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.afterProcessDeath
@@ -56,6 +59,16 @@ class LibraryViewModelTest {
         assertEquals(239, ids.size)
     }
 
+    /** A wall restored before its source could be read (its connection unreadable): an error, never a crash. */
+    @Test
+    fun withoutASourceTheWallOpensOnAnError() = runTest {
+        val vm = LibraryViewModel({ null }, library, SavedStateHandle(), opensOn = LibraryFilter(picture = "Dolby Vision"))
+        assertFalse(vm.capabilities.formatFilters)
+        advanceUntilIdle()
+        assertEquals(UiError.FAILED, vm.state.value.error)
+        assertTrue(vm.state.value.items.isEmpty())
+    }
+
     @Test
     fun aChangeReloadsWhatIsShownInPlace() = runTest {
         val vm = LibraryViewModel({ provider }, library)
@@ -66,9 +79,21 @@ class LibraryViewModelTest {
 
         vm.onLibraryChanged()
         advanceUntilIdle()
-        // In one go, as much as was shown: the grid keeps its place.
-        assertEquals(listOf("page 0 240", "facets"), provider.calls)
+        // In one go, as much as was shown: the grid keeps its place. The films wall first reads whether it has sagas.
+        assertEquals(listOf("libraries", "facets", "page 0 240"), provider.calls)
         assertEquals(240, vm.state.value.items.size)
+    }
+
+    /** A scan's progress reloads the titles shown; what the filters offer and the sagas wait for its end. */
+    @Test
+    fun aScansProgressReloadsOnlyTheTitles() = runTest {
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        provider.calls.clear()
+
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals(listOf("page 0 120"), provider.calls)
     }
 
     @Test
@@ -215,6 +240,163 @@ class LibraryViewModelTest {
         provider.capabilities = provider.capabilities.copy(formatFilters = false, personFilter = true)
         val vm = LibraryViewModel({ provider }, library, SavedStateHandle(), opensOn = LibraryFilter(sound = "E-AC3", person = "p7"))
         assertEquals(LibraryFilter(person = "p7"), vm.state.value.filter)
+    }
+
+    private val sagas = Library("sagas", LibraryKind.COLLECTIONS, null)
+
+    /** The films wall of a source with sagas: two films and a saga, and the saga alone. */
+    private fun withSagas() {
+        val alien = MediaItem("c1", MediaKind.COLLECTION, "Alien")
+        provider.walls = mapOf(library.id to listOf(alien, film("m1"), film("m2")), sagas.id to listOf(alien))
+    }
+
+    @Test
+    fun aFilmsWallWithSagasShowsThemAmongTheFilmsAndCountsThem() = runTest {
+        withSagas()
+        val vm = LibraryViewModel({ provider }, library, sagas = sagas)
+        advanceUntilIdle()
+        assertEquals(WallView.FILMS_AND_SAGAS, vm.state.value.view)
+        assertEquals(Asked("films", LibraryFilter(), grouped = true), provider.pages.single())
+        assertEquals(3 to 1, vm.state.value.total to vm.state.value.sagas)
+    }
+
+    @Test
+    fun theSagasAloneAreAskedOfTheSagasWithTheFilmsFilters() = runTest {
+        withSagas()
+        provider.capabilities = provider.capabilities.copy(sagaFilters = true)
+        val vm = LibraryViewModel({ provider }, library, sagas = sagas)
+        val unwatched = LibraryFilter(status = WatchStatus.UNWATCHED)
+        vm.setFilter(unwatched)
+        vm.setView(WallView.SAGAS)
+        advanceUntilIdle()
+        assertEquals(WallView.SAGAS, vm.state.value.view)
+        assertEquals(Asked("sagas", unwatched, grouped = false), provider.pages.last())
+        assertEquals(listOf("c1"), vm.state.value.items.map { it.id })
+        assertEquals("the films' choices, asked once", 1, provider.calls.count { it == "facets" })
+    }
+
+    /** Jellyfin cannot filter a collection by its films: the sagas show whole, the filters wait for the films. */
+    @Test
+    fun aSourceThatCannotFilterSagasShowsThemWholeAndKeepsTheFilters() = runTest {
+        withSagas()
+        val vm = LibraryViewModel({ provider }, library, sagas = sagas)
+        val unwatched = LibraryFilter(status = WatchStatus.UNWATCHED)
+        vm.setFilter(unwatched)
+        vm.setView(WallView.SAGAS)
+        advanceUntilIdle()
+        assertEquals(Asked("sagas", LibraryFilter(), grouped = false), provider.pages.last())
+        assertEquals(unwatched, vm.state.value.filter)
+
+        vm.setView(WallView.FILMS_AND_SAGAS)
+        advanceUntilIdle()
+        assertEquals(Asked("films", unwatched, grouped = true), provider.pages.last())
+    }
+
+    @Test
+    fun theViewOutlivesAStoppedProcess() = runTest {
+        withSagas()
+        val saved = SavedStateHandle()
+        LibraryViewModel({ provider }, library, saved, sagas = sagas).setView(WallView.SAGAS)
+        advanceUntilIdle()
+        provider.pages.clear()
+
+        val after = LibraryViewModel({ provider }, library, saved.afterProcessDeath(), sagas = sagas)
+        assertEquals(WallView.SAGAS, after.state.value.view)
+        advanceUntilIdle()
+        assertEquals("sagas", provider.pages.single().library)
+    }
+
+    /** Clearing the filters goes back to the films and their sagas, unfiltered, in one load, and stays so. */
+    @Test
+    fun clearingTheFiltersGoesBackToTheFilmsAndSagas() = runTest {
+        withSagas()
+        val saved = SavedStateHandle()
+        val vm = LibraryViewModel({ provider }, library, saved, sagas = sagas)
+        vm.setFilter(LibraryFilter(genre = "Drame"))
+        vm.setView(WallView.SAGAS)
+        advanceUntilIdle()
+        provider.pages.clear()
+
+        vm.clearFilters()
+        advanceUntilIdle()
+        assertEquals(WallView.FILMS_AND_SAGAS to LibraryFilter(), vm.state.value.view to vm.state.value.filter)
+        assertEquals(listOf(Asked("films", LibraryFilter(), grouped = true)), provider.pages)
+        val after = LibraryViewModel({ provider }, library, saved.afterProcessDeath(), sagas = sagas)
+        assertEquals(WallView.FILMS_AND_SAGAS to LibraryFilter(), after.state.value.view to after.state.value.filter)
+    }
+
+    /** A person's films, or a format's, opened from elsewhere: every film on its own, no view to choose. */
+    @Test
+    fun aWallOpenedOnPartOfTheLibraryShowsEveryFilm() = runTest {
+        withSagas()
+        provider.capabilities = provider.capabilities.copy(personFilter = true)
+        val vm = LibraryViewModel({ provider }, library, SavedStateHandle(), opensOn = LibraryFilter(person = "p7"), sagas = sagas)
+        advanceUntilIdle()
+        assertNull(vm.state.value.view)
+        assertEquals(Asked("films", LibraryFilter(person = "p7"), grouped = false), provider.pages.single())
+        assertNull(vm.state.value.sagas)
+        // Nothing to turn to, even once the source shows sagas.
+        vm.setView(WallView.SAGAS)
+        assertNull(vm.state.value.view)
+        provider.libraries = listOf(library, sagas)
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertNull(vm.state.value.view)
+        assertFalse(provider.pages.last().grouped)
+    }
+
+    /** The Sagas setting changed while the wall is open: hidden, its films alone and nothing to choose; back, grouped. */
+    @Test
+    fun theWallFollowsTheSagasTheSourceShows() = runTest {
+        withSagas()
+        provider.libraries = listOf(library, sagas)
+        val saved = SavedStateHandle()
+        val vm = LibraryViewModel({ provider }, library, saved, sagas = sagas)
+        vm.setView(WallView.SAGAS)
+        advanceUntilIdle()
+        provider.pages.clear()
+
+        provider.libraries = listOf(library)
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertNull(vm.state.value.view)
+        assertEquals(listOf(Asked("films", LibraryFilter(), grouped = false)), provider.pages)
+        // The sagas alone forgotten: a wall brought back by its route, which names the sagas, opens on the films.
+        val restored = LibraryViewModel({ provider }, library, saved.afterProcessDeath(), sagas = sagas)
+        assertEquals(WallView.FILMS_AND_SAGAS, restored.state.value.view)
+
+        // Back, on the films and their sagas: the sagas alone were left with them.
+        provider.libraries = listOf(library, sagas)
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(WallView.FILMS_AND_SAGAS, vm.state.value.view)
+        assertEquals(Asked("films", LibraryFilter(), grouped = true), provider.pages.last())
+        vm.setView(WallView.SAGAS)
+        advanceUntilIdle()
+        assertEquals("sagas", provider.pages.last().library)
+    }
+
+    /** A wall opened while the sagas were hidden groups them once the setting shows them. */
+    @Test
+    fun aWallOpenedWithoutSagasGroupsThemOnceShown() = runTest {
+        withSagas()
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        assertNull(vm.state.value.view)
+
+        provider.libraries = listOf(library, sagas)
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(WallView.FILMS_AND_SAGAS, vm.state.value.view)
+        assertEquals(Asked("films", LibraryFilter(), grouped = true), provider.pages.last())
+    }
+
+    @Test
+    fun aWallWithoutSagasGroupsNothing() = runTest {
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        assertNull(vm.state.value.view)
+        assertEquals(Asked("films", LibraryFilter(), grouped = false), provider.pages.single())
     }
 
     @Test

@@ -240,6 +240,20 @@ private fun LandscapeRow() {
             }
         }
         item {
+            Specimen("episode: options, the Menu key with focus", width = HlSize.episode) {
+                LandscapeCard(
+                    sample("Puzzle", 2025, kind = MediaKind.EPISODE).copy(thumb = art),
+                    {},
+                    width = HlSize.episode,
+                    title = "Puzzle",
+                    number = "2",
+                    facts = listOf("52 min", null),
+                    onLongClick = {},
+                    onLongClickLabel = stringResource(R.string.more_options),
+                )
+            }
+        }
+        item {
             Specimen("episode: watched, image failed: set in type", width = HlSize.episode) {
                 LandscapeCard(
                     sample("Le Retour", 2025, kind = MediaKind.EPISODE, played = true).copy(thumb = brokenImage),

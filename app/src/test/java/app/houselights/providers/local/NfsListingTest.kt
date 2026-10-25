@@ -7,13 +7,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import java.io.FileNotFoundException
 
 /** Listing an NFS export with READDIRPLUS on an in-memory NAS, and what each listing or read asks of it. */
 @RunWith(RobolectricTestRunner::class)
 class NfsListingTest {
-    /** A file or folder of the export; [size] and [date] as a GETATTR returns them. */
-    private class Item(val isFolder: Boolean, val size: Long = 0, val date: Long? = null)
+    /** A file, folder or symbolic link to [link] of the export; [size] and [date] as a GETATTR returns them. */
+    private class Item(val isFolder: Boolean, val size: Long = 0, val date: Long? = null, val link: String? = null)
 
     /**
      * An export of [items] by path, paths as handles: each READDIRPLUS answers at most [perAnswer] entries,
@@ -40,6 +41,7 @@ class NfsListingTest {
             val path = String(dir)
             asked += "READDIRPLUS /$path from $cookie"
             refused[path]?.let { throw it }
+            if (path.isNotEmpty() && items[path]?.isFolder != true) throw NfsException(NfsStatus.NFS3ERR_NOTDIR, "readdirplus error")
             val all = listOf(".", "..") + children(path).map { it.substringAfterLast('/') }
             val answered = all.drop(cookie.toInt()).take(perAnswer)
             val entries = answered.map { name ->
@@ -55,6 +57,8 @@ class NfsListingTest {
             val path = String(dir).let { if (it.isEmpty()) name else "$it/$name" }
             asked += "LOOKUP /$path"
             if (stale.remove(String(dir))) throw NfsException(NfsStatus.NFS3ERR_STALE, "lookup error code: NfsStatus:70")
+            val parent = String(dir)
+            if (parent.isNotEmpty() && items[parent]?.isFolder != true) throw NfsException(NfsStatus.NFS3ERR_NOTDIR, "lookup error")
             val item = items[path]?.takeIf { path !in gone } ?: throw FileNotFoundException("lookup /volume1/media/$path")
             return NfsEntry(name, handle(path), attributes(item))
         }
@@ -62,11 +66,19 @@ class NfsListingTest {
         override fun read(file: ByteArray, offset: Long, length: Int): ByteArray {
             val path = String(file)
             if (stale.remove(path)) throw NfsException(NfsStatus.NFS3ERR_STALE, "read error code: NfsStatus:70")
+            // An NFSv3 server reads no symbolic link.
+            if (items[path]?.link != null) throw NfsException(NfsStatus.NFS3ERR_INVAL, "read error code: NfsStatus:22")
             read += "/$path"
             return ByteArray(0)
         }
 
-        private fun attributes(item: Item) = NfsAttributes(item.isFolder, item.size, item.date)
+        override fun readlink(link: ByteArray): String {
+            val path = String(link)
+            asked += "READLINK /$path"
+            return items[path]?.link ?: throw NfsException(NfsStatus.NFS3ERR_INVAL, "readlink error code: NfsStatus:22")
+        }
+
+        private fun attributes(item: Item) = NfsAttributes(item.isFolder, item.size, item.date, isLink = item.link != null)
     }
 
     private val items = mutableMapOf<String, Item>()
@@ -84,9 +96,13 @@ class NfsListingTest {
         items[path] = Item(isFolder = false, size = size, date = date)
     }
 
+    private fun link(path: String, target: String) {
+        items[path] = Item(isFolder = false, size = target.length.toLong(), link = target)
+    }
+
     private var mounts = 0
 
-    private fun browser(export: Export) = NfsBrowser(mount = { export.also { mounts++ } }, clock = { 0L })
+    private fun browser(export: Export) = NfsBrowser(mount = { _, _, _ -> export.also { mounts++ } }, clock = { 0L })
 
     private val films = nfsFolder(host = "192.168.1.20", share = "volume1/media", path = "")
 
@@ -297,5 +313,109 @@ class NfsListingTest {
         library()
         val failure = runCatching { browser(Export()).list(films.copy(path = "Films")) }.exceptionOrNull()
         assertEquals(ScanErrorKind.NOT_FOUND, failure?.let { ScanErrors.classify(it).kind })
+    }
+
+    /** Films kept elsewhere in the export and linked from the folder, as a debrid or "category" setup leaves them. */
+    private fun linkedLibrary() {
+        folder("storage")
+        folder("storage/Dune (2021)")
+        file("storage/Dune (2021)/Dune (2021).mkv", size = 80_000_000_000, date = 1_760_000_000_000)
+        file("storage/Dune (2021)/movie.nfo", size = 4_096)
+        file("storage/heat.mkv", size = 9_000_000_000, date = 1_700_000_000_000)
+        folder("films")
+        link("films/Dune (2021)", "../storage/Dune (2021)")
+        link("films/Heat (1995).mkv", "../storage/heat.mkv")
+    }
+
+    private val linked = nfsFolder(host = "192.168.1.20", share = "volume1/media", path = "films")
+
+    /** A linked folder is walked and a linked video has its target's size and date, as Samba shows them over SMB. */
+    @Test
+    fun linksAreListedAsWhatTheyLeadTo() = runTest {
+        linkedLibrary()
+        val listing = browser(Export()).list(linked)
+        assertEquals(
+            listOf("Dune (2021)/Dune (2021).mkv" to 80_000_000_000L, "Heat (1995).mkv" to 9_000_000_000L),
+            listing.videos.map { it.relativePath to it.size },
+        )
+        assertEquals(listOf(1_760_000_000_000L, 1_700_000_000_000L), listing.videos.map { it.lastModified })
+        assertEquals(listOf("Dune (2021)/movie.nfo"), listing.sidecars.map { it.relativePath })
+        assertEquals(emptyList<String>(), listing.unreadable)
+    }
+
+    /** Reads go to the target, never to the link, which an NFSv3 server refuses to read. */
+    @Test
+    fun aFileIsReadThroughItsLinks() = runTest {
+        linkedLibrary()
+        val export = Export()
+        val nas = browser(export)
+        nas.readPrefix(linked, "Heat (1995).mkv", 16)
+        nas.readPrefix(linked, "Dune (2021)/movie.nfo", 16)
+        assertEquals(listOf("/storage/heat.mkv", "/storage/Dune (2021)/movie.nfo"), export.read)
+    }
+
+    /** A link to a link, on the way to a folder or to a file, is followed to the end. */
+    @Test
+    fun aLinkToALinkIsFollowed() = runTest {
+        linkedLibrary()
+        folder("shortcuts")
+        link("shortcuts/dune", "../storage/./Dune (2021)/")
+        link("shortcuts/heat", "../storage/heat.mkv")
+        link("films/Dune (2021)", "../shortcuts/dune")
+        link("films/Heat (1995).mkv", "../shortcuts/heat")
+        val export = Export()
+        val nas = browser(export)
+        val listing = nas.list(linked)
+        assertEquals(
+            listOf("Dune (2021)/Dune (2021).mkv" to 80_000_000_000L, "Heat (1995).mkv" to 9_000_000_000L),
+            listing.videos.map { it.relativePath to it.size },
+        )
+        nas.readPrefix(linked, "Dune (2021)/movie.nfo", 16)
+        assertEquals(listOf("/storage/Dune (2021)/movie.nfo"), export.read)
+    }
+
+    /**
+     * Links neither the app nor the player can follow are named, as folders that could not be read are, rather than
+     * listed as videos of a few bytes: an absolute target resolves on the player, a NAS path means nothing there.
+     */
+    @Test
+    fun linksThatCannotBeFollowedArePassedOverAndNamed() = runTest {
+        linkedLibrary()
+        link("films/Arrival (2016).mkv", "/volume1/media/storage/arrival.mkv")
+        link("films/Sicario (2015).mkv", "../storage/sicario.mkv")
+        link("films/Up (2009).mkv", "../../up.mkv")
+        link("films/Looper (2012).mkv", "Looper (2012).mkv")
+        val listing = browser(Export()).list(linked)
+        assertEquals(listOf("Dune (2021)/Dune (2021).mkv", "Heat (1995).mkv"), listing.videos.map { it.relativePath })
+        assertEquals(
+            listOf("Arrival (2016).mkv", "Looper (2012).mkv", "Sicario (2015).mkv", "Up (2009).mkv"),
+            listing.unreadable.sorted(),
+        )
+    }
+
+    /** A link back up the walk would list the same folders again and again: passed over, the rest listed once. */
+    @Test
+    fun aLinkBackUpTheWalkIsPassedOver() = runTest {
+        linkedLibrary()
+        link("films/All", ".")
+        link("storage/Dune (2021)/Films", "../../films")
+        val listing = browser(Export()).list(linked)
+        assertEquals(listOf("Dune (2021)/Dune (2021).mkv", "Heat (1995).mkv"), listing.videos.map { it.relativePath })
+        assertEquals(listOf("All", "Dune (2021)/Films"), listing.unreadable)
+    }
+
+    /** Logged whole the first time, as any path that could not be read, then counted at each listing. */
+    @Test
+    fun aLinkNotFollowedIsLoggedWholeOnce() = runTest {
+        linkedLibrary()
+        link("films/Arrival (2016).mkv", "/volume1/media/storage/arrival.mkv")
+        val nas = browser(Export())
+        ShadowLog.clear()
+        repeat(2) { nas.list(linked) }
+        val told = ShadowLog.getLogsForTag("RemoteBrowser").map { it.msg to (it.throwable != null) }
+        assertEquals(
+            listOf("Could not read Arrival (2016).mkv" to true, "Paths unreadable again, each logged before: 1" to false),
+            told,
+        )
     }
 }

@@ -39,6 +39,7 @@
     <string name="home_scan_failed">扫描未完成</string>
     <string name="home_scan_tmdb_refused">TMDB 拒绝此密钥：作品将根据您的文件添加，但不含资料。</string>
     <string name="home_scan_tmdb_offline">TMDB 无响应：作品将根据您的文件添加，资料会在之后的扫描中获取。</string>
+    <string name="home_scan_tmdb_certificate">TMDB 的证书被拒绝：作品将根据您的文件添加。请检查此设备的日期和时间。</string>
     <string name="home_see_folders">查看文件夹</string>
 
     <!-- Browsing -->
@@ -47,6 +48,8 @@
     <string name="sort_added">添加日期</string>
     <string name="sort">排序</string>
     <string name="filter">筛选</string>
+    <string name="filter_show">显示</string>
+    <string name="show_grouped">电影和系列</string>
     <string name="filter_status">状态</string>
     <string name="status_in_progress">观看中</string>
     <string name="status_watched">已观看</string>
@@ -85,7 +88,24 @@
     <string name="play">播放</string>
     <string name="resume">继续播放</string>
     <string name="time_left">剩余 %s</string>
-    <string name="nav_home">首页</string>
+    <string name="back_again_to_quit">再按一次返回键退出</string>
+    <string name="watch_title">待看</string>
+    <string name="home_news">最新</string>
+    <string name="home_unseen">尚未观看</string>
+    <string name="home_libraries">媒体库</string>
+    <string name="home_state_source">来源</string>
+    <string name="home_state_scan">上次扫描</string>
+    <string name="home_state_tmdb_refused">密钥被拒绝</string>
+    <string name="home_state_tmdb_offline">无法访问</string>
+    <string name="home_scan_running">进行中…</string>
+    <string name="home_episode">S%1$d · E%2$s</string>
+    <string name="home_open_title">打开详情</string>
+    <plurals name="home_news_week">
+        <item quantity="other">本周 %d 部</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="other">新剧集 %d 集</item>
+    </plurals>
     <string name="from_start">从头播放</string>
     <string name="part_of">第 %1$d/%2$d 段</string>
     <string name="parts">分段</string>
@@ -94,12 +114,12 @@
     <string name="mark_unwatched">标记为未观看</string>
     <string name="mark_season_watched">将本季标记为已观看</string>
     <string name="mark_season_unwatched">将本季标记为未观看</string>
-    <string name="mark_series_watched">将剧集标记为已观看</string>
-    <string name="mark_series_unwatched">将剧集标记为未观看</string>
-    <string name="long_press_series_watched">长按：将剧集标记为已观看</string>
-    <string name="long_press_series_unwatched">长按：将剧集标记为未观看</string>
-    <string name="mark_episode_watched">将本集标记为已观看</string>
-    <string name="mark_episode_unwatched">将本集标记为未观看</string>
+    <string name="mark_series_watched">将整部剧集标记为已观看</string>
+    <string name="mark_series_unwatched">将整部剧集标记为未观看</string>
+    <string name="mark_season_number_watched">将第 %d 季标记为已观看</string>
+    <string name="mark_season_number_unwatched">将第 %d 季标记为未观看</string>
+    <string name="more_options">更多选项</string>
+    <string name="play_from_start">从头播放</string>
     <string name="add_favorite">加入收藏</string>
     <string name="remove_favorite">取消收藏</string>
     <string name="view_series">查看剧集</string>
@@ -176,6 +196,9 @@
     <string name="no_player">未安装 Zidoo 播放器。</string>
     <string name="player_credentials">此文件夹需要密码：只有 Zidoo 播放器可以播放。</string>
     <string name="player_changed">Zidoo 播放器已更改，Houselights 不再将您的密码或服务器访问权限交给它。请重新安装 Zidoo 自带的播放器，或清除 Houselights 的数据以信任新的播放器。</string>
+    <string name="play_failed_no_player">未安装 Zidoo 播放器</string>
+    <string name="play_failed_credentials">需要 Zidoo 播放器</string>
+    <string name="play_failed_player_changed">Zidoo 播放器已更改</string>
 
     <!-- Local folders -->
     <string name="add_folder">添加文件夹</string>
@@ -193,6 +216,11 @@
     <string name="field_host">NAS 地址</string>
     <string name="field_export">NFS 导出路径</string>
     <string name="nfs_hint">无需密码：请在 NAS 上以只读方式允许本设备的地址，并允许来自非特权端口的连接。</string>
+    <string name="nfs_identity_title">连接身份</string>
+    <string name="nfs_identity_desc">NAS 看到的用户</string>
+    <string name="nfs_identity_hint">留空时，Houselights 以 root（UID 0，GID 0）身份连接。Zidoo 播放器以自己的账号打开视频。</string>
+    <string name="field_uid">用户（UID）</string>
+    <string name="field_gid">组（GID）</string>
     <string name="smb_hint">密码保存在本设备上，并会传给 Zidoo 播放器。建议使用专用的只读账号。</string>
     <string name="field_share">共享文件夹</string>
     <string name="field_path">文件夹</string>
@@ -207,6 +235,8 @@
     <string name="placeholder_share">例如：media</string>
     <string name="placeholder_path_movies">例如：电影</string>
     <string name="placeholder_path_shows">例如：剧集</string>
+    <string name="placeholder_uid">例如：1026</string>
+    <string name="placeholder_gid">例如：100</string>
     <string name="test_connection">测试</string>
     <string name="connection_untested">尚未测试连接</string>
     <string name="server_found">已找到服务器</string>
@@ -219,6 +249,7 @@
     <string name="folder_overlaps">此文件夹与媒体库中已有的“%s”重叠：其中的作品会出现两次。请选择其他文件夹，或在设置中编辑那个文件夹。</string>
     <string name="folder_overlaps_state">已在媒体库中</string>
     <string name="folder_not_saved_state">未保存</string>
+    <string name="folder_unread">无法重新读取此文件夹</string>
     <string name="saving">正在保存…</string>
     <plurals name="entries_found">
         <item quantity="other">找到 %d 项</item>
@@ -230,6 +261,8 @@
     <string name="error_host_missing">请输入 NAS 地址。</string>
     <string name="error_export_missing">请输入 NFS 导出路径，例如 /volume1/media。</string>
     <string name="error_share_missing">请输入共享文件夹的名称，例如 media。</string>
+    <string name="error_uid_missing">请同时输入用户（UID）。</string>
+    <string name="error_gid_missing">请同时输入组（GID）。</string>
     <string name="error_scan_other">无法读取此文件夹。请重试，或检查 NAS 上的共享文件夹。</string>
     <string name="error_folder_empty">此文件夹在 NAS 上似乎是空的：未移除任何内容。请检查其所在磁盘是否已挂载；如果它将一直为空，请将其移除。</string>
     <string name="error_storage_full">本设备已没有剩余空间：扫描已停止。请在设置的“存储空间”中释放空间。</string>
@@ -238,6 +271,11 @@
     <!-- Jellyfin -->
     <string name="jellyfin_title">连接到 Jellyfin</string>
     <string name="servers_found">在网络上找到的服务器</string>
+    <string name="server_encrypted">已加密</string>
+    <string name="server_plain">未加密</string>
+    <string name="server_silent">无响应</string>
+    <string name="connection_is_encrypted">加密连接</string>
+    <string name="connection_is_plain">未加密连接</string>
     <string name="field_server">服务器地址</string>
     <string name="placeholder_server">例如：192.168.1.10:8096</string>
     <string name="sign_in">登录</string>
@@ -272,9 +310,46 @@
         <item quantity="other">%d 个文件</item>
     </plurals>
     <string name="playback_desc">Zidoo 播放器如何访问服务器上的文件。</string>
+    <string name="playback_desc_folders">Zidoo 播放器播放的轨道，适用于您的所有电影和剧集。</string>
+    <string name="playback_desc_server">Zidoo 播放器播放的轨道，以及它打开服务器文件的方式。</string>
+    <string name="tracks">音频和字幕</string>
+    <string name="tracks_for_all">适用于您的所有电影和剧集</string>
+    <string name="tracks_per_title">每部电影可保留自己的选择：使用其作品页面上的“音频和字幕”按钮。</string>
+    <string name="tracks_player">由播放器决定</string>
+    <string name="tracks_player_desc">播放器自身的设置，否则为第一条轨道</string>
+    <string name="audio_language">音频语言</string>
+    <string name="audio_language_desc">影片有此音轨时</string>
+    <string name="audio_language_player_desc">播放器自身的语言设置</string>
+    <string name="subtitles">字幕</string>
+    <string name="subtitles_off">关闭</string>
+    <string name="subtitles_off_desc">从不显示字幕</string>
+    <string name="subtitles_forced">仅强制字幕</string>
+    <string name="subtitles_forced_desc">其他语言的片段</string>
+    <string name="subtitles_auto">自动</string>
+    <string name="subtitles_auto_desc">音频不是%1$s时显示完整字幕</string>
+    <string name="subtitles_always">始终显示</string>
+    <string name="subtitles_always_desc">完整的%1$s字幕</string>
+    <string name="subtitle_language">字幕语言</string>
+    <string name="subtitle_language_interface_desc">与界面语言相同</string>
+    <string name="subtitle_language_desc">显示字幕所用的语言</string>
+    <string name="tracks_settings">跟随设置</string>
+    <string name="tracks_player_choice">由播放器选择</string>
+    <string name="tracks_audio">音频</string>
+    <string name="tracks_none">无</string>
+    <string name="tracks_forced">%1$s（强制）</string>
+    <string name="tracks_sdh">%1$s（SDH）</string>
+    <string name="tracks_for_film">适用于此电影</string>
+    <string name="tracks_for_show">适用于整部剧集</string>
+    <string name="tracks_note_film">您的选择适用于此电影及其所有副本。播放时所做的更改也会保留。</string>
+    <string name="tracks_note_show">您的选择适用于整部剧集。播放某一集时所做的更改也会保留。</string>
+    <string name="tracks_hint_none">无字幕</string>
+    <string name="tracks_hint_forced">强制字幕</string>
+    <string name="tracks_hint_full">%1$s字幕</string>
+    <string name="tracks_hint_pair">%1$s，%2$s</string>
     <string name="tmdb_desc">海报和资料来自 TMDB。</string>
     <string name="change_source_local_desc">您的文件夹会保留</string>
-    <string name="change_source_jellyfin_desc">切换前保持连接</string>
+    <string name="change_source_jellyfin_desc">切换后仍保持连接</string>
+    <string name="change_source_jellyfin_sheet">切换后服务器仍保持连接</string>
     <string name="change_source">更换来源</string>
     <string name="reconnect">重新登录</string>
     <string name="source_local_first">从 NAS 添加文件夹</string>
@@ -284,11 +359,21 @@
     <plurals name="folder_count">
         <item quantity="other">%d 个文件夹</item>
     </plurals>
-    <string name="source_jellyfin_other">其他服务器或账号</string>
     <string name="sign_out">退出登录</string>
     <string name="sign_out_confirm">要退出登录“%s”吗？</string>
-    <string name="sign_out_desc">Houselights 将在本设备上忘记此服务器；您的文件夹将取而代之。</string>
-    <string name="sign_out_first_folder">添加第一个文件夹后，Houselights 将在本设备上忘记此服务器。</string>
+    <string name="sign_out_desc">Houselights 将在本设备上忘记此服务器；您的文件夹将取而代之。如需再次使用，需要重新登录。</string>
+    <string name="sign_out_no_folder_desc">Houselights 将在本设备上忘记此服务器；您将重新选择媒体库。如需再次使用，需要重新登录。</string>
+    <string name="source_jellyfin_another">其他 Jellyfin 服务器</string>
+    <string name="source_jellyfin_another_desc">其他地址或其他账号</string>
+    <string name="source_kept_resume">无需重新登录</string>
+    <string name="source_trakt_resumes">Trakt 将恢复</string>
+    <string name="forget">忘记</string>
+    <string name="forget_server">忘记“%s”</string>
+    <string name="forget_server_desc">Houselights 将在本设备上退出登录</string>
+    <string name="forget_server_confirm">要忘记“%s”吗？</string>
+    <string name="forget_server_consequence">Houselights 将在本设备上退出此服务器。如需再次使用，需要重新登录。</string>
+    <string name="sign_out_server">退出登录“%s”</string>
+    <string name="sign_out_server_desc">Houselights 将在本设备上忘记它</string>
     <string name="label_server">服务器</string>
     <string name="label_connection">连接</string>
     <string name="connection_encrypted">已加密（HTTPS）</string>
@@ -357,6 +442,7 @@
     <string name="tmdb_key_unchecked">已保存但未验证：TMDB 无响应。</string>
     <string name="tmdb_scan_key_refused">TMDB 在上次扫描时拒绝了此密钥：作品的资料有待获取。</string>
     <string name="tmdb_scan_offline">TMDB 在上次扫描时无响应：作品将在之后的扫描中获取资料。</string>
+    <string name="tmdb_scan_certificate">TMDB 的证书在上次扫描时被拒绝：请检查此设备的日期和时间。</string>
     <string name="tmdb_key_revert">恢复使用内置密钥</string>
     <string name="tmdb_key_revert_desc">Houselights 将忘记您的密钥</string>
     <string name="save">保存</string>
@@ -415,7 +501,11 @@
     <string name="identify_state_matched">已识别</string>
     <string name="result_current">当前</string>
     <string name="error_offline_title">无法访问媒体库</string>
+    <string name="error_offline_nas_title">无法访问 NAS</string>
+    <string name="error_offline_server_title">无法访问服务器</string>
     <string name="error_offline">服务器或 NAS 无响应。请检查其是否已开机，然后重试。</string>
+    <string name="error_certificate_title">证书被拒绝</string>
+    <string name="error_certificate">安全证书被拒绝。请更新服务器的证书，或检查此设备的日期和时间，然后重试。</string>
     <string name="error_denied_title">连接被拒绝</string>
     <string name="error_denied">服务器拒绝了连接。请重新登录以继续。</string>
     <string name="error_gone_title">此作品已不存在</string>
@@ -433,6 +523,7 @@
     <string name="error_keystore_title">设备密钥库不可用</string>
     <string name="error_keystore">本设备的密钥库拒绝加密密码，因此未保存任何内容。请重启播放器，然后重试。</string>
     <string name="error_keystore_sign_in">已登录，但本设备的密钥库拒绝加密服务器的令牌，因此未保存任何内容。请重启播放器，然后重新登录。</string>
+    <string name="error_secrets_unread">本设备的密钥库没有响应，但已保存的内容没有丢失。请重试；如果问题持续，请重启播放器。</string>
     <string name="error_settings_title">无法读取设置</string>
     <string name="error_settings">本播放器的存储没有响应。请重试；如果问题持续，请重启播放器。</string>
     <string name="error_not_saved_title">未保存任何内容</string>
@@ -440,6 +531,7 @@
     <string name="error_not_saved_player">本播放器的存储拒绝写入，因此未保存任何内容。请在播放器上释放一些空间，然后重试。</string>
     <string name="mappings_not_saved">路径映射未保存。%s</string>
     <string name="welcome_lost_secrets">无法重新读取本播放器上保存的连接。请重新选择您的电影所在位置。</string>
+    <string name="welcome_settings_reset">无法重新读取本播放器上保存的设置，已将其重置。请重新选择您的电影所在位置。</string>
     <string name="settings_lost_tmdb_key">无法在本播放器上重新读取您的个人 TMDB 密钥。请在“TMDB API 密钥”中重新输入。</string>
     <string name="settings_lost_mappings">无法重新读取本播放器上保存的路径映射。请在下方重新输入。</string>
     <string name="error_action_reconnect">重新登录</string>
@@ -453,6 +545,8 @@
     <string name="device_language">设备语言</string>
     <string name="remove_folder">移除此文件夹</string>
     <string name="remove_folder_desc">其中的作品将从媒体库移除；NAS 上的内容不会被删除。</string>
+    <string name="remove_last_folder_desc">其中的作品将从媒体库移除；NAS 上的内容不会被删除。这是您的最后一个文件夹：将返回欢迎界面。</string>
+    <string name="remove_last_folder_kept_desc">其中的作品将从媒体库移除；NAS 上的内容不会被删除。这是您的最后一个文件夹：将返回“%s”，无需重新登录。</string>
     <string name="remove_folder_row_desc">其中的作品将从媒体库移除</string>
     <string name="folder_not_removed">此文件夹未被移除。%s</string>
     <string name="remove_folder_confirm">要移除“%s”吗？</string>
@@ -465,6 +559,16 @@
     <string name="ui_resolution_desc">播放时由播放器选择模式</string>
     <string name="interface_language">界面语言</string>
     <string name="interface_language_desc">菜单、设置和提示信息</string>
+    <string name="text_size">文字大小</string>
+    <string name="text_size_desc">应用中的所有文字</string>
+    <string name="text_size_sheet">放大或缩小 Houselights 的所有文字。网格和边距保持不变。</string>
+    <string name="text_size_compact">紧凑</string>
+    <string name="text_size_compact_desc">适合近距离阅读</string>
+    <string name="text_size_standard">标准</string>
+    <string name="text_size_standard_desc">推荐</string>
+    <string name="text_size_large">大</string>
+    <string name="text_size_large_desc">适合远距离阅读</string>
+    <string name="text_size_large_reached">Android 设置已达到此大小</string>
     <string name="ui_4k_desc">在 4K 电视上界面更清晰</string>
     <string name="ui_system_desc">由系统选择的模式</string>
     <string name="current_output">输出</string>
@@ -494,6 +598,22 @@
     <string name="support">支持 Houselights</string>
     <string name="support_desc">用手机请本项目喝杯咖啡。</string>
     <string name="support_scan">用手机扫描此二维码，打开本项目的 Ko-fi 页面。</string>
+    <string name="journal">发送日志</string>
+    <string name="journal_desc">用手机报告问题</string>
+    <string name="journal_scan">用手机扫描此二维码，打开 Houselights 的日志，附在您的消息中。</string>
+    <string name="journal_masked">密码和令牌已隐藏；您的文件、共享和 NAS 的名称仍会保留：发布前请先检查。</string>
+    <string name="journal_closes">此页面随本面板关闭，最迟 %1$s 后关闭。</string>
+    <string name="journal_offline">播放器未连接任何局域网：请将其连接到路由器，然后重新打开此面板。</string>
+    <string name="journal_failed">无法在此播放器上打开页面：请关闭此面板，然后重新打开。</string>
+    <string name="journal_few">扫描此二维码可打开日志，但目前几乎为空：请在问题发生后立即打开此面板。</string>
+    <string name="journal_page_title">日志</string>
+    <string name="journal_page_text">应用最近写入的行，最新的在前。</string>
+    <string name="journal_copy">复制</string>
+    <string name="journal_copied">已复制</string>
+    <string name="journal_download">下载</string>
+    <string name="journal_empty">Android 没有保留应用的任何行。</string>
+    <string name="journal_trakt_on">Trakt 已连接</string>
+    <string name="journal_trakt_off">Trakt 未连接</string>
     <string name="file_access">文件访问</string>
     <string name="network_path_desc">播放器直接从 NAS 读取文件</string>
     <string name="http_stream_desc">播放器读取服务器的串流</string>
@@ -574,6 +694,8 @@
     <string name="trakt_no_keys">此版本的 Houselights 没有 Trakt 密钥。</string>
     <string name="trakt_signed_out">未连接</string>
     <string name="trakt_connected">已连接</string>
+    <string name="trakt_paused">已暂停</string>
+    <string name="trakt_paused_desc">Trakt 跟随您的文件夹；回到文件夹后即恢复。</string>
     <string name="trakt_connect">连接您的账户</string>
     <string name="trakt_connect_desc">在手机或电脑上输入一个代码即可</string>
     <string name="trakt_disconnect">断开您的账户</string>
@@ -598,6 +720,28 @@
     <string name="trakt_sync_failed">与 Trakt 的同步未完成。它将自动继续。</string>
     <string name="trakt_sync_refused">Trakt 拒绝同步：账户可能已被锁定，或此版本的密钥被拒绝。请在 trakt.tv 上检查您的账户。</string>
     <string name="trakt_sync_unreadable">此版本无法读取 Trakt 的响应。更新 Houselights 应能解决此问题。</string>
+    <plurals name="trakt_skipped">
+        <item quantity="other">已跳过 %d 项</item>
+    </plurals>
+    <string name="trakt_skipped_desc_one">Trakt 发送的格式此应用无法读取</string>
+    <string name="trakt_skipped_desc">Trakt 发送的格式此应用无法读取</string>
+    <string name="trakt_skipped_text_one">Trakt 发送的格式此版本无法读取，通常是其他应用留下的暂停播放。其余内容已同步，您的标记也会照常发送。</string>
+    <string name="trakt_skipped_text">Trakt 发送的格式此版本无法读取，通常是其他应用留下的暂停播放。其余内容已同步，您的标记也会照常发送。</string>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="other">%d 项无标题</item>
+    </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="other">另有 %d 项</item>
+    </plurals>
+    <string name="trakt_skipped_movies">电影历史记录</string>
+    <string name="trakt_skipped_episodes">剧集历史记录</string>
+    <string name="trakt_skipped_paused">暂停的播放</string>
+    <string name="trakt_skipped_partial_movies">在电影历史记录能够完整读取之前，Houselights 不会把在这里看过而 Trakt 缺少的电影发送给它，以免产生重复。</string>
+    <string name="trakt_skipped_partial_episodes">在剧集历史记录能够完整读取之前，Houselights 不会把在这里看过而 Trakt 缺少的剧集发送给它，以免产生重复。</string>
+    <string name="trakt_skipped_partial_both">在电影和剧集历史记录能够完整读取之前，Houselights 不会把在这里看过而 Trakt 缺少的电影和剧集发送给它，以免产生重复。</string>
+    <string name="trakt_skipped_fix_label">解决方法：</string>
+    <string name="trakt_skipped_fix_one">解决方法：在 trakt.tv 的“进度”或“历史记录”中删除它们，或在有版本能够读取时更新 Houselights。</string>
+    <string name="trakt_skipped_fix">解决方法：在 trakt.tv 的“进度”或“历史记录”中删除它们，或在有版本能够读取时更新 Houselights。</string>
     <string name="trakt_certificate">Trakt 的证书被拒绝。请检查此设备的日期和时间，然后重试。</string>
     <string name="settings_lost_trakt">无法重新读取本播放器上保存的 Trakt 连接。请重新连接您的账户。</string>
 </resources>

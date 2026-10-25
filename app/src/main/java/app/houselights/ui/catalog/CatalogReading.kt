@@ -51,6 +51,11 @@ import app.houselights.core.Version
 import app.houselights.core.Editions
 import app.houselights.ui.design.components.VersionRow
 import app.houselights.ui.design.components.VersionsSheet
+import app.houselights.core.TrackPreferences
+import app.houselights.core.TrackPlan
+import app.houselights.core.SubtitleMode
+import app.houselights.ui.design.components.tracksHint
+import app.houselights.ui.design.components.TracksSheet
 import app.houselights.ui.util.versionName
 import app.houselights.ui.design.components.SearchQuery
 import app.houselights.ui.design.components.LetterGrid
@@ -74,6 +79,7 @@ internal fun LazyListScope.catalogReading() {
     item { ReadingTechSheetSection() }
     item { ReadingSynopsisSection() }
     item { ReadingVersionsSection() }
+    item { ReadingTracksSection() }
     item { ReadingSearchSection() }
 }
 
@@ -566,6 +572,23 @@ private val READING_TECH_FULL = sample("Le Samouraï", 1967).copy(
         ),
     ),
 )
+
+@Composable
+private fun ReadingTracksSection() {
+    Group("Audio and subtitles: a title's choice") {
+        var film by remember { mutableStateOf(false) }
+        var show by remember { mutableStateOf(false) }
+        val media = checkNotNull(READING_TECH_DOLBY.media).copy(tracksInOrder = true)
+        val automatic = TrackPreferences(TrackPreferences.INTERFACE, SubtitleMode.FOREIGN)
+        var plan by remember { mutableStateOf(TrackPlan(media, automatic, null, "fr", "FR", "catalog:film")) }
+        ReadingRow {
+            Specimen("the panel, a film", gap = HlSpace.xxs) { HlButton(tracksHint(plan), { film = true }) }
+            Specimen("for a whole show", gap = HlSpace.xxs) { HlButton("Audio et sous-titres", { show = true }) }
+        }
+        if (film) TracksSheet("Bugonia", plan, show = false, onChoose = { plan = plan.copy(choice = it) }, onDismiss = { film = false })
+        if (show) TracksSheet("MobLand", plan, show = true, onChoose = { plan = plan.copy(choice = it) }, onDismiss = { show = false })
+    }
+}
 
 /** The panel as designed: every picture row, the default dub first, a region where two dubs share a language. */
 private val READING_TECH_DOLBY = sample("Bugonia", 2025).copy(

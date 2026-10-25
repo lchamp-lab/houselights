@@ -54,6 +54,7 @@ class FailuresTest {
             NotFoundException("Heat") to Told(UiError.GONE, UiError.GONE, ScanErrorKind.OTHER),
             TmdbNotFoundException() to Told(UiError.TMDB_NOT_FOUND, UiError.TMDB_NOT_FOUND, ScanErrorKind.OTHER),
             SecretsUnavailableException(ProviderException("Keystore")) to Told(UiError.KEYSTORE, UiError.KEYSTORE, ScanErrorKind.OTHER),
+            SecretUnreadException() to Told(UiError.SECRETS_UNREAD, UiError.SECRETS_UNREAD, ScanErrorKind.OTHER),
             EmptyFolderException() to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.EMPTY),
             UnreadableFolderException(3) to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),
             IllegalStateException("This source cannot be edited") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.OTHER),
@@ -86,7 +87,15 @@ class FailuresTest {
             IOException("wrapped", ConnectException("Connection refused")) to
                 Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
             IOException("NAS away") to Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
-            certificateRefused() to Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
+        )
+    )
+
+    /** A certificate refused is said as one, the server's or TMDB's, never as no answer. */
+    @Test
+    fun aCertificateRefusedIsSaidAsOne() = check(
+        mapOf(
+            certificateRefused() to Told(UiError.CERTIFICATE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
+            TmdbCertificateException(certificateRefused()) to Told(UiError.CERTIFICATE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
         )
     )
 

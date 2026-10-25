@@ -7,14 +7,22 @@ import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
 import app.houselights.core.Job
 import app.houselights.core.MediaInfo
+import app.houselights.core.Opened
+import app.houselights.core.SecretUnreadException
 import app.houselights.core.Secrets
 
 enum class SourceKind { MOVIES, SHOWS }
 
 enum class Protocol { SMB, NFS }
 
-/** A plain-text password in memory; stored sealed (see [SecretConverter]) and redacted from toString. */
-data class Secret(val value: String) {
+/**
+ * A plain-text password in memory; stored sealed (see [SecretConverter]) and redacted from toString. [unopened] is the
+ * sealed text the Keystore did not open for now: saved back as it was, never as an empty password.
+ */
+data class Secret(val value: String, val unopened: String? = null) {
+    /** The password to sign in with; one not opened for now throws [SecretUnreadException], never tried empty on the NAS. */
+    fun forSignIn(): String = if (unopened != null) throw SecretUnreadException() else value
+
     override fun toString() = "Secret(***)"
 }
 
@@ -71,11 +79,18 @@ data class GenreList(val genres: String, val folded: String)
 @ProvidedTypeConverter
 class SecretConverter(private val secrets: Secrets) {
     @TypeConverter
-    fun seal(secret: Secret): String = secrets.seal(secret.value)
+    fun seal(secret: Secret): String = secret.unopened ?: secrets.seal(secret.value)
 
-    /** A secret that can no longer be unsealed reads as empty, so the source asks for its password again. */
+    /**
+     * A secret that can no longer be unsealed reads as empty, so the source asks for its password again; one the
+     * Keystore did not open for now reads as empty too, its sealed text kept.
+     */
     @TypeConverter
-    fun open(stored: String): Secret = Secret(secrets.open(stored) ?: "")
+    fun open(stored: String): Secret = when (val read = secrets.read(stored)) {
+        is Opened.Text -> Secret(read.plain)
+        Opened.Unavailable -> Secret("", unopened = stored)
+        Opened.Undecryptable -> Secret("")
+    }
 }
 
 /** A network folder holding either movies or TV shows. */
@@ -98,6 +113,9 @@ data class SourceEntity(
     val firstScanAt: Long = 0,
     /** Language tag its titles are to be read again in, whole ([LibraryScanner.refreshAllIn]); null when none. */
     val refreshIn: String? = null,
+    /** NFS: the user the app presents itself as to the NAS (AUTH_SYS), with [gid]; both null for root. */
+    val uid: Int? = null,
+    val gid: Int? = null,
 )
 
 data class SourceFirstScan(val id: Long, val firstScanAt: Long)
@@ -111,10 +129,12 @@ fun SourceEntity.address(withScheme: Boolean = true): String {
 
 enum class ItemKind { MOVIE, SERIES, SEASON, EPISODE }
 
-/** Item columns before [ItemEntity.mediaInfo]; see [ITEM_ROW]. */
-private const val ROW_HEAD =
-    "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, " +
-        "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
+/** Item columns before [ItemEntity.overview]; see [ITEM_ROW]. */
+private const val ROW_HEAD = "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, "
+
+/** Item columns between [ItemEntity.tagline] and [ItemEntity.mediaInfo]; see [ITEM_ROW]. */
+private const val ROW_BODY =
+    "year, endYear, continuing, runtimeMin, certification, rating, genres, " +
         "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
         "parts, fileSize, missingSince, badges, "
 
@@ -125,10 +145,13 @@ private const val ROW_TAIL =
         "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt"
 
 /** Every item column except the NFO text, which can reach 1 MB; such rows must never be written back. */
-const val ITEM_ROW = ROW_HEAD + "mediaInfo" + ROW_TAIL
+const val ITEM_ROW = ROW_HEAD + "overview, tagline, " + ROW_BODY + "mediaInfo" + ROW_TAIL
 
 /** [ITEM_ROW] without [ItemEntity.mediaInfo] (kilobytes of JSON per card), for lists; never written back either. */
-const val CARD_ROW = ROW_HEAD + "NULL AS mediaInfo" + ROW_TAIL
+const val CARD_ROW = ROW_HEAD + "overview, tagline, " + ROW_BODY + "NULL AS mediaInfo" + ROW_TAIL
+
+/** [CARD_ROW] without the overview and tagline, which walls and home's doors never show: neither read nor typeset. */
+const val WALL_ROW = ROW_HEAD + "NULL AS overview, NULL AS tagline, " + ROW_BODY + "NULL AS mediaInfo" + ROW_TAIL
 
 /** The columns a scan needs per known file, so an idle pass does not load thousands of full rows. */
 data class KnownFile(
@@ -192,6 +215,12 @@ data class EpisodeState(
     val positionMs: Long,
 )
 
+/** A wall's title: a film's row ([ItemEntity.id]) or a saga ([CollectionEntity.id]). */
+data class WallRow(val saga: Boolean, val id: Long)
+
+/** A wall's [total] titles, of which [sagas] are sagas. */
+data class WallCount(val total: Int, val sagas: Int)
+
 data class CollectionMember(
     val collectionId: Long,
     val year: Int?,
@@ -202,6 +231,8 @@ data class CollectionMember(
     val userPosterPath: String?,
     val backdropPath: String?,
     val userBackdropPath: String?,
+    /** When it was added after its folder's first scan; null for a film that scan found ([LocalMapper]'s rule). */
+    val addedLater: Long?,
 )
 
 @Entity(

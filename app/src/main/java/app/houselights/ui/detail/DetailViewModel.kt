@@ -31,22 +31,32 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Deferred
 import android.util.Log
+import app.houselights.core.AudioTrack
 import app.houselights.core.Credits
 import app.houselights.core.Saga
+import app.houselights.core.TrackChoice
+import app.houselights.core.TrackPlan
 import app.houselights.core.Version
 
 data class DetailState(
     val item: MediaItem? = null,
+    /** Why the page did not load: in place of the title, else under it, with Réessayer ([retrying] meanwhile). */
     val error: UiError? = null,
     val capabilities: ProviderCapabilities? = null,
     /** For a series: the episode Lire starts. */
     val nextUp: MediaItem? = null,
+    /** For a series: why what Lire starts could not be read, said in Lire's place with Réessayer. */
+    val nextUpError: UiError? = null,
+    /** The page loads again after a part failed ([DetailViewModel.retry]): its Réessayer stays, busy. */
+    val retrying: Boolean = false,
     val seasons: List<MediaItem> = emptyList(),
     val selectedSeasonId: String? = null,
     /** Episodes of [selectedSeasonId]; empty while loading or failed; on retry the error row stays, busy. */
     val episodes: List<MediaItem> = emptyList(),
     val episodesLoading: Boolean = false,
     val episodesError: UiError? = null,
+    /** [episodes] or [episodesError] came from the season's own read (a tab chosen, its row's Réessayer), not the page's. */
+    val episodesReadApart: Boolean = false,
     val similar: List<MediaItem> = emptyList(),
     /** Artwork and identification can be changed. */
     val canEdit: Boolean = false,
@@ -66,7 +76,18 @@ data class DetailState(
     val saga: Saga? = null,
     /** For a film in several copies: each one, the one Lire plays marked ([Version.chosen]); empty for one copy. */
     val versions: List<Version> = emptyList(),
+    /** The tracks of what Lire plays ([tracksTarget]), and what Settings and the title's choice ask of the player. */
+    val tracks: TrackPlan? = null,
 ) {
+    /** The audio track Lire asks of the player for the title shown; null when the player chooses it. */
+    val playedAudio: AudioTrack? get() = tracks?.takeIf { item?.isPlayable == true }?.let { p -> p.audio?.let(p.audioTracks::getOrNull) }
+
+    /** [tracks] when there is a choice to make: two audio tracks, or subtitles. */
+    val tracksToChoose: TrackPlan? get() = tracks?.takeIf { it.audioTracks.size > 1 || it.subtitleTracks.isNotEmpty() }
+
+    /** What Lire plays, whose tracks are chosen here: the title, or a show's next episode; null for a collection. */
+    val tracksTarget: MediaItem? get() = if (item?.kind == MediaKind.SERIES) nextUp else item?.takeIf { it.isPlayable }
+
     /** The copy Lire plays, for a film in several; null for one copy. */
     val playedCopy: Version? get() = versions.takeIf { it.size > 1 }?.let { all -> all.firstOrNull { it.chosen } ?: all.first() }
 
@@ -75,6 +96,12 @@ data class DetailState(
 
     /** The source keeps the copy chosen ([ProviderCapabilities.versionChoice]); else the versions only read. */
     val canChooseVersion: Boolean get() = capabilities?.versionChoice == true
+
+    /** What Lire starts failed with the seasons or, in the same read, their episodes: one failure, said once in Lire's place. */
+    val failedWithLire: Boolean get() = nextUpError != null && (error != null || episodesError != null && !episodesReadApart)
+
+    /** What is said in Lire's place: the seasons' or their episodes' failure when it came with Lire's, else Lire's own. */
+    val lireError: UiError? get() = if (failedWithLire) error ?: episodesError else nextUpError
 
     /** The chosen season, when the page shows a season track (two seasons or more) and it holds episodes: what the tile marks. */
     val shownSeason: MediaItem?
@@ -94,6 +121,10 @@ class DetailViewModel(
     private val work: CoroutineScope,
     private val saved: SavedStateHandle = SavedStateHandle(),
     private val now: () -> Long = SystemClock::elapsedRealtime,
+    /** The tracks of what Lire plays for an item ([AppContainer.tracksOf]). */
+    private val tracksOf: suspend (MediaItem) -> TrackPlan? = { null },
+    /** Changes a title's stored choice of tracks, under its key; an empty one leaves it to Settings. */
+    private val keepTracks: suspend (String, (TrackChoice) -> TrackChoice) -> Unit = { _, _ -> },
 ) : ViewModel() {
     private val _state = MutableStateFlow(DetailState(selectedSeasonId = saved[SEASON]))
     val state: StateFlow<DetailState> = _state
@@ -102,6 +133,11 @@ class DetailViewModel(
 
     /** Episodes of the last chosen season, one load at a time, so a slow answer never shows under another tab. */
     private val seasonLoads = LatestJob(viewModelScope)
+
+    private val trackLoads = LatestJob(viewModelScope)
+
+    /** Whether a scan's progress changed the title shown, one read at a time. */
+    private val titleChecks = LatestJob(viewModelScope)
 
     init {
         load()
@@ -113,6 +149,8 @@ class DetailViewModel(
         // With no title shown, a retry clears the error to show the load.
         if (_state.value.item == null) _state.update { it.copy(error = null) }
         loads.launch {
+            // What Lire starts, read by this load: shown even should the rest of the page fail after it.
+            var lire: DetailState.() -> DetailState = { this }
             // In a scope of its own, a failed parallel request ends up here instead of crashing the app.
             suspendRunCatching { coroutineScope {
                 val source = provider()
@@ -123,18 +161,17 @@ class DetailViewModel(
                     suspendRunCatching { source.catalog?.credits(item) }.onFailure { Log.w(TAG, "Credits of $itemId", it) }.getOrNull()
                 }
                 when (item.kind) {
-                    MediaKind.SERIES -> seriesPage(source, item, similar)
+                    MediaKind.SERIES -> seriesPage(source, item, similar) { next -> lire = { copy(nextUp = next, nextUpError = null) } }
                     MediaKind.COLLECTION -> collectionPage(source, item)
                     else -> {
                         sayFirst(source, item)
                         filmPage(source, item, similar)
                     }
-                }.copy(credits = credits.await())
+                }.copy(credits = credits.await(), canEdit = source.editor?.canEdit(item) == true)
             } }.onSuccess { loaded ->
-                val canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true
                 // Keep the errors, any season chosen during the reload, and a change still being saved.
                 _state.update {
-                    val page = loaded.copy(canEdit = canEdit, actionError = it.actionError, episodeMarkError = it.episodeMarkError)
+                    val page = loaded.copy(actionError = it.actionError, episodeMarkError = it.episodeMarkError)
                         .keepingSeasonOf(it)
                     pending?.invoke(page) ?: page
                 }
@@ -144,40 +181,72 @@ class DetailViewModel(
                     // A season load this one superseded is not left busy: its row shows the error, with Réessayer.
                     _state.update { s ->
                         val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
-                        s.copy(error = error, episodesLoading = false, episodesError = rowError, partial = false)
+                        s.copy(error = error, episodesLoading = false, episodesError = rowError, partial = false, retrying = false)
+                            .lire()
                     }
                 }
         }
     }
 
-    /** On a first load, shows the title once what Lire starts is known; rows follow ([DetailState.partial]). */
-    private fun sayFirst(source: MediaProvider, item: MediaItem, nextUp: MediaItem? = null) {
-        if (_state.value.item != null) return
-        val canEdit = source.editor?.canEdit(item) == true
-        _state.update { it.copy(item = item, capabilities = source.capabilities, nextUp = nextUp, canEdit = canEdit, partial = true) }
+    /** Loads the page again after a part of it failed, its Réessayer busy ([DetailState.retrying]) until the answer. */
+    fun retry() {
+        if (_state.value.retrying) return
+        _state.update { it.copy(retrying = true) }
+        load()
     }
 
-    /** A series' page: what Lire starts, its seasons, the chosen season's episodes, then [similar] titles. */
-    private suspend fun seriesPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState =
+    /** On a first load, shows the title once what Lire starts is known, or why not; rows follow ([DetailState.partial]). */
+    private fun sayFirst(source: MediaProvider, item: MediaItem, nextUp: MediaItem? = null, nextUpError: UiError? = null) {
+        if (_state.value.item != null) return
+        val canEdit = source.editor?.canEdit(item) == true
+        _state.update {
+            it.copy(
+                item = item, capabilities = source.capabilities, nextUp = nextUp, nextUpError = nextUpError, canEdit = canEdit,
+                partial = true,
+            )
+        }
+    }
+
+    /**
+     * A series' page: what Lire starts, its seasons, the chosen season's episodes, then [similar] titles. What Lire starts
+     * fails apart, said in its place, and so do episodes not shown yet, on their row; the seasons fail the page, which
+     * still shows what Lire starts once [read].
+     */
+    private suspend fun seriesPage(
+        source: MediaProvider,
+        item: MediaItem,
+        similar: Deferred<List<MediaItem>>,
+        read: (next: MediaItem?) -> Unit,
+    ): DetailState =
         coroutineScope {
-            val nextUp = async { source.nextUp(item) }
+            // Told as soon as read: the seasons may fail before it is awaited.
+            val nextUp = async { suspendRunCatching { source.nextUp(item) }.onSuccess(read) }
             val seasonsLoad = async { source.seasons(item) }
-            val next = nextUp.await()
-            sayFirst(source, item, next)
+            val nextRead = nextUp.await()
+            val next = nextRead.getOrNull()
+            val nextUpError = nextRead.exceptionOrNull()?.reported(TAG, "Next up of $itemId")
+            sayFirst(source, item, next, nextUpError)
+            val tracks = async { next?.let { readTracks(it, keep = it) } }
             val seasons = seasonsLoad.await()
             val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
                 ?: next?.seasonId
                 ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
                 ?: seasons.firstOrNull()?.id
-            val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) }.orEmpty()
+            val season = seasons.firstOrNull { it.id == seasonId }
+            // Shown already, episodes unread fail the reload, which keeps them; else they fail on their row.
+            val shown = _state.value.let { it.selectedSeasonId == seasonId && it.episodes.isNotEmpty() }
+            val episodes = season?.let { s -> suspendRunCatching { source.episodes(item, s) }.onFailure { if (shown) throw it } }
             DetailState(
                 item = item,
                 capabilities = source.capabilities,
                 nextUp = next,
+                nextUpError = nextUpError,
                 seasons = seasons,
                 selectedSeasonId = seasonId,
-                episodes = episodes,
+                episodes = episodes?.getOrNull().orEmpty(),
+                episodesError = episodes?.exceptionOrNull()?.reported(TAG, "Episodes of $seasonId"),
                 similar = similar.await(),
+                tracks = tracks.await(),
             )
         }
 
@@ -188,29 +257,43 @@ class DetailViewModel(
         return DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films, saga = saga)
     }
 
-    /** A film's page: its saga, then [similar] titles outside it. */
-    private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState {
+    /** A film's page: its saga, then [similar] titles outside it; the tracks of what Lire plays, read meanwhile. */
+    private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState = coroutineScope {
+        val tracks = async { item.takeIf { it.isPlayable }?.let { readTracks(it, keep = it) } }
         val collection = source.collectionOf(item)
         // Includes the film itself, showing its place in the saga.
         val saga = collection?.let { c -> source.collectionItems(c) }.orEmpty()
         // Films of the same saga are shown as such, not again as "similar".
         val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
-        return DetailState(
+        DetailState(
             item = item,
             capabilities = source.capabilities,
             similar = similarFilms,
             collection = collection,
             collectionFilms = saga,
             versions = versionsOf(source, item),
+            tracks = tracks.await(),
         )
     }
 
-    /** Reloads after a library change, unless it is this page's own change, signalled within [OWN_CHANGE_MS]. */
-    fun onLibraryChanged() {
+    /**
+     * Reloads after a library change, unless it is this page's own change, signalled within [OWN_CHANGE_MS]; after a
+     * running scan's progress ([scanOnly]), only once the title itself reads differently, its end reloading the rest.
+     */
+    fun onLibraryChanged(scanOnly: Boolean = false) {
         val own = ownChangeAt
         ownChangeAt = null
         if (own != null && now() - own <= OWN_CHANGE_MS) return
-        load()
+        if (scanOnly) reloadIfChanged() else load()
+    }
+
+    /** Reads the title again, in one request, and reloads the page when it is no longer the one shown. */
+    private fun reloadIfChanged() {
+        val shown = _state.value.item ?: return load()
+        titleChecks.launch {
+            val now = suspendRunCatching { provider().item(itemId) }.onFailure { Log.w(TAG, "Check of $itemId", it) }.getOrNull()
+            if (now != null && now != shown) load()
+        }
     }
 
     /** Shows the season's tab at once, row emptied and its error gone; episodes load once focus settles (tabs select on focus). */
@@ -246,7 +329,10 @@ class DetailViewModel(
             val error = result.exceptionOrNull()?.reported(TAG, "Episodes of $seasonId")
             _state.update {
                 if (it.selectedSeasonId != seasonId) return@update it
-                it.copy(episodes = result.getOrDefault(emptyList()), episodesLoading = false, episodesError = error)
+                it.copy(
+                    episodes = result.getOrDefault(emptyList()), episodesLoading = false, episodesError = error,
+                    episodesReadApart = true,
+                )
             }
         }
     }
@@ -296,8 +382,53 @@ class DetailViewModel(
                 val source = provider()
                 source.catalog?.chooseVersion(item, version)
                 versionsOf(source, item)
-            }.onSuccess { versions -> _state.update { it.copy(versions = versions) } }
+            }.onSuccess { versions ->
+                _state.update { it.copy(versions = versions) }
+                loadTracks()
+            }
                 .onFailure { e -> _state.update { it.copy(actionError = e.reported(TAG, "Version of $itemId")) } }
+        }
+    }
+
+    /** Reads the tracks of what Lire plays again (another copy); without them, the page has no tracks tile. */
+    private fun loadTracks() {
+        val target = _state.value.tracksTarget ?: return
+        trackLoads.launch {
+            val plan = readTracks(target, keep = target)
+            _state.update { if (it.tracksTarget?.id == target.id) it.copy(tracks = plan) else it }
+        }
+    }
+
+    /** [target]'s tracks; on failure, those the page shows for [keep], so a passing fault does not hide the tile. */
+    private suspend fun readTracks(target: MediaItem, keep: MediaItem): TrackPlan? =
+        suspendRunCatching { tracksOf(target) }
+            .onFailure { Log.w(TAG, "Tracks of ${target.id}", it) }
+            .getOrElse { _state.value.takeIf { shown -> shown.tracksTarget?.id == keep.id }?.tracks }
+
+    /**
+     * Makes [choice] the title's, shown at once: only the column it changes is written, over what is stored, which
+     * the player may have changed since the page was read. A failure shows by the actions, and undoes the choice while
+     * the page still shows it, not one made since.
+     */
+    fun chooseTracks(choice: TrackChoice) {
+        val plan = _state.value.tracks ?: return
+        val key = plan.titleKey ?: return
+        val before = plan.choice ?: TrackChoice()
+        val audio = choice.audio != before.audio
+        val subtitles = choice.subtitles != before.subtitles
+        val shown = choice.takeUnless { it.isEmpty }
+        _state.update { it.copy(tracks = plan.copy(choice = shown), actionError = null) }
+        work.launch {
+            suspendRunCatching {
+                keepTracks(key) { stored ->
+                    TrackChoice(if (audio) choice.audio else stored.audio, if (subtitles) choice.subtitles else stored.subtitles)
+                }
+            }.onFailure { e ->
+                _state.update { s ->
+                    val undone = s.tracks?.takeIf { it.choice == shown }?.copy(choice = plan.choice) ?: s.tracks
+                    s.copy(tracks = undone, actionError = e.reported(TAG, "Tracks of $itemId"))
+                }
+            }
         }
     }
 
@@ -347,7 +478,12 @@ class DetailViewModel(
 
     companion object {
         fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
-            initializer { DetailViewModel(itemId, app::provider, app, app.scope, createSavedStateHandle()) }
+            initializer {
+                DetailViewModel(
+                    itemId, app::provider, app, app.scope, createSavedStateHandle(),
+                    tracksOf = app::tracksOf, keepTracks = app.tracks::choose,
+                )
+            }
         }
     }
 }
@@ -366,6 +502,7 @@ internal fun DetailState.keepingSeasonOf(current: DetailState): DetailState {
         episodes = current.episodes,
         episodesLoading = current.episodesLoading,
         episodesError = current.episodesError,
+        episodesReadApart = current.episodesReadApart,
     )
 }
 

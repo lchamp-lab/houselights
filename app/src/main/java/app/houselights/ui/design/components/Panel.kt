@@ -328,16 +328,25 @@ fun HlEmptyState(
  */
 enum class StatusState { On, Done, Off, Pending, Attention }
 
-/** A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words. */
+/**
+ * A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words. Each
+ * holds on [maxLines] at most, ending in an ellipsis.
+ */
 @Composable
-fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null) {
+fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null, maxLines: Int = Int.MAX_VALUE) {
     val c = Hl.colors
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             StatusLight(state)
             Spacer(Modifier.width(HlSpace.xs))
             val strong = state != StatusState.Off && state != StatusState.Pending
-            Text(text, style = Hl.type.meta, color = if (strong) c.content else c.contentSecondary)
+            Text(
+                text,
+                style = Hl.type.meta,
+                color = if (strong) c.content else c.contentSecondary,
+                maxLines = maxLines,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         if (detail != null) {
             Spacer(Modifier.height(HlSpace.xxs))
@@ -345,6 +354,8 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
                 detail,
                 style = Hl.type.meta,
                 color = c.contentSecondary,
+                maxLines = maxLines,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(start = HlSize.statusLight + HlSpace.xs),
             )
         }

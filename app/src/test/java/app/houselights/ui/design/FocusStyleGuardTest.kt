@@ -70,7 +70,7 @@ class FocusStyleGuardTest {
         val row = Regex("""(?<!fun )\bMediaRow\(""")
         val controls = listOf(
             "HlButton", "HlIconButton", "HlTextField", "HlSettingRow", "HlListItem",
-            "HlNavItem", "HlSegmented", "HlMenuButton", "HlTitleSwitch",
+            "HlNavItem", "HlSegmented", "HlMenuButton",
         )
         val control = Regex("""\b(${controls.joinToString("|")})\(""")
         val found = kotlinSources(ui).flatMap { file ->

@@ -1,7 +1,12 @@
 package app.houselights.providers.local
 
+import app.houselights.core.AudioTrack
+import app.houselights.core.Codecs
+import app.houselights.core.MediaInfo
 import app.houselights.core.NfoParser
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** A file the probe cannot read is described by its NFO's <streamdetails>, under the names the app shows. */
@@ -19,6 +24,15 @@ class NfoStreamDetailsTest {
         ),
         base = null,
     )
+
+    /** An NFO lists tracks in an order of its own: they are not asked of the player by number. */
+    @Test
+    fun anNfosTracksAreNotInTheFilesOrder() {
+        assertFalse(media("hevc", "eac3").tracksInOrder)
+        val nfo = "<movie><title>A</title><fileinfo><streamdetails><video><codec>hevc</codec></video></streamdetails></fileinfo></movie>"
+        val read = MediaInfo(container = "MKV", audio = listOf(AudioTrack(Codecs.AC3, 6, "fre")), tracksInOrder = true)
+        assertTrue("the file's own tracks", NfoStreamDetails.toMediaInfo(checkNotNull(NfoParser.parse(nfo)?.streams), read).tracksInOrder)
+    }
 
     @Test
     fun anOldRipIsMpeg4WithDts() {

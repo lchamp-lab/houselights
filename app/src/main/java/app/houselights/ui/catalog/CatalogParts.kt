@@ -42,7 +42,7 @@ internal fun Specimen(
 ) {
     Column(if (width == null) modifier else modifier.width(width), verticalArrangement = Arrangement.spacedBy(gap)) {
         content()
-        Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
+        Text(caption, style = Hl.type.meta, color = Hl.colors.contentTertiary)
     }
 }
 

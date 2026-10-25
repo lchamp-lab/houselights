@@ -20,11 +20,14 @@ import app.houselights.providers.jellyfin.InvalidServerAddress
 import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.ReachFailure
+import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.providers.jellyfin.UnsupportedServer
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toWriteError
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -101,11 +104,35 @@ private fun SavingFailed.loginError(): LoginError = when (cause.toWriteError()) 
 /** Runs [block], a write to the device itself, wrapping any failure in [SavingFailed]. */
 private suspend fun <T> saving(block: suspend () -> T): T = suspendRunCatching { block() }.getOrElse { throw SavingFailed(it) }
 
+/** Whether this address and [typed] name one server: the same once both are written in full. */
+private fun String.sameServer(typed: String): Boolean =
+    typed.isNotBlank() && JellyfinClient.normalizeUrl(this) == JellyfinClient.normalizeUrl(typed)
+
+/** What the sign-in form starts with. */
+sealed interface LoginFill {
+    /** The current server's address and user, to sign in to it again. */
+    data object Current : LoginFill
+
+    /** Nothing: another server, or another account. */
+    data object Blank : LoginFill
+
+    /** A server that no longer takes its token: its [address] and [user]. */
+    data class Server(val address: String, val user: String?) : LoginFill
+}
+
+/** The address and user the form starts with for [fill] while [current] is the source; null for an empty form. */
+internal fun prefill(fill: LoginFill, current: SourceConfig?): Pair<String, String>? = when (fill) {
+    LoginFill.Current -> (current as? SourceConfig.Jellyfin)?.let { it.serverUrl to it.userName.orEmpty() }
+    LoginFill.Blank -> null
+    is LoginFill.Server -> fill.address to fill.user.orEmpty()
+}
+
 /** Signs in to a Jellyfin server, which becomes the source once [sources] switches to it. */
 class JellyfinLoginViewModel(
     private val settings: SettingsStore,
     private val sources: SourceSwitcher,
     private val network: JellyfinNetwork = JellyfinNetwork.Lan,
+    fill: LoginFill = LoginFill.Current,
 ) : ViewModel() {
     var server by Field()
     var user by Field()
@@ -119,18 +146,63 @@ class JellyfinLoginViewModel(
     var discovered by mutableStateOf<List<DiscoveredServer>>(emptyList())
         private set
 
-    /** Signing in again to the current server: its address and user are prefilled, only the password is asked. */
+    /** What checking each server found said; one still checked is missing. */
+    private var checks by mutableStateOf<Map<DiscoveredServer, ServerCheck>>(emptyMap())
+
+    /** Each server found's check, which signing in to it waits for. */
+    private val checking = mutableMapOf<DiscoveredServer, Deferred<ServerCheck>>()
+
+    /** Signing in again to a server known here: its address and user are prefilled, only the password is asked. */
     val again: Boolean
 
+    /** The server last picked among [discovered], and what picking it, then its check, put in the address field. */
+    private var pick by mutableStateOf<DiscoveredServer?>(null)
+    private var picked by mutableStateOf<String?>(null)
+
     init {
-        val current = settings.state.value.source as? SourceConfig.Jellyfin
-        again = current != null
-        if (current != null) {
-            server = current.serverUrl
-            user = current.userName.orEmpty()
+        val known = prefill(fill, settings.state.value.source)
+        again = known != null
+        if (known != null) {
+            server = known.first
+            user = known.second
         }
-        viewModelScope.launch { discovered = network.discover() }
+        viewModelScope.launch {
+            discovered = network.discover()
+            // Each checked at once, in the background, so its row says how it will be reached before it is picked.
+            discovered.forEach { found -> checking[found] = async { check(found) } }
+        }
     }
+
+    private suspend fun check(found: DiscoveredServer): ServerCheck {
+        val result = suspendRunCatching { network.check(found) }
+            .onFailure { Log.w("Jellyfin", "Checking ${found.address} failed", it) }
+            .getOrDefault(ServerCheck.Silent)
+        checks += found to result
+        // The address the check verified, in place of the one picking gave, unless it was edited meanwhile.
+        if (found == pick && server == picked) {
+            server = addressOf(found)
+            picked = server
+        }
+        return result
+    }
+
+    /** What checking [found] said, [ServerCheck.Checking] until it has. */
+    fun checkOf(found: DiscoveredServer): ServerCheck = checks[found] ?: ServerCheck.Checking
+
+    /** Where signing in reaches [found]: the address its check verified, else the one it announced. */
+    fun addressOf(found: DiscoveredServer): String = checkOf(found).url ?: found.address
+
+    /** The server picked while the address field holds what picking it, then its check, put there. */
+    val pickedServer: DiscoveredServer?
+        get() = pick?.takeIf { server == picked }
+
+    /** The check of [pickedServer], which signing in follows. */
+    val pickedCheck: ServerCheck?
+        get() = pickedServer?.let(::checkOf)
+
+    /** The server picked, else the one found that the address names, as announced or where its check reaches it. */
+    val chosen: DiscoveredServer?
+        get() = pickedServer ?: discovered.find { addressOf(it).sameServer(server) || it.address.sameServer(server) }
 
     /** A form field: changing it clears the last attempt's error, which no longer applies. */
     private inner class Field : ReadWriteProperty<Any?, String> {
@@ -144,16 +216,27 @@ class JellyfinLoginViewModel(
         }
     }
 
+    /** Picks a server found on the network: its address where it will be reached, without a protocol while it is checked. */
+    fun choose(found: DiscoveredServer) {
+        pick = found
+        server = if (checkOf(found) == ServerCheck.Checking) found.address.withoutScheme() else addressOf(found)
+        picked = server
+    }
+
     fun login(onLoggedIn: () -> Unit) {
         if (busy) return
         busy = true
         error = null
         val asked = typed()
+        val found = pickedServer
         viewModelScope.launch {
             var address = JellyfinClient.normalizeUrl(server)
             suspendRunCatching {
                 val deviceId = saving { settings.ensureDeviceId() }
-                val (reached, info) = network.reach(server, deviceId)
+                // A server picked is reached where its check says, over HTTPS alone once encrypted; else as typed.
+                val input = found?.let { target(it) } ?: server
+                address = JellyfinClient.normalizeUrl(input)
+                val (reached, info) = network.reach(input, deviceId)
                 address = reached
                 val auth = network.authenticate(reached, deviceId, AuthRequest(user.trim(), password))
                 saving { sources.switchTo(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken)) }
@@ -168,11 +251,25 @@ class JellyfinLoginViewModel(
         }
     }
 
-    private fun typed() = listOf(server, user, password)
+    /**
+     * Where signing in reaches [found], once its check has said: checked again first if it did not answer, so its
+     * HTTPS address is never passed over for the plain one; still silent, the address it announced.
+     */
+    private suspend fun target(found: DiscoveredServer): String {
+        var result = checks[found] ?: checking[found]?.await() ?: ServerCheck.Silent
+        if (result == ServerCheck.Silent) {
+            checks -= found
+            result = check(found)
+        }
+        return result.url ?: found.address
+    }
+
+    /** What signing in used: a server picked stays the same while the field holds its address, its check's included. */
+    private fun typed() = listOf(pickedServer ?: server, user, password)
 
     companion object {
-        fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { JellyfinLoginViewModel(app.settings, app.sources) }
+        fun factory(app: AppContainer, fill: LoginFill): ViewModelProvider.Factory = viewModelFactory {
+            initializer { JellyfinLoginViewModel(app.settings, app.sources, fill = fill) }
         }
     }
 }

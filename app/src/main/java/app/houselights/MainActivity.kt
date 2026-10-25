@@ -2,7 +2,6 @@ package app.houselights
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
@@ -33,6 +32,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -46,20 +46,24 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import app.houselights.core.Library
-import app.houselights.core.LibraryKind
+import app.houselights.core.LibraryFilter
 import app.houselights.core.MediaItem
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
-import app.houselights.player.PlaybackManager
 import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.PlayOrigin
+import app.houselights.ui.util.PlaybackProblem
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
@@ -81,10 +85,21 @@ import app.houselights.ui.catalog.CatalogScreen
 import app.houselights.ui.detail.DetailScreen
 import app.houselights.ui.edit.ArtworkScreen
 import app.houselights.ui.edit.IdentifyScreen
+import app.houselights.ui.home.HomeActions
 import app.houselights.ui.home.HomeScreen
+import app.houselights.ui.home.WatchScreen
+import app.houselights.ui.library.WallView
+import app.houselights.ui.design.components.rememberPicturesAhead
+import app.houselights.ui.design.textScaleOf
+import androidx.compose.ui.platform.LocalContext
+import app.houselights.ui.home.HomeViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import app.houselights.ui.library.LibraryScreen
 import app.houselights.ui.onboarding.AddFolderScreen
 import app.houselights.ui.onboarding.JellyfinLoginScreen
+import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.onboarding.WelcomeScreen
 import app.houselights.ui.settings.SettingsScreen
 import app.houselights.ui.design.HouselightsTheme
@@ -93,8 +108,10 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import app.houselights.settings.AppSettings
 import app.houselights.settings.DisplayModes
 import app.houselights.settings.SettingsStore
+import app.houselights.settings.SourceSwitcher
 import app.houselights.settings.outputModes
 import app.houselights.ui.design.Scrub
 import androidx.compose.animation.EnterTransition
@@ -103,6 +120,7 @@ import androidx.compose.animation.core.snap
 import app.houselights.ui.design.components.BackdropRelay
 import app.houselights.ui.design.components.LeavingBackdrop
 import app.houselights.ui.design.components.LocalBackdropRelay
+import app.houselights.ui.design.components.LocalCutPosters
 import app.houselights.ui.person.PersonScreen
 import app.houselights.ui.search.SearchScreen
 
@@ -182,7 +200,9 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            HouselightsTheme {
+            // One read for the theme and the screens: nothing shows before the settings are read, then at their text size.
+            val settings = container.settings.state.collectAsStateWithLifecycle()
+            HouselightsTheme(textStep = settings.value.textSize.step) {
                 val nav = rememberNavController()
                 val fixError = remember(nav) { nav::fixError }
                 val relay = remember { BackdropRelay() }
@@ -198,11 +218,12 @@ class MainActivity : ComponentActivity() {
                     LocalErrorFix provides fixError,
                     LocalLaunchScreen provides launchScreen,
                     LocalBackdropRelay provides relay,
+                    LocalCutPosters provides container.cutPosters,
                 ) {
                     // The window background is already the room (@color/room): no second black under every screen.
                     Box(Modifier.fillMaxSize()) {
                         LeavingBackdrop(relay)
-                        AppNavigation(nav, onPlay = ::play)
+                        AppNavigation(nav, settings, onPlay = ::play)
                         HouseLights()
                     }
                 }
@@ -219,13 +240,25 @@ class MainActivity : ComponentActivity() {
         val launch = container.launch
         val held = !launch.isOpen
         covered = held
-        container.homeLaunch.begin(container.scope, restored, loadFirstPictures(applicationContext, resources.displayMetrics.widthPixels))
+        val system = resources.configuration.fontScale
+        val settings = container.settings
+        val pictures = loadFirstPictures(
+            applicationContext,
+            resources.displayMetrics.widthPixels,
+            // Read once the settings are, as home is laid out.
+            textScale = { textScaleOf(system, settings.state.value.textSize.step) },
+            cuts = container.cutPosters,
+        ) { container.providerOrNull()?.capabilities?.search == true }
+        container.homeLaunch.begin(container.scope, restored, pictures)
+        // The launch screen lifts once the gate opens, on a complete home or at its cap: the start-up's full display.
         splash.setOnExitAnimationListener { view ->
             if (!held) {
                 view.remove()
+                reportFullyDrawn()
             } else {
                 lifecycleScope.launch {
                     launch.awaitOpen()
+                    reportFullyDrawn()
                     lightsDown(view)
                 }
             }
@@ -285,28 +318,20 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Back from the player, or from elsewhere during the cue: the lights come up and nothing plays.
         cancelCue()
+        // Secrets the Keystore did not open are tried again.
+        container.settings.readAgain()
     }
 
-    /** During the cue, Back cancels it; other non-system keys are swallowed, so a second OK never plays twice. */
     // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // Tracks whether an arrow is held (focus running across cards); it sees every key and consumes none.
         Scrub.onKey(event)
-        return when {
-            // Under the launch screen nothing is selected unseen: only system keys pass, Back included.
-            covered && !event.isSystem -> true
-            !lightsDown.value -> super.dispatchKeyEvent(event)
-            event.keyCode == KeyEvent.KEYCODE_BACK -> {
-                if (event.action == KeyEvent.ACTION_UP) cancelCue()
-                true
-            }
-            event.isSystem -> super.dispatchKeyEvent(event)
-            else -> true
-        }
+        return dispatchUnseen(event, covered, lightsDown.value, ::cancelCue) { super.dispatchKeyEvent(it) }
     }
 
-    private fun play(item: MediaItem, resume: Boolean) {
+    /** Plays [item] after the house-light cue; a failure is said where play was asked ([origin]). */
+    private fun play(item: MediaItem, resume: Boolean, origin: PlayOrigin) {
         // One cue at a time.
         if (lightsDown.value) return
         container.playback.clearProblem()
@@ -318,34 +343,34 @@ class MainActivity : ComponentActivity() {
                     // The cue ran while the plan resolved: the room is dark before the player takes over.
                     snapshotFlow { lightsLevel.value }.first { it >= 1f }
                     when (plan) {
-                        is PlaybackPlan.Launch -> try {
-                            // The player needs the memory more than pictures that reload from disk.
-                            imageLoader.memoryCache?.clear()
-                            playerLauncher.launch(container.player.intentFor(plan))
-                            container.player.onPlayerLaunched()
-                        } catch (_: ActivityNotFoundException) {
-                            container.player.onLaunchFailed()
-                            failed(UiError.NO_PLAYER)
-                        } catch (_: SecurityException) {
-                            // A player that refuses to be started by other apps is unusable here.
-                            container.player.onLaunchFailed()
-                            failed(UiError.NO_PLAYER)
-                        } catch (e: PlaybackManager.CredentialsNotShared) {
-                            failed(if (e.playerChanged) UiError.PLAYER_CHANGED else UiError.CREDENTIALS)
+                        is PlaybackPlan.Launch -> {
+                            val launched = container.player.handOff(
+                                plan,
+                                tracks = { container.tracks.plan(plan) },
+                                onScreen = lifecycle::onScreen,
+                                freeMemory = {
+                                    imageLoader.memoryCache?.clear()
+                                    container.cutPosters.clear()
+                                },
+                                start = playerLauncher::launch,
+                                failed = { failed(it, origin) },
+                            )
+                            // Home pressed meanwhile: the lights come back for whoever returns.
+                            if (!launched) lightsDown.value = false
                         }
                     }
                 }
                 .onFailure {
                     Log.w("Playback", "Playback failed", it)
-                    failed(it.toUiError())
+                    failed(it.toUiError(), origin)
                 }
         }
     }
 
-    /** Brings the lights back up; the detail page shows why nothing plays. */
-    private fun failed(error: UiError) {
+    /** Brings the lights back up; the screen play was asked from ([origin]) says why nothing plays. */
+    private fun failed(error: UiError, origin: PlayOrigin) {
         lightsDown.value = false
-        container.playback.reportProblem(error)
+        container.playback.reportProblem(PlaybackProblem(error, origin))
     }
 
     private fun cancelCue() {
@@ -356,35 +381,35 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -> Unit) {
+private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPlay: (MediaItem, Boolean, PlayOrigin) -> Unit) {
     val app = appContainer()
-    val settings by app.settings.state.collectAsStateWithLifecycle()
+    val settings by read
+    val folders by app.hasFolders.collectAsStateWithLifecycle()
     if (!settings.loaded) {
         // Never a black screen: unreadable settings show an error with a retry.
         if (settings.readFailed) SettingsUnread(app.settings)
         return
     }
+    // The first screen waits for the folders' first read too, under the launch screen; never unknown again after.
+    val source = shownSource(settings.source, folders ?: return)
 
     val scope = rememberCoroutineScope()
-    val start: Any = remember { if (settings.source != null) Route.Home else Route.Welcome }
+    val start: Any = remember { if (source != null) Route.Home else Route.Welcome }
+    val playProblem by app.playback.playbackProblem.collectAsStateWithLifecycle()
 
     fun openItem(id: String) = nav.navigate(Route.Item(id))
-    fun openLibrary(library: Library, sagas: Library? = null) =
-        nav.navigate(Route.Library(library.id, library.kind, library.title, sagas = sagas?.id))
     fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
 
     // Why choosing folders on the welcome screen failed (storage refused it), shown there until it is left.
     var sourceProblem by remember { mutableStateOf<UiError?>(null) }
 
-    /** "My files": reuses folders added before, else opens the form; failures go to [onError], shown where focus is. */
-    fun useFolders(onError: (UiError) -> Unit) {
+    /**
+     * "My files": reuses folders added before, else opens the form; a server left stays signed in unless
+     * [keepServer] is false. Failures go to [onError], shown where focus is.
+     */
+    fun useFolders(keepServer: Boolean, onError: (UiError) -> Unit) {
         scope.launchAction("Sources", "Choosing the folders", onError = onError, errorOf = Throwable::toWriteError) {
-            if (!app.library.hasFolders()) {
-                nav.navigate(Route.AddFolder())
-            } else {
-                app.sources.switchTo(SourceConfig.Local)
-                goHome()
-            }
+            chooseFolders(keepServer, app.library::hasFolders, app.sources, addFolder = { nav.navigate(Route.AddFolder()) }, ::goHome)
         }
     }
 
@@ -402,13 +427,14 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
             WelcomeScreen(
                 onLocal = {
                     sourceProblem = null
-                    useFolders { sourceProblem = it }
+                    useFolders(keepServer = true) { sourceProblem = it }
                 },
-                onJellyfin = { nav.navigate(Route.JellyfinLogin) },
+                onJellyfin = { nav.navigate(Route.JellyfinLogin.of(LoginFill.Blank)) },
                 problem = sourceProblem,
+                onReadBack = ::goHome,
             )
         }
-        composable<Route.JellyfinLogin> { JellyfinLoginScreen(onLoggedIn = ::goHome) }
+        composable<Route.JellyfinLogin> { entry -> JellyfinLoginScreen(entry.toRoute<Route.JellyfinLogin>().fill, onLoggedIn = ::goHome) }
         composable<Route.AddFolder> { entry ->
             val route = entry.toRoute<Route.AddFolder>()
             AddFolderScreen(route.folderId, route.focus, onDone = { switched ->
@@ -416,61 +442,193 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 if (switched || !nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
             })
         }
-        composable<Route.Home> {
-            HomeScreen(
-                onOpenItem = { openItem(it.id) },
-                onOpenLibrary = ::openLibrary,
-                onOpenSettings = { nav.navigate(Route.Settings) },
-                onAddFolder = { nav.navigate(Route.AddFolder()) },
-                onOpenSearch = { nav.navigate(Route.Search) },
-            )
+        composable<Route.Home> { entry ->
+            val context = LocalContext.current
+            val ahead = rememberPicturesAhead()
+            WithSource(source) {
+                HomeScreen(
+                    nav.homeActions(
+                        HomeActions(
+                            onPlay = { item, resume -> onPlay(item, resume, PlayOrigin(entry.id)) },
+                            onClearProblem = app.playback::clearProblem,
+                            onOpenItem = { openItem(it.id) },
+                            onAddFolder = { nav.navigate(Route.AddFolder()) },
+                            onLibraryAhead = { library, sagas ->
+                                app.libraryAhead.ask(app.scope, library, sagas, ahead, context.imageLoader)
+                            },
+                        ),
+                    ),
+                    playProblem = playProblem?.takeIf { it.origin.screen == entry.id }?.error,
+                )
+            }
+        }
+        composable<Route.Watch> { entry ->
+            WithSource(source) { WatchPage(nav, entry, onOpenItem = { openItem(it.id) }) }
         }
         composable<Route.Search> {
-            SearchScreen(onOpenItem = { found -> openItem(found.id) }, onOpenPerson = { id -> nav.navigate(Route.Person(id)) })
+            WithSource(source) {
+                SearchScreen(onOpenItem = { found -> openItem(found.id) }, onOpenPerson = { id -> nav.navigate(Route.Person(id)) })
+            }
         }
         composable<Route.Library> { entry ->
             val route = entry.toRoute<Route.Library>()
-            val library = Library(id = route.id, kind = route.kind, title = route.title?.ifBlank { null })
-            LibraryScreen(
-                library = library,
-                title = library.title ?: libraryName(library.kind),
-                onOpenItem = { openItem(it.id) },
-                opensOn = route.filter,
-                personName = route.personName,
-                sagas = route.sagas?.let { Library(id = it, kind = LibraryKind.COLLECTIONS, title = null) },
-            )
+            WithSource(source) {
+                LibraryScreen(
+                    library = route.wallLibrary,
+                    title = route.wallTitle(libraryName(route.kind)),
+                    onOpenItem = { openItem(it.id) },
+                    opensOn = route.filter,
+                    personName = route.personName,
+                    sagas = route.sagasLibrary,
+                )
+            }
         }
         composable<Route.Item> { entry ->
-            DetailScreen(
-                itemId = entry.toRoute<Route.Item>().id,
-                onPlay = onPlay,
-                onOpenItem = ::openItem,
-                onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
-                onIdentify = { nav.navigate(Route.Identify(it)) },
-                onOpenPerson = { nav.navigate(Route.Person(it)) },
-            )
+            WithSource(source) {
+                DetailScreen(
+                    itemId = entry.toRoute<Route.Item>().id,
+                    screen = entry.id,
+                    onPlay = onPlay,
+                    onOpenItem = ::openItem,
+                    onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
+                    onIdentify = { nav.navigate(Route.Identify(it)) },
+                    onOpenPerson = { nav.navigate(Route.Person(it)) },
+                )
+            }
         }
         composable<Route.Artwork> { entry ->
             val route = entry.toRoute<Route.Artwork>()
-            ArtworkScreen(itemId = route.id, kind = route.kind, onDone = { nav.popBackStack() })
+            WithSource(source) { ArtworkScreen(itemId = route.id, kind = route.kind, onDone = { nav.popBackStack() }) }
         }
         composable<Route.Identify> { entry ->
-            IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() })
+            WithSource(source) { IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() }) }
         }
-        composable<Route.Person> { entry -> PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
+        composable<Route.Person> { entry ->
+            WithSource(source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
+        }
         composable<Route.Settings> {
             // Source changes keep Settings on the back stack: Back returns to it, the source unchanged.
-            SettingsScreen(
-                onFolderForm = { folderId, focus -> nav.navigate(Route.AddFolder(folderId, focus)) },
-                onUseFolders = ::useFolders,
-                onSignIn = { nav.navigate(Route.JellyfinLogin) },
-                onOpenCatalog = { nav.navigate(Route.Catalog) },
-                onOpenWall = { library, filter -> nav.navigate(Route.Library.of(library, filter)) },
-                onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
-            )
+            WithSource(source) {
+                SettingsScreen(
+                    onFolderForm = { folderId, focus -> nav.navigate(Route.AddFolder(folderId, focus)) },
+                    onUseFolders = ::useFolders,
+                    onSignIn = { nav.navigate(Route.JellyfinLogin.of(it)) },
+                    onSourceResumed = ::goHome,
+                    onOpenCatalog = { nav.navigate(Route.Catalog) },
+                    onOpenWall = nav::openWall,
+                    onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
+                )
+            }
         }
         // Debug builds only: every component in its states, for design review.
         if (BuildConfig.DEBUG) composable<Route.Catalog> { CatalogScreen() }
+    }
+    WelcomeWhenLost(nav, source)
+    // A play's problem belongs to the screen it was asked from: another one shown clears it.
+    LaunchedEffect(nav) { nav.currentBackStackEntryFlow.collect { app.playback.screenShown(it.id) } }
+}
+
+/** « À regarder » at [entry], on the row it was opened on, with home's rows as home read them: what its doors showed. */
+@Composable
+private fun WatchPage(nav: NavController, entry: NavBackStackEntry, onOpenItem: (MediaItem) -> Unit) {
+    val row = entry.toRoute<Route.Watch>().watchRow
+    val owner = remember(entry) { nav.watchOwner(entry) }
+    val vm: HomeViewModel = viewModel(owner, factory = HomeViewModel.factory(appContainer()))
+    WatchScreen(vm, row, onOpenItem)
+}
+
+/** Whose state « À regarder » at [entry] shares: home's beneath it, so it shows the rows home read, read once; else its own. */
+internal fun NavController.watchOwner(entry: NavBackStackEntry): NavBackStackEntry = homeEntry() ?: entry
+
+/** Home's entry in the back stack, beneath every other screen; null when it is not there. */
+internal fun NavController.homeEntry(): NavBackStackEntry? = try {
+    getBackStackEntry<Route.Home>()
+} catch (_: IllegalArgumentException) {
+    null
+}
+
+// A wall is a page over the screen that opens it, home or another page: Back goes back to that screen.
+
+/** Home's doors wired to the pages they open over it; the rest of what home does, from [base]. */
+internal fun NavController.homeActions(base: HomeActions = HomeActions()): HomeActions = base.copy(
+    onOpenWatch = { row -> openOnce(Route.Watch.of(row)) },
+    onOpenLibrary = { library, sagas -> openLibrary(library, sagas) },
+    onOpenSagas = { films, sagas -> openSagas(films, sagas) },
+    onOpenSearch = { openOnce(Route.Search) },
+    onOpenSettings = { openOnce(Route.Settings) },
+)
+
+/** Opens [library]'s whole wall, a films' wall with the source's [sagas] among its films. */
+internal fun NavController.openLibrary(library: Library, sagas: Library? = null) =
+    openWall(Route.Library(library.id, library.kind, library.title, sagas = sagas?.id))
+
+/** Opens the films' wall ([films]) on the source's [sagas] alone; without a films library, the sagas' own wall. */
+internal fun NavController.openSagas(films: Library?, sagas: Library) = openWall(
+    if (films != null) {
+        Route.Library(films.id, films.kind, films.title, sagas = sagas.id, view = WallView.SAGAS.name)
+    } else {
+        Route.Library(sagas.id, sagas.kind, sagas.title)
+    },
+)
+
+/** Opens [library]'s wall filtered by [filter]. */
+internal fun NavController.openWall(library: Library, filter: LibraryFilter) = openWall(Route.Library.of(library, filter))
+
+// OK pressed twice before a page shows asks for it twice: the second finds it on top and opens nothing.
+
+/** Opens the wall of [route], unless that very wall is on top; another wall opens over it. */
+private fun NavController.openWall(route: Route.Library) {
+    val top = currentBackStackEntry?.takeIf { it.destination.hasRoute<Route.Library>() }?.toRoute<Route.Library>()
+    if (top != route) navigate(route)
+}
+
+/** Opens the page of [route], one of a kind, unless it is on top. */
+private fun NavController.openOnce(route: Any) = navigate(route) { launchSingleTop = true }
+
+/** [content], a screen that shows the source, composed only while there is one ([source]): it would read it at once. */
+@Composable
+private fun WithSource(source: SourceConfig?, content: @Composable () -> Unit) {
+    if (source != null) content()
+}
+
+/**
+ * Sends a screen that shows the source to the welcome screen, alone, while there is none ([shownSource]): no folder
+ * left, or restored after the process died, its connection could not be read back. Apart, so that only it follows each
+ * navigation.
+ */
+@Composable
+internal fun WelcomeWhenLost(nav: NavHostController, source: SourceConfig?) {
+    val entry by nav.currentBackStackEntryAsState()
+    val lost = mustWelcome(source, entry?.destination)
+    LaunchedEffect(lost) { if (lost) nav.navigate(Route.Welcome) { popUpTo(0) { inclusive = true } } }
+}
+
+/**
+ * The source the screens show, derived and never stored: [source], but none for the folders without a folder
+ * ([hasFolders]), which the welcome screen replaces as on a first launch.
+ */
+internal fun shownSource(source: SourceConfig?, hasFolders: Boolean): SourceConfig? =
+    source.takeUnless { it == SourceConfig.Local && !hasFolders }
+
+/**
+ * "Mes fichiers": the folders added before become the source, then [goHome]; a server left stays kept unless
+ * [keepServer] is false. Without a folder, [addFolder] opens the form; signing out instead leaves no library, and the
+ * welcome screen follows ([WelcomeWhenLost]).
+ */
+internal suspend fun chooseFolders(
+    keepServer: Boolean,
+    hasFolders: suspend () -> Boolean,
+    sources: SourceSwitcher,
+    addFolder: () -> Unit,
+    goHome: () -> Unit,
+) {
+    when {
+        hasFolders() -> {
+            sources.switchTo(SourceConfig.Local, keepServer)
+            goHome()
+        }
+        keepServer -> addFolder()
+        else -> sources.switchTo(SourceConfig.Local, keepServer = false)
     }
 }
 
@@ -483,9 +641,44 @@ private fun SettingsUnread(settings: SettingsStore) {
     }
 }
 
+/** The screens shown without a source: the welcome screen and the forms that set one up. */
+private val SETUP_SCREENS = listOf(Route.Welcome::class, Route.JellyfinLogin::class, Route.AddFolder::class)
+
+/** Whether the screen at [destination] gives way to the welcome screen: there is no source and it would show one. */
+internal fun mustWelcome(source: SourceConfig?, destination: NavDestination?): Boolean =
+    source == null && destination != null && SETUP_SCREENS.none { destination.hasRoute(it) }
+
+/**
+ * Passes [event] on ([pass]) unless nothing must be chosen unseen: under the launch screen ([covered]) only system keys
+ * pass, Back included; while the lights go down ([dimming]) Back cancels the cue ([cancel]) and other non-system keys
+ * are swallowed, so a second OK never plays twice. Menu, though a system key, opens options: it is swallowed too.
+ */
+internal fun dispatchUnseen(
+    event: KeyEvent,
+    covered: Boolean,
+    dimming: Boolean,
+    cancel: () -> Unit,
+    pass: (KeyEvent) -> Boolean,
+): Boolean {
+    val system = event.isSystem && event.keyCode != KeyEvent.KEYCODE_MENU
+    return when {
+        covered && !system -> true
+        !dimming -> pass(event)
+        event.keyCode == KeyEvent.KEYCODE_BACK -> {
+            if (event.action == KeyEvent.ACTION_UP) cancel()
+            true
+        }
+        system -> pass(event)
+        else -> true
+    }
+}
+
+/** Started, if only paused under an overlay: Home always stops the app, so the player never opens from behind. */
+internal fun Lifecycle.onScreen(): Boolean = currentState.isAtLeast(Lifecycle.State.STARTED)
+
 /** Navigates to where an error is fixed; retrying is left to each screen. */
 private fun NavHostController.fixError(action: ErrorAction) = when (action) {
-    ErrorAction.RECONNECT -> navigate(Route.JellyfinLogin)
+    ErrorAction.RECONNECT -> navigate(Route.JellyfinLogin())
     ErrorAction.ADD_TMDB_KEY, ErrorAction.EDIT_TMDB_KEY -> navigate(Route.Settings)
     ErrorAction.RETRY -> Unit
 }

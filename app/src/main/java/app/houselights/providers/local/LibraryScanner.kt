@@ -5,6 +5,7 @@ import android.util.Log
 import app.houselights.core.FailureKind
 import app.houselights.core.NfoParser
 import app.houselights.core.NoTmdbKeyException
+import app.houselights.core.RepeatedFailures
 import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.CoroutineScope
@@ -69,8 +70,13 @@ class LibraryScanner(
 
     private val _changed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
-    /** Emits while scanning, so screens show new entries progressively. */
+    /** Emits for a change screens show at once: an edit, a folder removed, the end of a pass that changed the library. */
     val changed: SharedFlow<Unit> = _changed
+
+    private val _progress = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** Emits while a pass writes, so screens show new entries progressively. */
+    val progress: SharedFlow<Unit> = _progress
 
     private val _passEnded = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
 
@@ -79,10 +85,16 @@ class LibraryScanner(
 
     private val lock = Mutex()
 
-    private val files = ScanFiles(dao, artwork, browsers)
+    private val files = ScanFiles(artwork, browsers)
+
+    /** Files whose processing fails, often at every pass: each logged whole the first time, then counted. */
+    private val failures = RepeatedFailures(TAG)
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
     private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
+
+    /** Rows this process saw missing, timed on [elapsed] as the wall clock can jump. */
+    private val sightings = MissingSightings(elapsed)
 
     /** Scans every source; [asked] (user-initiated, unlike [scanIfStale]) retries unmatched titles on TMDB at once. */
     fun scanAll(refreshMetadata: Boolean = false, asked: Boolean = true) {
@@ -212,8 +224,13 @@ class LibraryScanner(
     private val askTmdbAgain = AtomicBoolean(false)
 
     private suspend fun cleanupLocked(): CleanupResult {
-        val orphanCast = dao.deleteOrphanCredits()
-        dao.deleteOrphanSearchWords()
+        // One transaction for the three, on a device where each costs a sync to storage.
+        var orphanCast = 0
+        dao.inTransaction {
+            orphanCast = dao.deleteOrphanCredits()
+            dao.deleteOrphanSearchWords()
+            dao.deleteOrphanTrackChoices()
+        }
         // Based on library references, not on the NAS listing, so an unreachable NAS never deletes artwork.
         val result = artwork.sweep(dao.cachedArtworkPaths())
         if (result.deletedFiles > 0 || orphanCast > 0) {
@@ -223,6 +240,7 @@ class LibraryScanner(
     }
 
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
+        stoppedAfterWriting = false
         // Under the lock, as an identification reads and fills the indexers' per-pass state.
         lock.withLock {
             movies.startPass()
@@ -274,8 +292,8 @@ class LibraryScanner(
             lastScanEnd = elapsed()
             closeIdle()
         }
-        // No change, no refresh of the screens.
-        if (changed) _changed.emit(Unit)
+        // No change, no refresh of the screens; titles a folder wrote before it stopped are one, its progress showed them.
+        if (changed || stoppedAfterWriting) _changed.emit(Unit)
         _passEnded.tryEmit(changed)
     }
 
@@ -337,7 +355,7 @@ class LibraryScanner(
         val files = stacks.titles
         val sidecars = Sidecars(listing.sidecars, files, stacks)
         if (found.videos.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
-        val missing = settleMissing(source.kind, listed, listing, stacks)
+        val missing = settleMissing(source, listed, listing, stacks)
         // Renamed files moved their rows, and films their parts, so reload the known files.
         val rewritten = missing.relinked.isNotEmpty() || missing.parts.isNotEmpty()
         val known = (if (rewritten) dao.knownFiles(source.id) else listed).associateBy { it.filePath }
@@ -352,7 +370,7 @@ class LibraryScanner(
         val own = files.filterNot { it.relativePath in waiting }.associateWith { work(it) }.filterValues { it != null }
         // When a show's own sidecars changed and none of its episodes is read in full, one episode reads them.
         val forShows = showsToRead(source, files, own.filterValues { it == Work.FULL }.keys, known, sidecars)
-        val todo = own.keys.toList() + forShows.keys.filterNot { it in own }
+        val todo = inOrder(own, forShows)
         _state.update { it.copy(total = todo.size) }
         Log.i(
             TAG,
@@ -367,7 +385,7 @@ class LibraryScanner(
         dao.markScanned(source.id, clock())
         // Renames and part changes count even without a re-read, as screens show file names and parts.
         val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || missing.parts.isNotEmpty() || written > 0
-        if (changed) _changed.emit(Unit)
+        if (changed) _progress.emit(Unit)
         return changed
     }
 
@@ -378,30 +396,47 @@ class LibraryScanner(
         return if (apart.isEmpty()) all else Stacks.of(kind, videos, apart)
     }
 
-    /** Re-evaluates [due] per file, as TMDB may close meanwhile; returns how many files changed the library. */
+    /** Whether a folder of the pass under way stopped after writing titles, which its end then tells screens of. */
+    private var stoppedAfterWriting = false
+
+    /**
+     * Re-evaluates [due] per file, as TMDB may close meanwhile; returns how many files changed the library. A file
+     * that failed at an earlier pass and fails again the same way is counted in one line rather than logged whole.
+     */
     private suspend fun processAll(folder: Folder, todo: List<RemoteFile>, due: (RemoteFile) -> Work?): Int {
         var unreachable = 0
         var written = 0
         var told = 0
-        todo.forEachIndexed { index, file ->
-            val work = due(file) ?: return@forEachIndexed
-            waitForThePlayer()
-            _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
-            suspendRunCatching { process(folder, file, work) }.onSuccess { wrote ->
-                unreachable = 0
-                if (wrote) written++
-            }.onFailure { e ->
-                Log.w(TAG, "Failed on ${file.relativePath}", e)
-                // A new file may have been inserted before failing.
-                if (folder.known[file.relativePath] == null) written++
-                if (ScanErrors.isUnreachable(e)) unreachable++
-                // Device full or NAS unreachable: every remaining file would fail the same way, after long timeouts.
-                if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) throw e
+        val source = folder.pass.source
+        try {
+            todo.forEachIndexed { index, file ->
+                val work = due(file) ?: return@forEachIndexed
+                waitForThePlayer()
+                _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
+                val key = "${source.id}/${file.relativePath}"
+                suspendRunCatching { process(folder, file, work) }.onSuccess { wrote ->
+                    unreachable = 0
+                    failures.recovered(key)
+                    if (wrote) written++
+                }.onFailure { e ->
+                    failures.failed(key, "Failed on ${file.relativePath}", e)
+                    // A new file may have been inserted before failing.
+                    if (folder.known[file.relativePath] == null) written++
+                    if (ScanErrors.isUnreachable(e)) unreachable++
+                    // Device full or NAS unreachable: every remaining file would fail the same way, after long timeouts.
+                    if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) {
+                        if (written > 0) stoppedAfterWriting = true
+                        throw e
+                    }
+                }
+                if (index % TELL_EVERY == TELL_EVERY - 1 && written > told) {
+                    told = written
+                    _progress.emit(Unit)
+                }
             }
-            if (index % TELL_EVERY == TELL_EVERY - 1 && written > told) {
-                told = written
-                _changed.emit(Unit)
-            }
+        } finally {
+            failures.summarize { "${source.name}: files failing again, each logged at an earlier pass: $it" }
+            files.summarize(source)
         }
         return written
     }
@@ -436,6 +471,15 @@ class LibraryScanner(
     }
 
     private data class ShowFolder(val dir: String, val seriesId: Long, val name: String)
+
+    /**
+     * Files to read in full first, then those of [forShows], then headers to read again ([Work.PROBE]): after a new
+     * probe version, these may take the whole pass, and a new film should not wait for them.
+     */
+    private fun inOrder(own: Map<RemoteFile, Work?>, forShows: Map<RemoteFile, Long>): List<RemoteFile> {
+        val (probes, reads) = own.keys.partition { own[it] == Work.PROBE && it !in forShows }
+        return reads + forShows.keys.filterNot { it in own } + probes
+    }
 
     /** [work], except that a file picked by [showsToRead] gets a full read unless its show was read this pass. */
     private fun stillDue(work: (RemoteFile) -> Work?, forShows: Map<RemoteFile, Long>): (RemoteFile) -> Work? =
@@ -486,8 +530,9 @@ class LibraryScanner(
             )
         }
 
+    /** Without what screens never show: the probe's version and whether the tracks are in the file's order. */
     private fun unstamped(mediaInfo: String?): String? =
-        MediaProbe.decode(mediaInfo)?.copy(probedWith = 0)?.let(MediaProbe::encode) ?: mediaInfo
+        MediaProbe.decode(mediaInfo)?.copy(probedWith = 0, tracksInOrder = false)?.let(MediaProbe::encode) ?: mediaInfo
 
     /**
      * Checks free space too: on a full disk SQLite rolls back by itself and Room's rollback then fails ("cannot
@@ -507,10 +552,17 @@ class LibraryScanner(
         started.first { it }
     }
 
-    private suspend fun settleMissing(kind: SourceKind, known: List<KnownFile>, listing: Listing, stacks: Stacks): MissingFiles.Outcome {
+    private suspend fun settleMissing(
+        source: SourceEntity,
+        known: List<KnownFile>,
+        listing: Listing,
+        stacks: Stacks,
+    ): MissingFiles.Outcome {
         val now = clock()
-        val missing = MissingFiles.settle(kind, known, listing, now, stacks)
+        val time = MissingFiles.PassTime(now, source.lastScanAt, sightings::seenLong)
+        val missing = MissingFiles.settle(source.kind, known, listing, time, stacks)
         lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, now) }
+        sightings.note(known, missing)
         return missing
     }
 

@@ -22,16 +22,13 @@ import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.JellyfinClient
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.FolderCounts
-import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
-import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.TmdbClient
-import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.providers.local.TmdbKeyCheck
-import app.houselights.providers.local.address
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.Hl
@@ -60,8 +57,8 @@ import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
@@ -74,16 +71,19 @@ import java.util.Locale
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
-    onUseFolders: () -> Unit,
-    onSignIn: () -> Unit,
+    sources: SourceDoors,
     rows: PaneRows,
 ) {
     when (val source = s.source) {
         SourceConfig.Local -> {
-            item { Section(stringResource(R.string.section_source), aside = librarySummary()) { Showcases(rows, onEdit = onFolderForm) } }
+            item {
+                Section(stringResource(R.string.section_source), aside = librarySummary()) {
+                    Showcases(rows, onEdit = onFolderForm, onResumed = sources.resumed)
+                }
+            }
             item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, rows) }
             item { FilmData() }
-            item { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE)) } }
+            item { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(sources, rows.focus(SOURCE)) } }
         }
         is SourceConfig.Jellyfin -> {
             item {
@@ -111,9 +111,9 @@ internal fun LazyListScope.libraryPane(
                         stringResource(R.string.reconnect),
                         rows.focus("reconnect"),
                         description = source.userName,
-                        onClick = onSignIn,
+                        onClick = { sources.signIn(LoginFill.Current) },
                     )
-                    SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
+                    SourceRow(sources, rows.focus(SOURCE))
                 }
             }
         }
@@ -135,15 +135,19 @@ private fun librarySummary(): String? {
     )
 }
 
-/** One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. */
+/**
+ * One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. The last
+ * one removed gives way to the kept server, its home then shown ([onResumed]), else to the welcome screen.
+ */
 @Composable
-private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit) {
+private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit, onResumed: () -> Unit) {
     val vm = settingsViewModel()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
+    val kept = vm.settings.collectAsStateWithLifecycle().value.keptServer
     val scan by vm.library.scan.collectAsStateWithLifecycle()
     // Collected once for all showcases: each scan write re-runs it.
     val counts by vm.library.folderCounts.collectAsStateWithLifecycle(emptyMap())
-    var actionsFor by remember { mutableStateOf<SourceEntity?>(null) }
+    var actionsFor by remember { mutableStateOf<Folder?>(null) }
     // The folder being removed, and where focus goes once its showcase has gone.
     var removing by remember { mutableStateOf<Pair<Long, FocusRequester>?>(null) }
     LaunchedEffect(sources) {
@@ -172,8 +176,14 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
         }
     }
     actionsFor?.let { source ->
+        val last = vm.isLast(source, sources)
         SourceActions(
             source,
+            consequence = when {
+                !last -> stringResource(R.string.remove_folder_desc)
+                kept != null -> stringResource(R.string.remove_last_folder_kept_desc, serverName(kept))
+                else -> stringResource(R.string.remove_last_folder_desc)
+            },
             error = scan.errors[source.id],
             onDismiss = { actionsFor = null },
             onEdit = { focus -> onEdit(source.id, focus) },
@@ -181,16 +191,20 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
             onRemove = {
                 val next = sources.getOrNull(sources.indexOfFirst { it.id == source.id } + 1)
                 removing = source.id to rows.requester(next?.let { folderRow(it.id) } ?: ADD_FOLDER)
-                vm.removeFolder(source)
+                vm.removeFolder(source, last, onResumed)
             },
         )
     }
 }
 
-/** A folder's sheet: scan, edit or remove (confirmed in place); Edit comes first after a failure it can fix. */
+/**
+ * A folder's sheet: scan, edit or remove (confirmed in place, saying its [consequence]); Edit comes first after a failure
+ * it can fix.
+ */
 @Composable
 private fun SourceActions(
-    source: SourceEntity,
+    source: Folder,
+    consequence: String,
     error: ScanError?,
     onDismiss: () -> Unit,
     onEdit: (focus: FolderField) -> Unit,
@@ -208,15 +222,14 @@ private fun SourceActions(
         onDismiss = onDismiss,
         facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }),
         badges = listOf(source.protocol.name),
-        description = source.address(withScheme = false),
+        description = source.address,
         artwork = if (posters.isEmpty()) {
             null
         } else {
             {
                 // Its latest posters, as tall as the title block; empty frames for the slots left.
-                val images = remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } }
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-                    repeat(HEADER_POSTERS) { PosterThumb(images.getOrNull(it), width = null) }
+                    repeat(HEADER_POSTERS) { PosterThumb(posters.getOrNull(it), width = null) }
                 }
             }
         },
@@ -224,7 +237,7 @@ private fun SourceActions(
     ) { sheet ->
         SheetConfirm(
             question = stringResource(R.string.remove_folder_confirm, sourceName(source)),
-            consequence = stringResource(R.string.remove_folder_desc),
+            consequence = consequence,
             confirm = stringResource(R.string.remove),
             onConfirm = { sheet.dismiss(onRemove) },
         ) { ask, origin ->
@@ -276,12 +289,12 @@ internal fun editFixes(error: ScanError?): ScanErrorKind? = error?.kind?.takeIf 
 }
 
 @Composable
-private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it.uppercase() }
+private fun sourceName(source: Folder) = source.name.replaceFirstChar { it.uppercase() }
 
 /** A folder's [Showcase]: its [counts] (null until read), its last scan, or what it is doing ([scan], [removing]). */
 @Composable
 private fun FolderShowcase(
-    source: SourceEntity,
+    source: Folder,
     counts: FolderCounts?,
     scan: ScanState?,
     error: ScanError?,
@@ -299,7 +312,7 @@ private fun FolderShowcase(
     Showcase(
         name = sourceName(source),
         mark = source.protocol.name,
-        posters = remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } },
+        posters = posters,
         onClick = onClick,
         modifier = modifier,
         // Never read is no state done: a plain fact, first as the state would be; then its figures, the first in
@@ -426,7 +439,7 @@ private fun CollectionsRow() {
 private fun MetadataLanguageRow() {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    val device by appContainer().deviceLocale.collectAsStateWithLifecycle()
+    val device by vm.deviceLocale.collectAsStateWithLifecycle()
     val tags = remember { TmdbClient.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::metadataLanguageName)) }
     var choosing by remember { mutableStateOf(false) }
     val failure = rowFailure(vm.errorOf(SettingAction.METADATA_LANGUAGE))
@@ -466,104 +479,232 @@ private fun metadataLanguageName(tag: String, locale: Locale = Locale.forLanguag
     return name.replaceFirstChar { it.titlecase(locale) }
 }
 
-/** The current source and what changing it keeps; OK opens [SourceSheet]. */
+/** The Source row as Settings has it, each choice of its sheet carried out. */
 @Composable
-private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit, modifier: Modifier = Modifier) {
+private fun SourceRow(doors: SourceDoors, modifier: Modifier = Modifier) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    var choose by remember { mutableStateOf(false) }
-    val server = s.source is SourceConfig.Jellyfin
-    // Switching to the folders failed (storage): shown here, where focus returns.
-    val failure = rowFailure(vm.errorOf(SettingAction.SOURCE))
-    HlSettingRow(
-        stringResource(R.string.change_source_row),
-        modifier,
-        value = failure?.value ?: stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
-        description = stringResource(sourceKeeps(s.source)),
-        valueAttention = failure != null,
-        onClick = { choose = true },
-    )
-    RowFailureNote(failure)
-    if (choose) {
-        // Both choices open another screen: the sheet closes at once.
-        SourceSheet(
-            source = s.source,
-            onDismiss = { choose = false },
-            onUseFolders = {
-                choose = false
-                onUseFolders()
-            },
-            onSignIn = {
-                choose = false
-                onSignIn()
-            },
-        )
-    }
-}
-
-/** What changing from [source] keeps, under the row and atop its sheet. */
-private fun sourceKeeps(source: SourceConfig?): Int =
-    if (source is SourceConfig.Jellyfin) R.string.change_source_jellyfin_desc else R.string.change_source_local_desc
-
-/** Folders or a Jellyfin server, the current one checked; leaving a server for the folders asks first. */
-@Composable
-private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit) {
-    val vm = settingsViewModel()
     val folders by vm.library.folders.collectAsStateWithLifecycle(emptyList())
-    val server = source as? SourceConfig.Jellyfin
-    val local = remember { FocusRequester() }
-    val jellyfin = remember { FocusRequester() }
-    val serverName = server?.serverName ?: stringResource(R.string.source_jellyfin)
-    HlSideSheet(
-        title = stringResource(R.string.change_source),
-        onDismiss = onDismiss,
-        facts = listOf(if (server != null) serverName else stringResource(R.string.source_local)) + sourceFacts(server),
-        description = stringResource(sourceKeeps(source)),
-        initialFocus = if (server != null) jellyfin else local,
-    ) { sheet ->
-        SheetConfirm(
-            question = stringResource(R.string.sign_out_confirm, serverName),
-            consequence = stringResource(if (folders.isEmpty()) R.string.sign_out_first_folder else R.string.sign_out_desc),
-            confirm = stringResource(R.string.sign_out),
-            onConfirm = onUseFolders,
-        ) { ask, origin ->
-            HlSettingGroup(null) {
-                HlSettingRow(
-                    stringResource(R.string.source_local),
-                    origin.focusRequester(local),
-                    description = foldersLine(folders.size),
-                    icon = HlIcons.Folder,
-                    onClick = {
-                        when {
-                            source is SourceConfig.Jellyfin -> ask()
-                            source == SourceConfig.Local && folders.isNotEmpty() -> sheet.dismiss()
-                            else -> onUseFolders()
-                        }
-                    },
-                    trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
-                )
-                HlSettingRow(
-                    stringResource(R.string.source_jellyfin),
-                    Modifier.focusRequester(jellyfin),
-                    description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
-                    icon = HlIcons.Server,
-                    onClick = onSignIn,
-                    trailing = if (server != null) ({ ChoiceCheck() }) else null,
-                )
+    val titles by vm.library.titleCount.collectAsStateWithLifecycle(0)
+    // Switching failed (storage), or the kept server could not be resumed or forgotten: shown here, where focus returns.
+    val failure = rowFailure(vm.errorOf(SettingAction.SOURCE)) ?: rowFailure(vm.errorOf(SettingAction.KEPT_SERVER), notDone = true)
+    SourceSetting(
+        SourceSheetFacts(s.source, s.keptServer, folders.size, titles, trakt = s.trakt?.ended == false),
+        failure,
+        resuming = vm.resuming,
+        modifier,
+    ) { choice ->
+        when (choice) {
+            is SourceChoice.Folders -> doors.useFolders(true)
+            // A token the server refuses: the sign-in opens filled in, on the password.
+            is SourceChoice.Server -> vm.resumeServer(choice.server, doors.resumed) { refused ->
+                doors.signIn(LoginFill.Server(refused.serverUrl, refused.userName))
             }
+            is SourceChoice.SignIn -> doors.signIn(LoginFill.Blank)
+            is SourceChoice.Leave -> if (choice.current) doors.useFolders(false) else vm.forgetServer()
         }
     }
 }
 
-/** Facts under the current source's name: the server's kind and user, or the folders' title count. */
+/**
+ * The current source and what changing it keeps; OK opens [SourceSheet], whose every choice closes it at once. While
+ * the kept server is asked ([resuming]) the row says so and OK does nothing: its coming back would undo a choice made
+ * meanwhile, or leave the sign-in being typed.
+ */
 @Composable
-private fun sourceFacts(server: SourceConfig.Jellyfin?): List<String?> {
-    val titles by settingsViewModel().library.titleCount.collectAsStateWithLifecycle(0)
-    return if (server != null) {
-        listOf(stringResource(R.string.source_jellyfin).takeIf { server.serverName != null }, server.userName)
-    } else {
-        listOf(pluralStringResource(R.plurals.title_count, titles, titles))
+internal fun SourceSetting(
+    facts: SourceSheetFacts,
+    failure: RowFailure?,
+    resuming: Boolean,
+    modifier: Modifier = Modifier,
+    onChoose: (SourceChoice) -> Unit,
+) {
+    var choose by remember { mutableStateOf(false) }
+    HlSettingRow(
+        stringResource(R.string.change_source_row),
+        modifier,
+        value = when {
+            resuming -> stringResource(R.string.signing_in)
+            failure != null -> failure.value
+            else -> stringResource(if (facts.source is SourceConfig.Jellyfin) R.string.source_jellyfin else R.string.source_local)
+        },
+        description = stringResource(sourceKeeps(facts.source)),
+        valueAttention = failure != null,
+        onClick = { if (!resuming) choose = true },
+    )
+    RowFailureNote(failure)
+    if (choose) {
+        SourceSheet(facts, onDismiss = { choose = false }) { choice ->
+            choose = false
+            onChoose(choice)
+        }
     }
+}
+
+/** What changing from [source] keeps, under the Source row. */
+private fun sourceKeeps(source: SourceConfig?): Int =
+    if (source is SourceConfig.Jellyfin) R.string.change_source_jellyfin_desc else R.string.change_source_local_desc
+
+/** What the source sheet shows: the source, the server [kept] beside the folders, their count and titles, Trakt connected. */
+internal data class SourceSheetFacts(
+    val source: SourceConfig?,
+    val kept: SourceConfig.Jellyfin?,
+    val folders: Int,
+    val titles: Int,
+    val trakt: Boolean,
+)
+
+/** What a row of the source sheet does. */
+internal sealed interface SourceChoice {
+    /** The folders, checked while they are the source; Trakt resumes once a server is left for them ([traktResumes]). */
+    data class Folders(val current: Boolean, val traktResumes: Boolean) : SourceChoice
+
+    /** [server], checked while it is the source, else the one kept beside the folders, resumed without signing in. */
+    data class Server(val server: SourceConfig.Jellyfin, val current: Boolean) : SourceChoice
+
+    /** A Jellyfin server to sign in to; [another] beside one in use or kept. */
+    data class SignIn(val another: Boolean) : SourceChoice
+
+    /** Signs out of [server] while it is the source ([current]), else forgets the kept one; asked first. */
+    data class Leave(val server: SourceConfig.Jellyfin, val current: Boolean) : SourceChoice
+}
+
+/** The sheet's rows for [source] and the server [kept] beside the folders, then the one apart that leaves a server, if any. */
+internal fun sourceChoices(
+    source: SourceConfig?,
+    kept: SourceConfig.Jellyfin?,
+    trakt: Boolean,
+): Pair<List<SourceChoice>, SourceChoice.Leave?> {
+    val inUse = source as? SourceConfig.Jellyfin
+    val server = inUse ?: kept
+    val rows = listOfNotNull(
+        SourceChoice.Folders(current = source == SourceConfig.Local, traktResumes = inUse != null && trakt),
+        server?.let { SourceChoice.Server(it, current = inUse != null) },
+        SourceChoice.SignIn(another = server != null),
+    )
+    return rows to server?.let { SourceChoice.Leave(it, current = inUse != null) }
+}
+
+/**
+ * Folders or a Jellyfin server, the current one checked, the kept one resumed in one OK, another server; apart,
+ * forgetting the kept server or signing out of the current one, asked first. Focus starts on what changes the source.
+ * A choice that does something goes to [onChoose].
+ */
+@Composable
+internal fun SourceSheet(facts: SourceSheetFacts, onDismiss: () -> Unit, onChoose: (SourceChoice) -> Unit) {
+    val (choices, leave) = sourceChoices(facts.source, facts.kept, facts.trakt)
+    val server = facts.source as? SourceConfig.Jellyfin
+    val first = remember { FocusRequester() }
+    val firstChoice = choices.firstOrNull { it is SourceChoice.Server && !it.current } ?: choices.first()
+    HlSideSheet(
+        title = stringResource(R.string.change_source),
+        onDismiss = onDismiss,
+        facts = sourceFacts(server, facts.titles),
+        // The head has room for the whole sentence, the row beside its value has not.
+        description = stringResource(if (server != null) R.string.change_source_jellyfin_sheet else R.string.change_source_local_desc),
+        initialFocus = first,
+    ) { sheet ->
+        LeaveConfirm(leave, facts.folders, onChoose) { ask, origin ->
+            HlSettingGroup(null) {
+                choices.forEach { choice ->
+                    SourceChoiceRow(choice, facts.folders, if (choice == firstChoice) Modifier.focusRequester(first) else Modifier) {
+                        if (isCurrent(choice, facts.folders)) sheet.dismiss() else onChoose(choice)
+                    }
+                }
+            }
+            leave?.let { HlSettingGroup(null) { SourceChoiceRow(it, facts.folders, origin, onClick = ask) } }
+        }
+    }
+}
+
+/** [choice] is the source already, with nothing to add: OK only closes the sheet. */
+private fun isCurrent(choice: SourceChoice, folders: Int): Boolean = when (choice) {
+    is SourceChoice.Server -> choice.current
+    is SourceChoice.Folders -> choice.current && folders > 0
+    else -> false
+}
+
+/** [rows], or in their place the question that signs out of the server or forgets the kept one ([leave]). */
+@Composable
+private fun LeaveConfirm(
+    leave: SourceChoice.Leave?,
+    folders: Int,
+    onChoose: (SourceChoice) -> Unit,
+    rows: @Composable (ask: () -> Unit, origin: Modifier) -> Unit,
+) {
+    val signsOut = leave?.current == true
+    val name = leave?.let { serverName(it.server) }.orEmpty()
+    SheetConfirm(
+        question = stringResource(if (signsOut) R.string.sign_out_confirm else R.string.forget_server_confirm, name),
+        consequence = stringResource(
+            when {
+                !signsOut -> R.string.forget_server_consequence
+                folders == 0 -> R.string.sign_out_no_folder_desc
+                else -> R.string.sign_out_desc
+            }
+        ),
+        confirm = stringResource(if (signsOut) R.string.sign_out else R.string.forget),
+        onConfirm = { leave?.let(onChoose) },
+        rows = rows,
+    )
+}
+
+/** [choice] as its row, saying in one line what it is, checked while it is the source. */
+@Composable
+private fun SourceChoiceRow(choice: SourceChoice, folders: Int, modifier: Modifier, onClick: () -> Unit) {
+    when (choice) {
+        is SourceChoice.Folders -> HlSettingRow(
+            stringResource(R.string.source_local),
+            modifier,
+            // Trakt resumes with the folders: said in place of where they are, so that the line holds.
+            description = if (choice.traktResumes && folders > 0) {
+                pluralStringResource(R.plurals.folder_count, folders, folders) + DOT + stringResource(R.string.source_trakt_resumes)
+            } else {
+                foldersLine(folders)
+            },
+            icon = HlIcons.Folder,
+            onClick = onClick,
+            trailing = if (choice.current) ({ ChoiceCheck() }) else null,
+        )
+        is SourceChoice.Server -> HlSettingRow(
+            serverName(choice.server),
+            modifier,
+            description = listOfNotNull(
+                JELLYFIN,
+                choice.server.userName,
+                stringResource(R.string.source_kept_resume).takeUnless { choice.current },
+            ).joinToString(DOT),
+            icon = HlIcons.Server,
+            onClick = onClick,
+            trailing = if (choice.current) ({ ChoiceCheck() }) else null,
+        )
+        is SourceChoice.SignIn -> HlSettingRow(
+            stringResource(if (choice.another) R.string.source_jellyfin_another else R.string.source_jellyfin),
+            modifier,
+            description = stringResource(if (choice.another) R.string.source_jellyfin_another_desc else R.string.source_jellyfin_desc),
+            icon = if (choice.another) HlIcons.Add else HlIcons.Server,
+            onClick = onClick,
+        )
+        is SourceChoice.Leave -> HlSettingRow(
+            stringResource(if (choice.current) R.string.sign_out_server else R.string.forget_server, serverName(choice.server)),
+            modifier,
+            description = stringResource(if (choice.current) R.string.sign_out_server_desc else R.string.forget_server_desc),
+            icon = HlIcons.SignOut,
+            onClick = onClick,
+        )
+    }
+}
+
+/** A server by its own name, else as a Jellyfin server. */
+@Composable
+private fun serverName(server: SourceConfig.Jellyfin): String = server.serverName ?: stringResource(R.string.source_jellyfin)
+
+/** The current source's name and its facts: the server's kind and user, or the folders' [titles]. */
+@Composable
+private fun sourceFacts(server: SourceConfig.Jellyfin?, titles: Int): List<String?> = if (server != null) {
+    listOf(serverName(server), stringResource(R.string.source_jellyfin).takeIf { server.serverName != null }, server.userName)
+} else {
+    listOf(stringResource(R.string.source_local), pluralStringResource(R.plurals.title_count, titles, titles))
 }
 
 /** The folders option's line: the folders added, or the first one to add. */
@@ -573,7 +714,7 @@ private fun foldersLine(count: Int): String =
 
 /** The TMDB key sheet; the outcome lives in the ViewModel, as the sheet may close during the check. */
 @Composable
-private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
+internal fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val attempt = vm.tmdbKey
@@ -662,6 +803,13 @@ private val ACCEPTED = TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED)
 private val REFUSED = TmdbKeySave.Checked(TmdbKeyCheck.REFUSED)
 private val UNCHECKED = TmdbKeySave.Checked(TmdbKeyCheck.UNCHECKED)
 
+/** What TMDB's problem in the last scan means for the titles: a key refused, a certificate refused, or no answer. */
+private fun scanIssueNote(issue: UiError): Int = when (issue) {
+    UiError.TMDB_KEY_REFUSED -> R.string.tmdb_scan_key_refused
+    UiError.CERTIFICATE -> R.string.tmdb_scan_certificate
+    else -> R.string.tmdb_scan_offline
+}
+
 /** The key in use: a lost saved key ([lost]) first, then personal, built-in or none, with the scan's [issue]. */
 @Composable
 private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boolean, lost: Boolean, issue: UiError?) {
@@ -674,7 +822,7 @@ private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boo
         issue != null && (personal || hasBuiltIn) -> HlStatus(
             StatusState.Attention,
             stringResource(if (personal) R.string.tmdb_key_personal else R.string.tmdb_key_builtin_state),
-            detail = stringResource(if (issue == UiError.TMDB_KEY_REFUSED) R.string.tmdb_scan_key_refused else R.string.tmdb_scan_offline),
+            detail = stringResource(scanIssueNote(issue)),
         )
         personal -> HlStatus(
             StatusState.On,
@@ -695,6 +843,12 @@ private const val HEADER_POSTERS = 3
 
 private const val ADD_FOLDER = "add_folder"
 private const val SOURCE = "source"
+
+/** Between the parts of a source row's line ("Jellyfin · léa"). */
+private const val DOT = " · "
+
+/** The server's kind, by its own name in every language. */
+private const val JELLYFIN = "Jellyfin"
 
 /** A folder's showcase's row key. */
 private fun folderRow(id: Long) = "folder-$id"

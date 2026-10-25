@@ -1,5 +1,8 @@
 package app.houselights.ui.settings
 
+import android.content.Context
+import android.content.res.Configuration
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,34 +12,52 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
+import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.core.TraktSession
 import app.houselights.providers.jellyfin.account
 import app.houselights.providers.local.TraktSyncError
 import app.houselights.providers.trakt.DeviceCodeEnd
+import app.houselights.providers.trakt.SkippedEntry
+import app.houselights.providers.trakt.SkippedKind
 import app.houselights.providers.trakt.TraktSyncState
+import app.houselights.settings.AppSettings
+import app.houselights.settings.InterfaceLanguage
+import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HouselightsType
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.testing.FakeTraktLink
 import app.houselights.ui.testing.FakeTraktSync
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.assertSetIn
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.FACT_GAP
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,10 +82,10 @@ class TraktPaneTest {
     private var link = FakeTraktLink(onApproved = { session = lea }).apply { onSignOut = { session = null } }
     private val sync = FakeTraktSync()
 
-    private fun show() {
+    private fun show(folders: Boolean = true) {
         val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
         compose.setTvContent {
-            HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session) } }
+            HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session, folders) } }
         }
     }
 
@@ -194,6 +215,14 @@ class TraktPaneTest {
         compose.onNodeWithText(CONNECT).assertIsFocused()
     }
 
+    /** The account is a name stated, in `subject`: no larger than the pane's title. */
+    @Test
+    fun theAccountIsStatedUnderThePanesTitle() {
+        session = lea
+        show()
+        compose.assertSetIn(HouselightsType.subject, "lea")
+    }
+
     @Test
     fun disconnectingForgetsTheAccountFocusStayingOnTheRow() {
         session = lea
@@ -271,10 +300,268 @@ class TraktPaneTest {
     }
 
     @Test
-    fun theEntryShowsWithTheFoldersOnly() {
-        assertTrue(Pane.Trakt in panesFor(SourceConfig.Local, pathMapping = false, counts = true))
-        assertFalse(Pane.Trakt in panesFor(account, pathMapping = true, counts = true))
-        assertFalse(Pane.Trakt in panesFor(null, pathMapping = false, counts = false))
+    fun aSyncThatReadEverythingShowsNoSkippedRow() {
+        session = lea
+        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis())
+        show()
+        compose.onNodeWithText(SYNC).assertExists()
+        compose.onNodeWithText("ignoré", substring = true).assertDoesNotExist()
+        compose.onNodeWithText(SKIPPED_DESC).assertDoesNotExist()
+    }
+
+    /** Between syncing and disconnecting, as a row like them: the sync went through, nothing asks for attention. */
+    @Test
+    fun whatASyncLeftOutIsCountedBetweenSyncingAndDisconnecting() {
+        session = lea
+        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis(), skipped = listOf(SHOW, PAUSED_FILM))
+        show()
+        compose.onNodeWithText(SKIPPED_DESC).assertExists()
+        compose.onNodeWithText("Non effectué").assertDoesNotExist()
+        val above = compose.onNodeWithText(SYNC).getBoundsInRoot()
+        val row = compose.onNodeWithText("2 éléments ignorés").getBoundsInRoot()
+        val below = compose.onNodeWithText(DISCONNECT).getBoundsInRoot()
+        assertTrue("${above.bottom} ${row.top} ${row.bottom} ${below.top}", above.bottom <= row.top && row.bottom <= below.top)
+    }
+
+    @Test
+    fun okOpensWhatWasLeftOutWhatItHoldsBackAndWhatToDo() {
+        session = lea
+        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis(), skipped = listOf(SHOW, PAUSED_FILM))
+        show()
+        ok("2 éléments ignorés")
+        compose.onNodeWithText(
+            "Trakt les envoie sous une forme que cette version ne sait pas lire, souvent une lecture en pause laissée par une " +
+                "autre application. Le reste est synchronisé, et vos marquages partent normalement.",
+        ).assertExists()
+        compose.onNodeWithText("Breaking Bad").assertExists()
+        compose.onNodeWithText("Historique des épisodes").assertExists()
+        compose.onNodeWithText("The Matrix${FACT_GAP}1999").assertExists()
+        compose.onNodeWithText("Lecture en pause").assertExists()
+        compose.onNodeWithText(EPISODES_HELD).assertExists()
+        compose.onNodeWithText(MOVIES_HELD).assertDoesNotExist()
+        compose.onNodeWithText(
+            "Pour régler$NB: supprimez-les sur trakt.tv, dans Progression ou Historique, ou mettez Houselights à jour quand une " +
+                "version saura les lire.",
+        ).assertExists()
+    }
+
+    /** The sentence on marks held back follows the history read in part, and a pause alone holds nothing back. */
+    @Test
+    fun theMarksHeldBackAreSaidForTheHistoryReadInPartOnly() {
+        var skipped by mutableStateOf(listOf(SkippedEntry(SkippedKind.MOVIE_HISTORY, "Heat", 1995)))
+        compose.setTvContent { SkippedSheet(skipped, onDismiss = {}) }
+        compose.onNodeWithText(MOVIES_HELD).assertExists()
+        compose.onNodeWithText(EPISODES_HELD).assertDoesNotExist()
+
+        skipped = listOf(PAUSED_FILM)
+        compose.onNodeWithText("Lecture en pause").assertExists()
+        compose.onNodeWithText(MOVIES_HELD).assertDoesNotExist()
+        compose.onNodeWithText("Tant que", substring = true).assertDoesNotExist()
+
+        skipped = listOf(SHOW, SkippedEntry(SkippedKind.MOVIE_HISTORY))
+        compose.onNodeWithText(
+            "Tant que l’historique des films et celui des épisodes ne se lisent pas en entier, Houselights n’envoie pas à Trakt " +
+                "les films et les épisodes vus ici qui lui manquent, pour ne pas créer de doublons.",
+        ).assertExists()
+    }
+
+    /** One entry is said in the singular; those Trakt names nothing of are counted on one line of their kind. */
+    @Test
+    fun entriesWithoutATitleAreCountedByKind() {
+        var skipped by mutableStateOf(listOf(SkippedEntry(SkippedKind.PAUSED)))
+        compose.setTvContent { SkippedSheet(skipped, onDismiss = {}) }
+        compose.onNodeWithText("1 élément ignoré").assertExists()
+        compose.onNodeWithText("1 élément sans titre").assertExists()
+        compose.onNodeWithText("Trakt l’envoie", substring = true).assertExists()
+        compose.onNodeWithText("supprimez-le sur", substring = true).assertExists()
+
+        val nameless = SkippedEntry(SkippedKind.PAUSED)
+        skipped = listOf(nameless, PAUSED_FILM, nameless, SkippedEntry(SkippedKind.EPISODE_HISTORY))
+        compose.onNodeWithText("4 éléments ignorés").assertExists()
+        compose.onNodeWithText("2 éléments sans titre").assertExists()
+        compose.onNodeWithText("1 élément sans titre").assertExists()
+        compose.onAllNodesWithText("Lecture en pause", useUnmergedTree = true).assertCountEquals(2)
+    }
+
+    /** Taller than the sheet, Down rings the list and the remote reads the sheet through, its end included. */
+    @Test
+    fun aSheetTallerThanTheScreenIsReadThroughWithTheRemote() {
+        session = lea
+        sync.state.value = TraktSyncState(
+            syncedAt = System.currentTimeMillis(),
+            skipped = (1..12).map { SkippedEntry(SkippedKind.MOVIE_HISTORY, "Film $it") },
+        )
+        show()
+        ok("12 éléments ignorés")
+        compose.onNodeWithText(FIX, substring = true).assertIsNotDisplayed()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
+        // The plate reads as one, its lines merged; its first line is looked for alone.
+        compose.onNode(hasText("Film 1") and isFocused()).assertExists()
+        repeat(12) { compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN) }
+        compose.onNodeWithText(FIX, substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Film 1", useUnmergedTree = true).assertIsNotDisplayed()
+        repeat(12) { compose.pressInSheet(KeyEvent.KEYCODE_DPAD_UP) }
+        compose.onNodeWithText("Film 1", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    /**
+     * A history Trakt changed the shape of leaves hundreds out: ten are named, the rest of each kind counted on one line,
+     * those naming nothing among them, and the fix stays a few presses away.
+     */
+    @Test
+    fun hundredsLeftOutAreNamedTenAndTheRestCountedByKind() {
+        session = lea
+        sync.state.value = TraktSyncState(
+            syncedAt = System.currentTimeMillis(),
+            skipped = (1..600).map { SkippedEntry(SkippedKind.EPISODE_HISTORY, "Série $it") } +
+                SkippedEntry(SkippedKind.EPISODE_HISTORY) + (1..3).map { SkippedEntry(SkippedKind.PAUSED, "Film $it") },
+        )
+        show()
+        ok("604 éléments ignorés")
+        compose.onNodeWithText("Série 10", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Série 11", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("Et 591 autres", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Et 3 autres", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Film 1", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("sans titre", substring = true, useUnmergedTree = true).assertDoesNotExist()
+        repeat(8) { compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN) }
+        compose.onNodeWithText(FIX, substring = true).assertIsDisplayed()
+    }
+
+    /** A sheet that fits takes no focus, as the code's: Back is the one key, and focus is back on the row. */
+    @Test
+    fun aSheetThatFitsTakesNoFocus() {
+        session = lea
+        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis(), skipped = listOf(PAUSED_FILM))
+        show()
+        ok("1 élément ignoré")
+        compose.onNodeWithText(FIX, substring = true).assertIsDisplayed()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNode(hasText("The Matrix${FACT_GAP}1999") and isFocused()).assertDoesNotExist()
+        compose.pressInSheet(KeyEvent.KEYCODE_BACK)
+        compose.onNodeWithText(FIX, substring = true).assertDoesNotExist()
+        compose.onNodeWithText("1 élément ignoré").assertIsFocused()
+    }
+
+    /** The fix is led by its label, set apart, in every language. */
+    @Test
+    fun theFixStartsWithItsLabelInEveryLanguage() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        InterfaceLanguage.LANGUAGES.forEach { tag ->
+            val config = Configuration(context.resources.configuration).apply { setLocale(Locale.forLanguageTag(tag)) }
+            val local = context.createConfigurationContext(config).resources
+            val label = local.getString(R.string.trakt_skipped_fix_label)
+            listOf(1, 2, 5, 22).forEach { n ->
+                val fix = local.getString(if (n == 1) R.string.trakt_skipped_fix_one else R.string.trakt_skipped_fix)
+                assertTrue("$tag, $n: «$fix» after «$label»", fix.startsWith(label) && fix.length > label.length)
+            }
+        }
+    }
+
+    /** Under a server, Trakt pauses: its state replaces what it keeps, and disconnecting is all it offers. */
+    @Test
+    fun underAServerItIsPausedAndOnlyDisconnects() {
+        session = lea
+        sync.state.value = TraktSyncState(
+            syncedAt = System.currentTimeMillis(),
+            watched = 412,
+            inProgress = 1,
+            error = TraktSyncError.OFFLINE,
+            skipped = listOf(PAUSED_FILM),
+        )
+        show(folders = false)
+        compose.onNodeWithText("En pause").assertExists()
+        compose.onNodeWithText(PAUSED).assertExists()
+        compose.onNodeWithText(DESCRIPTION).assertDoesNotExist()
+        compose.onNodeWithText("Connecté").assertDoesNotExist()
+        compose.onNodeWithText("lea").assertExists()
+        compose.onNodeWithText("412").assertExists()
+        compose.onNodeWithText(SYNC).assertDoesNotExist()
+        compose.onNodeWithText("1 élément ignoré").assertDoesNotExist()
+        compose.onNodeWithText("Non effectué").assertDoesNotExist()
+        compose.onAllNodes(hasClickAction()).assertCountEquals(1)
+        compose.onNode(hasClickAction() and hasText(DISCONNECT)).assertExists()
+
+        ok(DISCONNECT)
+        assertEquals(1, link.signedOut)
+    }
+
+    /** A session the Keystore could not open at launch is still kept: paused, without its account, and disconnected. */
+    @Test
+    fun aSessionNotOpenedAtLaunchIsPausedAndDisconnects() {
+        show(folders = false)
+        compose.onNodeWithText("En pause").assertExists()
+        compose.onNodeWithText(PAUSED).assertExists()
+        compose.onNodeWithText("Compte").assertDoesNotExist()
+        compose.onNodeWithText(CONNECT).assertDoesNotExist()
+        ok(DISCONNECT)
+        assertEquals(1, link.signedOut)
+    }
+
+    /**
+     * Paused, a name Trakt could not say is not asked, so no token is renewed: the plate reads its last sync alone, and
+     * the name is read back with the folders.
+     */
+    @Test
+    fun pausedANamelessAccountWaitsForTheFoldersToReadItsName() {
+        session = lea.copy(username = null)
+        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis() - 5 * 60_000, watched = 412, inProgress = 1)
+        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        var folders by mutableStateOf(false)
+        compose.setTvContent {
+            HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session, folders) } }
+        }
+        compose.onNodeWithText("En pause").assertExists()
+        compose.onNodeWithText(PAUSED).assertExists()
+        compose.onNodeWithText("Compte").assertDoesNotExist()
+        compose.onNodeWithText("Dernière synchronisation").assertExists()
+        compose.onNodeWithText("Il y a 5", substring = true).assertExists()
+        compose.onNodeWithText("412").assertExists()
+        compose.onNode(hasClickAction() and hasText(DISCONNECT)).assertExists()
+        compose.runOnIdle { assertEquals(0, link.namesRead) }
+
+        folders = true
+        compose.onNodeWithText("Connecté").assertExists()
+        compose.runOnIdle { assertEquals(1, link.namesRead) }
+    }
+
+    /** Disconnected under a server, its place leaves the settings, and the place after it opens with focus. */
+    @Test
+    fun disconnectedUnderAServerThePlaceAfterItTakesFocus() {
+        session = lea
+        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        var open by mutableStateOf(Pane.Trakt)
+        compose.setTvContent {
+            val memory = rememberFocusMemory()
+            val panes = panesFor(account, pathMapping = true, counts = true, tracks = false, trakt = session != null)
+            HlTwoPane(side = { SettingsPlaces(panes, open, memory, ready = true) { open = it } }) {
+                LazyColumn(Modifier.fillMaxSize()) { if (open == Pane.Trakt) traktPane(vm, session, folders = false) }
+            }
+        }
+        ok(DISCONNECT)
+        compose.onNodeWithText("Affichage").assertIsFocused()
+        compose.runOnIdle { assertEquals(Pane.Display, open) }
+        compose.onNodeWithText("Trakt").assertDoesNotExist()
+    }
+
+    @Test
+    fun theEntryShowsWithTheFoldersAndUnderAServerWhileAnAccountIsKept() {
+        fun trakt(source: SourceConfig?, kept: Boolean) =
+            Pane.Trakt in panesFor(source, pathMapping = true, counts = true, tracks = false, trakt = kept)
+        assertTrue(trakt(SourceConfig.Local, kept = false))
+        assertTrue("paused", trakt(account, kept = true))
+        assertFalse(trakt(account, kept = false))
+        assertFalse(trakt(null, kept = true))
+        fun playback(tracks: Boolean) =
+            Pane.Playback in panesFor(SourceConfig.Local, pathMapping = false, counts = true, tracks = tracks, trakt = false)
+        assertTrue("the tracks of a Zidoo player", playback(tracks = true))
+        assertFalse("nothing to set elsewhere", playback(tracks = false))
+        // Kept while connected or not opened at this launch, not once Trakt ended it.
+        assertTrue(AppSettings(trakt = lea).keepsTrakt)
+        assertTrue(AppSettings(lostSecrets = setOf(SecretSetting.TRAKT)).keepsTrakt)
+        assertTrue(AppSettings(unreadSecrets = setOf(SecretSetting.TRAKT)).keepsTrakt)
+        assertFalse(AppSettings(trakt = lea.copy(ended = true)).keepsTrakt)
+        assertFalse(AppSettings().keepsTrakt)
     }
 
     @Test
@@ -295,6 +582,15 @@ class TraktPaneTest {
         const val DESCRIPTION =
             "Votre compte Trakt garde ce que vous regardez$NB: les films et les épisodes vus, et où vous en êtes. " +
                 "Sur cet appareil comme ailleurs."
+        const val PAUSED = "Trakt suit vos dossiers$NB; il reprend quand vous y revenez."
+        const val SKIPPED_DESC = "Trakt les envoie sous une forme que l’app ne sait pas lire"
+        const val FIX = "Pour régler"
+        const val MOVIES_HELD = "Tant que l’historique des films ne se lit pas en entier, Houselights n’envoie pas à Trakt les films vus " +
+            "ici qui lui manquent, pour ne pas créer de doublons."
+        const val EPISODES_HELD = "Tant que l’historique des épisodes ne se lit pas en entier, Houselights n’envoie pas à Trakt les " +
+            "épisodes vus ici qui lui manquent, pour ne pas créer de doublons."
+        val SHOW = SkippedEntry(SkippedKind.EPISODE_HISTORY, "Breaking Bad")
+        val PAUSED_FILM = SkippedEntry(SkippedKind.PAUSED, "The Matrix", 1999)
         val TV_WIDTH = 960.dp
         val TV_HEIGHT = 540.dp
     }

@@ -35,8 +35,10 @@ internal class SmbBrowser(
         clock = clock,
     )
 
+    private val unreadable = UnreadablePaths()
+
     override suspend fun list(source: SourceEntity): Listing = withSession(source) { share ->
-        walk(folder(share, remotePath(source, separator = '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        walk(folder(share, remotePath(source, separator = '\\')), unreadable.of(source)) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     /** Uses a fresh session with the form's credentials, as a kept session would accept a wrong password. */
@@ -183,15 +185,16 @@ private class SmbjShare(
         private val CONFIG = SmbConfig.builder().withTimeout(15, TimeUnit.SECONDS).build()
 
         fun open(source: SourceEntity): SmbShare {
+            // Before connecting: a password not opened for now goes no further.
+            val auth = if (source.username.isBlank()) {
+                AuthenticationContext.guest()
+            } else {
+                AuthenticationContext(source.username, source.password.forSignIn().toCharArray(), source.domain.ifBlank { null })
+            }
             val client = SMBClient(CONFIG)
             var opened: SmbShare? = null
             try {
                 val connection = client.connect(source.host)
-                val auth = if (source.username.isBlank()) {
-                    AuthenticationContext.guest()
-                } else {
-                    AuthenticationContext(source.username, source.password.value.toCharArray(), source.domain.ifBlank { null })
-                }
                 val session = connection.authenticate(auth)
                 val share = session.connectShare(source.share) as DiskShare
                 return SmbjShare(client, connection, session, share).also { opened = it }

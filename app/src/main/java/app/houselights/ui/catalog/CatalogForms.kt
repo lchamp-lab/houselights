@@ -33,6 +33,9 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
+import app.houselights.ui.design.components.ChoicePlace
+import app.houselights.ui.design.components.ConnectionSecurity
+import app.houselights.ui.design.components.ConnectionState
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlChoiceSetting
@@ -52,10 +55,13 @@ import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
+import app.houselights.core.LibraryKind
+import app.houselights.ui.util.libraryName
 
 /** Forms, menus, choice sheets and long text; HlTwoPane and HlFormScaffold fill the screen (see setup). */
 internal fun LazyListScope.catalogForms() {
     item { Group("Settings: entries and rows on the room, white with focus") { FormSettings() } }
+    item { Group("Servers found: how each will be reached, its check's place kept") { FormFoundServers() } }
     item { Group("Text fields") { FormTextFields() } }
     item { Group("Status panel", still = true) { FormStatusPanels() } }
     item { Group("Panel button") { FormPanelButtons() } }
@@ -115,7 +121,7 @@ private fun FormSettings() {
             Text(
                 "Above: a value, a value of your choice in ember, an icon grey until focus, a disabled row in its well " +
                     "(focus rings it), a figure in the technical voice, a row that only states its value.",
-                style = Hl.type.caption,
+                style = Hl.type.meta,
                 color = Hl.colors.contentTertiary,
             )
         }
@@ -149,7 +155,7 @@ private fun FormTextFields() {
         "A field is a glass plate 60 tall edged by a hairline, its name in white over it. Focus rings it in projector " +
             "white and shows, at its end, that OK types; OK opens the keyboard, and while typing the ring is the ember " +
             "light and the cursor raspberry, and only then. Every field has a name, read out even when hidden.",
-        style = Hl.type.caption,
+        style = Hl.type.meta,
         color = Hl.colors.contentTertiary,
     )
     // Bottom-aligned, so a field without its label shows next to the others.
@@ -222,7 +228,105 @@ private fun FormTextFields() {
             )
         }
     }
+    FormFoldedFields()
 }
+
+/** A sign-in's servers found as their checks left them, the one picked checked after its state. */
+@Composable
+private fun FormFoundServers() {
+    val rows = listOf(
+        Triple("Salon", "jellyfin.mondomaine.fr", ConnectionSecurity.Encrypted),
+        Triple("NAS du bureau", "192.168.1.31:8096", ConnectionSecurity.Plain),
+        Triple("Chambre", "192.168.1.42:8096", ConnectionSecurity.Checking),
+        Triple("Ancien NAS", "192.168.1.57:8096", ConnectionSecurity.Silent),
+    )
+    Specimen(
+        "the lock closed and white, open and grey, the quiet dot, the ring; never ember; focus inks them",
+        Modifier.width(HlLayout.readableNarrow),
+        gap = HlSpace.xs,
+    ) {
+        HlSettingGroup(stringResource(R.string.servers_found)) {
+            rows.forEach { (name, address, security) ->
+                HlSettingRow(
+                    name,
+                    description = address,
+                    onClick = {},
+                    trailing = {
+                        ConnectionState(security)
+                        ChoicePlace(chosen = security == ConnectionSecurity.Plain)
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** An NFS folder's identity under its form's actions: folded, its value said; open, what it changes over two fields. */
+@Composable
+private fun FormFoldedFields() {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        Specimen("a setting folded under a form's actions, its value said; root in words", Modifier.weight(1f), gap = HlSpace.xs) {
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.nfs_identity_title),
+                    description = stringResource(R.string.nfs_identity_desc),
+                    value = stringResource(R.string.nfs_identity_root),
+                    onClick = {},
+                )
+            }
+        }
+        var uid by remember { mutableStateOf("1026") }
+        var gid by remember { mutableStateOf("100") }
+        Specimen("open: what it changes over its two fields, its figures in the technical voice", Modifier.weight(1f), gap = HlSpace.xs) {
+            Column {
+                HlSettingGroup(null) {
+                    HlSettingRow(
+                        stringResource(R.string.nfs_identity_title),
+                        description = stringResource(R.string.nfs_identity_desc),
+                        value = stringResource(R.string.nfs_identity, uid, gid),
+                        valueStyle = Hl.type.jaquette,
+                        onClick = {},
+                        valueBreaks = true,
+                    )
+                }
+                Text(
+                    stringResource(R.string.nfs_identity_hint),
+                    style = Hl.type.meta,
+                    color = Hl.colors.contentSecondary,
+                    modifier = Modifier.padding(top = HlSpace.s, bottom = HlSpace.l),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                    HlTextField(
+                        stringResource(R.string.field_uid), uid, { uid = it }, Modifier.weight(1f),
+                        placeholder = stringResource(R.string.placeholder_uid), keyboardType = KeyboardType.Number,
+                    )
+                    HlTextField(
+                        stringResource(R.string.field_gid), gid, { gid = it }, Modifier.weight(1f),
+                        placeholder = stringResource(R.string.placeholder_gid), keyboardType = KeyboardType.Number,
+                    )
+                }
+            }
+        }
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        Specimen("long figures, or the largest text size: the user over the group, words whole", Modifier.weight(1f), gap = HlSpace.xs) {
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.nfs_identity_title),
+                    description = stringResource(R.string.nfs_identity_desc),
+                    value = stringResource(R.string.nfs_identity, LONG_ID, LONG_ID),
+                    valueStyle = Hl.type.jaquette,
+                    onClick = {},
+                    valueBreaks = true,
+                )
+            }
+        }
+        Spacer(Modifier.weight(1f))
+    }
+}
+
+/** A user or group number as a directory service hands out, too long for one line beside the row's words. */
+private const val LONG_ID = "2000001"
 
 @Composable
 private fun FormStatusPanels() {
@@ -279,10 +383,27 @@ private fun FormStatusPanels() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("done: a server found on the network, by its name", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
+        Specimen("done: a server found, by its name, its protocol verified", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "http://192.168.1.20:8096",
-                name = "Jellyfin du salon",
+                StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "jellyfin.mondomaine.fr",
+                name = "Salon",
+                badges = listOf("HTTPS"),
+                facts = listOf(stringResource(R.string.connection_is_encrypted)),
+            )
+        }
+        Specimen("picked while checked: no protocol yet", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
+            StatusPanel(
+                StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "192.168.1.42:8096",
+                name = "Chambre",
+                facts = listOf(stringResource(R.string.checking)),
+            )
+        }
+        Specimen("on: an NFS folder presenting another user, among its facts", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
+            StatusPanel(
+                StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.20",
+                detail = "/volume1/media/films", badges = listOf("NFS"),
+                facts = listOf(films, stringResource(R.string.nfs_identity, "1026", "100")),
+                result = pluralStringResource(R.plurals.entries_found, 128, 128),
             )
         }
     }
@@ -306,11 +427,11 @@ private fun FormPanelButtons() {
     }
 }
 
-/** A choice on a panel button as a list item says it: its name in `lead`, what it is in secondary `meta`. */
+/** A choice on a panel button as a list item says it: its name in `entry`, what it is in secondary `meta`. */
 @Composable
 private fun FormChoice(name: String, line: String, enabled: Boolean = true) {
     Column(Modifier.padding(HlInset.card)) {
-        Text(name, style = Hl.type.lead)
+        Text(name, style = Hl.type.entry)
         Spacer(Modifier.height(HlSpace.xs))
         // Disabled, its words keep LocalContentColor, which follows the state.
         Text(line, style = Hl.type.meta, color = if (enabled) Hl.colors.contentSecondary else Color.Unspecified)
@@ -349,13 +470,15 @@ private fun FormMenus() {
             "A popup hanging from the button, inside the safe area: below it when the room down to the safe area " +
                 "holds it, else above (scroll this group to the foot of the screen); a longer menu scrolls inside. " +
                 "It grows from the button's corner and leaves the same way. Sort closes on a choice and applies once " +
-                "the menu has gone; filters stay open so choices combine, and an active one lights the detail.",
-            style = Hl.type.caption,
+                "the menu has gone; filters stay open so choices combine, and an active one lights the detail. A films " +
+                "wall with sagas first shows its films and sagas, or the sagas alone, named before the filters.",
+            style = Hl.type.meta,
             color = Hl.colors.contentTertiary,
             modifier = Modifier.weight(1f),
         )
         Specimen("filters, none active", gap = HlSpace.xs) { FormFilterMenu(FormFilters()) }
         Specimen("filters, two active", gap = HlSpace.xs) { FormFilterMenu(FormFilters(status = 1, genre = "Drame")) }
+        Specimen("the sagas alone, one filter", gap = HlSpace.xs) { FormFilterMenu(FormFilters(sagas = true, status = 1)) }
         Specimen("sort", gap = HlSpace.xs) { FormSortMenu() }
     }
 }
@@ -371,8 +494,14 @@ private fun FormSortMenu() {
     )
 }
 
-/** The library's filters, as its filter menu combines them. */
-private data class FormFilters(val status: Int = 0, val genre: String? = null, val decade: Int? = null, val quality: String? = null) {
+/** The films wall's filters, as its filter menu combines them, and whether it shows the [sagas] alone. */
+private data class FormFilters(
+    val sagas: Boolean = false,
+    val status: Int = 0,
+    val genre: String? = null,
+    val decade: Int? = null,
+    val quality: String? = null,
+) {
     val active: Int get() = listOf(status != 0, genre != null, decade != null, quality != null).count { it }
 }
 
@@ -381,7 +510,17 @@ private fun FormFilterMenu(initial: FormFilters) {
     var f by remember { mutableStateOf(initial) }
     val statuses = formStatuses()
     val decades = FORM_DECADES.associateWith { stringResource(R.string.decade, it) }
+    val sagasName = libraryName(LibraryKind.COLLECTIONS)
     val sections = buildList {
+        add(
+            MenuSection(
+                stringResource(R.string.filter_show),
+                listOf(
+                    MenuOption(stringResource(R.string.show_grouped), !f.sagas) { f = f.copy(sagas = false) },
+                    MenuOption(sagasName, f.sagas) { f = f.copy(sagas = true) },
+                ),
+            )
+        )
         add(
             MenuSection(
                 stringResource(R.string.filter_status),
@@ -409,20 +548,22 @@ private fun FormFilterMenu(initial: FormFilters) {
                     FORM_QUALITIES.map { q -> MenuOption(q, f.quality == q) { f = f.copy(quality = q) } },
             )
         )
-        if (f.active > 0) add(MenuSection(null, listOf(MenuOption("Réinitialiser les filtres", false) { f = FormFilters() })))
+        val reset = MenuOption(stringResource(R.string.reset_filters), false) { f = FormFilters() }
+        if (f.active > 0 || f.sagas) add(MenuSection(null, listOf(reset)))
     }
-    // The button names the active filter, or how many are combined.
-    val detail = when (f.active) {
+    // The button names the sagas shown alone, then the active filter, or how many are combined.
+    val filters = when (f.active) {
         0 -> null
         1 -> statuses[f.status].takeIf { f.status != 0 } ?: f.genre ?: f.decade?.let(decades::getValue) ?: f.quality
         else -> pluralStringResource(R.plurals.filter_count, f.active, f.active)
     }
+    val detail = listOfNotNull(sagasName.takeIf { f.sagas }, filters).joinToString(" · ").ifEmpty { null }
     HlMenuButton(
         text = stringResource(R.string.filter),
         icon = HlIcons.Filter,
         sections = sections,
         detail = detail,
-        detailLit = f.active > 0,
+        detailLit = detail != null,
         closeOnSelect = false,
     )
 }

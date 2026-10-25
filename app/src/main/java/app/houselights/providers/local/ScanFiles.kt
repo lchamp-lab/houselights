@@ -1,8 +1,8 @@
 package app.houselights.providers.local
 
-import android.util.Log
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoParser
+import app.houselights.core.RepeatedFailures
 import app.houselights.core.suspendRunCatching
 
 /** Result of reading a text file; a failure is retried at the next scan. */
@@ -23,19 +23,27 @@ internal data class KeptNfo(val path: String?, val text: String?, val stale: Boo
 
 /** File reads shared by both indexers: NFO text, media probing, local artwork. */
 internal class ScanFiles(
-    private val dao: LibraryDao,
     private val artwork: ArtworkCache,
     private val browsers: (SourceEntity) -> RemoteBrowser,
 ) {
+    /** Text files that could not be read, often again at every pass: each logged whole the first time, then counted. */
+    private val unread = RepeatedFailures(TAG)
+
     /** Decoded by [NfoParser.decode]; throws when the NAS is unreachable, else failures give [TextRead.Failed]. */
-    suspend fun readText(source: SourceEntity, file: RemoteFile): TextRead = suspendRunCatching<TextRead> {
-        val length = file.size.coerceIn(0, MAX_NFO_BYTES.toLong()).toInt().takeIf { it > 0 } ?: MAX_NFO_BYTES
-        TextRead.Text(NfoParser.decode(browsers(source).readPrefix(source, file.relativePath, length)))
-    }.getOrElse { e ->
-        if (ScanErrors.isUnreachable(e)) throw e
-        Log.w(TAG, "Could not read ${file.relativePath}; it is read again at the next scan", e)
-        TextRead.Failed(e)
+    suspend fun readText(source: SourceEntity, file: RemoteFile): TextRead {
+        val key = "${source.id}/${file.relativePath}"
+        return suspendRunCatching<TextRead> {
+            val length = file.size.coerceIn(0, MAX_NFO_BYTES.toLong()).toInt().takeIf { it > 0 } ?: MAX_NFO_BYTES
+            TextRead.Text(NfoParser.decode(browsers(source).readPrefix(source, file.relativePath, length)))
+        }.onSuccess { unread.recovered(key) }.getOrElse { e ->
+            if (ScanErrors.isUnreachable(e)) throw e
+            unread.failed(key, "Could not read ${file.relativePath}; it is read again at the next scan", e)
+            TextRead.Failed(e)
+        }
     }
+
+    /** One line for [source]'s text files that could not be read again in this pass, if any. */
+    fun summarize(source: SourceEntity) = unread.summarize { "${source.name}: files unreadable again, each logged before: $it" }
 
     /** Reads [file] as [item]'s NFO, falling back to the stored one on failure; a path is never kept without text. */
     suspend fun nfo(source: SourceEntity, file: RemoteFile?, item: ItemEntity): KeptNfo =
@@ -45,13 +53,9 @@ internal class ScanFiles(
             is TextRead.Failed -> KeptNfo(item.nfoPath.takeIf { item.nfo != null }, item.nfo, stale = true)
         }
 
-    /** Probes the file when unprobed, probed by an older version, or changed, and stores media info and badges. */
-    suspend fun withMediaInfo(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
-        if (!MediaProbe.isStale(item.mediaInfo) && !item.sizeChanged(file)) return item
-        val updated = mediaFields(source, file, item)
-        dao.saveScanned(updated)
-        return updated
-    }
+    /** [item] with media info and badges, probed when unprobed, probed by an older version, or changed; not saved. */
+    suspend fun withMediaInfo(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity =
+        if (!MediaProbe.isStale(item.mediaInfo) && !item.sizeChanged(file)) item else mediaFields(source, file, item)
 
     suspend fun mediaFields(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
         val media = when (val probe = MediaProbe.probe(source, file, browsers(source))) {

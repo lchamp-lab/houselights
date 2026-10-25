@@ -4,7 +4,9 @@ import app.houselights.core.ArtworkKind
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.Quality
+import app.houselights.ui.home.WatchRow
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.onboarding.LoginFill
 import kotlinx.serialization.Serializable
 
 /** Type-safe navigation routes: each screen and its arguments, checked at compile time. */
@@ -12,8 +14,24 @@ object Route {
     @Serializable
     data object Welcome
 
+    /** Signs in to Jellyfin, the form filled in with [server] and [user] when given, else as [blank] says ([fill]). */
     @Serializable
-    data object JellyfinLogin
+    data class JellyfinLogin(val server: String? = null, val user: String? = null, val blank: Boolean = false) {
+        val fill: LoginFill
+            get() = when {
+                server != null -> LoginFill.Server(server, user)
+                blank -> LoginFill.Blank
+                else -> LoginFill.Current
+            }
+
+        companion object {
+            fun of(fill: LoginFill) = when (fill) {
+                LoginFill.Current -> JellyfinLogin()
+                LoginFill.Blank -> JellyfinLogin(blank = true)
+                is LoginFill.Server -> JellyfinLogin(fill.address, fill.user)
+            }
+        }
+    }
 
     /** Adds a folder, or edits the folder [folderId] in place, focus starting on [focus]. */
     @Serializable
@@ -22,9 +40,21 @@ object Route {
     @Serializable
     data object Home
 
+    /** « À regarder »: home's rows, opened on [row] (a `WatchRow` by name), over home. */
+    @Serializable
+    data class Watch(val row: String) {
+        /** The row it opens on; the first for a name no row has any more. */
+        val watchRow: WatchRow get() = WatchRow.entries.find { it.name == row } ?: WatchRow.CONTINUE
+
+        companion object {
+            fun of(row: WatchRow) = Watch(row.name)
+        }
+    }
+
     /**
      * A library's wall, opened pre-filtered from a facet ([filter]; [quality] by enum name, [person] labelled
-     * [personName]). A films wall may show the source's [sagas] (a library id) instead.
+     * [personName]). A films wall shows the source's [sagas] (a library id) among its films, or alone ([view], a
+     * `WallView` by name, which its saved state starts with).
      */
     @Serializable
     data class Library(
@@ -38,6 +68,7 @@ object Route {
         val person: String? = null,
         val personName: String? = null,
         val sagas: String? = null,
+        val view: String? = null,
     ) {
         /** What the wall starts filtered by; null for the whole library. */
         val filter: LibraryFilter?
@@ -48,6 +79,17 @@ object Route {
                 fileType = fileType,
                 person = person,
             ).takeIf { it.activeCount > 0 }
+
+        /** The library the wall shows; a blank title, as a server may send one, is none. */
+        val wallLibrary: app.houselights.core.Library
+            get() = app.houselights.core.Library(id, kind, title?.ifBlank { null })
+
+        /** The source's sagas, which a films' wall shows among its films or alone; null when it shows none. */
+        val sagasLibrary: app.houselights.core.Library?
+            get() = sagas?.let { app.houselights.core.Library(it, LibraryKind.COLLECTIONS, null) }
+
+        /** The wall's name: its library's title, else [kindName], what its kind is called. */
+        fun wallTitle(kindName: String): String = wallLibrary.title ?: kindName
 
         companion object {
             /** [library]'s wall filtered by [filter]'s facets; status, genre and decade stay the wall's own. */

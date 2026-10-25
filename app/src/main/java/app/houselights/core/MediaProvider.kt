@@ -52,8 +52,17 @@ sealed interface PlaybackPlan {
         val resumeKey: String? = null,
         /** A disc (an ISO, a Blu-ray or DVD folder): the player may open it on a menu or an intro before its title. */
         val disc: Boolean = false,
-    ) : PlaybackPlan
+        /** The file's tracks, when known in the player's order ([MediaInfo.tracksInOrder]); never a disc's. */
+        val media: MediaInfo? = null,
+        /** Where the title's choice of tracks is kept: the film, all its copies, or the whole show for an episode. */
+        val titleKey: String? = null,
+    ) : PlaybackPlan {
+        val tracks: PlayedTracks get() = PlayedTracks(media, titleKey)
+    }
 }
+
+/** What a title's track table reads of the file "Lire" plays ([PlaybackPlan.Launch.media], [PlaybackPlan.Launch.titleKey]). */
+data class PlayedTracks(val media: MediaInfo?, val titleKey: String?)
 
 private const val PLAYER_BACKDROP_PX = 1920
 
@@ -67,6 +76,8 @@ fun MediaItem.launch(
     reporter: PlaybackReporter?,
     resumeKey: String?,
     disc: Boolean = false,
+    media: MediaInfo? = null,
+    titleKey: String? = null,
 ) = PlaybackPlan.Launch(
     uri = uri,
     container = container,
@@ -77,6 +88,8 @@ fun MediaItem.launch(
     reporter = reporter,
     resumeKey = resumeKey,
     disc = disc,
+    media = media.takeUnless { disc },
+    titleKey = titleKey,
 )
 
 /**
@@ -104,8 +117,15 @@ data class ProviderCapabilities(
     /** Grids filter by [LibraryFilter.picture], [LibraryFilter.sound] and [LibraryFilter.fileType]. */
     val formatFilters: Boolean = false,
     val personFilter: Boolean = false,
+    /** A sagas library's wall takes a [LibraryFilter], which its films pass; else it is never filtered. */
+    val sagaFilters: Boolean = false,
     val search: Boolean = false,
-)
+) {
+    companion object {
+        /** No source, none of it: a screen restored before its source could be read. */
+        val NONE = ProviderCapabilities(markPlayed = false, favorites = false, similar = false, pathMapping = false)
+    }
+}
 
 /** A media library backend: local folders on the NAS, or a Jellyfin server. */
 interface MediaProvider {
@@ -113,7 +133,24 @@ interface MediaProvider {
 
     suspend fun libraries(): List<Library>
     suspend fun home(): List<HomeSection>
-    suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page
+    /**
+     * A page of [library]'s wall. [grouped], a films library shows each saga ([LibraryKind.COLLECTIONS]) as one title in
+     * place of its films, as far as the source groups them, and counts them in [Page.sagas] when it knows how many.
+     */
+    suspend fun libraryPage(
+        library: Library,
+        sort: SortOption,
+        filter: LibraryFilter,
+        start: Int,
+        limit: Int,
+        grouped: Boolean = false,
+    ): Page
+
+    /**
+     * Episodes of [library] added since [since] (epoch ms) and not watched yet, up to [cap]; null when the source cannot
+     * say (home's door then says nothing of them).
+     */
+    suspend fun newEpisodes(library: Library, since: Long, cap: Int = NEW_EPISODES_CAP): Int? = null
 
     /** Values present in [library] (genres, decades, formats…) for the filter menu. */
     suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets()
@@ -128,17 +165,16 @@ interface MediaProvider {
     suspend fun setFavorite(item: MediaItem, favorite: Boolean) {}
     suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan
 
+    /** The tracks [playback] would play for [item]; a source may read them without building the whole plan. */
+    suspend fun playedTracks(item: MediaItem, options: PlaybackOptions): PlayedTracks? =
+        (playback(item, resume = false, options) as? PlaybackPlan.Launch)?.tracks
+
     /** The reporter of a playback started earlier, from its [PlaybackPlan.Launch.resumeKey]. */
     fun reporter(resumeKey: String): PlaybackReporter? = null
 
-    /** What "Play" starts: a series' first unwatched or in-progress episode, or a collection's film per [nextUpIn]. */
-    suspend fun nextUp(series: MediaItem): MediaItem? {
-        if (series.kind == MediaKind.COLLECTION) return nextUpIn(collectionItems(series))
-        for (season in seasons(series).filter { (it.seasonNumber ?: 0) > 0 }) {
-            episodes(series, season).firstOrNull { !it.user.played }?.let { return it }
-        }
-        return null
-    }
+    /** What "Play" starts: a collection's film per [nextUpIn]; a series' episode is the provider's to say. */
+    suspend fun nextUp(series: MediaItem): MediaItem? =
+        if (series.kind == MediaKind.COLLECTION) nextUpIn(collectionItems(series)) else null
 
     /** The collection (saga) a film belongs to, when the library shows it. */
     suspend fun collectionOf(item: MediaItem): MediaItem? = null
@@ -159,9 +195,22 @@ interface MediaProvider {
     val catalog: Catalog? get() = null
 }
 
+/** The most new episodes a source counts for home: past it, the door says as many. */
+const val NEW_EPISODES_CAP = 99
+
 /**
- * The film "Play" starts in a collection's [films] (release order): the first in progress, else unwatched,
- * else the first. Outside the provider so a page holding the films need not fetch them again.
+ * The film "Play" starts in a collection's [films] (release order), per [nextIn], else the first. Outside the
+ * provider so a page holding the films need not fetch them again.
  */
 fun nextUpIn(films: List<MediaItem>): MediaItem? =
-    films.firstOrNull { it.user.positionMs > 0 && !it.user.played } ?: films.firstOrNull { !it.user.played } ?: films.firstOrNull()
+    nextIn(films, { it.user.played }, { it.user.positionMs > 0 }) ?: films.firstOrNull()
+
+/**
+ * What plays next in [titles] (episodes, a saga's films, in order): the first in progress ([started], not [played]),
+ * else the first unwatched after the last watched, else the first unwatched; null when all are watched.
+ */
+fun <T> nextIn(titles: List<T>, played: (T) -> Boolean, started: (T) -> Boolean): T? {
+    titles.firstOrNull { started(it) && !played(it) }?.let { return it }
+    val lastWatched = titles.indexOfLast(played)
+    return titles.drop(lastWatched + 1).firstOrNull { !played(it) } ?: titles.firstOrNull { !played(it) }
+}

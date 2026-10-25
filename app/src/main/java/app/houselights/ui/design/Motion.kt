@@ -1,9 +1,6 @@
 package app.houselights.ui.design
 
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.tween
 
 /**
  * Durations (ms) and the system's own curves (DESIGN.md, Motion). Two moments are orchestrated: the house
@@ -49,12 +46,4 @@ object HlMotion {
 
     /** Ease-out for lights going out: each [LaunchCue] step, a picture going out on black. */
     val lightsOut = CubicBezierEasing(0f, 0f, 0.2f, 1f)
-}
-
-/**
- * Suspends while a motion of [durationMs] plays at the system animation scale, so what follows comes when
- * it ends, or at once with animations off. Call it from a composition's scope: its frame clock drives it.
- */
-suspend fun awaitMotion(durationMs: Int) {
-    animate(0f, 1f, animationSpec = tween(durationMs, easing = LinearEasing)) { _, _ -> }
 }

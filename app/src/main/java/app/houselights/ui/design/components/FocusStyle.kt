@@ -113,6 +113,11 @@ internal object FocusStyle {
     @ReadOnlyComposable
     fun ink(focused: Boolean, rest: Color = Hl.colors.content): Color = if (focused) Hl.colors.onFocus else rest
 
+    /** A plate held in a framed surface (home's case and its action), by the surface's state: focus's white, else [rest]. */
+    @Composable
+    @ReadOnlyComposable
+    fun heldPlate(focused: Boolean, rest: Color): Color = if (focused) Hl.colors.focus else rest
+
     /** The quietest words by state (the file a scan reads): tertiary at rest, focus's quiet ink on its white. */
     @Composable
     @ReadOnlyComposable

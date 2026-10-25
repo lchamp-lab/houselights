@@ -102,7 +102,7 @@ class ZidooPlayer(
         /** Not a Zidoo: no password ever leaves the app. */
         NOT_A_ZIDOO(false),
 
-        /** A system app installed with the firmware, which no ordinary app can replace. */
+        /** A system app, which only an update signed with its key replaces: public on a test-keys build. */
         FIRMWARE(true),
 
         /** An ordinary app signed with a Zidoo system app's certificate. */
@@ -326,6 +326,9 @@ class ZidooPlayer(
         const val KNOWN_PACKAGE = "com.android.gallery3d"
         const val KNOWN_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
         private const val ZIDOO_PREFIX = "com.zidoo."
+
+        /** Whether [player] takes audio_idx and subtitle_idx: checked on the known player only; another may number otherwise. */
+        fun takesTracks(player: ComponentName?): Boolean = player?.packageName == KNOWN_PACKAGE
 
         private const val KEY_PACKAGE = "trusted_package"
         private const val KEY_CERTIFICATE = "trusted_certificate"

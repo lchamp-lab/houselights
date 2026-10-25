@@ -158,8 +158,11 @@ jobs:
           fi
           sha256sum "$APK" > "$APK.sha256"
           # The same file under a name that never changes: .../releases/latest/download/Houselights.apk is
-          # always the latest release, a short address to type on a TV (README, Install).
+          # always the latest release.
           cp "$APK" Houselights.apk
+          # R8's map from the shortened names back to the code's, to read this release's logs and traces; it
+          # holds class and member names only.
+          cp app/build/outputs/mapping/release/mapping.txt "${APK%.apk}-mapping.txt"
 
       - name: Notes
         run: |
@@ -187,4 +190,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --verify-tag
           --title "Houselights $VERSION"
           --notes-file notes.md ${PRERELEASE:+"$PRERELEASE"}
-          "$APK" "$APK.sha256" Houselights.apk
+          "$APK" "$APK.sha256" Houselights.apk "${APK%.apk}-mapping.txt"

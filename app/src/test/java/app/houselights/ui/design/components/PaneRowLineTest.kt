@@ -110,11 +110,18 @@ class PaneRowLineTest {
             line(R.string.trakt_connect_desc),
             line(R.string.trakt_disconnect_desc),
             line(R.string.trakt_sync_now_desc),
+            Line(local.resources.getString(R.string.trakt_skipped_desc_one), "$tag: trakt_skipped_desc (1)", Beside.None),
+            Line(local.resources.getString(R.string.trakt_skipped_desc), "$tag: trakt_skipped_desc", Beside.None),
             line(R.string.ui_resolution_desc, value = longest(R.string.ui_4k, R.string.ui_system)),
             line(R.string.interface_language_desc, value = language),
+            line(
+                R.string.text_size_desc,
+                value = longest(R.string.text_size_compact, R.string.text_size_standard, R.string.text_size_large),
+            ),
             line(R.string.cleanup_desc),
             line(R.string.clear_cache_desc, value = CACHE),
             line(R.string.support_desc),
+            line(R.string.journal_desc),
             line(R.string.network_path_desc, Beside.Check),
             line(R.string.http_stream_desc, Beside.Check),
             line(R.string.add_mapping_desc),
@@ -138,13 +145,26 @@ class PaneRowLineTest {
                 "$tag: source_local_folders",
                 Beside.Icon,
             ),
+            Line(
+                local.resources.getQuantityString(R.plurals.folder_count, MANY, MANY) + DOT +
+                    local.getString(R.string.source_trakt_resumes),
+                "$tag: folder_count, source_trakt_resumes",
+                Beside.Icon,
+            ),
             line(R.string.source_jellyfin_desc, Beside.Icon),
-            line(R.string.source_jellyfin_other, Beside.Icon),
+            Line("Jellyfin$DOT$USER$DOT" + local.getString(R.string.source_kept_resume), "$tag: source_kept_resume", Beside.Icon),
+            line(R.string.source_jellyfin_another_desc, Beside.Icon),
+            line(R.string.forget_server_desc, Beside.Icon),
+            line(R.string.sign_out_server_desc, Beside.Icon),
             line(R.string.collections_two_desc, Beside.Check),
             line(R.string.collections_all_desc, Beside.Check),
             line(R.string.collections_off_desc, Beside.Check),
             line(R.string.ui_4k_desc, Beside.Check),
             line(R.string.ui_system_desc, Beside.Check),
+            line(R.string.text_size_compact_desc, Beside.Check),
+            line(R.string.text_size_standard_desc, Beside.Check),
+            line(R.string.text_size_large_desc, Beside.Check),
+            line(R.string.text_size_large_reached, Beside.Check),
         )
     }
 
@@ -163,6 +183,10 @@ class PaneRowLineTest {
     private companion object {
         const val LARGEST = 1.3f
         const val MANY = 12
+
+        /** Between the parts of a source's line, and an account's name; a longer one ends in an ellipsis. */
+        const val DOT = " · "
+        const val USER = "léa"
 
         /** A scan's count, as long as a library's. */
         const val SCANNED = 1_234

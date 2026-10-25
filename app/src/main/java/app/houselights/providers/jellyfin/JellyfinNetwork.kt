@@ -1,12 +1,15 @@
 package app.houselights.providers.jellyfin
 
 /**
- * Network calls used by Jellyfin sign-in: discovery, reaching a typed address, authentication.
+ * Network calls used by Jellyfin sign-in: discovery, checking a server found, reaching an address, authentication.
  * An interface so tests can stand in for a server.
  */
 interface JellyfinNetwork {
     /** Servers that answered a discovery on the local network. */
     suspend fun discover(): List<DiscoveredServer>
+
+    /** See [JellyfinClient.check]. */
+    suspend fun check(found: DiscoveredServer): ServerCheck
 
     /** See [JellyfinClient.reach]. */
     suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo>
@@ -16,6 +19,8 @@ interface JellyfinNetwork {
     /** Production implementation. */
     companion object Lan : JellyfinNetwork {
         override suspend fun discover() = ServerDiscovery.discover()
+
+        override suspend fun check(found: DiscoveredServer) = JellyfinClient.check(found)
 
         override suspend fun reach(input: String, deviceId: String) = JellyfinClient.reach(input, deviceId)
 

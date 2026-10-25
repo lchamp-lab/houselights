@@ -28,7 +28,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * The welcome screen on the TV canvas, in its longest languages and with both notes: the lockup whole in its
+ * The welcome screen on the TV canvas, in its longest languages and with every note: the lockup whole in its
  * column, the task's title on one line, the choices alike, and everything inside the safe area, a focused
  * choice's frame included.
  */
@@ -51,8 +51,22 @@ class WelcomeLayoutTest {
     @Config(qualifiers = "pt-$TV")
     fun inPortuguese() = holds()
 
-    private fun holds() {
-        compose.setTvContent { Welcome(emptyList(), {}, {}, lostSource = true, problem = UiError.OFFLINE) }
+    /** The connection kept but not opened for now: its note, in its column, and Réessayer, in the safe area. */
+    @Test
+    @Config(qualifiers = "de-$TV")
+    fun unreadInGerman() = holds(unread = true)
+
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun unreadInFrench() = holds(unread = true)
+
+    private fun holds(unread: Boolean = false) {
+        compose.setTvContent {
+            Welcome(
+                emptyList(), {}, {}, lostSource = !unread, problem = UiError.OFFLINE, settingsReset = !unread,
+                readAgain = {}.takeIf { unread },
+            )
+        }
         fun bounds(id: Int) = compose.onNodeWithText(compose.activity.getString(id)).getUnclippedBoundsInRoot()
         val name = compose.onNodeWithContentDescription(compose.activity.getString(R.string.wordmark)).getUnclippedBoundsInRoot()
         val caps = HlSize.wordmarkHero
@@ -72,7 +86,13 @@ class WelcomeLayoutTest {
 
         val reach = HlFocus.reach
         val framed = choices.map { DpRect(it.left - reach, it.top - reach, it.right + reach, it.bottom + reach) }
-        val notes = listOf(bounds(R.string.welcome_lost_secrets), bounds(welcomeProblem(UiError.OFFLINE)))
+        val said = if (unread) {
+            listOf(R.string.error_secrets_unread, R.string.retry)
+        } else {
+            listOf(R.string.welcome_lost_secrets, R.string.welcome_settings_reset)
+        }
+        val notes = (said + welcomeProblem(UiError.OFFLINE)).map(::bounds)
+        notes.forEach { assertTrue("$it in the left column", it.right <= title.left - HlSpace.xl) }
         (listOf(lockup, title) + framed + notes).forEach { box ->
             assertTrue(
                 "$box inside the safe area",

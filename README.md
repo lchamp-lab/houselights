@@ -22,7 +22,7 @@
   <a href="https://ko-fi.com/lchamp_lab">Support</a>
 </p>
 
-![Home: the focused film's backdrop, logo and summary above a row of posters](docs/images/home.jpg)
+![Home: a grid of doors, a film not seen yet in the case beside the latest titles, the films and shows counted in their posters, the sagas, search and settings](docs/images/home.jpg)
 
 > **Beta.** Made for Zidoo players (Android 9 with Zidoo's launcher), tested on a Z1000 Pro: reports from other
 > models are welcome in the [issues](https://github.com/lchamp-lab/houselights/issues). Not affiliated with Zidoo,
@@ -37,19 +37,41 @@ gratuite, l’application est entièrement en français. [Installer](#install)
 
 - **The Zidoo player plays.** Files open directly in it (`smb://`, `nfs://` or HTTP), with everything it
   supports. Progress is read from the player while it plays, so resume points stay in sync.
+  - Audio and subtitles are asked of it as Settings > Playback sets them for every title (the player's own choice
+    by default, or an audio language and subtitles off, forced only, automatic or always, in a language), or as a
+    film or a show keeps its own (Audio and subtitles on a film's page or in an episode's options); a change made
+    while it plays is kept. Subtitles a film lacks may be in a file beside it (Bazarr's `Film.fr.forced.srt`): the
+    player is switched to them once it lists them. Tracks are asked for files whose tracks are known (an MKV the
+    scan read, or a Jellyfin title), never for a disc.
 - **A 10-foot interface built for the living room**: full-screen backdrops, clear logos, poster rows and
   walls, detail pages with cast, seasons and episodes, in 4K60 where the device allows it. Built with Jetpack
   Compose for TV on its own design system ([DESIGN.md](DESIGN.md)).
+  - Home is a grid of doors: the title you were watching to resume in one OK (or a film or show not seen yet), the next
+    episode and what is new, a door per library with its number of titles cut in its posters, the sagas, search
+    and the app's state. Back on home asks once more before leaving the app.
+  - Each door opens its page: a library's wall of posters, without a bar, with its filters and sort; the sagas,
+    search or the settings. The doors of what is new and of the next episode open To watch: the rows to
+    resume, next up, the latest titles, a director's films and the best rated, under the title in focus. Back
+    returns home, on the door you came from.
 - **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
   details from TMDB.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids identify titles exactly.
-  - Technical details (resolution, HDR, Dolby Vision, audio formats, subtitles) are read from the files.
+  - Technical details are read from the files and set on a title's page as on a case back: a line for the video
+    (resolution, Dolby Vision and HDR, codec, frame rate), one for the audio (format, channels, bitrate, and its
+    language when a track is asked for), and every track in its technical sheet.
+  - Over NFS, symbolic links are followed within the export, as the player follows them; an absolute link, which
+    the player cannot follow, is left out and logged.
+  - NFS sends no password: the app presents itself to the NAS as root, unless a folder names the user and group
+    (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
-  - Films of a saga are gathered, with a page per saga showing the films you own and those you don't.
-  - A film, a season or an episode is marked watched or unwatched from its page; a long press on a show's
-    mark sets the whole show.
+  - Films of a saga are gathered on the Movies wall under one poster (Filter > Show > Sagas lists the sagas
+    alone; Settings > Library > Sagas gathers a saga from two of its films, from one, or never), with a page per
+    saga showing the films you own and those you don't.
+  - A film, a season or an episode is marked watched or unwatched from its page; Menu or Pop Menu (or a long
+    press) opens the options of an episode (mark it, play it from the start, its audio and subtitles) and of a
+    show's mark (the season or the whole show).
   - Your [Trakt](https://trakt.tv) account connects in Settings > Trakt, with a code entered on your phone
     or computer, and keeps what you watch in your folders (Jellyfin has its own Trakt plugin):
     - a title watched on either side is watched on both, at the date it was seen; in every folder, a title
@@ -59,23 +81,40 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     - marking a title unwatched removes every play of it from Trakt's history, those of other devices
       too; a title only in progress loses its pause alone;
     - marks and stops wait while Trakt cannot be reached, or until the account is connected again once
-      Trakt ended its connection; disconnecting forgets them, and choosing a server as the source
-      disconnects Trakt.
-- **Jellyfin**: browses your server and reports playback progress back to it. Emby and Plex are planned.
+      Trakt ended its connection; disconnecting forgets them. Under a server as the source, Trakt pauses,
+      still connected, and sends what waited once your folders are the source again; Settings > Trakt says
+      so meanwhile, and disconnects it.
+- **Jellyfin**: browses your server and reports playback progress back to it. Servers found on the network are
+  checked as they appear, a closed lock on those that answer over HTTPS, as the same server, with a certificate
+  the player trusts ([Security](#security)). Switching to your folders keeps the server signed in: it comes back
+  from Settings in one OK, without signing in again. Emby and Plex are planned.
+- **Without a library** (the last folder removed, or the only server signed out of), the app goes back to its
+  welcome screen, wherever it was, to choose where your films are.
 - **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,
   Polish, Chinese (simplified and traditional), Japanese and Korean, and details in the language of your
   choice. Both follow the device unless chosen in the settings.
+- **At your distance**: text on one scale of eight sizes, its core read at 16 sp, set one step smaller or larger
+  than Android's in Settings > Display > Text size (Compact, Standard, Large), for a screen read from close by or
+  from the far end of the room; the grid and the pictures keep their size.
+- **When something goes wrong**, it is said where it happened: a play that does not start says why on home's
+  case, beside a page's actions or under the episode row ("Can't play" over the reason, such as "NAS unreachable"
+  or the Zidoo player's own words), until the next OK there. Settings > About > Send the log then opens the app's
+  own log on your phone by a QR code ([Support](#support)).
 
 ## Screenshots
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/film.jpg" alt="A film's page"><br><sub>A film's page: what its file holds, read from the file itself.</sub></td>
+    <td width="50%"><img src="docs/images/film.jpg" alt="A film's page"><br><sub>A film's page: its video and audio on the case back, read from the file itself.</sub></td>
     <td width="50%"><img src="docs/images/show.jpg" alt="A show's episodes and cast"><br><sub>A show's episodes and cast.</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/images/saga.jpg" alt="A saga's page"><br><sub>A saga: the films you own among its films, resumed where you left off.</sub></td>
-    <td width="50%"><img src="docs/images/library.jpg" alt="The library's poster wall"><br><sub>The library as a poster wall, lit by the focused poster.</sub></td>
+    <td width="50%"><img src="docs/images/library.jpg" alt="The Movies wall"><br><sub>The Movies wall, a saga among the films, lit by the focused poster.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/watch.jpg" alt="To watch"><br><sub>To watch, one door from home: its rows under the title in focus.</sub></td>
+    <td width="50%"><img src="docs/images/settings.jpg" alt="Settings, Display"><br><sub>Settings > Display: the interface's language and the text size.</sub></td>
   </tr>
 </table>
 
@@ -109,14 +148,39 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   URI and Android logs started intents (readable over adb): use a **dedicated read-only NAS account**.
   Credentials only go to the Zidoo's player: a system app or one signed like the firmware's apps; failing
   those, the app under a Zidoo name that first received them, remembered by its certificate. Any other app,
-  or that one signed by someone else, receives none.
+  or that one signed by someone else, receives none. On a firmware signed with Android's public test keys
+  (the Z1000 Pro's), anyone can sign an update of the system player that Android installs over it, and it
+  would receive them too: install the player's updates from Zidoo alone.
+- NFS sends no password: the NAS trusts the player's address and the user it claims, root (uid 0, gid 0)
+  unless the folder's "Connect as" names another user and group. Any app on the player can claim root
+  too: on an export that does not squash root (Synology's "No mapping"), the export is open with root's rights.
+  Export it **read-only, with root squashed** or mapped to a guest or media account; the user the app presents
+  only chooses whose rights it reads with, and the Zidoo player opens videos with its own NFS access.
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
-  held in the Android Keystore. Android backup is disabled. Disconnecting Trakt revokes the app's token there.
+  held in the Android Keystore, never replaced once made: one the Keystore does not open for now is kept, said as
+  such, never tried empty on the NAS, and read again with Retry or on coming back to the app. Android backup is
+  disabled. Disconnecting Trakt revokes the app's token there.
 - Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in
-  rather than fall back to plain HTTP, which only typing `http://` chooses; the settings show when a connection
-  is not encrypted. Requests carrying the token or the password follow no redirect to another host, or from
-  HTTPS to HTTP. Signing out revokes the app's token on the server. A stream played without path mappings
-  carries the token in its URL and is only handed to another app through Android's app chooser.
+  rather than fall back to plain HTTP, which typing `http://` chooses; refused later (expired, or the player's clock
+  wrong), as TMDB's may be, screens say "Certificate refused". Each server found on the network is checked as it
+  appears, anonymously, 3 s at most an address: its HTTPS address (the one it announces, else port 8920), then the
+  HTTP one it announces. It is "Encrypted" only when HTTPS answers as that same server (its Jellyfin id) with a
+  certificate the player trusts; another service on 8920 does not pass. Picked, it is reached as its check says:
+  over HTTPS alone once "Encrypted", a failure said rather than a fall back to HTTP; at the HTTP address it announces
+  once "Not encrypted", as the list and the panel say before you sign in; once "Not responding", checked again before
+  anything is sent, and tried at the address it announces only if still silent. The settings show when a connection
+  is not encrypted. Requests carrying the token or the password follow no redirect to another host, or from HTTPS to
+  HTTP. A stream played without path mappings carries the token in its URL and is only handed to another app through
+  Android's app chooser.
+- Changing source signs out of nothing. A Jellyfin server left for your folders keeps its token, encrypted
+  like the source's under its own key, so that it comes back without signing in; one server at most, signed out
+  of instead when the Keystore cannot encrypt it, and kept as stored when the Keystore has not opened it yet. Its
+  token is revoked on the server when you forget it or sign out of it, or when a new sign-in replaces it, and is
+  never used again after; a token the server refuses is forgotten.
+- Send the log (Settings > About) serves the app's own log on your home network only while its panel is open and the
+  app on screen, ten minutes at most: read-only, on the player's private IPv4 address on its home network, never a
+  VPN's, at an address holding a random 100-bit code that only the panel shows, each line masked of passwords and
+  tokens. The page loads nothing from elsewhere.
 - TMDB and Trakt are reached over HTTPS only, trusting the system's certificate authorities alone. Artwork
   named by NFO files is fetched over HTTPS only, redirects included. Other servers may use plain HTTP: home
   servers are reached by their address, which no rule can name.
@@ -129,6 +193,13 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 If Houselights earns its place under your TV, you can support the project on
 [Ko-fi](https://ko-fi.com/lchamp_lab). The same page is available as a QR code in Settings > About.
+
+**Reporting a problem.** Right after it happens, open Settings > About > Send the log and scan its QR code with your
+phone: it opens Houselights' own log, a crash's lines included, with a line to paste at the top (version, player and
+firmware, source, Trakt), to copy or download and attach to your
+[issue](https://github.com/lchamp-lab/houselights/issues/new/choose). Passwords and tokens are masked; the names of
+your files, shares and NAS stay, so read it before posting. With adb, the lines of the running app only:
+`adb logcat -d --pid=$(adb shell pidof -s app.houselights)`.
 
 ## Development
 

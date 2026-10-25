@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -24,8 +27,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
@@ -37,6 +42,7 @@ import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.components.AttentionNote
@@ -49,8 +55,13 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.roomPosters
+import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.appContainer
+import coil.imageLoader
+import kotlinx.coroutines.delay
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
     Library(R.string.section_source, HlIcons.Folder),
@@ -63,26 +74,34 @@ internal enum class Pane(val label: Int, val icon: ImageVector) {
 }
 
 /**
- * Settings in two panes: its places, a word each, and the focused one's rows. [onUseFolders] makes
- * the folders the source and reports a failure on the source's row; the library in numbers opens a filtered wall
- * ([onOpenWall]) or a director's page ([onOpenPerson]).
+ * Settings in two panes: its places, a word each, and the focused one's rows. [onUseFolders] makes the folders the
+ * source, keeping the server left or signing out of it, and reports a failure on the source's row; [onSignIn] opens
+ * the sign-in, filled in as it says; [onSourceResumed] follows the kept server made the source again. The library in
+ * numbers opens a filtered wall ([onOpenWall]) or a director's page ([onOpenPerson]).
  */
 @Composable
 fun SettingsScreen(
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
-    onUseFolders: (onError: (UiError) -> Unit) -> Unit,
-    onSignIn: () -> Unit,
+    onUseFolders: (keepServer: Boolean, onError: (UiError) -> Unit) -> Unit,
+    onSignIn: (LoginFill) -> Unit,
+    onSourceResumed: () -> Unit,
     onOpenCatalog: () -> Unit = {},
     onOpenWall: (Library, LibraryFilter) -> Unit = { _, _ -> },
     onOpenPerson: (personId: String) -> Unit = {},
 ) {
-    val vm = settingsViewModel()
-    val useFolders = {
-        vm.clearActionError()
-        onUseFolders { vm.actionFailed(SettingAction.SOURCE, it) }
-    }
+    val app = appContainer()
+    val images = LocalContext.current.imageLoader
+    val vm = viewModel { SettingsViewModel(app, images) }
+    val sources = SourceDoors(
+        useFolders = { keepServer ->
+            vm.clearActionError()
+            onUseFolders(keepServer) { vm.actionFailed(SettingAction.SOURCE, it) }
+        },
+        signIn = onSignIn,
+        resumed = onSourceResumed,
+    )
     val s by vm.settings.collectAsStateWithLifecycle()
-    val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts)
+    val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts, vm.asksTracks, s.keepsTrakt)
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
     // A failed change is reported in the pane it was made in, not in the next one.
     LaunchedEffect(pane) { vm.clearActionError() }
@@ -108,26 +127,56 @@ fun SettingsScreen(
             side = {
                 ScreenTitle(stringResource(R.string.settings_title))
                 Spacer(Modifier.height(HlSpace.l))
-                Column(Modifier.keepVerticalFocus()) {
-                    panes.forEach { p ->
-                        HlNavItem(
-                            icon = p.icon,
-                            title = stringResource(p.label),
-                            selected = p == pane,
-                            // The window's own first focus, before the screen is restored, leaves the pane that was open.
-                            onFocused = { if (!memory.arriving) pane = p },
-                            modifier = Modifier.focusKey(paneKey(p), memory),
-                        )
-                    }
-                }
+                SettingsPlaces(panes, pane, memory, ready = s.loaded) { pane = it }
             },
         ) {
             val rows = remember(pane) { PaneRows(memory, pane.name) }
-            PaneContent(
-                pane, s, storage, onFolderForm, useFolders, onSignIn, onOpenCatalog, rows, list,
-                entry = memory.requester(paneKey(pane)),
-                onFocusIn = { inPane = it },
-                numbers = NumbersDoors(onOpenWall, onOpenPerson),
+            CompositionLocalProvider(LocalSettingsViewModel provides vm) {
+                PaneContent(
+                    pane, s, storage, onFolderForm, sources, onOpenCatalog, rows, list,
+                    entry = memory.requester(paneKey(pane)),
+                    onFocusIn = { inPane = it },
+                    numbers = NumbersDoors(onOpenWall, onOpenPerson),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The settings' places, a word each, opening its pane ([onOpen]) once focus has settled on it ([HlMotion.SETTLE]) or
+ * on OK, so stepping down the list builds no pane it only crosses. Once the settings are [ready], a place leaving the
+ * list while [open], Trakt disconnected under a server, gives way to the place after it, else the last, which takes
+ * focus from it.
+ */
+@Composable
+internal fun SettingsPlaces(panes: List<Pane>, open: Pane, memory: FocusMemory, ready: Boolean, onOpen: (Pane) -> Unit) {
+    LaunchedEffect(open, panes, ready) {
+        if (ready && open !in panes) {
+            val next = Pane.entries.drop(open.ordinal + 1).firstOrNull { it in panes } ?: panes.last()
+            onOpen(next)
+            memory.focus(paneKey(next))
+        }
+    }
+    val shown by rememberUpdatedState(open)
+    val opening by rememberUpdatedState(onOpen)
+    // The place focus is on; null once focus leaves the list, as into the pane shown.
+    var focused by remember { mutableStateOf<Pane?>(null) }
+    LaunchedEffect(focused) {
+        val place = focused ?: return@LaunchedEffect
+        delay(HlMotion.SETTLE)
+        if (place != shown) opening(place)
+    }
+    Column(Modifier.keepVerticalFocus().onFocusChanged { if (!it.hasFocus) focused = null }) {
+        panes.forEach { p ->
+            HlNavItem(
+                icon = p.icon,
+                title = stringResource(p.label),
+                selected = p == open,
+                // The window's own first focus, before the screen is restored, leaves the pane that was open.
+                onFocused = { if (!memory.arriving) focused = p },
+                modifier = Modifier.focusKey(paneKey(p), memory),
+                onClick = { if (p != open) onOpen(p) },
             )
         }
     }
@@ -146,28 +195,73 @@ private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMem
 /** Where the library in numbers leads: a wall filtered by a value it counts, or a director's page. */
 private class NumbersDoors(val onOpenWall: (Library, LibraryFilter) -> Unit, val onOpenPerson: (String) -> Unit)
 
-/** The note [pane] shows when one of its secrets could not be read back and must be re-entered; else null. */
-internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
+/**
+ * Where the source's rows lead: the folders, keeping the server left or not ([useFolders]), a sign-in filled in as
+ * asked ([signIn]), and what follows the kept server made the source again ([resumed]).
+ */
+internal class SourceDoors(val useFolders: (keepServer: Boolean) -> Unit, val signIn: (LoginFill) -> Unit, val resumed: () -> Unit)
+
+/**
+ * The note [pane] shows when one of its secrets could not be read back and must be re-entered; else null. Trakt's waits
+ * for the [folders]: paused elsewhere, its pane offers no way to connect again.
+ */
+internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>, folders: Boolean): Int? = when {
     pane == Pane.Library && SecretSetting.TMDB_KEY in lost -> R.string.settings_lost_tmdb_key
     pane == Pane.Playback && SecretSetting.PATH_MAPPINGS in lost -> R.string.settings_lost_mappings
-    pane == Pane.Trakt && SecretSetting.TRAKT in lost -> R.string.settings_lost_trakt
+    pane == Pane.Trakt && folders && SecretSetting.TRAKT in lost -> R.string.settings_lost_trakt
     else -> null
+}
+
+/**
+ * Whether [pane] shows a secret the Keystore did not open for now ([unread]): the library's TMDB key or kept server,
+ * Trakt's session only with the [folders].
+ */
+internal fun unreadSecretIn(pane: Pane, unread: Set<SecretSetting>, folders: Boolean): Boolean = when (pane) {
+    Pane.Library -> SecretSetting.TMDB_KEY in unread || SecretSetting.KEPT_SERVER in unread
+    Pane.Playback -> SecretSetting.PATH_MAPPINGS in unread
+    Pane.Trakt -> folders && SecretSetting.TRAKT in unread
+    else -> false
+}
+
+/** The pane's secret is kept but not opened for now: said so, Réessayer reading it again. */
+@Composable
+private fun SecretUnread() {
+    val vm = settingsViewModel()
+    val reading by vm.readingSecrets.collectAsStateWithLifecycle()
+    PartFailed(UiError.SECRETS_UNREAD, reading, vm::readSecretsAgain)
+}
+
+/** [pane]'s secret lost or not opened for now, said at its head. */
+private fun LazyListScope.secretNote(pane: Pane, s: AppSettings, folders: Boolean) {
+    if (unreadSecretIn(pane, s.unreadSecrets, folders)) {
+        item(key = LOST_SECRET) { SecretUnread() }
+    } else {
+        lostSecretNote(pane, s.lostSecrets, folders)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
+    }
 }
 
 private const val LOST_SECRET = "lost-secret"
 
 private fun paneKey(pane: Pane) = FocusKey.pane(pane.name)
 
-/** The panes listed with [source]: path mappings where its provider uses them, counts where it counts. */
-internal fun panesFor(source: SourceConfig?, pathMapping: Boolean, counts: Boolean): List<Pane> = Pane.entries.filter { p ->
-    when (p) {
-        Pane.Playback -> source != null && pathMapping
-        Pane.Numbers -> source != null && counts
-        // Jellyfin keeps its own watch history, and has its own Trakt plugin.
-        Pane.Trakt -> source == SourceConfig.Local
-        else -> true
+/**
+ * The panes listed with [source]: playback for its path mappings or the player's [tracks], counts where it counts,
+ * Trakt with the folders, and under another source while it keeps an account ([trakt]), paused.
+ */
+internal fun panesFor(source: SourceConfig?, pathMapping: Boolean, counts: Boolean, tracks: Boolean, trakt: Boolean): List<Pane> =
+    Pane.entries.filter { p ->
+        when (p) {
+            Pane.Playback -> source != null && (pathMapping || tracks)
+            Pane.Numbers -> source != null && counts
+            // Jellyfin keeps its own watch history, and has its own Trakt plugin: there, Trakt pauses.
+            Pane.Trakt -> source == SourceConfig.Local || (source != null && trakt)
+            else -> true
+        }
     }
-}
+
+/** A Trakt account is kept: connected, or saved but not opened at this launch. */
+internal val AppSettings.keepsTrakt: Boolean
+    get() = trakt?.ended == false || SecretSetting.TRAKT in lostSecrets || SecretSetting.TRAKT in unreadSecrets
 
 /** The rows of [pane]. Focus returning from the navigation goes back to the row it left. */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -177,8 +271,7 @@ private fun PaneContent(
     s: AppSettings,
     storage: StorageStats?,
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
-    onUseFolders: () -> Unit,
-    onSignIn: () -> Unit,
+    sources: SourceDoors,
     onOpenCatalog: () -> Unit,
     rows: PaneRows,
     list: LazyListState,
@@ -203,13 +296,14 @@ private fun PaneContent(
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.safeH),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
-        // A lost secret shows at the pane's head; a failed change shows on its own row, where focus is.
-        lostSecretNote(pane, s.lostSecrets)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
+        // A lost or unread secret shows at the pane's head; a failed change shows on its own row, where focus is.
+        val folders = s.source == SourceConfig.Local
+        secretNote(pane, s, folders)
         when (pane) {
-            Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)
+            Pane.Library -> libraryPane(s, onFolderForm, sources, rows)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
-            Pane.Playback -> playbackPane(s)
-            Pane.Trakt -> trakt?.let { traktPane(it, s.trakt) }
+            Pane.Playback -> playbackPane(s, server = vm.capabilities.pathMapping, tracks = vm.asksTracks)
+            Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders) }
             Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
             Pane.About -> aboutPane(onOpenCatalog, rows)

@@ -39,6 +39,7 @@
     <string name="home_scan_failed">スキャンが完了しませんでした</string>
     <string name="home_scan_tmdb_refused">TMDBがキーを受け付けません。作品はファイルをもとに追加されますが、作品情報は付きません。</string>
     <string name="home_scan_tmdb_offline">TMDBが応答しません。作品はファイルをもとに追加され、作品情報は次回以降のスキャンで取得されます。</string>
+    <string name="home_scan_tmdb_certificate">TMDBの証明書が拒否されました。作品はファイルをもとに追加されます。このデバイスの日付と時刻を確認してください。</string>
     <string name="home_see_folders">フォルダを見る</string>
 
     <!-- Browsing -->
@@ -47,6 +48,8 @@
     <string name="sort_added">追加日</string>
     <string name="sort">並べ替え</string>
     <string name="filter">フィルター</string>
+    <string name="filter_show">表示</string>
+    <string name="show_grouped">映画とシリーズ</string>
     <string name="filter_status">視聴状況</string>
     <string name="status_in_progress">視聴中</string>
     <string name="status_watched">視聴済み</string>
@@ -85,7 +88,24 @@
     <string name="play">再生</string>
     <string name="resume">続きから再生</string>
     <string name="time_left">残り%s</string>
-    <string name="nav_home">ホーム</string>
+    <string name="back_again_to_quit">もう一度戻るボタンを押すと終了します</string>
+    <string name="watch_title">これから観る</string>
+    <string name="home_news">新着</string>
+    <string name="home_unseen">未視聴</string>
+    <string name="home_libraries">ライブラリ</string>
+    <string name="home_state_source">ソース</string>
+    <string name="home_state_scan">前回のスキャン</string>
+    <string name="home_state_tmdb_refused">キーが拒否されました</string>
+    <string name="home_state_tmdb_offline">接続できません</string>
+    <string name="home_scan_running">実行中…</string>
+    <string name="home_episode">S%1$d · E%2$s</string>
+    <string name="home_open_title">詳細を開く</string>
+    <plurals name="home_news_week">
+        <item quantity="other">今週%d件</item>
+    </plurals>
+    <plurals name="home_new_episodes">
+        <item quantity="other">新しいエピソード%d話</item>
+    </plurals>
     <string name="from_start">最初から再生</string>
     <string name="part_of">パート%1$d/%2$d</string>
     <string name="parts">パート</string>
@@ -94,12 +114,12 @@
     <string name="mark_unwatched">未視聴にする</string>
     <string name="mark_season_watched">シーズンを視聴済みにする</string>
     <string name="mark_season_unwatched">シーズンを未視聴にする</string>
-    <string name="mark_series_watched">TV番組を視聴済みにする</string>
-    <string name="mark_series_unwatched">TV番組を未視聴にする</string>
-    <string name="long_press_series_watched">長押し：TV番組を視聴済みに</string>
-    <string name="long_press_series_unwatched">長押し：TV番組を未視聴に</string>
-    <string name="mark_episode_watched">エピソードを視聴済みにする</string>
-    <string name="mark_episode_unwatched">エピソードを未視聴にする</string>
+    <string name="mark_series_watched">TV番組全体を視聴済みにする</string>
+    <string name="mark_series_unwatched">TV番組全体を未視聴にする</string>
+    <string name="mark_season_number_watched">シーズン%dを視聴済みにする</string>
+    <string name="mark_season_number_unwatched">シーズン%dを未視聴にする</string>
+    <string name="more_options">その他のオプション</string>
+    <string name="play_from_start">最初から再生</string>
     <string name="add_favorite">お気に入りに追加</string>
     <string name="remove_favorite">お気に入りから削除</string>
     <string name="view_series">TV番組を表示</string>
@@ -176,6 +196,9 @@
     <string name="no_player">Zidooプレーヤーがインストールされていません。</string>
     <string name="player_credentials">このフォルダはパスワードで保護されています。再生できるのはZidooプレーヤーだけです。</string>
     <string name="player_changed">Zidooプレーヤーが変更されたため、Houselightsはパスワードもサーバーへのアクセスも預けなくなりました。Zidoo付属のプレーヤーを再インストールするか、新しいプレーヤーを信頼する場合はHouselightsのデータを消去してください。</string>
+    <string name="play_failed_no_player">Zidooプレーヤーがありません</string>
+    <string name="play_failed_credentials">Zidooプレーヤーが必要です</string>
+    <string name="play_failed_player_changed">Zidooプレーヤーが変わりました</string>
 
     <!-- Local folders -->
     <string name="add_folder">フォルダを追加</string>
@@ -193,6 +216,11 @@
     <string name="field_host">NASのアドレス</string>
     <string name="field_export">NFSエクスポート</string>
     <string name="nfs_hint">パスワードは不要です。NAS側で、このデバイスのアドレスを読み取り専用で、非特権ポートからの接続も含めて許可してください。</string>
+    <string name="nfs_identity_title">接続するユーザー</string>
+    <string name="nfs_identity_desc">NASから見えるユーザー</string>
+    <string name="nfs_identity_hint">空欄のときは、Houselights は root（UID 0、GID 0）として接続します。Zidooプレーヤーは自身のアカウントで動画を開きます。</string>
+    <string name="field_uid">ユーザー（UID）</string>
+    <string name="field_gid">グループ（GID）</string>
     <string name="smb_hint">パスワードはこのデバイスに保存され、Zidooプレーヤーに渡されます。読み取り権限のみの専用アカウントをおすすめします。</string>
     <string name="field_share">共有フォルダ</string>
     <string name="field_path">フォルダ</string>
@@ -207,6 +235,8 @@
     <string name="placeholder_share">例：media</string>
     <string name="placeholder_path_movies">例：movies</string>
     <string name="placeholder_path_shows">例：shows</string>
+    <string name="placeholder_uid">例：1026</string>
+    <string name="placeholder_gid">例：100</string>
     <string name="test_connection">テスト</string>
     <string name="connection_untested">接続テスト未実施</string>
     <string name="server_found">サーバーが見つかりました</string>
@@ -219,6 +249,7 @@
     <string name="folder_overlaps">このフォルダは、ライブラリにある「%s」と重なっています。このままでは作品が二重に表示されます。別のフォルダを選ぶか、設定で既存のフォルダを編集してください。</string>
     <string name="folder_overlaps_state">ライブラリに追加済み</string>
     <string name="folder_not_saved_state">保存されていません</string>
+    <string name="folder_unread">このフォルダを読み込み直せませんでした</string>
     <string name="saving">保存中…</string>
     <plurals name="entries_found">
         <item quantity="other">%d件を検出</item>
@@ -230,6 +261,8 @@
     <string name="error_host_missing">NASのアドレスを入力してください。</string>
     <string name="error_export_missing">NFSエクスポートを入力してください（例：/volume1/media）。</string>
     <string name="error_share_missing">共有フォルダ名を入力してください（例：media）。</string>
+    <string name="error_uid_missing">ユーザー（UID）も入力してください。</string>
+    <string name="error_gid_missing">グループ（GID）も入力してください。</string>
     <string name="error_scan_other">フォルダを読み取れませんでした。もう一度お試しいただくか、NASの共有フォルダを確認してください。</string>
     <string name="error_folder_empty">NAS上のフォルダが空のようです。何も削除されていません。ディスクがマウントされているか確認し、本当に空であればフォルダを削除してください。</string>
     <string name="error_storage_full">このデバイスの空き容量がないため、スキャンを中止しました。設定の「ストレージ」で空き容量を確保してください。</string>
@@ -238,6 +271,11 @@
     <!-- Jellyfin -->
     <string name="jellyfin_title">Jellyfinに接続</string>
     <string name="servers_found">ネットワーク上で見つかったサーバー</string>
+    <string name="server_encrypted">暗号化あり</string>
+    <string name="server_plain">暗号化なし</string>
+    <string name="server_silent">応答なし</string>
+    <string name="connection_is_encrypted">暗号化ありの接続</string>
+    <string name="connection_is_plain">暗号化なしの接続</string>
     <string name="field_server">サーバーのアドレス</string>
     <string name="placeholder_server">例：192.168.1.10:8096</string>
     <string name="sign_in">ログイン</string>
@@ -272,9 +310,46 @@
         <item quantity="other">%dファイル</item>
     </plurals>
     <string name="playback_desc">Zidooプレーヤーがサーバーのファイルにアクセスする方法です。</string>
+    <string name="playback_desc_folders">Zidooプレーヤーが再生するトラックです。すべての映画とTV番組に適用されます。</string>
+    <string name="playback_desc_server">Zidooプレーヤーが再生するトラックと、サーバーのファイルを開く方法です。</string>
+    <string name="tracks">音声と字幕</string>
+    <string name="tracks_for_all">すべての映画とTV番組に適用</string>
+    <string name="tracks_per_title">映画ごとの選択は、作品ページの「音声と字幕」ボタンから設定できます。</string>
+    <string name="tracks_player">プレーヤーに任せる</string>
+    <string name="tracks_player_desc">プレーヤーの設定、なければ最初のトラック</string>
+    <string name="audio_language">音声の言語</string>
+    <string name="audio_language_desc">作品にその音声がある場合</string>
+    <string name="audio_language_player_desc">プレーヤーの言語設定</string>
+    <string name="subtitles">字幕</string>
+    <string name="subtitles_off">オフ</string>
+    <string name="subtitles_off_desc">字幕を表示しない</string>
+    <string name="subtitles_forced">強制字幕のみ</string>
+    <string name="subtitles_forced_desc">別の言語で話される部分</string>
+    <string name="subtitles_auto">自動</string>
+    <string name="subtitles_auto_desc">音声が%1$s以外のときは全編に表示</string>
+    <string name="subtitles_always">常に表示</string>
+    <string name="subtitles_always_desc">全編に%1$s字幕を表示</string>
+    <string name="subtitle_language">字幕の言語</string>
+    <string name="subtitle_language_interface_desc">表示言語と同じ</string>
+    <string name="subtitle_language_desc">表示する字幕の言語</string>
+    <string name="tracks_settings">設定どおり</string>
+    <string name="tracks_player_choice">プレーヤーが選択</string>
+    <string name="tracks_audio">音声</string>
+    <string name="tracks_none">なし</string>
+    <string name="tracks_forced">%1$s（強制）</string>
+    <string name="tracks_sdh">%1$s（SDH）</string>
+    <string name="tracks_for_film">この映画に適用</string>
+    <string name="tracks_for_show">TV番組全体に適用</string>
+    <string name="tracks_note_film">選択はこの映画とそのすべてのコピーに適用されます。再生中に変更した場合も保持されます。</string>
+    <string name="tracks_note_show">選択はこのTV番組全体に適用されます。エピソードの再生中に変更した場合も保持されます。</string>
+    <string name="tracks_hint_none">字幕なし</string>
+    <string name="tracks_hint_forced">強制字幕</string>
+    <string name="tracks_hint_full">%1$s字幕</string>
+    <string name="tracks_hint_pair">%1$s、%2$s</string>
     <string name="tmdb_desc">ポスターと作品情報はTMDBから取得します。</string>
     <string name="change_source_local_desc">フォルダは保持されます</string>
-    <string name="change_source_jellyfin_desc">切り替えまで接続を維持します</string>
+    <string name="change_source_jellyfin_desc">切り替えても接続を維持します</string>
+    <string name="change_source_jellyfin_sheet">切り替えてもサーバーとの接続は維持されます</string>
     <string name="change_source">ソースを変更</string>
     <string name="reconnect">再ログイン</string>
     <string name="source_local_first">NASからフォルダを追加</string>
@@ -284,11 +359,21 @@
     <plurals name="folder_count">
         <item quantity="other">%dフォルダ</item>
     </plurals>
-    <string name="source_jellyfin_other">別のサーバーやアカウント</string>
     <string name="sign_out">ログアウト</string>
     <string name="sign_out_confirm">「%s」からログアウトしますか？</string>
-    <string name="sign_out_desc">Houselightsはこのデバイス上のこのサーバーの情報を消去します。代わりにフォルダが使われます。</string>
-    <string name="sign_out_first_folder">最初のフォルダを追加すると、Houselightsはこのデバイス上のこのサーバーの情報を消去します。</string>
+    <string name="sign_out_desc">Houselightsはこのデバイス上のこのサーバーの情報を消去します。代わりにフォルダが使われます。再び使うには、もう一度ログインする必要があります。</string>
+    <string name="sign_out_no_folder_desc">Houselightsはこのデバイス上のこのサーバーの情報を消去します。ライブラリをもう一度選ぶことになります。再び使うには、もう一度ログインする必要があります。</string>
+    <string name="source_jellyfin_another">別のJellyfinサーバー</string>
+    <string name="source_jellyfin_another_desc">別のアドレスまたは別のアカウント</string>
+    <string name="source_kept_resume">再ログイン不要</string>
+    <string name="source_trakt_resumes">Traktを再開</string>
+    <string name="forget">消去</string>
+    <string name="forget_server">「%s」の情報を消去</string>
+    <string name="forget_server_desc">このデバイスでログアウトします</string>
+    <string name="forget_server_confirm">「%s」の情報を消去しますか？</string>
+    <string name="forget_server_consequence">Houselightsはこのデバイスでこのサーバーからログアウトします。再び使うには、もう一度ログインする必要があります。</string>
+    <string name="sign_out_server">「%s」からログアウト</string>
+    <string name="sign_out_server_desc">このデバイスで情報を消去します</string>
     <string name="label_server">サーバー</string>
     <string name="label_connection">接続</string>
     <string name="connection_encrypted">暗号化あり（HTTPS）</string>
@@ -356,6 +441,7 @@
     <string name="tmdb_key_unchecked">確認せずに保存しました。TMDBが応答していません。</string>
     <string name="tmdb_scan_key_refused">前回のスキャン中にTMDBがこのキーを拒否しました。作品情報はまだ取得されていません。</string>
     <string name="tmdb_scan_offline">前回のスキャン中にTMDBが応答しませんでした。作品情報は次回以降のスキャンで取得されます。</string>
+    <string name="tmdb_scan_certificate">前回のスキャン中にTMDBの証明書が拒否されました。このデバイスの日付と時刻を確認してください。</string>
     <string name="tmdb_key_revert">内蔵キーに戻す</string>
     <string name="tmdb_key_revert_desc">お使いのキーを消去します</string>
     <string name="save">保存</string>
@@ -414,7 +500,11 @@
     <string name="identify_state_matched">特定済み</string>
     <string name="result_current">現在</string>
     <string name="error_offline_title">ライブラリに接続できません</string>
+    <string name="error_offline_nas_title">NASに接続できません</string>
+    <string name="error_offline_server_title">サーバーに接続できません</string>
     <string name="error_offline">サーバーまたはNASが応答しません。電源が入っているか確認して、もう一度お試しください。</string>
+    <string name="error_certificate_title">証明書が拒否されました</string>
+    <string name="error_certificate">セキュリティ証明書が拒否されました。サーバーの証明書を更新するか、このデバイスの日付と時刻を確認して、もう一度お試しください。</string>
     <string name="error_denied_title">接続が拒否されました</string>
     <string name="error_denied">サーバーが接続を拒否しました。続けるには再ログインしてください。</string>
     <string name="error_gone_title">この作品はもうありません</string>
@@ -432,6 +522,7 @@
     <string name="error_keystore_title">デバイスのキーストアを利用できません</string>
     <string name="error_keystore">このデバイスのキーストアがパスワードの暗号化を拒否したため、何も保存されませんでした。プレーヤーを再起動して、もう一度お試しください。</string>
     <string name="error_keystore_sign_in">ログインしましたが、このデバイスのキーストアがサーバーのトークンの暗号化を拒否したため、何も保存されませんでした。プレーヤーを再起動して、再ログインしてください。</string>
+    <string name="error_secrets_unread">このデバイスのキーストアが応答しませんでしたが、保存した内容は失われていません。もう一度お試しいただき、解決しない場合はプレーヤーを再起動してください。</string>
     <string name="error_settings_title">設定を読み込めませんでした</string>
     <string name="error_settings">このプレーヤーのストレージが応答しませんでした。もう一度お試しいただき、解決しない場合はプレーヤーを再起動してください。</string>
     <string name="error_not_saved_title">何も保存されませんでした</string>
@@ -439,6 +530,7 @@
     <string name="error_not_saved_player">このプレーヤーのストレージへの書き込みが拒否されたため、何も保存されませんでした。プレーヤーの空き容量を確保してから、もう一度お試しください。</string>
     <string name="mappings_not_saved">パス変換ルールは保存されませんでした。%s</string>
     <string name="welcome_lost_secrets">このプレーヤーに保存された接続情報を読み込み直せませんでした。映画の場所をもう一度選択してください。</string>
+    <string name="welcome_settings_reset">このプレーヤーに保存された設定を読み込み直せなかったため、初期状態に戻しました。映画の場所をもう一度選択してください。</string>
     <string name="settings_lost_tmdb_key">このプレーヤーで個人用TMDBキーを読み込み直せませんでした。「TMDB APIキー」でもう一度入力してください。</string>
     <string name="settings_lost_mappings">このプレーヤーに保存されたパス変換ルールを読み込み直せませんでした。下でもう一度入力してください。</string>
     <string name="error_action_reconnect">再ログイン</string>
@@ -452,6 +544,8 @@
     <string name="device_language">デバイスの言語</string>
     <string name="remove_folder">このフォルダを削除</string>
     <string name="remove_folder_desc">このフォルダの作品はライブラリから外れます。NAS上では何も削除されません。</string>
+    <string name="remove_last_folder_desc">このフォルダの作品はライブラリから外れます。NAS上では何も削除されません。これが最後のフォルダです。ようこそ画面に戻ります。</string>
+    <string name="remove_last_folder_kept_desc">このフォルダの作品はライブラリから外れます。NAS上では何も削除されません。これが最後のフォルダです。再ログインせずに「%s」に戻ります。</string>
     <string name="remove_folder_row_desc">作品はライブラリから外れます</string>
     <string name="folder_not_removed">このフォルダは削除されませんでした。%s</string>
     <string name="remove_folder_confirm">「%s」を削除しますか？</string>
@@ -464,6 +558,16 @@
     <string name="ui_resolution_desc">再生中はプレーヤーのモード</string>
     <string name="interface_language">表示言語</string>
     <string name="interface_language_desc">メニュー、設定、メッセージ</string>
+    <string name="text_size">文字サイズ</string>
+    <string name="text_size_desc">アプリのすべての文字</string>
+    <string name="text_size_sheet">Houselightsのすべての文字を大きく、または小さくします。グリッドと余白は変わりません。</string>
+    <string name="text_size_compact">コンパクト</string>
+    <string name="text_size_compact_desc">近くで読むとき</string>
+    <string name="text_size_standard">標準</string>
+    <string name="text_size_standard_desc">おすすめ</string>
+    <string name="text_size_large">大</string>
+    <string name="text_size_large_desc">離れて読むとき</string>
+    <string name="text_size_large_reached">Androidの設定ですでにこの大きさです</string>
     <string name="ui_4k_desc">4Kで鮮明なインターフェース</string>
     <string name="ui_system_desc">システムが選択したモード</string>
     <string name="current_output">出力</string>
@@ -492,6 +596,22 @@
     <string name="support">Houselightsを支援</string>
     <string name="support_desc">プロジェクトにコーヒーを1杯ごちそうできます</string>
     <string name="support_scan">スマートフォンでこのコードを読み取ると、プロジェクトのKo-fiページが開きます。</string>
+    <string name="journal">ログを送信</string>
+    <string name="journal_desc">問題を報告するために、スマートフォンから</string>
+    <string name="journal_scan">スマートフォンでこのコードを読み取ると、Houselightsのログが開きます。メッセージに添付してください。</string>
+    <string name="journal_masked">パスワードとトークンは伏せられていますが、ファイル、共有フォルダ、NASの名前は残ります。公開する前に確認してください。</string>
+    <string name="journal_closes">このページはこのパネルとともに閉じ、遅くとも%1$s後には閉じます。</string>
+    <string name="journal_offline">プレーヤーがローカルネットワークに接続されていません。ルーターに接続してから、このパネルを開き直してください。</string>
+    <string name="journal_failed">このプレーヤーでページを開けませんでした。このパネルを閉じてから、もう一度開いてください。</string>
+    <string name="journal_few">このコードでほぼ空のログが開きます。問題が起きた直後に、このパネルを開いてください。</string>
+    <string name="journal_page_title">ログ</string>
+    <string name="journal_page_text">アプリが書き込んだ最新の行です。新しい順に表示します。</string>
+    <string name="journal_copy">コピー</string>
+    <string name="journal_copied">コピーしました</string>
+    <string name="journal_download">ダウンロード</string>
+    <string name="journal_empty">Androidにアプリの行が残っていません。</string>
+    <string name="journal_trakt_on">Trakt接続済み</string>
+    <string name="journal_trakt_off">Trakt未接続</string>
     <string name="file_access">ファイルへのアクセス</string>
     <string name="network_path_desc">NASから直接読み込みます</string>
     <string name="http_stream_desc">サーバーのストリームを再生</string>
@@ -571,6 +691,8 @@
     <string name="trakt_no_keys">このビルドのHouselightsにはTraktのキーがありません。</string>
     <string name="trakt_signed_out">未接続</string>
     <string name="trakt_connected">接続済み</string>
+    <string name="trakt_paused">一時停止中</string>
+    <string name="trakt_paused_desc">Traktはフォルダと連動します。フォルダに戻ると再開します。</string>
     <string name="trakt_connect">アカウントを接続</string>
     <string name="trakt_connect_desc">スマートフォンかパソコンでコードを入力します</string>
     <string name="trakt_disconnect">アカウントの接続を解除</string>
@@ -595,6 +717,28 @@
     <string name="trakt_sync_failed">Traktとの同期を完了できませんでした。自動的に再開されます。</string>
     <string name="trakt_sync_refused">Traktが同期を拒否しています。アカウントがロックされているか、このビルドのキーが拒否された可能性があります。trakt.tvでアカウントを確認してください。</string>
     <string name="trakt_sync_unreadable">Traktの応答をこのバージョンでは読み取れません。Houselightsを更新すると解決するはずです。</string>
+    <plurals name="trakt_skipped">
+        <item quantity="other">%d件をスキップ</item>
+    </plurals>
+    <string name="trakt_skipped_desc_one">アプリが読み取れない形式でTraktから届いています</string>
+    <string name="trakt_skipped_desc">アプリが読み取れない形式でTraktから届いています</string>
+    <string name="trakt_skipped_text_one">このバージョンでは読み取れない形式でTraktから届いています。多くの場合、ほかのアプリが残した一時停止中の再生です。それ以外は同期済みで、視聴済みの記録も通常どおり送信されます。</string>
+    <string name="trakt_skipped_text">このバージョンでは読み取れない形式でTraktから届いています。多くの場合、ほかのアプリが残した一時停止中の再生です。それ以外は同期済みで、視聴済みの記録も通常どおり送信されます。</string>
+    <plurals name="trakt_skipped_untitled">
+        <item quantity="other">タイトルのない項目 %d件</item>
+    </plurals>
+    <plurals name="trakt_skipped_more">
+        <item quantity="other">ほか%d件</item>
+    </plurals>
+    <string name="trakt_skipped_movies">映画の履歴</string>
+    <string name="trakt_skipped_episodes">エピソードの履歴</string>
+    <string name="trakt_skipped_paused">一時停止中の再生</string>
+    <string name="trakt_skipped_partial_movies">映画の履歴をすべて読み取れるまで、Houselightsはここで観た映画のうちTraktにないものを送信しません。重複を作らないためです。</string>
+    <string name="trakt_skipped_partial_episodes">エピソードの履歴をすべて読み取れるまで、Houselightsはここで観たエピソードのうちTraktにないものを送信しません。重複を作らないためです。</string>
+    <string name="trakt_skipped_partial_both">映画とエピソードの履歴をすべて読み取れるまで、Houselightsはここで観た映画とエピソードのうちTraktにないものを送信しません。重複を作らないためです。</string>
+    <string name="trakt_skipped_fix_label">解決方法：</string>
+    <string name="trakt_skipped_fix_one">解決方法：trakt.tvの「進捗」または「履歴」で削除するか、読み取れるバージョンが出たらHouselightsを更新してください。</string>
+    <string name="trakt_skipped_fix">解決方法：trakt.tvの「進捗」または「履歴」で削除するか、読み取れるバージョンが出たらHouselightsを更新してください。</string>
     <string name="trakt_certificate">Traktの証明書が拒否されました。このデバイスの日付と時刻を確認して、もう一度お試しください。</string>
     <string name="settings_lost_trakt">このプレーヤーに保存されたTraktの接続を読み込み直せませんでした。もう一度アカウントを接続してください。</string>
 </resources>

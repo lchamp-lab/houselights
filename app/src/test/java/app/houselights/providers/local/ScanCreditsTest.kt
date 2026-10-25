@@ -157,6 +157,53 @@ class ScanCreditsTest {
         )
     }
 
+    /** Writing the credits fails at once (the device full as they are written), as a trigger stands in for here. */
+    private suspend fun creditsRefusedDuring(block: suspend () -> Unit) {
+        val db = bench.db.openHelper.writableDatabase
+        db.execSQL("CREATE TRIGGER refused BEFORE INSERT ON credits BEGIN SELECT RAISE(ABORT, 'refused'); END")
+        try {
+            block()
+        } finally {
+            db.execSQL("DROP TRIGGER refused")
+        }
+    }
+
+    /** A film is never saved as matched without its credits, which no later pass would then write. */
+    @Test
+    fun aFilmWhoseCreditsCouldNotBeWrittenIsReadAgain() = runTest {
+        val films = bench.folder("Films")
+        dune(TmdbCollectionRef(726871, "Dune - Saga"))
+        nas.put("Dune (2021).mkv")
+        creditsRefusedDuring { bench.scan() }
+        assertEquals("nothing half saved", emptyList<ItemEntity>(), dao.filesOf(films.id).filter { it.matchedAt != null })
+        assertEquals("nor its saga", null, dao.collectionByKey(CollectionRules.key(726871, "Dune - Saga")))
+
+        bench.scan()
+        val film = bench.item(films, "Dune (2021).mkv")
+        assertEquals(listOf("Timothée Chalamet", "Rebecca Ferguson"), jobs(film.id)[Job.CAST])
+        assertNotNull(film.collectionId)
+    }
+
+    /** A show saved while TMDB was out of reach, matched once it answers: never without its credits. */
+    @Test
+    fun aShowWhoseCreditsCouldNotBeWrittenIsLookedUpAgain() = runTest {
+        bench.folder("Séries", SourceKind.SHOWS)
+        tmdb.show(1, "Severance", 2022)
+        tmdb.editShow(1) { it.copy(credits = TmdbCredits(cast = listOf(TmdbCastMember("Adam Scott", "Mark", order = 0, id = 55536)))) }
+        tmdb.season(1, 1, 1)
+        bench.showsNas.put("Severance (2022)/Season 1/Severance.S01E01.mkv")
+        bench.tmdbOutOfReach()
+        bench.scan()
+        assertNull(bench.series("Severance", 2022).matchedAt)
+
+        bench.tmdbBack()
+        creditsRefusedDuring { bench.scan() }
+        assertNull("not matched without its credits", bench.series("Severance", 2022).matchedAt)
+
+        bench.scan()
+        assertEquals(listOf("Adam Scott"), jobs(bench.series("Severance", 2022).id)[Job.CAST])
+    }
+
     @Test
     fun aSagasFilmsComeWithItsDetailsAskedOnce() = runTest {
         val films = bench.folder("Films")
@@ -220,7 +267,7 @@ class ScanCreditsTest {
         // The first file goes: the copy is a title of its own again.
         nas.remove("Dune (2021).mkv")
         bench.scan()
-        bench.now += MissingFiles.BRIEF_HOLD_MS
+        bench.later(MissingFiles.BRIEF_HOLD_MS)
         bench.scan()
         assertNull(bench.item(films4k, "Dune (2021) 2160p.mkv").versionOf)
     }

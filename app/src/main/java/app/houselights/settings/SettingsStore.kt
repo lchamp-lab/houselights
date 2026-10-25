@@ -8,15 +8,18 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import android.util.Log
+import app.houselights.core.Opened
 import app.houselights.core.PathMapping
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
+import app.houselights.core.SubtitleMode
+import app.houselights.core.TrackPreferences
 import app.houselights.core.TraktSession
 import app.houselights.core.lenientJson
 import kotlinx.coroutines.CancellationException
@@ -24,11 +27,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.encodeToString
@@ -36,15 +42,24 @@ import java.util.UUID
 import app.houselights.core.CollectionThreshold
 import kotlin.coroutines.CoroutineContext
 
+/**
+ * A corrupt settings file resets to the defaults rather than crashing the app at launch: logged, and flagged
+ * ([AppSettings.settingsReset]) so Welcome says why it shows. Declared before the store, which it is given to.
+ */
+internal val resetWhenCorrupt = ReplaceFileCorruptionHandler<Preferences> { e ->
+    Log.w(TAG, "Settings file unreadable, reset: ${e.javaClass.simpleName}")
+    mutablePreferencesOf(Keys.settingsReset to true)
+}
+
 private val Context.dataStore by preferencesDataStore(
     name = "settings",
-    // A corrupt settings file resets to the defaults rather than crashing the app at launch.
-    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
-    produceMigrations = { listOf(SealSecrets(Secrets.device)) },
+    corruptionHandler = resetWhenCorrupt,
+    produceMigrations = { context -> listOf(SealSecrets(Secrets.device(context))) },
 )
 
 private object Keys {
     val source = stringPreferencesKey("source")
+    val keptServer = stringPreferencesKey("kept_server")
     val deviceId = stringPreferencesKey("device_id")
     val mappings = stringPreferencesKey("path_mappings")
     val forceHttp = booleanPreferencesKey("force_http")
@@ -54,14 +69,22 @@ private object Keys {
     val metadataLanguage = stringPreferencesKey("metadata_language")
     val libraryLanguage = stringPreferencesKey("library_language")
     val trakt = stringPreferencesKey("trakt")
+    val audioLanguage = stringPreferencesKey("audio_language")
+    val subtitleMode = stringPreferencesKey("subtitle_mode")
+    val subtitleLanguage = stringPreferencesKey("subtitle_language")
+    val textSize = stringPreferencesKey("text_size")
+    val settingsReset = booleanPreferencesKey("settings_reset")
 }
 
-private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings, Keys.trakt)
+private val SECRET_KEYS = listOf(Keys.source, Keys.keptServer, Keys.tmdbKey, Keys.mappings, Keys.trakt)
 
 /** A setting that holds a secret, named so screens can say which one could not be read. */
 enum class SecretSetting {
     /** The source: a server's token. */
     SOURCE,
+
+    /** The server left for the folders, still signed in: its token. */
+    KEPT_SERVER,
     TMDB_KEY,
 
     /** Path mappings: their network paths may carry a password. */
@@ -74,6 +97,7 @@ enum class SecretSetting {
 private val Preferences.Key<String>.secret: SecretSetting
     get() = when (this) {
         Keys.source -> SecretSetting.SOURCE
+        Keys.keptServer -> SecretSetting.KEPT_SERVER
         Keys.tmdbKey -> SecretSetting.TMDB_KEY
         Keys.trakt -> SecretSetting.TRAKT
         else -> SecretSetting.PATH_MAPPINGS
@@ -107,6 +131,8 @@ internal class SealSecrets(private val secrets: Secrets) : DataMigration<Prefere
 data class AppSettings(
     val loaded: Boolean = false,
     val source: SourceConfig? = null,
+    /** The Jellyfin server left for the folders, still signed in, resumed without signing in again; one at most. */
+    val keptServer: SourceConfig.Jellyfin? = null,
     val deviceId: String = "",
     val pathMappings: List<PathMapping> = emptyList(),
     val forceHttp: Boolean = false,
@@ -121,30 +147,43 @@ data class AppSettings(
     val libraryLanguage: String? = null,
     /** The Trakt account connected for the folders' watch history; null when none is. */
     val trakt: TraktSession? = null,
-    /** Secrets that could not be read back (key lost, bad value): each reads as unset until saved again. */
+    /** The audio and subtitles asked of the player for every title; by default the player chooses. */
+    val tracks: TrackPreferences = TrackPreferences(),
+    /** « Taille du texte »: the step on the system's text size every screen is laid out at. */
+    val textSize: TextSize = TextSize.STANDARD,
+    /** Secrets that can never be read back (another key, a damaged or renamed value): each reads as unset until saved again. */
     val lostSecrets: Set<SecretSetting> = emptySet(),
+    /** Secrets the Keystore did not open at this read, though stored intact: each reads as unset until read again. */
+    val unreadSecrets: Set<SecretSetting> = emptySet(),
     /** The file keeps failing to read: retried ever less often, never replaced by defaults (which open Welcome). */
     val readFailed: Boolean = false,
+    /** The file was corrupt and reset to the defaults; Welcome says so until a source is saved. */
+    val settingsReset: Boolean = false,
 ) {
     /** The saved connection (server and token) could not be read back; the welcome screen says so. */
     val lostSource: Boolean get() = SecretSetting.SOURCE in lostSecrets
 
+    /** The saved connection is kept, but the Keystore did not open it for now; the welcome screen says so. */
+    val unreadSource: Boolean get() = SecretSetting.SOURCE in unreadSecrets
+
     /** Omits the TMDB key, the mappings' network paths, which may carry a password, and Trakt's tokens: logs may quote the settings. */
     override fun toString() =
-        "AppSettings(loaded=$loaded, source=$source, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
+        "AppSettings(loaded=$loaded, source=$source, keptServer=$keptServer, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
             "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
             "collectionMinFilms=$collectionMinFilms, metadataLanguage=$metadataLanguage, libraryLanguage=$libraryLanguage, " +
-            "trakt=$trakt, lostSecrets=$lostSecrets, readFailed=$readFailed)"
+            "trakt=$trakt, tracks=$tracks, textSize=$textSize, lostSecrets=$lostSecrets, unreadSecrets=$unreadSecrets, " +
+            "readFailed=$readFailed, settingsReset=$settingsReset)"
 }
 
 class SettingsStore(
     private val dataStore: DataStore<Preferences>,
     scope: CoroutineScope,
-    private val secrets: Secrets = Secrets.device,
+    private val secrets: Secrets,
     /** Where settings are read and secrets opened, never the main thread: each opening calls the keystore daemon. */
     private val readOn: CoroutineContext = Dispatchers.Default,
 ) {
-    constructor(context: Context, scope: CoroutineScope, secrets: Secrets = Secrets.device) : this(context.dataStore, scope, secrets)
+    constructor(context: Context, scope: CoroutineScope, secrets: Secrets = Secrets.device(context)) :
+        this(context.dataStore, scope, secrets)
 
     private val _state = MutableStateFlow(AppSettings())
 
@@ -158,12 +197,15 @@ class SettingsStore(
     /** True while a read requested by [readAgain] runs, so the screen can show it is busy. */
     val reading: StateFlow<Boolean> = _reading
 
+    /** Reads asked by [readAgain] while secrets are unread: the file is read again though it has not changed. */
+    private val rereads = MutableStateFlow(0)
+
     /** The file [state] last read, which [write] waits for. */
     private val readFrom = MutableStateFlow<Preferences?>(null)
 
     init {
         scope.launch {
-            dataStore.data
+            combine(dataStore.data, rereads) { file, _ -> file }
                 .map { it to it.toSettings() }
                 .flowOn(readOn)
                 .retryWhen { e, attempt ->
@@ -186,52 +228,98 @@ class SettingsStore(
         }
     }
 
-    /** After [AppSettings.readFailed]: reads again now rather than at the next retry. */
+    /**
+     * Reads again now what could not be read: the file after [AppSettings.readFailed] rather than at the next retry,
+     * or the [AppSettings.unreadSecrets] (Réessayer, or coming back to the app); nothing else.
+     */
     fun readAgain() {
-        if (_state.value.loaded) return
+        val s = _state.value
+        val unread = s.loaded && s.unreadSecrets.isNotEmpty()
+        if (!s.readFailed && !unread) return
         _reading.value = true
-        readNow.trySend(Unit)
+        if (unread) rereads.update { it + 1 } else readNow.trySend(Unit)
     }
 
-    private fun Preferences.toSettings(): AppSettings {
-        val lost = mutableSetOf<SecretSetting>()
-        val source = this[Keys.source]?.let { opened(Keys.source, it, lost) }?.let { decoded<SourceConfig>(Keys.source, it, lost) }
-        val mappings = this[Keys.mappings]
-            ?.let { opened(Keys.mappings, it, lost) }
-            ?.let { decoded<List<PathMapping>>(Keys.mappings, it, lost) }
-        return AppSettings(
-            loaded = true,
-            source = source,
-            deviceId = this[Keys.deviceId] ?: "",
-            pathMappings = mappings.orEmpty(),
-            forceHttp = this[Keys.forceHttp] ?: false,
-            ui4k = this[Keys.ui4k] ?: true,
-            tmdbApiKey = this[Keys.tmdbKey]?.let { opened(Keys.tmdbKey, it, lost) }?.takeIf { it.isNotBlank() },
-            collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
-            metadataLanguage = this[Keys.metadataLanguage],
-            libraryLanguage = this[Keys.libraryLanguage],
-            trakt = this[Keys.trakt]?.let { opened(Keys.trakt, it, lost) }?.let { decoded<TraktSession>(Keys.trakt, it, lost) },
-            lostSecrets = lost,
-        )
-    }
+    /** The sealed values the last read did not open: read again, they are not waited for. */
+    @Volatile
+    private var waited = emptySet<String>()
 
-    /** A secret's plain text; null when unreadable, recorded in [lost] and logged without its value. */
-    private fun opened(key: Preferences.Key<String>, stored: String, lost: MutableSet<SecretSetting>): String? {
-        val plain = secrets.open(stored)
-        if (plain == null) {
-            Log.w(TAG, "${key.name} can no longer be decrypted")
-            lost += key.secret
+    /**
+     * The settings in this file. Values the Keystore newly failed to open are opened again after each of
+     * [SECRET_WAITS_MS]; those already unread, wherever stored, are not waited for again, so that a write is read back
+     * at once.
+     */
+    private suspend fun Preferences.toSettings(): AppSettings {
+        var unopened = Unopened()
+        var settings = readSettings(unopened)
+        for (wait in SECRET_WAITS_MS) {
+            if ((unopened.unreadValues - waited).isEmpty()) break
+            delay(wait)
+            unopened = Unopened()
+            settings = readSettings(unopened)
         }
-        return plain
+        waited = unopened.unreadValues
+        return settings
     }
 
-    /** [text] decoded; null when it does not parse (a renamed field), recorded in [lost]. */
-    private inline fun <reified T> decoded(key: Preferences.Key<String>, text: String, lost: MutableSet<SecretSetting>): T? = try {
+    private fun Preferences.readSettings(unopened: Unopened) = AppSettings(
+        loaded = true,
+        source = sealed<SourceConfig>(Keys.source, unopened),
+        keptServer = sealed<SourceConfig.Jellyfin>(Keys.keptServer, unopened),
+        deviceId = this[Keys.deviceId] ?: "",
+        pathMappings = sealed<List<PathMapping>>(Keys.mappings, unopened).orEmpty(),
+        forceHttp = this[Keys.forceHttp] ?: false,
+        ui4k = this[Keys.ui4k] ?: true,
+        tmdbApiKey = this[Keys.tmdbKey]?.let { opened(Keys.tmdbKey, it, unopened) }?.takeIf { it.isNotBlank() },
+        collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
+        metadataLanguage = this[Keys.metadataLanguage],
+        libraryLanguage = this[Keys.libraryLanguage],
+        trakt = sealed<TraktSession>(Keys.trakt, unopened),
+        tracks = TrackPreferences(
+            audio = this[Keys.audioLanguage],
+            subtitles = SubtitleMode.entries.firstOrNull { it.name == this[Keys.subtitleMode] } ?: SubtitleMode.PLAYER,
+            subtitleLanguage = this[Keys.subtitleLanguage],
+        ),
+        textSize = TextSize.entries.firstOrNull { it.name == this[Keys.textSize] } ?: TextSize.STANDARD,
+        lostSecrets = unopened.lost,
+        unreadSecrets = unopened.unread,
+        settingsReset = this[Keys.settingsReset] ?: false,
+    )
+
+    /** The secrets a read could not open: [lost] for good, [unread] for now, as stored in [unreadValues]. */
+    private class Unopened {
+        val lost = mutableSetOf<SecretSetting>()
+        val unread = mutableSetOf<SecretSetting>()
+        val unreadValues = mutableSetOf<String>()
+    }
+
+    /** The value sealed at [key], opened and decoded; null when absent, or not opened and recorded in [unopened]. */
+    private inline fun <reified T> Preferences.sealed(key: Preferences.Key<String>, unopened: Unopened): T? =
+        this[key]?.let { opened(key, it, unopened) }?.let { decoded<T>(key, it, unopened) }
+
+    /** A secret's plain text; null when not opened, recorded in [unopened] and logged without its value. */
+    private fun opened(key: Preferences.Key<String>, stored: String, unopened: Unopened): String? = when (val read = secrets.read(stored)) {
+        is Opened.Text -> read.plain
+        Opened.Unavailable -> {
+            Log.w(TAG, "${key.name} not opened: the Keystore is unavailable")
+            unopened.unread += key.secret
+            unopened.unreadValues += stored
+            null
+        }
+        Opened.Undecryptable -> {
+            Log.w(TAG, "${key.name} can no longer be decrypted")
+            unopened.lost += key.secret
+            null
+        }
+    }
+
+    /** [text] decoded; null when it does not parse (a renamed field), recorded in [unopened] as lost. */
+    private inline fun <reified T> decoded(key: Preferences.Key<String>, text: String, unopened: Unopened): T? = try {
         lenientJson.decodeFromString<T>(text)
     } catch (e: IllegalArgumentException) {
         // Includes SerializationException, whose message would quote the value: only its type is logged.
         Log.w(TAG, "${key.name} no longer reads: ${e.javaClass.simpleName}")
-        lost += key.secret
+        unopened.lost += key.secret
         null
     }
 
@@ -254,12 +342,40 @@ class SettingsStore(
 
     /** Saves the source; local folders hold no secret and are never sealed, so they never wait on the Keystore. */
     suspend fun setSource(source: SourceConfig?) {
-        write {
-            when (source) {
-                null -> it.remove(Keys.source)
-                SourceConfig.Local -> it[Keys.source] = lenientJson.encodeToString<SourceConfig>(source)
-                is SourceConfig.Jellyfin -> it[Keys.source] = secrets.seal(lenientJson.encodeToString<SourceConfig>(source))
-            }
+        write { it.putSource(source) }
+    }
+
+    /**
+     * Saves the source and the server kept signed in beside it ([kept], null for none) in one write, so neither is
+     * ever saved without the other; both sealed before anything is written.
+     */
+    suspend fun setSource(source: SourceConfig, kept: SourceConfig.Jellyfin?) {
+        write { prefs ->
+            val sealed = kept?.let { secrets.seal(lenientJson.encodeToString(it)) }
+            prefs.putSource(source)
+            if (sealed == null) prefs.remove(Keys.keptServer) else prefs[Keys.keptServer] = sealed
+        }
+    }
+
+    /**
+     * Saves [source], keeping the server source it replaces as the kept server, still sealed: the Keystore did not open
+     * it ([AppSettings.unreadSource]), so it is moved as stored, never dropped nor opened.
+     */
+    suspend fun setSourceKeepingUnopened(source: SourceConfig) {
+        write { prefs ->
+            val left = prefs[Keys.source]?.takeIf(secrets::isSealed)
+            prefs.putSource(source)
+            // One kept server at most: one already stored stays.
+            if (left != null && Keys.keptServer !in prefs) prefs[Keys.keptServer] = left
+        }
+    }
+
+    private fun MutablePreferences.putSource(source: SourceConfig?) {
+        remove(Keys.settingsReset)
+        when (source) {
+            null -> remove(Keys.source)
+            SourceConfig.Local -> this[Keys.source] = lenientJson.encodeToString<SourceConfig>(source)
+            is SourceConfig.Jellyfin -> this[Keys.source] = secrets.seal(lenientJson.encodeToString<SourceConfig>(source))
         }
     }
 
@@ -287,6 +403,18 @@ class SettingsStore(
         write { it[Keys.libraryLanguage] = tag }
     }
 
+    suspend fun setTracks(tracks: TrackPreferences) {
+        write {
+            if (tracks.audio == null) it.remove(Keys.audioLanguage) else it[Keys.audioLanguage] = tracks.audio
+            it[Keys.subtitleMode] = tracks.subtitles.name
+            if (tracks.subtitleLanguage == null) it.remove(Keys.subtitleLanguage) else it[Keys.subtitleLanguage] = tracks.subtitleLanguage
+        }
+    }
+
+    suspend fun setTextSize(size: TextSize) {
+        write { if (size == TextSize.STANDARD) it.remove(Keys.textSize) else it[Keys.textSize] = size.name }
+    }
+
     /** Saves the Trakt account's tokens sealed, or forgets them ([session] null). */
     suspend fun setTrakt(session: TraktSession?) {
         write { if (session == null) it.remove(Keys.trakt) else it[Keys.trakt] = secrets.seal(lenientJson.encodeToString(session)) }
@@ -303,6 +431,9 @@ private const val TAG = "Settings"
 
 /** Failed reads before the settings say [AppSettings.readFailed]. */
 private const val READ_TRIES = 3
+
+/** Waits before opening again secrets the Keystore did not open: three tries over two seconds, as a daemon restarts. */
+private val SECRET_WAITS_MS = listOf(500L, 1_500L)
 
 /** The wait after a first failed read, doubled after each one, up to [MAX_READ_WAIT_MS]. */
 private const val FIRST_READ_WAIT_MS = 500L

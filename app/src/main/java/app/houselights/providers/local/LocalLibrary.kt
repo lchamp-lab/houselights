@@ -1,11 +1,18 @@
 package app.houselights.providers.local
 
 import android.content.Context
+import android.util.Log
 import app.houselights.core.Definition
+import app.houselights.core.ImageRef
+import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
@@ -31,24 +38,30 @@ class LocalLibrary(
     /** Closes sessions and mounts kept open on a source's address; replaceable in tests. */
     private val forget: suspend (SourceEntity) -> Unit,
 ) {
-    val folders: Flow<List<SourceEntity>> = dao.observeSources()
+    val folders: Flow<List<Folder>> = dao.observeSources().map { sources -> sources.map(SourceEntity::toFolder) }
 
-    val titleCount: Flow<Int> = dao.observeAllTitleCount()
+    val titleCount: Flow<Int> = dao.observeAllTitleCount().paced()
 
     val scan: StateFlow<ScanState> = scanner.state
 
     /** One query for all sources rather than two each, as Flow queries rerun on every scan write. */
     val folderCounts: Flow<Map<Long, FolderCounts>> =
-        dao.observeFolderCounts(Definition.ULTRA_HD.token).map { counts -> counts.associateBy { it.sourceId } }
+        dao.observeFolderCounts(Definition.ULTRA_HD.token).paced().map { counts -> counts.associateBy { it.sourceId } }
 
-    fun latestPosters(folder: SourceEntity, limit: Int): Flow<List<String>> = dao.observePosters(folder.id, limit)
+    fun latestPosters(folder: Folder, limit: Int): Flow<List<ImageRef>> = dao.observePosters(folder.id, limit).paced().map(::posters)
 
     /** The [limit] posters last added to the whole library. */
-    fun latestPosters(limit: Int): Flow<List<String>> = dao.observeAllPosters(limit)
+    fun latestPosters(limit: Int): Flow<List<ImageRef>> = dao.observeAllPosters(limit).map(::posters)
 
     suspend fun hasFolders(): Boolean = dao.sources().isNotEmpty()
 
-    /** The most recently added source, as the next one is usually on the same server. */
+    /** Whether there is a folder at least, followed; true once they cannot be read, so that home says why. */
+    val anyFolder: Flow<Boolean> = dao.observeAnySource().catch { e ->
+        Log.w(TAG, "Reading whether there are folders failed", e)
+        emit(true)
+    }
+
+    /** The most recently added source: the next one is usually on the same server, often in the same share. */
     suspend fun lastFolder(): SourceEntity? = dao.sources().maxByOrNull { it.id }
 
     /** An existing source other than [except] that [folder] [overlaps]; null if none. */
@@ -73,7 +86,7 @@ class LocalLibrary(
         val before = dao.source(id) ?: return FolderSave.Gone
         overlapping(folder, except = id)?.let { return FolderSave.Overlaps(it) }
         try {
-            with(folder) { dao.updateConnection(id, name, protocol, host, share, path, username, password) }
+            with(folder) { dao.updateConnection(id, name, protocol, host, share, path, username, password, uid, gid) }
             // A session or mount kept on the old address would otherwise still serve this source.
             forget(before)
         } finally {
@@ -83,7 +96,10 @@ class LocalLibrary(
         return FolderSave.Saved
     }
 
-    suspend fun removeFolder(folder: SourceEntity) = scanner.removeSource(folder)
+    /** Removes [folder] and its titles, once a scan's open file in it is closed; nothing when it is already gone. */
+    suspend fun removeFolder(folder: Folder) {
+        dao.source(folder.id)?.let { scanner.removeSource(it) }
+    }
 
     fun scan(refreshMetadata: Boolean = false) = scanner.scanAll(refreshMetadata)
 
@@ -103,6 +119,22 @@ class LocalLibrary(
         )
     }
 }
+
+private fun posters(paths: List<String>) = paths.map { LocalProvider.image(it, ImageType.POSTER) }
+
+/**
+ * A query a scan reruns at each write, run at most every [PANE_PACE_MS] and shown when its answer changes. Room runs
+ * the next query once an answer is taken, so the wait holds the answer (up to a period old) and no buffer may take it.
+ */
+private fun <T> Flow<T>.paced(): Flow<T> = transform {
+    emit(it)
+    delay(PANE_PACE_MS)
+}.distinctUntilChanged()
+
+/** How often the settings' counts and posters follow a scan. */
+private const val PANE_PACE_MS = 2_000L
+
+private const val TAG = "Library"
 
 /** True when both read the same files: same protocol and host, and one path (share included) contains the other. */
 internal fun SourceEntity.overlaps(other: SourceEntity): Boolean {

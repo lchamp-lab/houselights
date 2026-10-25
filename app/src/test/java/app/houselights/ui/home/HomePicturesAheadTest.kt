@@ -10,9 +10,13 @@ import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
+import app.houselights.core.UserState
+import app.houselights.settings.TextSize
 import app.houselights.ui.design.components.AwaitAhead
+import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
+import app.houselights.ui.design.textScaleOf
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.setTvContent
@@ -29,6 +33,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -40,7 +45,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.util.IdentityHashMap
 
-/** What the launch loads ahead is exactly what home's first view asks Coil for, by key and size. */
+/** What the launch loads ahead is exactly what home's grid asks Coil for, by key and size. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class HomePicturesAheadTest {
@@ -74,25 +79,61 @@ class HomePicturesAheadTest {
     @After
     fun forgetTheLoader() = Coil.reset()
 
-    private fun film(n: Int) = MediaItem(
-        id = "film$n",
-        kind = MediaKind.MOVIE,
-        title = "Film $n",
-        poster = ImageRef("poster$n") { "https://img.test/poster/$n?w=$it" },
-        backdrop = ImageRef("backdrop$n") { "https://img.test/backdrop/$n?w=$it" },
-        logo = ImageRef("logo$n") { "https://img.test/logo/$n?w=$it" },
-        thumb = ImageRef("still$n") { "https://img.test/still/$n?w=$it" },
+    private fun art(kind: String, id: String) = ImageRef("$kind$id") { "https://img.test/$kind/$id?w=$it" }
+
+    private fun titled(id: String, kind: MediaKind = MediaKind.MOVIE, positionMs: Long = 0) = MediaItem(
+        id = id,
+        kind = kind,
+        title = id,
+        poster = art("poster", id),
+        backdrop = art("backdrop", id),
+        logo = art("logo", id),
+        user = UserState(positionMs = positionMs),
+        seasonNumber = 1.takeIf { kind == MediaKind.EPISODE },
+        episodeNumber = 4.takeIf { kind == MediaKind.EPISODE },
     )
 
-    /** Loads ahead what the launch would, then lays home out: what each asked, in that order. */
-    private fun loadAheadThenShow(sections: List<HomeSection>): Pair<List<Asked>, List<Asked>> {
-        Coil.setImageLoader(loader)
-        val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), sections)
-        ahead.forEach(loader::enqueue)
-        val loaded = asked.toList().also { asked.clear() }
-        assertEquals("loaded ahead", ahead.size, loaded.size)
+    /** A home with a film in progress, a next episode, the latest films, and two libraries whose counts are cut. */
+    private val rows = HomeRows(
+        listOf(films, shows),
+        listOf(
+            HomeSection(SectionType.CONTINUE, listOf(titled("heat", positionMs = 1_000)), landscape = true),
+            HomeSection(SectionType.NEXT_UP, listOf(titled("mobland", MediaKind.EPISODE)), landscape = true),
+            HomeSection(SectionType.LATEST, (1..12).map { titled("film$it") }, landscape = false, libraryId = films.id),
+        ),
+        HomeDoors(
+            shelves = listOf(Shelf(films, 412, (1..8).map { titled("best$it") }), Shelf(shows, 38, (1..4).map { titled("show$it") })),
+        ),
+    )
 
-        compose.setTvContent { HomeBands(HomeState(content = HomeContent.Rows(sections, firstScan = false))) }
+    private val state = HomeState(rows.libraries, HomeContent.Rows(rows.sections), rows.doors)
+
+    /** The same home with sagas, their door showing their posters. */
+    private val withSagas = rows.copy(
+        libraries = rows.libraries + sagaLibrary,
+        doors = checkNotNull(rows.doors).copy(sagas = Shelf(sagaLibrary, 9, (1..6).map { titled("saga$it") })),
+    )
+
+    /** The launch's preloads on this screen, its text at [step]. */
+    private fun ahead(step: Float = 1f) = PicturesAhead(context, context.resources.displayMetrics.widthPixels, textScale(step))
+
+    /** The text size home opens at, as the launch reads it: the system's times [step]. */
+    private fun textScale(step: Float) = textScaleOf(context.resources.configuration.fontScale, step)
+
+    /**
+     * Loads ahead what the launch does ([loadFirstPictures]) for [rows], then lays home out, searching if [canSearch],
+     * its text at [step]: what each asked, in that order.
+     */
+    private fun loadAheadThenShow(rows: HomeRows = this.rows, canSearch: Boolean = true, step: Float = 1f): Pair<List<Asked>, List<Asked>> {
+        Coil.setImageLoader(loader)
+        val width = context.resources.displayMetrics.widthPixels
+        runBlocking { loadFirstPictures(context, width, { textScale(step) }, CutPosterCache()) { canSearch }(rows) }
+        // A count's posters are asked twice, loaded ahead then cut ahead from memory.
+        val loaded = asked.distinctBy { it.key }.also { asked.clear() }
+        assertEquals("loaded ahead: home's first view", firstPictures(ahead(step), rows, canSearch).size, loaded.size)
+
+        val home = HomeState(rows.libraries, HomeContent.Rows(rows.sections), rows.doors)
+        compose.setTvContent(step) { HomeGrid(home, HomeActions(onOpenSearch = {}.takeIf { canSearch })) }
         compose.waitForIdle()
         return loaded to asked.toList()
     }
@@ -110,28 +151,94 @@ class HomePicturesAheadTest {
     }
 
     @Test
-    fun aRowOfPosters() {
-        val sections = listOf(
-            HomeSection(SectionType.LATEST, (1..12).map(::film), landscape = false, libraryId = "films"),
-            HomeSection(SectionType.LATEST, (20..32).map(::film), landscape = false, libraryId = "shows"),
-        )
-        val (loaded, shown) = loadAheadThenShow(sections)
+    fun theLaunchLoadsWhatTheGridShows() {
+        val (loaded, shown) = loadAheadThenShow()
         assertTheSame(loaded, shown)
-        // The hero's three, and the posters of the first row that start on the screen.
-        assertEquals(3 + 7, loaded.size)
-        assertEquals("the first row's posters home asked for", firstRow(shown, "poster/"), firstRow(loaded, "poster/"))
+        val keys = loaded.mapNotNull { it.key?.key }
+        listOf("backdrop/heat", "logo/heat", "backdrop/mobland", "logo/mobland").forEach { picture ->
+            assertTrue("$picture loaded ahead: $keys", keys.any { picture in it })
+        }
+        val cut = loaded.filter { it.key?.extras?.containsKey("houselights.cut") == true }
+        assertEquals("a poster per digit of 412 and of 38, read for its pixels", 5, cut.size)
+        assertTrue("the latest titles' band", keys.any { "poster/film1?" in it })
     }
 
+    /** With sagas, their door's posters are loaded ahead as it shows them, beside Rechercher's wall. */
     @Test
-    fun aRowOfStills() {
-        val sections = listOf(
-            HomeSection(SectionType.CONTINUE, (1..9).map(::film), landscape = true),
-            HomeSection(SectionType.LATEST, (20..32).map(::film), landscape = false, libraryId = "films"),
-        )
-        val (loaded, shown) = loadAheadThenShow(sections)
+    fun theLaunchLoadsTheSagasDoor() {
+        val (loaded, shown) = loadAheadThenShow(withSagas)
         assertTheSame(loaded, shown)
-        assertEquals(3 + 4, loaded.size)
-        assertEquals("the first row's stills home asked for", firstRow(shown, "still/"), firstRow(loaded, "still/"))
+        val keys = loaded.mapNotNull { it.key?.key }
+        assertTrue("the sagas' posters: $keys", keys.any { "poster/saga1?" in it })
+    }
+
+    /** Without search, Rechercher's wall is neither shown nor loaded ahead; the sagas take its place. */
+    @Test
+    fun withoutSearchTheLaunchLoadsNoWall() {
+        val searching = firstPictures(ahead(), withSagas).size
+        val (loaded, shown) = loadAheadThenShow(withSagas, canSearch = false)
+        assertTheSame(loaded, shown)
+        assertTrue("fewer pictures without Rechercher's wall: ${loaded.size} of $searching", loaded.size < searching)
+        assertTrue("the sagas' posters", loaded.mapNotNull { it.key?.key }.any { "poster/saga1?" in it })
+    }
+
+    /** At the player's density, the case asks for TMDB's largest picture short of the original, ahead as on screen. */
+    @Test
+    @Config(qualifiers = "w960dp-h540dp-land-xhdpi")
+    fun theCaseAsksForAPictureOf1280AtMost() {
+        val (loaded, shown) = loadAheadThenShow()
+        assertTheSame(loaded, shown)
+        assertEquals(listOf("https://img.test/backdrop/heat?w=1280"), loaded.mapNotNull { it.key?.key }.filter { "backdrop/heat" in it })
+    }
+
+    /**
+     * At Compacte, where the doors' band is shorter, their pictures taller and their counts larger, home finds each
+     * picture loaded ahead, its counts cut, its sagas' and its wall's posters at their size.
+     */
+    @Test
+    fun atCompacteTheLaunchLoadsWhatTheGridShows() {
+        val (loaded, shown) = loadAheadThenShow(withSagas, step = TextSize.COMPACT.step)
+        assertTheSame(loaded, shown)
+        val keys = loaded.mapNotNull { it.key?.key }
+        assertEquals("cut", 5, loaded.count { it.key?.extras?.containsKey("houselights.cut") == true })
+        listOf("logo/heat", "backdrop/mobland", "poster/film1?", "poster/saga1?").forEach { picture ->
+            assertTrue("$picture loaded ahead: $keys", keys.any { picture in it })
+        }
+    }
+
+    /** At 4K, where a logo may be enlarged past its file's pixels, home still finds each picture loaded ahead. */
+    @Test
+    @Config(qualifiers = "w960dp-h540dp-land-xxxhdpi")
+    fun at4kTheLaunchLoadsWhatTheGridShows() {
+        val (loaded, shown) = loadAheadThenShow()
+        assertTheSame(loaded, shown)
+        assertTrue("the case's logo", loaded.mapNotNull { it.key?.key }.any { "logo/heat" in it })
+    }
+
+    /** The launch loads what the rows show at once, the case once what it proposes is drawn, the doors' once they are read. */
+    @Test
+    fun theLaunchLoadsEachPictureOnceWhatShowsItIsRead() = runBlocking {
+        Coil.setImageLoader(loader)
+        val first = CompletableDeferred<HomeDoors>()
+        val whole = CompletableDeferred<HomeDoors>()
+        val proposed = titled("alien")
+        val sections = rows.sections.filter { it.type != SectionType.CONTINUE }
+        val launched = HomeRows(rows.libraries, sections, doorsAhead = DoorsRead(first, whole))
+        val pictures = loadFirstPictures(context, context.resources.displayMetrics.widthPixels, { textScale(1f) }, CutPosterCache())
+        val loading = launch(Dispatchers.Unconfined) { pictures(launched) }
+        fun keys() = synchronized(asked) { asked.mapNotNull { it.key?.key } }
+        fun cut() = synchronized(asked) { asked.mapNotNull { it.key }.filter { it.extras.containsKey("houselights.cut") }.distinct() }
+        assertTrue("the next episode's still at once: ${keys()}", keys().any { "backdrop/mobland" in it })
+        assertTrue("the latest titles' band at once", keys().any { "poster/film1?" in it })
+        assertTrue("the case to come", keys().none { "alien" in it })
+
+        first.complete(HomeDoors(proposed, shelvesRead = false))
+        assertTrue("the case once drawn: ${keys()}", keys().any { "backdrop/alien" in it })
+        assertTrue("the counts to come", cut().isEmpty())
+
+        whole.complete(checkNotNull(rows.doors).copy(proposed = proposed))
+        loading.join()
+        assertEquals("a poster per digit of 412 and of 38, once the doors are read", 5, cut().size)
     }
 
     /** Each picture home asks for while the launch is loading it waits for that load ([AwaitAhead]). */
@@ -149,14 +256,13 @@ class HomePicturesAheadTest {
             add(AwaitAhead)
         }.memoryCache(::memory).eventListener(listener).build()
         Coil.setImageLoader(waiting)
-        val sections = listOf(HomeSection(SectionType.LATEST, (1..12).map(::film), landscape = false, libraryId = "films"))
-        val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), sections)
+        val ahead = firstPictures(ahead(), rows)
         val launch = CoroutineScope(Dispatchers.Default)
         try {
             launch.launch { LoadingAhead.load(waiting, ahead) }
             waitFor { synchronized(fetched) { fetched.size } >= ahead.size }
-            compose.setTvContent { HomeBands(HomeState(content = HomeContent.Rows(sections, firstScan = false))) }
-            // Home laid out: its cards and its hero have asked for their pictures, which are on their way.
+            compose.setTvContent { HomeGrid(state) }
+            // Home laid out: its case and its doors have asked for their pictures, which are on their way.
             waitFor { sizes.size >= 2 * ahead.size }
             assertEquals("home waits for what is on its way", fetched.distinct(), synchronized(fetched) { fetched.toList() })
 
@@ -185,13 +291,8 @@ class HomePicturesAheadTest {
         }
     }
 
-    /** The cards of the first row (films 1 to 12) among what was [asked], by their addresses. */
-    private fun firstRow(asked: List<Asked>, kind: String): Set<String> = asked.mapNotNull { it.key?.key }
-        .filter { it.contains(kind) && it.substringAfter(kind).substringBefore('?').toInt() < FIRST_OF_SECOND_ROW }.toSet()
-
     private companion object {
         const val TIMEOUT_MS = 5_000L
         const val POLL_MS = 10L
-        const val FIRST_OF_SECOND_ROW = 20
     }
 }

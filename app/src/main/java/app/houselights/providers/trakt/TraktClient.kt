@@ -2,7 +2,7 @@ package app.houselights.providers.trakt
 
 import app.houselights.BuildConfig
 import app.houselights.core.Http
-import kotlinx.serialization.json.Json
+import app.houselights.core.serverJson
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -82,14 +82,6 @@ class TraktClient(
         private const val CONNECT_S = 10L
         private const val READ_S = 30L
 
-        /** Nulls left out (a missing client secret is not sent), defaults sent (grant_type). */
-        val json = Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-            coerceInputValues = true
-            encodeDefaults = true
-        }
-
         private fun headers(clientId: String) = Interceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()
@@ -104,7 +96,8 @@ class TraktClient(
         private fun retrofit(url: String, http: OkHttpClient): Retrofit = Retrofit.Builder()
             .baseUrl(url)
             .client(http)
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            // Nulls left out (a missing client secret is not sent), defaults sent (grant_type).
+            .addConverterFactory(serverJson.asConverterFactory("application/json".toMediaType()))
             .build()
     }
 }

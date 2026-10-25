@@ -1,17 +1,22 @@
 package app.houselights.providers.trakt
 
 import app.houselights.core.TraktSession
+import app.houselights.core.serverJson
 import app.houselights.testing.Answer
 import app.houselights.testing.FakeServer
+import app.houselights.testing.http
 import app.houselights.ui.testing.waitFor
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -21,6 +26,7 @@ import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,7 +53,11 @@ class TraktAccountTest {
     /** Saves fail while above zero, each failure counted down. */
     private var failedSaves = 0
 
-    private fun TestScope.account(server: FakeServer, keys: TraktKeys = KEYS) = TraktAccount(
+    /** Whether the app is on screen, which a session not yet saved is saved again on leaving. */
+    private val started = MutableStateFlow(true)
+
+    /** Saves that fail are tried again in [retries] only when given: Trakt's answers come on OkHttp's threads, meanwhile. */
+    private fun TestScope.account(server: FakeServer, keys: TraktKeys = KEYS, retries: CoroutineScope? = null) = TraktAccount(
         keys,
         session = { session },
         save = {
@@ -57,6 +67,8 @@ class TraktAccountTest {
         http = server.http,
         now = { now },
         clock = { testScheduler.currentTime },
+        retries = retries,
+        started = started,
     )
 
     /** A server answering each path with its answers in turn, the last one again and again. */
@@ -343,6 +355,55 @@ class TraktAccountTest {
         assertEquals(List(2) { "Bearer a2" }, server.at(SETTINGS).map { it.header("Authorization") })
     }
 
+    /** Trakt spent the old refresh token: the new one is saved again soon, before a stopped process could lose it. */
+    @Test
+    fun renewedTokensThatCannotBeSavedAreSavedAgainSoonWithoutAnotherCall() = runTest {
+        session = lea.copy(expiresAt = now + HOUR)
+        failedSaves = 1
+        val server = server(TOKEN to listOf(answer(200, RENEWED_JSON)), SETTINGS to listOf(answer(200, SETTINGS_JSON)))
+        account(server, retries = backgroundScope).call { it.settings() }
+        advanceTimeBy(FIRST_RETRY_MS + 1)
+        runCurrent()
+        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + DAY), session)
+        assertEquals("nothing more asked of Trakt", listOf(TOKEN, SETTINGS), server.paths)
+    }
+
+    @Test
+    fun aSaveThatKeepsFailingIsTriedAgainAfterFiveSecondsHalfAMinuteAndTwoMinutes() = runTest {
+        val tried = mutableListOf<Long>()
+        val account = TraktAccount(
+            KEYS,
+            session = { null },
+            save = {
+                tried += testScheduler.currentTime
+                throw IOException("No space left on device")
+            },
+            now = { now },
+            retries = backgroundScope,
+            started = started,
+        )
+        assertTrue(runCatching { account.signOut() }.exceptionOrNull() is IOException)
+        advanceTimeBy(10 * 60_000L)
+        assertEquals(listOf(0L, 5_000L, 35_000L, 155_000L), tried)
+        started.value = false
+        runCurrent()
+        assertEquals("and as the app leaves the screen", 5, tried.size)
+    }
+
+    /** Leaving the screen (the player opening) is when the process is most likely stopped: the save is tried then. */
+    @Test
+    fun aSessionNotYetSavedIsSavedAsTheAppLeavesTheScreen() = runTest {
+        session = lea
+        failedSaves = 1
+        val account = account(server(REVOKE to listOf(answer(200))), retries = backgroundScope)
+        assertTrue(runCatching { account.signOut() }.exceptionOrNull() is IOException)
+        assertEquals(lea, session)
+        started.value = false
+        runCurrent()
+        assertNull(session)
+        assertTrue("before any timed retry", testScheduler.currentTime < FIRST_RETRY_MS)
+    }
+
     @Test
     fun aNameReadDuringARenewalKeepsTheNewTokens() = runTest {
         session = lea.copy(expiresAt = now + HOUR, username = null)
@@ -406,6 +467,16 @@ class TraktAccountTest {
         assertNull(session)
     }
 
+    /** A session the Keystore could not open at this launch reads as none: nothing to revoke, but it is forgotten. */
+    @Test
+    fun signingOutForgetsASessionTheKeystoreCouldNotOpen() = runTest {
+        val saved = mutableListOf<TraktSession?>()
+        val server = server()
+        TraktAccount(KEYS, session = { null }, save = { saved += it }, http = server.http, now = { now }).signOut()
+        assertEquals(listOf<TraktSession?>(null), saved)
+        assertTrue(server.requests.isEmpty())
+    }
+
     @Test
     fun withoutAnAccountNothingIsAsked() = runTest {
         val server = server(SETTINGS to listOf(answer(200, SETTINGS_JSON)))
@@ -421,10 +492,25 @@ class TraktAccountTest {
         assertFalse(TraktKeys("").available)
     }
 
+    @Test
+    fun anAnswerThatCannotBeReadIsLoggedByWhereNeverByItsTokens() {
+        val tokens = """{"access_token":"s3cret-t0ken","refresh_token":"r","expires_in":"soon","created_at":1}"""
+        val unreadable = assertThrows(SerializationException::class.java) { serverJson.decodeFromString<TraktTokens>(tokens) }
+        assertEquals("unreadable answer at $.expires_in", described(unreadable))
+        val missing = assertThrows(SerializationException::class.java) {
+            serverJson.decodeFromString<TraktTokens>("""{"access_token":"s3cret-t0ken","refresh_token":"r","created_at":1}""")
+        }
+        assertEquals("unreadable answer at $, missing expires_in", described(missing))
+        assertEquals("HTTP 502", described(http(502)))
+    }
+
     private companion object {
         val KEYS = TraktKeys("id")
         const val HOUR = 3_600L
         const val DAY = 24 * HOUR
+
+        /** When a save that failed is first tried again. */
+        const val FIRST_RETRY_MS = 5_000L
 
         const val DEVICE_CODE = "/oauth/device/code"
         const val DEVICE_TOKEN = "/oauth/device/token"

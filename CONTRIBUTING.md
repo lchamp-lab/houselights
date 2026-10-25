@@ -25,7 +25,9 @@ Trakt). `local.properties` is git-ignored: **never commit a key.**
 app/src/main/java/app/houselights/
   core/          backend-independent model and the MediaProvider interface
   providers/     local (SMB, NFS, TMDB, Room), jellyfin and trakt (the folders' Trakt account)
-  player/        Zidoo player launch, progress tracking, path mapping
+  player/        Zidoo player launch, progress tracking, audio and subtitle tracks, path mapping
+  settings/      the app's settings (DataStore), display modes, text size, interface language, source switching
+  journal/       the app's own log, masked, served to a phone on the home network (Settings > About)
   ui/design/     design system: tokens and components (DESIGN.md)
   ui/            Compose for TV screens
 baselineprofile/ baseline profile generator and benchmarks, run on a device
@@ -112,8 +114,8 @@ A tag `vX.Y.Z` publishes a release; `vX.Y.Z-beta.N` a pre-release (`.github/work
 
 The workflow runs the CI checks in a job with no secret. Once they pass, a second job writes the project key,
 builds the release alone, erases the key, verifies the APK's certificate against the fingerprint in the README,
-and publishes the APK (also as `Houselights.apk`), its SHA-256 and notes drawn from the commits since the
-previous tag.
+and publishes the APK (also as `Houselights.apk`), its SHA-256, R8's mapping to read its logs, and notes drawn
+from the commits since the previous tag.
 
 The key lives in the `release` environment, which only `v*` tags reach and whose jobs wait for the maintainer's
 approval: `HOUSELIGHTS_KEYSTORE` (`base64 -w0 houselights-release.jks`) and `HOUSELIGHTS_KEYSTORE_PASSWORD`.
@@ -128,15 +130,17 @@ run it (see below): a debug or freshly installed build runs interpreted and show
 
 ### Baseline profile
 
-The baseline profile lists the code of the main journeys (start-up, home, a library wall, a detail page,
-a series, settings) so Android compiles it ahead of time. It is checked in
-(`app/src/main/generated/baselineProfiles/`).
+The baseline profile lists the code of the main journeys (start-up, home's doors, a library wall, the
+sagas, a detail page from To watch, a series, the search, settings) so Android compiles it ahead of
+time. It is checked in (`app/src/main/generated/baselineProfiles/`); `BaselineProfileGuardTest` fails once it
+names files since removed or lacks home's grid.
 
 - **Installed with `scripts/install.sh`** (APK and `.dm` in one session): compiled at install.
 - **APK alone**: `profileinstaller` hands the profile to Android, which compiles it only while the device is
   plugged in and idle (standby). A player never left in standby keeps running interpreted.
 
-Zidoo Z1000 Pro, bench build, share of frames over 16.7 ms:
+Zidoo Z1000 Pro, bench build, on 2026-10-18 (home then in rows, its grid not measured yet), share of frames over
+16.7 ms:
 
 | State | Home | Detail page |
 |---|---|---|
@@ -145,7 +149,8 @@ Zidoo Z1000 Pro, bench build, share of frames over 16.7 ms:
 | APK alone, after background compilation | 0.5–0.7 % | 0.4–0.9 % |
 
 Regenerate it after changing screens, before a release. The journeys (`baselineprofile/…/Journeys.kt`)
-browse a NAS library the emulator reads over NFS, configured in `local.properties`:
+reach each door by where it lies on screen and browse a NAS library the emulator reads over NFS, films
+alone or films and shows, configured in `local.properties`:
 
 ```sh
 cat >> local.properties <<'PROPS'

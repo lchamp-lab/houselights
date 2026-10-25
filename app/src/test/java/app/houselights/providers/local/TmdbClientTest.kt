@@ -1,14 +1,17 @@
 package app.houselights.providers.local
 
+import app.houselights.core.FailureKind
 import app.houselights.core.Http
 import app.houselights.core.TmdbKeyRefusedException
 import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
+import app.houselights.core.failureKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.SerializationException
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import org.junit.Assert.assertEquals
@@ -27,9 +30,11 @@ import java.net.NoRouteToHostException
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.security.cert.CertificateNotYetValidException
 import java.time.Duration
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLHandshakeException
 
 /** TMDB's answers as the client reports them, against [FakeTmdb], on the device's clock. */
 @OptIn(ExperimentalCoroutinesApi::class) // currentTime: the waits are counted on the test's clock.
@@ -106,6 +111,19 @@ class TmdbClientTest {
         val client = tmdb.client(pauseWhenUnreachable = true)
         tmdb.failure = IOException("stream was reset: PROTOCOL_ERROR")
         failure<TmdbUnreachableException> { client.movieById(438631) }
+        tmdb.failure = null
+        assertEquals(438631, client.movieById(438631)?.id)
+    }
+
+    /** A certificate refused (the device's clock reset) is said as such, and a scan asks the next file anyway. */
+    @Test
+    fun aCertificateRefusedIsSaidAsSuchAndPausesNothing() = runTest {
+        val client = tmdb.client(pauseWhenUnreachable = true)
+        tmdb.failure = SSLHandshakeException("Chain validation failed").apply {
+            initCause(CertificateNotYetValidException("not valid before 2025"))
+        }
+        val refused = failure<TmdbUnreachableException> { client.movieById(438631) }
+        assertEquals(FailureKind.CERTIFICATE, refused.failureKind())
         tmdb.failure = null
         assertEquals(438631, client.movieById(438631)?.id)
     }
@@ -217,6 +235,26 @@ class TmdbClientTest {
         tmdb.rawBody = """{"id":2316,"name":"The Office","external_ids":{"imdb_id":"tt0386676","tvdb_id":73244,"wikidata_id":"Q23831"}}"""
         assertEquals(TmdbExternalIds("tt0386676", 73244), client.tv(2316).externalIds)
         assertTrue("external_ids" in asked.single().queryParameter("append_to_response").orEmpty().split(','))
+    }
+
+    /** An entry TMDB left incomplete is left out and the rest of the film read, as is a film without a title. */
+    @Test
+    fun aFilmWithAnIncompleteEntryIsReadWithoutIt() = runTest {
+        tmdb.rawBody = """{"id":438631,"title":"Dune","genres":[{"id":878},{"name":"Science-Fiction"}],""" +
+            """"credits":{"cast":[{"character":"Paul"},{"name":"Zendaya","character":"Chani","order":1,"id":505710},""" +
+            """{"name":null,"order":2}],"crew":[{"job":"Director"},{"name":"Denis Villeneuve","job":"Director"}]},""" +
+            """"images":{"logos":[{"iso_639_1":"en","vote_average":9.0},{"file_path":"/dune.png","iso_639_1":"en"}]}}"""
+        val movie = tmdb.client().movie(438631)
+        assertEquals(listOf(TmdbCastMember("Zendaya", "Chani", order = 1, id = 505710)), movie.credits.cast)
+        assertEquals(listOf("Denis Villeneuve"), movie.credits.crew.map { it.name })
+        assertEquals(listOf("Science-Fiction"), movie.genres.map { it.name })
+        assertEquals("/dune.png", tmdb.client().pickLogo(movie.images))
+
+        tmdb.rawBody = """{"id":438631,"overview":"Arrakis"}"""
+        assertNull(tmdb.client().movie(438631).title)
+        // A list of another shape is still an answer this version cannot read.
+        tmdb.rawBody = """{"id":438631,"title":"Dune","genres":"none"}"""
+        failure<SerializationException> { tmdb.client().movie(438631) }
     }
 
     /** Details, artwork and certification come in the client's language and region, not the device's. */

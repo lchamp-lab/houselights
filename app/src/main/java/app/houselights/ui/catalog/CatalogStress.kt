@@ -10,34 +10,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.tv.material3.Text
-import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
-import app.houselights.ui.design.HlIconButtonDefaults
-import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
-import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.TEXT_SCALE_MAX
+import app.houselights.ui.design.TEXT_SCALE_MIN
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
-import app.houselights.ui.design.components.HlIconButton
-import app.houselights.ui.design.components.HlSegmented
-import app.houselights.ui.design.components.HeaderControls
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.textRoom
@@ -51,27 +41,12 @@ import kotlin.math.roundToInt
 
 /** The fullest content the screens can meet, unadjusted: what overflows here overflows on screen. */
 internal fun LazyListScope.catalogStress() {
-    item { StressTopBarSection() }
     item { StressInfoLineSection() }
     item { StressHeroSection() }
     item { StressScriptsSection() }
     item { StressScriptsOnPosterSection() }
     item { StressFactsSection() }
     item { StressDeviceSection() }
-}
-
-@Composable
-private fun StressTopBarSection() {
-    Group("Home top bar on the brightest image") {
-        Column {
-            StressTopBar(STRESS_LIBRARIES)
-            StressCaption("Nine libraries with long names")
-        }
-        Column {
-            StressTopBar(listOf(stringResource(R.string.library_movies), stringResource(R.string.library_shows), "Documentaires"))
-            StressCaption("Three libraries, for comparison")
-        }
-    }
 }
 
 @Composable
@@ -84,11 +59,12 @@ private fun StressInfoLineSection() {
                 StressCaption("60-character title, a rating, a score and seven formats: the formats go first, then the title")
             }
             Column {
-                val density = LocalDensity.current
-                CompositionLocalProvider(LocalDensity provides Density(density.density, STRESS_LARGEST_TEXT)) {
-                    StressInfoLine(STRESS_INFO)
-                }
-                StressCaption("The same at Android’s largest text size, 1.3")
+                AtTextScale(TEXT_SCALE_MAX) { StressInfoLine(STRESS_INFO) }
+                StressCaption("The same at the largest text size the app lays out at, 1.3: Android’s largest, or Grande on 1.15")
+            }
+            Column {
+                AtTextScale(TEXT_SCALE_MIN) { StressInfoLine(STRESS_INFO) }
+                StressCaption("The same at the smallest, 0.75: Compacte on Android’s smallest")
             }
         }
     }
@@ -96,17 +72,20 @@ private fun StressInfoLineSection() {
 
 @Composable
 private fun StressHeroSection() {
-    // The home hero keeps one height whatever has focus, growing with the text scale (textRoom).
-    Group("Home hero", still = true) {
+    // A hero (« À regarder », a person's page) keeps one height whatever has focus, growing with the text scale (textRoom).
+    Group("Hero", still = true) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
             Column {
                 StressHero()
                 StressCaption("Two-line title without logo, badges, progress and overview, in the hero's frame (on a fill)")
             }
             Column {
-                val density = LocalDensity.current
-                CompositionLocalProvider(LocalDensity provides Density(density.density, STRESS_LARGEST_TEXT)) { StressHero() }
-                StressCaption("The same at Android’s largest text size, 1.3: the frame grows with it")
+                AtTextScale(TEXT_SCALE_MAX) { StressHero() }
+                StressCaption("The same at the largest text size the app lays out at, 1.3: the frame grows with it")
+            }
+            Column {
+                AtTextScale(TEXT_SCALE_MIN) { StressHero() }
+                StressCaption("The same at the smallest, 0.75: the frame shrinks with it")
             }
         }
     }
@@ -180,27 +159,12 @@ private fun StressDeviceSection() {
     }
 }
 
-/** The home top bar as HomeScreen composes it, on projector white, the lightest backdrop a film can bring. */
+/** [content] on the canvas at [textScale], as « Taille du texte » and Android's setting together may set it. */
 @Composable
-private fun StressTopBar(libraries: List<String>) = OnArtwork { HeaderControls {
-    Row(
-        // The label of the settings button shows on the image, under the bar, as it does at home.
-        Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlIconButtonDefaults.labelRoom),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        var current by remember { mutableIntStateOf(0) }
-        HlSegmented(
-            options = listOf(stringResource(R.string.nav_home)) + libraries,
-            selected = current,
-            onSelect = { current = it },
-            modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l),
-            scrollable = true,
-            markFirst = true,
-        )
-        HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = {})
-    }
-} }
+private fun AtTextScale(textScale: Float, content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(density.density, textScale), content = content)
+}
 
 /** The line naming the focused title above the library's wall, at the height LibraryScreen gives it. */
 @Composable
@@ -218,7 +182,7 @@ private fun StressScriptRow(cell: @Composable (StressScript) -> Unit) {
 
 @Composable
 private fun StressCaption(text: String) {
-    Text(text, style = Hl.type.caption, color = Hl.colors.contentTertiary, modifier = Modifier.padding(top = HlSpace.xxs))
+    Text(text, style = Hl.type.meta, color = Hl.colors.contentTertiary, modifier = Modifier.padding(top = HlSpace.xxs))
 }
 
 /** "2,0", "2,625", "1,15": French decimals, at least one and up to three. */
@@ -232,18 +196,6 @@ private val STRESS_SCRIPTS = listOf(
     StressScript("Ổn Định Ở Đâu", 2024, "Vietnamese, in Archivo"),
     StressScript("Жизнь и судьба", 2012, "Cyrillic, system fallback"),
     StressScript("Ζορμπάς ο Έλλην", 1964, "Greek, system fallback"),
-)
-
-private val STRESS_LIBRARIES = listOf(
-    "Films 4K HDR et Dolby Vision",
-    "Séries d’animation japonaise",
-    "Documentaires animaliers",
-    "Concerts et spectacles vivants",
-    "Classiques du cinéma français",
-    "Courts métrages d’étudiants",
-    "Films de famille et vacances",
-    "Émissions de télévision",
-    "Collections et sagas complètes",
 )
 
 private val STRESS_INFO = MediaItem(
@@ -276,5 +228,3 @@ private val STRESS_FACTS = listOf(
     "24,3${NBSP}Go",
 )
 
-/** Android's largest text size setting. */
-private const val STRESS_LARGEST_TEXT = 1.3f
