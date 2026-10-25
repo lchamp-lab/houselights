@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
 
-/** Removing a folder removes what was found in it, and leaves what another folder still holds. */
+/** Removing a folder removes what was found in it, what was kept of it included, and leaves what another folder still holds. */
 @RunWith(RobolectricTestRunner::class)
 class RemoveFolderTest {
     @get:Rule
@@ -85,5 +85,41 @@ class RemoveFolderTest {
 
         bench.scanner.removeSource(films)
         assertFalse(poster.exists())
+    }
+
+    @Test
+    fun aFolderRemovedTakesItsKeptStatesAlong() = runTest {
+        val films = bench.folder("Films")
+        bench.nas.put("Dune (2021).mp4")
+        bench.nas.put("Heat (1995).mp4")
+        bench.scan()
+        bench.dao.setFavorite(bench.item(films, "Dune (2021).mp4").id, true)
+        bench.nas.remove("Dune (2021).mp4")
+        bench.scan()
+        assertEquals(1, bench.keptTitles().size)
+
+        bench.scanner.removeSource(films)
+        assertEquals(emptyList<String>(), bench.keptTitles())
+    }
+
+    /** Removed while a pass reads another folder, a folder leaves nothing kept, not even what the pass kept of it before. */
+    @Test
+    fun aFolderRemovedDuringAPassLeavesNoStateKept() = runTest {
+        val hd = bench.folder("Séries", SourceKind.SHOWS)
+        bench.folder("Séries 4K", SourceKind.SHOWS, on = uhdNas)
+        val severance = listOf("Severance/Season 1/Severance - S01E01.mkv", "Severance/Season 1/Severance - S01E02.mkv")
+        severance.forEach { bench.showsNas.put(it) }
+        bench.showsNas.put("Andor/Season 1/Andor - S01E01.mkv")
+        uhdNas.put("Slow Horses/Season 1/Slow Horses - S01E01 2160p.mkv")
+        bench.scan()
+        val show = bench.series("Severance")
+        bench.dao.setFavorite(show.id, true)
+        bench.dao.setPlayed(bench.item(hd, severance.first()).id, played = true, now = bench.now)
+
+        severance.forEach(bench.showsNas::remove)
+        uhdNas.onList = { bench.scanner.removeSource(hd) }
+        bench.scan()
+        assertNull(bench.dao.item(show.id))
+        assertEquals(emptyList<String>(), bench.keptTitles())
     }
 }

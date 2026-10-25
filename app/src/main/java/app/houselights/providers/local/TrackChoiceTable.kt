@@ -26,10 +26,13 @@ data class TrackChoiceEntity(
  * which groups its copies, so the choice outlives any of them; else its row. [LibraryDao.deleteOrphanTrackChoices]
  * keys them alike.
  */
-internal fun tracksKey(row: ItemEntity) = when {
-    row.seriesId != null -> "local:${row.seriesId}"
-    row.kind == ItemKind.MOVIE && row.tmdbId != null -> "local:film:${row.tmdbId}"
-    else -> "local:${row.id}"
+internal fun tracksKey(row: ItemEntity) = tracksKey(row.id, row.kind, row.seriesId, row.tmdbId)
+
+/** [tracksKey] of the row [id] of [kind]. */
+internal fun tracksKey(id: Long, kind: ItemKind, seriesId: Long?, tmdbId: Int?) = when {
+    seriesId != null -> "local:$seriesId"
+    kind == ItemKind.MOVIE && tmdbId != null -> "local:film:$tmdbId"
+    else -> "local:$id"
 }
 
 @Dao

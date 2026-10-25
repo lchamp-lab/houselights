@@ -275,8 +275,7 @@ class LibraryScanner(
                 suspendRunCatching {
                     // Rows added meanwhile under a source removed during the scan.
                     dao.deleteOrphanItems()
-                    dao.deleteEmptySeasons()
-                    dao.deleteEmptySeries()
+                    dao.deleteEmptyShows(handedOver = shows.handedOver())
                     dao.moveOrphanShows()
                     dao.deleteEmptyCollections()
                     if (dao.groupVersions() > 0) changed = true
@@ -360,7 +359,7 @@ class LibraryScanner(
         val rewritten = missing.relinked.isNotEmpty() || missing.parts.isNotEmpty()
         val known = (if (rewritten) dao.knownFiles(source.id) else listed).associateBy { it.filePath }
         // Parts of a film whose first part is missing wait with its row instead of becoming titles.
-        val waiting = MissingFiles.waitingParts(known.values, files, missing.removed)
+        val waiting = MissingFiles.waitingParts(known.values, files, missing.removed + missing.absorbed)
 
         // While TMDB is closed (now or since a recent pass), titles only waiting for it are left alone.
         fun work(f: RemoteFile): Work? {
@@ -375,7 +374,7 @@ class LibraryScanner(
         Log.i(
             TAG,
             "${source.name}: ${files.size} files, ${missing.relinked.size} renamed, ${missing.removed.size} removed, " +
-                "${missing.held.size} held, ${todo.size} to do",
+                "${missing.absorbed.size} now parts, ${missing.held.size} held, ${todo.size} to do",
         )
 
         if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
@@ -384,7 +383,7 @@ class LibraryScanner(
         val written = processAll(folder, todo, stillDue(::work, forShows))
         dao.markScanned(source.id, clock())
         // Renames and part changes count even without a re-read, as screens show file names and parts.
-        val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || missing.parts.isNotEmpty() || written > 0
+        val changed = missing.changed || written > 0
         if (changed) _progress.emit(Unit)
         return changed
     }
@@ -561,7 +560,9 @@ class LibraryScanner(
         val now = clock()
         val time = MissingFiles.PassTime(now, source.lastScanAt, sightings::seenLong)
         val missing = MissingFiles.settle(source.kind, known, listing, time, stacks)
-        lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, now) }
+        lock.withLock {
+            dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, now, missing.absorbed)
+        }
         sightings.note(known, missing)
         return missing
     }

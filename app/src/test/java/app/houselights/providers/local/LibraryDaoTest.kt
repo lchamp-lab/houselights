@@ -101,6 +101,63 @@ class LibraryDaoTest {
         assertFitsAndroid9()
     }
 
+    /** Films TMDB matched, each looked for among the rows that stay ([LibraryDao.staying]) before it is kept. */
+    @Test
+    fun keepsMoreItemsThanAStatementTakes() = runTest {
+        val ids = films(1_500)
+        db.openHelper.writableDatabase.execSQL("UPDATE items SET favorite = 1, tmdbId = 1000 + id")
+        widest.set(0)
+        dao.settleMissing(emptyList(), emptyList(), emptyList(), removed = ids, parts = emptyList(), now = 1)
+        assertEquals(0, dao.filesOf(source).size)
+        val kept = db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM kept_states").use { c ->
+            c.moveToFirst()
+            c.getInt(0)
+        }
+        assertEquals(1_500, kept)
+        assertFitsAndroid9()
+    }
+
+    private fun entry(title: String, tmdbId: Int? = null, played: Boolean = true, favorite: Boolean = false) = KeptStateEntity(
+        title, ItemKind.MOVIE, title, tmdbId = tmdbId, showTmdbId = null, sourceId = source, folder = "", seasonNumber = null,
+        episodeNumber = null, lastEpisodeNumber = null, played = played, positionMs = 0, durationMs = null, lastPlayedAt = 10,
+        favorite = favorite, userTmdbId = null, userPosterPath = null, userBackdropPath = null, userLogoPath = null, addedAt = 0,
+        audio = null, subtitles = null, tracksAt = null,
+    )
+
+    /** Past their cap, entries go in the order they were kept, one kept again counting as new. */
+    @Test
+    fun keptStatesStopAtTheirCap() = runTest {
+        listOf("a", "b", "c", "a").forEach { dao.keep(listOf(entry(it))) }
+        dao.trimKept(max = 2)
+        assertEquals(listOf("a", "c"), listOf("a", "b", "c").filter { dao.keptState(it) != null })
+    }
+
+    /** A title leaving again replaces what its earlier removal kept, never merged into it: an unmark is never undone. */
+    @Test
+    fun aLaterRemovalReplacesWhatAnEarlierOneKept() = runTest {
+        val title = KeptKeys.film(DUNE)
+        suspend fun leaves(favorite: Boolean): KeptStateEntity? {
+            dao.keep(listOf(entry(title, DUNE, played = true, favorite = true)))
+            val dune = dao.insert(row(ItemKind.MOVIE, "Dune (2021)").copy(tmdbId = DUNE, favorite = favorite))
+            dao.settleMissing(emptyList(), emptyList(), emptyList(), removed = listOf(dune), parts = emptyList(), now = 1)
+            return dao.keptState(title)
+        }
+        assertNull("unwatched and no longer favourite: nothing older comes back", leaves(favorite = false))
+        val kept = checkNotNull(leaves(favorite = true))
+        assertEquals("unwatched, favourite still", false to true, kept.played to kept.favorite)
+    }
+
+    /** A show left without episodes is kept by title, unless its folder is gone: removing a folder forgets its titles. */
+    @Test
+    fun anEmptyShowIsKeptUnlessItsFolderIsGone() = runTest {
+        val kept = dao.insert(row(ItemKind.SERIES, "Severance").copy(matchKey = "severance", favorite = true))
+        val gone = dao.insert(row(ItemKind.SERIES, "Andor").copy(matchKey = "andor", favorite = true, sourceId = source + 1))
+        dao.deleteEmptyShows()
+        assertEquals(null to null, dao.item(kept) to dao.item(gone))
+        assertEquals(listOf(true), dao.keptNamed(ItemKind.SERIES, "severance").map { it.favorite })
+        assertEquals(emptyList<KeptStateEntity>(), dao.keptNamed(ItemKind.SERIES, "andor"))
+    }
+
     @Test
     fun holdsMoreItemsThanAStatementTakes() = runTest {
         val ids = films(1_500)
@@ -160,5 +217,6 @@ class LibraryDaoTest {
 
     private companion object {
         const val ANDROID_9_LIMIT = 999
+        const val DUNE = 438631
     }
 }
