@@ -50,15 +50,16 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     episode and what is new, a door per library with its number of titles cut in its posters, the sagas, search
     and the app's state. Back on home asks once more before leaving the app.
   - Each door opens its page: a library's wall of posters, without a bar, with its filters and sort; the sagas,
-    search or the settings. The doors of what is new and of the next episode open To watch: home's rows (to
-    resume, next up, the latest titles) under the title in focus. Back returns home, on the door you came from.
+    search or the settings. The doors of what is new and of the next episode open To watch: the rows to
+    resume, next up, the latest titles, a director's films and the best rated, under the title in focus. Back
+    returns home, on the door you came from.
 - **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
   details from TMDB.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids identify titles exactly.
   - Technical details are read from the files and set on a title's page as on a case back: a line for the video
-    (resolution, Dolby Vision and HDR, codec, frame rate), one for the audio (format, channels, bitrate), and
-    every track in its technical sheet.
+    (resolution, Dolby Vision and HDR, codec, frame rate), one for the audio (format, channels, bitrate, and its
+    language when a track is asked for), and every track in its technical sheet.
   - Over NFS, symbolic links are followed within the export, as the player follows them; an absolute link, which
     the player cannot follow, is left out and logged.
   - NFS sends no password: the app presents itself to the NAS as root, unless a folder names the user and group
@@ -112,7 +113,7 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     <td width="50%"><img src="docs/images/library.jpg" alt="The Movies wall"><br><sub>The Movies wall, a saga among the films, lit by the focused poster.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/images/watch.jpg" alt="To watch: home's rows"><br><sub>To watch: home's rows, one door away, under the title in focus.</sub></td>
+    <td width="50%"><img src="docs/images/watch.jpg" alt="To watch"><br><sub>To watch, one door from home: its rows under the title in focus.</sub></td>
     <td width="50%"><img src="docs/images/settings.jpg" alt="Settings, Display"><br><sub>Settings > Display: the interface's language and the text size.</sub></td>
   </tr>
 </table>
@@ -151,22 +152,22 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   (the Z1000 Pro's), anyone can sign an update of the system player that Android installs over it, and it
   would receive them too: install the player's updates from Zidoo alone.
 - NFS sends no password: the NAS trusts the player's address and the user it claims, root (uid 0, gid 0)
-  unless the folder's « Se présenter comme » names another user and group. Any app on the player can claim root
+  unless the folder's "Connect as" names another user and group. Any app on the player can claim root
   too: on an export that does not squash root (Synology's "No mapping"), the export is open with root's rights.
   Export it **read-only, with root squashed** or mapped to a guest or media account; the user the app presents
   only chooses whose rights it reads with, and the Zidoo player opens videos with its own NFS access.
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
   held in the Android Keystore, never replaced once made: one the Keystore does not open for now is kept, said as
-  such, never tried empty on the NAS, and read again with Réessayer or on coming back to the app. Android backup is
+  such, never tried empty on the NAS, and read again with Retry or on coming back to the app. Android backup is
   disabled. Disconnecting Trakt revokes the app's token there.
 - Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in
   rather than fall back to plain HTTP, which typing `http://` chooses; refused later (expired, or the player's clock
-  wrong), as TMDB's may be, screens say « Certificat refusé ». Each server found on the network is checked as it
+  wrong), as TMDB's may be, screens say "Certificate refused". Each server found on the network is checked as it
   appears, anonymously, 3 s at most an address: its HTTPS address (the one it announces, else port 8920), then the
-  HTTP one it announces. It is « Chiffré » only when HTTPS answers as that same server (its Jellyfin id) with a
+  HTTP one it announces. It is "Encrypted" only when HTTPS answers as that same server (its Jellyfin id) with a
   certificate the player trusts; another service on 8920 does not pass. Picked, it is reached as its check says:
-  over HTTPS alone once « Chiffré », a failure said rather than a fall back to HTTP; at the HTTP address it announces
-  once « Non chiffré », as the list and the panel say before you sign in; once « Ne répond pas », checked again before
+  over HTTPS alone once "Encrypted", a failure said rather than a fall back to HTTP; at the HTTP address it announces
+  once "Not encrypted", as the list and the panel say before you sign in; once "Not responding", checked again before
   anything is sent, and tried at the address it announces only if still silent. The settings show when a connection
   is not encrypted. Requests carrying the token or the password follow no redirect to another host, or from HTTPS to
   HTTP. A stream played without path mappings carries the token in its URL and is only handed to another app through

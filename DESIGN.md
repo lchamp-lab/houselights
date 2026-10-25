@@ -872,7 +872,8 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
 
 Reference measures on the Zidoo Z1000 Pro: frames and start on 2026-10-21 with the 0.2.0 `bench` build compiled
 `speed`, three passes; in brackets v0.1.0 compiled `speed`, three passes; overdraw, memory and bands on 2026-10-20.
-Each screen from a fresh start, an arrow every 400 ms, then an arrow held 3 s.
+Each screen from a fresh start, an arrow every 400 ms, then an arrow held 3 s. Home is 0.2.0's, in rows: its grid
+is to measure.
 
 | Measure | Tool | Budget | Home | Wall | Title's page | Settings |
 |---|---|---|---|---|---|---|
