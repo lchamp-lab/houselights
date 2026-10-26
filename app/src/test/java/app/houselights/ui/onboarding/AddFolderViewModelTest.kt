@@ -413,6 +413,23 @@ class AddFolderViewModelTest {
         assertEquals(FolderForm(protocol = Protocol.NFS, host = "nas.local", share = "/volume1/media"), vm.form)
     }
 
+    /** After an NFS folder read as a user, a new one starts as that user, its row folded and saying it. */
+    @Test
+    fun aNewFolderStartsWithTheLastNfsIdentity() = runTest {
+        nfsFolder(uid = 1026, gid = 100)
+        val tested = mutableListOf<Pair<Int?, Int?>>()
+        val vm = form(null, probe = { folder -> 12.also { tested += folder.uid to folder.gid } })
+        advanceUntilIdle()
+
+        val expected = FolderForm(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media", uid = "1026", gid = "100")
+        assertEquals(expected, vm.form)
+        assertFalse(vm.identityOpen)
+        vm.edit { copy(path = "series") }
+        vm.test()
+        advanceUntilIdle()
+        assertEquals(listOf<Pair<Int?, Int?>>(1026 to 100), tested)
+    }
+
     /**
      * The tester's second folder: under the export the form starts with, its whole path from the NAS's root typed in
      * « Dossier ». It is read inside the export, so it is tested and added as the folder it names; over SMB the same,
@@ -511,6 +528,36 @@ class AddFolderViewModelTest {
         assertEquals(emptyList<String>(), calls)
         assertEquals(1, dao.sources().size)
         assertFalse(vm.busy)
+    }
+
+    /** Test says what Add would refuse, before the network: a folder inside one the library holds, or that one again. */
+    @Test
+    fun aTestOfAFolderTheLibraryHoldsSaysSoBeforeAdd() = runTest {
+        val id = smbFolder()
+        val vm = form(null)
+        advanceUntilIdle()
+        vm.edit { copy(path = "films/4K") }
+        vm.test()
+        advanceUntilIdle()
+        val inside = vm.check as FolderCheck.Overlaps
+        assertEquals("films", inside.existing.name)
+        assertFalse(inside.same)
+        assertFalse(vm.busy)
+
+        vm.edit { copy(path = "Films") }
+        vm.test()
+        advanceUntilIdle()
+        assertTrue("the same folder, SMB ignoring case", (vm.check as FolderCheck.Overlaps).same)
+        assertEquals("nothing asked of the NAS", emptyList<String>(), calls)
+
+        // The folder's own form tests it on the NAS.
+        forms.clear()
+        val edited = form(id)
+        advanceUntilIdle()
+        edited.test()
+        advanceUntilIdle()
+        assertEquals(FolderCheck.Reachable(12), edited.check)
+        assertEquals(listOf("test 192.168.1.10 with stored"), calls)
     }
 
     /** The storage is full when the source changes: reported in the form, never a crash. */

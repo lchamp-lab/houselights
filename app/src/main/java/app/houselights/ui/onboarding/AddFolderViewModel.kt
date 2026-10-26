@@ -279,16 +279,20 @@ class AddFolderViewModel(
                 read(folderId)
             } else if (kept == null) {
                 // A second folder is most often on the same NAS: start from the last one added. Its share only if
-                // it was a folder inside: the same whole share again could only be refused as already added.
+                // it was a folder inside: the same whole share again could only be refused as already added. Over
+                // NFS, as the same user and group too: a NAS that squashes root reads the next one as it read the last.
                 suspendRunCatching { library.lastFolder() }
                     .onFailure { Log.w(TAG, "Reading the last folder failed", it) }
                     .getOrNull()
                     ?.let { last ->
+                        val nfs = last.protocol == Protocol.NFS
                         form = form.copy(
                             protocol = last.protocol,
                             host = last.host,
                             share = if (last.path.isNotBlank()) FolderForm.exportOrShare(last) else "",
                             user = last.username,
+                            uid = last.uid?.takeIf { nfs }?.toString().orEmpty(),
+                            gid = last.gid?.takeIf { nfs }?.toString().orEmpty(),
                         )
                     }
             }
@@ -354,12 +358,28 @@ class AddFolderViewModel(
         return source()
     }
 
-    /** Tests the folder and reports the result in [check]. */
+    /**
+     * Tests the folder and reports the result in [check]. A folder the library holds, or one nesting with it, gets the
+     * answer Add would give, without asking the NAS, so a test never passes a folder Add then refuses; when the folders
+     * cannot be read, the NAS is asked all the same, and Add says why nothing can be saved.
+     */
     fun test() {
         if (busy || gone) return
         val typed = form
         val source = toTest() ?: return
-        viewModelScope.launch { reaches(source, typed) }
+        // Busy from the press: a second one while the folders are read does nothing, as during the test.
+        testing = true
+        viewModelScope.launch {
+            val held = suspendRunCatching { library.overlapping(source, except = folderId) }
+                .onFailure { Log.w(TAG, "Reading the folders before testing ${source.host} failed", it) }
+                .getOrNull()
+            if (held == null) {
+                reaches(source, typed)
+            } else {
+                testing = false
+                if (form.testsAs(typed)) check = FolderCheck.Overlaps(held, same = held.samePlace(source))
+            }
+        }
     }
 
     /**
