@@ -301,6 +301,17 @@ object FilenameParser {
         return ShowPath(title, found.year, dir, found.episode)
     }
 
+    /**
+     * Why the video at [relativePath] of a shows folder gets no row: no episode number its name gives, or numbers but no
+     * show's name ("S01E01.mkv" at the folder's root, "Saison 1/03 - Victor.mkv"); null when it names an episode.
+     */
+    fun refusal(relativePath: String): IgnoredReason? {
+        if (parseShowPath(relativePath) != null) return null
+        val path = discOf(relativePath)?.root?.ifEmpty { null } ?: relativePath
+        val numbered = episodeIn(path.substringAfterLast('/'), path.split('/').dropLast(1)) != null
+        return if (numbered) IgnoredReason.NO_SHOW else IgnoredReason.NO_NUMBER
+    }
+
     private class Found(val episode: ParsedEpisode, val folder: Int?, val year: Int?)
 
     private fun episodeIn(fileName: String, folders: List<String>, all: Boolean = true): Found? {

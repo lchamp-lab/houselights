@@ -504,7 +504,7 @@ class LibraryScanner(
                 "${missing.absorbed.size} now parts, ${missing.held.size} held, ${missing.waiting.size} still held, ${todo.size} to do",
         )
 
-        if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
+        noteIgnored(source, files)
 
         val pass = ScanPass(
             source, sidecars, stacks, tmdb, shows.seasons, shows.orders, refreshMetadata, names.single, films.values.toSet() + hintedShows,
@@ -682,10 +682,21 @@ class LibraryScanner(
     private fun stillDue(work: (RemoteFile) -> Work?, forShows: Map<RemoteFile, Long>): (RemoteFile) -> Work? =
         { file -> Work.FULL.takeIf { forShows[file]?.let(shows::readThisPass) == false } ?: work(file) }
 
-    /** Logs videos that name no episode, which otherwise get no row silently. */
-    private fun tellNoEpisode(source: SourceEntity, files: List<RemoteFile>) {
-        val refused = files.count { FilenameParser.parseShowPath(it.relativePath) == null }
-        if (refused > 0) Log.i(TAG, "${source.name}: $refused of ${files.size} videos name no episode, and are left out")
+    /**
+     * Keeps the videos of shows folder [source] whose names place them nowhere, and why ([FilenameParser.refusal]), as
+     * Réglages lists them; written only when they changed, so a pass finding the same writes nothing. A films folder
+     * leaves none. Run once its listing was read: a folder out of reach keeps its last list.
+     */
+    private suspend fun noteIgnored(source: SourceEntity, files: List<RemoteFile>) {
+        val ignored = if (source.kind == SourceKind.SHOWS) {
+            files.mapNotNull { f -> FilenameParser.refusal(f.relativePath)?.let { IgnoredFileEntity(source.id, f.relativePath, it) } }
+        } else {
+            emptyList()
+        }
+        if (ignored.isNotEmpty()) Log.i(TAG, "${source.name}: ${ignored.size} of ${files.size} videos name no episode, and are left out")
+        lock.withLock {
+            if (dao.ignoredOf(source.id).toSet() != ignored.toSet()) dao.replaceIgnored(source.id, ignored)
+        }
     }
 
     private fun errorOf(source: SourceEntity, failure: Throwable): ScanError {

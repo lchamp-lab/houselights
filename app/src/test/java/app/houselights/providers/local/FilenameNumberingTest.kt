@@ -99,6 +99,16 @@ class FilenameNumberingTest {
         assertEquals("Star Wars Episode 4", FilenameParser.parseMovie("Star Wars Episode 4.mkv").title)
     }
 
+    /** A shows folder's video its name places nowhere, and why: no episode's number, or numbers but no show's name. */
+    @Test
+    fun whyAFileNamesNoEpisode() {
+        assertEquals(IgnoredReason.NO_NUMBER, FilenameParser.refusal("Shōgun (2024)/Saison 1/Shōgun - Anjin.mkv"))
+        assertEquals(IgnoredReason.NO_NUMBER, FilenameParser.refusal("Kaamelott - Heat.mkv"))
+        assertEquals(IgnoredReason.NO_SHOW, FilenameParser.refusal("S01E01.mkv"))
+        assertEquals(IgnoredReason.NO_SHOW, FilenameParser.refusal("Saison 1/03 - Victor.mkv"))
+        assertNull(FilenameParser.refusal("Severance/Season 1/Severance - S01E01.mkv"))
+    }
+
     @Test
     fun anAnimeBatchFolderIsNamedUpToItsRange() {
         val path = FilenameParser.parseShowPath("One Piece (1001-1100)/[SubsPlease] One Piece - 1071 (1080p).mkv")
