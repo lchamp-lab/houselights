@@ -73,6 +73,8 @@ private object Keys {
     val subtitleMode = stringPreferencesKey("subtitle_mode")
     val subtitleLanguage = stringPreferencesKey("subtitle_language")
     val textSize = stringPreferencesKey("text_size")
+    val updateCheck = booleanPreferencesKey("update_check")
+    val updatePrereleases = booleanPreferencesKey("update_prereleases")
     val settingsReset = booleanPreferencesKey("settings_reset")
 }
 
@@ -151,6 +153,10 @@ data class AppSettings(
     val tracks: TrackPreferences = TrackPreferences(),
     /** « Taille du texte »: the step on the system's text size every screen is laid out at. */
     val textSize: TextSize = TextSize.STANDARD,
+    /** « Recherche automatique »: the updater asks GitHub once a day whether a newer version exists. */
+    val updateCheck: Boolean = true,
+    /** « Versions proposées »: betas offered too; null until chosen, which follows the installed build (a beta offers betas). */
+    val updatePrereleases: Boolean? = null,
     /** Secrets that can never be read back (another key, a damaged or renamed value): each reads as unset until saved again. */
     val lostSecrets: Set<SecretSetting> = emptySet(),
     /** Secrets the Keystore did not open at this read, though stored intact: each reads as unset until read again. */
@@ -171,7 +177,8 @@ data class AppSettings(
         "AppSettings(loaded=$loaded, source=$source, keptServer=$keptServer, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
             "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
             "collectionMinFilms=$collectionMinFilms, metadataLanguage=$metadataLanguage, libraryLanguage=$libraryLanguage, " +
-            "trakt=$trakt, tracks=$tracks, textSize=$textSize, lostSecrets=$lostSecrets, unreadSecrets=$unreadSecrets, " +
+            "trakt=$trakt, tracks=$tracks, textSize=$textSize, updateCheck=$updateCheck, updatePrereleases=$updatePrereleases, " +
+            "lostSecrets=$lostSecrets, unreadSecrets=$unreadSecrets, " +
             "readFailed=$readFailed, settingsReset=$settingsReset)"
 }
 
@@ -281,6 +288,8 @@ class SettingsStore(
             subtitleLanguage = this[Keys.subtitleLanguage],
         ),
         textSize = TextSize.entries.firstOrNull { it.name == this[Keys.textSize] } ?: TextSize.STANDARD,
+        updateCheck = this[Keys.updateCheck] ?: true,
+        updatePrereleases = this[Keys.updatePrereleases],
         lostSecrets = unopened.lost,
         unreadSecrets = unopened.unread,
         settingsReset = this[Keys.settingsReset] ?: false,
@@ -413,6 +422,14 @@ class SettingsStore(
 
     suspend fun setTextSize(size: TextSize) {
         write { if (size == TextSize.STANDARD) it.remove(Keys.textSize) else it[Keys.textSize] = size.name }
+    }
+
+    suspend fun setUpdateCheck(value: Boolean) {
+        write { it[Keys.updateCheck] = value }
+    }
+
+    suspend fun setUpdatePrereleases(value: Boolean) {
+        write { it[Keys.updatePrereleases] = value }
     }
 
     /** Saves the Trakt account's tokens sealed, or forgets them ([session] null). */

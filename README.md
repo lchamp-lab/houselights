@@ -152,10 +152,25 @@ changes. A new release installs over the previous one and keeps your library, hi
 | Method | How |
 |---|---|
 | Zidoo | Copy `Houselights-x.y.z.apk` to a USB stick and open it from the player's file manager. |
+| In the app | Once installed, Houselights finds its next versions itself (Settings > About > Updates). |
 | Automatic updates | Add `https://github.com/lchamp-lab/houselights` to [Obtainium](https://github.com/ImranR98/Obtainium). |
 | Computer | `adb install -r Houselights-x.y.z.apk` |
 
 Android may first ask you to allow installs from the app you use.
+
+**Updating from the app.** Once a day, while it is on screen and nothing plays, Houselights asks GitHub whether a newer
+version exists. It offers one once, on home, with what is new: Update downloads it, checks it and hands it to Android,
+which asks you to confirm; Later waits for the next version, and Settings > About > Updates says where it stands
+meanwhile. Your library, history and settings are kept. Android asks once to let Houselights install apps; on a player
+whose settings do not open that screen, allow it from a computer:
+
+```
+adb shell appops set app.houselights REQUEST_INSTALL_PACKAGES allow
+```
+
+Betas are offered only if you choose them (Versions offered: Stable and beta), or if a beta is installed. A build made
+without the updater (`-Phouselights.updater=false`, as F-Droid would build it), a debug build, and any build not signed
+with the project's key have no updater and never update themselves.
 
 **Verify the signature.** Every release is signed with the project key; Android refuses an update signed
 with another one. Check an APK with `apksigner verify --print-certs` or the AppVerifier app. The
@@ -167,6 +182,14 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
 
 **TMDB key.** A release may ship without a TMDB key. The app then asks for yours (free, from
 [themoviedb.org](https://www.themoviedb.org/settings/api)) in Settings > Library > TMDB API key.
+
+## Privacy
+
+Houselights sends nothing about you or your library anywhere. The update check is its one request of its own: once a
+day it asks GitHub (Microsoft) for the project's latest releases, sending only what any request does, the player's IP
+address, and `Houselights/x.y.z` as its name; no account, no identifier. Turn it off in Settings > About > Automatic
+check: Check now still asks when you do. TMDB, Trakt and your servers are reached only as the features you use need
+them.
 
 ## Security
 
@@ -207,6 +230,13 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
   app on screen, ten minutes at most: read-only, on the player's private IPv4 address on its home network, never a
   VPN's, at an address holding a random 100-bit code that only the panel shows, each line masked of passwords and
   tokens. The page loads nothing from elsewhere.
+- Updates come from the project's releases on GitHub alone, over HTTPS, trusting the system's certificate
+  authorities only, every redirect kept to GitHub's hosts (github.com, api.github.com, *.githubusercontent.com) and
+  each answer capped. The APK downloaded must have the size and SHA-256 its release's `update.json` gives (and GitHub's
+  own digest of it), then Android reads it: it is handed over only for the app's package, a versionCode above the one
+  installed, the version name of its tag (a beta's only on a pre-release), and a signer that is the project's key,
+  pinned in the app at build time. Android always asks you to confirm, and itself refuses another key or a downgrade.
+  An update interrupted leaves the library as it was: what the database was writing is rolled back.
 - TMDB and Trakt are reached over HTTPS only, trusting the system's certificate authorities alone. Artwork
   named by NFO files is fetched over HTTPS only, redirects included. Other servers may use plain HTTP: home
   servers are reached by their address, which no rule can name.

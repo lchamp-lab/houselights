@@ -49,7 +49,7 @@ fun ScanProgress(
             Spacer(Modifier.height(HlSpace.s))
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ProgressLine(fraction.coerceAtLeast(SLIVER), Modifier.width(lineWidth), focused = focused)
+            ProgressLine(fraction.coerceAtLeast(PROGRESS_SLIVER), Modifier.width(lineWidth), focused = focused)
             if (total > 0) {
                 Spacer(Modifier.width(HlSpace.s))
                 Text(stringResource(R.string.scan_progress, processed, total), style = Hl.type.meta, color = ink, maxLines = 1)
@@ -66,4 +66,5 @@ fun ScanProgress(
     }
 }
 
-private const val SLIVER = 0.02f
+/** What the line shows of a count not begun: a sliver, so it reads as a line to fill. */
+internal const val PROGRESS_SLIVER = 0.02f

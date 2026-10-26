@@ -119,6 +119,8 @@ fun SettingsScreen(
     var inPane by remember { mutableStateOf(false) }
     BackToStart(away = inPane) { memory.focus(paneKey(pane)) }
     val storage by vm.storage.collectAsStateWithLifecycle()
+    // About's « Mises à jour », in a build that updates itself alone.
+    val updates = aboutUpdates(app.updates.state, app.updates)
 
     // The room is the library's posters, as a wall's field.
     PosterField(roomPosters()) {
@@ -137,6 +139,7 @@ fun SettingsScreen(
                     entry = memory.requester(paneKey(pane)),
                     onFocusIn = { inPane = it },
                     numbers = NumbersDoors(onOpenWall, onOpenPerson),
+                    updates = updates,
                 )
             }
         }
@@ -278,6 +281,7 @@ private fun PaneContent(
     entry: FocusRequester,
     onFocusIn: (Boolean) -> Unit,
     numbers: NumbersDoors,
+    updates: UpdateUi?,
 ) {
     val vm = settingsViewModel()
     val counted = if (pane == Pane.Numbers) numbersViewModel() else null
@@ -306,7 +310,7 @@ private fun PaneContent(
             Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders) }
             Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
-            Pane.About -> aboutPane(onOpenCatalog, rows)
+            Pane.About -> aboutPane(onOpenCatalog, rows, updates)
         }
     }
 }

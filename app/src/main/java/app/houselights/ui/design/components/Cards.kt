@@ -778,14 +778,15 @@ private const val PERCENT = 100
 /**
  * Ember progress line for titles in progress, [thickness] tall, the ember light stretched over the part seen.
  * On artwork it burns at the picture's foot over the dark plate ([groundPlate]), cut by the picture's corners,
- * and recedes with it. On a [focused] plate it is a mark in solid raspberry on the plate itself: a track there
- * would hold it under 3:1.
+ * and recedes with it. On a [focused] plate it is a mark in solid raspberry on the plate itself, a track under it
+ * would hold it under 3:1; the part to come is pale there, so a count at the line's end reads as a whole gauge's.
  */
 @Composable
 fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlSize.progress, focused: Boolean = false) {
     if (progress <= 0f) return
     val c = Hl.colors
     val under = if (focused) null else groundPlate() ?: c.content.copy(alpha = HlAlpha.FILL_STRONG)
+    val toCome = if (focused) c.onFocus.copy(alpha = HlAlpha.FILL) else null
     val mark = FocusStyle.emberMark(focused).takeIf { focused }
     val seen = progress.coerceAtMost(1f)
     val recede = LocalArtworkRecede.current
@@ -796,6 +797,7 @@ fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp =
             val light = c.emberLight(across = part.width)
             onDrawBehind {
                 under?.let { drawRect(it) }
+                toCome?.let { drawRect(it, topLeft = Offset(part.width, 0f), size = Size(size.width - part.width, size.height)) }
                 if (mark != null) drawRect(mark, size = part) else drawRect(light, size = part, colorFilter = recedeFilterAt(recede()))
             }
         },

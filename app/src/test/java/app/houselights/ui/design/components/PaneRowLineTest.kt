@@ -13,7 +13,12 @@ import app.houselights.settings.InterfaceLanguage
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.testing.TV
+import app.houselights.ui.settings.relativeTime
+import app.houselights.ui.settings.title
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.formatBytes as bytes
+import app.houselights.ui.util.formatDuration
+import app.houselights.update.UpdateFailure
 import java.util.Locale
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -125,7 +130,35 @@ class PaneRowLineTest {
             line(R.string.network_path_desc, Beside.Check),
             line(R.string.http_stream_desc, Beside.Check),
             line(R.string.add_mapping_desc),
-        )
+        ) + updateLines(w)
+    }
+
+    /** About's « Mises à jour »: its two settings beside their longest choice, and every state its row says. */
+    private fun updateLines(w: Words): List<Line> = with(w) {
+        val now = System.currentTimeMillis()
+        val upToDate = local.getString(R.string.update_up_to_date)
+        fun said(id: Int, vararg args: Any, value: String? = null) =
+            Line(local.getString(id, *args), "$tag: ${name(id)}", Beside.None, value)
+        val failed = local.getString(R.string.update_failed)
+        listOf(
+            line(R.string.update_check_desc, value = longest(R.string.update_check_daily, R.string.update_check_never)),
+            line(R.string.update_channel_desc, value = longest(R.string.update_stable, R.string.update_beta)),
+            said(R.string.update_checked, relativeTime(local, now - 2 * HOUR_MS, now, short = true), value = upToDate),
+            said(R.string.update_installed_ago, relativeTime(local, now - 3 * MINUTE_MS, now, short = true), value = upToDate),
+            line(R.string.update_never_checked),
+            line(R.string.update_check_off),
+            said(R.string.update_available, BETA, value = local.getString(R.string.update_beta_mark) + DOT + bytes(local, APK)),
+            said(
+                R.string.update_downloading_version,
+                BETA,
+                value = local.getString(R.string.update_bytes_of, bytes(local, READ), bytes(local, APK)),
+            ),
+            said(R.string.update_verifying_version, BETA),
+            said(R.string.update_ready_version, BETA),
+            said(R.string.update_installing_version, BETA),
+            line(R.string.update_must_allow, value = local.getString(R.string.update_required)),
+            line(R.string.update_busy_title, value = local.getString(R.string.update_wait, formatDuration(20 * MINUTE_MS))),
+        ) + UpdateFailure.entries.map { line(it.title, value = failed) }
     }
 
     /** A sheet's rows: a folder's, the source's, Modifier's, the choices'. */
@@ -165,6 +198,17 @@ class PaneRowLineTest {
             line(R.string.text_size_standard_desc, Beside.Check),
             line(R.string.text_size_large_desc, Beside.Check),
             line(R.string.text_size_large_reached, Beside.Check),
+            Line(local.getString(R.string.update_from, bytes(local, APK)), "$tag: update_from", Beside.None),
+            line(R.string.update_later_desc),
+            line(R.string.update_cancel_desc),
+            line(R.string.update_install_desc),
+            line(R.string.update_allow_desc),
+            line(R.string.update_check_now_desc),
+            line(R.string.update_retry_desc),
+            line(R.string.update_check_daily_desc, Beside.Check),
+            line(R.string.update_check_never_desc, Beside.Check),
+            line(R.string.update_stable_desc, Beside.Check),
+            line(R.string.update_beta_desc, Beside.Check),
         )
     }
 
@@ -194,5 +238,12 @@ class PaneRowLineTest {
 
         /** The image cache's size, as the row prints it. */
         const val CACHE = "151,5 Mo"
+
+        /** An update as long as its version names get: a beta's, its APK and what of it was received. */
+        const val BETA = "0.4.1-beta.2"
+        const val APK = 6_444_633L
+        const val READ = 2_100_000L
+        const val MINUTE_MS = 60_000L
+        const val HOUR_MS = 60 * MINUTE_MS
     }
 }

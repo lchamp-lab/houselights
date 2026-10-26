@@ -88,7 +88,7 @@ Small surfaces (a settings pane, a message, a running scan) borrow exactly one g
 |---|---|---|
 | **Case back** | what a pane states | A `FactPlate` of `PlateFact`s: each label in secondary `meta` over its value, words in `entry`, a format or a figure in `spec`, its measure after it in `meta`, a state by its dot. Several of a kind in a `SpecTable` on a plate, the one in use by its white dot. Measures (sizes, counts, rates, durations) are tabular. Only what acts is a row. Unknown values are omitted, never shown as zero. No charts. |
 | **Intertitle** | every message | A short rule, one line in `subject`, one line of secondary `body` (`readableNarrow`), at most one action and a quieter one. An ember rule means attention. It replaces the content it concerns, aligned on the screen margin: never centred, never a snackbar, Toast or dialog. `HlEmptyState` on a screen, `SheetConfirm` in a sheet. |
-| **Counter** | progress | The ember line with its count in tabular figures ("3 / 9", `scan_progress`) and the current file, quiet, in `meta` on its line or under a label (`ScanProgress`); before the files are counted, a sliver and no count. On a focused plate, a raspberry line on the plate itself. Durations read "2 h 02", time left "Il reste 20 min"; a timecode only names a frame. |
+| **Counter** | progress | The ember line with its count in tabular figures ("3 / 9", `scan_progress`) and the current file, quiet, in `meta` on its line or under a label (`ScanProgress`); before the files are counted, a sliver and no count. On a focused plate, a raspberry line on the plate itself, the part to come pale (`ProgressLine`), so a count at its end reads as a whole gauge's. On a row (`HlSettingRow`'s `progress`), the count follows its line: an update downloading, "2,1 Mo / 6,4 Mo", each figure with its unit. Durations read "2 h 02", time left "Il reste 20 min"; a timecode only names a frame. |
 
 The library in numbers follows the case back: its figures on a plate (`FactPlate`), each in `spec` over what it
 counts in secondary `meta`, then a group of rows per kind, each row opening what it counts.
@@ -660,6 +660,7 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 | `FactPlate`, `PlateFact` | what a pane states, as a case's back (see *Gestures*): facts across a plate, each label over its value, then a note; nothing in it takes focus |
 | `HlChoiceSheet`, `HlChoiceSetting` | a setting's choices on one plate in a side sheet: the current one checked and focused; choosing applies and closes. A change that failed says so in the row ("Non enregistré") |
 | `traktPane` | Trakt (`HlIcons.History`), with "Mes fichiers", a state said beside its title by its dot: not connected, what it keeps to read and the row that connects; connecting, the `DeviceCodePlate` in the pane, never ember, Back cancelling, focus going to the code from its row only and returning to the row; connected, a plate with the account's name in `subject`, its last sync, and what it holds watched and in progress in `spec`, then the rows that sync now (disabled while a sync runs, which its value says, a failed exchange said under it) and disconnect, the one row whose words follow the account so focus stays on it. Between them, while the last sync that read Trakt left entries out, a row counts them ("2 éléments ignorés"), never in ember: the sync went through. Its sheet (`SkippedSheet`) says why, lists the entries by their title and year, ten at most, then on one line a kind what it leaves unnamed, the rest past ten ("Et 590 autres") else those naming nothing ("1 élément sans titre"), over where Trakt keeps it, on a `ReadingPlate`, then the marks a history read in part holds back and how to fix it, its label set as a name; nothing takes focus but, in a sheet taller than the screen, the plate, which Down rings and the remote reads the sheet through from. An `AttentionNote` once Trakt ended the connection; a build without Trakt's keys says so beside the title. Under a server, while it keeps an account (connected, or its session not opened at this launch), Trakt pauses: "En pause" by the pending dot, "Trakt suit vos dossiers ; il reprend quand vous y revenez." read in place of what it keeps, the account's plate when its session was read, its last sync alone while a name Trakt could not say waits for the folders (nothing is asked of Trakt meanwhile), then disconnecting, the one row, no note asking to connect again; disconnected there, its place leaves the settings and the place after it opens, focused (`SettingsPlaces`) |
+| `UpdatesGroup` | About, between État and Générique, "Mises à jour", in the project's release alone (`UpdaterAvailability`): the state row, its title the installed version ("Houselights 0.4.0"), which never changes while its words follow the update ("Vérifié il y a 2 h" and "À jour" while GitHub's answer is under two days old, "Version 0.4.1 disponible" and its size, "Téléchargement de la 0.4.1…" and its count, a failure's title and "Échec" in ember, "Requise" in ember while Android must allow the install, "Dans 20 min" while GitHub asks to wait), OK always opening the update sheet, as `JournalRow` does; then « Recherche automatique » (Une fois par jour, Jamais) and « Versions proposées » (Stables, Stables et bêta, following the installed build until chosen), each a `HlChoiceSetting` |
 | `JournalRow`, `JournalSheet` | About, under Soutenir Houselights, "Envoyer le journal" ("Pour signaler un problème, depuis votre téléphone"): a QR code sheet whose page, served on the home network while it is open and ten minutes at most (`JournalServer`), shows the app's own log on a phone (`AppLog`), each line masked (`Redact.text`); the sheet closes with the page, and both once the app leaves the screen |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens (navigation or explanation left, content right, a gap and no rule between); a form lies on the settings' posters (`room`); `StatusPanel` shows where a setup stands beside its form, on a plate, its state by the white dot, a server found by its name, its protocol printed and its kind a fact; a server found picked, the protocol its check verified and the connection in Réglages' words ("HTTPS", "Connexion chiffrée"), "Vérification…" alone while it is checked; `FieldLabel` names a track of choices in `group` |
 | `ConnectionState` | how a server found will be reached, beside its name, as its check says (`ServerCheck`): the lock closed and white, "Chiffré", only when its HTTPS address answered as that server with a certificate the player trusts; open and grey, "Non chiffré"; the quiet dot, "Vérification…"; the ring, "Ne répond pas", the row still a choice, which signing in checks again first ("Vérification…" meanwhile). Never ember: none is an error or a choice. Its column as wide as the longest of the four at the viewer's text size, the check's place kept after it on every row (`ChoicePlace`), so states line up; the address under the name is where signing in reaches it |
@@ -729,6 +730,22 @@ motion it came in with. Focus stays inside and returns where it was (`SheetFocus
   Never red. Cancel or Back returns to the row that asked.
 - **The technical sheet** is read block by block, each ringed with focus and scrolled through when taller than the
   sheet; OK does nothing.
+- **The update sheet** (`UpdateSheet`) is one sheet wherever it opens: from About, "Mises à jour"; on home, opened by
+  the app, "Une nouvelle version est disponible". Its head gives the version ("Version 0.4.1", the installed one when
+  none is offered), "Bêta" printed for a pre-release, and how it stands by its light ("Prête à installer", "Autorisation
+  d’installer requise", a failure's title by the attention mark), none while its row already says it. Then what is new
+  on a `ReadingPlate`, focused only when the sheet scrolls; then one action row, focused, whose words follow the step,
+  focus never moving: "Mettre à jour" ("6,4 Mo depuis github.com"), "Téléchargement…" with its Counter,
+  "Vérification…", "Installer", "Installation…", "Autoriser l’installation", "Réessayer", "Rechercher maintenant". OK
+  does nothing while the row only says what is under way, nor for `HlMotion.SETTLE` after its words change or after
+  the app opened the sheet on home, nor on a key let go once they changed, a second press given too soon never doing
+  twice what the first asked (`UpdateSheetTest`). "Annuler le téléchargement" is the row under it, reached with Down
+  alone, focus back on the action row as it goes; on home "Plus tard", which Back is too. Back closes the sheet in every step and
+  cancels nothing; Android's window opens only over the sheet, never by itself. Under the row, what Android will do:
+  ask to confirm, keep the library, close the app (open it again on Android 9). Where Android's settings cannot allow
+  the install, the sheet says so without guessing a menu, and gives the release page's address then adb's line as
+  text; a failure says what happened and what to do, its row the remedy, "Rechercher maintenant" when nothing in the app
+  mends it: always a row to focus.
 - **A QR code sheet** shows the `QrCode` in place of the rows; nothing in it takes focus. Envoyer le journal's
   (`JournalSheet`) says under its `small` code, in secondary `meta`, what the log keeps and when its page closes; its
   description always says what the code opens, a log holding almost nothing in the same sentence, and no home network
@@ -764,7 +781,9 @@ server stays connected in a sentence; the Source row, beside its value, in fewer
 ## Messages
 
 A message appears where the action was, in the app's voice: no Toast (a test forbids it), no snackbar, no dialog. Back
-once on home is said at the end of its head (`HomeHead`'s `status`), gone after 2.5 s. A title that fails to play says
+once on home is said at the end of its head (`HomeHead`'s `status`), gone after 2.5 s. The update that brought the app
+back is said there the same way, once (`updateSaid`): "Houselights 0.4.1 installé" by the white dot (`statusState`
+`Done`), "La version 0.4.1 n’a pas été installée" by the attention mark. A title that fails to play says
 so where play was asked (`PlayOrigin`): at the end of a page's actions, under the episode row for an episode, until an
 OK there, another play or another screen (`PlaybackOutcome`). On home's case it takes the facts' place, the logo never
 moving: "Lecture impossible" and the reason on a line each (`HlStatus` `Attention`, `maxLines` 1, else an ellipsis), the
@@ -786,7 +805,10 @@ les dossiers; without a folder home draws nothing, the welcome screen taking its
 the screen; it goes to the log.
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
-prompt.
+prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is
+drawn and in front, never over another sheet, a first scan or an update under way, behind the player, under the launch
+screen, for a failure or with the check off: « Plus tard », Back, or the version acted on from About wait for a newer
+one, never a reminder, no mark on a door; About's row states it meanwhile (`HomeUpdateTest`).
 
 ## Writing
 

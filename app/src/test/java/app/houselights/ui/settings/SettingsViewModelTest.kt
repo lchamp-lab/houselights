@@ -133,6 +133,20 @@ class SettingsViewModelTest {
         assertNull(vm.errorOf(SettingAction.UI_RESOLUTION))
     }
 
+    /** « Recherche automatique » and « Versions proposées » refused by the device's storage: each said on its own row. */
+    @Test
+    fun anUpdateSettingThatFailsSaysSoOnItsRow() = runTest {
+        val vm = settings(fullSettings(backgroundScope), backgroundScope)
+        vm.setUpdateCheck(false)
+        advanceUntilIdle()
+        assertEquals(UiError.NOT_SAVED, vm.errorOf(SettingAction.UPDATE_CHECK))
+        assertNull(vm.errorOf(SettingAction.UPDATE_CHANNEL))
+        vm.setUpdatePrereleases(true)
+        advanceUntilIdle()
+        assertEquals(UiError.NOT_SAVED, vm.errorOf(SettingAction.UPDATE_CHANNEL))
+        assertNull(vm.errorOf(SettingAction.UPDATE_CHECK))
+    }
+
     /** "My files" refused by the device's storage: reported on the source's row until the next change. */
     @Test
     fun foldersThatCannotBecomeTheSourceSaySoOnTheSourceRow() = runTest {

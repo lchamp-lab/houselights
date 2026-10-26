@@ -403,6 +403,23 @@ class SettingsStoreTest {
         assertEquals(TextSize.STANDARD, next.state.value.textSize)
     }
 
+    /**
+     * « Recherche automatique » is on until turned off; « Versions proposées » is unset until chosen, which follows the
+     * installed build (the updater offers betas to a beta), then read back.
+     */
+    @Test
+    fun updateChecksAreOnAndPreReleasesFollowTheInstalledBuild() = runTest {
+        val settings = testSettings(folder.root, backgroundScope, testSecrets())
+        assertTrue(settings.state.value.updateCheck)
+        assertNull(settings.state.value.updatePrereleases)
+        settings.setUpdateCheck(false)
+        settings.setUpdatePrereleases(true)
+        assertFalse(settings.state.value.updateCheck)
+        assertEquals(true, settings.state.value.updatePrereleases)
+        settings.setUpdatePrereleases(false)
+        assertEquals(false, settings.state.value.updatePrereleases)
+    }
+
     /** "My files" holds no secret: chosen while the Keystore fails, it is still written, never a crash. */
     @Test
     fun theFoldersAreChosenWithoutTheKeystore() = runTest {

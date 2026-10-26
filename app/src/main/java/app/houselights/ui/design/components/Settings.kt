@@ -111,7 +111,8 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * white with focus, else a value it only states. [valueLit] (a user choice) and [valueAttention] set the value in
  * ember; [trailing] replaces the value. Disabled, it sits in a well, in a pane's plate only: sheets omit
  * unavailable actions. With [valueBreaks], a value of parts (" · ") takes a line each where on one line it would cut
- * the name or the description.
+ * the name or the description. With [progress], its description is a count after the ember line, in the words' ink
+ * (the Counter, as [ScanProgress] draws it): a raspberry mark on focus's white, the part to come pale.
  */
 @Composable
 fun HlSettingRow(
@@ -127,6 +128,7 @@ fun HlSettingRow(
     trailing: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
     valueBreaks: Boolean = false,
+    progress: Float? = null,
 ) {
     val c = Hl.colors
     val least = if (onClick == null) HlSize.control else HlSize.row
@@ -144,17 +146,7 @@ fun HlSettingRow(
             }
             Column(Modifier.weight(1f)) {
                 Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (description != null) {
-                    Spacer(Modifier.height(HlSpace.xxs))
-                    // One line, so rows keep one height.
-                    Text(
-                        description,
-                        style = Hl.type.meta,
-                        color = FocusStyle.quietInk(focused, enabled, lit = false),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                if (description != null) RowDescription(description, progress, focused, enabled)
             }
             Spacer(Modifier.width(HlSpace.l))
             when {
@@ -186,6 +178,30 @@ fun HlSettingRow(
     ) { focused ->
         // A disabled row keeps its rest colours under focus.
         Content(focused && enabled)
+    }
+}
+
+/**
+ * A row's [description] under its name, on one line so rows keep one height; with [progress], a count at the end of its
+ * line, in the words' ink: a figure that changes, not a description.
+ */
+@Composable
+private fun RowDescription(description: String, progress: Float?, focused: Boolean, enabled: Boolean) {
+    Spacer(Modifier.height(HlSpace.xxs))
+    if (progress == null) {
+        Text(
+            description,
+            style = Hl.type.meta,
+            color = FocusStyle.quietInk(focused, enabled, lit = false),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        ProgressLine(progress.coerceAtLeast(PROGRESS_SLIVER), Modifier.width(HlSize.progressShort), focused = focused)
+        Spacer(Modifier.width(HlSpace.s))
+        Text(description, style = Hl.type.meta, color = FocusStyle.ink(focused), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

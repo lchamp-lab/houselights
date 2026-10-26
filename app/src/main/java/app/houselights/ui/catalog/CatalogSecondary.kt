@@ -122,6 +122,13 @@ private fun SecondaryRoom() {
                         valueStyle = Hl.type.jaquette,
                         onClick = {},
                     )
+                    // The Counter on a row: an update downloading, its count at the end of its line.
+                    HlSettingRow(
+                        stringResource(R.string.update_downloading),
+                        description = "2,1 Mo / 6,4 Mo",
+                        progress = 0.33f,
+                        onClick = {},
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
                     HlStatus(StatusState.On, "Connecté")

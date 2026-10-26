@@ -82,6 +82,10 @@ internal enum class SettingAction {
     /** Resuming or forgetting the server kept beside the folders, said on the source's row. */
     KEPT_SERVER,
     TRACKS,
+
+    /** « Recherche automatique » and « Versions proposées », in About's « Mises à jour ». */
+    UPDATE_CHECK,
+    UPDATE_CHANNEL,
 }
 
 /** Why the change made from [action] failed; [folderId] is the folder a removal targeted. */
@@ -92,6 +96,7 @@ internal data class ActionError(val action: SettingAction, val error: UiError, v
  * removal and TMDB key saving run in [work], which outlives the screen. Holds the image loader, not a context,
  * so no screen leaks.
  */
+@Suppress("TooManyFunctions") // What Settings changes, a function a setting.
 internal class SettingsViewModel(
     private val store: SettingsStore,
     val library: LocalLibrary,
@@ -259,6 +264,14 @@ internal class SettingsViewModel(
 
     /** Saves « Taille du texte »; every screen is laid out again at it. */
     fun setTextSize(size: TextSize) = change("Saving the text size", SettingAction.TEXT_SIZE) { store.setTextSize(size) }
+
+    /** « Recherche automatique »: once a day, or only when asked. */
+    fun setUpdateCheck(daily: Boolean) = change("Saving the update check", SettingAction.UPDATE_CHECK) { store.setUpdateCheck(daily) }
+
+    /** « Versions proposées »: the betas too, or the releases alone. */
+    fun setUpdatePrereleases(betas: Boolean) = change("Saving the versions offered", SettingAction.UPDATE_CHANNEL) {
+        store.setUpdatePrereleases(betas)
+    }
 
     /**
      * Saves a personal TMDB key unless TMDB refuses it (blank reverts to the built-in one), in [work] as the sheet
