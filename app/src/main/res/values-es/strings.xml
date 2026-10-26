@@ -544,6 +544,8 @@
     <string name="identify_desc_unsure">Houselights duda entre estos títulos. Elija el correcto o búsquelo en TMDB: su elección se conserva en los próximos análisis.</string>
     <string name="identify_keep">Dejar tal cual</string>
     <string name="identify_kept">Dejado tal cual</string>
+    <string name="identify_suggestions">Sugerencias</string>
+    <string name="identify_skip">Omitir</string>
     <string name="error_offline_title">Biblioteca inaccesible</string>
     <string name="error_offline_nas_title">NAS inaccesible</string>
     <string name="error_offline_server_title">Servidor inaccesible</string>

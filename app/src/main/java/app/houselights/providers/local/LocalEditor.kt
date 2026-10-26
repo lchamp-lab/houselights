@@ -160,7 +160,13 @@ class LocalEditor(
             canSearch = client() != null,
             doubt = e.doubt(),
             kept = e.userNoMatch && e.tmdbId == null,
+            suggestions = if (e.doubt() == MatchDoubt.UNSURE) dao.suggestions(e.id).map { it.toCandidate() } else emptyList(),
         )
+    }
+
+    override suspend fun nextToIdentify(item: MediaItem): String? {
+        val e = entity(item)
+        return dao.nextToIdentify(e.addedAt, e.id)?.toString()
     }
 
     override suspend fun toIdentify(): List<ToIdentify> {

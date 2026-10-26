@@ -2,6 +2,7 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -168,7 +170,8 @@ fun SelectedMark(modifier: Modifier = Modifier) {
 /**
  * A search result set like a small one-sheet: poster, name, facts, a [note] on a line of its own, which no fact gives way
  * to (the title it may be, "Peut-être « Dune » (2021)"), and overview; the title in use is edged in ember with [mark]
- * ("Actuel"), replaced by [busy] while it is being chosen ("Association…").
+ * ("Actuel"), replaced by [busy] while it is being chosen ("Association…"). With options ([onLongClick]: Menu, or OK
+ * held), the Menu key says so at the end of its name's line while it has focus, its room kept so nothing moves.
  */
 @Composable
 fun HlResultItem(
@@ -181,26 +184,41 @@ fun HlResultItem(
     mark: String? = null,
     busy: String? = null,
     note: String? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     val c = Hl.colors
-    HlPanelButton(onClick, modifier.fillMaxWidth().semantics { selected = mark != null }, lit = mark != null) {
+    HlPanelButton(
+        onClick,
+        modifier.fillMaxWidth().semantics { selected = mark != null },
+        lit = mark != null,
+        onLongClick = onLongClick,
+        onLongClickLabel = onLongClickLabel,
+    ) { focused ->
         Row(Modifier.padding(HlInset.tight)) {
             PosterThumb(poster, width = HlSize.posterThumbLarge)
             Spacer(Modifier.width(HlSpace.m))
             Column(Modifier.weight(1f).padding(top = HlSpace.xs, end = HlSpace.s, bottom = HlSpace.xs)) {
                 Row(verticalAlignment = Alignment.Top) {
-                    Text(
-                        title,
-                        style = Hl.type.cardTitle,
-                        color = c.content,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (busy != null || mark != null) Spacer(Modifier.width(HlSpace.s))
-                    when {
-                        busy != null -> HlStatus(StatusState.Pending, busy)
-                        mark != null -> HlStatus(StatusState.On, mark)
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.Top) {
+                        Text(
+                            title,
+                            style = Hl.type.cardTitle,
+                            color = c.content,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (busy != null || mark != null) Spacer(Modifier.width(HlSpace.s))
+                        when {
+                            busy != null -> HlStatus(StatusState.Pending, busy)
+                            mark != null -> HlStatus(StatusState.On, mark)
+                        }
+                    }
+                    // Its room kept, so nothing moves as focus comes and goes.
+                    if (onLongClick != null) {
+                        Spacer(Modifier.width(HlSpace.s))
+                        Box(Modifier.size(HlSize.menuKeyWidth, HlSize.menuKeyHeight)) { if (focused) MenuKey() }
                     }
                 }
                 Spacer(Modifier.height(HlSpace.xxs))

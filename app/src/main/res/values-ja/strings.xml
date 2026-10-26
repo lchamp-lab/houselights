@@ -513,6 +513,8 @@
     <string name="identify_desc_unsure">Houselightsはこれらの作品のどれか判断できませんでした。正しい作品を選ぶか、TMDBで検索してください。選択した作品は以降のスキャンでも保持されます。</string>
     <string name="identify_keep">このままにする</string>
     <string name="identify_kept">このままにしています</string>
+    <string name="identify_suggestions">候補</string>
+    <string name="identify_skip">スキップ</string>
     <string name="error_offline_title">ライブラリに接続できません</string>
     <string name="error_offline_nas_title">NASに接続できません</string>
     <string name="error_offline_server_title">サーバーに接続できません</string>

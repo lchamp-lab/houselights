@@ -514,6 +514,8 @@
     <string name="identify_desc_unsure">Houselights 无法确定是这些作品中的哪一部。请选择正确的作品，或在 TMDB 上搜索：您的选择会在之后的扫描中保留。</string>
     <string name="identify_keep">保持原样</string>
     <string name="identify_kept">已保持原样</string>
+    <string name="identify_suggestions">建议</string>
+    <string name="identify_skip">跳过</string>
     <string name="error_offline_title">无法访问媒体库</string>
     <string name="error_offline_nas_title">无法访问 NAS</string>
     <string name="error_offline_server_title">无法访问服务器</string>

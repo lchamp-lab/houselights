@@ -529,6 +529,8 @@
     <string name="identify_desc_unsure">Houselights twijfelt tussen deze titels. Kies de juiste of zoek hem op TMDB: uw keuze blijft behouden bij latere scans.</string>
     <string name="identify_keep">Zo laten</string>
     <string name="identify_kept">Zo gelaten</string>
+    <string name="identify_suggestions">Suggesties</string>
+    <string name="identify_skip">Overslaan</string>
     <string name="error_offline_title">Bibliotheek onbereikbaar</string>
     <string name="error_offline_nas_title">NAS onbereikbaar</string>
     <string name="error_offline_server_title">Server onbereikbaar</string>

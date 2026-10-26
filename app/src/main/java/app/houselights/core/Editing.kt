@@ -70,6 +70,8 @@ data class Identity(
     val doubt: MatchDoubt? = null,
     /** Left as it is by the user (« Laisser tel quel »): no longer searched for by its name, nor to identify. */
     val kept: Boolean = false,
+    /** What automatic matching hesitated between ([MatchDoubt.UNSURE]), the best first: offered without a search. */
+    val suggestions: List<MatchCandidate> = emptyList(),
 )
 
 /** Why a film or show is to identify: TMDB found nothing for it, or several titles, none clearly ahead. */
@@ -108,6 +110,9 @@ interface MetadataEditor {
 
     /** The films and shows to identify, the latest added first; none from an editor that matches nothing itself. */
     suspend fun toIdentify(): List<ToIdentify> = emptyList()
+
+    /** The title to identify after [item] in [toIdentify]'s order, the order it had; null after the last. */
+    suspend fun nextToIdentify(item: MediaItem): String? = null
 
     /**
      * Leaves [item] as it is (« Laisser tel quel »): no longer to identify, nor searched for by its name; an id its name

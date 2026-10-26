@@ -545,6 +545,8 @@
     <string name="identify_desc_unsure">Houselights hesitates between these titles. Choose the right one, or search for it on TMDB: your choice is kept by later scans.</string>
     <string name="identify_keep">Leave as is</string>
     <string name="identify_kept">Left as is</string>
+    <string name="identify_suggestions">Suggestions</string>
+    <string name="identify_skip">Skip</string>
     <string name="error_offline_title">Library unreachable</string>
     <string name="error_offline_nas_title">NAS unreachable</string>
     <string name="error_offline_server_title">Server unreachable</string>

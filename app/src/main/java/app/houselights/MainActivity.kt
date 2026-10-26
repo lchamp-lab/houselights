@@ -502,10 +502,14 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
             WithSource(source) { ArtworkScreen(itemId = route.id, kind = route.kind, onDone = { nav.popBackStack() }) }
         }
         composable<Route.Identify> { entry ->
-            WithSource(source) { IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() }) }
+            val route = entry.toRoute<Route.Identify>()
+            WithSource(source) { IdentifyScreen(route.id, onDone = { nav.popBackStack() }, queue = route.queue, onNext = nav::queueTo) }
         }
-        composable<Route.ToIdentify> {
-            WithSource(source) { ToIdentifyScreen(onOpen = { nav.navigate(Route.Identify(it)) }) }
+        composable<Route.ToIdentify> { entry ->
+            val at by entry.savedStateHandle.getStateFlow<String?>(QUEUE_AT, null).collectAsStateWithLifecycle()
+            WithSource(source) {
+                ToIdentifyScreen(onOpen = nav::openQueue, queueAt = at, onQueueSeen = { entry.savedStateHandle[QUEUE_AT] = null })
+            }
         }
         composable<Route.Person> { entry ->
             WithSource(source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
@@ -589,6 +593,34 @@ private fun NavController.openWall(route: Route.Library) {
 
 /** Opens the page of [route], one of a kind, unless it is on top. */
 private fun NavController.openOnce(route: Any) = navigate(route) { launchSingleTop = true }
+
+/** Identifier on [id] over the titles to identify, those after it following ([queueTo]); once, OK pressed twice. */
+internal fun NavController.openQueue(id: String) {
+    if (currentBackStackEntry?.destination?.hasRoute<Route.ToIdentify>() == true) navigate(Route.Identify(id, queue = true))
+}
+
+/**
+ * The queue moves on to [next], over the list, which Back returns to, on that title ([QUEUE_AT]), never from title to
+ * title; after the last, back to the settings rather than to an empty list.
+ */
+internal fun NavController.queueTo(next: String?) {
+    val list = try {
+        getBackStackEntry<Route.ToIdentify>()
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+    when {
+        list == null -> popBackStack()
+        next == null -> popBackStack<Route.ToIdentify>(inclusive = true)
+        else -> {
+            list.savedStateHandle[QUEUE_AT] = next
+            navigate(Route.Identify(next, queue = true)) { popUpTo<Route.Identify> { inclusive = true } }
+        }
+    }
+}
+
+/** The title the queue reached, which the list's focus goes to once back ([Route.ToIdentify]'s saved state). */
+internal const val QUEUE_AT = "queueAt"
 
 /** [content], a screen that shows the source, composed only while there is one ([source]): it would read it at once. */
 @Composable

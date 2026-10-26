@@ -538,6 +538,8 @@
     <string name="identify_desc_unsure">Houselights hésite entre ces titres. Choisissez le bon, ou recherchez-le sur TMDB : votre choix est conservé lors des prochaines analyses.</string>
     <string name="identify_keep">Laisser tel quel</string>
     <string name="identify_kept">Laissé tel quel</string>
+    <string name="identify_suggestions">Suggestions</string>
+    <string name="identify_skip">Passer</string>
     <string name="error_offline_title">Bibliothèque injoignable</string>
     <string name="error_offline_nas_title">NAS injoignable</string>
     <string name="error_offline_server_title">Serveur injoignable</string>

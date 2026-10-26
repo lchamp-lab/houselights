@@ -544,6 +544,8 @@
     <string name="identify_desc_unsure">Houselights è indeciso tra questi titoli. Scegliere quello giusto o cercarlo su TMDB: la scelta viene mantenuta dalle scansioni successive.</string>
     <string name="identify_keep">Lascia così</string>
     <string name="identify_kept">Lasciato così</string>
+    <string name="identify_suggestions">Suggerimenti</string>
+    <string name="identify_skip">Salta</string>
     <string name="error_offline_title">Libreria non raggiungibile</string>
     <string name="error_offline_nas_title">NAS non raggiungibile</string>
     <string name="error_offline_server_title">Server non raggiungibile</string>

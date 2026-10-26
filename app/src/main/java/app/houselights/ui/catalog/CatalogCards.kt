@@ -462,6 +462,21 @@ private fun Results() {
                 note = stringResource(R.string.to_identify_best, "Wonder Woman 1984", 2020),
             )
         }
+        // Menu opens its suggestions: the key at the end of its name, with focus only, its room kept at rest.
+        Specimen("with options: the Menu key ends its name with focus", Modifier.weight(1f)) {
+            HlResultItem(
+                null,
+                "Dune",
+                listOf(null, stringResource(R.string.to_identify_unsure)),
+                "Films/Dune.mkv",
+                {},
+                note = stringResource(R.string.to_identify_best, "Dune", 2021),
+                onLongClick = {},
+                onLongClickLabel = stringResource(R.string.more_options),
+            )
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("a long note ends in an ellipsis", Modifier.weight(1f)) {
             HlResultItem(
                 null,

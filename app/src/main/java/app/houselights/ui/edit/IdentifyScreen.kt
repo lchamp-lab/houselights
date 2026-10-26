@@ -2,9 +2,11 @@ package app.houselights.ui.edit
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -17,6 +19,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -51,27 +54,38 @@ import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.calmAfter
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.design.components.HlErrorState
 
-/** Matching a title with the right TMDB entry, when automatic matching got it wrong or left it to identify. */
+/**
+ * Matching a title with the right TMDB entry, when automatic matching got it wrong or left it to identify, its
+ * suggestions shown at once. In the [queue] (opened from the titles to identify), once done or passed the next title
+ * opens ([onNext], null after the last); else [onDone].
+ */
 @Composable
-fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
+fun IdentifyScreen(itemId: String, onDone: () -> Unit, queue: Boolean = false, onNext: (String?) -> Unit = { onDone() }) {
     val app = appContainer()
-    val vm: IdentifyViewModel = viewModel(key = "identify-$itemId", factory = IdentifyViewModel.factory(app, itemId))
-    IdentifyPage(vm, onDone)
+    val vm: IdentifyViewModel = viewModel(key = "identify-$itemId", factory = IdentifyViewModel.factory(app, itemId, queue))
+    IdentifyPage(vm, onDone, queue, onNext)
 }
 
 /**
  * Identifier as [vm] has it: the file or folder and how it stands beside the search, its sentence following why a title
- * is to identify; a title to identify can be left as it is (« Laisser tel quel »), one left so put back to automatic.
+ * is to identify, its suggestions at once, the best focused; a title to identify can be left as it is (« Laisser tel
+ * quel »), one left so put back to automatic. In the [queue], « Passer » comes first, nearest the results.
  */
 @Composable
-internal fun IdentifyPage(vm: IdentifyViewModel, onDone: () -> Unit) {
+internal fun IdentifyPage(vm: IdentifyViewModel, onDone: () -> Unit, queue: Boolean = false, onNext: (String?) -> Unit = { onDone() }) {
     val state by vm.state.collectAsStateWithLifecycle()
-    // Once matched, return to the title when resumed (after a screen saver or dialog); the match outlives Back.
+    // Once matched, return to the title when resumed (after a screen saver or dialog); the match outlives Back. In the
+    // queue, the next title opens.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(state.done) { if (state.done) lifecycle.withResumed { onDone() } }
+    LaunchedEffect(state.done) {
+        if (state.done) lifecycle.withResumed { if (queue) onNext(state.nextId) else onDone() }
+    }
+    // In the queue, Left from the results reaches « Passer », the aside's action nearest them.
+    val skip = remember { FocusRequester() }.takeIf { queue }
 
     // The first results of the automatic search take focus: the right title is often first.
     val firstResult = remember { FocusRequester() }
@@ -84,13 +98,16 @@ internal fun IdentifyPage(vm: IdentifyViewModel, onDone: () -> Unit) {
         }
     }
 
-    HlFormScaffold(
-        title = stringResource(R.string.identify),
-        description = stringResource(descriptionOf(state.identity)),
-        aside = { Aside(state, vm) },
-    ) {
-        SearchFields(state, vm)
-        Results(state, vm, Modifier.focusRequester(firstResult))
+    // The results come under focus: a second OK given too soon, the last screen's, chooses none of them unseen.
+    Box(Modifier.fillMaxSize().calmAfter(state.results != null)) {
+        HlFormScaffold(
+            title = stringResource(R.string.identify),
+            description = stringResource(descriptionOf(state.identity)),
+            aside = { Aside(state, vm, skip) },
+        ) {
+            SearchFields(state, vm)
+            Results(state, vm, Modifier.focusRequester(firstResult), skip)
+        }
     }
 }
 
@@ -122,9 +139,12 @@ private fun stateTextOf(identity: Identity?): Int {
     }
 }
 
-/** The file or folder and its current match, in one panel; under it, what leaves the title as it is or puts it back. */
+/**
+ * The file or folder and its current match, in one panel; under it, in the queue, « Passer » ([skip]), then what leaves
+ * the title as it is or puts it back.
+ */
 @Composable
-private fun Aside(state: IdentifyState, vm: IdentifyViewModel) {
+private fun Aside(state: IdentifyState, vm: IdentifyViewModel, skip: FocusRequester?) {
     val identity = state.identity
     StatusPanel(
         state = stateOf(identity),
@@ -143,6 +163,16 @@ private fun Aside(state: IdentifyState, vm: IdentifyViewModel) {
     if (identity == null) return
     // Under the panel, then a step apart.
     var gap = HlSpace.m
+    if (skip != null) {
+        Spacer(Modifier.height(gap))
+        HlButton(
+            stringResource(R.string.identify_skip),
+            onClick = vm::skip,
+            modifier = Modifier.focusRequester(skip),
+            busy = state.skipping,
+        )
+        gap = HlSpace.s
+    }
     // A home video TMDB will never know: no longer searched for, nor counted.
     if (identity.doubt != null) {
         Spacer(Modifier.height(gap))
@@ -182,9 +212,12 @@ private fun SearchFields(state: IdentifyState, vm: IdentifyViewModel) {
     HlButton(stringResource(R.string.search), onClick = vm::search, icon = HlIcons.Search)
 }
 
-/** Where the search stands, then its results, the first one [first] (focus goes to it); OK matches the title with one. */
+/**
+ * Where the search stands, then its results, or the suggestions automatic matching kept, the first one [first] (focus
+ * goes to it); OK matches the title with one. Left from one goes to « Passer » ([skip]) in the queue.
+ */
 @Composable
-private fun Results(state: IdentifyState, vm: IdentifyViewModel, first: Modifier) {
+private fun Results(state: IdentifyState, vm: IdentifyViewModel, first: Modifier, skip: FocusRequester?) {
     // Status shows above the results, which keep their place and focus; with none, a failure replaces them.
     val error = state.error
     val results = state.results
@@ -202,20 +235,34 @@ private fun Results(state: IdentifyState, vm: IdentifyViewModel, first: Modifier
         results.isEmpty() -> if (!state.searching && error == null) {
             HlEmptyState(stringResource(R.string.search_empty), message = stringResource(R.string.search_empty_hint))
         }
-        else -> Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-            SectionHeader(pluralStringResource(R.plurals.result_count, results.size, results.size))
-            results.forEachIndexed { i, candidate ->
-                HlResultItem(
-                    poster = candidate.poster,
-                    title = candidate.title,
-                    facts = listOf(candidate.year?.toString(), candidate.originalTitle),
-                    overview = candidate.overview,
-                    onClick = { vm.identify(candidate) },
-                    mark = stringResource(R.string.result_current).takeIf { candidate.id == state.identity?.current?.id },
-                    busy = stringResource(R.string.identifying).takeIf { state.identifying && candidate.id == state.chosenId },
-                    modifier = if (i == 0) first else Modifier,
-                )
-            }
+        else -> ResultList(results, state, vm, first, skip)
+    }
+}
+
+/** The results, under « Suggestions » for automatic matching's, else under their count. */
+@Composable
+private fun ResultList(results: List<MatchCandidate>, state: IdentifyState, vm: IdentifyViewModel, first: Modifier, skip: FocusRequester?) {
+    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+        SectionHeader(
+            if (state.suggested) {
+                stringResource(R.string.identify_suggestions)
+            } else {
+                pluralStringResource(R.plurals.result_count, results.size, results.size)
+            },
+        )
+        results.forEachIndexed { i, candidate ->
+            HlResultItem(
+                poster = candidate.poster,
+                title = candidate.title,
+                facts = listOf(candidate.year?.toString(), candidate.originalTitle),
+                overview = candidate.overview,
+                onClick = { vm.identify(candidate) },
+                mark = stringResource(R.string.result_current).takeIf { candidate.id == state.identity?.current?.id },
+                busy = stringResource(R.string.identifying).takeIf { state.identifying && candidate.id == state.chosenId },
+                modifier = (if (i == 0) first else Modifier).then(
+                    if (skip != null) Modifier.focusProperties { left = skip } else Modifier,
+                ),
+            )
         }
     }
 }

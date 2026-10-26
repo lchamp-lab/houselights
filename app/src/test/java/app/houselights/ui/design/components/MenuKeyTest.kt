@@ -1,6 +1,7 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
@@ -125,6 +126,27 @@ class MenuKeyTest {
         val action = compose.onNodeWithText("Resume", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         assertEquals("on the action's line", action.center.y, key.center.y, 1f)
         assertTrue("after its words: $action, $key", key.left > action.right)
+    }
+
+    /** A result's options: the key at the end of its name's line with focus, its room kept, so the name never moves. */
+    @Test
+    fun aResultKeepsItsKeysRoomAndShowsItWithFocus() {
+        compose.setTvContent {
+            Column {
+                HlButton("Lire", {}, Modifier.focusRequester(first))
+                HlResultItem(null, LONG, listOf("1984", "Plusieurs titres possibles"), "Films/Dune.mkv", {}, onLongClick = {})
+            }
+        }
+        compose.runOnIdle { first.requestFocus() }
+        compose.waitForIdle()
+        assertEquals(emptyList<Rect>(), keys())
+        val name = { compose.onNodeWithText(LONG, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot }
+        val atRest = name()
+
+        compose.press(Key.DirectionDown)
+        val key = keys().single()
+        assertEquals("the name stays where it was", atRest, name())
+        assertTrue("$atRest beside $key", atRest.right <= key.left && key.top < atRest.bottom)
     }
 
     private companion object {

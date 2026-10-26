@@ -264,6 +264,13 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("SELECT $CARD_ROW FROM items WHERE $TO_IDENTIFY ORDER BY addedAt DESC, id DESC")
     suspend fun toIdentify(): List<ItemEntity>
 
+    /** The title to identify after the one added at [addedAt] as row [id], in [toIdentify]'s order; null after the last. */
+    @Query(
+        "SELECT id FROM items WHERE $TO_IDENTIFY AND (addedAt < :addedAt OR (addedAt = :addedAt AND id < :id)) " +
+            "ORDER BY addedAt DESC, id DESC LIMIT 1"
+    )
+    suspend fun nextToIdentify(addedAt: Long, id: Long): Long?
+
     /**
      * Films or shows ([kind]) to identify that TMDB is to be asked about again ([Reidentify]), the longest waiting
      * first, at most [limit]: those come after [newSince] last asked by [newDue], the others by [due]; never a title

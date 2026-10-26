@@ -8,6 +8,8 @@ import app.houselights.core.ArtworkOption
 import app.houselights.core.ArtworkOrigin
 import app.houselights.core.Identity
 import app.houselights.core.MatchCandidate
+import app.houselights.core.MatchDoubt
+import app.houselights.core.ToIdentify
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
@@ -218,4 +220,72 @@ class EditViewModelsTest {
         advanceUntilIdle()
         assertEquals(provider.choices, vm.state.value.choices)
     }
+    /** What automatic matching hesitated between shows at once, asking TMDB nothing; a search then replaces it. */
+    @Test
+    fun theSuggestionsShowAtOnceUntilASearchReplacesThem() = runTest {
+        val dune = MatchCandidate("438631", "Dune", null, 2021, null, null)
+        provider.identity = provider.identity!!.copy(doubt = MatchDoubt.UNSURE, suggestions = listOf(dune))
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
+        advanceUntilIdle()
+        assertEquals(listOf(dune), vm.state.value.results)
+        assertTrue(vm.state.value.suggested)
+        assertFalse(provider.calls.any { it.startsWith("search") })
+
+        vm.search()
+        advanceUntilIdle()
+        assertEquals(listOf(heat), vm.state.value.results)
+        assertFalse(vm.state.value.suggested)
+    }
+
+    /** In the queue, the title after this one is read while it is still to identify, then this one is matched. */
+    @Test
+    fun inTheQueueTheNextTitleFollows() = runTest {
+        provider.toIdentify = listOf(listed("m1"), listed("m2"))
+        val vm = IdentifyViewModel("m1", { provider }, work = this, queue = true)
+        advanceUntilIdle()
+        vm.identify(heat)
+        advanceUntilIdle()
+        assertEquals(listOf("next m1", "identify m1 949"), provider.calls.filter { it.startsWith("next") || it.startsWith("identify") })
+        assertTrue(vm.state.value.done)
+        assertEquals("m2", vm.state.value.nextId)
+    }
+
+    /** Passer opens the next title, this one as it is; after the last, there is none. */
+    @Test
+    fun passerLeavesTheTitleAsItIs() = runTest {
+        provider.toIdentify = listOf(listed("m0"), listed("m1"))
+        val vm = IdentifyViewModel("m1", { provider }, work = this, queue = true)
+        advanceUntilIdle()
+        vm.skip()
+        advanceUntilIdle()
+        assertTrue(vm.state.value.done)
+        assertNull("the last title", vm.state.value.nextId)
+        assertFalse(provider.calls.any { it.startsWith("identify") || it.startsWith("keep") })
+    }
+
+    /** Left as it is in the queue, the next title follows too. */
+    @Test
+    fun aTitleLeftAsItIsInTheQueueOpensTheNext() = runTest {
+        provider.toIdentify = listOf(listed("m1"), listed("m2"))
+        val vm = IdentifyViewModel("m1", { provider }, work = this, queue = true)
+        advanceUntilIdle()
+        vm.keep()
+        advanceUntilIdle()
+        assertTrue("keep m1" in provider.calls)
+        assertEquals("m2", vm.state.value.nextId)
+    }
+
+    /** From a title's page, no next title is asked. */
+    @Test
+    fun outsideTheQueueNoNextTitleIsAsked() = runTest {
+        provider.toIdentify = listOf(listed("m1"), listed("m2"))
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
+        advanceUntilIdle()
+        vm.identify(heat)
+        advanceUntilIdle()
+        assertNull(vm.state.value.nextId)
+        assertFalse(provider.calls.any { it.startsWith("next") })
+    }
+
+    private fun listed(id: String) = ToIdentify(film(id), null, MatchDoubt.NOT_FOUND)
 }

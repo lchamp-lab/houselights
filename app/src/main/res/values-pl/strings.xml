@@ -559,6 +559,8 @@
     <string name="identify_desc_unsure">Houselights waha się między tymi tytułami. Wybierz właściwy lub wyszukaj go w TMDB: wybór zostaje zachowany przy kolejnych skanowaniach.</string>
     <string name="identify_keep">Pozostaw bez zmian</string>
     <string name="identify_kept">Pozostawiono bez zmian</string>
+    <string name="identify_suggestions">Sugestie</string>
+    <string name="identify_skip">Pomiń</string>
     <string name="error_offline_title">Biblioteka niedostępna</string>
     <string name="error_offline_nas_title">NAS niedostępny</string>
     <string name="error_offline_server_title">Serwer niedostępny</string>

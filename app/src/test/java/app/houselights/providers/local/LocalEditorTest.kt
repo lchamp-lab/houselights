@@ -111,6 +111,34 @@ class LocalEditorTest {
         assertEquals(emptyList<MatchCandidate>(), listed.first().suggestions)
     }
 
+    /** A title TMDB hesitated on holds its suggestions, the best first, to offer without a search; the next follows the list. */
+    @Test
+    fun theIdentityOfATitleToIdentifyHoldsItsSuggestionsAndTheNextFollowsTheList() = runTest {
+        bench.folder("Films")
+        bench.tmdb.movie(DUNE, "Dune", 2021, votes = 12_000)
+        bench.tmdb.movie(LYNCH, "Dune", 1984, votes = 3_000)
+        bench.tmdb.searches["dune"] = listOf(DUNE, LYNCH)
+        bench.nas.put("Dune.mkv")
+        bench.scan()
+        bench.later(HOUR_MS)
+        bench.nas.put("Vacances.mkv")
+        bench.nas.put("Concert.mkv")
+        bench.scan()
+
+        val editor = editor()
+        val listed = editor.toIdentify()
+        val dune = listed.single { it.item.title == "Dune" }.item
+        bench.tmdb.requests.clear()
+        val identity = editor.identity(dune)
+        assertEquals(listOf("$DUNE", "$LYNCH"), identity.suggestions.map { it.id })
+        assertEquals("nothing asked of TMDB", emptyList<String>(), bench.tmdb.requests.toList())
+        // The list's order, whatever leaves it: the latest added first, the last followed by none.
+        assertEquals(listed.drop(1).map { it.item.id } + listOf(null), listed.map { editor.nextToIdentify(it.item) })
+        editor.keepUnidentified(listed[1].item)
+        assertEquals(listed[2].item.id, editor.nextToIdentify(listed[0].item))
+        assertEquals(emptyList<MatchCandidate>(), editor.identity(listed.first().item).suggestions)
+    }
+
     /** Left as it is, a title says so and is no longer to identify; back to automatic, it is to identify again. */
     @Test
     fun aTitleLeftAsItIsSaysSoUntilPutBackToAutomatic() = runTest {

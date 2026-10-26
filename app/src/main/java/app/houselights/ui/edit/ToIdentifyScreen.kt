@@ -19,6 +19,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -47,8 +49,13 @@ import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlResultItem
+import app.houselights.ui.design.components.HlSettingGroup
+import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlSideSheet
+import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.SectionHeader
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.TaskTitle
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
@@ -59,31 +66,35 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.reported
 import app.houselights.ui.util.retainedError
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 private const val TAG = "ToIdentify"
 
 /**
  * « À identifier » (Réglages › Bibliothèque): the films and shows Houselights did not recognise with certainty, the
- * latest added first, each with why, the title it may be and where it lies. OK opens Identifier on one ([onOpen]).
+ * latest added first, each with why, the title it may be and where it lies. OK opens Identifier on one, the titles
+ * after it following ([onOpen]); back from them, focus is on the title the queue reached ([queueAt], then [onQueueSeen]).
+ * Menu opens a title's suggestions, the best first and focused, so Menu then OK accepts it.
  */
 @Composable
-fun ToIdentifyScreen(onOpen: (String) -> Unit) {
+fun ToIdentifyScreen(onOpen: (String) -> Unit, queueAt: String? = null, onQueueSeen: () -> Unit = {}) {
     val app = appContainer()
     val vm: ToIdentifyViewModel = viewModel(factory = ToIdentifyViewModel.factory(app))
     ReloadOnLibraryChange { vm.load() }
-    ToIdentifyPage(vm, onOpen)
+    ToIdentifyPage(vm, onOpen, queueAt, onQueueSeen)
 }
 
 /**
- * The titles to identify as [vm] has them. Focus opens on the first; it stays on the title it is on as the list
- * reloads, and goes, once that title leaves (identified), to the one now in its place, else to the last. Back, from
- * past the first title, first returns to it.
+ * The titles to identify as [vm] has them. Focus opens on the first, or on the title the queue reached ([queueAt]); it
+ * stays on the title it is on as the list reloads, and goes, once that title leaves (identified), to the one now in its
+ * place, else to the last. Back, from past the first title, first returns to it.
  */
 @Composable
-internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit) {
+internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit, queueAt: String? = null, onQueueSeen: () -> Unit = {}) {
     val state by vm.state.collectAsStateWithLifecycle()
     val titles = state.titles
     val list = rememberLazyListState()
@@ -94,14 +105,18 @@ internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit) {
     // The list focus was last placed in: while another shows, focus moving on its own is not the user's.
     var settled by remember { mutableStateOf<List<ToIdentify>?>(null) }
     val settling = titles !== settled
-    LaunchedEffect(titles) {
+    LaunchedEffect(titles, queueAt) {
         val shown = titles ?: return@LaunchedEffect
-        focusTitle(shown, at, place, memory, list)?.let { (id, index) ->
+        // Back from the queue: the title it reached, once.
+        val wanted = queueAt ?: at
+        focusTitle(shown, wanted, place, memory, list)?.let { (id, index) ->
             at = id
             place = index
         }
         settled = shown
+        if (queueAt != null) onQueueSeen()
     }
+    var options by remember { mutableStateOf<ToIdentify?>(null) }
     BackToStart(away = place > 0) {
         list.scrollToItem(0)
         withFrameNanos { }
@@ -138,14 +153,14 @@ internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(HlSpace.s),
             ) {
                 item(key = COUNT) { SectionHeader(pluralStringResource(R.plurals.title_count, titles.size, titles.size)) }
+                // A suggestion chosen from Menu that could not be saved.
+                state.chooseError?.let { error -> item(key = CHOOSE_ERROR) { NotSaved(error) } }
                 itemsIndexed(titles, key = { _, t -> t.item.id }) { i, t ->
-                    HlResultItem(
-                        poster = t.item.poster,
-                        title = t.item.title,
-                        facts = listOf(t.item.year?.toString(), stringResource(doubtText(t.doubt))),
-                        note = t.best?.let { bestText(it) },
-                        overview = t.place,
-                        onClick = { onOpen(t.item.id) },
+                    Title(
+                        t,
+                        onOpen = { onOpen(t.item.id) },
+                        // A title not found on TMDB has nothing to suggest: OK alone leads on, to Identifier's search.
+                        onOptions = { options = t }.takeIf { t.suggestions.isNotEmpty() },
                         modifier = Modifier
                             .focusKey(titleKey(t.item.id), memory)
                             .onFocusChanged {
@@ -156,6 +171,58 @@ internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit) {
                             },
                     )
                 }
+            }
+        }
+    }
+    options?.let { t -> Suggestions(t, onChoose = { vm.choose(t, it) }, onDismiss = { options = null }) }
+}
+
+/** A title to identify: why, as its facts; what it may be, as its note; where it lies, as its overview. */
+@Composable
+private fun Title(title: ToIdentify, onOpen: () -> Unit, onOptions: (() -> Unit)?, modifier: Modifier) {
+    HlResultItem(
+        poster = title.item.poster,
+        title = title.item.title,
+        facts = listOf(title.item.year?.toString(), stringResource(doubtText(title.doubt))),
+        note = title.best?.let { bestText(it) },
+        overview = title.place,
+        onClick = onOpen,
+        onLongClick = onOptions,
+        onLongClickLabel = stringResource(R.string.more_options),
+        modifier = modifier,
+    )
+}
+
+/** Why a suggestion chosen from Menu was not saved, over the titles. */
+@Composable
+private fun NotSaved(error: UiError) {
+    HlStatus(StatusState.Attention, stringResource(R.string.action_not_saved), detail = stringResource(error.message))
+}
+
+/**
+ * A title's suggestions in a side sheet over the list, the best first and focused: OK identifies the title as that
+ * one, the sheet closes, and the title leaves the list. No poster: Identifier has them, with OK on the title.
+ */
+@Composable
+private fun Suggestions(title: ToIdentify, onChoose: (MatchCandidate) -> Unit, onDismiss: () -> Unit) {
+    val first = remember { FocusRequester() }
+    HlSideSheet(
+        title = stringResource(R.string.identify),
+        onDismiss = onDismiss,
+        facts = listOf(title.item.title, title.item.year?.toString()),
+        stateText = stringResource(doubtText(title.doubt)),
+        state = StatusState.Off,
+        initialFocus = first,
+    ) { sheet ->
+        HlSettingGroup(stringResource(R.string.identify_suggestions)) {
+            title.suggestions.forEachIndexed { i, candidate ->
+                HlSettingRow(
+                    candidate.title,
+                    if (i == 0) Modifier.focusRequester(first) else Modifier,
+                    value = candidate.year?.toString(),
+                    description = candidate.overview ?: candidate.originalTitle,
+                    onClick = { sheet.dismiss { onChoose(candidate) } },
+                )
             }
         }
     }
@@ -195,6 +262,7 @@ private const val LAID_OUT_FRAMES = 3
 private fun titleKey(id: String) = FocusKey.item(id)
 
 private const val COUNT = "count"
+private const val CHOOSE_ERROR = "choose-error"
 
 /** Why a title is to identify, in a few words. */
 @StringRes
@@ -214,10 +282,15 @@ data class ToIdentifyState(
     val titles: List<ToIdentify>? = null,
     val loading: Boolean = false,
     val error: UiError? = null,
+    /** Why the last suggestion chosen from the list was not saved. */
+    val chooseError: UiError? = null,
 )
 
-/** The titles to identify, read again as the library changes. */
-class ToIdentifyViewModel(private val provider: () -> MediaProvider) : ViewModel() {
+/**
+ * The titles to identify, read again as the library changes; a suggestion chosen from the list is saved in [work],
+ * which outlives the screen, so a show is never left half matched.
+ */
+class ToIdentifyViewModel(private val provider: () -> MediaProvider, private val work: CoroutineScope) : ViewModel() {
     private val _state = MutableStateFlow(ToIdentifyState())
     val state: StateFlow<ToIdentifyState> = _state
     private val loads = LatestJob(viewModelScope)
@@ -235,9 +308,22 @@ class ToIdentifyViewModel(private val provider: () -> MediaProvider) : ViewModel
         }
     }
 
+    /** Identifies [title] as [candidate], one of its suggestions; the list then reads again without it. */
+    fun choose(title: ToIdentify, candidate: MatchCandidate) {
+        _state.update { it.copy(chooseError = null) }
+        work.launch {
+            suspendRunCatching { provider().editor?.identify(title.item, candidate) }
+                .onSuccess { load() }
+                .onFailure { e ->
+                    val error = e.reported(TAG, "Identification of ${title.item.id} as ${candidate.id}")
+                    _state.update { it.copy(chooseError = error) }
+                }
+        }
+    }
+
     companion object {
         fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { ToIdentifyViewModel(app::provider) }
+            initializer { ToIdentifyViewModel(app::provider, app.scope) }
         }
     }
 }

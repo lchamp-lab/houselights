@@ -106,8 +106,9 @@ object Route {
     @Serializable
     data class Artwork(val id: String, val kind: ArtworkKind)
 
+    /** Identifier on [id]; in the [queue], opened from the titles to identify, the next title follows. */
     @Serializable
-    data class Identify(val id: String)
+    data class Identify(val id: String, val queue: Boolean = false)
 
     /** The films and shows to identify (Réglages › Bibliothèque), each opening Identifier. */
     @Serializable

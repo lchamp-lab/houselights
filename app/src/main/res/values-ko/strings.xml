@@ -513,6 +513,8 @@
     <string name="identify_desc_unsure">Houselights가 이 작품들 중 어느 것인지 확신하지 못했습니다. 올바른 작품을 선택하거나 TMDB에서 검색하세요. 선택한 항목은 이후 스캔에서도 유지됩니다.</string>
     <string name="identify_keep">그대로 두기</string>
     <string name="identify_kept">그대로 둠</string>
+    <string name="identify_suggestions">추천</string>
+    <string name="identify_skip">건너뛰기</string>
     <string name="error_offline_title">라이브러리에 연결할 수 없음</string>
     <string name="error_offline_nas_title">NAS에 연결할 수 없음</string>
     <string name="error_offline_server_title">서버에 연결할 수 없음</string>

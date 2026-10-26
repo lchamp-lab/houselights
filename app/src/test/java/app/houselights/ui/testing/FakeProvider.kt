@@ -221,6 +221,12 @@ class FakeProvider : MediaProvider {
             return toIdentify
         }
 
+        /** The title after [item] in [toIdentify] as it is now: still listed when asked, as in the editor. */
+        override suspend fun nextToIdentify(item: MediaItem): String? {
+            call("next ${item.id}")
+            return toIdentify.dropWhile { it.item.id != item.id }.drop(1).firstOrNull()?.item?.id
+        }
+
         override suspend fun keepUnidentified(item: MediaItem) {
             call("keep ${item.id}")
             toIdentify = toIdentify.filter { it.item.id != item.id }
