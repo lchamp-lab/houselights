@@ -15,6 +15,7 @@ import app.houselights.providers.jellyfin.PublicSystemInfo
 import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
+import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
@@ -104,7 +105,7 @@ class SignInFocusTest {
                 )
             )
         }
-        val vm = AddFolderViewModel(library, id, scope, useFolders = { false }, probe = { 0 })
+        val vm = AddFolderViewModel(library, id, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.after(ScanErrorKind.LOGIN_FAILED)) {} }
         compose.waitForIdle()
     }

@@ -47,9 +47,9 @@ internal class SmbBrowser(
     }
 
     /** Uses a fresh session with the form's credentials, as a kept session would accept a wrong password. */
-    override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
+    override suspend fun test(source: SourceEntity): FolderLevel = withContext(Dispatchers.IO) {
         sessions.once({ connect(source) }) { share ->
-            share.list(remotePath(source, separator = '\\')).count { !RemoteBrowser.skip(it.name) }
+            level(folder(share, remotePath(source, separator = '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
         }
     }
 

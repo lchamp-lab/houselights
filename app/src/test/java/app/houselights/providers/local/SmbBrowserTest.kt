@@ -150,7 +150,7 @@ class SmbBrowserTest {
         val refused = runCatching { browser.test(typed) }.exceptionOrNull()
         assertEquals(ScanErrorKind.LOGIN_FAILED, refused?.let { ScanErrors.classify(it).kind })
 
-        assertEquals(1, browser.test(films))
+        assertEquals(FolderLevel(emptyList(), videos = 1), browser.test(films))
         assertEquals(2, opened.size)
         assertEquals("signed off once tested", listOf(false), opened[1].closes)
         assertEquals("the scan's session stays", emptyList<Boolean>(), opened[0].closes)

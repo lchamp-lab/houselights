@@ -1,9 +1,10 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">I miei file</string>
-    <string name="source_local_desc">Video sul proprio NAS o su una condivisione di rete (NFS o SMB). Houselights li scansiona e recupera locandine e informazioni da TMDB.</string>
+    <string name="source_local_desc">Video su un NAS o un computer della rete. Houselights li analizza e recupera locandine e trame.</string>
     <string name="source_jellyfin">Server Jellyfin</string>
     <string name="source_jellyfin_desc">La libreria del proprio server</string>
+    <string name="welcome_jellyfin_desc">I film e le serie del proprio server Jellyfin.</string>
     <string name="welcome_title">Scelta della libreria</string>
 
     <!-- Libraries and sections -->
@@ -220,22 +221,22 @@
     <string name="edit_folder_row_desc">Indirizzo o credenziali</string>
     <string name="edit_folder_unreachable_desc">L’indirizzo potrebbe essere cambiato</string>
     <string name="edit_folder_login_desc">Reinserire nome utente o password</string>
-    <string name="edit_folder_not_found_desc">Condivisione o percorso forse cambiati</string>
+    <string name="edit_folder_not_found_desc">Cartella o percorso forse cambiati</string>
     <string name="password_kept">Invariata</string>
     <string name="jellyfin_desc">Inserire l’indirizzo del server e le credenziali Jellyfin.</string>
     <string name="folder_kind">Contenuto</string>
     <string name="field_protocol">Protocollo</string>
     <string name="field_host">Indirizzo del NAS</string>
-    <string name="field_export">Export NFS</string>
-    <string name="nfs_hint">Senza password: sul NAS, autorizzare l’indirizzo di questo dispositivo in sola lettura, da porte non privilegiate.</string>
-    <string name="nfs_identity_title">Connetti come</string>
-    <string name="nfs_identity_desc">Utente visto dal NAS</string>
-    <string name="nfs_identity_hint">Campi vuoti: Houselights si connette come root (UID 0, GID 0). Il lettore Zidoo apre i video con il proprio account.</string>
+    <string name="field_export">Percorso di montaggio</string>
+    <string name="nfs_hint">Senza password: sul NAS, autorizzare questo lettore in sola lettura e, su un Synology, le porte non privilegiate.</string>
+    <string name="nfs_identity_title">Account NFS</string>
+    <string name="nfs_identity_desc">Quello visto dal NAS, root di default</string>
+    <string name="nfs_identity_hint">Lasciare vuoto per root. Inserire un UID e un GID se il NAS rifiuta root.</string>
     <string name="field_uid">Utente (UID)</string>
     <string name="field_gid">Gruppo (GID)</string>
     <string name="smb_hint">La password viene salvata su questo dispositivo e trasmessa al lettore Zidoo. È preferibile un account dedicato in sola lettura.</string>
-    <string name="field_share">Condivisione</string>
-    <string name="field_path">Cartella</string>
+    <string name="field_share">Cartella condivisa</string>
+    <string name="field_path">Sottocartella</string>
     <string name="field_optional">%1$s (facoltativo)</string>
     <string name="field_user">Utente</string>
     <string name="field_password">Password</string>
@@ -243,8 +244,8 @@
     <string name="placeholder_server_path">Es. /media/film</string>
     <string name="placeholder_network_path">Es. nfs://192.168.1.10/volume1/film</string>
     <string name="placeholder_tmdb_key">Es. 0123456789abcdef0123456789abcdef</string>
-    <string name="placeholder_export">Es. /volume1/media</string>
-    <string name="placeholder_share">Es. media</string>
+    <string name="placeholder_export">Es. /volume1/video</string>
+    <string name="placeholder_share">Es. video</string>
     <string name="placeholder_path_movies">Es. film</string>
     <string name="placeholder_path_shows">Es. serie</string>
     <string name="placeholder_uid">Es. 1026</string>
@@ -258,25 +259,41 @@
     <string name="folder_gone_state">Cartella non trovata</string>
     <string name="folder_gone">Questa cartella non è più nella libreria: è stata rimossa nel frattempo. Tornare alle impostazioni per aggiungerla di nuovo.</string>
     <string name="folder_already_added">Questa cartella è già nella libreria, con il nome «%s».</string>
-    <string name="folder_overlaps">Questa cartella si sovrappone a «%s», già nella libreria: i suoi titoli comparirebbero due volte. Scegliere un’altra cartella, o modificare quella nelle Impostazioni.</string>
     <string name="folder_overlaps_state">Già nella libreria</string>
     <string name="folder_not_saved_state">Non salvata</string>
     <string name="folder_unread">Impossibile rileggere questa cartella</string>
     <string name="saving">Salvataggio…</string>
-    <plurals name="entries_found">
-        <item quantity="one">%d elemento trovato</item>
-        <item quantity="many">%d elementi trovati</item>
-        <item quantity="other">%d elementi trovati</item>
-    </plurals>
     <string name="error_nas_unreachable">%s non risponde. Verificare che il NAS sia acceso e connesso alla rete.</string>
     <string name="error_access_denied">Il NAS ha negato l’accesso. Per NFS, autorizzare l’indirizzo IP di questo dispositivo sulla condivisione; per SMB, verificare i permessi dell’account.</string>
     <string name="error_login_failed">Il NAS ha rifiutato nome utente o password.</string>
     <string name="error_not_found">Questa condivisione o cartella non esiste sul NAS. Verificarne la grafia.</string>
     <string name="error_host_missing">Inserire l’indirizzo del NAS.</string>
-    <string name="error_export_missing">Inserire l’export NFS, ad esempio /volume1/media.</string>
-    <string name="error_share_missing">Inserire il nome della cartella condivisa, ad esempio media.</string>
+    <string name="error_export_missing">Inserire il percorso di montaggio, ad esempio /volume1/video.</string>
+    <string name="error_share_missing">Inserire il nome della cartella condivisa, ad esempio video.</string>
     <string name="error_uid_missing">Inserire anche l’utente (UID).</string>
     <string name="error_gid_missing">Inserire anche il gruppo (GID).</string>
+    <string name="nfs_hint_player">Senza password: sul NAS, autorizzare questo lettore (%s) in sola lettura e, su un Synology, le porte non privilegiate.</string>
+    <string name="folder_holds">Questa cartella contiene «%s», già nella libreria: i suoi titoli comparirebbero due volte. Scegliere piuttosto una sottocartella.</string>
+    <string name="folder_inside">Questa cartella è dentro «%s», già nella libreria: i suoi titoli ci sono già. Scegliere un’altra cartella.</string>
+    <string name="folder_nested_state">Si sovrappone a una cartella</string>
+    <string name="folder_empty_state">Cartella vuota</string>
+    <string name="folder_no_content">Questa cartella non contiene né video né sottocartelle. Verificare il percorso.</string>
+    <plurals name="video_count">
+        <item quantity="one">%d video</item>
+        <item quantity="many">%d video</item>
+        <item quantity="other">%d video</item>
+    </plurals>
+    <string name="folder_content">%1$s e %2$s</string>
+    <string name="error_share_not_found">%1$s non ha una cartella condivisa «%2$s». Verificarne il nome nell’interfaccia del NAS.</string>
+    <string name="error_export_not_found">Il NAS non condivide %s via NFS. Su un Synology, il percorso di montaggio inizia con /volume1/.</string>
+    <string name="error_subfolder_not_found">%1$s risponde, ma «%2$s» non c’è. Verificarne il nome, maiuscole comprese.</string>
+    <string name="error_subfolder_not_found_share">«%1$s» risponde, ma «%2$s» non c’è. Verificarne il nome, maiuscole comprese.</string>
+    <string name="error_nfs_refused">Il NAS rifiuta questo lettore. Autorizzare %1$s su %2$s, in sola lettura e, su un Synology, le porte non privilegiate.</string>
+    <string name="error_nfs_refused_no_address">Il NAS rifiuta questo lettore. Autorizzare l’indirizzo di questo lettore su %s, in sola lettura e, su un Synology, le porte non privilegiate.</string>
+    <string name="error_nfs_root_refused">Il NAS non consente a root di leggere %s. Scegliere «Account NFS» e inserire un account che vi abbia accesso.</string>
+    <string name="error_nfs_account_refused">Il NAS non consente all’UID %1$s di leggere %2$s. In «Account NFS», inserire un account che vi abbia accesso.</string>
+    <string name="error_smb_denied">L’account «%1$s» non ha accesso a «%2$s». Concedergli la lettura sul NAS, o cambiare account.</string>
+    <string name="error_guest_refused">Questo NAS non accetta ospiti: inserire un account.</string>
     <string name="error_scan_other">Impossibile leggere la cartella. Riprovare, o verificare la condivisione sul NAS.</string>
     <string name="error_folder_empty">La cartella sembra vuota sul NAS: non è stato rimosso nulla. Verificare che il disco sia montato; se è vuota definitivamente, rimuoverla.</string>
     <string name="error_storage_full">Spazio esaurito su questo dispositivo: la scansione si è interrotta. Liberarne un po’ in Impostazioni, Archiviazione.</string>

@@ -189,6 +189,9 @@ internal fun SourceEntity.overlaps(other: SourceEntity): Boolean {
 /** True when this source and [other] are the same folder, possibly spelled differently. */
 internal fun SourceEntity.samePlace(other: SourceEntity): Boolean = overlaps(other) && place() == other.place()
 
+/** True when this source holds [other], a folder inside it: their titles would show twice. */
+internal fun SourceEntity.holds(other: SourceEntity): Boolean = overlaps(other) && place().size < other.place().size
+
 /** Path segments from the host root; lowercase for SMB, which is case-insensitive (Samba's default, Windows). */
 private fun SourceEntity.place(): List<String> {
     val segments = segments(share) + segments(path)

@@ -1,9 +1,10 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">내 파일</string>
-    <string name="source_local_desc">NAS 또는 네트워크 공유(NFS 또는 SMB)에 있는 동영상입니다. Houselights가 이를 스캔하고 TMDB에서 포스터와 작품 정보를 가져옵니다.</string>
+    <string name="source_local_desc">NAS 또는 네트워크의 컴퓨터에 있는 동영상입니다. Houselights가 이를 스캔하고 포스터와 줄거리를 가져옵니다.</string>
     <string name="source_jellyfin">Jellyfin 서버</string>
     <string name="source_jellyfin_desc">서버의 라이브러리</string>
+    <string name="welcome_jellyfin_desc">Jellyfin 서버의 영화와 시리즈입니다.</string>
     <string name="welcome_title">라이브러리를 선택하세요</string>
 
     <!-- Libraries and sections -->
@@ -208,22 +209,22 @@
     <string name="edit_folder_row_desc">주소 또는 로그인 정보</string>
     <string name="edit_folder_unreachable_desc">주소가 바뀌었을 수 있습니다</string>
     <string name="edit_folder_login_desc">로그인 정보를 다시 입력하세요</string>
-    <string name="edit_folder_not_found_desc">공유나 경로가 바뀌었을 수 있음</string>
+    <string name="edit_folder_not_found_desc">공유 폴더나 경로가 바뀌었을 수 있음</string>
     <string name="password_kept">변경 없음</string>
     <string name="jellyfin_desc">서버 주소와 Jellyfin 로그인 정보를 입력하세요.</string>
     <string name="folder_kind">콘텐츠</string>
     <string name="field_protocol">프로토콜</string>
     <string name="field_host">NAS 주소</string>
-    <string name="field_export">NFS 익스포트</string>
-    <string name="nfs_hint">비밀번호가 필요 없습니다. NAS에서 이 기기의 주소를 읽기 전용으로, 비특권 포트의 연결까지 허용하세요.</string>
-    <string name="nfs_identity_title">연결할 사용자</string>
-    <string name="nfs_identity_desc">NAS에 표시되는 사용자</string>
-    <string name="nfs_identity_hint">비워 두면 Houselights는 root(UID 0, GID 0)로 연결합니다. Zidoo 플레이어는 자체 계정으로 동영상을 엽니다.</string>
+    <string name="field_export">마운트 경로</string>
+    <string name="nfs_hint">비밀번호가 필요 없습니다. NAS에서 이 플레이어에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>
+    <string name="nfs_identity_title">NFS 계정</string>
+    <string name="nfs_identity_desc">NAS에 표시되는 계정, 기본값 root</string>
+    <string name="nfs_identity_hint">root로 연결하려면 비워 두세요. NAS가 root를 거부하면 UID와 GID를 입력하세요.</string>
     <string name="field_uid">사용자(UID)</string>
     <string name="field_gid">그룹(GID)</string>
     <string name="smb_hint">비밀번호는 이 기기에 저장되어 Zidoo 플레이어로 전달됩니다. 읽기 권한만 있는 별도 계정을 권장합니다.</string>
     <string name="field_share">공유 폴더</string>
-    <string name="field_path">폴더</string>
+    <string name="field_path">하위 폴더</string>
     <string name="field_optional">%1$s(선택 사항)</string>
     <string name="field_user">사용자 이름</string>
     <string name="field_password">비밀번호</string>
@@ -231,8 +232,8 @@
     <string name="placeholder_server_path">예: /media/movies</string>
     <string name="placeholder_network_path">예: nfs://192.168.1.10/volume1/movies</string>
     <string name="placeholder_tmdb_key">예: 0123456789abcdef0123456789abcdef</string>
-    <string name="placeholder_export">예: /volume1/media</string>
-    <string name="placeholder_share">예: media</string>
+    <string name="placeholder_export">예: /volume1/video</string>
+    <string name="placeholder_share">예: video</string>
     <string name="placeholder_path_movies">예: movies</string>
     <string name="placeholder_path_shows">예: shows</string>
     <string name="placeholder_uid">예: 1026</string>
@@ -246,23 +247,39 @@
     <string name="folder_gone_state">폴더를 찾을 수 없음</string>
     <string name="folder_gone">이 폴더는 더 이상 라이브러리에 없습니다. 그사이에 제거되었습니다. 설정으로 돌아가 다시 추가하세요.</string>
     <string name="folder_already_added">이 폴더는 이미 ‘%s’ 폴더로 라이브러리에 있습니다.</string>
-    <string name="folder_overlaps">이 폴더는 이미 라이브러리에 있는 ‘%s’ 폴더와 겹칩니다. 그대로 추가하면 작품이 두 번 표시됩니다. 다른 폴더를 선택하거나 설정에서 기존 폴더를 편집하세요.</string>
     <string name="folder_overlaps_state">이미 라이브러리에 있음</string>
     <string name="folder_not_saved_state">저장되지 않음</string>
     <string name="folder_unread">이 폴더를 다시 읽을 수 없습니다</string>
     <string name="saving">저장 중…</string>
-    <plurals name="entries_found">
-        <item quantity="other">항목 %d개 발견</item>
-    </plurals>
     <string name="error_nas_unreachable">%s에서 응답이 없습니다. NAS가 켜져 있고 네트워크에 연결되어 있는지 확인하세요.</string>
     <string name="error_access_denied">NAS가 접근을 거부했습니다. NFS는 공유 폴더에서 이 기기의 IP 주소를 허용하고, SMB는 계정 권한을 확인하세요.</string>
     <string name="error_login_failed">NAS가 사용자 이름 또는 비밀번호를 거부했습니다.</string>
     <string name="error_not_found">이 공유 폴더 또는 폴더가 NAS에 없습니다. 철자를 확인하세요.</string>
     <string name="error_host_missing">NAS 주소를 입력하세요.</string>
-    <string name="error_export_missing">NFS 익스포트를 입력하세요(예: /volume1/media).</string>
-    <string name="error_share_missing">공유 폴더 이름을 입력하세요(예: media).</string>
+    <string name="error_export_missing">마운트 경로를 입력하세요(예: /volume1/video).</string>
+    <string name="error_share_missing">공유 폴더 이름을 입력하세요(예: video).</string>
     <string name="error_uid_missing">사용자(UID)도 입력하세요.</string>
     <string name="error_gid_missing">그룹(GID)도 입력하세요.</string>
+    <string name="nfs_hint_player">비밀번호가 필요 없습니다. NAS에서 이 플레이어(%s)에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>
+    <string name="folder_holds">이 폴더에는 이미 라이브러리에 있는 ‘%s’ 폴더가 들어 있습니다. 그대로 추가하면 작품이 두 번 표시됩니다. 하위 폴더를 선택하세요.</string>
+    <string name="folder_inside">이 폴더는 이미 라이브러리에 있는 ‘%s’ 폴더 안에 있습니다. 작품이 이미 표시되어 있습니다. 다른 폴더를 선택하세요.</string>
+    <string name="folder_nested_state">다른 폴더와 겹침</string>
+    <string name="folder_empty_state">빈 폴더</string>
+    <string name="folder_no_content">이 폴더에는 동영상도 하위 폴더도 없습니다. 경로를 확인하세요.</string>
+    <plurals name="video_count">
+        <item quantity="other">동영상 %d개</item>
+    </plurals>
+    <string name="folder_content">%1$s, %2$s</string>
+    <string name="error_share_not_found">%1$s에 ‘%2$s’ 공유 폴더가 없습니다. NAS 관리 화면에서 이름을 확인하세요.</string>
+    <string name="error_export_not_found">NAS가 %s 경로를 NFS로 공유하지 않습니다. Synology의 마운트 경로는 /volume1/로 시작합니다.</string>
+    <string name="error_subfolder_not_found">%1$s은(는) 응답하지만 ‘%2$s’ 폴더가 없습니다. 대소문자까지 이름을 확인하세요.</string>
+    <string name="error_subfolder_not_found_share">‘%1$s’은(는) 응답하지만 ‘%2$s’ 폴더가 없습니다. 대소문자까지 이름을 확인하세요.</string>
+    <string name="error_nfs_refused">NAS가 이 플레이어를 거부합니다. %2$s에서 %1$s에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>
+    <string name="error_nfs_refused_no_address">NAS가 이 플레이어를 거부합니다. %s에서 이 플레이어의 주소에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>
+    <string name="error_nfs_root_refused">NAS가 root의 %s 읽기를 거부합니다. ‘NFS 계정’을 선택하고 접근 권한이 있는 계정을 입력하세요.</string>
+    <string name="error_nfs_account_refused">NAS가 UID %1$s의 %2$s 읽기를 거부합니다. ‘NFS 계정’에 접근 권한이 있는 계정을 입력하세요.</string>
+    <string name="error_smb_denied">‘%1$s’ 계정에는 ‘%2$s’에 대한 접근 권한이 없습니다. NAS에서 읽기 권한을 주거나 다른 계정을 사용하세요.</string>
+    <string name="error_guest_refused">이 NAS는 게스트를 허용하지 않습니다. 계정을 입력하세요.</string>
     <string name="error_scan_other">폴더를 읽을 수 없습니다. 다시 시도하거나 NAS의 공유 폴더를 확인하세요.</string>
     <string name="error_folder_empty">NAS의 폴더가 비어 있는 것 같습니다. 아무것도 제거하지 않았습니다. 디스크가 마운트되어 있는지 확인하고, 정말 비어 있다면 폴더를 제거하세요.</string>
     <string name="error_storage_full">이 기기에 남은 공간이 없어 스캔이 중단되었습니다. 설정의 ‘저장 공간’에서 공간을 확보하세요.</string>

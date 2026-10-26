@@ -14,8 +14,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
@@ -27,6 +33,17 @@ import app.houselights.core.Person
 import app.houselights.core.SourceConfig
 import app.houselights.core.SubtitleTrack
 import app.houselights.core.VideoInfo
+import app.houselights.providers.local.ArtworkCache
+import app.houselights.providers.local.FakeRemoteBrowser
+import app.houselights.providers.local.FolderLevel
+import app.houselights.providers.local.LibraryScanner
+import app.houselights.providers.local.LocalLibrary
+import app.houselights.providers.local.Protocol
+import app.houselights.providers.local.Secret
+import app.houselights.providers.local.SourceEntity
+import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.onCallingThread
+import app.houselights.providers.local.testDatabase
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.TEXT_SCALE_MAX
@@ -40,6 +57,9 @@ import app.houselights.ui.detail.DetailPage
 import app.houselights.ui.detail.DetailViewModel
 import app.houselights.ui.home.HomeGrid
 import app.houselights.ui.home.fullHome
+import app.houselights.ui.onboarding.AddFolderForm
+import app.houselights.ui.onboarding.AddFolderViewModel
+import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.settings.LocalSettingsViewModel
 import app.houselights.ui.settings.Pane
 import app.houselights.ui.settings.PaneRows
@@ -52,12 +72,16 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.cutTexts
 import app.houselights.ui.util.PlaybackOutcome
+import app.houselights.testing.folderNames
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -68,8 +92,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * DESIGN.md, One canvas: at the ends of the text sizes the app lays out at, home, a title's page and the settings cut
- * nothing at the smallest (0.75) that the largest (1.3) or the standard size does not already cut.
+ * DESIGN.md, One canvas: at the ends of the text sizes the app lays out at, home, a title's page, the settings and a
+ * folder's form cut nothing at the smallest (0.75) that the largest (1.3) or the standard size does not already cut; the
+ * form's help under its panel reads whole or is left out, never cut by the screen's foot.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr-$TV")
@@ -110,6 +135,47 @@ class TextSizeLayoutTest {
         val smallest = cutAt(TEXT_SCALE_MIN)
         assertTrue("cut at 0.75, not at 1.3: ${smallest - largest}", (smallest - largest).isEmpty())
         assertTrue("cut at 0.75, not at 1: ${smallest - standard}", (smallest - standard).isEmpty())
+    }
+
+    /** « Modifier le dossier » for an NFS folder at rest: its help whole at every size, or left out where it does not fit. */
+    @Test
+    fun aFoldersForm() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val db = testDatabase { onCallingThread() }
+        try {
+            val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
+            val idle = CoroutineScope(Job().apply { cancel() })
+            val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
+            val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+            val id = runBlocking {
+                db.dao().insertSource(
+                    SourceEntity(
+                        name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20",
+                        share = "volume1/video", path = "Films", username = "", password = Secret(""),
+                    )
+                )
+            }
+            val vm = AddFolderViewModel(
+                library, id, work, useFolders = { false }, probe = { FolderLevel(folderNames(412), videos = 3) },
+                playerAddress = { "192.168.1.42" },
+            )
+            show { AddFolderForm(vm, FolderField.FIRST) {} }
+            compose.waitUntil { vm.ready && vm.player != null }
+            assertTheSmallestCutsNothingNew()
+            val help = context.getString(R.string.nfs_hint_player, "192.168.1.42")
+            listOf(TEXT_SCALE_MAX, 1f, TEXT_SCALE_MIN).forEach { scale ->
+                system = scale
+                compose.waitForIdle()
+                val shown = compose.onAllNodesWithText(help).fetchSemanticsNodes()
+                if (shown.isNotEmpty()) {
+                    assertFalse("the help cut at $scale", help in compose.cutTexts())
+                    val box = compose.onNodeWithText(help).getUnclippedBoundsInRoot()
+                    assertTrue("the help past the safe area at $scale: $box", box.bottom <= SCREEN_H - HlSpace.safeV)
+                }
+            }
+        } finally {
+            db.close()
+        }
     }
 
     @Test
@@ -166,6 +232,8 @@ class TextSizeLayoutTest {
     }
 
     private companion object {
+        val SCREEN_H = 540.dp
+
         /** A film with everything its page shows: a tagline, an overview, a cast, formats. */
         val FILM = MediaItem(
             id = "top-gun",

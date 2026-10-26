@@ -1,9 +1,10 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Sources -->
     <string name="source_local">Mijn bestanden</string>
-    <string name="source_local_desc">Video’s op uw NAS of een netwerkshare (NFS of SMB). Houselights scant ze en haalt posters en gegevens op bij TMDB.</string>
+    <string name="source_local_desc">Uw video’s op een NAS of een computer in het netwerk. Houselights scant ze en haalt posters en samenvattingen op.</string>
     <string name="source_jellyfin">Jellyfin-server</string>
     <string name="source_jellyfin_desc">De bibliotheek van uw server</string>
+    <string name="welcome_jellyfin_desc">De films en series van uw Jellyfin-server.</string>
     <string name="welcome_title">Kies uw bibliotheek</string>
 
     <!-- Libraries and sections -->
@@ -214,22 +215,22 @@
     <string name="edit_folder_row_desc">Het adres of de inloggegevens</string>
     <string name="edit_folder_unreachable_desc">Het adres is misschien gewijzigd</string>
     <string name="edit_folder_login_desc">Voer uw inloggegevens opnieuw in</string>
-    <string name="edit_folder_not_found_desc">Share of pad misschien gewijzigd</string>
+    <string name="edit_folder_not_found_desc">Gedeelde map of pad misschien gewijzigd</string>
     <string name="password_kept">Ongewijzigd</string>
     <string name="jellyfin_desc">Voer het adres van uw server en uw Jellyfin-inloggegevens in.</string>
     <string name="folder_kind">Inhoud</string>
     <string name="field_protocol">Protocol</string>
     <string name="field_host">NAS-adres</string>
-    <string name="field_export">NFS-export</string>
-    <string name="nfs_hint">Zonder wachtwoord: sta op de NAS het adres van dit apparaat toe, alleen-lezen, vanaf niet-geprivilegieerde poorten.</string>
-    <string name="nfs_identity_title">Verbinden als</string>
-    <string name="nfs_identity_desc">Gebruiker die de NAS ziet</string>
-    <string name="nfs_identity_hint">Lege velden: Houselights maakt verbinding als root (UID 0, GID 0). De Zidoo-speler opent video’s onder zijn eigen account.</string>
+    <string name="field_export">Koppelpad</string>
+    <string name="nfs_hint">Zonder wachtwoord: sta op de NAS deze speler alleen-lezen toe, en op een Synology niet-geprivilegieerde poorten.</string>
+    <string name="nfs_identity_title">NFS-account</string>
+    <string name="nfs_identity_desc">Het account dat de NAS ziet, standaard root</string>
+    <string name="nfs_identity_hint">Laat leeg voor root. Voer een UID en een GID in als de NAS root weigert.</string>
     <string name="field_uid">Gebruiker (UID)</string>
     <string name="field_gid">Groep (GID)</string>
     <string name="smb_hint">Het wachtwoord wordt op dit apparaat bewaard en aan de Zidoo-speler doorgegeven. Gebruik bij voorkeur een eigen account met alleen leesrechten.</string>
-    <string name="field_share">Share</string>
-    <string name="field_path">Map</string>
+    <string name="field_share">Gedeelde map</string>
+    <string name="field_path">Submap</string>
     <string name="field_optional">%1$s (optioneel)</string>
     <string name="field_user">Gebruiker</string>
     <string name="field_password">Wachtwoord</string>
@@ -237,8 +238,8 @@
     <string name="placeholder_server_path">Bijv. /media/films</string>
     <string name="placeholder_network_path">Bijv. nfs://192.168.1.10/volume1/films</string>
     <string name="placeholder_tmdb_key">Bijv. 0123456789abcdef0123456789abcdef</string>
-    <string name="placeholder_export" tools:ignore="Typos">Bijv. /volume1/media</string>
-    <string name="placeholder_share">Bijv. media</string>
+    <string name="placeholder_export" tools:ignore="Typos">Bijv. /volume1/video</string>
+    <string name="placeholder_share">Bijv. video</string>
     <string name="placeholder_path_movies">Bijv. films</string>
     <string name="placeholder_path_shows">Bijv. series</string>
     <string name="placeholder_uid">Bijv. 1026</string>
@@ -252,24 +253,40 @@
     <string name="folder_gone_state">Map niet gevonden</string>
     <string name="folder_gone">Deze map staat niet meer in de bibliotheek: hij is intussen verwijderd. Ga terug naar de instellingen om hem opnieuw toe te voegen.</string>
     <string name="folder_already_added">Deze map staat al in de bibliotheek, als “%s”.</string>
-    <string name="folder_overlaps">Deze map overlapt met “%s”, die al in de bibliotheek staat: de titels zouden dubbel verschijnen. Kies een andere map, of bewerk die in Instellingen.</string>
     <string name="folder_overlaps_state">Al in de bibliotheek</string>
     <string name="folder_not_saved_state">Niet opgeslagen</string>
     <string name="folder_unread">Deze map kon niet opnieuw worden gelezen</string>
     <string name="saving">Opslaan…</string>
-    <plurals name="entries_found">
-        <item quantity="one">%d item gevonden</item>
-        <item quantity="other">%d items gevonden</item>
-    </plurals>
     <string name="error_nas_unreachable">%s reageert niet. Controleer of de NAS aan staat en met het netwerk is verbonden.</string>
     <string name="error_access_denied">De NAS heeft de toegang geweigerd. Sta voor NFS het IP-adres van dit apparaat toe op de share; controleer voor SMB de rechten van het account.</string>
     <string name="error_login_failed">De NAS heeft de gebruikersnaam of het wachtwoord geweigerd.</string>
     <string name="error_not_found">Deze share of map bestaat niet op de NAS. Controleer de spelling.</string>
     <string name="error_host_missing">Voer het adres van de NAS in.</string>
-    <string name="error_export_missing" tools:ignore="Typos">Voer de NFS-export in, bijvoorbeeld /volume1/media.</string>
-    <string name="error_share_missing">Voer de naam van de gedeelde map in, bijvoorbeeld media.</string>
+    <string name="error_export_missing" tools:ignore="Typos">Voer het koppelpad in, bijvoorbeeld /volume1/video.</string>
+    <string name="error_share_missing">Voer de naam van de gedeelde map in, bijvoorbeeld video.</string>
     <string name="error_uid_missing">Voer ook de gebruiker (UID) in.</string>
     <string name="error_gid_missing">Voer ook de groep (GID) in.</string>
+    <string name="nfs_hint_player">Zonder wachtwoord: sta op de NAS deze speler (%s) alleen-lezen toe, en op een Synology niet-geprivilegieerde poorten.</string>
+    <string name="folder_holds">Deze map bevat “%s”, die al in de bibliotheek staat: de titels zouden dubbel verschijnen. Kies liever een submap.</string>
+    <string name="folder_inside">Deze map ligt in “%s”, die al in de bibliotheek staat: de titels staan er al. Kies een andere map.</string>
+    <string name="folder_nested_state">Overlapt een map</string>
+    <string name="folder_empty_state">Lege map</string>
+    <string name="folder_no_content">Deze map bevat geen video’s en geen submappen. Controleer het pad.</string>
+    <plurals name="video_count">
+        <item quantity="one">%d video</item>
+        <item quantity="other">%d video’s</item>
+    </plurals>
+    <string name="folder_content">%1$s en %2$s</string>
+    <string name="error_share_not_found">%1$s heeft geen gedeelde map “%2$s”. Controleer de naam in de interface van de NAS.</string>
+    <string name="error_export_not_found" tools:ignore="Typos">De NAS deelt %s niet via NFS. Op een Synology begint het koppelpad met /volume1/.</string>
+    <string name="error_subfolder_not_found">%1$s antwoordt, maar “%2$s” staat er niet in. Controleer de naam, hoofdletters inbegrepen.</string>
+    <string name="error_subfolder_not_found_share">“%1$s” antwoordt, maar “%2$s” staat er niet in. Controleer de naam, hoofdletters inbegrepen.</string>
+    <string name="error_nfs_refused">De NAS weigert deze speler. Sta %1$s toe op %2$s, alleen-lezen, en op een Synology niet-geprivilegieerde poorten.</string>
+    <string name="error_nfs_refused_no_address">De NAS weigert deze speler. Sta het adres van deze speler toe op %s, alleen-lezen, en op een Synology niet-geprivilegieerde poorten.</string>
+    <string name="error_nfs_root_refused">De NAS laat root %s niet lezen. Kies “NFS-account” en voer een account in dat toegang heeft.</string>
+    <string name="error_nfs_account_refused">De NAS laat UID %1$s %2$s niet lezen. Voer bij “NFS-account” een account in dat toegang heeft.</string>
+    <string name="error_smb_denied">Het account “%1$s” heeft geen toegang tot “%2$s”. Geef het leesrechten op de NAS, of gebruik een ander account.</string>
+    <string name="error_guest_refused">Deze NAS accepteert geen gasten: voer een account in.</string>
     <string name="error_scan_other">De map kon niet worden gelezen. Probeer het opnieuw, of controleer de share op de NAS.</string>
     <string name="error_folder_empty">De map lijkt leeg op de NAS: er is niets verwijderd. Controleer of de schijf gekoppeld is; is de map definitief leeg, verwijder hem dan.</string>
     <string name="error_storage_full">Dit apparaat heeft geen ruimte meer: de scan is gestopt. Maak ruimte vrij in Instellingen, Opslag.</string>

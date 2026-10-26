@@ -68,6 +68,11 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     the player cannot follow, is left out and logged.
   - NFS sends no password: the app presents itself to the NAS as root, unless a folder names the user and group
     (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
+  - A folder is tested before it is saved, in the NAS's own words (mount path, shared folder, subfolder): the test
+    says what it found, "412 folders and 3 videos", and a failure says what to change under the field to change,
+    which takes focus: the shared folder or the export missing, or a subfolder missing in one that answers; the NAS
+    refusing this player, by its address, or root, or an SMB account without the right. A folder holding neither a
+    video nor a subfolder, or one nesting with a folder of the library, is never saved.
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
   - A file deleted from the NAS leaves the library on the next scan; what you did to its title (watched, where you
@@ -211,7 +216,7 @@ address.
   (the Z1000 Pro's), anyone can sign an update of the system player that Android installs over it, and it
   would receive them too: install the player's updates from Zidoo alone.
 - NFS sends no password: the NAS trusts the player's address and the user it claims, root (uid 0, gid 0)
-  unless the folder's "Connect as" names another user and group. Any app on the player can claim root
+  unless the folder's "NFS account" names another user and group. Any app on the player can claim root
   too: on an export that does not squash root (Synology's "No mapping"), the export is open with root's rights.
   Export it **read-only, with root squashed** or mapped to a guest or media account; the user the app presents
   only chooses whose rights it reads with, and the Zidoo player opens videos with its own NFS access.
