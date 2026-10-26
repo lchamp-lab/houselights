@@ -339,10 +339,58 @@ class ToIdentifyTest {
         assertEquals("never searched", 0, pass.requests.count { it.startsWith("search/") })
     }
 
+    /** As above, TMDB out of reach as the film comes back: what was kept lends it its TMDB id at the next pass TMDB answers. */
+    @Test
+    fun aFilmBackWhileTmdbIsOutOfReachIsTheFilmKeptInItsFolderOnceItAnswers() = runTest {
+        val films = bench.folder("Films")
+        nas.put(HEAT)
+        tmdb.movie(DUNE, "Dune", 2021, votes = 12_000)
+        nas.put("Dune.mkv")
+        bench.scan()
+        dao.setFavorite(bench.item(films, "Dune.mkv").id, true)
+        nas.remove("Dune.mkv")
+        bench.scan()
+
+        tmdb.movie(LYNCH, "Dune", 1984, votes = 3_000)
+        nas.put("Dune.mkv")
+        bench.tmdbOutOfReach()
+        bench.scan()
+        assertNull("not looked up yet", bench.item(films, "Dune.mkv").matchedAt)
+        bench.tmdbBack()
+        val pass = bench.pass()
+        val back = bench.item(films, "Dune.mkv")
+        assertEquals(DUNE to true, back.tmdbId to back.favorite)
+        assertEquals("never searched", 0, pass.requests.count { it.startsWith("search/") })
+    }
+
+    /** A show TMDB matched leaves, then comes back under its folder's name, which TMDB now hesitates on: it lends its id. */
+    @Test
+    fun aShowBackUnderANameTmdbHesitatesOnIsTheShowKeptUnderIt() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        bench.showsNas.put(KAAMELOTT)
+        tmdb.show(SEVERANCE, "Severance", 2022, votes = 5_000)
+        tmdb.season(SEVERANCE, 1, episodes = 1)
+        bench.showsNas.put(PILOT)
+        bench.scan()
+        dao.setFavorite(bench.showOf(shows, PILOT).id, true)
+        bench.showsNas.remove(PILOT)
+        bench.scan()
+
+        tmdb.show(OTHER_SEVERANCE, "Severance", 2019, votes = 900)
+        bench.showsNas.put(PILOT)
+        val pass = bench.pass()
+        val back = bench.showOf(shows, PILOT)
+        assertEquals(SEVERANCE to true, back.tmdbId to back.favorite)
+        assertEquals("never searched", 0, pass.requests.count { it.startsWith("search/") })
+    }
+
     private companion object {
         const val DUNE = 438631
         const val LYNCH = 841
         const val SEVERANCE = 95396
+        const val OTHER_SEVERANCE = 1
+        const val PILOT = "Severance/Season 1/Severance - S01E01.mkv"
+        const val KAAMELOTT = "Kaamelott/Livre 1/Kaamelott - S01E01.mkv"
         const val HOLIDAYS = "Vacances à Biarritz (2019).mkv"
         const val HEAT = "Heat (1995).mkv"
         const val HOUR_MS = 60 * 60_000L

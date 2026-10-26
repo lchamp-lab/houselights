@@ -22,15 +22,15 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val parsed = LibraryScanner.parseMovie(named)
         val names = NameIds.ofFilm(named, pass.singleTitleFolders)
         val local = pass.sidecars.forVideo(file)
-        val born = if (existing == null) inserted(pass, file, parsed, stack, now) else null
-        val row = existing ?: checkNotNull(born).row
+        val row = existing ?: inserted(pass, file, parsed, stack, now)
         // Its TMDB id before this read: one it gains gives it back what was kept under it ([giveBack]).
         val was = row.userTmdbId ?: row.tmdbId
 
         val kept = files.nfo(source, local.nfo, row)
         val nfo = kept.info
         val asked = asked(pass, row, existing, nfo, local)
-        val query = Query(row.userTmdbId, names, nfo, named, known = row.tmdbId ?: born?.lent)
+        val known = row.tmdbId ?: if (asked.tmdb) lent(row) else null
+        val query = Query(row.userTmdbId, names, nfo, named, known, tried = row.hintKey)
         // The probe reads the NAS while TMDB answers; the file's tracks and its match are then saved at once.
         val (probed, answers) = coroutineScope {
             val probed = async { files.withMediaInfo(source, file, row) }
@@ -62,16 +62,12 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         return if (fetched.answered) cleared else cleared.copy(matchedAt = null)
     }
 
-    /** A new film's [row], and the TMDB id a film of its name kept in its folder [lent] it ([inserted]). */
-    private class Born(val row: ItemEntity, val lent: Int?)
-
     /**
      * A new film's row, born with what was kept of the film of its name, before its NFO and TMDB are read
-     * ([KeptStates.atBirth]): TMDB, or an NFO beside it, names it once read, which may be another film of that name.
-     * A film TMDB matched, kept in its folder, lends it its TMDB id, tried after the name's and NFO's ids and before
-     * any search ([lookupMovie]): a name TMDB hesitates on ("Dune.mkv") comes back as the film it was.
+     * ([KeptStates.atBirth]): TMDB, or an NFO beside it, names it once read, which may be another film of that name;
+     * a film TMDB matched, kept in its folder, lends it its TMDB id meanwhile ([lent]).
      */
-    private suspend fun inserted(pass: ScanPass, file: RemoteFile, parsed: ParsedMovie, stack: Stack?, now: Long): Born {
+    private suspend fun inserted(pass: ScanPass, file: RemoteFile, parsed: ParsedMovie, stack: Stack?, now: Long): ItemEntity {
         val source = pass.source
         val item = ItemEntity(
             kind = ItemKind.MOVIE,
@@ -93,10 +89,9 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val named = dao.keptNamed(ItemKind.MOVIE, KeptKeys.filmName(path, stacked = stack != null))
         val namedLater = pass.tmdb.open || pass.sidecars.forVideo(file).nfo != null
         val folder = Sidecars.folderOf(path)
-        val kept = KeptStates.atBirth(named, source.id, folder, namedLater)
-            ?: return Born(item.copy(id = dao.insert(item)), lent = KeptStates.fromHere(named, source.id, folder)?.identity)
+        val kept = KeptStates.atBirth(named, source.id, folder, namedLater) ?: return item.copy(id = dao.insert(item))
         val born = KeptStates.onto(item, kept)
-        return Born(born.copy(id = dao.insertGivenBack(born, kept)), lent = null)
+        return born.copy(id = dao.insertGivenBack(born, kept))
     }
 
     /** What reprocessing a film requires ([asked]). */
@@ -181,7 +176,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val path = item.namedPath() ?: return null
         val parsed = LibraryScanner.parseMovie(path)
         val nfo = item.nfoInfo()
-        val query = Query(null, namesOf(item), nfo, path, known = null)
+        val query = Query(null, namesOf(item), nfo, path, known = lent(item))
         val fetched = fetch(tmdb, null, query, refresh = false) { client -> lookupMovie(client, query) }
         val lookup = fetched.lookup as? TmdbAnswer.Given ?: return null
         val now = clock()
@@ -208,17 +203,20 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
     /**
      * What a film's lookup asks TMDB by ([lookupMovie]), named at [path] ([Stack.namedPath]): [known] is its TMDB id
-     * before, or the one a film of its name kept in its folder lends it ([inserted]).
+     * before, or the one a film of its name kept in its folder lends it ([lent]); [tried], the name's id its last
+     * lookup tried ([ItemEntity.hintKey]).
      */
-    private class Query(val userTmdbId: Int?, val names: NameIds, val nfo: NfoInfo?, path: String, val known: Int?) {
+    private class Query(val userTmdbId: Int?, val names: NameIds, val nfo: NfoInfo?, path: String, val known: Int?, tried: String? = null) {
         val parsed = LibraryScanner.parseMovie(path)
-
-        /** The title and year it is searched by. */
-        val title: String get() = nfo?.title ?: parsed.title
-        val year: Int? get() = nfo?.year ?: parsed.year
 
         /** What it is searched by, the bare year and its folder's year read too ([wanted]). */
         val wanted = wanted(path, nfo)
+
+        /**
+         * The film its name's TMDB id names, which stands until TMDB answers ([fetch]), unless a lookup tried that id
+         * and the film is another: one TMDB had no film for, or one not trusted ([NameIds.trusts]).
+         */
+        val named: Int? = names.tmdb?.takeUnless { tried == names.tmdbKey && it != known }
     }
 
     /**
@@ -252,8 +250,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val found = NameIds.Found(ids, listOfNotNull(movie.title, movie.originalTitle), yearOf(movie.releaseDate)) {
             tmdb.alternativeTitles(movie.id, show = false)
         }
-        val wanted = listOfNotNull(query.title, query.parsed.title, query.nfo?.originalTitle).distinct()
-        return names.trusts(found, by, query.nfo, wanted, query.year)
+        return names.trusts(found, by, query.nfo, query.wanted.alsoNamed(query.parsed.title))
     }
 
     /** TMDB answers for a film, all fetched before anything is written. */
@@ -299,8 +296,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         // For a user match with no TMDB answer, an IMDb-only NFO is set aside until TMDB can confirm it.
         val untold = userTmdbId != null && movie == null && nfoInfo?.tmdbId == null && nfoInfo?.imdbId != null
         // The film the user or the name chose: an NFO naming another describes another film. Until TMDB answers, the
-        // name's TMDB id stands.
-        val chosen = userTmdbId ?: if (answer is TmdbAnswer.Given) answer.value?.byName else query.names.tmdb
+        // name's TMDB id stands, unless a lookup refused it.
+        val chosen = userTmdbId ?: if (answer is TmdbAnswer.Given) answer.value?.byName else query.named
         val nfo = nfoInfo?.takeUnless { untold || MetadataMerge.describesOther(it, chosen, movie?.imdbId) }
         val plan = if (keepCollection) null else collectionOf(nfo, movie, refresh)
         val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
@@ -360,11 +357,23 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         }
     }
 
-    /** What was kept of a film of [item]'s name in its folder ([KeptStates.fromHere]). */
+    /** Gives [item] what was kept of a film of its name in its folder ([keptHere]). */
     private suspend fun givenBackByName(item: ItemEntity) {
-        val path = item.filePath ?: return
+        keptHere(item)?.let { dao.giveBack(item.id, it.title) }
+    }
+
+    /**
+     * The TMDB id a film TMDB matched, kept in [row]'s folder under its name ([keptHere]), lends it while TMDB names it
+     * by none, at each scan or recheck asking TMDB until one answers: tried after its name's and NFO's ids and before
+     * any search ([lookupMovie]), so a name TMDB hesitates on ("Dune.mkv") comes back as the film it was.
+     */
+    private suspend fun lent(row: ItemEntity): Int? = if (row.tmdbId == null && row.userTmdbId == null) keptHere(row)?.identity else null
+
+    /** What was kept of a film of [item]'s name in its folder ([KeptStates.fromHere]). */
+    private suspend fun keptHere(item: ItemEntity): KeptStateEntity? {
+        val path = item.filePath ?: return null
         val named = dao.keptNamed(ItemKind.MOVIE, KeptKeys.filmName(path, item.parts.isNotEmpty()))
-        KeptStates.fromHere(named, item.sourceId, Sidecars.folderOf(path))?.let { dao.giveBack(item.id, it.title) }
+        return KeptStates.fromHere(named, item.sourceId, Sidecars.folderOf(path))
     }
 
     /** A film's collection, resolved before anything is written. */

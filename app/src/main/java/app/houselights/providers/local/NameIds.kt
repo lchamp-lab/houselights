@@ -36,19 +36,17 @@ internal data class NameIds(val tmdb: Int? = null, val imdb: String? = null, val
     }
 
     /**
-     * Whether [found], the title found by the id of kind [by] these ids hold, is the title named [wanted] (its
-     * readings) in [year]: always when another of these ids or of [nfo] names it too ([TitleIds.agree]); else never
-     * when both years are known and more than one apart, a remake's or a sequel's id; else when one of its titles is
-     * alike, or failing them one of its alternative titles (one TMDB request), a same-year neighbour's id being
-     * neither ([MatchScore.named]). An id not trusted gives way to the next, as one TMDB has no title for.
+     * Whether [found], the title found by the id of kind [by] these ids hold, is the title [wanted] names: always when
+     * another of these ids or of [nfo] names it too ([TitleIds.agree]); else never when the year of each of its
+     * readings is known and more than one from [found]'s, a remake's or a sequel's id ([MatchScore.near]); else when one
+     * of its titles is alike one of the readings near it, or failing them one of its alternative titles (one TMDB
+     * request), a same-year neighbour's id being neither. An id not trusted gives way to the next, as one TMDB has no
+     * title for.
      */
-    suspend fun trusts(found: Found, by: IdKind, nfo: NfoInfo?, wanted: List<String>, year: Int?): Boolean {
+    suspend fun trusts(found: Found, by: IdKind, nfo: NfoInfo?, wanted: Wanted): Boolean {
         if (found.ids.agree(this, by, nfo)) return true
-        return when (MatchScore.named(wanted, year, found.titles, found.year)) {
-            MatchScore.Named.ALIKE -> true
-            MatchScore.Named.APART -> false
-            MatchScore.Named.UNLIKE -> MatchScore.alike(wanted, found.alternatives())
-        }
+        val near = MatchScore.near(wanted, found.year) ?: return false
+        return MatchScore.alike(near, found.titles) || MatchScore.alike(near, found.alternatives())
     }
 
     /** A title an id of a name found ([trusts]): its ids, titles and year, and its [alternatives] once asked for. */

@@ -19,6 +19,10 @@ internal data class Wanted(val readings: List<Reading>, val alsoTitles: List<Str
     val title: String get() = readings.first().title
     val year: Int? get() = readings.first().year
 
+    /** This, going by [title] too (a name's title, its NFO's being another), unless it does already. */
+    fun alsoNamed(title: String): Wanted =
+        if (readings.any { it.title == title } || title in alsoTitles) this else copy(alsoTitles = alsoTitles + title)
+
     companion object {
         fun of(title: String, year: Int?, bareYear: Boolean = false, original: String? = null, folder: Reading? = null) = Wanted(
             listOfNotNull(Reading(title, year), Reading("$title $year", null).takeIf { bareYear && year != null }, folder).distinct(),
@@ -100,8 +104,12 @@ internal sealed interface Verdict {
  * result is never taken, a title TMDB hesitates on is left to identify with its best candidates.
  */
 internal object MatchScore {
-    /** A title found by a name's id with less in common than this with the name is another title ([named]). */
-    private const val ALIKE_BY_NAME = 0.5
+    /**
+     * A title found by a name's id less alike than this to the name is another title ([alike]): above a part's of
+     * other numbers ([OTHER_NUMBERS]), so a sequel's id is never trusted by its title ("Wonder Woman 1984 {tmdb-…}"
+     * giving the film of 2017's).
+     */
+    private const val ALIKE_BY_NAME = 0.6
 
     /** Years a name's id may be off by, as a file's year often is (a festival's, a release's). */
     private const val YEARS_OFF = 1
@@ -184,9 +192,6 @@ internal object MatchScore {
         val numbers = words.filter(::isNumber).sorted()
     }
 
-    /** [title]'s words, folded and without a leading article, as [similarity] compares them. */
-    fun words(title: String): List<String> = forms(title).first().words
-
     /** [title]'s words joined: titles of one key are alike. */
     fun key(title: String): String = forms(title).first().key
 
@@ -241,30 +246,18 @@ internal object MatchScore {
     private fun number(word: String): String =
         ROMAN[word] ?: NUMBER_WORDS[word] ?: ORDINAL.matchEntire(word)?.groupValues?.get(1)?.trimStart('0')?.ifEmpty { null } ?: word
 
-    /** What a title found by a name's id is to the title of that name ([named]). */
-    enum class Named {
-        /** One of its titles is alike. */
-        ALIKE,
-
-        /** Both years known and more than one apart: a remake's id, a sequel's, a typo's. */
-        APART,
-
-        /** No title alike, yet no year apart: its alternative titles tell ([alike]), never its year alone. */
-        UNLIKE,
-    }
-
     /**
-     * What a title an id of a name gave ([NameIds.trusts]), named [titles] (its title and original title) and of
-     * [year], is to the one named [wanted] (its readings) in [wantedYear]. A TV id in a film's name, a remake's or a
-     * same-year neighbour's id names another title.
+     * The titles [wanted] goes by in its readings of a year at most one from [year], a title an id of its name found
+     * ([NameIds.trusts]), with its other titles; null when every reading's year is known and further: a remake's id, a
+     * sequel's, a typo's. A reading or a title without a year is near: "Death Race 2000 {tmdb-13282}" names the film of
+     * 1975 by its bare year read as part of its title ([Wanted.of]).
      */
-    fun named(wanted: List<String>, wantedYear: Int?, titles: List<String>, year: Int?): Named = when {
-        wantedYear != null && year != null && abs(wantedYear - year) > YEARS_OFF -> Named.APART
-        alike(wanted, titles) -> Named.ALIKE
-        else -> Named.UNLIKE
+    fun near(wanted: Wanted, year: Int?): List<String>? {
+        val near = wanted.readings.filter { it.year == null || year == null || abs(it.year - year) <= YEARS_OFF }
+        return if (near.isEmpty()) null else (near.map { it.title } + wanted.alsoTitles).distinct()
     }
 
-    /** Whether one of [titles] is alike one of [wanted] ([similarity] 0.5 at least). */
+    /** Whether one of [titles] is alike one of [wanted] ([similarity] 0.6 at least). */
     fun alike(wanted: List<String>, titles: List<String>): Boolean =
         wanted.any { name -> titles.any { similarity(name, it) >= ALIKE_BY_NAME } }
 

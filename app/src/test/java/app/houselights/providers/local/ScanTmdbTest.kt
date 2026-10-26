@@ -378,6 +378,7 @@ class ScanTmdbTest {
         assertNotNull(again.matchedAt)
         assertEquals("Arrakis", bench.dao.collection(checkNotNull(again.collectionId))?.overview)
     }
+
     /** "Dune.mkv": two films and a sequel of that name, none clearly ahead: to identify, its three best candidates kept. */
     @Test
     fun aFilmTmdbHesitatesOnIsToIdentifyWithItsThreeSuggestions() = runTest {
@@ -433,11 +434,26 @@ class ScanTmdbTest {
         assertEquals("its year, then without", listOf("Dune (2020)", "Dune"), tmdb.searched)
     }
 
+    /** "Wonder Woman 1984.mkv": its bare year is its title's, so the film of 2020, not the film of 2017 TMDB puts first. */
+    @Test
+    fun aBareYearIsReadAsPartOfTheTitle() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(WONDER_WOMAN, "Wonder Woman", 2017, votes = 20_000)
+        tmdb.movie(WW84, "Wonder Woman 1984", 2020, votes = 9_000)
+        tmdb.searches["wonder woman"] = listOf(WONDER_WOMAN, WW84)
+        nas.put("Wonder Woman 1984.mkv")
+        bench.scan()
+
+        assertEquals(WW84, bench.item(films, "Wonder Woman 1984.mkv").tmdbId)
+    }
+
     private companion object {
         const val DUNE = 438631
         const val LYNCH = 841
         const val PART_TWO = 693134
         const val DRIFTER = 1
+        const val WONDER_WOMAN = 297762
+        const val WW84 = 464052
         const val DAY_MS = 24 * 60 * 60_000L
     }
 }

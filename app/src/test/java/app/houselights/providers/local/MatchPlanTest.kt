@@ -99,7 +99,10 @@ class MatchPlanTest {
         sent.clear()
         asked.clear()
         alternatives.clear()
+        // The text before the dash finds that film again, first of its year: its alternative titles are not asked again.
+        answers[Search("Star Wars Episode IV", 1977)] = answers.getValue(Search(wanted.title, 1977))
         assertEquals(null, run(wanted).id())
+        assertTrue(Search("Star Wars Episode IV", 1977) in sent)
         assertEquals("once", listOf(11), asked)
     }
 }

@@ -70,6 +70,35 @@ class TmdbClientTest {
         assertEquals(listOf("search/movie", "movie/438631"), tmdb.requests)
     }
 
+    /** A client speaking French searches in French, then in English: a film named by its English title is found so. */
+    @Test
+    fun aFrenchClientAlsoSearchesInEnglish() = runTest {
+        tmdb.movie(120, "Le Seigneur des anneaux : La Communauté de l'anneau", 2001, votes = 25_000)
+        tmdb.englishTitles[120] = "The Lord of the Rings: The Fellowship of the Ring"
+        tmdb.searches["the lord of the rings"] = listOf(120)
+        val client = TmdbClient("key", false, tmdb, Locale.FRANCE)
+        assertEquals(120, client.matchMovie(Wanted.of("The Lord of the Rings", 2001)).found?.id)
+        assertEquals(listOf("The Lord of the Rings (2001)", "The Lord of the Rings", "The Lord of the Rings (2001)"), tmdb.searched)
+        assertEquals(listOf("fr-FR", "fr-FR", "en-US"), tmdb.searchLanguages)
+
+        tmdb.searched.clear()
+        tmdb.searchLanguages.clear()
+        tmdb.client().matchMovie(Wanted.of("The Lord of the Rings", 2001))
+        assertEquals("a client speaking English asks in English once", listOf("en-US"), tmdb.searchLanguages)
+    }
+
+    /** A show's alternative titles are under "results", a film's under "titles". */
+    @Test
+    fun alternativeTitlesAreReadForFilmsAndShows() = runTest {
+        tmdb.show(62649, "Le Bureau des légendes", 2015)
+        tmdb.showAlternatives[62649] = listOf("The Bureau")
+        tmdb.movieAlternatives[438631] = listOf("Dune: Part One")
+        val client = tmdb.client()
+        assertEquals(listOf("The Bureau"), client.alternativeTitles(62649, show = true))
+        assertEquals(listOf("Dune: Part One"), client.alternativeTitles(438631, show = false))
+        assertEquals("none for an entry TMDB has not", emptyList<String>(), client.alternativeTitles(1, show = false))
+    }
+
     @Test
     @Suppress("SleepInsteadOfDelay") // OkHttp's own threads end the call: virtual time cannot wait for them.
     fun aRequestGivenUpOnLeavesTmdbToTheNextOne() = runTest {

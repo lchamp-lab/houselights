@@ -123,8 +123,11 @@ class NameIdsTest {
         val found = NameIds.Found(TitleIds(id, imdb = null, tvdb = null), titles, year) { alternatives.also { asked++ } }
     }
 
-    private fun trusts(name: String, year: Int?, found: Hit, nfo: NfoInfo? = null) = runBlocking {
-        NameIds.of(name).trusts(found.found, IdKind.TMDB, nfo, listOf(FilenameParser.parseMovie(name).title), year)
+    private fun trusts(name: String, year: Int?, found: Hit, nfo: NfoInfo? = null) =
+        trusts(name, Wanted.of(FilenameParser.parseMovie(name).title, year), found, nfo)
+
+    private fun trusts(name: String, wanted: Wanted, found: Hit, nfo: NfoInfo? = null) = runBlocking {
+        NameIds.of(name).trusts(found.found, IdKind.TMDB, nfo, wanted)
     }
 
     /** A remake's id, a sequel's or another film's of another year is another film's, whatever its title. */
@@ -135,6 +138,18 @@ class NameIdsTest {
         assertFalse("another film", trusts("Up (2009) {tmdb-458723}", 2009, Hit(listOf("Us"), 2019)))
         assertTrue("a year off, as a file's often is", trusts("Dune (2020) {tmdb-438631}", 2020, Hit(listOf("Dune"), 2021)))
         assertTrue("no year to tell", trusts("Dune {tmdb-438631}", null, Hit(listOf("Dune"), 2021)))
+    }
+
+    /** A bare year may be the title's ("Death Race 2000", "Wonder Woman 1984"): read so, the name has no year to be apart from. */
+    @Test
+    fun aBareYearReadAsPartOfTheTitleIsNoYearApart() {
+        fun trusts(name: String, found: Hit) = trusts(name, MovieIndexer.wanted("$name.mkv", nfo = null), found)
+        assertTrue("the film of 1975", trusts("Death Race 2000 {tmdb-13282}", Hit(listOf("Death Race 2000"), 1975)))
+        assertTrue("the film of 2020", trusts("Wonder Woman 1984 [tmdbid-464052]", Hit(listOf("Wonder Woman 1984"), 2020)))
+        assertFalse("the remake, of other numbers", trusts("Death Race 2000 {tmdb-10483}", Hit(listOf("Death Race"), 2008)))
+        assertFalse("the film of 2017", trusts("Wonder Woman 1984 {tmdb-297762}", Hit(listOf("Wonder Woman"), 2017)))
+        assertFalse("a sequel's id in a name without a year", trusts("Saw {tmdb-951491}", Hit(listOf("Saw X"), 2023)))
+        assertFalse("a year in parentheses is the film's", trusts("Dune (2021) {tmdb-841}", Hit(listOf("Dune"), 1984)))
     }
 
     /** A title of other words is trusted only when one of its alternative titles is the name's, never by its year alone. */

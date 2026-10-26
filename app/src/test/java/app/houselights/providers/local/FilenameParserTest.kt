@@ -1,5 +1,7 @@
 package app.houselights.providers.local
 
+import app.houselights.core.NfoInfo
+import app.houselights.core.NfoKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -32,6 +34,38 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("Dune", 2021), movie("Dune (2021) [tmdbid=438631].mkv"))
         assertEquals(ParsedMovie("Dune", null), movie("Dune (tmdb-2021).mkv"))
         assertEquals("a year in parentheses stays", ParsedMovie("Dune", 2021), movie("Dune (2021).mkv"))
+    }
+
+    /** A year neither in parentheses nor in brackets may be the title's ([FilenameParser.bareYear]). */
+    @Test
+    fun aYearStandsBareOutsideParenthesesAndBrackets() {
+        assertTrue(FilenameParser.bareYear("Wonder Woman 1984.mkv"))
+        assertTrue("a scene name's", FilenameParser.bareYear("Oppenheimer.2023.2160p.mkv"))
+        assertFalse(FilenameParser.bareYear("Dune (2021).mkv"))
+        assertFalse(FilenameParser.bareYear("Dune [2021].mkv"))
+        assertFalse("an id beside", FilenameParser.bareYear("Dune (2021) {tmdb-438631}.mkv"))
+        assertFalse("no year", FilenameParser.bareYear("Dune.mkv"))
+    }
+
+    /** What a film is searched by ([MovieIndexer.wanted]): a bare year read as part of the title too, and its folder's year. */
+    @Test
+    fun aFilmIsSearchedByItsBareYearAsPartOfItsTitleAndByItsFoldersYear() {
+        fun readings(path: String, nfo: NfoInfo? = null) = MovieIndexer.wanted(path, nfo).readings
+        assertEquals(listOf(Reading("Wonder Woman", 1984), Reading("Wonder Woman 1984", null)), readings("Wonder Woman 1984.mkv"))
+        assertEquals(
+            listOf(Reading("Death Race", 2000), Reading("Death Race 2000", null), Reading("Death Race 2000", 1975)),
+            readings("Death Race 2000 (1975)/Death Race 2000.mkv"),
+        )
+        assertEquals(
+            listOf(Reading("Wonder Woman", 1984), Reading("Wonder Woman 1984", null), Reading("Wonder Woman 1984", 2020)),
+            readings("Wonder Woman 1984 (2020)/Wonder Woman 1984.mkv"),
+        )
+        assertEquals("a year in parentheses is the film's", listOf(Reading("Dune", 2021)), readings("Dune (2021).mkv"))
+        assertEquals("the folder's, the file having none", listOf(Reading("Dune", 2021)), readings("Dune (2021)/Dune.mkv"))
+        val nfo = NfoInfo(NfoKind.MOVIE, title = "Wonder Woman 1984", year = 2020, originalTitle = "WW84")
+        val byNfo = MovieIndexer.wanted("Wonder Woman 1984.mkv", nfo)
+        assertEquals("its NFO's", listOf(Reading("Wonder Woman 1984", 2020)), byNfo.readings)
+        assertEquals(listOf("WW84"), byNfo.alsoTitles)
     }
 
     @Test

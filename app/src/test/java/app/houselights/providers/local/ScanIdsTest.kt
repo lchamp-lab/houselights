@@ -14,7 +14,7 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * Ids in file and folder names ([NameIds]) identify titles before their NFO's and the search, the user's choice
- * excepted: once, and again when a name gives another id than the title was found by, a few titles per pass.
+ * excepted: once, and again when a name gives another id than its last lookup tried, a few titles per pass.
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanIdsTest {
@@ -156,18 +156,54 @@ class ScanIdsTest {
         bench.assertQuiet()
     }
 
-    /** An id whose title has nothing of the name (a show's id, a typo) is not trusted: the title is searched for. */
+    /**
+     * An id whose title has nothing of the name (a show's id, a typo) is not trusted, with no year to tell them apart:
+     * nor its alternative titles holding the name's, the title is searched for.
+     */
     @Test
     fun aNameIdOfAnotherTitleIsNotTrusted() = runTest {
         val films = bench.folder("Films")
         tmdb.movie(DUNE, "Dune", 2021)
         tmdb.movie(COURGETTE, "Ma vie de Courgette", 2016)
-        nas.put("Dune (2021) {tmdb-1399}.mkv")
-        bench.scan()
+        nas.put("Dune {tmdb-1399}.mkv")
+        val pass = bench.pass()
 
-        val dune = bench.item(films, "Dune (2021) {tmdb-1399}.mkv")
+        val dune = bench.item(films, "Dune {tmdb-1399}.mkv")
         assertEquals(DUNE, dune.tmdbId)
         assertEquals("tried, not asked by again", "tmdb:1399", dune.hintKey)
+        assertEquals(listOf("movie/$COURGETTE", "movie/$COURGETTE/alternative_titles", "search/movie", "movie/$DUNE"), pass.requests)
+    }
+
+    /** "Death Race 2000 {tmdb-13282}": its bare year is its title's, so the film of 1975 its id gives is trusted at once. */
+    @Test
+    fun aNameIdOfAFilmWhoseTitleHoldsAYearIsTrusted() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(DEATH_RACE_2000, "Death Race 2000", 1975, votes = 700)
+        tmdb.movie(DEATH_RACE, "Death Race", 2008, votes = 3_300)
+        nas.put("Death Race 2000 {tmdb-13282}.mkv")
+        val pass = bench.pass()
+
+        assertEquals(DEATH_RACE_2000, bench.item(films, "Death Race 2000 {tmdb-13282}.mkv").tmdbId)
+        assertEquals("never searched", listOf("movie/$DEATH_RACE_2000"), pass.requests)
+    }
+
+    /** A name's id not trusted, the film found by its NFO's: that NFO, rewritten in place since, is still the film's. */
+    @Test
+    fun anNfoBesideANameIdNotTrustedIsReadAgainWhenRewritten() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(DUNE, "Dune", 2021)
+        tmdb.movie(LYNCH, "Dune", 1984)
+        val name = "Dune (2021) {tmdb-841}"
+        fun nfo(plot: String) = nas.putText("$name.nfo", "<movie><title>Dune</title><plot>$plot</plot><tmdbid>$DUNE</tmdbid></movie>")
+        nas.put("$name.mkv")
+        nfo("Paul")
+        bench.scan()
+        assertEquals(DUNE to "Paul", bench.item(films, "$name.mkv").let { it.tmdbId to it.overview })
+
+        nfo("Paul Atréides")
+        val pass = bench.pass()
+        assertEquals("Paul Atréides", bench.item(films, "$name.mkv").overview)
+        assertEquals("nothing asked of TMDB", emptyList<String>(), pass.requests)
     }
 
     /**
@@ -390,9 +426,12 @@ class ScanIdsTest {
         assertEquals("Saison 1", dao.season(show.id, 1)?.title)
     }
 
-    /** Sonarr's folder named with its id while TMDB did not list it yet: once it does, every episode takes its details. */
+    /**
+     * Sonarr's folder named with its id while TMDB did not list it yet: once it does, the show asked again
+     * ([Reidentify]) by its folder's id gives every episode its details, the NAS never read.
+     */
     @Test
-    fun aShowMatchedLaterByItsFolderIdGetsAllItsEpisodes() = runTest {
+    fun aShowListedLaterIsMatchedByItsFolderIdWhenAskedAgain() = runTest {
         val shows = bench.folder("Séries", SourceKind.SHOWS)
         val dir = "Severance (2022) {tvdb-371980}/Season 1"
         (1..3).forEach { showsNas.put("$dir/Severance - S01E0$it.mkv") }
@@ -409,8 +448,46 @@ class ScanIdsTest {
         assertEquals(SEVERANCE, show.tmdbId)
         assertEquals(listOf("Episode 1.1", "Episode 1.2", "Episode 1.3"), dao.episodesOfSeries(show.id).map { it.title })
         assertEquals("the season asked once", 1, pass.requests.count { it == "tv/$SEVERANCE/season/1" })
-        assertTrue("one episode read for its show, at most: ${pass.reads}", pass.reads.size <= 1)
+        assertEquals("never the NAS", emptyList<String>(), pass.reads)
         assertEquals("then nothing", emptyList<String>(), bench.pass().requests)
+    }
+
+    /**
+     * A show TMDB found nothing for, named since by a tvshow.nfo added beside it: the scan reading that NFO matches it
+     * and gives every episode its season's details in the transaction saving it, none of them read.
+     */
+    @Test
+    fun aShowNamedByAnNfoAddedSinceGetsAllItsEpisodesInTheScan() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        (1..3).forEach { showsNas.put("Severance/Season 1/Severance - S01E0$it.mkv") }
+        bench.scan()
+        assertEquals(MatchState.NOT_FOUND, bench.showOf(shows, "Severance/Season 1/Severance - S01E01.mkv").matchState)
+
+        tmdb.show(SEVERANCE, "Severance", 2022)
+        tmdb.season(SEVERANCE, 1, episodes = 3)
+        showsNas.putText("Severance/tvshow.nfo", "<tvshow><title>Severance</title><tmdbid>$SEVERANCE</tmdbid></tvshow>")
+        val pass = bench.pass()
+
+        val show = bench.showOf(shows, "Severance/Season 1/Severance - S01E01.mkv")
+        assertEquals(SEVERANCE, show.tmdbId)
+        assertEquals(listOf("Episode 1.1", "Episode 1.2", "Episode 1.3"), dao.episodesOfSeries(show.id).map { it.title })
+        assertEquals("the season asked once", 1, pass.requests.count { it == "tv/$SEVERANCE/season/1" })
+        assertEquals("its NFO alone read", listOf("Severance/tvshow.nfo"), pass.reads)
+    }
+
+    /** A show's folder named in English, TMDB's names French: its alternative titles hold the folder's, its id is trusted. */
+    @Test
+    fun aShowFolderIdOfAShowNamedOtherwiseIsTrustedByItsAlternativeTitles() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        tmdb.show(BUREAU, "Le Bureau des légendes", 2015)
+        tmdb.showAlternatives[BUREAU] = listOf("The Bureau")
+        tmdb.season(BUREAU, 1, episodes = 1)
+        val pilot = "The Bureau (2015) {tmdb-62649}/Season 1/The Bureau - S01E01.mkv"
+        showsNas.put(pilot)
+        val pass = bench.pass()
+
+        assertEquals("Le Bureau des légendes", bench.showOf(shows, pilot).title)
+        assertEquals(listOf("tv/$BUREAU", "tv/$BUREAU/alternative_titles", "tv/$BUREAU/season/1"), pass.requests)
     }
 
     /** A film 0.3.0 took for another by its title, its name's IMDb id (Jellyfin's naming) read by no version before. */
@@ -457,6 +534,9 @@ class ScanIdsTest {
         const val PART_TWO = 693134
         const val DUNE_DRIFTER = 777
         const val COURGETTE = 1399
+        const val DEATH_RACE_2000 = 13282
+        const val DEATH_RACE = 10483
+        const val BUREAU = 62649
         const val SAW = 176
         const val SAW_X = 951491
         const val UP = 14160

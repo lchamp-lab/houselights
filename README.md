@@ -120,9 +120,10 @@ My files reads a title from its folder's and file's names, as Plex, Jellyfin, Ko
   beside its original); a show's are its folder's.
 - **What counts first**: your choice (Identify, from the title's page), then the ids in names (TMDB, TheTVDB for a
   show, IMDb), then the NFO's, then a search by title and year. A name's id is not trusted when its title's year is
-  more than one apart from the name's, or when none of its titles, alternative titles included, is the name's, unless
-  the NFO or another id names that title too: the title is then found as if the name gave no id. A title whose name
-  gives another id than its last lookup tried is looked up again by it, once.
+  more than one apart from the name's (a year alone may be the title's: `Death Race 2000 {tmdb-13282}`), or when
+  none of its titles, alternative titles included, is the name's, unless the NFO or another id names that title too:
+  the title is then found as if the name gave no id. A title whose name gives another id than its last lookup tried
+  is looked up again by it, once.
 - **Radarr and Sonarr**, as the [TRaSH Guides](https://trash-guides.info) name them: a film's folder
   `{Movie CleanTitle} ({Release Year}) {tmdb-{TmdbId}}`, a show's `{Series TitleYear} {tvdb-{TvdbId}}`.
 

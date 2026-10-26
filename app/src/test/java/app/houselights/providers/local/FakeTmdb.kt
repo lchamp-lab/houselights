@@ -36,10 +36,9 @@ class FakeTmdb : Interceptor {
     /** English titles of the films and shows of those ids, which a search in English ("en-US") finds and answers. */
     val englishTitles: MutableMap<Int, String> = Collections.synchronizedMap(linkedMapOf())
 
-    /** Searches asked, in order: "query (year)", or "query" without a year. */
+    /** Searches asked, in order: "query (year)", or "query" without a year; and the language each was asked in. */
     val searched: MutableList<String> = Collections.synchronizedList(mutableListOf())
-
-    val searchCount: Int get() = requests.count { it.startsWith("search/") }
+    val searchLanguages: MutableList<String?> = Collections.synchronizedList(mutableListOf())
 
     /** Other titles of the films and of the shows of those ids ([TmdbClient.alternativeTitles]); none for the others. */
     val movieAlternatives: MutableMap<Int, List<String>> = Collections.synchronizedMap(linkedMapOf())
@@ -174,7 +173,7 @@ class FakeTmdb : Interceptor {
             path,
             url.queryParameter("query"),
             url.queryParameter("year") ?: url.queryParameter("first_air_date_year"),
-            english = url.queryParameter("language") == ENGLISH,
+            url.queryParameter("language"),
         )
         path.startsWith("find/") -> find(path.substringAfter('/'), url.queryParameter("external_source"))
         path.endsWith("/images") -> encode(TmdbImageSet.serializer(), TmdbImageSet())
@@ -208,9 +207,11 @@ class FakeTmdb : Interceptor {
         return encode(TmdbAlternativeTitles.serializer(), all)
     }
 
-    /** The films ([path] "search/movie") or shows of [query] and [year], ranked ([searches]), in English when [english]. */
-    private fun search(path: String, query: String?, year: String?, english: Boolean): String {
+    /** The films ([path] "search/movie") or shows of [query] and [year], ranked ([searches]), in English for "en-US". */
+    private fun search(path: String, query: String?, year: String?, language: String?): String {
         searched += "$query${year?.let { " ($it)" }.orEmpty()}"
+        searchLanguages += language
+        val english = language == ENGLISH
         val ranked = searches[query?.lowercase()]
         fun named(id: Int, title: String?) = (if (english) englishTitles[id] else null) ?: title
         fun asked(id: Int, title: String?) = ranked?.contains(id) ?: named(id, title).equals(query, ignoreCase = true)
