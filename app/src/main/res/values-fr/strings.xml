@@ -524,6 +524,22 @@
     </plurals>
     <string name="identify_state_matched">Identifié</string>
     <string name="result_current">Actuel</string>
+    <string name="to_identify">À identifier</string>
+    <string name="to_identify_row_desc">Non reconnus avec certitude</string>
+    <string name="to_identify_desc">Houselights n’a pas reconnu ces titres avec certitude. Choisissez le bon : votre choix est conservé lors des prochaines analyses. Les autres sont cherchés de nouveau, chaque jour d’abord, puis chaque semaine.</string>
+    <string name="to_identify_unsure">Plusieurs titres possibles</string>
+    <string name="to_identify_not_found">Introuvable sur TMDB</string>
+    <string name="to_identify_none">Rien à identifier</string>
+    <string name="to_identify_none_hint">Les titres que Houselights n’a pas reconnus avec certitude apparaîtront ici.</string>
+    <string name="to_identify_best">Peut-être « %1$s » (%2$d)</string>
+    <string name="to_identify_best_undated">Peut-être « %1$s »</string>
+    <string name="identify_menu_desc_none">Trouver ce titre sur TMDB</string>
+    <string name="identify_desc_none">Houselights n’a pas reconnu ce titre avec certitude. Recherchez-le sur TMDB : votre choix est conservé lors des prochaines analyses.</string>
+    <string name="identify_desc_unsure">Houselights hésite entre ces titres. Choisissez le bon, ou recherchez-le sur TMDB : votre choix est conservé lors des prochaines analyses.</string>
+    <string name="identify_keep">Laisser tel quel</string>
+    <string name="identify_kept">Laissé tel quel</string>
+    <string name="identify_suggestions">Suggestions</string>
+    <string name="identify_skip">Passer</string>
     <string name="error_offline_title">Bibliothèque injoignable</string>
     <string name="error_offline_nas_title">NAS injoignable</string>
     <string name="error_offline_server_title">Serveur injoignable</string>

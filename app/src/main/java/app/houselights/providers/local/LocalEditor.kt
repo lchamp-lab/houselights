@@ -8,12 +8,14 @@ import app.houselights.core.ArtworkOrigin
 import app.houselights.core.FailureKind
 import app.houselights.core.Identity
 import app.houselights.core.MatchCandidate
+import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MetadataEditor
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.NotFoundException
 import app.houselights.core.NfoParser
+import app.houselights.core.ToIdentify
 import app.houselights.core.Typeset
 import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
@@ -156,7 +158,42 @@ class LocalEditor(
             },
             manual = e.userTmdbId != null,
             canSearch = client() != null,
+            doubt = e.doubt(),
+            kept = e.userNoMatch && e.tmdbId == null,
+            suggestions = if (e.doubt() == MatchDoubt.UNSURE) dao.suggestions(e.id).map { it.toCandidate() } else emptyList(),
         )
+    }
+
+    override suspend fun nextToIdentify(item: MediaItem): String? {
+        val e = entity(item)
+        return dao.nextToIdentify(e.addedAt, e.id)?.toString()
+    }
+
+    override suspend fun toIdentify(): List<ToIdentify> {
+        val rows = dao.toIdentify()
+        if (rows.isEmpty()) return emptyList()
+        val folders = dao.sources().associate { it.id to it.name }
+        val shows = rows.filter { it.kind == ItemKind.SERIES }.map { it.id }
+        val showFiles = shows.chunked(SQL_IN_LIMIT).flatMap { dao.showFiles(it) }.associate { it.seriesId to it.filePath }
+        val offered = rows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.suggestionsOf(it) }.groupBy { it.itemId }
+        return rows.mapNotNull { e ->
+            val doubt = e.doubt() ?: return@mapNotNull null
+            // A film's file, or a show's folder, under the folder's name: "Films/Dune.mkv".
+            val within = if (e.kind == ItemKind.SERIES) showFiles[e.id]?.let(FilenameParser::parseShowPath)?.dir else e.filePath
+            val place = listOfNotNull(folders[e.sourceId], within?.ifEmpty { null }).joinToString("/").ifEmpty { null }
+            ToIdentify(e.listed(doubt), place, doubt, offered[e.id].orEmpty().map { it.toCandidate() })
+        }
+    }
+
+    /**
+     * Written at once, not under the scanner's lock: a check asking TMDB about the title meanwhile then writes nothing
+     * of what it found ([Reidentify]), where waiting for it would let its search match the title first.
+     */
+    override suspend fun keepUnidentified(item: MediaItem) {
+        val e = entity(item)
+        if (e.kind != ItemKind.MOVIE && e.kind != ItemKind.SERIES) return
+        dao.setUserNoMatch(e.id, true)
+        scanner.notifyChanged()
     }
 
     override suspend fun search(item: MediaItem, query: String, year: Int?): List<MatchCandidate> {
@@ -181,6 +218,26 @@ class LocalEditor(
         (LocalId.parse(item.id) as? LocalId.Item)?.let { dao.item(it.key) } ?: throw NotFoundException("Item ${item.id}")
 
     private fun client(): TmdbClient? = tmdb()
+
+    /** A title to identify as its list shows it: its name, year and poster, and why ([doubt]). */
+    private fun ItemEntity.listed(doubt: MatchDoubt) = MediaItem(
+        id = id.toString(),
+        kind = if (kind == ItemKind.SERIES) MediaKind.SERIES else MediaKind.MOVIE,
+        title = Typeset.text(title),
+        year = year,
+        poster = (userPosterPath ?: posterPath)?.let { LocalProvider.image(it, ImageType.POSTER) },
+        matchDoubt = doubt,
+    )
+
+    /** A candidate automatic matching kept ([SuggestionEntity]), as a search would give it. */
+    private fun SuggestionEntity.toCandidate() = MatchCandidate(
+        id = tmdbId.toString(),
+        title = Typeset.text(title),
+        originalTitle = Typeset.text(originalTitle?.takeIf { it != title }),
+        year = year,
+        overview = Typeset.text(overview?.ifBlank { null }),
+        poster = posterPath?.let { LocalProvider.image(it, ImageType.POSTER) },
+    )
 
     private fun TmdbSearchResult.toCandidate(): MatchCandidate {
         val name = title ?: name ?: ""
