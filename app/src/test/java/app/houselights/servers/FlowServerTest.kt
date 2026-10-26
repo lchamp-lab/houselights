@@ -123,7 +123,7 @@ class FlowServerTest {
         listOf(nfs(), smb()).forEach { source ->
             assertEquals("${source.protocol}", FolderLevel(listOf("Films", "Séries"), 0), network.level(source, ""))
             val films = network.level(source, "Films")
-            assertEquals("${source.protocol}: ${films.folders}", Samples.FILMS_ENTRIES - 1 to 1, films.folders.size to films.videos)
+            assertEquals("${source.protocol}: ${films.folders}", Samples.FILMS, films.folders.size to films.videos)
         }
     }
 
