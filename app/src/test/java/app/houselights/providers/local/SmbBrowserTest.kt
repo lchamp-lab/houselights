@@ -195,6 +195,41 @@ class SmbBrowserTest {
         assertEquals(listOf(1_760_000_060_000L), listing.sidecars.map { it.lastModified })
     }
 
+    /**
+     * The add-folder flow's levels, on the share's kept session (the share list tested the account): subfolders by name,
+     * hidden and system ones left out, its videos counted, a level by its path from the folder however slashed.
+     */
+    @Test
+    fun aLevelIsListedOnTheSharesKeptSession() = runTest {
+        tree = mapOf(
+            "" to listOf(
+                SmbEntry("Séries", isFolder = true, size = 0),
+                SmbEntry("films", isFolder = true, size = 0),
+                SmbEntry("#recycle", isFolder = true, size = 0),
+                SmbEntry("@eaDir", isFolder = true, size = 0),
+                SmbEntry("Arrival", isFolder = true, size = 0),
+                SmbEntry("Dune (2021).mkv", isFolder = false, size = 4),
+                SmbEntry("movie.nfo", isFolder = false, size = 1),
+            ),
+            "films\\4K" to listOf(SmbEntry("Dune (2021)", isFolder = true, size = 0)),
+        )
+        val films = folder()
+        assertEquals(FolderLevel(listOf("Arrival", "films", "Séries"), videos = 1), browser.folders(films))
+        assertEquals(FolderLevel(listOf("Dune (2021)"), videos = 0), browser.folders(films, "/films/4K/"))
+        browser.list(films)
+        assertEquals("one session for the levels and the scan", 1, opened.size)
+        assertEquals(emptyList<Boolean>(), opened.single().closes)
+    }
+
+    /** A folder the share does not hold, or the account may not read, fails as the form's test does; the session stays. */
+    @Test
+    fun aLevelTheShareRefusesFails() = runTest {
+        val refused = runCatching { browser.folders(folder(), "Private") }.exceptionOrNull()
+        assertEquals(ScanErrorKind.ACCESS_DENIED, refused?.let { ScanErrors.classify(it).kind })
+        assertEquals(FolderLevel(emptyList(), videos = 1), browser.folders(folder()))
+        assertEquals(1, opened.size)
+    }
+
     @Test
     fun forgettingAShareClosesItsSessionsWhoeverSignedIn() = runTest {
         browser.list(folder("films", user = "kodi"))

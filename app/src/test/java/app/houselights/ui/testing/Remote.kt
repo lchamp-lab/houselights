@@ -2,12 +2,16 @@ package app.houselights.ui.testing
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -16,11 +20,16 @@ import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performKeyPress
 import androidx.compose.ui.test.pressKey
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.design.components.LocalCutPosters
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowDialog
+import org.robolectric.shadows.ShadowInputDevice
+import org.robolectric.util.ReflectionHelpers
+import androidx.compose.ui.input.key.KeyEvent as ComposeKeyEvent
 
 /**
  * Sets [content] in the app's theme on the TV canvas (960 × 540 dp at density 1): a canvas dp is a test pixel. Its
@@ -53,6 +62,87 @@ fun ComposeContentTestRule.holdOk() {
 
 /** Longer than a remote's repeat delay, so held OK repeats several times. */
 private const val HELD_MS = 800L
+
+/**
+ * Presses [key] [times] times as the player's remote sends it, each after the last settles: from a D-pad that is a
+ * device of its own, not a virtual one. [press]'s keys come from no device, so Compose's text field never gives them
+ * the turn it gives a remote's arrows (a focus move) and OK (the keyboard) before its own handling.
+ */
+fun ComposeContentTestRule.pressOnRemote(key: Key, times: Int = 1) = repeat(times) { tap(KeySource.Remote, key) }
+
+/** [key] held on the remote: its press, then [repeats] repeats as a held key sends them, then let go. */
+fun ComposeContentTestRule.holdOnRemote(key: Key, repeats: Int) {
+    val down = SystemClock.uptimeMillis()
+    (0..repeats).forEach { send(KeySource.Remote, down, down + it * REPEAT_MS, KeyEvent.ACTION_DOWN, key, repeat = it) }
+    send(KeySource.Remote, down, down + (repeats + 1) * REPEAT_MS, KeyEvent.ACTION_UP, key)
+}
+
+/** Presses [key] [times] times as the keyboard shown sends its own arrows: from Android's virtual keyboard. */
+fun ComposeContentTestRule.pressOnShownKeyboard(key: Key, times: Int = 1) = repeat(times) { tap(KeySource.Shown, key) }
+
+/** Presses [key] on a keyboard plugged into the player, Shift held when [shift]. */
+fun ComposeContentTestRule.pressOnPluggedKeyboard(key: Key, shift: Boolean = false) =
+    tap(KeySource.Plugged, key, meta = if (shift) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0)
+
+/**
+ * Where a key comes from: a device as Android describes it, its [id] (a virtual one's negative) and [sources], and the
+ * [source] and [flags] of its keys.
+ */
+private enum class KeySource(val id: Int, val sources: Int, val source: Int, val flags: Int = 0) {
+    /** The player's remote: a device of its own, its keys a keyboard's that are a D-pad's. */
+    Remote(7, KEYBOARD_DPAD, KEYBOARD_DPAD),
+
+    /** The keyboard shown, which sends its keys through the text field's connection from Android's virtual keyboard. */
+    Shown(KeyCharacterMap.VIRTUAL_KEYBOARD, KEYBOARD_DPAD, InputDevice.SOURCE_UNKNOWN, KeyEvent.FLAG_SOFT_KEYBOARD),
+
+    /** A keyboard plugged in: a device of its own, its arrows a D-pad's, its keys read as a keyboard's alone. */
+    Plugged(8, KEYBOARD_DPAD, InputDevice.SOURCE_KEYBOARD),
+}
+
+private fun ComposeContentTestRule.tap(from: KeySource, key: Key, meta: Int = 0) {
+    val at = SystemClock.uptimeMillis()
+    send(from, at, at, KeyEvent.ACTION_DOWN, key, meta = meta)
+    send(from, at, at, KeyEvent.ACTION_UP, key, meta = meta)
+}
+
+private fun ComposeContentTestRule.send(
+    from: KeySource,
+    down: Long,
+    at: Long,
+    action: Int,
+    key: Key,
+    repeat: Int = 0,
+    meta: Int = 0,
+) {
+    val event = KeyEvent(down, at, action, key.nativeKeyCode, repeat, meta, from.id, 0, from.flags, from.source)
+    // Robolectric's events answer with the device their shadow holds, never with Android's list of devices.
+    shadowOf(event).setDevice(from.device())
+    // Else the test would quietly send what Compose's text field reads as another's keys.
+    check(event.device?.id == from.id && fromADPad(event) == (from == KeySource.Remote)) {
+        "${from.name}'s keys do not read as its own"
+    }
+    onRoot().performKeyPress(ComposeKeyEvent(event))
+    waitForIdle()
+}
+
+/** As Compose's own text field tells a D-pad's keys, which it turns into focus moves, from a keyboard's. */
+private fun fromADPad(event: KeyEvent): Boolean {
+    val device = event.device ?: return false
+    return device.supportsSource(InputDevice.SOURCE_DPAD) && !device.isVirtual &&
+        event.source != InputDevice.SOURCE_KEYBOARD
+}
+
+/** The device as Android describes it, virtual when its id is negative. */
+private fun KeySource.device(): InputDevice = ShadowInputDevice.makeInputDeviceNamed(name).also {
+    ReflectionHelpers.setField(it, "mId", id)
+    ReflectionHelpers.setField(it, "mSources", sources)
+}
+
+/** A keyboard's keys that are a D-pad's, as Android lists a remote, its virtual keyboard and a keyboard with arrows. */
+private const val KEYBOARD_DPAD = InputDevice.SOURCE_KEYBOARD or InputDevice.SOURCE_DPAD
+
+/** Between a held key's repeats, as a remote sends them. */
+private const val REPEAT_MS = 50L
 
 /** A node whose long click accessibility services name [label]. */
 fun longClickNamed(label: String) =

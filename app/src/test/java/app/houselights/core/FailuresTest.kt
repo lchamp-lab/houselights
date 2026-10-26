@@ -19,6 +19,8 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
 import app.houselights.ui.util.toWriteError
 import com.emc.ecs.nfsclient.mount.MountStatus
+import com.emc.ecs.nfsclient.nfs.NfsException
+import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.hierynomus.mserref.NtStatus
 import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
@@ -76,6 +78,8 @@ class FailuresTest {
             http(404) to Told(UiError.GONE, UiError.GONE, ScanErrorKind.OTHER),
             http(500) to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.OTHER),
             SerializationException("Unexpected JSON token") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.OTHER),
+            // A NAS's RPC answer cut short is no network failure.
+            MalformedAnswerException("cut short at byte 40") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.OTHER),
         )
     )
 
@@ -121,6 +125,20 @@ class FailuresTest {
             FileNotFoundException("/volume1/media/Heat.nfo") to Told(UiError.FAILED, UiError.NOT_SAVED, ScanErrorKind.NOT_FOUND),
         )
     )
+
+    /**
+     * Two NFS refusals, each with its remedy: the mount refused (the export not open to this player), or a read the
+     * mount allowed refused (root squashed): only the first is the mount's.
+     */
+    @Test
+    fun aRefusedMountIsToldFromARefusedRead() {
+        val read = NfsException(NfsStatus.NFS3ERR_ACCES, "readdirplus error code: NfsStatus:13")
+        assertEquals(true, mountFailure(MountStatus.MNT3ERR_ACCES).isMountRefused())
+        assertEquals(true, IOException("Listing failed", mountFailure(MountStatus.MNT3ERR_PERM)).isMountRefused())
+        assertEquals(false, read.isMountRefused())
+        assertEquals(false, mountFailure(MountStatus.MNT3ERR_NOENT).isMountRefused())
+        assertEquals(FailureKind.ACCESS_DENIED, read.failureKind())
+    }
 
     @Test
     fun aFullDeviceIsNeverTheNetwork() = check(

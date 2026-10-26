@@ -19,6 +19,12 @@ class RemoteBrowsers internal constructor(private val smb: SmbBrowser, private v
         Protocol.NFS -> nfs
     }
 
+    /** The exports of the NFS server at [host], each with the clients it allows ([exportAccess]). */
+    suspend fun exports(host: String): List<ExportedFolder> = nfs.exports(host)
+
+    /** The disk shares of [source]'s SMB server, signed in as [source] is; its share and folder are not read. */
+    suspend fun shares(source: SourceEntity): List<SharedFolder> = smb.shares(source)
+
     /**
      * Closes sessions or mounts kept on [source]'s address, for any account or NFS identity, after its address,
      * password or identity changed.
