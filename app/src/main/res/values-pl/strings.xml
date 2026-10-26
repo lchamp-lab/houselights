@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">Moje pliki</string>
-    <string name="source_local_desc">Pliki wideo na serwerze NAS lub komputerze w sieci. Houselights skanuje je i pobiera plakaty oraz opisy.</string>
+    <string name="source_local_desc">Wideo na serwerze NAS, komputerze w sieci lub dysku podłączonym do odtwarzacza. Houselights skanuje je i pobiera plakaty oraz opisy.</string>
     <string name="source_jellyfin">Serwer Jellyfin</string>
     <string name="source_jellyfin_desc">Biblioteka z serwera</string>
     <string name="welcome_jellyfin_desc">Filmy i seriale z serwera Jellyfin.</string>
@@ -221,7 +221,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">Dodaj folder</string>
-    <string name="add_folder_desc">Wskaż, gdzie na serwerze NAS są filmy lub seriale. Houselights testuje połączenie przed dodaniem folderu.</string>
     <string name="edit_folder">Edytuj folder</string>
     <string name="edit_folder_desc">Zmień jego adres lub dane logowania. Houselights testuje połączenie przed zapisaniem; tytuły, historia oglądania i dokonane wybory zostają zachowane.</string>
     <string name="edit_folder_row_desc">Adres lub dane logowania</string>
@@ -231,7 +230,6 @@
     <string name="password_kept">Bez zmian</string>
     <string name="jellyfin_desc">Wpisz adres serwera i dane logowania do Jellyfin.</string>
     <string name="jellyfin_desc_found">Wybierz serwer lub wpisz jego adres, a następnie dane logowania do Jellyfin.</string>
-    <string name="folder_kind">Zawartość</string>
     <string name="field_protocol">Protokół</string>
     <string name="field_host">Adres serwera NAS</string>
     <string name="field_export">Ścieżka montowania</string>
@@ -277,6 +275,8 @@
     <string name="error_host_missing">Wpisz adres serwera NAS.</string>
     <string name="error_export_missing">Wpisz ścieżkę montowania, na przykład /volume1/video.</string>
     <string name="error_share_missing">Wpisz nazwę udostępnionego folderu, na przykład video.</string>
+    <string name="error_full_path_missing_nfs">Wpisz ścieżkę folderu, na przykład /volume1/video/Filmy.</string>
+    <string name="error_full_path_missing_smb">Wpisz ścieżkę folderu, na przykład video/Filmy.</string>
     <string name="error_uid_missing">Wpisz też użytkownika (UID).</string>
     <string name="error_gid_missing">Wpisz też grupę (GID).</string>
     <string name="nfs_hint_player">Bez hasła: na serwerze NAS zezwól temu odtwarzaczowi (%s) na odczyt, a na Synology także na porty nieuprzywilejowane.</string>

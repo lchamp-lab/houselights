@@ -266,6 +266,22 @@ class LocalLibraryTest {
     }
 
     /**
+     * « Ajouter un dossier » reads the folders of the NAS chosen, however its host is spelled, the latest first, to reuse
+     * their account and identity and to say how each row stands to them; and the kinds the library holds, to ask first
+     * for the one it lacks.
+     */
+    @Test
+    fun theFlowReadsTheFoldersOfTheNasChosenAndTheKindsHeld() = runTest {
+        assertEquals(emptySet<SourceKind>(), library.kinds())
+        library.addFolder(nfs("DS920.local", "volume1/video", "Films"))
+        library.addFolder(nfs("192.168.1.31", "media", "films"))
+        library.addFolder(nfs("ds920.local ", "video", "Séries", Protocol.SMB).copy(kind = SourceKind.SHOWS))
+        assertEquals(listOf("Séries", "Films"), library.foldersOn("ds920.local").map { it.path })
+        assertEquals(listOf("films"), library.foldersOn("192.168.1.31").map { it.path })
+        assertEquals(setOf(SourceKind.MOVIES, SourceKind.SHOWS), library.kinds())
+    }
+
+    /**
      * On the player's own disks, a folder nests with another of the same disk, whatever the case of its names (the
      * storage and FAT, exFAT or NTFS disks ignore it); the same path on another disk, or on a NAS, holds other files.
      */
@@ -286,18 +302,16 @@ class LocalLibraryTest {
     }
 
     /**
-     * A folder on the player's own disks is on no NAS: the add-folder flow offers no NAS for it, and a next folder starts
-     * from the last one on a NAS, as one on a disk has no server to start from.
+     * A folder on the player's own disks is on no NAS: the add-folder flow offers no NAS for it, and reads it among the
+     * folders of its disk alone, to say how a folder there stands to the library.
      */
     @Test
     fun aDisksFolderIsOnNoNas() = runTest {
-        assertEquals(null, library.lastFolder())
         library.addFolder(nfs("nas", "volume1/media", "films"))
         library.addFolder(diskFolder())
-        assertEquals("films", library.lastFolder()?.path)
         assertEquals(listOf(UsedNas("nas", listOf(Protocol.NFS), listOf("films"))), library.usedNas())
-        library.addFolder(nfs("nas2", "volume1/media", "series"))
-        assertEquals("series", library.lastFolder()?.path)
+        assertEquals(listOf("films"), library.foldersOn("nas").map { it.path })
+        assertEquals(listOf("Films"), library.foldersOn(USB_DISK).map { it.path })
     }
 
     @Test

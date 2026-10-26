@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- « Ajouter un dossier », the guided flow (#83): its steps, rows and messages. -->
+<resources>
+    <string name="flow_where_desc">Choisissez l’appareil où se trouvent vos vidéos.</string>
+    <string name="nas_used">Déjà utilisés</string>
+    <string name="nas_found">NAS trouvés sur le réseau</string>
+    <string name="nas_searching">Recherche sur le réseau…</string>
+    <string name="nas_search_again">Rechercher à nouveau</string>
+    <string name="nas_none_found">Aucun NAS ne s’est annoncé</string>
+    <string name="type_address">Saisir une adresse</string>
+    <string name="type_address_desc">L’adresse IP ou le nom du NAS</string>
+    <string name="type_address_flow_desc">Saisissez l’adresse IP ou le nom de votre NAS.</string>
+    <string name="host_supporting">Elle figure dans l’interface du NAS ou dans la liste des appareils de votre box.</string>
+    <string name="continue_">Continuer</string>
+    <string name="flow_protocol_desc">Ce NAS partage ses dossiers de deux façons. Choisissez celle à utiliser.</string>
+    <string name="protocol_smb_desc">Avec un compte du NAS</string>
+    <string name="protocol_nfs_desc">Sans mot de passe, si le NAS autorise ce lecteur</string>
+    <string name="flow_account_desc">Connectez-vous avec un compte du NAS. Le mot de passe est enregistré sur cet appareil et transmis au lecteur Zidoo : privilégiez un compte dédié en lecture seule.</string>
+    <string name="guest">Sans compte (invité)</string>
+    <string name="guest_desc">Si le NAS ouvre ses dossiers partagés à tous</string>
+    <string name="guest_fact">Invité</string>
+    <string name="flow_share_desc">Choisissez le dossier partagé qui contient vos vidéos.</string>
+    <string name="share_holds_one">Contient « %s »</string>
+    <plurals name="share_holds_many">
+        <item quantity="one">Contient %d dossier de la bibliothèque</item>
+        <item quantity="many">Contient %d dossiers de la bibliothèque</item>
+        <item quantity="other">Contient %d dossiers de la bibliothèque</item>
+    </plurals>
+    <string name="not_allowed">Non autorisé</string>
+    <string name="access_refused">Accès refusé</string>
+    <string name="failed_short">Échec</string>
+    <string name="type_path">Saisir un chemin</string>
+    <string name="type_path_desc">Si votre dossier n’apparaît pas</string>
+    <string name="change_account">Changer de compte</string>
+    <string name="change_account_desc">Connecté en tant que %s</string>
+    <string name="change_account_guest_desc">Connecté en invité</string>
+    <string name="flow_nfs_identity_desc">Le compte que Houselights présente au NAS, root par défaut. Indiquez l’UID et le GID d’un compte du NAS si le NAS refuse root.</string>
+    <string name="error_smb_guest_share">« %s » n’est pas ouvert aux invités : choisissez « Changer de compte ».</string>
+    <string name="flow_path_desc">Saisissez le chemin complet de votre dossier sur le NAS.</string>
+    <string name="flow_path_no_list_desc">Ce NAS ne donne pas la liste de ses dossiers partagés : saisissez le chemin complet de votre dossier.</string>
+    <string name="field_full_path">Chemin du dossier</string>
+    <string name="placeholder_full_path_nfs">Ex. : /volume1/video/Films</string>
+    <string name="placeholder_full_path_smb">Ex. : video/Films</string>
+    <string name="full_path_supporting_nfs">Sur un Synology, il commence par /volume1/.</string>
+    <string name="full_path_supporting_smb">Le dossier partagé d’abord, puis les sous-dossiers.</string>
+    <string name="use_suggestion">Utiliser %s</string>
+    <string name="use_suggestion_name">Utiliser « %s »</string>
+    <string name="suggested_by_nas">Proposé par le NAS</string>
+    <string name="flow_browse_desc">Ouvrez le dossier de vos films ou de vos séries, puis choisissez-le.</string>
+    <string name="choose_folder">Choisir ce dossier</string>
+    <string name="subfolders">Sous-dossiers</string>
+    <string name="opening">Ouverture…</string>
+    <string name="folder_holds_both">Contient Films et Séries : ouvrez l’un d’eux</string>
+    <string name="folder_inside_added">Dans « %s », déjà dans la bibliothèque</string>
+    <string name="folder_holds_added">Contient « %s », déjà dans la bibliothèque</string>
+    <string name="folder_empty_short">Ni vidéo ni sous-dossier</string>
+    <string name="flow_kind_desc">Que contient « %s » ?</string>
+    <string name="kind_movies_desc">Un fichier ou un dossier par film</string>
+    <string name="kind_shows_desc">Un dossier par série, puis par saison</string>
+    <string name="adding">Ajout…</string>
+    <!-- « Sur ce lecteur » (#33): the player's own disks, and Android's leave to read them. -->
+    <string name="on_this_player">Sur ce lecteur</string>
+    <string name="disk_internal">Disque interne</string>
+    <string name="disk_internal_desc">Le stockage de ce lecteur</string>
+    <string name="disk_usb">Disque USB</string>
+    <string name="disk_access_settings">Houselights ne peut pas encore lire les fichiers de ce lecteur : autorisez-le dans les réglages d’Android, puis choisissez à nouveau le disque.</string>
+    <string name="disk_access_refused">Houselights ne peut pas lire les fichiers de ce lecteur : autorisez-le, puis choisissez à nouveau le disque.</string>
+</resources>

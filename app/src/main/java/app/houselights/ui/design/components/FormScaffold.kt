@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -114,6 +117,50 @@ fun HlFormScaffold(
                 .verticalScroll(scroll)
                 .padding(bottom = if (room != null) HlFocus.reach else HlFocus.edge),
             verticalArrangement = Arrangement.spacedBy(HlSpace.l),
+            content = form,
+        )
+    }
+    if (room == null) {
+        Screen()
+    } else {
+        PosterField(room) { OnArtwork { Screen() } }
+    }
+}
+
+/**
+ * [HlFormScaffold] whose form is a lazy list held by [list], each of its items composed only when shown, as a level of
+ * hundreds of folders is (« Ajouter un dossier »); its items set the gaps between them. The same column on the left, the
+ * same room.
+ */
+@Composable
+fun HlFormScaffold(
+    title: String,
+    description: String,
+    aside: @Composable ColumnScope.() -> Unit,
+    list: LazyListState,
+    room: List<ImageRef>? = null,
+    form: LazyListScope.() -> Unit,
+) {
+    @Composable
+    fun Screen() = HlTwoPane(
+        side = {
+            TaskTitle(title)
+            Text(
+                description,
+                style = Hl.type.body,
+                color = Hl.colors.contentSecondary,
+                modifier = Modifier.paddingFromBaseline(top = HlSpace.xl, bottom = HlSpace.xl),
+            )
+            aside()
+        },
+        sideWidth = TwoPaneDefaults.sideWide,
+        state = list,
+        fadeOnField = true,
+    ) {
+        LazyColumn(
+            Modifier.fillMaxSize().keepVerticalFocus(),
+            state = list,
+            contentPadding = PaddingValues(bottom = HlFocus.edge),
             content = form,
         )
     }

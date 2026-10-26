@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,11 +28,13 @@ import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.local.Folder
 import app.houselights.providers.local.FolderCounts
+import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbKeyCheck
+import app.houselights.providers.local.Volume
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.Hl
@@ -71,18 +75,22 @@ import kotlinx.coroutines.launch
 import java.text.Collator
 import java.util.Locale
 
-/** The library pane: its folders' showcases or its server, then actions; rows that open a screen are keyed in [rows]. */
+/**
+ * The library pane: its folders' showcases or its server, then actions; rows that open a screen are keyed in [rows]. A
+ * folder just [added] takes focus on its showcase.
+ */
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
     sources: SourceDoors,
     rows: PaneRows,
+    added: NewFolder? = null,
 ) {
     when (val source = s.source) {
         SourceConfig.Local -> {
             item {
                 Section(stringResource(R.string.section_source), aside = librarySummary()) {
-                    Showcases(rows, onEdit = onFolderForm, onResumed = sources.resumed)
+                    Showcases(rows, onEdit = onFolderForm, onResumed = sources.resumed, added = added)
                 }
             }
             item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, rows, sources.toIdentify) }
@@ -139,12 +147,34 @@ private fun librarySummary(): String? {
     )
 }
 
+/** A folder « Ajouter un dossier » just added ([id]), whose showcase takes focus once it shows, then [shown]. */
+internal class NewFolder(val id: Long, val shown: () -> Unit)
+
+/** Focus on [added]'s showcase once [sources] hold it, the [row] of showcases scrolled to it first. */
+@Composable
+private fun FocusOnAdded(added: NewFolder, sources: List<Folder>, row: LazyListState, rows: PaneRows) {
+    LaunchedEffect(added.id, sources) {
+        val index = sources.indexOfFirst { it.id == added.id }
+        if (index < 0) return@LaunchedEffect
+        row.scrollToItem(index)
+        // Once laid out, and once the screen has put focus back where it was left (RestoreFocus).
+        withFrameNanos { }
+        if (rows.requester(folderRow(added.id)).tryRequestFocus()) added.shown()
+    }
+}
+
 /**
  * One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. The last
- * one removed gives way to the kept server, its home then shown ([onResumed]), else to the welcome screen.
+ * one removed gives way to the kept server, its home then shown ([onResumed]), else to the welcome screen. A folder just
+ * [added] takes focus on its showcase as soon as it shows, its scan running there, the row scrolled to it.
  */
 @Composable
-private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit, onResumed: () -> Unit) {
+private fun Showcases(
+    rows: PaneRows,
+    onEdit: (folderId: Long, focus: FolderField) -> Unit,
+    onResumed: () -> Unit,
+    added: NewFolder? = null,
+) {
     val vm = settingsViewModel()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val kept = vm.settings.collectAsStateWithLifecycle().value.keptServer
@@ -166,8 +196,10 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
         }
     }
 
+    val row = rememberLazyListState()
+    if (added != null) FocusOnAdded(added, sources, row, rows)
     if (sources.isNotEmpty()) {
-        ShowcaseRow {
+        ShowcaseRow(state = row) {
             items(sources, key = { it.id }) { source ->
                 FolderShowcase(
                     source,
@@ -225,15 +257,33 @@ private fun HeldSheetFor(folder: Long?, held: Map<Long, HeldTitles>, answers: He
     HeldSheet(titles, onKeep = { answers.keep(titles) }, onRemove = { answers.remove(titles) }, onDismiss = onClose)
 }
 
-/** Where [folder] is: its NAS's address, then its path from the NAS's root, apart ([FACT_GAP]); the address alone at a root. */
-internal fun placeOf(folder: Folder): String {
+/**
+ * Where [folder] is: its NAS's address, or the [disk] of this player it is on, then its path from the root, apart
+ * ([FACT_GAP]); the address or the disk alone at a root.
+ */
+internal fun placeOf(folder: Folder, disk: String? = null): String {
     val path = folder.address.removePrefix(folder.host).trim('/')
-    return if (path.isEmpty()) folder.host else folder.host + FACT_GAP + "/" + path
+    val at = disk ?: folder.host
+    return if (path.isEmpty()) at else at + FACT_GAP + "/" + path
+}
+
+/**
+ * The disk [source] is on, a folder of this player's, as « Ajouter un dossier » names it: « Disque interne », a USB
+ * disk by its name while it is plugged in, else « Disque USB »; null for a NAS's folder.
+ */
+@Composable
+private fun diskOf(source: Folder): String? {
+    if (source.protocol != Protocol.LOCAL) return null
+    if (source.host == Volume.INTERNAL) return stringResource(R.string.disk_internal)
+    val volumes = settingsViewModel().volumes
+    val name = remember(source.host) { volumes.mounted().firstOrNull { it.id.equals(source.host, ignoreCase = true) }?.name }
+    return name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.disk_usb)
 }
 
 /**
  * A folder's sheet: scan, edit or remove (confirmed in place, saying its [consequence]); Edit comes first after a failure
- * it can fix. While titles of it are [held] ([onHeld] opens their sheet), they come first, focused.
+ * it can fix. While titles of it are [held] ([onHeld] opens their sheet), they come first, focused. A folder of this
+ * player's disks says its disk as « Ajouter un dossier » does, no protocol, and has no Edit: the form is a NAS's.
  */
 @Composable
 private fun SourceActions(
@@ -252,16 +302,17 @@ private fun SourceActions(
     val scan = remember { FocusRequester() }
     val edit = remember { FocusRequester() }
     val heldRow = remember { FocusRequester() }
+    val disk = diskOf(source)
     // Read once: a scan ending while the sheet is open does not move its rows under focus.
-    val fix = remember { editFixes(error) }
+    val fix = remember { editFixes(error).takeIf { disk == null } }
     val holds = remember { held > 0 }
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
         facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }),
-        badges = listOf(source.protocol.name),
+        badges = listOfNotNull(source.protocol.name.takeIf { disk == null }),
         // Its address and its path apart, the path as the folder's form composes it: "192.168.1.20   /volume1/video/Films".
-        description = placeOf(source),
+        description = placeOf(source, disk),
         artwork = if (posters.isEmpty()) {
             null
         } else {
@@ -297,14 +348,7 @@ private fun SourceActions(
             fun EditRow() = HlSettingRow(
                 stringResource(R.string.edit_folder),
                 Modifier.focusRequester(edit),
-                description = stringResource(
-                    when (fix) {
-                        ScanErrorKind.LOGIN_FAILED -> R.string.edit_folder_login_desc
-                        ScanErrorKind.UNREACHABLE -> R.string.edit_folder_unreachable_desc
-                        ScanErrorKind.NOT_FOUND -> R.string.edit_folder_not_found_desc
-                        else -> R.string.edit_folder_row_desc
-                    }
-                ),
+                description = stringResource(editWords(fix)),
                 onClick = { sheet.dismiss { onEdit(FolderField.after(fix)) } },
             )
             HlSettingGroup(null) {
@@ -322,7 +366,7 @@ private fun SourceActions(
                     ScanRow()
                 } else {
                     ScanRow()
-                    EditRow()
+                    if (disk == null) EditRow()
                 }
                 HlSettingRow(
                     stringResource(R.string.remove_folder),
@@ -333,6 +377,14 @@ private fun SourceActions(
             }
         }
     }
+}
+
+/** What « Modifier le dossier » says it does: mend the scan error it can fix ([fix]), else edit the folder. */
+private fun editWords(fix: ScanErrorKind?): Int = when (fix) {
+    ScanErrorKind.LOGIN_FAILED -> R.string.edit_folder_login_desc
+    ScanErrorKind.UNREACHABLE -> R.string.edit_folder_unreachable_desc
+    ScanErrorKind.NOT_FOUND -> R.string.edit_folder_not_found_desc
+    else -> R.string.edit_folder_row_desc
 }
 
 /** The scan error editing likely fixes (silent NAS, missing share or path, refused sign-in); null otherwise. */
@@ -365,7 +417,8 @@ private fun FolderShowcase(
     val removingText = stringResource(R.string.folder_removing, sourceName(source))
     Showcase(
         name = sourceName(source),
-        mark = source.protocol.name,
+        // A folder of this player's disks has no protocol to print.
+        mark = source.protocol.name.takeIf { source.protocol != Protocol.LOCAL },
         posters = posters,
         onClick = onClick,
         modifier = modifier,

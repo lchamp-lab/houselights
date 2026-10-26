@@ -98,6 +98,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import app.houselights.ui.library.LibraryScreen
+import app.houselights.ui.onboarding.AddFolderFlowScreen
 import app.houselights.ui.onboarding.AddFolderScreen
 import app.houselights.ui.onboarding.JellyfinLoginScreen
 import app.houselights.ui.onboarding.LoginFill
@@ -415,7 +416,7 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
     var sourceProblem by remember { mutableStateOf<UiError?>(null) }
 
     /**
-     * "My files": reuses folders added before, else opens the form; a server left stays signed in unless
+     * "My files": reuses folders added before, else opens « Ajouter un dossier »; a server left stays signed in unless
      * [keepServer] is false. Failures go to [onError], shown where focus is.
      */
     fun useFolders(keepServer: Boolean, onError: (UiError) -> Unit) {
@@ -448,10 +449,25 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
         composable<Route.JellyfinLogin> { entry -> JellyfinLoginScreen(entry.toRoute<Route.JellyfinLogin>().fill, onLoggedIn = ::goHome) }
         composable<Route.AddFolder> { entry ->
             val route = entry.toRoute<Route.AddFolder>()
-            AddFolderScreen(route.folderId, route.focus, onDone = { switched ->
-                // A new source or a first folder: the home screen; another folder, or one edited: back to settings.
-                if (switched || !nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
-            })
+            val folderId = route.folderId
+            if (folderId == null) {
+                // « Ajouter un dossier », its steps; Back from the first leaves it where it was opened.
+                AddFolderFlowScreen(onLeave = { nav.popBackStack() }, onDone = { done ->
+                    // A first folder or a new source: home, its first scan showing; another: Réglages, on its showcase.
+                    val opener = nav.settingsEntry()
+                    if (done.switched || opener == null) {
+                        goHome()
+                    } else {
+                        opener.savedStateHandle[ADDED_FOLDER] = done.folderId
+                        nav.popBackStack<Route.Settings>(inclusive = false)
+                    }
+                })
+            } else {
+                AddFolderScreen(folderId, route.focus, onDone = {
+                    // A folder edited: back to settings, else (opened from home's problem) home.
+                    if (!nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
+                })
+            }
         }
         composable<Route.Home> { entry ->
             val context = LocalContext.current
@@ -529,7 +545,9 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
         composable<Route.Person> { entry ->
             WithSource(source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
         }
-        composable<Route.Settings> {
+        composable<Route.Settings> { entry ->
+            // A folder « Ajouter un dossier » added from here: its showcase takes focus.
+            val added by entry.savedStateHandle.getStateFlow<Long?>(ADDED_FOLDER, null).collectAsStateWithLifecycle()
             // Source changes keep Settings on the back stack: Back returns to it, the source unchanged.
             WithSource(source) {
                 SettingsScreen(
@@ -541,6 +559,8 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     onOpenWall = nav::openWall,
                     onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
                     onOpenToIdentify = { nav.openOnce(Route.ToIdentify) },
+                    addedFolder = added,
+                    onAddedFolderShown = { entry.savedStateHandle[ADDED_FOLDER] = null },
                 )
             }
         }
@@ -570,6 +590,16 @@ internal fun NavController.homeEntry(): NavBackStackEntry? = try {
 } catch (_: IllegalArgumentException) {
     null
 }
+
+/** Settings' entry in the back stack, under « Ajouter un dossier » opened from it; null when it is not there. */
+private fun NavController.settingsEntry(): NavBackStackEntry? = try {
+    getBackStackEntry<Route.Settings>()
+} catch (_: IllegalArgumentException) {
+    null
+}
+
+/** The folder « Ajouter un dossier » just added, handed to Settings beneath it so that its showcase takes focus. */
+private const val ADDED_FOLDER = "addedFolder"
 
 // A wall is a page over the screen that opens it, home or another page: Back goes back to that screen.
 
@@ -664,7 +694,7 @@ internal fun shownSource(source: SourceConfig?, hasFolders: Boolean): SourceConf
 
 /**
  * "Mes fichiers": the folders added before become the source, then [goHome]; a server left stays kept unless
- * [keepServer] is false. Without a folder, [addFolder] opens the form; signing out instead leaves no library, and the
+ * [keepServer] is false. Without a folder, [addFolder] opens « Ajouter un dossier »; signing out instead leaves no library, and the
  * welcome screen follows ([WelcomeWhenLost]).
  */
 internal suspend fun chooseFolders(

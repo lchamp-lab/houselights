@@ -5,6 +5,7 @@ import app.houselights.core.SortKeys
 import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
 import java.io.FileNotFoundException
+import kotlin.math.abs
 
 /** A path typed whole in the add-folder flow ([TypedPaths.read]): the NAS when it names one, its protocol when its form says. */
 data class TypedPath(
@@ -46,9 +47,10 @@ object TypedPaths {
      * "//" or "smb://" is the NAS's only when it names that one ([namesNas]): any other is the path's first name, a
      * share typed after two slashes ("\\video\Films" is share video, folder Films), as the folder's form reads it (#81),
      * so a path on another NAS is looked for as typed and never as the same path on this one. Without [nas] (a NAS typed
-     * whole, « Saisir une adresse »), that name is the NAS. "nfs://" and "nas:/" name a NAS by their form alone.
+     * whole, « Saisir une adresse »), that name is the NAS. "nfs://" and "nas:/" name a NAS by their form alone. A path
+     * alone typed for [protocol] NFS keeps its "\" inside its names ([names]).
      */
-    fun read(typed: String, nas: String? = null): TypedPath? {
+    fun read(typed: String, nas: String? = null, protocol: Protocol? = null): TypedPath? {
         val text = typed.trim()
         if (text.isEmpty()) return null
         val url = URL.matchEntire(text)
@@ -58,13 +60,43 @@ object TypedPaths {
             url != null -> {
                 val (scheme, authority, path) = url.destructured
                 val host = authority.substringAfterLast('@').substringBefore(':')
-                val protocol = Protocol.valueOf(scheme.uppercase())
-                if (protocol == Protocol.SMB) smb(host, path, nas) else TypedPath(host.ifEmpty { null }, protocol, names(path))
+                val named = Protocol.valueOf(scheme.uppercase())
+                if (named == Protocol.SMB) smb(host, path, nas) else TypedPath(host.ifEmpty { null }, named, names(path))
             }
             unc != null -> smb(unc.groupValues[1], unc.groupValues[2], nas)
             export != null -> TypedPath(export.groupValues[1], Protocol.NFS, names(export.groupValues[2]))
-            else -> TypedPath(null, null, names(text))
+            else -> TypedPath(null, null, names(text, protocol))
         }
+    }
+
+    /**
+     * The names of the folders in [text], from the first: "/" separates them, and "\" too but over [protocol] NFS, where
+     * it may be part of a name, as Linux allows; empty names and "." are left out. The folder's form reads its fields by
+     * it, as the add-folder flow reads a path typed whole ([read]).
+     */
+    fun names(text: String, protocol: Protocol? = null): List<String> =
+        (if (protocol == Protocol.NFS) text.split('/') else text.split('/', '\\')).filter { it.isNotEmpty() && it != "." }
+
+    /**
+     * The one of [among] that [name] means when it is not among them as typed: the first spelled as it is but for case
+     * and accents ("films" for "Films", "series" for "Séries"), else the first within one letter of it beyond them, one
+     * left out, added or changed ("Film" for "Films", "Sérys" for "Séries"); null when none is. What the NAS proposes for
+     * a folder typed that it does not have.
+     */
+    fun closest(name: String, among: List<String>): String? {
+        if (name.isEmpty() || name in among) return null
+        val folded = SortKeys.fold(name)
+        return among.firstOrNull { SortKeys.fold(it) == folded } ?: among.firstOrNull { oneApart(SortKeys.fold(it), folded) }
+    }
+
+    /** Whether [a] and [b] differ by one letter left out, added or changed. */
+    private fun oneApart(a: String, b: String): Boolean {
+        if (abs(a.length - b.length) > 1 || a == b) return false
+        val (short, long) = if (a.length <= b.length) a to b else b to a
+        val start = short.indices.firstOrNull { short[it] != long[it] } ?: return true
+        // Changed: the rest alike after it; left out of the shorter: the rest alike one further in the longer.
+        val rest = if (short.length == long.length) start + 1 else start
+        return short.substring(rest) == long.substring(start + 1)
     }
 
     /**
@@ -153,7 +185,6 @@ object TypedPaths {
     /** Failures no other start of the path would change. */
     private val FINAL = setOf(FailureKind.UNREACHABLE, FailureKind.LOGIN_FAILED)
 
-    private fun names(path: String) = path.split('/', '\\').filter { it.isNotEmpty() && it != "." }
 
     private fun starts(names: List<String>, start: List<String>, ignoreCase: Boolean) =
         start.size <= names.size && start.indices.all { names[it].equals(start[it], ignoreCase) }

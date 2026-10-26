@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">我的檔案</string>
-    <string name="source_local_desc">NAS 或網路中電腦上的影片。Houselights 會掃描這些影片，並取得海報和簡介。</string>
+    <string name="source_local_desc">NAS、網路中的電腦或連接到播放器的磁碟上的影片。Houselights 會掃描這些影片，並取得海報和簡介。</string>
     <string name="source_jellyfin">Jellyfin 伺服器</string>
     <string name="source_jellyfin_desc">伺服器中的媒體庫</string>
     <string name="welcome_jellyfin_desc">您的 Jellyfin 伺服器中的電影和影集。</string>
@@ -203,7 +203,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">加入資料夾</string>
-    <string name="add_folder_desc">指定您的電影或影集在 NAS 上的位置。Houselights 會在加入資料夾前測試連線。</string>
     <string name="edit_folder">編輯資料夾</string>
     <string name="edit_folder_desc">變更其位址或登入資訊。Houselights 會在儲存前測試連線；其中的作品、觀看紀錄和您的選擇都會保留。</string>
     <string name="edit_folder_row_desc">位址或登入資訊</string>
@@ -213,7 +212,6 @@
     <string name="password_kept">未變更</string>
     <string name="jellyfin_desc">輸入伺服器位址和您的 Jellyfin 登入資訊。</string>
     <string name="jellyfin_desc_found">請選擇您的伺服器或輸入其位址，然後輸入您的 Jellyfin 登入資訊。</string>
-    <string name="folder_kind">內容</string>
     <string name="field_protocol">通訊協定</string>
     <string name="field_host">NAS 位址</string>
     <string name="field_export">掛載路徑</string>
@@ -259,6 +257,8 @@
     <string name="error_host_missing">請輸入 NAS 位址。</string>
     <string name="error_export_missing">請輸入掛載路徑，例如 /volume1/video。</string>
     <string name="error_share_missing">請輸入共用資料夾的名稱，例如 video。</string>
+    <string name="error_full_path_missing_nfs">請輸入資料夾的路徑，例如 /volume1/video/電影。</string>
+    <string name="error_full_path_missing_smb">請輸入資料夾的路徑，例如 video/電影。</string>
     <string name="error_uid_missing">請同時輸入使用者（UID）。</string>
     <string name="error_gid_missing">請同時輸入群組（GID）。</string>
     <string name="nfs_hint_player">不需密碼：請在 NAS 上以唯讀方式允許此播放器（%s），在 Synology 上還需允許非特權連接埠。</string>

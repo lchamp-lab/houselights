@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">我的文件</string>
-    <string name="source_local_desc">NAS 或网络中电脑上的视频。Houselights 会扫描这些视频，并获取海报和简介。</string>
+    <string name="source_local_desc">NAS、网络中的电脑或连接到播放器的磁盘上的视频。Houselights 会扫描这些视频，并获取海报和简介。</string>
     <string name="source_jellyfin">Jellyfin 服务器</string>
     <string name="source_jellyfin_desc">服务器中的媒体库</string>
     <string name="welcome_jellyfin_desc">您的 Jellyfin 服务器中的电影和剧集。</string>
@@ -203,7 +203,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">添加文件夹</string>
-    <string name="add_folder_desc">指明您的电影或剧集在 NAS 上的位置。Houselights 会在添加文件夹前测试连接。</string>
     <string name="edit_folder">编辑文件夹</string>
     <string name="edit_folder_desc">更改其地址或登录信息。Houselights 会在保存前测试连接；其中的作品、观看记录和您的选择都会保留。</string>
     <string name="edit_folder_row_desc">地址或登录信息</string>
@@ -213,7 +212,6 @@
     <string name="password_kept">未更改</string>
     <string name="jellyfin_desc">输入服务器地址和您的 Jellyfin 登录信息。</string>
     <string name="jellyfin_desc_found">请选择您的服务器或输入其地址，然后输入您的 Jellyfin 登录信息。</string>
-    <string name="folder_kind">内容</string>
     <string name="field_protocol">协议</string>
     <string name="field_host">NAS 地址</string>
     <string name="field_export">装载路径</string>
@@ -259,6 +257,8 @@
     <string name="error_host_missing">请输入 NAS 地址。</string>
     <string name="error_export_missing">请输入装载路径，例如 /volume1/video。</string>
     <string name="error_share_missing">请输入共享文件夹的名称，例如 video。</string>
+    <string name="error_full_path_missing_nfs">请输入文件夹的路径，例如 /volume1/video/电影。</string>
+    <string name="error_full_path_missing_smb">请输入文件夹的路径，例如 video/电影。</string>
     <string name="error_uid_missing">请同时输入用户（UID）。</string>
     <string name="error_gid_missing">请同时输入组（GID）。</string>
     <string name="nfs_hint_player">无需密码：请在 NAS 上以只读方式允许此播放器（%s），在 Synology 上还需允许非特权端口。</string>

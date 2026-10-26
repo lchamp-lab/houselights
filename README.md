@@ -56,6 +56,13 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     returns home, on the door you came from.
 - **My files**: scans NFS or SMB shares, or folders on the player's own disks (its internal storage, a USB disk or an
   SD card), identifies films and shows from their names, and fetches artwork and details from TMDB.
+  - A folder is added in a few steps, each a list to pick from with typing as its last row: the NAS (those your
+    folders are on first, then those announcing themselves on the network) or one of the player's disks (On this
+    player, its internal storage and each USB disk by name, the app asking Android's leave to read them), its protocol
+    when it answers both, its account, its shared folder as the NAS lists them (an export not open to this player
+    marked), then the folder, opened one level at a time, each row saying beforehand whether it is already in the
+    library. A second folder on the same NAS is five OKs, its account and NFS user reused; a path typed whole is split
+    by the app, and the NAS proposes what a path it does not have may have meant.
   - A folder on the player's disks is kept by its disk, a USB disk by its UUID, and read wherever Android mounts the
     disk at each scan, whichever port it is plugged into. A disk unplugged is out of reach as a NAS asleep: nothing
     leaves the library, nothing is held, and the folder is read again once the disk is back. The Zidoo player gets the
@@ -80,12 +87,13 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     the player cannot follow, is left out and logged.
   - NFS sends no password: the app presents itself to the NAS as root, unless a folder names the user and group
     (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
-  - A folder is tested before it is saved, in the NAS's own words (mount path, shared folder, subfolder): the test
-    says what it found, "412 folders and 3 videos", the fields then showing the path as it was read (a whole path
-    typed under its mount path keeps only the subfolder), and a failure says what to change under the field to change,
-    which takes focus: the shared folder or the export missing, or a subfolder missing in one that answers; the NAS
-    refusing this player, by its address, or root, or an SMB account without the right. A folder holding neither a
-    video nor a subfolder, or one nesting with a folder of the library, is never saved.
+  - A folder edited (Edit folder) is tested before it is saved, in the NAS's own words (mount path, shared folder,
+    subfolder): the test says what it found, "412 folders and 3 videos", the fields then showing the path as it was
+    read (a whole path typed under its mount path keeps only the subfolder), and a failure says what to change under
+    the field to change, which takes focus: the shared folder or the export missing, or a subfolder missing in one that
+    answers, with what the NAS has near it ("Use /volume1/media"); the NAS refusing this player, by its address, or
+    root, or an SMB account without the right. A folder holding neither a video nor a subfolder, or one nesting with a
+    folder of the library, is never saved.
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
   - A show whose files follow another order than TMDB's seasons (Firefly on DVD, an anime's absolute order) is

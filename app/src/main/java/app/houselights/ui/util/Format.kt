@@ -36,6 +36,14 @@ fun formatDuration(ms: Long): String {
 /** Gap between facts inside one text, where a layout gap is impossible: three spaces wide, breaking after. */
 const val FACT_GAP = "$NBSP$NBSP "
 
+/**
+ * [path] kept whole inside a sentence ("/volume1/photo"): a word joiner after each slash, where a line would otherwise
+ * break, so a line breaks before the path rather than inside it.
+ */
+fun wholePath(path: String): String = path.replace("/", "/$WORD_JOINER")
+
+private const val WORD_JOINER = '\u2060'
+
 /** "1 214": thousands grouped as the locale does, with a no-break space for the narrow one Archivo lacks. */
 fun formatCount(count: Long): String =
     java.text.NumberFormat.getIntegerInstance(java.util.Locale.getDefault()).format(count).replace(NARROW_NBSP, NBSP)

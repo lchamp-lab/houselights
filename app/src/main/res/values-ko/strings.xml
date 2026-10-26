@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">내 파일</string>
-    <string name="source_local_desc">NAS 또는 네트워크의 컴퓨터에 있는 동영상입니다. Houselights가 이를 스캔하고 포스터와 줄거리를 가져옵니다.</string>
+    <string name="source_local_desc">NAS, 네트워크의 컴퓨터 또는 플레이어에 연결한 디스크에 있는 동영상입니다. Houselights가 이를 스캔하고 포스터와 줄거리를 가져옵니다.</string>
     <string name="source_jellyfin">Jellyfin 서버</string>
     <string name="source_jellyfin_desc">서버의 라이브러리</string>
     <string name="welcome_jellyfin_desc">Jellyfin 서버의 영화와 시리즈입니다.</string>
@@ -203,7 +203,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">폴더 추가</string>
-    <string name="add_folder_desc">NAS에서 영화나 TV 프로그램이 있는 위치를 지정하세요. Houselights는 폴더를 추가하기 전에 연결을 테스트합니다.</string>
     <string name="edit_folder">폴더 편집</string>
     <string name="edit_folder_desc">주소나 로그인 정보를 변경하세요. Houselights는 저장하기 전에 연결을 테스트하며, 작품과 시청 기록, 선택한 항목은 그대로 유지됩니다.</string>
     <string name="edit_folder_row_desc">주소 또는 로그인 정보</string>
@@ -213,7 +212,6 @@
     <string name="password_kept">변경 없음</string>
     <string name="jellyfin_desc">서버 주소와 Jellyfin 로그인 정보를 입력하세요.</string>
     <string name="jellyfin_desc_found">서버를 선택하거나 주소를 입력한 다음 Jellyfin 로그인 정보를 입력하세요.</string>
-    <string name="folder_kind">콘텐츠</string>
     <string name="field_protocol">프로토콜</string>
     <string name="field_host">NAS 주소</string>
     <string name="field_export">마운트 경로</string>
@@ -259,6 +257,8 @@
     <string name="error_host_missing">NAS 주소를 입력하세요.</string>
     <string name="error_export_missing">마운트 경로를 입력하세요(예: /volume1/video).</string>
     <string name="error_share_missing">공유 폴더 이름을 입력하세요(예: video).</string>
+    <string name="error_full_path_missing_nfs">폴더 경로를 입력하세요(예: /volume1/video/Movies).</string>
+    <string name="error_full_path_missing_smb">폴더 경로를 입력하세요(예: video/Movies).</string>
     <string name="error_uid_missing">사용자(UID)도 입력하세요.</string>
     <string name="error_gid_missing">그룹(GID)도 입력하세요.</string>
     <string name="nfs_hint_player">비밀번호가 필요 없습니다. NAS에서 이 플레이어(%s)에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>

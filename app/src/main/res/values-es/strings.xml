@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">Mis archivos</string>
-    <string name="source_local_desc">Sus vídeos en un NAS o un ordenador de la red. Houselights los analiza y obtiene pósteres y sinopsis.</string>
+    <string name="source_local_desc">Sus vídeos en un NAS, un ordenador de la red o un disco conectado al reproductor. Houselights los analiza y obtiene pósteres y sinopsis.</string>
     <string name="source_jellyfin">Servidor Jellyfin</string>
     <string name="source_jellyfin_desc">La biblioteca de su servidor</string>
     <string name="welcome_jellyfin_desc">Las películas y series de su servidor Jellyfin.</string>
@@ -215,7 +215,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">Añadir carpeta</string>
-    <string name="add_folder_desc">Indique dónde están sus películas o series en el NAS. Houselights prueba la conexión antes de añadir la carpeta.</string>
     <string name="edit_folder">Editar carpeta</string>
     <string name="edit_folder_desc">Cambie su dirección o sus credenciales. Houselights prueba la conexión antes de guardar; se conservan sus títulos, lo que ha visto y sus elecciones.</string>
     <string name="edit_folder_row_desc">Su dirección o sus credenciales</string>
@@ -225,7 +224,6 @@
     <string name="password_kept">Sin cambios</string>
     <string name="jellyfin_desc">Indique la dirección de su servidor y sus credenciales de Jellyfin.</string>
     <string name="jellyfin_desc_found">Elija su servidor o indique su dirección, y luego sus credenciales de Jellyfin.</string>
-    <string name="folder_kind">Contenido</string>
     <string name="field_protocol">Protocolo</string>
     <string name="field_host">Dirección del NAS</string>
     <string name="field_export">Ruta de montaje</string>
@@ -271,6 +269,8 @@
     <string name="error_host_missing">Indique la dirección del NAS.</string>
     <string name="error_export_missing">Indique la ruta de montaje, por ejemplo /volume1/video.</string>
     <string name="error_share_missing">Indique el nombre de la carpeta compartida, por ejemplo video.</string>
+    <string name="error_full_path_missing_nfs">Indique la ruta de su carpeta, por ejemplo /volume1/video/Películas.</string>
+    <string name="error_full_path_missing_smb">Indique la ruta de su carpeta, por ejemplo video/Películas.</string>
     <string name="error_uid_missing">Indique también el usuario (UID).</string>
     <string name="error_gid_missing">Indique también el grupo (GID).</string>
     <string name="nfs_hint_player">Sin contraseña: en el NAS, autorice este reproductor (%s) en solo lectura y, en un Synology, los puertos no privilegiados.</string>

@@ -18,7 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -150,11 +152,12 @@ fun HlGroup(title: String, modifier: Modifier = Modifier, content: @Composable (
 
 /**
  * A pane's row of [Showcase]s, [HlSpace.m] apart, running on to the screen's end where the next one waits; a focused
- * one comes inside the safe area with its frame, clear of the row's start.
+ * one comes inside the safe area with its frame, clear of the row's start. Its [state] scrolls it to a showcase it has
+ * not composed yet, a folder just added.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ShowcaseRow(modifier: Modifier = Modifier, content: LazyListScope.() -> Unit) {
+fun ShowcaseRow(modifier: Modifier = Modifier, state: LazyListState = rememberLazyListState(), content: LazyListScope.() -> Unit) {
     val density = LocalDensity.current
     // At the end, the safe area and the frame's reach past the showcase.
     val end = HlSpace.safeH + HlFocus.reach
@@ -162,6 +165,7 @@ fun ShowcaseRow(modifier: Modifier = Modifier, content: LazyListScope.() -> Unit
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec) {
         LazyRow(
             modifier.bleed(start = HlSpace.s, end = HlSpace.safeH),
+            state = state,
             contentPadding = PaddingValues(start = HlSpace.s, end = end),
             horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
             content = content,

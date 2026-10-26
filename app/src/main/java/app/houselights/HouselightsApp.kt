@@ -40,6 +40,7 @@ import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalEditor
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
+import app.houselights.providers.local.NasDiscovery
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.Volumes
 import app.houselights.providers.local.TmdbClient
@@ -280,6 +281,9 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 
     /** NAS browsers, with the sessions and mounts they keep open between files, and the player's disks'. */
     val remoteBrowsers = RemoteBrowsers(volumes) { diskPermission.access() == DiskAccess.GRANTED }
+
+    /** The NAS that announce themselves on the local network, for « Ajouter un dossier »'s first step. */
+    val nasDiscovery = NasDiscovery(app)
     val scanner = LibraryScanner(
         dao = database.dao(),
         tmdb = ::tmdb,

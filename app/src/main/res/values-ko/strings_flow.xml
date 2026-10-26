@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- « Ajouter un dossier », the guided flow (#83): its steps, rows and messages. -->
+<resources>
+    <string name="flow_where_desc">동영상이 있는 기기를 선택하세요.</string>
+    <string name="nas_used">사용 중인 NAS</string>
+    <string name="nas_found">네트워크에서 찾은 NAS</string>
+    <string name="nas_searching">네트워크 검색 중…</string>
+    <string name="nas_search_again">다시 검색</string>
+    <string name="nas_none_found">발견된 NAS가 없습니다</string>
+    <string name="type_address">주소 입력</string>
+    <string name="type_address_desc">NAS의 IP 주소 또는 이름</string>
+    <string name="type_address_flow_desc">NAS의 IP 주소 또는 이름을 입력하세요.</string>
+    <string name="host_supporting">NAS 관리 화면이나 공유기의 기기 목록에서 확인할 수 있습니다.</string>
+    <string name="continue_">계속</string>
+    <string name="flow_protocol_desc">이 NAS는 두 가지 방식으로 폴더를 공유합니다. 사용할 방식을 선택하세요.</string>
+    <string name="protocol_smb_desc">NAS 계정 사용</string>
+    <string name="protocol_nfs_desc">비밀번호 없음, NAS 허용 필요</string>
+    <string name="flow_account_desc">NAS 계정으로 로그인하세요. 비밀번호는 이 기기에 저장되어 Zidoo 플레이어로 전달됩니다. 읽기 권한만 있는 별도 계정을 권장합니다.</string>
+    <string name="guest">계정 없음(게스트)</string>
+    <string name="guest_desc">NAS가 공유 폴더를 모두에게 연 경우</string>
+    <string name="guest_fact">게스트</string>
+    <string name="flow_share_desc">동영상이 들어 있는 공유 폴더를 선택하세요.</string>
+    <string name="share_holds_one">‘%s’ 포함</string>
+    <plurals name="share_holds_many">
+        <item quantity="other">라이브러리 폴더 %d개 포함</item>
+    </plurals>
+    <string name="not_allowed">허용되지 않음</string>
+    <string name="access_refused">접근 거부됨</string>
+    <string name="failed_short">실패</string>
+    <string name="type_path">경로 입력</string>
+    <string name="type_path_desc">폴더가 보이지 않는 경우</string>
+    <string name="change_account">계정 변경</string>
+    <string name="change_account_desc">%s(으)로 로그인됨</string>
+    <string name="change_account_guest_desc">게스트로 로그인됨</string>
+    <string name="flow_nfs_identity_desc">Houselights가 NAS에 제시하는 계정으로, 기본값은 root입니다. NAS가 root를 거부하면 NAS 계정의 UID와 GID를 입력하세요.</string>
+    <string name="error_smb_guest_share">‘%s’은(는) 게스트에게 열려 있지 않습니다. ‘계정 변경’을 선택하세요.</string>
+    <string name="flow_path_desc">NAS에 있는 폴더의 전체 경로를 입력하세요.</string>
+    <string name="flow_path_no_list_desc">이 NAS는 공유 폴더 목록을 제공하지 않습니다. 폴더의 전체 경로를 입력하세요.</string>
+    <string name="field_full_path">폴더 경로</string>
+    <string name="placeholder_full_path_nfs">예: /volume1/video/Movies</string>
+    <string name="placeholder_full_path_smb">예: video/Movies</string>
+    <string name="full_path_supporting_nfs">Synology에서는 /volume1/로 시작합니다.</string>
+    <string name="full_path_supporting_smb">공유 폴더 다음에 하위 폴더를 입력합니다.</string>
+    <string name="use_suggestion">%s 사용</string>
+    <string name="use_suggestion_name">‘%s’ 사용</string>
+    <string name="suggested_by_nas">NAS가 제안함</string>
+    <string name="flow_browse_desc">영화나 TV 프로그램 폴더를 연 다음 선택하세요.</string>
+    <string name="choose_folder">이 폴더 선택</string>
+    <string name="subfolders">하위 폴더</string>
+    <string name="opening">여는 중…</string>
+    <string name="folder_holds_both">영화와 TV 프로그램 포함: 하나를 여세요</string>
+    <string name="folder_inside_added">‘%s’ 안에 있음, 이미 라이브러리에 있음</string>
+    <string name="folder_holds_added">‘%s’ 포함, 이미 라이브러리에 있음</string>
+    <string name="folder_empty_short">동영상도 하위 폴더도 없음</string>
+    <string name="flow_kind_desc">‘%s’에 무엇이 있나요?</string>
+    <string name="kind_movies_desc">영화마다 파일 또는 폴더 하나</string>
+    <string name="kind_shows_desc">프로그램마다 폴더, 그 안에 시즌별 폴더</string>
+    <string name="adding">추가 중…</string>
+    <!-- « Sur ce lecteur » (#33): the player's own disks, and Android's leave to read them. -->
+    <string name="on_this_player">이 플레이어</string>
+    <string name="disk_internal">내부 저장소</string>
+    <string name="disk_internal_desc">이 플레이어의 저장소</string>
+    <string name="disk_usb">USB 디스크</string>
+    <string name="disk_access_settings">Houselights가 아직 이 플레이어의 파일을 읽을 수 없습니다. Android 설정에서 허용한 다음 디스크를 다시 선택하세요.</string>
+    <string name="disk_access_refused">Houselights가 이 플레이어의 파일을 읽을 수 없습니다. 허용한 다음 디스크를 다시 선택하세요.</string>
+</resources>

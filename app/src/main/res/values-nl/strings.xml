@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Sources -->
     <string name="source_local">Mijn bestanden</string>
-    <string name="source_local_desc">Uw video’s op een NAS of een computer in het netwerk. Houselights scant ze en haalt posters en samenvattingen op.</string>
+    <string name="source_local_desc">Uw video’s op een NAS, een computer in het netwerk of een schijf aan de speler. Houselights scant ze en haalt posters en samenvattingen op.</string>
     <string name="source_jellyfin">Jellyfin-server</string>
     <string name="source_jellyfin_desc">De bibliotheek van uw server</string>
     <string name="welcome_jellyfin_desc">De films en series van uw Jellyfin-server.</string>
@@ -209,7 +209,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">Map toevoegen</string>
-    <string name="add_folder_desc">Geef aan waar uw films of series op de NAS staan. Houselights test de verbinding voordat de map wordt toegevoegd.</string>
     <string name="edit_folder">Map bewerken</string>
     <string name="edit_folder_desc">Wijzig het adres of de inloggegevens. Houselights test de verbinding vóór het opslaan; de titels, wat u hebt bekeken en uw keuzes blijven behouden.</string>
     <string name="edit_folder_row_desc">Het adres of de inloggegevens</string>
@@ -219,13 +218,12 @@
     <string name="password_kept">Ongewijzigd</string>
     <string name="jellyfin_desc">Voer het adres van uw server en uw Jellyfin-inloggegevens in.</string>
     <string name="jellyfin_desc_found">Kies uw server of voer het adres in, en daarna uw Jellyfin-inloggegevens.</string>
-    <string name="folder_kind">Inhoud</string>
     <string name="field_protocol">Protocol</string>
     <string name="field_host">NAS-adres</string>
     <string name="field_export">Koppelpad</string>
     <string name="nfs_hint">Zonder wachtwoord: sta op de NAS deze speler alleen-lezen toe, en op een Synology niet-geprivilegieerde poorten.</string>
     <string name="nfs_identity_title">NFS-account</string>
-    <string name="nfs_identity_desc">Het account dat de NAS ziet, standaard root</string>
+    <string name="nfs_identity_desc">Account dat de NAS ziet, standaard root</string>
     <string name="nfs_identity_hint">Laat leeg voor root. Voer een UID en een GID in als de NAS root weigert.</string>
     <string name="field_uid">Gebruiker (UID)</string>
     <string name="field_gid">Groep (GID)</string>
@@ -265,6 +263,8 @@
     <string name="error_host_missing">Voer het adres van de NAS in.</string>
     <string name="error_export_missing" tools:ignore="Typos">Voer het koppelpad in, bijvoorbeeld /volume1/video.</string>
     <string name="error_share_missing">Voer de naam van de gedeelde map in, bijvoorbeeld video.</string>
+    <string name="error_full_path_missing_nfs" tools:ignore="Typos">Voer het pad van uw map in, bijvoorbeeld /volume1/video/Films.</string>
+    <string name="error_full_path_missing_smb">Voer het pad van uw map in, bijvoorbeeld video/Films.</string>
     <string name="error_uid_missing">Voer ook de gebruiker (UID) in.</string>
     <string name="error_gid_missing">Voer ook de groep (GID) in.</string>
     <string name="nfs_hint_player">Zonder wachtwoord: sta op de NAS deze speler (%s) alleen-lezen toe, en op een Synology niet-geprivilegieerde poorten.</string>

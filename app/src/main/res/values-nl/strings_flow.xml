@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- « Ajouter un dossier », the guided flow (#83): its steps, rows and messages. -->
+<resources>
+    <string name="flow_where_desc">Kies het apparaat waarop uw video’s staan.</string>
+    <string name="nas_used">Al gebruikt</string>
+    <string name="nas_found">NAS gevonden op het netwerk</string>
+    <string name="nas_searching">Zoeken op het netwerk…</string>
+    <string name="nas_search_again">Opnieuw zoeken</string>
+    <string name="nas_none_found">Geen NAS heeft zich gemeld</string>
+    <string name="type_address">Adres invoeren</string>
+    <string name="type_address_desc">Het IP-adres of de naam van de NAS</string>
+    <string name="type_address_flow_desc">Voer het IP-adres of de naam van uw NAS in.</string>
+    <string name="host_supporting">U vindt het in de interface van de NAS of in de apparatenlijst van uw router.</string>
+    <string name="continue_">Doorgaan</string>
+    <string name="flow_protocol_desc">Deze NAS deelt zijn mappen op twee manieren. Kies welke u wilt gebruiken.</string>
+    <string name="protocol_smb_desc">Met een account van de NAS</string>
+    <string name="protocol_nfs_desc">Zonder wachtwoord, als de NAS dit toestaat</string>
+    <string name="flow_account_desc">Log in met een account van de NAS. Het wachtwoord wordt op dit apparaat bewaard en aan de Zidoo-speler doorgegeven: gebruik bij voorkeur een eigen account met alleen leesrechten.</string>
+    <string name="guest">Zonder account (gast)</string>
+    <string name="guest_desc">Als de NAS zijn mappen voor iedereen opent</string>
+    <string name="guest_fact">Gast</string>
+    <string name="flow_share_desc">Kies de gedeelde map met uw video’s.</string>
+    <string name="share_holds_one">Bevat “%s”</string>
+    <plurals name="share_holds_many">
+        <item quantity="one">Bevat %d map van de bibliotheek</item>
+        <item quantity="other">Bevat %d mappen van de bibliotheek</item>
+    </plurals>
+    <string name="not_allowed">Niet toegestaan</string>
+    <string name="access_refused">Toegang geweigerd</string>
+    <string name="failed_short">Mislukt</string>
+    <string name="type_path">Pad invoeren</string>
+    <string name="type_path_desc">Als uw map er niet bij staat</string>
+    <string name="change_account">Ander account</string>
+    <string name="change_account_desc">Ingelogd als %s</string>
+    <string name="change_account_guest_desc">Ingelogd als gast</string>
+    <string name="flow_nfs_identity_desc">Het account waarmee Houselights zich bij de NAS meldt, standaard root. Voer de UID en GID van een account van de NAS in als de NAS root weigert.</string>
+    <string name="error_smb_guest_share">“%s” is niet open voor gasten: kies “Ander account”.</string>
+    <string name="flow_path_desc">Voer het volledige pad van uw map op de NAS in.</string>
+    <string name="flow_path_no_list_desc">Deze NAS geeft geen lijst van zijn gedeelde mappen: voer het volledige pad van uw map in.</string>
+    <string name="field_full_path">Pad van de map</string>
+    <string name="placeholder_full_path_nfs">Bijv. /volume1/video/Films</string>
+    <string name="placeholder_full_path_smb">Bijv. video/Films</string>
+    <string name="full_path_supporting_nfs">Op een Synology begint het met /volume1/.</string>
+    <string name="full_path_supporting_smb">Eerst de gedeelde map, dan de submappen.</string>
+    <string name="use_suggestion">%s gebruiken</string>
+    <string name="use_suggestion_name">“%s” gebruiken</string>
+    <string name="suggested_by_nas">Voorgesteld door de NAS</string>
+    <string name="flow_browse_desc">Open de map van uw films of series en kies die dan.</string>
+    <string name="choose_folder">Deze map kiezen</string>
+    <string name="subfolders">Submappen</string>
+    <string name="opening">Openen…</string>
+    <string name="folder_holds_both">Bevat Films en Series: open er een van</string>
+    <string name="folder_inside_added">In “%s”, al in de bibliotheek</string>
+    <string name="folder_holds_added">Bevat “%s”, al in de bibliotheek</string>
+    <string name="folder_empty_short">Geen video en geen submap</string>
+    <string name="flow_kind_desc">Wat bevat “%s”?</string>
+    <string name="kind_movies_desc">Eén bestand of map per film</string>
+    <string name="kind_shows_desc">Eén map per serie, dan per seizoen</string>
+    <string name="adding">Toevoegen…</string>
+    <!-- « Sur ce lecteur » (#33): the player's own disks, and Android's leave to read them. -->
+    <string name="on_this_player">Op deze speler</string>
+    <string name="disk_internal">Interne opslag</string>
+    <string name="disk_internal_desc">De opslag van deze speler</string>
+    <string name="disk_usb">USB-schijf</string>
+    <string name="disk_access_settings">Houselights mag de bestanden van deze speler nog niet lezen: sta het toe in de instellingen van Android en kies de schijf daarna opnieuw.</string>
+    <string name="disk_access_refused">Houselights mag de bestanden van deze speler niet lezen: sta het toe en kies de schijf daarna opnieuw.</string>
+</resources>

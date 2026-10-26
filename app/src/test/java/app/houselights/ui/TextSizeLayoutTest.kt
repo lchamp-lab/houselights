@@ -156,7 +156,7 @@ class TextSizeLayoutTest {
                 )
             }
             val vm = AddFolderViewModel(
-                library, id, work, useFolders = { false }, probe = { FolderLevel(folderNames(412), videos = 3) },
+                library, id, work, probe = { FolderLevel(folderNames(412), videos = 3) },
                 playerAddress = { "192.168.1.42" },
             )
             show { AddFolderForm(vm, FolderField.FIRST) {} }

@@ -7,7 +7,7 @@
 
     <!-- Sources -->
     <string name="source_local">My files</string>
-    <string name="source_local_desc">Videos on a NAS or a computer on your network. Houselights scans them and fetches posters and summaries.</string>
+    <string name="source_local_desc">Videos on a NAS, a computer on your network or a disk plugged into the player. Houselights scans them and fetches posters and summaries.</string>
     <string name="source_jellyfin">Jellyfin server</string>
     <string name="source_jellyfin_desc">Your server’s library</string>
     <string name="welcome_jellyfin_desc">The films and shows of your Jellyfin server.</string>
@@ -222,7 +222,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
-    <string name="add_folder_desc">Say where your films or shows are on the NAS. Houselights tests the connection before adding the folder.</string>
     <string name="edit_folder">Edit folder</string>
     <string name="edit_folder_desc">Change its address or sign-in. Houselights tests the connection before saving; its titles, what you’ve watched and your choices stay.</string>
     <string name="edit_folder_row_desc">Its address or sign-in</string>
@@ -232,7 +231,6 @@
     <string name="password_kept">Unchanged</string>
     <string name="jellyfin_desc">Enter the address of your server and your Jellyfin credentials.</string>
     <string name="jellyfin_desc_found">Choose your server or enter its address, then your Jellyfin credentials.</string>
-    <string name="folder_kind">Contents</string>
     <string name="field_protocol">Protocol</string>
     <string name="field_host">NAS address</string>
     <string name="field_export">Mount path</string>
@@ -281,6 +279,8 @@
     <!-- /volume1 is how a Synology NAS names its first volume. -->
     <string name="error_export_missing" tools:ignore="Typos">Enter the mount path, for example /volume1/video.</string>
     <string name="error_share_missing">Enter the name of the shared folder, for example video.</string>
+    <string name="error_full_path_missing_nfs" tools:ignore="Typos">Enter the path of your folder, for example /volume1/video/Movies.</string>
+    <string name="error_full_path_missing_smb">Enter the path of your folder, for example video/Movies.</string>
     <string name="error_uid_missing">Enter the user (UID) as well.</string>
     <string name="error_gid_missing">Enter the group (GID) as well.</string>
     <string name="nfs_hint_player">No password: on the NAS, allow this player (%s) read-only, and on a Synology non-privileged ports.</string>

@@ -2,6 +2,7 @@ package app.houselights.ui.onboarding
 
 import app.houselights.ui.design.TwoPaneDefaults
 import android.content.Context
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
@@ -38,11 +39,13 @@ import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.util.wholePath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -61,6 +64,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.IOException
@@ -114,11 +118,21 @@ class FormLayoutTest {
         return LocalLibrary(context, db.dao(), scanner, artwork) {}
     }
 
+    /** « Modifier le dossier » over an NFS folder: its first control, a field and Save where the form's frame puts them. */
     private fun aFolderHolds() {
-        val vm = AddFolderViewModel(library(), null, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) })
+        val id = runBlocking {
+            db.dao().insertSource(
+                SourceEntity(
+                    name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/video",
+                    path = "Films", username = "", password = Secret(""),
+                )
+            )
+        }
+        val vm = AddFolderViewModel(library(), id, scope, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
+        compose.waitUntil { vm.ready }
         compose.waitForIdle()
-        holds(first = R.string.folder_kind, field = R.string.field_host, action = R.string.add)
+        holds(first = R.string.field_protocol, field = R.string.field_host, action = R.string.save)
     }
 
     /** The boards' « Séries », over SMB with its password kept, opened to edit; its test answers [probe]. */
@@ -131,7 +145,7 @@ class FormLayoutTest {
                 )
             )
         }
-        return AddFolderViewModel(library(), id, scope, useFolders = { false }, probe = probe)
+        return AddFolderViewModel(library(), id, scope, probe = probe)
     }
 
     /**
@@ -269,6 +283,58 @@ class FormLayoutTest {
         }
     }
 
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun theFlowsColumnInFrenchAtTheLargestText() = theFlowsColumnHoldsAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "de-$TV")
+    fun theFlowsColumnInGermanAtTheLargestText() = theFlowsColumnHoldsAtTheLargestText()
+
+    /**
+     * « Ajouter un dossier » at the largest text, on its longest message (an export refusing this player): the step's
+     * sentence and the panel hold whole in the left column, the panel ending inside the safe area, the path unbroken.
+     */
+    private fun theFlowsColumnHoldsAtTheLargestText() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
+        val idle = CoroutineScope(Job().apply { cancel() })
+        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
+        runBlocking {
+            db.dao().insertSource(
+                SourceEntity(
+                    name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = FakeFlowNetwork.DS920,
+                    share = "volume1/video", path = "Films", username = "", password = Secret(""),
+                )
+            )
+        }
+        val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+        val flow = FolderFlow(FakeFlowNetwork(), library, scope, useFolders = { false })
+        compose.setTvContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, LARGEST_TEXT)) { AddFolderFlow(flow) }
+        }
+        // The flow's work on other threads comes back on the main looper, which compose's waitUntil does not run here.
+        fun until(done: () -> Boolean) {
+            val end = System.currentTimeMillis() + FLOW_WAIT_MS
+            while (!done() && System.currentTimeMillis() < end) {
+                shadowOf(Looper.getMainLooper()).idle()
+                compose.waitForIdle()
+            }
+            assertTrue("the flow went on", done())
+        }
+        until { flow.ready }
+        flow.chooseUsed(flow.used.single())
+        until { flow.step == FlowStep.SHARES }
+        flow.openShare(FlowShare("/volume1/photo"))
+        until { flow.message != null }
+        compose.waitForIdle()
+        val said = compose.activity.getString(R.string.error_nfs_refused, FakeFlowNetwork.PLAYER, wholePath("/volume1/photo"))
+        val box = compose.onNodeWithText(said, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertTrue("the panel ends inside the safe area: $box", box.bottom + HlInset.plate <= SCREEN_H - HlSpace.safeV)
+        listOf(said, compose.activity.getString(R.string.flow_share_desc)).forEach { assertFalse("$it cut", cut(it)) }
+    }
+
     /** True when [text]'s own layout runs past its box or ends in an ellipsis, wherever it is (a row and the panel). */
     private fun cut(text: String): Boolean =
         compose.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().any { node ->
@@ -327,5 +393,8 @@ class FormLayoutTest {
 
         /** The largest text size Android TV offers. */
         const val LARGEST_TEXT = 1.3f
+
+        /** How long « Ajouter un dossier » may take to answer its fake network. */
+        const val FLOW_WAIT_MS = 5_000L
     }
 }

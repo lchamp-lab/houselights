@@ -1,5 +1,6 @@
 package app.houselights.ui.onboarding
 
+import android.content.Context
 import android.util.Log
 import androidx.annotation.Keep
 import androidx.annotation.StringRes
@@ -17,7 +18,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.R
 import app.houselights.core.FailurePlace
-import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.FolderSave
@@ -37,7 +37,6 @@ import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** A network folder as typed in the form. */
@@ -77,19 +76,21 @@ data class FolderForm(
     private fun address() = host.trim().removePrefix("smb://").removePrefix("nfs://").trimEnd('/')
 
     /**
-     * The share (or export) and the folder inside it, however much of the NAS's path each field holds. The folder's
-     * first segments are dropped when they repeat the share whole, compared as the library compares folders (SMB
-     * ignoring case): "/volume1/video" and "/volume1/video/films2" read "films2", as "video" and "video/films2" do. For
-     * SMB, "\" reads as "/", the NAS's address before the share ("\\nas\", "smb://nas/") is dropped when it is the
-     * address field's ([withoutAddress]), and what the share's field holds after the share goes before the folder; an
-     * address before the folder is dropped only when what follows it repeats the share. Nothing else changes: a name
-     * that repeats no share, or names another NAS, is read as typed.
+     * The share (or export) and the folder inside it, however much of the NAS's path each field holds, each field read
+     * as the add-folder flow reads a path typed whole ([TypedPaths.read], one parser for both). The folder's first
+     * segments are dropped when they repeat the share whole, compared as the library compares folders (SMB ignoring
+     * case): "/volume1/video" and "/volume1/video/films2" read "films2", as "video" and "video/films2" do. For SMB, "\"
+     * reads as "/", the NAS's address before the share ("\\nas\", "smb://nas/", an account or port in it dropped) is
+     * dropped when it names the address field's NAS ([TypedPaths.namesNas]), and what the share's field holds after the
+     * share goes before the folder; an address before the folder is dropped only when what follows it repeats the share.
+     * Nothing else changes: a name that repeats no share, or names another NAS, is read as typed.
      */
     private fun place(): Pair<String, String> {
         val smb = protocol == Protocol.SMB
-        val shared = segments(if (smb) withoutAddress(share, address()) else share, smb)
-        val written = segments(path, smb)
-        val unc = if (smb) segments(withoutAddress(path, address()), smb) else written
+        val nas = address()
+        val shared = TypedPaths.read(share, nas, protocol)?.names.orEmpty()
+        val written = TypedPaths.names(path, protocol)
+        val unc = if (smb) TypedPaths.read(path, nas, protocol)?.names.orEmpty() else written
         val fromRoot = if (unc.repeats(shared, ignoreCase = smb)) unc else written
         val folder = if (fromRoot.repeats(shared, ignoreCase = smb)) fromRoot.drop(shared.size) else fromRoot
         if (!smb) return shared.joinToString("/") to folder.joinToString("/")
@@ -164,21 +165,6 @@ data class FolderForm(
         /** Whether [text] can be typed as a user or group: digits alone, a number an NFS identity holds. */
         fun isId(text: String) = text.all { it in '0'..'9' } && (text.isEmpty() || text.toIntOrNull() != null)
     }
-}
-
-/** A NAS's name before an SMB path, its "\" read as "/": "//nas/" or "smb://nas/", or the name alone ("//nas"). */
-private val SMB_ADDRESS = Regex("^(smb:)?//([^/]+)(/|$)", RegexOption.IGNORE_CASE)
-
-/**
- * [text] as typed for SMB, "\" read as "/", without the NAS's name in front ([SMB_ADDRESS]) when it names [host]
- * ([TypedPaths.namesNas], as the add-folder flow reads a typed path). Any other name is kept as the share it reads as,
- * so "\\video\Films" stays share video, and another NAS's path is never read on this one.
- */
-private fun withoutAddress(text: String, host: String): String {
-    val typed = text.trim().replace('\\', '/')
-    val address = SMB_ADDRESS.find(typed) ?: return typed
-    val (scheme, name) = address.destructured
-    return if (TypedPaths.namesNas(name, host)) typed.substring(address.range.last + 1) else typed.removePrefix(scheme)
 }
 
 /** The names of the folders in [path], from the first; for [smb], "\" separates them too. */
@@ -331,7 +317,7 @@ private fun lastPathField(form: FolderForm) = if (form.path.isNotBlank()) FaultS
 /** The form field focus starts on, the one the error that led there likely asks to change; kept as a route argument. */
 @Keep
 enum class FolderField {
-    /** The first control, for a new folder or a plain edit. */
+    /** The first control, for a plain edit. */
     FIRST,
     HOST,
     PASSWORD,
@@ -352,16 +338,15 @@ enum class FolderField {
 }
 
 /**
- * Adds a folder, or edits folder [folderId] with the same form. What was typed, password aside, is kept in [saved]
- * in case Android kills the app while the NAS's address or share is looked up in another app.
+ * « Modifier le dossier »: edits folder [folderId], a folder being added through « Ajouter un dossier »'s steps
+ * ([FolderFlow]). What was typed, password aside, is kept in [saved] in case Android kills the app while the NAS's
+ * address or share is looked up in another app.
  */
 class AddFolderViewModel(
     private val library: LocalLibrary,
-    private val folderId: Long?,
+    private val folderId: Long,
     /** The app's scope: a tested folder is saved and scanned even if Back leaves the form meanwhile. */
     private val background: CoroutineScope,
-    /** Makes the folders the source; true when it changed (it was a server, or nothing yet). */
-    private val useFolders: suspend () -> Boolean,
     /** Lists a folder's first level and counts its subfolders and videos; throws when it cannot. */
     private val probe: suspend (SourceEntity) -> FolderLevel,
     private val saved: SavedStateHandle = SavedStateHandle(),
@@ -369,22 +354,18 @@ class AddFolderViewModel(
     private val playerAddress: suspend () -> String? = { null },
     /** The paths an NFS server at a host exports (MOUNT's EXPORT); null when it does not say. */
     private val exports: suspend (host: String) -> List<String>? = { null },
+    /** What the NAS has that a folder's path it lacks ([FolderTrouble]) may mean ([suggestionFor]); null when nothing is near. */
+    private val nearby: suspend (SourceEntity, FolderTrouble) -> FolderSuggestion? = { _, _ -> null },
 ) : ViewModel() {
-    constructor(app: AppContainer, folderId: Long?, saved: SavedStateHandle) : this(
+    constructor(app: AppContainer, context: Context, folderId: Long, saved: SavedStateHandle) : this(
         library = app.library,
         folderId = folderId,
         background = app.scope,
-        useFolders = {
-            // The app sees the folder first: until then, the folders are no library and give way to Welcome (shownSource).
-            app.hasFolders.first { it == true }
-            val switched = app.settings.state.value.source != SourceConfig.Local
-            if (switched) app.sources.switchTo(SourceConfig.Local)
-            switched
-        },
         probe = { app.remoteBrowsers.of(it).test(it) },
         saved = saved,
         playerAddress = app::playerAddress,
         exports = { host -> app.remoteBrowsers.exports(host).map { it.path } },
+        nearby = { source, trouble -> suggestionFor(source, trouble, AppFlowNetwork(app, context)) },
     )
 
     /** The form as typed before Android killed the app, password aside; null if none. */
@@ -406,6 +387,10 @@ class AddFolderViewModel(
     var player by mutableStateOf<String?>(null)
         private set
 
+    /** What the NAS proposes for the path the last test found it lacks (« Utiliser /volume1/media »); null when nothing. */
+    var suggestion by mutableStateOf<FolderSuggestion?>(null)
+        private set
+
     var testing by mutableStateOf(false)
         private set
 
@@ -420,13 +405,11 @@ class AddFolderViewModel(
     /** Testing or saving: the other action waits. */
     val busy: Boolean get() = testing || saving || submitting
 
-    /** The edited folder as stored; null while it is read, and when adding. */
+    /** The edited folder as stored; null while it is read. */
     private var editing: SourceEntity? = null
 
-    val edits = folderId != null
-
-    /** Whether saving is allowed: an edited folder must be read first, or an empty field would erase its password. */
-    var ready by mutableStateOf(!edits)
+    /** Whether saving is allowed: the folder must be read first, or an empty field would erase its password. */
+    var ready by mutableStateOf(false)
         private set
 
     /** The edited folder could not be read: nothing of it shows, nor can be saved, until [readAgain] reads it. */
@@ -461,29 +444,7 @@ class AddFolderViewModel(
         viewModelScope.launch {
             player = suspendRunCatching { playerAddress() }.onFailure { Log.w(TAG, "Reading this player's address failed", it) }.getOrNull()
         }
-        viewModelScope.launch {
-            if (folderId != null) {
-                read(folderId)
-            } else if (kept == null) {
-                // A second folder is most often on the same NAS: start from the last one added. Its share only if
-                // it was a folder inside: the same whole share again could only be refused as already added. Over
-                // NFS, as the same user and group too: a NAS that squashes root reads the next one as it read the last.
-                suspendRunCatching { library.lastFolder() }
-                    .onFailure { Log.w(TAG, "Reading the last folder failed", it) }
-                    .getOrNull()
-                    ?.let { last ->
-                        val nfs = last.protocol == Protocol.NFS
-                        form = form.copy(
-                            protocol = last.protocol,
-                            host = last.host,
-                            share = if (last.path.isNotBlank()) FolderForm.exportOrShare(last) else "",
-                            user = last.username,
-                            uid = last.uid?.takeIf { nfs }?.toString().orEmpty(),
-                            gid = last.gid?.takeIf { nfs }?.toString().orEmpty(),
-                        )
-                    }
-            }
-        }
+        viewModelScope.launch { read(folderId) }
     }
 
     /** Reads the edited folder [id]; unread, it stays unsaveable, as an empty password field would erase its own. */
@@ -508,12 +469,11 @@ class AddFolderViewModel(
 
     /** Reads the edited folder again (Réessayer), after it could not be read. */
     fun readAgain() {
-        val id = folderId
-        if (id == null || !unread || rereading) return
+        if (!unread || rereading) return
         rereading = true
         viewModelScope.launch {
             try {
-                read(id)
+                read(folderId)
             } finally {
                 rereading = false
             }
@@ -525,7 +485,18 @@ class AddFolderViewModel(
         val before = form
         form = form.change()
         saved.keep(form)
-        if (!form.testsAs(before)) check = null
+        if (!form.testsAs(before)) {
+            check = null
+            suggestion = null
+        }
+    }
+
+    /** « Utiliser /volume1/media »: what the NAS proposes written in the path's fields, then tested again. */
+    fun useSuggestion() {
+        val proposed = suggestion ?: return
+        val placed = FolderForm.of(source().copy(share = proposed.share, path = proposed.path))
+        edit { copy(share = placed.share, path = placed.path) }
+        test()
     }
 
     /** Whether a test reads the same folder: the forms differ at most in kind. */
@@ -576,12 +547,11 @@ class AddFolderViewModel(
     }
 
     /**
-     * Tests, then adds the folder and makes the folders the source, or saves the edited folder under its id (its
-     * titles keep their watch state). An overlapping folder is refused, unless it is this one, added earlier when
-     * switching the source failed: only the switch is left. [onDone] gets whether the source changed; a failed
-     * write shows in [check]; if a field a test reads changes mid-test, nothing is saved.
+     * Tests, then saves the folder under its id (its titles keep their watch state); one overlapping another of the
+     * library is refused. [onDone] once saved; a failed write shows in [check]; if a field a test reads changes
+     * mid-test, nothing is saved.
      */
-    fun submit(onDone: (switched: Boolean) -> Unit) {
+    fun submit(onDone: () -> Unit) {
         if (busy || !ready || gone) return
         val typed = form
         val source = toTest() ?: return
@@ -592,7 +562,6 @@ class AddFolderViewModel(
                 when {
                     // reaches() vouches for the current form, so save it as it is now, a changed kind included.
                     held == null -> if (reaches(source, typed)) show(saveInBackground(source()), source, onDone)
-                    addedBefore(held, source) -> show(saveInBackground(source), source, onDone)
                     else -> say(overlap(held, source))
                 }
             } finally {
@@ -601,16 +570,13 @@ class AddFolderViewModel(
         }
     }
 
-    /** Whether [held] is this very folder, added earlier (when adding, not editing). */
-    private fun addedBefore(held: SourceEntity, source: SourceEntity) = folderId == null && held.samePlace(source)
-
     /** [source] nesting with the library's [held], said the right way round: the same, holding it, or inside it. */
     private fun overlap(held: SourceEntity, source: SourceEntity) =
         FolderCheck.Overlaps(held, same = held.samePlace(source), holds = source.holds(held))
 
-    private fun show(outcome: Saved, source: SourceEntity, onDone: (switched: Boolean) -> Unit) {
+    private fun show(outcome: Saved, source: SourceEntity, onDone: () -> Unit) {
         when (outcome) {
-            is Saved.Done -> onDone(outcome.switched)
+            Saved.Done -> onDone()
             Saved.Gone -> gone = true
             is Saved.Overlaps -> say(overlap(outcome.existing, source))
         }
@@ -621,7 +587,7 @@ class AddFolderViewModel(
     }
 
     private sealed interface Saved {
-        data class Done(val switched: Boolean) : Saved
+        data object Done : Saved
 
         data object Gone : Saved
 
@@ -640,37 +606,33 @@ class AddFolderViewModel(
         }
     }
 
-    private suspend fun save(folder: SourceEntity): Saved {
-        val result = if (folderId == null) library.addFolder(folder) else library.updateFolder(folderId, folder)
-        return when (result) {
-            FolderSave.Saved -> Saved.Done(switched = folderId == null && useFolders())
-            FolderSave.Gone -> Saved.Gone
-            // Added earlier when switching the source failed: switch now; if already switched, it is a duplicate.
-            is FolderSave.Overlaps -> if (addedBefore(result.existing, folder) && useFolders()) {
-                Saved.Done(switched = true)
-            } else {
-                Saved.Overlaps(result.existing)
-            }
-        }
+    private suspend fun save(folder: SourceEntity): Saved = when (val result = library.updateFolder(folderId, folder)) {
+        FolderSave.Saved -> Saved.Done
+        FolderSave.Gone -> Saved.Gone
+        is FolderSave.Overlaps -> Saved.Overlaps(result.existing)
     }
 
     /**
      * Tests [source] (the form as [typed]); false, result dropped, if a field a test reads changed meanwhile, and false
      * for a folder holding nothing ([FolderCheck.Empty]), which a scan could not fill. Once the NAS answered, the path's
-     * fields show the folder as the test read it ([FolderForm.asRead]).
+     * fields show the folder as the test read it ([FolderForm.asRead]); a path it lacks comes with what it proposes
+     * ([suggestion]), asked before the answer is said, so that focus goes to it.
      */
     private suspend fun reaches(source: SourceEntity, typed: FolderForm): Boolean {
         testing = true
         check = null
+        suggestion = null
         try {
             // The browser signs in on its own for a test, so the form's own credentials are what is tested.
             val answer = suspendRunCatching { probe(source) }
             answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
             // Checked again once the answer is read: telling an export missing asks the NAS for its exports meanwhile.
             val said = if (form.testsAs(typed)) answer.fold(::found) { e -> failed(e, source) } else null
+            val proposed = (said as? FolderCheck.Failed)?.let { proposedFor(source, it.trouble) }
             if (said == null || !form.testsAs(typed)) return false
             form = form.asRead()
             saved.keep(form)
+            suggestion = proposed
             say(said)
             // A read refused to the account presented: the NFS account is to change, its row opened.
             if ((said as? FolderCheck.Failed)?.trouble is FolderTrouble.ReadRefused) showIdentity(true)
@@ -679,6 +641,13 @@ class AddFolderViewModel(
             testing = false
         }
     }
+
+    /** What the NAS proposes for [source]'s path, which [trouble] says it lacks; null when nothing is near, or it does not say. */
+    private suspend fun proposedFor(source: SourceEntity, trouble: FolderTrouble): FolderSuggestion? =
+        suspendRunCatching { nearby(source, trouble) }
+            .onFailure { Log.w(TAG, "Asking ${source.host} what it has near the path failed", it) }
+            .getOrNull()
+            ?.takeIf { it.share != source.share.trim('/') || it.path != source.path.trim('/') }
 
     /** What a test found: the folder's first level, or nothing a scan could fill. */
     private fun found(level: FolderLevel): FolderCheck =
@@ -707,8 +676,8 @@ class AddFolderViewModel(
     }
 
     companion object {
-        fun factory(app: AppContainer, folderId: Long?): ViewModelProvider.Factory = viewModelFactory {
-            initializer { AddFolderViewModel(app, folderId, createSavedStateHandle()) }
+        fun factory(app: AppContainer, context: Context, folderId: Long): ViewModelProvider.Factory = viewModelFactory {
+            initializer { AddFolderViewModel(app, context.applicationContext, folderId, createSavedStateHandle()) }
         }
     }
 }

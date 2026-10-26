@@ -40,6 +40,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.wholePath
 import app.houselights.testing.folderNames
 import com.emc.ecs.nfsclient.mount.MountStatus
 import kotlinx.coroutines.CoroutineScope
@@ -84,11 +85,15 @@ class FolderFaultTest {
         db.close()
     }
 
-    /** The form editing [folder] once stored, its test answering [probe], this player at [player]. */
+    /**
+     * The form editing [folder] once stored, its test answering [probe], this player at [player], the NAS proposing
+     * [nearby] for a path it lacks.
+     */
     private fun form(
         folder: SourceEntity,
         player: String? = null,
         probe: suspend (SourceEntity) -> FolderLevel = { FolderLevel(folderNames(12), videos = 3) },
+        nearby: suspend (SourceEntity, FolderTrouble) -> FolderSuggestion? = { _, _ -> null },
         onDone: () -> Unit = {},
     ): AddFolderViewModel {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -99,12 +104,13 @@ class FolderFaultTest {
         val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
         val id = runBlocking { db.dao().insertSource(folder) }
         val vm = AddFolderViewModel(
-            library, id, scope, useFolders = { false },
+            library, id, scope,
             probe = { tried ->
                 tested += "${tried.share} ${tried.path}"
                 probe(tried)
             },
             playerAddress = { player },
+            nearby = nearby,
         )
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) { onDone() } }
         compose.waitForIdle()
@@ -151,10 +157,42 @@ class FolderFaultTest {
         vm.test()
         compose.waitUntil { vm.check != null }
         compose.waitForIdle()
-        val message = "/volume1/video answers, but “Films” is not in it. Check its name, capitals included."
+        // Its path whole on its line, as every path in a sentence ([wholePath]).
+        val message = "${wholePath("/volume1/video")} answers, but “Films” is not in it. Check its name, capitals included."
         saysUnder("Subfolder (optional)", message).assertIsFocused()
         compose.onAllNodesWithText(message).assertCountEquals(1)
         compose.onNodeWithText("Cannot connect").assertExists()
+    }
+
+    /**
+     * A folder the export lacks comes with what the NAS has within a letter of it, under the actions, named alone, which
+     * takes focus; OK writes it in « Sous-dossier » and tests again, focus on Test.
+     */
+    @Test
+    fun whatTheNasProposesTakesFocusAndOkUsesIt() {
+        var missing = true
+        val vm = form(
+            films.copy(path = "Film"),
+            probe = {
+                if (missing) throw FileNotFoundException("lookup /volume1/video/Film")
+                FolderLevel(folderNames(12), videos = 3)
+            },
+            nearby = { _, _ -> FolderSuggestion("volume1/video", "Films", named = "Films") },
+        )
+        vm.test()
+        compose.waitUntil(WAIT_MS) { vm.check != null }
+        compose.waitForIdle()
+        compose.onNode(hasText("Use “Films”") and hasClickAction()).assertIsFocused()
+        compose.onNodeWithText("Suggested by the NAS").assertExists()
+
+        missing = false
+        compose.press(Key.DirectionCenter)
+        compose.waitUntil(WAIT_MS) { vm.check is FolderCheck.Reachable }
+        compose.waitForIdle()
+        assertEquals("Films", vm.form.path)
+        assertEquals(listOf("volume1/video Film", "volume1/video Films"), tested)
+        compose.onNodeWithText("Suggested by the NAS").assertDoesNotExist()
+        compose.onNode(isFocused()).assert(hasText("Test") or hasAnyDescendant(hasText("Test")))
     }
 
     /** SMB's password refused: said under it, which takes focus, the help kept since the panel has no result. */
@@ -194,7 +232,7 @@ class FolderFaultTest {
         vm.test()
         compose.waitUntil { vm.check != null }
         compose.waitForIdle()
-        val message = "The NAS refuses this player. Allow 192.168.1.42 on /volume1/video, read-only, and on a Synology " +
+        val message = "The NAS refuses this player. Allow 192.168.1.42 on ${wholePath("/volume1/video")}, read-only, and on a Synology " +
             "non-privileged ports."
         compose.onAllNodesWithText(message).assertCountEquals(1)
         compose.onNode(isFocused()).assert(hasText("Test") or hasAnyDescendant(hasText("Test")))
