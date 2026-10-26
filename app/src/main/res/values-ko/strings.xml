@@ -212,6 +212,7 @@
     <string name="edit_folder_not_found_desc">공유 폴더나 경로가 바뀌었을 수 있음</string>
     <string name="password_kept">변경 없음</string>
     <string name="jellyfin_desc">서버 주소와 Jellyfin 로그인 정보를 입력하세요.</string>
+    <string name="jellyfin_desc_found">서버를 선택하거나 주소를 입력한 다음 Jellyfin 로그인 정보를 입력하세요.</string>
     <string name="folder_kind">콘텐츠</string>
     <string name="field_protocol">프로토콜</string>
     <string name="field_host">NAS 주소</string>

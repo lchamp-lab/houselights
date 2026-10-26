@@ -212,6 +212,7 @@
     <string name="edit_folder_not_found_desc">共有フォルダやパスが変わった可能性</string>
     <string name="password_kept">変更なし</string>
     <string name="jellyfin_desc">サーバーのアドレスとJellyfinのログイン情報を入力してください。</string>
+    <string name="jellyfin_desc_found">サーバーを選ぶかアドレスを入力し、Jellyfinのログイン情報を入力してください。</string>
     <string name="folder_kind">内容</string>
     <string name="field_protocol">プロトコル</string>
     <string name="field_host">NASのアドレス</string>

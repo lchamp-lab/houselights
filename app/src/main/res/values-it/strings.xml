@@ -224,6 +224,7 @@
     <string name="edit_folder_not_found_desc">Cartella o percorso forse cambiati</string>
     <string name="password_kept">Invariata</string>
     <string name="jellyfin_desc">Inserire l’indirizzo del server e le credenziali Jellyfin.</string>
+    <string name="jellyfin_desc_found">Scegliere il server o inserirne l’indirizzo, poi le credenziali Jellyfin.</string>
     <string name="folder_kind">Contenuto</string>
     <string name="field_protocol">Protocollo</string>
     <string name="field_host">Indirizzo del NAS</string>

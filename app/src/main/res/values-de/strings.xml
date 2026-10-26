@@ -218,6 +218,7 @@
     <string name="edit_folder_not_found_desc">Ordner oder Pfad vielleicht geändert</string>
     <string name="password_kept">Unverändert</string>
     <string name="jellyfin_desc">Geben Sie die Adresse Ihres Servers und Ihre Jellyfin-Zugangsdaten ein.</string>
+    <string name="jellyfin_desc_found">Wählen Sie Ihren Server oder geben Sie seine Adresse ein, dann Ihre Jellyfin-Zugangsdaten.</string>
     <string name="folder_kind">Inhalt</string>
     <string name="field_protocol">Protokoll</string>
     <string name="field_host">NAS-Adresse</string>

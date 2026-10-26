@@ -212,6 +212,7 @@
     <string name="edit_folder_not_found_desc">共用資料夾或路徑可能已變更</string>
     <string name="password_kept">未變更</string>
     <string name="jellyfin_desc">輸入伺服器位址和您的 Jellyfin 登入資訊。</string>
+    <string name="jellyfin_desc_found">請選擇您的伺服器或輸入其位址，然後輸入您的 Jellyfin 登入資訊。</string>
     <string name="folder_kind">內容</string>
     <string name="field_protocol">通訊協定</string>
     <string name="field_host">NAS 位址</string>

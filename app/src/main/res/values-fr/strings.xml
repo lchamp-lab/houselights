@@ -220,6 +220,7 @@
     <string name="edit_folder_not_found_desc">Son dossier partagé ou son chemin a changé</string>
     <string name="password_kept">Inchangé</string>
     <string name="jellyfin_desc">Saisissez l’adresse de votre serveur et vos identifiants Jellyfin.</string>
+    <string name="jellyfin_desc_found">Choisissez votre serveur ou saisissez son adresse, puis vos identifiants Jellyfin.</string>
     <string name="folder_kind">Contenu</string>
     <string name="field_protocol">Protocole</string>
     <string name="field_host">Adresse du NAS</string>

@@ -102,9 +102,10 @@ gratuite, l’application est entièrement en français. [Installer](#install)
       still connected, and sends what waited once your folders are the source again; Settings > Trakt says
       so meanwhile, and disconnects it.
 - **Jellyfin**: browses your server and reports playback progress back to it. Servers found on the network are
-  checked as they appear, a closed lock on those that answer over HTTPS, as the same server, with a certificate
-  the player trusts ([Security](#security)). Switching to your folders keeps the server signed in: it comes back
-  from Settings in one OK, without signing in again. Emby and Plex are planned.
+  looked for as its choice takes focus on the welcome screen, the first one found focused, and checked as they
+  appear, a closed lock on those that answer over HTTPS, as the same server, with a certificate the player trusts
+  ([Security](#security)). Switching to your folders keeps the server signed in: it comes back from Settings in one
+  OK, without signing in again. Emby and Plex are planned.
 - **Without a library** (the last folder removed, or the only server signed out of), the app goes back to its
   welcome screen, wherever it was, to choose where your films are.
 - **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,

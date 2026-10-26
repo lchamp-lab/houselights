@@ -2,7 +2,9 @@ package app.houselights.ui.onboarding
 
 import android.content.Context
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.core.app.ApplicationProvider
@@ -37,6 +39,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -46,7 +50,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.IOException
 
-/** Signing in again, focus starts on what is left to type: the password if the user is set, else the user. */
+/**
+ * Signing in again, focus starts on what is left to type: the password if the user is set, else the user. A first
+ * sign-in starts on the first server found, waiting up to a second for discovery's first answer, else on the address.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class SignInFocusTest {
@@ -68,13 +75,46 @@ class SignInFocusTest {
 
     /** No server answers: nothing here signs in. */
     private object Offline : JellyfinNetwork {
-        override suspend fun discover() = emptyList<DiscoveredServer>()
+        override fun discover() = emptyFlow<DiscoveredServer>()
 
         override suspend fun check(found: DiscoveredServer): ServerCheck = ServerCheck.Silent
 
         override suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo> = throw IOException("offline")
 
         override suspend fun authenticate(url: String, deviceId: String, request: AuthRequest): AuthResult = throw IOException("offline")
+    }
+
+    /** Two servers answer at once: nothing here signs in. */
+    private object TwoServers : JellyfinNetwork by Offline {
+        override fun discover() = flowOf(
+            DiscoveredServer("http://192.168.1.20:8096", "Salon", "a"),
+            DiscoveredServer("http://192.168.1.31:8096", "Bureau", "b"),
+        )
+    }
+
+    /** A first sign-in, the network found as [network] says. */
+    private fun signIn(network: JellyfinNetwork) {
+        val vm = runBlocking {
+            val settings = testSettings(folder.root, scope)
+            JellyfinLoginViewModel(settings, SourceSwitcher({ settings.state.value }, { _, _ -> }, scope, signOut = { _, _ -> }), network)
+        }
+        compose.setTvContent { JellyfinLoginForm(vm) {} }
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun aFirstSignInStartsOnTheFirstServerFound() {
+        signIn(TwoServers)
+        compose.onNode(isFocused()).assert(hasText("Salon") or hasAnyDescendant(hasText("Salon")))
+    }
+
+    /** No server answers: focus waits a second for one, then goes to the address. */
+    @Test
+    fun aFirstSignInWithoutServersStartsOnTheAddressAfterASecond() {
+        signIn(Offline)
+        compose.mainClock.advanceTimeBy(FIRST_SERVER_WAIT_MS)
+        compose.waitForIdle()
+        compose.onNode(isFocused()).assert(hasContentDescription("Server address"))
     }
 
     /** The sign-in form, signing in again to a server whose user is [userName]. */
@@ -133,5 +173,10 @@ class SignInFocusTest {
     fun signingInAgainWithoutAUserAsksForTheUserFirst() {
         signInAgain(null)
         compose.onNode(isFocused()).assert(hasContentDescription("User"))
+    }
+
+    private companion object {
+        /** Past the second the first focus waits for a server. */
+        const val FIRST_SERVER_WAIT_MS = 1_100L
     }
 }

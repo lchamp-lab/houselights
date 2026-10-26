@@ -230,6 +230,7 @@
     <string name="edit_folder_not_found_desc">Folder lub ścieżka mogły się zmienić</string>
     <string name="password_kept">Bez zmian</string>
     <string name="jellyfin_desc">Wpisz adres serwera i dane logowania do Jellyfin.</string>
+    <string name="jellyfin_desc_found">Wybierz serwer lub wpisz jego adres, a następnie dane logowania do Jellyfin.</string>
     <string name="folder_kind">Zawartość</string>
     <string name="field_protocol">Protokół</string>
     <string name="field_host">Adres serwera NAS</string>

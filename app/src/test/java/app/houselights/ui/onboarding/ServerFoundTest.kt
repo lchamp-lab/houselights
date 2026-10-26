@@ -24,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.asFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -54,7 +55,7 @@ class ServerFoundTest {
 
     /** [servers] answer discovery, each checked as [checks] says by its address, else checked for ever; none signs in. */
     private class Found(private val servers: List<DiscoveredServer>, private val checks: Map<String, ServerCheck>) : JellyfinNetwork {
-        override suspend fun discover() = servers
+        override fun discover() = servers.asFlow()
 
         override suspend fun check(found: DiscoveredServer): ServerCheck = checks[found.address] ?: awaitCancellation()
 

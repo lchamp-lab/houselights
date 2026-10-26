@@ -50,6 +50,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -278,7 +280,7 @@ class FormLayoutTest {
 
     /** Two servers answer discovery, checked for ever; none signs in. */
     private object TwoServers : JellyfinNetwork {
-        override suspend fun discover() = listOf(
+        override fun discover() = flowOf(
             DiscoveredServer("http://192.168.1.20:8096", "Jellyfin du salon"),
             DiscoveredServer("http://192.168.1.31:8096", "Bureau"),
         )
@@ -299,7 +301,7 @@ class FormLayoutTest {
             DiscoveredServer("http://192.168.1.57:8096", "Ancien NAS", "d"),
         )
 
-        override suspend fun discover() = servers
+        override fun discover() = servers.asFlow()
 
         override suspend fun check(found: DiscoveredServer): ServerCheck = when (found.name) {
             "Salon" -> ServerCheck.Encrypted(found.address)

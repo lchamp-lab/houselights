@@ -218,6 +218,7 @@
     <string name="edit_folder_not_found_desc">Gedeelde map of pad misschien gewijzigd</string>
     <string name="password_kept">Ongewijzigd</string>
     <string name="jellyfin_desc">Voer het adres van uw server en uw Jellyfin-inloggegevens in.</string>
+    <string name="jellyfin_desc_found">Kies uw server of voer het adres in, en daarna uw Jellyfin-inloggegevens.</string>
     <string name="folder_kind">Inhoud</string>
     <string name="field_protocol">Protocol</string>
     <string name="field_host">NAS-adres</string>

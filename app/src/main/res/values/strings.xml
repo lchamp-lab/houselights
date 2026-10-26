@@ -231,6 +231,7 @@
     <string name="edit_folder_not_found_desc">Its shared folder or path may have changed</string>
     <string name="password_kept">Unchanged</string>
     <string name="jellyfin_desc">Enter the address of your server and your Jellyfin credentials.</string>
+    <string name="jellyfin_desc_found">Choose your server or enter its address, then your Jellyfin credentials.</string>
     <string name="folder_kind">Contents</string>
     <string name="field_protocol">Protocol</string>
     <string name="field_host">NAS address</string>

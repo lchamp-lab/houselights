@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
 import app.houselights.R
@@ -68,6 +69,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
         posters, choosing(onLocal), choosing(onJellyfin), s.lostSource, problem,
         settingsReset = s.settingsReset,
         readAgain = app.settings::readAgain.takeIf { s.unreadSource }, reading = reading,
+        onJellyfinFocus = app.jellyfin::lookAhead,
     )
 }
 
@@ -75,6 +77,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
  * The welcome screen as drawn: [posters] on the wall, the source choice focused; [lostSource], [problem] and
  * [settingsReset] noted.
  * With [readAgain], the saved connection was not opened for now: its note's Réessayer runs it, focused, busy while [reading].
+ * [onJellyfinFocus] runs as « Serveur Jellyfin » takes focus, so its sign-in opens on the servers already found.
  */
 @Composable
 internal fun Welcome(
@@ -86,6 +89,7 @@ internal fun Welcome(
     settingsReset: Boolean = false,
     readAgain: (() -> Unit)? = null,
     reading: Boolean = false,
+    onJellyfinFocus: () -> Unit = {},
 ) {
     val focus = remember { FocusRequester() }
     val retry = remember { FocusRequester() }
@@ -150,6 +154,8 @@ internal fun Welcome(
                         stringResource(R.string.source_jellyfin),
                         jellyfin,
                         onJellyfin,
+                        // Its servers looked for during the gesture before its sign-in.
+                        Modifier.onFocusChanged { if (it.hasFocus) onJellyfinFocus() },
                         icon = HlIcons.Server,
                         descriptionLines = lines,
                         level = PanelLevel.Raised,
