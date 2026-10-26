@@ -500,6 +500,22 @@
     </plurals>
     <string name="identify_state_matched">已識別</string>
     <string name="result_current">目前</string>
+    <string name="to_identify">待識別</string>
+    <string name="to_identify_row_desc">未能確定識別</string>
+    <string name="to_identify_desc">Houselights 未能確定識別這些作品。請選擇正確的作品：您的選擇會在之後的掃描中保留。其餘作品會重新搜尋，起初每天一次，之後每週一次。</string>
+    <string name="to_identify_unsure">有多個可能的作品</string>
+    <string name="to_identify_not_found">在 TMDB 上找不到</string>
+    <string name="to_identify_none">沒有待識別的作品</string>
+    <string name="to_identify_none_hint">Houselights 未能確定識別的作品會顯示在這裡。</string>
+    <string name="to_identify_best">可能是「%1$s」（%2$d）</string>
+    <string name="to_identify_best_undated">可能是「%1$s」</string>
+    <string name="identify_menu_desc_none">在 TMDB 上尋找此作品</string>
+    <string name="identify_desc_none">Houselights 未能確定識別此作品。請在 TMDB 上搜尋：您的選擇會在之後的掃描中保留。</string>
+    <string name="identify_desc_unsure">Houselights 無法確定是這些作品中的哪一部。請選擇正確的作品，或在 TMDB 上搜尋：您的選擇會在之後的掃描中保留。</string>
+    <string name="identify_keep">保持原樣</string>
+    <string name="identify_kept">已保持原樣</string>
+    <string name="identify_suggestions">建議</string>
+    <string name="identify_skip">略過</string>
     <string name="error_offline_title">無法存取媒體庫</string>
     <string name="error_offline_nas_title">無法存取 NAS</string>
     <string name="error_offline_server_title">無法存取伺服器</string>

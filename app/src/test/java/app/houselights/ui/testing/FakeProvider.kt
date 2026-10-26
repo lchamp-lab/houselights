@@ -23,6 +23,7 @@ import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.SortOption
+import app.houselights.core.ToIdentify
 import app.houselights.core.WatchStatus
 import kotlinx.coroutines.CompletableDeferred
 
@@ -70,6 +71,9 @@ class FakeProvider : MediaProvider {
 
     /** What the title was last matched with, once the match is written. */
     var identified: MatchCandidate? = null
+
+    /** The titles to identify, as the editor lists them; one matched or left as it is leaves the list. */
+    var toIdentify = listOf<ToIdentify>()
 
     val calls = mutableListOf<String>()
     val gates = mutableMapOf<String, CompletableDeferred<Unit>>()
@@ -213,6 +217,23 @@ class FakeProvider : MediaProvider {
         override suspend fun identify(item: MediaItem, candidate: MatchCandidate?) {
             call("identify ${item.id} ${candidate?.id}")
             identified = candidate
+            toIdentify = toIdentify.filter { it.item.id != item.id }
+        }
+
+        override suspend fun toIdentify(): List<ToIdentify> {
+            call("toIdentify")
+            return toIdentify
+        }
+
+        /** The title after [item] in [toIdentify] as it is now: still listed when asked, as in the editor. */
+        override suspend fun nextToIdentify(item: MediaItem): String? {
+            call("next ${item.id}")
+            return toIdentify.dropWhile { it.item.id != item.id }.drop(1).firstOrNull()?.item?.id
+        }
+
+        override suspend fun keepUnidentified(item: MediaItem) {
+            call("keep ${item.id}")
+            toIdentify = toIdentify.filter { it.item.id != item.id }
         }
 
         override suspend fun episodeOrders(item: MediaItem): EpisodeOrderChoices? {

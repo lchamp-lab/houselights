@@ -11,6 +11,7 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
+import app.houselights.core.MatchDoubt
 import app.houselights.core.UserState
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
@@ -41,7 +42,7 @@ import org.robolectric.annotation.Config
  * A title held while its file is missing: its page says since when beside its actions, by the ring, offers to remove it
  * alone, and Lire, refused before any try, says it is gone and what to do; removed, the page leaves, for the film's page
  * again when a copy of it is left, and stays while it is there. A show's episode held says so on its row, and its
- * options remove it alone.
+ * options remove it alone. Held and to identify, a title says it is held, and still offers Identifier.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -54,10 +55,11 @@ class DetailHeldTest {
 
     private val since = System.currentTimeMillis() - 14 * HOUR - 5 * MINUTE
 
-    /** A film held, a film there, and a show of two seasons whose first episode alone is held. */
+    /** A film held, a film there, a film held and to identify, and a show of two seasons whose first episode alone is held. */
     private val provider = FakeProvider().apply {
         items["m1"] = film("m1", "Heat").copy(missingSince = since)
         items["m2"] = film("m2", "Dune")
+        items["m3"] = film("m3", "Wonder Woman").copy(year = 1984, missingSince = since, matchDoubt = MatchDoubt.UNSURE)
         items["show"] = series("show").copy(user = UserState(unplayedCount = 4))
         seasons = mapOf("show" to (1..2).map { season("s$it", it, "show").copy(childCount = 2, user = UserState(unplayedCount = 2)) })
         episodes = (1..2).associate { n ->
@@ -65,10 +67,11 @@ class DetailHeldTest {
         }
     }
 
-    /** Each title removed, each time the page left (for which page), each play the house lights dimmed for. */
+    /** Each title removed, each time the page left (for which page), each play the house lights dimmed for, each Identifier opened. */
     private val removed = mutableListOf<String>()
     private val left = mutableListOf<String?>()
     private val dimmed = mutableListOf<String>()
+    private val identifying = mutableListOf<String>()
 
     /** What holds a title once it is removed: nothing of it is left by default. */
     private var stays: (String) -> String? = { null }
@@ -93,7 +96,7 @@ class DetailHeldTest {
                 onPlay = { item, _, origin -> playback.tryPlay(item, origin) { dimmed += item.id } },
                 onOpenItem = {},
                 onEditArtwork = { _, _ -> },
-                onIdentify = {},
+                onIdentify = { identifying += it },
                 onOpenPerson = {},
                 onLeave = { left += it },
             )
@@ -131,6 +134,34 @@ class DetailHeldTest {
         assertEquals(PlayOrigin(PAGE), playback.playbackProblem.value?.origin)
         assertEquals(emptyList<String>(), dimmed)
     }
+
+    /**
+     * Held and to identify, its file not there and identifying able to wait: its page says since when its file is
+     * missing, never "To identify", and Lire that it is gone, untried; Identifier still follows Lire, and the removal ends
+     * the actions.
+     */
+    @Test
+    fun aTitleHeldAndToIdentifySaysItIsHeldAndKeepsIdentifier() {
+        page("m3")
+        said("Not found on the NAS for 14${NB}h").assertIsDisplayed()
+        said("To identify").assertDoesNotExist()
+        said("Several possible titles").assertDoesNotExist()
+        compose.onNode(removeTile).assertExists()
+
+        compose.press(Key.DirectionRight)
+        compose.onNode(identify).assertIsFocused()
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf("m3"), identifying)
+
+        compose.press(Key.DirectionLeft)
+        compose.press(Key.DirectionCenter)
+        said("This title is gone").assertIsDisplayed()
+        said("To identify").assertDoesNotExist()
+        compose.onNode(identify).assertExists()
+        assertEquals(emptyList<String>(), dimmed)
+    }
+
+    private val identify = hasText("Identify") and hasClickAction()
 
     private fun pressRemove() {
         compose.onNode(removeTile).requestFocus()

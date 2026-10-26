@@ -223,7 +223,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val nfo = kept.info
         // As for films, removed sidecars hand details back to TMDB, dropping stale cached images.
         val removed = SidecarKey.showRemoved(series.sidecarKey, source.id, showDir, local)
-        val query = Query(series.userTmdbId, names, nfo, title, year, known = null)
+        val query = Query(series.userTmdbId, names, nfo, title, year, known = null, searches = !series.userNoMatch)
         // Its folder's name gives another id than its last lookup tried.
         val asked = tmdbAsked(series, nfo, refreshMetadata, removed) || series.id in pass.hinted
         val answer = if (asked) lookedUp(pass, series, query, removed) else TmdbAnswer.Unanswered
@@ -452,6 +452,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         }.orEmpty()
         return {
             dao.setUserTmdbId(series.id, tmdbId)
+            // A choice, or automatic matching asked back, undoes « Laisser tel quel ».
+            dao.setUserNoMatch(series.id, false)
             if (tv.value?.value?.id != series.tmdbId) {
                 dao.clearUserArtwork(series.id)
                 // An order is a show's own at TMDB: the new one starts in TMDB's seasons.
@@ -504,7 +506,10 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         return ParsedMovie(path.title, path.year)
     }
 
-    /** What a show's lookup asks TMDB by ([lookupShow]), its folder's name and year: [known] is its TMDB id before. */
+    /**
+     * What a show's lookup asks TMDB by ([lookupShow]), its folder's name and year: [known] is its TMDB id before; without
+     * [searches], a show left as it is ([ItemEntity.userNoMatch]), its ids alone.
+     */
     private data class Query(
         val userTmdbId: Int?,
         val names: NameIds,
@@ -512,6 +517,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val name: String,
         val folderYear: Int?,
         val known: Int?,
+        val searches: Boolean = true,
     ) {
         /** The title and year it is searched by. */
         val title: String get() = nfo?.title ?: name
@@ -523,8 +529,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
     /**
      * Tries, highest first, the user's match; the folder name's TMDB id, then its TVDB id (Sonarr's), then its IMDb id;
-     * the NFO's, likewise; the existing match ([Query.known]); then a scored search ([TmdbClient.matchTv]). An id TMDB
-     * has no show for gives way to the next, as does a name's id not trusted ([NameIds.trusts]), as for films.
+     * the NFO's, likewise; the existing match ([Query.known]); then a scored search ([TmdbClient.matchTv]), unless the
+     * show is left as it is ([Query.searches]). An id TMDB has no show for gives way to the next, as does a name's id
+     * not trusted ([NameIds.trusts]), as for films.
      */
     private suspend fun lookupShow(tmdb: TmdbClient, query: Query): Looked<TmdbTv> {
         query.userTmdbId?.let { return Looked(tmdb.tvById(it)) }
@@ -542,6 +549,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         )
         val byIds = lookUp(hint, steps, tmdb::tvById, TmdbTv::id) { tv, by -> trusted(tmdb, tv, by, query) }
         byIds.found?.let { return it }
+        // Left as it is: never searched for by its name.
+        if (!query.searches) return Looked(null, hint)
         val matched = tmdb.matchTv(query.wanted, first = byIds.untrusted?.let(Candidate::of))
         return Looked(matched.found, hint, offered = matched.offered)
     }

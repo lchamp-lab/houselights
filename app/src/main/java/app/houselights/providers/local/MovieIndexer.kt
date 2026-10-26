@@ -30,7 +30,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val nfo = kept.info
         val asked = asked(pass, row, existing, nfo, local)
         val known = row.tmdbId ?: if (asked.tmdb) lent(row) else null
-        val query = Query(row.userTmdbId, names, nfo, named, known, tried = row.hintKey)
+        val query = Query(row.userTmdbId, names, nfo, named, known, tried = row.hintKey, searches = !row.userNoMatch)
         // The probe reads the NAS while TMDB answers; the file's tracks and its match are then saved at once.
         val (probed, answers) = coroutineScope {
             val probed = async { files.withMediaInfo(source, file, row) }
@@ -159,6 +159,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         }
         return {
             dao.setUserTmdbId(item.id, tmdbId)
+            // A choice, or automatic matching asked back, undoes « Laisser tel quel ».
+            dao.setUserNoMatch(item.id, false)
             if (fetched.movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
             dao.item(item.id)?.let { fresh ->
                 val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
@@ -204,9 +206,18 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
     /**
      * What a film's lookup asks TMDB by ([lookupMovie]), named at [path] ([Stack.namedPath]): [known] is its TMDB id
      * before, or the one a film of its name kept in its folder lends it ([lent]); [tried], the name's id its last
-     * lookup tried ([ItemEntity.hintKey]).
+     * lookup tried ([ItemEntity.hintKey]); without [searches], a film left as it is ([ItemEntity.userNoMatch]), its ids
+     * alone.
      */
-    private class Query(val userTmdbId: Int?, val names: NameIds, val nfo: NfoInfo?, path: String, val known: Int?, tried: String? = null) {
+    private class Query(
+        val userTmdbId: Int?,
+        val names: NameIds,
+        val nfo: NfoInfo?,
+        path: String,
+        val known: Int?,
+        tried: String? = null,
+        val searches: Boolean = true,
+    ) {
         val parsed = LibraryScanner.parseMovie(path)
 
         /** What it is searched by, the bare year and its folder's year read too ([wanted]). */
@@ -222,8 +233,9 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
     /**
      * Tries, highest first, the user's match; the name's TMDB id, then its IMDb id; the NFO's, likewise; the existing
      * match ([Query.known]); then a scored search ([TmdbClient.matchMovie]), a film a name's id found but did not trust
-     * offered first. An id TMDB has no film for gives way to the next, as does a name's id not trusted
-     * ([NameIds.trusts]). The name's ids are tried first, so the lookup carries the name's id it tried.
+     * offered first, unless the film is left as it is ([Query.searches]). An id TMDB has no film for gives way to the
+     * next, as does a name's id not trusted ([NameIds.trusts]). The name's ids are tried first, so the lookup carries the
+     * name's id it tried.
      */
     private suspend fun lookupMovie(tmdb: TmdbClient, query: Query): Looked<TmdbMovie> {
         query.userTmdbId?.let { return Looked(tmdb.movieById(it)) }
@@ -239,6 +251,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         )
         val byIds = lookUp(hint, steps, tmdb::movieById, TmdbMovie::id) { movie, by -> trusted(tmdb, movie, by, query) }
         byIds.found?.let { return it }
+        // Left as it is: never searched for by its name.
+        if (!query.searches) return Looked(null, hint)
         val matched = tmdb.matchMovie(query.wanted, first = byIds.untrusted?.let(Candidate::of))
         return Looked(matched.found, hint, offered = matched.offered)
     }

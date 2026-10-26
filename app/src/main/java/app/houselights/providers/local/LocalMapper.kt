@@ -135,13 +135,17 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             lastEpisodeNumber = e.lastEpisodeNumber,
             childCount = seasonCount,
             edition = e.edition,
-            // A film in several copies is held as the copy Lire plays is; a show once every episode is.
-            missingSince = if (e.id in playedHeld) {
-                playedHeld[e.id]
-            } else {
-                e.missingSince ?: showCounts?.takeIf { it.episodes > 0 && it.held == it.episodes }?.heldSince
-            },
+            matchDoubt = e.doubt(),
+            keptUnidentified = e.userNoMatch && e.tmdbId == null,
+            missingSince = heldSince(e, showCounts),
         )
+    }
+
+    /** Since when [e]'s file is missing: a film in several copies as the copy Lire plays is, a show once every episode is. */
+    private fun heldSince(e: ItemEntity, showCounts: SeriesCounts?): Long? = if (e.id in playedHeld) {
+        playedHeld[e.id]
+    } else {
+        e.missingSince ?: showCounts?.takeIf { it.episodes > 0 && it.held == it.episodes }?.heldSince
     }
 
     private fun partsOf(e: ItemEntity, title: String): List<MediaItem> {

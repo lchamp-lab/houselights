@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import android.database.sqlite.SQLiteConstraintException
 import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -161,7 +162,8 @@ class LibraryDaoTest {
 
     /**
      * To identify: a film or show TMDB found nothing for, or hesitated on, without a TMDB id; never an episode, a title
-     * matched or still to look up, a file held missing, nor a title the user left as it is.
+     * matched or still to look up, a file held missing, nor a title the user left as it is. A file held missing keeps why
+     * it is to identify, its page still offering Identifier, out of the list until it is back.
      */
     @Test
     fun theTitlesToIdentifyLeaveOutEpisodesMissingFilesAndThoseLeftAsTheyAre() = runTest {
@@ -169,15 +171,21 @@ class LibraryDaoTest {
         val notFound = dao.insert(film("Inconnu", MatchState.NOT_FOUND, addedAt = 1))
         val unsure = dao.insert(film("Dune", MatchState.UNSURE, addedAt = 2))
         val show = dao.insert(row(ItemKind.SERIES, "Severance").copy(matchState = MatchState.NOT_FOUND, addedAt = 3))
-        dao.insert(film("Heat", MatchState.MATCHED, addedAt = 4).copy(tmdbId = 949))
-        dao.insert(film("Pas encore", null, addedAt = 5))
-        dao.insert(film("Nommé par son NFO", MatchState.NOT_FOUND, addedAt = 6).copy(tmdbId = 1))
-        dao.insert(film("Parti", MatchState.NOT_FOUND, addedAt = 7).copy(missingSince = 7))
-        dao.insert(film("Vacances", MatchState.NOT_FOUND, addedAt = 8).copy(userNoMatch = true))
-        dao.insert(row(ItemKind.EPISODE, "Pilote").copy(matchState = MatchState.NOT_FOUND, addedAt = 9))
+        val held = dao.insert(film("Parti", MatchState.NOT_FOUND, addedAt = 7).copy(missingSince = 7))
+        val others = listOf(
+            film("Heat", MatchState.MATCHED, addedAt = 4).copy(tmdbId = 949),
+            film("Pas encore", null, addedAt = 5),
+            film("Nommé par son NFO", MatchState.NOT_FOUND, addedAt = 6).copy(tmdbId = 1),
+            film("Vacances", MatchState.NOT_FOUND, addedAt = 8).copy(userNoMatch = true),
+            row(ItemKind.EPISODE, "Pilote").copy(matchState = MatchState.NOT_FOUND, addedAt = 9),
+        ).map { dao.insert(it) }
 
         assertEquals("the latest first", listOf(show, unsure, notFound), dao.toIdentify().map { it.id })
         assertEquals(3, dao.observeToIdentifyCount().first())
+        // What a title's page says of it is what the list selects, a file held missing aside.
+        val doubts = dao.rows(listOf(notFound, unsure, show, held) + others).associate { it.id to it.doubt() }.filterValues { it != null }
+        val listed = mapOf(notFound to MatchDoubt.NOT_FOUND, unsure to MatchDoubt.UNSURE, show to MatchDoubt.NOT_FOUND)
+        assertEquals(listed + (held to MatchDoubt.NOT_FOUND), doubts)
     }
 
     /** A title left as it is stays so whatever a scan writes ([LibraryDao.saveScanned]). */
@@ -186,6 +194,17 @@ class LibraryDaoTest {
         val home = dao.insert(row(ItemKind.MOVIE, "Vacances 2019").copy(userNoMatch = true))
         dao.saveScanned(checkNotNull(dao.item(home)).copy(userNoMatch = false, matchState = MatchState.NOT_FOUND))
         assertTrue(checkNotNull(dao.item(home)).userNoMatch)
+    }
+
+    /** A show left as it is, its episodes taken over by another show row (two season packs merging), leaves that one so. */
+    @Test
+    fun aShowLeftAsItIsHandsItOver() = runTest {
+        val left = dao.insert(row(ItemKind.SERIES, "Vacances S01").copy(matchState = MatchState.NOT_FOUND, userNoMatch = true))
+        val taking = dao.insert(row(ItemKind.SERIES, "Vacances").copy(matchState = MatchState.NOT_FOUND))
+        dao.handOver(left, taking)
+        assertTrue(checkNotNull(dao.item(taking)).userNoMatch)
+        dao.deleteItems(listOf(left))
+        assertEquals("not to identify", emptyList<ItemEntity>(), dao.toIdentify())
     }
 
     @Test

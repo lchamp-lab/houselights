@@ -75,7 +75,10 @@ fun EditMenu(
         HlSettingGroup(null) {
             HlSettingRow(
                 stringResource(R.string.identify),
-                description = stringResource(R.string.identify_menu_desc),
+                // A title to identify, or left as it is, has no match to change: it is to be found.
+                description = stringResource(
+                    if (item.matchDoubt != null || item.keptUnidentified) R.string.identify_menu_desc_none else R.string.identify_menu_desc,
+                ),
                 icon = HlIcons.Search,
                 onClick = onIdentify,
             )
