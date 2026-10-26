@@ -9,7 +9,6 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.requestFocus
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
@@ -96,10 +95,11 @@ class DetailEpisodeOrderTest {
         compose.press(Key.DirectionCenter)
     }
 
-    /** Modifier, then its row Ordre des épisodes: the choice opens, focus on the order in use. */
+    /** Modifier, then OK on its row Ordre des épisodes: Modifier closes, the choice opens, focus on the order in use. */
     private fun choices() {
         modifier()
-        compose.onNodeWithText(text(R.string.episode_order)).performClick()
+        compose.onNode(hasText(text(R.string.episode_order)) and hasClickAction()).requestFocus()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.waitForIdle()
     }
 
