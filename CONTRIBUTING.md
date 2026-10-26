@@ -28,6 +28,7 @@ app/src/main/java/app/houselights/
   player/        Zidoo player launch, progress tracking, audio and subtitle tracks, path mapping
   settings/      the app's settings (DataStore), display modes, text size, interface language, source switching
   journal/       the app's own log, masked, served to a phone on the home network (Settings > About)
+  update/        the in-app updater: GitHub's releases, the download and its checks, Android's installer
   ui/design/     design system: tokens and components (DESIGN.md)
   ui/            Compose for TV screens
 baselineprofile/ baseline profile generator and benchmarks, run on a device
@@ -106,16 +107,45 @@ scripts/install.sh release      # or: scripts/install.sh bench
 
 ## Releases
 
-A tag `vX.Y.Z` publishes a release; `vX.Y.Z-beta.N` a pre-release (`.github/workflows/release.yml`).
+A tag `vX.Y.Z` publishes a release; `vX.Y.Z-beta.N` a pre-release (`.github/workflows/release.yml`). The app's
+updater offers the newest release above the installed one, and betas to those who chose them (README, Install).
 
-1. Set `versionName` in `app/build.gradle.kts` to the tag's version (the workflow checks it).
-2. `git tag -a v0.2.0 -m "Houselights 0.2.0" && git push origin v0.2.0`
-3. Once the checks pass, approve the release job (Actions, the run, Review deployments).
+1. Set `versionName` in `app/build.gradle.kts` to the tag's version, without its `-beta.N` (the workflow checks it).
+2. Write what is new in `docs/releases/X.Y.Z/en.md`, and `fr.md` if you can: a line a change, 4000 characters at
+   most each (the workflow refuses more). The release's notes and the app's update sheet read them, in the app's
+   language when there, else in English; without the folder, both fall back to the subjects of the commits since the
+   previous tag.
+3. Commit, then `git tag -a v0.2.0 -m "Houselights 0.2.0" && git push origin v0.2.0`
+4. Once the checks pass, approve the release job (Actions, the run, Review deployments).
 
-The workflow runs the CI checks in a job with no secret. Once they pass, a second job writes the project key,
-builds the release alone, erases the key, verifies the APK's certificate against the fingerprint in the README,
-and publishes the APK (also as `Houselights.apk`), its SHA-256, R8's mapping to read its logs, and notes drawn
-from the commits since the previous tag.
+**A final needs at least one commit after its last beta**, its notes giving one: the versionCode is the commit count,
+and the app offers a release only above the installed versionCode. Before any build, a step of the check job, the
+only one with its read-only token, reads the versionCode of every published release from its `update.json` (946,
+0.3.0's, before them) and stops a tag that is not above them all: a final tagged on its beta's commit, a hotfix
+branched from an old tag, a rewritten history.
+
+The workflow runs the CI checks in a job with no secret. Once they pass, a second job reads the project's certificate
+from `gradle.properties` (its only copy, which the app pins too; `UpdaterGuardTest` keeps the README's equal to it),
+writes the project key, builds the release alone under its tag's full name (`-PversionName`, 0.4.0-beta.1 for a
+beta), erases the key and verifies the APK's signer against that certificate. It then writes `update.json` from the
+APK itself (`aapt2 dump badging`: package, versionCode, versionName, minSdk) with its size, SHA-256 and notes, checks
+it with `jq`, and creates the release as a draft holding the APK (also as `Houselights.apk`), its SHA-256, R8's
+mapping to read its logs and `update.json`, published only once every file is there.
+
+**A dry run before a first beta.** The updater of a version that never ran it installs the next one: try it before
+tagging. With `versionName` at 0.4.0, build two releases signed with the project's key (`keystore.properties`), the
+second newer, both reading a test repository of yours:
+
+```sh
+./gradlew assembleRelease -Phouselights.updateRepo=you/houselights-test -PversionCode=2000 -PversionName=0.4.0-beta.1
+./gradlew assembleRelease -Phouselights.updateRepo=you/houselights-test -PversionCode=2001 -PversionName=0.4.0-beta.2
+```
+
+Publish the second as a pre-release `v0.4.0-beta.2` of that repository, with `Houselights-0.4.0-beta.2.apk` and the
+`update.json` the workflow would write for it (its notes in `en`); install the first on a player that holds no
+release, then check it finds the second, downloads, verifies and installs it, and says so on home. Uninstall it
+afterwards: its versionCode, above the releases', would refuse their updates. The property names where the release
+reads, nothing else; without it, the project's repository.
 
 The key lives in the `release` environment, which only `v*` tags reach and whose jobs wait for the maintainer's
 approval: `HOUSELIGHTS_KEYSTORE` (`base64 -w0 houselights-release.jks`) and `HOUSELIGHTS_KEYSTORE_PASSWORD`.
