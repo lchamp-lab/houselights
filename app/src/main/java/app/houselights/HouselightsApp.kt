@@ -27,6 +27,7 @@ import app.houselights.player.ZidooPlayer
 import app.houselights.player.ZidooSettings
 import app.houselights.player.Redact
 import app.houselights.providers.jellyfin.JellyfinProvider
+import app.houselights.providers.local.AndroidVolumes
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.DetailsLanguage
 import app.houselights.providers.local.LibraryDatabase
@@ -35,6 +36,7 @@ import app.houselights.providers.local.LocalEditor
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.RemoteBrowsers
+import app.houselights.providers.local.Volumes
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TrackChoiceEntity
 import app.houselights.providers.local.followDetailsLanguage
@@ -264,8 +266,11 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** Library-generated rows shown below home's own, chosen once a day. */
     val libraryRows = LibraryRows({ provider }, { settledVersion.value })
 
-    /** NAS browsers, with the sessions and mounts they keep open between files. */
-    val remoteBrowsers = RemoteBrowsers()
+    /** The player's own disks a folder can be on: its storage, USB disks and SD cards, where Android mounts each now. */
+    val volumes: Volumes = AndroidVolumes(app)
+
+    /** NAS browsers, with the sessions and mounts they keep open between files, and the player's disks'. */
+    val remoteBrowsers = RemoteBrowsers(volumes)
     val scanner = LibraryScanner(
         dao = database.dao(),
         tmdb = ::tmdb,

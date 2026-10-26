@@ -6,6 +6,7 @@ import app.houselights.providers.local.ProbeResult
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.SourceEntity
+import app.houselights.providers.local.Volumes
 import app.houselights.servers.TestServers.refusal
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -21,7 +22,8 @@ import org.junit.Test
  * probes them. On Robolectric, for the clock and the log the browsers use.
  */
 abstract class NasServerTest {
-    protected val browsers = RemoteBrowsers()
+    /** A NAS's alone: no disk of the player's is read here. */
+    protected val browsers = RemoteBrowsers(Volumes.NONE)
 
     /** A folder of « video » at [path] ("" for its root), as the folder settings save it. */
     protected abstract fun video(path: String = ""): SourceEntity

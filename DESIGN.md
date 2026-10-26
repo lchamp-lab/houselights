@@ -830,7 +830,9 @@ when a copy of it is left; an episode held offers it last in its options (Menu),
 several copies is held as the copy Lire plays is. Lire or Reprendre on a title held is never tried, the room staying
 lit: in that place, "Ce titre n’est plus là" and "Rebranchez le disque du NAS ou retirez ce titre." (`UiError.HELD`,
 `PlaybackOutcome.tryPlay`), under the episode row for an episode, on home's case in its facts' room with since when.
-The files back end it all without a word (`HomeHeldTest`, `DetailHeldTest`, `HeldFolderTest`, `HeldCardTest`).
+The files back end it all without a word (`HomeHeldTest`, `DetailHeldTest`, `HeldFolderTest`, `HeldCardTest`). A folder
+on the player's own disks is held so too while its disk answers; its disk unplugged, it does not answer, as a NAS
+asleep: nothing is held, nothing asked, and its titles stay as they were until the disk is back (`ScanLocalDiskTest`).
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is

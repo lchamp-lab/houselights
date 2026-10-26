@@ -33,6 +33,8 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.nio.file.AccessDeniedException
+import java.nio.file.NoSuchFileException
 import java.security.ProviderException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeoutException
@@ -139,6 +141,22 @@ class FailuresTest {
         assertEquals(false, mountFailure(MountStatus.MNT3ERR_NOENT).isMountRefused())
         assertEquals(FailureKind.ACCESS_DENIED, read.failureKind())
     }
+
+    /**
+     * The player's own disks fail as a NAS does: unplugged, out of reach, whatever its files then answer; a folder gone,
+     * not found; one Android refuses the app (no storage permission), refused.
+     */
+    @Test
+    fun aDiskOfThePlayersOwnFailsAsANas() = check(
+        mapOf(
+            DiskAbsentException("1234-ABCD", NoSuchFileException("/storage/1234-ABCD/Films")) to
+                Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
+            DiskAbsentException("1234-ABCD", AccessDeniedException("/storage/1234-ABCD/Films")) to
+                Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
+            NoSuchFileException("/storage/emulated/0/Films") to Told(UiError.FAILED, UiError.NOT_SAVED, ScanErrorKind.NOT_FOUND),
+            AccessDeniedException("/storage/emulated/0/Films") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),
+        )
+    )
 
     @Test
     fun aFullDeviceIsNeverTheNetwork() = check(
