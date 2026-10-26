@@ -22,7 +22,9 @@
   <a href="https://ko-fi.com/lchamp_lab">Support</a>
 </p>
 
-![Home: a grid of doors, a film not seen yet in the case beside the latest titles, the films and shows counted in their posters, the sagas, search and settings](docs/images/home.jpg)
+<p align="center">
+  <img src="docs/images/hero.webp" width="100%" alt="Houselights' home on a TV in a dark room lit by its picture: the case resumes Dune: Part Two, 1 h 14 left, beside the next episode of Severance and the five titles new this week, the 20 films and 6 shows counted in their posters, the sagas, search, and the settings saying the library's source, Trakt connected and the last scan">
+</p>
 
 > **Beta.** Made for Zidoo players (Android 9 with Zidoo's launcher), tested on a Z1000 Pro: reports from other
 > models are welcome in the [issues](https://github.com/lchamp-lab/houselights/issues). Not affiliated with Zidoo,
@@ -34,6 +36,11 @@ lus par le **lecteur natif Zidoo** (HDR10, HDR10+, Dolby Vision, passthrough aud
 gratuite, l’application est entièrement en français. [Installer](#install)
 
 ## Features
+
+<p align="center">
+  <img src="docs/images/tour.webp" width="100%" alt="Animation: the lights come up on home; focus goes to the titles new this week and To watch opens; focus runs from Spider-Man: Brand New Day, The Odyssey and Project Hail Mary to Avatar: Fire and Ash, the backdrop and the poster's glow following; OK opens the film's page, Dolby Vision, HDR10+ and Dolby TrueHD Atmos 7.1 on its case back, and Play dims the room before the Zidoo player starts">
+  <br><sub>From home to the film: focus lights each title, and Play dims the room before the Zidoo player takes over.</sub>
+</p>
 
 - **The Zidoo player plays.** Files open directly in it (`smb://`, `nfs://` or HTTP), with everything it
   supports. Progress is read from the player while it plays, so resume points stay in sync.
@@ -142,20 +149,29 @@ My files reads a title from its folder's and file's names, as Plex, Jellyfin, Ko
 
 ## Screenshots
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/film.jpg" alt="A film's page"><br><sub>A film's page: its video and audio on the case back, read from the file itself.</sub></td>
-    <td width="50%"><img src="docs/images/show.jpg" alt="A show's episodes and cast"><br><sub>A show's episodes and cast.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/saga.jpg" alt="A saga's page"><br><sub>A saga: the films you own among its films, resumed where you left off.</sub></td>
-    <td width="50%"><img src="docs/images/library.jpg" alt="The Movies wall"><br><sub>The Movies wall, a saga among the films, lit by the focused poster.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/watch.jpg" alt="To watch"><br><sub>To watch, one door from home: its rows under the title in focus.</sub></td>
-    <td width="50%"><img src="docs/images/settings.jpg" alt="Settings, Display"><br><sub>Settings > Display: the interface's language and the text size.</sub></td>
-  </tr>
-</table>
+<p align="center">
+  <img src="docs/images/film.webp" width="49%" alt="Avatar: Fire and Ash's page: its logo over its backdrop, 2025, 3 h 17, PG-13, 7.6; Ultra HD, Dolby Vision, HDR10+, HEVC, 23.976 fps and Dolby TrueHD Atmos 7.1, 5,318 kbps, read from the file; its tagline, overview and credits, and Play, 3 h 17, in focus">
+  <img src="docs/images/show.webp" width="49%" alt="Severance's season 2: episodes 3 and 4 watched, episode 5, Trojan's Horse, 52 min, in focus, its overview under the row, then the cast's photos">
+  <br><sub><b>A film's page</b>, its picture and sound read from the file itself · <b>A show</b>, on its next episode</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/saga.webp" width="49%" alt="The Dune Collection's page: 2021 – 2024, 2 films, 8.0, Science Fiction and Adventure, its overview, and Resume Dune: Part Two, 1 h 14 left, in focus, over a desert at sunset">
+  <img src="docs/images/library.webp" width="49%" alt="The Movies wall: 18 titles and a saga, sorted by title, the Dune Collection among the films, Avatar: Fire and Ash in focus and its colours lighting the wall, films watched checked and new ones dotted">
+  <br><sub><b>A saga</b>, resumed where you left off · <b>The Movies wall</b>, lit by the poster in focus</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/watch.webp" width="49%" alt="To watch: Spider-Man: Brand New Day's logo, 2026, 2 h 20, PG-13, 8.5 and overview over its backdrop, above the recently added movies, 4 new, the first in focus">
+  <img src="docs/images/settings.webp" width="49%" alt="Settings, Display: the output set by the player, the interface rendered in Full HD, 1920 × 1080, the interface's language, English, and the text size, Standard, in focus">
+  <br><sub><b>To watch</b>, one door from home · <b>Settings › Display</b>: the language and the text size</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/identify.webp" width="49%" alt="Identify on Little Women.mkv, several possible titles: TMDB's suggestions at once, Little Women (2019) in focus above Little Women (1994), with Skip and Leave as is beside them">
+  <img src="docs/images/update.webp" width="49%" alt="The update sheet over home: a new version is available, 0.4.1, what is new in three lines, Update, 6.4 MB from github.com, in focus, and Later">
+  <br><sub><b>Identify</b>, TMDB's suggestions at once · <b>An update</b>, found, checked and installed from the app</sub>
+</p>
 
 ## Install
 
@@ -317,4 +333,5 @@ any later version ([LICENSE](LICENSE), `GPL-3.0-or-later`).
 - Icons are Lucide's (https://lucide.dev), under the ISC license, those derived from Feather under the MIT
   license ([third_party/lucide/LICENSE](third_party/lucide/LICENSE)).
 - This product uses the TMDB API but is not endorsed or certified by TMDB. The TMDB logo is a trademark of
-  TMDB, shown under its attribution guidelines, and is not covered by the GPL.
+  TMDB, shown under its attribution guidelines, and is not covered by the GPL. The screenshots show the films' and
+  shows' texts and pictures as TMDB gives them; they belong to their owners and are not covered by the GPL either.

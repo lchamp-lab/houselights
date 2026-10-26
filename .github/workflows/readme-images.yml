@@ -1,6 +1,6 @@
 # Renders the README's images (README.md, docs/images): the capture test (app/src/test/.../readme) shoots the app's
 # own screens over a library of recent films and shows that TMDB names in English, then tools/readme-images/compose.py
-# frames them. Run it from Actions (Run workflow) or push a readme-images/* branch, and commit the artifact
+# frames them. Push a readme-images/* branch (or, once this file is on main, Run workflow), and commit the artifact
 # « readme-images » in docs/images (CONTRIBUTING, README's images). TMDB_API_KEY, the repository's secret, reaches the
 # test alone; nothing it read from TMDB is uploaded but the images.
 name: README images

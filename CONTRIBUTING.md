@@ -33,6 +33,7 @@ app/src/main/java/app/houselights/
   ui/            Compose for TV screens
 baselineprofile/ baseline profile generator and benchmarks, run on a device
 tools/test-servers/ a Samba and an NFS NAS and a Jellyfin server in Docker, on sample files (its README)
+tools/readme-images/ frames the README's images, which a test shoots (Releases, README's images)
 ```
 
 ## Checks
@@ -157,6 +158,32 @@ approval: `HOUSELIGHTS_KEYSTORE` (`base64 -w0 houselights-release.jks`) and `HOU
 Repository secrets, optional: `TMDB_API_KEY` (a project key), `TRAKT_CLIENT_ID` (the project's Trakt app),
 `TRAKT_CLIENT_SECRET` (only for a Trakt app that has one) and `TRAKT_REDIRECT_URI` (only for one declared with
 another URI); CI reads the key and the client ID and secret too. `v*` tags can be neither moved nor deleted.
+
+### README's images
+
+The README's images are the app's own screens: a test shoots them (`app/src/test/java/app/houselights/readme`), in
+English at 1920 × 1080, over a library of recent films and shows that the app's scanner names from TMDB, then
+`tools/readme-images/compose.py` frames them: home on a TV lit by its own picture (`hero.webp`, and
+`social-preview.jpg`, GitHub's link preview), each screen on a card, and the animation from home to Play
+(`tour.webp`). Make them again before a release, once its screens are final:
+
+1. Push the branch whose screens they show as `readme-images/<anything>` (`git push origin HEAD:readme-images/0.4.0`),
+   or, once the workflow is on `main`, Actions, README images, Run workflow on that branch.
+2. Download the run's artifact « readme-images » and put its files in `docs/images`, over the old ones.
+3. Look at each and at the README's alt texts, which say what each shows, then commit them; upload
+   `social-preview.jpg` in the repository's Settings, General, Social preview.
+
+The films and shows are listed by TMDB id in `ReadmeTitles`, with their files' picture and sound and what was
+watched; their texts and pictures are TMDB's, read at each run (the `TMDB_API_KEY` secret) and never committed but
+in the images. A title TMDB does not name by its id fails the run, which says what the library holds. The artifact
+« readme-captures » keeps the unframed shots (« To identify »'s too, which the README does not show), the frames and
+what TMDB named (`library.txt`), to frame them again with `--only` (hero, social, cards, tour). On a machine with a
+TMDB key in `local.properties` and Pillow 11 (`tools/readme-images/requirements.txt`):
+
+```sh
+HOUSELIGHTS_README=/tmp/readme ./gradlew :app:testReleaseUnitTest --tests 'app.houselights.readme.*'
+python3 -I tools/readme-images/compose.py /tmp/readme docs/images
+```
 
 ## Performance
 

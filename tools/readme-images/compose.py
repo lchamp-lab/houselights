@@ -28,8 +28,9 @@ ROOM = (0, 0, 0)
 # Supersampling for the curves: masks are drawn at this scale, then reduced.
 SS = 4
 
-# The screens the README shows, framed as cards, by the still each comes from.
-CARDS = ["film", "show", "saga", "library", "watch", "settings", "to-identify", "identify", "update"]
+# The screens the README shows, framed as cards, by the still each comes from; the captures hold one more, to-identify,
+# for whoever needs it.
+CARDS = ["film", "show", "saga", "library", "watch", "settings", "identify", "update"]
 
 # The screen inside a card, and around it the room the shadow takes.
 CARD_WIDTH = 1200
