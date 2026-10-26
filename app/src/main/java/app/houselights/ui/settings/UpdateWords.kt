@@ -74,27 +74,28 @@ internal val UpdateFailure.byHand: Boolean
     get() = remedy == UpdateRemedy.NONE && this != UpdateFailure.NOT_NEWER
 
 /**
- * What the sheet's action row does in [s] at [now]: its words follow, focus stays on it, and OK does nothing where it
- * only says what is under way ([acts]).
+ * What the sheet's action row does: its words follow, focus stays on it, and OK does nothing where it only says what is
+ * under way (checking, waiting for GitHub, downloading, verifying, installing).
  */
-internal enum class UpdateAction(val acts: Boolean) {
-    CHECK(true),
-    CHECKING(false),
-    RETRY(true),
+internal enum class UpdateAction {
+    CHECK,
+    CHECKING,
+    RETRY,
 
     /** « Réessayer » while GitHub asks to wait: OK does nothing until then. */
-    WAIT(false),
-    ALLOW(true),
-    UPDATE(true),
-    DOWNLOADING(false),
-    VERIFYING(false),
-    INSTALL(true),
-    INSTALLING(false),
+    WAIT,
+    ALLOW,
+    UPDATE,
+    DOWNLOADING,
+    VERIFYING,
+    INSTALL,
+    INSTALLING,
 
     /** Android's window, left with the Home key, opened again. */
-    REOPEN(true),
+    REOPEN,
 }
 
+/** What the action row does in [s] at [now]. */
 internal fun actionOf(s: UpdateState, now: Long): UpdateAction {
     val failure = s.failure
     val step = s.step

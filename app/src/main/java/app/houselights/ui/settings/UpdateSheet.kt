@@ -29,6 +29,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
@@ -282,9 +283,9 @@ private fun headWords(s: UpdateState, now: Long): String? {
     val step = s.step
     return when {
         failure == UpdateFailure.BUSY ->
-            stringResource(failure.message, formatDuration(maxOf((s.waitUntil ?: now) - now, MINUTE_MS)))
+            stringResource(UpdateFailure.BUSY.message, formatDuration(maxOf((s.waitUntil ?: now) - now, MINUTE_MS)))
         failure == UpdateFailure.STORAGE ->
-            stringResource(failure.message, formatBytes(s.offer?.spaceNeeded ?: 0L))
+            stringResource(UpdateFailure.STORAGE.message, formatBytes(s.offer?.spaceNeeded ?: 0L))
         failure != null -> stringResource(failure.message)
         step is UpdateStep.NeedsPermission -> stringResource(if (step.stuck) R.string.update_no_screen else R.string.update_permission_how)
         else -> null
@@ -392,7 +393,7 @@ private fun Modifier.calmAfterChange(doing: UpdateAction): Modifier {
 /** What is new in the version offered, a note a paragraph, in the app's language else English; read through when it scrolls. */
 @Composable
 private fun WhatsNew(offer: UpdateOffer, scroll: ScrollState) {
-    val language = LocalContext.current.resources.configuration.locales[0].language
+    val language = LocalConfiguration.current.locales[0].language
     val notes = remember(offer, language) { offer.notesIn(language) }
     if (notes.isEmpty()) return
     val c = Hl.colors
@@ -426,18 +427,20 @@ private fun ByHand(adb: Boolean, scroll: ScrollState) {
 }
 
 /**
- * Home's sheet: the version offered, opened by the app once home is drawn and in front ([shown]), the launch screen gone,
- * no other sheet open, and once per version (« Plus tard » and Back wait for a newer one); never with the check off.
+ * Home's sheet: the version offered, opened by the app once home is [drawn] with its [grid] and in front, the launch
+ * screen gone, no other sheet open (home's own included), and once per version (« Plus tard » and Back wait for a newer
+ * one); never with the check off, nor over a first scan, which home shows in place of its grid.
  */
 @Composable
-internal fun UpdateOnHome(ui: UpdateUi?, shown: Boolean) {
+internal fun UpdateOnHome(ui: UpdateUi?, drawn: Boolean, grid: Boolean) {
     if (ui == null) return
     val state by ui.state.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
     val launch = LocalLaunchScreen.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val offer = state.offer?.takeIf { state.offeredOnHome }
-    val ready = shown && !open && offer != null && OpenSheets.count == 0
+    val shown = drawn && grid && OpenSheets.count == 0
+    val ready = shown && !open && offer != null
     LaunchedEffect(ready, offer?.versionCode) {
         if (!ready || offer == null) return@LaunchedEffect
         // In front, not under the launch screen nor behind the player, and settled.

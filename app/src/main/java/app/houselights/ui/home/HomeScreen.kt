@@ -185,8 +185,8 @@ internal fun HomeGrid(
     }
     if (listing.value && plan != null) LibrariesSheet(plan, state.sagas, actions) { listing.value = false }
     if (options.value && case != null) CaseOptions(case, actions, playProblem) { options.value = false }
-    // A version found: its sheet, opened by the app once home's grid is drawn and nothing lies over it, once per version.
-    UpdateOnHome(updates, shown = whole && plan != null && !listing.value && !options.value)
+    // A version found: its sheet, opened by the app once home's grid is drawn and no sheet lies over it, once per version.
+    UpdateOnHome(updates, drawn = whole, grid = plan != null)
 }
 
 /** A [sheet] whose [element] went with a reload closes, and does not open again by itself when it comes back. */
