@@ -4,6 +4,7 @@ import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
 import app.houselights.core.ArtworkOption
 import app.houselights.core.Catalog
+import app.houselights.core.EpisodeOrderChoices
 import app.houselights.core.HomeSection
 import app.houselights.core.Identity
 import app.houselights.core.Library
@@ -61,6 +62,9 @@ class FakeProvider : MediaProvider {
     var identity: Identity? = null
     var results = listOf<MatchCandidate>()
     var choices: ArtworkChoices? = null
+
+    /** The orders a show's episodes can follow, by show; none for the others. */
+    var orders = mapOf<String, EpisodeOrderChoices>()
 
     /** The source's catalog ([FakeCatalog]); none by default, like a source that only provides the cast. */
     override var catalog: Catalog? = null
@@ -230,6 +234,17 @@ class FakeProvider : MediaProvider {
         override suspend fun keepUnidentified(item: MediaItem) {
             call("keep ${item.id}")
             toIdentify = toIdentify.filter { it.item.id != item.id }
+        }
+
+        override suspend fun episodeOrders(item: MediaItem): EpisodeOrderChoices? {
+            call("orders ${item.id}")
+            return orders[item.id]
+        }
+
+        /** Chooses as a source does once placed: the show's orders say the new one. */
+        override suspend fun chooseEpisodeOrder(item: MediaItem, id: String?) {
+            call("order ${item.id} $id")
+            orders[item.id]?.let { orders = orders + (item.id to it.copy(chosen = id)) }
         }
     }
 }

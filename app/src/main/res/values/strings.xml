@@ -941,4 +941,36 @@
     <string name="held_gone_fix">Plug the NAS’s disk back in or remove this title.</string>
     <string name="held_remove_title">Remove from the library</string>
     <string name="card_held">not found</string>
+    <!-- The order a show's episodes follow (Modifier › Ordre des épisodes). -->
+    <string name="episode_order">Episode order</string>
+    <string name="episode_order_text">Choose the order your files’ numbers follow. What you watched stays watched.</string>
+    <string name="episode_order_auto">Automatic</string>
+    <string name="episode_order_auto_nfo">%s, from the NFO</string>
+    <string name="episode_order_aired">TMDB seasons</string>
+    <string name="episode_order_original">Original air date</string>
+    <string name="episode_order_absolute">Absolute</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">Digital</string>
+    <string name="episode_order_story">Story arcs</string>
+    <string name="episode_order_production">Production</string>
+    <string name="episode_order_tv">TV</string>
+    <string name="episode_order_applying">Sorting the episodes…</string>
+    <!-- The videos a shows folder places nowhere (Réglages › Bibliothèque). -->
+    <plurals name="ignored_files">
+        <item quantity="one">%d file skipped</item>
+        <item quantity="other">%d files skipped</item>
+    </plurals>
+    <string name="ignored_files_desc_one">Its name doesn’t say where it belongs</string>
+    <string name="ignored_files_desc">Their names don’t say where they belong</string>
+    <string name="ignored_files_text_one">This video is in a shows folder, but its name doesn’t say where it belongs, so the library leaves it out.</string>
+    <string name="ignored_files_text">These videos are in a shows folder, but their names don’t say where they belong, so the library leaves them out.</string>
+    <string name="ignored_no_number">No episode number</string>
+    <string name="ignored_no_show">No show name</string>
+    <plurals name="ignored_files_more">
+        <item quantity="one">And %d more</item>
+        <item quantity="other">And %d more</item>
+    </plurals>
+    <string name="ignored_files_fix_label">To fix:</string>
+    <string name="ignored_files_fix_one">To fix: name it after its show and its number, “Show - S01E02”, or “Show - 102” for an anime, or put it in its show’s “Season 1” folder as “02 - Title”. The next scan adds it.</string>
+    <string name="ignored_files_fix">To fix: name them after their show and their number, “Show - S01E02”, or “Show - 102” for an anime, or put them in their show’s “Season 1” folder as “02 - Title”. The next scan adds them.</string>
 </resources>

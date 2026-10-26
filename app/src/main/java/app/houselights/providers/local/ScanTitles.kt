@@ -91,7 +91,7 @@ internal object ScanTitles {
         if (named.year != null || FilenameParser.seasonFromFolder(folder) != null) return true
         val name = file.relativePath.substringAfterLast('/')
         // Multi-file films compare without the part suffix: "Heat/Heat CD1.avi".
-        val title = FilenameParser.parseEpisode(name, emptyList())?.showTitle
+        val title = FilenameParser.parseEpisode(name, emptyList(), named = true)?.showTitle
             ?: FilenameParser.parseMovie(StackPart.of(name)?.name ?: name).title
         return letters(named.title).let { it.isNotEmpty() && it == letters(title) }
     }

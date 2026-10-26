@@ -119,7 +119,8 @@ val LocalGroupFocused = compositionLocalOf { false }
 
 /**
  * A horizontal row of cards under [header] and its [count], or a custom [heading], then how many of its
- * titles are [news] ([wearsNewDot]). Focus returns to the last focused card; one frame travels from card to card.
+ * titles are [news] ([wearsNewDot]), and the change under way it is [pending] ("Classement des épisodes…"), by the
+ * pending dot, its cards kept meanwhile. Focus returns to the last focused card; one frame travels from card to card.
  * Whatever takes focus in it is a framed card ([ArtworkSurface], [AbsentCard]), as the row's frame is its only focus.
  */
 @Composable
@@ -131,16 +132,16 @@ fun MediaRow(
     count: String? = null,
     news: Int = 0,
     heading: (@Composable () -> Unit)? = null,
+    pending: String? = null,
     content: LazyListScope.() -> Unit,
 ) {
     var rowFocused by remember { mutableStateOf(false) }
     // Scrolls as one block in the enclosing list: bringing any card into view brings the header too.
     Column(modifier.scrollsAsBlock()) {
-        if (heading != null || header != null) {
+        if (heading != null || header != null || pending != null) {
             RowHeading(
                 Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea(),
-                count,
-                news,
+                RowNotes(count, news, pending),
             ) { line -> if (heading != null) Box(line) { heading() } else if (header != null) SectionHeader(header, line) }
         }
         val group = remember { GroupFocus() }
@@ -167,13 +168,17 @@ fun MediaRow(
     }
 }
 
-/** A row's title, then its [count] and its [news] in captions on the title's baseline. */
+/** What a row's heading says after its title: its [count], its [news], the change it is [pending]. */
+private class RowNotes(val count: String?, val news: Int, val pending: String?)
+
+/** A row's title, then its count, its news and what it is pending ([notes]) in captions on the title's baseline. */
 @Composable
-private fun RowHeading(modifier: Modifier, count: String?, news: Int, title: @Composable (Modifier) -> Unit) {
+private fun RowHeading(modifier: Modifier, notes: RowNotes, title: @Composable (Modifier) -> Unit) {
     val c = Hl.colors
+    val news = notes.news
     Row(modifier) {
         title(Modifier.alignByBaseline())
-        count?.let {
+        notes.count?.let {
             Spacer(Modifier.width(HlSpace.s))
             Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, modifier = Modifier.alignByBaseline())
         }
@@ -185,6 +190,15 @@ private fun RowHeading(modifier: Modifier, count: String?, news: Int, title: @Co
                 Spacer(Modifier.width(HlSpace.xs))
                 val words = pluralStringResource(R.plurals.row_news, news, news)
                 Text(words, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
+            }
+        }
+        // Quiet, never ember: nothing failed, the row is being changed and keeps its cards until then.
+        notes.pending?.let {
+            Spacer(Modifier.width(HlSpace.s))
+            Row(Modifier.alignByBaseline(), verticalAlignment = Alignment.CenterVertically) {
+                StatusLight(StatusState.Pending)
+                Spacer(Modifier.width(HlSpace.xs))
+                Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
             }
         }
     }

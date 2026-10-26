@@ -147,14 +147,15 @@ private const val ROW_HEAD = "id, kind, sourceId, parentId, seriesId, matchKey, 
 /** Item columns between [ItemEntity.tagline] and [ItemEntity.mediaInfo]; see [ITEM_ROW]. */
 private const val ROW_BODY =
     "year, endYear, continuing, runtimeMin, certification, rating, genres, " +
-        "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
-        "parts, fileSize, missingSince, badges, "
+        "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, " +
+        "absoluteNumber, tmdbSeason, tmdbEpisode, tmdbLastEpisode, filePath, parts, fileSize, missingSince, badges, "
 
 /** Item columns after [ItemEntity.mediaInfo], with the NFO text left out; see [ITEM_ROW]. */
 private const val ROW_TAIL =
     ", probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
         "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
-        "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt, matchState, hintKey, userNoMatch"
+        "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt, matchState, hintKey, userNoMatch, episodeOrder, " +
+        "userEpisodeOrder, reorderedAt"
 
 /** Every item column except the NFO text, which can reach 1 MB; such rows must never be written back. */
 const val ITEM_ROW = ROW_HEAD + "overview, tagline, " + ROW_BODY + "mediaInfo" + ROW_TAIL
@@ -296,6 +297,19 @@ data class ItemEntity(
     val episodeNumber: Int? = null,
     /** Last episode of a multi-episode file (S01E01-E02); null for a single episode. */
     val lastEpisodeNumber: Int? = null,
+    /**
+     * An episode numbered from its show's start ("One Piece - 1071", or S01E1071 past its season), by that number,
+     * which places it in TMDB's seasons ([EpisodeNumbering]); null for one its name places.
+     */
+    val absoluteNumber: Int? = null,
+    /**
+     * The TMDB episode whose details an episode shows, in TMDB's own seasons, when not its place ([seasonNumber],
+     * [episodeNumber]): a number placed from its show's start, or a place in another order (DVD). Trakt names it by
+     * them. Null while it is TMDB's episode of its place, or while TMDB lists none for it (see [absoluteNumber]).
+     */
+    val tmdbSeason: Int? = null,
+    val tmdbEpisode: Int? = null,
+    val tmdbLastEpisode: Int? = null,
     /** Path relative to the source folder, for movies and episodes. */
     val filePath: String? = null,
     /** Later parts of a multi-file film (CD2, disc 2…), in order; [filePath] is the first. */
@@ -348,6 +362,18 @@ data class ItemEntity(
     val hintKey: String? = null,
     /** The user's: a film or show left as it is, never to identify ([TO_IDENTIFY]). Scans never override it. */
     val userNoMatch: Boolean = false,
+    /**
+     * A show's: the order its episodes are placed in, a TMDB episode group's id ([EpisodeOrderEntity.orderId]); null for
+     * TMDB's own seasons. Written by the placing alone ([LibraryDao.setEpisodeOrder]), never by a scan's save.
+     */
+    val episodeOrder: String? = null,
+    /**
+     * A show's: the order the user chose (« Ordre des épisodes »), [EpisodeOrderEntity.AIRED] or a group's id; null
+     * follows its NFO, else TMDB's seasons. Scans never override it.
+     */
+    val userEpisodeOrder: String? = null,
+    /** A show's: when its episodes last changed order, so Trakt's older marks of them are not taken ([SyncRow.reorderedAt]). */
+    val reorderedAt: Long? = null,
 )
 
 /**

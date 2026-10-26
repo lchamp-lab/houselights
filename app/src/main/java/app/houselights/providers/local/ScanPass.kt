@@ -4,6 +4,7 @@ import app.houselights.core.NfoInfo
 import app.houselights.core.NfoParser
 
 /** Per-source context a pass hands to the indexers. */
+@Suppress("LongParameterList") // One per part of the pass the indexers read.
 internal class ScanPass(
     val source: SourceEntity,
     val sidecars: Sidecars,
@@ -11,6 +12,8 @@ internal class ScanPass(
     val tmdb: TmdbPass,
     /** TMDB seasons, each fetched once per pass. */
     val seasons: ShowIndexer.SeasonCache,
+    /** How TMDB numbers each show, read once per pass ([EpisodeOrders]). */
+    val orders: EpisodeOrders,
     /** "Refresh all information": every title read is looked up on TMDB again. */
     val refreshMetadata: Boolean,
     /** Folders holding one film, whose names' ids are its own ([NameIds.ofFilm]). */

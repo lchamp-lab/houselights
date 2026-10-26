@@ -54,6 +54,9 @@ class LocalLibrary(
     /** The films and episodes a sudden drop holds while their files are missing ([MissingFiles.isDrop]), by folder and title. */
     val held: Flow<List<HeldRow>> = dao.observeHeld().paced()
 
+    /** The videos of the shows folders their names place nowhere ([IgnoredFileEntity]), by folder name then path. */
+    val ignored: Flow<List<IgnoredFileRow>> = dao.observeIgnored().paced()
+
     fun latestPosters(folder: Folder, limit: Int): Flow<List<ImageRef>> = dao.observePosters(folder.id, limit).paced().map(::posters)
 
     /** The [limit] posters last added to the whole library. */

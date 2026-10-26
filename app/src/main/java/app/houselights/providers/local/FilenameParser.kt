@@ -10,8 +10,41 @@ import java.util.concurrent.ConcurrentHashMap
 
 data class ParsedMovie(val title: String, val year: Int?)
 
-/** [lastEpisode] is the last episode of a multi-episode file ("S01E01-E02"), else null. */
-data class ParsedEpisode(val showTitle: String?, val season: Int, val episode: Int, val lastEpisode: Int? = null)
+/** How a file's name numbers its episode ([ParsedEpisode.numbering]). */
+enum class Numbering {
+    /** By its season and episode: "S01E05", "1x05", "Season 1 Episode 5", "Livre I - 05". */
+    SEASON,
+
+    /** By a number alone in its season's folder: "Saison 1/05 - Titre.mkv". */
+    FOLDER,
+
+    /** By its season then a dash, as anime sequels are: "Mushoku Tensei S2 - 01". */
+    SEQUEL,
+
+    /** From its show's first episode, as most anime are: "One Piece - 1071". */
+    ABSOLUTE,
+}
+
+/**
+ * [lastEpisode] is the last episode of a multi-episode file ("S01E01-E02"), else null. A file numbered from its show's
+ * start ([Numbering.ABSOLUTE]) gives that number as [episode], in season 1 until it is placed ([EpisodeNumbering]).
+ */
+data class ParsedEpisode(
+    val showTitle: String?,
+    val season: Int,
+    val episode: Int,
+    val lastEpisode: Int? = null,
+    val numbering: Numbering = Numbering.SEASON,
+) {
+    /**
+     * Its numbering as the file names it, whatever its place: "1:5-5", "1:5-6" for a file holding two episodes,
+     * "a1071-1071" for one numbered from its show's start, by which a removed episode is kept ([KeptKeys.spanOf]).
+     */
+    fun key(): String {
+        val numbers = "$episode-${lastEpisode ?: episode}"
+        return if (numbering == Numbering.ABSOLUTE) "a$numbers" else "$season:$numbers"
+    }
+}
 
 /** An episode and its show; [dir] is the show folder (tvshow.nfo, artwork), "" at the source root. */
 data class ShowPath(val title: String, val year: Int?, val dir: String, val episode: ParsedEpisode)
@@ -32,9 +65,13 @@ object FilenameParser {
 
     private val YEAR = Regex("""(?<![0-9])(19[0-9]{2}|20[0-9]{2})(?![0-9])""")
 
-    /** "S01E02", "S01E1071"; multi-episode "S01E01-E02", "S01E01E02", "S01E01-02", "S01E01.S01E02". */
+    /**
+     * "S01E02", "S01E1071", a year's season "S2023E01"; multi-episode "S01E01-E02", "S01E01E02", "S01E01-02",
+     * "S01E01.S01E02".
+     */
     private val SXXEYY = Regex(
-        """(?i)(?<![a-z0-9])s(\d{1,2})[ ._-]?e(\d{1,4})(?![0-9])(?:(?:[ ._-]?(?:s\1[ ._-]?)?e|-)(\d{1,4})(?![0-9a-z]))*"""
+        """(?i)(?<![a-z0-9])s(\d{1,2}|$YEAR_SEASON)[ ._-]?e(\d{1,4})(?![0-9])""" +
+            """(?:(?:[ ._-]?(?:s\1[ ._-]?)?e|-)(\d{1,4})(?![0-9a-z]))*"""
     )
     private val NXNN = Regex("""(?i)(?<![a-z0-9])(\d{1,2})x(\d{2,3})(?![0-9])""")
 
@@ -45,7 +82,58 @@ object FilenameParser {
     /** A wider span between first and last episode is not a range: "S01E05-2019". */
     private const val MAX_RANGE = 50
 
-    private val SEASON_FOLDER = Regex("""(?i)^(?:season|saison|staffel|temporada|s)[ ._-]?(\d{1,2})$""")
+    /** A season numbered by its year: "S2023E01", "Season 2023". */
+    private const val YEAR_SEASON = """(?:19|20)\d{2}"""
+
+    /** Not a year standing alone ("2019"), which is never an episode's number. */
+    private const val NOT_YEAR = """(?!(?:19|20)\d{2}(?![0-9]))"""
+
+    private val SEASON_FOLDER = Regex("""(?i)^(?:season|saison|staffel|temporada|s)[ ._-]?(\d{1,2}|$YEAR_SEASON)$""")
+
+    /** Kaamelott's "Livre I", "Book 2", "Partie 3", "Part IV", "Volume 1", "Vol. 2": a season's folder. */
+    private val BOOK_FOLDER = Regex("""(?i)^(?:livre|book|partie|part|volume|vol\.?)[ ._-]*(\d{1,2}|[ivx]{1,5})$""")
+
+    /** A Roman numeral from I to XXIX; empty matches too, and counts as none. */
+    private val ROMAN = Regex("""(?i)^(x{0,2})(ix|iv|v?i{0,3})$""")
+
+    /**
+     * A book's episode in a file's name, "Kaamelott - Livre I - 01 - Heat", only after "Livre" or "Book", or a volume in
+     * Roman numerals: never "Kill Bill - Volume 1" nor "Part 2", which films are named by.
+     */
+    private val BOOK_EPISODE = Regex(
+        """(?i)(?<![\p{L}0-9])(?:(?:livre|book)[ ._-]*(\d{1,2}|[ivx]{1,5})|(?:volume|vol\.?)[ ._-]*([ivx]{1,5}))""" +
+            """[ ._-]+(?:-[ ._-]*)?(?:(?:e|ep\.?|episode|[éÉ]pisode)[ ._-]*)?(\d{1,3})(?![0-9\p{L}])"""
+    )
+
+    /** "Season 1 Episode 5", "Saison 2 - Épisode 3": the season and episode in words. */
+    private val SEASON_EPISODE_WORDS = Regex(
+        """(?i)(?<![\p{L}0-9])(?:season|saison|staffel|temporada)[ ._-]*(\d{1,2})[ ._-]*(?:-[ ._-]*)?""" +
+            """(?:episode|[éÉ]pisode|episodio|folge|ep\.?|e)[ ._-]*(\d{1,4})(?![0-9])"""
+    )
+
+    /** An anime sequel's season, then its episode: "Mushoku Tensei S2 - 01", "Spy x Family Season 2 - 01", "2nd Season - 01". */
+    private val SEQUEL_DASH = Regex(
+        """(?i)(?<![\p{L}0-9])(?:s(\d{1,2})|(?:season|saison|staffel|temporada)[ ._-]*(\d{1,2})|(\d)(?:nd|rd|th)[ ._-]+season)""" +
+            """\s+-\s+$NOT_YEAR(\d{1,4})(?:v\d)?(?:-(\d{1,4}))?(?![0-9\p{L}])"""
+    )
+
+    /**
+     * A number after a dash, as anime are named from their show's start: "One Piece - 1071", "- 1071v2", "- 1071-1072",
+     * then the name's end, another dash or a parenthesis; never a year ("Show - 2019"), a resolution ("- 1080p") nor a
+     * title's first word ("Show - 100 Days").
+     */
+    private val DASH_NUMBER = Regex("""(?<=\S)\s+-\s+$NOT_YEAR(\d{1,4})(?:v\d)?(?:-(\d{1,4}))?(?=\s*(?:$|-\s|\())""")
+
+    /** A number after a word that says it: "One Piece E1071", "Ep 12", "Ep.12", "Episode 1071", "Épisode 12", "Folge 3". */
+    private val WORD_NUMBER = Regex(
+        """(?i)(?<![\p{L}0-9])(?:e(?=\d)|ep\.?[ ._-]?|(?:episode|[éÉ]pisode|episodio|folge)[ ._-]*)$NOT_YEAR(\d{1,4})(?:v\d)?""" +
+            """(?![0-9\p{L}])"""
+    )
+
+    /** A batch's range ending a folder's name, cut as a season is: "One Piece (1001-1100)", "One Piece 1001-1100"; never years. */
+    private val NUMBER_RANGE = Regex(
+        """(?<![0-9])(?:\($NOT_YEAR\d{1,4}\s?[-~]\s?\d{1,4}\)|(?<=\s)$NOT_YEAR\d{1,4}\s?[-~]\s?\d{1,4}(?=\s*$))"""
+    )
 
     /** Lowercase folder names for season 0. Not "Special", which is also a show's title. */
     private val SPECIALS = setOf("specials", "spécial", "spéciaux", "speciaux", "spéciales", "speciales")
@@ -90,9 +178,35 @@ object FilenameParser {
         return null
     }
 
-    /** Folder names like "Season 2", "Saison 02", "S02"; "Specials", "Spéciaux" and "Season 00" are season 0. */
-    fun seasonFromFolder(folder: String): Int? =
-        if (folder.trim().lowercase() in SPECIALS) 0 else SEASON_FOLDER.find(folder.trim())?.groupValues?.get(1)?.toInt()
+    /**
+     * Folder names like "Season 2", "Saison 02", "S02", "Season 2023", a book's "Livre I" or "Volume 2"; "Specials",
+     * "Spéciaux" and "Season 00" are season 0.
+     */
+    fun seasonFromFolder(folder: String): Int? {
+        val name = folder.trim()
+        if (name.lowercase() in SPECIALS) return 0
+        SEASON_FOLDER.find(name)?.let { return it.groupValues[1].toInt() }
+        return BOOK_FOLDER.find(name)?.let { numberOf(it.groupValues[1]) }
+    }
+
+    /** "2" or a Roman numeral ("II", "XIV"); null for one that is none ("IIII"). */
+    private fun numberOf(numeral: String): Int? = numeral.toIntOrNull() ?: roman(numeral)
+
+    private fun roman(numeral: String): Int? {
+        val m = ROMAN.matchEntire(numeral) ?: return null
+        val (tens, units) = m.destructured
+        val unit = when (units.lowercase()) {
+            "ix" -> ROMAN_NINE
+            "iv" -> ROMAN_FOUR
+            else -> units.count { it.lowercaseChar() == 'i' } + if (units.startsWith('v', ignoreCase = true)) ROMAN_FIVE else 0
+        }
+        return (tens.length * ROMAN_TEN + unit).takeIf { it > 0 }
+    }
+
+    private const val ROMAN_FOUR = 4
+    private const val ROMAN_FIVE = 5
+    private const val ROMAN_NINE = 9
+    private const val ROMAN_TEN = 10
 
     fun parseMovie(fileName: String): ParsedMovie {
         val base = normalizeSeparators(dropBrackets(stripExtension(fileName)))
@@ -165,12 +279,16 @@ object FilenameParser {
     /** A prefix that cannot be a title: nothing, or an article alone ("The ", "L'", "Die "). */
     private val NO_TITLE = Regex("""(?i)^[ ._-]*(?:(?:${MetadataMerge.ARTICLE_WORDS}|der|die|das)[ ._-]*|l['’])?$""")
 
-    /** The episode named by [fileName]; [folders] run from the source root to the file's parent. */
-    fun parseEpisode(fileName: String, folders: List<String>): ParsedEpisode? = episodeIn(fileName, folders)?.episode
+    /**
+     * The episode named by [fileName]; [folders] run from the source root to the file's parent. [named] reads only an
+     * "S01E05" or "1x05", as a films folder tells a title's own folder by them ([ScanTitles]).
+     */
+    fun parseEpisode(fileName: String, folders: List<String>, named: Boolean = false): ParsedEpisode? =
+        episodeIn(fileName, folders, all = !named)?.episode
 
     /** Text after "S01E05" or "1x05" ("Crime-Scene" in "Show - S01E05 - Crime-Scene.mkv"); null without. */
     fun afterEpisode(fileName: String): String? =
-        numbers(normalizeSeparators(dropBrackets(stripExtension(fileName))), null)?.after?.trim(' ', '.', '_', '-')
+        numbers(normalizeSeparators(dropBrackets(stripExtension(fileName))), null, all = false)?.after?.trim(' ', '.', '_', '-')
 
     /** The episode at [relativePath] and its show; null when no episode or no show name is found. */
     fun parseShowPath(relativePath: String): ShowPath? {
@@ -183,13 +301,25 @@ object FilenameParser {
         return ShowPath(title, found.year, dir, found.episode)
     }
 
+    /**
+     * Why the video at [relativePath] of a shows folder gets no row: no episode number its name gives, or numbers but no
+     * show's name ("S01E01.mkv" at the folder's root, "Saison 1/03 - Victor.mkv"); null when it names an episode.
+     */
+    fun refusal(relativePath: String): IgnoredReason? {
+        if (parseShowPath(relativePath) != null) return null
+        val path = discOf(relativePath)?.root?.ifEmpty { null } ?: relativePath
+        val numbered = episodeIn(path.substringAfterLast('/'), path.split('/').dropLast(1)) != null
+        return if (numbered) IgnoredReason.NO_SHOW else IgnoredReason.NO_NUMBER
+    }
+
     private class Found(val episode: ParsedEpisode, val folder: Int?, val year: Int?)
 
-    private fun episodeIn(fileName: String, folders: List<String>): Found? {
+    private fun episodeIn(fileName: String, folders: List<String>, all: Boolean = true): Found? {
         val base = normalizeSeparators(dropBrackets(stripExtension(fileName)))
-        val numbers = numbers(base, folders.lastOrNull()?.let(::seasonFromFolder)) ?: return null
+        val numbers = numbers(base, folders.lastOrNull()?.let(::seasonFromFolder), all) ?: return null
         val (folder, show) = showIn(folders, parseMovie(numbers.before))
-        return Found(ParsedEpisode(show?.title, numbers.season, numbers.episode, numbers.last), folder, show?.year)
+        val episode = ParsedEpisode(show?.title, numbers.season, numbers.episode, numbers.last, numbers.numbering)
+        return Found(episode, folder, show?.year)
     }
 
     /**
@@ -215,15 +345,19 @@ object FilenameParser {
     /** A folder name cut before season numbers ("Show.Name.S01-S03.1080p"), so season packs are not separate shows. */
     private fun showName(folder: String): ParsedMovie = parseMovie(beforeSeason(folder))
 
-    private fun beforeSeason(folder: String): String =
-        SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder
+    private fun beforeSeason(folder: String): String {
+        val cut = listOfNotNull(SEASON_TOKEN.find(folder), NUMBER_RANGE.find(folder)).minOfOrNull { it.range.first }
+        return cut?.let { folder.substring(0, it) }?.takeIf { it.isNotBlank() } ?: folder
+    }
 
     /** True for a season pack after a name ("Doctor Who (2005) - S01"), as opposed to a show folder. */
     private fun namesSeason(folder: String): Boolean = beforeSeason(folder) != folder
 
-    /** "S01", "S01-S03", "S01E01", "Saison 1", "Saisons 1 à 5"; never "The Four Seasons". */
-    private val SEASON_TOKEN =
-        Regex("""(?i)(?<![a-z0-9])(?:s|(?:saisons?|seasons?)[ ._-]?)\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
+    /** "S01", "S01-S03", "S01E01", "Saison 1", "Saisons 1 à 5", "Season 2023", "Livre I"; never "The Four Seasons". */
+    private val SEASON_TOKEN = Regex(
+        """(?i)(?<![a-z0-9])(?:(?:s|(?:saisons?|seasons?)[ ._-]?)(?:\d{1,2}|$YEAR_SEASON)(?:e\d{1,4}|-s?\d{1,2})?""" +
+            """|livre[ ._-]*(?:\d{1,2}|[ivx]{1,5})|book[ ._-]*[ivx]{1,5})(?![a-z0-9])"""
+    )
 
     /** True when [folder] is [title] followed by release tags: "Friends - The Complete Series". */
     private fun namesThenTags(folder: String, title: String): Boolean {
@@ -253,21 +387,83 @@ object FilenameParser {
 
     private fun letters(s: String) = s.lowercase().filter(Char::isLetterOrDigit)
 
-    private class Numbers(val season: Int, val episode: Int, val last: Int?, val before: String, val after: String = "")
+    private class Numbers(
+        val season: Int,
+        val episode: Int,
+        val last: Int?,
+        val before: String,
+        val after: String = "",
+        val numbering: Numbering = Numbering.SEASON,
+    )
 
-    /** "S01E02", "1x02", else "02 - Title" when in a season folder ([folderSeason]). */
-    private fun numbers(base: String, folderSeason: Int?): Numbers? {
+    /**
+     * "S01E02", "1x02"; with [all] rules, else a book's or a season's in words ("Livre I - 02", "Season 1 Episode 2"), an
+     * anime sequel's ("S2 - 02"), then in a season's folder ([folderSeason]) "02 - Title" or "Show - 02", and outside one
+     * a number from the show's start ("Show - 1071", "Show E1071").
+     */
+    private fun numbers(base: String, folderSeason: Int?, all: Boolean): Numbers? {
         val named = SXXEYY.find(base)?.let { m ->
             val (season, first, last) = m.destructured
-            val range = last.toIntOrNull()?.takeIf { it > first.toInt() && it - first.toInt() <= MAX_RANGE }
-            Numbers(season.toInt(), first.toInt(), range, base.substring(0, m.range.first), base.substring(m.range.last + 1))
+            numbersAt(base, m, season.toInt(), first.toInt(), rangeOf(first.toInt(), last), Numbering.SEASON)
         } ?: NXNN.find(base)?.let { m ->
             val (season, episode) = m.destructured
-            Numbers(season.toInt(), episode.toInt(), null, base.substring(0, m.range.first), base.substring(m.range.last + 1))
+            numbersAt(base, m, season.toInt(), episode.toInt(), null, Numbering.SEASON)
         }
-        if (named != null || folderSeason == null) return named
-        return LEADING_EPISODE.find(base.trim())?.groupValues?.get(1)?.toInt()?.let { Numbers(folderSeason, it, null, "") }
+        if (named != null || !all) return named
+        return inWords(base) ?: sequel(base) ?: if (folderSeason != null) inFolder(base, folderSeason) else fromStart(base)
     }
+
+    /** The last episode of a file numbered [first] to [last]: none past [MAX_RANGE], nor before [first]. */
+    private fun rangeOf(first: Int, last: String): Int? = last.toIntOrNull()?.takeIf { it > first && it - first <= MAX_RANGE }
+
+    /** A book's episode ("Livre I - 02") or a season's and episode in words ("Season 1 Episode 2"). */
+    private fun inWords(base: String): Numbers? {
+        val book = BOOK_EPISODE.findAll(base).firstNotNullOfOrNull { m ->
+            val (numeral, volume, episode) = m.destructured
+            numberOf(numeral.ifEmpty { volume })?.let { season -> numbersAt(base, m, season, episode.toInt(), null, Numbering.SEASON) }
+        }
+        return book ?: SEASON_EPISODE_WORDS.find(base)?.let { m ->
+            val (season, episode) = m.destructured
+            numbersAt(base, m, season.toInt(), episode.toInt(), null, Numbering.SEASON)
+        }
+    }
+
+    /** An anime sequel's season and episode: "S2 - 01", "Season 2 - 01", "2nd Season - 01". */
+    private fun sequel(base: String): Numbers? = SEQUEL_DASH.find(base)?.let { m ->
+        val groups = m.groupValues
+        // "S2", "Season 2" or "2nd Season", then the episode and the last of a range.
+        val season = groups.subList(1, SEQUEL_EPISODE).first { it.isNotEmpty() }.toInt()
+        val first = groups[SEQUEL_EPISODE].toInt()
+        numbersAt(base, m, season, first, rangeOf(first, groups[SEQUEL_EPISODE + 1]), Numbering.SEQUEL)
+    }
+
+    /** [SEQUEL_DASH]'s group of the episode, after the season's three ways. */
+    private const val SEQUEL_EPISODE = 4
+
+    /** A number alone in season [season]'s folder: "02 - Title", else "Show - 02" or "Show E02". */
+    private fun inFolder(base: String, season: Int): Numbers? {
+        val leading = LEADING_EPISODE.find(base.trim())?.groupValues?.get(1)?.toInt()
+        if (leading != null) return Numbers(season, leading, null, "", numbering = Numbering.FOLDER)
+        return byNumber(base)?.let { found -> numbersAt(base, found.match, season, found.first, found.last, Numbering.FOLDER) }
+    }
+
+    /** A number from the show's start, its season 1 until placed: "One Piece - 1071", "One Piece E1071". */
+    private fun fromStart(base: String): Numbers? =
+        byNumber(base)?.let { found -> numbersAt(base, found.match, 1, found.first, found.last, Numbering.ABSOLUTE) }
+
+    /** A number after a dash, else after a word saying it, and the last of its range. */
+    private fun byNumber(base: String): ByNumber? {
+        val m = DASH_NUMBER.find(base) ?: WORD_NUMBER.find(base) ?: return null
+        val first = m.groupValues[1].toInt().takeIf { it > 0 } ?: return null
+        return ByNumber(m, first, m.groupValues.getOrNull(2)?.let { rangeOf(first, it) })
+    }
+
+    private class ByNumber(val match: MatchResult, val first: Int, val last: Int?)
+
+    /** [Numbers] read at [m] in [base]: the show's name before it, the episode's title after. */
+    @Suppress("LongParameterList") // A season, a range and how they are numbered, as Numbers holds them.
+    private fun numbersAt(base: String, m: MatchResult, season: Int, first: Int, last: Int?, numbering: Numbering) =
+        Numbers(season, first, last, base.substring(0, m.range.first), base.substring(m.range.last + 1), numbering)
 
     /** A release-name token as a whole word ("hdr" but not "hdrip"), compiled once per token. */
     private val tokenRegexes = ConcurrentHashMap<String, Regex>()

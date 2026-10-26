@@ -27,6 +27,12 @@ class FakeTmdb : Interceptor {
     val seasons: MutableMap<Pair<Int, Int>, TmdbSeason> = Collections.synchronizedMap(linkedMapOf())
     val collections: MutableMap<Int, TmdbCollection> = Collections.synchronizedMap(linkedMapOf())
 
+    /** The episode groups of the shows of those ids, as `tv/{id}/episode_groups` lists them; none for the others. */
+    val episodeGroups: MutableMap<Int, List<TmdbEpisodeGroupRef>> = Collections.synchronizedMap(linkedMapOf())
+
+    /** Each episode group whole, by its id ([group]). */
+    val groups: MutableMap<String, TmdbEpisodeGroup> = Collections.synchronizedMap(linkedMapOf())
+
     /**
      * TMDB's ranked answer to a search, by its query in lower case: the films or shows of these ids, of the year asked
      * for. A query not here finds the films or shows of that title exactly.
@@ -121,12 +127,50 @@ class FakeTmdb : Interceptor {
         shows[id] = edit(shows.getValue(id))
     }
 
-    fun season(showId: Int, number: Int, episodes: Int) = TmdbSeason(
+    /** Season [number] of show [showId], its [episodes] named "Episode 2.5"; listed with its show, as `tv/{id}` lists them. */
+    fun season(showId: Int, number: Int, episodes: Int, airDate: String? = null) = TmdbSeason(
         seasonNumber = number,
         name = "Season $number",
         posterPath = "/season-$showId-$number.jpg",
+        airDate = airDate,
         episodes = (1..episodes).map { TmdbEpisode(episodeNumber = it, name = "Episode $number.$it", overview = "Plot $number.$it") },
-    ).also { seasons[showId to number] = it }
+    ).also { season ->
+        seasons[showId to number] = season
+        shows[showId]?.let { show ->
+            val listed = show.seasons.filter { s -> s.seasonNumber != number } + TmdbSeasonSummary(number, episodes, airDate)
+            shows[showId] = show.copy(seasons = listed.sortedBy { s -> s.seasonNumber })
+        }
+    }
+
+    /**
+     * Episode group [id] of show [showId], of TMDB's [type] (2 absolute, 3 DVD…), its [seasons] each a list of TMDB's
+     * (season, episode), numbered from [first], its episodes saying they are of show [of]; listed with the show's others,
+     * in its place when it was already: TMDB editing it.
+     */
+    fun group(
+        showId: Int,
+        id: String,
+        type: Int,
+        name: String,
+        seasons: List<List<Pair<Int, Int>>>,
+        first: Int = 1,
+        of: Int = showId,
+    ): TmdbEpisodeGroup {
+        val group = TmdbEpisodeGroup(
+            id, type, name,
+            seasons.mapIndexed { i, episodes ->
+                TmdbGroupSeason(
+                    "Group ${first + i}", first + i,
+                    episodes.mapIndexed { j, (season, episode) -> TmdbGroupEpisode(season, episode, j, of) },
+                )
+            },
+        )
+        groups[id] = group
+        val ref = TmdbEpisodeGroupRef(id, type, name, seasons.sumOf { it.size }, seasons.size)
+        val listed = episodeGroups[showId].orEmpty()
+        episodeGroups[showId] = if (listed.any { it.id == id }) listed.map { if (it.id == id) ref else it } else listed + ref
+        return group
+    }
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val url = chain.request().url
@@ -179,6 +223,9 @@ class FakeTmdb : Interceptor {
         path.endsWith("/images") -> encode(TmdbImageSet.serializer(), TmdbImageSet())
         path.endsWith("/alternative_titles") -> alternatives(path.split('/'))
         path.startsWith("trending/") -> page(emptyList())
+        path.endsWith("/episode_groups") -> path.split('/')[1].toIntOrNull()?.takeIf { it in shows }
+            ?.let { encode(TmdbEpisodeGroups.serializer(), TmdbEpisodeGroups(episodeGroups[it].orEmpty())) }
+        path.startsWith("tv/episode_group/") -> groups[path.substringAfterLast('/')]?.let { encode(TmdbEpisodeGroup.serializer(), it) }
         else -> entry(path.split('/'))
     }
 

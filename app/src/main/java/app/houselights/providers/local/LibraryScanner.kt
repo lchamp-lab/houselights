@@ -6,6 +6,7 @@ import app.houselights.core.FailureKind
 import app.houselights.core.NfoParser
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.RepeatedFailures
+import app.houselights.core.TmdbUnreachableException
 import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.CoroutineScope
@@ -92,6 +93,7 @@ class LibraryScanner(
     private val failures = RepeatedFailures(TAG)
     private val movies = MovieIndexer(dao, files, clock)
     private val shows = ShowIndexer(dao, files, clock)
+    private val placing = EpisodePlacing(dao, clock)
     private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
     private val reidentify = Reidentify(dao, lock, movies, shows, clock) { waitForThePlayer() }
 
@@ -201,6 +203,35 @@ class LibraryScanner(
                         dao.deleteEmptyCollections()
                         dao.groupVersions()
                     }
+                    if (item.kind == ItemKind.SERIES) placedAfterIdentify(item.id, tmdb)
+                    _changed.tryEmit(Unit)
+                }
+            }
+        }
+    }
+
+    /**
+     * A show identified places its episodes numbered from its start in the new show's seasons at once; TMDB failing, they
+     * wait for the next pass, which reads them again ([ShowIndexer]).
+     */
+    private suspend fun placedAfterIdentify(seriesId: Long, tmdb: TmdbClient) {
+        suspendRunCatching { placing.reorder(seriesId, TmdbPass(tmdb, strict = true)) }
+            .onFailure { Log.w(TAG, "Episodes of show $seriesId wait for the next pass to be placed", it) }
+    }
+
+    /**
+     * Places show [itemId]'s episodes in the order [orderId] ([EpisodeOrderEntity.AIRED] or a group's id), or the
+     * automatic one when null, as [identify] does: TMDB asked first, a failure leaving the show as it was, then the writes
+     * in one non-cancellable transaction; what was watched stays, row by row ([EpisodeRemap]).
+     */
+    suspend fun chooseOrder(itemId: Long, orderId: String?) {
+        withContext(Dispatchers.IO) {
+            val tmdb = interactiveTmdb() ?: throw NoTmdbKeyException()
+            lock.withLock {
+                // Outliving the page that asked: TMDB's answers are written whole or not at all.
+                withContext(NonCancellable) {
+                    placing.reorder(itemId, TmdbPass(tmdb, strict = true), EpisodePlacing.Choice(orderId))
+                        ?: throw TmdbUnreachableException(null, "TMDB did not answer for show $itemId")
                     _changed.tryEmit(Unit)
                 }
             }
@@ -223,13 +254,15 @@ class LibraryScanner(
     private val askTmdbAgain = AtomicBoolean(false)
 
     private suspend fun cleanupLocked(): CleanupResult {
-        // One transaction for the four, on a device where each costs a sync to storage.
+        // One transaction for them all, on a device where each costs a sync to storage.
         var orphanCast = 0
         dao.inTransaction {
             orphanCast = dao.deleteOrphanCredits()
             dao.deleteOrphanSearchWords()
             dao.deleteOrphanTrackChoices()
             dao.deleteOrphanSuggestions()
+            dao.deleteOrphanEpisodeOrders()
+            dao.deleteOrphanIgnored()
         }
         // Based on library references, not on the NAS listing, so an unreachable NAS never deletes artwork.
         val result = artwork.sweep(dao.cachedArtworkPaths())
@@ -252,6 +285,7 @@ class LibraryScanner(
         val client = client()
         val tmdb = TmdbPass(client) { e -> _state.update { it.copy(tmdbIssue = e.failureKind()) } }
         val seasons = ShowIndexer.SeasonCache(tmdb)
+        val orders = EpisodeOrders(dao, tmdb, clock)
         val down = tmdbDown?.takeIf { it.client === client }
         val asked = askTmdbAgain.getAndSet(false)
         val askUnmatched = askUnmatched(down, asked)
@@ -261,7 +295,7 @@ class LibraryScanner(
             for (source in sources) {
                 reached += source.id
                 val failure = suspendRunCatching {
-                    changed = scanFolder(source, refreshMetadata, tmdb, seasons, askUnmatched) || changed
+                    changed = scanFolder(source, refreshMetadata, ShowsTmdb(tmdb, seasons, orders), askUnmatched) || changed
                 }.exceptionOrNull()
                 val error = failure?.let { errorOf(source, it) }
                 error?.let { errors[source.id] = it }
@@ -270,8 +304,8 @@ class LibraryScanner(
             }
             // Sources the pass did not reach keep their last error.
             errors += before.filterKeys { id -> id !in reached && sources.any { it.id == id } }
-            // Titles to identify are asked again while TMDB answers, as titles waiting for it are.
-            if (askUnmatched) changed = reidentified(tmdb, asked) || changed
+            // Titles to identify are asked again while TMDB answers, as titles waiting for it are, and episodes placed.
+            if (askUnmatched) changed = askedAgain(ShowsTmdb(tmdb, seasons, orders), asked) || changed
             lock.withLock {
                 suspendRunCatching {
                     // Rows added meanwhile under a source removed during the scan.
@@ -310,6 +344,40 @@ class LibraryScanner(
             .onSuccess { if (it > 0) Log.i(TAG, "To identify: $it titles asked again changed") }
             .onFailure { Log.w(TAG, "Asking TMDB again for titles to identify failed; tried again at the next pass", it) }
             .getOrDefault(0) > 0
+
+    /** [reidentified], then [numbered]: true when either changed the library. */
+    private suspend fun askedAgain(shows: ShowsTmdb, asked: Boolean): Boolean {
+        val identified = reidentified(shows.pass, asked)
+        return numbered(shows) || identified
+    }
+
+    /**
+     * After the sources, while TMDB answers: episodes waiting for TMDB to list them placed once it does, a few shows a day
+     * ([WAITING_PER_PASS], [EpisodePlacing.placeWaiting]), and the groups of a few shows listed for the first time or again
+     * ([GROUPS_PER_PASS], every [GROUPS_EVERY_MS]), so a show matched before they were kept offers its orders; true when
+     * an episode moved. A failure is retried at the next pass.
+     */
+    private suspend fun numbered(tmdb: ShowsTmdb): Boolean {
+        if (!tmdb.pass.open) return false
+        val now = clock()
+        return suspendRunCatching {
+            var moved = false
+            for (show in dao.waitingShows(before = now - WAITING_EVERY_MS, now = now, limit = WAITING_PER_PASS)) {
+                if (!tmdb.pass.open) break
+                waitForThePlayer()
+                moved = lock.withLock { placing.placeWaiting(show, tmdb.orders, tmdb.seasons) } || moved
+            }
+            for (show in dao.groupsDue(before = now - GROUPS_EVERY_MS, now = now, limit = GROUPS_PER_PASS)) {
+                if (!tmdb.pass.open) break
+                lock.withLock { tmdb.orders.list(show) }
+            }
+            moved
+        }.onFailure { Log.w(TAG, "Placing episodes TMDB lists, or listing shows' orders, failed; tried again at the next pass", it) }
+            .getOrDefault(false)
+    }
+
+    /** What a pass asks TMDB through, for shows: its [pass], the seasons it read and how it numbers each show. */
+    private class ShowsTmdb(val pass: TmdbPass, val seasons: ShowIndexer.SeasonCache, val orders: EpisodeOrders)
 
     /** Runs the [Backfill] after the sources; a failure is retried at the next pass. */
     private suspend fun backfill(tmdb: TmdbPass, askTmdb: Boolean) {
@@ -384,28 +452,17 @@ class LibraryScanner(
     }
 
     /** [scan], whole for a folder due in this pass's language ([refreshAllIn]), which is then no longer due. */
-    private suspend fun scanFolder(
-        source: SourceEntity,
-        refreshMetadata: Boolean,
-        tmdb: TmdbPass,
-        seasons: ShowIndexer.SeasonCache,
-        askUnmatched: Boolean,
-    ): Boolean {
+    private suspend fun scanFolder(source: SourceEntity, refreshMetadata: Boolean, shows: ShowsTmdb, askUnmatched: Boolean): Boolean {
         // Due in another language than this pass's TMDB speaks: a later pass reads it.
-        val due = source.refreshIn?.takeIf { it == tmdb.client?.locale?.toLanguageTag() }
-        val changed = scan(source, refreshMetadata || due != null, tmdb, seasons, askUnmatched)
+        val due = source.refreshIn?.takeIf { it == shows.pass.client?.locale?.toLanguageTag() }
+        val changed = scan(source, refreshMetadata || due != null, shows, askUnmatched)
         if (due != null) dao.refreshedIn(source.id, due)
         return changed
     }
 
     /** Scans one source; true when the library changed. [askUnmatched] retries titles only waiting for TMDB. */
-    private suspend fun scan(
-        source: SourceEntity,
-        refreshMetadata: Boolean,
-        tmdb: TmdbPass,
-        seasons: ShowIndexer.SeasonCache,
-        askUnmatched: Boolean,
-    ): Boolean {
+    private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean, shows: ShowsTmdb, askUnmatched: Boolean): Boolean {
+        val tmdb = shows.pass
         waitForThePlayer()
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null) }
         val found = browsers(source).list(source)
@@ -447,9 +504,11 @@ class LibraryScanner(
                 "${missing.absorbed.size} now parts, ${missing.held.size} held, ${missing.waiting.size} still held, ${todo.size} to do",
         )
 
-        if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
+        noteIgnored(source, files)
 
-        val pass = ScanPass(source, sidecars, stacks, tmdb, seasons, refreshMetadata, names.single, films.values.toSet() + hintedShows)
+        val pass = ScanPass(
+            source, sidecars, stacks, tmdb, shows.seasons, shows.orders, refreshMetadata, names.single, films.values.toSet() + hintedShows,
+        )
         val folder = Folder(pass, known)
         val written = processAll(folder, todo, stillDue(::work, forShows))
         dao.markScanned(source.id, clock())
@@ -623,10 +682,21 @@ class LibraryScanner(
     private fun stillDue(work: (RemoteFile) -> Work?, forShows: Map<RemoteFile, Long>): (RemoteFile) -> Work? =
         { file -> Work.FULL.takeIf { forShows[file]?.let(shows::readThisPass) == false } ?: work(file) }
 
-    /** Logs videos that name no episode, which otherwise get no row silently. */
-    private fun tellNoEpisode(source: SourceEntity, files: List<RemoteFile>) {
-        val refused = files.count { FilenameParser.parseShowPath(it.relativePath) == null }
-        if (refused > 0) Log.i(TAG, "${source.name}: $refused of ${files.size} videos name no episode, and are left out")
+    /**
+     * Keeps the videos of shows folder [source] whose names place them nowhere, and why ([FilenameParser.refusal]), as
+     * Réglages lists them; written only when they changed, so a pass finding the same writes nothing. A films folder
+     * leaves none. Run once its listing was read: a folder out of reach keeps its last list.
+     */
+    private suspend fun noteIgnored(source: SourceEntity, files: List<RemoteFile>) {
+        val ignored = if (source.kind == SourceKind.SHOWS) {
+            files.mapNotNull { f -> FilenameParser.refusal(f.relativePath)?.let { IgnoredFileEntity(source.id, f.relativePath, it) } }
+        } else {
+            emptyList()
+        }
+        if (ignored.isNotEmpty()) Log.i(TAG, "${source.name}: ${ignored.size} of ${files.size} videos name no episode, and are left out")
+        lock.withLock {
+            if (dao.ignoredOf(source.id).toSet() != ignored.toSet()) dao.replaceIgnored(source.id, ignored)
+        }
     }
 
     private fun errorOf(source: SourceEntity, failure: Throwable): ScanError {
@@ -738,6 +808,14 @@ class LibraryScanner(
 
         /** Retry delay for unmatched titles while TMDB refuses the key or is unreachable. */
         private const val UNMATCHED_RETRY_MS = 60 * 60_000L
+
+        /** Shows whose episodes wait for TMDB to list them asked about a pass, each once a day at most. */
+        private const val WAITING_PER_PASS = 10
+        private const val WAITING_EVERY_MS = 24 * 60 * 60_000L
+
+        /** Shows whose episode groups are listed a pass, each again after a month. */
+        private const val GROUPS_PER_PASS = 5
+        private const val GROUPS_EVERY_MS = 30 * 24 * 60 * 60_000L
 
         /** Below this free space a failure is attributed to the full device. */
         private const val NEARLY_FULL_BYTES = 50L shl 20

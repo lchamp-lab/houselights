@@ -72,11 +72,18 @@ data class NfoInfo(
     val streams: NfoStreams? = null,
     /** The film's edition as tinyMediaManager or Emby write it ("Director's Cut"), kept as written. */
     val edition: String? = null,
+    /** A show's order of episodes as Jellyfin and Emby write it (`<displayorder>dvd</displayorder>`), in lower case. */
+    val displayOrder: String? = null,
+    /** The TMDB episode group a show's NFO links to, as Kodi's TMDB scraper reads it, by its id. */
+    val episodeGroup: String? = null,
 )
 
 /** Parses Kodi-style NFOs (Kodi, tinyMediaManager, Jellyfin, Emby, Radarr…), or a bare TMDB or IMDb link. */
 object NfoParser {
     private val TMDB_URL = Regex("""themoviedb\.org/(?:movie|tv)/(\d+)""")
+
+    /** A TMDB episode group's link, as Kodi's scraper takes it from a tvshow.nfo: the show, then the group's id. */
+    private val TMDB_GROUP_URL = Regex("""themoviedb\.org/tv/(\d+)[^/\s<"]*/episode_group/([0-9a-f]{24})""")
     private val IMDB_ID = Regex("""\btt\d{6,9}\b""")
 
     /** Created lazily, as creation looks up the parser classes; the parsers it creates share no state. */
@@ -113,9 +120,10 @@ object NfoParser {
         // Links next to (or instead of) the XML still identify the title.
         val tmdb = TMDB_URL.find(text)?.groupValues?.get(1)?.toIntOrNull()
         val imdb = IMDB_ID.find(text)?.value
+        val group = TMDB_GROUP_URL.find(text)?.groupValues?.get(2)
         return when {
-            parsed != null -> parsed.copy(tmdbId = parsed.tmdbId ?: tmdb, imdbId = parsed.imdbId ?: imdb)
-            tmdb != null || imdb != null -> NfoInfo(kind = NfoKind.LINK, tmdbId = tmdb, imdbId = imdb)
+            parsed != null -> parsed.copy(tmdbId = parsed.tmdbId ?: tmdb, imdbId = parsed.imdbId ?: imdb, episodeGroup = group)
+            tmdb != null || imdb != null -> NfoInfo(kind = NfoKind.LINK, tmdbId = tmdb, imdbId = imdb, episodeGroup = group)
             else -> null
         }
     }
@@ -205,6 +213,7 @@ object NfoParser {
                 "director" -> p.text()?.let(directors::add)
                 "credits" -> p.text()?.let(writers::add)
                 "edition" -> info = info.copy(edition = p.text())
+                "displayorder" -> info = info.copy(displayOrder = p.text()?.trim()?.lowercase(java.util.Locale.ROOT))
                 "studio" -> p.text()?.let(studios::add)
                 "actor" -> actor(p)?.let(actors::add)
                 "uniqueid" -> {

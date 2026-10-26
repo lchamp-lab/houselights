@@ -887,4 +887,32 @@
     <string name="held_gone_fix">NASのディスクをつなぎ直すか、この作品を削除してください。</string>
     <string name="held_remove_title">ライブラリから削除</string>
     <string name="card_held">見つかりません</string>
+    <string name="episode_order">エピソードの順番</string>
+    <string name="episode_order_text">ファイルの番号が従う順番を選んでください。視聴済みのものは視聴済みのままです。</string>
+    <string name="episode_order_auto">自動</string>
+    <string name="episode_order_auto_nfo">%s（NFOによる）</string>
+    <string name="episode_order_aired">TMDBのシーズン</string>
+    <string name="episode_order_original">初回放送日</string>
+    <string name="episode_order_absolute">通し番号</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">デジタル</string>
+    <string name="episode_order_story">ストーリー別</string>
+    <string name="episode_order_production">制作順</string>
+    <string name="episode_order_tv">テレビ</string>
+    <string name="episode_order_applying">エピソードを並べ替えています…</string>
+    <plurals name="ignored_files">
+        <item quantity="other">%d件のファイルをスキップ</item>
+    </plurals>
+    <string name="ignored_files_desc_one">名前から置き場所がわかりません</string>
+    <string name="ignored_files_desc">名前から置き場所がわかりません</string>
+    <string name="ignored_files_text_one">この動画はシリーズのフォルダにありますが、名前から置き場所がわからないため、ライブラリに含まれません。</string>
+    <string name="ignored_files_text">これらの動画はシリーズのフォルダにありますが、名前から置き場所がわからないため、ライブラリに含まれません。</string>
+    <string name="ignored_no_number">エピソード番号がありません</string>
+    <string name="ignored_no_show">シリーズ名がありません</string>
+    <plurals name="ignored_files_more">
+        <item quantity="other">ほか%d件</item>
+    </plurals>
+    <string name="ignored_files_fix_label">解決方法：</string>
+    <string name="ignored_files_fix_one">解決方法：シリーズ名と番号で「シリーズ - S01E02」、アニメなら「シリーズ - 102」と名前を付けるか、シリーズの「Season 1」フォルダに「02 - タイトル」として入れてください。次回のスキャンで追加されます。</string>
+    <string name="ignored_files_fix">解決方法：シリーズ名と番号で「シリーズ - S01E02」、アニメなら「シリーズ - 102」と名前を付けるか、シリーズの「Season 1」フォルダに「02 - タイトル」として入れてください。次回のスキャンで追加されます。</string>
 </resources>

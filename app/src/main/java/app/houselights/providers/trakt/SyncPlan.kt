@@ -102,6 +102,9 @@ internal class SyncPlan(
     }
 
     companion object {
+        /** Whether Trakt watched a title [at] (null: never), after its show's change of order [reordered] when there was one. */
+        private fun markedSince(at: Long?, reordered: Long?): Boolean = at != null && (reordered == null || at > reordered)
+
         /** Trakt watches a title from this percentage; nothing under the lowest is kept as progress. */
         const val WATCHED_PERCENT = WatchHistory.WATCHED_PERCENT
         const val MIN_PERCENT = 1f
@@ -124,8 +127,9 @@ internal class SyncPlan(
             whole: WholeHistory = WholeHistory(),
         ): SyncPlan {
             val titled = rows.map { it to it.titles() }.filter { it.second.isNotEmpty() }
-            // A file holding several episodes is watched once all are.
-            val marks = titled.filter { (row, titles) -> !row.played && titles.all { it in watched } }
+            // A file holding several episodes is watched once all are; never by a mark older than its show's change of
+            // order, made under the order before, which may name another episode.
+            val marks = titled.filter { (row, titles) -> !row.played && titles.all { markedSince(watched[it], row.reorderedAt) } }
                 .groupBy({ (_, titles) -> titles.maxOf { watched.getValue(it) } }, { (row, _) -> row.id })
             // A pause without a title the library can name, or without a progress, cannot be placed.
             val pausedBy = paused

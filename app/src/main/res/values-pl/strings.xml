@@ -974,4 +974,38 @@
     <string name="held_gone_fix">Podłącz ponownie dysk NAS lub usuń ten tytuł.</string>
     <string name="held_remove_title">Usuń z biblioteki</string>
     <string name="card_held">nieodnaleziony</string>
+    <string name="episode_order">Kolejność odcinków</string>
+    <string name="episode_order_text">Wybierz kolejność, którą mają numery Twoich plików. To, co obejrzane, zostaje obejrzane.</string>
+    <string name="episode_order_auto">Automatyczna</string>
+    <string name="episode_order_auto_nfo">%s, według NFO</string>
+    <string name="episode_order_aired">Sezony TMDB</string>
+    <string name="episode_order_original">Data pierwszej emisji</string>
+    <string name="episode_order_absolute">Absolutna</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">Cyfrowa</string>
+    <string name="episode_order_story">Wątki fabularne</string>
+    <string name="episode_order_production">Produkcyjna</string>
+    <string name="episode_order_tv">Telewizyjna</string>
+    <string name="episode_order_applying">Porządkowanie odcinków…</string>
+    <plurals name="ignored_files">
+        <item quantity="one">Pominięto %d plik</item>
+        <item quantity="few">Pominięto %d pliki</item>
+        <item quantity="many">Pominięto %d plików</item>
+        <item quantity="other">Pominięto %d pliku</item>
+    </plurals>
+    <string name="ignored_files_desc_one">Jego nazwa nie mówi, gdzie go umieścić</string>
+    <string name="ignored_files_desc">Ich nazwy nie mówią, gdzie je umieścić</string>
+    <string name="ignored_files_text_one">Ten plik wideo jest w folderze seriali, ale jego nazwa nie mówi, gdzie go umieścić: biblioteka go pomija.</string>
+    <string name="ignored_files_text">Te pliki wideo są w folderze seriali, ale ich nazwy nie mówią, gdzie je umieścić: biblioteka je pomija.</string>
+    <string name="ignored_no_number">Brak numeru odcinka</string>
+    <string name="ignored_no_show">Brak nazwy serialu</string>
+    <plurals name="ignored_files_more">
+        <item quantity="one">I jeszcze %d</item>
+        <item quantity="few">I jeszcze %d</item>
+        <item quantity="many">I jeszcze %d</item>
+        <item quantity="other">I jeszcze %d</item>
+    </plurals>
+    <string name="ignored_files_fix_label">Jak to naprawić:</string>
+    <string name="ignored_files_fix_one">Jak to naprawić: nazwij go od jego serialu i numeru, „Serial - S01E02”, lub „Serial - 102” dla anime, albo umieść go w folderze „Season 1” jego serialu jako „02 - Tytuł”. Następne skanowanie go doda.</string>
+    <string name="ignored_files_fix">Jak to naprawić: nazwij je od ich serialu i numeru, „Serial - S01E02”, lub „Serial - 102” dla anime, albo umieść je w folderze „Season 1” ich serialu jako „02 - Tytuł”. Następne skanowanie je doda.</string>
 </resources>

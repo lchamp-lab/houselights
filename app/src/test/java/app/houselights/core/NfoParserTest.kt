@@ -180,6 +180,18 @@ class NfoParserTest {
         assertEquals(8.9, rating(imdb + critics)!!, 0.001)
     }
 
+    /** Jellyfin's `<displayorder>`, a Kodi link to a TMDB episode group, which alone still names the show. */
+    @Test
+    fun aShowsNfoNamesItsOrderAsJellyfinOrKodiWritesIt() {
+        assertEquals("dvd", NfoParser.parse("<tvshow><title>Firefly</title><displayorder>dvd</displayorder></tvshow>")?.displayOrder)
+        assertEquals("storyarc", NfoParser.parse("<tvshow><displayorder> storyArc </displayorder></tvshow>")?.displayOrder)
+        val link = NfoParser.parse("https://www.themoviedb.org/tv/1437-firefly/episode_group/5b11ba820e0a265847002c6e")
+        val read = link?.let { Triple(it.kind, it.tmdbId, it.episodeGroup) }
+        assertEquals(Triple(NfoKind.LINK, 1437, "5b11ba820e0a265847002c6e"), read)
+        val guide = NfoParser.parse("""<tvshow><episodeguide>{"tmdb":"1437"}</episodeguide></tvshow>""")
+        assertEquals("ids only: no order", null to null, guide?.displayOrder to guide?.episodeGroup)
+    }
+
     @Test
     fun withoutADefaultImdbOrTmdbRatingIsTaken() {
         val metacritic = """<rating name="metacritic" max="100"><value>78</value></rating>"""
