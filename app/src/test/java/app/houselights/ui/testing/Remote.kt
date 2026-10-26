@@ -2,9 +2,7 @@ package app.houselights.ui.testing
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.hardware.input.InputManager
 import android.os.SystemClock
-import android.util.SparseArray
 import android.view.InputDevice
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
@@ -27,6 +25,7 @@ import androidx.compose.ui.test.pressKey
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.design.components.LocalCutPosters
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowDialog
 import org.robolectric.shadows.ShadowInputDevice
 import org.robolectric.util.ReflectionHelpers
@@ -86,7 +85,7 @@ fun ComposeContentTestRule.pressOnPluggedKeyboard(key: Key, shift: Boolean = fal
     tap(KeySource.Plugged, key, meta = if (shift) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0)
 
 /**
- * Where a key comes from: a device as Android lists it, its [id] (a virtual one's negative) and [sources], and the
+ * Where a key comes from: a device as Android describes it, its [id] (a virtual one's negative) and [sources], and the
  * [source] and [flags] of its keys.
  */
 private enum class KeySource(val id: Int, val sources: Int, val source: Int, val flags: Int = 0) {
@@ -115,10 +114,13 @@ private fun ComposeContentTestRule.send(
     repeat: Int = 0,
     meta: Int = 0,
 ) {
-    val event = KeyEvent(down, at, action, key.nativeKeyCode, repeat, meta, registered(from), 0, from.flags, from.source)
-    check(event.device?.id == from.id) { "Android does not list the device of ${from.name}'s keys" }
+    val event = KeyEvent(down, at, action, key.nativeKeyCode, repeat, meta, from.id, 0, from.flags, from.source)
+    // Robolectric's events answer with the device their shadow holds, never with Android's list of devices.
+    shadowOf(event).setDevice(from.device())
     // Else the test would quietly send what Compose's text field reads as another's keys.
-    check(fromADPad(event) == (from == KeySource.Remote)) { "${from.name}'s keys do not read as its own" }
+    check(event.device?.id == from.id && fromADPad(event) == (from == KeySource.Remote)) {
+        "${from.name}'s keys do not read as its own"
+    }
     onRoot().performKeyPress(ComposeKeyEvent(event))
     waitForIdle()
 }
@@ -130,17 +132,10 @@ private fun fromADPad(event: KeyEvent): Boolean {
         event.source != InputDevice.SOURCE_KEYBOARD
 }
 
-/** [from]'s device id, listed once a test (Robolectric's input manager starts each with no device). */
-private fun registered(from: KeySource): Int {
-    val inputs = ReflectionHelpers.callStaticMethod<InputManager>(InputManager::class.java, "getInstance")
-    if (inputs.getInputDevice(from.id) == null) {
-        val device = ShadowInputDevice.makeInputDeviceNamed(from.name)
-        // Virtual when its id is negative.
-        ReflectionHelpers.setField(device, "mId", from.id)
-        ReflectionHelpers.setField(device, "mSources", from.sources)
-        ReflectionHelpers.getField<SparseArray<InputDevice>>(inputs, "mInputDevices").put(from.id, device)
-    }
-    return from.id
+/** The device as Android describes it, virtual when its id is negative. */
+private fun KeySource.device(): InputDevice = ShadowInputDevice.makeInputDeviceNamed(name).also {
+    ReflectionHelpers.setField(it, "mId", id)
+    ReflectionHelpers.setField(it, "mSources", sources)
 }
 
 /** A keyboard's keys that are a D-pad's, as Android lists a remote, its virtual keyboard and a keyboard with arrows. */
