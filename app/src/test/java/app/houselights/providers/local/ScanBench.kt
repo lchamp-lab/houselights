@@ -78,11 +78,17 @@ class ScanBench(
         ShadowSystemClock.advanceBy(Duration.ofMillis(ms))
     }
 
-    /** Folders on a NAS of their own; the others on [nas] or [showsNas], by kind. */
-    private val own = mutableMapOf<Long, FakeRemoteBrowser>()
+    /** Folders read by a browser of their own (another NAS, a disk of the player's); the others on [nas] or [showsNas], by kind. */
+    private val own = mutableMapOf<Long, RemoteBrowser>()
 
-    suspend fun folder(name: String, kind: SourceKind = SourceKind.MOVIES, on: FakeRemoteBrowser? = null): SourceEntity {
-        val id = dao.insertSource(nfsFolder(name, kind))
+    /** Folder [name] on [nas] or [showsNas], or read by [on]; stored as [stored] says (an NFS folder by default). */
+    suspend fun folder(
+        name: String,
+        kind: SourceKind = SourceKind.MOVIES,
+        on: RemoteBrowser? = null,
+        stored: SourceEntity = nfsFolder(name, kind),
+    ): SourceEntity {
+        val id = dao.insertSource(stored)
         on?.let { own[id] = it }
         return checkNotNull(dao.source(id))
     }

@@ -281,6 +281,39 @@ class LocalLibraryTest {
         assertEquals(setOf(SourceKind.MOVIES, SourceKind.SHOWS), library.kinds())
     }
 
+    /**
+     * On the player's own disks, a folder nests with another of the same disk, whatever the case of its names (the
+     * storage and FAT, exFAT or NTFS disks ignore it); the same path on another disk, or on a NAS, holds other files.
+     */
+    @Test
+    fun aFolderOfTheSameDiskIsNotAddedTwice() = runTest {
+        assertEquals(FolderSave.Saved, library.addFolder(diskFolder(path = "Vidéos/Films")))
+        val films = dao.sources().single()
+
+        assertEquals(FolderSave.Overlaps(films), library.addFolder(diskFolder(path = "vidéos/films/")))
+        assertEquals(FolderSave.Overlaps(films), library.addFolder(diskFolder(path = "")))
+        assertEquals(FolderSave.Overlaps(films), library.addFolder(diskFolder(disk = "1234-abcd", path = "Vidéos/Films/4K")))
+
+        assertEquals(FolderSave.Saved, library.addFolder(diskFolder(path = "Vidéos/Séries")))
+        assertEquals(FolderSave.Saved, library.addFolder(diskFolder(disk = "5678-EF01", path = "Vidéos/Films")))
+        assertEquals(FolderSave.Saved, library.addFolder(diskFolder(disk = Volume.INTERNAL, path = "Vidéos/Films")))
+        assertEquals(FolderSave.Saved, library.addFolder(nfs(USB_DISK, "", "Vidéos/Films")))
+        assertEquals(5, dao.sources().size)
+    }
+
+    /**
+     * A folder on the player's own disks is on no NAS: the add-folder flow offers no NAS for it, and reads it among the
+     * folders of its disk alone, to say how a folder there stands to the library.
+     */
+    @Test
+    fun aDisksFolderIsOnNoNas() = runTest {
+        library.addFolder(nfs("nas", "volume1/media", "films"))
+        library.addFolder(diskFolder())
+        assertEquals(listOf(UsedNas("nas", listOf(Protocol.NFS), listOf("films"))), library.usedNas())
+        assertEquals(listOf("films"), library.foldersOn("nas").map { it.path })
+        assertEquals(listOf("Films"), library.foldersOn(USB_DISK).map { it.path })
+    }
+
     @Test
     fun aFolderEditedOntoAnotherIsNotSaved() = runTest {
         library.addFolder(nfs("nas", "volume1/media", "films"))

@@ -28,3 +28,9 @@ class TmdbKeyRefusedException : IOException("TMDB refused the API key")
  * ([NotFoundException]). An [IOException] because TmdbClient's OkHttp interceptor throws it.
  */
 class TmdbNotFoundException : IOException("TMDB has no such entry")
+
+/**
+ * A disk of the player's own is not mounted (unplugged, being checked, ejected), or no longer where it was read: out
+ * of reach as a NAS asleep ([FailureKind.UNREACHABLE]), so its folders do not list and nothing leaves the library.
+ */
+class DiskAbsentException(disk: String, cause: Throwable? = null) : IOException("Disk $disk is not mounted", cause)

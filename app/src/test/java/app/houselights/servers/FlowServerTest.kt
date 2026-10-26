@@ -22,6 +22,7 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.exportAccess
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
+import app.houselights.providers.local.Volumes
 import app.houselights.ui.onboarding.FieldError
 import app.houselights.ui.onboarding.FlowDone
 import app.houselights.ui.onboarding.FlowKeys
@@ -59,7 +60,7 @@ import java.net.InetAddress
  */
 @RunWith(RobolectricTestRunner::class)
 class FlowServerTest {
-    private val browsers = RemoteBrowsers()
+    private val browsers = RemoteBrowsers(Volumes.NONE) { false }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
