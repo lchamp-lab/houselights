@@ -25,14 +25,14 @@ internal data class NameIds(val tmdb: Int? = null, val imdb: String? = null, val
      * Whether a title its name gives these ids to is looked up by them: never over the user's match, nor when the
      * name's TMDB id is its own; else once they give another id than its last lookup tried ([ItemEntity.hintKey]), at
      * once when [renamed] or never matched, else a day after that lookup. One that tried them, whatever they found, is
-     * not asked by them again, unless it found no title at all: TMDB may list it a day later.
+     * not asked by them again: a title they found none for is asked again with the others to identify ([Reidentify]).
      */
     fun dueFor(row: Hinted, show: Boolean, now: Long, renamed: Boolean): Boolean {
         val key = key(show) ?: return false
-        if (row.userTmdbId != null || tmdb != null && tmdb == row.tmdbId) return false
+        val own = tmdb != null && tmdb == row.tmdbId
+        if (row.userTmdbId != null || key == row.hintKey || own) return false
         val matchedAt = row.matchedAt ?: return true
-        val aDayLater = now - matchedAt >= RETRY_MS
-        return if (key == row.hintKey) row.tmdbId == null && aDayLater else renamed || aDayLater
+        return renamed || now - matchedAt >= RETRY_MS
     }
 
     /**

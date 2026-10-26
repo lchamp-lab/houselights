@@ -27,6 +27,20 @@ class FakeTmdb : Interceptor {
     val seasons: MutableMap<Pair<Int, Int>, TmdbSeason> = Collections.synchronizedMap(linkedMapOf())
     val collections: MutableMap<Int, TmdbCollection> = Collections.synchronizedMap(linkedMapOf())
 
+    /**
+     * TMDB's ranked answer to a search, by its query in lower case: the films or shows of these ids, of the year asked
+     * for. A query not here finds the films or shows of that title exactly.
+     */
+    val searches: MutableMap<String, List<Int>> = Collections.synchronizedMap(linkedMapOf())
+
+    /** English titles of the films and shows of those ids, which a search in English ("en-US") finds and answers. */
+    val englishTitles: MutableMap<Int, String> = Collections.synchronizedMap(linkedMapOf())
+
+    /** Searches asked, in order: "query (year)", or "query" without a year. */
+    val searched: MutableList<String> = Collections.synchronizedList(mutableListOf())
+
+    val searchCount: Int get() = requests.count { it.startsWith("search/") }
+
     /** Other titles of the films and of the shows of those ids ([TmdbClient.alternativeTitles]); none for the others. */
     val movieAlternatives: MutableMap<Int, List<String>> = Collections.synchronizedMap(linkedMapOf())
     val showAlternatives: MutableMap<Int, List<String>> = Collections.synchronizedMap(linkedMapOf())
@@ -87,14 +101,15 @@ class FakeTmdb : Interceptor {
         imdbId: String? = null,
         collection: TmdbCollectionRef? = null,
         originalTitle: String? = null,
+        votes: Int = 0,
     ) = TmdbMovie(
         id = id, title = title, imdbId = imdbId, originalTitle = originalTitle, releaseDate = year?.let { "$it-06-01" },
-        overview = "About $title", posterPath = "/poster-$id.jpg", belongsToCollection = collection,
+        overview = "About $title", posterPath = "/poster-$id.jpg", belongsToCollection = collection, voteCount = votes,
     ).also { movies[id] = it }
 
-    fun show(id: Int, name: String, year: Int? = null, tvdbId: Int? = null, imdbId: String? = null) = TmdbTv(
+    fun show(id: Int, name: String, year: Int? = null, tvdbId: Int? = null, imdbId: String? = null, votes: Int = 0) = TmdbTv(
         id = id, name = name, firstAirDate = year?.let { "$it-01-01" }, overview = "About $name", posterPath = "/show-$id.jpg",
-        externalIds = TmdbExternalIds(imdbId = imdbId, tvdbId = tvdbId),
+        externalIds = TmdbExternalIds(imdbId = imdbId, tvdbId = tvdbId), voteCount = votes,
     ).also { shows[id] = it }
 
     /** Changes what TMDB answers for the film [id], added before. */
@@ -155,8 +170,12 @@ class FakeTmdb : Interceptor {
     /** The body TMDB answers [path] with; null for an entry it does not have. */
     private fun answer(path: String, url: HttpUrl): String? = when {
         path == "authentication" -> "{\"success\":true}"
-        path.startsWith("search/") ->
-            search(path, url.queryParameter("query"), url.queryParameter("year") ?: url.queryParameter("first_air_date_year"))
+        path.startsWith("search/") -> search(
+            path,
+            url.queryParameter("query"),
+            url.queryParameter("year") ?: url.queryParameter("first_air_date_year"),
+            english = url.queryParameter("language") == ENGLISH,
+        )
         path.startsWith("find/") -> find(path.substringAfter('/'), url.queryParameter("external_source"))
         path.endsWith("/images") -> encode(TmdbImageSet.serializer(), TmdbImageSet())
         path.endsWith("/alternative_titles") -> alternatives(path.split('/'))
@@ -189,15 +208,31 @@ class FakeTmdb : Interceptor {
         return encode(TmdbAlternativeTitles.serializer(), all)
     }
 
-    private fun search(path: String, query: String?, year: String?): String = page(
-        if (path == "search/movie") {
-            movies.values.filter { it.title.equals(query, true) && matches(year, it.releaseDate) }
-                .map { TmdbSearchResult(it.id, title = it.title, releaseDate = it.releaseDate) }
-        } else {
-            shows.values.filter { it.name.equals(query, true) && matches(year, it.firstAirDate) }
-                .map { TmdbSearchResult(it.id, name = it.name, firstAirDate = it.firstAirDate) }
-        },
-    )
+    /** The films ([path] "search/movie") or shows of [query] and [year], ranked ([searches]), in English when [english]. */
+    private fun search(path: String, query: String?, year: String?, english: Boolean): String {
+        searched += "$query${year?.let { " ($it)" }.orEmpty()}"
+        val ranked = searches[query?.lowercase()]
+        fun named(id: Int, title: String?) = (if (english) englishTitles[id] else null) ?: title
+        fun asked(id: Int, title: String?) = ranked?.contains(id) ?: named(id, title).equals(query, ignoreCase = true)
+        fun order(id: Int) = ranked?.indexOf(id) ?: 0
+        return page(
+            if (path == "search/movie") {
+                movies.values.filter { asked(it.id, it.title) && matches(year, it.releaseDate) }.sortedBy { order(it.id) }.map {
+                    TmdbSearchResult(
+                        it.id, title = named(it.id, it.title), releaseDate = it.releaseDate, posterPath = it.posterPath,
+                        originalTitle = it.originalTitle, overview = it.overview, voteCount = it.voteCount ?: 0,
+                    )
+                }
+            } else {
+                shows.values.filter { asked(it.id, it.name) && matches(year, it.firstAirDate) }.sortedBy { order(it.id) }.map {
+                    TmdbSearchResult(
+                        it.id, name = named(it.id, it.name), firstAirDate = it.firstAirDate, posterPath = it.posterPath,
+                        originalName = it.originalName, overview = it.overview, voteCount = it.voteCount ?: 0,
+                    )
+                }
+            },
+        )
+    }
 
     /** A film, a show, a season or a collection, by id. */
     private fun entry(parts: List<String>): String? {
@@ -234,6 +269,7 @@ class FakeTmdb : Interceptor {
         const val OK = 200
         const val NOT_FOUND = 404
         const val WAIT_MS = 5L
+        const val ENGLISH = "en-US"
         val JSON = "application/json".toMediaType()
 
         @OptIn(ExperimentalSerializationApi::class)

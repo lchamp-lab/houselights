@@ -45,7 +45,8 @@ class UnreadableFolderException(count: Int) : IllegalStateException("No video li
 
 /**
  * Incremental scanner: lists sources, handles missing files ([MissingFiles]) and matches new ones on TMDB, which is
- * optional ([TmdbPass]); unmatched titles are retried hourly, or at once on a requested scan. Writes go through
+ * optional ([TmdbPass]); unmatched titles are retried hourly, or at once on a requested scan, and titles TMDB found
+ * nothing for or hesitated on are asked again daily, then weekly ([Reidentify]). Writes go through
  * [LibraryDao.saveScanned], so user choices and viewing state are never overwritten.
  */
 class LibraryScanner(
@@ -92,6 +93,7 @@ class LibraryScanner(
     private val movies = MovieIndexer(dao, files, clock)
     private val shows = ShowIndexer(dao, files, clock)
     private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
+    private val reidentify = Reidentify(dao, lock, movies, shows, clock) { waitForThePlayer() }
 
     /** Rows this process saw missing, timed on [elapsed] as the wall clock can jump. */
     private val sightings = MissingSightings(elapsed)
@@ -224,12 +226,13 @@ class LibraryScanner(
     private val askTmdbAgain = AtomicBoolean(false)
 
     private suspend fun cleanupLocked(): CleanupResult {
-        // One transaction for the three, on a device where each costs a sync to storage.
+        // One transaction for the four, on a device where each costs a sync to storage.
         var orphanCast = 0
         dao.inTransaction {
             orphanCast = dao.deleteOrphanCredits()
             dao.deleteOrphanSearchWords()
             dao.deleteOrphanTrackChoices()
+            dao.deleteOrphanSuggestions()
         }
         // Based on library references, not on the NAS listing, so an unreachable NAS never deletes artwork.
         val result = artwork.sweep(dao.cachedArtworkPaths())
@@ -252,10 +255,9 @@ class LibraryScanner(
         val client = client()
         val tmdb = TmdbPass(client) { e -> _state.update { it.copy(tmdbIssue = e.failureKind()) } }
         val seasons = ShowIndexer.SeasonCache(tmdb)
-        // After a recent TMDB failure with this key, unmatched titles wait an hour unless the scan was requested.
         val down = tmdbDown?.takeIf { it.client === client }
         val asked = askTmdbAgain.getAndSet(false)
-        val askUnmatched = asked || down == null || elapsed() - down.at >= UNMATCHED_RETRY_MS
+        val askUnmatched = askUnmatched(down, asked)
         try {
             val sources = dao.sources()
             val reached = mutableSetOf<Long>()
@@ -271,6 +273,8 @@ class LibraryScanner(
             }
             // Sources the pass did not reach keep their last error.
             errors += before.filterKeys { id -> id !in reached && sources.any { it.id == id } }
+            // Titles to identify are asked again while TMDB answers, as titles waiting for it are.
+            if (askUnmatched) changed = reidentified(tmdb, asked) || changed
             lock.withLock {
                 suspendRunCatching {
                     // Rows added meanwhile under a source removed during the scan.
@@ -295,6 +299,20 @@ class LibraryScanner(
         if (changed || stoppedAfterWriting) _changed.emit(Unit)
         _passEnded.tryEmit(changed)
     }
+
+    /** After a recent TMDB failure with this key ([down]), unmatched titles wait an hour unless the scan was [asked] for. */
+    private fun askUnmatched(down: TmdbDown?, asked: Boolean): Boolean =
+        asked || down == null || elapsed() - down.at >= UNMATCHED_RETRY_MS
+
+    /**
+     * Runs [Reidentify] after the sources while TMDB answers, sooner on a scan the user [asked] for; true when a title
+     * changed. A failure is retried at the next pass.
+     */
+    private suspend fun reidentified(tmdb: TmdbPass, asked: Boolean): Boolean = tmdb.open &&
+        suspendRunCatching { reidentify.run(tmdb, asked) }
+            .onSuccess { if (it > 0) Log.i(TAG, "To identify: $it titles asked again changed") }
+            .onFailure { Log.w(TAG, "Asking TMDB again for titles to identify failed; tried again at the next pass", it) }
+            .getOrDefault(0) > 0
 
     /** Runs the [Backfill] after the sources; a failure is retried at the next pass. */
     private suspend fun backfill(tmdb: TmdbPass, askTmdb: Boolean) {

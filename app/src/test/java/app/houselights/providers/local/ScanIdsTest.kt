@@ -339,13 +339,28 @@ class ScanIdsTest {
         assertEquals(MatchState.NOT_FOUND, bench.item(films, "Dune (2021) {tmdb-438631}.mkv").matchState)
         bench.assertQuiet()
 
-        // Listed on TMDB since.
+        // Listed on TMDB since: asked again as a title to identify ([Reidentify]), by its name's id first.
         tmdb.movie(DUNE, "Dune", 2021)
         bench.later(NameIds.RETRY_MS - 1)
-        assertEquals("not within the day", emptyList<String>(), bench.pass().requests.filter { it == "movie/$DUNE" })
+        assertEquals("not within the day", emptyList<String>(), bench.pass(auto = true).requests)
         bench.later(1)
-        assertEquals("movie/$DUNE", bench.pass().requests.first())
+        val pass = bench.pass(auto = true)
+        assertEquals("movie/$DUNE", pass.requests.first())
+        assertEquals("never the NAS", emptyList<String>(), pass.reads)
         assertEquals(DUNE, bench.item(films, "Dune (2021) {tmdb-438631}.mkv").tmdbId)
+    }
+
+    /** A film a name's id found but did not trust is the first candidate offered when TMDB's search finds no other. */
+    @Test
+    fun aNameIdNotTrustedIsTheFirstCandidateOffered() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(AVATAR, "Avatar", 2009)
+        nas.put("Vacances à Biarritz (2019) {tmdb-19995}.mkv")
+        bench.scan()
+
+        val holidays = bench.item(films, "Vacances à Biarritz (2019) {tmdb-19995}.mkv")
+        assertEquals(null to MatchState.UNSURE, holidays.tmdbId to holidays.matchState)
+        assertEquals(listOf(AVATAR), dao.suggestions(holidays.id).map { it.tmdbId })
     }
 
     /** A show 0.3.0 matched by its title, its folder's TVDB id (Sonarr's TRaSH naming) read by no version before. */

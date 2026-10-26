@@ -24,7 +24,7 @@ class TmdbPassTest {
     private val tmdb = FakeTmdb()
     private val client = tmdb.client(pauseWhenUnreachable = true)
 
-    private suspend fun TmdbPass.film(n: Int) = ask { it.findMovie("Film $n", 2020) }
+    private suspend fun TmdbPass.film(n: Int) = ask { it.matchMovie(Wanted.of("Film $n", 2020)).found }
 
     /** The time a film takes to scan, its files read on the NAS. */
     private fun scanned() = ShadowSystemClock.advanceBy(Duration.ofSeconds(5))

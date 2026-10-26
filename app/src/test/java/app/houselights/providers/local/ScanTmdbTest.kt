@@ -378,4 +378,66 @@ class ScanTmdbTest {
         assertNotNull(again.matchedAt)
         assertEquals("Arrakis", bench.dao.collection(checkNotNull(again.collectionId))?.overview)
     }
+    /** "Dune.mkv": two films and a sequel of that name, none clearly ahead: to identify, its three best candidates kept. */
+    @Test
+    fun aFilmTmdbHesitatesOnIsToIdentifyWithItsThreeSuggestions() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(DUNE, "Dune", 2021, votes = 12_000)
+        tmdb.movie(LYNCH, "Dune", 1984, votes = 3_000)
+        tmdb.movie(PART_TWO, "Dune : Deuxième partie", 2024, votes = 6_000)
+        tmdb.searches["dune"] = listOf(DUNE, LYNCH, PART_TWO)
+        nas.put("Dune.mkv")
+        bench.scan()
+
+        val dune = bench.item(films, "Dune.mkv")
+        assertEquals(null to MatchState.UNSURE, dune.tmdbId to dune.matchState)
+        val offered = bench.dao.suggestions(dune.id)
+        assertEquals("the best first", listOf(DUNE, LYNCH, PART_TWO), offered.map { it.tmdbId })
+        assertEquals(listOf(0, 1, 2), offered.map { it.rank })
+        assertEquals("Dune" to 1984, offered[1].title to offered[1].year)
+        assertEquals("/poster-$LYNCH.jpg", offered[1].posterPath)
+        assertEquals(listOf(dune.id), bench.dao.toIdentify().map { it.id })
+    }
+
+    /** A title matched before keeps its match: a refresh asks TMDB by its id, never by its name, whatever TMDB holds since. */
+    @Test
+    fun aFilmMatchedBeforeKeepsItsMatch() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(DUNE, "Dune", 2021, votes = 12_000)
+        nas.put("Dune.mkv")
+        bench.scan()
+        assertEquals(DUNE, bench.item(films, "Dune.mkv").tmdbId)
+
+        // The film of 1984 on TMDB too: "Dune.mkv" would now be to identify.
+        tmdb.movie(LYNCH, "Dune", 1984, votes = 3_000)
+        bench.later(DAY_MS)
+        assertEquals("nothing asked at the next passes", emptyList<String>(), bench.pass().requests)
+        val refresh = bench.pass(refresh = true)
+        assertEquals("never searched", 0, refresh.requests.count { it.startsWith("search/") })
+        val dune = bench.item(films, "Dune.mkv")
+        assertEquals(DUNE to MatchState.MATCHED, dune.tmdbId to dune.matchState)
+    }
+
+    /** "Dune (2020).mkv": TMDB's first answer of 2020 is another film, which 0.3.0 took; Dune of 2021 is the film. */
+    @Test
+    fun aFirstResultOfAnotherTitleIsNotMatched() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(DRIFTER, "Dune Drifter", 2020, votes = 100)
+        tmdb.movie(DUNE, "Dune", 2021, votes = 12_000)
+        tmdb.movie(LYNCH, "Dune", 1984, votes = 3_000)
+        tmdb.searches["dune"] = listOf(DRIFTER, DUNE, LYNCH)
+        nas.put("Dune (2020).mkv")
+        bench.scan()
+
+        assertEquals(DUNE, bench.item(films, "Dune (2020).mkv").tmdbId)
+        assertEquals("its year, then without", listOf("Dune (2020)", "Dune"), tmdb.searched)
+    }
+
+    private companion object {
+        const val DUNE = 438631
+        const val LYNCH = 841
+        const val PART_TWO = 693134
+        const val DRIFTER = 1
+        const val DAY_MS = 24 * 60 * 60_000L
+    }
 }

@@ -145,12 +145,13 @@ object MetadataMerge {
 
     /**
      * What TMDB made of [item], merged ([MatchState]): matched with a TMDB id, TMDB's or its NFO's; else, once TMDB
-     * answered [lookup], not found; else as it was.
+     * answered [lookup], unsure when it offered candidates ([Looked.offered]), else not found; else as it was.
      */
-    internal fun matchState(item: ItemEntity, lookup: TmdbAnswer<*>?): MatchState? = when {
+    internal fun matchState(item: ItemEntity, lookup: TmdbAnswer<Looked<*>>?): MatchState? = when {
         item.tmdbId != null -> MatchState.MATCHED
-        lookup is TmdbAnswer.Given -> MatchState.NOT_FOUND
-        else -> item.matchState
+        lookup !is TmdbAnswer.Given -> item.matchState
+        lookup.value?.offered.isNullOrEmpty() -> MatchState.NOT_FOUND
+        else -> MatchState.UNSURE
     }
 
     /** Keeps only what the file or folder name gives, dropping details of a previous match and what TMDB made of it. */

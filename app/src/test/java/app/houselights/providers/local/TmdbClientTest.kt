@@ -66,7 +66,7 @@ class TmdbClientTest {
 
     @Test
     fun findsAFilmByItsTitle() = runTest {
-        assertEquals(438631, tmdb.client().findMovie("Dune", 2021)?.id)
+        assertEquals(438631, tmdb.client().matchMovie(Wanted.of("Dune", 2021)).found?.id)
         assertEquals(listOf("search/movie", "movie/438631"), tmdb.requests)
     }
 
@@ -76,7 +76,7 @@ class TmdbClientTest {
         val client = tmdb.client(pauseWhenUnreachable = true)
         tmdb.hold = true
         // A search superseded by a newer one, or a screen left, while TMDB answers.
-        val search = launch(Dispatchers.IO) { client.findMovie("Dune", 2021) }
+        val search = launch(Dispatchers.IO) { client.matchMovie(Wanted.of("Dune", 2021)) }
         assertTrue(tmdb.held.await(5, TimeUnit.SECONDS))
         search.cancel()
         search.join()
@@ -85,23 +85,23 @@ class TmdbClientTest {
         while (Http.client.dispatcher.runningCallsCount() > 0 && System.nanoTime() < until) Thread.sleep(5)
 
         tmdb.hold = false
-        assertEquals(438631, client.findMovie("Dune", 2021)?.id)
+        assertEquals(438631, client.matchMovie(Wanted.of("Dune", 2021)).found?.id)
     }
 
     @Test
     fun aScanPausesTmdbOnceOutOfReachThenAsksAgainAMinuteLater() = runTest {
         val client = tmdb.client(pauseWhenUnreachable = true)
         tmdb.failure = ConnectException("Network is unreachable")
-        failure<TmdbUnreachableException> { client.findMovie("Dune", 2021) }
+        failure<TmdbUnreachableException> { client.matchMovie(Wanted.of("Dune", 2021)) }
 
         tmdb.failure = null
         tmdb.requests.clear()
-        failure<TmdbPausedException> { client.findMovie("Dune", 2021) }
+        failure<TmdbPausedException> { client.matchMovie(Wanted.of("Dune", 2021)) }
         assertEquals("the next files don't each wait for a timeout", emptyList<String>(), tmdb.requests)
 
         // On the monotonic clock: the wall clock may have been set back meanwhile.
         ShadowSystemClock.advanceBy(Duration.ofSeconds(61))
-        assertEquals(438631, client.findMovie("Dune", 2021)?.id)
+        assertEquals(438631, client.matchMovie(Wanted.of("Dune", 2021)).found?.id)
     }
 
     /** No route, no name, no connection, no answer in time: the next request would wait as long. */
@@ -210,9 +210,9 @@ class TmdbClientTest {
     fun aHitTmdbNoLongerHasIsNoMatch() = runTest {
         tmdb.show(95396, "Severance", 2022)
         tmdb.gonePath = "movie/438631"
-        assertNull(tmdb.client().findMovie("Dune", 2021))
+        assertNull(tmdb.client().matchMovie(Wanted.of("Dune", 2021)).found)
         tmdb.gonePath = "tv/95396"
-        assertNull(tmdb.client().findTv("Severance", 2022))
+        assertNull(tmdb.client().matchTv(Wanted.of("Severance", 2022)).found)
     }
 
     @Test

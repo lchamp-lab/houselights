@@ -264,6 +264,45 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("SELECT $CARD_ROW FROM items WHERE $TO_IDENTIFY ORDER BY addedAt DESC, id DESC")
     suspend fun toIdentify(): List<ItemEntity>
 
+    /**
+     * Films or shows ([kind]) to identify that TMDB is to be asked about again ([Reidentify]), the longest waiting
+     * first, at most [limit]: those come after [newSince] last asked by [newDue], the others by [due]; never a title
+     * matched by hand.
+     */
+    @Query(
+        "SELECT $CARD_ROW FROM items WHERE $TO_IDENTIFY AND kind = :kind AND userTmdbId IS NULL AND matchedAt IS NOT NULL " +
+            "AND matchedAt <= (CASE WHEN addedAt > :newSince THEN :newDue ELSE :due END) ORDER BY matchedAt LIMIT :limit"
+    )
+    suspend fun recheckDue(kind: ItemKind, newSince: Long, newDue: Long, due: Long, limit: Int): List<ItemEntity>
+
+    /** A title still to identify once TMDB was asked again ([Reidentify]): what it made of it, and when. */
+    @Query("UPDATE items SET matchState = :state, matchedAt = :at WHERE id = :id")
+    suspend fun setMatchState(id: Long, state: MatchState, at: Long)
+
+    @Query("SELECT COUNT(*) FROM items WHERE kind = 'SEASON' AND parentId = :seriesId")
+    suspend fun seasonCount(seriesId: Long): Int
+
+    /** The candidates of a title TMDB hesitated on ([MatchState.UNSURE]), the best first. */
+    @Query("SELECT * FROM suggestions WHERE itemId = :itemId ORDER BY rank")
+    suspend fun suggestions(itemId: Long): List<SuggestionEntity>
+
+    @Query("DELETE FROM suggestions WHERE itemId = :itemId")
+    suspend fun forgetSuggestions(itemId: Long)
+
+    @Insert
+    suspend fun insertSuggestions(rows: List<SuggestionEntity>)
+
+    /** Replaces [itemId]'s candidates with [rows], none when empty. */
+    @Transaction
+    suspend fun replaceSuggestions(itemId: Long, rows: List<SuggestionEntity>) {
+        forgetSuggestions(itemId)
+        if (rows.isNotEmpty()) insertSuggestions(rows)
+    }
+
+    /** Candidates of titles gone. */
+    @Query("DELETE FROM suggestions WHERE itemId NOT IN (SELECT id FROM items)")
+    suspend fun deleteOrphanSuggestions()
+
     @Query("SELECT COUNT(*) FROM items WHERE kind IN ('MOVIE','SERIES')")
     fun observeAllTitleCount(): Flow<Int>
 

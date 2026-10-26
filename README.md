@@ -57,6 +57,10 @@ gratuite, l’application est entièrement en français. [Installer](#install)
   details from TMDB.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids and ids in names identify titles exactly ([Naming your files](#naming-your-files)).
+  - Without an id, TMDB's results are weighed (titles, original and alternative ones included, year, votes and
+    TMDB's order), never taken first come: a title no result is clearly ahead for is left unidentified with its
+    three best candidates rather than matched wrongly, and one TMDB does not know is searched again, daily in its
+    first week, then weekly.
   - Technical details are read from the files and set on a title's page as on a case back: a line for the video
     (resolution, Dolby Vision and HDR, codec, frame rate), one for the audio (format, channels, bitrate, and its
     language when a track is asked for), and every track in its technical sheet.

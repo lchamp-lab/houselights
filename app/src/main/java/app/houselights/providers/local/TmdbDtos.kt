@@ -24,6 +24,7 @@ data class TmdbSearchResult(
     val originalName: String? = null,
     val overview: String? = null,
     val backdropPath: String? = null,
+    val voteCount: Int = 0,
 )
 
 @Serializable

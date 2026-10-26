@@ -176,13 +176,30 @@ class TmdbClient(
         TmdbKeyCheck.UNCHECKED
     }
 
-    /** Best match, retrying without the year (often off by one in file names); a hit removed from TMDB gives null. */
-    suspend fun findMovie(title: String, year: Int?): TmdbMovie? {
-        val hit = call { it.searchMovie(title, year, language) }.results.firstOrNull()
-            ?: year?.let { call { api -> api.searchMovie(title, null, language) }.results.firstOrNull() }
-            ?: return null
-        return unlessMissing { call { it.movie(hit.id, language, imageLanguages) } }
+    /**
+     * The film [wanted] names among TMDB's answers to its searches, scored ([MatchPlan]), with its details; else the
+     * candidates TMDB hesitated on, [first] ahead of them (a film a name's id found, not trusted). A hit removed from
+     * TMDB since its search counts as none.
+     */
+    internal suspend fun matchMovie(wanted: Wanted, first: Candidate? = null): Matched<TmdbMovie> {
+        val verdict = MatchPlan.run(wanted, alsoEnglish, { searchMovies(it.title, it.year, languageOf(it)) }) {
+            alternativeTitles(it, show = false)
+        }
+        return Matched((verdict as? Verdict.Match)?.let { movieById(it.best.candidate.id) }, MatchScore.offered(wanted, verdict, first))
     }
+
+    /** The show [wanted] names, as [matchMovie] finds a film. */
+    internal suspend fun matchTv(wanted: Wanted, first: Candidate? = null): Matched<TmdbTv> {
+        val verdict = MatchPlan.run(wanted, alsoEnglish, { searchShows(it.title, it.year, languageOf(it)) }) {
+            alternativeTitles(it, show = true)
+        }
+        return Matched((verdict as? Verdict.Match)?.let { tvById(it.best.candidate.id) }, MatchScore.offered(wanted, verdict, first))
+    }
+
+    /** Whether titles are also searched in English ([MatchPlan]): the client speaks another language. */
+    private val alsoEnglish = languageCode != ENGLISH_CODE
+
+    private fun languageOf(search: Search) = if (search.english) ENGLISH else language
 
     /** Null when TMDB has no such film; a network failure throws and must never read as "not found". */
     suspend fun movieById(id: Int): TmdbMovie? = unlessMissing { movie(id) }
@@ -194,9 +211,11 @@ class TmdbClient(
 
     suspend fun tv(id: Int): TmdbTv = call { it.tv(id, language, imageLanguages) }
 
-    suspend fun searchMovies(query: String, year: Int?): List<TmdbSearchResult> = call { it.searchMovie(query, year, language) }.results
+    suspend fun searchMovies(query: String, year: Int?, language: String = this.language): List<TmdbSearchResult> =
+        call { it.searchMovie(query, year, language) }.results
 
-    suspend fun searchShows(query: String, year: Int?): List<TmdbSearchResult> = call { it.searchTv(query, year, language) }.results
+    suspend fun searchShows(query: String, year: Int?, language: String = this.language): List<TmdbSearchResult> =
+        call { it.searchTv(query, year, language) }.results
 
     /** The film or show for an IMDb id, as a search result. */
     suspend fun findImdb(imdbId: String, show: Boolean): TmdbSearchResult? {
@@ -216,13 +235,6 @@ class TmdbClient(
 
     /** TMDB id of the show a TheTVDB id names (Sonarr's, in its NFO or its folder's name); null when TMDB has none. */
     suspend fun findByTvdb(tvdbId: Int): Int? = unlessMissing { call { it.find(tvdbId.toString(), "tvdb_id") }.tvResults.firstOrNull()?.id }
-
-    suspend fun findTv(title: String, year: Int?): TmdbTv? {
-        val hit = call { it.searchTv(title, year, language) }.results.firstOrNull()
-            ?: year?.let { call { api -> api.searchTv(title, null, language) }.results.firstOrNull() }
-            ?: return null
-        return unlessMissing { call { it.tv(hit.id, language, imageLanguages) } }
-    }
 
     /** A film's or show's [show] other titles, in every country; none when TMDB has no such entry. */
     suspend fun alternativeTitles(id: Int, show: Boolean): List<String> = unlessMissing {
@@ -269,6 +281,10 @@ class TmdbClient(
         )
 
         private const val BASE_URL = "https://api.themoviedb.org/3/"
+
+        /** The language titles are also searched in ([matchMovie]), English's code. */
+        private const val ENGLISH = "en-US"
+        private const val ENGLISH_CODE = "en"
         private val GATEWAY_FAILURES = setOf(502, 503, 504)
         private const val UNREACHABLE_PAUSE_MS = 60_000L
 
