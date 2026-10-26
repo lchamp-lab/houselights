@@ -41,7 +41,8 @@ import java.nio.ByteBuffer
  * which removeRecordMarking reads correctly. A reply costs no more round trips than one in a single fragment; reading
  * less than 64 KB at a time would have avoided the fragments, at the cost of more round trips on every NAS.
  *
- * Remove this file and the build's transform once nfs-client joins fragments itself.
+ * Remove this file, and the build's copy of nfs-client's jar without its decoder, once nfs-client joins fragments
+ * itself.
  */
 class RPCRecordDecoder : FrameDecoder() {
     override fun decode(ctx: ChannelHandlerContext?, channel: Channel?, buffer: ChannelBuffer): Any? {
