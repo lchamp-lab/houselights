@@ -96,12 +96,27 @@ object FilenameParser {
 
     fun parseMovie(fileName: String): ParsedMovie {
         val base = normalizeSeparators(dropBrackets(stripExtension(fileName)))
-
-        // The last plausible year, not at the start ("1917") nor in the future ("Blade Runner 2049").
-        val latest = LocalDate.now().year + 1
-        val year = YEAR.findAll(base).lastOrNull { it.range.first > 0 && it.value.toInt() <= latest }
+        val year = yearIn(base)
         val title = beforeTags(if (year != null) base.substring(0, year.range.first) else base)
         return ParsedMovie(clean(title).ifBlank { clean(base) }, year?.value?.toInt())
+    }
+
+    /**
+     * Whether the year [parseMovie] reads in [fileName] stands bare, neither in parentheses nor in brackets: it may be
+     * the title's ("Wonder Woman 1984", "Death Race 2000"), unlike "Dune (2021)" or "Dune [2021]".
+     */
+    fun bareYear(fileName: String): Boolean {
+        val name = stripExtension(fileName)
+        val base = normalizeSeparators(dropBrackets(name))
+        val year = yearIn(base) ?: return false
+        val inParentheses = base.getOrNull(year.range.first - 1) == '(' && base.getOrNull(year.range.last + 1) == ')'
+        return !inParentheses && !Regex("""[\[\{]\s*${year.value}\s*[\]\}]""").containsMatchIn(name)
+    }
+
+    /** The last plausible year in [base], not at the start ("1917") nor in the future ("Blade Runner 2049"). */
+    private fun yearIn(base: String): MatchResult? {
+        val latest = LocalDate.now().year + 1
+        return YEAR.findAll(base).lastOrNull { it.range.first > 0 && it.value.toInt() <= latest }
     }
 
     /**
@@ -114,8 +129,7 @@ object FilenameParser {
         PLEX_EDITION.find(name)?.let { return Editions.of(it.groupValues[1]) }
         BRACKETED.findAll(name).firstNotNullOfOrNull { Editions.find(it.groupValues[1]) }?.let { return it }
         val base = normalizeSeparators(dropBrackets(name))
-        val latest = LocalDate.now().year + 1
-        val year = YEAR.findAll(base).lastOrNull { it.range.first > 0 && it.value.toInt() <= latest } ?: return null
+        val year = yearIn(base) ?: return null
         return Editions.find(base.substring(year.range.last + 1))
     }
 
@@ -285,9 +299,13 @@ object FilenameParser {
         }
     }
 
-    /** Removes [tags] and {tags}, but keeps a bracketed year: "Title [2024]". */
-    private fun dropBrackets(s: String): String =
-        BRACKETS.replace(s) { m -> YEAR.matchEntire(m.value.trim('[', ']', '{', '}').trim())?.let { " ${it.value} " } ?: " " }
+    /**
+     * Removes [tags], {tags} and ids, also in parentheses ([NameIds]: "Film (tmdb-1999) (2020)" is of 2020), but keeps
+     * a bracketed year: "Title [2024]".
+     */
+    private fun dropBrackets(s: String): String = BRACKETS.replace(NameIds.HINT.replace(s, " ")) { m ->
+        YEAR.matchEntire(m.value.trim('[', ']', '{', '}').trim())?.let { " ${it.value} " } ?: " "
+    }
 
     /** Dots and underscores separate words in scene names, unless the name already has spaces. */
     private fun normalizeSeparators(s: String): String =

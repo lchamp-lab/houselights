@@ -29,8 +29,20 @@ internal object ScanTitles {
      * Poulain (2001).mkv"). Only [FILM_EXTRAS_FOLDERS] count as extras there: "Animation/Shorts" may hold films.
      */
     private fun holdingOneTitle(named: List<RemoteFile>): Set<String> =
-        Stacks.of(SourceKind.MOVIES, named).titles.groupingBy { Sidecars.folderOf(it.relativePath) }.eachCount()
-            .filterValues { it == 1 }.keys
+        holding(Stacks.of(SourceKind.MOVIES, named).titles.map { it.relativePath }) { it }
+
+    /**
+     * Folders holding one film ([NameIds.ofFilm]): [holdingOneTitle] widened to its copies, every title there named
+     * alike by its own name, title and year ("Dune (2021) 1080p" beside "Dune (2021) 2160p"), its parts gone into
+     * [films] already ([Stack.namedPath]); never a remake beside its original ("Dune (1984)", "Dune (2021)"), nor a
+     * film beside a file named otherwise ("movie.mkv", "trailer.mkv").
+     */
+    fun holdingOneFilm(films: Collection<String>): Set<String> =
+        holding(films) { path -> FilenameParser.parseMovie(path.substringAfterLast('/')).let { FilenameParser.showKey(it.title, it.year) } }
+
+    /** Folders of [paths] whose paths all give one [key]. */
+    private fun holding(paths: Collection<String>, key: (String) -> String): Set<String> =
+        paths.groupBy { Sidecars.folderOf(it) }.filterValues { inFolder -> inFolder.mapTo(HashSet(), key).size == 1 }.keys
 
     /** Plex, Jellyfin and Kodi extras suffixes: "Dune (2021)-trailer.mkv", Jellyfin's "Dune (2021).trailer.mkv". */
     private val EXTRA_SUFFIX = Regex(

@@ -291,7 +291,10 @@ class ScanKeptStatesTest {
         assertNothingForTrakt()
     }
 
-    /** The old file was matched through its NFO; the new one has none, and TMDB finds no such film: same folder, same film. */
+    /**
+     * The old file was matched through its NFO; the new one has none, and TMDB's search finds no such film: same folder,
+     * same film, which lends it its TMDB id, TMDB confirming it before any search.
+     */
     @Test
     fun aFilmMatchedByItsNfoGetsItsStateBackWhenTmdbFindsNoneForTheNewFile() = runTest {
         bench.withTmdb = true
@@ -310,7 +313,7 @@ class ScanKeptStatesTest {
         nas.put("Dune (2021)/Dune (2021) Remux-2160p.mkv")
         bench.scan()
         val back = bench.item(films, "Dune (2021)/Dune (2021) Remux-2160p.mkv")
-        assertNull("TMDB knows no film Dune of 2021", back.tmdbId)
+        assertEquals("the film kept in its folder", DUNE, back.tmdbId)
         assertTrue(back.played)
         assertEquals(emptyList<String>(), bench.keptTitles())
     }
