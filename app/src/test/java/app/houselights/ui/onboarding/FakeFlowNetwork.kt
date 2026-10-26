@@ -24,8 +24,8 @@ import java.net.InetAddress
  * The board's network (« Ajouter un dossier », its fixture): DS920 at 192.168.1.20 answering SMB and NFS, its exports
  * /volume1/video and /volume1/musique open to the home network, /volume1/photo to 192.168.1.10 alone, /volume1/media;
  * its shares video, photo, music and home for the account houselights; the player at 192.168.1.42, its own storage and
- * a USB disk « Samsung T7 » once a test plugs them in ([mounted]), read as [access] says. A NAS is announced when a test says so ([announce]); a
- * call can be held until a test lets it go ([hold]).
+ * a USB disk « Samsung T7 » once a test plugs them in ([mounted]), read as [access] says. A NAS is announced when a
+ * test says so ([announce]); a call can be held until a test lets it go ([hold]).
  */
 class FakeFlowNetwork : FlowNetwork {
     private val announced = Channel<FoundNas>(Channel.UNLIMITED)
