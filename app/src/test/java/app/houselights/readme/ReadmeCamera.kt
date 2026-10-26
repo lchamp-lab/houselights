@@ -42,6 +42,7 @@ import app.houselights.AppContainer
 import app.houselights.HouselightsApp
 import app.houselights.core.LibraryKind
 import app.houselights.core.SourceConfig
+import app.houselights.core.TrackPreferences
 import app.houselights.core.Typeset
 import app.houselights.player.PlayerStatus
 import app.houselights.player.ZidooPlayer
@@ -235,6 +236,12 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         keep<TraktViewModel> { TraktViewModel(FakeTraktLink(), FakeTraktSync(), lib.work) }
         keep<AboutViewModel> { AboutViewModel(playerStatus = { PlayerStatus.Detected(ZidooPlayer.KNOWN_PACKAGE) }, apiAnswers = { true }) }
         show { SettingsScreen(onFolderForm = { _, _ -> }, onUseFolders = { _, _ -> }, onSignIn = {}, onSourceResumed = {}) }
+    }
+
+    /** The audio and subtitles asked of the player for every title, as chosen in Settings › Playback. */
+    fun chooseTracks(tracks: TrackPreferences) = runBlocking {
+        library.settings.setTracks(tracks)
+        library.settings.state.first { it.tracks == tracks }
     }
 
     /** « To identify », as Settings › Library opens it. */
@@ -451,12 +458,28 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         compose.mainClock.autoAdvance = false
         reelStart = compose.mainClock.currentTime
         frame = 0
+        cues.clear()
+    }
+
+    private val cues = mutableListOf<Pair<String, Int>>()
+
+    /**
+     * Names the frame the reel is at, where a key pressed next is first seen, in `frames/cues.txt` with the frames'
+     * interval: compose.py cuts the animation on these cues rather than on counts of its own.
+     */
+    fun cue(name: String) {
+        cues += name to frame
+        val lines = listOf("frame-ms $FRAME_MS") + cues.map { (cue, at) -> "$cue $at" }
+        val file = checkNotNull(README_DIR).resolve("frames/cues.txt")
+        file.parentFile?.mkdirs()
+        file.writeText(lines.joinToString("\n", postfix = "\n"))
     }
 
     /**
-     * [seconds] of screen time, a frame each [FRAME_MS] of the paused clock, saved as `frames/NNNN.jpg`. A key pressed
-     * between two rolls is seen at the next frame; what the library and the pictures do on their own threads lands
-     * before each frame, as it would within a frame on the TV.
+     * [seconds] of screen time, a frame each [FRAME_MS] of the paused clock, saved losslessly as `frames/NNNN.png`, so
+     * that the animation's encoder meets no noise of a first compression. A key pressed between two rolls is seen at
+     * the next frame; what the library and the pictures do on their own threads lands before each frame, as it would
+     * within a frame on the TV.
      */
     fun roll(seconds: Double) = repeat((seconds * MS_PER_S / FRAME_MS).roundToInt()) {
         val behind = reelStart + frame * FRAME_MS - compose.mainClock.currentTime
@@ -468,7 +491,7 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         focusSheet()
         Thread.sleep(FRAME_PAUSE_MS)
         compose.waitForIdle()
-        save(draw(), "frames/${frame.toString().padStart(FRAME_DIGITS, '0')}.jpg", Bitmap.CompressFormat.JPEG, FRAME_QUALITY)
+        save(draw(), "frames/${frame.toString().padStart(FRAME_DIGITS, '0')}.png", Bitmap.CompressFormat.PNG, LOSSLESS)
         frame++
     }
 
@@ -654,7 +677,6 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         const val FRAME_MS = 32L
         const val MS_PER_S = 1000
         const val FRAME_PAUSE_MS = 10L
-        const val FRAME_QUALITY = 95
         const val FRAME_DIGITS = 4
 
         const val OFFERED_CODE = 1010L

@@ -107,6 +107,7 @@ internal class ReadmeLibrary(
         checkNamed()
         stamp()
         watched()
+        runBlocking { choosePosters() }
     }
 
     /** What Play would ask of the player for [item]: the file's tracks, as the app's container reads them on a Zidoo. */
@@ -129,26 +130,19 @@ internal class ReadmeLibrary(
     /** Every film's and show's id, for the pages the animation may open. */
     fun titleIds(): List<String> = query("SELECT id FROM items WHERE kind IN ('MOVIE', 'SERIES') ORDER BY id") { getLong(0).toString() }
 
-    /** The title of the first episode of the show of TMDB id [tmdbId] not watched yet, as TMDB names it. */
-    fun nextEpisode(tmdbId: Int): String = one(
-        "SELECT title FROM items WHERE kind = 'EPISODE' AND played = 0 AND seriesId = $SERIES ORDER BY seasonNumber, episodeNumber LIMIT 1",
-        tmdbId,
-    ) { getString(0) }
-
-    /** The titles of the show of TMDB id [tmdbId]'s episodes, as TMDB names them. */
-    fun episodes(tmdbId: Int): List<String> = query(
-        "SELECT title FROM items WHERE kind = 'EPISODE' AND seriesId = $SERIES ORDER BY seasonNumber, episodeNumber",
-        tmdbId,
-    ) { getString(0) }
-
-    /** The films' and shows' titles TMDB gave, with what TMDB has of their pictures: the run's report. */
+    /**
+     * The films' and shows' titles TMDB gave, with their rating (home's doors cut their figures in the best rated
+     * posters) and what TMDB has of their pictures, a poster chosen said so: the run's report.
+     */
     fun report(): String = query(
-        "SELECT kind, tmdbId, title, year, posterPath IS NOT NULL, backdropPath IS NOT NULL, logoPath IS NOT NULL, certification " +
-            "FROM items WHERE kind IN ('MOVIE', 'SERIES') ORDER BY kind, sortTitle",
+        "SELECT kind, tmdbId, title, year, posterPath IS NOT NULL, backdropPath IS NOT NULL, logoPath IS NOT NULL, certification, " +
+            "rating, userPosterPath IS NOT NULL FROM items WHERE kind IN ('MOVIE', 'SERIES') ORDER BY kind, sortTitle",
     ) {
-        val pictures = listOf("poster" to getInt(4), "backdrop" to getInt(5), "logo" to getInt(6))
+        val poster = if (getInt(PICKED) == 1) "chosen poster" else "poster"
+        val pictures = listOf(poster to getInt(4), "backdrop" to getInt(5), "logo" to getInt(6))
             .joinToString(" ") { (name, has) -> if (has == 1) name else "no $name" }
-        "${getString(0)} ${getInt(1)}: ${getString(2)} (${getInt(3)}), ${getString(7) ?: "unrated"}, $pictures"
+        val rating = if (isNull(RATING)) "no rating" else "rated %.1f".format(Locale.ROOT, getDouble(RATING))
+        "${getString(0)} ${getInt(1)}: ${getString(2)} (${getInt(3)}), ${getString(7) ?: "unrated"}, $rating, $pictures"
     }.joinToString("\n")
 
     override fun close() {
@@ -214,6 +208,22 @@ internal class ReadmeLibrary(
         }
     }
 
+    /**
+     * The posters chosen in TMDB's own place ([Film.poster], [Show.poster]), kept as Edit artwork keeps a viewer's choice;
+     * one TMDB no longer lists fails the shots, with those it lists.
+     */
+    private suspend fun choosePosters() {
+        val chosen = ReadmeTitles.FILMS.mapNotNull { film -> film.poster?.let { Triple(film.id, false, it) } } +
+            ReadmeTitles.SHOWS.mapNotNull { show -> show.poster?.let { Triple(show.id, true, it) } }
+        for ((tmdbId, show, path) in chosen) {
+            val listed = tmdb.images(tmdbId, show).posters.map { it.filePath }
+            check(path in listed) { "TMDB lists no poster $path for ${if (show) "show" else "film"} $tmdbId, but ${listed.take(LISTED)}" }
+            val kind = if (show) "SERIES" else "MOVIE"
+            val id = one("SELECT id FROM items WHERE kind = ? AND tmdbId = ?", kind, tmdbId) { getLong(0) }
+            dao.setUserPoster(id, path)
+        }
+    }
+
     /** What was watched: films seen, the one in progress, shows through an episode, one a day before the last. */
     private fun watched() {
         for (film in ReadmeTitles.FILMS) {
@@ -262,6 +272,13 @@ internal class ReadmeLibrary(
         private const val PLACEHOLDER = "placeholder"
         private const val MS_PER_S = 1000L
         private const val TRAKT_LEFT_S = 60L * 24 * 60 * 60
+
+        /** The report's columns: the rating, and whether a poster was chosen. */
+        private const val RATING = 8
+        private const val PICKED = 9
+
+        /** The posters a refused choice says TMDB lists. */
+        private const val LISTED = 12
 
         private const val FIRST_SCAN_DAYS = 140
         private const val LAST_SCAN_MIN = 40

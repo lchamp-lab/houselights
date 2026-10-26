@@ -37,14 +37,11 @@ internal class ReadmeShots {
         camera.capture("film")
     }
 
-    /** A show's page on its episodes, the next one in focus. */
+    /** A show's page as it opens: its logo and its facts over its picture, Play on its next episode in focus. */
     @Test
     fun show() {
-        val library = camera.library
-        camera.title(library.idOf(ReadmeTitles.SHOW_PAGE))
-        // Down to the episodes of the season of the next one, then along them to it.
-        camera.pressUntil(Key.DirectionDown, library.episodes(ReadmeTitles.SHOW_PAGE))
-        camera.pressUntil(Key.DirectionRight, library.nextEpisode(ReadmeTitles.SHOW_PAGE))
+        camera.title(camera.library.idOf(ReadmeTitles.SHOW_PAGE))
+        camera.assertFocusOn("Play")
         camera.capture("show")
     }
 
@@ -62,7 +59,10 @@ internal class ReadmeShots {
         camera.capture("library")
     }
 
-    /** « To watch », opened by home's door of the latest titles, on the latest film. */
+    /**
+     * « To watch », opened by home's door of the latest titles, focus along them to [ReadmeTitles.WATCH_FOCUS], whose
+     * overview its two lines hold to a word.
+     */
     @Test
     fun toWatch() {
         camera.journey()
@@ -70,17 +70,19 @@ internal class ReadmeShots {
         camera.press(Key.DirectionRight)
         camera.assertFocusOn("New")
         camera.press(Key.DirectionCenter)
+        camera.pressUntil(Key.DirectionRight, ReadmeTitles.WATCH_FOCUS)
         camera.capture("watch")
     }
 
-    /** Settings › Display: the interface's language and its text size, the latter in focus. */
+    /** Settings › Playback: the audio and subtitles the Zidoo player is asked for every title, Subtitles in focus. */
     @Test
-    fun display() {
+    fun playback() {
+        camera.chooseTracks(ReadmeTitles.TRACKS)
         camera.settings()
-        camera.pressUntil(Key.DirectionDown, "Display")
+        camera.pressUntil(Key.DirectionDown, "Playback")
         camera.settle()
         camera.press(Key.DirectionRight)
-        camera.pressUntil(Key.DirectionDown, "Text size")
+        camera.pressUntil(Key.DirectionDown, "Subtitles")
         camera.capture("settings")
     }
 
@@ -143,9 +145,10 @@ internal class ReadmeIdentifyShots {
 }
 
 /**
- * The README's animation, filmed on a paused clock a frame every 32 ms (`frames/NNNN.jpg`): the lights come up on home,
+ * The README's animation, filmed on a paused clock a frame every 32 ms (`frames/NNNN.png`): the lights come up on home,
  * focus goes to the latest titles, « To watch » opens and focus runs across them, its backdrop and glow following, OK
- * opens a film's page, and Play dims the room, as before the player starts.
+ * opens a film's page, and Play dims the room, as before the player starts. Each step is cued (`frames/cues.txt`),
+ * where compose.py cuts it into its loop.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = README_TV, sdk = [README_SDK])
@@ -163,14 +166,18 @@ internal class ReadmeTour {
         camera.reel()
         camera.lightsUp()
         camera.roll(LIGHTS_UP)
+        camera.cue("lit")
         camera.roll(BEAT)
-        step(Key.DirectionRight, STEP)
+        step(Key.DirectionRight, HOME)
         // « To watch », on the latest films.
+        camera.cue("watch")
         step(Key.DirectionCenter, OPEN)
         repeat(2) { step(Key.DirectionRight, STEP) }
-        step(Key.DirectionRight, OPEN)
+        step(Key.DirectionRight, HOLD)
         // The film's page, Play in focus, then Play: the room goes dark.
+        camera.cue("page")
         step(Key.DirectionCenter, PAGE)
+        camera.cue("play")
         step(Key.DirectionCenter, DIM)
     }
 
@@ -182,10 +189,16 @@ internal class ReadmeTour {
 
     private companion object {
         const val LIGHTS_UP = 1.0
-        const val BEAT = 0.4
+        const val BEAT = 0.6
+        const val HOME = 0.8
+
+        /** « To watch » opens: its hero settles on the title in focus, which compose.py cuts to, then stays. */
+        const val OPEN = 1.3
         const val STEP = 0.7
-        const val OPEN = 1.0
-        const val PAGE = 1.3
+        const val HOLD = 1.0
+
+        /** Long enough to read the film's picture and sound. */
+        const val PAGE = 2.2
         const val DIM = 1.25
     }
 }

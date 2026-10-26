@@ -243,8 +243,9 @@ tasks.withType<Test>().configureEach {
     inputs.property("readme", readme)
     outputs.upToDateWhen { readme.get().isEmpty() }
     outputs.doNotCacheIf("The README's captures read TMDB") { readme.get().isNotEmpty() }
-    // TMDB's pictures at the TV's size and 1920 × 1080 frames: room for them, on a runner that has it.
-    if (readme.get().isNotEmpty()) maxHeapSize = "3g"
+    // TMDB's pictures at the TV's size and 1920 × 1080 frames: room for them, on a runner that has it. Without it, they
+    // are left out of the run rather than skipped in it: Robolectric would first fetch the Android they are shot on.
+    if (readme.get().isNotEmpty()) maxHeapSize = "3g" else filter.excludeTestsMatching("app.houselights.readme.*")
 }
 
 room {
