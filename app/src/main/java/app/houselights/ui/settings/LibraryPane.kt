@@ -348,14 +348,7 @@ private fun SourceActions(
             fun EditRow() = HlSettingRow(
                 stringResource(R.string.edit_folder),
                 Modifier.focusRequester(edit),
-                description = stringResource(
-                    when (fix) {
-                        ScanErrorKind.LOGIN_FAILED -> R.string.edit_folder_login_desc
-                        ScanErrorKind.UNREACHABLE -> R.string.edit_folder_unreachable_desc
-                        ScanErrorKind.NOT_FOUND -> R.string.edit_folder_not_found_desc
-                        else -> R.string.edit_folder_row_desc
-                    }
-                ),
+                description = stringResource(editWords(fix)),
                 onClick = { sheet.dismiss { onEdit(FolderField.after(fix)) } },
             )
             HlSettingGroup(null) {
@@ -384,6 +377,14 @@ private fun SourceActions(
             }
         }
     }
+}
+
+/** What « Modifier le dossier » says it does: mend the scan error it can fix ([fix]), else edit the folder. */
+private fun editWords(fix: ScanErrorKind?): Int = when (fix) {
+    ScanErrorKind.LOGIN_FAILED -> R.string.edit_folder_login_desc
+    ScanErrorKind.UNREACHABLE -> R.string.edit_folder_unreachable_desc
+    ScanErrorKind.NOT_FOUND -> R.string.edit_folder_not_found_desc
+    else -> R.string.edit_folder_row_desc
 }
 
 /** The scan error editing likely fixes (silent NAS, missing share or path, refused sign-in); null otherwise. */
