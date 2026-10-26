@@ -91,7 +91,7 @@ def card(shot, width=CARD_WIDTH, transparent=True):
 
 
 def glow(screen, size, at, spread, blur, strength, reach=(0.62, 0.70)):
-    """[screen]'s colours spread [spread] times its size around it, blurred [blur] of its width, fading out by [reach]."""
+    """[screen]'s colours spread [spread] times its size around it, blurred by [blur] of its width, faded by [reach]."""
     w, h = size
     sw, sh = screen.size
     q = 8
@@ -134,14 +134,16 @@ def tv(shot, width=2400, height=1350, screen_width=1800, top=120):
     plate_w, plate_h = round(sw * 0.28), round(sw * 0.008)
     floor = foot_top + neck_h + plate_h
     shadow = Image.new("L", room.size, 0)
-    ImageDraw.Draw(shadow).ellipse([cx - plate_w * 0.7, floor - plate_h, cx + plate_w * 0.7, floor + plate_h * 3], fill=230)
+    footprint = [cx - plate_w * 0.7, floor - plate_h, cx + plate_w * 0.7, floor + plate_h * 3]
+    ImageDraw.Draw(shadow).ellipse(footprint, fill=230)
     shadow = shadow.filter(ImageFilter.GaussianBlur(sw * 0.014))
     room.alpha_composite(Image.merge("RGBA", (*[Image.new("L", room.size, 0)] * 3, shadow)))
     stand = Image.new("RGBA", room.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(stand)
     d.rectangle([cx - neck_w // 2, foot_top - bezel, cx + neck_w // 2, foot_top + neck_h], fill=(20, 20, 23, 255))
-    d.rounded_rectangle([cx - plate_w // 2, foot_top + neck_h, cx + plate_w // 2, floor], plate_h // 2, fill=(26, 26, 30, 255))
-    d.line([cx - plate_w // 2 + plate_h, foot_top + neck_h, cx + plate_w // 2 - plate_h, foot_top + neck_h], fill=(58, 58, 66, 255), width=2)
+    left, right, plate_top = cx - plate_w // 2, cx + plate_w // 2, foot_top + neck_h
+    d.rounded_rectangle([left, plate_top, right, floor], plate_h // 2, fill=(26, 26, 30, 255))
+    d.line([left + plate_h, plate_top, right - plate_h, plate_top], fill=(58, 58, 66, 255), width=2)
     room.alpha_composite(stand)
     # The set: a thin black bezel, its outer edge catching a little of the room's light; then the picture.
     body = (sw + 2 * bezel, sh + 2 * bezel)
@@ -174,7 +176,7 @@ def social(shot):
 
 
 def title_lockup(height):
-    """The lockup, Gradation in its light beside the name, cut from the README's title card (docs/images), [height] tall."""
+    """The lockup, Gradation in its light beside the name, cut from the README's title card, [height] tall."""
     if not TITLE_CARD.exists():
         return None
     svg = TITLE_CARD.read_text()
@@ -206,7 +208,7 @@ def title_lockup(height):
     alpha.paste(mark_im, (0, 0))
     alpha.paste(name_im, (mark_im.width + gap, (lh - caps) // 2))
     colour = Image.new("RGB", (lw, lh), (244, 244, 245))
-    # One gradient across the three bars, ember's orange at the wide bar's left to its raspberry at the thin bar's right.
+    # One gradient across the bars, ember's orange at the wide bar's left to its raspberry at the thin bar's right.
     ramp = Image.linear_gradient("L").rotate(90).resize((mark_im.width, lh))
     ends = zip((255, 159, 28), (255, 46, 99))
     light = Image.merge("RGB", [ramp.point(lambda v, a=a, b=b: round(a + (b - a) * v / 255)) for a, b in ends])
@@ -258,7 +260,8 @@ def draw_path(mask, d, unit):
             ex, ey = ox + float(tokens[i + 2]), oy + float(tokens[i + 3])
             for step in range(1, 9):
                 t = step / 8
-                points.append(((1 - t) ** 2 * x + 2 * (1 - t) * t * qx + t * t * ex, (1 - t) ** 2 * y + 2 * (1 - t) * t * qy + t * t * ey))
+                a, b, c = (1 - t) ** 2, 2 * (1 - t) * t, t * t
+                points.append((a * x + b * qx + c * ex, a * y + b * qy + c * ey))
             x, y = ex, ey
             i += 4
         else:
@@ -271,7 +274,7 @@ def draw_path(mask, d, unit):
         mask.paste(ImageChops.logical_xor(mask.convert("1"), layer.convert("1")).convert("L"))
 
 
-def tour(frames, out, width=TOUR_WIDTH, quality=80):
+def tour(frames, out, width=TOUR_WIDTH, quality=72):
     """The animation, framed as a card, from the home frame lit: its lights-up plays last, so the loop closes on it."""
     files = sorted(frames.glob("*.jpg"))
     if not files:
@@ -302,7 +305,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("captures", type=Path)
     parser.add_argument("out", type=Path)
-    parser.add_argument("--tour-quality", type=int, default=80)
+    parser.add_argument("--tour-quality", type=int, default=72, help="the animation's lossy quality, 72 by default")
     parser.add_argument("--only", help="the images to make, by name (hero,social,cards,tour); all by default")
     args = parser.parse_args()
     if not webp_animates():
@@ -330,10 +333,13 @@ def main():
         made = tour(args.captures / "frames", args.out / "tour.webp", quality=args.tour_quality)
         if made:
             written.append(made)
+    frames = len(list((args.captures / "frames").glob("*.jpg")))
     for path in written:
         with Image.open(path) as im:
-            frames = getattr(im, "n_frames", 1)
-            print(f"{path.name:22} {im.width:5} x {im.height:<5} {path.stat().st_size:>10,} bytes" + (f"  {frames} frames" if frames > 1 else ""))
+            line = f"{path.name:20} {im.width:5} x {im.height:<5} {path.stat().st_size:>10,} bytes"
+        if path.name == "tour.webp":
+            line += f"  {frames} frames, {frames * FRAME_MS / 1000:.2f} s"
+        print(line)
 
 
 if __name__ == "__main__":
