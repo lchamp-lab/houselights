@@ -26,13 +26,14 @@ api() {
 uri() { jq -rn --arg v "$1" '$v | @uri'; }
 
 echo "Waiting for Jellyfin at $SERVER"
-info=""
+# 503 while it starts, then « Degraded » until it has started, when its API answers without its version or its wizard.
+health=""
 for _ in $(seq 1 180); do
-    # 503 while it starts.
-    info="$(curl -fsS "$SERVER/System/Info/Public" 2>/dev/null)" && break
+    health="$(curl -fsS "$SERVER/health" 2>/dev/null)" && [[ "$health" == Healthy ]] && break
     sleep 1
 done
-[[ -n "$info" ]] || { echo "Jellyfin did not answer at $SERVER" >&2; exit 1; }
+[[ "$health" == Healthy ]] || { echo "Jellyfin did not start at $SERVER: ${health:-no answer}" >&2; exit 1; }
+info="$(curl -fsS "$SERVER/System/Info/Public")"
 jq -r '"\(.ProductName) \(.Version), wizard completed: \(.StartupWizardCompleted)"' <<<"$info"
 
 if [[ "$(jq -r .StartupWizardCompleted <<<"$info")" != true ]]; then

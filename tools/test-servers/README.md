@@ -10,13 +10,15 @@ small sample files `make-media.sh` writes, laid out as a Synology lays out its s
 | `nfs` | unfs3 0.10 (NFSv3 in user space) and rpcbind 1.2 on Alpine 3.24; MOUNT answers EXPORT (`showmount -e`); each reply in one fragment, as a NAS sends it (below) | `127.0.0.1`: 111 (portmapper) and 892 (mountd), TCP and UDP; 2049 (NFS), TCP | none: NFS trusts the address |
 | `jellyfin` | Jellyfin 12.3, the official image, with its profile only | `127.0.0.1:8096` (HTTP) | `houselights` / `houselights-test`, the server's administrator |
 
-Every port is published on `127.0.0.1` alone: the network around (a hotel's, a train's) cannot reach them. The passwords
-open read-only access to generated files and are written here on purpose; never reuse them.
+Every port is published on `127.0.0.1` alone: with Docker Engine 28 or later, the network around (a hotel's, a
+train's) cannot reach them. The passwords open read-only access to generated files and are written here on purpose;
+never reuse them.
 
 **Shared folders.** Over SMB, the shares `video` (Films, Séries), `media` (a second shared folder: Films, Vidéos perso),
 `photos`, `public` (open to guests) and `admin$` (listed, which the account may not open). Over NFS, the exports
-`/volume1/video` and `/volume1/media` (every client, read-only, non-privileged ports allowed, root squashed) and
-`/volume1/private`, allowed to 192.0.2.10 alone, an address no device has.
+`/volume1/video` and `/volume1/media` (every client, read-only, non-privileged ports allowed, root squashed),
+`/volume1/private`, allowed to 192.0.2.10 alone, an address no device has, and `/volume1/public` with Synology's default
+rule, non-privileged ports not allowed, which refuses the app.
 
 **Samples.** In `video/Films`: `Dune (2021)/` with its NFO, poster and fanart, `Heat (1995)/` in two AVI parts (CD1,
 CD2), `Blade Runner (1982) {tmdb-78}/`, `Wonder Woman 1984.mkv` (a year that is part of the title), `Le Grand Tournoi
@@ -28,8 +30,11 @@ subtitles; 30 MB in all.
 
 ## Start
 
-Requires Docker with Compose v2, and curl and jq for Jellyfin. Ports 111, 445, 892, 2049 and 8096 must be free on
-127.0.0.1 (a portmapper or a Samba of this machine's own would hold them).
+Requires Docker Engine 28 or later, with Compose v2 (an older engine lets a device of the same network reach ports
+published on 127.0.0.1), and curl and jq for Jellyfin. Ports 111, 445, 892, 2049 and 8096 must be free on 127.0.0.1:
+a portmapper of this machine's own holds 111, as on Ubuntu with `nfs-common`, and a Samba of its own 445.
+`sudo systemctl stop rpcbind.socket rpcbind.service` (and `smbd`) frees them until the machine starts again; `start`
+gives them back.
 
 ```sh
 cd tools/test-servers
@@ -60,7 +65,8 @@ Jellyfin is not found by the search for servers (below): type its address. HTTPS
 so it is reached over HTTP, « non chiffré ». What else to try:
 
 - a refusal: the password `wrong`, the share `videos`, the folder `Films2`, the export `/volume1/private` (this device
-  not allowed), the export `/volume1/photos` (a shared folder without an NFS rule), the share `admin$`;
+  not allowed), the export `/volume1/photos` (a shared folder without an NFS rule), the export `/volume1/public`
+  (Synology's default rule, non-privileged ports not allowed), the share `admin$`;
 - the export typed `media`, as a Synology answers it (#59): refused, not « not found »;
 - a second folder in another shared folder (#79): `/volume1/media` or `media`, folder `Films`;
 - a guest: share `public`, user and password empty;
@@ -74,7 +80,8 @@ The tests in `app/src/test/java/app/houselights/servers/` use the app's own clas
 SMB browsers (a folder's test, its listing, what the NAS hides, reads, a film's tracks probed, each refusal as the
 folder settings word it) and Jellyfin's client and provider (sign-in, its libraries and their kinds, a film's details,
 a show's seasons, a token signed out). They are skipped unless `HOUSELIGHTS_TEST_SERVERS=1`, so `scripts/check.sh` and
-CI's `check` job skip them; CI's `servers` job starts the servers and runs them alone:
+CI's `check` job skip them; CI's `servers` job starts the servers and runs them alone. With the variable set, Gradle
+runs them each time, never taking an earlier run, skipped or against other servers, as up to date:
 
 ```sh
 HOUSELIGHTS_TEST_SERVERS=1 ./gradlew :app:testDebugUnitTest --tests 'app.houselights.servers.*'
@@ -85,7 +92,8 @@ HOUSELIGHTS_TEST_SERVERS=1 ./gradlew :app:testDebugUnitTest --tests 'app.houseli
 ## Looking inside
 
 The `client` service has smbclient, showmount, rpcinfo, and libnfs's `nfs-ls` and `nfs-cat`, which read an export
-without mounting it; it reaches the servers by their names on the compose network:
+without mounting it; it reaches the servers by their names on the compose network. As root there, libnfs calls from a
+privileged port: `/volume1/public`, which refuses the app, opens to it.
 
 ```sh
 docker compose run --rm client smbclient -L //samba -U houselights%houselights-test
@@ -110,10 +118,12 @@ The images stay (`houselights-test-samba:1`, `houselights-test-nfs:1`, `houselig
 
 Over TCP, an RPC reply may be sent in several record fragments (RFC 5531, section 11). Linux's NFS server, the one
 of a Synology, a QNAP, TrueNAS SCALE or Unraid, sends each reply in one; unfsd, on libtirpc, splits every reply above
-64 KB into fragments of 64 KB. Houselights' NFS client (nfs-client 1.1.0) does not join them: a read above 64 KB fails
-with « tcp IO error on the connection », which the app takes for a NAS out of reach, and a scan stops at its first
-MKV, whose probe reads 256 KB at once. So `nfs/whole-replies.py` stands before unfsd on port 2049 and sends each reply
-on in one fragment, as a NAS does. To see the app against unfsd as it is:
+64 KB into fragments of 64 KB. Houselights' NFS client (nfs-client 1.1.0) does not join them: its
+`RecordMarkingUtil.removeRecordMarking` moves past a fragment without its 4-byte mark, so it reads the next mark from
+the data. A read above 64 KB then fails with « tcp IO error on the connection », which the app takes for a NAS out of
+reach, and a scan stops at its first MKV, whose probe reads 256 KB at once. The app has no fix for it yet. So
+`nfs/whole-replies.py` stands before unfsd on port 2049 and sends each reply on in one fragment, as a NAS does. To see
+the app against unfsd as it is:
 
 ```sh
 UNFS3_FRAGMENTS=1 docker compose up -d --wait nfs      # docker compose up -d --wait nfs to come back
@@ -127,12 +137,13 @@ UNFS3_FRAGMENTS=1 docker compose up -d --wait nfs      # docker compose up -d --
   compose pause` gives a NAS that stops answering, nothing finer.
 - **Real NAS quirks.** A Synology answers MNT3ERR_ACCES to any export it does not have (#59); unfs3 answers so only for
   a path that exists without being exported (the shared folders' names alone exist at its root for that), and
-  MNT3ERR_NOENT for one that does not exist (`/volume1/videos`). unfs3 answers READDIRPLUS with NFS3ERR_NOTSUPP, so
-  the app lists with READDIR, where a Synology or QNAP answers READDIRPLUS; NFS goes over TCP alone, and unfsd sees
-  every NFS call (not the mounts) come from 127.0.0.1, through `whole-replies.py`. Samba here never requires signing, which
-  a recent Synology or Windows 11 24H2 does for guests; nor SMB1 alone, NFSv4 alone, a NAS's own user mapping (the
-  samples are readable by everyone, whatever user a folder presents), names in macOS's decomposed form, symbolic
-  links, ACLs, or a large library.
+  MNT3ERR_NOENT for one that does not exist (`/volume1/videos`). unfs3 answers READDIRPLUS with NFS3ERR_NOTSUPP, so the
+  app lists with READDIR, where a Synology or QNAP answers READDIRPLUS: that path is held by `NfsListingTest` alone,
+  over a fake export, and nfs-client's own READDIRPLUS by no test; NFS goes over TCP alone, and unfsd sees every NFS
+  call (not the mounts) come from 127.0.0.1, through `whole-replies.py`. Samba here never requires signing, which a
+  recent Synology or Windows 11 24H2 does for guests; nor SMB1 alone, NFSv4 alone, a NAS's own user mapping (the samples
+  are readable by everyone, whatever user a folder presents), names in macOS's decomposed form, symbolic links, ACLs, or
+  a large library.
 - **Jellyfin**: HTTPS (8920), transcoding, plugins, accounts other than its administrator, metadata from the internet.
 - **Playback**, the Zidoo player and its own NFS or SMB access.
 

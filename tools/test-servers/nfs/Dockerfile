@@ -12,7 +12,7 @@ RUN apk add --no-cache "unfs3~0.10" "rpcbind~1.2" "python3~3.14" \
 COPY exports /etc/exports
 COPY entrypoint.sh whole-replies.py /usr/local/bin/
 RUN chmod 755 /usr/local/bin/entrypoint.sh \
-    && mkdir -p /volume1/video /volume1/media /volume1/private \
+    && mkdir -p /volume1/video /volume1/media /volume1/private /volume1/public \
     && unfsd -T -e /etc/exports
 
 # unfsd refuses a path that exists but is not exported (MNT3ERR_ACCES) and says a path that does not exist is not there

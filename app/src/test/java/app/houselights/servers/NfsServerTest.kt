@@ -13,9 +13,13 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * The NFS NAS of tools/test-servers (unfs3, NFSv3, answering READDIRPLUS with NFS3ERR_NOTSUPP so the app lists with
- * READDIR, each reply in one fragment as a NAS sends it): its exports as the app mounts them, from a non-privileged port
- * and as root squashed, and what it refuses.
+ * The NFS NAS of tools/test-servers (unfs3, NFSv3, each reply in one fragment as a NAS sends it): its exports as the
+ * app mounts them, from a non-privileged port and as root squashed, and what it refuses.
+ *
+ * unfs3 answers READDIRPLUS with NFS3ERR_NOTSUPP, so these tests list with READDIR, the fallback, where a Synology, a
+ * QNAP, TrueNAS or Unraid answer READDIRPLUS. That path is held by NfsListingTest alone, over a fake export: its pages,
+ * cookies and attributes as NfsBrowser reads them; nfs-client's own READDIRPLUS, its request and its answer's decoding
+ * (Nfs3Export.readdirplus), by no test.
  */
 @RunWith(RobolectricTestRunner::class)
 class NfsServerTest : NasServerTest() {
@@ -55,6 +59,17 @@ class NfsServerTest : NasServerTest() {
     @Test
     fun aSharedFolderWithoutAnNfsRuleIsRefused() = runBlocking {
         val (kind, failure) = browsers.refusal(folder("volume1/photos"))
+        assertEquals(failure, ScanErrorKind.ACCESS_DENIED, kind)
+    }
+
+    /**
+     * /volume1/public keeps Synology's default NFS rule, « Allow connections from non-privileged ports » off: its mount
+     * from the app's port, above 1023, is refused as on a Synology, where the folder settings' NFS hint says to allow
+     * them.
+     */
+    @Test
+    fun anExportForPrivilegedPortsAloneIsRefused() = runBlocking {
+        val (kind, failure) = browsers.refusal(folder("volume1/public"))
         assertEquals(failure, ScanErrorKind.ACCESS_DENIED, kind)
     }
 

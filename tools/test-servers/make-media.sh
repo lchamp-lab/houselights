@@ -157,7 +157,7 @@ put photo.jpg "photos/2019/IMG_20190714_183000.jpg" "2019-07-14 18:30:00"
 put photo.jpg "photos/2019/IMG_20190714_183105.jpg" "2019-07-14 18:31:05"
 put thumb.jpg "photos/2019/@eaDir/IMG_20190714_183000.jpg/SYNOPHOTO_THUMB_M.jpg"
 
-# Share « public », open to guests.
+# Share « public », open to guests; export /volume1/public, which keeps Synology's default NFS rule.
 put film-hevc.mkv "public/Films/Nosferatu (1922)/Nosferatu (1922).mkv"
 
 # Export /volume1/private, allowed to one address no client has.

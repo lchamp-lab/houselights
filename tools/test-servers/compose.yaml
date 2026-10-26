@@ -16,22 +16,33 @@ x-media: &media
   bind:
     create_host_path: false
 
+# Every container: no privilege gained through a setuid file, and none of root's capabilities but those each server
+# adds back (a server's own process becoming a client's user, binding its ports below 1024).
+x-confined: &confined
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+
 services:
   # Samba 4.23 on Alpine: shares video, media, photos, admin$ and public (samba/smb.conf).
   samba:
     build: samba
     image: houselights-test-samba:1
+    <<: *confined
+    cap_add: [SETUID, SETGID, NET_BIND_SERVICE]
     ports:
       - "127.0.0.1:445:445"
     volumes:
       - *media
 
-  # unfs3 0.10 and rpcbind on Alpine: exports /volume1/video, /volume1/media and /volume1/private (nfs/exports).
+  # unfs3 0.10 and rpcbind on Alpine: exports /volume1/video, /volume1/media, /volume1/private and /volume1/public
+  # (nfs/exports).
   # UNFS3_FRAGMENTS=1 docker compose up -d nfs: unfsd's replies in 64 KB fragments, as it sends them (README).
   nfs:
     build: nfs
     image: houselights-test-nfs:1
     init: true
+    <<: *confined
+    cap_add: [SETUID, SETGID, NET_BIND_SERVICE]
     environment:
       UNFS3_FRAGMENTS: ${UNFS3_FRAGMENTS:-0}
     # Each port as itself: the portmapper tells clients 892 and 2049, which must be the ports they reach. NFS over TCP.
@@ -48,15 +59,17 @@ services:
   jellyfin:
     image: *jellyfin-image
     profiles: [jellyfin]
+    <<: *confined
     ports:
       - "127.0.0.1:8096:8096"
     environment:
       TZ: Europe/Paris
     # Enough for a few sample titles, and a laptop keeps the rest.
     mem_limit: 1g
-    # The image's own check, asked every few seconds rather than every 30, so that up --wait does not wait for nothing.
+    # The image's own check, asked every few seconds rather than every 30, so that up --wait does not wait for nothing,
+    # and passed at « Healthy » alone: until it has started, Jellyfin answers « Degraded », with a 200.
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8096/health"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8096/health | grep -qx Healthy"]
       interval: 3s
       timeout: 3s
       retries: 100
@@ -69,6 +82,7 @@ services:
   ffmpeg:
     image: *jellyfin-image
     profiles: [tools]
+    <<: *confined
     network_mode: none
     entrypoint: ["/usr/lib/jellyfin-ffmpeg/ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin"]
     working_dir: /media
@@ -80,6 +94,7 @@ services:
     build: client
     image: houselights-test-client:1
     profiles: [tools]
+    <<: *confined
 
 volumes:
   jellyfin-config:
