@@ -90,11 +90,40 @@ data class FileFacts(
 data class FileEnd(val tail: String, val bluRay: Boolean, val dvd: Boolean)
 
 /**
+ * Where an episode stands and what it shows, written alone ([LibraryDao.placeEpisodes]) when its show's order or TMDB's
+ * numbering moves it: never what the user did to it (watched, resume point, favourite), nor its id, so nothing of it
+ * is lost, Trakt's queue and its show's choice of tracks included.
+ */
+data class EpisodePlace(
+    val id: Long,
+    val parentId: Long?,
+    val seasonNumber: Int?,
+    val episodeNumber: Int?,
+    val lastEpisodeNumber: Int?,
+    val sortTitle: String,
+    val absoluteNumber: Int?,
+    val tmdbSeason: Int?,
+    val tmdbEpisode: Int?,
+    val tmdbLastEpisode: Int?,
+    val title: String,
+    val overview: String?,
+    val stillPath: String?,
+    val runtimeMin: Int?,
+    val rating: Double?,
+    val year: Int?,
+    val matchedAt: Long?,
+)
+
+/** An episode at a place of its show, and its file ([LibraryDao.episodesAt]). */
+data class PlacedFile(val id: Long, val filePath: String?)
+
+/**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
- * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao] or [KeptStateDao].
+ * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao] or
+ * [IgnoredFileDao].
  */
 @Dao
-interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao {
+interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao, EpisodeOrderDao, IgnoredFileDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
@@ -182,6 +211,29 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     @Query("SELECT * FROM items WHERE kind = 'SEASON' AND parentId = :seriesId AND seasonNumber = :season LIMIT 1")
     suspend fun season(seriesId: Long, season: Int): ItemEntity?
+
+    /** Show [seriesId]'s episodes at season [season], episode [episode]: who holds a place ([EpisodeNumbering]). */
+    @Query(
+        "SELECT id, filePath FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId AND seasonNumber = :season " +
+            "AND episodeNumber = :episode"
+    )
+    suspend fun episodesAt(seriesId: Long, season: Int, episode: Int): List<PlacedFile>
+
+    /** Moves episodes to their places, with what they show there ([EpisodePlace]); nothing of the user's changes. */
+    @Update(entity = ItemEntity::class)
+    suspend fun placeEpisodes(places: List<EpisodePlace>)
+
+    /** The order show [id]'s episodes are now placed in ([ItemEntity.episodeOrder]); null for TMDB's own seasons. */
+    @Query("UPDATE items SET episodeOrder = :order WHERE id = :id")
+    suspend fun setEpisodeOrder(id: Long, order: String?)
+
+    /** Show [id]'s episodes changed order at [at] ([ItemEntity.reorderedAt]). */
+    @Query("UPDATE items SET reorderedAt = :at WHERE id = :id")
+    suspend fun setReorderedAt(id: Long, at: Long)
+
+    /** The order the user chose for show [id] ([ItemEntity.userEpisodeOrder]); null for the automatic one. */
+    @Query("UPDATE items SET userEpisodeOrder = :order WHERE id = :id")
+    suspend fun setUserEpisodeOrder(id: Long, order: String?)
 
     @Query("SELECT * FROM items WHERE parentId = :parentId ORDER BY seasonNumber, episodeNumber, sortTitle")
     suspend fun children(parentId: Long): List<ItemEntity>
@@ -320,6 +372,13 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** Candidates of titles gone. */
     @Query("DELETE FROM suggestions WHERE itemId NOT IN (SELECT id FROM items)")
     suspend fun deleteOrphanSuggestions()
+
+    /** Folder [sourceId]'s videos its names place nowhere, now [rows] ([IgnoredFileEntity]). */
+    @Transaction
+    suspend fun replaceIgnored(sourceId: Long, rows: List<IgnoredFileEntity>) {
+        forgetIgnoredOf(sourceId)
+        if (rows.isNotEmpty()) insertIgnored(rows)
+    }
 
     @Query("SELECT COUNT(*) FROM items WHERE kind IN ('MOVIE','SERIES')")
     fun observeAllTitleCount(): Flow<Int>
@@ -601,11 +660,12 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     )
     suspend fun moveOrphanShows()
 
-    /** Removes a source and its items atomically, forgetting what the user did to them: nothing is kept. */
+    /** Removes a source and its items atomically, forgetting what the user did to them and the files it left out. */
     @Transaction
     suspend fun removeSource(id: Long) {
         deleteSource(id)
         forgetKeptOf(id)
+        forgetIgnoredOf(id)
         deleteOrphanItems()
         deleteEmptySeasons()
         deleteEmptySeries()
@@ -620,9 +680,10 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     /**
      * Saves scan results, keeping columns the scan does not own, which may change meanwhile: user artwork and match, a
-     * title left as it is, favourite, watched state, resume point, chosen copy, versionOf, creditsAt, and the arrival,
-     * which a title back takes again ([giveBack]) and a new episode moves ([setAddedAt]). Reindexes search words on
-     * rename; a film matched anew takes its choice of tracks to its new key.
+     * title left as it is, favourite, watched state, resume point, chosen copy, versionOf, creditsAt, a show's order of
+     * episodes, placed ([setEpisodeOrder]) and chosen, and the arrival, which a title back takes again ([giveBack]) and a
+     * new episode moves ([setAddedAt]). Reindexes search words on rename; a film matched anew takes its choice of tracks
+     * to its new key.
      */
     @Transaction
     suspend fun saveScanned(item: ItemEntity) {
@@ -643,6 +704,9 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
                 versionOf = current.versionOf,
                 creditsAt = current.creditsAt,
                 addedAt = current.addedAt,
+                episodeOrder = current.episodeOrder,
+                userEpisodeOrder = current.userEpisodeOrder,
+                reorderedAt = current.reorderedAt,
             )
         )
         if (item.title != current.title || item.originalTitle != current.originalTitle) indexTitle(item)
@@ -673,7 +737,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("UPDATE items SET addedAt = :at WHERE id = :id")
     suspend fun setAddedAt(id: Long, at: Long)
 
-    /** Copies favourite, user match and artwork from [fromId] where [toId] lacks them ([ShowIndexer]). */
+    /** Copies favourite, user match, artwork and order of episodes from [fromId] where [toId] lacks them ([ShowIndexer]). */
     @Transaction
     suspend fun handOver(fromId: Long, toId: Long) {
         val from = item(fromId) ?: return
@@ -685,6 +749,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
                 userPosterPath = to.userPosterPath ?: from.userPosterPath,
                 userBackdropPath = to.userBackdropPath ?: from.userBackdropPath,
                 userLogoPath = to.userLogoPath ?: from.userLogoPath,
+                userEpisodeOrder = to.userEpisodeOrder ?: from.userEpisodeOrder,
             )
         )
     }

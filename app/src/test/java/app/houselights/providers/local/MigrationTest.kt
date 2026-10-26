@@ -406,6 +406,74 @@ class MigrationTest {
     }
 
     /**
+     * Version 21 keeps every episode where it was and reads again those that may be numbered from their show's start
+     * (E100 and more), and one episode of a show whose tvshow.nfo names an order, so it is read and follows it; its new
+     * columns and tables start empty and take what a scan writes. From 20, and from 0.2.0's version 15.
+     */
+    @Test
+    fun version21ReadsAgainWhatMayBeNumberedAnotherWayAndKeepsTheRest() = runTest {
+        for (from in listOf(20, 15)) {
+            val dao = migrated(from) {
+                showsFolder()
+                val dvd = "<tvshow><title>Firefly</title><displayorder>dvd</displayorder></tvshow>"
+                show(1, "Firefly", nfo = dvd, from = from)
+                show(2, "One Piece", nfo = "<tvshow><title>One Piece</title></tvshow>", from = from)
+                episode(11, show = 1, number = 1, from = from)
+                episode(12, show = 1, number = 2, from = from)
+                episode(21, show = 2, number = 1071, from = from)
+                episode(22, show = 2, number = 99, from = from)
+            }.dao()
+            val matched = listOf(1L, 11L, 12L, 2L, 21L, 22L).map { checkNotNull(dao.item(it)).matchedAt != null }
+            assertEquals("from $from: the show naming an order and its first episode", listOf(false, false, true), matched.take(3))
+            assertEquals("from $from: E1071 read again, E99 not", listOf(true, false, true), matched.drop(3))
+            val episode = checkNotNull(dao.item(21))
+            assertEquals("from $from", Triple(1, 1071, true), Triple(episode.seasonNumber, episode.episodeNumber, episode.played))
+            assertEquals("from $from", listOf(null, null, null), listOf(episode.absoluteNumber, episode.tmdbEpisode, episode.tmdbSeason))
+            val show = checkNotNull(dao.item(1))
+            assertEquals("from $from", listOf(null, null), listOf(show.episodeOrder, show.userEpisodeOrder))
+            assertEquals("from $from", emptyList<EpisodeOrderEntity>(), dao.episodeOrders(FIREFLY))
+            dao.saveEpisodeOrders(listOf(EpisodeOrderEntity(FIREFLY, EpisodeOrderEntity.AIRED, 0, "", 14, places = "[]")))
+            assertEquals("from $from", listOf(EpisodeOrderEntity.AIRED), dao.episodeOrders(FIREFLY).map { it.orderId })
+            dao.replaceIgnored(1, listOf(IgnoredFileEntity(1, "S01E01.mkv", IgnoredReason.NO_SHOW)))
+            assertEquals("from $from", listOf("S01E01.mkv"), dao.ignoredOf(1).map { it.filePath })
+        }
+    }
+
+    /** Folder 1, "Séries", as schemas 8 and later hold it. */
+    private fun SupportSQLiteDatabase.showsFolder() = execSQL(
+        "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+            "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000)"
+    )
+
+    /** Show [id], matched, its season [id] * 100 under it; [from] the schema it is written in. */
+    private fun SupportSQLiteDatabase.show(id: Long, title: String, nfo: String, from: Int) {
+        val (noMatch, notLeft) = if (from >= 19) ", userNoMatch" to ", 0" else "" to ""
+        execSQL(
+            "INSERT INTO items (id, kind, sourceId, matchKey, tmdbId, title, sortTitle, continuing, genres, directors, parts, " +
+                "badges, probeVersion, nfo, addedAt, matchedAt, positionMs, played, favorite$noMatch) " +
+                "VALUES (?1, 'SERIES', 1, ?2, ?3, ?2, ?2, 0, '', '', '', '', 0, ?4, 5, 6, 0, 0, 0$notLeft)",
+            arrayOf<Any?>(id, title, if (id == 1L) FIREFLY else ONE_PIECE, nfo),
+        )
+        execSQL(
+            "INSERT INTO items (id, kind, sourceId, parentId, seriesId, title, sortTitle, continuing, genres, directors, parts, " +
+                "badges, probeVersion, seasonNumber, addedAt, matchedAt, positionMs, played, favorite$noMatch) " +
+                "VALUES (?1, 'SEASON', 1, ?2, ?2, '', '001', 0, '', '', '', '', 0, 1, 5, 6, 0, 0, 0$notLeft)",
+            arrayOf<Any?>(id * 100, id),
+        )
+    }
+
+    /** Episode [id] of show [show], S01E[number], watched and matched. */
+    private fun SupportSQLiteDatabase.episode(id: Long, show: Long, number: Int, from: Int) {
+        val (noMatch, notLeft) = if (from >= 19) ", userNoMatch" to ", 0" else "" to ""
+        execSQL(
+            "INSERT INTO items (id, kind, sourceId, parentId, seriesId, title, sortTitle, continuing, genres, directors, filePath, " +
+                "parts, badges, probeVersion, seasonNumber, episodeNumber, addedAt, matchedAt, positionMs, played, favorite$noMatch) " +
+                "VALUES (?1, 'EPISODE', 1, ?2, ?3, 'Episode', 'e', 0, '', '', ?4, '', '', 0, 1, ?5, 5, 6, 0, 1, 0$notLeft)",
+            arrayOf<Any?>(id, show * 100, show, "Show $show/S01E$number.mkv", number),
+        )
+    }
+
+    /**
      * Version 16 marks the tracks the probe read in the file's order, so no file is read again for it. Never an NFO's:
      * an MKV the probe found no picture in takes its <streamdetails>, picture and tracks in the NFO's order.
      */
@@ -475,6 +543,9 @@ class MigrationTest {
     }
 
     private companion object {
+        const val FIREFLY = 1437
+        const val ONE_PIECE = 37854
+
         /** A folder's row in schemas 6 and 7, before firstScanAt. */
         const val FOLDER_UP_TO_7 =
             "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt)"

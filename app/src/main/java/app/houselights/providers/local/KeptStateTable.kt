@@ -48,6 +48,13 @@ data class KeptStateEntity(
     val audio: String?,
     val subtitles: String?,
     val tracksAt: Long?,
+    /**
+     * An episode numbered from its show's start: its numbering as its file names it ([KeptKeys.spanOf], "a1071-1071"),
+     * whatever its place; null for others, found by [seasonNumber] and its episodes.
+     */
+    val span: String? = null,
+    /** A show's order of episodes, as the user chose it ([ItemEntity.userEpisodeOrder]); null for others. */
+    val userEpisodeOrder: String? = null,
 ) {
     /** The TMDB id naming the title: a film's or show's, an episode's show's. */
     val identity: Int? get() = if (kind == ItemKind.EPISODE) showTmdbId else tmdbId

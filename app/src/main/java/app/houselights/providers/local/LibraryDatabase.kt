@@ -20,9 +20,9 @@ import kotlinx.coroutines.withContext
     entities = [
         SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
         SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class, TrackChoiceEntity::class,
-        KeptStateEntity::class, SuggestionEntity::class,
+        KeptStateEntity::class, SuggestionEntity::class, EpisodeOrderEntity::class, IgnoredFileEntity::class,
     ],
-    version = 20,
+    version = 21,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
@@ -297,6 +297,44 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
+         * v20 → v21: episodes numbered from their show's start ([ItemEntity.absoluteNumber]) and the TMDB episode each
+         * shows ([ItemEntity.tmdbSeason]); the order a show's episodes follow, placed and chosen ([ItemEntity.episodeOrder],
+         * [ItemEntity.userEpisodeOrder]), kept with a show that leaves ([KeptStateEntity.userEpisodeOrder]), and when it
+         * changed ([ItemEntity.reorderedAt]); an episode kept by its file's numbering ([KeptStateEntity.span]); TMDB's
+         * orders of each show ([EpisodeOrderEntity]) and the videos a shows folder places nowhere ([IgnoredFileEntity]).
+         * Episodes numbered 100 or more are read again, as they may be numbered from their show's start, and so is one
+         * episode of each show whose tvshow.nfo names an order, which it then follows; nothing else changes.
+         */
+        private val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val columns = listOf(
+                    "absoluteNumber INTEGER", "tmdbSeason INTEGER", "tmdbEpisode INTEGER", "tmdbLastEpisode INTEGER",
+                    "episodeOrder TEXT", "userEpisodeOrder TEXT", "reorderedAt INTEGER",
+                )
+                for (column in columns) db.execSQL("ALTER TABLE items ADD COLUMN $column")
+                db.execSQL("ALTER TABLE kept_states ADD COLUMN span TEXT")
+                db.execSQL("ALTER TABLE kept_states ADD COLUMN userEpisodeOrder TEXT")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `episode_orders` (`showTmdbId` INTEGER NOT NULL, `orderId` TEXT NOT NULL, " +
+                        "`type` INTEGER NOT NULL, `name` TEXT NOT NULL, `episodeCount` INTEGER NOT NULL, `rank` INTEGER NOT NULL, " +
+                        "`places` TEXT, `fetchedAt` INTEGER, `groupsAt` INTEGER, PRIMARY KEY(`showTmdbId`, `orderId`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `ignored_files` (`sourceId` INTEGER NOT NULL, `filePath` TEXT NOT NULL, " +
+                        "`reason` TEXT NOT NULL, PRIMARY KEY(`sourceId`, `filePath`))"
+                )
+                db.execSQL("UPDATE items SET matchedAt = NULL WHERE kind = 'EPISODE' AND episodeNumber >= 100")
+                val ordered = "SELECT id FROM items WHERE kind = 'SERIES' AND nfo IS NOT NULL " +
+                    "AND (instr(lower(nfo), 'displayorder') > 0 OR instr(lower(nfo), 'episode_group') > 0)"
+                db.execSQL("UPDATE items SET matchedAt = NULL WHERE id IN ($ordered)")
+                db.execSQL(
+                    "UPDATE items SET matchedAt = NULL WHERE id IN (SELECT MIN(id) FROM items WHERE kind = 'EPISODE' " +
+                        "AND seriesId IN ($ordered) GROUP BY seriesId)"
+                )
+            }
+        }
+
+        /**
          * Sets [MediaInfo.tracksInOrder] where the probe read the tracks, so that no file is read again for it; decoded
          * in Kotlin as in [MIGRATION_10_11], by batches so a large library's JSON is never held whole.
          */
@@ -460,6 +498,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
             MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20,
+            MIGRATION_20_21,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
