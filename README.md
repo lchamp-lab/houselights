@@ -70,6 +70,14 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
+  - A file deleted from the NAS leaves the library on the next scan; what you did to its title (watched, where you
+    stopped, favourite, choices) is kept by title and given back if it returns. When more than a quarter of a
+    folder's titles, ten at least, vanish at once while the folder still answers (a disk of the NAS offline, a volume
+    not mounted yet), nothing leaves: home says "12 titles of “Films” not found on the NAS" with See, and you answer
+    once, Keep (they wait for their files) or Remove (nothing is deleted on the NAS). Meanwhile they stay on the walls
+    with a ring on their posters, their page says how long they have been missing and removes one alone, and Play
+    explains rather than trying; Settings > Library counts them on their folder, Remove still there. Files coming
+    back end it without a word.
   - Films of a saga are gathered on the Movies wall under one poster (Filter > Show > Sagas lists the sagas
     alone; Settings > Library > Sagas gathers a saga from two of its films, from one, or never), with a page per
     saga showing the films you own and those you don't.
