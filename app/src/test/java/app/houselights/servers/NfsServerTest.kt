@@ -14,7 +14,8 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * The NFS NAS of tools/test-servers (unfs3, NFSv3, each reply in one fragment as a NAS sends it): its exports as the
- * app mounts them, from a non-privileged port and as root squashed, and what it refuses.
+ * app mounts them, from a non-privileged port and as root squashed, and what it refuses. NfsFragmentsServerTest runs
+ * them all again on the same NAS sending its replies in fragments.
  *
  * unfs3 answers READDIRPLUS with NFS3ERR_NOTSUPP, so these tests list with READDIR, the fallback, where a Synology, a
  * QNAP, TrueNAS or Unraid answer READDIRPLUS. That path is held by NfsListingTest alone, over a fake export: its pages,
@@ -22,9 +23,12 @@ import org.robolectric.RobolectricTestRunner
  * (Nfs3Export.readdirplus), by no test.
  */
 @RunWith(RobolectricTestRunner::class)
-class NfsServerTest : NasServerTest() {
-    private fun folder(export: String, path: String = "", uid: Int? = null, gid: Int? = null) = SourceEntity(
-        name = "Test", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = TestServers.host, share = export, path = path,
+open class NfsServerTest : NasServerTest() {
+    /** Where the NAS answers. */
+    protected open val host: String get() = TestServers.host
+
+    protected fun folder(export: String, path: String = "", uid: Int? = null, gid: Int? = null) = SourceEntity(
+        name = "Test", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = host, share = export, path = path,
         username = "", password = Secret(""), uid = uid, gid = gid,
     )
 

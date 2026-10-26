@@ -74,9 +74,10 @@ jobs:
           name: reports
           path: app/build/reports/
 
-  # The app against real servers (tools/test-servers/README.md): a Samba NAS, an unfs3 NAS and a Jellyfin server in
-  # Docker, on sample files made here, every port on 127.0.0.1 alone; then their tests (app.houselights.servers), which
-  # « check » skips. Beside « check », so it never makes it longer, and with no secret.
+  # The app against real servers (tools/test-servers/README.md): a Samba NAS, an unfs3 NAS, the same one sending its
+  # replies in fragments (on 127.0.0.2) and a Jellyfin server in Docker, on sample files made here, every port on this
+  # machine's loopback alone; then their tests (app.houselights.servers), which « check » skips. Beside « check », so it
+  # never makes it longer, and with no secret.
   servers:
     runs-on: ubuntu-24.04
     timeout-minutes: 25

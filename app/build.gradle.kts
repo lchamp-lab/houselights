@@ -1,4 +1,15 @@
+import org.gradle.api.artifacts.transform.InputArtifact
+import org.gradle.api.artifacts.transform.TransformAction
+import org.gradle.api.artifacts.transform.TransformOutputs
+import org.gradle.api.artifacts.transform.TransformParameters
+import org.gradle.api.artifacts.type.ArtifactTypeDefinition
+import org.gradle.api.attributes.Attribute
+import org.gradle.api.file.FileSystemLocation
+import org.gradle.api.provider.Provider
 import java.util.Properties
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 
 plugins {
     alias(libs.plugins.android.application)
@@ -222,13 +233,18 @@ if (keystoreProps.isEmpty && !debugSignedRelease) {
 }
 
 // The servers' tests (app.houselights.servers, tools/test-servers) run with HOUSELIGHTS_TEST_SERVERS=1 alone, against
-// servers outside the build. That variable and HOUSELIGHTS_TEST_SERVERS_HOST are inputs of the tests, so setting one
-// runs them again, rather than taking the run without it, all skipped, as up to date; and with the servers up, the
-// tests run each time, never up to date nor from a cache: what the servers serve is no input of theirs.
+// servers outside the build. That variable, HOUSELIGHTS_TEST_SERVERS_HOST and HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST
+// are inputs of the tests, so setting one runs them again, rather than taking the run without it, all skipped, as up
+// to date; and with the servers up, the tests run each time, never up to date nor from a cache: what the servers serve
+// is no input of theirs.
 tasks.withType<Test>().configureEach {
     val servers = providers.environmentVariable("HOUSELIGHTS_TEST_SERVERS").orElse("")
     inputs.property("testServers", servers)
     inputs.property("testServersHost", providers.environmentVariable("HOUSELIGHTS_TEST_SERVERS_HOST").orElse(""))
+    inputs.property(
+        "testServersFragmentsHost",
+        providers.environmentVariable("HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST").orElse(""),
+    )
     outputs.upToDateWhen { servers.get() != "1" }
     outputs.doNotCacheIf("The servers' tests read servers outside the build") { servers.get() == "1" }
 }
@@ -253,6 +269,62 @@ detekt {
     buildUponDefaultConfig = true
     config.setFrom(rootProject.file("config/detekt.yml"))
     baseline = file("detekt-baseline.xml")
+}
+
+// nfs-client 1.1.0 cannot read an NFS reply sent in several record fragments, as NFS servers on libtirpc (unfs3 among
+// them) send every reply above 64 KB (issue #88). Its RPCRecordDecoder is replaced by the app's patched copy, in the
+// same package (src/main/java/com/emc/ecs/nfsclient/network), which every connection's pipeline then builds. On the
+// app's runtime classpaths, nfs-client's jar comes through this transform without its own, so that the app's is the
+// only one dexed, R8 and D8 refusing a class defined twice, and the one tested. Every jar of those classpaths passes
+// through the transform, and only nfs-client's comes out changed; one without RPCRecordDecoder fails the build, for
+// whoever updates nfs-client to check whether the patch is still needed.
+abstract class WithoutNfsRecordDecoder : TransformAction<TransformParameters.None> {
+    @get:InputArtifact
+    abstract val jar: Provider<FileSystemLocation>
+
+    override fun transform(outputs: TransformOutputs) {
+        val input = jar.get().asFile
+        if (!input.name.startsWith("nfs-client-")) {
+            outputs.file(input)
+            return
+        }
+        var dropped = false
+        ZipFile(input).use { zip ->
+            ZipOutputStream(outputs.file(input.name).outputStream()).use { out ->
+                for (entry in zip.entries()) {
+                    if (entry.name == DECODER) {
+                        dropped = true
+                        continue
+                    }
+                    out.putNextEntry(ZipEntry(entry.name).apply { time = entry.time })
+                    zip.getInputStream(entry).use { it.copyTo(out) }
+                    out.closeEntry()
+                }
+            }
+        }
+        check(dropped) { "${input.name} has no $DECODER: does the app still need its own (issue #88)?" }
+    }
+
+    private companion object {
+        const val DECODER = "com/emc/ecs/nfsclient/network/RPCRecordDecoder.class"
+    }
+}
+
+val withoutNfsRecordDecoder = Attribute.of("houselights.withoutNfsRecordDecoder", Boolean::class.javaObjectType)
+
+dependencies {
+    attributesSchema { attribute(withoutNfsRecordDecoder) }
+    artifactTypes.maybeCreate(ArtifactTypeDefinition.JAR_TYPE).attributes.attribute(withoutNfsRecordDecoder, false)
+    registerTransform(WithoutNfsRecordDecoder::class) {
+        from.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, ArtifactTypeDefinition.JAR_TYPE)
+            .attribute(withoutNfsRecordDecoder, false)
+        to.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, ArtifactTypeDefinition.JAR_TYPE)
+            .attribute(withoutNfsRecordDecoder, true)
+    }
+}
+
+configurations.matching { it.name.endsWith("RuntimeClasspath") }.configureEach {
+    attributes.attribute(withoutNfsRecordDecoder, true)
 }
 
 // detekt 1.23 is built against Kotlin 2.0; keep its own compiler instead of the project's.
@@ -298,6 +370,8 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.smbj)
     implementation(libs.nfs.client)
+    // Netty 3, which nfs-client runs on, at the version it brings: the app's RPCRecordDecoder (above) is built on it.
+    implementation(libs.netty)
     constraints {
         implementation(libs.bouncycastle.prov) {
             because("CVE-2024-29857, CVE-2024-30171, CVE-2024-30172, CVE-2024-34447, CVE-2025-8916; pulled in by smbj")

@@ -21,7 +21,11 @@ okhttp = "4.12.0"
 retrofit = "2.11.0"
 coil = "2.7.0"
 smbj = "0.14.0"
+# 1.1.0's RPCRecordDecoder is replaced by the app's, which joins a reply's fragments (app/build.gradle.kts): on an
+# update, check whether it still needs to be.
 nfs-client = "1.1.0"
+# Netty 3, at the version nfs-client brings, which the app's RPCRecordDecoder is built on.
+netty = "3.10.6.Final"
 # Transitive versions raised for known vulnerabilities (see the constraints in app/build.gradle.kts).
 bouncycastle = "1.81"
 commons-lang3 = "3.18.0"
@@ -72,6 +76,7 @@ retrofit-kotlinx-serialization = { module = "com.squareup.retrofit2:converter-ko
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 smbj = { module = "com.hierynomus:smbj", version.ref = "smbj" }
 nfs-client = { module = "com.emc.ecs:nfs-client", version.ref = "nfs-client" }
+netty = { module = "io.netty:netty", version.ref = "netty" }
 bouncycastle-prov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 
