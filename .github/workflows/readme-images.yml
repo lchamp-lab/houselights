@@ -8,7 +8,7 @@ name: README images
 on:
   workflow_dispatch:
   push:
-    branches: ['readme-images/**', 'feat/040-readme-images']
+    branches: ['readme-images/**']
 
 permissions:
   contents: read
