@@ -334,6 +334,47 @@ class MigrationTest {
     }
 
     /**
+     * Version 19 says what TMDB made of each film and show: matched with a TMDB id, its own or its NFO's; not found, so
+     * to identify, when TMDB answered without one; neither while TMDB never answered, nor for seasons and episodes.
+     * Nothing matched is searched again.
+     */
+    @Test
+    fun version19KeepsTitlesMatchedAndPutsThoseTmdbHadNotToIdentify() = runTest {
+        // From the previous version, and from 0.2.0's.
+        for (from in listOf(18, 15)) {
+            val dao = migrated(from) {
+                filmsFolder()
+                // A film matched, one TMDB has not, one TMDB never answered for, a show its NFO named, an episode.
+                listOf(
+                    arrayOf<Any?>(1, "MOVIE", "Dune", "Dune (2021).mkv", 1, 438631, 7, null),
+                    arrayOf<Any?>(2, "MOVIE", "Inconnu", "Inconnu.mkv", 0, null, 7, null),
+                    arrayOf<Any?>(3, "MOVIE", "Pas encore", "Pas encore.mkv", 0, null, null, null),
+                    arrayOf<Any?>(4, "SERIES", "Severance", null, 0, 95396, null, null),
+                    arrayOf<Any?>(5, "EPISODE", "Pilote", "Severance/S01E01.mkv", 0, null, 7, 4),
+                ).forEach { values ->
+                    execSQL(
+                        "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
+                            "badges, probeVersion, addedAt, positionMs, played, favorite, tmdbId, matchedAt, seriesId) " +
+                            "VALUES (?1, ?2, 1, ?3, ?3, 0, '', '', ?4, '', '', 0, ?1, 0, ?5, 0, ?6, ?7, ?8)",
+                        values,
+                    )
+                }
+            }.dao()
+            val rows = (1L..5L).map { checkNotNull(dao.item(it)) }
+            assertEquals(
+                "from $from",
+                listOf(MatchState.MATCHED, MatchState.NOT_FOUND, null, MatchState.MATCHED, null),
+                rows.map { it.matchState },
+            )
+            assertEquals("from $from: matched as before", listOf(7L, 7L, null, null, 7L), rows.map { it.matchedAt })
+            assertEquals("from $from", listOf(true, false, false, false, false), rows.map { it.played })
+            assertEquals("from $from", listOf(2L), dao.toIdentify().map { it.id })
+            val hints = rows.map { it.hintKey to it.userNoMatch }.toSet()
+            assertEquals("from $from: no name's id yet, none left as it is", setOf(null to false), hints)
+        }
+    }
+
+    /**
      * Version 16 marks the tracks the probe read in the file's order, so no file is read again for it. Never an NFO's:
      * an MKV the probe found no picture in takes its <streamdetails>, picture and tracks in the NFO's order.
      */

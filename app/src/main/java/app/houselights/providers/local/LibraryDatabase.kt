@@ -20,9 +20,9 @@ import kotlinx.coroutines.withContext
     entities = [
         SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
         SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class, TrackChoiceEntity::class,
-        KeptStateEntity::class,
+        KeptStateEntity::class, SuggestionEntity::class,
     ],
-    version = 18,
+    version = 19,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
@@ -260,6 +260,31 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
+         * v18 → v19: what TMDB made of each film and show ([MatchState]), the id its name gave ([ItemEntity.hintKey]),
+         * the user's choice to leave one as it is, and the candidates of a title TMDB hesitated on ([SuggestionEntity]).
+         * A title with a TMDB id is matched; one TMDB answered without is not found, so to identify; one TMDB never
+         * answered for stays to look up, as before.
+         */
+        private val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN matchState TEXT")
+                db.execSQL("ALTER TABLE items ADD COLUMN hintKey TEXT")
+                db.execSQL("ALTER TABLE items ADD COLUMN userNoMatch INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_matchState` ON `items` (`matchState`)")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `suggestions` (`itemId` INTEGER NOT NULL, `rank` INTEGER NOT NULL, " +
+                        "`tmdbId` INTEGER NOT NULL, `title` TEXT NOT NULL, `originalTitle` TEXT, `year` INTEGER, `overview` TEXT, " +
+                        "`posterPath` TEXT, `score` REAL NOT NULL, PRIMARY KEY(`itemId`, `rank`))"
+                )
+                db.execSQL("UPDATE items SET matchState = 'MATCHED' WHERE kind IN ('MOVIE', 'SERIES') AND tmdbId IS NOT NULL")
+                db.execSQL(
+                    "UPDATE items SET matchState = 'NOT_FOUND' WHERE kind IN ('MOVIE', 'SERIES') AND tmdbId IS NULL " +
+                        "AND matchedAt IS NOT NULL"
+                )
+            }
+        }
+
+        /**
          * Sets [MediaInfo.tracksInOrder] where the probe read the tracks, so that no file is read again for it; decoded
          * in Kotlin as in [MIGRATION_10_11], by batches so a large library's JSON is never held whole.
          */
@@ -422,7 +447,7 @@ abstract class LibraryDatabase : RoomDatabase() {
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-            MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
+            MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =

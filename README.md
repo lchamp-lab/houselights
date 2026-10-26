@@ -56,7 +56,11 @@ gratuite, l’application est entièrement en français. [Installer](#install)
 - **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
   details from TMDB.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
-    NFO ids identify titles exactly.
+    NFO ids and ids in names identify titles exactly ([Naming your files](#naming-your-files)).
+  - Without an id, TMDB's results are weighed (titles, original and alternative ones included, year, votes and
+    TMDB's order), never taken first come: a title no result is clearly ahead for is left unidentified with its
+    three best candidates rather than matched wrongly, and one TMDB does not know is searched again, daily in its
+    first week, then weekly.
   - Technical details are read from the files and set on a title's page as on a case back: a line for the video
     (resolution, Dolby Vision and HDR, codec, frame rate), one for the audio (format, channels, bitrate, and its
     language when a track is asked for), and every track in its technical sheet.
@@ -100,6 +104,28 @@ gratuite, l’application est entièrement en français. [Installer](#install)
   case, beside a page's actions or under the episode row ("Can't play" over the reason, such as "NAS unreachable"
   or the Zidoo player's own words), until the next OK there. Settings > About > Send the log then opens the app's
   own log on your phone by a QR code ([Support](#support)).
+
+## Naming your files
+
+My files reads a title from its folder's and file's names, as Plex, Jellyfin, Kodi, Radarr and Sonarr name them:
+
+- **Films**: `Dune (2021)/Dune (2021).mkv`, the year in parentheses: a year alone can be read as part of the title
+  (`Wonder Woman 1984`). An edition as `Blade Runner (1982) {edition-Final Cut}.mkv`, a film in several files as
+  `Heat (1995) CD1.avi` and `CD2` (or `DVD`, `disc`), a disc by its folder (`BDMV`, `VIDEO_TS`).
+- **Shows**: `Severance (2022)/Season 01/Severance - S01E02.mkv`; `Specials` or `Season 00` for season 0, `S01E01-E02`
+  for a file holding two episodes, `1x02` too.
+- **Ids**: a TMDB, IMDb or TheTVDB id in a name identifies the title without a search: `{tmdb-438631}`,
+  `[tmdbid-438631]`, `{imdb-tt1160419}`, `[imdbid-tt1160419]`, `{tvdb-371980}`, `[tvdbid-371980]`. A film's ids are
+  its file's, else its folder's when the folder holds that film alone, its copies and parts included (never a remake
+  beside its original); a show's are its folder's.
+- **What counts first**: your choice (Identify, from the title's page), then the ids in names (TMDB, TheTVDB for a
+  show, IMDb), then the NFO's, then a search by title and year. A name's id is not trusted when its title's year is
+  more than one apart from the name's (a year alone may be the title's: `Death Race 2000 {tmdb-13282}`), or when
+  none of its titles, alternative titles included, is the name's, unless the NFO or another id names that title too:
+  the title is then found as if the name gave no id. A title whose name gives another id than its last lookup tried
+  is looked up again by it, once.
+- **Radarr and Sonarr**, as the [TRaSH Guides](https://trash-guides.info) name them: a film's folder
+  `{Movie CleanTitle} ({Release Year}) {tmdb-{TmdbId}}`, a show's `{Series TitleYear} {tvdb-{TvdbId}}`.
 
 ## Screenshots
 

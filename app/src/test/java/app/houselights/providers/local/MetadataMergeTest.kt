@@ -106,35 +106,35 @@ class MetadataMergeTest {
 
     @Test
     fun anNfoAppliesWithoutAManualMatchOrAnIdToCompare() {
-        assertFalse(MetadataMerge.describesOther(colony.copy(tmdbId = 1), userTmdbId = null, imdbId = null))
-        assertFalse(MetadataMerge.describesOther(colony, userTmdbId = 2, imdbId = "tt0110912"))
+        assertFalse(MetadataMerge.describesOther(colony.copy(tmdbId = 1), chosenTmdbId = null, imdbId = null))
+        assertFalse(MetadataMerge.describesOther(colony, chosenTmdbId = 2, imdbId = "tt0110912"))
     }
 
     @Test
     fun anNfoNamingAnotherTmdbTitleThanTheManualMatchIsSetAside() {
-        assertTrue(MetadataMerge.describesOther(colony.copy(tmdbId = 1), userTmdbId = 2, imdbId = null))
-        assertFalse(MetadataMerge.describesOther(colony.copy(tmdbId = 2), userTmdbId = 2, imdbId = null))
+        assertTrue(MetadataMerge.describesOther(colony.copy(tmdbId = 1), chosenTmdbId = 2, imdbId = null))
+        assertFalse(MetadataMerge.describesOther(colony.copy(tmdbId = 2), chosenTmdbId = 2, imdbId = null))
     }
 
     @Test
     fun imdbIdsAreComparedWhenTheNfoHasNoTmdbId() {
         val linked = colony.copy(imdbId = "tt0111161")
-        assertFalse(MetadataMerge.describesOther(linked, userTmdbId = 278, imdbId = "TT0111161"))
-        assertTrue(MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = "tt0110912"))
-        assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = null))
-        assertFalse("TMDB knows of none", MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = ""))
+        assertFalse(MetadataMerge.describesOther(linked, chosenTmdbId = 278, imdbId = "TT0111161"))
+        assertTrue(MetadataMerge.describesOther(linked, chosenTmdbId = 680, imdbId = "tt0110912"))
+        assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(linked, chosenTmdbId = 680, imdbId = null))
+        assertFalse("TMDB knows of none", MetadataMerge.describesOther(linked, chosenTmdbId = 680, imdbId = ""))
     }
 
     /** A show's NFO by Sonarr: TVDB's id, and IMDb's when TVDB has one. */
     @Test
     fun tvdbIdsAreComparedWhenTheNfoHasNeitherTmdbNorImdbId() {
         val sonarr = NfoInfo(kind = NfoKind.SHOW, title = "The Office (UK)", tvdbId = "78107")
-        assertTrue(MetadataMerge.describesOther(sonarr, userTmdbId = 2316, imdbId = "tt0386676", tvdbId = 73244))
-        assertFalse(MetadataMerge.describesOther(sonarr, userTmdbId = 2996, imdbId = "tt0290978", tvdbId = 78107))
-        assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(sonarr, userTmdbId = 2316, imdbId = null, tvdbId = null))
+        assertTrue(MetadataMerge.describesOther(sonarr, chosenTmdbId = 2316, imdbId = "tt0386676", tvdbId = 73244))
+        assertFalse(MetadataMerge.describesOther(sonarr, chosenTmdbId = 2996, imdbId = "tt0290978", tvdbId = 78107))
+        assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(sonarr, chosenTmdbId = 2316, imdbId = null, tvdbId = null))
         // The IMDb id takes precedence.
         val both = sonarr.copy(imdbId = "tt0290978")
-        assertTrue(MetadataMerge.describesOther(both, userTmdbId = 2316, imdbId = "tt0386676", tvdbId = 78107))
-        assertTrue(MetadataMerge.describesOther(both, userTmdbId = 2316, imdbId = null, tvdbId = 73244))
+        assertTrue(MetadataMerge.describesOther(both, chosenTmdbId = 2316, imdbId = "tt0386676", tvdbId = 78107))
+        assertTrue(MetadataMerge.describesOther(both, chosenTmdbId = 2316, imdbId = null, tvdbId = 73244))
     }
 }
