@@ -40,17 +40,22 @@ import app.houselights.core.UserState
 import app.houselights.core.escapeUriPath
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.core.CollectionThreshold
+import app.houselights.core.DiskAbsentException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.nio.file.AccessDeniedException
 import java.util.Locale
 
-/** Provider for the library [LibraryScanner] builds from network sources. */
+/** Provider for the library [LibraryScanner] builds from its folders, on a NAS or on the player's own disks. */
 class LocalProvider(
     private val context: Context,
     private val dao: LibraryDao,
     override val editor: MetadataEditor,
     /** Told of marks and stops, for the Trakt account. */
     private val history: WatchHistory = WatchHistory.None,
+    /** The player's own disks, where a folder on one of them is played from ([Protocol.LOCAL]). */
+    private val volumes: Volumes = Volumes.NONE,
     /** Minimum owned films for a collection to be shown; 0 hides collections. */
     private val collectionMinFilms: () -> Int = { CollectionThreshold.DEFAULT },
 ) : MediaProvider {
@@ -331,12 +336,14 @@ class LocalProvider(
         val files = filesOf(entity)
         val file = fileOf(entity, part)
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${entity.title} was removed")
+        // Where the disk is mounted now: Android may have mounted it elsewhere since the scan.
+        val disk = if (source.protocol == Protocol.LOCAL) withContext(Dispatchers.IO) { diskOf(source, file) } else null
         val mapper = LocalMapper(dao, context)
         val container = FilenameParser.extension(file)
         val mapped = mapper.map(entity)
         val shown = if (entity.parts.isEmpty()) mapped else mapped.copy(title = partTitle(mapped.title, part ?: 1, files.size))
         return mapper.forPlayer(entity, shown).launch(
-            fileUri(source, file), container,
+            fileUri(source, file, disk), container,
             startMs = if (resume && part == null) entity.positionMs else 0L,
             reporter = LocalReporter(dao, entity.id, part ?: 1, history),
             resumeKey = if (part == null) entity.id.toString() else LocalId.ofPart(entity.id, part),
@@ -344,6 +351,17 @@ class LocalProvider(
             media = firstFileMedia(entity, part),
             titleKey = tracksKey(entity),
         )
+    }
+
+    /**
+     * Where [source]'s disk is mounted now, null while it is not; [AccessDeniedException] when its [file] is a link
+     * leading off the disk, as a player is handed what a link leads to, which could be the app's own files.
+     */
+    private fun diskOf(source: SourceEntity, file: String): File? {
+        val mount = volumes.mountOf(source.host) ?: return null
+        val path = File(mount, remotePath(source, file))
+        if (!path.canonicalFile.startsWith(mount.canonicalFile)) throw AccessDeniedException(path.path, null, "it leads off its disk")
+        return mount
     }
 
     private fun filesOf(entity: ItemEntity) = listOfNotNull(entity.filePath) + entity.parts
@@ -444,9 +462,11 @@ class LocalProvider(
         /**
          * URI the Zidoo player opens: smb://user:password@host/share/path (domain;user for a domain account) or
          * nfs://host/export/path. Credentials are percent-encoded, as an @, : or / would end the user info; a password
-         * the Keystore did not open for now throws [app.houselights.core.SecretUnreadException].
+         * the Keystore did not open for now throws [app.houselights.core.SecretUnreadException]. A file of the player's
+         * own disks is file:// on its disk's mount now, [disk] ([DiskAbsentException] without one), never handed as such
+         * (PlaybackManager gives a player its path, or a content:// address).
          */
-        fun fileUri(source: SourceEntity, relativePath: String): String {
+        fun fileUri(source: SourceEntity, relativePath: String, disk: File? = null): String {
             val path = listOf(source.share.trim('/'), source.path.trim('/'), relativePath).filter { it.isNotEmpty() }
                 .joinToString("/") { escapeUriPath(it) }
             return when (source.protocol) {
@@ -455,6 +475,10 @@ class LocalProvider(
                     val user = listOf(source.domain, source.username).filter { it.isNotBlank() }.joinToString(";") { Uri.encode(it) }
                     val auth = if (source.username.isBlank()) "" else "$user:${Uri.encode(source.password.forSignIn())}@"
                     "smb://$auth${source.host}/$path"
+                }
+                Protocol.LOCAL -> {
+                    val mount = disk ?: throw DiskAbsentException(source.host)
+                    "file://${escapeUriPath(mount.path.trimEnd('/'))}/$path"
                 }
             }
         }

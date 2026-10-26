@@ -20,6 +20,8 @@ import java.io.IOException
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.nio.file.AccessDeniedException
+import java.nio.file.NoSuchFileException
 import java.security.cert.CertPathValidatorException
 import java.security.cert.CertificateException
 import java.util.concurrent.TimeoutException
@@ -129,6 +131,8 @@ private fun typed(chain: List<Throwable>): FailureKind? = when {
     chain.any { it is TmdbUnreachableException } -> FailureKind.TMDB_UNREACHABLE
     chain.any { it is TmdbNotFoundException } -> FailureKind.TMDB_NOT_FOUND
     chain.any { it is NotFoundException } -> FailureKind.GONE
+    // Before the files it fails on, which may be missing or refused once the disk is gone.
+    chain.any { it is DiskAbsentException } -> FailureKind.UNREACHABLE
     storageFull(chain) -> FailureKind.STORAGE_FULL
     chain.any { it is SQLiteDiskIOException } -> FailureKind.STORAGE_FAILED
     else -> null
@@ -187,17 +191,26 @@ private fun signInRefused(chain: List<Throwable>, text: String): Boolean =
     text.contains("LOGON_FAILURE") || text.contains("ACCOUNT_") || text.contains("WRONG_PASSWORD") ||
         chain.any { it is SMB2GuestSigningRequiredException || it is TransportException && it.message == NO_SIGNING_KEY }
 
-/** The NAS refused the device or account; nfs-client says "returned state: 13" for a mount, else "NfsStatus:13". */
+/**
+ * The NAS refused the device or account; nfs-client says "returned state: 13" for a mount, else "NfsStatus:13". On the
+ * player's own disks, Android refused the app (no storage permission).
+ */
 private fun refused(chain: List<Throwable>, text: String): Boolean =
     chain.any {
-        it is MountException && it.status?.value in MOUNT_REFUSED || it is NfsException && it.status?.value in NFS_REFUSED
+        it is MountException && it.status?.value in MOUNT_REFUSED || it is NfsException && it.status?.value in NFS_REFUSED ||
+            it is AccessDeniedException
     } || REFUSED.any { text.contains(it) } || text.contains("AUTH_ERROR", ignoreCase = true) ||
         text.contains("auth", ignoreCase = true) && text.contains("rpc", ignoreCase = true)
 
-/** The share, export or folder does not exist; nfs-client throws FileNotFoundException for NFS3ERR_NOENT. */
+/**
+ * The share, export or folder does not exist; nfs-client throws FileNotFoundException for NFS3ERR_NOENT, a file of the
+ * player's own disks NoSuchFileException.
+ */
 private fun missing(chain: List<Throwable>, text: String): Boolean =
-    chain.any { it is FileNotFoundException || it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value } ||
-        MISSING.any { text.contains(it) }
+    chain.any {
+        it is FileNotFoundException || it is NoSuchFileException ||
+            it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value
+    } || MISSING.any { text.contains(it) }
 
 /** Where on the NAS a failure is, when its answer says ([failurePlace]). */
 enum class FailurePlace {
