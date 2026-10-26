@@ -265,6 +265,22 @@ class LocalLibraryTest {
         )
     }
 
+    /**
+     * « Ajouter un dossier » reads the folders of the NAS chosen, however its host is spelled, the latest first, to reuse
+     * their account and identity and to say how each row stands to them; and the kinds the library holds, to ask first
+     * for the one it lacks.
+     */
+    @Test
+    fun theFlowReadsTheFoldersOfTheNasChosenAndTheKindsHeld() = runTest {
+        assertEquals(emptySet<SourceKind>(), library.kinds())
+        library.addFolder(nfs("DS920.local", "volume1/video", "Films"))
+        library.addFolder(nfs("192.168.1.31", "media", "films"))
+        library.addFolder(nfs("ds920.local ", "video", "Séries", Protocol.SMB).copy(kind = SourceKind.SHOWS))
+        assertEquals(listOf("Séries", "Films"), library.foldersOn("ds920.local").map { it.path })
+        assertEquals(listOf("films"), library.foldersOn("192.168.1.31").map { it.path })
+        assertEquals(setOf(SourceKind.MOVIES, SourceKind.SHOWS), library.kinds())
+    }
+
     @Test
     fun aFolderEditedOntoAnotherIsNotSaved() = runTest {
         library.addFolder(nfs("nas", "volume1/media", "films"))

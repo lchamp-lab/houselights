@@ -67,6 +67,15 @@ class LocalLibrary(
     /** The NAS the library's folders are on, for the add-folder flow to offer before any discovery ([nasOf]). */
     suspend fun usedNas(): List<UsedNas> = nasOf(dao.sources())
 
+    /**
+     * The folders on the NAS at [host], however spelled, the latest added first ([onNas]): the add-folder flow reuses
+     * their account ([smbAccess]) and identity ([nfsIdentity]), and says on each row how it stands to them ([standing]).
+     */
+    suspend fun foldersOn(host: String): List<SourceEntity> = onNas(dao.sources(), host)
+
+    /** The kinds the library's folders hold: a new folder's content is asked for the kind it lacks first. */
+    suspend fun kinds(): Set<SourceKind> = dao.sources().mapTo(mutableSetOf()) { it.kind }
+
     /** The most recently added source: the next one is usually on the same server, often in the same share. */
     suspend fun lastFolder(): SourceEntity? = dao.sources().maxByOrNull { it.id }
 
@@ -190,7 +199,7 @@ internal fun SourceEntity.overlaps(other: SourceEntity): Boolean {
 internal fun SourceEntity.samePlace(other: SourceEntity): Boolean = overlaps(other) && place() == other.place()
 
 /** Path segments from the host root; lowercase for SMB, which is case-insensitive (Samba's default, Windows). */
-private fun SourceEntity.place(): List<String> {
+internal fun SourceEntity.place(): List<String> {
     val segments = segments(share) + segments(path)
     return if (protocol == Protocol.SMB) segments.map { it.lowercase(Locale.ROOT) } else segments
 }

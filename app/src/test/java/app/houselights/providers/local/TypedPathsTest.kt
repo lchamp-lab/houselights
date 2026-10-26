@@ -174,4 +174,41 @@ class TypedPathsTest {
         assertEquals(emptyList<SharePath>(), TypedPaths.meant(listOf("music"), exports))
         assertEquals(emptyList<SharePath>(), TypedPaths.meant(emptyList(), exports))
     }
+
+    /**
+     * Over NFS a "\" may be part of a folder's name, as Linux allows: a path alone typed for NFS keeps it, as the
+     * folder's form reads its fields (FolderFormTest.aFolderNamedLikeItsShareButNotRepeatingItIsKept); SMB and a path
+     * whose protocol is not known yet read it as "/".
+     */
+    @Test
+    fun aPathTypedForNfsKeepsItsBackslashes() {
+        assertEquals(listOf("volume1", """video\Films"""), TypedPaths.names("""/volume1/video\Films""", Protocol.NFS))
+        assertEquals(listOf("volume1", "video", "Films"), TypedPaths.names("""/volume1/video\Films""", Protocol.SMB))
+        assertEquals(listOf("volume1", "video", "Films"), TypedPaths.names("""/volume1/video\Films"""))
+        assertEquals(listOf("""a\b"""), TypedPaths.read("""a\b""", protocol = Protocol.NFS)?.names)
+        assertEquals(listOf("a", "b"), read("""a\b""")?.names)
+        val unc = TypedPaths.read("""\\nas\video""", protocol = Protocol.NFS)
+        assertEquals("a UNC path is SMB's whatever was chosen", TypedPath("nas", Protocol.SMB, listOf("video")), unc)
+    }
+
+    /**
+     * What the NAS proposes for a folder typed that it does not have: one spelled the same but for case and accents,
+     * else one within a letter of it beyond them, the first in the level's order; nothing for a name it has, or one
+     * further off.
+     */
+    @Test
+    fun theNasProposesAFolderWithinOneLetter() {
+        val level = listOf("Archives 2019", "Films", "Films2", "Séries", "Spectacles")
+        assertEquals("Films", TypedPaths.closest("films", level))
+        assertEquals("Séries", TypedPaths.closest("series", level))
+        assertEquals("one left out", "Films", TypedPaths.closest("Film", level))
+        assertEquals("one added", "Séries", TypedPaths.closest("Sériess", level))
+        assertEquals("one changed", "Séries", TypedPaths.closest("Sérias", level))
+        assertEquals("one left out inside", "Spectacles", TypedPaths.closest("Spectcles", level))
+        assertEquals("the case and accents first", "Films2", TypedPaths.closest("FILMS2", level))
+        assertNull("a folder it has", TypedPaths.closest("Films", level))
+        assertNull("two letters off", TypedPaths.closest("Fil", level))
+        assertNull(TypedPaths.closest("", level))
+        assertNull(TypedPaths.closest("Films", emptyList()))
+    }
 }
