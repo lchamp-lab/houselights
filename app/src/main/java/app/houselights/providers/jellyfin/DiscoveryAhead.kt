@@ -31,14 +31,12 @@ class DiscoveryAhead(
     private var last: Run? = null
 
     /** Starts looking for servers now, unless a discovery started within [KEEP_MS] still serves the sign-in. */
-    fun lookAhead() {
-        current()
-    }
+    fun lookAhead() = keepLooking()
 
     override fun discover(): Flow<DiscoveredServer> = flow {
         var sent = 0
         emitAll(
-            current().transformWhile { found ->
+            running().transformWhile { found ->
                 found.servers.drop(sent).forEach { emit(it) }
                 sent = found.servers.size
                 !found.done
@@ -46,11 +44,18 @@ class DiscoveryAhead(
         )
     }
 
-    /** The discovery serving a sign-in now: the last one, while recent, else one started now. */
+    /** What the discovery serving a sign-in now found: the last one, while recent, else one started now. */
     @Synchronized
-    private fun current(): StateFlow<Found> {
+    private fun running(): StateFlow<Found> {
+        keepLooking()
+        return checkNotNull(last).found
+    }
+
+    /** Starts a discovery unless the last one started within [KEEP_MS]. */
+    @Synchronized
+    private fun keepLooking() {
         val now = clock()
-        last?.takeIf { now - it.startedAt < KEEP_MS }?.let { return it.found }
+        if (last?.let { now - it.startedAt < KEEP_MS } == true) return
         val found = MutableStateFlow(Found())
         scope.launch {
             try {
@@ -60,7 +65,6 @@ class DiscoveryAhead(
             }
         }
         last = Run(now, found)
-        return found
     }
 
     private companion object {
