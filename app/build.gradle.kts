@@ -221,6 +221,18 @@ if (keystoreProps.isEmpty && !debugSignedRelease) {
     }
 }
 
+// The servers' tests (app.houselights.servers, tools/test-servers) run with HOUSELIGHTS_TEST_SERVERS=1 alone, against
+// servers outside the build. That variable and HOUSELIGHTS_TEST_SERVERS_HOST are inputs of the tests, so setting one
+// runs them again, rather than taking the run without it, all skipped, as up to date; and with the servers up, the
+// tests run each time, never up to date nor from a cache: what the servers serve is no input of theirs.
+tasks.withType<Test>().configureEach {
+    val servers = providers.environmentVariable("HOUSELIGHTS_TEST_SERVERS").orElse("")
+    inputs.property("testServers", servers)
+    inputs.property("testServersHost", providers.environmentVariable("HOUSELIGHTS_TEST_SERVERS_HOST").orElse(""))
+    outputs.upToDateWhen { servers.get() != "1" }
+    outputs.doNotCacheIf("The servers' tests read servers outside the build") { servers.get() == "1" }
+}
+
 room {
     schemaDirectory("$projectDir/schemas")
 }
