@@ -300,7 +300,9 @@ class Updater(
         sheets++
         val s = state.value
         val stale = s.checkedAt?.let { clock() - it !in 0 until HOUR_MS } ?: true
-        if (s.automatic && s.offer == null && s.idle && s.failure == null && stale) checkNow()
+        // Nothing offered nor under way, nothing failed: an hour-old answer is asked again.
+        val quiet = s.offer == null && s.idle && s.failure == null
+        if (s.automatic && quiet && stale) checkNow()
     }
 
     /** A sheet closed: an update under way goes on, and stops at Ready, Android's window never opening by itself. */

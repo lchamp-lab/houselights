@@ -154,5 +154,8 @@ data class UpdateState(
      * the automatic check is off, nor in a build without the updater.
      */
     val offeredOnHome: Boolean
-        get() = on && automatic && offer != null && (offer.versionCode > seenOnHome || backOnHome)
+        get() {
+            val unseen = offer?.let { it.versionCode > seenOnHome || backOnHome } == true
+            return on && automatic && unseen
+        }
 }

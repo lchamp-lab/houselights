@@ -58,7 +58,7 @@ interface Installer {
 /**
  * Android's [PackageInstaller]: one session a version, written then committed with an explicit PendingIntent to
  * [statusReceiver]. Every install shows Android's confirmation, on every Android version: the session never asks to
- * skip it (no USER_ACTION_NOT_REQUIRED).
+ * skip it.
  */
 class SessionInstaller(private val context: Context, private val statusReceiver: Class<out BroadcastReceiver>) : Installer {
     private val packages: PackageManager get() = context.packageManager
@@ -102,14 +102,7 @@ class SessionInstaller(private val context: Context, private val statusReceiver:
         val session = withContext(Dispatchers.IO) { installer.createSession(params) }
         var committed = false
         try {
-            withContext(Dispatchers.IO) {
-                installer.openSession(session).use { opened ->
-                    opened.openWrite(BASE_APK, 0, size).use { out ->
-                        apk.inputStream().use { it.copyTo(out, CHUNK) }
-                        opened.fsync(out)
-                    }
-                }
-            }
+            withContext(Dispatchers.IO) { write(session, apk, size) }
             beforeCommit(session)
             withContext(Dispatchers.IO) { installer.openSession(session).use { it.commit(statusSender(session)) } }
             committed = true
@@ -117,6 +110,14 @@ class SessionInstaller(private val context: Context, private val statusReceiver:
             if (!committed) abandon(session)
         }
         return session
+    }
+
+    /** [apk] whole into [session], synced to the device's storage before the session is committed. */
+    private fun write(session: Int, apk: File, size: Long) = installer.openSession(session).use { opened ->
+        opened.openWrite(BASE_APK, 0, size).use { out ->
+            apk.inputStream().use { it.copyTo(out, CHUNK) }
+            opened.fsync(out)
+        }
     }
 
     /** Where Android answers [session]: this app's receiver, by name, mutable so that Android can fill in the status. */

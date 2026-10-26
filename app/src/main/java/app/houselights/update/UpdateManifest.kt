@@ -42,8 +42,10 @@ data class ReleaseVersion(val major: Int, val minor: Int, val patch: Int, val be
 
         /** The version [tag] names, or null for a tag no release of the project carries. */
         fun of(tag: String): ReleaseVersion? {
-            val parts = TAG.matchEntire(tag)?.groupValues ?: return null
-            return ReleaseVersion(parts[1].toInt(), parts[2].toInt(), parts[3].toInt(), parts[4].toIntOrNull())
+            // Its numbers, a beta's last (none for a final).
+            val numbers = TAG.matchEntire(tag)?.groupValues?.drop(1)?.map(String::toIntOrNull) ?: return null
+            val (major, minor, patch) = numbers.map { it ?: 0 }
+            return ReleaseVersion(major, minor, patch, beta = numbers.last())
         }
     }
 }

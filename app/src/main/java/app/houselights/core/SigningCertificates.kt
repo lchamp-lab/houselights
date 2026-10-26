@@ -17,6 +17,8 @@ object SigningCertificates {
      * Whether a package whose content [signers] and signing [history] (v3 key rotation, oldest first) are these is the
      * one signed with [pinned]: every signer is it, or the single signer's history holds it (the key rotated since).
      */
-    fun signedBy(pinned: String, signers: List<String>, history: List<String>): Boolean =
-        signers.isNotEmpty() && (signers.all { it == pinned } || signers.size == 1 && pinned in history)
+    fun signedBy(pinned: String, signers: List<String>, history: List<String>): Boolean {
+        val rotated = signers.size == 1 && pinned in history
+        return signers.isNotEmpty() && (signers.all { it == pinned } || rotated)
+    }
 }

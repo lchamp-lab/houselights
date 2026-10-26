@@ -59,7 +59,7 @@ internal fun release(
 internal fun listJson(vararg releases: ListedRelease): String = releases.joinToString(",", "[", "]") { r ->
     val assets = r.assets.joinToString(",", "[", "]") { a ->
         """{"name":"${a.name}","size":${a.size},"download_count":12,"browser_download_url":"${a.url}"""" +
-            (a.digest?.let { ""","digest":"$it"""" } ?: "") + "}"
+            a.digest?.let { ""","digest":"$it"""" }.orEmpty() + "}"
     }
     """{"tag_name":"${r.tag}","name":"Houselights","draft":${r.draft},"prerelease":${r.prerelease},""" +
         """"published_at":"2026-10-20T10:00:00Z","author":{"login":"lchamp-lab"},"assets":$assets}"""
