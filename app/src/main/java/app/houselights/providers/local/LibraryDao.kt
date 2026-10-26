@@ -286,6 +286,18 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("SELECT * FROM suggestions WHERE itemId = :itemId ORDER BY rank")
     suspend fun suggestions(itemId: Long): List<SuggestionEntity>
 
+    /** The candidates of titles [ids] ([suggestions]), each title's the best first; at most [SQL_IN_LIMIT] ids. */
+    @Query("SELECT * FROM suggestions WHERE itemId IN (:ids) ORDER BY itemId, rank")
+    suspend fun suggestionsOf(ids: List<Long>): List<SuggestionEntity>
+
+    /** A film or show left as it is by the user, or no longer ([ItemEntity.userNoMatch]). */
+    @Query("UPDATE items SET userNoMatch = :kept WHERE id = :id")
+    suspend fun setUserNoMatch(id: Long, kept: Boolean)
+
+    /** Each show of [ids]'s first episode file by path, where its folder is; at most [SQL_IN_LIMIT] ids. */
+    @Query("SELECT seriesId, MIN(filePath) AS filePath FROM items WHERE kind = 'EPISODE' AND seriesId IN (:ids) GROUP BY seriesId")
+    suspend fun showFiles(ids: List<Long>): List<ShowFile>
+
     @Query("DELETE FROM suggestions WHERE itemId = :itemId")
     suspend fun forgetSuggestions(itemId: Long)
 

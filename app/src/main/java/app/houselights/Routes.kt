@@ -109,6 +109,10 @@ object Route {
     @Serializable
     data class Identify(val id: String)
 
+    /** The films and shows to identify (Réglages › Bibliothèque), each opening Identifier. */
+    @Serializable
+    data object ToIdentify
+
     /** A person's page: their titles, before and behind the camera ([app.houselights.core.Catalog.person]). */
     @Serializable
     data class Person(val id: String)

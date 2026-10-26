@@ -451,6 +451,29 @@ private fun Results() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        // A title to identify, as its list shows it: what it may be on a line no fact gives way to, then where it lies.
+        Specimen("a note on its own line, where it lies as its overview", Modifier.weight(1f)) {
+            HlResultItem(
+                null,
+                "Wonder Woman",
+                listOf("1984", stringResource(R.string.to_identify_unsure)),
+                "Films/Wonder Woman 1984.mkv",
+                {},
+                note = stringResource(R.string.to_identify_best, "Wonder Woman 1984", 2020),
+            )
+        }
+        Specimen("a long note ends in an ellipsis", Modifier.weight(1f)) {
+            HlResultItem(
+                null,
+                "Le Seigneur des anneaux",
+                listOf(null, stringResource(R.string.to_identify_unsure)),
+                "Films/Le Seigneur des anneaux.mkv",
+                {},
+                note = stringResource(R.string.to_identify_best_undated, "Le Seigneur des anneaux : La Communauté de l’anneau"),
+            )
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("no poster, no overview", Modifier.weight(1f)) {
             HlResultItem(null, "Samouraï", listOf("2002", null), null, {})
         }

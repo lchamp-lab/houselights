@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
 import app.houselights.core.Job
+import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaInfo
 import app.houselights.core.Opened
 import app.houselights.core.SecretUnreadException
@@ -332,6 +333,22 @@ data class ItemEntity(
  * nothing for it, [UNSURE] when several candidates came and none was clearly ahead ([SuggestionEntity] holds them).
  */
 enum class MatchState { MATCHED, NOT_FOUND, UNSURE }
+
+/** Why this film or show is to identify, as [TO_IDENTIFY] selects it; null when it is not. */
+internal fun ItemEntity.doubt(): MatchDoubt? {
+    val titled = kind == ItemKind.MOVIE || kind == ItemKind.SERIES
+    // Matched, left as it is by the user, or its file held missing.
+    val aside = tmdbId != null || userNoMatch || missingSince != null
+    if (!titled || aside) return null
+    return when (matchState) {
+        MatchState.NOT_FOUND -> MatchDoubt.NOT_FOUND
+        MatchState.UNSURE -> MatchDoubt.UNSURE
+        MatchState.MATCHED, null -> null
+    }
+}
+
+/** A show's first episode file by path, which says where the show's folder is ([LibraryDao.showFiles]). */
+data class ShowFile(val seriesId: Long, val filePath: String?)
 
 /**
  * One of a film's or show's best TMDB candidates when none was clearly ahead ([MatchState.UNSURE]), [rank] 0 the best,

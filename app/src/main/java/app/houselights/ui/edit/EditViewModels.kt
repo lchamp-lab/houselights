@@ -126,6 +126,8 @@ data class IdentifyState(
     /** The title is matched as chosen ([identifying] stays set): the screen can close. */
     val done: Boolean = false,
     val error: UiError? = null,
+    /** « Laisser tel quel » asked, until [done]. */
+    val keeping: Boolean = false,
 )
 
 /**
@@ -198,7 +200,7 @@ class IdentifyViewModel(
     fun identify(candidate: MatchCandidate?) {
         val s = _state.value
         val item = s.item ?: return
-        if (s.identifying || s.done) return
+        if (s.identifying || s.keeping || s.done) return
         _state.update { it.copy(identifying = true, chosenId = candidate?.id, error = null) }
         work.launch {
             suspendRunCatching { provider().editorOrFail().identify(item, candidate) }
@@ -207,6 +209,23 @@ class IdentifyViewModel(
                 .onFailure { e ->
                     val error = e.reported(TAG, "Identification of $itemId as ${candidate?.id ?: "automatic"}")
                     _state.update { it.copy(identifying = false, chosenId = null, error = error) }
+                }
+        }
+    }
+
+    /** « Laisser tel quel »: the title is no longer to identify, nor searched for by its name; the screen can close. */
+    fun keep() {
+        val s = _state.value
+        val item = s.item ?: return
+        if (s.identifying || s.keeping || s.done) return
+        _state.update { it.copy(keeping = true, error = null) }
+        work.launch {
+            suspendRunCatching { provider().editorOrFail().keepUnidentified(item) }
+                // Still busy while the screen closes.
+                .onSuccess { _state.update { s -> s.copy(done = true) } }
+                .onFailure { e ->
+                    val error = e.reported(TAG, "Leaving $itemId as it is")
+                    _state.update { it.copy(keeping = false, error = error) }
                 }
         }
     }

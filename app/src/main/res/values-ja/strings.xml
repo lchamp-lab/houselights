@@ -499,6 +499,20 @@
     </plurals>
     <string name="identify_state_matched">特定済み</string>
     <string name="result_current">現在</string>
+    <string name="to_identify">未特定の作品</string>
+    <string name="to_identify_row_desc">確実に特定できていません</string>
+    <string name="to_identify_desc">Houselightsはこれらの作品を確実に特定できませんでした。正しい作品を選んでください。選択した作品は以降のスキャンでも保持されます。その他の作品は、最初は毎日、その後は毎週、再検索されます。</string>
+    <string name="to_identify_unsure">複数の候補があります</string>
+    <string name="to_identify_not_found">TMDBに見つかりません</string>
+    <string name="to_identify_none">未特定の作品はありません</string>
+    <string name="to_identify_none_hint">Houselightsが確実に特定できなかった作品がここに表示されます。</string>
+    <string name="to_identify_best">候補：「%1$s」（%2$d）</string>
+    <string name="to_identify_best_undated">候補：「%1$s」</string>
+    <string name="identify_menu_desc_none">TMDBでこの作品を探す</string>
+    <string name="identify_desc_none">Houselightsはこの作品を確実に特定できませんでした。TMDBで検索してください。選択した作品は以降のスキャンでも保持されます。</string>
+    <string name="identify_desc_unsure">Houselightsはこれらの作品のどれか判断できませんでした。正しい作品を選ぶか、TMDBで検索してください。選択した作品は以降のスキャンでも保持されます。</string>
+    <string name="identify_keep">このままにする</string>
+    <string name="identify_kept">このままにしています</string>
     <string name="error_offline_title">ライブラリに接続できません</string>
     <string name="error_offline_nas_title">NASに接続できません</string>
     <string name="error_offline_server_title">サーバーに接続できません</string>

@@ -166,8 +166,9 @@ fun SelectedMark(modifier: Modifier = Modifier) {
 }
 
 /**
- * A search result set like a small one-sheet: poster, name, facts and overview; the title in use is edged
- * in ember with [mark] ("Actuel"), replaced by [busy] while it is being chosen ("Association…").
+ * A search result set like a small one-sheet: poster, name, facts, a [note] on a line of its own, which no fact gives way
+ * to (the title it may be, "Peut-être « Dune » (2021)"), and overview; the title in use is edged in ember with [mark]
+ * ("Actuel"), replaced by [busy] while it is being chosen ("Association…").
  */
 @Composable
 fun HlResultItem(
@@ -179,6 +180,7 @@ fun HlResultItem(
     modifier: Modifier = Modifier,
     mark: String? = null,
     busy: String? = null,
+    note: String? = null,
 ) {
     val c = Hl.colors
     HlPanelButton(onClick, modifier.fillMaxWidth().semantics { selected = mark != null }, lit = mark != null) {
@@ -203,6 +205,10 @@ fun HlResultItem(
                 }
                 Spacer(Modifier.height(HlSpace.xxs))
                 FactRow(facts)
+                if (note != null) {
+                    Spacer(Modifier.height(HlSpace.xxs))
+                    Text(note, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 if (overview != null) {
                     Spacer(Modifier.height(HlSpace.xs))
                     Text(overview, style = Hl.type.meta, color = c.contentSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)

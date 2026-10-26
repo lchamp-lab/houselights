@@ -2,8 +2,11 @@ package app.houselights.providers.local
 
 import app.houselights.core.ArtworkKind
 import app.houselights.core.FailureKind
+import app.houselights.core.MatchCandidate
+import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.ToIdentify
 import app.houselights.core.TmdbKeyRefusedException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -45,6 +48,12 @@ class LocalEditorTest {
 
     private fun editor(tmdb: TmdbClient? = bench.tmdb.client()) = LocalEditor(bench.dao, bench.scanner) { tmdb }
 
+    private companion object {
+        const val DUNE = 438631
+        const val LYNCH = 841
+        const val HOUR_MS = 60 * 60_000L
+    }
+
     /** With the key refused, the screen can say the key needs changing, not the connection. */
     @Test
     fun imagesTmdbDoesNotListSayWhy() = runTest {
@@ -68,6 +77,72 @@ class LocalEditorTest {
         val choices = editor(tmdb = null).artwork(heat, ArtworkKind.BACKDROP)
         assertFalse(choices.onlineAvailable)
         assertEquals(FailureKind.NO_TMDB_KEY, choices.onlineError)
+    }
+
+    /**
+     * The titles to identify, the latest added first, each with why, where it lies (its folder, then its file or its
+     * show's folder) and, for one TMDB hesitated on, the titles it may be, the best first.
+     */
+    @Test
+    fun theTitlesToIdentifySayWhyWhereTheyLieAndWhatTheyMayBe() = runTest {
+        bench.folder("Films")
+        bench.folder("Séries", SourceKind.SHOWS)
+        bench.tmdb.movie(DUNE, "Dune", 2021, votes = 12_000)
+        bench.tmdb.movie(LYNCH, "Dune", 1984, votes = 3_000)
+        bench.tmdb.searches["dune"] = listOf(DUNE, LYNCH)
+        bench.nas.put("Dune.mkv")
+        bench.scan()
+        bench.later(HOUR_MS)
+        bench.showsNas.put("Kaamelott/Season 1/Kaamelott - S01E01.mkv")
+        bench.scan()
+        bench.later(HOUR_MS)
+        bench.nas.put("Vacances/Biarritz (2019).mkv")
+        bench.scan()
+
+        val listed = editor().toIdentify()
+        assertEquals("the latest first", listOf("Biarritz", "Kaamelott", "Dune"), listed.map { it.item.title })
+        assertEquals(listOf("Films/Vacances/Biarritz (2019).mkv", "Séries/Kaamelott", "Films/Dune.mkv"), listed.map { it.place })
+        assertEquals(listOf(MatchDoubt.NOT_FOUND, MatchDoubt.NOT_FOUND, MatchDoubt.UNSURE), listed.map { it.doubt })
+        assertEquals(listOf(MediaKind.MOVIE, MediaKind.SERIES, MediaKind.MOVIE), listed.map { it.item.kind })
+        assertEquals(listed.map { it.doubt }, listed.map { it.item.matchDoubt })
+        val dune = listed.last()
+        assertEquals(listOf("$DUNE" to 2021, "$LYNCH" to 1984), dune.suggestions.map { it.id to it.year })
+        assertEquals("Dune", dune.best?.title)
+        assertEquals(emptyList<MatchCandidate>(), listed.first().suggestions)
+    }
+
+    /** Left as it is, a title says so and is no longer to identify; back to automatic, it is to identify again. */
+    @Test
+    fun aTitleLeftAsItIsSaysSoUntilPutBackToAutomatic() = runTest {
+        val holidays = film("Vacances à Biarritz (2019).mkv")
+        val editor = editor()
+        assertEquals(MatchDoubt.NOT_FOUND, editor.identity(holidays).doubt)
+        assertFalse(editor.identity(holidays).kept)
+
+        editor.keepUnidentified(holidays)
+        val kept = editor.identity(holidays)
+        assertTrue(kept.kept)
+        assertNull("no longer to identify", kept.doubt)
+        assertEquals(emptyList<ToIdentify>(), editor.toIdentify())
+
+        editor.identify(holidays, null)
+        val back = editor.identity(holidays)
+        assertFalse(back.kept)
+        assertEquals(MatchDoubt.NOT_FOUND, back.doubt)
+        assertEquals(listOf(holidays.id), editor.toIdentify().map { it.item.id })
+    }
+
+    /** Choosing a title undoes leaving it as it is. */
+    @Test
+    fun aTitleLeftAsItIsAndThenChosenIsMatched() = runTest {
+        bench.tmdb.movie(949, "Heat", 1995)
+        val holidays = film("Vacances à Biarritz (2019).mkv")
+        val editor = editor()
+        editor.keepUnidentified(holidays)
+        editor.identify(holidays, editor.search(holidays, "Heat", 1995).single())
+        val row = checkNotNull(bench.dao.item(holidays.id.toLong()))
+        assertEquals(949 to false, row.tmdbId to row.userNoMatch)
+        assertFalse(editor.identity(holidays).kept)
     }
 
     /** Nothing failed: there is nothing to list before the title is identified. */

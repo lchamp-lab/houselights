@@ -515,6 +515,20 @@
     </plurals>
     <string name="identify_state_matched">Geïdentificeerd</string>
     <string name="result_current">Huidig</string>
+    <string name="to_identify">Te identificeren</string>
+    <string name="to_identify_row_desc">Niet met zekerheid herkend</string>
+    <string name="to_identify_desc">Houselights heeft deze titels niet met zekerheid herkend. Kies de juiste: uw keuze blijft behouden bij latere scans. De andere worden opnieuw gezocht, eerst dagelijks, daarna wekelijks.</string>
+    <string name="to_identify_unsure">Meerdere mogelijke titels</string>
+    <string name="to_identify_not_found">Niet gevonden op TMDB</string>
+    <string name="to_identify_none">Niets te identificeren</string>
+    <string name="to_identify_none_hint">Titels die Houselights niet met zekerheid heeft herkend, verschijnen hier.</string>
+    <string name="to_identify_best">Misschien “%1$s” (%2$d)</string>
+    <string name="to_identify_best_undated">Misschien “%1$s”</string>
+    <string name="identify_menu_desc_none">Deze titel op TMDB zoeken</string>
+    <string name="identify_desc_none">Houselights heeft deze titel niet met zekerheid herkend. Zoek hem op TMDB: uw keuze blijft behouden bij latere scans.</string>
+    <string name="identify_desc_unsure">Houselights twijfelt tussen deze titels. Kies de juiste of zoek hem op TMDB: uw keuze blijft behouden bij latere scans.</string>
+    <string name="identify_keep">Zo laten</string>
+    <string name="identify_kept">Zo gelaten</string>
     <string name="error_offline_title">Bibliotheek onbereikbaar</string>
     <string name="error_offline_nas_title">NAS onbereikbaar</string>
     <string name="error_offline_server_title">Server onbereikbaar</string>

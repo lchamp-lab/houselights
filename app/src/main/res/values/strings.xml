@@ -531,6 +531,20 @@
     </plurals>
     <string name="identify_state_matched">Identified</string>
     <string name="result_current">Current</string>
+    <string name="to_identify">To identify</string>
+    <string name="to_identify_row_desc">Not recognized with certainty</string>
+    <string name="to_identify_desc">Houselights could not recognize these titles with certainty. Choose the right one: your choice is kept by later scans. The others are searched for again, daily at first, then weekly.</string>
+    <string name="to_identify_unsure">Several possible titles</string>
+    <string name="to_identify_not_found">Not found on TMDB</string>
+    <string name="to_identify_none">Nothing to identify</string>
+    <string name="to_identify_none_hint">Titles Houselights did not recognize with certainty will show here.</string>
+    <string name="to_identify_best">Maybe “%1$s” (%2$d)</string>
+    <string name="to_identify_best_undated">Maybe “%1$s”</string>
+    <string name="identify_menu_desc_none">Find this title on TMDB</string>
+    <string name="identify_desc_none">Houselights could not recognize this title with certainty. Search for it on TMDB: your choice is kept by later scans.</string>
+    <string name="identify_desc_unsure">Houselights hesitates between these titles. Choose the right one, or search for it on TMDB: your choice is kept by later scans.</string>
+    <string name="identify_keep">Leave as is</string>
+    <string name="identify_kept">Left as is</string>
     <string name="error_offline_title">Library unreachable</string>
     <string name="error_offline_nas_title">NAS unreachable</string>
     <string name="error_offline_server_title">Server unreachable</string>

@@ -253,6 +253,45 @@ class ToIdentifyTest {
         assertEquals("the others at the next pass", 30 - Reidentify.SHOW_CALLS_PER_PASS / perShow, asked())
     }
 
+    /**
+     * Left as it is (« Laisser tel quel »), a film or show is no longer to identify, nor searched for by its name, by the
+     * checks or a refresh, and stays so.
+     */
+    @Test
+    fun aTitleLeftAsItIsIsNeitherListedNorSearchedForByItsName() = runTest {
+        val films = bench.folder("Films")
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        nas.put(HOLIDAYS)
+        bench.showsNas.put(KAAMELOTT)
+        bench.scan()
+        val left = listOf(bench.item(films, HOLIDAYS), bench.showOf(shows, KAAMELOTT))
+        left.forEach { dao.setUserNoMatch(it.id, true) }
+        assertEquals(emptyList<ItemEntity>(), dao.toIdentify())
+
+        bench.later(8 * DAY_MS)
+        tmdb.searched.clear()
+        bench.pass(auto = true)
+        bench.pass(refresh = true)
+        assertEquals("never by its name", emptyList<String>(), tmdb.searched)
+        assertEquals(emptyList<ItemEntity>(), dao.toIdentify())
+        assertEquals(listOf(true, true), left.map { checkNotNull(dao.item(it.id)).userNoMatch })
+    }
+
+    /** Left as it is, a film still takes the id an NFO beside it gives. */
+    @Test
+    fun aTitleLeftAsItIsStillTakesTheIdItsNfoGives() = runTest {
+        val films = bench.folder("Films")
+        nas.put(HOLIDAYS)
+        bench.scan()
+        dao.setUserNoMatch(bench.item(films, HOLIDAYS).id, true)
+
+        tmdb.movie(DUNE, "Dune", 2021)
+        nas.putText("Vacances à Biarritz (2019).nfo", "<movie><uniqueid type=\"tmdb\">$DUNE</uniqueid></movie>")
+        bench.scan()
+        val film = bench.item(films, HOLIDAYS)
+        assertEquals(DUNE to MatchState.MATCHED, film.tmdbId to film.matchState)
+    }
+
     /** A refresh reads a title to identify in full, searching it once: the check after it finds it not due. */
     @Test
     fun aRefreshAsksATitleToIdentifyOnce() = runTest {

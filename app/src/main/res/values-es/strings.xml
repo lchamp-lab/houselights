@@ -530,6 +530,20 @@
     </plurals>
     <string name="identify_state_matched">Identificado</string>
     <string name="result_current">Actual</string>
+    <string name="to_identify">Por identificar</string>
+    <string name="to_identify_row_desc">No reconocidos con certeza</string>
+    <string name="to_identify_desc">Houselights no reconoció estos títulos con certeza. Elija el correcto: su elección se conserva en los próximos análisis. Los demás se buscan de nuevo, primero cada día y luego cada semana.</string>
+    <string name="to_identify_unsure">Varios títulos posibles</string>
+    <string name="to_identify_not_found">No encontrado en TMDB</string>
+    <string name="to_identify_none">Nada por identificar</string>
+    <string name="to_identify_none_hint">Aquí aparecerán los títulos que Houselights no reconoció con certeza.</string>
+    <string name="to_identify_best">Quizá «%1$s» (%2$d)</string>
+    <string name="to_identify_best_undated">Quizá «%1$s»</string>
+    <string name="identify_menu_desc_none">Encontrar este título en TMDB</string>
+    <string name="identify_desc_none">Houselights no reconoció este título con certeza. Búsquelo en TMDB: su elección se conserva en los próximos análisis.</string>
+    <string name="identify_desc_unsure">Houselights duda entre estos títulos. Elija el correcto o búsquelo en TMDB: su elección se conserva en los próximos análisis.</string>
+    <string name="identify_keep">Dejar tal cual</string>
+    <string name="identify_kept">Dejado tal cual</string>
     <string name="error_offline_title">Biblioteca inaccesible</string>
     <string name="error_offline_nas_title">NAS inaccesible</string>
     <string name="error_offline_server_title">Servidor inaccesible</string>

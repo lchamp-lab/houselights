@@ -88,6 +88,7 @@ fun SettingsScreen(
     onOpenCatalog: () -> Unit = {},
     onOpenWall: (Library, LibraryFilter) -> Unit = { _, _ -> },
     onOpenPerson: (personId: String) -> Unit = {},
+    onOpenToIdentify: () -> Unit = {},
 ) {
     val app = appContainer()
     val images = LocalContext.current.imageLoader
@@ -99,6 +100,7 @@ fun SettingsScreen(
         },
         signIn = onSignIn,
         resumed = onSourceResumed,
+        toIdentify = onOpenToIdentify,
     )
     val s by vm.settings.collectAsStateWithLifecycle()
     val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts, vm.asksTracks, s.keepsTrakt)
@@ -182,13 +184,19 @@ internal fun SettingsPlaces(panes: List<Pane>, open: Pane, memory: FocusMemory, 
     }
 }
 
-/** Scrolls [list] item by item until row [key] can be focused (a pane holds a dozen items at most). */
+/**
+ * Scrolls [list] item by item until row [key] can be focused (a pane holds a dozen items at most); a row gone, back
+ * where it was, so the plate it was on can take focus.
+ */
 private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMemory): Boolean {
+    val (index, offset) = list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset
     for (i in 0 until list.layoutInfo.totalItemsCount) {
         list.scrollToItem(i)
         withFrameNanos { }
         if (memory.focus(key)) return true
     }
+    list.scrollToItem(index, offset)
+    withFrameNanos { }
     return false
 }
 
@@ -197,9 +205,15 @@ private class NumbersDoors(val onOpenWall: (Library, LibraryFilter) -> Unit, val
 
 /**
  * Where the source's rows lead: the folders, keeping the server left or not ([useFolders]), a sign-in filled in as
- * asked ([signIn]), and what follows the kept server made the source again ([resumed]).
+ * asked ([signIn]), what follows the kept server made the source again ([resumed]), and the titles to identify
+ * ([toIdentify]).
  */
-internal class SourceDoors(val useFolders: (keepServer: Boolean) -> Unit, val signIn: (LoginFill) -> Unit, val resumed: () -> Unit)
+internal class SourceDoors(
+    val useFolders: (keepServer: Boolean) -> Unit,
+    val signIn: (LoginFill) -> Unit,
+    val resumed: () -> Unit,
+    val toIdentify: () -> Unit = {},
+)
 
 /**
  * The note [pane] shows when one of its secrets could not be read back and must be re-entered; else null. Trakt's waits

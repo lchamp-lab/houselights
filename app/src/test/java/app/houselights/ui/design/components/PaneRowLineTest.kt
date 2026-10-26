@@ -46,8 +46,8 @@ class PaneRowLineTest {
     /** What a row lays beside its words, as its pane or sheet does. */
     private enum class Beside { None, Icon, Check }
 
-    /** A row's description [text], what it is ([name]), beside what, and the [value] it shows. */
-    private class Line(val text: String, val name: String, val beside: Beside, val value: String? = null)
+    /** A row's description [text], what it is ([name]), beside what, and the [value] it shows, a figure in [jaquette]. */
+    private class Line(val text: String, val name: String, val beside: Beside, val value: String? = null, val jaquette: Boolean = false)
 
     private fun assertOneLine(scale: Float) {
         RuntimeEnvironment.setFontScale(scale)
@@ -82,8 +82,8 @@ class PaneRowLineTest {
 
     /** A language's words: its resources, its tag and its locale. */
     private inner class Words(val local: Context, val tag: String, val locale: Locale) {
-        fun line(id: Int, beside: Beside = Beside.None, value: String? = null) =
-            Line(local.getString(id), "$tag: ${name(id)}", beside, value)
+        fun line(id: Int, beside: Beside = Beside.None, value: String? = null, jaquette: Boolean = false) =
+            Line(local.getString(id), "$tag: ${name(id)}", beside, value, jaquette)
 
         /** The language's own name, as a language row shows it. */
         val language: String get() = locale.getDisplayName(locale).replaceFirstChar { it.titlecase(locale) }
@@ -98,6 +98,7 @@ class PaneRowLineTest {
             line(R.string.scan_now_desc, value = local.getString(R.string.scan_progress, SCANNED, FILES)),
             line(R.string.add_folder_row_desc),
             line(R.string.refresh_metadata_desc),
+            line(R.string.to_identify_row_desc, value = TO_IDENTIFY, jaquette = true),
             line(R.string.error_tmdb_key_refused_title, value = local.getString(R.string.tmdb_personal)),
             line(R.string.error_tmdb_offline_title, value = local.getString(R.string.tmdb_builtin_short)),
             line(R.string.metadata_language_desc, value = language),
@@ -132,6 +133,7 @@ class PaneRowLineTest {
     private fun sheetLines(w: Words): List<Line> = with(w) {
         listOf(
             line(R.string.identify_menu_desc, Beside.Icon),
+            line(R.string.identify_menu_desc_none, Beside.Icon),
             line(R.string.scan_now_desc),
             line(R.string.edit_folder_row_desc),
             line(R.string.edit_folder_login_desc),
@@ -174,6 +176,7 @@ class PaneRowLineTest {
             "Row",
             description = line.text,
             value = line.value,
+            valueStyle = if (line.jaquette) Hl.type.jaquette else Hl.type.meta,
             icon = HlIcons.Folder.takeIf { line.beside == Beside.Icon },
             onClick = {},
             trailing = if (line.beside == Beside.Check) ({ ChoiceCheck() }) else null,
@@ -194,5 +197,8 @@ class PaneRowLineTest {
 
         /** The image cache's size, as the row prints it. */
         const val CACHE = "151,5 Mo"
+
+        /** How many titles are to identify, as many as a large library may leave. */
+        const val TO_IDENTIFY = "1 234"
     }
 }

@@ -45,6 +45,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ArtworkKind
 import app.houselights.core.AudioTrack
+import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
@@ -98,6 +99,7 @@ import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.edit.EditMenu
+import app.houselights.ui.edit.doubtText
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.PartFailed
@@ -236,10 +238,13 @@ internal fun DetailPage(
         nextUpError = state.lireError,
         retrying = state.retrying,
         onRetry = vm::retry,
+        onIdentify = { onIdentify(item.id) }.takeIf { state.canEdit && item.matchDoubt != null },
     )
     // Réessayer gone with the failure it said, or Lire and the Réessayer in its place swapped: focus goes to Lire.
     FocusOnPlayAfter(swap = state.error != null, held = RETRY_PAGE, memory, actionRow)
     FocusOnPlayAfter(swap = state.nextUpError != null, held = PLAY, memory, actionRow)
+    // Identified meanwhile, Identifier leaves the row with the state it said: focus goes to Lire.
+    FocusOnPlayAfter(swap = item.matchDoubt != null, held = IDENTIFY, memory, actionRow)
 
     val recede = rememberRecede { scrolled }
 
@@ -571,6 +576,8 @@ private data class DetailActions(
     val nextUpError: UiError? = null,
     val retrying: Boolean = false,
     val onRetry: () -> Unit = {},
+    /** Opens Identifier on a title to identify, its state said at the row's end; null for any other. */
+    val onIdentify: (() -> Unit)? = null,
 )
 
 @Composable
@@ -648,6 +655,15 @@ private fun Actions(
     OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted) {
         PlayButtons(item, nextUp, memory, actions)
         Parts(item, memory, actions.onPlay)
+        // A title to identify: Right then OK from Lire reaches it.
+        if (actions.onIdentify != null) {
+            HlButton(
+                stringResource(R.string.identify),
+                onClick = actions.onIdentify,
+                modifier = Modifier.focusKey(IDENTIFY, memory),
+                icon = HlIcons.Search,
+            )
+        }
         // Several copies: the one Lire plays is chosen in a side sheet.
         if (actions.onShowVersions != null) {
             HlIconButton(
@@ -699,7 +715,7 @@ private fun Actions(
         if (actions.onEdit != null) {
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
-        ActionFailure(problem, actionError, actions.nextUpError)
+        ActionFailure(problem, actionError, actions.nextUpError, item.matchDoubt.takeIf { actions.onIdentify != null })
     } }
 }
 
@@ -730,20 +746,21 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
 
 /**
  * Beside the actions, the latest first: why the last play request failed ([problem]), a change did not save
- * ([actionError]), or what Lire starts could not be read ([nextUpError]).
+ * ([actionError]), or what Lire starts could not be read ([nextUpError]); else, for a title to identify, why ([doubt]):
+ * a state by its ring, never ember, as nothing failed.
  */
 @Composable
-private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?, nextUpError: UiError?) {
-    val (title, error) = problem?.let { R.string.play_failed to it }
+private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?, nextUpError: UiError?, doubt: MatchDoubt?) {
+    val failed = problem?.let { R.string.play_failed to it }
         ?: actionError?.let { R.string.action_not_saved to it }
         ?: nextUpError?.let { it.title to it }
-        ?: return
-    HlStatus(
-        StatusState.Attention,
-        stringResource(title),
-        Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
-        detail = stringResource(error.message),
-    )
+    val place = Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false)
+    if (failed != null) {
+        val (title, error) = failed
+        HlStatus(StatusState.Attention, stringResource(title), place, detail = stringResource(error.message))
+    } else if (doubt != null) {
+        HlStatus(StatusState.Off, stringResource(R.string.to_identify), place, detail = stringResource(doubtText(doubt)))
+    }
 }
 
 /**
@@ -976,6 +993,7 @@ private val TECH = FocusKey.action("tech")
 private val NFO = FocusKey.action("nfo")
 private val FAVORITE = FocusKey.action("favorite")
 private val EDIT = FocusKey.action("edit")
+private val IDENTIFY = FocusKey.action("identify")
 private val PARTS = FocusKey.action("parts")
 
 /** Parts shown as buttons in the action row, beside Lire and the tiles. */

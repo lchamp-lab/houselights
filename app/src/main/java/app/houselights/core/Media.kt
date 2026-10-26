@@ -77,6 +77,8 @@ data class MediaItem(
     val addedAt: Long? = null,
     /** This copy's edition ([Editions]: "Extended"…), when its file or NFO names one. */
     val edition: String? = null,
+    /** Why a film or show is to identify ([MatchDoubt]); null once matched or left as it is, and for a source that cannot tell. */
+    val matchDoubt: MatchDoubt? = null,
 ) {
     val isPlayable get() = kind == MediaKind.MOVIE || kind == MediaKind.EPISODE || kind == MediaKind.VIDEO
 

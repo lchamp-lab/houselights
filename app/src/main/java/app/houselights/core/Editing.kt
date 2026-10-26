@@ -66,7 +66,27 @@ data class Identity(
     val manual: Boolean,
     /** False when no image database is configured to search in. */
     val canSearch: Boolean,
+    /** Why automatic matching left it unidentified; null once matched, or left as it is ([kept]). */
+    val doubt: MatchDoubt? = null,
+    /** Left as it is by the user (« Laisser tel quel »): no longer searched for by its name, nor to identify. */
+    val kept: Boolean = false,
 )
+
+/** Why a film or show is to identify: TMDB found nothing for it, or several titles, none clearly ahead. */
+enum class MatchDoubt { NOT_FOUND, UNSURE }
+
+/**
+ * A film or show to identify, and why ([doubt]): where it lies ([place], its folder then its file, or its show's folder),
+ * and the titles automatic matching hesitated between, the best first ([best]).
+ */
+data class ToIdentify(
+    val item: MediaItem,
+    val place: String?,
+    val doubt: MatchDoubt,
+    val suggestions: List<MatchCandidate> = emptyList(),
+) {
+    val best: MatchCandidate? get() = suggestions.firstOrNull()
+}
 
 /** Corrects automatic matching (artwork, identification); absent from a provider that cannot store choices. */
 interface MetadataEditor {
@@ -83,6 +103,15 @@ interface MetadataEditor {
     /** Titles matching [query]; an IMDb id ("tt0111161") finds that exact title. */
     suspend fun search(item: MediaItem, query: String, year: Int?): List<MatchCandidate>
 
-    /** Matches [item] with [candidate], or reverts to automatic matching when null. */
+    /** Matches [item] with [candidate], or reverts to automatic matching when null; either undoes [keepUnidentified]. */
     suspend fun identify(item: MediaItem, candidate: MatchCandidate?)
+
+    /** The films and shows to identify, the latest added first; none from an editor that matches nothing itself. */
+    suspend fun toIdentify(): List<ToIdentify> = emptyList()
+
+    /**
+     * Leaves [item] as it is (« Laisser tel quel »): no longer to identify, nor searched for by its name; an id its name
+     * or its NFO gives still applies.
+     */
+    suspend fun keepUnidentified(item: MediaItem) {}
 }

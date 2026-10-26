@@ -529,6 +529,20 @@
     </plurals>
     <string name="identify_state_matched">Identificado</string>
     <string name="result_current">Atual</string>
+    <string name="to_identify">A identificar</string>
+    <string name="to_identify_row_desc">Não reconhecidos com certeza</string>
+    <string name="to_identify_desc">O Houselights não reconheceu estes títulos com certeza. Escolha o certo: sua escolha é mantida nas próximas análises. Os outros são pesquisados de novo, primeiro todo dia, depois toda semana.</string>
+    <string name="to_identify_unsure">Vários títulos possíveis</string>
+    <string name="to_identify_not_found">Não encontrado no TMDB</string>
+    <string name="to_identify_none">Nada a identificar</string>
+    <string name="to_identify_none_hint">Os títulos que o Houselights não reconheceu com certeza aparecerão aqui.</string>
+    <string name="to_identify_best">Talvez “%1$s” (%2$d)</string>
+    <string name="to_identify_best_undated">Talvez “%1$s”</string>
+    <string name="identify_menu_desc_none">Encontrar este título no TMDB</string>
+    <string name="identify_desc_none">O Houselights não reconheceu este título com certeza. Pesquise-o no TMDB: sua escolha é mantida nas próximas análises.</string>
+    <string name="identify_desc_unsure">O Houselights está em dúvida entre estes títulos. Escolha o certo ou pesquise-o no TMDB: sua escolha é mantida nas próximas análises.</string>
+    <string name="identify_keep">Deixar como está</string>
+    <string name="identify_kept">Deixado como está</string>
     <string name="error_offline_title">Biblioteca inacessível</string>
     <string name="error_offline_nas_title">NAS inacessível</string>
     <string name="error_offline_server_title">Servidor inacessível</string>

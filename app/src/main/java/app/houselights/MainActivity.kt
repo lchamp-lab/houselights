@@ -85,6 +85,7 @@ import app.houselights.ui.catalog.CatalogScreen
 import app.houselights.ui.detail.DetailScreen
 import app.houselights.ui.edit.ArtworkScreen
 import app.houselights.ui.edit.IdentifyScreen
+import app.houselights.ui.edit.ToIdentifyScreen
 import app.houselights.ui.home.HomeActions
 import app.houselights.ui.home.HomeScreen
 import app.houselights.ui.home.WatchScreen
@@ -503,6 +504,9 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
         composable<Route.Identify> { entry ->
             WithSource(source) { IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() }) }
         }
+        composable<Route.ToIdentify> {
+            WithSource(source) { ToIdentifyScreen(onOpen = { nav.navigate(Route.Identify(it)) }) }
+        }
         composable<Route.Person> { entry ->
             WithSource(source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
         }
@@ -517,6 +521,7 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     onOpenCatalog = { nav.navigate(Route.Catalog) },
                     onOpenWall = nav::openWall,
                     onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
+                    onOpenToIdentify = { nav.openOnce(Route.ToIdentify) },
                 )
             }
         }
