@@ -8,7 +8,10 @@ import java.io.FileNotFoundException
 
 /** A path typed whole in the add-folder flow ([TypedPaths.read]): the NAS when it names one, its protocol when its form says. */
 data class TypedPath(
-    /** "NAS" in "\\NAS\video", "nas" in "nfs://nas/…" or "nas:/…"; null for a path alone ("/volume1/video"). */
+    /**
+     * "NAS" in "\\NAS\video", "nas" in "nfs://nas/…" or "nas:/…"; null for a path alone ("/volume1/video"), or for a
+     * name after "\\" that is not the NAS chosen ([TypedPaths.read]).
+     */
     val host: String?,
     /** SMB for "\\NAS\…", "//NAS/…" and "smb://", NFS for "nfs://" and "nas:/…"; null when the form does not say. */
     val protocol: Protocol?,
@@ -38,8 +41,14 @@ object TypedPaths {
      * What [typed] says: "/volume1/video/Films" or "video/Films" alone, "\\NAS\video\Films" or "//NAS/video/Films",
      * "smb://nas/video/Films" (an account or port in it dropped), "nfs://nas/volume1/video/Films" or
      * "nas:/volume1/video/Films"; "/" and "\" both separate names, empty ones and "." left out. Null when blank.
+     *
+     * Once a NAS is chosen, [nas] its host as kept (a path typed for it, « Saisir un chemin »), the name after "\\",
+     * "//" or "smb://" is the NAS's only when it names that one ([namesNas]): any other is the path's first name, a
+     * share typed after two slashes ("\\video\Films" is share video, folder Films), as the folder's form reads it (#81),
+     * so a path on another NAS is looked for as typed and never as the same path on this one. Without [nas] (a NAS typed
+     * whole, « Saisir une adresse »), that name is the NAS. "nfs://" and "nas:/" name a NAS by their form alone.
      */
-    fun read(typed: String): TypedPath? {
+    fun read(typed: String, nas: String? = null): TypedPath? {
         val text = typed.trim()
         if (text.isEmpty()) return null
         val url = URL.matchEntire(text)
@@ -49,9 +58,10 @@ object TypedPaths {
             url != null -> {
                 val (scheme, authority, path) = url.destructured
                 val host = authority.substringAfterLast('@').substringBefore(':')
-                TypedPath(host.ifEmpty { null }, Protocol.valueOf(scheme.uppercase()), names(path))
+                val protocol = Protocol.valueOf(scheme.uppercase())
+                if (protocol == Protocol.SMB) smb(host, path, nas) else TypedPath(host.ifEmpty { null }, protocol, names(path))
             }
-            unc != null -> TypedPath(unc.groupValues[1].ifEmpty { null }, Protocol.SMB, names(unc.groupValues[2]))
+            unc != null -> smb(unc.groupValues[1], unc.groupValues[2], nas)
             export != null -> TypedPath(export.groupValues[1], Protocol.NFS, names(export.groupValues[2]))
             else -> TypedPath(null, null, names(text))
         }
@@ -121,6 +131,24 @@ object TypedPaths {
             SharePath(export.joinToString("/"), rest.joinToString("/"))
         }.distinct()
     }
+
+    /**
+     * Whether [name], typed before a path ("\\NAS\video"), names the NAS at [host]: as written, or by its first name
+     * ("NAS" for nas.local, nas.local for "NAS"), case aside; an IP address, which has no first name, only whole. The
+     * folder's form and the add-folder flow both read a typed path's NAS by it (#81).
+     */
+    fun namesNas(name: String, host: String): Boolean =
+        host.isNotEmpty() && (name.equals(host, ignoreCase = true) || name.firstName().equals(host.firstName(), ignoreCase = true))
+
+    /** An SMB path, [name] after "\\", "//" or "smb://" and the [rest]: [name] is the NAS's unless [nas] names another ([read]). */
+    private fun smb(name: String, rest: String, nas: String?): TypedPath = when {
+        name.isEmpty() -> TypedPath(null, Protocol.SMB, names(rest))
+        nas == null || namesNas(name, nas) -> TypedPath(name, Protocol.SMB, names(rest))
+        else -> TypedPath(null, Protocol.SMB, listOf(name) + names(rest))
+    }
+
+    /** A host's first name, before its domain; an IP address, which has no letter, whole. */
+    private fun String.firstName() = if (any { it.isLetter() }) substringBefore('.') else this
 
     /** Failures no other start of the path would change. */
     private val FINAL = setOf(FailureKind.UNREACHABLE, FailureKind.LOGIN_FAILED)

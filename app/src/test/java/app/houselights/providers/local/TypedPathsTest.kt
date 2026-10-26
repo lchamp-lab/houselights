@@ -16,7 +16,7 @@ import java.net.SocketTimeoutException
  */
 @RunWith(RobolectricTestRunner::class)
 class TypedPathsTest {
-    private fun read(typed: String) = TypedPaths.read(typed)
+    private fun read(typed: String, nas: String? = null) = TypedPaths.read(typed, nas)
 
     @Test
     fun aPathIsReadInEachFormItIsWrittenIn() {
@@ -38,6 +38,49 @@ class TypedPathsTest {
         assertEquals(TypedPath("nas", Protocol.SMB, emptyList()), read("""\\nas\"""))
         assertEquals(TypedPath(null, null, listOf("C:", "Videos")), read("""C:\Videos"""))
         assertNull(read("   "))
+    }
+
+    /**
+     * A path typed for the NAS chosen: the name after "\\", "//" or "smb://" is dropped as its own when it names it, as
+     * written or by its first name, an address whole, and "\\NAS" alone names no share; as the folder's form reads it
+     * (FolderFormTest.aShareTypedAsUncDropsItsHost).
+     */
+    @Test
+    fun aNameBeforeThePathNamingTheNasChosenIsDropped() = runTest {
+        val typedForIt = listOf(
+            """\\NAS\video\Films2""",
+            """\\NAS\video\Films2\""",
+            "smb://nas.local/video/Films2",
+            "SMB://NAS.LOCAL/video/Films2",
+        )
+        typedForIt.forEach { typed -> assertEquals(typed, listOf("video", "Films2"), read(typed, nas = "nas.local")?.names) }
+        assertEquals(TypedPath("NAS", Protocol.SMB, listOf("video")), read("""\\NAS\video""", nas = "nas.local"))
+        assertEquals(listOf("video", "Films2"), read("""\\192.168.1.10\video\Films2""", nas = "192.168.1.10")?.names)
+        val nothingMounted: suspend (String) -> Unit = { error("SMB mounts nothing") }
+        listOf("""\\NAS\""", """\\NAS""").forEach { typed ->
+            val names = read(typed, nas = "nas.local")?.names.orEmpty()
+            assertNull("the address alone names no share", TypedPaths.locate(names, Protocol.SMB, null, nothingMounted))
+        }
+    }
+
+    /**
+     * A name after "\\" or "//" that is not the NAS chosen is the share it names, typed after two slashes, rather than
+     * giving way to the next name; another NAS's path is looked for as typed, never as the same path on this one
+     * (FolderFormTest.aNameAfterTwoSlashesThatIsNotTheNasIsTheShare). Without a NAS chosen, that name is the NAS typed.
+     */
+    @Test
+    fun aNameAfterTwoSlashesThatIsNotTheNasChosenIsTheShare() = runTest {
+        val nothingMounted: suspend (String) -> Unit = { error("SMB mounts nothing") }
+        listOf("""\\video\Films""", "//video/Films", """\\video\Films\""", "smb://video/Films").forEach { typed ->
+            val path = read(typed, nas = "192.168.1.10")
+            assertEquals(typed, TypedPath(null, Protocol.SMB, listOf("video", "Films")), path)
+            assertEquals(typed, SharePath("video", "Films"), TypedPaths.locate(path?.names.orEmpty(), Protocol.SMB, null, nothingMounted))
+        }
+        assertEquals("another NAS's share", listOf("192.168.1.20", "video"), read("""\\192.168.1.20\video""", nas = "192.168.1.10")?.names)
+        val longer = read("//192.168.1.100/video", nas = "192.168.1.10")
+        assertEquals("an address is never another's first name", listOf("192.168.1.100", "video"), longer?.names)
+        assertEquals("nfs:// names its NAS by its form", "other", read("nfs://other/volume1/video", nas = "192.168.1.10")?.host)
+        assertEquals(TypedPath("video", Protocol.SMB, listOf("Films")), read("""\\video\Films"""))
     }
 
     private val exports = listOf("/volume1/video", "/volume1/video/films", "/volume1/photo")
