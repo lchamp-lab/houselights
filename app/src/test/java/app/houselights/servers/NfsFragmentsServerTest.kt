@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -24,7 +25,11 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class NfsFragmentsServerTest : NfsServerTest() {
-    override val host: String get() = TestServers.fragmentsHost
+    override val host: String get() = checkNotNull(TestServers.fragmentsHost)
+
+    /** Skipped, as with the servers down, when they are on another machine and nfs-fragments' address there not given. */
+    @Before
+    fun fragmentsNasKnown() = TestServers.assumeFragmentsHostKnown()
 
     @get:Rule
     val temp = TemporaryFolder()

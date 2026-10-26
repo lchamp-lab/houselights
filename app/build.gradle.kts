@@ -331,11 +331,12 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.smbj)
     // nfs-client's jar without its RPCRecordDecoder (above), then what nfs-client runs on, which that jar alone does not
-    // bring: Netty 3 at nfs-client's version, which the app's RPCRecordDecoder is built on too, Commons Lang and SLF4J.
+    // bring: Netty 3 at nfs-client's version, which the app's RPCRecordDecoder is built on too, then Commons Lang and
+    // SLF4J at run time alone, as nfs-client's own metadata gives them, so that no code of the app comes to use them.
     nfsClient(libs.nfs.client)
     implementation(files(nfsClientWithoutDecoder))
     implementation(libs.netty)
-    implementation(libs.commons.lang3) {
+    runtimeOnly(libs.commons.lang3) {
         because("CVE-2025-48924: above nfs-client's 3.12.0")
     }
     runtimeOnly(libs.slf4j.api)

@@ -16,14 +16,28 @@ import org.junit.Assume.assumeTrue
  */
 internal object TestServers {
     /** Where they listen: this machine, unless HOUSELIGHTS_TEST_SERVERS_HOST names another. */
-    val host: String = System.getenv("HOUSELIGHTS_TEST_SERVERS_HOST")?.takeIf { it.isNotBlank() } ?: "127.0.0.1"
+    val host: String = System.getenv(HOST)?.takeIf { it.isNotBlank() } ?: "127.0.0.1"
+
+    /** Where the second NFS NAS listens ([fragmentsHostIn]), or null when its tests cannot know. */
+    val fragmentsHost: String? = fragmentsHostIn(System::getenv)
 
     /**
-     * Where the second NFS NAS listens, unfsd answering by itself, each reply above 64 KB in fragments (nfs-fragments):
-     * this machine's 127.0.0.2, its portmapper's port 111 being the first NAS's on 127.0.0.1, unless
-     * HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST names another address.
+     * Where the second NFS NAS listens in [env], unfsd answering by itself, each reply above 64 KB in fragments
+     * (nfs-fragments): the address HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST names, or else this machine's 127.0.0.2, its
+     * portmapper's port 111 being the first NAS's on 127.0.0.1. Null when HOUSELIGHTS_TEST_SERVERS_HOST names another
+     * machine without it: that machine's own second address is not this one's.
      */
-    val fragmentsHost: String = System.getenv("HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST")?.takeIf { it.isNotBlank() } ?: "127.0.0.2"
+    fun fragmentsHostIn(env: (String) -> String?): String? =
+        env(FRAGMENTS_HOST)?.takeIf { it.isNotBlank() } ?: "127.0.0.2".takeIf { env(HOST).isNullOrBlank() }
+
+    /** Skips the calling test unless [fragmentsHost] is known, rather than calling this machine's 127.0.0.2 for it. */
+    fun assumeFragmentsHostKnown() = assumeTrue(
+        "$HOST names another machine: $FRAGMENTS_HOST must name where nfs-fragments answers (tools/test-servers/README.md)",
+        fragmentsHost != null,
+    )
+
+    private const val HOST = "HOUSELIGHTS_TEST_SERVERS_HOST"
+    private const val FRAGMENTS_HOST = "HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST"
 
     /** The NAS's read-only account, and Jellyfin's: test-only. */
     const val USER = "houselights"

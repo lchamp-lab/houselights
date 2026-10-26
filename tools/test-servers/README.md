@@ -95,7 +95,8 @@ HOUSELIGHTS_TEST_SERVERS=1 ./gradlew :app:testDebugUnitTest --tests 'app.houseli
 ```
 
 `HOUSELIGHTS_TEST_SERVERS_HOST` points them at another machine than 127.0.0.1, and
-`HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST` the NFS tests in fragments at another address than 127.0.0.2.
+`HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST` the NFS tests in fragments at another address than 127.0.0.2. With the
+first alone, `NfsFragmentsServerTest` is skipped: this machine's 127.0.0.2 is not the other's.
 
 ## Looking inside
 

@@ -1,5 +1,6 @@
 package com.emc.ecs.nfsclient.network
 
+import app.houselights.providers.local.NfsBrowser
 import com.emc.ecs.nfsclient.rpc.Xdr
 import org.jboss.netty.buffer.ChannelBuffers
 import org.jboss.netty.handler.codec.embedder.CodecEmbedderException
@@ -7,7 +8,6 @@ import org.jboss.netty.handler.codec.embedder.DecoderEmbedder
 import org.jboss.netty.handler.codec.frame.TooLongFrameException
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -178,14 +178,20 @@ class RPCRecordDecoderTest {
         }
     }
 
-    /** The build takes nfs-client's own decoder out of its jar: the app's is the only one left, the one nfs-client builds. */
+    /**
+     * The build takes nfs-client's own decoder out of its jar: the app's is the only one left, the one nfs-client builds,
+     * loaded from where the app's own classes are, a folder or a jar, whatever the checkout's path is named.
+     */
     @Test
     fun nfsClientsOwnDecoderIsGone() {
         val loader = requireNotNull(RPCRecordDecoder::class.java.classLoader)
         val copies = loader.getResources("com/emc/ecs/nfsclient/network/RPCRecordDecoder.class").toList()
         assertEquals("$copies", 1, copies.size)
-        assertFalse("$copies", copies.single().path.contains("nfs-client"))
+        assertEquals("$copies", locationOf(NfsBrowser::class.java), locationOf(RPCRecordDecoder::class.java))
     }
+
+    /** Where [type] was loaded from: a folder of classes or a jar. */
+    private fun locationOf(type: Class<*>) = requireNotNull(type.protectionDomain.codeSource?.location?.toURI()) { "$type" }
 
     private companion object {
         const val XID = 0x5e3c9a21
