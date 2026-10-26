@@ -117,14 +117,14 @@ class ScanAbsoluteTest {
     /** Listed by TMDB a day after the file came, the episode moves from season 1 to its place, its row and state kept. */
     @Test
     fun anEpisodeTmdbListsADayLaterMovesThere() = runTest {
-        onePiece(last = SEASON_21 - 1)
+        onePiece(last = TO_1070)
         showsNas.put(anime(1071))
         bench.scan()
         val waiting = row(anime(1071))
         assertEquals("matched, waiting for TMDB to list it", listOf(1, 1071, 1071, null, null), waiting.numbers())
         bench.dao.savePlayback(waiting.id, positionMs = 0, durationMs = null, played = true, lastPlayedAt = 5)
 
-        tmdb.season(ONE_PIECE, 21, episodes = SEASON_21)
+        tmdb.season(ONE_PIECE, 21, episodes = TO_1070 + 1)
         bench.later(DAY_MS - 1)
         assertTrue("asked once a day", bench.pass().requests.none { it == "tv/$ONE_PIECE" })
         assertEquals(listOf(1, 1071, 1071, null, null), row(anime(1071)).numbers())
@@ -140,10 +140,10 @@ class ScanAbsoluteTest {
     /** A clock set back never holds an episode waiting: TMDB is asked again. */
     @Test
     fun anEpisodeWaitingIsAskedAgainWithTheClockSetBack() = runTest {
-        onePiece(last = SEASON_21 - 1)
+        onePiece(last = TO_1070)
         showsNas.put(anime(1071))
         bench.scan()
-        tmdb.season(ONE_PIECE, 21, episodes = SEASON_21)
+        tmdb.season(ONE_PIECE, 21, episodes = TO_1070 + 1)
         bench.now -= DAY_MS
         bench.scan()
 
@@ -202,6 +202,9 @@ class ScanAbsoluteTest {
         const val NARUTO = 46260
         const val ABSOLUTE_GROUP = "5a0b8c4dc3a368623100dee8"
         const val SEASON_21 = 200
+
+        /** Season 21's episodes as TMDB lists them up to the 1070th of the show, the day before it lists the 1071st. */
+        const val TO_1070 = 179
         const val DAY_MS = 24 * 60 * 60_000L
     }
 }
