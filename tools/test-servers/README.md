@@ -8,7 +8,7 @@ small sample files `make-media.sh` writes, laid out as a Synology lays out its s
 |---|---|---|---|
 | `samba` | Samba 4.23 on Alpine 3.24, set up as a Synology or QNAP: SMB2 to SMB3 (3.1.1 negotiated), signing and encryption offered, never required, no NetBIOS | `127.0.0.1:445` | `houselights` / `houselights-test`, read-only |
 | `nfs` | unfs3 0.10 (NFSv3 in user space) and rpcbind 1.2 on Alpine 3.24; MOUNT answers EXPORT (`showmount -e`); each reply in one fragment, as a NAS sends it (below) | `127.0.0.1`: 111 (portmapper) and 892 (mountd), TCP and UDP; 2049 (NFS), TCP | none: NFS trusts the address |
-| `nfs-fragments` | the same NAS as unfsd answers by itself, each reply above 64 KB in fragments of 64 KB (below), for the tests | `127.0.0.2`: 111, 892 and 2049, TCP | none |
+| `nfs-fragments` | the same NAS as unfsd answers by itself, each reply above 64 KB in fragments of 64 KB (below), for the tests, with its profile only | `127.0.0.2`: 111, 892 and 2049, TCP | none |
 | `jellyfin` | Jellyfin 12.3, the official image, with its profile only | `127.0.0.1:8096` (HTTP) | `houselights` / `houselights-test`, the server's administrator |
 
 Every port is published on `127.0.0.1` alone, `nfs-fragments`' on `127.0.0.2`, this machine's own too: with Docker
@@ -33,18 +33,20 @@ numbered (`Acteur 001`…), that names no image.
 ## Start
 
 Requires Docker Engine 28 or later, with Compose v2 (an older engine lets a device of the same network reach ports
-published on 127.0.0.1), and curl and jq for Jellyfin. Ports 111, 445, 892, 2049 and 8096 must be free on 127.0.0.1,
-and 111, 892 and 2049 on 127.0.0.2: a portmapper of this machine's own holds 111, as on Ubuntu with `nfs-common`, and
-a Samba of its own 445.
+published on 127.0.0.1), and curl and jq for Jellyfin. Ports 111, 445, 892, 2049 and 8096 must be free on 127.0.0.1:
+a portmapper of this machine's own holds 111, as on Ubuntu with `nfs-common`, and a Samba of its own 445.
 `sudo systemctl stop rpcbind.socket rpcbind.service` (and `smbd`) frees them until the machine starts again; `start`
-gives them back.
+gives them back. For the tests, `nfs-fragments` needs 111, 892 and 2049 on 127.0.0.2, which Linux answers as it
+answers all of 127.0.0.0/8; macOS answers 127.0.0.1 alone until `sudo ifconfig lo0 alias 127.0.0.2` (until it starts
+again).
 
 ```sh
 cd tools/test-servers
 ./make-media.sh                                     # the samples, in ./media (git-ignored); again: writes nothing
-docker compose up -d --build --wait                 # the SMB server and both NFS servers
+docker compose up -d --build --wait                 # the SMB server and the NFS server
 docker compose --profile jellyfin up -d --wait      # and Jellyfin (about 300 MB of memory, 1 GB at most)
 ./bootstrap-jellyfin.sh                             # its wizard, its libraries, their scan (half a minute)
+docker compose --profile fragments up -d --wait     # and, for the tests, the NFS server sending fragments
 ```
 
 `bootstrap-jellyfin.sh` completes Jellyfin's first-run wizard through its API (French, the account above), adds the
@@ -85,10 +87,10 @@ The tests in `app/src/test/java/app/houselights/servers/` use the app's own clas
 SMB browsers (a folder's test, its listing, what the NAS hides, reads, a film's tracks probed, each refusal as the
 folder settings word it) and Jellyfin's client and provider (sign-in, its libraries and their kinds, a film's details,
 a show's seasons, a token signed out). The NFS tests run on both NFS servers, `NfsFragmentsServerTest` adding on
-`nfs-fragments` the reads whose replies come in fragments: 256 KB at once, an NFO over 64 KB. They are skipped unless
-`HOUSELIGHTS_TEST_SERVERS=1`, so `scripts/check.sh` and CI's `check` job skip them; CI's `servers` job starts the
-servers and runs them alone. With the variable set, Gradle runs them each time, never taking an earlier run, skipped
-or against other servers, as up to date:
+`nfs-fragments` the reads whose replies come in fragments: 256 KB at once, an NFO over 64 KB. They need every server
+up, both profiles' too (Start). They are skipped unless `HOUSELIGHTS_TEST_SERVERS=1`, so `scripts/check.sh` and CI's
+`check` job skip them; CI's `servers` job starts the servers and runs them alone. With the variable set, Gradle runs
+them each time, never taking an earlier run, skipped or against other servers, as up to date:
 
 ```sh
 HOUSELIGHTS_TEST_SERVERS=1 ./gradlew :app:testDebugUnitTest --tests 'app.houselights.servers.*'
@@ -115,8 +117,8 @@ docker compose logs samba nfs jellyfin
 ## Stop and wipe
 
 ```sh
-docker compose --profile jellyfin down              # stops them; Jellyfin's setup is kept
-docker compose --profile jellyfin down --volumes    # and forgets Jellyfin's setup
+docker compose --profile jellyfin --profile fragments down              # stops them; Jellyfin's setup is kept
+docker compose --profile jellyfin --profile fragments down --volumes    # and forgets Jellyfin's setup
 rm -rf media                                        # the samples
 ```
 

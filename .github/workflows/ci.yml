@@ -113,7 +113,7 @@ jobs:
           # The NFS server answers on port 111: a portmapper of the runner's own would hold it.
           if sudo ss -ltnup | grep -q ':111 '; then sudo systemctl stop rpcbind.socket rpcbind.service; fi
           ./make-media.sh
-          docker compose --profile jellyfin up --detach --build --wait
+          docker compose --profile jellyfin --profile fragments up --detach --build --wait
           ./bootstrap-jellyfin.sh
 
       - name: Servers' tests
@@ -137,7 +137,7 @@ jobs:
       - name: Servers' logs
         if: failure()
         working-directory: tools/test-servers
-        run: docker compose --profile jellyfin logs --no-color --tail 300
+        run: docker compose --profile jellyfin --profile fragments logs --no-color --tail 300
 
       - name: Reports
         if: failure()

@@ -1,8 +1,9 @@
-# Test servers for Houselights (README.md beside this file): an SMB NAS and an NFS NAS, the same NFS NAS sending its
-# replies in fragments and, with --profile jellyfin, a Jellyfin server, all serving the sample files make-media.sh
-# writes to ./media, as a Synology lays them out under /volume1. Every port is published on 127.0.0.1 alone, the second
-# NFS NAS's on 127.0.0.2, both this machine's own: this machine reaches them, the Android emulator those on 127.0.0.1
-# through 10.0.2.2; the network around does not. The accounts and passwords are test-only and read sample files.
+# Test servers for Houselights (README.md beside this file): an SMB NAS and an NFS NAS, with --profile fragments the
+# same NFS NAS sending its replies in fragments and with --profile jellyfin a Jellyfin server, all serving the sample
+# files make-media.sh writes to ./media, as a Synology lays them out under /volume1. Every port is published on
+# 127.0.0.1 alone, the second NFS NAS's on 127.0.0.2, both this machine's own: this machine reaches them, the Android
+# emulator those on 127.0.0.1 through 10.0.2.2; the network around does not. The accounts and passwords are test-only
+# and read sample files.
 name: houselights-test-servers
 
 # Jellyfin's official image, at one release: the server, and the ffmpeg it bundles to write the samples.
@@ -57,11 +58,13 @@ services:
       - *media
 
   # The same NAS as unfsd answers by itself, each reply above 64 KB in fragments of 64 KB (README, NFS replies in
-  # fragments), for the app's tests. On 127.0.0.2, this machine's too: a client finds NFS through the portmapper on
-  # port 111, which the NAS above holds on 127.0.0.1. TCP alone, as the app calls.
+  # fragments), for the app's tests alone, so started only when asked (--profile fragments): the emulator reaches
+  # 127.0.0.1 alone, and macOS has no 127.0.0.2 unless given one. On 127.0.0.2, this machine's too: a client finds NFS
+  # through the portmapper on port 111, which the NAS above holds on 127.0.0.1. TCP alone, as the app calls.
   nfs-fragments:
     build: nfs
     image: houselights-test-nfs:1
+    profiles: [fragments]
     init: true
     <<: *confined
     cap_add: [SETUID, SETGID, NET_BIND_SERVICE]
