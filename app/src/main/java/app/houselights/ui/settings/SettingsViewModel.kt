@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -149,10 +150,14 @@ internal class SettingsViewModel(
      * How many films and shows are to identify; null until read. Held while the settings are open beneath another
      * screen, so that coming back finds the row as it is.
      */
-    val toIdentify: StateFlow<Int?> = toIdentifyCount.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val toIdentify: StateFlow<Int?> = toIdentifyCount.readOn("the titles to identify").stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** The videos the shows folders hold that the library leaves out, by folder then path; held as [toIdentify] is. */
-    val ignored: StateFlow<List<IgnoredFileRow>> = ignoredFiles.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val ignored: StateFlow<List<IgnoredFileRow>> =
+        ignoredFiles.readOn("the files left out").stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** [this], held as it last was once the library cannot read it (closed under the settings, or failing): said, never a crash. */
+    private fun <T> Flow<T>.readOn(what: String): Flow<T> = catch { e -> Log.w(TAG, "Reading $what failed", e) }
 
     private val _storage = MutableStateFlow<StorageStats?>(null)
     val storage: StateFlow<StorageStats?> = _storage
