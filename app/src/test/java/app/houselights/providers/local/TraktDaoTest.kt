@@ -125,6 +125,51 @@ class TraktDaoTest {
         assertEquals(copy, dao.playedCopy(main))
     }
 
+    /** Show [tmdb] in [order] (null: TMDB's seasons), and its episode at [place] showing TMDB's [shown], numbered from its start or not. */
+    private suspend fun episode(
+        tmdb: Int,
+        place: Pair<Int, Int>,
+        shown: Pair<Int, Int>?,
+        absolute: Int? = null,
+        order: String? = null,
+    ): Long {
+        val library = db.dao()
+        val source = library.sources().firstOrNull()?.id ?: library.insertSource(nfsFolder())
+        val show = library.seriesByKey("show $tmdb")?.id ?: library.insert(
+            ItemEntity(
+                kind = ItemKind.SERIES, sourceId = source, matchKey = "show $tmdb", title = "S", sortTitle = "s", tmdbId = tmdb,
+                addedAt = 0,
+            ),
+        )
+        if (order != null) library.setEpisodeOrder(show, order)
+        return library.insert(
+            ItemEntity(
+                kind = ItemKind.EPISODE, sourceId = source, seriesId = show, title = "E", sortTitle = "e", addedAt = 0,
+                filePath = "S/${place.first}-${place.second}.mkv", seasonNumber = place.first, episodeNumber = place.second,
+                absoluteNumber = absolute, tmdbSeason = shown?.first, tmdbEpisode = shown?.second,
+            ),
+        )
+    }
+
+    /** Trakt names an episode by the TMDB episode it shows, whatever its place: One Piece's 1071st, Firefly's pilot on DVD. */
+    @Test
+    fun anEpisodePlacedFromItsAbsoluteNumberGoesToTraktByTmdbsNumbers() = runTest {
+        val placed = episode(37854, place = 21 to 180, shown = 21 to 180, absolute = 1071)
+        val dvd = episode(1437, place = 1 to 1, shown = 1 to 11, order = "dvd")
+        val aired = episode(95396, place = 1 to 3, shown = null)
+        val rows = dao.rows().associateBy { it.id }
+        val numbers = listOf(placed, dvd, aired).map { id -> rows.getValue(id).let { it.seasonNumber to it.episodeNumber } }
+        assertEquals(listOf(21 to 180, 1 to 11, 1 to 3), numbers)
+    }
+
+    /** One waiting for TMDB to list it, or left out of its show's order, is not sent: Trakt would mark another episode. */
+    @Test
+    fun anEpisodeWaitingForItsPlaceIsNotSentToTrakt() = runTest {
+        val waiting = episode(37854, place = 1 to 1072, shown = null, absolute = 1072)
+        val outOfOrder = episode(1437, place = 1 to 15, shown = null, order = "dvd")
+        assertEquals(emptyList<Long>(), dao.rows().map { it.id }.filter { it == waiting || it == outOfOrder })
+    }
+
     @Test
     fun forgettingTheAccountKeepsTheLibrary() = runTest {
         val source = db.dao().insertSource(nfsFolder())

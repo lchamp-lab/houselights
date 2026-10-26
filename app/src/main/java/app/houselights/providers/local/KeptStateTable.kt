@@ -62,7 +62,7 @@ data class KeptStateEntity(
     /** Anything the user did: an arrival alone is not worth an entry. */
     val holdsAnything: Boolean
         get() = played || positionMs > 0 || favorite || userTmdbId != null || userPosterPath != null ||
-            userBackdropPath != null || userLogoPath != null || tracksAt != null
+            userBackdropPath != null || userLogoPath != null || tracksAt != null || userEpisodeOrder != null
 }
 
 /** A row's columns that are the user's, and its arrival; written alone ([KeptStateDao.restoreState]). */
@@ -119,6 +119,10 @@ data class KeptRow(
     val audio: String?,
     val subtitles: String?,
     val tracksAt: Long?,
+    /** An episode's number from its show's start ([ItemEntity.absoluteNumber]), by which its file names it. */
+    val absoluteNumber: Int? = null,
+    /** A show's chosen order of episodes ([ItemEntity.userEpisodeOrder]). */
+    val userEpisodeOrder: String? = null,
 ) {
     val id: Long get() = state.id
 
@@ -131,7 +135,7 @@ private const val KEPT_ROW =
         "i.userBackdropPath, i.userLogoPath, i.addedAt, i.kind, i.sourceId, i.seriesId, i.filePath, i.parts, i.tmdbId, " +
         "COALESCE(i.userTmdbId, i.tmdbId) AS identity, i.matchKey, i.seasonNumber, i.episodeNumber, i.lastEpisodeNumber, " +
         "i.versionOf, COALESCE(s.userTmdbId, s.tmdbId) AS showIdentity, s.matchKey AS showKey, " +
-        "t.audio, t.subtitles, t.at AS tracksAt FROM items i " +
+        "t.audio, t.subtitles, t.at AS tracksAt, i.absoluteNumber, i.userEpisodeOrder FROM items i " +
         "LEFT JOIN items s ON i.kind = 'EPISODE' AND s.id = i.seriesId " +
         "LEFT JOIN track_choices t ON i.kind IN ('MOVIE', 'SERIES') AND t.title = " +
         "CASE WHEN i.kind = 'MOVIE' AND i.tmdbId IS NOT NULL THEN 'local:film:' || i.tmdbId ELSE 'local:' || i.id END"
@@ -203,6 +207,10 @@ interface KeptStateDao {
     @Update(entity = ItemEntity::class)
     suspend fun restoreState(state: UserState)
 
+    /** Gives show [id] the order of episodes [order] unless it has one of its own ([ItemEntity.userEpisodeOrder]). */
+    @Query("UPDATE items SET userEpisodeOrder = :order WHERE id = :id AND kind = 'SERIES' AND userEpisodeOrder IS NULL")
+    suspend fun offerEpisodeOrder(id: Long, order: String)
+
     /** Row [id] to be looked up again at the next pass. */
     @Query("UPDATE items SET matchedAt = NULL WHERE id = :id")
     suspend fun unmatch(id: Long)
@@ -216,10 +224,17 @@ interface KeptStateDao {
         val state = KeptStates.onto(row.state, kept)
         restoreState(state)
         if (state.userTmdbId != row.state.userTmdbId && state.userTmdbId != row.tmdbId) unmatch(row.id)
+        kept.userEpisodeOrder?.let { offerEpisodeOrder(row.id, it) }
         val at = kept.tracksAt ?: return
         offerTrackChoice(row.tracksKey, kept.audio, kept.subtitles, at)
     }
 }
+
+/** This episode's span as its file names it, whatever its place ([KeptKeys.spanOf]). */
+internal fun ItemEntity.keptSpan(): String? = KeptKeys.spanOf(absoluteNumber, filePath, seasonNumber, episodeNumber, lastEpisodeNumber)
+
+/** This episode's span as its file names it, whatever its place ([KeptKeys.spanOf]). */
+internal fun KeptRow.keptSpan(): String? = KeptKeys.spanOf(absoluteNumber, filePath, seasonNumber, episodeNumber, lastEpisodeNumber)
 
 /**
  * The titles of kept states ([KeptStateEntity.title]) and the names they are found by ([KeptStateEntity.nameKey]).
@@ -235,6 +250,14 @@ internal object KeptKeys {
     /** An episode file's season and episodes ("1:1-2" for S01E01E02), from its name, as both sides are parsed alike. */
     fun span(season: Int?, episode: Int?, last: Int?): String? =
         if (season == null || episode == null) null else "$season:$episode-${last ?: episode}"
+
+    /**
+     * An episode's span as its file names it, whatever its place: one numbered from its show's start ([absolute]) by its
+     * file's numbering ("a1071-1071", or "1:1071-1071" for an S01E1071), so it is kept wherever TMDB places it; any
+     * other by its [season] and episodes, as [span].
+     */
+    fun spanOf(absolute: Int?, filePath: String?, season: Int?, episode: Int?, last: Int?): String? =
+        absolute?.let { filePath?.let(FilenameParser::parseShowPath)?.episode?.key() } ?: span(season, episode, last)
 
     fun episodeName(showKey: String, span: String) = "$showKey:$span"
 
@@ -269,7 +292,7 @@ internal object KeptKeys {
         ItemKind.SERIES -> row.matchKey?.let { key -> (row.identity?.let(::show) ?: "show:name:${row.sourceId}:$key") to key }
         ItemKind.EPISODE -> {
             val key = row.showKey
-            val span = span(row.seasonNumber, row.episodeNumber, row.lastEpisodeNumber)
+            val span = row.keptSpan()
             if (key == null || span == null) {
                 null
             } else {
@@ -307,6 +330,8 @@ internal object KeptStates {
             favorite = state.favorite, userTmdbId = state.userTmdbId, userPosterPath = state.userPosterPath,
             userBackdropPath = state.userBackdropPath, userLogoPath = state.userLogoPath, addedAt = state.addedAt,
             audio = row.audio, subtitles = row.subtitles, tracksAt = row.tracksAt,
+            span = row.keptSpan().takeIf { episode },
+            userEpisodeOrder = row.userEpisodeOrder.takeIf { row.kind == ItemKind.SERIES },
         )
     }
 
@@ -323,6 +348,7 @@ internal object KeptStates {
             userPosterPath = a.userPosterPath ?: b.userPosterPath, userBackdropPath = a.userBackdropPath ?: b.userBackdropPath,
             userLogoPath = a.userLogoPath ?: b.userLogoPath, addedAt = minOf(a.addedAt, b.addedAt),
             audio = tracks.audio, subtitles = tracks.subtitles, tracksAt = tracks.tracksAt,
+            userEpisodeOrder = a.userEpisodeOrder ?: b.userEpisodeOrder,
         )
     }
 
@@ -386,8 +412,9 @@ internal object KeptStates {
         )
     }
 
-    /** A row about to be inserted, born with what [kept] holds ([onto]). */
-    fun onto(row: ItemEntity, kept: KeptStateEntity): ItemEntity = row.withUserState(onto(row.userState(), kept))
+    /** A row about to be inserted, born with what [kept] holds ([onto]), a show its chosen order of episodes too. */
+    fun onto(row: ItemEntity, kept: KeptStateEntity): ItemEntity =
+        row.withUserState(onto(row.userState(), kept)).copy(userEpisodeOrder = row.userEpisodeOrder ?: kept.userEpisodeOrder)
 
     /**
      * What becomes of rows [leaving], before they are deleted: a row [staying] of the same title ([heirs]) takes
@@ -432,11 +459,12 @@ internal object KeptStates {
         val emptied: List<String>,
     )
 
-    /** Episodes of a show taking back entries [kept] of its TMDB id, by season and episodes. */
+    /**
+     * Episodes of a show taking back entries [kept] of its TMDB id, by season and episodes, those numbered from the
+     * show's start by their files' numbering wherever they are placed ([KeptKeys.spanOf]).
+     */
     fun onEpisodes(kept: List<KeptStateEntity>, episodes: List<KeptRow>): List<Pair<KeptRow, KeptStateEntity>> {
-        val bySpan = kept.associateBy { KeptKeys.span(it.seasonNumber, it.episodeNumber, it.lastEpisodeNumber) }
-        return episodes.mapNotNull { row ->
-            bySpan[KeptKeys.span(row.seasonNumber, row.episodeNumber, row.lastEpisodeNumber)]?.let { row to it }
-        }
+        val bySpan = kept.associateBy { it.span ?: KeptKeys.span(it.seasonNumber, it.episodeNumber, it.lastEpisodeNumber) }
+        return episodes.mapNotNull { row -> bySpan[row.keptSpan()]?.let { row to it } }
     }
 }

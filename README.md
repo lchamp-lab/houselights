@@ -121,7 +121,16 @@ My files reads a title from its folder's and file's names, as Plex, Jellyfin, Ko
   (`Wonder Woman 1984`). An edition as `Blade Runner (1982) {edition-Final Cut}.mkv`, a film in several files as
   `Heat (1995) CD1.avi` and `CD2` (or `DVD`, `disc`), a disc by its folder (`BDMV`, `VIDEO_TS`).
 - **Shows**: `Severance (2022)/Season 01/Severance - S01E02.mkv`; `Specials` or `Season 00` for season 0, `S01E01-E02`
-  for a file holding two episodes, `1x02` too.
+  for a file holding two episodes, `1x02` too; in a season's folder, `02 - Title.mkv` or `Show - 02.mkv`; `Season 1
+  Episode 2` in words; a book's or a volume's folder as a season (`Kaamelott/Livre I`, `Book 2`, `Volume 3`), and
+  `Kaamelott - Livre I - 01` in a name; a year's season (`S2023E01`, `Season 2023`), shown with TMDB's season of that
+  year when TMDB numbers them otherwise, else as named without TMDB's details.
+- **Anime** numbered from the show's start, as release groups name them: `One Piece - 1071`, `- 1071v2`,
+  `- 1071-1072`, `One Piece E1071`, `Episode 1071`, a batch's folder `One Piece (1001-1100)`. Each lands in TMDB's
+  seasons, by the show's absolute order when TMDB has one, else by its seasons' counts, specials never counted (1071 is
+  season 21, episode 180); an episode TMDB does not list yet waits in season 1 under its number, then moves, checked once
+  a day, what was watched of it kept. `S01E1071` past its season is read so too from 100, unless its season's folder
+  says `101` is season 1, episode 1; an anime sequel's `S2 - 01` or `Season 2 - 01` is season 2.
 - **Ids**: a TMDB, IMDb or TheTVDB id in a name identifies the title without a search: `{tmdb-438631}`,
   `[tmdbid-438631]`, `{imdb-tt1160419}`, `[imdbid-tt1160419]`, `{tvdb-371980}`, `[tvdbid-371980]`. A film's ids are
   its file's, else its folder's when the folder holds that film alone, its copies and parts included (never a remake

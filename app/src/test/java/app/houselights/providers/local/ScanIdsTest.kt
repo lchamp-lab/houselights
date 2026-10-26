@@ -123,7 +123,7 @@ class ScanIdsTest {
         assertEquals(SEVERANCE, show.tmdbId)
         assertEquals("tvdb:371980", show.hintKey)
         assertEquals("Episode 1.1", bench.item(shows, pilot).title)
-        assertEquals(listOf("find/371980", "tv/$SEVERANCE", "tv/$SEVERANCE/season/1"), pass.requests)
+        assertEquals(listOf("find/371980", "tv/$SEVERANCE", "tv/$SEVERANCE/episode_groups", "tv/$SEVERANCE/season/1"), pass.requests)
     }
 
     @Test
@@ -487,7 +487,10 @@ class ScanIdsTest {
         val pass = bench.pass()
 
         assertEquals("Le Bureau des légendes", bench.showOf(shows, pilot).title)
-        assertEquals(listOf("tv/$BUREAU", "tv/$BUREAU/alternative_titles", "tv/$BUREAU/season/1"), pass.requests)
+        assertEquals(
+            listOf("tv/$BUREAU", "tv/$BUREAU/alternative_titles", "tv/$BUREAU/episode_groups", "tv/$BUREAU/season/1"),
+            pass.requests,
+        )
     }
 
     /** A film 0.3.0 took for another by its title, its name's IMDb id (Jellyfin's naming) read by no version before. */

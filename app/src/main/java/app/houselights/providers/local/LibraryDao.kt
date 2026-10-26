@@ -219,6 +219,10 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     )
     suspend fun episodesAt(seriesId: Long, season: Int, episode: Int): List<PlacedFile>
 
+    /** Whether show [seriesId] has episodes numbered from its start ([ItemEntity.absoluteNumber]). */
+    @Query("SELECT EXISTS(SELECT 1 FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId AND absoluteNumber IS NOT NULL)")
+    suspend fun hasAbsoluteEpisodes(seriesId: Long): Boolean
+
     /** Moves episodes to their places, with what they show there ([EpisodePlace]); nothing of the user's changes. */
     @Update(entity = ItemEntity::class)
     suspend fun placeEpisodes(places: List<EpisodePlace>)

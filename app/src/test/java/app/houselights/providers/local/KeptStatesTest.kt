@@ -210,9 +210,39 @@ class KeptStatesTest {
         assertNull("another show", KeptStates.forEpisode(pilot, show = OTHER, showPending = false))
     }
 
+    /**
+     * An episode numbered from its show's start is kept by its file's number, wherever TMDB placed it: back in season 1
+     * while TMDB is out of reach, or at its place, it takes its state again. Others keep their place's key.
+     */
+    @Test
+    fun anAbsoluteEpisodeIsKeptByItsNumberWhereverItIsPlaced() {
+        val path = "One Piece/One Piece - 1071.mkv"
+        fun row(id: Long, season: Int, number: Int) = episode(id, ONE_PIECE, season, number, played = id == 1L)
+            .copy(filePath = path, absoluteNumber = 1071, showKey = "one piece")
+        val placed = kept(row(1, season = 21, number = 180))
+        assertEquals("ep:tmdb:$ONE_PIECE:a1071-1071", placed.title)
+        assertEquals("a1071-1071" to "one piece:a1071-1071", placed.span to placed.nameKey)
+        val waiting = row(2, season = 1, number = 1071)
+        assertEquals(listOf(waiting to placed), KeptStates.onEpisodes(listOf(placed), listOf(waiting)))
+        assertEquals("a season's as before", "ep:tmdb:$SEVERANCE:1:1-1", kept(episode(3, SEVERANCE, season = 1, number = 1)).title)
+    }
+
+    /** A show keeps the order the user chose for it, given back when it returns. */
+    @Test
+    fun aShowKeepsItsChosenOrder() {
+        val show = film(1, "Firefly/Firefly - S01E01.mkv")
+            .copy(kind = ItemKind.SERIES, matchKey = "firefly", identity = 1437, userEpisodeOrder = "dvd")
+        val kept = kept(show)
+        assertEquals("dvd", kept.userEpisodeOrder)
+        assertTrue(kept.copy(played = false, positionMs = 0).holdsAnything)
+        val born = ItemEntity(kind = ItemKind.SERIES, sourceId = FOLDER, title = "Firefly", sortTitle = "firefly", addedAt = 0)
+        assertEquals("dvd", KeptStates.onto(born, kept).userEpisodeOrder)
+    }
+
     private companion object {
         const val FOLDER = 1L
         const val SERIES = 7L
+        const val ONE_PIECE = 37854
         const val DUNE = 438631
         const val ARRIVAL = 329865
         const val DISNEY = 532639
