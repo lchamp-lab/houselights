@@ -55,6 +55,12 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     returns home, on the door you came from.
 - **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
   details from TMDB.
+  - A folder is added in a few steps, each a list to pick from with typing as its last row: the NAS (those your
+    folders are on first, then those announcing themselves on the network), its protocol when it answers both, its
+    account, its shared folder as the NAS lists them (an export not open to this player marked), then the folder,
+    opened one level at a time, each row saying beforehand whether it is already in the library. A second folder on
+    the same NAS is five OKs, its account and NFS user reused; a path typed whole is split by the app, and the NAS
+    proposes what a path it does not have may have meant.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids and ids in names identify titles exactly ([Naming your files](#naming-your-files)).
   - Without an id, TMDB's results are weighed (titles, original and alternative ones included, year, votes and

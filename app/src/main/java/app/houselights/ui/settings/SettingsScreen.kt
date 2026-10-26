@@ -77,7 +77,8 @@ internal enum class Pane(val label: Int, val icon: ImageVector) {
  * Settings in two panes: its places, a word each, and the focused one's rows. [onUseFolders] makes the folders the
  * source, keeping the server left or signing out of it, and reports a failure on the source's row; [onSignIn] opens
  * the sign-in, filled in as it says; [onSourceResumed] follows the kept server made the source again. The library in
- * numbers opens a filtered wall ([onOpenWall]) or a director's page ([onOpenPerson]).
+ * numbers opens a filtered wall ([onOpenWall]) or a director's page ([onOpenPerson]). A folder just added
+ * ([addedFolder]) takes focus on its showcase, then [onAddedFolderShown].
  */
 @Composable
 fun SettingsScreen(
@@ -88,6 +89,8 @@ fun SettingsScreen(
     onOpenCatalog: () -> Unit = {},
     onOpenWall: (Library, LibraryFilter) -> Unit = { _, _ -> },
     onOpenPerson: (personId: String) -> Unit = {},
+    addedFolder: Long? = null,
+    onAddedFolderShown: () -> Unit = {},
 ) {
     val app = appContainer()
     val images = LocalContext.current.imageLoader
@@ -140,6 +143,7 @@ fun SettingsScreen(
                     onFocusIn = { inPane = it },
                     numbers = NumbersDoors(onOpenWall, onOpenPerson),
                     updates = updates,
+                    added = addedFolder?.let { NewFolder(it, onAddedFolderShown) },
                 )
             }
         }
@@ -282,6 +286,7 @@ private fun PaneContent(
     onFocusIn: (Boolean) -> Unit,
     numbers: NumbersDoors,
     updates: UpdateUi?,
+    added: NewFolder? = null,
 ) {
     val vm = settingsViewModel()
     val counted = if (pane == Pane.Numbers) numbersViewModel() else null
@@ -304,7 +309,7 @@ private fun PaneContent(
         val folders = s.source == SourceConfig.Local
         secretNote(pane, s, folders)
         when (pane) {
-            Pane.Library -> libraryPane(s, onFolderForm, sources, rows)
+            Pane.Library -> libraryPane(s, onFolderForm, sources, rows, added)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
             Pane.Playback -> playbackPane(s, server = vm.capabilities.pathMapping, tracks = vm.asksTracks)
             Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders) }

@@ -5,12 +5,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -67,18 +69,22 @@ import app.houselights.core.CollectionThreshold
 import java.text.Collator
 import java.util.Locale
 
-/** The library pane: its folders' showcases or its server, then actions; rows that open a screen are keyed in [rows]. */
+/**
+ * The library pane: its folders' showcases or its server, then actions; rows that open a screen are keyed in [rows]. A
+ * folder just [added] takes focus on its showcase.
+ */
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
     sources: SourceDoors,
     rows: PaneRows,
+    added: NewFolder? = null,
 ) {
     when (val source = s.source) {
         SourceConfig.Local -> {
             item {
                 Section(stringResource(R.string.section_source), aside = librarySummary()) {
-                    Showcases(rows, onEdit = onFolderForm, onResumed = sources.resumed)
+                    Showcases(rows, onEdit = onFolderForm, onResumed = sources.resumed, added = added)
                 }
             }
             item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, rows) }
@@ -135,12 +141,21 @@ private fun librarySummary(): String? {
     )
 }
 
+/** A folder « Ajouter un dossier » just added ([id]), whose showcase takes focus once it shows, then [shown]. */
+internal class NewFolder(val id: Long, val shown: () -> Unit)
+
 /**
  * One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. The last
- * one removed gives way to the kept server, its home then shown ([onResumed]), else to the welcome screen.
+ * one removed gives way to the kept server, its home then shown ([onResumed]), else to the welcome screen. A folder just
+ * [added] takes focus on its showcase as soon as it shows, its scan running there, the row scrolled to it.
  */
 @Composable
-private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit, onResumed: () -> Unit) {
+private fun Showcases(
+    rows: PaneRows,
+    onEdit: (folderId: Long, focus: FolderField) -> Unit,
+    onResumed: () -> Unit,
+    added: NewFolder? = null,
+) {
     val vm = settingsViewModel()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val kept = vm.settings.collectAsStateWithLifecycle().value.keptServer
@@ -162,8 +177,18 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
         }
     }
 
+    val row = rememberLazyListState()
+    LaunchedEffect(added?.id, sources) {
+        val new = added ?: return@LaunchedEffect
+        val index = sources.indexOfFirst { it.id == new.id }
+        if (index < 0) return@LaunchedEffect
+        row.scrollToItem(index)
+        // Once laid out, and once the screen has put focus back where it was left (RestoreFocus).
+        withFrameNanos { }
+        if (rows.requester(folderRow(new.id)).tryRequestFocus()) new.shown()
+    }
     if (sources.isNotEmpty()) {
-        ShowcaseRow {
+        ShowcaseRow(state = row) {
             items(sources, key = { it.id }) { source ->
                 FolderShowcase(
                     source,
