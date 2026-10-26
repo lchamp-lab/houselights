@@ -32,12 +32,18 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SourceSwitcher
+import app.houselights.providers.local.Protocol
+import app.houselights.providers.local.Secret
+import app.houselights.providers.local.SourceEntity
+import app.houselights.providers.local.SourceKind
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.util.wholePath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -195,6 +201,49 @@ class FormLayoutTest {
             val words = compose.activity.getString(connection)
             assertFalse("$words cut", cut(words))
         }
+    }
+
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun theFlowsColumnInFrenchAtTheLargestText() = theFlowsColumnHoldsAtTheLargestText()
+
+    @Test
+    @Config(qualifiers = "de-$TV")
+    fun theFlowsColumnInGermanAtTheLargestText() = theFlowsColumnHoldsAtTheLargestText()
+
+    /**
+     * « Ajouter un dossier » at the largest text, on its longest message (an export refusing this player): the step's
+     * sentence and the panel hold whole in the left column, the panel ending inside the safe area, the path unbroken.
+     */
+    private fun theFlowsColumnHoldsAtTheLargestText() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
+        val idle = CoroutineScope(Job().apply { cancel() })
+        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
+        runBlocking {
+            db.dao().insertSource(
+                SourceEntity(
+                    name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = FakeFlowNetwork.DS920,
+                    share = "volume1/video", path = "Films", username = "", password = Secret(""),
+                )
+            )
+        }
+        val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+        val flow = FolderFlow(FakeFlowNetwork(), library, scope, useFolders = { false })
+        compose.setTvContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, LARGEST_TEXT)) { AddFolderFlow(flow) }
+        }
+        compose.waitUntil { flow.ready }
+        flow.chooseUsed(flow.used.single())
+        compose.waitUntil { flow.step == FlowStep.SHARES }
+        flow.openShare(FlowShare("/volume1/photo"))
+        compose.waitUntil { flow.message != null }
+        compose.waitForIdle()
+        val said = compose.activity.getString(R.string.error_nfs_refused, FakeFlowNetwork.PLAYER, wholePath("/volume1/photo"))
+        val box = compose.onNodeWithText(said, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertTrue("the panel ends inside the safe area: $box", box.bottom + HlInset.plate <= SCREEN_H - HlSpace.safeV)
+        listOf(said, compose.activity.getString(R.string.flow_share_desc)).forEach { assertFalse("$it cut", cut(it)) }
     }
 
     /** True when [text]'s own layout runs past its box or ends in an ellipsis, wherever it is (a row and the panel). */

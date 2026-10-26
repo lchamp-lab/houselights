@@ -112,7 +112,9 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * ember; [trailing] replaces the value. Disabled, it sits in a well, in a pane's plate only: sheets omit
  * unavailable actions. With [valueBreaks], a value of parts (" · ") takes a line each where on one line it would cut
  * the name or the description. With [progress], its description is a count after the ember line, in the words' ink
- * (the Counter, as [ScanProgress] draws it): a raspberry mark on focus's white, the part to come pale.
+ * (the Counter, as [ScanProgress] draws it): a raspberry mark on focus's white, the part to come pale. With
+ * [valueLight], the value is a state its light comes before ("Vérification…", "Ne répond pas", "Connexion…"), ranged
+ * right as values are, or the light alone without a value (a search under way): quiet, never ember.
  */
 @Composable
 fun HlSettingRow(
@@ -129,6 +131,7 @@ fun HlSettingRow(
     enabled: Boolean = true,
     valueBreaks: Boolean = false,
     progress: Float? = null,
+    valueLight: StatusState? = null,
 ) {
     val c = Hl.colors
     val least = if (onClick == null) HlSize.control else HlSize.row
@@ -151,7 +154,9 @@ fun HlSettingRow(
             Spacer(Modifier.width(HlSpace.l))
             when {
                 trailing != null -> trailing()
-                shown != null -> SettingValue(shown, valueStyle, valueLit, valueAttention, focused, enabled)
+                shown != null -> SettingValue(shown, valueStyle, valueLit, valueAttention, focused, enabled, valueLight)
+                // A state without words: its light alone at the row's end.
+                valueLight != null -> StatusLight(valueLight, ink = if (focused) c.onFocusSecondary else null)
             }
         }
     }
@@ -233,12 +238,26 @@ private fun ValueLines(
     }
 }
 
-/** A setting's value in [style], quiet; in ember when [lit], or after the attention mark; a line per line it has. */
+/**
+ * A setting's value in [style], quiet; in ember when [lit], or after the attention mark; after a state's [light]
+ * otherwise, in its own quiet inks at rest as a connection's ([ConnectionState]); a line per line it has.
+ */
 @Composable
-private fun SettingValue(value: String, style: TextStyle, lit: Boolean, attention: Boolean, focused: Boolean, enabled: Boolean) {
+private fun SettingValue(
+    value: String,
+    style: TextStyle,
+    lit: Boolean,
+    attention: Boolean,
+    focused: Boolean,
+    enabled: Boolean,
+    light: StatusState? = null,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (attention) {
             StatusLight(StatusState.Attention, ink = if (focused) LocalContentColor.current else null)
+            Spacer(Modifier.width(HlSpace.xs))
+        } else if (light != null) {
+            StatusLight(light, ink = if (focused) Hl.colors.onFocusSecondary else null)
             Spacer(Modifier.width(HlSpace.xs))
         }
         Text(

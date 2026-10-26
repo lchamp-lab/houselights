@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The messages « Ajouter un dossier » shares with the folder form: theirs once #84 is in, this file then removed. -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="folder_content">%1$s、%2$s</string>
+    <plurals name="video_count">
+        <item quantity="other">%d本の動画</item>
+    </plurals>
+    <string name="error_share_not_found">%1$sに共有フォルダ「%2$s」がありません。NASの管理画面で名前を確認してください。</string>
+    <string name="error_export_not_found">NASは%sをNFSで共有していません。Synologyのマウントパスは/volume1/から始まります。</string>
+    <string name="error_subfolder_not_found">%1$sは応答していますが、「%2$s」が見つかりません。大文字と小文字も含めて名前を確認してください。</string>
+    <string name="error_subfolder_not_found_share">「%1$s」は応答していますが、「%2$s」が見つかりません。大文字と小文字も含めて名前を確認してください。</string>
+    <string name="error_nfs_refused">NASがこのプレーヤーを拒否しました。%2$sで%1$sに読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>
+    <string name="error_nfs_refused_no_address">NASがこのプレーヤーを拒否しました。%sでこのプレーヤーのアドレスに読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>
+    <string name="error_nfs_root_refused">NASがrootによる%sの読み取りを拒否しました。「NFSアカウント」を選び、アクセス権のあるアカウントを入力してください。</string>
+    <string name="error_smb_denied">アカウント「%1$s」には「%2$s」へのアクセス権がありません。NASで読み取り権限を与えるか、別のアカウントを使ってください。</string>
+    <string name="error_guest_refused">このNASはゲストを受け付けません。アカウントを入力してください。</string>
+</resources>

@@ -33,10 +33,14 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -195,6 +199,50 @@ internal fun Modifier.plate(edge: BorderStroke): Modifier {
             drawOutline(area, fill)
         }
     }.border(edge, HlShapes.panel)
+}
+
+/**
+ * One row of a group's plate in a lazy list, as [HlSettingGroup] lays its rows on one plate, each row composed only when
+ * shown (a level of hundreds of folders): the plate's top corners round on the [first] row, its bottom ones on the
+ * [last], its edge on the outside only, so the rows read as one plate with no rule between them.
+ */
+@Composable
+internal fun PlateSlice(first: Boolean, last: Boolean, content: @Composable ColumnScope.() -> Unit) {
+    val c = Hl.colors
+    val inSheet = LocalGround.current == Ground.Glass
+    val onField = LocalRoomField.current != null
+    val light = LocalAmbient.current
+    val edge = c.plateEdge
+    val slice = Modifier.fillMaxWidth().drawWithCache {
+        val stroke = HlSize.hairline.toPx()
+        val radius = HlShapes.panel.topStart.toPx(size, this)
+        // The whole plate the row is part of, running past the row's ends far enough to round them out of sight.
+        val above = if (first) 0f else radius + stroke
+        val below = if (last) 0f else radius + stroke
+        val outline = HlShapes.panel.createOutline(Size(size.width - stroke, size.height + above + below - stroke), layoutDirection, this)
+        onDrawBehind {
+            val fill = when {
+                inSheet -> c.glassPlate(light)
+                onField -> c.plate(light)
+                else -> c.glass
+            }
+            clipRect {
+                translate(left = stroke / 2, top = stroke / 2 - above) {
+                    drawOutline(outline, fill)
+                    drawOutline(outline, edge, style = Stroke(stroke))
+                }
+            }
+        }
+    }
+    val inset = PaddingValues(
+        start = HlInset.group,
+        end = HlInset.group,
+        top = if (first) HlInset.group else HlSpace.none,
+        bottom = if (last) HlInset.group else HlSpace.none,
+    )
+    Column(slice.padding(inset)) {
+        CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
+    }
 }
 
 /**

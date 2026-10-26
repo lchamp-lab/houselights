@@ -12,7 +12,9 @@ import app.houselights.R
 import app.houselights.settings.InterfaceLanguage
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.testing.TV
+import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.settings.relativeTime
 import app.houselights.ui.settings.title
 import app.houselights.ui.testing.setTvContent
@@ -30,9 +32,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * DESIGN.md, Secondary screens: every row of a pane or a sheet says what it does in one line, beside the value it shows
- * at rest, so rows keep one height, in each of the app's languages, at the default text size and Android's largest;
- * each row as its pane or its sheet lays it out.
+ * DESIGN.md, Secondary screens: every row of a pane, a sheet or « Ajouter un dossier » says what it does in one line,
+ * beside the value it shows at rest, so rows keep one height, in each of the app's languages, at the default text size
+ * and Android's largest; each row as its pane, its sheet or the form's column lays it out.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -59,23 +61,27 @@ class PaneRowLineTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val panes = mutableListOf<Line>()
         val sheets = mutableListOf<Line>()
+        val forms = mutableListOf<Line>()
         InterfaceLanguage.LANGUAGES.forEach { tag ->
             val locale = Locale.forLanguageTag(tag)
             val local = context.createConfigurationContext(Configuration(context.resources.configuration).apply { setLocale(locale) })
             panes += paneLines(Words(local, tag, locale))
             sheets += sheetLines(Words(local, tag, locale))
+            forms += flowLines(Words(local, tag, locale))
         }
         val widths = mutableMapOf<String, Int>()
         compose.setTvContent {
             val measurer = rememberTextMeasurer()
-            (panes + sheets).forEach {
+            (panes + sheets + forms).forEach {
                 widths[it.text] = measurer.measure(it.text, Hl.type.meta, softWrap = false, maxLines = 1).size.width
             }
             HlTwoPane(side = {}) { Column { HlSettingGroup(null) { panes.forEach { Row(it) } } } }
+            // A form's rows, beside its column.
+            HlTwoPane(side = {}, sideWidth = TwoPaneDefaults.sideWide) { Column { HlSettingGroup(null) { forms.forEach { Row(it) } } } }
             HlSideSheet("Sheet", onDismiss = {}) { HlSettingGroup(null) { sheets.forEach { Row(it) } } }
         }
         compose.waitForIdle()
-        val cut = (panes + sheets).mapNotNull { line ->
+        val cut = (panes + sheets + forms).mapNotNull { line ->
             val room = compose.onAllNodesWithText(line.text, useUnmergedTree = true).fetchSemanticsNodes().minOf { it.size.width }
             val width = widths.getValue(line.text)
             "${line.name}: $width > $room «${line.text}»".takeIf { width > room }
@@ -218,6 +224,45 @@ class PaneRowLineTest {
         )
     }
 
+    /**
+     * « Ajouter un dossier »'s rows, beside what they show at rest: what a step's rows do, how a folder stands to the
+     * library, what a level holds, a NAS used and an export by their facts.
+     */
+    private fun flowLines(w: Words): List<Line> = with(w) {
+        fun said(id: Int, vararg args: Any, beside: Beside = Beside.None) = Line(local.getString(id, *args), "$tag: ${name(id)}", beside)
+        fun plural(id: Int, count: Int) = local.resources.getQuantityString(id, count, count)
+        val content = local.getString(R.string.folder_content, plural(R.plurals.folder_count, LEVEL), plural(R.plurals.video_count, MANY))
+        listOf(
+            line(R.string.type_address_desc, Beside.Icon),
+            line(R.string.protocol_smb_desc),
+            line(R.string.protocol_nfs_desc),
+            line(R.string.guest_desc),
+            line(R.string.type_path_desc, Beside.Icon),
+            said(R.string.change_account_desc, ACCOUNT, beside = Beside.Icon),
+            line(R.string.change_account_guest_desc, Beside.Icon),
+            line(R.string.nfs_identity_desc, Beside.Icon, value = local.getString(R.string.nfs_identity_root)),
+            line(R.string.suggested_by_nas),
+            line(R.string.nas_none_found),
+            line(R.string.kind_movies_desc),
+            line(R.string.kind_shows_desc),
+            Line(content, "$tag: folder_content", Beside.Icon),
+            line(R.string.folder_empty_short, Beside.Icon),
+            line(R.string.folder_holds_both, Beside.Icon),
+            line(R.string.folder_overlaps_state, Beside.Icon),
+            said(R.string.folder_holds_added, FOLDER, beside = Beside.Icon),
+            said(R.string.folder_inside_added, FOLDER, beside = Beside.Icon),
+            said(R.string.share_holds_one, FOLDER, beside = Beside.Icon),
+            Line(plural(R.plurals.share_holds_many, MANY), "$tag: share_holds_many", Beside.Icon),
+            Line(
+                EXPORT + FACT_GAP + local.getString(R.string.share_holds_one, FOLDER),
+                "$tag: an export's line",
+                Beside.None,
+                local.getString(R.string.not_allowed),
+            ),
+            Line(NAS + FACT_GAP + FOLDERS, "$tag: a NAS used", Beside.None, "NFS"),
+        )
+    }
+
     @Composable
     private fun Row(line: Line) {
         HlSettingRow(
@@ -233,6 +278,14 @@ class PaneRowLineTest {
     private companion object {
         const val LARGEST = 1.3f
         const val MANY = 12
+
+        /** « Ajouter un dossier »'s fixture: an account, a folder, a level, an export, a NAS used and its folders. */
+        const val ACCOUNT = "houselights"
+        const val FOLDER = "Films"
+        const val LEVEL = 412
+        const val EXPORT = "/volume1/video"
+        const val NAS = "192.168.1.20"
+        const val FOLDERS = "Films, Séries"
 
         /** Between the parts of a source's line, and an account's name; a longer one ends in an ellipsis. */
         const val DOT = " · "

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The messages « Ajouter un dossier » shares with the folder form: theirs once #84 is in, this file then removed. -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="folder_content">%1$s e %2$s</string>
+    <plurals name="video_count">
+        <item quantity="one">%d video</item>
+        <item quantity="many">%d video</item>
+        <item quantity="other">%d video</item>
+    </plurals>
+    <string name="error_share_not_found">%1$s non ha una cartella condivisa «%2$s». Verificarne il nome nell’interfaccia del NAS.</string>
+    <string name="error_export_not_found">Il NAS non condivide %s via NFS. Su un Synology, il percorso di montaggio inizia con /volume1/.</string>
+    <string name="error_subfolder_not_found">%1$s risponde, ma «%2$s» non c’è. Verificarne il nome, maiuscole comprese.</string>
+    <string name="error_subfolder_not_found_share">«%1$s» risponde, ma «%2$s» non c’è. Verificarne il nome, maiuscole comprese.</string>
+    <string name="error_nfs_refused">Il NAS rifiuta questo lettore. Autorizzare %1$s su %2$s, in sola lettura e, su un Synology, le porte non privilegiate.</string>
+    <string name="error_nfs_refused_no_address">Il NAS rifiuta questo lettore. Autorizzare l’indirizzo di questo lettore su %s, in sola lettura e, su un Synology, le porte non privilegiate.</string>
+    <string name="error_nfs_root_refused">Il NAS non consente a root di leggere %s. Scegliere «Account NFS» e inserire un account che vi abbia accesso.</string>
+    <string name="error_smb_denied">L’account «%1$s» non ha accesso a «%2$s». Concedergli la lettura sul NAS, o cambiare account.</string>
+    <string name="error_guest_refused">Questo NAS non accetta ospiti: inserire un account.</string>
+</resources>

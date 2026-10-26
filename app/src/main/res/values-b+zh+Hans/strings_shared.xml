@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The messages « Ajouter un dossier » shares with the folder form: theirs once #84 is in, this file then removed. -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="folder_content">%1$s、%2$s</string>
+    <plurals name="video_count">
+        <item quantity="other">%d 个视频</item>
+    </plurals>
+    <string name="error_share_not_found">%1$s 上没有名为“%2$s”的共享文件夹。请在 NAS 的管理界面中核对名称。</string>
+    <string name="error_export_not_found">NAS 未通过 NFS 共享 %s。在 Synology 上，装载路径以 /volume1/ 开头。</string>
+    <string name="error_subfolder_not_found">%1$s 有响应，但其中没有“%2$s”。请核对名称，包括大小写。</string>
+    <string name="error_subfolder_not_found_share">“%1$s”有响应，但其中没有“%2$s”。请核对名称，包括大小写。</string>
+    <string name="error_nfs_refused">NAS 拒绝了此播放器。请在 %2$s 上以只读方式允许 %1$s，在 Synology 上还需允许非特权端口。</string>
+    <string name="error_nfs_refused_no_address">NAS 拒绝了此播放器。请在 %s 上以只读方式允许此播放器的地址，在 Synology 上还需允许非特权端口。</string>
+    <string name="error_nfs_root_refused">NAS 不允许 root 读取 %s。请选择“NFS 账号”，并输入有权访问的账号。</string>
+    <string name="error_smb_denied">账号“%1$s”无权访问“%2$s”。请在 NAS 上授予其读取权限，或更换账号。</string>
+    <string name="error_guest_refused">此 NAS 不接受访客：请输入账号。</string>
+</resources>

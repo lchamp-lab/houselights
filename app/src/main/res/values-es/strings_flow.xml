@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- « Ajouter un dossier », the guided flow (#83): its steps, rows and messages. -->
+<resources>
+    <string name="flow_where_desc">Elija el dispositivo donde están sus vídeos.</string>
+    <string name="nas_used">Ya utilizados</string>
+    <string name="nas_found">NAS encontrados en la red</string>
+    <string name="nas_searching">Buscando en la red…</string>
+    <string name="nas_search_again">Buscar de nuevo</string>
+    <string name="nas_none_found">Ningún NAS se ha anunciado</string>
+    <string name="type_address">Escribir una dirección</string>
+    <string name="type_address_desc">La dirección IP o el nombre del NAS</string>
+    <string name="type_address_flow_desc">Escriba la dirección IP o el nombre de su NAS.</string>
+    <string name="host_supporting">Aparece en la interfaz del NAS o en la lista de dispositivos de su router.</string>
+    <string name="continue_">Continuar</string>
+    <string name="flow_protocol_desc">Este NAS comparte sus carpetas de dos maneras. Elija la que quiere usar.</string>
+    <string name="protocol_smb_desc">Con una cuenta del NAS</string>
+    <string name="protocol_nfs_desc">Sin contraseña, si el NAS lo autoriza</string>
+    <string name="flow_account_desc">Inicie sesión con una cuenta del NAS. La contraseña se guarda en este dispositivo y se transmite al reproductor Zidoo: es preferible una cuenta dedicada de solo lectura.</string>
+    <string name="guest">Sin cuenta (invitado)</string>
+    <string name="guest_desc">Si el NAS abre sus carpetas a todos</string>
+    <string name="guest_fact">Invitado</string>
+    <string name="flow_share_desc">Elija la carpeta compartida que contiene sus vídeos.</string>
+    <string name="share_holds_one">Contiene «%s»</string>
+    <plurals name="share_holds_many">
+        <item quantity="one">Contiene %d carpeta de la biblioteca</item>
+        <item quantity="many">Contiene %d carpetas de la biblioteca</item>
+        <item quantity="other">Contiene %d carpetas de la biblioteca</item>
+    </plurals>
+    <string name="not_allowed">No autorizado</string>
+    <string name="access_refused">Acceso denegado</string>
+    <string name="failed_short">Error</string>
+    <string name="type_path">Escribir una ruta</string>
+    <string name="type_path_desc">Si su carpeta no aparece</string>
+    <string name="change_account">Cambiar de cuenta</string>
+    <string name="change_account_desc">Conectado como %s</string>
+    <string name="change_account_guest_desc">Conectado como invitado</string>
+    <string name="flow_nfs_identity_desc">La cuenta que Houselights presenta al NAS, root por defecto. Indique el UID y el GID de una cuenta del NAS si el NAS rechaza root.</string>
+    <string name="error_smb_guest_share">«%s» no está abierta a invitados: elija «Cambiar de cuenta».</string>
+    <string name="flow_path_desc">Escriba la ruta completa de su carpeta en el NAS.</string>
+    <string name="flow_path_no_list_desc">Este NAS no da la lista de sus carpetas compartidas: escriba la ruta completa de su carpeta.</string>
+    <string name="field_full_path">Ruta de la carpeta</string>
+    <string name="placeholder_full_path_nfs">Ej.: /volume1/video/Películas</string>
+    <string name="placeholder_full_path_smb">Ej.: video/Películas</string>
+    <string name="full_path_supporting_nfs">En un Synology, empieza por /volume1/.</string>
+    <string name="full_path_supporting_smb">Primero la carpeta compartida, luego las subcarpetas.</string>
+    <string name="use_suggestion">Usar %s</string>
+    <string name="suggested_by_nas">Propuesto por el NAS</string>
+    <string name="flow_browse_desc">Abra la carpeta de sus películas o de sus series y luego elíjala.</string>
+    <string name="choose_folder">Elegir esta carpeta</string>
+    <string name="subfolders">Subcarpetas</string>
+    <string name="opening">Abriendo…</string>
+    <string name="folder_holds_both">Tiene Películas y Series: abra una de ellas</string>
+    <string name="folder_inside_added">En «%s», ya en la biblioteca</string>
+    <string name="folder_holds_added">Contiene «%s», ya en la biblioteca</string>
+    <string name="folder_empty_short">Ni vídeos ni subcarpetas</string>
+    <string name="flow_kind_desc">¿Qué contiene «%s»?</string>
+    <string name="kind_movies_desc">Un archivo o una carpeta por película</string>
+    <string name="kind_shows_desc">Una carpeta por serie, luego por temporada</string>
+    <string name="adding">Añadiendo…</string>
+</resources>

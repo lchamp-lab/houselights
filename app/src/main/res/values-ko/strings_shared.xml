@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The messages « Ajouter un dossier » shares with the folder form: theirs once #84 is in, this file then removed. -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="folder_content">%1$s, %2$s</string>
+    <plurals name="video_count">
+        <item quantity="other">동영상 %d개</item>
+    </plurals>
+    <string name="error_share_not_found">%1$s에 ‘%2$s’ 공유 폴더가 없습니다. NAS 관리 화면에서 이름을 확인하세요.</string>
+    <string name="error_export_not_found">NAS가 %s 경로를 NFS로 공유하지 않습니다. Synology의 마운트 경로는 /volume1/로 시작합니다.</string>
+    <string name="error_subfolder_not_found">%1$s은(는) 응답하지만 ‘%2$s’ 폴더가 없습니다. 대소문자까지 이름을 확인하세요.</string>
+    <string name="error_subfolder_not_found_share">‘%1$s’은(는) 응답하지만 ‘%2$s’ 폴더가 없습니다. 대소문자까지 이름을 확인하세요.</string>
+    <string name="error_nfs_refused">NAS가 이 플레이어를 거부합니다. %2$s에서 %1$s에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>
+    <string name="error_nfs_refused_no_address">NAS가 이 플레이어를 거부합니다. %s에서 이 플레이어의 주소에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>
+    <string name="error_nfs_root_refused">NAS가 root의 %s 읽기를 거부합니다. ‘NFS 계정’을 선택하고 접근 권한이 있는 계정을 입력하세요.</string>
+    <string name="error_smb_denied">‘%1$s’ 계정에는 ‘%2$s’에 대한 접근 권한이 없습니다. NAS에서 읽기 권한을 주거나 다른 계정을 사용하세요.</string>
+    <string name="error_guest_refused">이 NAS는 게스트를 허용하지 않습니다. 계정을 입력하세요.</string>
+</resources>

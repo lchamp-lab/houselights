@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- « Ajouter un dossier », the guided flow (#83): its steps, rows and messages. -->
+<resources>
+    <string name="flow_where_desc">Escolha o aparelho onde estão seus vídeos.</string>
+    <string name="nas_used">Já usados</string>
+    <string name="nas_found">NAS encontrados na rede</string>
+    <string name="nas_searching">Procurando na rede…</string>
+    <string name="nas_search_again">Procurar de novo</string>
+    <string name="nas_none_found">Nenhum NAS se anunciou</string>
+    <string name="type_address">Digitar um endereço</string>
+    <string name="type_address_desc">O endereço IP ou o nome do NAS</string>
+    <string name="type_address_flow_desc">Digite o endereço IP ou o nome do seu NAS.</string>
+    <string name="host_supporting">Ele aparece na interface do NAS ou na lista de aparelhos do seu roteador.</string>
+    <string name="continue_">Continuar</string>
+    <string name="flow_protocol_desc">Este NAS compartilha suas pastas de duas formas. Escolha qual usar.</string>
+    <string name="protocol_smb_desc">Com uma conta do NAS</string>
+    <string name="protocol_nfs_desc">Sem senha, se o NAS autorizar este player</string>
+    <string name="flow_account_desc">Entre com uma conta do NAS. A senha fica salva neste dispositivo e é passada ao player Zidoo: prefira uma conta dedicada, somente leitura.</string>
+    <string name="guest">Sem conta (convidado)</string>
+    <string name="guest_desc">Se o NAS abre suas pastas para todos</string>
+    <string name="guest_fact">Convidado</string>
+    <string name="flow_share_desc">Escolha a pasta compartilhada que contém seus vídeos.</string>
+    <string name="share_holds_one">Contém “%s”</string>
+    <plurals name="share_holds_many">
+        <item quantity="one">Contém %d pasta da biblioteca</item>
+        <item quantity="many">Contém %d pastas da biblioteca</item>
+        <item quantity="other">Contém %d pastas da biblioteca</item>
+    </plurals>
+    <string name="not_allowed">Não autorizado</string>
+    <string name="access_refused">Acesso negado</string>
+    <string name="failed_short">Falhou</string>
+    <string name="type_path">Digitar um caminho</string>
+    <string name="type_path_desc">Se a sua pasta não aparece</string>
+    <string name="change_account">Trocar de conta</string>
+    <string name="change_account_desc">Conectado como %s</string>
+    <string name="change_account_guest_desc">Conectado como convidado</string>
+    <string name="flow_nfs_identity_desc">A conta que o Houselights apresenta ao NAS, root por padrão. Digite o UID e o GID de uma conta do NAS se o NAS recusar root.</string>
+    <string name="error_smb_guest_share">“%s” não está aberta a convidados: escolha “Trocar de conta”.</string>
+    <string name="flow_path_desc">Digite o caminho completo da sua pasta no NAS.</string>
+    <string name="flow_path_no_list_desc">Este NAS não fornece a lista de suas pastas compartilhadas: digite o caminho completo da sua pasta.</string>
+    <string name="field_full_path">Caminho da pasta</string>
+    <string name="placeholder_full_path_nfs">Ex.: /volume1/video/Filmes</string>
+    <string name="placeholder_full_path_smb">Ex.: video/Filmes</string>
+    <string name="full_path_supporting_nfs">Em um Synology, ele começa com /volume1/.</string>
+    <string name="full_path_supporting_smb">Primeiro a pasta compartilhada, depois as subpastas.</string>
+    <string name="use_suggestion">Usar %s</string>
+    <string name="suggested_by_nas">Sugerido pelo NAS</string>
+    <string name="flow_browse_desc">Abra a pasta dos seus filmes ou séries e depois escolha-a.</string>
+    <string name="choose_folder">Escolher esta pasta</string>
+    <string name="subfolders">Subpastas</string>
+    <string name="opening">Abrindo…</string>
+    <string name="folder_holds_both">Contém Filmes e Séries: abra uma das duas</string>
+    <string name="folder_inside_added">Em “%s”, já na biblioteca</string>
+    <string name="folder_holds_added">Contém “%s”, já na biblioteca</string>
+    <string name="folder_empty_short">Nem vídeo nem subpasta</string>
+    <string name="flow_kind_desc">O que contém “%s”?</string>
+    <string name="kind_movies_desc">Um arquivo ou uma pasta por filme</string>
+    <string name="kind_shows_desc">Uma pasta por série, depois por temporada</string>
+    <string name="adding">Adicionando…</string>
+</resources>

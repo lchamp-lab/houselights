@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- « Ajouter un dossier », the guided flow (#83): its steps, rows and messages. -->
+<resources>
+    <string name="flow_where_desc">请选择存放视频的设备。</string>
+    <string name="nas_used">已使用</string>
+    <string name="nas_found">在网络上找到的 NAS</string>
+    <string name="nas_searching">正在网络上搜索…</string>
+    <string name="nas_search_again">重新搜索</string>
+    <string name="nas_none_found">没有 NAS 应答</string>
+    <string name="type_address">输入地址</string>
+    <string name="type_address_desc">NAS 的 IP 地址或名称</string>
+    <string name="type_address_flow_desc">请输入 NAS 的 IP 地址或名称。</string>
+    <string name="host_supporting">可在 NAS 的管理界面或路由器的设备列表中找到。</string>
+    <string name="continue_">继续</string>
+    <string name="flow_protocol_desc">此 NAS 以两种方式共享文件夹。请选择要使用的方式。</string>
+    <string name="protocol_smb_desc">使用 NAS 账号</string>
+    <string name="protocol_nfs_desc">无需密码，前提是 NAS 允许此播放器</string>
+    <string name="flow_account_desc">请使用 NAS 账号登录。密码保存在本设备上，并会传给 Zidoo 播放器：建议使用专用的只读账号。</string>
+    <string name="guest">不使用账号（访客）</string>
+    <string name="guest_desc">如果 NAS 向所有人开放共享文件夹</string>
+    <string name="guest_fact">访客</string>
+    <string name="flow_share_desc">请选择存放视频的共享文件夹。</string>
+    <string name="share_holds_one">包含“%s”</string>
+    <plurals name="share_holds_many">
+        <item quantity="other">包含媒体库中的 %d 个文件夹</item>
+    </plurals>
+    <string name="not_allowed">未获允许</string>
+    <string name="access_refused">访问被拒绝</string>
+    <string name="failed_short">失败</string>
+    <string name="type_path">输入路径</string>
+    <string name="type_path_desc">如果您的文件夹未列出</string>
+    <string name="change_account">更换账号</string>
+    <string name="change_account_desc">已以 %s 身份登录</string>
+    <string name="change_account_guest_desc">已以访客身份登录</string>
+    <string name="flow_nfs_identity_desc">Houselights 向 NAS 出示的账号，默认为 root。如果 NAS 拒绝 root，请输入 NAS 上某个账号的 UID 和 GID。</string>
+    <string name="error_smb_guest_share">“%s”未向访客开放：请选择“更换账号”。</string>
+    <string name="flow_path_desc">请输入文件夹在 NAS 上的完整路径。</string>
+    <string name="flow_path_no_list_desc">此 NAS 不提供共享文件夹列表：请输入文件夹的完整路径。</string>
+    <string name="field_full_path">文件夹路径</string>
+    <string name="placeholder_full_path_nfs">例如：/volume1/video/电影</string>
+    <string name="placeholder_full_path_smb">例如：video/电影</string>
+    <string name="full_path_supporting_nfs">在 Synology 上，路径以 /volume1/ 开头。</string>
+    <string name="full_path_supporting_smb">先写共享文件夹，再写子文件夹。</string>
+    <string name="use_suggestion">使用 %s</string>
+    <string name="suggested_by_nas">NAS 推荐</string>
+    <string name="flow_browse_desc">请打开存放电影或剧集的文件夹，然后选择它。</string>
+    <string name="choose_folder">选择此文件夹</string>
+    <string name="subfolders">子文件夹</string>
+    <string name="opening">正在打开…</string>
+    <string name="folder_holds_both">同时包含电影和剧集：请打开其中一个</string>
+    <string name="folder_inside_added">位于“%s”中，已在媒体库中</string>
+    <string name="folder_holds_added">包含“%s”，已在媒体库中</string>
+    <string name="folder_empty_short">没有视频，也没有子文件夹</string>
+    <string name="flow_kind_desc">“%s”中有什么？</string>
+    <string name="kind_movies_desc">每部电影一个文件或文件夹</string>
+    <string name="kind_shows_desc">每部剧一个文件夹，再按季分</string>
+    <string name="adding">正在添加…</string>
+</resources>

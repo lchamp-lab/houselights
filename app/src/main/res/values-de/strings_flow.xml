@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- « Ajouter un dossier », the guided flow (#83): its steps, rows and messages. -->
+<resources>
+    <string name="flow_where_desc">Wählen Sie das Gerät, auf dem Ihre Videos liegen.</string>
+    <string name="nas_used">Bereits verwendet</string>
+    <string name="nas_found">Im Netzwerk gefundene NAS</string>
+    <string name="nas_searching">Suche im Netzwerk…</string>
+    <string name="nas_search_again">Erneut suchen</string>
+    <string name="nas_none_found">Kein NAS hat sich gemeldet</string>
+    <string name="type_address">Adresse eingeben</string>
+    <string name="type_address_desc">IP-Adresse oder Name des NAS</string>
+    <string name="type_address_flow_desc">Geben Sie die IP-Adresse oder den Namen Ihres NAS ein.</string>
+    <string name="host_supporting">Sie steht in der Oberfläche des NAS oder in der Geräteliste Ihres Routers.</string>
+    <string name="continue_">Weiter</string>
+    <string name="flow_protocol_desc">Dieses NAS gibt seine Ordner auf zwei Arten frei. Wählen Sie die gewünschte.</string>
+    <string name="protocol_smb_desc">Mit einem Konto des NAS</string>
+    <string name="protocol_nfs_desc">Ohne Passwort, wenn das NAS den Player zulässt</string>
+    <string name="flow_account_desc">Melden Sie sich mit einem Konto des NAS an. Das Passwort wird auf diesem Gerät gespeichert und an den Zidoo-Player übergeben: Nutzen Sie besser ein eigenes Konto mit reinem Lesezugriff.</string>
+    <string name="guest">Ohne Konto (Gast)</string>
+    <string name="guest_desc">Wenn das NAS seine Ordner für alle freigibt</string>
+    <string name="guest_fact">Gast</string>
+    <string name="flow_share_desc">Wählen Sie den freigegebenen Ordner mit Ihren Videos.</string>
+    <string name="share_holds_one">Enthält „%s“</string>
+    <plurals name="share_holds_many">
+        <item quantity="one">Enthält %d Ordner der Bibliothek</item>
+        <item quantity="other">Enthält %d Ordner der Bibliothek</item>
+    </plurals>
+    <string name="not_allowed">Nicht erlaubt</string>
+    <string name="access_refused">Zugriff verweigert</string>
+    <string name="failed_short">Fehlgeschlagen</string>
+    <string name="type_path">Pfad eingeben</string>
+    <string name="type_path_desc">Wenn Ihr Ordner nicht erscheint</string>
+    <string name="change_account">Konto wechseln</string>
+    <string name="change_account_desc">Angemeldet als %s</string>
+    <string name="change_account_guest_desc">Als Gast angemeldet</string>
+    <string name="flow_nfs_identity_desc">Das Konto, mit dem sich Houselights beim NAS meldet, standardmäßig root. Geben Sie UID und GID eines Kontos des NAS ein, wenn das NAS root ablehnt.</string>
+    <string name="error_smb_guest_share">„%s“ ist nicht für Gäste freigegeben: Wählen Sie „Konto wechseln“.</string>
+    <string name="flow_path_desc">Geben Sie den vollständigen Pfad Ihres Ordners auf dem NAS ein.</string>
+    <string name="flow_path_no_list_desc">Dieses NAS listet seine freigegebenen Ordner nicht auf: Geben Sie den vollständigen Pfad Ihres Ordners ein.</string>
+    <string name="field_full_path">Ordnerpfad</string>
+    <string name="placeholder_full_path_nfs">z. B. /volume1/video/Filme</string>
+    <string name="placeholder_full_path_smb">z. B. video/Filme</string>
+    <string name="full_path_supporting_nfs">Auf einem Synology beginnt er mit /volume1/.</string>
+    <string name="full_path_supporting_smb">Zuerst der freigegebene Ordner, dann die Unterordner.</string>
+    <string name="use_suggestion">%s verwenden</string>
+    <string name="suggested_by_nas">Vom NAS vorgeschlagen</string>
+    <string name="flow_browse_desc">Öffnen Sie den Ordner Ihrer Filme oder Serien und wählen Sie ihn dann.</string>
+    <string name="choose_folder">Diesen Ordner wählen</string>
+    <string name="subfolders">Unterordner</string>
+    <string name="opening">Wird geöffnet…</string>
+    <string name="folder_holds_both">Enthält Filme und Serien: Öffnen Sie einen</string>
+    <string name="folder_inside_added">In „%s“, bereits in der Bibliothek</string>
+    <string name="folder_holds_added">Enthält „%s“, bereits in der Bibliothek</string>
+    <string name="folder_empty_short">Weder Video noch Unterordner</string>
+    <string name="flow_kind_desc">Was enthält „%s“?</string>
+    <string name="kind_movies_desc">Eine Datei oder ein Ordner pro Film</string>
+    <string name="kind_shows_desc">Ein Ordner pro Serie, dann pro Staffel</string>
+    <string name="adding">Wird hinzugefügt…</string>
+</resources>

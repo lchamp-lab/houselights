@@ -8,26 +8,27 @@ import org.junit.Test
 import org.w3c.dom.Element
 import java.io.File
 
-/** DESIGN.md, Writing, checked on the resources: typography, and every language saying what English says. */
+/**
+ * DESIGN.md, Writing, checked on the resources: typography, and every language saying what English says, whichever of a
+ * language's string files says it (strings.xml, a screen's own, as « Ajouter un dossier »'s strings_flow.xml).
+ */
 class StringsTest {
-    private val english = File("src/main/res/values/strings.xml")
-    private val french = File("src/main/res/values-fr/strings.xml")
+    private val english = File("src/main/res/values")
+    private val french = File("src/main/res/values-fr")
 
     /** Every translation, by its folder ("values-de"). */
     private val translations = File("src/main/res").listFiles().orEmpty()
-        .filter { it.name.startsWith("values-") }
-        .map { File(it, "strings.xml") }
-        .filter { it.isFile }
-        .sortedBy { it.parentFile.name }
+        .filter { it.name.startsWith("values-") && File(it, "strings.xml").isFile }
+        .sortedBy { it.name }
 
     @Test
     fun everyLanguageSaysEverythingEnglishDoes() {
-        assertTrue("Resources not found from ${File(".").absolutePath}", english.isFile && french in translations)
+        assertTrue("Resources not found from ${File(".").absolutePath}", File(english, "strings.xml").isFile && french in translations)
         val translatable = resources(english).filter { it.getAttribute("translatable") != "false" }.map { it.key }.toSet()
         translations.forEach { file ->
             val translated = resources(file).map { it.key }.toSet()
-            assertEquals("Missing in ${file.parentFile.name}", emptySet<String>(), translatable - translated)
-            assertEquals("Only in ${file.parentFile.name}", emptySet<String>(), translated - translatable)
+            assertEquals("Missing in ${file.name}", emptySet<String>(), translatable - translated)
+            assertEquals("Only in ${file.name}", emptySet<String>(), translated - translatable)
         }
     }
 
@@ -40,7 +41,7 @@ class StringsTest {
                 val expected = englishFormats[resource.key].orEmpty()
                 formats(resource).mapNotNull { (quantity, specifiers) ->
                     val wanted = expected[quantity] ?: expected["other"].orEmpty()
-                    "${file.parentFile.name} ${resource.key} ($quantity): ${specifiers.values} instead of ${wanted.values}"
+                    "${file.name} ${resource.key} ($quantity): ${specifiers.values} instead of ${wanted.values}"
                         .takeIf { specifiers != wanted }
                 }
             }
@@ -63,7 +64,7 @@ class StringsTest {
         val found = (listOf(english) + translations).flatMap { file ->
             val rules: (String) -> List<String> = if (file == french) ::problems else ::commonProblems
             resources(file).flatMap { resource ->
-                texts(resource).flatMap { text -> rules(text).map { "${file.parentFile.name} ${resource.key}: $it\n    $text" } }
+                texts(resource).flatMap { text -> rules(text).map { "${file.name} ${resource.key}: $it\n    $text" } }
             }
         }
         assertTrue("Typography:\n" + found.joinToString("\n"), found.isEmpty())
@@ -118,8 +119,10 @@ class StringsTest {
 
     private val Element.key get() = "${tagName}/${getAttribute("name")}"
 
-    /** The strings, plurals and arrays of a resource file. */
-    private fun resources(file: File): List<Element> = xmlRoot(file).children("string", "plurals", "string-array")
+    /** The strings, plurals and arrays of a resource folder, from each of its string files. */
+    private fun resources(folder: File): List<Element> =
+        folder.listFiles { f -> f.name.startsWith("strings") && f.extension == "xml" }.orEmpty().sortedBy { it.name }
+            .flatMap { xmlRoot(it).children("string", "plurals", "string-array") }
 
     /** The format specifiers of each text of a string or plural (by quantity), by argument. */
     private fun formats(resource: Element): Map<String, Map<Int, String>> =
