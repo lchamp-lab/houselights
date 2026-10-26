@@ -455,6 +455,33 @@ class AddFolderViewModelTest {
         assertEquals("Video" to "Films2", smb.share to smb.path)
     }
 
+    /**
+     * A folder inside one named as its share, opened again to type its password: « Dossier » shows it from the share,
+     * and it is tested and saved where it is, never moved to the share's root.
+     */
+    @Test
+    fun aFolderInsideOneNamedAsItsShareIsSavedWhereItIs() = runTest {
+        network.complete(Unit)
+        val id = dao.insertSource(
+            SourceEntity(
+                name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "video",
+                path = "video/Films", username = "kodi", password = Secret("stored"),
+            )
+        )
+        val tested = mutableListOf<String>()
+        val vm = form(id, probe = { folder -> 12.also { tested += "${folder.share} ${folder.path}" } })
+        advanceUntilIdle()
+        assertEquals("video/video/Films", vm.form.path)
+        vm.edit { copy(password = "new") }
+        var done = false
+        vm.submit { done = true }
+        advanceUntilIdle()
+
+        assertTrue(done)
+        assertEquals(listOf("video video/Films"), tested)
+        assertEquals("video" to "video/Films", dao.source(id)!!.let { it.share to it.path })
+    }
+
     /** A new folder starts empty when the last one cannot be read. */
     @Test
     fun aNewFolderStartsEmptyWhenTheLastCannotBeRead() = runTest {

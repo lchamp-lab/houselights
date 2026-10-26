@@ -116,17 +116,27 @@ data class FolderForm(
     }
 
     companion object {
-        /** The form for editing [folder]: everything but its password, which is never shown. */
+        /** The form for editing [folder]: everything but its password, which is never shown; it reads [folder] back. */
         fun of(folder: SourceEntity) = FolderForm(
             kind = folder.kind,
             protocol = folder.protocol,
             host = folder.host,
             share = exportOrShare(folder),
-            path = folder.path,
+            path = pathOf(folder),
             user = folder.username,
             uid = folder.uid?.toString().orEmpty(),
             gid = folder.gid?.toString().orEmpty(),
         )
+
+        /**
+         * [folder]'s path as « Dossier » shows it, so that [place] reads it back: a path starting with its share's
+         * names is put after the share again ("video/video/Films"), as [place] reads such a path from the NAS's root.
+         */
+        private fun pathOf(folder: SourceEntity): String {
+            val smb = folder.protocol == Protocol.SMB
+            val fromRoot = segments(folder.path, smb).repeats(segments(folder.share, smb), ignoreCase = smb)
+            return if (fromRoot) "${exportOrShare(folder)}/${folder.path}" else folder.path
+        }
 
         /** An NFS export reads as a path, with its leading slash. */
         fun exportOrShare(folder: SourceEntity) = if (folder.protocol == Protocol.NFS) "/${folder.share}" else folder.share

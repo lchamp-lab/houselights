@@ -90,6 +90,29 @@ class FolderFormTest {
         assertEquals("a folder named as its share, typed from above it", "video", smb.copy(path = "video/video").toSource().path)
     }
 
+    /**
+     * A folder inside a folder named as its share (or its export) shows in « Dossier » after the share again, as it would
+     * be typed from the NAS's root, so its form gives it back where it is: a password typed again never moves it.
+     */
+    @Test
+    fun anEditedFolderInsideAFolderNamedAsItsShareKeepsItsPath() {
+        val nfs = stored.copy(protocol = Protocol.NFS, username = "", password = Secret(""))
+        listOf(
+            stored.copy(share = "video", path = "video"),
+            stored.copy(share = "video", path = "video/Films"),
+            stored.copy(share = "Films", path = "films/HD"),
+            nfs.copy(share = "volume1", path = "volume1/x"),
+            nfs.copy(share = "volume1/video", path = "volume1/video/Films2"),
+            stored,
+        ).forEach { folder ->
+            val edited = FolderForm.of(folder).copy(password = "new").toSource(folder)
+            assertEquals("${folder.share} ${folder.path}", folder.place(), edited.place())
+        }
+        assertEquals("video/video/Films", FolderForm.of(stored.copy(share = "video", path = "video/Films")).path)
+        assertEquals("/volume1/volume1/x", FolderForm.of(nfs.copy(share = "volume1", path = "volume1/x")).path)
+        assertEquals("films", FolderForm.of(stored).path)
+    }
+
     private fun SourceEntity.place() = share to path
 
     @Test
