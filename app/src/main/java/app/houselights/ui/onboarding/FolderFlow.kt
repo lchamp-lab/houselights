@@ -546,7 +546,7 @@ class FolderFlow(
                 is Added.Done -> onDone(FlowDone(added.switched, added.id))
                 is Added.Overlaps -> {
                     val name = added.existing.name.replaceFirstChar { it.uppercase() }
-                    message = FlowMessage.Overlaps(name, same = added.existing.samePlace(folder))
+                    message = FlowMessage.Overlaps(name, folder.standing(listOf(added.existing)))
                     aim(key)
                 }
                 null -> {}

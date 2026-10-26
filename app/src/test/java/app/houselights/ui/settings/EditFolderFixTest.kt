@@ -28,7 +28,7 @@ class EditFolderFixTest {
     fun theFormOpensOnTheFieldToChange() {
         assertEquals(FolderField.PASSWORD, FolderField.after(ScanErrorKind.LOGIN_FAILED))
         assertEquals(FolderField.HOST, FolderField.after(ScanErrorKind.UNREACHABLE))
-        assertEquals(FolderField.HOST, FolderField.after(ScanErrorKind.NOT_FOUND))
+        assertEquals("« Chemin de montage » or « Dossier partagé »", FolderField.PATH, FolderField.after(ScanErrorKind.NOT_FOUND))
         assertEquals(FolderField.FIRST, FolderField.after(null))
         assertEquals(FolderField.FIRST, FolderField.after(ScanErrorKind.ACCESS_DENIED))
     }

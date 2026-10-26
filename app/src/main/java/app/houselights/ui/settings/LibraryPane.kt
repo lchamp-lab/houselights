@@ -61,6 +61,7 @@ import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.onboarding.LoginFill
+import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.scanErrorText
@@ -252,6 +253,12 @@ private fun HeldSheetFor(folder: Long?, held: Map<Long, HeldTitles>, answers: He
     HeldSheet(titles, onKeep = { answers.keep(titles) }, onRemove = { answers.remove(titles) }, onDismiss = onClose)
 }
 
+/** Where [folder] is: its NAS's address, then its path from the NAS's root, apart ([FACT_GAP]); the address alone at a root. */
+internal fun placeOf(folder: Folder): String {
+    val path = folder.address.removePrefix(folder.host).trim('/')
+    return if (path.isEmpty()) folder.host else folder.host + FACT_GAP + "/" + path
+}
+
 /**
  * A folder's sheet: scan, edit or remove (confirmed in place, saying its [consequence]); Edit comes first after a failure
  * it can fix. While titles of it are [held] ([onHeld] opens their sheet), they come first, focused.
@@ -281,7 +288,8 @@ private fun SourceActions(
         onDismiss = onDismiss,
         facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }),
         badges = listOf(source.protocol.name),
-        description = source.address,
+        // Its address and its path apart, the path as the folder's form composes it: "192.168.1.20   /volume1/video/Films".
+        description = placeOf(source),
         artwork = if (posters.isEmpty()) {
             null
         } else {

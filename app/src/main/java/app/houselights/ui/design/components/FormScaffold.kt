@@ -1,6 +1,7 @@
 package app.houselights.ui.design.components
 
 import app.houselights.ui.design.TwoPaneDefaults
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,19 +37,22 @@ import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.OnArtwork
+import app.houselights.ui.design.fadeIntoField
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.scrollEdges
 
 /**
  * The two-pane layout of setup and settings screens: a side column, then scrolling content across a gap,
  * with no rule between; given its scroll [state], edges fade where more lies and focus stays
- * [HlSpace.fadeEdge] clear of them.
+ * [HlSpace.fadeEdge] clear of them. With [fadeOnField], on a field of posters, the content ends at the safe area and
+ * fades into the field itself ([fadeIntoField]), where a fade into black would not show over its plates, as dark.
  */
 @Composable
 fun HlTwoPane(
     side: @Composable ColumnScope.() -> Unit,
     sideWidth: Dp = TwoPaneDefaults.side,
     state: ScrollableState? = null,
+    fadeOnField: Boolean = false,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val black = Hl.colors.background
@@ -59,7 +63,13 @@ fun HlTwoPane(
         Row(Modifier.fillMaxSize().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)) {
             Column(Modifier.width(sideWidth).fillMaxHeight().padding(bottom = HlSpace.safeV), content = side)
             Spacer(Modifier.width(HlSpace.xxl))
-            val fades = if (state != null) Modifier.scrollEdges(state, fadeInto) else Modifier
+            val fades = when {
+                state == null -> Modifier
+                // On the field, the list stops at the safe area as it starts there, and its foot fades inside the screen.
+                fadeOnField && room != null ->
+                    Modifier.padding(bottom = HlSpace.safeV).fadeIntoField(state, start = HlSpace.xxl, end = HlSpace.safeH)
+                else -> Modifier.scrollEdges(state, fadeInto)
+            }
             Box(Modifier.weight(1f).fillMaxHeight().then(fades)) {
                 ListScroll(top = if (state != null) HlSpace.fadeEdge else HlSpace.none) { content() }
             }
@@ -69,8 +79,9 @@ fun HlTwoPane(
 
 /**
  * A form's screen (DESIGN.md, Secondary screens): its title, what it does and where it stands ([aside]) on the left,
- * the form on the right from the top of the safe area. With [room], it lies on those posters' field ([PosterField]),
- * its controls on plates as over a picture; without, on the black room.
+ * the form on the right from the top of the safe area, scrolled by [scroll]. With [room], it lies on those posters'
+ * field ([PosterField]), its controls on plates as over a picture, the form ending at the safe area and fading into the
+ * field where it scrolls; without, on the black room.
  */
 @Composable
 fun HlFormScaffold(
@@ -78,9 +89,9 @@ fun HlFormScaffold(
     description: String,
     aside: @Composable ColumnScope.() -> Unit,
     room: List<ImageRef>? = null,
+    scroll: ScrollState = rememberScrollState(),
     form: @Composable ColumnScope.() -> Unit,
 ) {
-    val scroll = rememberScrollState()
     @Composable
     fun Screen() = HlTwoPane(
         side = {
@@ -96,9 +107,15 @@ fun HlFormScaffold(
         },
         sideWidth = TwoPaneDefaults.sideWide,
         state = scroll,
+        fadeOnField = true,
     ) {
         Column(
-            Modifier.fillMaxSize().keepVerticalFocus().verticalScroll(scroll).padding(bottom = HlFocus.edge),
+            // On a field the list already stops at the safe area: room for a focus frame is enough under its last part.
+            Modifier
+                .fillMaxSize()
+                .keepVerticalFocus()
+                .verticalScroll(scroll)
+                .padding(bottom = if (room != null) HlFocus.reach else HlFocus.edge),
             verticalArrangement = Arrangement.spacedBy(HlSpace.l),
             content = form,
         )
@@ -138,6 +155,7 @@ fun HlFormScaffold(
         },
         sideWidth = TwoPaneDefaults.sideWide,
         state = list,
+        fadeOnField = true,
     ) {
         LazyColumn(
             Modifier.fillMaxSize().keepVerticalFocus(),
@@ -156,7 +174,9 @@ fun HlFormScaffold(
 /**
  * Where a form stands, beside it, on a plate: the state with its light, then what it is about, [name] in `entry` or
  * [label] in grey over [value] (an address, in the technical voice), [detail], its printed [badges] and [facts]; then
- * [content] and the last [result], an [AttentionNote] if [resultIsError].
+ * [content] and the last [result], an [AttentionNote] if [resultIsError]. One mark a failure: a failure's mark is its
+ * message's, beside its cause (here, or under the field at fault), and the state then says it by the ring
+ * ([StatusState.Off]), never [StatusState.Attention].
  */
 @Composable
 fun StatusPanel(

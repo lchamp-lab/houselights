@@ -348,16 +348,16 @@ private fun FormStatusPanels() {
         Specimen("on: its white dot, with what was found", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
                 StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.10",
-                detail = "/volume1/media/films", badges = nfs, result = pluralStringResource(R.plurals.entries_found, 128, 128),
+                detail = "/volume1/media/films", badges = nfs, result = folderContent(),
             )
         }
         Specimen(
-            "attention: failed, its mark and the result as an attention note",
+            "failed: by the ring, the message's mark the only one",
             Modifier.width(TwoPaneDefaults.sideWide),
             gap = HlSpace.xs,
         ) {
             StatusPanel(
-                StatusState.Attention, stringResource(R.string.connection_failed), address, "nas-salon.local",
+                StatusState.Off, stringResource(R.string.connection_failed), address, "nas-salon.local",
                 detail = "/films", badges = listOf("SMB", films),
                 result = stringResource(R.string.error_nas_unreachable, "nas-salon.local"),
                 resultIsError = true,
@@ -403,11 +403,19 @@ private fun FormStatusPanels() {
                 StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.20",
                 detail = "/volume1/media/films", badges = listOf("NFS"),
                 facts = listOf(films, stringResource(R.string.nfs_identity, "1026", "100")),
-                result = pluralStringResource(R.plurals.entries_found, 128, 128),
+                result = folderContent(),
             )
         }
     }
 }
+
+/** What a folder's test found, as its form says it: "128 dossiers et 3 vidéos". */
+@Composable
+private fun folderContent(): String = stringResource(
+    R.string.folder_content,
+    pluralStringResource(R.plurals.folder_count, 128, 128),
+    pluralStringResource(R.plurals.video_count, 3, 3),
+)
 
 @Composable
 private fun FormPanelButtons() {

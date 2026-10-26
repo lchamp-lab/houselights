@@ -16,6 +16,7 @@ import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.SharedFolder
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.Standing
 import app.houselights.providers.local.TypedPaths
 import app.houselights.providers.local.UsedNas
 import kotlinx.coroutines.flow.Flow
@@ -119,8 +120,8 @@ sealed interface FlowMessage {
     /** The folder [at] answers but holds no [name]; [smb] says [at] as a share's, in quotes. */
     data class NoFolder(val at: String, val smb: Boolean, val name: String) : FlowMessage
 
-    /** The folder chosen was added meanwhile, or one it overlaps ([same] when it is that folder). */
-    data class Overlaps(val existing: String, val same: Boolean) : FlowMessage
+    /** The folder chosen was added meanwhile, or one it overlaps: [existing], which it is, holds or is inside ([standing]). */
+    data class Overlaps(val existing: String, val standing: Standing) : FlowMessage
 
     data class Missing(@StringRes val words: Int) : FlowMessage
 

@@ -138,6 +138,29 @@ class FolderFormTest {
 
     private fun SourceEntity.place() = share to path
 
+    /**
+     * The form shown as read gives each field what it reads, and reads the same folder: a whole path under its export,
+     * an SMB share typed with its NAS and subfolder, a folder inside one named as its share, the NAS's root exported.
+     */
+    @Test
+    fun aFormShownAsReadReadsTheSame() {
+        val nfs = FolderForm(protocol = Protocol.NFS, host = "192.168.1.20")
+        val smb = FolderForm(protocol = Protocol.SMB, host = "nas.local", user = "kodi")
+        listOf(
+            nfs.copy(share = "/volume1/video", path = "/volume1/video/Films/") to ("/volume1/video" to "Films"),
+            nfs.copy(share = "volume1/video/", path = "Films") to ("/volume1/video" to "Films"),
+            nfs.copy(share = "/", path = "") to ("/" to ""),
+            smb.copy(share = "\\\\NAS\\video\\Films2") to ("video" to "Films2"),
+            smb.copy(share = "video", path = "video/video/Films") to ("video" to "video/video/Films"),
+            smb.copy(share = "video", path = "Films") to ("video" to "Films"),
+        ).forEach { (form, shown) ->
+            val read = form.asRead()
+            assertEquals("${form.share} ${form.path}", shown, read.share to read.path)
+            assertEquals("${form.share} ${form.path}", form.toSource(), read.toSource())
+            assertEquals("${form.share} ${form.path} again", read, read.asRead())
+        }
+    }
+
     @Test
     fun aFolderKeepsItsKindAndNfsHasNoPassword() {
         val form = FolderForm.of(stored).copy(kind = SourceKind.MOVIES, protocol = Protocol.NFS, share = "/volume1/media")

@@ -27,9 +27,14 @@ import app.houselights.providers.jellyfin.PublicSystemInfo
 import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
+import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
+import app.houselights.providers.local.Protocol
+import app.houselights.providers.local.Secret
+import app.houselights.providers.local.SourceEntity
+import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SourceSwitcher
@@ -52,6 +57,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -107,16 +114,81 @@ class FormLayoutTest {
     @Config(qualifiers = "de-$TV")
     fun jellyfinInGerman() = jellyfinHolds()
 
-    private fun aFolderHolds() {
+    private fun library(): LocalLibrary {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         val idle = CoroutineScope(Job().apply { cancel() })
         val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
-        val vm = AddFolderViewModel(library, null, scope, useFolders = { false }, probe = { 0 })
+        return LocalLibrary(context, db.dao(), scanner, artwork) {}
+    }
+
+    private fun aFolderHolds() {
+        val vm = AddFolderViewModel(library(), null, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
         compose.waitForIdle()
         holds(first = R.string.folder_kind, field = R.string.field_host, action = R.string.add)
+    }
+
+    /** The boards' « Séries », over SMB with its password kept, opened to edit; its test answers [probe]. */
+    private fun series(probe: suspend (SourceEntity) -> FolderLevel): AddFolderViewModel {
+        val id = runBlocking {
+            db.dao().insertSource(
+                SourceEntity(
+                    name = "Séries", kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.20", share = "video",
+                    path = "Séries", username = "houselights", password = Secret("stored"),
+                )
+            )
+        }
+        return AddFolderViewModel(library(), id, scope, useFolders = { false }, probe = probe)
+    }
+
+    /**
+     * « Modifier le dossier » at the largest text, the NAS refusing its password: the refusal under « Mot de passe »,
+     * in view, and the column beside it whole, its help left out where it does not fit, never cut by the screen's foot.
+     */
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun anEditedFolderAtTheLargestTextCutsNothing() {
+        val vm = series { throw IOException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed") }
+        compose.setTvContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, LARGEST_TEXT)) {
+                AddFolderForm(vm, FolderField.FIRST) {}
+            }
+        }
+        compose.waitUntil { vm.ready }
+        vm.test()
+        compose.waitUntil { vm.check != null }
+        compose.waitForIdle()
+        fun text(id: Int) = compose.activity.getString(id)
+        val refused = text(R.string.error_login_failed)
+        listOf(text(R.string.edit_folder_desc), text(R.string.connection_failed), "/video/Séries", refused).forEach {
+            assertFalse("$it cut", cut(it))
+        }
+        val message = compose.onNodeWithText(refused).getUnclippedBoundsInRoot()
+        assertTrue("the refusal in view: $message", message.bottom <= SCREEN_H - HlSpace.safeV)
+        helpWholeOrAbsent(text(R.string.smb_hint))
+    }
+
+    /** At rest, at the standard size, the help reads whole under the panel. */
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun anEditedFolderAtRestShowsItsHelpWhole() {
+        val vm = series { FolderLevel(emptyList(), videos = 12) }
+        compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
+        compose.waitUntil { vm.ready }
+        compose.waitForIdle()
+        val help = compose.activity.getString(R.string.smb_hint)
+        assertFalse("$help cut", cut(help))
+        assertTrue(compose.onNodeWithText(help).getUnclippedBoundsInRoot().bottom <= SCREEN_H - HlSpace.safeV)
+    }
+
+    /** [help], when shown, ends inside the safe area, whole; left out, it is not placed at all. */
+    private fun helpWholeOrAbsent(help: String) {
+        if (compose.onAllNodesWithText(help).fetchSemanticsNodes().none { it.layoutInfo.isPlaced }) return
+        assertFalse("$help cut", cut(help))
+        val box = compose.onNodeWithText(help).getUnclippedBoundsInRoot()
+        assertTrue("$box over the safe area's foot", box.bottom <= SCREEN_H - HlSpace.safeV)
     }
 
     private fun jellyfinHolds() {
@@ -268,7 +340,7 @@ class FormLayoutTest {
 
     /** Two servers answer discovery, checked for ever; none signs in. */
     private object TwoServers : JellyfinNetwork {
-        override suspend fun discover() = listOf(
+        override fun discover() = flowOf(
             DiscoveredServer("http://192.168.1.20:8096", "Jellyfin du salon"),
             DiscoveredServer("http://192.168.1.31:8096", "Bureau"),
         )
@@ -289,7 +361,7 @@ class FormLayoutTest {
             DiscoveredServer("http://192.168.1.57:8096", "Ancien NAS", "d"),
         )
 
-        override suspend fun discover() = servers
+        override fun discover() = servers.asFlow()
 
         override suspend fun check(found: DiscoveredServer): ServerCheck = when (found.name) {
             "Salon" -> ServerCheck.Encrypted(found.address)

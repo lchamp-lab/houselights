@@ -721,10 +721,16 @@ private fun flowText(message: FlowMessage): String = when (message) {
     } else {
         stringResource(R.string.error_subfolder_not_found, wholePath(message.at), message.name)
     }
-    is FlowMessage.Overlaps ->
-        stringResource(if (message.same) R.string.folder_already_added else R.string.folder_overlaps, message.existing)
+    is FlowMessage.Overlaps -> stringResource(overlapWords(message.standing), message.existing)
     is FlowMessage.Missing -> stringResource(message.words)
     else -> refusalText(message)
+}
+
+/** The folder's sentence when the library has it, or holds it, or one inside it, as the folder's form says it. */
+private fun overlapWords(standing: Standing): Int = when (standing) {
+    is Standing.Holds -> R.string.folder_holds
+    is Standing.Inside -> R.string.folder_inside
+    is Standing.Added, Standing.Apart -> R.string.folder_already_added
 }
 
 /** What the NAS refused, and what to do: this player, root, an account or a guest. */

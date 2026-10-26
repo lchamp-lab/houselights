@@ -66,7 +66,8 @@ class FakeRemoteBrowser : RemoteBrowser {
         )
     }
 
-    override suspend fun test(source: SourceEntity): Int = files.size
+    /** The folder's own level, as [folders] gives it. */
+    override suspend fun test(source: SourceEntity): FolderLevel = folders(source, "")
 
     /** The folders the files put imply under [path], hidden ones left out, and its own videos; a folder without files is not there. */
     override suspend fun folders(source: SourceEntity, path: String): FolderLevel {
