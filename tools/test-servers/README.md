@@ -7,7 +7,7 @@ small sample files `make-media.sh` writes, laid out as a Synology lays out its s
 | Server | What it is | Answers on | Account (test-only) |
 |---|---|---|---|
 | `samba` | Samba 4.23 on Alpine 3.24, set up as a Synology or QNAP: SMB2 to SMB3 (3.1.1 negotiated), signing and encryption offered, never required, no NetBIOS | `127.0.0.1:445` | `houselights` / `houselights-test`, read-only |
-| `nfs` | unfs3 0.10 (NFSv3 in user space) and rpcbind 1.2 on Alpine 3.24; MOUNT answers EXPORT (`showmount -e`) | `127.0.0.1`: 111 (portmapper), 892 (mountd), 2049 (NFS), TCP and UDP | none: NFS trusts the address |
+| `nfs` | unfs3 0.10 (NFSv3 in user space) and rpcbind 1.2 on Alpine 3.24; MOUNT answers EXPORT (`showmount -e`); each reply in one fragment, as a NAS sends it (below) | `127.0.0.1`: 111 (portmapper) and 892 (mountd), TCP and UDP; 2049 (NFS), TCP | none: NFS trusts the address |
 | `jellyfin` | Jellyfin 12.3, the official image, with its profile only | `127.0.0.1:8096` (HTTP) | `houselights` / `houselights-test`, the server's administrator |
 
 Every port is published on `127.0.0.1` alone: the network around (a hotel's, a train's) cannot reach them. The passwords
@@ -106,6 +106,19 @@ rm -rf media                                        # the samples
 The images stay (`houselights-test-samba:1`, `houselights-test-nfs:1`, `houselights-test-client:1`, Jellyfin's);
 `docker image rm` removes them.
 
+## NFS replies in fragments
+
+Over TCP, an RPC reply may be sent in several record fragments (RFC 5531, section 11). Linux's NFS server, the one
+of a Synology, a QNAP, TrueNAS SCALE or Unraid, sends each reply in one; unfsd, on libtirpc, splits every reply above
+64 KB into fragments of 64 KB. Houselights' NFS client (nfs-client 1.1.0) does not join them: a read above 64 KB fails
+with « tcp IO error on the connection », which the app takes for a NAS out of reach, and a scan stops at its first
+MKV, whose probe reads 256 KB at once. So `nfs/whole-replies.py` stands before unfsd on port 2049 and sends each reply
+on in one fragment, as a NAS does. To see the app against unfsd as it is:
+
+```sh
+UNFS3_FRAGMENTS=1 docker compose up -d --wait nfs      # docker compose up -d --wait nfs to come back
+```
+
 ## What they do not simulate
 
 - **Discovery.** Nothing announces itself: no mDNS (`_smb._tcp`), WS-Discovery or NetBIOS, and Jellyfin's UDP
@@ -115,7 +128,8 @@ The images stay (`houselights-test-samba:1`, `houselights-test-nfs:1`, `houselig
 - **Real NAS quirks.** A Synology answers MNT3ERR_ACCES to any export it does not have (#59); unfs3 answers so only for
   a path that exists without being exported (the shared folders' names alone exist at its root for that), and
   MNT3ERR_NOENT for one that does not exist (`/volume1/videos`). unfs3 answers READDIRPLUS with NFS3ERR_NOTSUPP, so
-  the app lists with READDIR, where a Synology or QNAP answers READDIRPLUS. Samba here never requires signing, which
+  the app lists with READDIR, where a Synology or QNAP answers READDIRPLUS; NFS goes over TCP alone, and unfsd sees
+  every NFS call (not the mounts) come from 127.0.0.1, through `whole-replies.py`. Samba here never requires signing, which
   a recent Synology or Windows 11 24H2 does for guests; nor SMB1 alone, NFSv4 alone, a NAS's own user mapping (the
   samples are readable by everyone, whatever user a folder presents), names in macOS's decomposed form, symbolic
   links, ACLs, or a large library.

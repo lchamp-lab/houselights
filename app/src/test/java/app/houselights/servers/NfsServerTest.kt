@@ -14,7 +14,8 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * The NFS NAS of tools/test-servers (unfs3, NFSv3, answering READDIRPLUS with NFS3ERR_NOTSUPP so the app lists with
- * READDIR): its exports as the app mounts them, from a non-privileged port and as root squashed, and what it refuses.
+ * READDIR, each reply in one fragment as a NAS sends it): its exports as the app mounts them, from a non-privileged port
+ * and as root squashed, and what it refuses.
  */
 @RunWith(RobolectricTestRunner::class)
 class NfsServerTest : NasServerTest() {
