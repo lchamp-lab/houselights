@@ -134,20 +134,24 @@ class FakeFlowNetwork : FlowNetwork {
         val root = if (source.protocol == Protocol.LOCAL) source.host else source.share.trim('/')
         val at = listOf(root, source.path, path).filter { it.isNotEmpty() }.joinToString("/")
         call("level", at)
-        refuse(source, at)
+        refusal(source, at)?.let { throw it }
         val key = if (source.protocol == Protocol.SMB) folders.keys.firstOrNull { it.equals(at, ignoreCase = true) } else at
         return folders[key] ?: throw FileNotFoundException(at)
     }
 
-    /** Throws what the NAS answers [source] reading [at] when it refuses it: NFS's mount or read, SMB's guest or account. */
-    private fun refuse(source: SourceEntity, at: String) {
+    /** What the NAS answers [source] reading [at] when it refuses it: NFS's mount or read, SMB's guest or account. */
+    private fun refusal(source: SourceEntity, at: String): Exception? {
         val nfs = source.protocol == Protocol.NFS
-        if (nfs && source.share == "volume1/photo") throw mountFailure(MountStatus.MNT3ERR_ACCES)
-        if (nfs && source.uid != null && rootOnly.any { at.startsWith(it) }) throw IOException("NFS3ERR_ACCES")
-        if (source.protocol != Protocol.SMB) return
+        val smb = source.protocol == Protocol.SMB
         val guest = source.username.isBlank()
-        if (guest && source.share.lowercase() !in guestShares) throw IOException("STATUS_ACCESS_DENIED")
-        if (!guest && (source.username != USER || source.password.value != PASSWORD)) throw IOException("STATUS_LOGON_FAILURE")
+        val signedIn = source.username == USER && source.password.value == PASSWORD
+        return when {
+            nfs && source.share == "volume1/photo" -> mountFailure(MountStatus.MNT3ERR_ACCES)
+            nfs && source.uid != null && rootOnly.any { at.startsWith(it) } -> IOException("NFS3ERR_ACCES")
+            smb && guest && source.share.lowercase() !in guestShares -> IOException("STATUS_ACCESS_DENIED")
+            smb && !guest && !signedIn -> IOException("STATUS_LOGON_FAILURE")
+            else -> null
+        }
     }
 
     override fun player(): Inet4Address = InetAddress.getByName(PLAYER) as Inet4Address
