@@ -1,0 +1,6 @@
+# Synology's shared folders, each with an NFS rule: "Hostname or IP: *", read-only, "Allow connections from
+# non-privileged ports" (insecure, as Houselights needs), root squashed. /volume1/private allows one address only, a
+# documentation address (RFC 5737) no client has: every other device is "not allowed".
+/volume1/video    (ro,insecure,root_squash)
+/volume1/media    (ro,insecure,root_squash)
+/volume1/private  192.0.2.10(ro,insecure,root_squash)
