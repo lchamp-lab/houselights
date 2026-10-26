@@ -167,16 +167,15 @@ internal class EpisodePlacing(private val dao: LibraryDao, private val clock: ()
 
     /**
      * Places show [seriesId]'s episodes waiting for TMDB to list them ([ItemEntity.absoluteNumber] without a TMDB episode),
-     * once TMDB counted its seasons again ([EpisodeOrders.saveAired]), its absolute group fetched again when it stops
-     * short of those its seasons now count ([EpisodeOrders.refetchShort]), a number they never reach holding back none
-     * of them; every episode numbered from its start when the seasons now count otherwise, as a refresh places them
-     * ([ShowIndexer]). True when one moved.
+     * once TMDB counted its seasons again ([EpisodeOrders.recount]), its absolute group fetched again when it stops short
+     * of those its seasons now count ([EpisodeOrders.refetchShort]), a number they never reach holding back none of them;
+     * every episode numbered from its start only when the seasons now count one placed before elsewhere, as a refresh
+     * places them ([ShowIndexer]), not when the last season only grew. True when one moved.
      */
     suspend fun placeWaiting(seriesId: Long, orders: EpisodeOrders, seasons: ShowIndexer.SeasonCache): Boolean {
         val series = dao.item(seriesId)?.takeIf { it.kind == ItemKind.SERIES } ?: return false
         val tv = series.tmdbId?.let { orders.tv(it) } ?: return false
-        val groupsAt = dao.episodeOrders(tv.id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }?.groupsAt
-        val recounted = orders.saveAired(tv.id, tv.seasons, groupsAt)
+        val moved = orders.recount(tv.id, tv.seasons)
         val absolute = dao.episodesOfSeries(seriesId).filter { it.absoluteNumber != null }
         val waiting = absolute.filter { it.tmdbEpisode == null }
         val counted = tv.seasons.filter { it.seasonNumber > 0 }.sumOf { it.episodeCount }
@@ -186,7 +185,7 @@ internal class EpisodePlacing(private val dao: LibraryDao, private val clock: ()
         }
         orders.forget(seriesId)
         val numbering = orders.of(series, absolute = true).value ?: return false
-        return placeAnew(series, numbering, if (recounted) absolute else waiting, seasons, reordered = false) == true
+        return placeAnew(series, numbering, if (moved) absolute else waiting, seasons, reordered = false) == true
     }
 }
 

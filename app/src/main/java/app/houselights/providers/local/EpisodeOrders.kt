@@ -78,6 +78,20 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
     suspend fun saveAired(id: Int, seasons: List<TmdbSeasonSummary>, groupsAt: Long?): Boolean =
         dao.saveAired(id, seasons, clock(), groupsAt)
 
+    /**
+     * Keeps show [id]'s TMDB [seasons], counted now, its groups' listing kept; true when an episode they counted before
+     * is now counted elsewhere from the show's start ([EpisodeOrder.Aired.absolute]), as when TMDB splits a season or
+     * counts one but the last otherwise; never when only the last grew, as an ongoing anime's does each week, nor for
+     * specials.
+     */
+    suspend fun recount(id: Int, seasons: List<TmdbSeasonSummary>): Boolean {
+        val kept = dao.episodeOrders(id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }
+        saveAired(id, seasons, kept?.groupsAt)
+        val before = OrderPlaces.aired(kept?.places)?.let { EpisodeOrder.Aired(it).absolute() } ?: return false
+        val now = EpisodeOrder.Aired(seasons.map { AiredSeason(it.seasonNumber, it.episodeCount) }).absolute()
+        return now.take(before.size) != before
+    }
+
     /** Notes show [id]'s counts asked about now, whatever TMDB answered. */
     private suspend fun askedNow(id: Int) {
         val row = dao.episodeOrders(id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }

@@ -16,8 +16,8 @@ import org.robolectric.RobolectricTestRunner
  * Anime numbered from their show's start, as a scan places them: in TMDB's seasons, by the show's absolute group when it
  * has one, else by its seasons' counts; one TMDB does not list yet waits in season 1 and moves once it does, a day later
  * at most, its row and what was watched of it kept, ten shows a pass the longest waiting first, a number TMDB never
- * counts holding back none it does; all move when TMDB counts the seasons otherwise; copies of one episode move
- * together; TMDB asked once for what it needs.
+ * counts holding back none it does; all move when TMDB counts the seasons otherwise, those waiting alone when only the
+ * last season grew; copies of one episode move together; TMDB asked once for what it needs.
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanAbsoluteTest {
@@ -243,6 +243,32 @@ class ScanAbsoluteTest {
         assertEquals(listOf(2, 4, 7, 2, 4), row(path).numbers())
         assertEquals("Episode 2.4", row(path).title)
         assertEquals("still waiting", listOf(1, 12, 12, null, null), row(stray).numbers())
+    }
+
+    /**
+     * Season 21 only growing as an episode waits, as an ongoing anime's does each week, that episode moves alone: TMDB is
+     * asked for its season only, none of those the episodes placed before stand in.
+     */
+    @Test
+    fun theLastSeasonOnlyGrowingMovesTheWaitingEpisodeAloneAskingTmdbForItsSeasonOnly() = runTest {
+        onePiece(last = TO_1070)
+        showsNas.put(anime(10))
+        showsNas.put(anime(100))
+        showsNas.put(anime(1070))
+        showsNas.put(anime(1071))
+        bench.scan()
+        assertEquals(listOf(1, 10, 10, 1, 10), row(anime(10)).numbers())
+        assertEquals(listOf(3, 10, 100, 3, 10), row(anime(100)).numbers())
+        assertEquals("waiting", listOf(1, 1071, 1071, null, null), row(anime(1071)).numbers())
+
+        tmdb.season(ONE_PIECE, 21, episodes = TO_1070 + 1)
+        bench.later(DAY_MS)
+        val pass = bench.pass()
+        assertEquals(listOf(21, 180, 1071, 21, 180), row(anime(1071)).numbers())
+        assertEquals("Episode 21.180", row(anime(1071)).title)
+        assertEquals(listOf("tv/$ONE_PIECE/season/21"), pass.requests.filter { it.startsWith("tv/$ONE_PIECE/season/") })
+        assertEquals(listOf(1, 10, 10, 1, 10), row(anime(10)).numbers())
+        assertEquals(listOf(21, 179, 1070, 21, 179), row(anime(1070)).numbers())
     }
 
     /** TMDB splitting season 21 as an episode waits, the episodes placed by its counts move with the one it lists. */
