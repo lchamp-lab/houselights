@@ -881,4 +881,38 @@
     <string name="update_incompatible_message">Android indica che questa versione non è adatta a questo lettore.</string>
     <string name="update_install_failed_title">Installazione non riuscita</string>
     <string name="update_install_failed_message">Android non ha installato l’aggiornamento. Riprovare; il registro dice di più.</string>
+    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <plurals name="held_titles">
+        <item quantity="one">%d titolo non trovato</item>
+        <item quantity="many">%d titoli non trovati</item>
+        <item quantity="other">%d titoli non trovati</item>
+    </plurals>
+    <plurals name="held_home">
+        <item quantity="one">%1$d titolo di «%2$s» non trovato sul NAS</item>
+        <item quantity="many">%1$d titoli di «%2$s» non trovati sul NAS</item>
+        <item quantity="other">%1$d titoli di «%2$s» non trovati sul NAS</item>
+    </plurals>
+    <string name="held_see">Vedi</string>
+    <string name="held_text">Houselights non trova più questi titoli in «%s», anche se la cartella risponde. Se sono stati eliminati o spostati, rimuoverli. Se un disco del NAS è scollegato, tenerli e ricollegare il disco: torneranno come prima.</string>
+    <string name="held_text_one">Houselights non trova più questo titolo in «%s», anche se la cartella risponde. Se è stato eliminato o spostato, rimuoverlo. Se un disco del NAS è scollegato, tenerlo e ricollegare il disco: tornerà come prima.</string>
+    <string name="held_keep">Tieni</string>
+    <string name="held_keep_desc">Restano in attesa dei loro file</string>
+    <string name="held_keep_desc_one">Resta in attesa del suo file</string>
+    <string name="held_remove_desc">Nulla sparisce dal NAS, né ciò che si è visto</string>
+    <plurals name="held_more">
+        <item quantity="one">E %d altro</item>
+        <item quantity="many">E altri %d</item>
+        <item quantity="other">E altri %d</item>
+    </plurals>
+    <plurals name="held_count">
+        <item quantity="one">%d non trovato</item>
+        <item quantity="many">%d non trovati</item>
+        <item quantity="other">%d non trovati</item>
+    </plurals>
+    <string name="held_row_desc">Rimuoverli, o tenerli in attesa dei loro file</string>
+    <string name="held_row_desc_one">Rimuoverlo, o tenerlo in attesa del suo file</string>
+    <string name="held_since">Non trovato sul NAS da %s</string>
+    <string name="held_gone_fix">Ricollegare il disco del NAS o rimuovere questo titolo.</string>
+    <string name="held_remove_title">Rimuovi dalla libreria</string>
+    <string name="card_held">non trovato</string>
 </resources>

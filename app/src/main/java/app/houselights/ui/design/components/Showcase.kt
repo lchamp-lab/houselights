@@ -47,8 +47,9 @@ import app.houselights.ui.design.tintedGlass
  * A library folder as a showcase (DESIGN.md, Secondary screens), [HlSize.showcase] wide: its latest [posters], four
  * across and full height, melting into glass tinted by their own light; over their foot its [name] in `subject`
  * beside its printed [mark] (a protocol), then its [facts], the first in white, and the [state] it was left in by
- * its white dot ("Analysé à l'instant"); [status] takes their line (a scan running, a failure). Focus frames it as
- * a picture, its words keeping their ink. One layer, its clip; the melt and the glass are read while drawing.
+ * its light ([stateLight]: the white dot, "Analysé à l'instant"; the ring, "12 introuvables"); [status] takes their line
+ * (a scan running, a failure). Focus frames it as a picture, its words keeping their ink. One layer, its clip; the melt
+ * and the glass are read while drawing.
  */
 @Composable
 fun Showcase(
@@ -61,6 +62,7 @@ fun Showcase(
     state: String? = null,
     status: (@Composable () -> Unit)? = null,
     onFocused: () -> Unit = {},
+    stateLight: StatusState = StatusState.Done,
 ) {
     val c = Hl.colors
     // The glass takes the light of its first poster, sampled once, at once: plain glass until then.
@@ -105,7 +107,7 @@ fun Showcase(
                     if (status != null) {
                         status()
                     } else {
-                        ShowcaseFacts(facts, state)
+                        ShowcaseFacts(facts, state, stateLight)
                     }
                 }
             }
@@ -113,16 +115,16 @@ fun Showcase(
     }
 }
 
-/** Its facts, the first in white, dropping whole from the end, then its state by its white dot. */
+/** Its facts, the first in white, dropping whole from the end, then its state by its [light]. */
 @Composable
-private fun ShowcaseFacts(facts: List<String?>, state: String?) {
+private fun ShowcaseFacts(facts: List<String?>, state: String?, light: StatusState) {
     val c = Hl.colors
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         FactRow(facts, Modifier.weight(1f), lead = c.content)
         if (state != null) {
             Spacer(Modifier.width(HlSpace.fact))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                StatusLight(StatusState.Done)
+                StatusLight(light)
                 Spacer(Modifier.width(HlSpace.xxs))
                 Text(state, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }

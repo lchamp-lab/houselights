@@ -1,6 +1,5 @@
 package app.houselights.providers.local
 
-import app.houselights.providers.local.MissingFiles.PassTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -8,7 +7,8 @@ import org.junit.Test
 
 /**
  * What a listing does to the rows of the files it did not list: out of sight under what it could not read, the later
- * parts of a film in several files, each part's row matched on its own or not; a few gone at once, many held a day.
+ * parts of a film in several files, each part's row matched on its own or not; gone on the pass that misses them, a
+ * sudden drop held, whatever the clock, until the files are back or the user answers.
  */
 class MissingFilesTest {
     private fun film(id: Long, path: String) = KnownFile(id = id, filePath = path)
@@ -18,7 +18,7 @@ class MissingFilesTest {
     private val heat = film(3, "Private films/Heat (1995).mkv")
 
     private fun settle(vararg unreadable: String) = MissingFiles.settle(
-        SourceKind.MOVIES, listOf(dune, arrival, heat), Listing(emptyList(), emptyList(), unreadable.toList()), PassTime(NOW),
+        SourceKind.MOVIES, listOf(dune, arrival, heat), Listing(emptyList(), emptyList(), unreadable.toList()),
     )
 
     /** A file the NAS could not be asked about (gone between listing and query) is out of sight, not missing. */
@@ -33,7 +33,7 @@ class MissingFilesTest {
     }
 
     private fun stacked(rows: List<KnownFile>, vararg paths: String) =
-        MissingFiles.settle(SourceKind.MOVIES, rows, Stacks.of(SourceKind.MOVIES, paths.map { RemoteFile(it, 1_000) }), PassTime(NOW))
+        MissingFiles.settle(SourceKind.MOVIES, rows, Stacks.of(SourceKind.MOVIES, paths.map { RemoteFile(it, 1_000) }))
 
     /** "Kill Bill CD1" and "CD2" read as one film, but each matched its own: two films, each keeping its row. */
     @Test
@@ -63,132 +63,139 @@ class MissingFilesTest {
         }
     }
 
-    /** First part out of sight (a pool disk offline), second alone in the folder: not a rename; the film waits. */
+    /**
+     * First part gone, second alone in the folder: not a rename. The film is missing like any title, so it goes when
+     * few are, its later part then a title of its own, and is held with the others in a sudden drop, its parts waiting.
+     */
     @Test
-    fun aFilmWhoseFirstPartIsGoneWaitsForIt() {
+    fun aFilmWhoseFirstPartIsGoneIsMissingLikeAnyTitle() {
         val dir = "Heat (1995)"
-        val heat = film(1, "$dir/Heat (1995) CD1.avi").copy(parts = listOf("$dir/Heat (1995) CD2.avi"))
-        val outcome = stacked(listOf(heat), "$dir/Heat (1995) CD2.avi")
-        assertEquals(emptyList<Pair<Long, RemoteFile>>(), outcome.relinked)
-        assertEquals(listOf(1L), outcome.held)
-        assertEquals(emptyList<Pair<Long, List<String>>>(), outcome.parts)
+        val heat = film(100, "$dir/Heat (1995) CD1.avi").copy(parts = listOf("$dir/Heat (1995) CD2.avi"))
+        val alone = stacked(listOf(heat), "$dir/Heat (1995) CD2.avi")
+        assertEquals(emptyList<Pair<Long, RemoteFile>>(), alone.relinked)
+        assertEquals(listOf(heat.id), alone.removed)
+        assertEquals(emptyList<Pair<Long, List<String>>>(), alone.parts)
+
+        val others = films(11)
+        val drop = settled(others + heat, "$dir/Heat (1995) CD2.avi")
+        assertEquals("held with the others", others.map { it.id } + heat.id, drop.held)
+        val files = Stacks.of(SourceKind.MOVIES, listOf(RemoteFile("$dir/Heat (1995) CD2.avi", 1_000))).titles
+        assertEquals(setOf("$dir/Heat (1995) CD2.avi"), MissingFiles.waitingParts(listOf(heat), files, drop.removed))
 
         // Its first part renamed is still the film.
         val renamed = stacked(listOf(heat), "$dir/Heat (1995).avi")
-        assertEquals(listOf(1L to RemoteFile("$dir/Heat (1995).avi", 1_000)), renamed.relinked)
-    }
-
-    /** A film held a day ago by the clock, as many files went with it. */
-    private val gone = film(4, "Gone (2001).mkv").copy(missingSince = NOW - MissingFiles.HOLD_MS)
-
-    /** What a pass at [time] decides for [gone], listed with nothing else. */
-    private fun missing(time: PassTime) =
-        MissingFiles.settle(SourceKind.MOVIES, listOf(gone), Stacks.of(SourceKind.MOVIES, emptyList()), time)
-
-    @Test
-    fun aFileHeldADayGoesOnceThisProcessSawItMissingLongEnough() {
-        assertEquals(listOf(gone.id), missing(PassTime(NOW) { _, _ -> true }).removed)
-        val unseen = missing(PassTime(NOW) { _, _ -> false })
-        assertEquals(emptyList<Long>(), unseen.removed)
-        assertEquals(listOf(gone.id), unseen.waiting)
-    }
-
-    /** The clock set back since the last pass: the day is over by the clock, yet nothing goes in that pass. */
-    @Test
-    fun aPassEarlierThanTheLastDeletesNothing() {
-        val outcome = missing(PassTime(NOW, lastScanAt = NOW + 1))
-        assertEquals(emptyList<Long>(), outcome.removed)
-        assertEquals(listOf(gone.id), outcome.waiting)
-    }
-
-    /** Held at a time the clock, set back since, has not reached: held again from now rather than until then. */
-    @Test
-    fun aFileMissingSinceATimeToComeWaitsFromNow() {
-        val outcome = missing(PassTime(NOW - MissingFiles.HOLD_MS - 1))
-        assertEquals(listOf(gone.id), outcome.held)
-        assertEquals(emptyList<Long>(), outcome.removed + outcome.waiting)
-    }
-
-    /** Timed on the clock no setting moves, from the first pass that saw the file missing; forgotten once it is back. */
-    @Test
-    fun aFileIsSeenMissingLongEnoughAnHourAfterTheFirstPassThatSawIt() {
-        var elapsed = 0L
-        val sightings = MissingSightings { elapsed }
-        val held = MissingFiles.Outcome(relinked = emptyList(), back = emptyList(), held = listOf(gone.id), removed = emptyList())
-        sightings.note(listOf(gone), held)
-        elapsed = MissingFiles.SEEN_AGAIN_MS - 1
-        sightings.note(listOf(gone), held.copy(held = emptyList(), waiting = listOf(gone.id)))
-        assertFalse(sightings.seenLong(gone.id, MissingFiles.SEEN_AGAIN_MS))
-        elapsed += 1
-        assertTrue(sightings.seenLong(gone.id, MissingFiles.SEEN_AGAIN_MS))
-
-        sightings.note(listOf(gone), held.copy(held = emptyList(), back = listOf(gone.id)))
-        assertFalse("a new absence starts over", sightings.seenLong(gone.id, MissingFiles.SEEN_AGAIN_MS))
-    }
-
-    /**
-     * A file this process held waits its whole hold on the clock no setting moves, its date being of the same clock;
-     * one held before, maybe by a clock since set right, waits an hour, so a restart does not hold it ever again.
-     */
-    @Test
-    fun aFileHeldByThisProcessWaitsItsWholeHoldOnTheClockNoSettingMoves() {
-        var elapsed = 0L
-        val sightings = MissingSightings { elapsed }
-        val before = film(5, "Before (1999).mkv").copy(missingSince = NOW - MissingFiles.HOLD_MS)
-        val pass = MissingFiles.Outcome(relinked = emptyList(), back = emptyList(), held = listOf(gone.id), removed = emptyList())
-        sightings.note(listOf(gone, before), pass.copy(waiting = listOf(before.id)))
-        elapsed = MissingFiles.SEEN_AGAIN_MS
-        assertTrue("held before this process", sightings.seenLong(before.id, MissingFiles.HOLD_MS))
-        assertFalse("held by this process", sightings.seenLong(gone.id, MissingFiles.HOLD_MS))
-        elapsed = MissingFiles.HOLD_MS
-        assertTrue(sightings.seenLong(gone.id, MissingFiles.HOLD_MS))
+        assertEquals(listOf(heat.id to RemoteFile("$dir/Heat (1995).avi", 1_000)), renamed.relinked)
     }
 
     private fun films(count: Int) = (1L..count).map { film(it, "Film $it (2020).mkv") }
 
-    private fun settled(rows: List<KnownFile>, time: PassTime = PassTime(NOW), vararg paths: String) =
-        MissingFiles.settle(SourceKind.MOVIES, rows, Stacks.of(SourceKind.MOVIES, paths.map { RemoteFile(it, 1_000) }), time)
+    private fun settled(rows: List<KnownFile>, vararg paths: String) =
+        MissingFiles.settle(SourceKind.MOVIES, rows, Stacks.of(SourceKind.MOVIES, paths.map { RemoteFile(it, 1_000) }))
 
-    /** A few gone go on the pass that misses them, whatever the clock; more, as when a disk of the pool is offline, wait a day. */
+    /** [count] films of a folder of [titles], the rest listed. */
+    private fun gone(count: Int, titles: Int): MissingFiles.Outcome {
+        val rows = films(titles)
+        return settled(rows, *rows.drop(count).map { it.filePath }.toTypedArray())
+    }
+
+    /** More than a quarter of the folder's titles, and ten at least: a sudden drop, held whole, nothing removed. */
     @Test
-    fun manyFilesGoneAtOnceAreHeld() {
-        val few = films(20)
-        assertEquals(few.map { it.id }, settled(few, PassTime(NOW) { _, _ -> false }).removed)
-        val many = films(21)
-        val outcome = settled(many)
-        assertEquals(many.map { it.id }, outcome.held)
+    fun aSuddenDropHoldsItsTitlesAndRemovesNothing() {
+        val drop = gone(11, titles = 40)
+        assertEquals((1L..11).toList(), drop.held)
+        assertEquals(emptyList<Long>(), drop.removed)
+        assertTrue("screens show them held", drop.changed)
+        assertEquals("ten of twenty", (1L..10).toList(), gone(10, titles = 20).held)
+        assertEquals("all of them, the folder still listing others", (1L..12).toList(), gone(12, titles = 22).held)
+    }
+
+    /** A quarter exactly, or fewer than ten however many of the folder they are: gone on the pass that misses them. */
+    @Test
+    fun belowADropMissingTitlesGoAtOnce() {
+        val quarter = gone(10, titles = 40)
+        assertEquals((1L..10).toList(), quarter.removed)
+        assertEquals(emptyList<Long>(), quarter.held)
+        val few = gone(9, titles = 12)
+        assertEquals((1L..9).toList(), few.removed)
+        assertEquals(emptyList<Long>(), few.held)
+    }
+
+    @Test
+    fun theDropsEdges() {
+        assertTrue(MissingFiles.isDrop(missing = 10, titles = 39))
+        assertFalse("a quarter is no drop", MissingFiles.isDrop(missing = 10, titles = 40))
+        assertFalse("nine are never one", MissingFiles.isDrop(missing = 9, titles = 9))
+        assertTrue(MissingFiles.isDrop(missing = 1_000, titles = 3_999))
+    }
+
+    /** Held by a drop, still missing: they wait, however few are left and whatever time has passed; nothing new held. */
+    @Test
+    fun titlesHeldWaitForTheirFilesOrTheAnswer() {
+        val held = films(3).map { it.copy(missingSince = NOW - YEAR) }
+        val rows = held + films(20).drop(3)
+        val outcome = settled(rows, *rows.drop(3).map { it.filePath }.toTypedArray())
+        assertEquals(held.map { it.id }, outcome.waiting)
+        assertEquals(emptyList<Long>(), outcome.removed + outcome.held)
+        assertFalse("nothing changed for screens", outcome.changed)
+    }
+
+    /** A title held whose file is listed again is back, as it was; screens no longer mark it. */
+    @Test
+    fun aTitleHeldWhoseFileIsBackIsAsItWas() {
+        val held = film(1, "Film 1 (2020).mkv").copy(missingSince = NOW)
+        val outcome = settled(listOf(held), held.filePath)
+        assertEquals(listOf(held.id), outcome.back)
+        assertTrue(outcome.changed)
+    }
+
+    /** Ten more missing while others are held: a new drop, judged on what is newly missing, the folder's titles all counted. */
+    @Test
+    fun aNewDropIsJudgedOnWhatIsNewlyMissing() {
+        val held = films(12).map { it.copy(missingSince = NOW) }
+        val more = (13L..30).map { film(it, "Film $it (2020).mkv") }
+        val listed = (31L..40).map { film(it, "Film $it (2020).mkv") }
+        val outcome = settled(held + more + listed, *listed.map { it.filePath }.toTypedArray())
+        assertEquals(held.map { it.id }, outcome.waiting)
+        assertEquals(more.map { it.id }, outcome.held)
+        val few = settled(held + more.take(9) + listed, *listed.map { it.filePath }.toTypedArray())
+        assertEquals(more.take(9).map { it.id }, few.removed)
+    }
+
+    /**
+     * The share is of all the folder's titles, those held already included: thirty held, fifteen newly missing and forty
+     * listed are no drop (60 is not more than 85), though they would be of the titles listed, or of those not held.
+     */
+    @Test
+    fun theShareIsOfAllTheFoldersTitles() {
+        val held = films(30).map { it.copy(missingSince = NOW) }
+        val fresh = (31L..45).map { film(it, "Film $it (2020).mkv") }
+        val listed = (46L..85).map { film(it, "Film $it (2020).mkv") }
+        val outcome = settled(held + fresh + listed, *listed.map { it.filePath }.toTypedArray())
+        assertEquals(fresh.map { it.id }, outcome.removed)
+        assertEquals(emptyList<Long>(), outcome.held)
+        assertEquals(held.map { it.id }, outcome.waiting)
+    }
+
+    /**
+     * Files now later parts of a film are no titles of the folder: ten missing of thirty titles, ten more rows parts now,
+     * are a drop (40 is more than 30), which they would not be of forty rows.
+     */
+    @Test
+    fun laterPartsAreNoTitlesOfTheFolder() {
+        val firsts = (1L..10).map { film(it, "Heat $it (1995)/Heat (1995) CD1.avi") }
+        val seconds = (11L..20).map { film(it, "Heat ${it - 10} (1995)/Heat (1995) CD2.avi") }
+        val listed = (21L..30).map { film(it, "Film $it (2020).mkv") }
+        val missing = (31L..40).map { film(it, "Film $it (2020).mkv") }
+        val paths = (firsts + seconds + listed).map { it.filePath }
+        val outcome = settled(firsts + seconds + listed + missing, *paths.toTypedArray())
+        assertEquals("now parts of their films", seconds.map { it.id }, outcome.absorbed)
+        assertEquals(missing.map { it.id }, outcome.held)
         assertEquals(emptyList<Long>(), outcome.removed)
     }
 
-    /** Held as many went, then missing alone: it waits its day all the same, a hold being decided when first missed. */
-    @Test
-    fun aFileHeldBecauseManyWentWaitsItsDayAlone() {
-        val held = gone.copy(missingSince = NOW - HOUR)
-        val outcome = settled(listOf(held))
-        assertEquals(emptyList<Long>(), outcome.removed + outcome.held)
-        assertEquals(listOf(held.id), outcome.waiting)
-    }
-
-    /** Its first part missing, a later part listed: the film waits a day, not counted among many, then goes. */
-    @Test
-    fun aFilmWhoseLaterPartIsListedWaitsADayForItsFirst() {
-        val dir = "Heat (1995)"
-        val heat = film(100, "$dir/Heat (1995) CD1.avi").copy(parts = listOf("$dir/Heat (1995) CD2.avi"))
-        val others = films(20)
-        val first = settled(others + heat, PassTime(NOW), "$dir/Heat (1995) CD2.avi")
-        assertEquals(listOf(heat.id), first.held)
-        assertEquals("a few besides", others.map { it.id }, first.removed)
-
-        val waiting = settled(listOf(heat.copy(missingSince = NOW - MissingFiles.HOLD_MS + 1)), PassTime(NOW), "$dir/Heat (1995) CD2.avi")
-        assertEquals(emptyList<Long>(), waiting.removed)
-        assertEquals(listOf(heat.id), waiting.waiting)
-        val dayLater = settled(listOf(heat.copy(missingSince = NOW - MissingFiles.HOLD_MS)), PassTime(NOW), "$dir/Heat (1995) CD2.avi")
-        assertEquals(listOf(heat.id), dayLater.removed)
-    }
-
     private companion object {
-        const val HOUR = 60 * 60_000L
         const val NOW = 1_000_000L
+        const val YEAR = 365 * 24 * 60 * 60_000L
         const val VOL_1 = 24
         const val VOL_2 = 393
     }

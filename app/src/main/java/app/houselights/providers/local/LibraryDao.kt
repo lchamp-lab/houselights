@@ -42,6 +42,23 @@ private const val TRACK_KEYS =
     "SELECT CASE WHEN kind = 'MOVIE' AND tmdbId IS NOT NULL THEN 'local:film:' || tmdbId ELSE 'local:' || id END " +
         "FROM items WHERE kind IN ('MOVIE', 'SERIES')"
 
+/**
+ * A film's or an episode's row held while its file is missing ([MissingFiles.isDrop]): its folder, what it is (an episode by
+ * its show, season and number), its file, and since when.
+ */
+data class HeldRow(
+    val id: Long,
+    val sourceId: Long,
+    val kind: ItemKind,
+    val title: String,
+    val year: Int?,
+    val filePath: String?,
+    val missingSince: Long,
+    val showTitle: String?,
+    val seasonNumber: Int?,
+    val episodeNumber: Int?,
+)
+
 /** Counts shown on a source's settings showcase: titles (films and shows), Ultra HD files, shows and their episodes. */
 data class FolderCounts(val sourceId: Long, val titles: Int, val ultraHd: Int, val shows: Int = 0, val episodes: Int = 0)
 
@@ -181,9 +198,10 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("SELECT $WALL_ROW FROM items WHERE id IN (:ids)")
     suspend fun wallCards(ids: List<Long>): List<ItemEntity>
 
-    /** Unwatched episodes and seasons per show, for a whole page in one query. */
+    /** Unwatched episodes, seasons, episodes and those held per show, for a whole page in one query. */
     @Query(
-        "SELECT seriesId, SUM(played = 0) AS unplayed, COUNT(DISTINCT parentId) AS seasons FROM items " +
+        "SELECT seriesId, SUM(played = 0) AS unplayed, COUNT(DISTINCT parentId) AS seasons, COUNT(*) AS episodes, " +
+            "SUM(missingSince IS NOT NULL) AS held, MIN(missingSince) AS heldSince FROM items " +
             "WHERE kind = 'EPISODE' AND seriesId IN (:seriesIds) GROUP BY seriesId"
     )
     suspend fun seriesCounts(seriesIds: List<Long>): List<SeriesCounts>
@@ -378,6 +396,59 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Transaction
     suspend fun setMissingSince(ids: List<Long>, since: Long?) =
         ids.chunked(SQL_IN_LIMIT).forEach { setMissingSinceBatch(it, since) }
+
+    /** The films and episodes held while their files are missing ([MissingFiles.isDrop]), by folder and title. */
+    @Query(
+        "SELECT i.id, i.sourceId, i.kind, i.title, i.year, i.filePath, i.missingSince, s.title AS showTitle, i.seasonNumber, " +
+            "i.episodeNumber FROM items i LEFT JOIN items s ON s.id = i.seriesId " +
+            "WHERE i.missingSince IS NOT NULL AND i.filePath IS NOT NULL " +
+            "ORDER BY i.sourceId, COALESCE(s.sortTitle, i.sortTitle), i.seasonNumber, i.episodeNumber, i.id"
+    )
+    fun observeHeld(): Flow<List<HeldRow>>
+
+    /** The rows held in folder [sourceId] ([MissingFiles.isDrop]). */
+    @Query("SELECT id FROM items WHERE sourceId = :sourceId AND missingSince IS NOT NULL")
+    suspend fun heldIn(sourceId: Long): List<Long>
+
+    @Query("SELECT id FROM items WHERE missingSince IS NOT NULL AND id IN (:ids)")
+    suspend fun heldAmongBatch(ids: List<Long>): List<Long>
+
+    /** The rows held of title [id] ([MissingFiles.isDrop]): a film's copies, a show's episodes, or the episode itself. */
+    @Query("SELECT id FROM items WHERE missingSince IS NOT NULL AND ($COPIES OR seriesId = :id)")
+    suspend fun heldOf(id: Long): List<Long>
+
+    /** The rows title [id] stands on: a film's copies ([COPIES]), else the row itself. */
+    @Query("SELECT id FROM items WHERE $COPIES")
+    suspend fun titleRows(id: Long): List<Long>
+
+    /** The row among [ids] ([titleRows]) that holds their title, a film's copies grouped; null once none is left. */
+    @Query("SELECT MIN(id) FROM items WHERE versionOf IS NULL AND id IN (:ids)")
+    suspend fun titleAmong(ids: List<Long>): Long?
+
+    /**
+     * The films among main rows [ids] in several copies, one of them at least held ([MissingFiles.isDrop]): held as the
+     * copy Lire plays is ([LocalMapper]).
+     */
+    @Query(
+        "SELECT DISTINCT c.versionOf FROM items c JOIN items t ON t.id = c.versionOf " +
+            "WHERE c.versionOf IN (:ids) AND (c.missingSince IS NOT NULL OR t.missingSince IS NOT NULL)"
+    )
+    suspend fun heldAmongCopies(ids: List<Long>): List<Long>
+
+    /**
+     * Removes the rows among [ids] still held while their files are missing ([MissingFiles.isDrop]), as a pass removes
+     * files gone: what the user did is kept by title ([keepStateOf]); seasons and shows left empty go, kept too unless
+     * [handedOver] ([deleteEmptyShows]), and sagas left without films. Rows whose files came back stay. How many went.
+     */
+    @Transaction
+    suspend fun removeHeld(ids: Collection<Long>, handedOver: Set<Long> = emptySet()): Int {
+        val held = ids.distinct().chunked(SQL_IN_LIMIT).flatMap { heldAmongBatch(it) }
+        if (held.isEmpty()) return 0
+        settleMissing(emptyList(), emptyList(), emptyList(), removed = held, parts = emptyList(), now = 0)
+        deleteEmptyShows(handedOver)
+        deleteEmptyCollections()
+        return held.size
+    }
 
     /**
      * Applies [MissingFiles] decisions in one transaction, as a library rename touches thousands of rows. What the user

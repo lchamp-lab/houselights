@@ -184,3 +184,11 @@ fun timeLeft(item: MediaItem): String? {
 }
 
 private const val MINUTE_MS = 60_000L
+
+/**
+ * "Introuvable sur le NAS depuis 14 h": how long the file of a title held ([MediaItem.missingSince]) has been missing,
+ * rounded down to the hour, in minutes under one ([formatHours]).
+ */
+@Composable
+fun heldSince(since: Long): String =
+    stringResource(R.string.held_since, formatHours((System.currentTimeMillis() - since).coerceAtLeast(MINUTE_MS)))

@@ -830,4 +830,30 @@
     <string name="update_incompatible_message">Android 表示此版本不適用於此播放器。</string>
     <string name="update_install_failed_title">安裝失敗</string>
     <string name="update_install_failed_message">Android 沒有安裝更新。請重試；記錄中有更多資訊。</string>
+    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <plurals name="held_titles">
+        <item quantity="other">找不到 %d 部作品</item>
+    </plurals>
+    <plurals name="held_home">
+        <item quantity="other">在 NAS 上找不到「%2$s」中的 %1$d 部作品</item>
+    </plurals>
+    <string name="held_see">查看</string>
+    <string name="held_text">資料夾「%s」仍有回應，但 Houselights 已找不到這些作品。如果您刪除或移動了它們，請將其移除。如果 NAS 的某顆硬碟已中斷連線，請保留它們並重新接上硬碟：它們會原樣回來。</string>
+    <string name="held_text_one">資料夾「%s」仍有回應，但 Houselights 已找不到此作品。如果您刪除或移動了它，請將其移除。如果 NAS 的某顆硬碟已中斷連線，請保留它並重新接上硬碟：它會原樣回來。</string>
+    <string name="held_keep">保留</string>
+    <string name="held_keep_desc">保留它們，等待檔案回來</string>
+    <string name="held_keep_desc_one">保留它，等待檔案回來</string>
+    <string name="held_remove_desc">不刪除 NAS 上的內容，觀看記錄也保留</string>
+    <plurals name="held_more">
+        <item quantity="other">另有 %d 個項目</item>
+    </plurals>
+    <plurals name="held_count">
+        <item quantity="other">%d 部找不到</item>
+    </plurals>
+    <string name="held_row_desc">移除它們，或保留到檔案回來</string>
+    <string name="held_row_desc_one">移除它，或保留到檔案回來</string>
+    <string name="held_since">在 NAS 上找不到，已有 %s</string>
+    <string name="held_gone_fix">請重新接上 NAS 的硬碟，或移除此作品。</string>
+    <string name="held_remove_title">從媒體庫移除</string>
+    <string name="card_held">找不到</string>
 </resources>
