@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.android.application)
@@ -222,13 +223,18 @@ if (keystoreProps.isEmpty && !debugSignedRelease) {
 }
 
 // The servers' tests (app.houselights.servers, tools/test-servers) run with HOUSELIGHTS_TEST_SERVERS=1 alone, against
-// servers outside the build. That variable and HOUSELIGHTS_TEST_SERVERS_HOST are inputs of the tests, so setting one
-// runs them again, rather than taking the run without it, all skipped, as up to date; and with the servers up, the
-// tests run each time, never up to date nor from a cache: what the servers serve is no input of theirs.
+// servers outside the build. That variable, HOUSELIGHTS_TEST_SERVERS_HOST and HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST
+// are inputs of the tests, so setting one runs them again, rather than taking the run without it, all skipped, as up
+// to date; and with the servers up, the tests run each time, never up to date nor from a cache: what the servers serve
+// is no input of theirs.
 tasks.withType<Test>().configureEach {
     val servers = providers.environmentVariable("HOUSELIGHTS_TEST_SERVERS").orElse("")
     inputs.property("testServers", servers)
     inputs.property("testServersHost", providers.environmentVariable("HOUSELIGHTS_TEST_SERVERS_HOST").orElse(""))
+    inputs.property(
+        "testServersFragmentsHost",
+        providers.environmentVariable("HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST").orElse(""),
+    )
     outputs.upToDateWhen { servers.get() != "1" }
     outputs.doNotCacheIf("The servers' tests read servers outside the build") { servers.get() == "1" }
 }
@@ -253,6 +259,33 @@ detekt {
     buildUponDefaultConfig = true
     config.setFrom(rootProject.file("config/detekt.yml"))
     baseline = file("detekt-baseline.xml")
+}
+
+// nfs-client 1.1.0 cannot read an NFS reply sent in several record fragments, as NFS servers on libtirpc (unfs3 among
+// them) send every reply above 64 KB (issue #88). Its RPCRecordDecoder is replaced by the app's patched copy, in the
+// same package (src/main/java/com/emc/ecs/nfsclient/network), which every connection's pipeline then builds: the app
+// takes nfs-client's jar as written here, without its own, so that the app's is the only class of that name, the one
+// dexed (R8 and D8 refuse a class defined twice) and the one tested; nfs-client's dependencies are the app's (below).
+// A jar without RPCRecordDecoder fails the build, for whoever updates nfs-client to check whether the patch is needed.
+val nfsClient: Configuration by configurations.creating {
+    isCanBeConsumed = false
+    isTransitive = false
+}
+val nfsClientWithoutDecoder = tasks.register<Jar>("nfsClientWithoutDecoder") {
+    val decoder = "com/emc/ecs/nfsclient/network/RPCRecordDecoder.class"
+    val upstream = nfsClient
+    // Its classes and files but that decoder, and its manifest, which the task writes anew.
+    from(provider { zipTree(upstream.singleFile) }) { exclude(decoder, "META-INF/MANIFEST.MF") }
+    archiveFileName.set("nfs-client-${libs.versions.nfs.client.get()}-without-RPCRecordDecoder.jar")
+    destinationDirectory.set(layout.buildDirectory.dir("nfs-client"))
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+    doFirst {
+        val jar = upstream.singleFile
+        check(ZipFile(jar).use { it.getEntry(decoder) != null }) {
+            "${jar.name} has no $decoder: does the app still need its own (issue #88)?"
+        }
+    }
 }
 
 // detekt 1.23 is built against Kotlin 2.0; keep its own compiler instead of the project's.
@@ -297,13 +330,19 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
     implementation(libs.smbj)
-    implementation(libs.nfs.client)
+    // nfs-client's jar without its RPCRecordDecoder (above), then what nfs-client runs on, which that jar alone does not
+    // bring: Netty 3 at nfs-client's version, which the app's RPCRecordDecoder is built on too, then Commons Lang and
+    // SLF4J at run time alone, as nfs-client's own metadata gives them, so that no code of the app comes to use them.
+    nfsClient(libs.nfs.client)
+    implementation(files(nfsClientWithoutDecoder))
+    implementation(libs.netty)
+    runtimeOnly(libs.commons.lang3) {
+        because("CVE-2025-48924: above nfs-client's 3.12.0")
+    }
+    runtimeOnly(libs.slf4j.api)
     constraints {
         implementation(libs.bouncycastle.prov) {
             because("CVE-2024-29857, CVE-2024-30171, CVE-2024-30172, CVE-2024-34447, CVE-2025-8916; pulled in by smbj")
-        }
-        implementation(libs.commons.lang3) {
-            because("CVE-2025-48924; pulled in by nfs-client")
         }
     }
 

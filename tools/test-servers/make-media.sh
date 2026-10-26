@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Writes the test servers' sample files to tools/test-servers/media (git-ignored), laid out as a Synology's /volume1:
 # small but real videos (4 s, 1920×1080, HEVC or H.264, two audio tracks with their languages and a subtitle track,
-# in MKV and MP4; an AVI in two parts), named as people name them, an NFO and artwork for one film, personal videos
-# and photos, and the folders a NAS hides. Encoded with the ffmpeg of Jellyfin's image (compose.yaml), in Docker,
+# in MKV and MP4; an AVI in two parts), named as people name them, an NFO and artwork for one film, an NFO over 64 KB
+# for another, personal videos and photos, and the folders a NAS hides. Encoded with the ffmpeg of Jellyfin's image (compose.yaml), in Docker,
 # as the user running the script. Idempotent: a file already there is kept, so a second run writes nothing;
 # rm -rf tools/test-servers/media starts again. The servers' tests (app/src/test/…/servers) expect this layout.
 # Usage: tools/test-servers/make-media.sh
@@ -148,6 +148,31 @@ printf 'SYNOINDEX\n' | write "video/@eaDir/SYNOINDEX_MEDIA_INFO"
 
 # Share « media », export /volume1/media: a second shared folder (issue #79), and personal videos.
 put film-hevc.mkv "media/Films/Interstellar (2014)/Interstellar (2014).mkv"
+# An NFO over 64 KB, as tinyMediaManager writes one for a large cast with its photos, which unfsd sends in fragments
+# (README, NFS replies in fragments). Its 500 actors are numbered, « Acteur 001 » to « Acteur 500 », and name no image
+# nor TMDB person, so that nothing is ever fetched for them.
+{
+    cat <<'NFO'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<movie>
+    <title>Interstellar</title>
+    <originaltitle>Interstellar</originaltitle>
+    <year>2014</year>
+    <plot>Fichier d'essai de Houselights : un NFO de plus de 64 Ko, que unfsd envoie en plusieurs fragments.</plot>
+    <runtime>169</runtime>
+    <genre>Science-Fiction</genre>
+    <genre>Drame</genre>
+    <director>Christopher Nolan</director>
+    <uniqueid type="tmdb" default="true">157336</uniqueid>
+    <uniqueid type="imdb">tt0816692</uniqueid>
+NFO
+    for ((actor = 1; actor <= 500; actor++)); do
+        printf '    <actor>\n        <name>Acteur %03d</name>\n        <role>Rôle %03d, à bord de l'\''Endurance</role>\n' \
+            "$actor" "$actor"
+        printf '        <order>%d</order>\n        <type>Actor</type>\n    </actor>\n' "$((actor - 1))"
+    done
+    echo '</movie>'
+} | write "media/Films/Interstellar (2014)/Interstellar (2014).nfo"
 put phone-h264.mp4 "media/Vidéos perso/2019-07 Vacances/VID_20190714_183522.mp4" "2019-07-14 18:35:22"
 put phone-h264.mp4 "media/Vidéos perso/2019-07 Vacances/VID_20190714_190104.mp4" "2019-07-14 19:01:04"
 put phone-h264.mp4 "media/Vidéos perso/2021-12 Noël/VID_20211224_201530.mp4" "2021-12-24 20:15:30"
