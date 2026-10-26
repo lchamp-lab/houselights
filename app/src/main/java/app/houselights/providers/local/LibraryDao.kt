@@ -29,14 +29,19 @@ private const val TITLE_OF_COPY = "NULLIF((SELECT MIN(o.id) FROM items o WHERE o
 /** Groups each film's copies, writing only rows whose versionOf changes (see [LibraryDao.groupVersions]). */
 internal const val GROUP_VERSIONS = "UPDATE items SET versionOf = $TITLE_OF_COPY WHERE kind = 'MOVIE' AND versionOf IS NOT $TITLE_OF_COPY"
 
+/** The episodes of the show whose row is `items`'s. */
+private const val EPISODES_OF_SHOW = "SELECT 1 FROM items e WHERE e.kind = 'EPISODE' AND e.seriesId = items.id"
+
 /**
  * Films and shows to identify: TMDB found nothing for them or hesitated ([MatchState]) and they have no TMDB id, unless
- * the user left them as they are; a file held missing is not ([MissingFiles]) until it is back, identifying able to
- * wait, though its page still offers Identifier ([doubt]).
+ * the user left them as they are; a film held missing is not ([MissingFiles]) until its file is back, nor a show whose
+ * every episode is, which its page says is held ([LocalMapper]), identifying able to wait, though Modifier still opens
+ * Identifier on its page ([doubt]).
  */
 internal const val TO_IDENTIFY =
     "kind IN ('MOVIE', 'SERIES') AND matchState IN ('NOT_FOUND', 'UNSURE') AND tmdbId IS NULL AND userNoMatch = 0 " +
-        "AND missingSince IS NULL"
+        "AND missingSince IS NULL AND (kind = 'MOVIE' OR NOT EXISTS ($EPISODES_OF_SHOW) " +
+        "OR EXISTS ($EPISODES_OF_SHOW AND e.missingSince IS NULL))"
 
 /** The keys of the local films' and shows' choices of tracks ([tracksKey]). */
 private const val TRACK_KEYS =

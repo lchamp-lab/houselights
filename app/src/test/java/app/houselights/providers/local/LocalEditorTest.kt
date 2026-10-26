@@ -175,6 +175,33 @@ class LocalEditorTest {
     }
 
     /**
+     * A show to identify whose every episode is held says it is held to its page, why it is to identify kept, and waits
+     * outside « À identifier », as a film held does, until an episode is back.
+     */
+    @Test
+    fun aShowEveryEpisodeOfWhichIsHeldWaitsOutOfTheList() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        val files = listOf(PILOT, "Kaamelott/Livre 1/Kaamelott - S01E02.mkv")
+        files.forEach { bench.showsNas.put(it) }
+        bench.scan()
+        val episodes = files.map { bench.item(shows, it).id }
+        val row = bench.showOf(shows, PILOT)
+        val show = MediaItem(row.id.toString(), MediaKind.SERIES, row.title)
+        val editor = editor()
+        val pages = LocalProvider(ApplicationProvider.getApplicationContext(), bench.dao, editor)
+        assertEquals(listOf(show.id), editor.toIdentify().map { it.item.id })
+
+        bench.dao.setMissingSince(episodes, HOUR_MS)
+        assertEquals(emptyList<ToIdentify>(), editor.toIdentify())
+        assertEquals(MatchDoubt.NOT_FOUND, editor.identity(show).doubt)
+        assertEquals(MatchDoubt.NOT_FOUND to true, pages.item(show.id).let { it.matchDoubt to it.held })
+
+        bench.dao.setMissingSince(episodes.take(1), null)
+        assertEquals(listOf(show.id), editor.toIdentify().map { it.item.id })
+        assertFalse(pages.item(show.id).held)
+    }
+
+    /**
      * Left as it is, a title says so, in Identifier and to its page (Modifier), and is no longer to identify; back to
      * automatic, it is to identify again.
      */

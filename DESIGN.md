@@ -853,11 +853,15 @@ The files back end it all without a word (`HomeHeldTest`, `DetailHeldTest`, `Hel
 
 A title held that is also to identify, or left as it is, says it is held: its file is not there, and identifying can
 wait. "Introuvable sur le NAS depuis 14 h" takes the place of "À identifier" at the end of its actions, Lire saying it
-is gone without trying; a title to identify keeps its Identifier button after Lire and its parts, Modifier still calls
-Identifier "Trouver ce titre sur TMDB", and Identifier still says why, with its suggestions, or "Laissé tel quel". A
-film held waits outside « À identifier » until its file is back
-(`DetailHeldTest.aTitleHeldAndToIdentifySaysItIsHeldAndKeepsIdentifier`,
-`LocalEditorTest.aTitleHeldStillSaysWhyItIsToIdentifyOutOfTheList`).
+is gone without trying; its Identifier button waits with "À identifier", so its row is that of any title held, since
+when and the refusal holding beside it as on a film's, in German and at 1.3 too (`DetailToIdentifyLayoutTest`).
+Modifier still calls Identifier "Trouver ce titre sur TMDB" and opens it, and Identifier still says why, with its
+suggestions, or "Laissé tel quel". A film held, or a show every episode of which is, waits outside « À identifier »,
+its count and its queue until a file is back
+(`DetailHeldTest.aTitleHeldAndToIdentifySaysItIsHeldAndOpensIdentifierFromModifier`,
+`LocalEditorTest.aTitleHeldStillSaysWhyItIsToIdentifyOutOfTheList`,
+`LocalEditorTest.aShowEveryEpisodeOfWhichIsHeldWaitsOutOfTheList`,
+`LibraryDaoTest.aShowEveryEpisodeOfWhichIsHeldWaitsOutOfTheList`).
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is

@@ -225,6 +225,8 @@ internal fun DetailPage(
     // The episode whose options are open, and the watched tile's.
     var episodeOptions by remember { mutableStateOf<String?>(null) }
     var showMarks by remember { mutableStateOf(false) }
+    // Its Identifier button and « À identifier » come and go together.
+    val identifiable = state.canEdit && item.matchDoubt != null && !item.held
     val actions = DetailActions(
         onPlay = { title, resume -> onPlay(title, resume, PlayOrigin(screen)) },
         onTogglePlayed = vm::togglePlayed,
@@ -246,16 +248,16 @@ internal fun DetailPage(
         nextUpError = state.lireError,
         retrying = state.retrying,
         onRetry = vm::retry,
-        // Held too, a title to identify keeps Identifier: its page says it is held, and identifying can wait.
-        onIdentify = { onIdentify(item.id) }.takeIf { state.canEdit && item.matchDoubt != null },
+        // Held, a title to identify says it is held and its Identifier waits with « À identifier », Modifier opening it.
+        onIdentify = { onIdentify(item.id) }.takeIf { identifiable },
         // A title held while its file is missing: out of the library alone, nothing deleted on the NAS.
         onRemove = vm::removeHeld.takeIf { item.held },
     )
     // Réessayer gone with the failure it said, or Lire and the Réessayer in its place swapped: focus goes to Lire.
     FocusOnPlayAfter(swap = state.error != null, held = RETRY_PAGE, memory, actionRow)
     FocusOnPlayAfter(swap = state.nextUpError != null, held = PLAY, memory, actionRow)
-    // Identified meanwhile, Identifier leaves the row with the state it said: focus goes to Lire.
-    FocusOnPlayAfter(swap = item.matchDoubt != null, held = IDENTIFY, memory, actionRow)
+    // Identified or held meanwhile, Identifier leaves the row with the state it said: focus goes to Lire.
+    FocusOnPlayAfter(swap = identifiable, held = IDENTIFY, memory, actionRow)
 
     val recede = rememberRecede { scrolled }
 
@@ -588,7 +590,7 @@ private data class DetailActions(
     val nextUpError: UiError? = null,
     val retrying: Boolean = false,
     val onRetry: () -> Unit = {},
-    /** Opens Identifier on a title to identify, its state said at the row's end unless it is held; null for any other. */
+    /** Opens Identifier on a title to identify, its state said at the row's end; null for any other, or one held. */
     val onIdentify: (() -> Unit)? = null,
     /** Removes the title held while its file is missing from the library alone; null hides the tile. */
     val onRemove: (() -> Unit)? = null,
