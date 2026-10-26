@@ -27,7 +27,10 @@ class ScanLocalDiskTest {
 
     private lateinit var bench: ScanBench
     private val disks = TestDisks()
-    private val browser = LocalBrowser(disks)
+
+    /** Whether Android lets the app read the player's disks. */
+    private var readable = true
+    private val browser = LocalBrowser(disks) { readable }
     private lateinit var disk: File
     private lateinit var films: SourceEntity
 
@@ -116,6 +119,31 @@ class ScanLocalDiskTest {
         assertNull(bench.error(films))
         assertEquals(titles.map { "$it/$it.mkv" }.sorted(), paths())
         assertTrue("what was done kept", bench.item(films, "Film 1 (2011)/Film 1 (2011).mkv").favorite)
+    }
+
+    /**
+     * The access withdrawn in Android's settings: the folder is refused, not read, as from Android 11 it would list its
+     * folders but none of its files; every title stays, none held, and the folder is read again once it is granted.
+     */
+    @Test
+    fun aDiskTheAppMayNoLongerReadIsRefusedAndKeepsItsTitles() = runTest {
+        val titles = (1..8).map { "Film $it (20${10 + it})" }
+        titles.forEach(::film)
+        bench.scan()
+
+        readable = false
+        // What Android 11 then shows the app: the folders, and no file in them.
+        val hidden = disk.walkBottomUp().filter { it.isFile }.associateWith { it.readBytes() to it.lastModified() }
+        hidden.keys.forEach { check(it.delete()) { "$it stayed" } }
+        bench.scan()
+        assertEquals(ScanErrorKind.ACCESS_DENIED, bench.error(films))
+        assertEquals(titles.map { "$it/$it.mkv" }.sorted(), paths())
+        assertEquals("none held", emptyList<Long>(), bench.dao.heldIn(films.id))
+
+        readable = true
+        hidden.forEach { (file, kept) -> disk.put(file.relativeTo(disk).path, kept.first, modified = kept.second) }
+        assertEquals("read again, as it was", 0, bench.changesDuring { bench.scan() })
+        assertNull(bench.error(films))
     }
 
     /** Ten of twelve gone at once while the disk answers (another of its folders, a copy under way): held, as on a NAS. */

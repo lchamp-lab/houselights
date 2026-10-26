@@ -15,10 +15,13 @@ import java.util.concurrent.ConcurrentHashMap
 class RemoteBrowsers internal constructor(
     private val smb: SmbBrowser,
     private val nfs: NfsBrowser,
-    private val local: LocalBrowser = LocalBrowser(Volumes.NONE),
+    private val local: LocalBrowser = LocalBrowser(Volumes.NONE) { false },
 ) {
-    /** Folders on the player's own disks are read where [volumes] says each is mounted. */
-    constructor(volumes: Volumes) : this(SmbBrowser(), NfsBrowser(), LocalBrowser(volumes))
+    /**
+     * Folders on the player's own disks are read where [volumes] says each is mounted, while [readable] says the app may
+     * read them ([DiskPermission]).
+     */
+    constructor(volumes: Volumes, readable: () -> Boolean) : this(SmbBrowser(), NfsBrowser(), LocalBrowser(volumes, readable = readable))
 
     fun of(source: SourceEntity): RemoteBrowser = when (source.protocol) {
         Protocol.SMB -> smb

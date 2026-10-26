@@ -30,6 +30,8 @@ import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.AndroidVolumes
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.DetailsLanguage
+import app.houselights.providers.local.DiskAccess
+import app.houselights.providers.local.DiskPermission
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalEditor
@@ -269,8 +271,11 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** The player's own disks a folder can be on: its storage, USB disks and SD cards, where Android mounts each now. */
     val volumes: Volumes = AndroidVolumes(app)
 
+    /** Whether the app may read those disks, and where Android grants it. */
+    val diskPermission = DiskPermission(app)
+
     /** NAS browsers, with the sessions and mounts they keep open between files, and the player's disks'. */
-    val remoteBrowsers = RemoteBrowsers(volumes)
+    val remoteBrowsers = RemoteBrowsers(volumes) { diskPermission.access() == DiskAccess.GRANTED }
     val scanner = LibraryScanner(
         dao = database.dao(),
         tmdb = ::tmdb,

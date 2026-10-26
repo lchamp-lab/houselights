@@ -15,7 +15,11 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
+import java.io.IOException
+import java.nio.file.DirectoryIteratorException
+import java.nio.file.DirectoryStream
 import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * A folder of the player's own disks read as a NAS's is: what is listed and read, what a disk unplugged, moved or
@@ -27,7 +31,10 @@ class LocalBrowserTest {
     val temp = TemporaryFolder()
 
     private val disks = TestDisks()
-    private val browser = LocalBrowser(disks)
+
+    /** Whether Android lets the app read the player's disks. */
+    private var readable = true
+    private val browser = LocalBrowser(disks) { readable }
     private lateinit var disk: File
 
     @Before
@@ -157,10 +164,65 @@ class LocalBrowserTest {
     fun aDiskUnpluggedWhileItListsIsOutOfReach() = runTest {
         disk.put("Films/Heat (1995).mkv")
         var asked = 0
-        val leaving = LocalBrowser { if (asked++ == 0) disks.mounted() else emptyList() }
+        val leaving = LocalBrowser(Volumes { if (asked++ == 0) disks.mounted() else emptyList() }) { true }
 
         val e = assertThrows(DiskAbsentException::class.java) { runBlocking { leaving.list(diskFolder()) } }
         assertEquals(ScanErrorKind.UNREACHABLE, ScanErrors.classify(e).kind)
+    }
+
+    /**
+     * Unplugged as its folder's entries come, the read failing partway (Java's DirectoryIteratorException, unchecked):
+     * out of reach as when it fails opening, for the scan, the form's test and the flow alike.
+     */
+    @Test
+    fun aDiskUnpluggedAsItsFolderIsReadIsOutOfReach() = runTest {
+        disk.put("Films/Heat (1995).mkv")
+        val cut = LocalBrowser(disks, directories = ::unpluggedAsRead) { true }
+        val reads = listOf<suspend () -> Any>({ cut.list(diskFolder()) }, { cut.test(diskFolder()) }, { cut.folders(diskFolder()) })
+
+        reads.forEach { read ->
+            disks.plug(USB_DISK, disk)
+            val e = assertThrows(DiskAbsentException::class.java) { runBlocking { read() } }
+            assertEquals(ScanErrorKind.UNREACHABLE, ScanErrors.classify(e).kind)
+        }
+    }
+
+    /** A folder whose entries fail as they come, the disk unplugged meanwhile, as Java's stream reports a failed read. */
+    private fun unpluggedAsRead(dir: Path): DirectoryStream<Path> = object : DirectoryStream<Path> {
+        override fun iterator(): MutableIterator<Path> = object : MutableIterator<Path> {
+            override fun hasNext(): Boolean {
+                disks.unplug(USB_DISK)
+                throw DirectoryIteratorException(IOException("Input/output error reading ${dir.fileName}"))
+            }
+
+            override fun next(): Path = throw NoSuchElementException("No entry comes")
+
+            override fun remove(): Unit = throw UnsupportedOperationException("Entries are only read")
+        }
+
+        override fun close() = Unit
+    }
+
+    /**
+     * Without the access Android grants (all-files access from Android 11), a disk is refused before it is read, as
+     * Android 11 would list its folders and none of its files: no answer of nothing, which the scan, the form's test and
+     * the flow would take for an empty folder.
+     */
+    @Test
+    fun aDiskTheAppMayNotReadIsRefused() = runTest {
+        disk.put("Films/Heat (1995)/Heat (1995).mkv")
+        readable = false
+        val reads = listOf<suspend () -> Any>(
+            { list() }, { browser.test(diskFolder()) }, { browser.folders(diskFolder()) },
+            { browser.readAt(diskFolder(), "Heat (1995)/Heat (1995).mkv", 0, 10) },
+        )
+
+        reads.forEach { read ->
+            val e = assertThrows(Exception::class.java) { runBlocking { read() } }
+            assertEquals(ScanErrorKind.ACCESS_DENIED, ScanErrors.classify(e).kind)
+        }
+        readable = true
+        assertEquals("granted again, read at once", listOf("Heat (1995)/Heat (1995).mkv"), videos())
     }
 
     /** Plugged back where Android mounts it now: the next pass reads it there; a read already under way says it moved, once. */

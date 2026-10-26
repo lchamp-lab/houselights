@@ -210,9 +210,10 @@ address.
 **The player's own disks.** A folder on its internal storage or a USB disk needs Android's permission to read the
 disks, asked only when you add one: the storage permission on Android 9 and 10 (the Z1000 Pro's 9), all-files access
 from Android 11, where the storage permission reads videos and pictures alone and an NFO or a subtitle is neither.
-Houselights reads the folders you add and writes nothing on the disks; a player other than the Zidoo's is handed the
-film it plays alone. Google Play limits all-files access to file managers and the like: Houselights is not on Google
-Play ([Install](#install)). On a player whose settings do not open that screen, allow it from a computer:
+Without it, or once it is withdrawn, a disk's folder is refused at its scan rather than read as empty, and its titles
+stay. Houselights reads the folders you add and writes nothing on the disks; a player other than the Zidoo's is handed
+the film it plays alone. Google Play limits all-files access to file managers and the like: Houselights is not on
+Google Play ([Install](#install)). On a player whose settings do not open that screen, allow it from a computer:
 
 ```
 adb shell pm grant app.houselights android.permission.READ_EXTERNAL_STORAGE   # Android 9 and 10

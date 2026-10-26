@@ -23,7 +23,7 @@ import org.junit.Test
  */
 abstract class NasServerTest {
     /** A NAS's alone: no disk of the player's is read here. */
-    protected val browsers = RemoteBrowsers(Volumes.NONE)
+    protected val browsers = RemoteBrowsers(Volumes.NONE) { false }
 
     /** A folder of « video » at [path] ("" for its root), as the folder settings save it. */
     protected abstract fun video(path: String = ""): SourceEntity

@@ -6,6 +6,9 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
+import java.nio.file.AccessDeniedException
+import java.nio.file.DirectoryIteratorException
+import java.nio.file.DirectoryStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -19,9 +22,17 @@ import java.util.concurrent.ConcurrentHashMap
  * [RemoteBrowsers]. A folder keeps its disk's id ([SourceEntity.host]) and its path inside it ([SourceEntity.path]);
  * where the disk is mounted is asked of [volumes] at a pass's first read, and kept until it ends ([closeIdle]). A
  * disk not mounted, or unplugged meanwhile, is out of reach as a NAS asleep ([DiskAbsentException]): its folder does
- * not list, so nothing leaves the library, and the next pass reads it again once it is back.
+ * not list, so nothing leaves the library, and the next pass reads it again once it is back. Without the access Android
+ * grants ([readable]), the disk is refused before it is read ([AccessDeniedException]): from Android 11 its storage would
+ * list the folders but leave out every file, an answer of nothing rather than a refusal.
  */
-internal class LocalBrowser(private val volumes: Volumes) : RemoteBrowser {
+internal class LocalBrowser(
+    private val volumes: Volumes,
+    /** Opens a folder's entries; a test's may fail as they come. */
+    private val directories: (Path) -> DirectoryStream<Path> = Files::newDirectoryStream,
+    /** Whether the app may read the player's disks now ([DiskPermission]), asked once a pass with where each is. */
+    private val readable: () -> Boolean,
+) : RemoteBrowser {
     /** Mounts by disk id, read once a pass. */
     private val mounts = ConcurrentHashMap<String, Path>()
 
@@ -78,9 +89,14 @@ internal class LocalBrowser(private val volumes: Volumes) : RemoteBrowser {
 
     private fun key(source: SourceEntity) = source.host.lowercase(Locale.ROOT)
 
-    /** Where [source]'s disk is mounted, as this pass read it; [DiskAbsentException] when Android has it nowhere. */
+    /**
+     * Where [source]'s disk is mounted, as this pass read it; [DiskAbsentException] when Android has it nowhere, and
+     * [AccessDeniedException] when the app may not read it, which is never kept.
+     */
     private fun mountOf(source: SourceEntity): Path = mounts.getOrPut(key(source)) {
-        volumes.mountOf(source.host)?.toPath() ?: throw DiskAbsentException(source.host)
+        val mount = volumes.mountOf(source.host)?.toPath() ?: throw DiskAbsentException(source.host)
+        if (!readable()) throw AccessDeniedException(mount.toString(), null, "the app may not read the player's disks")
+        mount
     }
 
     /** Runs [block] on the disk at [mount]; a failure once the disk is no longer there throws [DiskAbsentException]. */
@@ -131,10 +147,18 @@ internal class LocalBrowser(private val volumes: Volumes) : RemoteBrowser {
             }
         }
 
-        /** The entries of [dir], but the disk's own folders at its root ([VOLUME_SYSTEM]); throws when it cannot be read. */
+        /**
+         * The entries of [dir], but the disk's own folders at its root ([VOLUME_SYSTEM]); throws when it cannot be read,
+         * a failure as its entries come (a disk unplugged) as one opening it, which Java wraps in an unchecked exception.
+         */
         fun listed(dir: Path): List<Path> = reading(source, mount) {
-            Files.newDirectoryStream(dir).use { entries ->
-                entries.filterNot { dir == mount && VOLUME_SYSTEM.any { name -> name.equals(it.name(), ignoreCase = true) } }
+            directories(dir).use { entries ->
+                try {
+                    entries.filterNot { dir == mount && VOLUME_SYSTEM.any { name -> name.equals(it.name(), ignoreCase = true) } }
+                } catch (e: DirectoryIteratorException) {
+                    // The read's own failure, an IOException.
+                    throw e.cause ?: e
+                }
             }
         }
     }
