@@ -48,7 +48,7 @@ class HeldCardTest {
             }
         }
         compose.onAllNodes(readAs("new")).assertCountEquals(1)
-        compose.onAllNodes(readAs("6 unwatched episodes")).assertCountEquals(1)
+        compose.onAllNodes(readAs("6${Typography.nbsp}unwatched episodes")).assertCountEquals(1)
     }
 
     @Test

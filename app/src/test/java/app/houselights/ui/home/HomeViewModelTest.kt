@@ -467,7 +467,8 @@ class HomeViewModelTest {
         val vm = HomeViewModel(
             { provider }, scan, folders.filterNotNull(), settings, scanAll = {}, held = held,
             keep = { folder, shown -> answers += "keep $folder $shown" }, remove = { answers += "remove $it" },
-            work = backgroundScope,
+            // In the test's own scope, which advanceUntilIdle runs, unlike its background.
+            work = this,
         )
         backgroundScope.launch { vm.state.collect {} }
         advanceUntilIdle()

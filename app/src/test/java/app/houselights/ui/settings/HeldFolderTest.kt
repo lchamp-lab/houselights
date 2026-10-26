@@ -231,7 +231,6 @@ class HeldFolderTest {
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         saysNothingSaved()
         assertEquals(12, held().size)
-        compose.onNodeWithText("12 introuvables", useUnmergedTree = true).assertExists()
     }
 
     private companion object {

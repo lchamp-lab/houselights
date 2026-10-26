@@ -3,6 +3,7 @@ package app.houselights.ui.detail
 import android.view.KeyEvent
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
@@ -58,7 +59,7 @@ class DetailHeldTest {
         items["m1"] = film("m1", "Heat").copy(missingSince = since)
         items["m2"] = film("m2", "Dune")
         items["show"] = series("show").copy(user = UserState(unplayedCount = 4))
-        seasons = mapOf("show" to (1..2).map { season("s$it", it, "show").copy(childCount = 2) })
+        seasons = mapOf("show" to (1..2).map { season("s$it", it, "show").copy(childCount = 2, user = UserState(unplayedCount = 2)) })
         episodes = (1..2).associate { n ->
             "s$n" to (1..2).map { e -> episode("s${n}e$e", "s$n", e).copy(missingSince = since.takeIf { n == 1 && e == 1 }) }
         }
@@ -169,11 +170,17 @@ class DetailHeldTest {
 
     private val firstEpisode = hasText("s1e1") and hasClickAction()
 
+    /** From the action row, where the page opens, down past the season track to the first episode. */
+    private fun downToTheEpisodes() {
+        compose.press(Key.DirectionDown, times = 2)
+        compose.onNode(firstEpisode).assertIsFocused()
+    }
+
     /** An episode held, asked from its card: said on its row, gone and what to do, never "Can't play", nothing dimmed. */
     @Test
     fun anEpisodeHeldSaysItIsGoneOnItsRow() {
         page("show")
-        compose.onNode(firstEpisode).requestFocus()
+        downToTheEpisodes()
         compose.press(Key.DirectionCenter)
         said("This title is gone").assertIsDisplayed()
         said(FIX).assertIsDisplayed()
@@ -191,12 +198,15 @@ class DetailHeldTest {
         stays = { "show" }
         page("show")
         compose.onNode(removeTile).assertDoesNotExist()
-        compose.onNode(hasText("s1e2") and hasClickAction()).requestFocus()
+        downToTheEpisodes()
+        compose.press(Key.DirectionRight)
+        compose.onNode(hasText("s1e2") and hasClickAction()).assertIsFocused()
         compose.press(Key.Menu)
         compose.onNode(hasText(REMOVE) and hasClickAction()).assertDoesNotExist()
         compose.pressInSheet(KeyEvent.KEYCODE_BACK)
 
-        compose.onNode(firstEpisode).requestFocus()
+        compose.press(Key.DirectionLeft)
+        compose.onNode(firstEpisode).assertIsFocused()
         compose.press(Key.Menu)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.onNode(hasText(REMOVE) and isFocused()).assertExists()
