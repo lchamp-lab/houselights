@@ -56,4 +56,11 @@
     <string name="kind_movies_desc">Eine Datei oder ein Ordner pro Film</string>
     <string name="kind_shows_desc">Ein Ordner pro Serie, dann pro Staffel</string>
     <string name="adding">Wird hinzugefügt…</string>
+    <!-- « Sur ce lecteur » (#33): the player's own disks, and Android's leave to read them. -->
+    <string name="on_this_player">Auf diesem Player</string>
+    <string name="disk_internal">Interner Speicher</string>
+    <string name="disk_internal_desc">Der Speicher dieses Players</string>
+    <string name="disk_usb">USB-Laufwerk</string>
+    <string name="disk_access_settings">Houselights darf die Dateien dieses Players noch nicht lesen: Erlauben Sie es in den Android-Einstellungen und wählen Sie das Laufwerk dann erneut.</string>
+    <string name="disk_access_refused">Houselights darf die Dateien dieses Players nicht lesen: Erlauben Sie es und wählen Sie das Laufwerk dann erneut.</string>
 </resources>

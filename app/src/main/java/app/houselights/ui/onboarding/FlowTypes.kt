@@ -9,6 +9,7 @@ import app.houselights.core.FailureKind
 import app.houselights.core.failureKind
 import app.houselights.core.isMountRefused
 import app.houselights.journal.HomeAddress
+import app.houselights.providers.local.DiskAccess
 import app.houselights.providers.local.ExportedFolder
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.FoundNas
@@ -19,6 +20,7 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.Standing
 import app.houselights.providers.local.TypedPaths
 import app.houselights.providers.local.UsedNas
+import app.houselights.providers.local.Volume
 import kotlinx.coroutines.flow.Flow
 import java.net.Inet4Address
 import java.text.Normalizer
@@ -125,6 +127,9 @@ sealed interface FlowMessage {
 
     data class Missing(@StringRes val words: Int) : FlowMessage
 
+    /** The app may not read this player's disks: what to allow, in Android's [settings] or in its window. */
+    data class DiskRefused(val settings: Boolean) : FlowMessage
+
     data object Other : FlowMessage
 }
 
@@ -172,6 +177,15 @@ interface FlowNetwork {
 
     /** This player's address on the home network, which an NFS export must allow; null when unknown. */
     fun player(): Inet4Address?
+
+    /** The player's own disks mounted now, its storage first ([app.houselights.providers.local.Volumes]); none by default. */
+    fun disks(): List<Volume> = emptyList()
+
+    /**
+     * Whether the app may read those disks ([app.houselights.providers.local.DiskPermission]); [refusedForGood] once
+     * Android's window was refused for good.
+     */
+    fun diskAccess(refusedForGood: Boolean = false): DiskAccess = DiskAccess.GRANTED
 }
 
 /** The network on a player: [AppContainer.nasDiscovery], the NAS browsers, the player's own address. */
@@ -187,6 +201,10 @@ internal class AppFlowNetwork(private val app: AppContainer, private val context
     override suspend fun level(source: SourceEntity, path: String): FolderLevel = app.remoteBrowsers.of(source).folders(source, path)
 
     override fun player(): Inet4Address? = HomeAddress.find(context)
+
+    override fun disks(): List<Volume> = app.volumes.mounted().sortedByDescending { it.internal }
+
+    override fun diskAccess(refusedForGood: Boolean): DiskAccess = app.diskPermission.access(refusedForGood)
 }
 
 /** Whether [names] hold a folder named for each kind: « Contient Films et Séries ». */
@@ -234,8 +252,10 @@ object FlowKeys {
     const val NAS = "nas:"
     const val SHARE = "share:"
     const val FOLDER = "folder:"
+    const val DISK = "disk:"
 
     fun nasKey(host: String) = "$NAS$host"
+    fun diskKey(id: String) = "$DISK$id"
     fun protocolKey(protocol: Protocol) = "protocol:${protocol.name}"
     fun shareKey(share: FlowShare) = "$SHARE${share.path}"
     fun folderKey(name: String) = "$FOLDER$name"

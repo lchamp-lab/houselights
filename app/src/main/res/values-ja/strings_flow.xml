@@ -55,4 +55,11 @@
     <string name="kind_movies_desc">映画1本につきファイルまたはフォルダ1つ</string>
     <string name="kind_shows_desc">番組ごとにフォルダ、その中にシーズンごと</string>
     <string name="adding">追加中…</string>
+    <!-- « Sur ce lecteur » (#33): the player's own disks, and Android's leave to read them. -->
+    <string name="on_this_player">このプレーヤー</string>
+    <string name="disk_internal">内部ストレージ</string>
+    <string name="disk_internal_desc">このプレーヤーのストレージ</string>
+    <string name="disk_usb">USBディスク</string>
+    <string name="disk_access_settings">Houselightsはまだこのプレーヤーのファイルを読み取れません。Androidの設定で許可してから、もう一度ディスクを選んでください。</string>
+    <string name="disk_access_refused">Houselightsはこのプレーヤーのファイルを読み取れません。許可してから、もう一度ディスクを選んでください。</string>
 </resources>

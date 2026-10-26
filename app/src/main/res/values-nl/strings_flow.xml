@@ -56,4 +56,11 @@
     <string name="kind_movies_desc">Eén bestand of map per film</string>
     <string name="kind_shows_desc">Eén map per serie, dan per seizoen</string>
     <string name="adding">Toevoegen…</string>
+    <!-- « Sur ce lecteur » (#33): the player's own disks, and Android's leave to read them. -->
+    <string name="on_this_player">Op deze speler</string>
+    <string name="disk_internal">Interne opslag</string>
+    <string name="disk_internal_desc">De opslag van deze speler</string>
+    <string name="disk_usb">USB-schijf</string>
+    <string name="disk_access_settings">Houselights mag de bestanden van deze speler nog niet lezen: sta het toe in de instellingen van Android en kies de schijf daarna opnieuw.</string>
+    <string name="disk_access_refused">Houselights mag de bestanden van deze speler niet lezen: sta het toe en kies de schijf daarna opnieuw.</string>
 </resources>

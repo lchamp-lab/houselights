@@ -17,6 +17,7 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.TypedPaths
 import app.houselights.providers.local.UsedNas
+import app.houselights.providers.local.Volume
 import app.houselights.ui.onboarding.FlowKeys.CHOOSE
 import app.houselights.ui.onboarding.FlowKeys.FIELD_HOST
 import app.houselights.ui.onboarding.FlowKeys.FIELD_PASSWORD
@@ -63,6 +64,13 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
 
     /** The NAS that announced themselves, in the order they answered. */
     val announced = mutableStateListOf<FoundNas>()
+
+    /** The player's own disks, its storage first, read as the flow opens (« Sur ce lecteur »). */
+    val disks = mutableStateListOf<Volume>()
+
+    /** Android's window asking to read the disks was refused for good: only its settings grant it now. */
+    protected var disksRefused = false
+
     var searching by mutableStateOf(false)
         protected set
 

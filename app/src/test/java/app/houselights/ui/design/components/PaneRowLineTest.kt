@@ -245,6 +245,7 @@ class PaneRowLineTest {
             line(R.string.nfs_identity_desc, Beside.Icon, value = local.getString(R.string.nfs_identity_root)),
             line(R.string.suggested_by_nas),
             line(R.string.nas_none_found),
+            line(R.string.disk_internal_desc),
             line(R.string.kind_movies_desc),
             line(R.string.kind_shows_desc),
             Line(content, "$tag: folder_content", Beside.Icon),

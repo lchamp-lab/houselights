@@ -1,17 +1,20 @@
 package app.houselights.ui.onboarding
 
+import app.houselights.providers.local.DiskAccess
 import app.houselights.providers.local.ExportedFolder
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.FoundNas
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.SharedFolder
 import app.houselights.providers.local.SourceEntity
+import app.houselights.providers.local.Volume
 import app.houselights.testing.mountFailure
 import com.emc.ecs.nfsclient.mount.MountStatus
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.Inet4Address
@@ -20,8 +23,9 @@ import java.net.InetAddress
 /**
  * The board's network (« Ajouter un dossier », its fixture): DS920 at 192.168.1.20 answering SMB and NFS, its exports
  * /volume1/video and /volume1/musique open to the home network, /volume1/photo to 192.168.1.10 alone, /volume1/media;
- * its shares video, photo, music and home for the account houselights; the player at 192.168.1.42. A NAS is announced
- * when a test says so ([announce]); a call can be held until a test lets it go ([hold]).
+ * its shares video, photo, music and home for the account houselights; the player at 192.168.1.42, its own storage and
+ * a USB disk « Samsung T7 » once a test plugs them in ([mounted]), read as [access] says. A NAS is announced when a test says so ([announce]); a
+ * call can be held until a test lets it go ([hold]).
  */
 class FakeFlowNetwork : FlowNetwork {
     private val announced = Channel<FoundNas>(Channel.UNLIMITED)
@@ -56,7 +60,17 @@ class FakeFlowNetwork : FlowNetwork {
         "photo" to FolderLevel(emptyList(), 0),
         "music" to FolderLevel(emptyList(), 0),
         "home" to FolderLevel(emptyList(), 0),
+        // The player's disks, by their id.
+        Volume.INTERNAL to FolderLevel(listOf("Download", "Movies"), 0),
+        T7 to FolderLevel(listOf("Films", "Séries"), 0),
+        "$T7/Films" to FolderLevel(listOf("Alien (1979)"), 1),
     )
+
+    /** The player's own disks mounted: none, unless a test plugs them in ([DISKS]). */
+    var mounted = emptyList<Volume>()
+
+    /** Whether the app may read them; one asked and refused for good, only the settings grant it. */
+    var access = DiskAccess.GRANTED
 
     /** The SMB shares a guest may open, the account opening every share. */
     var guestShares = setOf<String>()
@@ -109,7 +123,8 @@ class FakeFlowNetwork : FlowNetwork {
     }
 
     override suspend fun level(source: SourceEntity, path: String): FolderLevel {
-        val at = listOf(source.share.trim('/'), source.path, path).filter { it.isNotEmpty() }.joinToString("/")
+        val root = if (source.protocol == Protocol.LOCAL) source.host else source.share.trim('/')
+        val at = listOf(root, source.path, path).filter { it.isNotEmpty() }.joinToString("/")
         call("level", at)
         if (source.protocol == Protocol.NFS && source.share == "volume1/photo") throw mountFailure(MountStatus.MNT3ERR_ACCES)
         val smbShare = source.share.lowercase()
@@ -122,12 +137,26 @@ class FakeFlowNetwork : FlowNetwork {
 
     override fun player(): Inet4Address = InetAddress.getByName(PLAYER) as Inet4Address
 
+    override fun disks(): List<Volume> = mounted
+
+    override fun diskAccess(refusedForGood: Boolean): DiskAccess =
+        if (access == DiskAccess.TO_ASK && refusedForGood) DiskAccess.IN_SETTINGS else access
+
     companion object {
         const val DS920 = "192.168.1.20"
         const val SILENT_NAS = "192.168.1.30"
         const val PLAYER = "192.168.1.42"
         const val USER = "houselights"
         const val PASSWORD = "secret"
+
+        /** The USB disk's id, its filesystem's UUID. */
+        const val T7 = "1234-ABCD"
+
+        /** The player's own storage and the USB disk « Samsung T7 ». */
+        val DISKS = listOf(
+            Volume(Volume.INTERNAL, "Internal shared storage", internal = true, File("/storage/emulated/0")),
+            Volume(T7, "Samsung T7", internal = false, File("/storage/$T7")),
+        )
 
         /** Films2's folders, one level. */
         const val FILMS2 = 38

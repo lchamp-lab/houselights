@@ -5,15 +5,18 @@ import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.requestFocus
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.providers.local.ArtworkCache
+import app.houselights.providers.local.DiskAccess
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FoundNas
 import app.houselights.providers.local.LibraryDatabase
@@ -29,6 +32,7 @@ import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.DS920
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.PASSWORD
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.PLAYER
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.SILENT_NAS
+import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.T7
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.USER
 import app.houselights.ui.onboarding.FlowKeys.FIELD_HOST
 import app.houselights.ui.onboarding.FlowKeys.FIELD_PASSWORD
@@ -97,12 +101,13 @@ class AddFolderFlowTest {
 
     /**
      * The flow over a library holding [folders], drawn and settled; [saved] as a stopped process left it, [useFolders]
-     * making the folders the source.
+     * making the folders the source, [askDisk] asking Android to read the player's disks.
      */
     private fun flow(
         vararg folders: SourceEntity,
         saved: SavedStateHandle = SavedStateHandle(),
         useFolders: suspend () -> Boolean = { false },
+        askDisk: DiskAsk = DiskAsk.NONE,
     ): FolderFlow {
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after an add never runs: it would go to the network.
@@ -111,7 +116,7 @@ class AddFolderFlowTest {
         runBlocking { folders.forEach { db.dao().insertSource(it) } }
         library = LocalLibrary(context, db.dao(), scanner, artwork) {}
         val flow = FolderFlow(network, library, scope, useFolders = useFolders, saved = saved)
-        compose.setTvContent { AddFolderFlow(flow, onLeave = { left = true }, onDone = { done = it }) }
+        compose.setTvContent { AddFolderFlow(flow, onLeave = { left = true }, onDone = { done = it }, askDisk = askDisk) }
         until { flow.ready }
         compose.waitForIdle()
         return flow
@@ -561,6 +566,78 @@ class AddFolderFlowTest {
         until { done != null }
         assertEquals(true, done?.switched)
         assertEquals(1, runBlocking { db.dao().sources() }.count { it.path == "Séries" })
+    }
+
+    /**
+     * « Sur ce lecteur »: the player's storage and each USB disk by its name, before « Saisir une adresse »; OK on one
+     * opens its root at step 5, the panel naming it; Back returns to its row, and its folder is added as the player's own.
+     */
+    @Test
+    fun aDiskOfThisPlayerOpensAtItsRoot() {
+        network.mounted = FakeFlowNetwork.DISKS
+        val flow = flow()
+        compose.onNodeWithText(text(R.string.on_this_player)).assertExists()
+        compose.onNode(hasText(text(R.string.disk_internal)) and hasText(text(R.string.disk_internal_desc))).assertExists()
+        compose.onNode(hasText("Samsung T7") and hasText(text(R.string.disk_usb)) and hasClickAction()).requestFocus()
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        compose.waitForIdle()
+        focusIsOn("Films")
+        compose.onNodeWithText(text(R.string.on_this_player)).assertExists()
+        compose.onNodeWithText("Samsung T7").assertExists()
+
+        back()
+        until { flow.step == FlowStep.WHERE }
+        compose.waitForIdle()
+        focusIsOn("Samsung T7")
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        compose.waitForIdle()
+        ok()
+        until { flow.path == listOf("Films") }
+        compose.waitForIdle()
+        focusIsOn(text(R.string.choose_folder))
+        ok()
+        until { flow.step == FlowStep.KIND }
+        compose.waitForIdle()
+        focusIsOn(text(R.string.library_movies))
+        ok()
+        until { done != null }
+        val added = runBlocking { db.dao().sources() }.single()
+        assertEquals(listOf(Protocol.LOCAL, T7, "", "Films"), listOf(added.protocol, added.host, added.share, added.path))
+    }
+
+    /**
+     * A disk the app may not read yet: OK asks Android, the row saying « Non autorisé » and the panel what to allow,
+     * Android's settings once its window was refused for good; allowed, OK opens the disk.
+     */
+    @Test
+    fun aDiskTheAppMayNotReadAsksAndroidFirst() {
+        network.mounted = FakeFlowNetwork.DISKS
+        network.access = DiskAccess.TO_ASK
+        val asked = mutableListOf<DiskAccess>()
+        var allowed = false
+        val flow = flow(
+            askDisk = { access, answered ->
+                asked += access
+                if (allowed) network.access = DiskAccess.GRANTED
+                answered(!allowed)
+            },
+        )
+        compose.onNode(hasText(text(R.string.disk_internal)) and hasClickAction()).requestFocus()
+        ok()
+        compose.waitForIdle()
+        assertEquals(listOf(DiskAccess.TO_ASK), asked)
+        assertEquals(FlowStep.WHERE, flow.step)
+        compose.onNodeWithText(text(R.string.disk_access_settings)).assertExists()
+        focusIsOn(text(R.string.not_allowed))
+
+        allowed = true
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        compose.waitForIdle()
+        assertEquals(listOf(DiskAccess.TO_ASK, DiskAccess.IN_SETTINGS), asked)
+        focusIsOn("Movies")
     }
 
     private companion object {

@@ -55,4 +55,11 @@
     <string name="kind_movies_desc">每部电影一个文件或文件夹</string>
     <string name="kind_shows_desc">每部剧一个文件夹，再按季分</string>
     <string name="adding">正在添加…</string>
+    <!-- « Sur ce lecteur » (#33): the player's own disks, and Android's leave to read them. -->
+    <string name="on_this_player">此播放器上</string>
+    <string name="disk_internal">内部存储</string>
+    <string name="disk_internal_desc">此播放器的存储空间</string>
+    <string name="disk_usb">USB 磁盘</string>
+    <string name="disk_access_settings">Houselights 还不能读取此播放器的文件：请在 Android 设置中允许，然后重新选择磁盘。</string>
+    <string name="disk_access_refused">Houselights 不能读取此播放器的文件：请允许后重新选择磁盘。</string>
 </resources>

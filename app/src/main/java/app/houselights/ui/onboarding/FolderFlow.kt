@@ -13,6 +13,7 @@ import app.houselights.AppContainer
 import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.DiskAccess
 import app.houselights.providers.local.ExportAccess
 import app.houselights.providers.local.ExportedFolder
 import app.houselights.providers.local.FolderLevel
@@ -26,6 +27,7 @@ import app.houselights.providers.local.Standing
 import app.houselights.providers.local.TypedPath
 import app.houselights.providers.local.TypedPaths
 import app.houselights.providers.local.UsedNas
+import app.houselights.providers.local.Volume
 import app.houselights.providers.local.exportAccess
 import app.houselights.providers.local.nfsIdentity
 import app.houselights.providers.local.samePlace
@@ -34,6 +36,7 @@ import app.houselights.providers.local.standing
 import app.houselights.ui.onboarding.FlowKeys.CHANGE_ACCOUNT
 import app.houselights.ui.onboarding.FlowKeys.CHOOSE
 import app.houselights.ui.onboarding.FlowKeys.CONTINUE
+import app.houselights.ui.onboarding.FlowKeys.DISK
 import app.houselights.ui.onboarding.FlowKeys.FIELD_GID
 import app.houselights.ui.onboarding.FlowKeys.FIELD_HOST
 import app.houselights.ui.onboarding.FlowKeys.FIELD_PASSWORD
@@ -49,6 +52,7 @@ import app.houselights.ui.onboarding.FlowKeys.SIGN_IN
 import app.houselights.ui.onboarding.FlowKeys.SUGGESTION
 import app.houselights.ui.onboarding.FlowKeys.TYPE_ADDRESS
 import app.houselights.ui.onboarding.FlowKeys.TYPE_PATH
+import app.houselights.ui.onboarding.FlowKeys.diskKey
 import app.houselights.ui.onboarding.FlowKeys.folderKey
 import app.houselights.ui.onboarding.FlowKeys.kindKey
 import app.houselights.ui.onboarding.FlowKeys.nasKey
@@ -107,6 +111,8 @@ class FolderFlow(
                 .getOrDefault(emptyList())
             kinds = suspendRunCatching { library.kinds() }.getOrDefault(emptySet())
             player = withContext(Dispatchers.IO) { suspendRunCatching { network.player() }.getOrNull() }
+            val mounted = withContext(Dispatchers.IO) { suspendRunCatching { network.disks() } }
+            disks += mounted.onFailure { Log.w(TAG, "Reading this player's disks failed", it) }.getOrDefault(emptyList())
             if (step != FlowStep.WHERE) restore()
             ready = true
             used.forEach { probe(it.host) }
@@ -190,6 +196,36 @@ class FolderFlow(
     }
 
     fun typeAddress() = go(FlowStep.ADDRESS, FIELD_HOST)
+
+    /**
+     * OK on a disk of this player ([Volume]): opened at its root, as a shared folder is, once the app may read it; else
+     * [ask] asks Android ([DiskAccess]), the row saying « Non autorisé » and the panel what to allow until it does, then
+     * the disk opens; after its settings, the disk is chosen again.
+     */
+    fun chooseDisk(disk: Volume, ask: DiskAsk) {
+        val key = diskKey(disk.id)
+        val access = network.diskAccess(disksRefused)
+        if (access == DiskAccess.GRANTED) return openDisk(disk)
+        rowFailures[key] = RowFailure.NOT_ALLOWED
+        message = FlowMessage.DiskRefused(settings = access == DiskAccess.IN_SETTINGS)
+        ask.ask(access) { refusedForGood ->
+            disksRefused = refusedForGood
+            val now = network.diskAccess(refusedForGood)
+            if (now == DiskAccess.GRANTED) return@ask openDisk(disk)
+            message = FlowMessage.DiskRefused(settings = now == DiskAccess.IN_SETTINGS)
+            aim(key)
+        }
+    }
+
+    /** The disk's root, its folders read as a NAS's shared folder's are; Back returns to its row. */
+    private fun openDisk(disk: Volume) = press(diskKey(disk.id), R.string.opening) {
+        begin(FlowNas(disk.id, disk.name.takeIf { it.isNotBlank() }), typedAddress = false)
+        protocolName = Protocol.LOCAL.name
+        reached = true
+        val root = FlowShare("")
+        sharePath = root.path
+        show(emptyList(), network.level(place(root), ""))
+    }
 
     /**
      * What is typed in the field [field] ([FIELD_HOST], [FIELD_PATH]…), a user or group in whole numbers only
@@ -521,8 +557,8 @@ class FolderFlow(
 
     fun chooseFolder() = go(FlowStep.KIND, kindKey(suggestedKind()))
 
-    /** The folder's name, as the library will call it: its last segment. */
-    fun folderName(): String = path.lastOrNull() ?: share?.name.orEmpty()
+    /** The folder's name, as the library will call it: its last segment; a disk's root, the disk's. */
+    fun folderName(): String = path.lastOrNull() ?: if (protocol == Protocol.LOCAL) announcedName.orEmpty() else share?.name.orEmpty()
 
     /** The kind its name suggests, else the kind the library lacks (films alone: shows), else films. */
     private fun suggestedKind(): SourceKind =
@@ -630,9 +666,7 @@ class FolderFlow(
     private fun up() {
         val now = path
         val opened = share
-        if (now.isEmpty() || opened == null) {
-            return if (noList) go(FlowStep.TYPE_PATH, FIELD_PATH) else go(FlowStep.SHARES, opened?.let { shareKey(it) } ?: TYPE_PATH)
-        }
+        if (now.isEmpty() || opened == null) return beforeBrowse(opened)
         val above = now.dropLast(1)
         val left = folderKey(now.last())
         levels[above]?.let { return show(above, it, focusOn = left) }
@@ -642,9 +676,16 @@ class FolderFlow(
             read.onSuccess { show(above, it, focusOn = left) }
             read.onFailure {
                 Log.w(TAG, "Reading the level above failed", it)
-                if (noList) go(FlowStep.TYPE_PATH, FIELD_PATH) else go(FlowStep.SHARES, shareKey(opened))
+                beforeBrowse(opened)
             }
         }
+    }
+
+    /** Back from the root of [opened]: the shared folders, the path typed, or a disk's row. */
+    private fun beforeBrowse(opened: FlowShare?) = when {
+        protocol == Protocol.LOCAL -> go(FlowStep.WHERE, diskKey(host.orEmpty()))
+        noList -> go(FlowStep.TYPE_PATH, FIELD_PATH)
+        else -> go(FlowStep.SHARES, opened?.let { shareKey(it) } ?: TYPE_PATH)
     }
 
     /** Where focus starts on the step shown, as arriving there does. */
@@ -698,8 +739,16 @@ class FolderFlow(
             FlowStep.TYPE_PATH -> pathRefused(failure)
             FlowStep.SHARES -> trying?.let { row(key, failure, FlowShare(it).name, it) } ?: row(key, failure, "", "")
             FlowStep.BROWSE -> folderRefused(key, failure)
-            else -> row(key, failure, "", "")
+            else -> if (key.startsWith(DISK)) diskRefused(key, failure) else row(key, failure, "", "")
         }
+    }
+
+    /** A disk of this player that did not open: its row in two words; the panel says what to allow, or that it failed. */
+    private fun diskRefused(key: String, failure: FlowFailure) {
+        rowFailures[key] = failure.words()
+        val refused = failure == FlowFailure.READ_REFUSED || failure == FlowFailure.MOUNT_REFUSED
+        val settings = network.diskAccess(disksRefused) == DiskAccess.IN_SETTINGS
+        panel(key, if (refused) FlowMessage.DiskRefused(settings) else FlowMessage.Other)
     }
 
     /** An address typed that did not answer, said under it. */

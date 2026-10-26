@@ -36,6 +36,7 @@ import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.Standing
 import app.houselights.providers.local.UsedNas
+import app.houselights.providers.local.Volume
 import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
@@ -67,6 +68,7 @@ import app.houselights.ui.onboarding.FlowKeys.SIGN_IN
 import app.houselights.ui.onboarding.FlowKeys.SUGGESTION
 import app.houselights.ui.onboarding.FlowKeys.TYPE_ADDRESS
 import app.houselights.ui.onboarding.FlowKeys.TYPE_PATH
+import app.houselights.ui.onboarding.FlowKeys.diskKey
 import app.houselights.ui.onboarding.FlowKeys.folderKey
 import app.houselights.ui.onboarding.FlowKeys.kindKey
 import app.houselights.ui.onboarding.FlowKeys.nasKey
@@ -79,20 +81,22 @@ import app.houselights.ui.util.wholePath
 
 /**
  * « Ajouter un dossier » (DESIGN.md, Secondary screens): the guided flow of [FolderFlow], on the room's posters; Back
- * from its first step leaves it ([onLeave]); [onDone] once the folder is added.
+ * from its first step leaves it ([onLeave]); [onDone] once the folder is added. A disk of this player chosen asks
+ * Android to read it first ([rememberDiskAsk]).
  */
 @Composable
 fun AddFolderFlowScreen(onLeave: () -> Unit, onDone: (FlowDone) -> Unit) {
     val app = appContainer()
     val context = LocalContext.current
     val flow: FolderFlow = viewModel(factory = FolderFlow.factory(app, context))
-    AddFolderFlow(flow, roomPosters(), onLeave, onDone)
+    AddFolderFlow(flow, roomPosters(), onLeave, onDone, rememberDiskAsk(app.diskPermission))
 }
 
 /**
  * The flow as drawn: the task's title, the step's sentence and the panel filling in on the left, the step's rows on the
  * right, in a lazy list that composes only the rows shown; focus where the flow aims it, a row brought into view first.
- * Back goes up a level or a step, first to the list's start when it is scrolled.
+ * Back goes up a level or a step, first to the list's start when it is scrolled. [askDisk] asks Android to read this
+ * player's disks.
  */
 @Composable
 internal fun AddFolderFlow(
@@ -100,11 +104,12 @@ internal fun AddFolderFlow(
     room: List<ImageRef> = emptyList(),
     onLeave: () -> Unit = {},
     onDone: (FlowDone) -> Unit = {},
+    askDisk: DiskAsk = DiskAsk.NONE,
 ) {
     val focus = remember { FlowFocus() }
     // Each step and level starts at its top.
     val list = remember(flow.view) { LazyListState() }
-    val parts = if (flow.ready) stepParts(flow, focus, onDone) else emptyList()
+    val parts = if (flow.ready) stepParts(flow, focus, onDone, askDisk) else emptyList()
     val shown by rememberUpdatedState(parts)
     val shownList by rememberUpdatedState(list)
     LaunchedEffect(flow.aim) {
@@ -163,8 +168,8 @@ private class FlowFocus {
 private class FlowPart(val key: String, val keys: Set<String>, val gap: Dp = HlSpace.l, val content: @Composable () -> Unit)
 
 @Composable
-private fun stepParts(flow: FolderFlow, focus: FlowFocus, onDone: (FlowDone) -> Unit): List<FlowPart> = when (flow.step) {
-    FlowStep.WHERE -> whereParts(flow, focus)
+private fun stepParts(flow: FolderFlow, focus: FlowFocus, onDone: (FlowDone) -> Unit, askDisk: DiskAsk): List<FlowPart> = when (flow.step) {
+    FlowStep.WHERE -> whereParts(flow, focus, askDisk)
     FlowStep.ADDRESS -> addressParts(flow, focus)
     FlowStep.PROTOCOLS -> protocolParts(flow, focus)
     FlowStep.ACCOUNT -> accountParts(flow, focus)
@@ -189,15 +194,17 @@ private fun stepSentence(flow: FolderFlow): String = when (flow.step) {
 }
 
 /**
- * Where the flow stands: the connection by its light, the NAS by its name or « Adresse » over its address, the path
- * chosen so far, its protocol printed, the SMB account or the NFS user and group; then the last failure's sentence,
- * the only attention mark: the NAS that answered and refused is « Connexion réussie », the sentence saying why.
+ * Where the flow stands: the connection by its light, the NAS by its name or « Adresse » over its address (a disk of
+ * this player « Sur ce lecteur » over its name), the path chosen so far, its protocol printed, the SMB account or the
+ * NFS user and group; then the last failure's sentence, the only attention mark: the NAS that answered and refused is
+ * « Connexion réussie », the sentence saying why.
  */
 @Composable
 private fun FlowStatus(flow: FolderFlow) {
     val nas = flow.nas
     val (state, words) = connectionOf(flow)
     val protocol = flow.protocol
+    val disk = protocol == Protocol.LOCAL
     val share = flow.share
     val detail = share?.let { opened ->
         "/" + (opened.path.trim('/').split('/') + flow.path).filter { it.isNotEmpty() }.joinToString("/")
@@ -206,15 +213,25 @@ private fun FlowStatus(flow: FolderFlow) {
     StatusPanel(
         state = state,
         stateText = stringResource(words),
-        label = stringResource(R.string.label_address),
-        value = nas?.host ?: stringResource(R.string.placeholder_pending),
-        name = nas?.name,
+        label = stringResource(if (disk) R.string.on_this_player else R.string.label_address),
+        value = if (disk) diskName(flow) else nas?.host ?: stringResource(R.string.placeholder_pending),
+        name = nas?.name.takeIf { !disk },
         detail = detail,
-        badges = listOfNotNull(protocol?.name),
+        badges = listOfNotNull(protocol?.name?.takeIf { !disk }),
         facts = listOf(accountText(flow), identityText(flow)),
         result = if (failed != null) stringResource(welcomeProblem(failed)) else flow.message?.let { flowText(it) },
         resultIsError = true,
     )
+}
+
+/** The disk opened, as its row names it: « Disque interne », else its own name. */
+@Composable
+private fun diskName(flow: FolderFlow): String {
+    val nas = flow.nas
+    return when {
+        nas == null || nas.host == Volume.INTERNAL -> stringResource(R.string.disk_internal)
+        else -> nas.name ?: stringResource(R.string.disk_usb)
+    }
 }
 
 /** The connection's state and its words: under way, not saved, silent, reached, or not tried yet. */
@@ -292,7 +309,7 @@ private fun FlowRow(
 // Step 1 · where the videos are ------------------------------------------------------------------------------------
 
 @Composable
-private fun whereParts(flow: FolderFlow, focus: FlowFocus): List<FlowPart> {
+private fun whereParts(flow: FolderFlow, focus: FlowFocus, askDisk: DiskAsk): List<FlowPart> {
     val used = flow.used
     val others = flow.others
     val searching = flow.searching
@@ -321,6 +338,14 @@ private fun whereParts(flow: FolderFlow, focus: FlowFocus): List<FlowPart> {
             slots.forEachIndexed { i, slot -> key(slot) { NetworkRow(flow, focus, others.getOrNull(i), searching, slot) } }
         }
     }
+    val disks = flow.disks
+    if (disks.isNotEmpty()) {
+        parts += FlowPart("disks", disks.map { diskKey(it.id) }.toSet()) {
+            HlSettingGroup(stringResource(R.string.on_this_player)) {
+                disks.forEach { disk -> key(disk.id) { DiskRow(flow, focus, disk, askDisk) } }
+            }
+        }
+    }
     parts += FlowPart(TYPE_ADDRESS, setOf(TYPE_ADDRESS)) {
         HlSettingGroup(null) {
             FlowRow(
@@ -347,6 +372,18 @@ private fun UsedRow(flow: FolderFlow, focus: FlowFocus, nas: UsedNas) {
         } else {
             RowValue(nas.protocols.first().name, technical = true)
         },
+    )
+}
+
+/** A disk of this player: « Disque interne », its storage, else a USB disk by its name; OK opens its root. */
+@Composable
+private fun DiskRow(flow: FolderFlow, focus: FlowFocus, disk: Volume, ask: DiskAsk) {
+    val usb = stringResource(R.string.disk_usb)
+    FlowRow(
+        flow, focus, diskKey(disk.id),
+        if (disk.internal) stringResource(R.string.disk_internal) else disk.name.ifBlank { usb },
+        { flow.chooseDisk(disk, ask) },
+        description = if (disk.internal) stringResource(R.string.disk_internal_desc) else usb,
     )
 }
 
@@ -744,5 +781,6 @@ private fun refusalText(message: FlowMessage): String = when (message) {
     is FlowMessage.RootRefused -> stringResource(R.string.error_nfs_root_refused, wholePath(message.path))
     is FlowMessage.Denied -> stringResource(R.string.error_smb_denied, message.user, message.share)
     is FlowMessage.GuestShare -> stringResource(R.string.error_smb_guest_share, message.share)
+    is FlowMessage.DiskRefused -> stringResource(if (message.settings) R.string.disk_access_settings else R.string.disk_access_refused)
     else -> stringResource(R.string.error_scan_other)
 }

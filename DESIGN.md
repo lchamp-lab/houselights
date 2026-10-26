@@ -156,7 +156,10 @@ last, on their plate, with `HlIcons.Edit`:
 
 1. the NAS: « Déjà utilisés » first, its protocol kept and asked no more; « NAS trouvés sur le réseau » added as they
    answer, under the rows there, its first row holding the first focus on a first folder while it searches, the first NAS
-   found taking its place; « Saisir une adresse » last;
+   found taking its place; « Sur ce lecteur », « Disque interne » (« Le stockage de ce lecteur ») then each USB disk by
+   its name (« Disque USB »), straight to step 5 at the disk's root once Android lets the app read it (its window, else
+   its settings, the row « Non autorisé » and the panel saying what to allow meanwhile), the panel « Sur ce lecteur »
+   over the disk's name; « Saisir une adresse » last;
 2. the protocol, for a NAS never used that answers both alone, SMB focused;
 3. the SMB account, skipped when a folder of the NAS has one, its password reused, never shown;
 4. the shared folders, untitled, an export that leaves this player out marked « Non autorisé »; « Saisir un chemin »,
