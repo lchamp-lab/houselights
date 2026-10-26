@@ -73,7 +73,11 @@ class LocalBrowserTest {
         )
         assertEquals(listOf("Dune (2021)/Dune (2021).nfo", "Dune (2021)/poster.jpg"), listing.sidecars.map { it.relativePath }.sorted())
         assertEquals(emptyList<String>(), listing.unreadable)
-        assertEquals("the form's test counts what the folder holds but dot and system folders", 4, browser.test(diskFolder()))
+        assertEquals(
+            "the form's test counts the folder's subfolders and videos apart, samples, dot and system folders left out",
+            FolderLevel(listOf("Dune (2021)"), videos = 1),
+            browser.test(diskFolder()),
+        )
     }
 
     /** At a disk's root, Android's own folders hold no film of the user's: left out, a folder of the same name further down kept. */
@@ -86,7 +90,7 @@ class LocalBrowserTest {
 
         val root = diskFolder(path = "")
         assertEquals(listOf("Dune (2021).mkv", "Films/Android/Android Apocalypse (2006).mkv"), videos(root))
-        assertEquals(2, browser.test(root))
+        assertEquals(FolderLevel(listOf("Films"), videos = 1), browser.test(root))
     }
 
     /**

@@ -49,12 +49,8 @@ internal class LocalBrowser(
         listing
     }
 
-    /** Asks Android where the disk is now, as the form tests what it would save. */
-    override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
-        mounts.remove(key(source))
-        val mount = mountOf(source)
-        reading(source, mount) { Folders(source, mount).listed(mount.resolve(remotePath(source))).count { !RemoteBrowser.skip(it.name()) } }
-    }
+    /** Asks Android where the disk is now, as the form tests what it would save: the folder's level, as [folders] reads it. */
+    override suspend fun test(source: SourceEntity): FolderLevel = folders(source, "")
 
     /**
      * Where Android has the disk now, as the form's test: the add-folder flow opens a disk at its root, Android's own
