@@ -55,7 +55,10 @@ data class TraktStateEntity(
     val activities: String? = null,
 )
 
-/** A film or episode file as Trakt names it: a film by its TMDB id, an episode by its show's and its numbers. */
+/**
+ * A film or episode file as Trakt names it: a film by its TMDB id, an episode by its show's and the numbers of the TMDB
+ * episode it shows ([ItemEntity.tmdbEpisode]), whatever order its show is placed in.
+ */
 data class SyncRow(
     val id: Long,
     val kind: ItemKind,
@@ -72,14 +75,25 @@ data class SyncRow(
     val durationMs: Long?,
     val fileDurationMs: Long?,
     val runtimeMin: Int?,
+    /** An episode's: when its show's episodes last changed order, Trakt's older marks of them left ([ItemEntity.reorderedAt]). */
+    val reorderedAt: Long? = null,
 )
 
 internal fun SyncRow.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
 
+/**
+ * The rows Trakt knows, episodes by the TMDB episode they show: their own when kept apart ([ItemEntity.tmdbEpisode]),
+ * else their place's. Never one waiting for TMDB to list it, nor one its show's order leaves out of TMDB's: Trakt would
+ * mark another episode.
+ */
 private const val SYNC_ROW =
-    "SELECT i.id, i.kind, CASE WHEN i.kind = 'MOVIE' THEN i.tmdbId ELSE s.tmdbId END AS tmdbId, i.seasonNumber, " +
-        "i.episodeNumber, i.lastEpisodeNumber, i.versionOf, i.parts, i.played, i.positionMs, i.lastPlayedAt, i.durationMs, " +
-        "i.fileDurationMs, i.runtimeMin FROM items i LEFT JOIN items s ON s.id = i.seriesId WHERE i.kind IN ('MOVIE', 'EPISODE')"
+    "SELECT i.id, i.kind, CASE WHEN i.kind = 'MOVIE' THEN i.tmdbId ELSE s.tmdbId END AS tmdbId, " +
+        "CASE WHEN i.tmdbEpisode IS NULL THEN i.seasonNumber ELSE i.tmdbSeason END AS seasonNumber, " +
+        "CASE WHEN i.tmdbEpisode IS NULL THEN i.episodeNumber ELSE i.tmdbEpisode END AS episodeNumber, " +
+        "CASE WHEN i.tmdbEpisode IS NULL THEN i.lastEpisodeNumber ELSE i.tmdbLastEpisode END AS lastEpisodeNumber, " +
+        "i.versionOf, i.parts, i.played, i.positionMs, i.lastPlayedAt, i.durationMs, i.fileDurationMs, i.runtimeMin, " +
+        "s.reorderedAt FROM items i LEFT JOIN items s ON s.id = i.seriesId WHERE i.kind IN ('MOVIE', 'EPISODE') " +
+        "AND NOT (i.kind = 'EPISODE' AND i.tmdbEpisode IS NULL AND (i.absoluteNumber IS NOT NULL OR s.episodeOrder IS NOT NULL))"
 
 /** Another copy of film :id ([ItemEntity.versionOf]). */
 private const val COPY_OF =

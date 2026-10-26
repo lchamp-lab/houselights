@@ -337,6 +337,70 @@ class ToIdentifyTest {
         assertEquals("never by its name", emptyList<String>(), tmdb.searched)
     }
 
+    /**
+     * A film left as it is, nothing else done to it, removed with its file then back, comes back left as it is: out of
+     * « À identifier », never searched for by its name.
+     */
+    @Test
+    fun aFilmLeftAsItIsRemovedAndBackStaysLeftAsItIs() = runTest {
+        val films = bench.folder("Films")
+        nas.put(HEAT)
+        nas.put(HOLIDAYS)
+        bench.scan()
+        dao.setUserNoMatch(bench.item(films, HOLIDAYS).id, true)
+        nas.remove(HOLIDAYS)
+        bench.scan()
+        assertEquals("removed", listOf(HEAT), bench.paths(films))
+
+        nas.put(HOLIDAYS)
+        tmdb.searched.clear()
+        bench.scan()
+        val back = bench.item(films, HOLIDAYS)
+        assertTrue(back.userNoMatch)
+        assertTrue("not to identify", dao.toIdentify().none { it.id == back.id })
+        assertEquals("never by its name", emptyList<String>(), tmdb.searched.filter { it.startsWith("Vacances") })
+    }
+
+    /** As a film, a show left as it is, removed with its episodes then back, comes back left as it is. */
+    @Test
+    fun aShowLeftAsItIsRemovedAndBackStaysLeftAsItIs() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        bench.showsNas.put(PILOT)
+        bench.showsNas.put(KAAMELOTT)
+        bench.scan()
+        dao.setUserNoMatch(bench.showOf(shows, KAAMELOTT).id, true)
+        bench.showsNas.remove(KAAMELOTT)
+        bench.scan()
+        assertEquals("removed", listOf(PILOT), bench.paths(shows))
+
+        bench.showsNas.put(KAAMELOTT)
+        tmdb.searched.clear()
+        bench.scan()
+        val back = bench.showOf(shows, KAAMELOTT)
+        assertTrue(back.userNoMatch)
+        assertTrue("not to identify", dao.toIdentify().none { it.id == back.id })
+        assertEquals("never by its name", emptyList<String>(), tmdb.searched.filter { it.startsWith("Kaamelott") })
+    }
+
+    /** Left as it is, removed, then back with an NFO beside it, a film takes the id the NFO gives. */
+    @Test
+    fun aFilmLeftAsItIsBackWithAnNfoTakesTheIdItGives() = runTest {
+        val films = bench.folder("Films")
+        nas.put(HEAT)
+        nas.put(HOLIDAYS)
+        bench.scan()
+        dao.setUserNoMatch(bench.item(films, HOLIDAYS).id, true)
+        nas.remove(HOLIDAYS)
+        bench.scan()
+
+        tmdb.movie(DUNE, "Dune", 2021)
+        nas.put(HOLIDAYS)
+        nas.putText("Vacances à Biarritz (2019).nfo", "<movie><uniqueid type=\"tmdb\">$DUNE</uniqueid></movie>")
+        bench.scan()
+        val back = bench.item(films, HOLIDAYS)
+        assertEquals(Triple(DUNE, MatchState.MATCHED, true), Triple(back.tmdbId, back.matchState, back.userNoMatch))
+    }
+
     /** A refresh reads a title to identify in full, searching it once: the check after it finds it not due. */
     @Test
     fun aRefreshAsksATitleToIdentifyOnce() = runTest {

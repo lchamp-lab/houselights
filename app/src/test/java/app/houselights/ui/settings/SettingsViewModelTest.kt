@@ -12,6 +12,7 @@ import app.houselights.core.PathMapping
 import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
+import app.houselights.providers.local.IgnoredFileRow
 import app.houselights.providers.local.LibraryDao
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
@@ -41,6 +42,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -194,6 +196,28 @@ class SettingsViewModelTest {
         waitFor("the server resumed") { resumed }
         assertEquals(home, store.state.value.source)
         assertNull(store.state.value.keptServer)
+    }
+
+    /**
+     * The library closed, or failing, under the settings, as when a screen outlives it: the titles to identify and the
+     * files left out stay as they last were, never a crash.
+     */
+    @Test
+    fun whatTheLibraryCannotReadAnyMoreIsNoCrash() = runTest {
+        val closed = flow<Nothing> { throw IllegalStateException("the connection pool has been closed") }
+        val factory = viewModelFactory {
+            initializer {
+                val store = fullSettings(backgroundScope)
+                val sources = SourceSwitcher({ store.state.value }, store::setSource, backgroundScope)
+                SettingsViewModel(
+                    store, library, { null }, backgroundScope, sources, images = null, toIdentifyCount = closed, ignoredFiles = closed,
+                )
+            }
+        }
+        val vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
+        advanceUntilIdle()
+        assertNull(vm.toIdentify.value)
+        assertEquals(emptyList<IgnoredFileRow>(), vm.ignored.value)
     }
 
     /** Settings restored before the source could be read show what applies to no source, never a crash. */

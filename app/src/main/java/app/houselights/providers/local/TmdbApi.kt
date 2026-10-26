@@ -4,6 +4,7 @@ import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+@Suppress("TooManyFunctions") // One per TMDB endpoint the app reads.
 interface TmdbApi {
     @GET("search/movie")
     suspend fun searchMovie(
@@ -61,4 +62,11 @@ interface TmdbApi {
 
     @GET("tv/{id}/season/{season}")
     suspend fun season(@Path("id") id: Int, @Path("season") season: Int, @Query("language") language: String): TmdbSeason
+
+    /** A show's episode groups; their names are TMDB's, in no language of their own. */
+    @GET("tv/{id}/episode_groups")
+    suspend fun episodeGroups(@Path("id") id: Int): TmdbEpisodeGroups
+
+    @GET("tv/episode_group/{id}")
+    suspend fun episodeGroup(@Path("id") id: String): TmdbEpisodeGroup
 }

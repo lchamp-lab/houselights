@@ -33,6 +33,7 @@ import kotlinx.coroutines.Deferred
 import android.util.Log
 import app.houselights.core.AudioTrack
 import app.houselights.core.Credits
+import app.houselights.core.EpisodeOrderChoices
 import app.houselights.core.Saga
 import app.houselights.core.TrackChoice
 import app.houselights.core.TrackPlan
@@ -86,6 +87,15 @@ data class DetailState(
     val tracks: TrackPlan? = null,
     /** The title held while its file is missing left the library ([DetailViewModel.removeHeld]): the page leaves. */
     val removed: TitleRemoved? = null,
+    /** For a show TMDB numbers more than one way: the orders its episodes can follow, read from the library alone. */
+    val episodeOrders: EpisodeOrderChoices? = null,
+    /** The show's episodes are being placed in another order ([DetailViewModel.chooseEpisodeOrder]): its row says so. */
+    val reordering: Boolean = false,
+    /**
+     * [selectedSeasonId] is the season the episodes shown moved to, theirs gone, as after a change of their order: focus
+     * that was in their row goes to its first episode.
+     */
+    val seasonMoved: Boolean = false,
 ) {
     /** The audio track Lire asks of the player for the title shown; null when the player chooses it. */
     val playedAudio: AudioTrack? get() = tracks?.takeIf { item?.isPlayable == true }?.let { p -> p.audio?.let(p.audioTracks::getOrNull) }
@@ -182,21 +192,29 @@ class DetailViewModel(
                     }
                 }.copy(credits = credits.await(), canEdit = source.editor?.canEdit(item) == true)
             } }.onSuccess { loaded ->
-                // Keep the errors, any season chosen during the reload, and a change still being saved.
+                // Keep the errors, any season chosen during the reload, a change still being saved, and an order being
+                // applied until a load after it.
+                val placed = reordered
                 _state.update {
-                    val page = loaded.copy(actionError = it.actionError, episodeMarkError = it.episodeMarkError)
-                        .keepingSeasonOf(it)
+                    val page = loaded.copy(
+                        actionError = it.actionError, episodeMarkError = it.episodeMarkError, reordering = it.reordering && !placed,
+                    ).keepingSeasonOf(it)
                     pending?.invoke(page) ?: page
                 }
+                if (placed) reordered = false
             }
                 .onFailure { e ->
                     val error = e.reported(TAG, "Detail of $itemId")
+                    val placed = reordered
                     // A season load this one superseded is not left busy: its row shows the error, with Réessayer.
                     _state.update { s ->
                         val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
-                        s.copy(error = error, episodesLoading = false, episodesError = rowError, partial = false, retrying = false)
-                            .lire()
+                        s.copy(
+                            error = error, episodesLoading = false, episodesError = rowError, partial = false, retrying = false,
+                            reordering = s.reordering && !placed,
+                        ).lire()
                     }
+                    if (placed) reordered = false
                 }
         }
     }
@@ -240,8 +258,14 @@ class DetailViewModel(
             val nextUpError = nextRead.exceptionOrNull()?.reported(TAG, "Next up of $itemId")
             sayFirst(source, item, next, nextUpError)
             val tracks = async { next?.let { readTracks(it, keep = it) } }
+            // From the library alone, never TMDB: the page opens whether it answers or not.
+            val orders = async {
+                suspendRunCatching { source.editor?.episodeOrders(item) }.onFailure { Log.w(TAG, "Orders of $itemId", it) }.getOrNull()
+            }
             val seasons = seasonsLoad.await()
-            val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
+            val kept = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
+            val moved = if (kept == null) movedTo(source, seasons) else null
+            val seasonId = kept ?: moved
                 ?: next?.seasonId
                 ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
                 ?: seasons.firstOrNull()?.id
@@ -260,8 +284,20 @@ class DetailViewModel(
                 episodesError = episodes?.exceptionOrNull()?.reported(TAG, "Episodes of $seasonId"),
                 similar = similar.await(),
                 tracks = tracks.await(),
+                episodeOrders = orders.await(),
+                seasonMoved = moved != null,
             )
         }
+
+    /**
+     * The season the episodes shown moved to once theirs is gone from [seasons], as after a change of their order: that
+     * of the first of them, read again; null when none was shown, or it is in none of them.
+     */
+    private suspend fun movedTo(source: MediaProvider, seasons: List<MediaItem>): String? {
+        val shown = _state.value.episodes.firstOrNull()?.takeIf { _state.value.selectedSeasonId != null } ?: return null
+        val read = suspendRunCatching { source.item(shown.id) }.getOrNull() ?: return null
+        return read.seasonId?.takeIf { id -> seasons.any { it.id == id } }
+    }
 
     /** A collection's page: its films (requested once; Lire picks from them) and the whole saga if known. */
     private suspend fun collectionPage(source: MediaProvider, item: MediaItem): DetailState {
@@ -318,7 +354,7 @@ class DetailViewModel(
         _state.update {
             it.copy(
                 selectedSeasonId = seasonId, episodes = emptyList(), episodesLoading = true, episodesError = null,
-                episodeMarkError = null,
+                episodeMarkError = null, seasonMoved = false,
             )
         }
         loadSeason(series, seasonId, settle = true)
@@ -355,6 +391,34 @@ class DetailViewModel(
 
     /** When this page last changed the library itself, so that change's signal is skipped; null if none. */
     private var ownChangeAt: Long? = null
+
+    /** An order was applied ([chooseEpisodeOrder]): the next load ends [DetailState.reordering]. */
+    @Volatile
+    private var reordered = false
+
+    /**
+     * Places the show's episodes in the order [id] (an option's, or null for Automatique) in [work], which outlives the
+     * page: its episode row says so meanwhile ([DetailState.reordering]), its cards kept, then the page reads again, what
+     * was watched kept. The order in use changes nothing; a failure is said at the end of the actions, where Modifier was
+     * opened.
+     */
+    fun chooseEpisodeOrder(id: String?) {
+        val s = _state.value
+        val item = s.item ?: return
+        val orders = s.episodeOrders ?: return
+        if (s.reordering || orders.chosen == id) return
+        _state.update { it.copy(reordering = true, actionError = null) }
+        work.launch {
+            suspendRunCatching { provider().editor?.chooseEpisodeOrder(item, id) }
+                .onSuccess {
+                    ownChangeAt = now()
+                    events.libraryChanged()
+                }
+                .onFailure { e -> _state.update { it.copy(actionError = e.reported(TAG, "Episode order of $itemId")) } }
+            reordered = true
+            load()
+        }
+    }
 
     /** Marks the title watched or not; a show, all its episodes. */
     fun togglePlayed() {
@@ -561,6 +625,7 @@ internal fun DetailState.keepingSeasonOf(current: DetailState): DetailState {
     if (chosen == null || chosen == selectedSeasonId || seasons.none { it.id == chosen }) return this
     return copy(
         selectedSeasonId = chosen,
+        seasonMoved = false,
         episodes = current.episodes,
         episodesLoading = current.episodesLoading,
         episodesError = current.episodesError,

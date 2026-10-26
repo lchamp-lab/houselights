@@ -25,7 +25,9 @@ import app.houselights.ui.design.components.PreviewShape
 
 /**
  * A title's edit side sheet: its poster, backdrop and logo as a gallery, each image at its shape of use, then its
- * match on a plate. Choosing an image opens its screen directly.
+ * match on a plate and, under it, for a show TMDB numbers more than one way, the order its episodes follow
+ * ([episodeOrder], the one in use, as [orderInUse] says it): [onEpisodeOrder] closes this sheet, then opens the choice,
+ * as a sheet never opens over another. Choosing an image opens its screen directly.
  */
 @Composable
 fun EditMenu(
@@ -33,6 +35,8 @@ fun EditMenu(
     onDismiss: () -> Unit,
     onArtwork: (ArtworkKind) -> Unit,
     onIdentify: () -> Unit,
+    episodeOrder: String? = null,
+    onEpisodeOrder: (() -> Unit)? = null,
 ) {
     val first = remember { FocusRequester() }
     HlSideSheet(
@@ -40,7 +44,7 @@ fun EditMenu(
         onDismiss = onDismiss,
         facts = listOf(item.title, item.year?.toString()),
         initialFocus = first,
-    ) {
+    ) { sheet ->
         // Its names a group's room (HlSpace.l) above the plate under it.
         Gallery(Modifier.padding(bottom = HlSpace.xs)) {
             GalleryTile(
@@ -78,6 +82,14 @@ fun EditMenu(
                 icon = HlIcons.Search,
                 onClick = onIdentify,
             )
+            if (onEpisodeOrder != null) {
+                HlSettingRow(
+                    stringResource(R.string.episode_order),
+                    description = episodeOrder,
+                    icon = HlIcons.Sort,
+                    onClick = { sheet.dismiss(onEpisodeOrder) },
+                )
+            }
         }
     }
 }

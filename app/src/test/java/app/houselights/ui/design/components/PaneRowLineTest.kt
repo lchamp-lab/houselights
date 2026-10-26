@@ -110,6 +110,8 @@ class PaneRowLineTest {
             line(R.string.add_folder_row_desc),
             line(R.string.refresh_metadata_desc),
             line(R.string.to_identify_row_desc, value = TO_IDENTIFY, jaquette = true),
+            line(R.string.ignored_files_desc_one),
+            line(R.string.ignored_files_desc),
             line(R.string.error_tmdb_key_refused_title, value = local.getString(R.string.tmdb_personal)),
             line(R.string.error_tmdb_offline_title, value = local.getString(R.string.tmdb_builtin_short)),
             line(R.string.metadata_language_desc, value = language),
@@ -217,6 +219,7 @@ class PaneRowLineTest {
             line(R.string.update_check_never_desc, Beside.Check),
             line(R.string.update_stable_desc, Beside.Check),
             line(R.string.update_beta_desc, Beside.Check),
+        ) + orderLines(w) + listOf(
             // Titles not found: their answers, and the row of their folder's sheet.
             line(R.string.held_keep_desc),
             line(R.string.held_keep_desc_one),
@@ -266,6 +269,29 @@ class PaneRowLineTest {
         )
     }
 
+    /**
+     * A show's order of episodes: Modifier's row saying the one in use, by its icon, for every kind of group, the longest
+     * in each language included (German's, Polish's), and the choices' lines beside their check (Automatique's by the NFO
+     * is Modifier's line, measured by the icon, the narrower), with TMDB's longest usual name of a group and a long show's
+     * counts.
+     */
+    private fun orderLines(w: Words): List<Line> = with(w) {
+        val episodes = local.resources.getQuantityString(R.plurals.numbers_episodes, EPISODES, "1 234")
+        val seasons = local.resources.getQuantityString(R.plurals.season_count, MANY, MANY)
+        val automatic = local.getString(R.string.episode_order_auto) + DOT + local.getString(R.string.episode_order_aired)
+        listOf(
+            Line(automatic, "$tag: episode_order (Modifier, automatic)", Beside.Icon),
+            Line(seasons + DOT + episodes, "$tag: episode_order_aired", Beside.Check),
+            Line(GROUP + DOT + episodes, "$tag: an episode group", Beside.Check),
+        ) + GROUP_KINDS.flatMap { kind ->
+            val named = local.getString(kind)
+            listOf(
+                Line(local.getString(R.string.episode_order_auto_nfo, named), "$tag: episode_order_auto_nfo, ${name(kind)}", Beside.Icon),
+                Line(named + DOT + GROUP, "$tag: episode_order (Modifier, a group), ${name(kind)}", Beside.Icon),
+            )
+        }
+    }
+
     @Composable
     private fun Row(line: Line) {
         HlSettingRow(
@@ -290,6 +316,17 @@ class PaneRowLineTest {
         const val EXPORT = "/volume1/video"
         const val NAS = "192.168.1.20"
         const val FOLDERS = "Films, Séries"
+
+        /** An episode group as TMDB names it, the longest of its usual names, and a long show's episodes. */
+        const val GROUP = "Original Air Date"
+        const val EPISODES = 1_234
+
+        /** The kinds of TMDB's episode groups, as a show's orders name them. */
+        val GROUP_KINDS = listOf(
+            R.string.episode_order_original, R.string.episode_order_absolute, R.string.episode_order_dvd,
+            R.string.episode_order_digital, R.string.episode_order_story, R.string.episode_order_production,
+            R.string.episode_order_tv,
+        )
 
         /** Between the parts of a source's line, and an account's name; a longer one ends in an ellipsis. */
         const val DOT = " · "

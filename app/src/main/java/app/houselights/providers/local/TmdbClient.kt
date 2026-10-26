@@ -244,6 +244,12 @@ class TmdbClient(
 
     suspend fun season(tvId: Int, season: Int): TmdbSeason? = unlessMissing { call { it.season(tvId, season, language) } }
 
+    /** Show [tvId]'s episode groups (DVD, absolute…), in TMDB's order; none when TMDB has no such show. */
+    suspend fun episodeGroups(tvId: Int): List<TmdbEpisodeGroupRef> = unlessMissing { call { it.episodeGroups(tvId) }.results }.orEmpty()
+
+    /** The episode group [id], whole; null when TMDB has none of that id. */
+    suspend fun episodeGroup(id: String): TmdbEpisodeGroup? = unlessMissing { call { it.episodeGroup(id) } }
+
     suspend fun collection(id: Int): TmdbCollection? = unlessMissing { call { it.collection(id, language) } }
 
     /** The kind a path of TMDB's names a film or show [show] by. */

@@ -287,7 +287,10 @@ private fun SettingValue(
 /** One choice of a [HlChoiceSheet]. */
 data class ChoiceOption(val label: String, val description: String? = null)
 
-/** A setting's choices in a side sheet, focus on the current one; choosing applies and closes, Back cancels. */
+/**
+ * A setting's choices in a side sheet, what they are about in its [facts] (a show's title and year), focus on the
+ * current one; choosing applies and closes, Back cancels.
+ */
 @Composable
 fun HlChoiceSheet(
     title: String,
@@ -296,9 +299,10 @@ fun HlChoiceSheet(
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
     description: String? = null,
+    facts: List<String?> = emptyList(),
 ) {
     val current = remember { FocusRequester() }
-    HlSideSheet(title, onDismiss, description = description, initialFocus = current) { sheet ->
+    HlSideSheet(title, onDismiss, facts = facts, description = description, initialFocus = current) { sheet ->
         HlSettingGroup(null) {
             options.forEachIndexed { i, option ->
                 HlSettingRow(

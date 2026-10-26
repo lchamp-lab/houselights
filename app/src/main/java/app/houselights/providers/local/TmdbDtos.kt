@@ -151,7 +151,42 @@ data class TmdbTv(
     val images: TmdbImages = TmdbImages(),
     val contentRatings: TmdbContentRatings = TmdbContentRatings(),
     val externalIds: TmdbExternalIds = TmdbExternalIds(),
+    /** Its seasons as `tv/{id}` lists them, specials included: where a number from its start falls ([EpisodeNumbering]). */
+    @Serializable(with = EntryByEntry::class) val seasons: List<TmdbSeasonSummary> = emptyList(),
 )
+
+/** One of a show's seasons as `tv/{id}` lists it: its number, how many episodes TMDB lists in it, and when it began. */
+@Serializable
+data class TmdbSeasonSummary(val seasonNumber: Int, val episodeCount: Int = 0, val airDate: String? = null)
+
+/** A show's episode groups (`tv/{id}/episode_groups`): the other ways TMDB numbers its episodes. */
+@Serializable
+data class TmdbEpisodeGroups(@Serializable(with = EntryByEntry::class) val results: List<TmdbEpisodeGroupRef> = emptyList())
+
+/** An episode group as listed: its [type] (1 original air date, 2 absolute, 3 DVD, 4 digital, 5 story arcs, 6 production, 7 TV). */
+@Serializable
+data class TmdbEpisodeGroupRef(val id: String, val type: Int, val name: String? = null, val episodeCount: Int = 0, val groupCount: Int = 0)
+
+/** An episode group whole (`tv/episode_group/{id}`): its seasons ([groups]) in their [TmdbGroupSeason.order]. */
+@Serializable
+data class TmdbEpisodeGroup(
+    val id: String,
+    val type: Int = 0,
+    val name: String? = null,
+    @Serializable(with = EntryByEntry::class) val groups: List<TmdbGroupSeason> = emptyList(),
+)
+
+/** One season of an episode group, numbered by its [order] as Kodi and Jellyfin number it, its episodes by theirs. */
+@Serializable
+data class TmdbGroupSeason(
+    val name: String? = null,
+    val order: Int,
+    @Serializable(with = EntryByEntry::class) val episodes: List<TmdbGroupEpisode> = emptyList(),
+)
+
+/** An episode of a group: TMDB's own season and number of it, its rank in its group season, and its show. */
+@Serializable
+data class TmdbGroupEpisode(val seasonNumber: Int, val episodeNumber: Int, val order: Int = 0, val showId: Int? = null)
 
 /** A film's other titles, by country ([titles]), or a show's ([results]): its name abroad, its working titles. */
 @Serializable

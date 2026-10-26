@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoKind
+import app.houselights.providers.local.Numbering.FOLDER
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -141,7 +142,8 @@ class FilenameParserTest {
         assertEquals(ParsedEpisode("Breaking Bad", 1, 2), episode("Breaking.Bad.S01E02.720p.BluRay.mkv"))
         assertEquals(ParsedEpisode("The Office", 2, 5), episode("The Office - 2x05 - Halloween.mkv"))
         assertEquals(ParsedEpisode("Severance", 2, 1), episode("severance.s02e01.mkv", listOf("Severance (2022)", "Season 2")))
-        assertEquals(ParsedEpisode("Les Revenants", 1, 3), episode("03 - Victor.mkv", listOf("Les Revenants", "Saison 1")))
+        val revenants = listOf("Les Revenants", "Saison 1")
+        assertEquals(ParsedEpisode("Les Revenants", 1, 3, numbering = FOLDER), episode("03 - Victor.mkv", revenants))
         assertNull(episode("Making of.mkv", listOf("Dark", "Extras")))
     }
 
@@ -160,7 +162,8 @@ class FilenameParserTest {
     @Test
     fun episodeNumbersGoPast999ButADateIsNone() {
         assertEquals(ParsedEpisode("One Piece", 1, 1071), episode("One Piece - S01E1071 - The Peak.mkv", listOf("One Piece", "Season 1")))
-        assertEquals(ParsedEpisode("One Piece", 21, 1071), episode("1071 - Le sommet.mkv", listOf("One Piece", "Saison 21")))
+        val season21 = listOf("One Piece", "Saison 21")
+        assertEquals(ParsedEpisode("One Piece", 21, 1071, numbering = FOLDER), episode("1071 - Le sommet.mkv", season21))
         assertNull("a date", episode("2019-05-12 - Live.mkv", listOf("Talk Show", "Season 1")))
     }
 
@@ -171,8 +174,8 @@ class FilenameParserTest {
         assertNull(episode("2019 Christmas Special.mkv", season))
         assertNull(episode("1917.mkv", season))
         assertNull(episode("Episode 2005 - Rose.mkv", season))
-        assertEquals(ParsedEpisode("Show", 1, 1899), episode("1899 - Title.mkv", season))
-        assertEquals(ParsedEpisode("Show", 1, 201), episode("201 - Title.mkv", season))
+        assertEquals(ParsedEpisode("Show", 1, 1899, numbering = FOLDER), episode("1899 - Title.mkv", season))
+        assertEquals(ParsedEpisode("Show", 1, 201, numbering = FOLDER), episode("201 - Title.mkv", season))
     }
 
     /** One file holding several episodes, named as Sonarr's multi-episode styles name it. */
@@ -388,7 +391,8 @@ class FilenameParserTest {
         assertEquals(Triple("Severance", 2022, "Severance (2022)"), show("Severance (2022)/Season 2/severance.s02e01.mkv"))
         assertEquals(Triple("Doctor Who", 2005, ""), show("Doctor.Who.2005.S01E01.mkv"))
         assertEquals(Triple("Doctor Who", 2005, "Doctor Who (2005)"), show("Doctor Who (2005)/Specials/Doctor.Who.2005.S00E01.mkv"))
-        assertEquals(ParsedEpisode("Doctor Who", 0, 1), episode("01 - Christmas.mkv", listOf("Doctor Who (2005)", "Specials")))
+        val specials = listOf("Doctor Who (2005)", "Specials")
+        assertEquals(ParsedEpisode("Doctor Who", 0, 1, numbering = FOLDER), episode("01 - Christmas.mkv", specials))
         assertEquals("doctor who|2005", FilenameParser.showKey("Doctor Who", 2005))
         assertEquals("doctor who", FilenameParser.showKey("Doctor Who", null))
     }

@@ -947,4 +947,36 @@
     <string name="held_gone_fix">Ricollegare il disco del NAS o rimuovere questo titolo.</string>
     <string name="held_remove_title">Rimuovi dalla libreria</string>
     <string name="card_held">non trovato</string>
+    <string name="episode_order">Ordine degli episodi</string>
+    <string name="episode_order_text">Scegliere l’ordine seguito dai numeri dei file. Ciò che è stato visto resta visto.</string>
+    <string name="episode_order_auto">Automatico</string>
+    <string name="episode_order_auto_nfo">%s, secondo il NFO</string>
+    <string name="episode_order_aired">Stagioni TMDB</string>
+    <string name="episode_order_original">Prima messa in onda</string>
+    <string name="episode_order_absolute">Assoluto</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">Digitale</string>
+    <string name="episode_order_story">Archi narrativi</string>
+    <string name="episode_order_production">Produzione</string>
+    <string name="episode_order_tv">TV</string>
+    <string name="episode_order_applying">Ordinamento degli episodi…</string>
+    <plurals name="ignored_files">
+        <item quantity="one">%d file ignorato</item>
+        <item quantity="many">%d file ignorati</item>
+        <item quantity="other">%d file ignorati</item>
+    </plurals>
+    <string name="ignored_files_desc_one">Il suo nome non dice dove va</string>
+    <string name="ignored_files_desc">I loro nomi non dicono dove vanno</string>
+    <string name="ignored_files_text_one">Questo video è in una cartella di serie, ma il suo nome non dice dove va: la libreria lo esclude.</string>
+    <string name="ignored_files_text">Questi video sono in una cartella di serie, ma i loro nomi non dicono dove vanno: la libreria li esclude.</string>
+    <string name="ignored_no_number">Nessun numero di episodio</string>
+    <string name="ignored_no_show">Nessun nome di serie</string>
+    <plurals name="ignored_files_more">
+        <item quantity="one">E %d altro</item>
+        <item quantity="many">E altri %d</item>
+        <item quantity="other">E altri %d</item>
+    </plurals>
+    <string name="ignored_files_fix_label">Per risolvere:</string>
+    <string name="ignored_files_fix_one">Per risolvere: rinominarlo con la sua serie e il suo numero, «Serie - S01E02», o «Serie - 102» per un anime, oppure spostarlo nella cartella «Season 1» della sua serie come «02 - Titolo». La prossima analisi lo aggiungerà.</string>
+    <string name="ignored_files_fix">Per risolvere: rinominarli con la loro serie e il loro numero, «Serie - S01E02», o «Serie - 102» per un anime, oppure spostarli nella cartella «Season 1» della loro serie come «02 - Titolo». La prossima analisi li aggiungerà.</string>
 </resources>

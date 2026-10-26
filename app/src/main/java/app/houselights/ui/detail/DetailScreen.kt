@@ -46,6 +46,7 @@ import app.houselights.R
 import app.houselights.core.ArtworkKind
 import app.houselights.core.AudioTrack
 import app.houselights.core.MatchDoubt
+import app.houselights.core.EpisodeOrderChoices
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
@@ -214,6 +215,7 @@ internal fun DetailPage(
 
     val screenHeight = screenHeight()
     val focusedEpisode = remember { mutableStateOf<MediaItem?>(null) }
+    val heldFocus = episodesHeldFocus(memory, state.selectedSeasonId)
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     var showVersions by remember { mutableStateOf(false) }
@@ -221,7 +223,7 @@ internal fun DetailPage(
     val tracks = state.tracksToChoose
     var showSynopsis by remember { mutableStateOf(false) }
     var showNfo by remember { mutableStateOf(false) }
-    var showEdit by remember { mutableStateOf(false) }
+    val editing = remember { mutableStateOf(false) }
     // The episode whose options are open, and the watched tile's.
     var episodeOptions by remember { mutableStateOf<String?>(null) }
     var showMarks by remember { mutableStateOf(false) }
@@ -242,7 +244,7 @@ internal fun DetailPage(
         onShowSynopsis = { showSynopsis = true },
         copy = state.playedCopy,
         copyIndex = state.playedCopyIndex,
-        onEdit = { showEdit = true }.takeIf { state.canEdit },
+        onEdit = { editing.value = true }.takeIf { state.canEdit },
         season = state.shownSeason,
         onShowMarks = { showMarks = true },
         nextUpError = state.lireError,
@@ -306,7 +308,7 @@ internal fun DetailPage(
                     onOptions = { episodeOptions = it.id },
                     problem = episodeProblem,
                 )
-                seasonRows(state, memory, focusedEpisode, vm, links)
+                seasonRows(state, memory, focusedEpisode, vm, links, heldFocus)
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
             } }
         // Over the page, in its light.
@@ -334,15 +336,35 @@ internal fun DetailPage(
         )
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
-        if (showEdit) {
-            EditMenu(
-                item = item,
-                onDismiss = { showEdit = false },
-                onArtwork = { kind -> showEdit = false; onEditArtwork(item.id, kind) },
-                onIdentify = { showEdit = false; onIdentify(item.id) },
-            )
-        }
+        EditSheets(item, state.episodeOrders, editing, onEditArtwork, onIdentify, onChooseOrder = vm::chooseEpisodeOrder)
     }
+}
+
+/**
+ * Modifier while [editing], and the order of a show's episodes it opens ([EpisodeOrderSheet]) from its row, offered
+ * while TMDB numbers the show more than one way ([orders]).
+ */
+@Composable
+private fun EditSheets(
+    item: MediaItem,
+    orders: EpisodeOrderChoices?,
+    editing: MutableState<Boolean>,
+    onEditArtwork: (String, ArtworkKind) -> Unit,
+    onIdentify: (String) -> Unit,
+    onChooseOrder: (String?) -> Unit,
+) {
+    var showOrders by remember { mutableStateOf(false) }
+    if (editing.value) {
+        EditMenu(
+            item = item,
+            onDismiss = { editing.value = false },
+            onArtwork = { kind -> editing.value = false; onEditArtwork(item.id, kind) },
+            onIdentify = { editing.value = false; onIdentify(item.id) },
+            episodeOrder = orders?.let { orderInUse(it) },
+            onEpisodeOrder = { showOrders = true }.takeIf { orders != null },
+        )
+    }
+    EpisodeOrderSheet(item, orders, open = showOrders, onChoose = onChooseOrder, onDismiss = { showOrders = false })
 }
 
 /**
@@ -366,6 +388,8 @@ private fun LazyListScope.seasonRows(
     focusedEpisode: MutableState<MediaItem?>,
     vm: DetailViewModel,
     links: EpisodeLinks,
+    /** Focus was in the episode row as its season last changed. */
+    heldFocus: Boolean = false,
 ) {
     val item = state.item ?: return
     if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
@@ -385,6 +409,7 @@ private fun LazyListScope.seasonRows(
                     memory.focus(FocusKey.row(EPISODES))
                 }
             }
+            FocusFirstEpisode(state.seasonMoved, heldFocus, state.episodes.firstOrNull(), memory)
             val canMark = state.capabilities?.markPlayed == true
             when {
                 failed != null -> EpisodesFailed(
@@ -408,8 +433,31 @@ private fun LazyListScope.seasonRows(
                     markError = state.episodeMarkError,
                     onClearMarkError = vm::clearEpisodeMarkError,
                     playError = links.problem?.takeIf { p -> state.episodes.any { it.id == p.origin.episode } }?.error,
+                    pending = state.reordering,
                 )
             }
+        }
+    }
+}
+
+/**
+ * Whether focus was in the episode row as the season shown became [seasonId]: read as the change composes, before the
+ * row of the season before leaves.
+ */
+@Composable
+private fun episodesHeldFocus(memory: FocusMemory, seasonId: String?): Boolean =
+    remember(seasonId) { memory.last?.startsWith(FocusKey.within(FocusKey.row(EPISODES), "")) == true }
+
+/**
+ * Focus on [first], the first episode of the season the episodes shown [moved] to, theirs gone, as after a change of
+ * their order, when their row [held] it.
+ */
+@Composable
+private fun FocusFirstEpisode(moved: Boolean, held: Boolean, first: MediaItem?, memory: FocusMemory) {
+    LaunchedEffect(moved, first?.id) {
+        if (moved && held && first != null) {
+            withFrameNanos { }
+            memory.focus(FocusKey.within(FocusKey.row(EPISODES), FocusKey.item(first.id)))
         }
     }
 }
@@ -944,7 +992,8 @@ private fun episodeState(ep: MediaItem): String? =
 
 /**
  * A season's episodes: OK plays one, Menu or a long OK opens its options ([onOptions], null for a card without); a play
- * that failed ([playError]), else a mark that did not save ([markError]), is said under them until an OK there.
+ * that failed ([playError]), else a mark that did not save ([markError]), is said under them until an OK there. While
+ * the show's episodes are placed in another order ([pending]), the row says so by its title, its cards kept until then.
  */
 @Composable
 private fun Episodes(
@@ -958,10 +1007,16 @@ private fun Episodes(
     markError: UiError?,
     onClearMarkError: () -> Unit,
     playError: UiError? = null,
+    pending: Boolean = false,
 ) {
     // The row and the overview of its focused episode come into view together.
     Column(Modifier.scrollsAsBlock().okClears(onClearMarkError)) {
-        MediaRow(header = header, modifier = memory.rowGroup(EPISODES), spacing = HlSpace.l) {
+        MediaRow(
+            header = header,
+            modifier = memory.rowGroup(EPISODES),
+            spacing = HlSpace.l,
+            pending = stringResource(R.string.episode_order_applying).takeIf { pending },
+        ) {
             items(episodes, key = { it.id }) { ep ->
                 LandscapeCard(
                     item = ep,

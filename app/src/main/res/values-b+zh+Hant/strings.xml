@@ -888,4 +888,32 @@
     <string name="held_gone_fix">請重新接上 NAS 的硬碟，或移除此作品。</string>
     <string name="held_remove_title">從媒體庫移除</string>
     <string name="card_held">找不到</string>
+    <string name="episode_order">劇集順序</string>
+    <string name="episode_order_text">選擇您的檔案編號所依循的順序。已觀看的內容仍為已觀看。</string>
+    <string name="episode_order_auto">自動</string>
+    <string name="episode_order_auto_nfo">%s（依據 NFO）</string>
+    <string name="episode_order_aired">TMDB 季</string>
+    <string name="episode_order_original">首播日期</string>
+    <string name="episode_order_absolute">絕對順序</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">數位版</string>
+    <string name="episode_order_story">故事線</string>
+    <string name="episode_order_production">製作順序</string>
+    <string name="episode_order_tv">電視</string>
+    <string name="episode_order_applying">正在排列劇集…</string>
+    <plurals name="ignored_files">
+        <item quantity="other">已略過 %d 個檔案</item>
+    </plurals>
+    <string name="ignored_files_desc_one">無法從名稱判斷它的位置</string>
+    <string name="ignored_files_desc">無法從名稱判斷它們的位置</string>
+    <string name="ignored_files_text_one">此影片位於劇集資料夾中，但無法從名稱判斷它的位置，因此媒體庫不收錄它。</string>
+    <string name="ignored_files_text">這些影片位於劇集資料夾中，但無法從名稱判斷它們的位置，因此媒體庫不收錄它們。</string>
+    <string name="ignored_no_number">無集數編號</string>
+    <string name="ignored_no_show">無劇集名稱</string>
+    <plurals name="ignored_files_more">
+        <item quantity="other">另有 %d 個</item>
+    </plurals>
+    <string name="ignored_files_fix_label">解決方法：</string>
+    <string name="ignored_files_fix_one">解決方法：按劇集名稱和編號命名，如「劇集 - S01E02」，動畫可用「劇集 - 102」，或將它放入該劇集的「Season 1」資料夾，命名為「02 - 標題」。下次掃描時會加入它。</string>
+    <string name="ignored_files_fix">解決方法：按劇集名稱和編號命名，如「劇集 - S01E02」，動畫可用「劇集 - 102」，或將它們放入該劇集的「Season 1」資料夾，命名為「02 - 標題」。下次掃描時會加入它們。</string>
 </resources>
