@@ -196,11 +196,11 @@ class SmbBrowserTest {
     }
 
     /**
-     * The add-folder flow's level, on a session of its own signed off once listed, so a password typed wrong fails though
-     * a scan's session of that account is kept: subfolders by name, hidden and system ones left out, its videos counted.
+     * The add-folder flow's levels, on the share's kept session (the share list tested the account): subfolders by name,
+     * hidden and system ones left out, its videos counted, a level by its path from the folder however slashed.
      */
     @Test
-    fun aLevelIsListedOnASessionOfItsOwn() = runTest {
+    fun aLevelIsListedOnTheSharesKeptSession() = runTest {
         tree = mapOf(
             "" to listOf(
                 SmbEntry("Séries", isFolder = true, size = 0),
@@ -214,22 +214,20 @@ class SmbBrowserTest {
             "films\\4K" to listOf(SmbEntry("Dune (2021)", isFolder = true, size = 0)),
         )
         val films = folder()
-        browser.list(films)
-        val refused = runCatching { browser.folders(films.copy(password = Secret("wrong"))) }.exceptionOrNull()
-        assertEquals(ScanErrorKind.LOGIN_FAILED, refused?.let { ScanErrors.classify(it).kind })
-
         assertEquals(FolderLevel(listOf("Arrival", "films", "Séries"), videos = 1), browser.folders(films))
         assertEquals(FolderLevel(listOf("Dune (2021)"), videos = 0), browser.folders(films, "/films/4K/"))
-        assertEquals(3, opened.size)
-        assertEquals("each signed off once listed", listOf(listOf(false), listOf(false)), opened.drop(1).map { it.closes })
-        assertEquals("the scan's session stays", emptyList<Boolean>(), opened[0].closes)
+        browser.list(films)
+        assertEquals("one session for the levels and the scan", 1, opened.size)
+        assertEquals(emptyList<Boolean>(), opened.single().closes)
     }
 
-    /** A folder the share does not hold, or the account may not read, fails as the form's test does. */
+    /** A folder the share does not hold, or the account may not read, fails as the form's test does; the session stays. */
     @Test
     fun aLevelTheShareRefusesFails() = runTest {
         val refused = runCatching { browser.folders(folder(), "Private") }.exceptionOrNull()
         assertEquals(ScanErrorKind.ACCESS_DENIED, refused?.let { ScanErrors.classify(it).kind })
+        assertEquals(FolderLevel(emptyList(), videos = 1), browser.folders(folder()))
+        assertEquals(1, opened.size)
     }
 
     @Test

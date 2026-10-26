@@ -7,6 +7,7 @@ import com.hierynomus.msdtyp.AccessMask
 import com.hierynomus.mserref.NtStatus
 import com.hierynomus.msfscc.FileAttributes
 import com.hierynomus.mssmb2.SMB2CreateDisposition
+import com.hierynomus.mssmb2.SMB2ImpersonationLevel
 import com.hierynomus.mssmb2.SMB2ShareAccess
 import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.smbj.SMBClient
@@ -16,6 +17,8 @@ import com.hierynomus.smbj.common.SMBRuntimeException
 import com.hierynomus.smbj.connection.Connection
 import com.hierynomus.smbj.session.Session
 import com.hierynomus.smbj.share.DiskShare
+import com.hierynomus.smbj.share.NamedPipe
+import com.hierynomus.smbj.share.PipeShare
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -27,6 +30,8 @@ internal class SmbBrowser(
     /** Signs in to a source's share; replaceable in tests. */
     private val connect: (SourceEntity) -> SmbShare = { SmbjShare.open(it) },
     clock: () -> Long = SystemClock::elapsedRealtime,
+    /** Lists a NAS's shares, signed in as a source is (requests to the NAS); replaceable in tests. */
+    private val listShares: (SourceEntity) -> List<SharedFolder> = { SmbjShare.shares(it) },
 ) : RemoteBrowser {
     private val sessions = KeptConnections<SmbShare>(
         close = { share, broken -> share.close(broken) },
@@ -49,13 +54,11 @@ internal class SmbBrowser(
     }
 
     /**
-     * On a session of its own, as [test]: browsing is the add-folder flow's test of the account typed, which a kept
-     * session, signed in with another password, would pass.
+     * On the share's kept session, as a scan's reads, so that going down a level costs no sign-in: the add-folder flow
+     * tests the account by listing the NAS's shares ([shares]), on a connection of its own, before any level.
      */
-    override suspend fun folders(source: SourceEntity, path: String): FolderLevel = withContext(Dispatchers.IO) {
-        sessions.once({ connect(source) }) { share ->
-            level(folder(share, remotePath(source, cleanPath(path), '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
-        }
+    override suspend fun folders(source: SourceEntity, path: String): FolderLevel = withSession(source) { share ->
+        level(folder(share, remotePath(source, cleanPath(path), '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
@@ -67,6 +70,12 @@ internal class SmbBrowser(
     private suspend fun <T> withSession(source: SourceEntity, block: (SmbShare) -> T): T = withContext(Dispatchers.IO) {
         sessions.use(key(source), { connect(source) }, block)
     }
+
+    /**
+     * The disk shares of [source]'s NAS ([SmbShares]), its share and folder aside, signed in as it is (a guest without
+     * a user name) on a connection of its own, as [test]; throws as signing in or a share refused does.
+     */
+    suspend fun shares(source: SourceEntity): List<SharedFolder> = withContext(Dispatchers.IO) { listShares(source) }
 
     /** Closes sessions kept on [source]'s share, for any account, after its address or password changed. */
     suspend fun forget(source: SourceEntity) {
@@ -194,13 +203,15 @@ private class SmbjShare(
          */
         private val CONFIG = SmbConfig.builder().withTimeout(15, TimeUnit.SECONDS).build()
 
+        /** How [source] signs in: as a guest without a user name. A password not opened for now throws, before connecting. */
+        private fun authentication(source: SourceEntity) = if (source.username.isBlank()) {
+            AuthenticationContext.guest()
+        } else {
+            AuthenticationContext(source.username, source.password.forSignIn().toCharArray(), source.domain.ifBlank { null })
+        }
+
         fun open(source: SourceEntity): SmbShare {
-            // Before connecting: a password not opened for now goes no further.
-            val auth = if (source.username.isBlank()) {
-                AuthenticationContext.guest()
-            } else {
-                AuthenticationContext(source.username, source.password.forSignIn().toCharArray(), source.domain.ifBlank { null })
-            }
+            val auth = authentication(source)
             val client = SMBClient(CONFIG)
             var opened: SmbShare? = null
             try {
@@ -213,5 +224,56 @@ private class SmbjShare(
                 if (opened == null) client.close()
             }
         }
+
+        /**
+         * [source]'s NAS's shares through srvsvc's pipe on IPC$, on a client of its own: signed off once listed, as a
+         * share is, unless the connection broke; the client closed whatever happened.
+         */
+        fun shares(source: SourceEntity): List<SharedFolder> {
+            val auth = authentication(source)
+            val client = SMBClient(CONFIG)
+            try {
+                val connection = client.connect(source.host)
+                val session = connection.authenticate(auth)
+                val pipes = session.connectShare(IPC) as PipeShare
+                val listed = suspendRunCatching { pipes.openServerService().use { SmbShares.list(SmbjPipe(it), source.host) } }
+                val broken = listed.exceptionOrNull()?.let { SmbBrowser.isBroken(it) } == true
+                SmbBrowser.signOff(broken, listOf("share" to { pipes.close() }, "session" to { session.close() })) { forced ->
+                    connection.close(forced)
+                }
+                return listed.getOrThrow()
+            } finally {
+                client.close()
+            }
+        }
+
+        /** srvsvc's pipe, opened as Windows opens it to list shares. */
+        private fun PipeShare.openServerService(): NamedPipe = open(
+            SRVSVC,
+            SMB2ImpersonationLevel.Impersonation,
+            EnumSet.of(AccessMask.MAXIMUM_ALLOWED),
+            null,
+            EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE),
+            SMB2CreateDisposition.FILE_OPEN_IF,
+            null,
+        )
+
+        private const val IPC = "IPC$"
+        private const val SRVSVC = "srvsvc"
+    }
+}
+
+/** smbj's named pipe as [SmbShares] talks through it. */
+private class SmbjPipe(private val pipe: NamedPipe) : RpcPipe {
+    override fun transact(request: ByteArray): ByteArray = pipe.transact(request)
+
+    override fun read(): ByteArray {
+        val bytes = ByteArray(READ_BYTES)
+        return bytes.copyOf(pipe.read(bytes).coerceAtLeast(0))
+    }
+
+    private companion object {
+        /** More than a fragment, which the bind keeps to 4280 bytes. */
+        const val READ_BYTES = 65_536
     }
 }
