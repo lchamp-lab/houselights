@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -82,7 +83,7 @@ internal fun LazyListScope.libraryPane(
                     Showcases(rows, onEdit = onFolderForm, onResumed = sources.resumed)
                 }
             }
-            item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, rows) }
+            item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, rows, sources.toIdentify) }
             item { FilmData() }
             item { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(sources, rows.focus(SOURCE)) } }
         }
@@ -409,12 +410,26 @@ private fun folderFacts(counts: FolderCounts?): List<String?> {
     )
 }
 
-/** Scan, add a folder, read every title again: the library's three actions, on one plate. */
+/**
+ * Scan, add a folder, read every title again: the library's three actions, on one plate; last, while there are titles
+ * to identify, « À identifier » and their count ([onOpenToIdentify]), never in ember: nothing failed, a choice is left.
+ * Gone, from under focus or while its list was open, its place gives focus to « Analyser maintenant ».
+ */
 @Composable
-private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows) {
+private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows, onOpenToIdentify: () -> Unit) {
     val vm = settingsViewModel()
     val scan by vm.library.scan.collectAsStateWithLifecycle()
-    HlSettingGroup(null, Modifier.revealOnFocus()) {
+    val toIdentify by vm.toIdentify.collectAsStateWithLifecycle()
+    val listed = (toIdentify ?: 0) > 0
+    // Read as the row leaves, while it still holds focus.
+    val had = remember(listed) { rows.hasFocus(TO_IDENTIFY, ACTIONS) }
+    LaunchedEffect(listed) {
+        if (had && !listed) {
+            withFrameNanos { }
+            rows.focusGroup(ACTIONS)
+        }
+    }
+    HlSettingGroup(null, Modifier.revealOnFocus().then(rows.group(ACTIONS))) {
         HlSettingRow(
             stringResource(R.string.scan_now),
             description = stringResource(R.string.scan_now_desc),
@@ -434,6 +449,16 @@ private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows) {
             description = stringResource(R.string.refresh_metadata_desc),
             onClick = { vm.library.scan(refreshMetadata = true) },
         )
+        if (listed) {
+            HlSettingRow(
+                stringResource(R.string.to_identify),
+                rows.focus(TO_IDENTIFY, ACTIONS),
+                value = formatCount(toIdentify?.toLong() ?: 0),
+                description = stringResource(R.string.to_identify_row_desc),
+                valueStyle = Hl.type.jaquette,
+                onClick = onOpenToIdentify,
+            )
+        }
     }
 }
 
@@ -901,6 +926,10 @@ private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boo
 private const val HEADER_POSTERS = 3
 
 private const val ADD_FOLDER = "add_folder"
+
+/** The library's actions, on one plate, and the one of them that opens the titles to identify. */
+private const val ACTIONS = "actions"
+private const val TO_IDENTIFY = "to_identify"
 private const val SOURCE = "source"
 
 /** Between the parts of a source row's line ("Jellyfin · léa"). */

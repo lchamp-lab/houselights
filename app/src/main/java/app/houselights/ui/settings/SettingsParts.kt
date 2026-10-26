@@ -27,6 +27,7 @@ import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.AttentionNote
@@ -57,8 +58,18 @@ internal fun Section(
 internal class PaneRows(private val memory: FocusMemory, private val pane: String) {
     private fun key(row: String) = FocusKey.within(FocusKey.pane(pane), FocusKey.row(row))
 
-    /** Keys a row that opens another screen. */
-    fun focus(row: String): Modifier = Modifier.focusKey(key(row), memory)
+    /** Keys a row that opens another screen; one of a [group]'s plate, gone, gives focus to the plate's first row. */
+    fun focus(row: String, group: String? = null): Modifier =
+        Modifier.focusKey(if (group != null) FocusKey.within(key(group), FocusKey.row(row)) else key(row), memory)
+
+    /** Keys a plate of rows ([focus]'s group), which takes focus where one of its rows is gone. */
+    fun group(group: String): Modifier = Modifier.focusGroupKey(key(group), memory)
+
+    /** Whether [row] of [group] holds focus; read as a change composes, before it removes the row. */
+    fun hasFocus(row: String, group: String): Boolean = memory.hasFocus(FocusKey.within(key(group), FocusKey.row(row)))
+
+    /** Focuses [group]'s first row ([group]'s plate). */
+    fun focusGroup(group: String): Boolean = memory.focus(key(group))
 
     /** Focuses that row from within the pane (after a folder is removed). */
     fun requester(row: String): FocusRequester = memory.requester(key(row))

@@ -67,7 +67,10 @@ internal class Reidentify(
             } ?: return@withLock false
             var changed = false
             withContext(NonCancellable) {
-                dao.inTransaction { changed = writes() }
+                dao.inTransaction {
+                    // Left as it is while TMDB was asked ([LocalEditor.keepUnidentified], at once): what it found is not written.
+                    if (dao.item(title.id)?.userNoMatch == false) changed = writes()
+                }
             }
             changed
         }

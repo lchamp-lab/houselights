@@ -42,6 +42,9 @@ class LocalLibrary(
 
     val titleCount: Flow<Int> = dao.observeAllTitleCount().paced()
 
+    /** How many films and shows are to identify ([TO_IDENTIFY]). */
+    val toIdentifyCount: Flow<Int> = dao.observeToIdentifyCount().paced()
+
     val scan: StateFlow<ScanState> = scanner.state
 
     /** One query for all sources rather than two each, as Flow queries rerun on every scan write. */

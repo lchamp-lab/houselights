@@ -548,6 +548,22 @@
     </plurals>
     <string name="identify_state_matched">Identificato</string>
     <string name="result_current">Attuale</string>
+    <string name="to_identify">Da identificare</string>
+    <string name="to_identify_row_desc">Non riconosciuti con certezza</string>
+    <string name="to_identify_desc">Houselights non ha riconosciuto questi titoli con certezza. Scegliere quello giusto: la scelta viene mantenuta dalle scansioni successive. Gli altri vengono cercati di nuovo, prima ogni giorno, poi ogni settimana.</string>
+    <string name="to_identify_unsure">Più titoli possibili</string>
+    <string name="to_identify_not_found">Non trovato su TMDB</string>
+    <string name="to_identify_none">Niente da identificare</string>
+    <string name="to_identify_none_hint">I titoli che Houselights non ha riconosciuto con certezza appariranno qui.</string>
+    <string name="to_identify_best">Forse «%1$s» (%2$d)</string>
+    <string name="to_identify_best_undated">Forse «%1$s»</string>
+    <string name="identify_menu_desc_none">Trova questo titolo su TMDB</string>
+    <string name="identify_desc_none">Houselights non ha riconosciuto questo titolo con certezza. Cercarlo su TMDB: la scelta viene mantenuta dalle scansioni successive.</string>
+    <string name="identify_desc_unsure">Houselights è indeciso tra questi titoli. Scegliere quello giusto o cercarlo su TMDB: la scelta viene mantenuta dalle scansioni successive.</string>
+    <string name="identify_keep">Lascia così</string>
+    <string name="identify_kept">Lasciato così</string>
+    <string name="identify_suggestions">Suggerimenti</string>
+    <string name="identify_skip">Salta</string>
     <string name="error_offline_title">Libreria non raggiungibile</string>
     <string name="error_offline_nas_title">NAS non raggiungibile</string>
     <string name="error_offline_server_title">Server non raggiungibile</string>

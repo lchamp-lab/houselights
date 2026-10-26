@@ -533,6 +533,22 @@
     </plurals>
     <string name="identify_state_matched">Identifiziert</string>
     <string name="result_current">Aktuell</string>
+    <string name="to_identify">Zu identifizieren</string>
+    <string name="to_identify_row_desc">Nicht sicher erkannt</string>
+    <string name="to_identify_desc">Houselights hat diese Titel nicht sicher erkannt. Wählen Sie den richtigen: Ihre Auswahl bleibt bei späteren Scans erhalten. Die anderen werden erneut gesucht, zuerst täglich, dann wöchentlich.</string>
+    <string name="to_identify_unsure">Mehrere mögliche Titel</string>
+    <string name="to_identify_not_found">Nicht auf TMDB gefunden</string>
+    <string name="to_identify_none">Nichts zu identifizieren</string>
+    <string name="to_identify_none_hint">Titel, die Houselights nicht sicher erkannt hat, erscheinen hier.</string>
+    <string name="to_identify_best">Vielleicht „%1$s“ (%2$d)</string>
+    <string name="to_identify_best_undated">Vielleicht „%1$s“</string>
+    <string name="identify_menu_desc_none">Diesen Titel auf TMDB finden</string>
+    <string name="identify_desc_none">Houselights hat diesen Titel nicht sicher erkannt. Suchen Sie ihn auf TMDB: Ihre Auswahl bleibt bei späteren Scans erhalten.</string>
+    <string name="identify_desc_unsure">Houselights schwankt zwischen diesen Titeln. Wählen Sie den richtigen oder suchen Sie ihn auf TMDB: Ihre Auswahl bleibt bei späteren Scans erhalten.</string>
+    <string name="identify_keep">Unverändert lassen</string>
+    <string name="identify_kept">Unverändert gelassen</string>
+    <string name="identify_suggestions">Vorschläge</string>
+    <string name="identify_skip">Überspringen</string>
     <string name="error_offline_title">Bibliothek nicht erreichbar</string>
     <string name="error_offline_nas_title">NAS nicht erreichbar</string>
     <string name="error_offline_server_title">Server nicht erreichbar</string>

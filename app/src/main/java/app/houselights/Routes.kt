@@ -106,8 +106,13 @@ object Route {
     @Serializable
     data class Artwork(val id: String, val kind: ArtworkKind)
 
+    /** Identifier on [id]; in the [queue], opened from the titles to identify, the next title follows. */
     @Serializable
-    data class Identify(val id: String)
+    data class Identify(val id: String, val queue: Boolean = false)
+
+    /** The films and shows to identify (Réglages › Bibliothèque), each opening Identifier. */
+    @Serializable
+    data object ToIdentify
 
     /** A person's page: their titles, before and behind the camera ([app.houselights.core.Catalog.person]). */
     @Serializable
