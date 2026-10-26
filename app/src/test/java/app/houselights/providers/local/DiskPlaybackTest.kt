@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.DiskAbsentException
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.escapeUriPath
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.runBlocking
@@ -11,14 +12,24 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
+import java.nio.file.AccessDeniedException
+import java.nio.file.Files
 
-/** Lire on a film of the player's own disks: from where its disk is mounted at that moment, or said out of reach. */
+/**
+ * Lire on a film of the player's own disks: from where its disk is mounted at that moment, or said out of reach; never
+ * what a link leads to off the disk.
+ */
 @RunWith(RobolectricTestRunner::class)
 class DiskPlaybackTest {
+    @get:Rule
+    val temp = TemporaryFolder()
+
     private val db = testDatabase { allowMainThreadQueries() }
     private val dao = db.dao()
     private val disks = TestDisks()
@@ -54,5 +65,26 @@ class DiskPlaybackTest {
         disks.unplug(USB_DISK)
         val absent = assertThrows(DiskAbsentException::class.java) { runBlocking { uri(heat) } }
         assertEquals("said as a NAS out of reach", UiError.OFFLINE, absent.toUiError())
+    }
+
+    /**
+     * A film that is a link leading off its disk, to the app's own files say (a disk formatted ext4 holds links), is never
+     * handed to a player, which a content:// address would let read what it leads to; a link within the disk plays.
+     */
+    @Test
+    fun aLinkLeadingOffItsDiskIsNeverHandedToAPlayer() = runTest {
+        val heat = heat()
+        val disk = temp.newFolder(USB_DISK)
+        disks.plug(USB_DISK, disk)
+        val film = disk.resolve("Films/Heat (1995)/Heat (1995).mkv").toPath()
+        Files.createDirectories(film.parent)
+        Files.createSymbolicLink(film, temp.newFile("library.db").toPath())
+
+        val refused = assertThrows(AccessDeniedException::class.java) { runBlocking { uri(heat) } }
+        assertEquals(UiError.FAILED, refused.toUiError())
+
+        Files.delete(film)
+        Files.createSymbolicLink(film, disk.put("Archives/Heat.mkv").toPath())
+        assertEquals("file://${escapeUriPath(disk.path)}/Films/Heat (1995)/Heat (1995).mkv", uri(heat))
     }
 }

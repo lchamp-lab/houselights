@@ -44,6 +44,7 @@ import app.houselights.core.DiskAbsentException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.nio.file.AccessDeniedException
 import java.util.Locale
 
 /** Provider for the library [LibraryScanner] builds from its folders, on a NAS or on the player's own disks. */
@@ -336,7 +337,7 @@ class LocalProvider(
         val file = fileOf(entity, part)
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${entity.title} was removed")
         // Where the disk is mounted now: Android may have mounted it elsewhere since the scan.
-        val disk = if (source.protocol == Protocol.LOCAL) withContext(Dispatchers.IO) { volumes.mountOf(source.host) } else null
+        val disk = if (source.protocol == Protocol.LOCAL) withContext(Dispatchers.IO) { diskOf(source, file) } else null
         val mapper = LocalMapper(dao, context)
         val container = FilenameParser.extension(file)
         val mapped = mapper.map(entity)
@@ -350,6 +351,17 @@ class LocalProvider(
             media = firstFileMedia(entity, part),
             titleKey = tracksKey(entity),
         )
+    }
+
+    /**
+     * Where [source]'s disk is mounted now, null while it is not; [AccessDeniedException] when its [file] is a link
+     * leading off the disk, as a player is handed what a link leads to, which could be the app's own files.
+     */
+    private fun diskOf(source: SourceEntity, file: String): File? {
+        val mount = volumes.mountOf(source.host) ?: return null
+        val path = File(mount, remotePath(source, file))
+        if (!path.canonicalFile.startsWith(mount.canonicalFile)) throw AccessDeniedException(path.path, null, "it leads off its disk")
+        return mount
     }
 
     private fun filesOf(entity: ItemEntity) = listOfNotNull(entity.filePath) + entity.parts

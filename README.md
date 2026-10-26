@@ -212,8 +212,9 @@ disks, asked only when you add one: the storage permission on Android 9 and 10 (
 from Android 11, where the storage permission reads videos and pictures alone and an NFO or a subtitle is neither.
 Without it, or once it is withdrawn, a disk's folder is refused at its scan rather than read as empty, and its titles
 stay. Houselights reads the folders you add and writes nothing on the disks; a player other than the Zidoo's is handed
-the film it plays alone. Google Play limits all-files access to file managers and the like: Houselights is not on
-Google Play ([Install](#install)). On a player whose settings do not open that screen, allow it from a computer:
+the film it plays alone, never a file a link on the disk leads to elsewhere. Google Play limits all-files access to
+file managers and the like: Houselights is not on Google Play ([Install](#install)). On a player whose settings do not
+open that screen, allow it from a computer:
 
 ```
 adb shell pm grant app.houselights android.permission.READ_EXTERNAL_STORAGE   # Android 9 and 10
