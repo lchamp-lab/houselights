@@ -1,9 +1,10 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">マイファイル</string>
-    <string name="source_local_desc">NASやネットワーク共有（NFSまたはSMB）上の動画です。Houselightsがスキャンし、ポスターと作品情報をTMDBから取得します。</string>
+    <string name="source_local_desc">NASやネットワーク上のパソコンにある動画です。Houselightsがスキャンし、ポスターとあらすじを取得します。</string>
     <string name="source_jellyfin">Jellyfinサーバー</string>
     <string name="source_jellyfin_desc">サーバーのライブラリ</string>
+    <string name="welcome_jellyfin_desc">Jellyfinサーバーの映画とシリーズです。</string>
     <string name="welcome_title">ライブラリを選択</string>
 
     <!-- Libraries and sections -->
@@ -208,22 +209,23 @@
     <string name="edit_folder_row_desc">アドレスやログイン情報</string>
     <string name="edit_folder_unreachable_desc">アドレスが変わった可能性があります</string>
     <string name="edit_folder_login_desc">ログイン情報を再入力</string>
-    <string name="edit_folder_not_found_desc">共有やパスが変わった可能性</string>
+    <string name="edit_folder_not_found_desc">共有フォルダやパスが変わった可能性</string>
     <string name="password_kept">変更なし</string>
     <string name="jellyfin_desc">サーバーのアドレスとJellyfinのログイン情報を入力してください。</string>
+    <string name="jellyfin_desc_found">サーバーを選ぶかアドレスを入力し、Jellyfinのログイン情報を入力してください。</string>
     <string name="folder_kind">内容</string>
     <string name="field_protocol">プロトコル</string>
     <string name="field_host">NASのアドレス</string>
-    <string name="field_export">NFSエクスポート</string>
-    <string name="nfs_hint">パスワードは不要です。NAS側で、このデバイスのアドレスを読み取り専用で、非特権ポートからの接続も含めて許可してください。</string>
-    <string name="nfs_identity_title">接続するユーザー</string>
-    <string name="nfs_identity_desc">NASから見えるユーザー</string>
-    <string name="nfs_identity_hint">空欄のときは、Houselights は root（UID 0、GID 0）として接続します。Zidooプレーヤーは自身のアカウントで動画を開きます。</string>
+    <string name="field_export">マウントパス</string>
+    <string name="nfs_hint">パスワードは不要です。NAS側でこのプレーヤーに読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>
+    <string name="nfs_identity_title">NFSアカウント</string>
+    <string name="nfs_identity_desc">NASから見えるアカウント（既定はroot）</string>
+    <string name="nfs_identity_hint">rootのままなら空欄にします。NASがrootを拒否する場合は、UIDとGIDを入力してください。</string>
     <string name="field_uid">ユーザー（UID）</string>
     <string name="field_gid">グループ（GID）</string>
     <string name="smb_hint">パスワードはこのデバイスに保存され、Zidooプレーヤーに渡されます。読み取り権限のみの専用アカウントをおすすめします。</string>
     <string name="field_share">共有フォルダ</string>
-    <string name="field_path">フォルダ</string>
+    <string name="field_path">サブフォルダ</string>
     <string name="field_optional">%1$s（任意）</string>
     <string name="field_user">ユーザー名</string>
     <string name="field_password">パスワード</string>
@@ -231,8 +233,8 @@
     <string name="placeholder_server_path">例：/media/movies</string>
     <string name="placeholder_network_path">例：nfs://192.168.1.10/volume1/movies</string>
     <string name="placeholder_tmdb_key">例：0123456789abcdef0123456789abcdef</string>
-    <string name="placeholder_export">例：/volume1/media</string>
-    <string name="placeholder_share">例：media</string>
+    <string name="placeholder_export">例：/volume1/video</string>
+    <string name="placeholder_share">例：video</string>
     <string name="placeholder_path_movies">例：movies</string>
     <string name="placeholder_path_shows">例：shows</string>
     <string name="placeholder_uid">例：1026</string>
@@ -246,23 +248,39 @@
     <string name="folder_gone_state">フォルダが見つかりません</string>
     <string name="folder_gone">このフォルダはもうライブラリにありません。その間に削除されました。設定に戻って、もう一度追加してください。</string>
     <string name="folder_already_added">このフォルダは「%s」としてライブラリに追加済みです。</string>
-    <string name="folder_overlaps">このフォルダは、ライブラリにある「%s」と重なっています。このままでは作品が二重に表示されます。別のフォルダを選ぶか、設定で既存のフォルダを編集してください。</string>
     <string name="folder_overlaps_state">ライブラリに追加済み</string>
     <string name="folder_not_saved_state">保存されていません</string>
     <string name="folder_unread">このフォルダを読み込み直せませんでした</string>
     <string name="saving">保存中…</string>
-    <plurals name="entries_found">
-        <item quantity="other">%d件を検出</item>
-    </plurals>
     <string name="error_nas_unreachable">%sから応答がありません。NASの電源が入っていて、ネットワークに接続されているか確認してください。</string>
     <string name="error_access_denied">NASがアクセスを拒否しました。NFSの場合は共有フォルダでこのデバイスのIPアドレスを許可し、SMBの場合はアカウントの権限を確認してください。</string>
     <string name="error_login_failed">NASがユーザー名またはパスワードを拒否しました。</string>
     <string name="error_not_found">この共有フォルダまたはフォルダはNAS上に存在しません。スペルを確認してください。</string>
     <string name="error_host_missing">NASのアドレスを入力してください。</string>
-    <string name="error_export_missing">NFSエクスポートを入力してください（例：/volume1/media）。</string>
-    <string name="error_share_missing">共有フォルダ名を入力してください（例：media）。</string>
+    <string name="error_export_missing">マウントパスを入力してください（例：/volume1/video）。</string>
+    <string name="error_share_missing">共有フォルダ名を入力してください（例：video）。</string>
     <string name="error_uid_missing">ユーザー（UID）も入力してください。</string>
     <string name="error_gid_missing">グループ（GID）も入力してください。</string>
+    <string name="nfs_hint_player">パスワードは不要です。NAS側でこのプレーヤー（%s）に読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>
+    <string name="folder_holds">このフォルダには、ライブラリにある「%s」が含まれています。このままでは作品が二重に表示されます。サブフォルダを選んでください。</string>
+    <string name="folder_inside">このフォルダは、ライブラリにある「%s」の中にあります。作品はすでに表示されています。別のフォルダを選んでください。</string>
+    <string name="folder_nested_state">他のフォルダと重複</string>
+    <string name="folder_empty_state">空のフォルダ</string>
+    <string name="folder_no_content">このフォルダには動画もサブフォルダもありません。パスを確認してください。</string>
+    <plurals name="video_count">
+        <item quantity="other">%d本の動画</item>
+    </plurals>
+    <string name="folder_content">%1$s、%2$s</string>
+    <string name="error_share_not_found">%1$sに共有フォルダ「%2$s」がありません。NASの管理画面で名前を確認してください。</string>
+    <string name="error_export_not_found">NASは%sをNFSで共有していません。Synologyのマウントパスは/volume1/から始まります。</string>
+    <string name="error_subfolder_not_found">%1$sは応答していますが、「%2$s」が見つかりません。大文字と小文字も含めて名前を確認してください。</string>
+    <string name="error_subfolder_not_found_share">「%1$s」は応答していますが、「%2$s」が見つかりません。大文字と小文字も含めて名前を確認してください。</string>
+    <string name="error_nfs_refused">NASがこのプレーヤーを拒否しました。%2$sで%1$sに読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>
+    <string name="error_nfs_refused_no_address">NASがこのプレーヤーを拒否しました。%sでこのプレーヤーのアドレスに読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>
+    <string name="error_nfs_root_refused">NASがrootによる%sの読み取りを拒否しました。「NFSアカウント」を選び、アクセス権のあるアカウントを入力してください。</string>
+    <string name="error_nfs_account_refused">NASがUID %1$sによる%2$sの読み取りを拒否しました。「NFSアカウント」に、アクセス権のあるアカウントを入力してください。</string>
+    <string name="error_smb_denied">アカウント「%1$s」には「%2$s」へのアクセス権がありません。NASで読み取り権限を与えるか、別のアカウントを使ってください。</string>
+    <string name="error_guest_refused">このNASはゲストを受け付けません。アカウントを入力してください。</string>
     <string name="error_scan_other">フォルダを読み取れませんでした。もう一度お試しいただくか、NASの共有フォルダを確認してください。</string>
     <string name="error_folder_empty">NAS上のフォルダが空のようです。何も削除されていません。ディスクがマウントされているか確認し、本当に空であればフォルダを削除してください。</string>
     <string name="error_storage_full">このデバイスの空き容量がないため、スキャンを中止しました。設定の「ストレージ」で空き容量を確保してください。</string>
@@ -499,6 +517,22 @@
     </plurals>
     <string name="identify_state_matched">特定済み</string>
     <string name="result_current">現在</string>
+    <string name="to_identify">未特定の作品</string>
+    <string name="to_identify_row_desc">確実に特定できていません</string>
+    <string name="to_identify_desc">Houselightsはこれらの作品を確実に特定できませんでした。正しい作品を選んでください。選択した作品は以降のスキャンでも保持されます。その他の作品は、最初は毎日、その後は毎週、再検索されます。</string>
+    <string name="to_identify_unsure">複数の候補があります</string>
+    <string name="to_identify_not_found">TMDBに見つかりません</string>
+    <string name="to_identify_none">未特定の作品はありません</string>
+    <string name="to_identify_none_hint">Houselightsが確実に特定できなかった作品がここに表示されます。</string>
+    <string name="to_identify_best">候補：「%1$s」（%2$d）</string>
+    <string name="to_identify_best_undated">候補：「%1$s」</string>
+    <string name="identify_menu_desc_none">TMDBでこの作品を探す</string>
+    <string name="identify_desc_none">Houselightsはこの作品を確実に特定できませんでした。TMDBで検索してください。選択した作品は以降のスキャンでも保持されます。</string>
+    <string name="identify_desc_unsure">Houselightsはこれらの作品のどれか判断できませんでした。正しい作品を選ぶか、TMDBで検索してください。選択した作品は以降のスキャンでも保持されます。</string>
+    <string name="identify_keep">このままにする</string>
+    <string name="identify_kept">このままにしています</string>
+    <string name="identify_suggestions">候補</string>
+    <string name="identify_skip">スキップ</string>
     <string name="error_offline_title">ライブラリに接続できません</string>
     <string name="error_offline_nas_title">NASに接続できません</string>
     <string name="error_offline_server_title">サーバーに接続できません</string>

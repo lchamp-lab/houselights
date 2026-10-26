@@ -195,11 +195,15 @@ class NfsListingTest {
         assertEquals(listOf("Arrival (2016)/Arrival (2016).mkv", "Sicario (2015).mp4"), listing.videos.map { it.relativePath })
     }
 
-    /** The form's test counts what the folder holds, leaving out hidden and system entries, "." and "..". */
+    /**
+     * The form's test counts what the folder holds, its subfolders and its videos apart, leaving out hidden and system
+     * entries, "." and "..", and files that are not videos.
+     */
     @Test
     fun aTestCountsTheFolder() = runTest {
         library()
-        assertEquals(3, browser(Export()).test(films))
+        file("movie.nfo", size = 4_096)
+        assertEquals(FolderLevel(listOf("Arrival (2016)", "Dune (2021)"), videos = 1), browser(Export()).test(films))
     }
 
     /**

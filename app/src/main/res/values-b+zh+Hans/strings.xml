@@ -1,9 +1,10 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">我的文件</string>
-    <string name="source_local_desc">NAS 或网络共享文件夹（NFS 或 SMB）上的视频。Houselights 会扫描这些视频，并从 TMDB 获取海报和资料。</string>
+    <string name="source_local_desc">NAS 或网络中电脑上的视频。Houselights 会扫描这些视频，并获取海报和简介。</string>
     <string name="source_jellyfin">Jellyfin 服务器</string>
     <string name="source_jellyfin_desc">服务器中的媒体库</string>
+    <string name="welcome_jellyfin_desc">您的 Jellyfin 服务器中的电影和剧集。</string>
     <string name="welcome_title">选择您的媒体库</string>
 
     <!-- Libraries and sections -->
@@ -211,19 +212,20 @@
     <string name="edit_folder_not_found_desc">共享文件夹或路径可能已更改</string>
     <string name="password_kept">未更改</string>
     <string name="jellyfin_desc">输入服务器地址和您的 Jellyfin 登录信息。</string>
+    <string name="jellyfin_desc_found">请选择您的服务器或输入其地址，然后输入您的 Jellyfin 登录信息。</string>
     <string name="folder_kind">内容</string>
     <string name="field_protocol">协议</string>
     <string name="field_host">NAS 地址</string>
-    <string name="field_export">NFS 导出路径</string>
-    <string name="nfs_hint">无需密码：请在 NAS 上以只读方式允许本设备的地址，并允许来自非特权端口的连接。</string>
-    <string name="nfs_identity_title">连接身份</string>
-    <string name="nfs_identity_desc">NAS 看到的用户</string>
-    <string name="nfs_identity_hint">留空时，Houselights 以 root（UID 0，GID 0）身份连接。Zidoo 播放器以自己的账号打开视频。</string>
+    <string name="field_export">装载路径</string>
+    <string name="nfs_hint">无需密码：请在 NAS 上以只读方式允许此播放器，在 Synology 上还需允许非特权端口。</string>
+    <string name="nfs_identity_title">NFS 账号</string>
+    <string name="nfs_identity_desc">NAS 看到的账号，默认为 root</string>
+    <string name="nfs_identity_hint">留空即为 root。如果 NAS 拒绝 root，请输入 UID 和 GID。</string>
     <string name="field_uid">用户（UID）</string>
     <string name="field_gid">组（GID）</string>
     <string name="smb_hint">密码保存在本设备上，并会传给 Zidoo 播放器。建议使用专用的只读账号。</string>
     <string name="field_share">共享文件夹</string>
-    <string name="field_path">文件夹</string>
+    <string name="field_path">子文件夹</string>
     <string name="field_optional">%1$s（可选）</string>
     <string name="field_user">用户名</string>
     <string name="field_password">密码</string>
@@ -231,8 +233,8 @@
     <string name="placeholder_server_path">例如：/media/电影</string>
     <string name="placeholder_network_path">例如：nfs://192.168.1.10/volume1/电影</string>
     <string name="placeholder_tmdb_key">例如：0123456789abcdef0123456789abcdef</string>
-    <string name="placeholder_export">例如：/volume1/media</string>
-    <string name="placeholder_share">例如：media</string>
+    <string name="placeholder_export">例如：/volume1/video</string>
+    <string name="placeholder_share">例如：video</string>
     <string name="placeholder_path_movies">例如：电影</string>
     <string name="placeholder_path_shows">例如：剧集</string>
     <string name="placeholder_uid">例如：1026</string>
@@ -246,23 +248,39 @@
     <string name="folder_gone_state">找不到文件夹</string>
     <string name="folder_gone">此文件夹已不在媒体库中：它在此期间已被移除。请返回设置重新添加。</string>
     <string name="folder_already_added">此文件夹已在媒体库中，名为“%s”。</string>
-    <string name="folder_overlaps">此文件夹与媒体库中已有的“%s”重叠：其中的作品会出现两次。请选择其他文件夹，或在设置中编辑那个文件夹。</string>
     <string name="folder_overlaps_state">已在媒体库中</string>
     <string name="folder_not_saved_state">未保存</string>
     <string name="folder_unread">无法重新读取此文件夹</string>
     <string name="saving">正在保存…</string>
-    <plurals name="entries_found">
-        <item quantity="other">找到 %d 项</item>
-    </plurals>
     <string name="error_nas_unreachable">%s 无响应。请检查 NAS 是否已开机并连接到网络。</string>
     <string name="error_access_denied">NAS 拒绝访问。如使用 NFS，请在共享文件夹上允许本设备的 IP 地址；如使用 SMB，请检查该账号的权限。</string>
     <string name="error_login_failed">NAS 拒绝了此用户名或密码。</string>
     <string name="error_not_found">NAS 上不存在此共享文件夹或文件夹。请检查拼写。</string>
     <string name="error_host_missing">请输入 NAS 地址。</string>
-    <string name="error_export_missing">请输入 NFS 导出路径，例如 /volume1/media。</string>
-    <string name="error_share_missing">请输入共享文件夹的名称，例如 media。</string>
+    <string name="error_export_missing">请输入装载路径，例如 /volume1/video。</string>
+    <string name="error_share_missing">请输入共享文件夹的名称，例如 video。</string>
     <string name="error_uid_missing">请同时输入用户（UID）。</string>
     <string name="error_gid_missing">请同时输入组（GID）。</string>
+    <string name="nfs_hint_player">无需密码：请在 NAS 上以只读方式允许此播放器（%s），在 Synology 上还需允许非特权端口。</string>
+    <string name="folder_holds">此文件夹包含媒体库中已有的“%s”：其中的作品会出现两次。请改选一个子文件夹。</string>
+    <string name="folder_inside">此文件夹位于媒体库中已有的“%s”内：其中的作品已在媒体库中。请选择其他文件夹。</string>
+    <string name="folder_nested_state">与文件夹重叠</string>
+    <string name="folder_empty_state">空文件夹</string>
+    <string name="folder_no_content">此文件夹中既没有视频也没有子文件夹。请检查路径。</string>
+    <plurals name="video_count">
+        <item quantity="other">%d 个视频</item>
+    </plurals>
+    <string name="folder_content">%1$s、%2$s</string>
+    <string name="error_share_not_found">%1$s 上没有名为“%2$s”的共享文件夹。请在 NAS 的管理界面中核对名称。</string>
+    <string name="error_export_not_found">NAS 未通过 NFS 共享 %s。在 Synology 上，装载路径以 /volume1/ 开头。</string>
+    <string name="error_subfolder_not_found">%1$s 有响应，但其中没有“%2$s”。请核对名称，包括大小写。</string>
+    <string name="error_subfolder_not_found_share">“%1$s”有响应，但其中没有“%2$s”。请核对名称，包括大小写。</string>
+    <string name="error_nfs_refused">NAS 拒绝了此播放器。请在 %2$s 上以只读方式允许 %1$s，在 Synology 上还需允许非特权端口。</string>
+    <string name="error_nfs_refused_no_address">NAS 拒绝了此播放器。请在 %s 上以只读方式允许此播放器的地址，在 Synology 上还需允许非特权端口。</string>
+    <string name="error_nfs_root_refused">NAS 不允许 root 读取 %s。请选择“NFS 账号”，并输入有权访问的账号。</string>
+    <string name="error_nfs_account_refused">NAS 不允许 UID %1$s 读取 %2$s。请在“NFS 账号”中输入有权访问的账号。</string>
+    <string name="error_smb_denied">账号“%1$s”无权访问“%2$s”。请在 NAS 上授予其读取权限，或更换账号。</string>
+    <string name="error_guest_refused">此 NAS 不接受访客：请输入账号。</string>
     <string name="error_scan_other">无法读取此文件夹。请重试，或检查 NAS 上的共享文件夹。</string>
     <string name="error_folder_empty">此文件夹在 NAS 上似乎是空的：未移除任何内容。请检查其所在磁盘是否已挂载；如果它将一直为空，请将其移除。</string>
     <string name="error_storage_full">本设备已没有剩余空间：扫描已停止。请在设置的“存储空间”中释放空间。</string>
@@ -500,6 +518,22 @@
     </plurals>
     <string name="identify_state_matched">已识别</string>
     <string name="result_current">当前</string>
+    <string name="to_identify">待识别</string>
+    <string name="to_identify_row_desc">未能确定识别</string>
+    <string name="to_identify_desc">Houselights 未能确定识别这些作品。请选择正确的作品：您的选择会在之后的扫描中保留。其余作品会重新搜索，起初每天一次，之后每周一次。</string>
+    <string name="to_identify_unsure">有多个可能的作品</string>
+    <string name="to_identify_not_found">在 TMDB 上未找到</string>
+    <string name="to_identify_none">没有待识别的作品</string>
+    <string name="to_identify_none_hint">Houselights 未能确定识别的作品会显示在这里。</string>
+    <string name="to_identify_best">可能是“%1$s”（%2$d）</string>
+    <string name="to_identify_best_undated">可能是“%1$s”</string>
+    <string name="identify_menu_desc_none">在 TMDB 上查找此作品</string>
+    <string name="identify_desc_none">Houselights 未能确定识别此作品。请在 TMDB 上搜索：您的选择会在之后的扫描中保留。</string>
+    <string name="identify_desc_unsure">Houselights 无法确定是这些作品中的哪一部。请选择正确的作品，或在 TMDB 上搜索：您的选择会在之后的扫描中保留。</string>
+    <string name="identify_keep">保持原样</string>
+    <string name="identify_kept">已保持原样</string>
+    <string name="identify_suggestions">建议</string>
+    <string name="identify_skip">跳过</string>
     <string name="error_offline_title">无法访问媒体库</string>
     <string name="error_offline_nas_title">无法访问 NAS</string>
     <string name="error_offline_server_title">无法访问服务器</string>

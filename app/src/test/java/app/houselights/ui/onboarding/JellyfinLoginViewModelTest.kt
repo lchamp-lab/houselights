@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -58,7 +59,7 @@ class JellyfinLoginViewModelTest {
         var answer: CompletableDeferred<Unit>? = null
         val asked = CompletableDeferred<Unit>()
 
-        override suspend fun discover() = listOf(MAISON)
+        override fun discover() = flowOf(MAISON)
 
         /** What checking a server found says, once it does, then checking it again. */
         val check = CompletableDeferred<ServerCheck>()

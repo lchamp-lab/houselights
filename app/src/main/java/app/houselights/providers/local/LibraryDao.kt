@@ -29,13 +29,19 @@ private const val TITLE_OF_COPY = "NULLIF((SELECT MIN(o.id) FROM items o WHERE o
 /** Groups each film's copies, writing only rows whose versionOf changes (see [LibraryDao.groupVersions]). */
 internal const val GROUP_VERSIONS = "UPDATE items SET versionOf = $TITLE_OF_COPY WHERE kind = 'MOVIE' AND versionOf IS NOT $TITLE_OF_COPY"
 
+/** The episodes of the show whose row is `items`'s. */
+private const val EPISODES_OF_SHOW = "SELECT 1 FROM items e WHERE e.kind = 'EPISODE' AND e.seriesId = items.id"
+
 /**
  * Films and shows to identify: TMDB found nothing for them or hesitated ([MatchState]) and they have no TMDB id, unless
- * the user left them as they are; a file held missing is not ([MissingFiles]).
+ * the user left them as they are; a film held missing is not ([MissingFiles]) until its file is back, nor a show whose
+ * every episode is, which its page says is held ([LocalMapper]), identifying able to wait, though Modifier still opens
+ * Identifier on its page ([doubt]).
  */
 internal const val TO_IDENTIFY =
     "kind IN ('MOVIE', 'SERIES') AND matchState IN ('NOT_FOUND', 'UNSURE') AND tmdbId IS NULL AND userNoMatch = 0 " +
-        "AND missingSince IS NULL"
+        "AND missingSince IS NULL AND (kind = 'MOVIE' OR NOT EXISTS ($EPISODES_OF_SHOW) " +
+        "OR EXISTS ($EPISODES_OF_SHOW AND e.missingSince IS NULL))"
 
 /** The keys of the local films' and shows' choices of tracks ([tracksKey]). */
 private const val TRACK_KEYS =
@@ -282,6 +288,13 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("SELECT $CARD_ROW FROM items WHERE $TO_IDENTIFY ORDER BY addedAt DESC, id DESC")
     suspend fun toIdentify(): List<ItemEntity>
 
+    /** The title to identify after the one added at [addedAt] as row [id], in [toIdentify]'s order; null after the last. */
+    @Query(
+        "SELECT id FROM items WHERE $TO_IDENTIFY AND (addedAt < :addedAt OR (addedAt = :addedAt AND id < :id)) " +
+            "ORDER BY addedAt DESC, id DESC LIMIT 1"
+    )
+    suspend fun nextToIdentify(addedAt: Long, id: Long): Long?
+
     /**
      * Films or shows ([kind]) to identify that TMDB is to be asked about again ([Reidentify]), the longest waiting
      * first, at most [limit]: those come after [newSince] last asked by [newDue], the others by [due]; never a title
@@ -303,6 +316,18 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** The candidates of a title TMDB hesitated on ([MatchState.UNSURE]), the best first. */
     @Query("SELECT * FROM suggestions WHERE itemId = :itemId ORDER BY rank")
     suspend fun suggestions(itemId: Long): List<SuggestionEntity>
+
+    /** The candidates of titles [ids] ([suggestions]), each title's the best first; at most [SQL_IN_LIMIT] ids. */
+    @Query("SELECT * FROM suggestions WHERE itemId IN (:ids) ORDER BY itemId, rank")
+    suspend fun suggestionsOf(ids: List<Long>): List<SuggestionEntity>
+
+    /** A film or show left as it is by the user, or no longer ([ItemEntity.userNoMatch]). */
+    @Query("UPDATE items SET userNoMatch = :kept WHERE id = :id")
+    suspend fun setUserNoMatch(id: Long, kept: Boolean)
+
+    /** Each show of [ids]'s first episode file by path, where its folder is; at most [SQL_IN_LIMIT] ids. */
+    @Query("SELECT seriesId, MIN(filePath) AS filePath FROM items WHERE kind = 'EPISODE' AND seriesId IN (:ids) GROUP BY seriesId")
+    suspend fun showFiles(ids: List<Long>): List<ShowFile>
 
     @Query("DELETE FROM suggestions WHERE itemId = :itemId")
     suspend fun forgetSuggestions(itemId: Long)
@@ -673,7 +698,10 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("UPDATE items SET addedAt = :at WHERE id = :id")
     suspend fun setAddedAt(id: Long, at: Long)
 
-    /** Copies favourite, user match and artwork from [fromId] where [toId] lacks them ([ShowIndexer]). */
+    /**
+     * Copies favourite, user match and artwork from [fromId] where [toId] lacks them ([ShowIndexer]); a show left as it
+     * is leaves the show taking it over so.
+     */
     @Transaction
     suspend fun handOver(fromId: Long, toId: Long) {
         val from = item(fromId) ?: return
@@ -685,6 +713,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
                 userPosterPath = to.userPosterPath ?: from.userPosterPath,
                 userBackdropPath = to.userBackdropPath ?: from.userBackdropPath,
                 userLogoPath = to.userLogoPath ?: from.userLogoPath,
+                userNoMatch = to.userNoMatch || from.userNoMatch,
             )
         )
     }

@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.annotation.Keep
 import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
@@ -15,8 +16,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.R
+import app.houselights.core.FailurePlace
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.FolderSave
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
@@ -27,6 +30,7 @@ import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.TypedPaths
+import app.houselights.providers.local.holds
 import app.houselights.providers.local.samePlace
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.launchAction
@@ -99,6 +103,17 @@ data class FolderForm(
         val user = uid.toIntOrNull() ?: return null
         val group = gid.toIntOrNull() ?: return null
         return user to group
+    }
+
+    /**
+     * The form with its share and folder as [place] reads them, written as [of] shows a folder so that they read back the
+     * same: « /volume1/video/Films » typed in « Sous-dossier » under « /volume1/video » shows « Films », SMB's
+     * « \\nas\video\Films2 » shows « video » and « Films2 », a folder inside one named as its share keeps its path
+     * ("video/video/Films"). What a test reads is unchanged.
+     */
+    fun asRead(): FolderForm {
+        val read = toSource()
+        return copy(share = exportOrShare(read), path = pathOf(read))
     }
 
     /** [stored] with the form's changes, same id and kind; an empty password field keeps its password. */
@@ -178,16 +193,140 @@ private fun List<String>.repeats(share: List<String>, ignoreCase: Boolean) =
 sealed interface FolderCheck {
     data class Incomplete(@StringRes val message: Int) : FolderCheck
 
-    data class Reachable(val entries: Int) : FolderCheck
+    /** The folder answered: [folders] subfolders and [videos] videos at its first level, other files not counted. */
+    data class Reachable(val folders: Int, val videos: Int) : FolderCheck
 
-    data class Failed(val error: ScanError, val host: String) : FolderCheck
+    /** The folder answered holding neither a video nor a subfolder: a scan would find nothing, so it is not saved. */
+    data object Empty : FolderCheck
 
-    /** [existing] is this folder ([same]) or nests with it, so titles would show twice; nothing was tested or saved. */
-    data class Overlaps(val existing: SourceEntity, val same: Boolean) : FolderCheck
+    /** The NAS at [host] did not give the folder: [error] as a scan reads it, [trouble] what to change. */
+    data class Failed(val error: ScanError, val host: String, val trouble: FolderTrouble = FolderTrouble.Other) : FolderCheck
+
+    /**
+     * [existing] is this folder ([same]), or nests with it, so titles would show twice: this one [holds] it, else it is
+     * inside it; nothing was tested or saved.
+     */
+    data class Overlaps(val existing: SourceEntity, val same: Boolean, val holds: Boolean = false) : FolderCheck
 
     /** The folder answered, but writing it failed (storage or Keystore): nothing was saved. */
     data class SaveFailed(val error: UiError) : FolderCheck
 }
+
+/** What a failed test asks to change, as precisely as the NAS's answer says it ([troubleOf]). */
+sealed interface FolderTrouble {
+    /** The NAS does not answer at its address. */
+    data object Unreachable : FolderTrouble
+
+    /** SMB: the NAS has no shared folder [share]. */
+    data class ShareMissing(val share: String) : FolderTrouble
+
+    /** NFS: the NAS shares no [export] ("/volume1/video"). */
+    data class ExportMissing(val export: String) : FolderTrouble
+
+    /** The shared folder [within] answered (an NFS export's path when [nfs], else an SMB share's name), [name] is not in it. */
+    data class SubfolderMissing(val within: String, val name: String, val nfs: Boolean) : FolderTrouble
+
+    /** Something of the folder's place is missing, the NAS not saying what. */
+    data object Missing : FolderTrouble
+
+    /** NFS: the NAS refused to mount [export] for this player, whose address on the network is [player] when known. */
+    data class PlayerRefused(val export: String, val player: String?) : FolderTrouble
+
+    /** NFS: mounted, but the account presented, user [uid] or root when null, may not read [folder]. */
+    data class ReadRefused(val folder: String, val uid: Int?) : FolderTrouble
+
+    /** SMB: [user] signed in, but may not read the shared folder [share]. */
+    data class AccountDenied(val user: String, val share: String) : FolderTrouble
+
+    /** SMB: the NAS takes no guest, and no user was typed. */
+    data object GuestRefused : FolderTrouble
+
+    data object LoginFailed : FolderTrouble
+
+    data object Other : FolderTrouble
+}
+
+/**
+ * What [error], the answer to testing [source], asks to change: a missing share or export told from a folder missing
+ * inside one that answered, a mount refused to this player ([player], its address) from a read refused to the account
+ * presented, an SMB account without the right from a guest refused.
+ */
+internal fun troubleOf(error: ScanError, source: SourceEntity, player: String?): FolderTrouble {
+    val guest = source.protocol == Protocol.SMB && source.username.isBlank()
+    return when (error.kind) {
+        ScanErrorKind.UNREACHABLE -> FolderTrouble.Unreachable
+        ScanErrorKind.LOGIN_FAILED -> if (guest) FolderTrouble.GuestRefused else FolderTrouble.LoginFailed
+        ScanErrorKind.ACCESS_DENIED -> if (guest) FolderTrouble.GuestRefused else refusalOf(error.place, source, player)
+        ScanErrorKind.NOT_FOUND -> missingOf(error.place, source)
+        else -> FolderTrouble.Other
+    }
+}
+
+/** [source] refused at [place]: to its SMB account, to this [player] mounting its export, or to the NFS account reading it. */
+private fun refusalOf(place: FailurePlace?, source: SourceEntity, player: String?): FolderTrouble = when {
+    source.protocol == Protocol.SMB -> FolderTrouble.AccountDenied(source.username.trim(), source.share)
+    place == FailurePlace.FOLDER -> FolderTrouble.ReadRefused(folderOf(source), source.uid)
+    else -> FolderTrouble.PlayerRefused(exportOf(source), player)
+}
+
+/** What of [source] is missing at [place]: a folder inside its shared folder, or the shared folder itself. */
+private fun missingOf(place: FailurePlace?, source: SourceEntity): FolderTrouble {
+    val nfs = source.protocol == Protocol.NFS
+    val share = if (nfs) exportOf(source) else source.share
+    val path = source.path.trim('/')
+    return when {
+        path.isNotEmpty() && place == FailurePlace.FOLDER -> FolderTrouble.SubfolderMissing(share, path, nfs)
+        path.isNotEmpty() && place == null -> FolderTrouble.Missing
+        nfs -> FolderTrouble.ExportMissing(share)
+        else -> FolderTrouble.ShareMissing(share)
+    }
+}
+
+/** An NFS export as the NAS names it, from its root: "/volume1/video". */
+private fun exportOf(source: SourceEntity) = "/" + source.share.trim('/')
+
+/** [source]'s folder from the NAS's root, as the panel beside the form shows it: "/volume1/video/Films", "/" for the root. */
+private fun folderOf(source: SourceEntity) =
+    "/" + listOf(source.share, source.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
+
+/** Where the form says what went wrong: under the field to change, which takes focus, or in the panel beside the form. */
+internal enum class FaultSpot { HOST, SHARE, SUBFOLDER, USER, PASSWORD, UID, GID, PANEL }
+
+/**
+ * Where [check]'s failure is said in [form] ([FaultSpot]); null when nothing failed. What the path lacks or holds wrong
+ * goes under the path's last field filled, « Sous-dossier » when it holds something; a folder holding one of the
+ * library's under « Sous-dossier » all the same, where a subfolder is to be chosen. A refusal no field can fix (the
+ * NAS's rules, the NFS account) and a folder not saved are the panel's.
+ */
+internal fun spotOf(check: FolderCheck?, form: FolderForm): FaultSpot? = when (check) {
+    null, is FolderCheck.Reachable -> null
+    is FolderCheck.Incomplete -> spotOf(check.message)
+    is FolderCheck.Failed -> spotOf(check.trouble, form)
+    is FolderCheck.Overlaps -> if (check.holds && !check.same) FaultSpot.SUBFOLDER else lastPathField(form)
+    FolderCheck.Empty -> lastPathField(form)
+    is FolderCheck.SaveFailed -> FaultSpot.PANEL
+}
+
+/** Under the field the form lacks ([FolderForm.missing]'s [message]). */
+private fun spotOf(@StringRes message: Int): FaultSpot = when (message) {
+    R.string.error_host_missing -> FaultSpot.HOST
+    R.string.error_uid_missing -> FaultSpot.UID
+    R.string.error_gid_missing -> FaultSpot.GID
+    else -> FaultSpot.SHARE
+}
+
+/** Under the field that changes what [trouble] says, else in the panel. */
+private fun spotOf(trouble: FolderTrouble, form: FolderForm): FaultSpot = when (trouble) {
+    FolderTrouble.Unreachable -> FaultSpot.HOST
+    is FolderTrouble.ShareMissing, is FolderTrouble.ExportMissing, FolderTrouble.Missing -> FaultSpot.SHARE
+    is FolderTrouble.SubfolderMissing -> lastPathField(form)
+    is FolderTrouble.AccountDenied, FolderTrouble.GuestRefused -> FaultSpot.USER
+    FolderTrouble.LoginFailed -> FaultSpot.PASSWORD
+    is FolderTrouble.PlayerRefused, is FolderTrouble.ReadRefused, FolderTrouble.Other -> FaultSpot.PANEL
+}
+
+/** « Sous-dossier » when it holds something, else « Chemin de montage » or « Dossier partagé ». */
+private fun lastPathField(form: FolderForm) = if (form.path.isNotBlank()) FaultSpot.SUBFOLDER else FaultSpot.SHARE
 
 /** The form field focus starts on, the one the error that led there likely asks to change; kept as a route argument. */
 @Keep
@@ -196,13 +335,17 @@ enum class FolderField {
     FIRST,
     HOST,
     PASSWORD,
+
+    /** « Chemin de montage » or « Dossier partagé »: where the folder is on the NAS. */
+    PATH,
     ;
 
     companion object {
-        /** After a scan failed with [error]: the address if the NAS or share is gone, the password if sign-in failed. */
+        /** After a scan failed with [error]: the address if the NAS is silent, the path if it is gone, the password if sign-in failed. */
         fun after(error: ScanErrorKind?): FolderField = when (error) {
             ScanErrorKind.LOGIN_FAILED -> PASSWORD
-            ScanErrorKind.UNREACHABLE, ScanErrorKind.NOT_FOUND -> HOST
+            ScanErrorKind.UNREACHABLE -> HOST
+            ScanErrorKind.NOT_FOUND -> PATH
             else -> FIRST
         }
     }
@@ -219,9 +362,13 @@ class AddFolderViewModel(
     private val background: CoroutineScope,
     /** Makes the folders the source; true when it changed (it was a server, or nothing yet). */
     private val useFolders: suspend () -> Boolean,
-    /** Lists a folder's first level and returns its entry count; throws when it cannot. */
-    private val probe: suspend (SourceEntity) -> Int,
+    /** Lists a folder's first level and counts its subfolders and videos; throws when it cannot. */
+    private val probe: suspend (SourceEntity) -> FolderLevel,
     private val saved: SavedStateHandle = SavedStateHandle(),
+    /** This player's address on the network ([app.houselights.journal.HomeAddress]), which NFS rules allow; null when unknown. */
+    private val playerAddress: suspend () -> String? = { null },
+    /** The paths an NFS server at a host exports (MOUNT's EXPORT); null when it does not say. */
+    private val exports: suspend (host: String) -> List<String>? = { null },
 ) : ViewModel() {
     constructor(app: AppContainer, folderId: Long?, saved: SavedStateHandle) : this(
         library = app.library,
@@ -236,6 +383,8 @@ class AddFolderViewModel(
         },
         probe = { app.remoteBrowsers.of(it).test(it) },
         saved = saved,
+        playerAddress = app::playerAddress,
+        exports = { host -> app.remoteBrowsers.exports(host).map { it.path } },
     )
 
     /** The form as typed before Android killed the app, password aside; null if none. */
@@ -244,6 +393,17 @@ class AddFolderViewModel(
     var form by mutableStateOf(kept ?: FolderForm())
         private set
     var check by mutableStateOf<FolderCheck?>(null)
+        private set
+
+    /**
+     * How many answers a press got ([check]), so the same failure said again sends focus back to its field; a change
+     * that only clears the last answer does not count.
+     */
+    var answers by mutableIntStateOf(0)
+        private set
+
+    /** This player's address on the network, which the NAS must allow over NFS; null until read, or when unknown. */
+    var player by mutableStateOf<String?>(null)
         private set
 
     var testing by mutableStateOf(false)
@@ -298,6 +458,9 @@ class AddFolderViewModel(
     }
 
     init {
+        viewModelScope.launch {
+            player = suspendRunCatching { playerAddress() }.onFailure { Log.w(TAG, "Reading this player's address failed", it) }.getOrNull()
+        }
         viewModelScope.launch {
             if (folderId != null) {
                 read(folderId)
@@ -371,10 +534,16 @@ class AddFolderViewModel(
     /** The described folder; an edited one keeps its id, kind and, if the field is empty, its password. */
     private fun source(): SourceEntity = editing?.let(form::toSource) ?: form.toSource()
 
+    /** Says [answer] to a press: in [check], counted in [answers]. */
+    private fun say(answer: FolderCheck) {
+        check = answer
+        answers++
+    }
+
     /** The folder to test, or null when the form lacks something, which [check] then reports. */
     private fun toTest(): SourceEntity? {
         form.missing()?.let {
-            check = FolderCheck.Incomplete(it)
+            say(FolderCheck.Incomplete(it))
             // The user or the group asked for: their fields show, to type it.
             if (it == R.string.error_uid_missing || it == R.string.error_gid_missing) showIdentity(true)
             return null
@@ -401,7 +570,7 @@ class AddFolderViewModel(
                 reaches(source, typed)
             } else {
                 testing = false
-                if (form.testsAs(typed)) check = FolderCheck.Overlaps(held, same = held.samePlace(source))
+                if (form.testsAs(typed)) say(overlap(held, source))
             }
         }
     }
@@ -424,7 +593,7 @@ class AddFolderViewModel(
                     // reaches() vouches for the current form, so save it as it is now, a changed kind included.
                     held == null -> if (reaches(source, typed)) show(saveInBackground(source()), source, onDone)
                     addedBefore(held, source) -> show(saveInBackground(source), source, onDone)
-                    else -> check = FolderCheck.Overlaps(held, same = held.samePlace(source))
+                    else -> say(overlap(held, source))
                 }
             } finally {
                 submitting = false
@@ -435,16 +604,20 @@ class AddFolderViewModel(
     /** Whether [held] is this very folder, added earlier (when adding, not editing). */
     private fun addedBefore(held: SourceEntity, source: SourceEntity) = folderId == null && held.samePlace(source)
 
+    /** [source] nesting with the library's [held], said the right way round: the same, holding it, or inside it. */
+    private fun overlap(held: SourceEntity, source: SourceEntity) =
+        FolderCheck.Overlaps(held, same = held.samePlace(source), holds = source.holds(held))
+
     private fun show(outcome: Saved, source: SourceEntity, onDone: (switched: Boolean) -> Unit) {
         when (outcome) {
             is Saved.Done -> onDone(outcome.switched)
             Saved.Gone -> gone = true
-            is Saved.Overlaps -> check = FolderCheck.Overlaps(outcome.existing, same = outcome.existing.samePlace(source))
+            is Saved.Overlaps -> say(overlap(outcome.existing, source))
         }
     }
 
     private fun saveFailed(error: UiError) {
-        check = FolderCheck.SaveFailed(error)
+        say(FolderCheck.SaveFailed(error))
     }
 
     private sealed interface Saved {
@@ -481,19 +654,56 @@ class AddFolderViewModel(
         }
     }
 
-    /** Tests [source] (the form as [typed]); false, result dropped, if a field a test reads changed meanwhile. */
+    /**
+     * Tests [source] (the form as [typed]); false, result dropped, if a field a test reads changed meanwhile, and false
+     * for a folder holding nothing ([FolderCheck.Empty]), which a scan could not fill. Once the NAS answered, the path's
+     * fields show the folder as the test read it ([FolderForm.asRead]).
+     */
     private suspend fun reaches(source: SourceEntity, typed: FolderForm): Boolean {
         testing = true
         check = null
-        // The browser signs in on its own for a test, so the form's own credentials are what is tested.
-        val answer = suspendRunCatching { probe(source) }
-        answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
-        val current = form.testsAs(typed)
-        if (current) {
-            check = answer.fold({ FolderCheck.Reachable(it) }, { FolderCheck.Failed(ScanErrors.classify(it), source.host) })
+        try {
+            // The browser signs in on its own for a test, so the form's own credentials are what is tested.
+            val answer = suspendRunCatching { probe(source) }
+            answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
+            // Checked again once the answer is read: telling an export missing asks the NAS for its exports meanwhile.
+            val said = if (form.testsAs(typed)) answer.fold(::found) { e -> failed(e, source) } else null
+            if (said == null || !form.testsAs(typed)) return false
+            form = form.asRead()
+            saved.keep(form)
+            say(said)
+            // A read refused to the account presented: the NFS account is to change, its row opened.
+            if ((said as? FolderCheck.Failed)?.trouble is FolderTrouble.ReadRefused) showIdentity(true)
+            return answer.getOrNull()?.isEmpty == false
+        } finally {
+            testing = false
         }
-        testing = false
-        return current && answer.isSuccess
+    }
+
+    /** What a test found: the folder's first level, or nothing a scan could fill. */
+    private fun found(level: FolderLevel): FolderCheck =
+        if (level.isEmpty) FolderCheck.Empty else FolderCheck.Reachable(level.folders.size, level.videos)
+
+    /**
+     * [e], the answer to testing [source], as the form says it. A mount refused for an export the NAS does not list is an
+     * export it lacks, as Linux's mountd (a Synology's, a QNAP's) refuses a path it does not export: never the player
+     * to allow.
+     */
+    private suspend fun failed(e: Throwable, source: SourceEntity): FolderCheck.Failed {
+        val error = ScanErrors.classify(e)
+        val trouble = troubleOf(error, source, player)
+        val lacking = trouble is FolderTrouble.PlayerRefused && unexported(source)
+        return FolderCheck.Failed(error, source.host, if (lacking) FolderTrouble.ExportMissing(exportOf(source)) else trouble)
+    }
+
+    /** Whether the NFS server at [source]'s host lists its exports and none holds [source]'s export; false when it does not say. */
+    private suspend fun unexported(source: SourceEntity): Boolean {
+        val listed = suspendRunCatching { exports(source.host) }
+            .onFailure { Log.w(TAG, "Listing the exports of ${source.host} failed", it) }
+            .getOrNull()
+        if (listed.isNullOrEmpty()) return false
+        val export = exportOf(source)
+        return listed.map { "/" + it.trim('/') }.none { it == "/" || export == it || export.startsWith("$it/") }
     }
 
     companion object {

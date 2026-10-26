@@ -26,6 +26,7 @@ import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
 import kotlinx.serialization.SerializationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -197,6 +198,29 @@ class FailuresTest {
         assertEquals(LoginError.NotJellyfin(reached), reach(SerializationException("Unexpected JSON token")))
         assertEquals(LoginError.Certificate(reached), reach(certificateRefused()))
         assertEquals(LoginError.Unreachable(reached), reach(SocketTimeoutException()))
+    }
+
+    /**
+     * Where on the NAS a folder is missing or refused, as its answer says: the share or the export itself (SMB's
+     * BAD_NETWORK_NAME, a mount missing or refused), or a folder inside one that answered (not found once in it, a read
+     * NFS refused once mounted); an SMB refusal and a NAS out of reach do not say.
+     */
+    @Test
+    fun aNasSaysWhereAFolderFailed() {
+        listOf(
+            mountFailure(MountStatus.MNT3ERR_NOENT),
+            mountFailure(MountStatus.MNT3ERR_ACCES),
+            smbStatus(NtStatus.STATUS_BAD_NETWORK_NAME),
+        ).forEach { assertEquals("$it", FailurePlace.SHARE, ScanErrors.classify(it).place) }
+        listOf(
+            FileNotFoundException("lookup /volume1/video/Films"),
+            NfsException(NfsStatus.NFS3ERR_ACCES, "readdirplus error code: NfsStatus:13"),
+            smbStatus(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND),
+            smbStatus(NtStatus.STATUS_OBJECT_PATH_NOT_FOUND),
+        ).forEach { assertEquals("$it", FailurePlace.FOLDER, ScanErrors.classify(it).place) }
+        assertNull(ScanErrors.classify(smbStatus(NtStatus.STATUS_ACCESS_DENIED)).place)
+        assertNull("a NAS out of reach is nowhere on it", ScanErrors.classify(SocketTimeoutException()).place)
+        assertEquals(ScanErrorKind.NOT_FOUND, ScanErrors.classify(smbStatus(NtStatus.STATUS_BAD_NETWORK_NAME)).kind)
     }
 
     @Test

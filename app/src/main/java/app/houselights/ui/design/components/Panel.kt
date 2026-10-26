@@ -113,12 +113,17 @@ fun HlPanelButton(
     lit: Boolean = false,
     enabled: Boolean = true,
     level: PanelLevel = PanelLevel.Quiet,
+    /** Its options (Menu, or OK held), named to accessibility services by [onLongClickLabel] ("Plus d’options"). */
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     content: @Composable (focused: Boolean) -> Unit,
 ) {
     val c = Hl.colors
     val raised = level == PanelLevel.Raised
     HlFocusSurface(
         onClick = onClick,
+        onLongClick = onLongClick,
+        onLongClickLabel = onLongClickLabel,
         look = FocusStyle.frame(
             rest = if (raised) c.glass else groundStepFill(),
             restInk = c.content,

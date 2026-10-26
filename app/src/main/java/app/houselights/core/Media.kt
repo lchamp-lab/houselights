@@ -77,6 +77,10 @@ data class MediaItem(
     val addedAt: Long? = null,
     /** This copy's edition ([Editions]: "Extended"…), when its file or NFO names one. */
     val edition: String? = null,
+    /** Why a film or show is to identify ([MatchDoubt]); null once matched or left as it is, and for a source that cannot tell. */
+    val matchDoubt: MatchDoubt? = null,
+    /** Left as it is by the user (« Laisser tel quel »), without a match ([Identity.kept]). */
+    val keptUnidentified: Boolean = false,
     /**
      * Since when its file is missing, among many of its folder gone at once (a disk of the NAS offline): held, shown and
      * not played until its file is back or it is removed; a film in several copies, the copy Lire plays; a show's when

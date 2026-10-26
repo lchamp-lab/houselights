@@ -35,9 +35,12 @@ import coil.ImageLoader
 import coil.annotation.ExperimentalCoilApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -116,6 +119,8 @@ internal class SettingsViewModel(
     val interfaceLanguage: StateFlow<String?> = MutableStateFlow(null),
     /** A Zidoo player takes the tracks asked of it: the tracks settings apply ([AppContainer.asksTracks]). */
     val asksTracks: Boolean = false,
+    /** How many films and shows are to identify ([LocalLibrary.toIdentifyCount]). */
+    toIdentifyCount: Flow<Int> = library.toIdentifyCount,
 ) : ViewModel() {
     constructor(app: AppContainer, images: ImageLoader) : this(
         app.settings, app.library, app::providerOrNull, app.scope, app.sources, images,
@@ -136,6 +141,12 @@ internal class SettingsViewModel(
 
     /** Whether the current source counts its library ([MediaProvider.catalog]), for the library in numbers. */
     val counts get() = provider()?.catalog != null
+
+    /**
+     * How many films and shows are to identify; null until read. Held while the settings are open beneath another
+     * screen, so that coming back finds the row as it is.
+     */
+    val toIdentify: StateFlow<Int?> = toIdentifyCount.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _storage = MutableStateFlow<StorageStats?>(null)
     val storage: StateFlow<StorageStats?> = _storage

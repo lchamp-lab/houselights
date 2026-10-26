@@ -26,6 +26,9 @@ import app.houselights.player.TrackChooser
 import app.houselights.player.ZidooPlayer
 import app.houselights.player.ZidooSettings
 import app.houselights.player.Redact
+import app.houselights.journal.HomeAddress
+import app.houselights.providers.jellyfin.DiscoveryAhead
+import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.AndroidVolumes
 import app.houselights.providers.local.ArtworkCache
@@ -88,6 +91,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.Locale
@@ -288,6 +292,12 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         started = onScreen,
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
+
+    /** This player's address on the home network ([HomeAddress]), the one a NAS's NFS rules allow; null without one. */
+    suspend fun playerAddress(): String? = withContext(Dispatchers.IO) { HomeAddress.find(app)?.hostAddress }
+
+    /** Jellyfin's sign-in on the network, its discovery started ahead as « Serveur Jellyfin » takes focus on Welcome. */
+    val jellyfin = DiscoveryAhead(JellyfinNetwork.Lan, scope)
 
     /** Whether the folders hold one at least ([LocalLibrary.anyFolder]); null until read. */
     val hasFolders: StateFlow<Boolean?> = library.anyFolder.stateIn(scope, SharingStarted.Eagerly, null)

@@ -46,10 +46,14 @@ object ServerDiscovery {
     private const val MAX_SERVERS = 16
 
     /**
-     * Servers that answered within [timeoutMs], deduplicated by id. The deadline is overall, so
-     * repeated answers cannot extend it; cancellation stops the receive loop.
+     * Servers that answered within [timeoutMs], deduplicated by id, each given to [onFound] as it first answers. The
+     * deadline is overall, so repeated answers cannot extend it; cancellation stops the receive loop.
      */
-    suspend fun discover(timeoutMs: Int = 2500, target: InetSocketAddress = BROADCAST): List<DiscoveredServer> =
+    suspend fun discover(
+        timeoutMs: Int = 2500,
+        target: InetSocketAddress = BROADCAST,
+        onFound: (DiscoveredServer) -> Unit = {},
+    ): List<DiscoveredServer> =
         withContext(Dispatchers.IO) {
             val found = linkedMapOf<String, DiscoveredServer>()
             val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs.toLong())
@@ -65,7 +69,7 @@ object ServerDiscovery {
                         val text = String(packet.data, 0, packet.length)
                         suspendRunCatching { lenientJson.decodeFromString<DiscoveredServer>(text) }
                             .getOrNull()
-                            ?.let { found[it.id ?: it.address] = it }
+                            ?.let { if (found.put(it.id ?: it.address, it) == null) onFound(it) }
                     }
                 }
             }

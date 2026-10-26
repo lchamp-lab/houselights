@@ -212,6 +212,32 @@ private fun missing(chain: List<Throwable>, text: String): Boolean =
             it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value
     } || MISSING.any { text.contains(it) }
 
+/** Where on the NAS a failure is, when its answer says ([failurePlace]). */
+enum class FailurePlace {
+    /** The share or the export itself: none of that name, or it is not open to this player (its mount refused). */
+    SHARE,
+
+    /** A folder inside a share or an export that answered: it is not there, or may not be read. */
+    FOLDER,
+}
+
+/**
+ * Where on the NAS this failure is ([FailurePlace]), when its answer says: a mount refused or missing (MountException)
+ * and a share SMB does not know (BAD_NETWORK_NAME) are the share's; a folder not found once in it (NFS3ERR_NOENT, which
+ * nfs-client throws as FileNotFoundException, OBJECT_NAME_NOT_FOUND, OBJECT_PATH_NOT_FOUND) or refused once mounted
+ * (NFS3ERR_ACCES) is a folder's. Null when it does not say: an SMB access refused, a network failure.
+ */
+fun Throwable.failurePlace(): FailurePlace? {
+    val chain = causeChain()
+    val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
+    return when {
+        chain.any { it is MountException } || text.contains(NO_SHARE) -> FailurePlace.SHARE
+        chain.any { it is FileNotFoundException || it is NfsException && it.status?.value in NFS_REFUSED } -> FailurePlace.FOLDER
+        NO_FOLDER.any { text.contains(it) } -> FailurePlace.FOLDER
+        else -> null
+    }
+}
+
 
 /** smbj Session's message when it must sign a request without a key, as in a guest session. */
 private const val NO_SIGNING_KEY = "Message signing is required, but no signing key is negotiated"
@@ -220,6 +246,10 @@ private val MOUNT_REFUSED = setOf(MountStatus.MNT3ERR_ACCES.value, MountStatus.M
 private val NFS_REFUSED = setOf(NfsStatus.NFS3ERR_ACCES.value, NfsStatus.NFS3ERR_PERM.value)
 private val REFUSED = listOf("ACCESS_DENIED", "ERR_ACCES", "ERR_PERM")
 private val MISSING = listOf("BAD_NETWORK_NAME", "NOT_FOUND", "ERR_NOENT", "PATH_NOT_FOUND")
+
+/** SMB's word for a share the NAS does not have, and those for a folder missing in a share that answered. */
+private const val NO_SHARE = "BAD_NETWORK_NAME"
+private val NO_FOLDER = listOf("OBJECT_NAME_NOT_FOUND", "OBJECT_PATH_NOT_FOUND")
 
 private val NO_ANSWER = listOf(
     "waiting for connection", "timed out", "rpc request timeout", "connection is broken", "tcp IO error",
