@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import android.view.InputDevice
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +36,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
@@ -69,10 +71,10 @@ import java.text.BreakIterator
 
 /**
  * A text field for the remote, [HlSize.field] tall: a glass plate edged by a hairline, the keyboard on OK ([KeyHint]);
- * focus rings it in white, and while typing the ring is the ember light and the cursor raspberry, which Left and Right
- * move, leaving the field only from the text's start or end. Its [label] in
- * white over it, followed by "(optional)" in grey when [optional], is always read out, even when [showLabel] is
- * false. Below, [error] or else [supporting]; [placeholder] is an example ("Ex. : 192.168.1.10").
+ * focus rings it in white, and while typing the ring is the ember light and the cursor raspberry, which the remote's
+ * Left and Right move, leaving the field only from the text's start or end. Its [label] in white over it, followed by
+ * "(optional)" in grey when [optional], is always read out, even when [showLabel] is false. Below, [error] or else
+ * [supporting]; [placeholder] is an example ("Ex. : 192.168.1.10").
  */
 @Composable
 fun HlTextField(
@@ -237,10 +239,12 @@ private fun FieldBox(
 private fun atEnd(text: String) = TextFieldValue(text, TextRange(text.length))
 
 /**
- * The arrows while [editing], which reach the app once Back hid the keyboard without telling it: Left and Right move
- * the cursor of [field] a character ([moveTo]), held they repeat, and a press from the text's start or end leaves that
- * way, a held key stopping there; up or down ends typing and leaves at once. Set on the text itself, before Compose's
- * own handling, which turns a remote's arrows into focus moves wherever the cursor is.
+ * The arrows while [editing], which reach the app once Back hid the keyboard without telling it: the remote's Left and
+ * Right move the cursor of [field] a character ([moveTo]), held they repeat, and a press from the text's start or end
+ * leaves that way, a held key stopping there; up or down ends typing and leaves at once. Set on the text itself, before
+ * Compose's own handling, which turns a remote's arrows into focus moves wherever the cursor is. A keyboard's Left and
+ * Right, the one shown or one plugged in, are left to that handling, which moves the cursor, selects with Shift and
+ * never leaves.
  */
 private fun Modifier.arrowsWhileTyping(
     editing: Boolean,
@@ -257,12 +261,24 @@ private fun Modifier.arrowsWhileTyping(
     }
     if (!editing || direction == null || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
     val across = direction == FocusDirection.Left || direction == FocusDirection.Right
+    if (across && !event.fromRemote()) return@onPreviewKeyEvent false
     val moved = if (across) stepped(field(), forward = direction == FocusDirection.Right) else null
     when {
         moved != null -> moveTo(moved)
         !across || event.nativeKeyEvent.repeatCount == 0 -> leave(direction)
     }
     true
+}
+
+/**
+ * Whether this key comes from a remote's D-pad, told as Compose's own text field tells the keys it turns into focus
+ * moves: from a device of its own (the keyboard shown sends its keys from a virtual one) with a D-pad, its source not a
+ * keyboard's alone (a keyboard plugged in).
+ */
+private fun KeyEvent.fromRemote(): Boolean {
+    val device = nativeKeyEvent.device ?: return false
+    return device.supportsSource(InputDevice.SOURCE_DPAD) && !device.isVirtual &&
+        nativeKeyEvent.source != InputDevice.SOURCE_KEYBOARD
 }
 
 /**
