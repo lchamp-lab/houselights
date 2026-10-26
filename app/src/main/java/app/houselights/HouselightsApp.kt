@@ -367,7 +367,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         val created = when (source) {
             SourceConfig.Local -> {
                 val editor = LocalEditor(database.dao(), scanner, ::tmdbInteractive)
-                LocalProvider(app, database.dao(), editor, traktSync) { settings.state.value.collectionMinFilms }
+                LocalProvider(app, database.dao(), editor, traktSync, volumes) { settings.state.value.collectionMinFilms }
             }
             is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
         }

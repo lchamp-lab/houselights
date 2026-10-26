@@ -29,14 +29,15 @@
 > Jellyfin, Emby or Plex.
 
 **En français.** Houselights est une médiathèque façon salle de cinéma pour les lecteurs **Zidoo** (testée sur le
-Z1000 Pro) : vos films et séries d’un **NAS** (NFS ou SMB, avec les NFO Kodi et TMDB) ou d’un serveur **Jellyfin**,
+Z1000 Pro) : vos films et séries d’un **NAS** (NFS ou SMB, avec les NFO Kodi et TMDB), du disque du lecteur ou d’un
+disque USB, ou d’un serveur **Jellyfin**,
 lus par le **lecteur natif Zidoo** (HDR10, HDR10+, Dolby Vision, passthrough audio), avec le suivi **Trakt**. Libre et
 gratuite, l’application est entièrement en français. [Installer](#install)
 
 ## Features
 
-- **The Zidoo player plays.** Files open directly in it (`smb://`, `nfs://` or HTTP), with everything it
-  supports. Progress is read from the player while it plays, so resume points stay in sync.
+- **The Zidoo player plays.** Files open directly in it (`smb://`, `nfs://`, a path on the player's own disks, or
+  HTTP), with everything it supports. Progress is read from the player while it plays, so resume points stay in sync.
   - Audio and subtitles are asked of it as Settings > Playback sets them for every title (the player's own choice
     by default, or an audio language and subtitles off, forced only, automatic or always, in a language), or as a
     film or a show keeps its own (Audio and subtitles on a film's page or in an episode's options); a change made
@@ -53,8 +54,13 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     search or the settings. The doors of what is new and of the next episode open To watch: the rows to
     resume, next up, the latest titles, a director's films and the best rated, under the title in focus. Back
     returns home, on the door you came from.
-- **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
-  details from TMDB.
+- **My files**: scans NFS or SMB shares, or folders on the player's own disks (its internal storage, a USB disk or an
+  SD card), identifies films and shows from their names, and fetches artwork and details from TMDB.
+  - A folder on the player's disks is kept by its disk, a USB disk by its UUID, and read wherever Android mounts the
+    disk at each scan, whichever port it is plugged into. A disk unplugged is out of reach as a NAS asleep: nothing
+    leaves the library, nothing is held, and the folder is read again once the disk is back. The Zidoo player gets the
+    file's path; another player, a `content://` address that reads that file alone. Reading the disks needs a
+    permission of Android's ([Privacy](#privacy)).
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids and ids in names identify titles exactly ([Naming your files](#naming-your-files)).
   - Without an id, TMDB's results are weighed (titles, original and alternative ones included, year, votes and
@@ -200,6 +206,18 @@ check: Check now still asks when you do. TMDB, Trakt and your servers are reache
 them. To add a folder, the app asks which NAS announce SMB on the local network (mDNS, multicast that never leaves it,
 five seconds at most), then tries ports 445 and 2049 of those that answered or that the library uses; it scans no
 address.
+
+**The player's own disks.** A folder on its internal storage or a USB disk needs Android's permission to read the
+disks, asked only when you add one: the storage permission on Android 9 and 10 (the Z1000 Pro's 9), all-files access
+from Android 11, where the storage permission reads videos and pictures alone and an NFO or a subtitle is neither.
+Houselights reads the folders you add and writes nothing on the disks; a player other than the Zidoo's is handed the
+film it plays alone. Google Play limits all-files access to file managers and the like: Houselights is not on Google
+Play ([Install](#install)). On a player whose settings do not open that screen, allow it from a computer:
+
+```
+adb shell pm grant app.houselights android.permission.READ_EXTERNAL_STORAGE   # Android 9 and 10
+adb shell appops set app.houselights MANAGE_EXTERNAL_STORAGE allow            # Android 11 and later
+```
 
 ## Security
 

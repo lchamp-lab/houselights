@@ -83,5 +83,15 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- A file of the player's own disks, handed to a player other than the Zidoo's as content:// (PlaybackManager):
+             that app reads it through this provider, for that file alone; nothing else can. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/player_files" />
+        </provider>
     </application>
 </manifest>
