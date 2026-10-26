@@ -191,7 +191,7 @@ class RPCRecordDecoderTest {
     }
 
     /** Where [type] was loaded from: a folder of classes or a jar. */
-    private fun locationOf(type: Class<*>) = requireNotNull(type.protectionDomain.codeSource?.location?.toURI()) { "$type" }
+    private fun locationOf(type: Class<*>) = requireNotNull(type.protectionDomain?.codeSource?.location?.toURI()) { "$type" }
 
     private companion object {
         const val XID = 0x5e3c9a21
