@@ -59,20 +59,7 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
     val firstServer = remember { FocusRequester() }
     val userField = remember { FocusRequester() }
     val passwordField = remember { FocusRequester() }
-    // On a repeat sign-in the server and user are prefilled: focus starts on the password, or on the user when it is
-    // blank. Else on the first server found, waiting for discovery's first answer up to FIRST_SERVER_MS, as home's
-    // first focus waits for its case, then on the address; servers answering later come under it, focus left where it is.
-    LaunchedEffect(Unit) {
-        when {
-            vm.again -> (if (vm.user.isBlank()) userField else passwordField).tryRequestFocus()
-            else -> {
-                val found = withTimeoutOrNull(FIRST_SERVER_MS) { snapshotFlow { vm.discovered.isNotEmpty() }.first { it } }
-                // Its row laid out first.
-                withFrameNanos { }
-                if (found == null || !firstServer.tryRequestFocus()) firstField.tryRequestFocus()
-            }
-        }
-    }
+    FirstFocus(vm, firstServer, firstField, if (vm.user.isBlank()) userField else passwordField)
     val server = vm.server
     val chosen = vm.chosen
     // While the address is the one picking it gave, signing in follows its check, which the panel says.
@@ -140,6 +127,26 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
                 busyLabel = stringResource(R.string.signing_in),
             )
         }
+    }
+}
+
+/**
+ * Where the sign-in's focus starts. Signing in again, the server and user prefilled, on [account], what is left to
+ * type: the password, or the user when it is blank. Else on the first server found ([firstServer]), waiting for
+ * discovery's first answer up to [FIRST_SERVER_MS], as home's first focus waits for its case, then on the address
+ * ([address]); servers answering later come under it, focus left where it is.
+ */
+@Composable
+private fun FirstFocus(vm: JellyfinLoginViewModel, firstServer: FocusRequester, address: FocusRequester, account: FocusRequester) {
+    LaunchedEffect(Unit) {
+        if (vm.again) {
+            account.tryRequestFocus()
+            return@LaunchedEffect
+        }
+        val found = withTimeoutOrNull(FIRST_SERVER_MS) { snapshotFlow { vm.discovered.isNotEmpty() }.first { it } }
+        // Its row laid out first.
+        withFrameNanos { }
+        if (found == null || !firstServer.tryRequestFocus()) address.tryRequestFocus()
     }
 }
 

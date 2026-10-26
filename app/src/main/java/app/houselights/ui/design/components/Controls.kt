@@ -149,7 +149,8 @@ internal fun ButtonPlate(
     val busyState = stringResource(R.string.control_busy)
     val height = if (LocalInHeader.current) HlSize.controlCompact else HlSize.control
     val surface = modifier.height(height).semantics { if (busy) stateDescription = busyState }
-    val words = ButtonWords(text, icon, detail, detailLit, busy, busyLabel, reserveFor)
+    val words = ButtonWords(text, icon, detail, detailLit, busy, busyLabel)
+    val reserved = reservedWidth(words, reserveFor)
     if (emphasis == Emphasis.Primary) {
         val light = remember(c) { c.emberLight() }
         HlFocusSurface(
@@ -166,7 +167,7 @@ internal fun ButtonPlate(
         ) { lit ->
             // A disabled action keeps its well: the light is for what OK starts.
             if (enabled) Box(Modifier.matchParentSize().background(light))
-            ButtonRow(words, primary = true, lit = lit, enabled = enabled)
+            ButtonRow(words, reserved, primary = true, lit = lit, enabled = enabled)
         }
     } else {
         val plate = rememberPlate()
@@ -182,7 +183,7 @@ internal fun ButtonPlate(
             shape = HlShapes.control,
             modifier = surface,
             enabled = enabled,
-        ) { lit -> ButtonRow(words, primary = false, lit = lit, enabled = enabled) }
+        ) { lit -> ButtonRow(words, reserved, primary = false, lit = lit, enabled = enabled) }
     }
 }
 
@@ -195,16 +196,15 @@ private class ButtonWords(
     val detailLit: Boolean,
     val busy: Boolean,
     val busyLabel: String,
-    val reserveFor: String?,
 )
 
 @Composable
-private fun BoxScope.ButtonRow(words: ButtonWords, primary: Boolean, lit: Boolean, enabled: Boolean) {
+private fun BoxScope.ButtonRow(words: ButtonWords, reserved: Dp, primary: Boolean, lit: Boolean, enabled: Boolean) {
     Row(
         Modifier
             .align(Alignment.Center)
             .keepWidthWhile(words.busy)
-            .widthIn(min = reservedWidth(words))
+            .widthIn(min = reserved)
             .padding(
                 start = if (words.icon != null || words.busy) HlControl.buttonPaddingIcon else HlControl.buttonPaddingH,
                 end = HlControl.buttonPaddingH,
@@ -252,24 +252,24 @@ private fun ButtonDetail(text: String, primary: Boolean, lit: Boolean, enabled: 
 
 /**
  * The wider of a button's row at rest and busy, its icon or pending dot and paddings included, for a button whose
- * words change ([HlButton]'s busy labels), so it takes that width from the start; unspecified for one that keeps its
- * words, or says a detail.
+ * words change (its busy label, and [reserveFor] another it shows in turn), so it takes that width from the start;
+ * unspecified for one that keeps its words, or says a detail.
  */
 @Composable
-private fun reservedWidth(words: ButtonWords): Dp {
-    val changes = words.busyLabel != words.text || words.reserveFor != null
+private fun reservedWidth(words: ButtonWords, reserveFor: String?): Dp {
+    val changes = words.busyLabel != words.text || reserveFor != null
     if (!changes || words.detail != null) return Dp.Unspecified
     val style = Hl.type.entry
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val icon = words.icon != null
-    return remember(words.text, words.busyLabel, words.reserveFor, icon, style, density) {
+    return remember(words.text, words.busyLabel, reserveFor, icon, style, density) {
         with(density) {
             fun wide(label: String) =
                 measurer.measure(label, style, softWrap = false, maxLines = 1).size.width.toDp().coerceAtMost(HlLayout.readableNarrow)
             val lead = HlControl.buttonPaddingIcon + HlSize.icon + HlControl.iconGap
             val rest = (if (icon) lead else HlControl.buttonPaddingH) + wide(words.text) + HlControl.buttonPaddingH
-            val said = maxOf(wide(words.busyLabel), words.reserveFor?.let(::wide) ?: wide(words.busyLabel))
+            val said = maxOf(wide(words.busyLabel), reserveFor?.let(::wide) ?: wide(words.busyLabel))
             maxOf(rest, lead + said + HlControl.buttonPaddingH)
         }
     }

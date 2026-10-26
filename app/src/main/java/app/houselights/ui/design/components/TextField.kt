@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -226,24 +227,12 @@ private fun FieldBox(
                 },
             decorationBox = { inner ->
                 Box {
-                    val room = with(density) { hintWidth.toDp() }.takeIf { hinted } ?: HlSpace.none
-                    Placeholder(placeholder, shown = value.isEmpty(), Modifier.padding(end = room))
+                    Placeholder(placeholder, shown = value.isEmpty(), hint = hintWidth.takeIf { hinted })
                     inner()
                 }
             },
         )
-        if (hinted) {
-            // Over the text's end, on the field's surface, never taller than the field.
-            Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
-                KeyHint(
-                    Modifier
-                        .wrapContentHeight(unbounded = true)
-                        .onSizeChanged { hintWidth = it.width }
-                        .background(c.glass)
-                        .padding(start = HlSpace.s),
-                )
-            }
-        }
+        EndHint(hinted) { hintWidth = it }
     }
 }
 
@@ -338,17 +327,36 @@ private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
     }
 }
 
-/** Shown while the field is empty; skipped when blank, since empty text would change the field's height. */
+/**
+ * Shown while the field is empty, ending [hint] px before the field's end while « OK saisir » shows there; skipped when
+ * blank, since empty text would change the field's height.
+ */
 @Composable
-private fun Placeholder(text: String, shown: Boolean, modifier: Modifier = Modifier) {
+private fun Placeholder(text: String, shown: Boolean, hint: Int?) {
     if (shown && text.isNotEmpty()) {
+        val room = with(LocalDensity.current) { (hint ?: 0).toDp() }
         Text(
             text,
             style = Hl.type.body,
             color = Hl.colors.contentTertiary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = modifier,
+            modifier = Modifier.padding(end = room),
+        )
+    }
+}
+
+/** « OK saisir » over the text's end, while [shown], on the field's surface, never taller than it; its width to [onWidth]. */
+@Composable
+private fun BoxScope.EndHint(shown: Boolean, onWidth: (Int) -> Unit) {
+    if (!shown) return
+    Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
+        KeyHint(
+            Modifier
+                .wrapContentHeight(unbounded = true)
+                .onSizeChanged { onWidth(it.width) }
+                .background(Hl.colors.glass)
+                .padding(start = HlSpace.s),
         )
     }
 }

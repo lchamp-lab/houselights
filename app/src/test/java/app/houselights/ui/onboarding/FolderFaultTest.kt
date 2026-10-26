@@ -58,6 +58,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.FileNotFoundException
+import java.io.IOException
 
 /**
  * A folder's form says each failure once, under the field to change, which takes focus, the panel's state saying it by
@@ -159,7 +160,7 @@ class FolderFaultTest {
     /** SMB's password refused: said under it, which takes focus, the help kept since the panel has no result. */
     @Test
     fun aPasswordRefusedIsSaidUnderIt() {
-        val vm = form(series, probe = { throw IllegalStateException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed") })
+        val vm = form(series, probe = { throw IOException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed") })
         vm.test()
         compose.waitUntil { vm.check != null }
         compose.waitForIdle()
