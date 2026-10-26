@@ -147,4 +147,16 @@ class FolderFormTest {
         assertEquals("", edited.username)
         assertEquals("", edited.password.value)
     }
+
+    /**
+     * Its fields are read as the add-folder flow reads a path typed whole (TypedPaths, one parser): an account or a port
+     * in an address dropped, "." left out, an NFS address before its export dropped as the export's own NAS.
+     */
+    @Test
+    fun theFieldsAreReadAsTheFlowReadsAPath() {
+        val smb = FolderForm(protocol = Protocol.SMB, host = "nas.local")
+        assertEquals("video" to "Films2", smb.copy(share = "smb://kodi@nas.local:445/video/./Films2").toSource().place())
+        val nfs = FolderForm(protocol = Protocol.NFS, host = "nas")
+        assertEquals("volume1/video" to "Films", nfs.copy(share = "nfs://nas/volume1/video", path = "Films").toSource().place())
+    }
 }
