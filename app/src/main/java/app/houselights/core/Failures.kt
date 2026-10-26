@@ -90,7 +90,7 @@ enum class FailureKind {
 fun Throwable.failureKind(): FailureKind {
     val chain = causeChain()
     // An unparseable answer is checked before the NAS's message words: its body excerpt may contain them.
-    val unreadable = FailureKind.UNEXPECTED_ANSWER.takeIf { chain.any { it is SerializationException || it is MalformedAnswerException } }
+    val unreadable = FailureKind.UNEXPECTED_ANSWER.takeIf { chain.any(::unreadable) }
     return typed(chain) ?: answered(chain) ?: unreadable ?: nas(chain) ?: when {
         chain.any { it is IOException } -> FailureKind.IO
         else -> FailureKind.OTHER
@@ -103,6 +103,9 @@ fun Throwable.failureKind(): FailureKind {
  * may not read the folder); both are [FailureKind.ACCESS_DENIED], each with its own remedy.
  */
 fun Throwable.isMountRefused(): Boolean = causeChain().any { it is MountException && it.status?.value in MOUNT_REFUSED }
+
+/** An answer that could not be read into what was expected: a server's JSON, or a NAS's bytes. */
+private fun unreadable(e: Throwable) = e is SerializationException || e is MalformedAnswerException
 
 /** This failure and its causes, outermost first; a cyclic chain stops at the first repeat. */
 internal fun Throwable.causeChain(): List<Throwable> {
