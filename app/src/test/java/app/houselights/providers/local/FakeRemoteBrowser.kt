@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import java.io.FileNotFoundException
 import java.nio.charset.Charset
+import java.util.Locale
 
 /** An in-memory NAS for scans: files with a size, first bytes and date; it counts reads and can fail on demand. */
 class FakeRemoteBrowser : RemoteBrowser {
@@ -66,6 +67,16 @@ class FakeRemoteBrowser : RemoteBrowser {
     }
 
     override suspend fun test(source: SourceEntity): Int = files.size
+
+    /** The folders the files put imply under [path], hidden ones left out, and its own videos; a folder without files is not there. */
+    override suspend fun folders(source: SourceEntity, path: String): FolderLevel {
+        listFailure?.let { throw it }
+        val folder = cleanPath(path)
+        val under = files.keys.filter { folder.isEmpty() || it.startsWith("$folder/") }.map { it.removePrefix("$folder/") }
+        if (folder.isNotEmpty() && under.isEmpty()) throw FileNotFoundException(folder)
+        val folders = under.filter { '/' in it }.map { it.substringBefore('/') }.distinct().filterNot { RemoteBrowser.skip(it) }
+        return FolderLevel(folders.sortedWith(byName(Locale.ROOT)), under.count { '/' !in it && RemoteBrowser.isWanted(it) })
+    }
 
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray {
         reads += relativePath

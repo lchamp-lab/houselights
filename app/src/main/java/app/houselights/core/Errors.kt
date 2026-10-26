@@ -11,6 +11,12 @@ class NoTmdbKeyException : IllegalStateException("No TMDB key")
 /** TMDB unreachable (network, DNS, timeout), now or recently, or still busy after retries (429, gateway failure). */
 open class TmdbUnreachableException(cause: Throwable?, message: String = "TMDB is unreachable") : IOException(message, cause)
 
+/**
+ * A NAS's answer whose bytes do not hold what its protocol says (cut short, a length past its end, a count no server
+ * gives): read as an unexpected answer ([FailureKind.UNEXPECTED_ANSWER]), never as the network.
+ */
+class MalformedAnswerException(what: String) : IOException("Malformed answer: $what")
+
 /** TLS refused TMDB's certificate, most often for the device's clock: worded as a certificate ([FailureKind.CERTIFICATE]). */
 class TmdbCertificateException(cause: Throwable) : TmdbUnreachableException(cause, "TMDB's certificate is refused")
 

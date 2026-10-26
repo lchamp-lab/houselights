@@ -26,6 +26,7 @@ import app.houselights.providers.local.ScanErrors
 import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.TypedPaths
 import app.houselights.providers.local.samePlace
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.launchAction
@@ -155,22 +156,15 @@ private val SMB_ADDRESS = Regex("^(smb:)?//([^/]+)(/|$)", RegexOption.IGNORE_CAS
 
 /**
  * [text] as typed for SMB, "\" read as "/", without the NAS's name in front ([SMB_ADDRESS]) when it names [host]
- * ([names]). Any other name is kept as the share it reads as, so "\\video\Films" stays share video, and another NAS's
- * path is never read on this one.
+ * ([TypedPaths.namesNas], as the add-folder flow reads a typed path). Any other name is kept as the share it reads as,
+ * so "\\video\Films" stays share video, and another NAS's path is never read on this one.
  */
 private fun withoutAddress(text: String, host: String): String {
     val typed = text.trim().replace('\\', '/')
     val address = SMB_ADDRESS.find(typed) ?: return typed
     val (scheme, name) = address.destructured
-    return if (names(name, host)) typed.substring(address.range.last + 1) else typed.removePrefix(scheme)
+    return if (TypedPaths.namesNas(name, host)) typed.substring(address.range.last + 1) else typed.removePrefix(scheme)
 }
-
-/** Whether [name], before an SMB share, names the NAS at [host]: as written, or by its first name ("NAS", nas.local). */
-private fun names(name: String, host: String) =
-    host.isNotEmpty() && (name.equals(host, ignoreCase = true) || name.firstName().equals(host.firstName(), ignoreCase = true))
-
-/** A host's first name, before its domain; an IP address, which has no letter, whole. */
-private fun String.firstName() = if (any { it.isLetter() }) substringBefore('.') else this
 
 /** The names of the folders in [path], from the first; for [smb], "\" separates them too. */
 private fun segments(path: String, smb: Boolean): List<String> =
