@@ -78,6 +78,8 @@ data class DetailState(
     val versions: List<Version> = emptyList(),
     /** The tracks of what Lire plays ([tracksTarget]), and what Settings and the title's choice ask of the player. */
     val tracks: TrackPlan? = null,
+    /** The title held while its file is missing was removed from the library ([DetailViewModel.removeHeld]): the page leaves. */
+    val removed: Boolean = false,
 ) {
     /** The audio track Lire asks of the player for the title shown; null when the player chooses it. */
     val playedAudio: AudioTrack? get() = tracks?.takeIf { item?.isPlayable == true }?.let { p -> p.audio?.let(p.audioTracks::getOrNull) }
@@ -125,6 +127,8 @@ class DetailViewModel(
     private val tracksOf: suspend (MediaItem) -> TrackPlan? = { null },
     /** Changes a title's stored choice of tracks, under its key; an empty one leaves it to Settings. */
     private val keepTracks: suspend (String, (TrackChoice) -> TrackChoice) -> Unit = { _, _ -> },
+    /** Removes a title held while its file is missing from the library alone, by its id ([LocalLibrary.removeHeldTitle]). */
+    private val removeHeldTitle: suspend (String) -> Unit = {},
 ) : ViewModel() {
     private val _state = MutableStateFlow(DetailState(selectedSeasonId = saved[SEASON]))
     val state: StateFlow<DetailState> = _state
@@ -447,6 +451,27 @@ class DetailViewModel(
     /** Dismisses the error shown on the episode row. */
     fun clearEpisodeMarkError() = _state.update { it.copy(episodeMarkError = null) }
 
+    /** Whether the title held is being removed: a press meanwhile does nothing. */
+    private var removing = false
+
+    /**
+     * « Retirer de la bibliothèque » on a title held while its file is missing: it alone leaves the library, in [work],
+     * nothing deleted on the NAS and what the user did kept by title; then the page leaves ([DetailState.removed]). A
+     * failure is said beside the actions.
+     */
+    fun removeHeld() {
+        val item = _state.value.item?.takeIf { it.held } ?: return
+        if (removing) return
+        removing = true
+        _state.update { it.copy(actionError = null) }
+        work.launch {
+            suspendRunCatching { removeHeldTitle(item.id) }
+                .onSuccess { _state.update { s -> s.copy(removed = true) } }
+                .onFailure { e -> _state.update { s -> s.copy(actionError = e.reported(TAG, "Removing $itemId")) } }
+            removing = false
+        }
+    }
+
     /**
      * Shows a change of user state at once ([shown]) and saves it in [work], one at a time: a press meanwhile does
      * nothing. Then reloads; on failure, the page as it was and why, on the episode row for an episode ([onRow]).
@@ -481,7 +506,7 @@ class DetailViewModel(
             initializer {
                 DetailViewModel(
                     itemId, app::provider, app, app.scope, createSavedStateHandle(),
-                    tracksOf = app::tracksOf, keepTracks = app.tracks::choose,
+                    tracksOf = app::tracksOf, keepTracks = app.tracks::choose, removeHeldTitle = app.library::removeHeldTitle,
                 )
             }
         }

@@ -1,5 +1,7 @@
 package app.houselights.ui.util
 
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -25,5 +27,16 @@ class PlaybackOutcomeTest {
         assertNull(outcome.playbackProblem.value)
         outcome.screenShown("home")
         assertNull(outcome.playbackProblem.value)
+    }
+
+    /** A title held while its file is missing is not tried: where it was asked says it is gone, nothing played. */
+    @Test
+    fun aTitleHeldIsNotTried() {
+        val page = PlayOrigin("title")
+        val heat = MediaItem("m1", MediaKind.MOVIE, "Heat")
+        assertEquals(false, outcome.refusesHeld(heat, page))
+        assertNull(outcome.playbackProblem.value)
+        assertEquals(true, outcome.refusesHeld(heat.copy(missingSince = 1), page))
+        assertEquals(PlaybackProblem(UiError.HELD, page), outcome.playbackProblem.value)
     }
 }

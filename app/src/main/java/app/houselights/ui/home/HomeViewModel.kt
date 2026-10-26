@@ -15,15 +15,20 @@ import app.houselights.core.browsable
 import app.houselights.core.sagas
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.Folder
+import app.houselights.providers.local.HeldRow
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.settings.AppSettings
+import app.houselights.ui.settings.HeldTitles
+import app.houselights.ui.settings.heldByFolder
 import app.houselights.ui.util.LatestJob
+import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.LibraryShown
 import app.houselights.ui.util.RoomPosters
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.reported
 import app.houselights.ui.util.toUiError
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -35,6 +40,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import android.util.Log
@@ -73,6 +79,11 @@ data class HomeState(
     val content: HomeContent = HomeContent.Loading,
     val doors: HomeDoors? = null,
     val status: HomeStatus? = null,
+    /**
+     * A folder's titles a sudden drop holds while their files are missing, not answered for yet: said at the end of
+     * home's head until the user answers or the files are back.
+     */
+    val held: HeldTitles? = null,
 ) {
     /** Every library but the sagas ([sagas]), each with its own wall. */
     val browsable: List<Library> get() = libraries.browsable()
@@ -140,7 +151,17 @@ class HomeViewModel(
     private val pick: UnseenPick = UnseenPick(),
     /** Whether this build reaches Trakt at all. */
     private val traktAvailable: Boolean = false,
+    /** The titles held while their files are missing ([LocalLibrary.held][app.houselights.providers.local.LocalLibrary.held]). */
+    held: Flow<List<HeldRow>> = flowOf(emptyList()),
+    /** « Garder » for a folder's titles held, those shown ([app.houselights.providers.local.LocalLibrary.keepHeld]). */
+    private val keep: suspend (folder: Long, shown: List<Long>) -> Unit = { _, _ -> },
+    /** « Retirer » for titles held ([app.houselights.providers.local.LocalLibrary.removeHeld]). */
+    private val remove: suspend (List<Long>) -> Unit = {},
+    /** Where an answer runs, outliving home; its own scope by default. */
+    work: CoroutineScope? = null,
 ) : ViewModel() {
+    private val work = work ?: viewModelScope
+
     /** The library version home and « À regarder » last showed: one change reloads them once. */
     val libraryShown = LibraryShown()
 
@@ -157,12 +178,22 @@ class HomeViewModel(
         .catch { e -> Log.w(TAG, "Reading the folders failed", e) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
-    val state: StateFlow<HomeState> = combine(load, scan, folderList, settings) { loaded, progress, list, current ->
+    /** The first folder whose titles held the user has not answered for, in the folders' order. */
+    private val heldNote: Flow<HeldTitles?> = combine(held, folderList) { rows, list ->
+        list?.let { heldByFolder(rows, it).firstOrNull { titles -> !titles.kept } }
+    }.catch { e ->
+        Log.w(TAG, "Reading the titles held failed", e)
+        emit(null)
+    }
+
+    val state: StateFlow<HomeState> = combine(load, scan, folderList, settings, heldNote) { loaded, progress, list, current, note ->
+        val local = current.source == SourceConfig.Local
         HomeState(
             loaded.libraries,
-            homeContent(loaded, progress, list, local = current.source == SourceConfig.Local),
+            homeContent(loaded, progress, list, local = local),
             loaded.doors,
             homeStatus(current, list, progress, traktAvailable),
+            held = note.takeIf { local },
         )
     }.stateIn(
         viewModelScope,
@@ -239,6 +270,16 @@ class HomeViewModel(
     /** Scans the folders again, retrying a failed scan. */
     fun rescan() = scanAll()
 
+    /** « Garder »: [held]'s titles wait for their files, and home no longer says so; a failure leaves the note. */
+    fun keepHeld(held: HeldTitles) {
+        work.launchAction(TAG, "Keeping the titles held in folder ${held.folder.id}") { keep(held.folder.id, held.ids) }
+    }
+
+    /** « Retirer »: [held]'s titles leave the library, what the user did kept by title; a failure leaves the note. */
+    fun removeHeld(held: HeldTitles) {
+        work.launchAction(TAG, "Removing the titles held in folder ${held.folder.id}") { remove(held.ids) }
+    }
+
     companion object {
         fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
@@ -254,6 +295,10 @@ class HomeViewModel(
                     shown = { app.roomPosters.shown(app.settings.state.value.source, it) },
                     pick = app.unseenPick,
                     traktAvailable = app.trakt.available,
+                    held = app.library.held,
+                    keep = app.library::keepHeld,
+                    remove = app.library::removeHeld,
+                    work = app.scope,
                 )
             }
         }

@@ -106,6 +106,7 @@ import app.houselights.ui.util.okClears
 import app.houselights.ui.util.PlayOrigin
 import app.houselights.ui.util.PlaybackOutcome
 import app.houselights.ui.util.PlaybackProblem
+import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
@@ -146,11 +147,13 @@ fun DetailScreen(
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
     onOpenPerson: (String) -> Unit = {},
+    /** Leaves the page, back where it was opened from: once its title held is removed. */
+    onLeave: () -> Unit = {},
 ) {
     val app = appContainer()
     val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
     ReloadOnLibraryChange { scanOnly -> vm.onLibraryChanged(scanOnly) }
-    DetailPage(vm, app.playback, screen, onPlay, onOpenItem, onEditArtwork, onIdentify, onOpenPerson)
+    DetailPage(vm, app.playback, screen, onPlay, onOpenItem, onEditArtwork, onIdentify, onOpenPerson, onLeave)
 }
 
 /**
@@ -167,9 +170,11 @@ internal fun DetailPage(
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
     onOpenPerson: (String) -> Unit,
+    onLeave: () -> Unit = {},
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
+    LeaveOnceRemoved(state.removed, onLeave)
     // A failure to play stays until the next OK on the page, another play or another screen.
     val asked = playback.playbackProblem.collectAsStateWithLifecycle().value?.takeIf { it.origin.screen == screen }
     val problem = asked?.takeIf { it.origin.episode == null }?.error
@@ -236,6 +241,8 @@ internal fun DetailPage(
         nextUpError = state.lireError,
         retrying = state.retrying,
         onRetry = vm::retry,
+        // A title held while its file is missing: out of the library alone, nothing deleted on the NAS.
+        onRemove = vm::removeHeld.takeIf { item.held },
     )
     // Réessayer gone with the failure it said, or Lire and the Réessayer in its place swapped: focus goes to Lire.
     FocusOnPlayAfter(swap = state.error != null, held = RETRY_PAGE, memory, actionRow)
@@ -571,6 +578,8 @@ private data class DetailActions(
     val nextUpError: UiError? = null,
     val retrying: Boolean = false,
     val onRetry: () -> Unit = {},
+    /** Removes the title held while its file is missing from the library alone; null hides the tile. */
+    val onRemove: (() -> Unit)? = null,
 )
 
 @Composable
@@ -699,7 +708,8 @@ private fun Actions(
         if (actions.onEdit != null) {
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
-        ActionFailure(problem, actionError, actions.nextUpError)
+        RemoveTile(actions.onRemove, memory)
+        ActionFailure(problem, actionError, actions.nextUpError, heldSince = item.missingSince)
     } }
 }
 
@@ -730,20 +740,49 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
 
 /**
  * Beside the actions, the latest first: why the last play request failed ([problem]), a change did not save
- * ([actionError]), or what Lire starts could not be read ([nextUpError]).
+ * ([actionError]), or what Lire starts could not be read ([nextUpError]); else, for a title held, since when its file is
+ * missing ([heldSince]). A title held is said by the ring, never ember, as it may be no failure, Lire then saying it is
+ * gone and what to do.
  */
 @Composable
-private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?, nextUpError: UiError?) {
-    val (title, error) = problem?.let { R.string.play_failed to it }
+private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?, nextUpError: UiError?, heldSince: Long? = null) {
+    val at = Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false)
+    if (problem == UiError.HELD) {
+        HlStatus(StatusState.Off, stringResource(problem.title), at, detail = stringResource(problem.message))
+        return
+    }
+    val failure = problem?.let { R.string.play_failed to it }
         ?: actionError?.let { R.string.action_not_saved to it }
         ?: nextUpError?.let { it.title to it }
-        ?: return
-    HlStatus(
-        StatusState.Attention,
-        stringResource(title),
-        Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
-        detail = stringResource(error.message),
+    if (failure == null) {
+        HeldState(heldSince, at)
+    } else {
+        HlStatus(StatusState.Attention, stringResource(failure.first), at, detail = stringResource(failure.second.message))
+    }
+}
+
+/** « Retirer de la bibliothèque », a list crossed out, on a title held alone ([onRemove], null for a title there). */
+@Composable
+private fun RemoveTile(onRemove: (() -> Unit)?, memory: FocusMemory) {
+    if (onRemove == null) return
+    HlIconButton(
+        HlIcons.Remove,
+        stringResource(R.string.held_remove_title),
+        onClick = onRemove,
+        modifier = Modifier.focusKey(REMOVE, memory),
     )
+}
+
+/** Its title held removed from the library ([removed]): the page closes on the screen it came from ([onLeave]). */
+@Composable
+private fun LeaveOnceRemoved(removed: Boolean, onLeave: () -> Unit) {
+    LaunchedEffect(removed) { if (removed) onLeave() }
+}
+
+/** Since when the file of a title held ([since]) is missing, by the ring; nothing for a title there. */
+@Composable
+private fun HeldState(since: Long?, modifier: Modifier) {
+    if (since != null) HlStatus(StatusState.Off, heldSince(since), modifier)
 }
 
 /**
@@ -905,7 +944,9 @@ private fun Episodes(
                 .heightIn(min = textRoom(HlLayout.episodeOverview))
                 .fadeOutsideSafeArea(),
         ) {
-            if (playError != null) {
+            if (playError == UiError.HELD) {
+                HlStatus(StatusState.Off, stringResource(playError.title), detail = stringResource(playError.message))
+            } else if (playError != null) {
                 HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(playError.message))
             } else if (markError != null) {
                 HlStatus(StatusState.Attention, stringResource(R.string.action_not_saved), detail = stringResource(markError.message))
@@ -976,6 +1017,7 @@ private val TECH = FocusKey.action("tech")
 private val NFO = FocusKey.action("nfo")
 private val FAVORITE = FocusKey.action("favorite")
 private val EDIT = FocusKey.action("edit")
+private val REMOVE = FocusKey.action("remove")
 private val PARTS = FocusKey.action("parts")
 
 /** Parts shown as buttons in the action row, beside Lire and the tiles. */

@@ -197,6 +197,12 @@ private fun SecondaryShowcases() {
             )
         }
         item { Showcase("Séries", "SMB", listOf(mark), {}, facts = listOf("1 série", "10 épisodes")) }
+        item {
+            Showcase(
+                "Spectacles", "NFS", listOf(art, mark), {},
+                facts = listOf("22 titres"), state = "12 introuvables", stateLight = StatusState.Off,
+            )
+        }
     }
     Showcase(
         "Concerts", "SMB", emptyList(), {},

@@ -827,4 +827,30 @@
     <string name="update_incompatible_message">Android によると、このバージョンはこのプレーヤーに対応していません。</string>
     <string name="update_install_failed_title">インストールできませんでした</string>
     <string name="update_install_failed_message">Android はアップデートをインストールしませんでした。もう一度お試しください。詳しくはログに記録されています。</string>
+    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <plurals name="held_titles">
+        <item quantity="other">%d作品が見つかりません</item>
+    </plurals>
+    <plurals name="held_home">
+        <item quantity="other">「%2$s」の%1$d作品がNASで見つかりません</item>
+    </plurals>
+    <string name="held_see">表示</string>
+    <string name="held_text">フォルダ「%s」は応答していますが、Houselightsはこれらの作品を見つけられません。削除または移動した場合は、ライブラリから削除してください。NASのディスクが外れている場合は、保持してディスクをつなぎ直してください。元どおりに戻ります。</string>
+    <string name="held_text_one">フォルダ「%s」は応答していますが、Houselightsはこの作品を見つけられません。削除または移動した場合は、ライブラリから削除してください。NASのディスクが外れている場合は、保持してディスクをつなぎ直してください。元どおりに戻ります。</string>
+    <string name="held_keep">保持</string>
+    <string name="held_keep_desc">ファイルが戻るまで残します</string>
+    <string name="held_keep_desc_one">ファイルが戻るまで残します</string>
+    <string name="held_remove_desc">NASからは何も消えず、視聴履歴も残ります</string>
+    <plurals name="held_more">
+        <item quantity="other">ほか%d件</item>
+    </plurals>
+    <plurals name="held_count">
+        <item quantity="other">%d件が見つかりません</item>
+    </plurals>
+    <string name="held_row_desc">削除するか、ファイルが戻るまで保持します</string>
+    <string name="held_row_desc_one">削除するか、ファイルが戻るまで保持します</string>
+    <string name="held_since">%s前からNASで見つかりません</string>
+    <string name="held_gone_fix">NASのディスクをつなぎ直すか、この作品を削除してください。</string>
+    <string name="held_remove_title">ライブラリから削除</string>
+    <string name="card_held">見つかりません</string>
 </resources>

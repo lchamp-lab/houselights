@@ -1,6 +1,7 @@
 package app.houselights.ui.util
 
 import androidx.compose.runtime.Immutable
+import app.houselights.core.MediaItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +31,16 @@ class PlaybackOutcome(val playbackEnded: SharedFlow<Unit>) {
 
     fun clearProblem() {
         problem.value = null
+    }
+
+    /**
+     * Whether [item] is held while its file is missing ([MediaItem.held]): it is not tried, the room staying lit, and where
+     * play was asked ([origin]) says it is gone and what to do ([UiError.HELD]).
+     */
+    fun refusesHeld(item: MediaItem, origin: PlayOrigin): Boolean {
+        if (!item.held) return false
+        reportProblem(PlaybackProblem(UiError.HELD, origin))
+        return true
     }
 
     /** The screen of back stack entry [screen] shows: a problem asked from another one goes, never to show there. */

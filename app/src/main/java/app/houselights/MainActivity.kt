@@ -336,6 +336,8 @@ class MainActivity : ComponentActivity() {
     private fun play(item: MediaItem, resume: Boolean, origin: PlayOrigin) {
         // One cue at a time.
         if (lightsDown.value) return
+        // A title whose file is missing is not tried: the room stays lit, and where play was asked says why.
+        if (container.playback.refusesHeld(item, origin)) return
         container.playback.clearProblem()
         lightsDown.value = true
         cue = lifecycleScope.launch {
@@ -495,6 +497,7 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
                     onIdentify = { nav.navigate(Route.Identify(it)) },
                     onOpenPerson = { nav.navigate(Route.Person(it)) },
+                    onLeave = { nav.popBackStack() },
                 )
             }
         }
