@@ -10,6 +10,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
+import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDao
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
@@ -26,6 +27,7 @@ import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.util.UiError
+import app.houselights.testing.folderNames
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -121,9 +123,9 @@ class AddFolderViewModelTest {
     /** The form for [folderId] (null: a new one), as a screen holds it; [forms] clears it when the screen goes. */
     private fun form(
         folderId: Long?,
-        probe: suspend (SourceEntity) -> Int = { folder ->
+        probe: suspend (SourceEntity) -> FolderLevel = { folder ->
             calls += "test ${folder.host} with ${folder.password.value}"
-            12
+            FOUND
         },
         library: LocalLibrary = this.library,
         useFolders: suspend () -> Boolean = {
@@ -245,7 +247,7 @@ class AddFolderViewModelTest {
     @Test
     fun whatATestSaidGoesWithTheFieldsItRead() = runTest {
         var answers = false
-        val vm = form(null, probe = { if (answers) 12 else throw IOException("Connection timed out") })
+        val vm = form(null, probe = { if (answers) FOUND else throw IOException("Connection timed out") })
         advanceUntilIdle()
         vm.test()
         assertTrue("nothing typed yet", vm.check is FolderCheck.Incomplete)
@@ -264,9 +266,9 @@ class AddFolderViewModelTest {
         answers = true
         vm.test()
         advanceUntilIdle()
-        assertEquals(FolderCheck.Reachable(12), vm.check)
+        assertEquals(REACHED, vm.check)
         vm.edit { copy(kind = SourceKind.MOVIES) }
-        assertEquals("the same folder still answers", FolderCheck.Reachable(12), vm.check)
+        assertEquals("the same folder still answers", REACHED, vm.check)
         vm.edit { copy(path = "films") }
         assertNull(vm.check)
     }
@@ -274,7 +276,7 @@ class AddFolderViewModelTest {
     /** A field changed while the NAS was asked: its answer speaks of the folder the form no longer describes. */
     @Test
     fun anAnswerToFieldsChangedMeanwhileIsNotSaid() = runTest {
-        var answer = CompletableDeferred<Int>()
+        var answer = CompletableDeferred<FolderLevel>()
         val vm = form(null, probe = { answer.await() })
         advanceUntilIdle()
         vm.edit { copy(host = "nas-salon.local", share = "/volume1/media") }
@@ -282,7 +284,7 @@ class AddFolderViewModelTest {
         advanceUntilIdle()
         assertTrue(vm.testing)
         vm.edit { copy(host = "192.168.1.20") }
-        answer.complete(12)
+        answer.complete(FOUND)
         advanceUntilIdle()
         assertFalse(vm.testing)
         assertNull("another NAS, not tested yet", vm.check)
@@ -291,15 +293,15 @@ class AddFolderViewModelTest {
         vm.test()
         advanceUntilIdle()
         vm.edit { copy(kind = SourceKind.SHOWS) }
-        answer.complete(12)
+        answer.complete(FOUND)
         advanceUntilIdle()
-        assertEquals("the kind is not tested", FolderCheck.Reachable(12), vm.check)
+        assertEquals("the kind is not tested", REACHED, vm.check)
     }
 
     /** A field changed while Add tests the folder: nothing is added, and the form stays untested for Add again. */
     @Test
     fun aFolderChangedWhileAddTestsItIsNotAddedAsItWas() = runTest {
-        var answer = CompletableDeferred<Int>()
+        var answer = CompletableDeferred<FolderLevel>()
         val vm = form(null, probe = { answer.await() })
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.NFS, host = "nas-salon.local", share = "/volume1/media") }
@@ -308,7 +310,7 @@ class AddFolderViewModelTest {
         advanceUntilIdle()
         assertTrue(vm.testing)
         vm.edit { copy(host = "192.168.1.20") }
-        answer.complete(12)
+        answer.complete(FOUND)
         advanceUntilIdle()
         assertTrue("nothing added", dao.sources().isEmpty())
         assertFalse("the form stays", done)
@@ -319,7 +321,7 @@ class AddFolderViewModelTest {
         vm.submit { done = true }
         advanceUntilIdle()
         vm.edit { copy(kind = SourceKind.SHOWS) }
-        answer.complete(12)
+        answer.complete(FOUND)
         advanceUntilIdle()
         assertTrue(done)
         val added = dao.sources().single()
@@ -418,7 +420,7 @@ class AddFolderViewModelTest {
     fun aNewFolderStartsWithTheLastNfsIdentity() = runTest {
         nfsFolder(uid = 1026, gid = 100)
         val tested = mutableListOf<Pair<Int?, Int?>>()
-        val vm = form(null, probe = { folder -> 12.also { tested += folder.uid to folder.gid } })
+        val vm = form(null, probe = { folder -> FOUND.also { tested += folder.uid to folder.gid } })
         advanceUntilIdle()
 
         val expected = FolderForm(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media", uid = "1026", gid = "100")
@@ -439,7 +441,7 @@ class AddFolderViewModelTest {
     fun aFolderPathRepeatingItsExportIsTakenFromIt() = runTest {
         nfsFolder()
         val tested = mutableListOf<String>()
-        val vm = form(null, probe = { folder -> 12.also { tested += "${folder.share} ${folder.path}" } })
+        val vm = form(null, probe = { folder -> FOUND.also { tested += "${folder.share} ${folder.path}" } })
         advanceUntilIdle()
         assertEquals("/volume1/media", vm.form.share)
         vm.edit { copy(path = "/volume1/media/films2/") }
@@ -469,7 +471,7 @@ class AddFolderViewModelTest {
             )
         )
         val tested = mutableListOf<String>()
-        val vm = form(id, probe = { folder -> 12.also { tested += "${folder.share} ${folder.path}" } })
+        val vm = form(id, probe = { folder -> FOUND.also { tested += "${folder.share} ${folder.path}" } })
         advanceUntilIdle()
         assertEquals("video/video/Films", vm.form.path)
         vm.edit { copy(password = "new") }
@@ -583,7 +585,7 @@ class AddFolderViewModelTest {
         advanceUntilIdle()
         edited.test()
         advanceUntilIdle()
-        assertEquals(FolderCheck.Reachable(12), edited.check)
+        assertEquals(REACHED, edited.check)
         assertEquals(listOf("test 192.168.1.10 with stored"), calls)
     }
 
@@ -641,7 +643,7 @@ class AddFolderViewModelTest {
     @Test
     fun anNfsFolderIsTestedAndAddedAsTheUserTyped() = runTest {
         val tested = mutableListOf<Pair<Int?, Int?>>()
-        val vm = form(null, probe = { folder -> 12.also { tested += folder.uid to folder.gid } })
+        val vm = form(null, probe = { folder -> FOUND.also { tested += folder.uid to folder.gid } })
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media", path = "films") }
         vm.test()
@@ -678,7 +680,7 @@ class AddFolderViewModelTest {
     @Test
     fun anSmbFolderPresentsNoIdentity() = runTest {
         val tested = mutableListOf<Pair<Int?, Int?>>()
-        val vm = form(null, probe = { folder -> 12.also { tested += folder.uid to folder.gid } })
+        val vm = form(null, probe = { folder -> FOUND.also { tested += folder.uid to folder.gid } })
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.NFS, uid = "1026") }
         vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }
@@ -747,5 +749,11 @@ class AddFolderViewModelTest {
         } finally {
             broken.close()
         }
+    }
+
+    private companion object {
+        /** What the folder holds at its first level, as a test of it finds it. */
+        val FOUND = FolderLevel(folderNames(12), videos = 3)
+        val REACHED = FolderCheck.Reachable(folders = 12, videos = 3)
     }
 }

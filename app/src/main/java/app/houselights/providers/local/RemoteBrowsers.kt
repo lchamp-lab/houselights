@@ -8,15 +8,25 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The app's NAS browsers and the sessions and mounts they keep between files; a single instance lives in the app
- * container. Kept connections close when a source's address changes or a scan ends.
+ * The app's browsers, a NAS's and the player's own disks' ([LocalBrowser]), and the sessions and mounts they keep
+ * between files; a single instance lives in the app container. Kept connections close when a source's address changes
+ * or a scan ends.
  */
-class RemoteBrowsers internal constructor(private val smb: SmbBrowser, private val nfs: NfsBrowser) {
-    constructor() : this(SmbBrowser(), NfsBrowser())
+class RemoteBrowsers internal constructor(
+    private val smb: SmbBrowser,
+    private val nfs: NfsBrowser,
+    private val local: LocalBrowser = LocalBrowser(Volumes.NONE) { false },
+) {
+    /**
+     * Folders on the player's own disks are read where [volumes] says each is mounted, while [readable] says the app may
+     * read them ([DiskPermission]).
+     */
+    constructor(volumes: Volumes, readable: () -> Boolean) : this(SmbBrowser(), NfsBrowser(), LocalBrowser(volumes, readable = readable))
 
     fun of(source: SourceEntity): RemoteBrowser = when (source.protocol) {
         Protocol.SMB -> smb
         Protocol.NFS -> nfs
+        Protocol.LOCAL -> local
     }
 
     /** The exports of the NFS server at [host], each with the clients it allows ([exportAccess]). */
@@ -28,12 +38,14 @@ class RemoteBrowsers internal constructor(private val smb: SmbBrowser, private v
     /**
      * Closes sessions or mounts kept on [source]'s address, for any account or NFS identity, after its address,
      * password or identity changed.
-     * An SMB session signs off after its current operation; an NFS mount is dropped at once.
+     * An SMB session signs off after its current operation; an NFS mount is dropped at once; a disk's mount is asked of
+     * Android again.
      */
     suspend fun forget(source: SourceEntity) = withContext(Dispatchers.IO) {
         when (source.protocol) {
             Protocol.SMB -> smb.forget(source)
             Protocol.NFS -> nfs.forget(source)
+            Protocol.LOCAL -> local.forget(source)
         }
     }
 
@@ -41,6 +53,7 @@ class RemoteBrowsers internal constructor(private val smb: SmbBrowser, private v
     fun closeIdle() {
         smb.closeIdle()
         nfs.closeIdle()
+        local.closeIdle()
     }
 }
 

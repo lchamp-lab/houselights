@@ -24,7 +24,7 @@ Trakt). `local.properties` is git-ignored: **never commit a key.**
 ```
 app/src/main/java/app/houselights/
   core/          backend-independent model and the MediaProvider interface
-  providers/     local (SMB, NFS, TMDB, Room), jellyfin and trakt (the folders' Trakt account)
+  providers/     local (SMB, NFS, the player's own disks, TMDB, Room), jellyfin and trakt (the folders' Trakt account)
   player/        Zidoo player launch, progress tracking, audio and subtitle tracks, path mapping
   settings/      the app's settings (DataStore), display modes, text size, interface language, source switching
   journal/       the app's own log, masked, served to a phone on the home network (Settings > About)
@@ -52,9 +52,10 @@ Run `scripts/check.sh` before pushing or opening a pull request. It runs what CI
 - Existing findings are kept in `app/lint-baseline.xml` and `app/detekt-baseline*.xml`. New code must pass.
 - The design system has its own guard tests (DESIGN.md, *Guard*).
 - **Against real servers.** `tools/test-servers` starts a Samba and an NFS NAS and a Jellyfin server in Docker, on
-  generated samples and on 127.0.0.1 alone, which the emulator reaches at 10.0.2.2: try the app there without a NAS
-  at hand. Their tests (`app.houselights.servers`) run only with `HOUSELIGHTS_TEST_SERVERS=1`, in CI's `servers` job;
-  `scripts/check.sh` skips them. See [its README](tools/test-servers/README.md).
+  generated samples and on 127.0.0.1 alone, which the emulator reaches at 10.0.2.2 (and, for the tests, the same NFS
+  NAS sending its replies in fragments, on 127.0.0.2): try the app there without a NAS at hand. Their tests
+  (`app.houselights.servers`) run only with `HOUSELIGHTS_TEST_SERVERS=1`, in CI's `servers` job; `scripts/check.sh`
+  skips them. See [its README](tools/test-servers/README.md).
 
 ## Conventions
 

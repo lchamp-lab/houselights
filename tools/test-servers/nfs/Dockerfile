@@ -1,6 +1,6 @@
 # A Synology-like NFSv3 server in user space: unfs3 registered with rpcbind on Alpine, exporting what the exports file
-# says, each reply in one fragment as a NAS sends it (whole-replies.py). Its MOUNT protocol answers EXPORT
-# (showmount -e). Test-only.
+# says, each reply in one fragment as a NAS sends it (whole-replies.py), or with UNFS3_FRAGMENTS=1 in fragments as
+# unfsd sends them (entrypoint.sh). Its MOUNT protocol answers EXPORT (showmount -e). Test-only.
 FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 
 # unfs3 0.10 and rpcbind 1.2 of Alpine 3.24's branch, and Python for whole-replies.py.

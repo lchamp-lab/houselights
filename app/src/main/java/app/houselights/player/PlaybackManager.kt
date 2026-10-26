@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
+import androidx.core.content.FileProvider
 import app.houselights.R
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.math.abs
 
 /**
@@ -164,7 +166,9 @@ class PlaybackManager(
 
     private fun playerIntent(player: ComponentName, plan: PlaybackPlan.Launch, tracks: TrackPlan?) = Intent(Intent.ACTION_VIEW).apply {
         component = player
-        setDataAndType(Uri.parse(plan.uri), "video/${plan.container ?: "*"}")
+        // A path as a URI of its own, never parsed: a colon in a file's name would read as its scheme.
+        val data = pathOf(plan.uri)?.let { Uri.Builder().encodedPath(it).build() } ?: Uri.parse(plan.uri)
+        setDataAndType(data, "video/${plan.container ?: "*"}")
         putExtra("title", plan.title)
         // The player is another app: it can fetch a web address but not one of our files.
         plan.backdropUrl?.takeIf(::isWebUrl)?.let { putExtra("loading_image", it) }
@@ -184,10 +188,20 @@ class PlaybackManager(
         putExtra("return_result", true)
     }
 
-    /** Any video player's intent, through a [chooser] for a URI with a token so that the user picks the app. */
+    /**
+     * Any video player's intent, through a [chooser] for a URI with a token so that the user picks the app. A file of
+     * the player's own disks goes as a content:// address of the app's own provider (the manifest's, [FILES]), which
+     * that app may read for this file alone.
+     */
     private fun anyPlayerIntent(plan: PlaybackPlan.Launch, chooser: Boolean): Intent {
+        val path = pathOf(plan.uri)
         val any = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(Uri.parse(plan.uri), "video/*")
+            if (path == null) {
+                setDataAndType(Uri.parse(plan.uri), "video/*")
+            } else {
+                setDataAndType(FileProvider.getUriForFile(context, context.packageName + FILES, File(Uri.decode(path))), "video/*")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
             putExtra("title", plan.title)
             putExtra("position", plan.startMs.toInt())
             putExtra("return_result", true)
@@ -494,6 +508,19 @@ class PlaybackManager(
 
     companion object {
         private const val TAG = "Playback"
+
+        private const val FILE = "file://"
+
+        /** The authority of the app's provider for its disks' files, after its package name (the manifest's FileProvider). */
+        private const val FILES = ".files"
+
+        /**
+         * A file of the player's own disks (a file:// URI) as its path, still escaped where a URI would end it ("%23" for
+         * "#", as a share's), else null. Android stops an app handing another a file:// URI (FileUriExposedException,
+         * from Android 7); the Zidoo player opens the path as it opens a share's address, the subtitles beside the video
+         * and a film's next part with it.
+         */
+        internal fun pathOf(uri: String): String? = if (uri.startsWith(FILE)) uri.removePrefix(FILE) else null
 
         /** What [RepeatedFailures] keys a session's reports by: all of them, whichever step. */
         private const val REPORTS = "reports"

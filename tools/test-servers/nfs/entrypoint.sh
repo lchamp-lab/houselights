@@ -1,8 +1,8 @@
 #!/bin/sh
 # rpcbind, then unfsd registered with it: MOUNT on 892 (Synology's mountd port), TCP and UDP, and NFSv3 over TCP on
 # 2049, each reply in one fragment as a NAS sends it (whole-replies.py, before unfsd on 2050). With
-# UNFS3_FRAGMENTS=1, unfsd answers on 2049 itself, its replies above 64 KB in fragments, which Houselights cannot
-# read yet (README). The servers log to stdout.
+# UNFS3_FRAGMENTS=1, as the nfs-fragments service runs, unfsd answers on 2049 itself, its replies above 64 KB in
+# fragments, as NFS servers on libtirpc send them (README). The servers log to stdout.
 set -eu
 
 mkdir -p /run/rpcbind

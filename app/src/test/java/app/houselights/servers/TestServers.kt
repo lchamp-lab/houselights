@@ -1,6 +1,7 @@
 package app.houselights.servers
 
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanErrors
@@ -10,12 +11,34 @@ import org.junit.Assume.assumeTrue
 
 /**
  * The test servers of tools/test-servers (its README): a Samba NAS, an unfs3 NAS and a Jellyfin server, serving what
- * make-media.sh writes. Their tests run only when HOUSELIGHTS_TEST_SERVERS=1 says the servers are up, as CI's « servers »
- * job does; scripts/check.sh and the « check » job skip them.
+ * make-media.sh writes, and a second unfs3 NAS sending its replies in fragments. Their tests run only when
+ * HOUSELIGHTS_TEST_SERVERS=1 says the servers are up, as CI's « servers » job does; scripts/check.sh and the « check »
+ * job skip them.
  */
 internal object TestServers {
     /** Where they listen: this machine, unless HOUSELIGHTS_TEST_SERVERS_HOST names another. */
-    val host: String = System.getenv("HOUSELIGHTS_TEST_SERVERS_HOST")?.takeIf { it.isNotBlank() } ?: "127.0.0.1"
+    val host: String = System.getenv(HOST)?.takeIf { it.isNotBlank() } ?: "127.0.0.1"
+
+    /** Where the second NFS NAS listens ([fragmentsHostIn]), or null when its tests cannot know. */
+    val fragmentsHost: String? = fragmentsHostIn(System::getenv)
+
+    /**
+     * Where the second NFS NAS listens in [env], unfsd answering by itself, each reply above 64 KB in fragments
+     * (nfs-fragments): the address HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST names, or else this machine's 127.0.0.2, its
+     * portmapper's port 111 being the first NAS's on 127.0.0.1. Null when HOUSELIGHTS_TEST_SERVERS_HOST names another
+     * machine without it: that machine's own second address is not this one's.
+     */
+    fun fragmentsHostIn(env: (String) -> String?): String? =
+        env(FRAGMENTS_HOST)?.takeIf { it.isNotBlank() } ?: "127.0.0.2".takeIf { env(HOST).isNullOrBlank() }
+
+    /** Skips the calling test unless [fragmentsHost] is known, rather than calling this machine's 127.0.0.2 for it. */
+    fun assumeFragmentsHostKnown() = assumeTrue(
+        "$HOST names another machine: $FRAGMENTS_HOST must name where nfs-fragments answers (tools/test-servers/README.md)",
+        fragmentsHost != null,
+    )
+
+    private const val HOST = "HOUSELIGHTS_TEST_SERVERS_HOST"
+    private const val FRAGMENTS_HOST = "HOUSELIGHTS_TEST_SERVERS_FRAGMENTS_HOST"
 
     /** The NAS's read-only account, and Jellyfin's: test-only. */
     const val USER = "houselights"
@@ -40,11 +63,11 @@ internal object Samples {
     const val DUNE = "Films/Dune (2021)/Dune (2021).mkv"
     const val DUNE_NFO = "Films/Dune (2021)/Dune (2021).nfo"
 
-    /** The folders at the root of « video » the app counts: #recycle and @eaDir are left out. */
-    const val ROOT_FOLDERS = 2
+    /** What the app counts at the root of « video », its folders and its videos: Films and Séries; #recycle and @eaDir left out. */
+    val ROOT = 2 to 0
 
-    /** The entries of Films the app counts: six films, five in folders, one loose; .DS_Store left out. */
-    const val FILMS_ENTRIES = 6
+    /** What the app counts in Films: six films, five in folders, one loose; .DS_Store left out. */
+    val FILMS = 5 to 1
 
     val videos = setOf(
         "Films/Alien (1979)/Alien (1979).mp4",
@@ -64,4 +87,14 @@ internal object Samples {
 
     /** Dune's NFO and artwork; the thumbnails of @eaDir are not among them. */
     val sidecars = setOf(DUNE_NFO, "Films/Dune (2021)/fanart.jpg", "Films/Dune (2021)/poster.jpg")
+
+    /**
+     * In the shared folder « media » (/volume1/media), from its folder Films: Interstellar's NFO, over 64 KB with its
+     * cast of [INTERSTELLAR_ACTORS], « Acteur 001 » to « Acteur 500 », as an NFO for a large cast can be.
+     */
+    const val INTERSTELLAR_NFO = "Interstellar (2014)/Interstellar (2014).nfo"
+    const val INTERSTELLAR_ACTORS = 500
 }
+
+/** A level's folders and videos, counted apart, as a folder's test says them: « 5 dossiers et 1 vidéo ». */
+internal fun FolderLevel.counted(): Pair<Int, Int> = folders.size to videos

@@ -31,7 +31,8 @@
 > Jellyfin, Emby or Plex.
 
 **En français.** Houselights est une médiathèque façon salle de cinéma pour les lecteurs **Zidoo** (testée sur le
-Z1000 Pro) : vos films et séries d’un **NAS** (NFS ou SMB, avec les NFO Kodi et TMDB) ou d’un serveur **Jellyfin**,
+Z1000 Pro) : vos films et séries d’un **NAS** (NFS ou SMB, avec les NFO Kodi et TMDB), du disque du lecteur ou d’un
+disque USB, ou d’un serveur **Jellyfin**,
 lus par le **lecteur natif Zidoo** (HDR10, HDR10+, Dolby Vision, passthrough audio), avec le suivi **Trakt**. Libre et
 gratuite, l’application est entièrement en français. [Installer](#install)
 
@@ -42,8 +43,8 @@ gratuite, l’application est entièrement en français. [Installer](#install)
   <br><sub>From home to the film: focus lights each title, and Play dims the room before the Zidoo player takes over.</sub>
 </p>
 
-- **The Zidoo player plays.** Files open directly in it (`smb://`, `nfs://` or HTTP), with everything it
-  supports. Progress is read from the player while it plays, so resume points stay in sync.
+- **The Zidoo player plays.** Files open directly in it (`smb://`, `nfs://`, a path on the player's own disks, or
+  HTTP), with everything it supports. Progress is read from the player while it plays, so resume points stay in sync.
   - Audio and subtitles are asked of it as Settings > Playback sets them for every title (the player's own choice
     by default, or an audio language and subtitles off, forced only, automatic or always, in a language), or as a
     film or a show keeps its own (Audio and subtitles on a film's page or in an episode's options); a change made
@@ -60,8 +61,13 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     search or the settings. The doors of what is new and of the next episode open To watch: the rows to
     resume, next up, the latest titles, a director's films and the best rated, under the title in focus. Back
     returns home, on the door you came from.
-- **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
-  details from TMDB.
+- **My files**: scans NFS or SMB shares, or folders on the player's own disks (its internal storage, a USB disk or an
+  SD card), identifies films and shows from their names, and fetches artwork and details from TMDB.
+  - A folder on the player's disks is kept by its disk, a USB disk by its UUID, and read wherever Android mounts the
+    disk at each scan, whichever port it is plugged into. A disk unplugged is out of reach as a NAS asleep: nothing
+    leaves the library, nothing is held, and the folder is read again once the disk is back. The Zidoo player gets the
+    file's path; another player, a `content://` address that reads that file alone. Reading the disks needs a
+    permission of Android's ([Privacy](#privacy)).
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids and ids in names identify titles exactly ([Naming your files](#naming-your-files)).
   - Without an id, TMDB's results are weighed (titles, original and alternative ones included, year, votes and
@@ -80,6 +86,12 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     the player cannot follow, is left out and logged.
   - NFS sends no password: the app presents itself to the NAS as root, unless a folder names the user and group
     (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
+  - A folder is tested before it is saved, in the NAS's own words (mount path, shared folder, subfolder): the test
+    says what it found, "412 folders and 3 videos", the fields then showing the path as it was read (a whole path
+    typed under its mount path keeps only the subfolder), and a failure says what to change under the field to change,
+    which takes focus: the shared folder or the export missing, or a subfolder missing in one that answers; the NAS
+    refusing this player, by its address, or root, or an SMB account without the right. A folder holding neither a
+    video nor a subfolder, or one nesting with a folder of the library, is never saved.
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
   - A file deleted from the NAS leaves the library on the next scan; what you did to its title (watched, where you
@@ -109,9 +121,10 @@ gratuite, l’application est entièrement en français. [Installer](#install)
       still connected, and sends what waited once your folders are the source again; Settings > Trakt says
       so meanwhile, and disconnects it.
 - **Jellyfin**: browses your server and reports playback progress back to it. Servers found on the network are
-  checked as they appear, a closed lock on those that answer over HTTPS, as the same server, with a certificate
-  the player trusts ([Security](#security)). Switching to your folders keeps the server signed in: it comes back
-  from Settings in one OK, without signing in again. Emby and Plex are planned.
+  looked for as its choice takes focus on the welcome screen, the first one found focused, and checked as they
+  appear, a closed lock on those that answer over HTTPS, as the same server, with a certificate the player trusts
+  ([Security](#security)). Switching to your folders keeps the server signed in: it comes back from Settings in one
+  OK, without signing in again. Emby and Plex are planned.
 - **Without a library** (the last folder removed, or the only server signed out of), the app goes back to its
   welcome screen, wherever it was, to choose where your films are.
 - **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,
@@ -222,6 +235,20 @@ them. To add a folder, the app asks which NAS announce SMB on the local network 
 five seconds at most), then tries ports 445 and 2049 of those that answered or that the library uses; it scans no
 address.
 
+**The player's own disks.** A folder on its internal storage or a USB disk needs Android's permission to read the
+disks, asked only when you add one: the storage permission on Android 9 and 10 (the Z1000 Pro's 9), all-files access
+from Android 11, where the storage permission reads videos and pictures alone and an NFO or a subtitle is neither.
+Without it, or once it is withdrawn, a disk's folder is refused at its scan rather than read as empty, and its titles
+stay. Houselights reads the folders you add and writes nothing on the disks; a player other than the Zidoo's is handed
+the film it plays alone, never a file a link on the disk leads to elsewhere. Google Play limits all-files access to
+file managers and the like: Houselights is not on Google Play ([Install](#install)). On a player whose settings do not
+open that screen, allow it from a computer:
+
+```
+adb shell pm grant app.houselights android.permission.READ_EXTERNAL_STORAGE   # Android 9 and 10
+adb shell appops set app.houselights MANAGE_EXTERNAL_STORAGE allow            # Android 11 and later
+```
+
 ## Security
 
 - **Prefer NFS**, which needs no credentials. With SMB, the Zidoo player receives the credentials in the file
@@ -232,7 +259,7 @@ address.
   (the Z1000 Pro's), anyone can sign an update of the system player that Android installs over it, and it
   would receive them too: install the player's updates from Zidoo alone.
 - NFS sends no password: the NAS trusts the player's address and the user it claims, root (uid 0, gid 0)
-  unless the folder's "Connect as" names another user and group. Any app on the player can claim root
+  unless the folder's "NFS account" names another user and group. Any app on the player can claim root
   too: on an export that does not squash root (Synology's "No mapping"), the export is open with root's rights.
   Export it **read-only, with root squashed** or mapped to a guest or media account; the user the app presents
   only chooses whose rights it reads with, and the Zidoo player opens videos with its own NFS access.
@@ -332,6 +359,9 @@ any later version ([LICENSE](LICENSE), `GPL-3.0-or-later`).
   ([third_party/archivo/OFL.txt](third_party/archivo/OFL.txt)).
 - Icons are Lucide's (https://lucide.dev), under the ISC license, those derived from Feather under the MIT
   license ([third_party/lucide/LICENSE](third_party/lucide/LICENSE)).
+- `RPCRecordDecoder` (`app/src/main/java/com/emc/ecs/nfsclient/network`) is nfs-client's
+  (https://github.com/EMCECS/nfs-client-java, Dell Inc.), changed to join an NFS reply's fragments, under the Apache
+  License 2.0 ([third_party/nfs-client/LICENSE](third_party/nfs-client/LICENSE)).
 - This product uses the TMDB API but is not endorsed or certified by TMDB. The TMDB logo is a trademark of
   TMDB, shown under its attribution guidelines, and is not covered by the GPL. The screenshots show the films' and
   shows' texts and pictures as TMDB gives them; they belong to their owners and are not covered by the GPL either.

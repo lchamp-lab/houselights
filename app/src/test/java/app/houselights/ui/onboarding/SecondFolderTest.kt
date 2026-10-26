@@ -13,6 +13,7 @@ import androidx.compose.ui.test.requestFocus
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
+import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
@@ -72,7 +73,9 @@ class SecondFolderTest {
                 )
             )
         }
-        val vm = AddFolderViewModel(library, id.takeIf { edit }, scope, useFolders = { false }, probe = { 0 })
+        val vm = AddFolderViewModel(
+            library, id.takeIf { edit }, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) },
+        )
         compose.setTvContent { AddFolderForm(vm, focusOn) {} }
         compose.waitForIdle()
         return vm
@@ -87,7 +90,7 @@ class SecondFolderTest {
         // The share the last folder is inside, read after the form showed.
         assertEquals("media", vm.form.share)
 
-        compose.onNodeWithContentDescription("Share").requestFocus()
+        compose.onNodeWithContentDescription("Shared folder").requestFocus()
         compose.press(Key.DirectionCenter)
         compose.press(Key.Backspace, 5)
         assertEquals("", vm.form.share)

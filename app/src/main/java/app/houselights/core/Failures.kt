@@ -20,6 +20,8 @@ import java.io.IOException
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.nio.file.AccessDeniedException
+import java.nio.file.NoSuchFileException
 import java.security.cert.CertPathValidatorException
 import java.security.cert.CertificateException
 import java.util.concurrent.TimeoutException
@@ -129,6 +131,8 @@ private fun typed(chain: List<Throwable>): FailureKind? = when {
     chain.any { it is TmdbUnreachableException } -> FailureKind.TMDB_UNREACHABLE
     chain.any { it is TmdbNotFoundException } -> FailureKind.TMDB_NOT_FOUND
     chain.any { it is NotFoundException } -> FailureKind.GONE
+    // Before the files it fails on, which may be missing or refused once the disk is gone.
+    chain.any { it is DiskAbsentException } -> FailureKind.UNREACHABLE
     storageFull(chain) -> FailureKind.STORAGE_FULL
     chain.any { it is SQLiteDiskIOException } -> FailureKind.STORAGE_FAILED
     else -> null
@@ -187,17 +191,52 @@ private fun signInRefused(chain: List<Throwable>, text: String): Boolean =
     text.contains("LOGON_FAILURE") || text.contains("ACCOUNT_") || text.contains("WRONG_PASSWORD") ||
         chain.any { it is SMB2GuestSigningRequiredException || it is TransportException && it.message == NO_SIGNING_KEY }
 
-/** The NAS refused the device or account; nfs-client says "returned state: 13" for a mount, else "NfsStatus:13". */
+/**
+ * The NAS refused the device or account; nfs-client says "returned state: 13" for a mount, else "NfsStatus:13". On the
+ * player's own disks, Android refused the app (no storage permission).
+ */
 private fun refused(chain: List<Throwable>, text: String): Boolean =
     chain.any {
-        it is MountException && it.status?.value in MOUNT_REFUSED || it is NfsException && it.status?.value in NFS_REFUSED
+        it is MountException && it.status?.value in MOUNT_REFUSED || it is NfsException && it.status?.value in NFS_REFUSED ||
+            it is AccessDeniedException
     } || REFUSED.any { text.contains(it) } || text.contains("AUTH_ERROR", ignoreCase = true) ||
         text.contains("auth", ignoreCase = true) && text.contains("rpc", ignoreCase = true)
 
-/** The share, export or folder does not exist; nfs-client throws FileNotFoundException for NFS3ERR_NOENT. */
+/**
+ * The share, export or folder does not exist; nfs-client throws FileNotFoundException for NFS3ERR_NOENT, a file of the
+ * player's own disks NoSuchFileException.
+ */
 private fun missing(chain: List<Throwable>, text: String): Boolean =
-    chain.any { it is FileNotFoundException || it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value } ||
-        MISSING.any { text.contains(it) }
+    chain.any {
+        it is FileNotFoundException || it is NoSuchFileException ||
+            it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value
+    } || MISSING.any { text.contains(it) }
+
+/** Where on the NAS a failure is, when its answer says ([failurePlace]). */
+enum class FailurePlace {
+    /** The share or the export itself: none of that name, or it is not open to this player (its mount refused). */
+    SHARE,
+
+    /** A folder inside a share or an export that answered: it is not there, or may not be read. */
+    FOLDER,
+}
+
+/**
+ * Where on the NAS this failure is ([FailurePlace]), when its answer says: a mount refused or missing (MountException)
+ * and a share SMB does not know (BAD_NETWORK_NAME) are the share's; a folder not found once in it (NFS3ERR_NOENT, which
+ * nfs-client throws as FileNotFoundException, OBJECT_NAME_NOT_FOUND, OBJECT_PATH_NOT_FOUND) or refused once mounted
+ * (NFS3ERR_ACCES) is a folder's. Null when it does not say: an SMB access refused, a network failure.
+ */
+fun Throwable.failurePlace(): FailurePlace? {
+    val chain = causeChain()
+    val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
+    return when {
+        chain.any { it is MountException } || text.contains(NO_SHARE) -> FailurePlace.SHARE
+        chain.any { it is FileNotFoundException || it is NfsException && it.status?.value in NFS_REFUSED } -> FailurePlace.FOLDER
+        NO_FOLDER.any { text.contains(it) } -> FailurePlace.FOLDER
+        else -> null
+    }
+}
 
 
 /** smbj Session's message when it must sign a request without a key, as in a guest session. */
@@ -207,6 +246,10 @@ private val MOUNT_REFUSED = setOf(MountStatus.MNT3ERR_ACCES.value, MountStatus.M
 private val NFS_REFUSED = setOf(NfsStatus.NFS3ERR_ACCES.value, NfsStatus.NFS3ERR_PERM.value)
 private val REFUSED = listOf("ACCESS_DENIED", "ERR_ACCES", "ERR_PERM")
 private val MISSING = listOf("BAD_NETWORK_NAME", "NOT_FOUND", "ERR_NOENT", "PATH_NOT_FOUND")
+
+/** SMB's word for a share the NAS does not have, and those for a folder missing in a share that answered. */
+private const val NO_SHARE = "BAD_NETWORK_NAME"
+private val NO_FOLDER = listOf("OBJECT_NAME_NOT_FOUND", "OBJECT_PATH_NOT_FOUND")
 
 private val NO_ANSWER = listOf(
     "waiting for connection", "timed out", "rpc request timeout", "connection is broken", "tcp IO error",
