@@ -413,6 +413,31 @@ class AddFolderViewModelTest {
         assertEquals(FolderForm(protocol = Protocol.NFS, host = "nas.local", share = "/volume1/media"), vm.form)
     }
 
+    /**
+     * The tester's second folder: under the export the form starts with, its whole path from the NAS's root typed in
+     * « Dossier ». It is read inside the export, so it is tested and added as the folder it names; over SMB the same,
+     * its share in any case.
+     */
+    @Test
+    fun aFolderPathRepeatingItsExportIsTakenFromIt() = runTest {
+        nfsFolder()
+        val tested = mutableListOf<String>()
+        val vm = form(null, probe = { folder -> 12.also { tested += "${folder.share} ${folder.path}" } })
+        advanceUntilIdle()
+        assertEquals("/volume1/media", vm.form.share)
+        vm.edit { copy(path = "/volume1/media/films2/") }
+        var done = false
+        vm.submit { done = true }
+        advanceUntilIdle()
+
+        assertTrue(done)
+        assertEquals(listOf("volume1/media films2"), tested)
+        val added = dao.sources().maxBy { it.id }
+        assertEquals(listOf("films2", "volume1/media", "films2"), listOf(added.name, added.share, added.path))
+        val smb = FolderForm(protocol = Protocol.SMB, host = "192.168.1.10", share = "Video", path = "video\\Films2").toSource()
+        assertEquals("Video" to "Films2", smb.share to smb.path)
+    }
+
     /** A new folder starts empty when the last one cannot be read. */
     @Test
     fun aNewFolderStartsEmptyWhenTheLastCannotBeRead() = runTest {

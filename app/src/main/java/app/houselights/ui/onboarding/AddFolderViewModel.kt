@@ -48,19 +48,45 @@ data class FolderForm(
     val uid: String = "",
     val gid: String = "",
 ) {
-    /** The folder, cleaned up: no scheme, no stray slashes, credentials for SMB only, an identity for NFS only. */
-    fun toSource() = SourceEntity(
-        name = path.trim('/').substringAfterLast('/').ifBlank { share.trim('/').substringAfterLast('/') },
-        kind = kind,
-        protocol = protocol,
-        host = host.trim().removePrefix("smb://").removePrefix("nfs://").trimEnd('/'),
-        share = share.trim().trim('/'),
-        path = path.trim().trim('/'),
-        username = if (protocol == Protocol.SMB) user.trim() else "",
-        password = Secret(if (protocol == Protocol.SMB) password else ""),
-        uid = identity()?.first,
-        gid = identity()?.second,
-    )
+    /**
+     * The folder, cleaned up: no scheme, no stray slashes, its share and folder as [place] reads them, credentials for
+     * SMB only, an identity for NFS only.
+     */
+    fun toSource(): SourceEntity {
+        val (share, path) = place()
+        return SourceEntity(
+            name = path.substringAfterLast('/').ifBlank { share.substringAfterLast('/') },
+            kind = kind,
+            protocol = protocol,
+            host = host.trim().removePrefix("smb://").removePrefix("nfs://").trimEnd('/'),
+            share = share,
+            path = path,
+            username = if (protocol == Protocol.SMB) user.trim() else "",
+            password = Secret(if (protocol == Protocol.SMB) password else ""),
+            uid = identity()?.first,
+            gid = identity()?.second,
+        )
+    }
+
+    /**
+     * The share (or export) and the folder inside it, however much of the NAS's path each field holds. The folder's
+     * first segments are dropped when they repeat the share whole, compared as the library compares folders (SMB
+     * ignoring case): "/volume1/video" and "/volume1/video/films2" read "films2", as "video" and "video/films2" do. For
+     * SMB, "\" reads as "/", the NAS's address before the share ("\\nas\", "smb://nas/") is dropped, and what the
+     * share's field holds after the share goes before the folder; an address before the folder is dropped only when
+     * what follows it repeats the share. Nothing else changes: a name that repeats no share is read as typed.
+     */
+    private fun place(): Pair<String, String> {
+        val smb = protocol == Protocol.SMB
+        val shared = segments(if (smb) withoutAddress(share) else share, smb)
+        val written = segments(path, smb)
+        val unc = if (smb) segments(withoutAddress(path), smb) else written
+        val fromRoot = if (unc.repeats(shared, ignoreCase = smb)) unc else written
+        val folder = if (fromRoot.repeats(shared, ignoreCase = smb)) fromRoot.drop(shared.size) else fromRoot
+        if (!smb) return shared.joinToString("/") to folder.joinToString("/")
+        // A share's name holds no slash: what its field holds after it is a folder inside.
+        return shared.firstOrNull().orEmpty() to (shared.drop(1) + folder).joinToString("/")
+    }
 
     /** The NFS user and group typed, both or neither ([missing] asks for the other); null for root, or for SMB. */
     private fun identity(): Pair<Int, Int>? {
@@ -81,7 +107,9 @@ data class FolderForm(
     @StringRes
     fun missing(): Int? = when {
         host.isBlank() -> R.string.error_host_missing
-        share.isBlank() -> if (protocol == Protocol.NFS) R.string.error_export_missing else R.string.error_share_missing
+        protocol == Protocol.NFS && share.isBlank() -> R.string.error_export_missing
+        // The NAS's address alone ("\\nas\") names no share; an NFS export may be the NAS's root ("/").
+        protocol == Protocol.SMB && place().first.isEmpty() -> R.string.error_share_missing
         protocol == Protocol.NFS && uid.isEmpty() != gid.isEmpty() ->
             if (uid.isEmpty()) R.string.error_uid_missing else R.string.error_gid_missing
         else -> null
@@ -107,6 +135,20 @@ data class FolderForm(
         fun isId(text: String) = text.all { it in '0'..'9' } && (text.isEmpty() || text.toIntOrNull() != null)
     }
 }
+
+/** A NAS's address before an SMB path, its "\" read as "/": "//nas/" or "smb://nas/". */
+private val SMB_ADDRESS = Regex("^(?:smb:)?//[^/]+/", RegexOption.IGNORE_CASE)
+
+/** [text] as typed for SMB, "\" read as "/", without the NAS's address in front ([SMB_ADDRESS]). */
+private fun withoutAddress(text: String) = SMB_ADDRESS.replaceFirst(text.trim().replace('\\', '/'), "")
+
+/** The names of the folders in [path], from the first; for [smb], "\" separates them too. */
+private fun segments(path: String, smb: Boolean): List<String> =
+    (if (smb) path.trim().replace('\\', '/') else path.trim()).split('/').filter { it.isNotEmpty() }
+
+/** Whether these segments start with all of [share]'s: a path typed from the NAS's root, the share included. */
+private fun List<String>.repeats(share: List<String>, ignoreCase: Boolean) =
+    share.isNotEmpty() && size >= share.size && share.indices.all { this[it].equals(share[it], ignoreCase) }
 
 /** How the folder answered a test, or why it was not saved. */
 sealed interface FolderCheck {
