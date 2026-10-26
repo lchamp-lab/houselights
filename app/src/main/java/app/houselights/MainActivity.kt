@@ -320,6 +320,8 @@ class MainActivity : ComponentActivity() {
         cancelCue()
         // Secrets the Keystore did not open are tried again.
         container.settings.readAgain()
+        // Back from Android's settings, which may now let the app install its update, or from its installer's window.
+        container.updates.returned()
     }
 
     // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.

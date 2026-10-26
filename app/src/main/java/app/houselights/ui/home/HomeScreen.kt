@@ -80,7 +80,10 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.gridHeights
 import app.houselights.ui.design.components.rememberCutPosters
 import app.houselights.ui.design.components.rememberFigureSize
+import app.houselights.ui.settings.UpdateOnHome
+import app.houselights.ui.settings.UpdateUi
 import app.houselights.ui.settings.relativeTime
+import app.houselights.ui.settings.updateSaid
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.ReloadOnLibraryChange
@@ -125,16 +128,24 @@ fun HomeScreen(actions: HomeActions, playProblem: UiError? = null) {
     ReloadOnLibraryChange(vm.libraryShown) { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
     val search = actions.onOpenSearch.takeIf { app.providerOrNull()?.capabilities?.search == true }
-    HomeGrid(state, vm.scan, actions.copy(onOpenSearch = search, onReload = vm::load, onRescan = vm::rescan), playProblem)
+    val updates = remember(app) { UpdateUi(app.updates.state, app.updates) }
+    HomeGrid(state, vm.scan, actions.copy(onOpenSearch = search, onReload = vm::load, onRescan = vm::rescan), playProblem, updates)
 }
 
 /**
  * Home for [state] (DESIGN.md, Layout): the lockup, then the grid of the case and its doors, or what says why there is
  * none. Focus comes back to the door left; Back says once that a second one quits. Why the case did not play
- * ([playProblem]) is said in place of its facts until a click on it, and first in its options.
+ * ([playProblem]) is said in place of its facts until a click on it, and first in its options. A version found by the
+ * app's [updates] opens its sheet once over the grid, and the update that brought the app back is said once at its head.
  */
 @Composable
-internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: HomeActions, playProblem: UiError? = null) {
+internal fun HomeGrid(
+    state: HomeState,
+    scan: StateFlow<ScanState>,
+    actions: HomeActions,
+    playProblem: UiError? = null,
+    updates: UpdateUi? = null,
+) {
     val content = state.content
     val memory = rememberFocusMemory()
     // The line saying a second Back quits goes as soon as focus moves to another door.
@@ -157,7 +168,13 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
         } else {
             null
         }
-        HomeHead(stringResource(R.string.back_again_to_quit).takeIf { quitting }, end = settings)
+        // Once after an update, as Back once is said; Back's word goes first.
+        val said = updateSaid(updates)
+        HomeHead(
+            stringResource(R.string.back_again_to_quit).takeIf { quitting } ?: said?.first,
+            statusState = said?.second?.takeUnless { quitting } ?: StatusState.Pending,
+            end = settings,
+        )
         when {
             plan != null -> Grid(
                 plan, state, scan, actions, memory, playProblem, onList = { listing.value = true }, onOptions = { options.value = true },
@@ -168,6 +185,8 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
     }
     if (listing.value && plan != null) LibrariesSheet(plan, state.sagas, actions) { listing.value = false }
     if (options.value && case != null) CaseOptions(case, actions, playProblem) { options.value = false }
+    // A version found: its sheet, opened by the app once home's grid is drawn and nothing lies over it, once per version.
+    UpdateOnHome(updates, shown = whole && plan != null && !listing.value && !options.value)
 }
 
 /** A [sheet] whose [element] went with a reload closes, and does not open again by itself when it comes back. */

@@ -48,6 +48,29 @@ class UpdateMoments(
     val launched: suspend () -> Unit,
 )
 
+/** What the update's rows and sheets ask of the updater ([Updater]), each a user's action. */
+interface UpdateControls {
+    fun checkNow()
+
+    fun opened()
+
+    fun closed()
+
+    fun update()
+
+    fun retry()
+
+    fun cancel()
+
+    fun allow()
+
+    fun reopen()
+
+    fun shownOnHome(versionCode: Long)
+
+    fun updatedSaid()
+}
+
 /**
  * Updates the app from its releases on GitHub (README, Install), in a release signed with the project's key alone
  * ([InstalledApp.available]). Once a day, while the app is on screen and nothing plays or scans, it asks GitHub whether
@@ -65,7 +88,7 @@ class Updater(
     private val clock: () -> Long = System::currentTimeMillis,
     /** Where files are read and written: the device's storage, off the main thread. */
     private val io: CoroutineContext = Dispatchers.IO,
-) {
+) : UpdateControls {
     private val _state = MutableStateFlow(UpdateState())
     val state: StateFlow<UpdateState> = _state
 
@@ -215,7 +238,7 @@ class Updater(
      * « Rechercher maintenant », « Réessayer », or a sheet opened: an answer under a minute old stands; never while GitHub
      * asks to wait.
      */
-    fun checkNow() {
+    override fun checkNow() {
         val s = state.value
         if (!s.on || s.waitUntil.waits() || asking?.isActive == true) return
         if (clock() - answeredAt in 0 until SINGLE_FLIGHT_MS && s.failure == null) return
@@ -296,7 +319,7 @@ class Updater(
     }
 
     /** A sheet opened: it asks GitHub only with the automatic check on, no version offered, and an answer over an hour old. */
-    fun opened() {
+    override fun opened() {
         sheets++
         val s = state.value
         val stale = s.checkedAt?.let { clock() - it !in 0 until HOUR_MS } ?: true
@@ -306,12 +329,12 @@ class Updater(
     }
 
     /** A sheet closed: an update under way goes on, and stops at Ready, Android's window never opening by itself. */
-    fun closed() {
+    override fun closed() {
         sheets = (sheets - 1).coerceAtLeast(0)
     }
 
     /** « Mettre à jour » or « Installer »: the permission, the download and its check, then Android's window. */
-    fun update() {
+    override fun update() {
         val offer = state.value.offer
         if (!state.value.on || offer == null || work?.isActive == true) return
         again = ::update
@@ -319,7 +342,7 @@ class Updater(
     }
 
     /** « Réessayer »: what failed, asked again. */
-    fun retry() = again()
+    override fun retry() = again()
 
     private suspend fun install(offer: UpdateOffer) {
         _state.update { it.copy(failure = null) }
@@ -381,7 +404,7 @@ class Updater(
     private fun step(step: UpdateStep) = _state.update { it.copy(step = step) }
 
     /** « Annuler le téléchargement »: what was received is deleted, the sheet back to « Mettre à jour ». */
-    fun cancel() {
+    override fun cancel() {
         if (state.value.step !is UpdateStep.Downloading) return
         work?.cancel()
         work = null
@@ -392,7 +415,7 @@ class Updater(
      * « Autoriser l'installation »: Android's settings screen that allows it, the user's trip kept should Android close the
      * app meanwhile; without one, or should it not open, the sheet gives the other ways.
      */
-    fun allow() {
+    override fun allow() {
         val offer = state.value.offer ?: return
         val screen = parts.installer.permissionScreen()
         if (screen == PermissionScreen.NONE) return step(UpdateStep.NeedsPermission(screen))
@@ -408,7 +431,7 @@ class Updater(
     }
 
     /** Android's confirmation again, which the user left with the Home key. */
-    fun reopen() {
+    override fun reopen() {
         val intent = confirmation ?: return
         if ((state.value.step as? UpdateStep.Installing)?.reopen != true) return
         step(UpdateStep.Installing(reopen = !parts.installer.confirm(intent)))
@@ -476,13 +499,13 @@ class Updater(
     }
 
     /** Home opened [versionCode]'s sheet: it does not open again for it. */
-    fun shownOnHome(versionCode: Long) {
+    override fun shownOnHome(versionCode: Long) {
         _state.update { it.copy(seenOnHome = maxOf(it.seenOnHome, versionCode), backOnHome = false) }
         scope.launch { store.offeredOnHome(versionCode) }
     }
 
     /** Home said the last update: it does not say it again. */
-    fun updatedSaid() {
+    override fun updatedSaid() {
         val updated = state.value.updated?.takeUnless { it.said }?.copy(said = true) ?: return
         _state.update { it.copy(updated = updated) }
         scope.launch { store.updated(updated) }

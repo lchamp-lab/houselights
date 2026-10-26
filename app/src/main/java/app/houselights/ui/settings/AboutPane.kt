@@ -43,9 +43,11 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.FACT_GAP
 
-internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) {
+internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows, updates: UpdateUi? = null) {
     item { AboutBrand() }
     item { AboutStatus() }
+    // Only in a build that updates itself (the project's release): the others never check.
+    if (updates != null) item { UpdatesGroup(updates, rows) }
     item { AboutCredits() }
     item {
         HlSettingGroup(null, Modifier.revealOnFocus()) {

@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
 import app.houselights.core.Library
@@ -119,6 +121,9 @@ fun SettingsScreen(
     var inPane by remember { mutableStateOf(false) }
     BackToStart(away = inPane) { memory.focus(paneKey(pane)) }
     val storage by vm.storage.collectAsStateWithLifecycle()
+    // About's « Mises à jour », in a build that updates itself alone; its state read by the group, not the screen.
+    val updatesOn by remember(app) { app.updates.state.map { it.on }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+    val updates = remember(app) { UpdateUi(app.updates.state, app.updates) }.takeIf { updatesOn }
 
     // The room is the library's posters, as a wall's field.
     PosterField(roomPosters()) {
@@ -137,6 +142,7 @@ fun SettingsScreen(
                     entry = memory.requester(paneKey(pane)),
                     onFocusIn = { inPane = it },
                     numbers = NumbersDoors(onOpenWall, onOpenPerson),
+                    updates = updates,
                 )
             }
         }
@@ -278,6 +284,7 @@ private fun PaneContent(
     entry: FocusRequester,
     onFocusIn: (Boolean) -> Unit,
     numbers: NumbersDoors,
+    updates: UpdateUi?,
 ) {
     val vm = settingsViewModel()
     val counted = if (pane == Pane.Numbers) numbersViewModel() else null
@@ -306,7 +313,7 @@ private fun PaneContent(
             Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders) }
             Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
-            Pane.About -> aboutPane(onOpenCatalog, rows)
+            Pane.About -> aboutPane(onOpenCatalog, rows, updates)
         }
     }
 }

@@ -39,9 +39,11 @@ import app.houselights.ui.design.components.StatusState
 /** Home's grid, part by part: its head, its case, and each door at its size, every picture from the app's resources. */
 internal fun LazyListScope.catalogDoors() {
     item {
-        Group("Home's head: the lockup, then Back's passing line at its end") {
+        Group("Home's head: the lockup, then a passing line at its end: Back's, an update installed, one that was not") {
             HomeHead(null)
             HomeHead(stringResource(R.string.back_again_to_quit))
+            HomeHead(stringResource(R.string.update_installed_home, "0.4.1"), statusState = StatusState.Done)
+            HomeHead(stringResource(R.string.update_not_installed, "0.4.1"), statusState = StatusState.Attention)
         }
     }
     item { Group("Home's case: resuming, then a film not seen; its action fills white with the case's focus") { Cases() } }

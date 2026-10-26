@@ -416,6 +416,8 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         // Trakt follows the account and the source; the end of a scan reads it again.
         scope.launch { traktFollow.drive(traktSync) }
         scope.launch { scanner.passEnded.collect(traktSync::scanned) }
+        // In the project's release alone: says what the last update did, then checks once a day while the app is on screen.
+        scope.launch { updates.run() }
     }
 }
 

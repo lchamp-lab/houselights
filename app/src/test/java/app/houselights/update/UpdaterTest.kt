@@ -116,6 +116,37 @@ class UpdaterTest {
         assertEquals(2, f.source.lists)
     }
 
+    /** Opening the sheet asks GitHub with the check on, nothing offered and an answer an hour old; never otherwise. */
+    @Test
+    fun openingTheSheetAsksOnlyWhenTheAnswerIsOld() = runTest {
+        val f = fixture()
+        f.start()
+        wait(21_000)
+        assertEquals(1, f.source.lists)
+        f.updater.opened()
+        runCurrent()
+        assertEquals("An answer under an hour old stands", 1, f.source.lists)
+        f.updater.closed()
+        f.source.publish("v0.4.1", 1010)
+        wait(HOUR)
+        f.updater.opened()
+        runCurrent()
+        assertEquals(2, f.source.lists)
+        assertEquals("v0.4.1", f.updater.state.value.offer?.tag)
+        f.updater.closed()
+        wait(2 * HOUR)
+        f.updater.opened()
+        runCurrent()
+        assertEquals("A version offered keeps its action live", 2, f.source.lists)
+        f.updater.closed()
+        val g = UpdaterFixture(this, folder.newFolder())
+        g.settings.value = AppSettings(loaded = true, updateCheck = false)
+        g.start()
+        g.updater.opened()
+        runCurrent()
+        assertEquals("With the check off, only on demand", 0, g.source.lists)
+    }
+
     @Test
     fun aCheckThatFailedCanBeAskedAgainAtOnce() = runTest {
         val f = fixture()
