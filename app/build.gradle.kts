@@ -231,6 +231,14 @@ tasks.withType<Test>().configureEach {
     inputs.property("testServersHost", providers.environmentVariable("HOUSELIGHTS_TEST_SERVERS_HOST").orElse(""))
     outputs.upToDateWhen { servers.get() != "1" }
     outputs.doNotCacheIf("The servers' tests read servers outside the build") { servers.get() == "1" }
+    // The README's captures (app.houselights.readme) run with HOUSELIGHTS_README alone, the folder they write to, and
+    // each time it is set: what TMDB answers is no input of theirs.
+    val readme = providers.environmentVariable("HOUSELIGHTS_README").orElse("")
+    inputs.property("readme", readme)
+    outputs.upToDateWhen { readme.get().isEmpty() }
+    outputs.doNotCacheIf("The README's captures read TMDB") { readme.get().isNotEmpty() }
+    // TMDB's pictures at the TV's size and 1920 × 1080 frames: room for them, on a runner that has it.
+    if (readme.get().isNotEmpty()) maxHeapSize = "3g"
 }
 
 room {
