@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The in-app updater's part of the release's manifest (app/build.gradle.kts, updaterBuilt): debug, bench, the
+     builds :baselineprofile makes and a release built with -Phouselights.updater=false (F-Droid) never have it. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Hands a downloaded and verified release to Android's installer, which always asks the user to confirm. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- From Android 11, the settings screens the updater may open to let the user allow it to install apps,
+         the first that resolves (SessionInstaller.permissionScreen). -->
+    <queries>
+        <intent>
+            <action android:name="android.settings.MANAGE_UNKNOWN_APP_SOURCES" />
+            <data android:scheme="package" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.SECURITY_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.SETTINGS" />
+        </intent>
+    </queries>
+
+    <application>
+        <!-- The installer's answer for a session the app committed, through an explicit PendingIntent. -->
+        <receiver
+            android:name="app.houselights.InstallResultReceiver"
+            android:exported="false" />
+        <!-- The updated app, at its first start: says what was installed and reopens the app on Android 9. -->
+        <receiver
+            android:name="app.houselights.UpdatedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

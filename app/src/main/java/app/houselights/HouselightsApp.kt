@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.net.Uri
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.Lifecycle
@@ -46,6 +47,17 @@ import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.settings.TraktFollow
 import app.houselights.ui.home.HomeLaunch
+import app.houselights.update.ApkDownload
+import app.houselights.update.GithubReleases
+import app.houselights.update.PackageArchive
+import app.houselights.update.ReleaseChoice
+import app.houselights.update.SessionInstaller
+import app.houselights.update.ThisApp
+import app.houselights.update.UpdateMoments
+import app.houselights.update.UpdateParts
+import app.houselights.update.UpdateStore
+import app.houselights.update.UpdateVerifier
+import app.houselights.update.Updater
 import app.houselights.ui.library.LibraryAhead
 import app.houselights.ui.design.components.AwaitAhead
 import app.houselights.ui.design.components.CutPosterCache
@@ -281,6 +293,29 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     )
 
     private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed), scanner.progress)
+
+    /** The app's own updates from its releases on GitHub, in the project's release alone (README, Install). */
+    val updates: Updater = GithubReleases().let { releases ->
+        Updater(
+            scope,
+            settings.state,
+            UpdateStore(app),
+            ThisApp(app),
+            UpdateParts(
+                releases,
+                ReleaseChoice(releases::downloads, BuildConfig.RELEASE_CERT_SHA256, Build.VERSION.SDK_INT),
+                ApkDownload(app.cacheDir.resolve("updates"), releases.http),
+                UpdateVerifier(PackageArchive(app.packageManager), BuildConfig.RELEASE_CERT_SHA256),
+                SessionInstaller(app, InstallResultReceiver::class.java),
+            ),
+            UpdateMoments(
+                onScreen = onScreen.stateIn(scope, SharingStarted.Eagerly, false),
+                playing = player.playing,
+                scanning = scanner.state.map { it.running },
+                launched = { launch.awaitOpen() },
+            ),
+        )
+    }
 
     override val libraryVersion: StateFlow<Long> = changes.version
 

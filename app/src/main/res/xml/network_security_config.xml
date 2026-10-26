@@ -22,4 +22,15 @@
             <certificates src="system" />
         </trust-anchors>
     </domain-config>
+    <!-- GitHub, where the updater reads the releases and downloads them: its API, its pages, and the hosts its
+         downloads redirect to (objects. and release-assets.githubusercontent.com). The system's authorities only, so
+         that no certificate installed on the player can stand in for GitHub and offer another update; the APK is still
+         installed only when signed with the project's key. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">github.com</domain>
+        <domain includeSubdomains="true">githubusercontent.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>
