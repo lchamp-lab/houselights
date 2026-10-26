@@ -104,6 +104,8 @@ class PaneRowLineTest {
             line(R.string.add_folder_row_desc),
             line(R.string.refresh_metadata_desc),
             line(R.string.to_identify_row_desc, value = TO_IDENTIFY, jaquette = true),
+            line(R.string.ignored_files_desc_one),
+            line(R.string.ignored_files_desc),
             line(R.string.error_tmdb_key_refused_title, value = local.getString(R.string.tmdb_personal)),
             line(R.string.error_tmdb_offline_title, value = local.getString(R.string.tmdb_builtin_short)),
             line(R.string.metadata_language_desc, value = language),

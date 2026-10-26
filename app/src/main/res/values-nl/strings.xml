@@ -913,4 +913,21 @@
     <string name="episode_order_production">Productie</string>
     <string name="episode_order_tv">Tv</string>
     <string name="episode_order_applying">Afleveringen worden gesorteerd…</string>
+    <plurals name="ignored_files">
+        <item quantity="one">%d bestand overgeslagen</item>
+        <item quantity="other">%d bestanden overgeslagen</item>
+    </plurals>
+    <string name="ignored_files_desc_one">De naam zegt niet waar het hoort</string>
+    <string name="ignored_files_desc">De namen zeggen niet waar ze horen</string>
+    <string name="ignored_files_text_one">Deze video staat in een map met series, maar de naam zegt niet waar hij hoort: de bibliotheek laat hem weg.</string>
+    <string name="ignored_files_text">Deze video’s staan in een map met series, maar de namen zeggen niet waar ze horen: de bibliotheek laat ze weg.</string>
+    <string name="ignored_no_number">Geen afleveringsnummer</string>
+    <string name="ignored_no_show">Geen serienaam</string>
+    <plurals name="ignored_files_more">
+        <item quantity="one">En nog %d</item>
+        <item quantity="other">En nog %d</item>
+    </plurals>
+    <string name="ignored_files_fix_label">Oplossen:</string>
+    <string name="ignored_files_fix_one">Oplossen: geef het de naam van de serie en het nummer, “Serie - S01E02”, of “Serie - 102” voor een anime, of zet het in de map “Season 1” van de serie als “02 - Titel”. De volgende scan voegt het toe.</string>
+    <string name="ignored_files_fix">Oplossen: geef ze de naam van hun serie en hun nummer, “Serie - S01E02”, of “Serie - 102” voor een anime, of zet ze in de map “Season 1” van hun serie als “02 - Titel”. De volgende scan voegt ze toe.</string>
 </resources>

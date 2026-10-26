@@ -913,4 +913,21 @@
     <string name="episode_order_production">Produktion</string>
     <string name="episode_order_tv">TV</string>
     <string name="episode_order_applying">Episoden werden sortiert…</string>
+    <plurals name="ignored_files">
+        <item quantity="one">%d Datei übersprungen</item>
+        <item quantity="other">%d Dateien übersprungen</item>
+    </plurals>
+    <string name="ignored_files_desc_one">Ihr Name sagt nicht, wohin sie gehört</string>
+    <string name="ignored_files_desc">Ihre Namen sagen nicht, wohin sie gehören</string>
+    <string name="ignored_files_text_one">Dieses Video liegt in einem Serienordner, aber sein Name sagt nicht, wohin es gehört: Die Mediathek lässt es aus.</string>
+    <string name="ignored_files_text">Diese Videos liegen in einem Serienordner, aber ihre Namen sagen nicht, wohin sie gehören: Die Mediathek lässt sie aus.</string>
+    <string name="ignored_no_number">Keine Episodennummer</string>
+    <string name="ignored_no_show">Kein Serienname</string>
+    <plurals name="ignored_files_more">
+        <item quantity="one">Und %d weitere</item>
+        <item quantity="other">Und %d weitere</item>
+    </plurals>
+    <string name="ignored_files_fix_label">Abhilfe:</string>
+    <string name="ignored_files_fix_one">Abhilfe: Benennen Sie sie nach ihrer Serie und ihrer Nummer, „Serie - S01E02“, oder „Serie - 102“ für einen Anime, oder legen Sie sie im Ordner „Staffel 1“ ihrer Serie als „02 - Titel“ ab. Der nächste Scan fügt sie hinzu.</string>
+    <string name="ignored_files_fix">Abhilfe: Benennen Sie sie nach ihrer Serie und ihrer Nummer, „Serie - S01E02“, oder „Serie - 102“ für einen Anime, oder legen Sie sie im Ordner „Staffel 1“ ihrer Serie als „02 - Titel“ ab. Der nächste Scan fügt sie hinzu.</string>
 </resources>

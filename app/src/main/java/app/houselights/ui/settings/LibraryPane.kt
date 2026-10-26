@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -65,6 +66,7 @@ import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
 import app.houselights.ui.util.toUiError
 import app.houselights.core.CollectionThreshold
+import kotlinx.coroutines.launch
 import java.text.Collator
 import java.util.Locale
 
@@ -403,24 +405,24 @@ private fun folderFacts(counts: FolderCounts?): List<String?> {
 }
 
 /**
- * Scan, add a folder, read every title again: the library's three actions, on one plate; last, while there are titles
- * to identify, « À identifier » and their count ([onOpenToIdentify]), never in ember: nothing failed, a choice is left.
- * Gone, from under focus or while its list was open, its place gives focus to « Analyser maintenant ».
+ * Scan, add a folder, read every title again: the library's three actions, on one plate; last, what a scan leaves to
+ * do, never in ember, as nothing failed: while there are titles to identify, « À identifier » and their count
+ * ([onOpenToIdentify]), then while the shows folders hold videos placed nowhere, how many ([IgnoredFilesRow]), OK
+ * listing them. Either gone, from under focus or while its list was open, its place gives focus to « Analyser
+ * maintenant »; the list open keeps the files it shows until it closes.
  */
 @Composable
 private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows, onOpenToIdentify: () -> Unit) {
     val vm = settingsViewModel()
     val scan by vm.library.scan.collectAsStateWithLifecycle()
     val toIdentify by vm.toIdentify.collectAsStateWithLifecycle()
+    val ignored by vm.ignored.collectAsStateWithLifecycle()
     val listed = (toIdentify ?: 0) > 0
-    // Read as the row leaves, while it still holds focus.
-    val had = remember(listed) { rows.hasFocus(TO_IDENTIFY, ACTIONS) }
-    LaunchedEffect(listed) {
-        if (had && !listed) {
-            withFrameNanos { }
-            rows.focusGroup(ACTIONS)
-        }
-    }
+    var listing by remember { mutableStateOf(false) }
+    // Outlives the list, to give focus once it closed.
+    val scope = rememberCoroutineScope()
+    GoneGivesScanNow(rows, TO_IDENTIFY, listed)
+    GoneGivesScanNow(rows, IGNORED, ignored.isNotEmpty())
     HlSettingGroup(null, Modifier.revealOnFocus().then(rows.group(ACTIONS))) {
         HlSettingRow(
             stringResource(R.string.scan_now),
@@ -450,6 +452,32 @@ private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows, onOpenToIden
                 valueStyle = Hl.type.jaquette,
                 onClick = onOpenToIdentify,
             )
+        }
+        if (ignored.isNotEmpty()) IgnoredFilesRow(ignored, rows.focus(IGNORED, ACTIONS)) { listing = true }
+    }
+    if (listing) {
+        IgnoredFilesSheet(lastListed(ignored)) {
+            listing = false
+            // Its row gone while it was open, Back finds « Analyser maintenant ».
+            if (ignored.isEmpty()) {
+                scope.launch {
+                    withFrameNanos { }
+                    rows.focusGroup(ACTIONS)
+                }
+            }
+        }
+    }
+}
+
+/** Focuses « Analyser maintenant » once [row] of the actions goes ([shown] false) while it has focus. */
+@Composable
+private fun GoneGivesScanNow(rows: PaneRows, row: String, shown: Boolean) {
+    // Read as the row leaves, while it still holds focus.
+    val had = remember(shown) { rows.hasFocus(row, ACTIONS) }
+    LaunchedEffect(shown) {
+        if (had && !shown) {
+            withFrameNanos { }
+            rows.focusGroup(ACTIONS)
         }
     }
 }
@@ -919,9 +947,10 @@ private const val HEADER_POSTERS = 3
 
 private const val ADD_FOLDER = "add_folder"
 
-/** The library's actions, on one plate, and the one of them that opens the titles to identify. */
+/** The library's actions, on one plate, and those of them that open the titles to identify and the files left out. */
 private const val ACTIONS = "actions"
 private const val TO_IDENTIFY = "to_identify"
+private const val IGNORED = "ignored_files"
 private const val SOURCE = "source"
 
 /** Between the parts of a source row's line ("Jellyfin · léa"). */

@@ -166,13 +166,21 @@ private fun kindName(kind: SkippedKind): Int = when (kind) {
     SkippedKind.PAUSED -> R.string.trakt_skipped_paused
 }
 
-/** How to fix it, its label in white and set as a name ([app.houselights.ui.design.HlType.entry]). */
+/** How to fix it, its label in white and set as a name ([FixText]). */
 @Composable
-private fun Fix(count: Int) {
+private fun Fix(count: Int) = FixText(
+    stringResource(R.string.trakt_skipped_fix_label),
+    stringResource(if (count == 1) R.string.trakt_skipped_fix_one else R.string.trakt_skipped_fix),
+)
+
+/**
+ * A sheet's [fix], in secondary `body`, its [label] ("Pour régler :") in white and set as a name
+ * ([app.houselights.ui.design.HlType.entry]).
+ */
+@Composable
+internal fun FixText(label: String, fix: String) {
     val c = Hl.colors
     val t = Hl.type
-    val label = stringResource(R.string.trakt_skipped_fix_label)
-    val fix = stringResource(if (count == 1) R.string.trakt_skipped_fix_one else R.string.trakt_skipped_fix)
     val text = remember(label, fix, c, t) {
         buildAnnotatedString {
             if (fix.startsWith(label)) withStyle(t.entry.toSpanStyle().copy(color = c.content)) { append(label) }

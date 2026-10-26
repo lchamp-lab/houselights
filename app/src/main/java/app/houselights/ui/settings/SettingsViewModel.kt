@@ -18,6 +18,7 @@ import app.houselights.core.TrackPreferences
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.CleanupResult
 import app.houselights.providers.local.Folder
+import app.houselights.providers.local.IgnoredFileRow
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbKeyCheck
@@ -121,6 +122,8 @@ internal class SettingsViewModel(
     val asksTracks: Boolean = false,
     /** How many films and shows are to identify ([LocalLibrary.toIdentifyCount]). */
     toIdentifyCount: Flow<Int> = library.toIdentifyCount,
+    /** The videos the shows folders hold that the library leaves out ([LocalLibrary.ignored]). */
+    ignoredFiles: Flow<List<IgnoredFileRow>> = library.ignored,
 ) : ViewModel() {
     constructor(app: AppContainer, images: ImageLoader) : this(
         app.settings, app.library, app::providerOrNull, app.scope, app.sources, images,
@@ -147,6 +150,9 @@ internal class SettingsViewModel(
      * screen, so that coming back finds the row as it is.
      */
     val toIdentify: StateFlow<Int?> = toIdentifyCount.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** The videos the shows folders hold that the library leaves out, by folder then path; held as [toIdentify] is. */
+    val ignored: StateFlow<List<IgnoredFileRow>> = ignoredFiles.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _storage = MutableStateFlow<StorageStats?>(null)
     val storage: StateFlow<StorageStats?> = _storage

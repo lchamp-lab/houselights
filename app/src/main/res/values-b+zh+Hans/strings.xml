@@ -885,4 +885,19 @@
     <string name="episode_order_production">制作顺序</string>
     <string name="episode_order_tv">电视</string>
     <string name="episode_order_applying">正在排列剧集…</string>
+    <plurals name="ignored_files">
+        <item quantity="other">已跳过 %d 个文件</item>
+    </plurals>
+    <string name="ignored_files_desc_one">无法从名称判断它的位置</string>
+    <string name="ignored_files_desc">无法从名称判断它们的位置</string>
+    <string name="ignored_files_text_one">此视频位于剧集文件夹中，但无法从名称判断它的位置，因此媒体库不收录它。</string>
+    <string name="ignored_files_text">这些视频位于剧集文件夹中，但无法从名称判断它们的位置，因此媒体库不收录它们。</string>
+    <string name="ignored_no_number">无集数编号</string>
+    <string name="ignored_no_show">无剧集名称</string>
+    <plurals name="ignored_files_more">
+        <item quantity="other">另有 %d 个</item>
+    </plurals>
+    <string name="ignored_files_fix_label">解决方法：</string>
+    <string name="ignored_files_fix_one">解决方法：按剧集名称和编号命名，如“剧集 - S01E02”，动画可用“剧集 - 102”，或将它放入该剧集的“Season 1”文件夹，命名为“02 - 标题”。下次扫描时会添加它。</string>
+    <string name="ignored_files_fix">解决方法：按剧集名称和编号命名，如“剧集 - S01E02”，动画可用“剧集 - 102”，或将它们放入该剧集的“Season 1”文件夹，命名为“02 - 标题”。下次扫描时会添加它们。</string>
 </resources>

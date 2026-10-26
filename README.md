@@ -143,6 +143,9 @@ My files reads a title from its folder's and file's names, as Plex, Jellyfin, Ko
   season 21, episode 180); an episode TMDB does not list yet waits in season 1 under its number, then moves, checked once
   a day, what was watched of it kept. `S01E1071` past its season is read so too from 100, unless its season's folder
   says `101` is season 1, episode 1; an anime sequel's `S2 - 01` or `Season 2 - 01` is season 2.
+- **Left out**: a video of a shows folder whose name gives no episode number, or no show, stays out of the library and
+  is listed in Settings > Library ("3 files skipped"), each with why, its folder and where it lies, and how to name it;
+  renamed, the next scan adds it.
 - **Ids**: a TMDB, IMDb or TheTVDB id in a name identifies the title without a search: `{tmdb-438631}`,
   `[tmdbid-438631]`, `{imdb-tt1160419}`, `[imdbid-tt1160419]`, `{tvdb-371980}`, `[tvdbid-371980]`. A film's ids are
   its file's, else its folder's when the folder holds that film alone, its copies and parts included (never a remake
