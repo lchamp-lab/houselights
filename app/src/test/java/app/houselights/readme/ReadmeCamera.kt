@@ -131,6 +131,13 @@ import kotlin.math.roundToInt
  */
 const val README_TV = "en-rUS-w960dp-h540dp-land-xhdpi"
 
+/**
+ * The Android the README's images are shot on: 13, where a picture's shader inside another sets its own filtering, as
+ * the walls' diffuse light does (Diffuse.kt). Robolectric draws with Android 14's Skia whatever the version, which on
+ * 9 would enlarge that light without filtering, as the Zidoo's own renderer never does.
+ */
+const val README_SDK = 33
+
 /** Where the README's captures go: `$HOUSELIGHTS_README`. Unset, they are skipped, as in CI's checks. */
 internal val README_DIR: File? = System.getenv("HOUSELIGHTS_README")?.takeIf { it.isNotBlank() }?.let(::File)
 
@@ -211,12 +218,6 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         show { LibraryScreen(films, libraryName(films.kind), onOpenItem = {}, sagas = sagas) }
     }
 
-    /** « To watch » on [row], as a door of home opens it, reading home's rows. */
-    fun toWatch(row: WatchRow) {
-        val home = keepHome()
-        show { WatchScreen(home, row, onOpenItem = {}) }
-    }
-
     /** Settings, on Library as they open; another place opens once focus rests on it ([pressUntil], [settle]). */
     fun settings() {
         val lib = library
@@ -249,9 +250,10 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         show { IdentifyScreen(id, onDone = {}, queue = true) }
     }
 
-    /** The id of the first title to identify, as the list orders them. */
+    /** The id of the first title to identify that TMDB has suggestions for, as the list orders them. */
     fun firstToIdentify(): String = runBlocking {
-        checkNotNull(library.provider.editor.toIdentify().firstOrNull()) { "Nothing to identify:\n${library.report()}" }.item.id
+        val first = library.provider.editor.toIdentify().firstOrNull { it.suggestions.isNotEmpty() }
+        checkNotNull(first) { "Nothing to identify with suggestions:\n${library.report()}" }.item.id
     }
 
     /**
@@ -262,6 +264,12 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         val home = keepHome()
         keepPages(library.titleIds())
         show { Journey(home) }
+    }
+
+    /** On home, focus on the next episode's door, beside the latest titles': Right to the films, then Up. */
+    fun toNextUp() {
+        pressUntil(Key.DirectionRight, "Movies")
+        pressUntil(Key.DirectionUp, "Next up")
     }
 
     @Composable
@@ -365,10 +373,10 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         settle(ROUNDS_AFTER_KEY)
     }
 
-    /** Presses [key] until focus is on what says [label], at most [limit] times. */
+    /** Presses [key] until focus is on what says [label] (its apostrophes as the app sets them), at most [limit] times. */
     fun pressUntil(key: Key, label: String, limit: Int = 12) {
         repeat(limit) {
-            if (focusedLabels().any { label in it }) return
+            if (focusedLabels().any { typeset(label) in typeset(it) }) return
             press(key)
         }
         assertFocusOn(label)
@@ -383,8 +391,11 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
 
     fun assertFocusOn(label: String) {
         val focused = focusedLabels()
-        if (focused.none { label in it }) fail("Focus is not on « $label » but on $focused")
+        if (focused.none { typeset(label) in typeset(it) }) fail("Focus is not on « $label » but on $focused")
     }
+
+    /** [text] with its apostrophes typographic, as the screens show TMDB's texts. */
+    private fun typeset(text: String) = text.replace('\'', '’')
 
     /**
      * Lets the screen settle as time passes on the TV, [PAUSE_MS] a round: the library's reads, its pictures, its motion,
@@ -468,9 +479,9 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
 
     private fun windowFocus(root: View, focused: Boolean) {
         val viewRoot = View::class.java.getDeclaredMethod("getViewRootImpl").apply { isAccessible = true }.invoke(root)
-        viewRoot.javaClass.getDeclaredMethod("windowFocusChanged", Boolean::class.java, Boolean::class.java)
-            .apply { isAccessible = true }
-            .invoke(viewRoot, focused, false)
+        // Android 9 also takes the touch mode, which Android 13 reads elsewhere.
+        val change = viewRoot.javaClass.declaredMethods.first { it.name == "windowFocusChanged" }.apply { isAccessible = true }
+        if (change.parameterCount == 2) change.invoke(viewRoot, focused, false) else change.invoke(viewRoot, focused)
     }
 
     /** The screen as the TV shows it, 1920 × 1080: every window in its order, a sheet or a menu over the screen beneath. */

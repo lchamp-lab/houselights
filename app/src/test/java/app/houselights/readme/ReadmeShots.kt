@@ -1,7 +1,6 @@
 package app.houselights.readme
 
 import androidx.compose.ui.input.key.Key
-import app.houselights.ui.home.WatchRow
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,7 +15,7 @@ import org.robolectric.annotation.GraphicsMode
  * them. Each saves `stills/<name>.png`.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(qualifiers = README_TV, sdk = [28])
+@Config(qualifiers = README_TV, sdk = [README_SDK])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 internal class ReadmeShots {
     @get:Rule
@@ -60,10 +59,14 @@ internal class ReadmeShots {
         camera.capture("library")
     }
 
-    /** « To watch », opened by home's door of the latest titles. */
+    /** « To watch », opened by home's door of the latest titles, on the latest film. */
     @Test
     fun toWatch() {
-        camera.toWatch(WatchRow.LATEST)
+        camera.journey()
+        camera.toNextUp()
+        camera.press(Key.DirectionRight)
+        camera.assertFocusOn("New")
+        camera.press(Key.DirectionCenter)
         camera.capture("watch")
     }
 
@@ -91,7 +94,7 @@ internal class ReadmeShots {
 
 /** « To identify » and Identify's suggestions, over the library with a few files the scan could not name alone. */
 @RunWith(RobolectricTestRunner::class)
-@Config(qualifiers = README_TV, sdk = [28])
+@Config(qualifiers = README_TV, sdk = [README_SDK])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 internal class ReadmeIdentifyShots {
     @get:Rule
@@ -106,6 +109,7 @@ internal class ReadmeIdentifyShots {
     /** The titles to identify, the latest first, each with why, what it may be and where it lies. */
     @Test
     fun toIdentify() {
+        stamp()
         camera.toIdentify()
         camera.capture("to-identify")
     }
@@ -113,13 +117,18 @@ internal class ReadmeIdentifyShots {
     /** Identify on the first of them: its suggestions at once, the best in focus. */
     @Test
     fun identify() {
+        stamp()
         camera.identify(camera.firstToIdentify())
         camera.settle(SEARCH_ROUNDS)
         camera.capture("identify")
     }
 
+    /** The files to identify joined the library in their order, the first last, minutes apart. */
+    private fun stamp() = ReadmeTitles.TO_IDENTIFY.forEachIndexed { i, name -> camera.library.addedAgo(name, (i + 1) * STAMP_DAYS) }
+
     private companion object {
         const val UNNAMED_MINUTES = 118
+        const val STAMP_DAYS = 0.01
 
         /** TMDB's search and its posters, on the network. */
         const val SEARCH_ROUNDS = 120
@@ -132,7 +141,7 @@ internal class ReadmeIdentifyShots {
  * opens a film's page, and Play dims the room, as before the player starts.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(qualifiers = README_TV, sdk = [28])
+@Config(qualifiers = README_TV, sdk = [README_SDK])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 internal class ReadmeTour {
     @get:Rule
@@ -142,8 +151,7 @@ internal class ReadmeTour {
     fun fromHomeToTheFilm() {
         camera.journey()
         // Before the reel: focus on the next episode's door, beside the latest titles', and the room dark.
-        camera.pressUntil(Key.DirectionRight, "Movies")
-        camera.pressUntil(Key.DirectionUp, "Next up")
+        camera.toNextUp()
         camera.lightsDown()
         camera.reel()
         camera.lightsUp()

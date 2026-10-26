@@ -17,15 +17,15 @@ internal object ReadmeTitles {
         Film(872585, "Oppenheimer", 2023, 180, Master.UHD_HDR10_DTS, added = 128.0, watched = 104),
         Film(792307, "Poor Things", 2023, 141, Master.UHD_DV_ATMOS, added = 126.0, watched = 83),
         Film(466420, "Killers of the Flower Moon", 2023, 206, Master.UHD_WEB, added = 124.0, watched = 77),
-        Film(786892, "Furiosa: A Mad Max Saga", 2024, 148, Master.UHD_DV_ATMOS, added = 96.0, watched = 61),
+        Film(786892, "Furiosa: A Mad Max Saga", 2024, 148, Master.UHD_DV_ATMOS, added = 96.0),
         Film(929590, "Civil War", 2024, 109, Master.UHD_DV_ATMOS, added = 92.0, watched = 46),
-        Film(1184918, "The Wild Robot", 2024, 102, Master.UHD_DV_HDR10_PLUS, added = 81.0, watched = 41),
+        Film(1184918, "The Wild Robot", 2024, 102, Master.UHD_DV_HDR10_PLUS, added = 81.0),
         Film(974576, "Conclave", 2024, 120, Master.FHD_DTS, added = 79.0, watched = 36),
         Film(558449, "Gladiator II", 2024, 148, Master.UHD_DV_HDR10_PLUS, added = 75.0, watched = 33),
-        Film(575265, "Mission: Impossible - The Final Reckoning", 2025, 170, Master.UHD_DV_HDR10_PLUS, added = 40.0, watched = 22),
-        Film(1061474, "Superman", 2025, 129, Master.UHD_DV_HDR10_PLUS, added = 31.0, watched = 16),
-        Film(911430, "F1", 2025, 156, Master.UHD_DV_HDR10_PLUS, added = 26.0, watched = 11),
-        Film(1233413, "Sinners", 2025, 137, Master.UHD_DV_ATMOS, added = 21.0, watched = 8),
+        Film(575265, "Mission: Impossible - The Final Reckoning", 2025, 170, Master.UHD_DV_HDR10_PLUS, added = 40.0),
+        Film(1061474, "Superman", 2025, 129, Master.UHD_DV_HDR10_PLUS, added = 31.0),
+        Film(911430, "F1", 2025, 156, Master.UHD_DV_HDR10_PLUS, added = 26.0),
+        Film(1233413, "Sinners", 2025, 137, Master.UHD_DV_ATMOS, added = 21.0),
         Film(1054867, "One Battle After Another", 2025, 162, Master.UHD_DV_HDR10_PLUS, added = 13.0),
         Film(1062722, "Frankenstein", 2025, 150, Master.UHD_WEB, added = 9.0),
         Film(83533, "Avatar: Fire and Ash", 2025, 197, Master.UHD_DV_HDR10_PLUS, added = 5.5),
@@ -67,9 +67,9 @@ internal object ReadmeTitles {
 
     /**
      * Files the scan cannot name alone, added for « To identify » and Identify's shots only: titles TMDB knows several
-     * films by, given without a year, and a home video TMDB does not know.
+     * films by, given without a year, and a home video TMDB does not know; the first joined the library last.
      */
-    val TO_IDENTIFY = listOf("Dracula.mkv", "Hamlet.mkv", "Wuthering Heights.mkv", "Holidays in Brittany 2025.mkv")
+    val TO_IDENTIFY = listOf("Little Women.mkv", "Dracula.mkv", "Robin Hood.mkv", "Hamlet.mkv", "Holidays in Brittany 2025.mkv")
 
     /** The update the update sheet offers: the version installed, the one found, what it brings. */
     const val INSTALLED = "0.4.0"

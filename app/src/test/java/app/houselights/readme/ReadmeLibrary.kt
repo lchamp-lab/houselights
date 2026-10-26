@@ -115,6 +115,9 @@ internal class ReadmeLibrary(
     /** A video at [path] in the films' folder, its tracks [bytes] and its [size]. */
     fun putFilm(path: String, bytes: ByteArray, size: Long) = nas.getValue(FILMS).put(path, size = size, bytes = bytes)
 
+    /** The file at [path] in the films' folder joined the library [days] ago. */
+    fun addedAgo(path: String, days: Double) = sql("UPDATE items SET addedAt = ? WHERE filePath LIKE ?", daysAgo(days), "%$path")
+
     /** The id the screens know the film or show of TMDB id [tmdbId] by. */
     fun idOf(tmdbId: Int): String =
         one("SELECT id FROM items WHERE kind IN ('MOVIE', 'SERIES') AND tmdbId = ? ORDER BY id LIMIT 1", tmdbId) { getLong(0) }.toString()

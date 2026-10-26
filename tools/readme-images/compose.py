@@ -37,7 +37,7 @@ TOUR_WIDTH = 1200
 
 # The animation: a frame every 32 ms (the capture's), starting on home lit, its lights-up last.
 FRAME_MS = 32
-LIGHTS_UP_FRAMES = 32
+LIGHTS_UP_FRAMES = 31
 
 TITLE_CARD = Path(__file__).resolve().parents[2] / "docs" / "images" / "houselights.svg"
 
@@ -90,29 +90,34 @@ def card(shot, width=CARD_WIDTH, transparent=True):
     return canvas if transparent else canvas.convert("RGB")
 
 
-def bias_light(screen, size, at, spread=1.5, strength=0.62):
-    """The light a TV's back throws on the wall: [screen]'s own colours, spread and blurred far around it."""
+def glow(screen, size, at, spread, blur, strength, reach=(0.62, 0.70)):
+    """[screen]'s colours spread [spread] times its size around it, blurred [blur] of its width, fading out by [reach]."""
     w, h = size
     sw, sh = screen.size
-    small = screen.convert("RGB").resize((48, 27), Image.BOX)
-    small = ImageEnhance.Color(small).enhance(1.5)
-    # The edges' colours reach furthest: the picture extended at its borders, then blurred into a glow.
-    gw, gh = round(sw * spread), round(sh * spread)
-    glow = small.resize((gw // 8, gh // 8), Image.BILINEAR)
-    pad = max(gw, gh) // 8
-    room = Image.new("RGB", (w // 8 + 2 * pad, h // 8 + 2 * pad), ROOM)
-    cx, cy = at[0] + sw // 2, at[1] + sh // 2
-    room.paste(glow, ((cx - gw // 2) // 8 + pad, (cy - gh // 2) // 8 + pad))
-    room = room.filter(ImageFilter.GaussianBlur(sw / 8 * 0.11))
-    room = room.crop((pad, pad, pad + w // 8, pad + h // 8)).resize((w, h), Image.BICUBIC)
-    # Falling off away from the set, wider than tall, as a wall lit from behind a screen.
-    falloff = Image.new("L", (w // 8, h // 8), 0)
-    d = ImageDraw.Draw(falloff)
-    ex, ey = sw * spread * 0.62 / 8, sh * spread * 0.70 / 8
-    d.ellipse([cx / 8 - ex, cy / 8 - ey, cx / 8 + ex, cy / 8 + ey], fill=255)
-    falloff = falloff.filter(ImageFilter.GaussianBlur(sw / 8 * 0.16)).resize((w, h), Image.BICUBIC)
-    falloff = falloff.point(lambda v: round(v * strength))
-    return Image.composite(room, Image.new("RGB", (w, h), ROOM), falloff)
+    q = 8
+    small = screen.resize((64, 36), Image.BOX)
+    small = ImageEnhance.Color(small).enhance(1.45)
+    gw, gh = round(sw * spread / q), round(sh * spread / q)
+    pad = max(gw, gh)
+    room = Image.new("RGB", (w // q + 2 * pad, h // q + 2 * pad), ROOM)
+    cx, cy = (at[0] + sw / 2) / q + pad, (at[1] + sh / 2) / q + pad
+    room.paste(small.resize((gw, gh), Image.BILINEAR), (round(cx - gw / 2), round(cy - gh / 2)))
+    room = room.filter(ImageFilter.GaussianBlur(sw / q * blur))
+    room = room.crop((pad, pad, pad + w // q, pad + h // q)).resize((w, h), Image.BICUBIC)
+    falloff = Image.new("L", (w // q, h // q), 0)
+    ex, ey = sw * spread * reach[0] / q, sh * spread * reach[1] / q
+    cx, cy = cx - pad, cy - pad
+    ImageDraw.Draw(falloff).ellipse([cx - ex, cy - ey, cx + ex, cy + ey], fill=255)
+    falloff = falloff.filter(ImageFilter.GaussianBlur(sw / q * blur * 1.4)).resize((w, h), Image.BICUBIC)
+    return Image.composite(room, Image.new("RGB", (w, h), ROOM), falloff.point(lambda v: round(v * strength)))
+
+
+def bias_light(screen, size, at):
+    """The light a TV's back throws on the wall: its picture's own colours, bright close to the set, fading far off."""
+    screen = screen.convert("RGB")
+    near = glow(screen, size, at, spread=1.16, blur=0.05, strength=0.62)
+    far = glow(screen, size, at, spread=1.75, blur=0.14, strength=0.42, reach=(0.6, 0.66))
+    return ImageChops.screen(near, far)
 
 
 def tv(shot, width=2400, height=1350, screen_width=1800, top=120):
@@ -120,24 +125,24 @@ def tv(shot, width=2400, height=1350, screen_width=1800, top=120):
     screen = scaled(shot.convert("RGB"), screen_width)
     sw, sh = screen.size
     x = (width - sw) // 2
-    room = bias_light(screen, (width, height), (x, top))
-    room = room.convert("RGBA")
-    d = ImageDraw.Draw(room)
+    room = bias_light(screen, (width, height), (x, top)).convert("RGBA")
     bezel = round(sw * 0.0055)
     cx = width // 2
     foot_top = top + sh + bezel
-    # The stand: a slim neck on a low plate, its shadow on the floor, the floor taking a little of the light.
-    neck_w, neck_h = round(sw * 0.045), round(sw * 0.032)
-    plate_w, plate_h = round(sw * 0.30), round(sw * 0.0075)
+    # The stand: a slim neck on a low plate, catching a little of the picture's light; their shadow on the floor.
+    neck_w, neck_h = round(sw * 0.05), round(sw * 0.03)
+    plate_w, plate_h = round(sw * 0.28), round(sw * 0.008)
     floor = foot_top + neck_h + plate_h
     shadow = Image.new("L", room.size, 0)
-    ImageDraw.Draw(shadow).ellipse([cx - plate_w * 0.62, floor - plate_h * 0.6, cx + plate_w * 0.62, floor + plate_h * 2.4], fill=210)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(sw * 0.012))
+    ImageDraw.Draw(shadow).ellipse([cx - plate_w * 0.7, floor - plate_h, cx + plate_w * 0.7, floor + plate_h * 3], fill=230)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(sw * 0.014))
     room.alpha_composite(Image.merge("RGBA", (*[Image.new("L", room.size, 0)] * 3, shadow)))
-    d = ImageDraw.Draw(room)
-    d.rounded_rectangle([cx - neck_w // 2, foot_top - 4, cx + neck_w // 2, foot_top + neck_h], 3, fill=(16, 16, 18, 255))
-    d.rounded_rectangle([cx - plate_w // 2, foot_top + neck_h, cx + plate_w // 2, floor], plate_h // 2, fill=(22, 22, 25, 255))
-    d.line([cx - plate_w // 2 + plate_h, foot_top + neck_h, cx + plate_w // 2 - plate_h, foot_top + neck_h], fill=(46, 46, 52, 255), width=1)
+    stand = Image.new("RGBA", room.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(stand)
+    d.rectangle([cx - neck_w // 2, foot_top - bezel, cx + neck_w // 2, foot_top + neck_h], fill=(20, 20, 23, 255))
+    d.rounded_rectangle([cx - plate_w // 2, foot_top + neck_h, cx + plate_w // 2, floor], plate_h // 2, fill=(26, 26, 30, 255))
+    d.line([cx - plate_w // 2 + plate_h, foot_top + neck_h, cx + plate_w // 2 - plate_h, foot_top + neck_h], fill=(58, 58, 66, 255), width=2)
+    room.alpha_composite(stand)
     # The set: a thin black bezel, its outer edge catching a little of the room's light; then the picture.
     body = (sw + 2 * bezel, sh + 2 * bezel)
     set_layer = Image.new("RGBA", body, (10, 10, 12, 255))
@@ -189,19 +194,22 @@ def title_lockup(height):
         draw_path(mark, d, unit)
     for d in names:
         draw_path(name, d, unit)
-    # The mark above the name on the card: set beside it, its bars as tall as 1.4 times the name's capitals.
+    # The mark above the name on the card: set beside it as the app's lockup, 1.4 times the name's capitals.
     mark_box, name_box = mark.getbbox(), name.getbbox()
     mark_im, name_im = mark.crop(mark_box), name.crop(name_box)
     caps = name_im.height
     mark_im = mark_im.resize((round(mark_im.width * caps * 1.4 / mark_im.height), round(caps * 1.4)), Image.LANCZOS)
-    gap = round(mark_im.width * 0.62 * 0.6)
+    # The name the wide bar's width after the mark (Gradation.lockupGap, DESIGN.md, Brand).
+    gap = round(caps * 0.622)
     lw, lh = mark_im.width + gap + name_im.width, mark_im.height
     alpha = Image.new("L", (lw, lh), 0)
     alpha.paste(mark_im, (0, 0))
     alpha.paste(name_im, (mark_im.width + gap, (lh - caps) // 2))
     colour = Image.new("RGB", (lw, lh), (244, 244, 245))
-    ember = Image.linear_gradient("L").rotate(90).resize((mark_im.width, lh))
-    light = Image.merge("RGB", [ember.point(lambda v, a=a, b=b: round(a + (b - a) * (255 - v) / 255)) for a, b in zip((255, 159, 28), (255, 46, 99))])
+    # One gradient across the three bars, ember's orange at the wide bar's left to its raspberry at the thin bar's right.
+    ramp = Image.linear_gradient("L").rotate(90).resize((mark_im.width, lh))
+    ends = zip((255, 159, 28), (255, 46, 99))
+    light = Image.merge("RGB", [ramp.point(lambda v, a=a, b=b: round(a + (b - a) * v / 255)) for a, b in ends])
     colour.paste(light, (0, 0))
     lockup = colour.convert("RGBA")
     lockup.putalpha(alpha)
@@ -295,27 +303,33 @@ def main():
     parser.add_argument("captures", type=Path)
     parser.add_argument("out", type=Path)
     parser.add_argument("--tour-quality", type=int, default=80)
+    parser.add_argument("--only", help="the images to make, by name (hero,social,cards,tour); all by default")
     args = parser.parse_args()
     if not webp_animates():
         sys.exit("This Pillow cannot write animated WebP: install tools/readme-images/requirements.txt")
+    wanted = set(args.only.split(",")) if args.only else {"hero", "social", "cards", "tour"}
     stills = args.captures / "stills"
     args.out.mkdir(parents=True, exist_ok=True)
     written = []
-    home = Image.open(stills / "home.png")
-    hero(home).save(args.out / "hero.webp", "WEBP", quality=88, method=6)
-    written.append(args.out / "hero.webp")
-    social(home).save(args.out / "social-preview.jpg", "JPEG", quality=90, optimize=True, progressive=True)
-    written.append(args.out / "social-preview.jpg")
-    for name in CARDS:
+    if wanted & {"hero", "social"}:
+        home = Image.open(stills / "home.png")
+        if "hero" in wanted:
+            hero(home).save(args.out / "hero.webp", "WEBP", quality=88, method=6)
+            written.append(args.out / "hero.webp")
+        if "social" in wanted:
+            social(home).save(args.out / "social-preview.jpg", "JPEG", quality=90, optimize=True, progressive=True)
+            written.append(args.out / "social-preview.jpg")
+    for name in CARDS if "cards" in wanted else []:
         still = stills / f"{name}.png"
         if not still.exists():
             print(f"no {still.name}: skipped", file=sys.stderr)
             continue
         card(Image.open(still)).save(args.out / f"{name}.webp", "WEBP", quality=86, method=6)
         written.append(args.out / f"{name}.webp")
-    made = tour(args.captures / "frames", args.out / "tour.webp", quality=args.tour_quality)
-    if made:
-        written.append(made)
+    if "tour" in wanted:
+        made = tour(args.captures / "frames", args.out / "tour.webp", quality=args.tour_quality)
+        if made:
+            written.append(made)
     for path in written:
         with Image.open(path) as im:
             frames = getattr(im, "n_frames", 1)
