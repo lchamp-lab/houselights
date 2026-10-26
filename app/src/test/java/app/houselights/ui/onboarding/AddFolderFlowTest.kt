@@ -146,7 +146,9 @@ class AddFolderFlowTest {
 
     private fun down(times: Int = 1) = compose.press(Key.DirectionDown, times)
 
+    /** Back, once what the flow was told is drawn, as a remote's Back always comes after a frame. */
     private fun back() {
+        compose.waitForIdle()
         compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.waitForIdle()
     }
@@ -691,7 +693,7 @@ class AddFolderFlowTest {
         flow.openNfsAccount()
         flow.type(FlowKeys.FIELD_UID, "1026")
         back()
-        compose.waitForIdle()
+        assertEquals(FlowStep.SHARES, flow.step)
         assertEquals("" to "", flow.uid to flow.gid)
         compose.onNodeWithText(text(R.string.nfs_identity, "1026", ""), useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.nfs_identity_root), useUnmergedTree = true).assertExists()
