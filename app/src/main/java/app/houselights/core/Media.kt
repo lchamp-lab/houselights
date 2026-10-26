@@ -79,7 +79,8 @@ data class MediaItem(
     val edition: String? = null,
     /**
      * Since when its file is missing, among many of its folder gone at once (a disk of the NAS offline): held, shown and
-     * not played until its file is back or it is removed; a show's when every episode is. Null for a title there.
+     * not played until its file is back or it is removed; a film in several copies, the copy Lire plays; a show's when
+     * every episode is. Null for a title there.
      */
     val missingSince: Long? = null,
 ) {

@@ -363,9 +363,24 @@ class LibraryScanner(
         return count
     }
 
-    /** Removes title [itemId] alone while it is held: a film's copies held, a show's episodes held, or an episode. */
-    suspend fun removeHeldTitle(itemId: Long) {
-        removeHeld(withContext(Dispatchers.IO) { dao.heldOf(itemId) })
+    /**
+     * Removes title [itemId] alone while it is held: a film's copies held, a show's episodes held, or an episode. What
+     * holds it after: its own row, the copy now holding the film once that row went, an episode's show once the episode
+     * went; null once nothing of it is left.
+     */
+    suspend fun removeHeldTitle(itemId: Long): Long? {
+        val (removed, stays) = withContext(Dispatchers.IO) {
+            lock.withLock {
+                withContext(NonCancellable) {
+                    val rows = dao.titleRows(itemId)
+                    val show = dao.rows(listOf(itemId)).singleOrNull()?.seriesId
+                    val count = removeHeldLocked(dao.heldOf(itemId))
+                    count to (dao.titleAmong(rows) ?: show?.let { dao.titleAmong(listOf(it)) })
+                }
+            }
+        }
+        if (removed > 0) _changed.emit(Unit)
+        return stays
     }
 
     /** [scan], whole for a folder due in this pass's language ([refreshAllIn]), which is then no longer due. */

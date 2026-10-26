@@ -258,18 +258,65 @@ class ScanMissingTest {
         assertTrue(dao.filesOf(films.id).single { it.filePath == film(0) }.favorite)
     }
 
-    /** One title held removed from its page: it alone leaves; a title there is never removed so. */
+    /** One title held removed from its page: it alone leaves; a title there is never removed so, and stays. */
     @Test
     fun aTitleHeldRemovedAloneLeavesTheOthersHeld() = runTest {
         filmFolder(22)
         (0 until 12).map(::film).forEach(nas::remove)
         bench.scan()
 
-        bench.scanner.removeHeldTitle(idOf(film(0)))
+        assertNull("nothing of it left", bench.scanner.removeHeldTitle(idOf(film(0))))
         assertEquals(21, filePaths().size)
         assertEquals(11, heldIds().size)
-        bench.scanner.removeHeldTitle(idOf(film(20)))
+        val there = idOf(film(20))
+        assertEquals(there, bench.scanner.removeHeldTitle(there))
         assertEquals(21, filePaths().size)
+    }
+
+    /** Dune in two copies, each grouped under the first as TMDB would: its main row [DUNE], and [DUNE_UHD]. */
+    private suspend fun twoDunes(): Pair<Long, Long> {
+        filmFolder(22)
+        nas.put(DUNE)
+        nas.put(DUNE_UHD)
+        bench.scan()
+        listOf(DUNE, DUNE_UHD).forEach { dao.update(bench.item(films, it).copy(tmdbId = DUNE_TMDB)) }
+        dao.groupVersions()
+        val main = idOf(DUNE)
+        val uhd = idOf(DUNE_UHD)
+        assertEquals(main, dao.item(uhd)?.versionOf)
+        return main to uhd
+    }
+
+    private suspend fun dunes() = dao.filesOf(films.id).filter { it.filePath.orEmpty().startsWith("Dune") }.map { it.id }
+
+    /**
+     * A film in two copies, its main row's disk offline: removed from its page, the copy held alone leaves, the film
+     * staying under the copy left, which holds it now.
+     */
+    @Test
+    fun aFilmRemovedFromItsPageTakesItsCopiesHeldOnly() = runTest {
+        val (main, uhd) = twoDunes()
+        (listOf(DUNE) + (0 until 11).map(::film)).forEach(nas::remove)
+        bench.scan()
+        assertEquals(12, heldIds().size)
+
+        assertEquals("the film stays, under the copy left", uhd, bench.scanner.removeHeldTitle(main))
+        assertEquals(listOf(uhd), dunes())
+        assertNull(dao.item(uhd)?.versionOf)
+        assertEquals(11, heldIds().size)
+    }
+
+    /** Both copies held: removed from the page, the film leaves whole. */
+    @Test
+    fun aFilmWhoseCopiesAreAllHeldLeavesWhole() = runTest {
+        val (main, _) = twoDunes()
+        (listOf(DUNE, DUNE_UHD) + (0 until 10).map(::film)).forEach(nas::remove)
+        bench.scan()
+        assertEquals(12, heldIds().size)
+
+        assertNull(bench.scanner.removeHeldTitle(main))
+        assertEquals(emptyList<Long>(), dunes())
+        assertEquals(10, heldIds().size)
     }
 
     /** Back meanwhile: an answer given for them removes nothing. */
@@ -285,6 +332,34 @@ class ScanMissingTest {
 
         bench.scanner.removeHeld(shown)
         assertEquals(22, filePaths().size)
+    }
+
+    /**
+     * From the show's page: an episode held removed alone, the show stays, its others held; then the show held removed,
+     * it goes with its episodes held, what the user did to it kept, the other show staying.
+     */
+    @Test
+    fun aShowHeldRemovedFromItsPageGoesWithItsEpisodes() = runTest {
+        val series = bench.folder("Séries", SourceKind.SHOWS)
+        val gone = (1..12).map { "MobLand/Season 1/MobLand - S01E${"%02d".format(it)}.mkv" }
+        gone.forEach { bench.showsNas.put(it) }
+        (1..10).forEach { bench.showsNas.put("Severance/Season 1/Severance - S01E${"%02d".format(it)}.mkv") }
+        bench.scan()
+        val mobLand = bench.series("MobLand").id
+        dao.setFavorite(mobLand, true)
+        gone.forEach { bench.showsNas.remove(it) }
+        bench.scan()
+        assertEquals(12, heldIds(series).size)
+
+        assertEquals("its show holds it now", mobLand, bench.scanner.removeHeldTitle(bench.item(series, gone.first()).id))
+        assertEquals(11, heldIds(series).size)
+        assertEquals(11, bench.paths(series).count { it.startsWith("MobLand/") })
+
+        assertNull("nothing of it left", bench.scanner.removeHeldTitle(mobLand))
+        assertTrue(bench.paths(series).none { it.startsWith("MobLand/") })
+        assertEquals(10, bench.paths(series).size)
+        assertNull(dao.seriesByKey(FilenameParser.showKey("MobLand", null)))
+        assertTrue(bench.keptTitles().toString(), bench.keptTitles().any { it.startsWith("show:name:") })
     }
 
     /** A show's episodes held, then removed: the show goes with them, what the user did to it kept. */
@@ -324,6 +399,9 @@ class ScanMissingTest {
     }
 
     private companion object {
+        const val DUNE = "Dune (2021).mkv"
+        const val DUNE_UHD = "Dune (2021) 2160p.mkv"
+        const val DUNE_TMDB = 438631
         const val START = ScanBench.START
         const val DAY = 24 * 60 * 60_000L
     }

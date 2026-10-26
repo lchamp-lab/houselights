@@ -694,7 +694,8 @@ Artwork carries no text: the top of the screen names what has focus.
   focus alone: a side sheet titled with its name, "Saison 1 Épisode 2 52 min" under it (the season by its number,
   in the app's language, specials by the source's name), then "Marquer comme vu" or "Marquer comme non vu", focused;
   "Lire depuis le début" once started; "Audio et sous-titres" where the tracks apply, as the tracks tile, saying what
-  Lire plays and opening the show's. A card with none of these opens nothing.
+  Lire plays and opening the show's; last, for an episode held while its file is missing, « Retirer de la
+  bibliothèque », it alone, as the title page's tile. A card with none of these opens nothing.
   A mark is made with no question, its season's count, the show and Lire following at once, a started episode back to
   its start, as the watched tile does. A mark that did not save comes undone and is said under the row, in place of
   the overview, until an OK there.
@@ -824,11 +825,12 @@ says how things stand, "12 titres de « Films » introuvables sur le NAS" with V
 answers in the sheet it opens or the files are back; Réglages › Bibliothèque counts them on their folder's showcase,
 answered or not, its sheet's first row opening theirs (two OKs), « Retirer » there at any time. A title held says on
 its page, at the end of its actions, "Introuvable sur le NAS depuis 14 h" (rounded down to the hour), its actions
-ending with « Retirer de la bibliothèque », which takes it alone out and closes the page; Lire or Reprendre on it is
-never tried, the room staying lit: in that place, "Ce titre n’est plus là" and "Rebranchez le disque du NAS ou retirez
-ce titre." (`UiError.HELD`, `PlaybackOutcome.refusesHeld`), under the episode row for an episode, on home's case in
-its facts' room with since when. The files back end it all without a word (`HomeHeldTest`, `DetailHeldTest`,
-`HeldFolderTest`).
+ending with « Retirer de la bibliothèque », which takes it alone out and closes the page, opening the film's again
+when a copy of it is left; an episode held offers it last in its options (Menu), the show's page staying. A film in
+several copies is held as the copy Lire plays is. Lire or Reprendre on a title held is never tried, the room staying
+lit: in that place, "Ce titre n’est plus là" and "Rebranchez le disque du NAS ou retirez ce titre." (`UiError.HELD`,
+`PlaybackOutcome.tryPlay`), under the episode row for an episode, on home's case in its facts' room with since when.
+The files back end it all without a word (`HomeHeldTest`, `DetailHeldTest`, `HeldFolderTest`, `HeldCardTest`).
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is

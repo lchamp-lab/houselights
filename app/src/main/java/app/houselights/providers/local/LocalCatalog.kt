@@ -135,7 +135,8 @@ internal class LocalCatalog(
             val choice = copies.firstOrNull { it.id == titleId }?.versionChoice?.takeIf { id -> copies.any { it.id == id } } ?: best
             copies.zip(items).map { (copy, mapped) ->
                 Version(
-                    item = mapped,
+                    // Each copy held as its own file is, the film as the copy Lire plays ([LocalMapper]).
+                    item = mapped.copy(missingSince = copy.missingSince),
                     edition = copy.edition,
                     label = null,
                     media = mapped.media,

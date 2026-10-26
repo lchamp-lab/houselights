@@ -112,9 +112,14 @@ class LocalLibrary(
     /** « Retirer »: the titles held among rows [ids] leave the library, what the user did kept; nothing goes on the NAS. */
     suspend fun removeHeld(ids: Collection<Long>) = scanner.removeHeld(ids)
 
-    /** « Retirer de la bibliothèque » on a title held ([LocalId] [itemId]): it alone leaves, as [removeHeld] does. */
-    suspend fun removeHeldTitle(itemId: String) {
-        (LocalId.parse(itemId) as? LocalId.Item)?.let { scanner.removeHeldTitle(it.key) }
+    /**
+     * « Retirer de la bibliothèque » on a title held ([LocalId] [itemId]): it alone leaves, as [removeHeld] does. The id
+     * of what holds it after: its own, the copy of the film left, an episode's show once the episode went; null once
+     * nothing of it is left ([LibraryScanner.removeHeldTitle]).
+     */
+    suspend fun removeHeldTitle(itemId: String): String? {
+        val key = (LocalId.parse(itemId) as? LocalId.Item)?.key ?: return itemId
+        return scanner.removeHeldTitle(key)?.toString()
     }
 
     /** Tells library screens to reload after a setting they read changed (collection visibility). */

@@ -29,14 +29,20 @@ class PlaybackOutcomeTest {
         assertNull(outcome.playbackProblem.value)
     }
 
-    /** A title held while its file is missing is not tried: where it was asked says it is gone, nothing played. */
+    /**
+     * A title held while its file is missing is not tried: the house lights never dim (what MainActivity starts), and
+     * where it was asked says it is gone. A title there clears the last problem, then starts.
+     */
     @Test
     fun aTitleHeldIsNotTried() {
         val page = PlayOrigin("title")
         val heat = MediaItem("m1", MediaKind.MOVIE, "Heat")
-        assertEquals(false, outcome.refusesHeld(heat, page))
-        assertNull(outcome.playbackProblem.value)
-        assertEquals(true, outcome.refusesHeld(heat.copy(missingSince = 1), page))
+        val started = mutableListOf<String>()
+        outcome.tryPlay(heat.copy(missingSince = 1), page) { started += "held" }
+        assertEquals(emptyList<String>(), started)
         assertEquals(PlaybackProblem(UiError.HELD, page), outcome.playbackProblem.value)
+
+        outcome.tryPlay(heat, page) { started += "there, ${outcome.playbackProblem.value}" }
+        assertEquals("its problem gone before it starts", listOf("there, null"), started)
     }
 }

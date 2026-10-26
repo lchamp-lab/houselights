@@ -75,9 +75,9 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     folder's titles, ten at least, vanish at once while the folder still answers (a disk of the NAS offline, a volume
     not mounted yet), nothing leaves: home says "12 titles of “Films” not found on the NAS" with See, and you answer
     once, Keep (they wait for their files) or Remove (nothing is deleted on the NAS). Meanwhile they stay on the walls
-    with a ring on their posters, their page says how long they have been missing and removes one alone, and Play
-    explains rather than trying; Settings > Library counts them on their folder, Remove still there. Files coming
-    back end it without a word.
+    with a ring on their posters, their page says how long they have been missing and removes one alone (an episode
+    from its options), and Play explains rather than trying; Settings > Library counts them on their folder, Remove
+    still there. Files coming back end it without a word.
   - Films of a saga are gathered on the Movies wall under one poster (Filter > Show > Sagas lists the sagas
     alone; Settings > Library > Sagas gathers a saga from two of its films, from one, or never), with a page per
     saga showing the films you own and those you don't.

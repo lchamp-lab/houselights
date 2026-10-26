@@ -34,13 +34,17 @@ class PlaybackOutcome(val playbackEnded: SharedFlow<Unit>) {
     }
 
     /**
-     * Whether [item] is held while its file is missing ([MediaItem.held]): it is not tried, the room staying lit, and where
-     * play was asked ([origin]) says it is gone and what to do ([UiError.HELD]).
+     * A play of [item] asked from [origin]: the last play's problem goes, then [start] dims the house lights and plays.
+     * A title held while its file is missing ([MediaItem.held]) is not tried, [start] never called and the room staying
+     * lit: where play was asked says it is gone and what to do ([UiError.HELD]).
      */
-    fun refusesHeld(item: MediaItem, origin: PlayOrigin): Boolean {
-        if (!item.held) return false
-        reportProblem(PlaybackProblem(UiError.HELD, origin))
-        return true
+    fun tryPlay(item: MediaItem, origin: PlayOrigin, start: () -> Unit) {
+        if (item.held) {
+            reportProblem(PlaybackProblem(UiError.HELD, origin))
+            return
+        }
+        clearProblem()
+        start()
     }
 
     /** The screen of back stack entry [screen] shows: a problem asked from another one goes, never to show there. */

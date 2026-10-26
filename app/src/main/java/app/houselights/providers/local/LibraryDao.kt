@@ -417,6 +417,24 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("SELECT id FROM items WHERE missingSince IS NOT NULL AND ($COPIES OR seriesId = :id)")
     suspend fun heldOf(id: Long): List<Long>
 
+    /** The rows title [id] stands on: a film's copies ([COPIES]), else the row itself. */
+    @Query("SELECT id FROM items WHERE $COPIES")
+    suspend fun titleRows(id: Long): List<Long>
+
+    /** The row among [ids] ([titleRows]) that holds their title, a film's copies grouped; null once none is left. */
+    @Query("SELECT MIN(id) FROM items WHERE versionOf IS NULL AND id IN (:ids)")
+    suspend fun titleAmong(ids: List<Long>): Long?
+
+    /**
+     * The films among main rows [ids] in several copies, one of them at least held ([MissingFiles.isDrop]): held as the
+     * copy Lire plays is ([LocalMapper]).
+     */
+    @Query(
+        "SELECT DISTINCT c.versionOf FROM items c JOIN items t ON t.id = c.versionOf " +
+            "WHERE c.versionOf IN (:ids) AND (c.missingSince IS NOT NULL OR t.missingSince IS NOT NULL)"
+    )
+    suspend fun heldAmongCopies(ids: List<Long>): List<Long>
+
     /**
      * Removes the rows among [ids] still held while their files are missing ([MissingFiles.isDrop]), as a pass removes
      * files gone: what the user did is kept by title ([keepStateOf]); seasons and shows left empty go, kept too unless

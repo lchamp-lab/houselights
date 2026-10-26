@@ -147,8 +147,11 @@ fun DetailScreen(
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
     onOpenPerson: (String) -> Unit = {},
-    /** Leaves the page, back where it was opened from: once its title held is removed. */
-    onLeave: () -> Unit = {},
+    /**
+     * Leaves the page, back where it was opened from, once its title held is removed; given an id, for that title's page
+     * then: a copy of the film left under another row.
+     */
+    onLeave: (String?) -> Unit = {},
 ) {
     val app = appContainer()
     val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
@@ -170,7 +173,7 @@ internal fun DetailPage(
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
     onOpenPerson: (String) -> Unit,
-    onLeave: () -> Unit = {},
+    onLeave: (String?) -> Unit = {},
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
@@ -309,6 +312,7 @@ internal fun DetailPage(
             onMark = vm::toggleEpisodePlayed.takeIf { state.capabilities?.markPlayed == true },
             onPlayFromStart = { onPlay(it, false, PlayOrigin(screen, it.id)) },
             onTracks = { showTracks = true },
+            onRemove = vm::removeHeldEpisode,
         )
         EpisodeOptions(state, episodeOptions, episodeActions, onDismiss = { episodeOptions = null })
         ShowMarks(
@@ -773,10 +777,13 @@ private fun RemoveTile(onRemove: (() -> Unit)?, memory: FocusMemory) {
     )
 }
 
-/** Its title held removed from the library ([removed]): the page closes on the screen it came from ([onLeave]). */
+/**
+ * Its title held removed from the library ([removed]): the page closes on the screen it came from ([onLeave]), for the
+ * film's page again when a copy of it is left ([TitleRemoved.stays]).
+ */
 @Composable
-private fun LeaveOnceRemoved(removed: Boolean, onLeave: () -> Unit) {
-    LaunchedEffect(removed) { if (removed) onLeave() }
+private fun LeaveOnceRemoved(removed: TitleRemoved?, onLeave: (String?) -> Unit) {
+    LaunchedEffect(removed) { if (removed != null) onLeave(removed.stays) }
 }
 
 /** Since when the file of a title held ([since]) is missing, by the ring; nothing for a title there. */
