@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
 import app.houselights.R
@@ -43,6 +44,7 @@ import app.houselights.ui.design.components.PosterWall
 import app.houselights.ui.design.components.PosterWallScrim
 import app.houselights.ui.design.components.Lockup
 import app.houselights.ui.design.components.PanelLevel
+import app.houselights.ui.design.components.rememberDescriptionLines
 import app.houselights.ui.design.components.TaskTitle
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.UiError
@@ -67,6 +69,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
         posters, choosing(onLocal), choosing(onJellyfin), s.lostSource, problem,
         settingsReset = s.settingsReset,
         readAgain = app.settings::readAgain.takeIf { s.unreadSource }, reading = reading,
+        onJellyfinFocus = app.jellyfin::lookAhead,
     )
 }
 
@@ -74,6 +77,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
  * The welcome screen as drawn: [posters] on the wall, the source choice focused; [lostSource], [problem] and
  * [settingsReset] noted.
  * With [readAgain], the saved connection was not opened for now: its note's Réessayer runs it, focused, busy while [reading].
+ * [onJellyfinFocus] runs as « Serveur Jellyfin » takes focus, so its sign-in opens on the servers already found.
  */
 @Composable
 internal fun Welcome(
@@ -85,6 +89,7 @@ internal fun Welcome(
     settingsReset: Boolean = false,
     readAgain: (() -> Unit)? = null,
     reading: Boolean = false,
+    onJellyfinFocus: () -> Unit = {},
 ) {
     val focus = remember { FocusRequester() }
     val retry = remember { FocusRequester() }
@@ -130,25 +135,29 @@ internal fun Welcome(
             Column(Modifier.padding(end = HlFocus.reach).width(HlLayout.welcomeChoices)) {
                 TaskTitle(stringResource(R.string.welcome_title))
                 Spacer(Modifier.height(HlSpace.m))
-                // Raised on glass over the wall; both reserve the same description lines, so they have the same height.
+                // Raised on glass over the wall, a line of words each and no mark: both reserve the lines the longer
+                // takes at the viewer's text size, so they have one height and no band is left empty.
+                val local = stringResource(R.string.source_local_desc)
+                val jellyfin = stringResource(R.string.welcome_jellyfin_desc)
+                val lines = rememberDescriptionLines(listOf(local, jellyfin), HlLayout.welcomeChoices)
                 Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                     HlListItem(
                         stringResource(R.string.source_local),
-                        stringResource(R.string.source_local_desc),
+                        local,
                         onLocal,
                         Modifier.focusRequester(focus),
                         icon = HlIcons.Folder,
-                        badges = listOf("NFS", "SMB", "TMDB"),
-                        descriptionLines = CHOICE_LINES,
+                        descriptionLines = lines,
                         level = PanelLevel.Raised,
                     )
                     HlListItem(
                         stringResource(R.string.source_jellyfin),
-                        stringResource(R.string.source_jellyfin_desc),
+                        jellyfin,
                         onJellyfin,
+                        // Its servers looked for during the gesture before its sign-in.
+                        Modifier.onFocusChanged { if (it.hasFocus) onJellyfinFocus() },
                         icon = HlIcons.Server,
-                        badges = listOf("HTTPS", "HTTP"),
-                        descriptionLines = CHOICE_LINES,
+                        descriptionLines = lines,
                         level = PanelLevel.Raised,
                     )
                 }
@@ -183,6 +192,3 @@ internal fun rememberReadBack(s: AppSettings, reading: Boolean, onReadBack: () -
         }
     }
 }
-
-/** Description lines each welcome choice reserves: as many as the longest needs. */
-private const val CHOICE_LINES = 3

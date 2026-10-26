@@ -2,11 +2,14 @@ package app.houselights.ui.onboarding
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -21,6 +24,7 @@ import app.houselights.core.ImageRef
 import app.houselights.providers.jellyfin.DiscoveredServer
 import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.design.components.ChoicePlace
 import app.houselights.ui.design.components.ConnectionSecurity
 import app.houselights.ui.design.components.ConnectionState
@@ -34,6 +38,8 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.roomPosters
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Signs in to Jellyfin, the form starting as [fill] says. */
 @Composable
@@ -50,17 +56,10 @@ fun JellyfinLoginScreen(fill: LoginFill, onLoggedIn: () -> Unit) {
 @Composable
 internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> = emptyList(), onLoggedIn: () -> Unit) {
     val firstField = remember { FocusRequester() }
+    val firstServer = remember { FocusRequester() }
     val userField = remember { FocusRequester() }
     val passwordField = remember { FocusRequester() }
-    // On a repeat sign-in the server and user are prefilled: focus starts on the password, or on the
-    // user when it is blank.
-    LaunchedEffect(Unit) {
-        when {
-            !vm.again -> firstField
-            vm.user.isBlank() -> userField
-            else -> passwordField
-        }.tryRequestFocus()
-    }
+    FirstFocus(vm, firstServer, firstField, if (vm.user.isBlank()) userField else passwordField)
     val server = vm.server
     val chosen = vm.chosen
     // While the address is the one picking it gave, signing in follows its check, which the panel says.
@@ -71,12 +70,13 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
 
     HlFormScaffold(
         title = stringResource(R.string.jellyfin_title),
-        description = stringResource(R.string.jellyfin_desc),
+        description = stringResource(if (vm.discovered.isNotEmpty()) R.string.jellyfin_desc_found else R.string.jellyfin_desc),
         aside = {
             StatusPanel(
+                // A failure by the ring and its words: its message carries the one mark.
                 state = when {
                     vm.busy -> StatusState.Pending
-                    error != null -> StatusState.Attention
+                    error != null -> StatusState.Off
                     chosen != null -> StatusState.Done
                     else -> StatusState.Off
                 },
@@ -94,7 +94,7 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
         },
         room = room,
     ) {
-        FoundServers(vm, chosen) { s ->
+        FoundServers(vm, chosen, firstServer) { s ->
             vm.choose(s)
             (if (vm.user.isBlank()) userField else passwordField).tryRequestFocus()
         }
@@ -106,24 +106,47 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
             keyboardType = KeyboardType.Uri,
             modifier = Modifier.focusRequester(firstField),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-            HlTextField(
-                stringResource(R.string.field_user), vm.user, { vm.user = it },
-                Modifier.weight(1f).focusRequester(userField),
-            )
-            HlTextField(
-                stringResource(R.string.field_password), vm.password, { vm.password = it },
-                password = true, imeAction = ImeAction.Done, onImeAction = ::login,
-                modifier = Modifier.weight(1f).focusRequester(passwordField),
+        // The account and the button as one block: a credential focused brings the button into view with it.
+        Column(Modifier.scrollsAsBlock(), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                HlTextField(
+                    stringResource(R.string.field_user), vm.user, { vm.user = it },
+                    Modifier.weight(1f).focusRequester(userField),
+                )
+                HlTextField(
+                    stringResource(R.string.field_password), vm.password, { vm.password = it },
+                    password = true, imeAction = ImeAction.Done, onImeAction = ::login,
+                    modifier = Modifier.weight(1f).focusRequester(passwordField),
+                )
+            }
+            HlButton(
+                stringResource(R.string.sign_in),
+                ::login,
+                Modifier.padding(top = HlSpace.xs),
+                busy = vm.busy,
+                busyLabel = stringResource(R.string.signing_in),
             )
         }
-        HlButton(
-            stringResource(R.string.sign_in),
-            ::login,
-            Modifier.padding(top = HlSpace.xs),
-            busy = vm.busy,
-            busyLabel = stringResource(R.string.signing_in),
-        )
+    }
+}
+
+/**
+ * Where the sign-in's focus starts. Signing in again, the server and user prefilled, on [account], what is left to
+ * type: the password, or the user when it is blank. Else on the first server found ([firstServer]), waiting for
+ * discovery's first answer up to [FIRST_SERVER_MS], as home's first focus waits for its case, then on the address
+ * ([address]); servers answering later come under it, focus left where it is.
+ */
+@Composable
+private fun FirstFocus(vm: JellyfinLoginViewModel, firstServer: FocusRequester, address: FocusRequester, account: FocusRequester) {
+    LaunchedEffect(Unit) {
+        if (vm.again) {
+            account.tryRequestFocus()
+            return@LaunchedEffect
+        }
+        val found = withTimeoutOrNull(FIRST_SERVER_MS) { snapshotFlow { vm.discovered.isNotEmpty() }.first { it } }
+        // Its row laid out first.
+        withFrameNanos { }
+        if (found == null || !firstServer.tryRequestFocus()) address.tryRequestFocus()
     }
 }
 
@@ -165,11 +188,16 @@ private fun ServerCheck.security(): ConnectionSecurity = when (this) {
  * [chosen] one checked; none, nothing.
  */
 @Composable
-private fun FoundServers(vm: JellyfinLoginViewModel, chosen: DiscoveredServer?, onChoose: (DiscoveredServer) -> Unit) {
+private fun FoundServers(
+    vm: JellyfinLoginViewModel,
+    chosen: DiscoveredServer?,
+    first: FocusRequester,
+    onChoose: (DiscoveredServer) -> Unit,
+) {
     val servers = vm.discovered
     if (servers.isEmpty()) return
     HlSettingGroup(stringResource(R.string.servers_found)) {
-        servers.forEach { s ->
+        servers.forEachIndexed { i, s ->
             val address = vm.addressOf(s).withoutScheme()
             HlSettingRow(
                 s.name ?: address,
@@ -179,7 +207,7 @@ private fun FoundServers(vm: JellyfinLoginViewModel, chosen: DiscoveredServer?, 
                     ConnectionState(vm.checkOf(s).security())
                     ChoicePlace(s == chosen)
                 },
-                modifier = Modifier.semantics { selected = s == chosen },
+                modifier = (if (i == 0) Modifier.focusRequester(first) else Modifier).semantics { selected = s == chosen },
             )
         }
     }
@@ -210,6 +238,9 @@ private fun loginState(busy: Boolean, failed: Boolean, found: Boolean): Int = wh
     found -> R.string.server_found
     else -> R.string.connection_untested
 }
+
+/** How long the sign-in's first focus waits for the first server found before going to the address. */
+private const val FIRST_SERVER_MS = 1_000L
 
 /** The product name a Jellyfin server reports. */
 private const val JELLYFIN = "Jellyfin Server"

@@ -29,13 +29,13 @@ class SmbServerTest : NasServerTest() {
     @Test
     fun aSecondShareOfTheNasPassesItsTest() = runBlocking {
         val media = folder("media")
-        assertEquals(2, browsers.of(media).test(media))
+        assertEquals("Films and Vidéos perso", 2 to 0, browsers.of(media).test(media).counted())
     }
 
     @Test
     fun aGuestReadsAShareOpenToGuests() = runBlocking {
         val public = folder("public", user = "", password = "")
-        assertEquals(1, browsers.of(public).test(public))
+        assertEquals("Films", 1 to 0, browsers.of(public).test(public).counted())
     }
 
     @Test
