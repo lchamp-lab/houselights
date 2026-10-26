@@ -599,8 +599,16 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   far as a row draws. Where content fades at an edge, focus stays clear of the fade.
 - **Under a sheet, focus is out.** While a sheet is open (`OpenSheets`), the screen under it shows no focus: what
   opened it keeps focus, unlit, and lights again as the sheet goes.
+- **The queue** (« À identifier »): Identifier opens on a title's suggestions, under « Suggestions », the best focused, TMDB
+  asked nothing; a search replaces them. OK on one identifies the title and opens the next in the list's order, its best
+  suggestion focused; « Passer », first in the aside, nearest the results (Left from one), opens it unchanged, as
+  « Laisser tel quel » and « Rétablir l’automatique » do once done; after the last, Réglages, never an empty list; Back
+  returns to the list, on the title the queue reached, never from title to title. OK does nothing for `HlMotion.SETTLE`
+  once the results come under focus, nor the release of a press given meanwhile (`calmAfter`): a second OK given too soon
+  never accepts what came under it unseen (`IdentifyQueueTest`).
 - **Focus is never lost.** When its element disappears, it moves to a neighbour, else to the action that adds
-  one ("Ajouter un dossier").
+  one ("Ajouter un dossier"): a title identified, to the one taking its place in « À identifier », a row gone from a
+  plate to the plate's first row (`focusGroupKey`).
 
 **Coming back** to a screen finds focus on what was left, by identity, not position (`Focus.kt`):
 
@@ -631,7 +639,8 @@ Back cancels it.
 Zidoo's turns a held OK into a click; AVA and Unfolded Circle remotes never repeat). What has options says so while it
 shows focus, with the Menu key (`MenuKey`): the remote's key drawn small, its lines (`HlIcons.Menu`) in secondary ink
 in a frame of tertiary ink, `HlShapes.mark`, `HlSize.menuKeyWidth` × `menuKeyHeight`; under a card at the end of its
-name's line, its room kept so nothing moves; under a tile on its label's second line, in place of a hint; on home's
+name's line, its room kept so nothing moves; at the end of a result's name (`HlResultItem`, its options through
+`HlPanelButton`), its room kept too; under a tile on its label's second line, in place of a hint; on home's
 case at the end of its action's plate, in the plate's ink. Accessibility services read the long click instead, "Plus
 d’options" (`onLongClickLabel`). Options open in a side sheet about the element, the action wanted most first and
 focused, so Menu then OK does it; an action closes the sheet and focus is back on the element.
@@ -683,13 +692,14 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 
 | Component | Use |
 |---|---|
-| `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton`, `HlRowSurface` | the one panel recipe (`Raised` is glass) and its focusable form, framed, raised the same way; the row menu options, navigation entries and setting rows are made of |
-| `HlListItem`, `HlResultItem`, `PosterThumb` | list choices on a panel button, raised over the welcome wall, what one does in `meta`; a search result with its poster and its overview in `meta`, the one in use edged in ember ("Actuel"); a small poster at a width, or as tall as it is given (a sheet's header) |
+| `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton`, `HlRowSurface` | the one panel recipe (`Raised` is glass) and its focusable form, framed, raised the same way, its options opened by Menu or a held OK (`onLongClick`, read out as `onLongClickLabel`); the row menu options, navigation entries and setting rows are made of |
+| `HlListItem`, `HlResultItem`, `PosterThumb` | list choices on a panel button, raised over the welcome wall, what one does in `meta`; a search result with its poster and its overview in `meta`, the one in use edged in ember ("Actuel"), a `note` on its own line under its facts, which no fact gives way to (the title one to identify may be, "Peut-être « Dune » (2021)"), with options the Menu key at the end of its name's line while it has focus, its room kept; a small poster at a width, or as tall as it is given (a sheet's header) |
 | `HlPlate` | the plate of a group (see *Secondary screens*): its field's dark on a `PosterField`, `glassPlate` on glass, glass on the bare room, read while drawing; what it holds lies on glass |
 | `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: the places, words alone (`navRow`), no well nor chevron, focus opening the one it settles on (OK at once), the open one white with its icon lit (raspberry with focus); a group's rows on one plate, no rule between them, white with focus, no chevron: OK does what the words say. A row is `row` 60 in a pane as in a sheet, an icon included, its name in `entry`, its description in secondary `meta` on one line beside its value (`PaneRowLineTest`), its value in `meta` or `jaquette` (`valueStyle`); a value it only states is not focusable, 48 tall. A value lights with `valueLit` or `valueAttention`. A state the row says in its value's place (« Vérification… », « Non autorisé », « Connexion… ») follows its light (`valueLight`), ranged right as values are, quiet, never ember; the light alone where there are no words (a search under way). Disabled in a `FILL_FAINT` well, in a pane only (`SettingRowTest`). What a pane only states is a `FactPlate`, not a row. A pane's secret that can no longer be read is said at its head by an `AttentionNote` asking for it again; one the Keystore did not open for now by a `PartFailed` whose Réessayer reads it again, Add mapping disabled meanwhile so that no mapping is written over those kept |
 | `FactPlate`, `PlateFact` | what a pane states, as a case's back (see *Gestures*): facts across a plate, each label over its value, then a note; nothing in it takes focus |
 | `HlChoiceSheet`, `HlChoiceSetting` | a setting's choices on one plate in a side sheet: the current one checked and focused; choosing applies and closes. A change that failed says so in the row ("Non enregistré") |
 | `traktPane` | Trakt (`HlIcons.History`), with "Mes fichiers", a state said beside its title by its dot: not connected, what it keeps to read and the row that connects; connecting, the `DeviceCodePlate` in the pane, never ember, Back cancelling, focus going to the code from its row only and returning to the row; connected, a plate with the account's name in `subject`, its last sync, and what it holds watched and in progress in `spec`, then the rows that sync now (disabled while a sync runs, which its value says, a failed exchange said under it) and disconnect, the one row whose words follow the account so focus stays on it. Between them, while the last sync that read Trakt left entries out, a row counts them ("2 éléments ignorés"), never in ember: the sync went through. Its sheet (`SkippedSheet`) says why, lists the entries by their title and year, ten at most, then on one line a kind what it leaves unnamed, the rest past ten ("Et 590 autres") else those naming nothing ("1 élément sans titre"), over where Trakt keeps it, on a `ReadingPlate`, then the marks a history read in part holds back and how to fix it, its label set as a name; nothing takes focus but, in a sheet taller than the screen, the plate, which Down rings and the remote reads the sheet through from. An `AttentionNote` once Trakt ended the connection; a build without Trakt's keys says so beside the title. Under a server, while it keeps an account (connected, or its session not opened at this launch), Trakt pauses: "En pause" by the pending dot, "Trakt suit vos dossiers ; il reprend quand vous y revenez." read in place of what it keeps, the account's plate when its session was read, its last sync alone while a name Trakt could not say waits for the folders (nothing is asked of Trakt meanwhile), then disconnecting, the one row, no note asking to connect again; disconnected there, its place leaves the settings and the place after it opens, focused (`SettingsPlaces`) |
+| `ToIdentifyScreen` | « À identifier »: in Réglages › Bibliothèque, the last row of the actions' plate while titles are to identify (TMDB found none for them, or several none of which is clearly ahead), "Non reconnus avec certitude", their count in white `jaquette`, never ember (no `valueAttention`): nothing failed, a choice is left; gone, from under focus or while its list was open, focus is on « Analyser maintenant » (`ToIdentifyRowTest`). OK opens the list, an `HlTwoPane` (`sideWide`): the task's title in white and what it does, then the count and a result a title (`HlResultItem`), the latest added first: its poster or an empty frame, its name, its year and why as facts, what it may be as its note, where it lies as its overview (the folder, then the file or the show's folder). Focus opens on the first title, stays on its title as the list reloads, and goes to the one taking the place of a title identified, else the last; Back from past the first title returns to it, then to the row (`ToIdentifyScreenTest`). OK opens Identifier in the queue (see *Focus*); Menu on a title TMDB hesitated on opens a side sheet titled Identifier, its name, year and why by the ring, then the group Suggestions: the three best, each its overview on one line and its year as value, no poster, the best first and focused, so Menu then OK accepts it, no search asked, one not saved saying so over the titles ("Non enregistré" and why) while its title is listed; a title not found on TMDB has no Menu key, OK alone leading on. Empty, it says so ("Rien à identifier"), and Back leaves it |
 | `UpdatesGroup` | About, between État and Générique, "Mises à jour", in the project's release alone (`UpdaterAvailability`): the state row, its title the installed version ("Houselights 0.4.0"), which never changes while its words follow the update ("Vérifié il y a 2 h" and "À jour" while GitHub's answer is under two days old, "Version 0.4.1 disponible" and its size, "Téléchargement de la 0.4.1…" and its count, a failure's title and "Échec" in ember, "Requise" in ember while Android must allow the install, "Dans 20 min" while GitHub asks to wait), OK always opening the update sheet, as `JournalRow` does; then « Recherche automatique » (Une fois par jour, Jamais) and « Versions proposées » (Stables, Stables et bêta, following the installed build until chosen), each a `HlChoiceSetting` |
 | `JournalRow`, `JournalSheet` | About, under Soutenir Houselights, "Envoyer le journal" ("Pour signaler un problème, depuis votre téléphone"): a QR code sheet whose page, served on the home network while it is open and ten minutes at most (`JournalServer`), shows the app's own log on a phone (`AppLog`), each line masked (`Redact.text`); the sheet closes with the page, and both once the app leaves the screen |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens (navigation or explanation left, content right, a gap and no rule between); a form lies on the settings' posters (`room`); `StatusPanel` shows where a setup stands beside its form, on a plate, its state by the white dot, a server found by its name, its protocol printed and its kind a fact; a server found picked, the protocol its check verified and the connection in Réglages' words ("HTTPS", "Connexion chiffrée"), "Vérification…" alone while it is checked; `FieldLabel` names a track of choices in `group` |
@@ -833,6 +843,15 @@ its name ("NAS injoignable", "Serveur injoignable"); its plate does what fixes i
 and its arrow plays it again, Se reconnecter), else stays its own. A click dismisses it, a held OK keeps it for the
 options: the whole sentence first, then only what may work (`HomePlayFailureTest`).
 
+A title to identify says so at the end of its page's actions while nothing failed there: "À identifier" by the ring
+(`HlStatus` `Off`), why under it in grey ("Plusieurs titres possibles", "Introuvable sur TMDB"), never in ember: a state,
+not a failure; a failure takes the place while it is said. Its Identifier button, a plate with the search glyph, comes
+after Lire and its parts, before the tiles, only where the source can change the title; identified, both go and focus is
+on Lire (`DetailToIdentifyTest`). Modifier then calls Identifier "Trouver ce titre sur TMDB", as for a title left as it
+is, "Associer à un autre titre TMDB" staying for a title matched (`EditMenuTest`), and Identifier says why in its panel,
+by the ring, its sentence following why; "Laisser tel quel" leaves a title as it is (no longer to identify, nor searched
+for by its name), said "Laissé tel quel" when it opens again, with "Rétablir l’automatique".
+
 What fails on a title's page once its title shows is said where it shows, with Réessayer (`PartFailed`): the seasons or
 a saga under the hero, a season's episodes on their row, what a reload cannot read again kept and said under the hero;
 what a show's Lire starts, unread, puts what fixes it in Lire's place as `PartFailed`'s button (Réessayer, Se
@@ -858,6 +877,18 @@ several copies is held as the copy Lire plays is. Lire or Reprendre on a title h
 lit: in that place, "Ce titre n’est plus là" and "Rebranchez le disque du NAS ou retirez ce titre." (`UiError.HELD`,
 `PlaybackOutcome.tryPlay`), under the episode row for an episode, on home's case in its facts' room with since when.
 The files back end it all without a word (`HomeHeldTest`, `DetailHeldTest`, `HeldFolderTest`, `HeldCardTest`).
+
+A title held that is also to identify, or left as it is, says it is held: its file is not there, and identifying can
+wait. "Introuvable sur le NAS depuis 14 h" takes the place of "À identifier" at the end of its actions, Lire saying it
+is gone without trying; its Identifier button waits with "À identifier", so its row is that of any title held, since
+when and the refusal holding beside it as on a film's, in German and at 1.3 too (`DetailToIdentifyLayoutTest`).
+Modifier still calls Identifier "Trouver ce titre sur TMDB" and opens it, and Identifier still says why, with its
+suggestions, or "Laissé tel quel". A film held, or a show every episode of which is, waits outside « À identifier »,
+its count and its queue until a file is back
+(`DetailHeldTest.aTitleHeldAndToIdentifySaysItIsHeldAndOpensIdentifierFromModifier`,
+`LocalEditorTest.aTitleHeldStillSaysWhyItIsToIdentifyOutOfTheList`,
+`LocalEditorTest.aShowEveryEpisodeOfWhichIsHeldWaitsOutOfTheList`,
+`LibraryDaoTest.aShowEveryEpisodeOfWhichIsHeldWaitsOutOfTheList`).
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is
@@ -1015,7 +1046,7 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogControls` | buttons in their states, a place's title and a task's, tiles, controls on a picture's plates, and the seasons |
 | `CatalogSecondary` | the settings' room of posters with its places, a group, a plate of facts and states; a pane's heads, the lockup, printed pairs, definitions, a meter that states, a code to type; showcases in their row; a gallery whose images step back; a plate in a film's light and the sheets that hold them, a reading plate, one wide to read, an NFO's |
 | `CatalogForms` | settings in their group and in a sheet, servers found by their connection, text fields, status panels, panel buttons, dividers, menus, choice sheets and settings, scroll areas |
-| `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, people; progress lines, skeletons, artwork choices, results, thumbnails |
+| `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, people; progress lines, skeletons, artwork choices, results (with a note, with options), thumbnails |
 | `CatalogDoors` | home's head, its case resuming and proposing, then after a failed play by each remedy, and each door at its size: a still and its season, a band of posters, counts cut in posters and in ink at one size, sagas, a wall out, the app's state |
 | `CatalogReading` | title art, episode headings, meta and title lines, formats, a row's billing, the billing block, hero info, the technical sheet, search and its keys, the synopsis, versions |
 | `CatalogStress` | the longest labels, the largest and smallest text sizes the app lays out at, fallback scripts, device metrics |

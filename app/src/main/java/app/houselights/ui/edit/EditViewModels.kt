@@ -126,17 +126,30 @@ data class IdentifyState(
     /** The title is matched as chosen ([identifying] stays set): the screen can close. */
     val done: Boolean = false,
     val error: UiError? = null,
-)
+    /** « Laisser tel quel » asked, until [done]. */
+    val keeping: Boolean = false,
+    /** [results] are what automatic matching hesitated between, shown at once, no search asked. */
+    val suggested: Boolean = false,
+    /** In the queue, once [done]: the title to identify after this one; null after the last. */
+    val nextId: String? = null,
+    /** « Passer » asked, until [done]. */
+    val skipping: Boolean = false,
+) {
+    /** Something is under way that a second OK must not start again. */
+    val busy: Boolean get() = identifying || keeping || skipping || done
+}
 
 /**
  * Matches a title by hand. The match runs in [work], which outlives the screen, so a series is never left half
- * matched; what was typed is kept in [saved] in case Android kills the process.
+ * matched; what was typed is kept in [saved] in case Android kills the process. In the [queue] (opened from the titles
+ * to identify), once done the next title opens ([IdentifyState.nextId]).
  */
 class IdentifyViewModel(
     private val itemId: String,
     private val provider: () -> MediaProvider,
     private val work: CoroutineScope,
     private val saved: SavedStateHandle = SavedStateHandle(),
+    private val queue: Boolean = false,
 ) : ViewModel() {
     private val _state = MutableStateFlow(IdentifyState())
     val state: StateFlow<IdentifyState> = _state
@@ -147,7 +160,10 @@ class IdentifyViewModel(
         load()
     }
 
-    /** Loads the title and its current match, then runs the search automatic matching would make. */
+    /**
+     * Loads the title and its current match, then shows what automatic matching hesitated between, asking TMDB nothing,
+     * or else runs the search automatic matching would make.
+     */
     private fun load() {
         _state.update { it.copy(error = null) }
         loads.launch {
@@ -160,8 +176,14 @@ class IdentifyViewModel(
                 val query = saved[QUERY] ?: identity.query
                 val year = saved[YEAR] ?: identity.year?.toString().orEmpty()
                 _state.update { it.copy(item = item, identity = identity, query = query, year = year) }
-                // Run automatic matching's search, so the right title is often one press away.
-                if (identity.canSearch) search() else _state.update { it.copy(error = UiError.NO_TMDB_KEY) }
+                when {
+                    // Its suggestions at once, the best first, unless a search was typed before the process died.
+                    identity.suggestions.isNotEmpty() && saved.get<String>(QUERY) == null ->
+                        _state.update { it.copy(results = identity.suggestions, suggested = true) }
+                    // Run automatic matching's search, so the right title is often one press away.
+                    identity.canSearch -> search()
+                    else -> _state.update { it.copy(error = UiError.NO_TMDB_KEY) }
+                }
             }.onFailure { e -> _state.update { it.copy(error = e.reported(TAG, "Identity of $itemId")) } }
         }
     }
@@ -186,7 +208,7 @@ class IdentifyViewModel(
         _state.update { it.copy(searching = true, error = null) }
         searches.launch {
             suspendRunCatching { provider().editorOrFail().search(item, s.query, s.year.toIntOrNull()) }
-                .onSuccess { results -> _state.update { it.copy(searching = false, results = results) } }
+                .onSuccess { results -> _state.update { it.copy(searching = false, results = results, suggested = false) } }
                 .onFailure { e ->
                     val error = e.reported(TAG, "Search of $itemId for \"${s.query}\" ${s.year}")
                     _state.update { it.copy(searching = false, error = error) }
@@ -198,12 +220,12 @@ class IdentifyViewModel(
     fun identify(candidate: MatchCandidate?) {
         val s = _state.value
         val item = s.item ?: return
-        if (s.identifying || s.done) return
+        if (s.busy) return
         _state.update { it.copy(identifying = true, chosenId = candidate?.id, error = null) }
         work.launch {
-            suspendRunCatching { provider().editorOrFail().identify(item, candidate) }
+            suspendRunCatching { afterThis(item) { identify(item, candidate) } }
                 // Still shown as matching while the screen closes.
-                .onSuccess { _state.update { s -> s.copy(done = true) } }
+                .onSuccess { next -> _state.update { s -> s.copy(done = true, nextId = next) } }
                 .onFailure { e ->
                     val error = e.reported(TAG, "Identification of $itemId as ${candidate?.id ?: "automatic"}")
                     _state.update { it.copy(identifying = false, chosenId = null, error = error) }
@@ -211,13 +233,54 @@ class IdentifyViewModel(
         }
     }
 
+    /** « Laisser tel quel »: the title is no longer to identify, nor searched for by its name; the screen can close. */
+    fun keep() {
+        val s = _state.value
+        val item = s.item ?: return
+        if (s.busy) return
+        _state.update { it.copy(keeping = true, error = null) }
+        work.launch {
+            suspendRunCatching { afterThis(item) { keepUnidentified(item) } }
+                // Still busy while the screen closes.
+                .onSuccess { next -> _state.update { s -> s.copy(done = true, nextId = next) } }
+                .onFailure { e ->
+                    val error = e.reported(TAG, "Leaving $itemId as it is")
+                    _state.update { it.copy(keeping = false, error = error) }
+                }
+        }
+    }
+
+    /** « Passer », in the queue: the next title opens, this one as it is. */
+    fun skip() {
+        val s = _state.value
+        val item = s.item ?: return
+        if (s.busy) return
+        _state.update { it.copy(skipping = true, error = null) }
+        viewModelScope.launch {
+            suspendRunCatching { provider().editorOrFail().nextToIdentify(item) }
+                .onSuccess { next -> _state.update { s -> s.copy(done = true, nextId = next) } }
+                .onFailure { e ->
+                    val error = e.reported(TAG, "Title to identify after $itemId")
+                    _state.update { it.copy(skipping = false, error = error) }
+                }
+        }
+    }
+
+    /** Runs [change] on [item]; in the queue, the title after it, read while it is still to identify; else null. */
+    private suspend fun afterThis(item: MediaItem, change: suspend MetadataEditor.() -> Unit): String? {
+        val editor = provider().editorOrFail()
+        val next = if (queue) editor.nextToIdentify(item) else null
+        editor.change()
+        return next
+    }
+
     companion object {
         private const val QUERY = "query"
         private const val YEAR = "year"
         private const val YEAR_DIGITS = 4
 
-        fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
-            initializer { IdentifyViewModel(itemId, app::provider, app.scope, createSavedStateHandle()) }
+        fun factory(app: AppContainer, itemId: String, queue: Boolean = false): ViewModelProvider.Factory = viewModelFactory {
+            initializer { IdentifyViewModel(itemId, app::provider, app.scope, createSavedStateHandle(), queue) }
         }
     }
 }

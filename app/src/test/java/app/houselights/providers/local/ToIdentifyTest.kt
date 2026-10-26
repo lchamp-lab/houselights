@@ -1,5 +1,8 @@
 package app.houselights.providers.local
 
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -253,6 +256,87 @@ class ToIdentifyTest {
         assertEquals("the others at the next pass", 30 - Reidentify.SHOW_CALLS_PER_PASS / perShow, asked())
     }
 
+    /**
+     * Left as it is (« Laisser tel quel »), a film or show is no longer to identify, nor searched for by its name, by the
+     * checks or a refresh, and stays so.
+     */
+    @Test
+    fun aTitleLeftAsItIsIsNeitherListedNorSearchedForByItsName() = runTest {
+        val films = bench.folder("Films")
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        nas.put(HOLIDAYS)
+        bench.showsNas.put(KAAMELOTT)
+        bench.scan()
+        val left = listOf(bench.item(films, HOLIDAYS), bench.showOf(shows, KAAMELOTT))
+        left.forEach { dao.setUserNoMatch(it.id, true) }
+        assertEquals(emptyList<ItemEntity>(), dao.toIdentify())
+
+        bench.later(8 * DAY_MS)
+        tmdb.searched.clear()
+        bench.pass(auto = true)
+        bench.pass(refresh = true)
+        assertEquals("never by its name", emptyList<String>(), tmdb.searched)
+        assertEquals(emptyList<ItemEntity>(), dao.toIdentify())
+        assertEquals(listOf(true, true), left.map { checkNotNull(dao.item(it.id)).userNoMatch })
+    }
+
+    /**
+     * Left as it is while a check asks TMDB about it, the user working through the list during a scan they asked for,
+     * a film is not matched by what its name found, which TMDB lists since: the check writes nothing of it.
+     */
+    @Test
+    fun aTitleLeftAsItIsWhileAskedAgainIsNotMatchedByItsName() = runTest {
+        val films = bench.folder("Films")
+        nas.put(HOLIDAYS)
+        bench.scan()
+        val row = bench.item(films, HOLIDAYS)
+        val holidays = MediaItem(row.id.toString(), MediaKind.MOVIE, row.title)
+        val editor = LocalEditor(dao, bench.scanner) { tmdb.client() }
+        tmdb.movie(1, "Vacances à Biarritz", 2019)
+        tmdb.onRequest = { path -> if (path.startsWith("search/")) runBlocking { editor.keepUnidentified(holidays) } }
+
+        bench.later(DAY_MS)
+        val pass = bench.pass(auto = true)
+        tmdb.onRequest = null
+        assertTrue("asked while left", pass.requests.any { it.startsWith("search/movie") })
+        val film = bench.item(films, HOLIDAYS)
+        assertEquals(null to true, film.tmdbId to film.userNoMatch)
+        assertTrue(editor.identity(holidays).kept)
+    }
+
+    /** Left as it is, a film still takes the id an NFO beside it gives. */
+    @Test
+    fun aTitleLeftAsItIsStillTakesTheIdItsNfoGives() = runTest {
+        val films = bench.folder("Films")
+        nas.put(HOLIDAYS)
+        bench.scan()
+        dao.setUserNoMatch(bench.item(films, HOLIDAYS).id, true)
+
+        tmdb.movie(DUNE, "Dune", 2021)
+        nas.putText("Vacances à Biarritz (2019).nfo", "<movie><uniqueid type=\"tmdb\">$DUNE</uniqueid></movie>")
+        bench.scan()
+        val film = bench.item(films, HOLIDAYS)
+        assertEquals(DUNE to MatchState.MATCHED, film.tmdbId to film.matchState)
+    }
+
+    /** Left as it is, a show still takes the id a tvshow.nfo written since gives, and is never searched for by its name. */
+    @Test
+    fun aShowLeftAsItIsStillTakesTheIdItsNfoGives() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        bench.showsNas.put(KAAMELOTT)
+        bench.scan()
+        dao.setUserNoMatch(bench.showOf(shows, KAAMELOTT).id, true)
+
+        tmdb.show(KAAMELOTT_ID, "Kaamelott", 2005)
+        tmdb.season(KAAMELOTT_ID, 1, episodes = 1)
+        bench.showsNas.putText("Kaamelott/tvshow.nfo", "<tvshow><title>Kaamelott</title><tmdbid>$KAAMELOTT_ID</tmdbid></tvshow>")
+        tmdb.searched.clear()
+        bench.scan()
+        val show = bench.showOf(shows, KAAMELOTT)
+        assertEquals(KAAMELOTT_ID to MatchState.MATCHED, show.tmdbId to show.matchState)
+        assertEquals("never by its name", emptyList<String>(), tmdb.searched)
+    }
+
     /** A refresh reads a title to identify in full, searching it once: the check after it finds it not due. */
     @Test
     fun aRefreshAsksATitleToIdentifyOnce() = runTest {
@@ -391,6 +475,7 @@ class ToIdentifyTest {
         const val OTHER_SEVERANCE = 1
         const val PILOT = "Severance/Season 1/Severance - S01E01.mkv"
         const val KAAMELOTT = "Kaamelott/Livre 1/Kaamelott - S01E01.mkv"
+        const val KAAMELOTT_ID = 2167
         const val HOLIDAYS = "Vacances à Biarritz (2019).mkv"
         const val HEAT = "Heat (1995).mkv"
         const val HOUR_MS = 60 * 60_000L

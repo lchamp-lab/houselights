@@ -45,6 +45,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ArtworkKind
 import app.houselights.core.AudioTrack
+import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
@@ -98,6 +99,7 @@ import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.edit.EditMenu
+import app.houselights.ui.edit.doubtText
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.PartFailed
@@ -223,6 +225,8 @@ internal fun DetailPage(
     // The episode whose options are open, and the watched tile's.
     var episodeOptions by remember { mutableStateOf<String?>(null) }
     var showMarks by remember { mutableStateOf(false) }
+    // Its Identifier button and « À identifier » come and go together.
+    val identifiable = state.canEdit && item.matchDoubt != null && !item.held
     val actions = DetailActions(
         onPlay = { title, resume -> onPlay(title, resume, PlayOrigin(screen)) },
         onTogglePlayed = vm::togglePlayed,
@@ -244,12 +248,16 @@ internal fun DetailPage(
         nextUpError = state.lireError,
         retrying = state.retrying,
         onRetry = vm::retry,
+        // Held, a title to identify says it is held and its Identifier waits with « À identifier », Modifier opening it.
+        onIdentify = { onIdentify(item.id) }.takeIf { identifiable },
         // A title held while its file is missing: out of the library alone, nothing deleted on the NAS.
         onRemove = vm::removeHeld.takeIf { item.held },
     )
     // Réessayer gone with the failure it said, or Lire and the Réessayer in its place swapped: focus goes to Lire.
     FocusOnPlayAfter(swap = state.error != null, held = RETRY_PAGE, memory, actionRow)
     FocusOnPlayAfter(swap = state.nextUpError != null, held = PLAY, memory, actionRow)
+    // Identified or held meanwhile, Identifier leaves the row with the state it said: focus goes to Lire.
+    FocusOnPlayAfter(swap = identifiable, held = IDENTIFY, memory, actionRow)
 
     val recede = rememberRecede { scrolled }
 
@@ -582,6 +590,8 @@ private data class DetailActions(
     val nextUpError: UiError? = null,
     val retrying: Boolean = false,
     val onRetry: () -> Unit = {},
+    /** Opens Identifier on a title to identify, its state said at the row's end; null for any other, or one held. */
+    val onIdentify: (() -> Unit)? = null,
     /** Removes the title held while its file is missing from the library alone; null hides the tile. */
     val onRemove: (() -> Unit)? = null,
 )
@@ -661,6 +671,15 @@ private fun Actions(
     OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted) {
         PlayButtons(item, nextUp, memory, actions)
         Parts(item, memory, actions.onPlay)
+        // A title to identify: Right then OK from Lire reaches it.
+        if (actions.onIdentify != null) {
+            HlButton(
+                stringResource(R.string.identify),
+                onClick = actions.onIdentify,
+                modifier = Modifier.focusKey(IDENTIFY, memory),
+                icon = HlIcons.Search,
+            )
+        }
         // Several copies: the one Lire plays is chosen in a side sheet.
         if (actions.onShowVersions != null) {
             HlIconButton(
@@ -713,7 +732,13 @@ private fun Actions(
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
         RemoveTile(actions.onRemove, memory)
-        ActionFailure(problem, actionError, actions.nextUpError, heldSince = item.missingSince)
+        ActionFailure(
+            problem,
+            actionError,
+            actions.nextUpError,
+            heldSince = item.missingSince,
+            doubt = item.matchDoubt.takeIf { actions.onIdentify != null },
+        )
     } }
 }
 
@@ -745,11 +770,18 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
 /**
  * Beside the actions, the latest first: why the last play request failed ([problem]), a change did not save
  * ([actionError]), or what Lire starts could not be read ([nextUpError]); else, for a title held, since when its file is
- * missing ([heldSince]). A title held is said by the ring, never ember, as it may be no failure, Lire then saying it is
- * gone and what to do.
+ * missing ([heldSince]); else, for a title to identify, why ([doubt]). Both are said by the ring, never ember, as neither
+ * may be a failure, Lire then saying a title held is gone and what to do; a title held and to identify says it is held,
+ * its file not there and identifying able to wait.
  */
 @Composable
-private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?, nextUpError: UiError?, heldSince: Long? = null) {
+private fun RowScope.ActionFailure(
+    problem: UiError?,
+    actionError: UiError?,
+    nextUpError: UiError?,
+    heldSince: Long? = null,
+    doubt: MatchDoubt? = null,
+) {
     val at = Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false)
     if (problem == UiError.HELD) {
         HlStatus(StatusState.Off, stringResource(problem.title), at, detail = stringResource(problem.message))
@@ -758,10 +790,13 @@ private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?, nex
     val failure = problem?.let { R.string.play_failed to it }
         ?: actionError?.let { R.string.action_not_saved to it }
         ?: nextUpError?.let { it.title to it }
-    if (failure == null) {
-        HeldState(heldSince, at)
-    } else {
-        HlStatus(StatusState.Attention, stringResource(failure.first), at, detail = stringResource(failure.second.message))
+    when {
+        failure != null -> {
+            val (title, error) = failure
+            HlStatus(StatusState.Attention, stringResource(title), at, detail = stringResource(error.message))
+        }
+        heldSince != null -> HeldState(heldSince, at)
+        doubt != null -> HlStatus(StatusState.Off, stringResource(R.string.to_identify), at, detail = stringResource(doubtText(doubt)))
     }
 }
 
@@ -1024,6 +1059,7 @@ private val TECH = FocusKey.action("tech")
 private val NFO = FocusKey.action("nfo")
 private val FAVORITE = FocusKey.action("favorite")
 private val EDIT = FocusKey.action("edit")
+private val IDENTIFY = FocusKey.action("identify")
 private val REMOVE = FocusKey.action("remove")
 private val PARTS = FocusKey.action("parts")
 
