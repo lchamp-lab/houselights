@@ -884,4 +884,17 @@
     <string name="held_gone_fix">Schließen Sie die Festplatte des NAS wieder an oder entfernen Sie diesen Titel.</string>
     <string name="held_remove_title">Aus der Bibliothek entfernen</string>
     <string name="card_held">nicht gefunden</string>
+    <string name="episode_order">Episodenreihenfolge</string>
+    <string name="episode_order_text">Wählen Sie die Reihenfolge, der die Nummern Ihrer Dateien folgen. Was Sie gesehen haben, bleibt gesehen.</string>
+    <string name="episode_order_auto">Automatisch</string>
+    <string name="episode_order_auto_nfo">%s, laut NFO</string>
+    <string name="episode_order_aired">TMDB-Staffeln</string>
+    <string name="episode_order_original">Erstausstrahlung</string>
+    <string name="episode_order_absolute">Absolut</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">Digital</string>
+    <string name="episode_order_story">Handlungsbögen</string>
+    <string name="episode_order_production">Produktion</string>
+    <string name="episode_order_tv">TV</string>
+    <string name="episode_order_applying">Episoden werden sortiert…</string>
 </resources>

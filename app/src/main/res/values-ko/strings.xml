@@ -853,4 +853,17 @@
     <string name="held_gone_fix">NAS의 디스크를 다시 연결하거나 이 작품을 제거하세요.</string>
     <string name="held_remove_title">라이브러리에서 제거</string>
     <string name="card_held">찾을 수 없음</string>
+    <string name="episode_order">에피소드 순서</string>
+    <string name="episode_order_text">파일 번호가 따르는 순서를 선택하세요. 시청한 것은 계속 시청 완료로 남습니다.</string>
+    <string name="episode_order_auto">자동</string>
+    <string name="episode_order_auto_nfo">%s, NFO 기준</string>
+    <string name="episode_order_aired">TMDB 시즌</string>
+    <string name="episode_order_original">최초 방영일</string>
+    <string name="episode_order_absolute">절대 순서</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">디지털</string>
+    <string name="episode_order_story">스토리 아크</string>
+    <string name="episode_order_production">제작 순서</string>
+    <string name="episode_order_tv">TV</string>
+    <string name="episode_order_applying">에피소드 정렬 중…</string>
 </resources>

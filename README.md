@@ -70,6 +70,13 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
+  - A show whose files follow another order than TMDB's seasons (Firefly on DVD, an anime's absolute order) is
+    numbered by it: from its tvshow.nfo (a TMDB episode group's link, as Kodi writes it, or
+    `<displayorder>dvd</displayorder>`, as Jellyfin does), or chosen in Edit > Episode order, offered once a scan finds
+    TMDB numbering the show more than one way: Automatic, TMDB seasons, then each of its groups (DVD, original air
+    date, absolute…). The files keep their numbers; each shows the episode the order puts there, its title, summary
+    and picture, and Trakt is sent that one. What was watched stays watched; Trakt's marks older than the change are
+    not taken back. Marks a version before sent under the wrong order stay on Trakt.
   - A file deleted from the NAS leaves the library on the next scan; what you did to its title (watched, where you
     stopped, favourite, choices) is kept by title and given back if it returns. When more than a quarter of a
     folder's titles, ten at least, vanish at once while the folder still answers (a disk of the NAS offline, a volume

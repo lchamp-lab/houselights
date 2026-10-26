@@ -906,4 +906,17 @@
     <string name="held_gone_fix">Rebranchez le disque du NAS ou retirez ce titre.</string>
     <string name="held_remove_title">Retirer de la bibliothèque</string>
     <string name="card_held">introuvable</string>
+    <string name="episode_order">Ordre des épisodes</string>
+    <string name="episode_order_text">Choisissez l’ordre que suivent les numéros de vos fichiers. Ce que vous avez vu reste vu.</string>
+    <string name="episode_order_auto">Automatique</string>
+    <string name="episode_order_auto_nfo">%s, d’après le NFO</string>
+    <string name="episode_order_aired">Saisons TMDB</string>
+    <string name="episode_order_original">Date de diffusion d’origine</string>
+    <string name="episode_order_absolute">Absolu</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">Numérique</string>
+    <string name="episode_order_story">Arcs narratifs</string>
+    <string name="episode_order_production">Production</string>
+    <string name="episode_order_tv">Télévision</string>
+    <string name="episode_order_applying">Classement des épisodes…</string>
 </resources>

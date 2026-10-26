@@ -909,4 +909,17 @@
     <string name="held_gone_fix">Reconecte o disco do NAS ou remova este título.</string>
     <string name="held_remove_title">Remover da biblioteca</string>
     <string name="card_held">não encontrado</string>
+    <string name="episode_order">Ordem dos episódios</string>
+    <string name="episode_order_text">Escolha a ordem que os números dos seus arquivos seguem. O que você viu continua visto.</string>
+    <string name="episode_order_auto">Automática</string>
+    <string name="episode_order_auto_nfo">%s, segundo o NFO</string>
+    <string name="episode_order_aired">Temporadas do TMDB</string>
+    <string name="episode_order_original">Data de exibição original</string>
+    <string name="episode_order_absolute">Absoluta</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">Digital</string>
+    <string name="episode_order_story">Arcos narrativos</string>
+    <string name="episode_order_production">Produção</string>
+    <string name="episode_order_tv">TV</string>
+    <string name="episode_order_applying">Ordenando os episódios…</string>
 </resources>

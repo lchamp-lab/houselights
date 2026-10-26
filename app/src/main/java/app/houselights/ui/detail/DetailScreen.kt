@@ -220,6 +220,7 @@ internal fun DetailPage(
     var showSynopsis by remember { mutableStateOf(false) }
     var showNfo by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf(false) }
+    var showOrders by remember { mutableStateOf(false) }
     // The episode whose options are open, and the watched tile's.
     var episodeOptions by remember { mutableStateOf<String?>(null) }
     var showMarks by remember { mutableStateOf(false) }
@@ -327,13 +328,19 @@ internal fun DetailPage(
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
         if (showEdit) {
+            val orders = state.episodeOrders
             EditMenu(
                 item = item,
                 onDismiss = { showEdit = false },
                 onArtwork = { kind -> showEdit = false; onEditArtwork(item.id, kind) },
                 onIdentify = { showEdit = false; onIdentify(item.id) },
+                episodeOrder = orders?.let { orderInUse(it) },
+                onEpisodeOrder = { showOrders = true }.takeIf { orders != null },
             )
         }
+        EpisodeOrderSheet(
+            item, state.episodeOrders, open = showOrders, onChoose = vm::chooseEpisodeOrder, onDismiss = { showOrders = false },
+        )
     }
 }
 
@@ -400,6 +407,7 @@ private fun LazyListScope.seasonRows(
                     markError = state.episodeMarkError,
                     onClearMarkError = vm::clearEpisodeMarkError,
                     playError = links.problem?.takeIf { p -> state.episodes.any { it.id == p.origin.episode } }?.error,
+                    pending = state.reordering,
                 )
             }
         }
@@ -909,7 +917,8 @@ private fun episodeState(ep: MediaItem): String? =
 
 /**
  * A season's episodes: OK plays one, Menu or a long OK opens its options ([onOptions], null for a card without); a play
- * that failed ([playError]), else a mark that did not save ([markError]), is said under them until an OK there.
+ * that failed ([playError]), else a mark that did not save ([markError]), is said under them until an OK there. While
+ * the show's episodes are placed in another order ([pending]), the row says so by its title, its cards kept until then.
  */
 @Composable
 private fun Episodes(
@@ -923,10 +932,16 @@ private fun Episodes(
     markError: UiError?,
     onClearMarkError: () -> Unit,
     playError: UiError? = null,
+    pending: Boolean = false,
 ) {
     // The row and the overview of its focused episode come into view together.
     Column(Modifier.scrollsAsBlock().okClears(onClearMarkError)) {
-        MediaRow(header = header, modifier = memory.rowGroup(EPISODES), spacing = HlSpace.l) {
+        MediaRow(
+            header = header,
+            modifier = memory.rowGroup(EPISODES),
+            spacing = HlSpace.l,
+            pending = stringResource(R.string.episode_order_applying).takeIf { pending },
+        ) {
             items(episodes, key = { it.id }) { ep ->
                 LandscapeCard(
                     item = ep,

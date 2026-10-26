@@ -209,12 +209,30 @@ class PaneRowLineTest {
             line(R.string.update_check_never_desc, Beside.Check),
             line(R.string.update_stable_desc, Beside.Check),
             line(R.string.update_beta_desc, Beside.Check),
+        ) + orderLines(w) + listOf(
             // Titles not found: their answers, and the row of their folder's sheet.
             line(R.string.held_keep_desc),
             line(R.string.held_keep_desc_one),
             line(R.string.held_remove_desc),
             line(R.string.held_row_desc),
             line(R.string.held_row_desc_one),
+        )
+    }
+
+    /**
+     * A show's order of episodes: Modifier's row saying the one in use, by its icon, and the choices' lines beside their
+     * check, with TMDB's longest usual name of a group and a long show's counts, in German and Polish too.
+     */
+    private fun orderLines(w: Words): List<Line> = with(w) {
+        val fromNfo = local.getString(R.string.episode_order_auto_nfo, local.getString(R.string.episode_order_dvd))
+        val episodes = local.resources.getQuantityString(R.plurals.numbers_episodes, EPISODES, "1 234")
+        val seasons = local.resources.getQuantityString(R.plurals.season_count, MANY, MANY)
+        listOf(
+            Line(local.getString(R.string.episode_order_auto) + DOT + fromNfo, "$tag: episode_order (Modifier, NFO)", Beside.Icon),
+            Line(local.getString(R.string.episode_order_dvd) + DOT + GROUP, "$tag: episode_order (Modifier, a group)", Beside.Icon),
+            Line(fromNfo, "$tag: episode_order_auto_nfo", Beside.Check),
+            Line(seasons + DOT + episodes, "$tag: episode_order_aired", Beside.Check),
+            Line(GROUP + DOT + episodes, "$tag: an episode group", Beside.Check),
         )
     }
 
@@ -233,6 +251,10 @@ class PaneRowLineTest {
     private companion object {
         const val LARGEST = 1.3f
         const val MANY = 12
+
+        /** An episode group as TMDB names it, the longest of its usual names, and a long show's episodes. */
+        const val GROUP = "Original Air Date"
+        const val EPISODES = 1_234
 
         /** Between the parts of a source's line, and an account's name; a longer one ends in an ellipsis. */
         const val DOT = " · "

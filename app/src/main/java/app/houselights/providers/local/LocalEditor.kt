@@ -5,6 +5,9 @@ import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
 import app.houselights.core.ArtworkOption
 import app.houselights.core.ArtworkOrigin
+import app.houselights.core.EpisodeOrderChoices
+import app.houselights.core.EpisodeOrderKind
+import app.houselights.core.EpisodeOrderOption
 import app.houselights.core.FailureKind
 import app.houselights.core.Identity
 import app.houselights.core.MatchCandidate
@@ -177,6 +180,36 @@ class LocalEditor(
         scanner.identify(entity(item).id, candidate?.id?.toInt())
     }
 
+    /**
+     * A show's orders, from the library alone ([EpisodeOrderEntity]), as its scans listed them: TMDB's seasons, then its
+     * groups in TMDB's order; none until a group is known, so the choice never opens on nothing. Automatique follows the
+     * group its tvshow.nfo names ([NfoOrders]), else TMDB's seasons.
+     */
+    override suspend fun episodeOrders(item: MediaItem): EpisodeOrderChoices? {
+        val e = entity(item).takeIf { it.kind == ItemKind.SERIES } ?: return null
+        val rows = dao.episodeOrders(e.tmdbId ?: return null)
+        val groups = rows.filter { it.orderId != EpisodeOrderEntity.AIRED && it.places != EpisodeOrders.REFUSED }
+        if (groups.none { it.kind() != null }) return null
+        val counted = rows.firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }?.places
+        val seasons = OrderPlaces.aired(counted).orEmpty().filter { it.n > 0 }
+        val aired = EpisodeOrderOption(
+            EpisodeOrderEntity.AIRED, EpisodeOrderKind.AIRED, episodes = seasons.sumOf { it.c }, seasons = seasons.size,
+        )
+        val options = listOf(aired) + groups.mapNotNull { g ->
+            g.kind()?.let { EpisodeOrderOption(g.orderId, it, Typeset.text(g.name.ifBlank { null }), g.episodeCount) }
+        }
+        // Up to 1 MB of XML, so parse off the main thread.
+        val nfo = e.nfo?.let { text -> withContext(Dispatchers.Default) { NfoParser.parse(text) } }
+        val named = NfoOrders.groupOf(nfo, groups)?.let { g -> options.firstOrNull { it.id == g.orderId } }
+        val chosen = e.userEpisodeOrder?.takeIf { c -> options.any { it.id == c } }
+        return EpisodeOrderChoices(options, chosen, automatic = named ?: aired, fromNfo = named != null)
+    }
+
+    override suspend fun chooseEpisodeOrder(item: MediaItem, id: String?) {
+        if (client() == null) throw NoTmdbKeyException()
+        scanner.chooseOrder(entity(item).id, id)
+    }
+
     private suspend fun entity(item: MediaItem): ItemEntity =
         (LocalId.parse(item.id) as? LocalId.Item)?.let { dao.item(it.key) } ?: throw NotFoundException("Item ${item.id}")
 
@@ -209,6 +242,16 @@ class LocalEditor(
                 ArtworkKind.BACKDROP -> ImageType.BACKDROP
                 ArtworkKind.LOGO -> ImageType.LOGO
             }
+
+        /** TMDB's types of episode groups, as their kinds. */
+        val GROUP_KINDS = mapOf(
+            1 to EpisodeOrderKind.ORIGINAL_AIR_DATE, EpisodeOrderEntity.ABSOLUTE_TYPE to EpisodeOrderKind.ABSOLUTE,
+            3 to EpisodeOrderKind.DVD, 4 to EpisodeOrderKind.DIGITAL, EpisodeOrderEntity.STORY_ARC_TYPE to EpisodeOrderKind.STORY_ARC,
+            6 to EpisodeOrderKind.PRODUCTION, 7 to EpisodeOrderKind.TV,
+        )
+
+        /** The kind of a group's TMDB type ([EpisodeOrderEntity.type]); null for one this version does not know. */
+        fun EpisodeOrderEntity.kind(): EpisodeOrderKind? = GROUP_KINDS[type]
 
         /** The scanned value; a missing logo means [NONE], itself a selectable option. */
         fun ItemEntity.automaticValue(kind: ArtworkKind): String? = when (kind) {

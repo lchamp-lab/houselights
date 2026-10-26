@@ -68,6 +68,32 @@ data class Identity(
     val canSearch: Boolean,
 )
 
+/** The kinds of order a show's episodes can follow: TMDB's own seasons, then its episode groups' types. */
+enum class EpisodeOrderKind { AIRED, ORIGINAL_AIR_DATE, ABSOLUTE, DVD, DIGITAL, STORY_ARC, PRODUCTION, TV }
+
+/**
+ * One order a show's episodes can follow, by its [id]: TMDB's own seasons ([EpisodeOrderKind.AIRED], [seasons] of
+ * [episodes]), or one of its episode groups, of a [kind], by its [name] at TMDB ("DVD Order") and its [episodes].
+ */
+data class EpisodeOrderOption(
+    val id: String,
+    val kind: EpisodeOrderKind,
+    val name: String? = null,
+    val episodes: Int = 0,
+    val seasons: Int = 0,
+)
+
+/**
+ * The orders a show's episodes can follow ([options], TMDB's own seasons first), and the one chosen ([chosen], an
+ * option's id; null for Automatique, which follows [automatic], named by the show's NFO when [fromNfo]).
+ */
+data class EpisodeOrderChoices(
+    val options: List<EpisodeOrderOption>,
+    val chosen: String?,
+    val automatic: EpisodeOrderOption,
+    val fromNfo: Boolean = false,
+)
+
 /** Corrects automatic matching (artwork, identification); absent from a provider that cannot store choices. */
 interface MetadataEditor {
     /** Whether this editor can change [item]. */
@@ -85,4 +111,13 @@ interface MetadataEditor {
 
     /** Matches [item] with [candidate], or reverts to automatic matching when null. */
     suspend fun identify(item: MediaItem, candidate: MatchCandidate?)
+
+    /**
+     * The orders show [item]'s episodes can follow, read from the library alone, never waiting for the image database;
+     * null for another title, or a show known to be numbered one way only.
+     */
+    suspend fun episodeOrders(item: MediaItem): EpisodeOrderChoices? = null
+
+    /** Places show [item]'s episodes in the order [id] ([EpisodeOrderOption.id]), or the automatic one when null. */
+    suspend fun chooseEpisodeOrder(item: MediaItem, id: String?) = Unit
 }

@@ -907,4 +907,18 @@
     <string name="held_gone_fix">Plug the NAS’s disk back in or remove this title.</string>
     <string name="held_remove_title">Remove from the library</string>
     <string name="card_held">not found</string>
+    <!-- The order a show's episodes follow (Modifier › Ordre des épisodes). -->
+    <string name="episode_order">Episode order</string>
+    <string name="episode_order_text">Choose the order your files’ numbers follow. What you watched stays watched.</string>
+    <string name="episode_order_auto">Automatic</string>
+    <string name="episode_order_auto_nfo">%s, from the NFO</string>
+    <string name="episode_order_aired">TMDB seasons</string>
+    <string name="episode_order_original">Original air date</string>
+    <string name="episode_order_absolute">Absolute</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">Digital</string>
+    <string name="episode_order_story">Story arcs</string>
+    <string name="episode_order_production">Production</string>
+    <string name="episode_order_tv">TV</string>
+    <string name="episode_order_applying">Sorting the episodes…</string>
 </resources>

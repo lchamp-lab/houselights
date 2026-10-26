@@ -853,4 +853,17 @@
     <string name="held_gone_fix">NASのディスクをつなぎ直すか、この作品を削除してください。</string>
     <string name="held_remove_title">ライブラリから削除</string>
     <string name="card_held">見つかりません</string>
+    <string name="episode_order">エピソードの順番</string>
+    <string name="episode_order_text">ファイルの番号が従う順番を選んでください。視聴済みのものは視聴済みのままです。</string>
+    <string name="episode_order_auto">自動</string>
+    <string name="episode_order_auto_nfo">%s（NFOによる）</string>
+    <string name="episode_order_aired">TMDBのシーズン</string>
+    <string name="episode_order_original">初回放送日</string>
+    <string name="episode_order_absolute">通し番号</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">デジタル</string>
+    <string name="episode_order_story">ストーリー別</string>
+    <string name="episode_order_production">制作順</string>
+    <string name="episode_order_tv">テレビ</string>
+    <string name="episode_order_applying">エピソードを並べ替えています…</string>
 </resources>

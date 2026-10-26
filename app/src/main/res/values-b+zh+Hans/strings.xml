@@ -856,4 +856,17 @@
     <string name="held_gone_fix">请重新接上 NAS 的硬盘，或移除此作品。</string>
     <string name="held_remove_title">从媒体库移除</string>
     <string name="card_held">找不到</string>
+    <string name="episode_order">剧集顺序</string>
+    <string name="episode_order_text">选择您的文件编号所遵循的顺序。已观看的内容仍为已观看。</string>
+    <string name="episode_order_auto">自动</string>
+    <string name="episode_order_auto_nfo">%s（依据 NFO）</string>
+    <string name="episode_order_aired">TMDB 季</string>
+    <string name="episode_order_original">首播日期</string>
+    <string name="episode_order_absolute">绝对顺序</string>
+    <string name="episode_order_dvd">DVD</string>
+    <string name="episode_order_digital">数字版</string>
+    <string name="episode_order_story">故事线</string>
+    <string name="episode_order_production">制作顺序</string>
+    <string name="episode_order_tv">电视</string>
+    <string name="episode_order_applying">正在排列剧集…</string>
 </resources>

@@ -884,4 +884,17 @@
     <string name="held_gone_fix">Sluit de schijf van de NAS weer aan of verwijder deze titel.</string>
     <string name="held_remove_title">Uit de bibliotheek verwijderen</string>
     <string name="card_held">niet gevonden</string>
+    <string name="episode_order">Volgorde van afleveringen</string>
+    <string name="episode_order_text">Kies de volgorde die de nummers van uw bestanden volgen. Wat u hebt gezien, blijft gezien.</string>
+    <string name="episode_order_auto">Automatisch</string>
+    <string name="episode_order_auto_nfo">%s, volgens de NFO</string>
+    <string name="episode_order_aired">TMDB-seizoenen</string>
+    <string name="episode_order_original">Oorspronkelijke uitzenddatum</string>
+    <string name="episode_order_absolute">Absoluut</string>
+    <string name="episode_order_dvd">Dvd</string>
+    <string name="episode_order_digital">Digitaal</string>
+    <string name="episode_order_story">Verhaallijnen</string>
+    <string name="episode_order_production">Productie</string>
+    <string name="episode_order_tv">Tv</string>
+    <string name="episode_order_applying">Afleveringen worden gesorteerd…</string>
 </resources>
