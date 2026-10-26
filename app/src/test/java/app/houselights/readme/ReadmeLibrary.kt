@@ -135,6 +135,12 @@ internal class ReadmeLibrary(
         tmdbId,
     ) { getString(0) }
 
+    /** The titles of the show of TMDB id [tmdbId]'s episodes, as TMDB names them. */
+    fun episodes(tmdbId: Int): List<String> = query(
+        "SELECT title FROM items WHERE kind = 'EPISODE' AND seriesId = $SERIES ORDER BY seasonNumber, episodeNumber",
+        tmdbId,
+    ) { getString(0) }
+
     /** The films' and shows' titles TMDB gave, with what TMDB has of their pictures: the run's report. */
     fun report(): String = query(
         "SELECT kind, tmdbId, title, year, posterPath IS NOT NULL, backdropPath IS NOT NULL, logoPath IS NOT NULL, certification " +

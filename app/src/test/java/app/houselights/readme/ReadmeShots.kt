@@ -41,7 +41,9 @@ internal class ReadmeShots {
     fun show() {
         val library = camera.library
         camera.title(library.idOf(ReadmeTitles.SHOW_PAGE))
-        camera.pressUntil(Key.DirectionDown, library.nextEpisode(ReadmeTitles.SHOW_PAGE))
+        // Down to the episodes of the season of the next one, then along them to it.
+        camera.pressUntil(Key.DirectionDown, library.episodes(ReadmeTitles.SHOW_PAGE))
+        camera.pressUntil(Key.DirectionRight, library.nextEpisode(ReadmeTitles.SHOW_PAGE))
         camera.capture("show")
     }
 

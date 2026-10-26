@@ -374,12 +374,18 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
     }
 
     /** Presses [key] until focus is on what says [label] (its apostrophes as the app sets them), at most [limit] times. */
-    fun pressUntil(key: Key, label: String, limit: Int = 12) {
-        repeat(limit) {
-            if (focusedLabels().any { shown -> typeset(label) in typeset(shown) }) return
+    fun pressUntil(key: Key, label: String, limit: Int = 12) = pressUntil(key, listOf(label), limit)
+
+    /** Presses [key] until focus is on what says one of [labels], at most [limit] times. */
+    fun pressUntil(key: Key, labels: List<String>, limit: Int = 12) {
+        val seen = mutableListOf<List<String>>()
+        repeat(limit) { _ ->
+            val focused = focusedLabels()
+            seen += focused
+            if (focused.any { shown -> labels.any { label -> typeset(label) in typeset(shown) } }) return
             press(key)
         }
-        assertFocusOn(label)
+        fail("Focus never reached ${labels.take(3)}…, only $seen")
     }
 
     /** What the focused elements say (text, then description), in every window. */
