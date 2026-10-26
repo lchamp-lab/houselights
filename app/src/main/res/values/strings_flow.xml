@@ -48,7 +48,7 @@
     <string name="choose_folder">Choose this folder</string>
     <string name="subfolders">Subfolders</string>
     <string name="opening">Opening…</string>
-    <string name="folder_holds_both">Holds Movies and TV shows: open one of them</string>
+    <string name="folder_holds_both">Holds Movies and TV shows: open one</string>
     <string name="folder_inside_added">In “%s”, already in the library</string>
     <string name="folder_holds_added">Holds “%s”, already in the library</string>
     <string name="folder_empty_short">No video and no subfolder</string>

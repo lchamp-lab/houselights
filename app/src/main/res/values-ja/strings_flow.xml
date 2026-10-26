@@ -24,7 +24,7 @@
     <plurals name="share_holds_many">
         <item quantity="other">ライブラリのフォルダを%d個含む</item>
     </plurals>
-    <string name="not_allowed">許可されていません</string>
+    <string name="not_allowed">許可なし</string>
     <string name="access_refused">アクセス拒否</string>
     <string name="failed_short">失敗</string>
     <string name="type_path">パスを入力</string>

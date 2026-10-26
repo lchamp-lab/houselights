@@ -2,6 +2,7 @@ package app.houselights.ui.onboarding
 
 import app.houselights.ui.design.TwoPaneDefaults
 import android.content.Context
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
@@ -60,6 +61,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.IOException
@@ -234,11 +236,20 @@ class FormLayoutTest {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, LARGEST_TEXT)) { AddFolderFlow(flow) }
         }
-        compose.waitUntil { flow.ready }
+        // The flow's work on other threads comes back on the main looper, which compose's waitUntil does not run here.
+        fun until(done: () -> Boolean) {
+            val end = System.currentTimeMillis() + FLOW_WAIT_MS
+            while (!done() && System.currentTimeMillis() < end) {
+                shadowOf(Looper.getMainLooper()).idle()
+                compose.waitForIdle()
+            }
+            assertTrue("the flow went on", done())
+        }
+        until { flow.ready }
         flow.chooseUsed(flow.used.single())
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         flow.openShare(FlowShare("/volume1/photo"))
-        compose.waitUntil { flow.message != null }
+        until { flow.message != null }
         compose.waitForIdle()
         val said = compose.activity.getString(R.string.error_nfs_refused, FakeFlowNetwork.PLAYER, wholePath("/volume1/photo"))
         val box = compose.onNodeWithText(said, useUnmergedTree = true).getUnclippedBoundsInRoot()
@@ -304,5 +315,8 @@ class FormLayoutTest {
 
         /** The largest text size Android TV offers. */
         const val LARGEST_TEXT = 1.3f
+
+        /** How long « Ajouter un dossier » may take to answer its fake network. */
+        const val FLOW_WAIT_MS = 5_000L
     }
 }

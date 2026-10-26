@@ -42,6 +42,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -94,13 +95,17 @@ class FlowServerTest {
         assertEquals(setOf(Protocol.SMB, Protocol.NFS), network.protocols(TestServers.host))
     }
 
-    /** Its exports, each with the clients it allows: this player among them, but for /volume1/private's. */
+    /**
+     * Its exports, each with the clients it allows: /volume1/private refuses this player, so step 4 marks it; unfs3 names
+     * the clients of the others as only it resolves them (« * » as a pattern), which leaves them unmarked, not refused.
+     */
     @Test
     fun theExportsAreListedWithTheClientsTheyAllow() = runBlocking {
         val exports = network.exports(TestServers.host).associateBy { it.path }
         assertTrue("${exports.keys}", exports.keys.containsAll(listOf("/volume1/video", "/volume1/media", "/volume1/private")))
         val player = network.player()
-        assertEquals(ExportAccess.ALLOWED, exportAccess(exports.getValue("/volume1/video").groups, player))
+        val video = exports.getValue("/volume1/video").groups
+        assertNotEquals("$video", ExportAccess.REFUSED, exportAccess(video, player))
         assertEquals(ExportAccess.REFUSED, exportAccess(exports.getValue("/volume1/private").groups, player))
     }
 

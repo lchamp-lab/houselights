@@ -1,6 +1,7 @@
 package app.houselights.ui.onboarding
 
 import android.content.Context
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -53,6 +54,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -101,9 +103,24 @@ class AddFolderFlowTest {
         library = LocalLibrary(context, db.dao(), scanner, artwork) {}
         val flow = FolderFlow(network, library, scope, useFolders = { false }, saved = saved)
         compose.setTvContent { AddFolderFlow(flow, onLeave = { left = true }, onDone = { done = it }) }
-        compose.waitUntil { flow.ready }
+        until { flow.ready }
         compose.waitForIdle()
         return flow
+    }
+
+    /**
+     * Waits for [done], running the main looper as it goes: the flow's work that went to another thread (a save, this
+     * player's address) comes back there, which compose's own waitUntil does not run under Robolectric.
+     */
+    private fun until(done: () -> Boolean) {
+        val end = System.currentTimeMillis() + WAIT_MS
+        while (!done()) {
+            shadowOf(Looper.getMainLooper()).idle()
+            compose.waitForIdle()
+            if (done()) return
+            check(System.currentTimeMillis() < end) { "Still waiting after $WAIT_MS ms" }
+            Thread.sleep(POLL_MS)
+        }
     }
 
     private fun focusIsOn(words: String) = compose.onNode(isFocused() and hasText(words, substring = true)).assertExists()
@@ -176,24 +193,24 @@ class AddFolderFlowTest {
         focusIsOn("DS920")
         compose.onNodeWithText(DS920 + FACT_GAP + "Films", useUnmergedTree = true).assertExists()
         ok()
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         compose.waitForIdle()
         focusIsOn("video")
         assertEquals("1026" to "100", flow.uid to flow.gid)
         ok()
-        compose.waitUntil { flow.step == FlowStep.BROWSE }
+        until { flow.step == FlowStep.BROWSE }
         compose.waitForIdle()
         focusIsOn("Séries")
         ok()
-        compose.waitUntil { flow.path == listOf("Séries") }
+        until { flow.path == listOf("Séries") }
         compose.waitForIdle()
         focusIsOn(text(R.string.choose_folder))
         ok()
-        compose.waitUntil { flow.step == FlowStep.KIND }
+        until { flow.step == FlowStep.KIND }
         compose.waitForIdle()
         focusIsOn(text(R.string.library_shows))
         ok()
-        compose.waitUntil { done != null }
+        until { done != null }
         val added = runBlocking { db.dao().sources() }.single { it.path == "Séries" }
         val where = listOf(added.kind, added.protocol, added.host, added.share)
         assertEquals(listOf(SourceKind.SHOWS, Protocol.NFS, DS920, "volume1/video"), where)
@@ -206,12 +223,12 @@ class AddFolderFlowTest {
     fun backGoesUpALevelThenAStep() {
         val flow = flow(films)
         ok()
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         ok()
-        compose.waitUntil { flow.step == FlowStep.BROWSE }
+        until { flow.step == FlowStep.BROWSE }
         compose.waitForIdle()
         flow.openFolder("Films2")
-        compose.waitUntil { flow.path == listOf("Films2") }
+        until { flow.path == listOf("Films2") }
         compose.waitForIdle()
         focusIsOn(text(R.string.choose_folder))
         back()
@@ -235,16 +252,16 @@ class AddFolderFlowTest {
     fun eachRowSaysHowItStandsToTheLibrary() {
         val flow = flow(films)
         ok()
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         compose.waitForIdle()
         compose.onNodeWithText("/volume1/video" + FACT_GAP + text(R.string.share_holds_one, "Films"), useUnmergedTree = true).assertExists()
         ok()
-        compose.waitUntil { flow.step == FlowStep.BROWSE }
+        until { flow.step == FlowStep.BROWSE }
         compose.waitForIdle()
         compose.onNode(hasText(text(R.string.folder_holds_added, "Films"))).assertIsNotEnabled()
         compose.onNode(hasText("Films") and hasText(text(R.string.folder_overlaps_state))).assertIsNotEnabled()
         flow.openFolder("Archives 2019")
-        compose.waitUntil { flow.path == listOf("Archives 2019") }
+        until { flow.path == listOf("Archives 2019") }
         compose.waitForIdle()
         focusIsOn(text(R.string.folder_empty_short))
         compose.onNode(hasText(text(R.string.folder_empty_short))).assertIsNotEnabled()
@@ -258,22 +275,22 @@ class AddFolderFlowTest {
     fun aLevelSaysWhatItHolds() {
         val flow = flow()
         flow.chooseFound(ds920)
-        compose.waitUntil { flow.step == FlowStep.PROTOCOLS }
+        until { flow.step == FlowStep.PROTOCOLS }
         compose.waitForIdle()
         focusIsOn("SMB")
         flow.chooseProtocol(Protocol.NFS)
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         flow.openShare(FlowShare("/volume1/media"))
-        compose.waitUntil { flow.step == FlowStep.BROWSE }
+        until { flow.step == FlowStep.BROWSE }
         compose.waitForIdle()
         // At an export's root, an empty library: the first subfolder named for either kind.
         focusIsOn("Films")
         compose.onNodeWithText(text(R.string.folder_holds_both), useUnmergedTree = true).assertExists()
         back()
         flow.openShare(FlowShare("/volume1/video"))
-        compose.waitUntil { flow.step == FlowStep.BROWSE }
+        until { flow.step == FlowStep.BROWSE }
         flow.openFolder("Films2")
-        compose.waitUntil { flow.path == listOf("Films2") }
+        until { flow.path == listOf("Films2") }
         compose.waitForIdle()
         val folders = context.resources.getQuantityString(R.plurals.folder_count, FakeFlowNetwork.FILMS2, FakeFlowNetwork.FILMS2)
         val videos = context.resources.getQuantityString(R.plurals.video_count, 2, 2)
@@ -288,13 +305,13 @@ class AddFolderFlowTest {
     fun anExportNotAllowedSaysWhatToAllow() {
         val flow = flow(films)
         ok()
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.not_allowed), useUnmergedTree = true).assertExists()
         down()
         focusIsOn("photo")
         ok()
-        compose.waitUntil { flow.message != null }
+        until { flow.message != null }
         compose.waitForIdle()
         focusIsOn("photo")
         val said = text(R.string.error_nfs_refused, PLAYER, wholePath("/volume1/photo"))
@@ -316,7 +333,7 @@ class AddFolderFlowTest {
         // OK on it again does nothing: one call.
         ok()
         exports.complete(Unit)
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         assertEquals(1, network.asked.count { it.startsWith("exports") })
     }
 
@@ -333,7 +350,7 @@ class AddFolderFlowTest {
         assertEquals(FieldError(FIELD_HOST, FlowMessage.Missing(R.string.error_host_missing)), flow.fieldError)
         flow.type(FIELD_HOST, SILENT_NAS)
         flow.continueAddress()
-        compose.waitUntil { flow.fieldError != null }
+        until { flow.fieldError != null }
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.error_nas_unreachable, SILENT_NAS), useUnmergedTree = true).assertExists()
         compose.onNodeWithText(text(R.string.connection_failed), useUnmergedTree = true).assertExists()
@@ -352,22 +369,22 @@ class AddFolderFlowTest {
     fun aRefusedPasswordIsSaidUnderIt() {
         val flow = flow()
         flow.chooseFound(ds920)
-        compose.waitUntil { flow.step == FlowStep.PROTOCOLS }
+        until { flow.step == FlowStep.PROTOCOLS }
         ok()
-        compose.waitUntil { flow.step == FlowStep.ACCOUNT }
+        until { flow.step == FlowStep.ACCOUNT }
         compose.waitForIdle()
         compose.onNode(isFocused() and hasContentDescription(text(R.string.field_user))).assertExists()
         flow.type(FIELD_USER, USER)
         flow.type(FIELD_PASSWORD, "wrong")
         flow.signIn()
-        compose.waitUntil { flow.fieldError != null }
+        until { flow.fieldError != null }
         compose.waitForIdle()
         assertEquals(FieldError(FIELD_PASSWORD, FlowMessage.LoginRefused), flow.fieldError)
         compose.onNodeWithText(text(R.string.error_login_failed), useUnmergedTree = true).assertExists()
         compose.onNodeWithText(text(R.string.connection_ok), useUnmergedTree = true).assertExists()
         flow.type(FIELD_PASSWORD, PASSWORD)
         flow.signIn()
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         compose.waitForIdle()
         focusIsOn("home")
         compose.onNodeWithText(text(R.string.change_account_desc, USER), useUnmergedTree = true).assertExists()
@@ -379,21 +396,21 @@ class AddFolderFlowTest {
     fun aGuestIsSaidUnderTheUser() {
         val flow = flow()
         flow.chooseFound(ds920)
-        compose.waitUntil { flow.step == FlowStep.PROTOCOLS }
+        until { flow.step == FlowStep.PROTOCOLS }
         flow.chooseProtocol(Protocol.SMB)
-        compose.waitUntil { flow.step == FlowStep.ACCOUNT }
+        until { flow.step == FlowStep.ACCOUNT }
         network.guests = false
         flow.signIn(asGuest = true)
-        compose.waitUntil { flow.fieldError != null }
+        until { flow.fieldError != null }
         assertEquals(FieldError(FIELD_USER, FlowMessage.GuestRefused), flow.fieldError)
         network.guests = true
         flow.signIn(asGuest = true)
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.change_account_guest_desc), useUnmergedTree = true).assertExists()
         // A share not open to guests says so, and where to go.
         flow.openShare(FlowShare("video"))
-        compose.waitUntil { flow.message != null }
+        until { flow.message != null }
         assertEquals(FlowMessage.GuestShare("video"), flow.message)
     }
 
@@ -402,7 +419,7 @@ class AddFolderFlowTest {
     fun theAccountOfTheNasIsReused() {
         val flow = flow(smbFilms)
         ok()
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         compose.waitForIdle()
         focusIsOn("video")
         assertEquals("", flow.password)
@@ -417,18 +434,18 @@ class AddFolderFlowTest {
     fun aPathTypedOpensItsFolderAndTheNasProposesWhatItMeant() {
         val flow = flow(films)
         ok()
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         flow.typePath()
         compose.waitForIdle()
         flow.type(FIELD_PATH, "media")
         flow.continuePath()
-        compose.waitUntil { flow.suggestion != null }
+        until { flow.suggestion != null }
         compose.waitForIdle()
         assertEquals("/volume1/media", flow.suggestion)
         assertEquals(FieldError(FIELD_PATH, FlowMessage.NoExport("media")), flow.fieldError)
         focusIsOn(text(R.string.use_suggestion, "/volume1/media"))
         ok()
-        compose.waitUntil { flow.step == FlowStep.BROWSE }
+        until { flow.step == FlowStep.BROWSE }
         compose.waitForIdle()
         focusIsOn(text(R.string.choose_folder))
         assertEquals("/volume1/media" to emptyList<String>(), flow.share?.path to flow.path)
@@ -438,7 +455,7 @@ class AddFolderFlowTest {
         flow.typePath()
         flow.type(FIELD_PATH, "/volume1/video/Films2")
         flow.continuePath()
-        compose.waitUntil { flow.step == FlowStep.BROWSE }
+        until { flow.step == FlowStep.BROWSE }
         compose.waitForIdle()
         assertEquals("/volume1/video" to listOf("Films2"), flow.share?.path to flow.path)
         focusIsOn(text(R.string.choose_folder))
@@ -449,11 +466,11 @@ class AddFolderFlowTest {
     fun aSubfolderMisspelledIsProposed() {
         val flow = flow(films)
         ok()
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         flow.typePath()
         flow.type(FIELD_PATH, "/volume1/video/Spectcles")
         flow.continuePath()
-        compose.waitUntil { flow.fieldError != null }
+        until { flow.fieldError != null }
         assertEquals(FieldError(FIELD_PATH, FlowMessage.NoFolder("/volume1/video", smb = false, name = "Spectcles")), flow.fieldError)
         assertEquals("/volume1/video/Spectacles", flow.suggestion)
     }
@@ -467,14 +484,14 @@ class AddFolderFlowTest {
         network.exports = null
         val flow = flow(films)
         ok()
-        compose.waitUntil { flow.step == FlowStep.TYPE_PATH }
+        until { flow.step == FlowStep.TYPE_PATH }
         compose.waitForIdle()
         assertTrue(flow.noList)
         compose.onNodeWithText(text(R.string.flow_path_no_list_desc), useUnmergedTree = true).assertExists()
         compose.onNodeWithText(text(R.string.nfs_identity_title), useUnmergedTree = true).assertExists()
         flow.type(FIELD_PATH, "/volume1/video/Films2")
         flow.continuePath()
-        compose.waitUntil { flow.step == FlowStep.BROWSE }
+        until { flow.step == FlowStep.BROWSE }
         assertEquals("/volume1/video/Films2" to emptyList<String>(), flow.share?.path to flow.path)
         back()
         assertEquals(FlowStep.TYPE_PATH, flow.step)
@@ -488,19 +505,24 @@ class AddFolderFlowTest {
         val saved = SavedStateHandle()
         val flow = flow(films, saved = saved)
         ok()
-        compose.waitUntil { flow.step == FlowStep.SHARES }
+        until { flow.step == FlowStep.SHARES }
         ok()
-        compose.waitUntil { flow.step == FlowStep.BROWSE }
+        until { flow.step == FlowStep.BROWSE }
         flow.openFolder("Films2")
-        compose.waitUntil { flow.path == listOf("Films2") }
+        until { flow.path == listOf("Films2") }
         compose.waitForIdle()
 
         val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
-        compose.waitUntil { again.ready }
+        until { again.ready }
         assertEquals(FlowStep.BROWSE, again.step)
         assertEquals(listOf("Films2"), again.path)
         assertEquals(flow.level, again.level)
         assertEquals("/volume1/video", again.share?.path)
         assertEquals(FlowKeys.CHOOSE, again.aim?.key)
+    }
+
+    private companion object {
+        const val WAIT_MS = 5_000L
+        const val POLL_MS = 10L
     }
 }

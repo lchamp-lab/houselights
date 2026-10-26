@@ -49,7 +49,7 @@
     <string name="choose_folder">Choisir ce dossier</string>
     <string name="subfolders">Sous-dossiers</string>
     <string name="opening">Ouverture…</string>
-    <string name="folder_holds_both">Contient Films et Séries : ouvrez l’un des deux</string>
+    <string name="folder_holds_both">Contient Films et Séries : ouvrez l’un d’eux</string>
     <string name="folder_inside_added">Dans « %s », déjà dans la bibliothèque</string>
     <string name="folder_holds_added">Contient « %s », déjà dans la bibliothèque</string>
     <string name="folder_empty_short">Ni vidéo ni sous-dossier</string>
