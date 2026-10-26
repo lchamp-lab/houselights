@@ -23,6 +23,17 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("Le Comte de Monte-Cristo", 2024), movie("Le Comte de Monte-Cristo [2024] MULTi VFF 2160p.mkv"))
     }
 
+    /** Ids in names ([NameIds]) are no part of the title, nor its year, whatever surrounds them. */
+    @Test
+    fun anIdInParenthesesNeverReachesTheTitleOrTheYear() {
+        assertEquals(ParsedMovie("Film", 2020), movie("Film (tmdb-1999) (2020).mkv"))
+        assertEquals(ParsedMovie("Dune", 2021), movie("Dune (2021) (imdb-tt1160419).mkv"))
+        assertEquals(ParsedMovie("Dune", 2021), movie("Dune (2021) {tmdb-438631} [Bluray-2160p].mkv"))
+        assertEquals(ParsedMovie("Dune", 2021), movie("Dune (2021) [tmdbid=438631].mkv"))
+        assertEquals(ParsedMovie("Dune", null), movie("Dune (tmdb-2021).mkv"))
+        assertEquals("a year in parentheses stays", ParsedMovie("Dune", 2021), movie("Dune (2021).mkv"))
+    }
+
     @Test
     fun releaseTagsWithoutAYearEndTheTitle() {
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.MULTi.2160p.WEB-DL.mkv"))

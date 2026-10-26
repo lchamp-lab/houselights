@@ -29,6 +29,14 @@ private const val TITLE_OF_COPY = "NULLIF((SELECT MIN(o.id) FROM items o WHERE o
 /** Groups each film's copies, writing only rows whose versionOf changes (see [LibraryDao.groupVersions]). */
 internal const val GROUP_VERSIONS = "UPDATE items SET versionOf = $TITLE_OF_COPY WHERE kind = 'MOVIE' AND versionOf IS NOT $TITLE_OF_COPY"
 
+/**
+ * Films and shows to identify: TMDB found nothing for them or hesitated ([MatchState]) and they have no TMDB id, unless
+ * the user left them as they are; a file held missing is not ([MissingFiles]).
+ */
+internal const val TO_IDENTIFY =
+    "kind IN ('MOVIE', 'SERIES') AND matchState IN ('NOT_FOUND', 'UNSURE') AND tmdbId IS NULL AND userNoMatch = 0 " +
+        "AND missingSince IS NULL"
+
 /** The keys of the local films' and shows' choices of tracks ([tracksKey]). */
 private const val TRACK_KEYS =
     "SELECT CASE WHEN kind = 'MOVIE' AND tmdbId IS NOT NULL THEN 'local:film:' || tmdbId ELSE 'local:' || id END " +
@@ -130,8 +138,8 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     suspend fun filesOf(sourceId: Long): List<ItemEntity>
 
     @Query(
-        "SELECT id, filePath, parts, fileSize, missingSince, seriesId, tmdbId, userTmdbId, matchedAt, sidecarKey, probeVersion " +
-            "FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL"
+        "SELECT id, filePath, parts, fileSize, missingSince, seriesId, tmdbId, userTmdbId, matchedAt, sidecarKey, probeVersion, " +
+            "hintKey FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL"
     )
     suspend fun knownFiles(sourceId: Long): List<KnownFile>
 
@@ -247,6 +255,14 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND kind IN ('MOVIE','SERIES')")
     fun observeTitleCount(sourceId: Long): Flow<Int>
+
+    /** How many films and shows are to identify ([TO_IDENTIFY]). */
+    @Query("SELECT COUNT(*) FROM items WHERE $TO_IDENTIFY")
+    fun observeToIdentifyCount(): Flow<Int>
+
+    /** The films and shows to identify ([TO_IDENTIFY]), the latest added first. */
+    @Query("SELECT $CARD_ROW FROM items WHERE $TO_IDENTIFY ORDER BY addedAt DESC, id DESC")
+    suspend fun toIdentify(): List<ItemEntity>
 
     @Query("SELECT COUNT(*) FROM items WHERE kind IN ('MOVIE','SERIES')")
     fun observeAllTitleCount(): Flow<Int>
@@ -493,10 +509,10 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     suspend fun inTransaction(writes: suspend () -> Unit) = writes()
 
     /**
-     * Saves scan results, keeping columns the scan does not own, which may change meanwhile: user artwork and match,
-     * favourite, watched state, resume point, chosen copy, versionOf, creditsAt, and the arrival, which a title back
-     * takes again ([giveBack]) and a new episode moves ([setAddedAt]). Reindexes search words on rename; a film
-     * matched anew takes its choice of tracks to its new key.
+     * Saves scan results, keeping columns the scan does not own, which may change meanwhile: user artwork and match, a
+     * title left as it is, favourite, watched state, resume point, chosen copy, versionOf, creditsAt, and the arrival,
+     * which a title back takes again ([giveBack]) and a new episode moves ([setAddedAt]). Reindexes search words on
+     * rename; a film matched anew takes its choice of tracks to its new key.
      */
     @Transaction
     suspend fun saveScanned(item: ItemEntity) {
@@ -507,6 +523,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
                 userPosterPath = current.userPosterPath,
                 userBackdropPath = current.userBackdropPath,
                 userLogoPath = current.userLogoPath,
+                userNoMatch = current.userNoMatch,
                 positionMs = current.positionMs,
                 durationMs = current.durationMs,
                 played = current.played,

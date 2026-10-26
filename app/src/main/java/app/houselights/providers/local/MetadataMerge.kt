@@ -128,23 +128,35 @@ object MetadataMerge {
         nfo?.directors?.takeIf { it.isNotEmpty() } ?: tmdb?.directors
 
     /**
-     * True when the NFO describes another title than the user's match, by TMDB id, else IMDb, else TVDB id (often all
-     * a Sonarr NFO has). Without a comparable id, the NFO is kept.
+     * True when the NFO describes another title than the one chosen, the user's match or the one its name's id named
+     * ([chosenTmdbId]), by TMDB id, else IMDb, else TVDB id (often all a Sonarr NFO has). Without a comparable id, the
+     * NFO is kept.
      */
-    fun describesOther(nfo: NfoInfo, userTmdbId: Int?, imdbId: String?, tvdbId: Int? = null): Boolean {
+    fun describesOther(nfo: NfoInfo, chosenTmdbId: Int?, imdbId: String?, tvdbId: Int? = null): Boolean {
         val nfoTvdbId = nfo.tvdbId?.trim()?.toIntOrNull()
         return when {
-            userTmdbId == null -> false
-            nfo.tmdbId != null -> nfo.tmdbId != userTmdbId
+            chosenTmdbId == null -> false
+            nfo.tmdbId != null -> nfo.tmdbId != chosenTmdbId
             nfo.imdbId != null && !imdbId.isNullOrBlank() -> !nfo.imdbId.equals(imdbId, ignoreCase = true)
             nfoTvdbId != null && tvdbId != null && tvdbId > 0 -> nfoTvdbId != tvdbId
             else -> false
         }
     }
 
-    /** Keeps only what the file or folder name gives, dropping details of a previous match. */
+    /**
+     * What TMDB made of [item], merged ([MatchState]): matched with a TMDB id, TMDB's or its NFO's; else, once TMDB
+     * answered [lookup], not found; else as it was.
+     */
+    internal fun matchState(item: ItemEntity, lookup: TmdbAnswer<*>?): MatchState? = when {
+        item.tmdbId != null -> MatchState.MATCHED
+        lookup is TmdbAnswer.Given -> MatchState.NOT_FOUND
+        else -> item.matchState
+    }
+
+    /** Keeps only what the file or folder name gives, dropping details of a previous match and what TMDB made of it. */
     fun withoutDetails(item: ItemEntity, title: String, year: Int?) = item.copy(
         tmdbId = null,
+        matchState = null,
         title = title,
         sortTitle = sortKey(title),
         originalTitle = null,

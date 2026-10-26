@@ -142,7 +142,7 @@ private const val ROW_BODY =
 private const val ROW_TAIL =
     ", probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
         "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
-        "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt"
+        "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt, matchState, hintKey, userNoMatch"
 
 /** Every item column except the NFO text, which can reach 1 MB; such rows must never be written back. */
 const val ITEM_ROW = ROW_HEAD + "overview, tagline, " + ROW_BODY + "mediaInfo" + ROW_TAIL
@@ -167,6 +167,8 @@ data class KnownFile(
     val matchedAt: Long? = null,
     val sidecarKey: String? = null,
     val probeVersion: Int = 0,
+    /** See [ItemEntity.hintKey]. */
+    val hintKey: String? = null,
 )
 
 internal fun KnownFile.sizeChanged(file: RemoteFile): Boolean = fileSize != null && fileSize != file.size
@@ -240,7 +242,7 @@ data class CollectionMember(
     indices = [
         Index("parentId"), Index("seriesId"), Index(value = ["sourceId", "filePath"]), Index("matchKey"), Index("collectionId"),
         Index(value = ["kind", "sortTitle"]), Index(value = ["kind", "addedAt"]), Index(value = ["kind", "lastPlayedAt"]),
-        Index(value = ["kind", "tmdbId"]), Index("versionOf"),
+        Index(value = ["kind", "tmdbId"]), Index("versionOf"), Index("matchState"),
     ],
 )
 data class ItemEntity(
@@ -317,6 +319,36 @@ data class ItemEntity(
     val votes: Int? = null,
     /** When credits became complete (TMDB answered or knows no such title); null for pre-v12 rows until [Backfill]. */
     val creditsAt: Long? = null,
+    /** What TMDB's last answer made of a film or show ([MatchState]); null for others, and while TMDB has not answered. */
+    val matchState: MatchState? = null,
+    /** The id its name gave when its last lookup tried it ([NameIds.key]); a name giving another has it looked up again. */
+    val hintKey: String? = null,
+    /** The user's: a film or show left as it is, never to identify ([TO_IDENTIFY]). Scans never override it. */
+    val userNoMatch: Boolean = false,
+)
+
+/**
+ * A film or show as TMDB's last answer left it: [MATCHED] whenever it has a TMDB id; else [NOT_FOUND] when TMDB had
+ * nothing for it, [UNSURE] when several candidates came and none was clearly ahead ([SuggestionEntity] holds them).
+ */
+enum class MatchState { MATCHED, NOT_FOUND, UNSURE }
+
+/**
+ * One of a film's or show's best TMDB candidates when none was clearly ahead ([MatchState.UNSURE]), [rank] 0 the best,
+ * so they can be offered without asking TMDB again; replaced at each answer, deleted with the title.
+ */
+@Entity(tableName = "suggestions", primaryKeys = ["itemId", "rank"])
+data class SuggestionEntity(
+    val itemId: Long,
+    val rank: Int,
+    val tmdbId: Int,
+    val title: String,
+    val originalTitle: String? = null,
+    val year: Int? = null,
+    val overview: String? = null,
+    val posterPath: String? = null,
+    /** Its score, from 0 to 1, the best candidates scoring highest. */
+    val score: Double,
 )
 
 /** A saga, from the NFO's set or TMDB's "belongs to collection"; deleted once no film is left. */

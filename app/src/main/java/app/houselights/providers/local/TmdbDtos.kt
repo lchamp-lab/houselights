@@ -152,6 +152,16 @@ data class TmdbTv(
     val externalIds: TmdbExternalIds = TmdbExternalIds(),
 )
 
+/** A film's other titles, by country ([titles]), or a show's ([results]): its name abroad, its working titles. */
+@Serializable
+data class TmdbAlternativeTitles(
+    @Serializable(with = EntryByEntry::class) val titles: List<TmdbAlternativeTitle> = emptyList(),
+    @Serializable(with = EntryByEntry::class) val results: List<TmdbAlternativeTitle> = emptyList(),
+)
+
+@Serializable
+data class TmdbAlternativeTitle(val title: String, @SerialName("iso_3166_1") val iso31661: String? = null)
+
 /** A show's IMDb and TheTVDB ids, which may be all a (Sonarr) NFO has. */
 @Serializable
 data class TmdbExternalIds(val imdbId: String? = null, val tvdbId: Int? = null)

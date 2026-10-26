@@ -206,13 +206,16 @@ class TmdbClient(
 
     /** All posters, backdrops and logos in the client's language, English, or without text. */
     suspend fun images(tmdbId: Int, show: Boolean): TmdbImageSet =
-        call { if (show) it.tvImages(tmdbId, imageLanguages) else it.movieImages(tmdbId, imageLanguages) }
+        call { it.images(kindOf(show), tmdbId, imageLanguages) }
 
     /** TMDB ids of the film and show matching an IMDb id. */
     suspend fun findByImdb(imdbId: String): Pair<Int?, Int?> = unlessMissing {
         val r = call { it.find(imdbId) }
         r.movieResults.firstOrNull()?.id to r.tvResults.firstOrNull()?.id
     } ?: (null to null)
+
+    /** TMDB id of the show a TheTVDB id names (Sonarr's, in its NFO or its folder's name); null when TMDB has none. */
+    suspend fun findByTvdb(tvdbId: Int): Int? = unlessMissing { call { it.find(tvdbId.toString(), "tvdb_id") }.tvResults.firstOrNull()?.id }
 
     suspend fun findTv(title: String, year: Int?): TmdbTv? {
         val hit = call { it.searchTv(title, year, language) }.results.firstOrNull()
@@ -221,9 +224,18 @@ class TmdbClient(
         return unlessMissing { call { it.tv(hit.id, language, imageLanguages) } }
     }
 
+    /** A film's or show's [show] other titles, in every country; none when TMDB has no such entry. */
+    suspend fun alternativeTitles(id: Int, show: Boolean): List<String> = unlessMissing {
+        val all = call { it.alternativeTitles(kindOf(show), id) }
+        (all.titles + all.results).map { it.title }
+    }.orEmpty()
+
     suspend fun season(tvId: Int, season: Int): TmdbSeason? = unlessMissing { call { it.season(tvId, season, language) } }
 
     suspend fun collection(id: Int): TmdbCollection? = unlessMissing { call { it.collection(id, language) } }
+
+    /** The kind a path of TMDB's names a film or show [show] by. */
+    private fun kindOf(show: Boolean) = if (show) "tv" else "movie"
 
     /** Null on 404; any other failure throws. */
     private inline fun <T> unlessMissing(block: () -> T): T? = try {

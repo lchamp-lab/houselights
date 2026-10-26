@@ -2,11 +2,12 @@ package app.houselights.providers.local
 
 import app.houselights.core.Editions
 import app.houselights.core.NfoInfo
+import app.houselights.core.yearOf
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
 /** Indexes films: file, NFO and artwork, TMDB match and collection. */
-internal class MovieIndexer(private val dao: LibraryDao, private val files: ScanFiles) {
+internal class MovieIndexer(private val dao: LibraryDao, private val files: ScanFiles, private val clock: () -> Long) {
     /** Collections already fetched from TMDB during the current pass. */
     private val refreshedCollections = mutableSetOf<Long>()
 
@@ -14,10 +15,12 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
     suspend fun process(pass: ScanPass, file: RemoteFile, existing: ItemEntity?) {
         val source = pass.source
-        val now = System.currentTimeMillis()
+        val now = clock()
         // A multi-file film is named without the part suffix and read through its first file.
         val stack = pass.stacks.stackAt(file.relativePath)
-        val parsed = LibraryScanner.parseMovie(stack?.namedPath ?: file.relativePath)
+        val named = stack?.namedPath ?: file.relativePath
+        val parsed = LibraryScanner.parseMovie(named)
+        val names = NameIds.ofFilm(named, pass.singleTitleFolders)
         val local = pass.sidecars.forVideo(file)
         val row = existing ?: inserted(pass, file, parsed, stack, now)
         // Its TMDB id before this read: one it gains gives it back what was kept under it ([giveBack]).
@@ -29,27 +32,32 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         // The probe reads the NAS while TMDB answers; the file's tracks and its match are then saved at once.
         val (probed, answers) = coroutineScope {
             val probed = async { files.withMediaInfo(source, file, row) }
-            val answers = if (asked.write) fetch(pass, row, nfo, parsed, asked) else null
+            val answers = if (asked.write) fetch(pass, row, Query(row.userTmdbId, names, nfo, parsed, row.tmdbId), asked) else null
             probed.await() to answers
         }
-        var item = probed
         val fetched = answers ?: run {
             // Nothing usable (e.g. an unparsable release NFO): still record the sidecar key so scans skip it.
             val read = SidecarKey.of(local.copy(nfo = local.nfo.takeUnless { kept.stale }))
-            if (item != row || read != item.sidecarKey) dao.saveScanned(item.copy(sidecarKey = read))
+            if (probed != row || read != probed.sidecarKey) dao.saveScanned(probed.copy(sidecarKey = read))
             // Nothing asked of TMDB nor read from an NFO: a film neither names may be the one kept in its folder.
-            if (was == null) givenBackByName(item)
+            if (was == null) givenBackByName(probed)
             return
         }
-        // Details dropped without a TMDB answer: the next scan queries TMDB again.
-        if (asked.sidecarsRemoved) {
-            item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
-                .let { if (fetched.answered) it else it.copy(matchedAt = null) }
-        }
-        item = namedAsAFilm(item, file, parsed, fetched)
+        val item = namedAsAFilm(cleared(probed, parsed, fetched, asked), file, parsed, fetched)
         val art = files.copyArt(source, local)
         val read = SidecarKey.of(files.sidecarsRead(local, kept, art))
         saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text, sidecarKey = read), nfo, fetched, art, now, was)
+    }
+
+    /**
+     * [item] without the details it had when they are no longer its: its sidecars removed, or TMDB naming it anew, by
+     * its name's id or its NFO's, as another film than it was taken for. Unanswered, the next scan queries TMDB again.
+     */
+    private fun cleared(item: ItemEntity, parsed: ParsedMovie, fetched: Fetched, asked: Asked): ItemEntity {
+        val anew = fetched.movie?.id.let { it != null && item.tmdbId != null && it != item.tmdbId }
+        if (!asked.sidecarsRemoved && !anew) return item
+        val cleared = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
+        return if (fetched.answered) cleared else cleared.copy(matchedAt = null)
     }
 
     /**
@@ -98,7 +106,9 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         // A re-read NFO triggers a TMDB request only when it names another title or set.
         val newIds = nfo != null && !sameIds(existing?.nfoInfo(), nfo)
         val removed = sidecarsRemoved(item, local)
-        val tmdb = open && (item.matchedAt == null || pass.refreshMetadata || newIds || undecided(item, nfo) || removed)
+        // Its name gives another id than it was found by ([NameIds.dueFor]).
+        val hinted = item.id in pass.hinted
+        val tmdb = open && (item.matchedAt == null || pass.refreshMetadata || newIds || undecided(item, nfo) || removed || hinted)
         // A refresh TMDB cannot serve now is kept by leaving the film unmatched (see saveMovie).
         val refreshLeft = pass.refreshMetadata && !open && item.matchedAt != null
         return Asked(tmdb, newIds, removed, write = nfo != null || tmdb || refreshLeft || removed || local.hasArt)
@@ -139,30 +149,72 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
     suspend fun identify(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient): suspend () -> Unit {
         val parsed = item.filmName() ?: return {}
         val nfo = item.nfoInfo()
-        val fetched = fetch(TmdbPass(tmdb, strict = true), tmdbId, nfo, refresh = false) { client ->
-            if (tmdbId != null) client.movie(tmdbId) else lookupMovie(client, null, nfo, parsed)
+        val query = Query(null, namesOf(item), nfo, parsed, known = null)
+        val fetched = fetch(TmdbPass(tmdb, strict = true), tmdbId, query, refresh = false) { client ->
+            if (tmdbId != null) Looked(client.movie(tmdbId)) else lookupMovie(client, query)
         }
         return {
             dao.setUserTmdbId(item.id, tmdbId)
             if (fetched.movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
             dao.item(item.id)?.let { fresh ->
                 val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
-                saveMovie(cleared, nfo, fetched, LocalArt.of(fresh), System.currentTimeMillis(), was = item.userTmdbId ?: item.tmdbId)
+                saveMovie(cleared, nfo, fetched, LocalArt.of(fresh), clock(), was = item.userTmdbId ?: item.tmdbId)
             }
         }
     }
 
-    /** Tries the user's match, the NFO's ids, the existing match ([known]), then a title search. */
-    private suspend fun lookupMovie(tmdb: TmdbClient, userTmdbId: Int?, nfo: NfoInfo?, parsed: ParsedMovie, known: Int? = null): TmdbMovie? {
-        userTmdbId?.let { return tmdb.movieById(it) }
-        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).first } ?: known
-        return id?.let { tmdb.movieById(it) } ?: tmdb.findMovie(nfo?.title ?: parsed.title, nfo?.year ?: parsed.year)
+    /** [item]'s name ids, its folder's when it holds that film alone among the films known there ([NameIds.ofFilm]). */
+    private suspend fun namesOf(item: ItemEntity): NameIds {
+        val path = item.filePath?.let { Stacks.filmPath(it, item.parts.isNotEmpty()) } ?: return NameIds()
+        val film = NameIds.filmPath(path)
+        val beside = dao.keptRowsIn(item.sourceId, Sidecars.folderOf(film))
+            .mapNotNull { row -> row.filePath?.let { NameIds.filmPath(Stacks.filmPath(it, row.parts.isNotEmpty())) } }
+        return NameIds.ofFilm(path, ScanTitles.holdingOneFilm(beside + film))
+    }
+
+    /** What a film's lookup asks TMDB by ([lookupMovie]): [known] is its TMDB id before. */
+    private class Query(val userTmdbId: Int?, val names: NameIds, val nfo: NfoInfo?, val parsed: ParsedMovie, val known: Int?) {
+        /** The title and year it is searched by. */
+        val title: String get() = nfo?.title ?: parsed.title
+        val year: Int? get() = nfo?.year ?: parsed.year
+    }
+
+    /**
+     * Tries, highest first, the user's match; the name's TMDB id, then its IMDb id; the NFO's, likewise; the existing
+     * match ([Query.known]); then a title search. An id TMDB has no film for gives way to the next, as does a name's id
+     * not trusted ([NameIds.trusts]). The name's ids are tried first, so the lookup carries the name's id it tried.
+     */
+    private suspend fun lookupMovie(tmdb: TmdbClient, query: Query): Looked<TmdbMovie> {
+        query.userTmdbId?.let { return Looked(tmdb.movieById(it)) }
+        val names = query.names
+        val nfo = query.nfo
+        val hint = names.key(show = false)
+        val steps = listOf(
+            IdStep(IdKind.TMDB) { names.tmdb },
+            IdStep(IdKind.IMDB) { names.imdb?.let { tmdb.findByImdb(it).first } },
+            IdStep(null) { nfo?.tmdbId },
+            IdStep(null) { nfo?.imdbId?.let { tmdb.findByImdb(it).first } },
+            IdStep(null) { query.known },
+        )
+        return lookUp(hint, steps, tmdb::movieById, TmdbMovie::id) { movie, by -> trusted(tmdb, movie, by, query) }
+            ?: Looked(tmdb.findMovie(query.title, query.year), hint)
+    }
+
+    /** Whether [movie], found by [query]'s name's id of kind [by], is the film of that name ([NameIds.trusts]). */
+    private suspend fun trusted(tmdb: TmdbClient, movie: TmdbMovie, by: IdKind, query: Query): Boolean {
+        val names = query.names
+        val ids = TitleIds(movie.id, imdb = movie.imdbId ?: names.imdb.takeIf { by == IdKind.IMDB }, tvdb = null)
+        val found = NameIds.Found(ids, listOfNotNull(movie.title, movie.originalTitle), yearOf(movie.releaseDate)) {
+            tmdb.alternativeTitles(movie.id, show = false)
+        }
+        val wanted = listOfNotNull(query.title, query.parsed.title, query.nfo?.originalTitle).distinct()
+        return names.trusts(found, by, query.nfo, wanted, query.year)
     }
 
     /** TMDB answers for a film, all fetched before anything is written. */
     private class Fetched(
         /** Null when TMDB was not asked for the film. */
-        val lookup: TmdbAnswer<TmdbMovie>?,
+        val lookup: TmdbAnswer<Looked<TmdbMovie>>?,
         /** The NFO, unless it describes another title than the match. */
         val nfo: NfoInfo?,
         val collection: CollectionPlan?,
@@ -172,7 +224,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         /** A refresh, or an NFO set aside until TMDB confirms it: if unanswered, a later pass asks again. */
         val askAgain: Boolean,
     ) {
-        val movie: TmdbMovie? get() = lookup?.value
+        val movie: TmdbMovie? get() = lookup?.value?.value
 
         /** TMDB answered every request, so the film counts as matched until a refresh. */
         val answered: Boolean
@@ -180,28 +232,31 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
     }
 
     /** TMDB's answers for [item] as [asked] needs them. */
-    private suspend fun fetch(pass: ScanPass, item: ItemEntity, nfo: NfoInfo?, parsed: ParsedMovie, asked: Asked): Fetched {
-        val lookup: (suspend (TmdbClient) -> TmdbMovie?)? =
-            if (asked.tmdb) { client -> lookupMovie(client, item.userTmdbId, nfo, parsed, known = item.tmdbId) } else null
+    private suspend fun fetch(pass: ScanPass, item: ItemEntity, query: Query, asked: Asked): Fetched {
+        val lookup: (suspend (TmdbClient) -> Looked<TmdbMovie>)? = if (asked.tmdb) { client -> lookupMovie(client, query) } else null
         // No TMDB request and unchanged NFO ids: keep the collection; a film without one gets it from its NFO.
         val keepCollection = lookup == null && !asked.newIds && item.collectionId != null
-        return fetch(pass.tmdb, item.userTmdbId, nfo, pass.refreshMetadata, keepCollection = keepCollection, lookup = lookup)
+        return fetch(pass.tmdb, item.userTmdbId, query, pass.refreshMetadata, keepCollection = keepCollection, lookup = lookup)
     }
 
     /** Runs [lookup] (skipped when null), then fetches collection details if needed, unless [keepCollection]. */
     private suspend fun fetch(
         tmdb: TmdbPass,
         userTmdbId: Int?,
-        nfoInfo: NfoInfo?,
+        query: Query,
         refresh: Boolean,
         keepCollection: Boolean = false,
-        lookup: (suspend (TmdbClient) -> TmdbMovie?)?,
+        lookup: (suspend (TmdbClient) -> Looked<TmdbMovie>)?,
     ): Fetched {
         val answer = lookup?.let { tmdb.ask(it) }
-        val movie = answer?.value
+        val movie = answer?.value?.value
+        val nfoInfo = query.nfo
         // For a user match with no TMDB answer, an IMDb-only NFO is set aside until TMDB can confirm it.
         val untold = userTmdbId != null && movie == null && nfoInfo?.tmdbId == null && nfoInfo?.imdbId != null
-        val nfo = nfoInfo?.takeUnless { untold || MetadataMerge.describesOther(it, userTmdbId, movie?.imdbId) }
+        // The film the user or the name chose: an NFO naming another describes another film. Until TMDB answers, the
+        // name's TMDB id stands.
+        val chosen = userTmdbId ?: if (answer is TmdbAnswer.Given) answer.value?.byName else query.names.tmdb
+        val nfo = nfoInfo?.takeUnless { untold || MetadataMerge.describesOther(it, chosen, movie?.imdbId) }
         val plan = if (keepCollection) null else collectionOf(nfo, movie, refresh)
         val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
         return Fetched(answer, nfo, plan, details, tmdb.client, askAgain = refresh || (untold && answer !is TmdbAnswer.Given))
@@ -235,6 +290,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         }
         val item = MetadataMerge.merge(base, nfo, details, art)
             .copy(collectionId = collectionId, matchedAt = matchedAt, edition = editionOf(base, nfoInfo))
+            .lookedUp(base, fetched.lookup)
             .withNfoStreams(nfoInfo) // Stream details do not depend on the match.
         dao.saveScanned(item)
         giveBack(item, was, fetched)

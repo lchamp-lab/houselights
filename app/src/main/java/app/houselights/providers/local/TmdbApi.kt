@@ -41,11 +41,17 @@ interface TmdbApi {
         @Query("external_source") source: String = "imdb_id",
     ): TmdbFindResult
 
-    @GET("movie/{id}/images")
-    suspend fun movieImages(@Path("id") id: Int, @Query("include_image_language") languages: String): TmdbImageSet
+    /** A film's ([kind] "movie") or a show's ("tv") posters, backdrops and logos. */
+    @GET("{kind}/{id}/images")
+    suspend fun images(
+        @Path("kind") kind: String,
+        @Path("id") id: Int,
+        @Query("include_image_language") languages: String,
+    ): TmdbImageSet
 
-    @GET("tv/{id}/images")
-    suspend fun tvImages(@Path("id") id: Int, @Query("include_image_language") languages: String): TmdbImageSet
+    /** A film's ([kind] "movie") or a show's ("tv") other titles. */
+    @GET("{kind}/{id}/alternative_titles")
+    suspend fun alternativeTitles(@Path("kind") kind: String, @Path("id") id: Int): TmdbAlternativeTitles
 
     @GET("collection/{id}")
     suspend fun collection(@Path("id") id: Int, @Query("language") language: String): TmdbCollection

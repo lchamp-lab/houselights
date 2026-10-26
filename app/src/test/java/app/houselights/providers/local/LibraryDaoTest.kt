@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -156,6 +157,35 @@ class LibraryDaoTest {
         assertEquals(null to null, dao.item(kept) to dao.item(gone))
         assertEquals(listOf(true), dao.keptNamed(ItemKind.SERIES, "severance").map { it.favorite })
         assertEquals(emptyList<KeptStateEntity>(), dao.keptNamed(ItemKind.SERIES, "andor"))
+    }
+
+    /**
+     * To identify: a film or show TMDB found nothing for, or hesitated on, without a TMDB id; never an episode, a title
+     * matched or still to look up, a file held missing, nor a title the user left as it is.
+     */
+    @Test
+    fun theTitlesToIdentifyLeaveOutEpisodesMissingFilesAndThoseLeftAsTheyAre() = runTest {
+        fun film(title: String, state: MatchState?, addedAt: Long) = row(ItemKind.MOVIE, title).copy(matchState = state, addedAt = addedAt)
+        val notFound = dao.insert(film("Inconnu", MatchState.NOT_FOUND, addedAt = 1))
+        val unsure = dao.insert(film("Dune", MatchState.UNSURE, addedAt = 2))
+        val show = dao.insert(row(ItemKind.SERIES, "Severance").copy(matchState = MatchState.NOT_FOUND, addedAt = 3))
+        dao.insert(film("Heat", MatchState.MATCHED, addedAt = 4).copy(tmdbId = 949))
+        dao.insert(film("Pas encore", null, addedAt = 5))
+        dao.insert(film("Nommé par son NFO", MatchState.NOT_FOUND, addedAt = 6).copy(tmdbId = 1))
+        dao.insert(film("Parti", MatchState.NOT_FOUND, addedAt = 7).copy(missingSince = 7))
+        dao.insert(film("Vacances", MatchState.NOT_FOUND, addedAt = 8).copy(userNoMatch = true))
+        dao.insert(row(ItemKind.EPISODE, "Pilote").copy(matchState = MatchState.NOT_FOUND, addedAt = 9))
+
+        assertEquals("the latest first", listOf(show, unsure, notFound), dao.toIdentify().map { it.id })
+        assertEquals(3, dao.observeToIdentifyCount().first())
+    }
+
+    /** A title left as it is stays so whatever a scan writes ([LibraryDao.saveScanned]). */
+    @Test
+    fun aTitleLeftAsItIsKeepsItThroughAScan() = runTest {
+        val home = dao.insert(row(ItemKind.MOVIE, "Vacances 2019").copy(userNoMatch = true))
+        dao.saveScanned(checkNotNull(dao.item(home)).copy(userNoMatch = false, matchState = MatchState.NOT_FOUND))
+        assertTrue(checkNotNull(dao.item(home)).userNoMatch)
     }
 
     @Test

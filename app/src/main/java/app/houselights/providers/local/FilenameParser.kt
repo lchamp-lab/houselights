@@ -285,9 +285,13 @@ object FilenameParser {
         }
     }
 
-    /** Removes [tags] and {tags}, but keeps a bracketed year: "Title [2024]". */
-    private fun dropBrackets(s: String): String =
-        BRACKETS.replace(s) { m -> YEAR.matchEntire(m.value.trim('[', ']', '{', '}').trim())?.let { " ${it.value} " } ?: " " }
+    /**
+     * Removes [tags], {tags} and ids, also in parentheses ([NameIds]: "Film (tmdb-1999) (2020)" is of 2020), but keeps
+     * a bracketed year: "Title [2024]".
+     */
+    private fun dropBrackets(s: String): String = BRACKETS.replace(NameIds.HINT.replace(s, " ")) { m ->
+        YEAR.matchEntire(m.value.trim('[', ']', '{', '}').trim())?.let { " ${it.value} " } ?: " "
+    }
 
     /** Dots and underscores separate words in scene names, unless the name already has spaces. */
     private fun normalizeSeparators(s: String): String =

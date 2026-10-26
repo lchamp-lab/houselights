@@ -89,8 +89,8 @@ class LibraryScanner(
 
     /** Files whose processing fails, often at every pass: each logged whole the first time, then counted. */
     private val failures = RepeatedFailures(TAG)
-    private val movies = MovieIndexer(dao, files)
-    private val shows = ShowIndexer(dao, files)
+    private val movies = MovieIndexer(dao, files, clock)
+    private val shows = ShowIndexer(dao, files, clock)
     private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
 
     /** Rows this process saw missing, timed on [elapsed] as the wall clock can jump. */
@@ -345,15 +345,13 @@ class LibraryScanner(
         waitForThePlayer()
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null) }
         val found = browsers(source).list(source)
-        // No video and denied subfolders: report permissions, whatever the library holds.
-        if (found.videos.isEmpty() && found.unreadable.isNotEmpty()) throw UnreadableFolderException(found.unreadable.size)
+        val listed = dao.knownFiles(source.id)
+        checkListed(found, listed)
         // A disc's streams form one title and extras none; rows of non-titles are handled as missing files.
         val listing = ScanTitles.of(found)
-        val listed = dao.knownFiles(source.id)
         val stacks = stacksOf(source.kind, listing.videos, listed)
         val files = stacks.titles
         val sidecars = Sidecars(listing.sidecars, files, stacks)
-        if (found.videos.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
         val missing = settleMissing(source, listed, listing, stacks)
         // Renamed files moved their rows, and films their parts, so reload the known files.
         val rewritten = missing.relinked.isNotEmpty() || missing.parts.isNotEmpty()
@@ -362,13 +360,21 @@ class LibraryScanner(
         val waiting = MissingFiles.waitingParts(known.values, files, missing.removed + missing.absorbed)
 
         // While TMDB is closed (now or since a recent pass), titles only waiting for it are left alone.
-        fun work(f: RemoteFile): Work? {
+        fun read(f: RemoteFile): Work? {
             val beside = SidecarKey.listed(source.kind, sidecars.forVideo(f))
             return workOn(known[f.relativePath], f, beside, tmdb.open && askUnmatched, refreshMetadata)
         }
-        val own = files.filterNot { it.relativePath in waiting }.associateWith { work(it) }.filterValues { it != null }
-        // When a show's own sidecars changed and none of its episodes is read in full, one episode reads them.
-        val forShows = showsToRead(source, files, own.filterValues { it == Work.FULL }.keys, known, sidecars)
+        val ready = files.filterNot { it.relativePath in waiting }
+        val names = Names(source, ready, stacks, renamed = missing.relinked.mapTo(HashSet()) { it.first }, open = tmdb.open && askUnmatched)
+        val films = names.films(known, ::read)
+        fun work(f: RemoteFile): Work? = Work.FULL.takeIf { f.relativePath in films && tmdb.open } ?: read(f)
+        val own = ready.associateWith { work(it) }.filterValues { it != null }
+        // When a show's own sidecars changed, or its folder's name gives another id, and none of its episodes is read in
+        // full, one episode reads them.
+        val folders = showFolders(source, files, known)
+        val whole = own.filterValues { it == Work.FULL }.keys
+        val hintedShows = names.shows(folders, whole)
+        val forShows = showsToRead(source, folders, whole, sidecars, hintedShows)
         val todo = inOrder(own, forShows)
         _state.update { it.copy(total = todo.size) }
         Log.i(
@@ -379,13 +385,24 @@ class LibraryScanner(
 
         if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
 
-        val folder = Folder(ScanPass(source, sidecars, stacks, tmdb, seasons, refreshMetadata), known)
+        val pass = ScanPass(source, sidecars, stacks, tmdb, seasons, refreshMetadata, names.single, films.values.toSet() + hintedShows)
+        val folder = Folder(pass, known)
         val written = processAll(folder, todo, stillDue(::work, forShows))
         dao.markScanned(source.id, clock())
         // Renames and part changes count even without a re-read, as screens show file names and parts.
         val changed = missing.changed || written > 0
         if (changed) _progress.emit(Unit)
         return changed
+    }
+
+    /**
+     * Throws when [found] is no listing to scan by: no video and denied subfolders, a permissions problem whatever the
+     * library holds; no video in a folder that had some ([listed]), which leaves the library as it is.
+     */
+    private fun checkListed(found: Listing, listed: List<KnownFile>) {
+        if (found.videos.isNotEmpty()) return
+        if (found.unreadable.isNotEmpty()) throw UnreadableFolderException(found.unreadable.size)
+        if (listed.isNotEmpty()) throw EmptyFolderException()
     }
 
     /** Stacks of [videos], except those whose rows were matched with different films ([MissingFiles.split]). */
@@ -440,36 +457,94 @@ class LibraryScanner(
         return written
     }
 
+    /** The path a film at [file] is named by, for its ids ([NameIds.ofFilm]): a stack's without its part, a disc's folder. */
+    private fun filmPath(stacks: Stacks, file: RemoteFile): String =
+        NameIds.filmPath(stacks.stackAt(file.relativePath)?.namedPath ?: file.relativePath)
+
     /**
-     * One known episode (with its show id) per show folder and show whose sidecars are due ([SidecarKey.showDue]),
-     * unless one there is read [whole]. Skips shows whose key no longer matches the path, as reading an episode
-     * could move it to another show ([ShowIndexer]).
+     * Titles of a pass of [source] looked up by the ids their names give ([NameIds.dueFor]), those [renamed] at once,
+     * all while TMDB is [open]: those read anyway, and [NameIds.PER_PASS] more films and shows, so a library named with
+     * ids is asked a few titles at a time after an upgrade. [ready] are its titles to read, named as [stacks] tell.
      */
-    private suspend fun showsToRead(
-        source: SourceEntity,
-        files: List<RemoteFile>,
-        whole: Set<RemoteFile>,
-        known: Map<String, KnownFile>,
-        sidecars: Sidecars,
-    ): Map<RemoteFile, Long> {
-        if (source.kind != SourceKind.SHOWS) return emptyMap()
+    private inner class Names(
+        private val source: SourceEntity,
+        private val ready: List<RemoteFile>,
+        private val stacks: Stacks,
+        val renamed: Set<Long>,
+        val open: Boolean,
+    ) {
+        private val now = clock()
+
+        /** Folders of films holding one film ([NameIds.ofFilm]). */
+        val single: Set<String> = if (source.kind == SourceKind.MOVIES) {
+            ScanTitles.holdingOneFilm(ready.map { filmPath(stacks, it) })
+        } else {
+            emptySet()
+        }
+
+        /** Films due by their name's ids, their rows by path, of those [known] ([read] says which are read anyway). */
+        fun films(known: Map<String, KnownFile>, read: (RemoteFile) -> Work?): Map<String, Long> {
+            if (!open || source.kind != SourceKind.MOVIES) return emptyMap()
+            val rows = ready.mapNotNull { f -> known[f.relativePath]?.let { f to it } }
+            val due = rows.filter { (f, row) ->
+                NameIds.ofFilm(filmPath(stacks, f), single).dueFor(row.hinted, show = false, now = now, renamed = row.id in renamed)
+            }
+            val (anyway, only) = due.partition { read(it.first) == Work.FULL }
+            return (anyway + only.take(NameIds.PER_PASS)).associate { (f, row) -> f.relativePath to row.id }
+        }
+
+        /** Shows due by their folders' names' ids, of [folders] ([whole]: episodes read anyway). */
+        fun shows(folders: List<ShowFolder>, whole: Set<RemoteFile>): Set<Long> {
+            if (!open) return emptySet()
+            val due = folders.filter { folder ->
+                val moved = folder.episodes.any { it.id in renamed }
+                NameIds.ofShow(folder.files.first().relativePath).dueFor(folder.show.hinted, show = true, now = now, renamed = moved)
+            }
+            val (anyway, only) = due.partition { folder -> folder.files.any { it in whole } }
+            return (anyway.map { it.show.id } + only.map { it.show.id }.distinct().take(NameIds.PER_PASS)).toSet()
+        }
+    }
+
+    /**
+     * Each show folder's known episodes and their show, a show in two folders twice. Skips shows whose key no longer
+     * matches the path, as reading an episode could move it to another show ([ShowIndexer]).
+     */
+    private suspend fun showFolders(source: SourceEntity, files: List<RemoteFile>, known: Map<String, KnownFile>): List<ShowFolder> {
+        if (source.kind != SourceKind.SHOWS) return emptyList()
         val byFolder = files.groupBy { f -> known[f.relativePath]?.seriesId?.let { Sidecars.folderOf(f.relativePath) to it } }
             .mapNotNull { (key, episodes) ->
                 val seriesId = key?.second ?: return@mapNotNull null
                 val path = FilenameParser.parseShowPath(episodes.first().relativePath) ?: return@mapNotNull null
-                ShowFolder(path.dir, seriesId, FilenameParser.showKey(path.title)) to episodes
+                Triple(path.dir, seriesId, FilenameParser.showKey(path.title)) to episodes
             }
             .groupBy({ it.first }, { it.second }).mapValues { (_, lists) -> lists.flatten() }
-        val shows = byFolder.keys.map { it.seriesId }.distinct().chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
-        return byFolder.entries.mapNotNull { (folder, episodes) ->
-            val show = shows[folder.seriesId]?.takeIf { it.matchKey?.substringBefore(FilenameParser.YEAR_MARK) == folder.name }
-                ?: return@mapNotNull null
-            val due = episodes.none { it in whole } && SidecarKey.showDue(show.sidecarKey, source.id, folder.dir, sidecars)
-            if (due) episodes.first() to folder.seriesId else null
-        }.toMap()
+        val shows = byFolder.keys.map { it.second }.distinct().chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
+        return byFolder.mapNotNull { (folder, episodes) ->
+            val (dir, seriesId, name) = folder
+            val show = shows[seriesId]?.takeIf { it.matchKey?.substringBefore(FilenameParser.YEAR_MARK) == name } ?: return@mapNotNull null
+            ShowFolder(dir, show, episodes, episodes.mapNotNull { known[it.relativePath] })
+        }
     }
 
-    private data class ShowFolder(val dir: String, val seriesId: Long, val name: String)
+    /** A show [dir] and its show, with its [files] and their rows ([episodes]). */
+    private class ShowFolder(val dir: String, val show: ItemEntity, val files: List<RemoteFile>, val episodes: List<KnownFile>)
+
+    /**
+     * One known episode (with its show id) per show folder whose show's sidecars are due ([SidecarKey.showDue]) or which
+     * is [hinted], to be looked up by its folder name's ids, unless one there is read [whole].
+     */
+    private fun showsToRead(
+        source: SourceEntity,
+        folders: List<ShowFolder>,
+        whole: Set<RemoteFile>,
+        sidecars: Sidecars,
+        hinted: Set<Long>,
+    ): Map<RemoteFile, Long> = folders.mapNotNull { folder ->
+        val show = folder.show
+        val due = folder.files.none { it in whole } &&
+            (show.id in hinted || SidecarKey.showDue(show.sidecarKey, source.id, folder.dir, sidecars))
+        if (due) folder.files.first() to show.id else null
+    }.toMap()
 
     /**
      * Files to read in full first, then those of [forShows], then headers to read again ([Work.PROBE]): after a new

@@ -53,6 +53,17 @@ class TmdbClientTest {
         error("unreachable")
     }
 
+    /** Sonarr's id, in a show's NFO or its folder's name, is asked of TMDB's find; TMDB finds no film by it. */
+    @Test
+    fun aTvdbIdIsFoundAsAShow() = runTest {
+        tmdb.show(95396, "Severance", 2022, tvdbId = 371980, imdbId = "tt11280740")
+        val client = tmdb.client()
+        assertEquals(95396, client.findByTvdb(371980))
+        assertEquals(listOf("find/371980"), tmdb.requests)
+        assertNull(client.findByTvdb(1))
+        assertEquals("its IMDb id names it too", null to 95396, client.findByImdb("tt11280740"))
+    }
+
     @Test
     fun findsAFilmByItsTitle() = runTest {
         assertEquals(438631, tmdb.client().findMovie("Dune", 2021)?.id)
