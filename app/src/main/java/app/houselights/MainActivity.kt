@@ -463,9 +463,9 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     }
                 })
             } else {
-                AddFolderScreen(folderId, route.focus, onDone = { switched ->
-                    // A new source: the home screen; a folder edited: back to settings.
-                    if (switched || !nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
+                AddFolderScreen(folderId, route.focus, onDone = {
+                    // A folder edited: back to settings, else (opened from home's problem) home.
+                    if (!nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
                 })
             }
         }

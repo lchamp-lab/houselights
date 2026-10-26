@@ -79,12 +79,13 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     the player cannot follow, is left out and logged.
   - NFS sends no password: the app presents itself to the NAS as root, unless a folder names the user and group
     (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
-  - A folder is tested before it is saved, in the NAS's own words (mount path, shared folder, subfolder): the test
-    says what it found, "412 folders and 3 videos", the fields then showing the path as it was read (a whole path
-    typed under its mount path keeps only the subfolder), and a failure says what to change under the field to change,
-    which takes focus: the shared folder or the export missing, or a subfolder missing in one that answers; the NAS
-    refusing this player, by its address, or root, or an SMB account without the right. A folder holding neither a
-    video nor a subfolder, or one nesting with a folder of the library, is never saved.
+  - A folder edited (Edit folder) is tested before it is saved, in the NAS's own words (mount path, shared folder,
+    subfolder): the test says what it found, "412 folders and 3 videos", the fields then showing the path as it was
+    read (a whole path typed under its mount path keeps only the subfolder), and a failure says what to change under
+    the field to change, which takes focus: the shared folder or the export missing, or a subfolder missing in one that
+    answers, with what the NAS has near it ("Use /volume1/media"); the NAS refusing this player, by its address, or
+    root, or an SMB account without the right. A folder holding neither a video nor a subfolder, or one nesting with a
+    folder of the library, is never saved.
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
   - A file deleted from the NAS leaves the library on the next scan; what you did to its title (watched, where you

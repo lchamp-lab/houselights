@@ -203,7 +203,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">폴더 추가</string>
-    <string name="add_folder_desc">NAS에서 영화나 TV 프로그램이 있는 위치를 지정하세요. Houselights는 폴더를 추가하기 전에 연결을 테스트합니다.</string>
     <string name="edit_folder">폴더 편집</string>
     <string name="edit_folder_desc">주소나 로그인 정보를 변경하세요. Houselights는 저장하기 전에 연결을 테스트하며, 작품과 시청 기록, 선택한 항목은 그대로 유지됩니다.</string>
     <string name="edit_folder_row_desc">주소 또는 로그인 정보</string>
@@ -213,7 +212,6 @@
     <string name="password_kept">변경 없음</string>
     <string name="jellyfin_desc">서버 주소와 Jellyfin 로그인 정보를 입력하세요.</string>
     <string name="jellyfin_desc_found">서버를 선택하거나 주소를 입력한 다음 Jellyfin 로그인 정보를 입력하세요.</string>
-    <string name="folder_kind">콘텐츠</string>
     <string name="field_protocol">프로토콜</string>
     <string name="field_host">NAS 주소</string>
     <string name="field_export">마운트 경로</string>

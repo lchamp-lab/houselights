@@ -145,7 +145,7 @@ class SignInFocusTest {
                 )
             )
         }
-        val vm = AddFolderViewModel(library, id, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) })
+        val vm = AddFolderViewModel(library, id, scope, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.after(ScanErrorKind.LOGIN_FAILED)) {} }
         compose.waitForIdle()
     }

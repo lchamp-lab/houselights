@@ -83,7 +83,7 @@ class FolderUnreadTest {
             )
         }
         folders(readable = false)
-        val vm = AddFolderViewModel(library, id, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) })
+        val vm = AddFolderViewModel(library, id, scope, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
         compose.waitForIdle()
 

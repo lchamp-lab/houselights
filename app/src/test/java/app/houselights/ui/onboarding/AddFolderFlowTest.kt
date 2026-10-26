@@ -39,6 +39,7 @@ import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.FACT_GAP
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.wholePath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.io.IOException
 
 /**
  * « Ajouter un dossier » driven from the remote over the board's network (FakeFlowNetwork): the first focus of each step,
@@ -93,15 +95,22 @@ class AddFolderFlowTest {
 
     private fun text(id: Int, vararg args: Any): String = context.getString(id, *args)
 
-    /** The flow over a library holding [folders], drawn and settled; [saved] as a stopped process left it. */
-    private fun flow(vararg folders: SourceEntity, saved: SavedStateHandle = SavedStateHandle()): FolderFlow {
+    /**
+     * The flow over a library holding [folders], drawn and settled; [saved] as a stopped process left it, [useFolders]
+     * making the folders the source.
+     */
+    private fun flow(
+        vararg folders: SourceEntity,
+        saved: SavedStateHandle = SavedStateHandle(),
+        useFolders: suspend () -> Boolean = { false },
+    ): FolderFlow {
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after an add never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
         val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         runBlocking { folders.forEach { db.dao().insertSource(it) } }
         library = LocalLibrary(context, db.dao(), scanner, artwork) {}
-        val flow = FolderFlow(network, library, scope, useFolders = { false }, saved = saved)
+        val flow = FolderFlow(network, library, scope, useFolders = useFolders, saved = saved)
         compose.setTvContent { AddFolderFlow(flow, onLeave = { left = true }, onDone = { done = it }) }
         until { flow.ready }
         compose.waitForIdle()
@@ -519,6 +528,39 @@ class AddFolderFlowTest {
         assertEquals(flow.level, again.level)
         assertEquals("/volume1/video", again.share?.path)
         assertEquals(FlowKeys.CHOOSE, again.aim?.key)
+    }
+
+    /**
+     * The folder added, but making the folders the source failed, the storage full: the flow says why and stays, focus
+     * on the kind pressed; OK again only makes them the source, the folder never added twice.
+     */
+    @Test
+    fun aFolderAddedWhoseSourceDidNotChangeIsDoneOnTheNextOk() {
+        var full = true
+        val flow = flow(films, useFolders = { if (full) throw IOException("No space left on device") else true })
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        compose.waitForIdle()
+        ok()
+        until { flow.path == listOf("Séries") }
+        compose.waitForIdle()
+        ok()
+        until { flow.step == FlowStep.KIND }
+        compose.waitForIdle()
+        focusIsOn(text(R.string.library_shows))
+        ok()
+        until { flow.notSaved != null }
+        assertEquals(UiError.NOT_SAVED, flow.notSaved)
+        assertNull(done)
+        focusIsOn(text(R.string.library_shows))
+
+        full = false
+        ok()
+        until { done != null }
+        assertEquals(true, done?.switched)
+        assertEquals(1, runBlocking { db.dao().sources() }.count { it.path == "Séries" })
     }
 
     private companion object {

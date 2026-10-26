@@ -222,7 +222,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
-    <string name="add_folder_desc">Say where your films or shows are on the NAS. Houselights tests the connection before adding the folder.</string>
     <string name="edit_folder">Edit folder</string>
     <string name="edit_folder_desc">Change its address or sign-in. Houselights tests the connection before saving; its titles, what you’ve watched and your choices stay.</string>
     <string name="edit_folder_row_desc">Its address or sign-in</string>
@@ -232,7 +231,6 @@
     <string name="password_kept">Unchanged</string>
     <string name="jellyfin_desc">Enter the address of your server and your Jellyfin credentials.</string>
     <string name="jellyfin_desc_found">Choose your server or enter its address, then your Jellyfin credentials.</string>
-    <string name="folder_kind">Contents</string>
     <string name="field_protocol">Protocol</string>
     <string name="field_host">NAS address</string>
     <string name="field_export">Mount path</string>

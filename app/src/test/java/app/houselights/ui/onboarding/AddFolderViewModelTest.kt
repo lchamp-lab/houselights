@@ -120,25 +120,20 @@ class AddFolderViewModelTest {
         db.openHelper.writableDatabase.execSQL("ALTER TABLE sources_away RENAME TO sources")
     }
 
-    /** The form for [folderId] (null: a new one), as a screen holds it; [forms] clears it when the screen goes. */
+    /** The form for folder [folderId], as a screen holds it; [forms] clears it when the screen goes. */
     private fun form(
-        folderId: Long?,
+        folderId: Long,
         probe: suspend (SourceEntity) -> FolderLevel = { folder ->
             calls += "test ${folder.host} with ${folder.password.value}"
             FOUND
         },
         library: LocalLibrary = this.library,
-        useFolders: suspend () -> Boolean = {
-            calls += "use folders"
-            true
-        },
         saved: SavedStateHandle = SavedStateHandle(),
     ): AddFolderViewModel {
         val factory = viewModelFactory {
             initializer {
                 AddFolderViewModel(
                     library, folderId, app,
-                    useFolders = useFolders,
                     probe = probe,
                     saved = saved,
                 )
@@ -153,22 +148,20 @@ class AddFolderViewModelTest {
         return saved.afterProcessDeath()
     }
 
-    /** After process death, the form returns as typed, over the last folder added, but never with its password. */
+    /** After process death, the form returns as typed over the folder it edits, but never with its password. */
     @Test
     fun aFolderTypedOutlivesAStoppedProcess() = runTest {
-        smbFolder()
+        val id = smbFolder()
         val saved = SavedStateHandle()
-        val before = form(null, saved = saved)
+        val before = form(id, saved = saved)
         advanceUntilIdle()
-        before.edit {
-            copy(kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.30", share = "video", path = "series", user = "lea")
-        }
+        before.edit { copy(host = "192.168.1.30", share = "video", path = "series", user = "lea") }
         before.edit { copy(password = "secret") }
         assertFalse("the password is never kept", saved.keys().any { saved.get<Any?>(it) == "secret" })
 
-        val after = form(null, saved = afterAStoppedProcess(saved))
+        val after = form(id, saved = afterAStoppedProcess(saved))
         advanceUntilIdle()
-        assertEquals(FolderForm(SourceKind.SHOWS, Protocol.SMB, "192.168.1.30", "video", "series", "lea"), after.form)
+        assertEquals(FolderForm(SourceKind.MOVIES, Protocol.SMB, "192.168.1.30", "video", "series", "lea"), after.form)
     }
 
     /** An edited folder returns with its typed changes; an empty password still keeps the stored one. */
@@ -205,21 +198,21 @@ class AddFolderViewModelTest {
         val id = smbFolder()
         val vm = form(id)
         advanceUntilIdle()
-        var done: Boolean? = null
-        vm.submit { done = it }
+        var done = false
+        vm.submit { done = true }
         advanceUntilIdle()
 
         // Tested; the library now waits for the session kept on the old address to close.
         assertTrue(vm.busy)
         assertTrue(vm.saving)
-        assertNull(done)
+        assertFalse(done)
         vm.submit { fail("saved twice") }
         vm.test()
 
         network.complete(Unit)
         advanceUntilIdle()
         assertFalse(vm.busy)
-        assertEquals(false, done)
+        assertTrue(done)
         assertEquals(listOf("test 192.168.1.10 with stored"), calls)
     }
 
@@ -247,10 +240,11 @@ class AddFolderViewModelTest {
     @Test
     fun whatATestSaidGoesWithTheFieldsItRead() = runTest {
         var answers = false
-        val vm = form(null, probe = { if (answers) FOUND else throw IOException("Connection timed out") })
+        val vm = form(otherFolder(), probe = { if (answers) FOUND else throw IOException("Connection timed out") })
         advanceUntilIdle()
+        vm.edit { copy(host = "") }
         vm.test()
-        assertTrue("nothing typed yet", vm.check is FolderCheck.Incomplete)
+        assertTrue("no address", vm.check is FolderCheck.Incomplete)
         vm.edit { copy(host = "nas-salon.local") }
         assertNull("the address asked for is typed", vm.check)
 
@@ -277,7 +271,7 @@ class AddFolderViewModelTest {
     @Test
     fun anAnswerToFieldsChangedMeanwhileIsNotSaid() = runTest {
         var answer = CompletableDeferred<FolderLevel>()
-        val vm = form(null, probe = { answer.await() })
+        val vm = form(otherFolder(), probe = { answer.await() })
         advanceUntilIdle()
         vm.edit { copy(host = "nas-salon.local", share = "/volume1/media") }
         vm.test()
@@ -298,13 +292,15 @@ class AddFolderViewModelTest {
         assertEquals("the kind is not tested", REACHED, vm.check)
     }
 
-    /** A field changed while Add tests the folder: nothing is added, and the form stays untested for Add again. */
+    /** A field changed while Save tests the folder: nothing is saved, and the form stays untested for Save again. */
     @Test
-    fun aFolderChangedWhileAddTestsItIsNotAddedAsItWas() = runTest {
+    fun aFolderChangedWhileSaveTestsItIsNotSavedAsItWas() = runTest {
+        network.complete(Unit)
+        val id = otherFolder()
         var answer = CompletableDeferred<FolderLevel>()
-        val vm = form(null, probe = { answer.await() })
+        val vm = form(id, probe = { answer.await() })
         advanceUntilIdle()
-        vm.edit { copy(protocol = Protocol.NFS, host = "nas-salon.local", share = "/volume1/media") }
+        vm.edit { copy(host = "nas-salon.local", share = "/volume1/media") }
         var done = false
         vm.submit { done = true }
         advanceUntilIdle()
@@ -312,7 +308,7 @@ class AddFolderViewModelTest {
         vm.edit { copy(host = "192.168.1.20") }
         answer.complete(FOUND)
         advanceUntilIdle()
-        assertTrue("nothing added", dao.sources().isEmpty())
+        assertEquals("nothing saved", "192.168.1.99", dao.source(id)!!.host)
         assertFalse("the form stays", done)
         assertNull("another NAS, not tested yet", vm.check)
         assertFalse(vm.busy)
@@ -320,13 +316,10 @@ class AddFolderViewModelTest {
         answer = CompletableDeferred()
         vm.submit { done = true }
         advanceUntilIdle()
-        vm.edit { copy(kind = SourceKind.SHOWS) }
         answer.complete(FOUND)
         advanceUntilIdle()
         assertTrue(done)
-        val added = dao.sources().single()
-        assertEquals("192.168.1.20", added.host)
-        assertEquals(SourceKind.SHOWS, added.kind)
+        assertEquals("192.168.1.20" to "volume1/media", dao.source(id)!!.let { it.host to it.share })
     }
 
     @Test
@@ -375,73 +368,16 @@ class AddFolderViewModelTest {
         assertTrue(vm.keepsPassword)
     }
 
-    /** After a folder inside a share, a new one starts on its NAS and share, path and password empty. */
-    @Test
-    fun aNewFolderStartsInTheShareOfTheLastSubfolder() = runTest {
-        smbFolder()
-        val vm = form(null)
-        advanceUntilIdle()
-
-        assertEquals(FolderForm(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi"), vm.form)
-    }
-
-    /** After a whole share, the share starts empty: the same one again could only be refused as already added. */
-    @Test
-    fun aNewFolderAfterAWholeShareStartsWithoutIt() = runTest {
-        dao.insertSource(
-            SourceEntity(
-                name = "media", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-                path = "", username = "kodi", password = Secret("stored"),
-            )
-        )
-        val vm = form(null)
-        advanceUntilIdle()
-
-        assertEquals(FolderForm(protocol = Protocol.SMB, host = "192.168.1.10", share = "", user = "kodi"), vm.form)
-    }
-
-    /** An NFS export inside which the last folder was starts as a path, with its leading slash. */
-    @Test
-    fun aNewFolderStartsInTheExportOfTheLastSubfolder() = runTest {
-        dao.insertSource(
-            SourceEntity(
-                name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas.local", share = "volume1/media",
-                path = "films", username = "", password = Secret(""),
-            )
-        )
-        val vm = form(null)
-        advanceUntilIdle()
-
-        assertEquals(FolderForm(protocol = Protocol.NFS, host = "nas.local", share = "/volume1/media"), vm.form)
-    }
-
-    /** After an NFS folder read as a user, a new one starts as that user, its row folded and saying it. */
-    @Test
-    fun aNewFolderStartsWithTheLastNfsIdentity() = runTest {
-        nfsFolder(uid = 1026, gid = 100)
-        val tested = mutableListOf<Pair<Int?, Int?>>()
-        val vm = form(null, probe = { folder -> FOUND.also { tested += folder.uid to folder.gid } })
-        advanceUntilIdle()
-
-        val expected = FolderForm(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media", uid = "1026", gid = "100")
-        assertEquals(expected, vm.form)
-        assertFalse(vm.identityOpen)
-        vm.edit { copy(path = "series") }
-        vm.test()
-        advanceUntilIdle()
-        assertEquals(listOf<Pair<Int?, Int?>>(1026 to 100), tested)
-    }
-
     /**
-     * The tester's second folder: under the export the form starts with, its whole path from the NAS's root typed in
-     * « Dossier ». It is read inside the export, so it is tested and added as the folder it names; over SMB the same,
-     * its share in any case.
+     * Under the folder's export, its whole path from the NAS's root typed in « Sous-dossier »: it is read inside the
+     * export, so it is tested and saved as the folder it names; over SMB the same, its share in any case.
      */
     @Test
     fun aFolderPathRepeatingItsExportIsTakenFromIt() = runTest {
-        nfsFolder()
+        network.complete(Unit)
+        val id = nfsFolder()
         val tested = mutableListOf<String>()
-        val vm = form(null, probe = { folder -> FOUND.also { tested += "${folder.share} ${folder.path}" } })
+        val vm = form(id, probe = { folder -> FOUND.also { tested += "${folder.share} ${folder.path}" } })
         advanceUntilIdle()
         assertEquals("/volume1/media", vm.form.share)
         vm.edit { copy(path = "/volume1/media/films2/") }
@@ -451,8 +387,8 @@ class AddFolderViewModelTest {
 
         assertTrue(done)
         assertEquals(listOf("volume1/media films2"), tested)
-        val added = dao.sources().maxBy { it.id }
-        assertEquals(listOf("films2", "volume1/media", "films2"), listOf(added.name, added.share, added.path))
+        val saved = dao.source(id)!!
+        assertEquals(listOf("films2", "volume1/media", "films2"), listOf(saved.name, saved.share, saved.path))
         val smb = FolderForm(protocol = Protocol.SMB, host = "192.168.1.10", share = "Video", path = "video\\Films2").toSource()
         assertEquals("Video" to "Films2", smb.share to smb.path)
     }
@@ -484,19 +420,6 @@ class AddFolderViewModelTest {
         assertEquals("video" to "video/Films", dao.source(id)!!.let { it.share to it.path })
     }
 
-    /** A new folder starts empty when the last one cannot be read. */
-    @Test
-    fun aNewFolderStartsEmptyWhenTheLastCannotBeRead() = runTest {
-        smbFolder()
-        unreadableFolders()
-        val vm = form(null)
-        advanceUntilIdle()
-
-        assertTrue(vm.ready)
-        assertEquals("", vm.form.host)
-        assertNull(vm.check)
-    }
-
     @Test
     fun aFolderRemovedWhileTheFormIsOpenSaysSo() = runTest {
         network.complete(Unit)
@@ -512,19 +435,6 @@ class AddFolderViewModelTest {
         assertFalse("the form stays, to say it", done)
         assertFalse(vm.busy)
         assertTrue(dao.sources().isEmpty())
-    }
-
-    @Test
-    fun aFolderAddedLeavesTheSessionsOfOthersOpen() = runTest {
-        val vm = form(null)
-        advanceUntilIdle()
-        vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }
-        var switched: Boolean? = null
-        vm.submit { switched = it }
-        advanceUntilIdle()
-        assertEquals(listOf("test 192.168.1.10 with secret", "use folders"), calls)
-        assertEquals(true, switched)
-        assertEquals(1, dao.sources().size)
     }
 
     @Test
@@ -546,26 +456,26 @@ class AddFolderViewModelTest {
     fun aFolderTheLibraryHoldsIsRefusedBeforeItIsTested() = runTest {
         network.complete(Unit)
         smbFolder()
-        val vm = form(null)
+        val vm = form(otherFolder())
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", path = "films/4K", user = "kodi") }
-        vm.submit { fail("added a folder the library holds") }
+        vm.submit { fail("saved a folder the library holds") }
         advanceUntilIdle()
         val check = vm.check as FolderCheck.Overlaps
         assertEquals("films", check.existing.name)
         assertFalse(check.same)
         assertEquals(emptyList<String>(), calls)
-        assertEquals(1, dao.sources().size)
+        assertEquals("192.168.1.99", dao.sources().maxBy { it.id }.host)
         assertFalse(vm.busy)
     }
 
-    /** Test says what Add would refuse, before the network: a folder inside one the library holds, or that one again. */
+    /** Test says what Save would refuse, before the network: a folder inside another the library holds, or that one again. */
     @Test
-    fun aTestOfAFolderTheLibraryHoldsSaysSoBeforeAdd() = runTest {
+    fun aTestOfAFolderTheLibraryHoldsSaysSoBeforeSave() = runTest {
         val id = smbFolder()
-        val vm = form(null)
+        val vm = form(otherFolder())
         advanceUntilIdle()
-        vm.edit { copy(path = "films/4K") }
+        vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", path = "films/4K", user = "kodi") }
         vm.test()
         advanceUntilIdle()
         val inside = vm.check as FolderCheck.Overlaps
@@ -589,48 +499,13 @@ class AddFolderViewModelTest {
         assertEquals(listOf("test 192.168.1.10 with stored"), calls)
     }
 
-    /** The storage is full when the source changes: reported in the form, never a crash. */
-    @Test
-    fun aFolderThatCannotBeSavedSaysWhy() = runTest {
-        val vm = form(null, useFolders = { throw IOException("No space left on device") })
-        advanceUntilIdle()
-        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.10", share = "/volume1/media") }
-        vm.submit { fail("said saved") }
-        advanceUntilIdle()
-        assertEquals(FolderCheck.SaveFailed(UiError.NOT_SAVED), vm.check)
-        assertFalse(vm.busy)
-    }
-
-    /** The folder was added but making it the source failed: Add again makes it the source, without a test. */
-    @Test
-    fun aFolderAddedWhoseSourceDidNotChangeIsDoneOnTheNextAdd() = runTest {
-        var full = true
-        var local = false
-        val vm = form(null, useFolders = {
-            calls += "use folders"
-            if (full) throw IOException("No space left on device")
-            !local.also { local = true }
-        })
-        advanceUntilIdle()
-        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.10", share = "/volume1/media", path = "films") }
-        vm.submit { fail("said done") }
-        advanceUntilIdle()
-        assertEquals(FolderCheck.SaveFailed(UiError.NOT_SAVED), vm.check)
-        assertEquals(1, dao.sources().size)
-
-        full = false
-        var switched: Boolean? = null
-        vm.submit { switched = it }
-        advanceUntilIdle()
-        assertEquals(true, switched)
-        assertEquals(listOf("test 192.168.1.10 with ", "use folders", "use folders"), calls)
-
-        vm.submit { fail("added twice") }
-        advanceUntilIdle()
-        assertEquals(true, (vm.check as FolderCheck.Overlaps).same)
-        assertEquals(1, dao.sources().size)
-        assertFalse(vm.busy)
-    }
+    /** A folder of the library on a NAS no test types, NFS and complete, so a test changes only what it is about. */
+    private suspend fun otherFolder(): Long = dao.insertSource(
+        SourceEntity(
+            name = "archives", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.99", share = "volume1/archives",
+            path = "", username = "", password = Secret(""),
+        )
+    )
 
     private suspend fun nfsFolder(uid: Int? = null, gid: Int? = null): Long = dao.insertSource(
         SourceEntity(
@@ -641,9 +516,11 @@ class AddFolderViewModelTest {
 
     /** The user and group typed are what the test presents to the NAS, and what the folder keeps. */
     @Test
-    fun anNfsFolderIsTestedAndAddedAsTheUserTyped() = runTest {
+    fun anNfsFolderIsTestedAndSavedAsTheUserTyped() = runTest {
+        network.complete(Unit)
+        val id = otherFolder()
         val tested = mutableListOf<Pair<Int?, Int?>>()
-        val vm = form(null, probe = { folder -> FOUND.also { tested += folder.uid to folder.gid } })
+        val vm = form(id, probe = { folder -> FOUND.also { tested += folder.uid to folder.gid } })
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media", path = "films") }
         vm.test()
@@ -653,13 +530,13 @@ class AddFolderViewModelTest {
         vm.submit {}
         advanceUntilIdle()
         assertEquals(listOf(null to null, 1026 to 100), tested)
-        assertEquals(1026 to 100, dao.sources().single().let { it.uid to it.gid })
+        assertEquals(1026 to 100, dao.source(id)!!.let { it.uid to it.gid })
     }
 
     /** One field of two: the test asks for the other, its row opened to type it, and nothing goes to the NAS. */
     @Test
     fun anIdentityHalfTypedAsksForTheOtherField() = runTest {
-        val vm = form(null)
+        val vm = form(otherFolder())
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media", uid = "1026") }
         assertFalse(vm.identityOpen)
@@ -669,7 +546,7 @@ class AddFolderViewModelTest {
 
         vm.toggleIdentity()
         vm.edit { copy(uid = "", gid = "100") }
-        vm.submit { fail("added half an identity") }
+        vm.submit { fail("saved half an identity") }
         advanceUntilIdle()
         assertEquals(FolderCheck.Incomplete(R.string.error_uid_missing), vm.check)
         assertTrue(vm.identityOpen)
@@ -679,15 +556,17 @@ class AddFolderViewModelTest {
     /** SMB says who reads by its account: an identity typed for NFS is neither tested nor kept, nor asked for. */
     @Test
     fun anSmbFolderPresentsNoIdentity() = runTest {
+        network.complete(Unit)
+        val id = otherFolder()
         val tested = mutableListOf<Pair<Int?, Int?>>()
-        val vm = form(null, probe = { folder -> FOUND.also { tested += folder.uid to folder.gid } })
+        val vm = form(id, probe = { folder -> FOUND.also { tested += folder.uid to folder.gid } })
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.NFS, uid = "1026") }
         vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }
         vm.submit {}
         advanceUntilIdle()
         assertEquals(listOf<Pair<Int?, Int?>>(null to null), tested)
-        assertEquals(null to null, dao.sources().single().let { it.uid to it.gid })
+        assertEquals(null to null, dao.source(id)!!.let { it.uid to it.gid })
     }
 
     /** An edited folder shows the identity it keeps, folded; emptied, it is saved as root again. */
@@ -716,20 +595,21 @@ class AddFolderViewModelTest {
     /** The user and group typed, and whether their row is open, outlive a stopped process. */
     @Test
     fun anIdentityTypedOutlivesAStoppedProcess() = runTest {
+        val id = otherFolder()
         val saved = SavedStateHandle()
-        val before = form(null, saved = saved)
+        val before = form(id, saved = saved)
         advanceUntilIdle()
         before.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/media") }
         before.toggleIdentity()
         before.edit { copy(uid = "1026", gid = "100") }
 
-        val after = form(null, saved = afterAStoppedProcess(saved))
+        val after = form(id, saved = afterAStoppedProcess(saved))
         advanceUntilIdle()
         assertEquals("1026" to "100", after.form.uid to after.form.gid)
         assertTrue(after.identityOpen)
     }
 
-    /** The Keystore refuses to seal the password: the folder is not added, and the form says why. */
+    /** The Keystore refuses to seal the password: the folder is not saved, and the form says why. */
     @Test
     fun aPasswordTheKeystoreCannotSealSaysWhy() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -739,13 +619,20 @@ class AddFolderViewModelTest {
             val idle = CoroutineScope(Job().apply { cancel() })
             val scanner = LibraryScanner(broken.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
             val sealing = LocalLibrary(context, broken.dao(), scanner, artwork) {}
-            val vm = form(null, library = sealing)
+            // Without a password, nothing to seal: it is stored.
+            val id = broken.dao().insertSource(
+                SourceEntity(
+                    name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
+                    path = "films", username = "kodi", password = Secret(""),
+                )
+            )
+            val vm = form(id, library = sealing)
             advanceUntilIdle()
-            vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }
+            vm.edit { copy(host = "192.168.1.11", password = "secret") }
             vm.submit { fail("said saved") }
             advanceUntilIdle()
             assertEquals(FolderCheck.SaveFailed(UiError.KEYSTORE), vm.check)
-            assertTrue(broken.dao().sources().isEmpty())
+            assertEquals("nothing saved", "192.168.1.10", broken.dao().source(id)!!.host)
         } finally {
             broken.close()
         }

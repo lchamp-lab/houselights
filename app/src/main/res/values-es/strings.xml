@@ -215,7 +215,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">Añadir carpeta</string>
-    <string name="add_folder_desc">Indique dónde están sus películas o series en el NAS. Houselights prueba la conexión antes de añadir la carpeta.</string>
     <string name="edit_folder">Editar carpeta</string>
     <string name="edit_folder_desc">Cambie su dirección o sus credenciales. Houselights prueba la conexión antes de guardar; se conservan sus títulos, lo que ha visto y sus elecciones.</string>
     <string name="edit_folder_row_desc">Su dirección o sus credenciales</string>
@@ -225,7 +224,6 @@
     <string name="password_kept">Sin cambios</string>
     <string name="jellyfin_desc">Indique la dirección de su servidor y sus credenciales de Jellyfin.</string>
     <string name="jellyfin_desc_found">Elija su servidor o indique su dirección, y luego sus credenciales de Jellyfin.</string>
-    <string name="folder_kind">Contenido</string>
     <string name="field_protocol">Protocolo</string>
     <string name="field_host">Dirección del NAS</string>
     <string name="field_export">Ruta de montaje</string>

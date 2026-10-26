@@ -203,7 +203,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">加入資料夾</string>
-    <string name="add_folder_desc">指定您的電影或影集在 NAS 上的位置。Houselights 會在加入資料夾前測試連線。</string>
     <string name="edit_folder">編輯資料夾</string>
     <string name="edit_folder_desc">變更其位址或登入資訊。Houselights 會在儲存前測試連線；其中的作品、觀看紀錄和您的選擇都會保留。</string>
     <string name="edit_folder_row_desc">位址或登入資訊</string>
@@ -213,7 +212,6 @@
     <string name="password_kept">未變更</string>
     <string name="jellyfin_desc">輸入伺服器位址和您的 Jellyfin 登入資訊。</string>
     <string name="jellyfin_desc_found">請選擇您的伺服器或輸入其位址，然後輸入您的 Jellyfin 登入資訊。</string>
-    <string name="folder_kind">內容</string>
     <string name="field_protocol">通訊協定</string>
     <string name="field_host">NAS 位址</string>
     <string name="field_export">掛載路徑</string>

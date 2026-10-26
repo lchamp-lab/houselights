@@ -209,7 +209,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">Map toevoegen</string>
-    <string name="add_folder_desc">Geef aan waar uw films of series op de NAS staan. Houselights test de verbinding voordat de map wordt toegevoegd.</string>
     <string name="edit_folder">Map bewerken</string>
     <string name="edit_folder_desc">Wijzig het adres of de inloggegevens. Houselights test de verbinding vóór het opslaan; de titels, wat u hebt bekeken en uw keuzes blijven behouden.</string>
     <string name="edit_folder_row_desc">Het adres of de inloggegevens</string>
@@ -219,7 +218,6 @@
     <string name="password_kept">Ongewijzigd</string>
     <string name="jellyfin_desc">Voer het adres van uw server en uw Jellyfin-inloggegevens in.</string>
     <string name="jellyfin_desc_found">Kies uw server of voer het adres in, en daarna uw Jellyfin-inloggegevens.</string>
-    <string name="folder_kind">Inhoud</string>
     <string name="field_protocol">Protocol</string>
     <string name="field_host">NAS-adres</string>
     <string name="field_export">Koppelpad</string>

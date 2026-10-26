@@ -81,16 +81,16 @@ class NfsIdentityTest {
         db.close()
     }
 
-    /** The form adding a folder or, given [folder], editing it once stored. */
-    private fun form(folder: SourceEntity? = null): AddFolderViewModel {
+    /** The form editing [folder] once stored. */
+    private fun form(folder: SourceEntity = FOLDER): AddFolderViewModel {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after a save never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
         val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
-        val id = folder?.let { runBlocking { db.dao().insertSource(it) } }
-        val vm = AddFolderViewModel(library, id, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) })
+        val id = runBlocking { db.dao().insertSource(folder) }
+        val vm = AddFolderViewModel(library, id, scope, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
         compose.waitForIdle()
         return vm
@@ -111,10 +111,10 @@ class NfsIdentityTest {
     }
 
     @Test
-    fun aNewNfsFolderPresentsItselfAsRootOnAFoldedRowUnderTheActions() {
+    fun anNfsFolderPresentsItselfAsRootOnAFoldedRowUnderTheActions() {
         form()
         val row = row().getUnclippedBoundsInRoot()
-        val actions = compose.onNode(hasText(text(R.string.add)) and hasClickAction()).getUnclippedBoundsInRoot()
+        val actions = compose.onNode(hasText(text(R.string.save)) and hasClickAction()).getUnclippedBoundsInRoot()
         assertTrue("$row under $actions", row.top >= actions.bottom)
         assertTrue("$row framed inside the safe area", row.bottom + HlFocus.reach <= SCREEN_H - HlSpace.safeV)
         compose.onNodeWithText(text(R.string.nfs_identity_root)).assertExists()

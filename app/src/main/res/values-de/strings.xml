@@ -209,7 +209,6 @@
 
     <!-- Local folders -->
     <string name="add_folder">Ordner hinzufügen</string>
-    <string name="add_folder_desc">Geben Sie an, wo Ihre Filme oder Serien auf dem NAS liegen. Houselights testet die Verbindung, bevor der Ordner hinzugefügt wird.</string>
     <string name="edit_folder">Ordner bearbeiten</string>
     <string name="edit_folder_desc">Ändern Sie Adresse oder Anmeldedaten. Houselights testet die Verbindung vor dem Speichern; die Titel des Ordners, was Sie gesehen haben, und Ihre Auswahl bleiben erhalten.</string>
     <string name="edit_folder_row_desc">Adresse oder Anmeldedaten</string>
@@ -219,7 +218,6 @@
     <string name="password_kept">Unverändert</string>
     <string name="jellyfin_desc">Geben Sie die Adresse Ihres Servers und Ihre Jellyfin-Zugangsdaten ein.</string>
     <string name="jellyfin_desc_found">Wählen Sie Ihren Server oder geben Sie seine Adresse ein, dann Ihre Jellyfin-Zugangsdaten.</string>
-    <string name="folder_kind">Inhalt</string>
     <string name="field_protocol">Protokoll</string>
     <string name="field_host">NAS-Adresse</string>
     <string name="field_export">Mount-Pfad</string>

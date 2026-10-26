@@ -211,7 +211,6 @@
     <string name="play_failed_player_changed">Lecteur Zidoo changé</string>
 
     <string name="add_folder">Ajouter un dossier</string>
-    <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Houselights teste la connexion avant d’ajouter le dossier.</string>
     <string name="edit_folder">Modifier le dossier</string>
     <string name="edit_folder_desc">Modifiez son adresse ou ses identifiants. Houselights teste la connexion avant d’enregistrer ; ses titres, vos visionnages et vos choix sont conservés.</string>
     <string name="edit_folder_row_desc">Son adresse ou ses identifiants</string>
@@ -221,7 +220,6 @@
     <string name="password_kept">Inchangé</string>
     <string name="jellyfin_desc">Saisissez l’adresse de votre serveur et vos identifiants Jellyfin.</string>
     <string name="jellyfin_desc_found">Choisissez votre serveur ou saisissez son adresse, puis vos identifiants Jellyfin.</string>
-    <string name="folder_kind">Contenu</string>
     <string name="field_protocol">Protocole</string>
     <string name="field_host">Adresse du NAS</string>
     <string name="field_export">Chemin de montage</string>

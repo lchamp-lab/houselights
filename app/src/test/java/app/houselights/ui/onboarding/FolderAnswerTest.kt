@@ -106,19 +106,24 @@ class FolderAnswerTest {
         )
     )
 
-    /** A new folder's form, its test answering [probe], this player at [player], the NFS server listing [exports]. */
-    private fun form(
+    /**
+     * The form of a folder of the library, SMB's « autres » in media on 192.168.1.10, its test answering [probe], this
+     * player at [player], the NFS server listing [exports], the NAS proposing [nearby] for a path it lacks.
+     */
+    private suspend fun form(
         probe: suspend (SourceEntity) -> FolderLevel = { folder ->
             calls += "test ${folder.host}"
             FolderLevel(folderNames(12), videos = 3)
         },
         player: String? = null,
         exports: suspend (host: String) -> List<String>? = { null },
+        nearby: suspend (SourceEntity, FolderTrouble) -> FolderSuggestion? = { _, _ -> null },
     ): AddFolderViewModel {
+        val id = dao.insertSource(EDITED)
         val factory = viewModelFactory {
             initializer {
                 AddFolderViewModel(
-                    library, null, app, useFolders = { true }, probe = probe, playerAddress = { player }, exports = exports,
+                    library, id, app, probe = probe, playerAddress = { player }, exports = exports, nearby = nearby,
                 )
             }
         }
@@ -138,7 +143,7 @@ class FolderAnswerTest {
         vm.submit { fail("saved a folder holding nothing") }
         advanceUntilIdle()
         assertEquals(FolderCheck.Empty, vm.check)
-        assertTrue("nothing added", dao.sources().isEmpty())
+        assertEquals("nothing saved", listOf("192.168.1.10"), dao.sources().map { it.host })
         assertEquals("said under the subfolder typed", FaultSpot.SUBFOLDER, spotOf(vm.check, vm.form))
 
         found = FolderLevel(folderNames(412), videos = 3)
@@ -371,5 +376,52 @@ class FolderAnswerTest {
         assertNull("another export, not tested yet", vm.check)
         assertEquals("no answer, focus left where it is", 0, vm.answers)
         assertEquals("/volume1/media", vm.form.share)
+    }
+
+    /**
+     * A path the NAS lacks comes with what it proposes, asked once the test failed: OK on « Utiliser … » writes it in the
+     * path's fields, as the form shows a folder, and tests again; a field changed meanwhile takes it away.
+     */
+    @Test
+    fun aPathTheNasLacksComesWithWhatItProposes() = runTest {
+        val tested = mutableListOf<String>()
+        val asked = mutableListOf<FolderTrouble>()
+        val vm = form(
+            probe = { folder ->
+                tested += "${folder.share} ${folder.path}"
+                if (folder.share != "volume1/media") throw mountFailure(MountStatus.MNT3ERR_NOENT)
+                FolderLevel(folderNames(2), videos = 4)
+            },
+            nearby = { _, trouble -> FolderSuggestion("volume1/media", "Films").also { asked += trouble } },
+        )
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/media", path = "Films") }
+        vm.test()
+        advanceUntilIdle()
+        assertEquals(listOf<FolderTrouble>(FolderTrouble.ExportMissing("/media")), asked)
+        assertEquals(FolderSuggestion("volume1/media", "Films"), vm.suggestion)
+        assertEquals("/volume1/media/Films", vm.suggestion?.shown())
+
+        vm.useSuggestion()
+        advanceUntilIdle()
+        assertEquals("/volume1/media" to "Films", vm.form.share to vm.form.path)
+        assertEquals(FolderCheck.Reachable(folders = 2, videos = 4), vm.check)
+        assertNull("nothing proposed for a folder found", vm.suggestion)
+        assertEquals(listOf("media Films", "volume1/media Films"), tested)
+
+        vm.edit { copy(share = "/médias") }
+        vm.test()
+        advanceUntilIdle()
+        assertTrue(vm.suggestion != null)
+        vm.edit { copy(path = "Séries") }
+        assertNull("another path, not tested yet", vm.suggestion)
+    }
+
+    private companion object {
+        /** The folder each test's form edits, on a NAS and in a folder no test types. */
+        val EDITED = SourceEntity(
+            name = "autres", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
+            path = "autres", username = "kodi", password = Secret("stored"),
+        )
     }
 }

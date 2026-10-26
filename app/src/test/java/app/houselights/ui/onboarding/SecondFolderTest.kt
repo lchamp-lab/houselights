@@ -57,8 +57,8 @@ class SecondFolderTest {
         db.close()
     }
 
-    /** Over a library holding an SMB folder, the form adding another or, if [edit], editing it; focus on [focusOn]. */
-    private fun form(focusOn: FolderField, edit: Boolean): AddFolderViewModel {
+    /** Over a library holding an SMB folder, the form editing it, focus on [focusOn]. */
+    private fun form(focusOn: FolderField): AddFolderViewModel {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after a save never runs: it would go to the network.
@@ -74,7 +74,7 @@ class SecondFolderTest {
             )
         }
         val vm = AddFolderViewModel(
-            library, id.takeIf { edit }, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) },
+            library, id, scope, probe = { FolderLevel(emptyList(), videos = 0) },
         )
         compose.setTvContent { AddFolderForm(vm, focusOn) {} }
         compose.waitForIdle()
@@ -85,9 +85,9 @@ class SecondFolderTest {
     private fun typing() = compose.onNode(isFocused() and hasSetTextAction())
 
     @Test
-    fun aSecondFoldersShareIsErasedAndTyped() {
-        val vm = form(FolderField.FIRST, edit = false)
-        // The share the last folder is inside, read after the form showed.
+    fun anEditedFoldersShareIsErasedAndTyped() {
+        val vm = form(FolderField.FIRST)
+        // The share the folder is inside, read after the form showed.
         assertEquals("media", vm.form.share)
 
         compose.onNodeWithContentDescription("Shared folder").requestFocus()
@@ -102,7 +102,7 @@ class SecondFolderTest {
     /** Where a folder the NAS no longer answers at opens, its address read after the form showed. */
     @Test
     fun anEditedFoldersAddressIsErasedAndTyped() {
-        val vm = form(FolderField.HOST, edit = true)
+        val vm = form(FolderField.HOST)
         compose.onNode(isFocused()).assert(hasContentDescription("NAS address"))
 
         compose.press(Key.DirectionCenter)

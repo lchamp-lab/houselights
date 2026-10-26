@@ -79,9 +79,6 @@ class LocalLibrary(
     /** The kinds the library's folders hold: a new folder's content is asked for the kind it lacks first. */
     suspend fun kinds(): Set<SourceKind> = dao.sources().mapTo(mutableSetOf()) { it.kind }
 
-    /** The most recently added source: the next one is usually on the same server, often in the same share. */
-    suspend fun lastFolder(): SourceEntity? = dao.sources().maxByOrNull { it.id }
-
     /** An existing source other than [except] that [folder] [overlaps]; null if none. */
     suspend fun overlapping(folder: SourceEntity, except: Long? = null): SourceEntity? =
         dao.sources().firstOrNull { it.id != except && it.overlaps(folder) }

@@ -38,10 +38,6 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SourceSwitcher
-import app.houselights.providers.local.Protocol
-import app.houselights.providers.local.Secret
-import app.houselights.providers.local.SourceEntity
-import app.houselights.providers.local.SourceKind
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSize
@@ -122,11 +118,21 @@ class FormLayoutTest {
         return LocalLibrary(context, db.dao(), scanner, artwork) {}
     }
 
+    /** « Modifier le dossier » over an NFS folder: its first control, a field and Save where the form's frame puts them. */
     private fun aFolderHolds() {
-        val vm = AddFolderViewModel(library(), null, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) })
+        val id = runBlocking {
+            db.dao().insertSource(
+                SourceEntity(
+                    name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/video",
+                    path = "Films", username = "", password = Secret(""),
+                )
+            )
+        }
+        val vm = AddFolderViewModel(library(), id, scope, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
+        compose.waitUntil { vm.ready }
         compose.waitForIdle()
-        holds(first = R.string.folder_kind, field = R.string.field_host, action = R.string.add)
+        holds(first = R.string.field_protocol, field = R.string.field_host, action = R.string.save)
     }
 
     /** The boards' « Séries », over SMB with its password kept, opened to edit; its test answers [probe]. */
@@ -139,7 +145,7 @@ class FormLayoutTest {
                 )
             )
         }
-        return AddFolderViewModel(library(), id, scope, useFolders = { false }, probe = probe)
+        return AddFolderViewModel(library(), id, scope, probe = probe)
     }
 
     /**
