@@ -10,6 +10,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import androidx.lifecycle.SavedStateHandle
@@ -26,6 +27,8 @@ import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.Standing
+import app.houselights.providers.local.Volume
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.DS920
@@ -182,6 +185,37 @@ class AddFolderFlowTest {
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.nas_searching), useUnmergedTree = true).assertDoesNotExist()
         focusIsOn("DS920")
+    }
+
+    /**
+     * With a library, the search row ends the network's group: a NAS found while focus is on it takes its place, focus
+     * staying on it, the search row under it, never a row arriving above focus; the search over with focus on that new
+     * row, focus goes to the row above it, the NAS found, rather than nowhere.
+     */
+    @Test
+    fun aNasFoundWhileFocusIsOnTheSearchRowTakesItsPlace() {
+        flow(films)
+        // DS920, the NAS used, is among « Déjà utilisés »: the network's group has the search row alone.
+        network.announce(ds920)
+        compose.waitForIdle()
+        down()
+        focusIsOn(text(R.string.nas_searching))
+        network.searchEnds()
+        compose.waitForIdle()
+        focusIsOn(text(R.string.nas_search_again))
+        ok()
+        focusIsOn(text(R.string.nas_searching))
+
+        network.announce(FoundNas("NAS du bureau", "192.168.1.31"))
+        compose.waitForIdle()
+        focusIsOn("NAS du bureau")
+        compose.onNodeWithText(text(R.string.nas_searching), useUnmergedTree = true).assertExists()
+        down()
+        focusIsOn(text(R.string.nas_searching))
+        network.searchEnds()
+        until { compose.onAllNodes(hasText(text(R.string.nas_searching), substring = true)).fetchSemanticsNodes().isEmpty() }
+        compose.waitForIdle()
+        focusIsOn("NAS du bureau")
     }
 
     /** None answering, the search row becomes « Rechercher à nouveau », the same row, focus kept. */
@@ -351,7 +385,34 @@ class AddFolderFlowTest {
         assertEquals(1, network.asked.count { it.startsWith("exports") })
     }
 
-    /** A NAS silent: its row « Ne répond pas », the panel « Connexion impossible » and why; OK tries again. */
+    /**
+     * A NAS already used whose ports do not answer: its row « Ne répond pas » before anything is chosen; OK asks it again,
+     * the row and the panel saying it is silent; once it answers, OK opens it.
+     */
+    @Test
+    fun aNasUsedThatIsSilentSaysSoAndOkAsksItAgain() {
+        val flow = flow(films.copy(host = SILENT_NAS))
+        until { flow.answers[SILENT_NAS] == NasAnswer.Silent }
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.server_silent), useUnmergedTree = true).assertExists()
+        fun asked() = network.asked.count { it == "protocols $SILENT_NAS" }
+        val probed = asked()
+        ok()
+        until { flow.message != null }
+        compose.waitForIdle()
+        assertEquals(probed + 1, asked())
+        assertEquals(FlowMessage.Silent(SILENT_NAS), flow.message)
+        assertEquals(RowFailure.SILENT, flow.rowFailures[FlowKeys.nasKey(SILENT_NAS)])
+        compose.onNodeWithText(text(R.string.error_nas_unreachable, SILENT_NAS), useUnmergedTree = true).assertExists()
+        compose.onNodeWithText(text(R.string.connection_failed), useUnmergedTree = true).assertExists()
+
+        network.answering[SILENT_NAS] = setOf(Protocol.NFS)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        assertEquals(probed + 2, asked())
+    }
+
+    /** An address typed that does not answer: said under its field, the panel's ring alone; Back keeps it typed. */
     @Test
     fun aTypedAddressThatDoesNotAnswerIsSaidUnderTheField() {
         val flow = flow()
@@ -428,6 +489,42 @@ class AddFolderFlowTest {
         assertEquals(FlowMessage.GuestShare("video"), flow.message)
     }
 
+    /**
+     * « Changer de compte » then Back: the shared folders again with the account they were listed with, whatever was
+     * typed or tried meanwhile, a user or a guest the NAS refused; the panel and the row never name another.
+     */
+    @Test
+    fun backFromChangingTheAccountGivesBackTheAccountTheSharesWereListedWith() {
+        val flow = flow(smbFilms)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        flow.changeAccount()
+        compose.waitForIdle()
+        flow.type(FIELD_USER, "admin")
+        compose.waitForIdle()
+        val panel = compose.onAllNodesWithText(USER, substring = true, useUnmergedTree = true).fetchSemanticsNodes()
+        assertTrue("the panel names the account the shares were listed as", panel.isNotEmpty())
+        back()
+        assertEquals(FlowStep.SHARES, flow.step)
+        assertEquals(USER, flow.user)
+        compose.onNodeWithText(text(R.string.change_account_desc, USER), useUnmergedTree = true).assertExists()
+        flow.openShare(FlowShare("video"))
+        until { flow.step == FlowStep.BROWSE }
+        assertNull(flow.message)
+
+        back()
+        network.guests = false
+        flow.changeAccount()
+        flow.signIn(asGuest = true)
+        until { flow.fieldError != null }
+        back()
+        assertEquals(FlowStep.SHARES, flow.step)
+        assertEquals(USER to false, flow.user to flow.guest)
+        flow.openShare(FlowShare("video"))
+        until { flow.step == FlowStep.BROWSE }
+        assertNull(flow.message)
+    }
+
     /** The account a folder of this NAS signs in with is reused, never shown: no account step. */
     @Test
     fun theAccountOfTheNasIsReused() {
@@ -467,12 +564,68 @@ class AddFolderFlowTest {
         back()
         assertEquals(FlowStep.SHARES, flow.step)
         flow.typePath()
+        flow.type(FIELD_PATH, "")
+        flow.continuePath()
+        assertEquals(FieldError(FIELD_PATH, FlowMessage.Missing(R.string.error_full_path_missing_nfs)), flow.fieldError)
         flow.type(FIELD_PATH, "/volume1/video/Films2")
         flow.continuePath()
         until { flow.step == FlowStep.BROWSE }
         compose.waitForIdle()
         assertEquals("/volume1/video" to listOf("Films2"), flow.share?.path to flow.path)
         focusIsOn(text(R.string.choose_folder))
+
+        // The level above, never read, is read on Back, focus on the folder left.
+        back()
+        until { flow.path.isEmpty() }
+        compose.waitForIdle()
+        assertTrue(network.asked.contains("level volume1/video"))
+        focusIsOn("Films2")
+
+        // Read again and refused, Back goes to the shared folders.
+        flow.openFolder("Films2")
+        until { flow.path == listOf("Films2") }
+        flow.typePath()
+        flow.continuePath()
+        until { flow.step == FlowStep.BROWSE }
+        network.folders.remove("volume1/video")
+        back()
+        until { flow.step == FlowStep.SHARES }
+        compose.waitForIdle()
+        focusIsOn("video")
+    }
+
+    /**
+     * SMB: a path typed starts with its share, listed or not (« video$ », hidden, never is), as the NAS spells it when
+     * listed; a share it lacks is said under the field with the one within a letter; an empty path asks for the path.
+     */
+    @Test
+    fun aPathTypedOverSmbStartsWithItsShareListedOrNot() {
+        val flow = flow(smbFilms)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        flow.typePath()
+        compose.waitForIdle()
+        flow.continuePath()
+        assertEquals(FieldError(FIELD_PATH, FlowMessage.Missing(R.string.error_full_path_missing_smb)), flow.fieldError)
+        compose.onNodeWithText(text(R.string.error_full_path_missing_smb), useUnmergedTree = true).assertExists()
+
+        flow.type(FIELD_PATH, "video$/Films")
+        flow.continuePath()
+        until { flow.step == FlowStep.BROWSE }
+        assertEquals("video$" to listOf("Films"), flow.share?.path to flow.path)
+
+        flow.typePath()
+        flow.type(FIELD_PATH, "Video/Films2")
+        flow.continuePath()
+        until { flow.step == FlowStep.BROWSE && flow.path == listOf("Films2") }
+        assertEquals("the share as the NAS spells it", "video" to listOf("Films2"), flow.share?.path to flow.path)
+
+        flow.typePath()
+        flow.type(FIELD_PATH, "vide/Films2")
+        flow.continuePath()
+        until { flow.fieldError != null }
+        assertEquals(FieldError(FIELD_PATH, FlowMessage.NoShare(DS920, "vide")), flow.fieldError)
+        assertEquals("video/Films2", flow.suggestion)
     }
 
     /** A subfolder typed within a letter of one the NAS has: said under the field, the NAS proposing it. */
@@ -513,7 +666,76 @@ class AddFolderFlowTest {
         assertEquals(FlowStep.WHERE, flow.step)
     }
 
-    /** What was chosen survives Android stopping the app: the same level, the same focus, the password asked again. */
+    /**
+     * Back from « Compte NFS » with a user typed and no group: the pair it was opened with comes back, as Continuer
+     * would never leave one alone; from root, root again. Both typed, Back keeps them.
+     */
+    @Test
+    fun backFromTheNfsAccountNeverLeavesHalfAPair() {
+        val flow = flow(films)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        flow.openNfsAccount()
+        flow.type(FlowKeys.FIELD_GID, "")
+        back()
+        assertEquals(FlowStep.SHARES, flow.step)
+        assertEquals("1026" to "100", flow.uid to flow.gid)
+        val identity = compose.onAllNodesWithText(text(R.string.nfs_identity, "1026", "100"), substring = true, useUnmergedTree = true)
+        assertTrue("« Compte NFS » says the pair given back", identity.fetchSemanticsNodes().isNotEmpty())
+
+        flow.openNfsAccount()
+        flow.type(FlowKeys.FIELD_UID, "")
+        flow.type(FlowKeys.FIELD_GID, "")
+        flow.continueIdentity()
+        assertEquals("" to "", flow.uid to flow.gid)
+        flow.openNfsAccount()
+        flow.type(FlowKeys.FIELD_UID, "1026")
+        back()
+        compose.waitForIdle()
+        assertEquals("" to "", flow.uid to flow.gid)
+        compose.onNodeWithText(text(R.string.nfs_identity, "1026", ""), useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.nfs_identity_root), useUnmergedTree = true).assertExists()
+
+        flow.openNfsAccount()
+        flow.type(FlowKeys.FIELD_UID, "1027")
+        flow.type(FlowKeys.FIELD_GID, "101")
+        back()
+        assertEquals("1027" to "101", flow.uid to flow.gid)
+    }
+
+    /**
+     * A folder the NFS user presented may not read: said of that user, « Compte NFS » carrying it over, never of root;
+     * root presented, it opens.
+     */
+    @Test
+    fun aReadRefusedNamesTheNfsUserPresented() {
+        network.rootOnly = setOf("volume1/musique")
+        val flow = flow(films)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        flow.openShare(FlowShare("/volume1/musique"))
+        until { flow.message != null }
+        compose.waitForIdle()
+        assertEquals(FlowMessage.AccountRefused("1026", "/volume1/musique"), flow.message)
+        val said = text(R.string.error_nfs_account_refused, "1026", wholePath("/volume1/musique"))
+        compose.onNodeWithText(said, useUnmergedTree = true).assertExists()
+
+        flow.typePath()
+        flow.type(FIELD_PATH, "/volume1/musique")
+        flow.continuePath()
+        until { flow.fieldError != null }
+        assertEquals(FieldError(FIELD_PATH, FlowMessage.AccountRefused("1026", "/volume1/musique")), flow.fieldError)
+
+        back()
+        flow.openNfsAccount()
+        flow.type(FlowKeys.FIELD_UID, "")
+        flow.type(FlowKeys.FIELD_GID, "")
+        flow.continueIdentity()
+        flow.openShare(FlowShare("/volume1/musique"))
+        until { flow.step == FlowStep.BROWSE }
+    }
+
+    /** What was chosen survives Android stopping the app: the same level, the same focus. */
     @Test
     fun theFlowIsFoundAgainAfterAStoppedProcess() {
         val saved = SavedStateHandle()
@@ -536,13 +758,68 @@ class AddFolderFlowTest {
     }
 
     /**
+     * SMB after a stopped process: an account typed comes back to its password, never kept, its user filled; the account
+     * of the NAS's folders is read from the library again, and the level above opens with it.
+     */
+    @Test
+    fun anSmbFlowFoundAgainAsksForThePasswordTypedNotTheOneKept() {
+        val saved = SavedStateHandle()
+        val typed = flow(saved = saved)
+        typed.chooseFound(ds920)
+        until { typed.step == FlowStep.PROTOCOLS }
+        typed.chooseProtocol(Protocol.SMB)
+        until { typed.step == FlowStep.ACCOUNT }
+        typed.type(FIELD_USER, USER)
+        typed.type(FIELD_PASSWORD, PASSWORD)
+        typed.signIn()
+        until { typed.step == FlowStep.SHARES }
+        typed.openShare(FlowShare("video"))
+        until { typed.step == FlowStep.BROWSE }
+        typed.openFolder("Films2")
+        until { typed.path == listOf("Films2") }
+
+        val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { again.ready }
+        assertEquals(FlowStep.ACCOUNT, again.step)
+        assertEquals(FIELD_PASSWORD, again.aim?.key)
+        assertEquals(USER to "", again.user to again.password)
+    }
+
+    @Test
+    fun anSmbFlowFoundAgainReadsTheAccountKeptFromTheLibrary() {
+        val saved = SavedStateHandle()
+        val kept = flow(smbFilms, saved = saved)
+        ok()
+        until { kept.step == FlowStep.SHARES }
+        kept.openShare(FlowShare("video"))
+        until { kept.step == FlowStep.BROWSE }
+        kept.openFolder("Films2")
+        until { kept.path == listOf("Films2") }
+
+        val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { again.ready }
+        assertEquals(FlowStep.BROWSE, again.step)
+        assertEquals(listOf("Films2"), again.path)
+        again.back {}
+        until { again.path.isEmpty() && again.step == FlowStep.BROWSE && again.level?.folders?.contains("Films2") == true }
+        assertNull(again.message)
+    }
+
+    /**
      * The folder added, but making the folders the source failed, the storage full: the flow says why and stays, focus
      * on the kind pressed; OK again only makes them the source, the folder never added twice.
      */
     @Test
     fun aFolderAddedWhoseSourceDidNotChangeIsDoneOnTheNextOk() {
         var full = true
-        val flow = flow(films, useFolders = { if (full) throw IOException("No space left on device") else true })
+        var switched = true
+        val flow = flow(
+            films,
+            useFolders = {
+                if (full) throw IOException("No space left on device")
+                switched.also { switched = false }
+            },
+        )
         ok()
         until { flow.step == FlowStep.SHARES }
         ok()
@@ -566,6 +843,44 @@ class AddFolderFlowTest {
         until { done != null }
         assertEquals(true, done?.switched)
         assertEquals(1, runBlocking { db.dao().sources() }.count { it.path == "Séries" })
+
+        // Done and switched, OK again finds the folder in the library: said, never added again nor finished twice.
+        done = null
+        ok()
+        until { flow.message != null }
+        val overlaps = flow.message as FlowMessage.Overlaps
+        assertEquals("Séries", overlaps.existing)
+        assertTrue("${overlaps.standing}", overlaps.standing is Standing.Added)
+        assertNull(done)
+        assertEquals(1, runBlocking { db.dao().sources() }.count { it.path == "Séries" })
+    }
+
+    /** A folder holding the one chosen, added meanwhile: OK on the kind says it is inside it, focus kept, nothing added. */
+    @Test
+    fun aFolderAddedMeanwhileThatHoldsTheOneChosenIsSaid() {
+        val flow = flow(films)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        compose.waitForIdle()
+        ok()
+        until { flow.path == listOf("Séries") }
+        compose.waitForIdle()
+        ok()
+        until { flow.step == FlowStep.KIND }
+        compose.waitForIdle()
+        runBlocking { db.dao().insertSource(films.copy(name = "video", path = "")) }
+        ok()
+        until { flow.message != null }
+        compose.waitForIdle()
+        val overlaps = flow.message as FlowMessage.Overlaps
+        assertEquals("Video", overlaps.existing)
+        assertTrue("${overlaps.standing}", overlaps.standing is Standing.Inside)
+        compose.onNodeWithText(text(R.string.folder_inside, "Video"), useUnmergedTree = true).assertExists()
+        focusIsOn(text(R.string.library_shows))
+        assertNull(done)
+        assertEquals(0, runBlocking { db.dao().sources() }.count { it.path == "Séries" })
     }
 
     /**
@@ -607,21 +922,38 @@ class AddFolderFlowTest {
         assertEquals(listOf(Protocol.LOCAL, T7, "", "Films"), listOf(added.protocol, added.host, added.share, added.path))
     }
 
+    /** The player's storage chosen at its root is « Disque interne », as its row says, in step 6 and in the library. */
+    @Test
+    fun theInternalDiskAtItsRootIsNamedAsItsRow() {
+        network.mounted = FakeFlowNetwork.DISKS
+        val flow = flow()
+        compose.onNode(hasText(text(R.string.disk_internal)) and hasClickAction()).requestFocus()
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        flow.chooseFolder()
+        until { flow.step == FlowStep.KIND }
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.flow_kind_desc, text(R.string.disk_internal)), useUnmergedTree = true).assertExists()
+        ok()
+        until { done != null }
+        assertEquals(text(R.string.disk_internal), runBlocking { db.dao().sources() }.single().name)
+    }
+
     /**
      * A disk the app may not read yet: OK asks Android, the row saying « Non autorisé » and the panel what to allow,
-     * Android's settings once its window was refused for good; allowed, OK opens the disk.
+     * Android's settings once its window was refused for good, which answer nothing; allowed there, OK on the disk
+     * again opens it.
      */
     @Test
     fun aDiskTheAppMayNotReadAsksAndroidFirst() {
         network.mounted = FakeFlowNetwork.DISKS
         network.access = DiskAccess.TO_ASK
         val asked = mutableListOf<DiskAccess>()
-        var allowed = false
         val flow = flow(
+            // As rememberDiskAsk: Android's window answers, refused for good here; its settings only open.
             askDisk = { access, answered ->
                 asked += access
-                if (allowed) network.access = DiskAccess.GRANTED
-                answered(!allowed)
+                if (access == DiskAccess.TO_ASK) answered(true)
             },
         )
         compose.onNode(hasText(text(R.string.disk_internal)) and hasClickAction()).requestFocus()
@@ -632,12 +964,52 @@ class AddFolderFlowTest {
         compose.onNodeWithText(text(R.string.disk_access_settings)).assertExists()
         focusIsOn(text(R.string.not_allowed))
 
-        allowed = true
+        ok()
+        compose.waitForIdle()
+        assertEquals(listOf(DiskAccess.TO_ASK, DiskAccess.IN_SETTINGS), asked)
+        assertEquals(FlowStep.WHERE, flow.step)
+        focusIsOn(text(R.string.not_allowed))
+
+        // Allowed in Android's settings, then chosen again.
+        network.access = DiskAccess.GRANTED
         ok()
         until { flow.step == FlowStep.BROWSE }
         compose.waitForIdle()
         assertEquals(listOf(DiskAccess.TO_ASK, DiskAccess.IN_SETTINGS), asked)
         focusIsOn("Movies")
+    }
+
+    /**
+     * OK on a disk the app may not read while a NAS is under way: the NAS stops, as OK on another row stops it, so
+     * nothing moves the flow behind Android's window; allowed, the disk opens from the first step.
+     */
+    @Test
+    fun aDiskAskedForStopsTheNasUnderWay() {
+        network.mounted = FakeFlowNetwork.DISKS
+        network.access = DiskAccess.TO_ASK
+        var answer: ((Boolean) -> Unit)? = null
+        val flow = flow(films, askDisk = { _, answered -> answer = answered })
+        val exports = network.hold("exports")
+        ok()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.signing_in), useUnmergedTree = true).assertExists()
+        compose.onNode(hasText(text(R.string.disk_internal)) and hasClickAction()).requestFocus()
+        ok()
+        compose.waitForIdle()
+        assertTrue("Android asked", answer != null)
+        assertNull(flow.pressed)
+        exports.complete(Unit)
+        // What was under way had its chance to go on: it did not.
+        shadowOf(Looper.getMainLooper()).idle()
+        compose.waitForIdle()
+        assertTrue(network.asked.contains("exports $DS920"))
+        assertEquals(FlowStep.WHERE, flow.step)
+        assertEquals(FlowMessage.DiskRefused(settings = false), flow.message)
+
+        network.access = DiskAccess.GRANTED
+        compose.runOnUiThread { answer?.invoke(false) }
+        until { flow.step == FlowStep.BROWSE }
+        assertEquals(Volume.INTERNAL, flow.nas?.host)
     }
 
     private companion object {

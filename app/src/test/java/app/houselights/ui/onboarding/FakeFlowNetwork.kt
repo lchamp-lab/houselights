@@ -23,12 +23,14 @@ import java.net.InetAddress
 /**
  * The board's network (« Ajouter un dossier », its fixture): DS920 at 192.168.1.20 answering SMB and NFS, its exports
  * /volume1/video and /volume1/musique open to the home network, /volume1/photo to 192.168.1.10 alone, /volume1/media;
- * its shares video, photo, music and home for the account houselights; the player at 192.168.1.42, its own storage and
- * a USB disk « Samsung T7 » once a test plugs them in ([mounted]), read as [access] says. A NAS is announced when a
- * test says so ([announce]); a call can be held until a test lets it go ([hold]).
+ * its shares video, photo, music and home for the account houselights, and video$, which it never lists; the player at
+ * 192.168.1.42, its own storage and a USB disk « Samsung T7 » once a test plugs them in ([mounted]), read as [access]
+ * says. A NAS is announced when a test says so ([announce]), a search ending when it says so too ([searchEnds]); a
+ * call can be held until a test lets it go ([hold]).
  */
 class FakeFlowNetwork : FlowNetwork {
-    private val announced = Channel<FoundNas>(Channel.UNLIMITED)
+    /** The search under way, or the next one. */
+    private var announced = Channel<FoundNas>(Channel.UNLIMITED)
 
     /** Hosts whose ports answer, and with what; any other is silent. */
     val answering = mutableMapOf(DS920 to setOf(Protocol.SMB, Protocol.NFS))
@@ -60,6 +62,8 @@ class FakeFlowNetwork : FlowNetwork {
         "photo" to FolderLevel(emptyList(), 0),
         "music" to FolderLevel(emptyList(), 0),
         "home" to FolderLevel(emptyList(), 0),
+        "video$" to FolderLevel(listOf("Films"), 0),
+        "video$/Films" to FolderLevel(emptyList(), 2),
         // The player's disks, by their id.
         Volume.INTERNAL to FolderLevel(listOf("Download", "Movies"), 0),
         T7 to FolderLevel(listOf("Films", "Séries"), 0),
@@ -78,6 +82,9 @@ class FakeFlowNetwork : FlowNetwork {
     /** Whether the NAS lets guests sign in at all. */
     var guests = true
 
+    /** The folders, by their path from the NAS's root, that its NFS server lets no one but root read. */
+    var rootOnly = setOf<String>()
+
     /** What each call asked, in order: "shares houselights", "level volume1/video". */
     val asked = mutableListOf<String>()
 
@@ -91,9 +98,10 @@ class FakeFlowNetwork : FlowNetwork {
         announced.trySend(nas)
     }
 
-    /** The search ends: no other NAS answers. */
+    /** The search ends: no other NAS answers; the next search hears those announced after it. */
     fun searchEnds() {
         announced.close()
+        announced = Channel(Channel.UNLIMITED)
     }
 
     private suspend fun call(what: String, detail: String) {
@@ -127,10 +135,13 @@ class FakeFlowNetwork : FlowNetwork {
         val at = listOf(root, source.path, path).filter { it.isNotEmpty() }.joinToString("/")
         call("level", at)
         if (source.protocol == Protocol.NFS && source.share == "volume1/photo") throw mountFailure(MountStatus.MNT3ERR_ACCES)
+        if (source.protocol == Protocol.NFS && source.uid != null && rootOnly.any { at.startsWith(it) }) throw IOException("NFS3ERR_ACCES")
         val smbShare = source.share.lowercase()
         if (source.protocol == Protocol.SMB && source.username.isBlank() && smbShare !in guestShares) {
             throw IOException("STATUS_ACCESS_DENIED")
         }
+        val signedIn = source.username == USER && source.password.value == PASSWORD
+        if (source.protocol == Protocol.SMB && source.username.isNotBlank() && !signedIn) throw IOException("STATUS_LOGON_FAILURE")
         val key = if (source.protocol == Protocol.SMB) folders.keys.firstOrNull { it.equals(at, ignoreCase = true) } else at
         return folders[key] ?: throw FileNotFoundException(at)
     }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -20,6 +21,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -62,6 +64,7 @@ import app.houselights.ui.onboarding.FlowKeys.FIELD_UID
 import app.houselights.ui.onboarding.FlowKeys.FIELD_USER
 import app.houselights.ui.onboarding.FlowKeys.GUEST
 import app.houselights.ui.onboarding.FlowKeys.NET_FIRST
+import app.houselights.ui.onboarding.FlowKeys.NET_SLOT
 import app.houselights.ui.onboarding.FlowKeys.NFS_ACCOUNT
 import app.houselights.ui.onboarding.FlowKeys.SEARCH
 import app.houselights.ui.onboarding.FlowKeys.SIGN_IN
@@ -154,9 +157,10 @@ internal fun AddFolderFlow(
 /** Rows shown above one focused far down a list, scrolled to: what comes before it. */
 private const val SHOWN_ABOVE = 2
 
-/** The focus requesters of the flow's rows and fields, by key. */
+/** The focus requesters of the flow's rows and fields, by key; the [network] group's row that has focus, by its place. */
 private class FlowFocus {
     private val requesters = mutableMapOf<String, FocusRequester>()
+    var network: String? = null
 
     operator fun get(key: String): FocusRequester = requesters.getOrPut(key) { FocusRequester() }
 }
@@ -246,25 +250,28 @@ private fun connectionOf(flow: FolderFlow): Pair<StatusState, Int> {
     }
 }
 
-/** Who the SMB shares were listed as, once they were: the account, or « Invité ». */
+/** Who the SMB shares were listed as, once they were: the account, or « Invité »; not one being typed to change it. */
 @Composable
 private fun accountText(flow: FolderFlow): String? = when {
     flow.protocol != Protocol.SMB || !flow.signedIn -> null
-    flow.guest -> stringResource(R.string.guest_fact)
-    else -> flow.user.trim()
+    flow.listedAsGuest -> stringResource(R.string.guest_fact)
+    else -> flow.listedUser.trim()
 }
 
-/** The NFS user and group the flow presents, "UID 1026 · GID 100"; null for root, or over SMB. */
+/** The NFS user and group the flow presents, "UID 1026 · GID 100", both typed; null for root, or over SMB. */
 @Composable
-private fun identityText(flow: FolderFlow): String? =
-    if (flow.protocol == Protocol.NFS && flow.uid.isNotEmpty()) stringResource(R.string.nfs_identity, flow.uid, flow.gid) else null
+private fun identityText(flow: FolderFlow): String? = if (flow.protocol == Protocol.NFS && flow.uid.isNotEmpty() && flow.gid.isNotEmpty()) {
+    stringResource(R.string.nfs_identity, flow.uid, flow.gid)
+} else {
+    null
+}
 
 /** A row's value: [text] in `meta`, or in `jaquette` when [technical], after a state's [light]. */
 @Immutable
 private data class RowValue(val text: String, val light: StatusState? = null, val technical: Boolean = false)
 
 /**
- * A row of the flow, focused by [key] (and [also], the network's first slot): while it is under way, the quiet dot and
+ * A row of the flow, focused by [key] (and [also], its place in the network's group): while it is under way, the quiet dot and
  * its words in place of its value ([rest]); after a failure, the ring and its two words. With [searching], its quiet
  * dot alone at its end.
  */
@@ -282,6 +289,7 @@ private fun FlowRow(
     valueBreaks: Boolean = false,
     searching: Boolean = false,
     also: String? = null,
+    modifier: Modifier = Modifier,
 ) {
     val pressed = flow.pressed
     val failure = flow.rowFailures[key]
@@ -290,7 +298,7 @@ private fun FlowRow(
         failure != null -> RowValue(stringResource(failure.words), StatusState.Off)
         else -> rest
     }
-    val focused = Modifier.focusRequester(focus[key]).let { if (also != null) it.focusRequester(focus[also]) else it }
+    val focused = modifier.focusRequester(focus[key]).let { if (also != null) it.focusRequester(focus[also]) else it }
     HlSettingRow(
         title,
         focused,
@@ -313,18 +321,21 @@ private fun whereParts(flow: FolderFlow, focus: FlowFocus, askDisk: DiskAsk): Li
     val used = flow.used
     val others = flow.others
     val searching = flow.searching
-    // Without a library, the network's first row holds the first focus: the first NAS found takes its place.
-    val first = used.isEmpty()
+    // The network's rows keep their element by their place: the search row, where focus may rest, becomes the next NAS
+    // found, a new search row coming under it, so no row arrives above focus. Without a library, the first holds the
+    // first focus.
     val tail = searching || others.isEmpty()
     val count = others.size + if (tail) 1 else 0
-    val slots = (0 until count).map { i ->
-        val found = others.getOrNull(i)
-        when {
-            first && i == 0 -> NET_FIRST
-            found != null -> nasKey(found.address)
-            else -> SEARCH
-        }
+    val slots = (0 until count).map { i -> if (used.isEmpty() && i == 0) NET_FIRST else "$NET_SLOT$i" }
+    // The search row going with focus on it, its search over: focus goes to the row above it, the last NAS found.
+    val gone = remember(slots) { focus.network?.let { it !in slots } == true }
+    LaunchedEffect(gone, slots) {
+        if (!gone) return@LaunchedEffect
+        withFrameNanos { }
+        focus[slots.last()].tryRequestFocus()
     }
+    // Another step: its row is no longer where focus is.
+    DisposableEffect(Unit) { onDispose { focus.network = null } }
     val parts = mutableListOf<FlowPart>()
     if (used.isNotEmpty()) {
         parts += FlowPart("used", used.map { nasKey(it.host) }.toSet()) {
@@ -375,21 +386,21 @@ private fun UsedRow(flow: FolderFlow, focus: FlowFocus, nas: UsedNas) {
     )
 }
 
-/** A disk of this player: « Disque interne », its storage, else a USB disk by its name; OK opens its root. */
+/** A disk of this player: « Disque interne », its storage, else a USB disk by its name; OK opens its root, so named. */
 @Composable
 private fun DiskRow(flow: FolderFlow, focus: FlowFocus, disk: Volume, ask: DiskAsk) {
     val usb = stringResource(R.string.disk_usb)
+    val name = if (disk.internal) stringResource(R.string.disk_internal) else disk.name.ifBlank { usb }
     FlowRow(
-        flow, focus, diskKey(disk.id),
-        if (disk.internal) stringResource(R.string.disk_internal) else disk.name.ifBlank { usb },
-        { flow.chooseDisk(disk, ask) },
+        flow, focus, diskKey(disk.id), name, { flow.chooseDisk(disk, name, ask) },
         description = if (disk.internal) stringResource(R.string.disk_internal_desc) else usb,
     )
 }
 
 /**
  * A row of the network's group, [found] when a NAS takes it, else the search under way ([searching]) or, once over,
- * the search again; the same row in [slot] whichever, so focus stays on it as its words change.
+ * the search again; the same row in [slot] whichever, so focus stays on it as its words change, the slot that has
+ * focus kept in [focus].
  */
 @Composable
 private fun NetworkRow(flow: FolderFlow, focus: FlowFocus, found: FoundNas?, searching: Boolean, slot: String) {
@@ -403,7 +414,10 @@ private fun NetworkRow(flow: FolderFlow, focus: FlowFocus, found: FoundNas?, sea
         description = if (found != null) found.address.takeIf { found.name.isNotBlank() } else searchWords(searching),
         rest = found?.let { foundValue(it) },
         searching = found == null && searching,
-        also = slot.takeIf { it == NET_FIRST },
+        also = slot,
+        modifier = Modifier.onFocusChanged {
+            if (it.hasFocus) focus.network = slot else if (focus.network == slot) focus.network = null
+        },
     )
 }
 
@@ -586,10 +600,10 @@ private fun NfsAccountRow(flow: FolderFlow, focus: FlowFocus) {
 private fun ChangeAccountRow(flow: FolderFlow, focus: FlowFocus) {
     FlowRow(
         flow, focus, CHANGE_ACCOUNT, stringResource(R.string.change_account), flow::changeAccount,
-        description = if (flow.guest) {
+        description = if (flow.listedAsGuest) {
             stringResource(R.string.change_account_guest_desc)
         } else {
-            stringResource(R.string.change_account_desc, flow.user.trim())
+            stringResource(R.string.change_account_desc, flow.listedUser.trim())
         },
         icon = HlIcons.Edit,
     )
@@ -770,7 +784,7 @@ private fun overlapWords(standing: Standing): Int = when (standing) {
     is Standing.Added, Standing.Apart -> R.string.folder_already_added
 }
 
-/** What the NAS refused, and what to do: this player, root, an account or a guest. */
+/** What the NAS refused, and what to do: this player, root or the NFS user presented, an account or a guest. */
 @Composable
 private fun refusalText(message: FlowMessage): String = when (message) {
     is FlowMessage.NotAllowed -> if (message.player != null) {
@@ -779,6 +793,7 @@ private fun refusalText(message: FlowMessage): String = when (message) {
         stringResource(R.string.error_nfs_refused_no_address, wholePath(message.export))
     }
     is FlowMessage.RootRefused -> stringResource(R.string.error_nfs_root_refused, wholePath(message.path))
+    is FlowMessage.AccountRefused -> stringResource(R.string.error_nfs_account_refused, message.uid, wholePath(message.path))
     is FlowMessage.Denied -> stringResource(R.string.error_smb_denied, message.user, message.share)
     is FlowMessage.GuestShare -> stringResource(R.string.error_smb_guest_share, message.share)
     is FlowMessage.DiskRefused -> stringResource(if (message.settings) R.string.disk_access_settings else R.string.disk_access_refused)

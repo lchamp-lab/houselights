@@ -109,6 +109,9 @@ sealed interface FlowMessage {
     /** NFS: mounted, but root may not read [path]. */
     data class RootRefused(val path: String) : FlowMessage
 
+    /** NFS: mounted, but the user [uid] « Compte NFS » presents may not read [path]. */
+    data class AccountRefused(val uid: String, val path: String) : FlowMessage
+
     /** SMB: [user] may not open [share]. */
     data class Denied(val user: String, val share: String) : FlowMessage
 
@@ -233,6 +236,9 @@ private val SHOW_NAMES = listOf("series", "serie", "tv", "shows")
 /** The keys focus is asked by in « Ajouter un dossier » ([Aim]), each row's or field's. */
 object FlowKeys {
     const val NET_FIRST = "net:first"
+
+    /** A place in the network's group, the row in it whichever NAS or search it shows: "net:2". */
+    const val NET_SLOT = "net:"
     const val SEARCH = "net:search"
     const val TYPE_ADDRESS = "type-address"
     const val TYPE_PATH = "type-path"
@@ -266,8 +272,18 @@ object FlowKeys {
 internal fun matches(nas: UsedNas, found: FoundNas): Boolean =
     nas.host.trim().equals(found.address, ignoreCase = true) || found.name.isNotBlank() && TypedPaths.namesNas(found.name, nas.host.trim())
 
-/** Who asked the NAS what failed: its [host], over NFS or SMB, as a [guest] or as [user], from this [player]. */
-internal class Asking(val host: String, val nfs: Boolean, val guest: Boolean, val user: String, val player: String?)
+/**
+ * Who asked the NAS what failed: its [host], over NFS or SMB, as a [guest] or as [user], from this [player]; over NFS,
+ * as the user [uid] « Compte NFS » presents, null for root.
+ */
+internal class Asking(
+    val host: String,
+    val nfs: Boolean,
+    val guest: Boolean,
+    val user: String,
+    val player: String?,
+    val uid: String? = null,
+)
 
 /** A row's two words for this failure. */
 internal fun FlowFailure.words(): RowFailure = when (this) {
@@ -285,6 +301,7 @@ internal fun Asking.refusal(failure: FlowFailure, name: String, where: String): 
     FlowFailure.SILENT -> FlowMessage.Silent(host)
     FlowFailure.MOUNT_REFUSED -> FlowMessage.NotAllowed(player, where)
     FlowFailure.READ_REFUSED -> when {
+        nfs && uid != null -> FlowMessage.AccountRefused(uid, where)
         nfs -> FlowMessage.RootRefused(where)
         guest -> FlowMessage.GuestShare(name)
         else -> FlowMessage.Denied(user, name)

@@ -279,6 +279,8 @@
     <!-- /volume1 is how a Synology NAS names its first volume. -->
     <string name="error_export_missing" tools:ignore="Typos">Enter the mount path, for example /volume1/video.</string>
     <string name="error_share_missing">Enter the name of the shared folder, for example video.</string>
+    <string name="error_full_path_missing_nfs" tools:ignore="Typos">Enter the path of your folder, for example /volume1/video/Movies.</string>
+    <string name="error_full_path_missing_smb">Enter the path of your folder, for example video/Movies.</string>
     <string name="error_uid_missing">Enter the user (UID) as well.</string>
     <string name="error_gid_missing">Enter the group (GID) as well.</string>
     <string name="nfs_hint_player">No password: on the NAS, allow this player (%s) read-only, and on a Synology non-privileged ports.</string>

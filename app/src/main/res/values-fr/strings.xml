@@ -265,6 +265,8 @@
     <string name="error_host_missing">Indiquez l’adresse du NAS.</string>
     <string name="error_export_missing">Indiquez le chemin de montage, par exemple /volume1/video.</string>
     <string name="error_share_missing">Indiquez le nom du dossier partagé, par exemple video.</string>
+    <string name="error_full_path_missing_nfs">Indiquez le chemin de votre dossier, par exemple /volume1/video/Films.</string>
+    <string name="error_full_path_missing_smb">Indiquez le chemin de votre dossier, par exemple video/Films.</string>
     <string name="error_uid_missing">Indiquez aussi l’utilisateur (UID).</string>
     <string name="error_gid_missing">Indiquez aussi le groupe (GID).</string>
     <string name="nfs_hint_player">Sans mot de passe : sur le NAS, autorisez ce lecteur (%s) en lecture seule, et sur un Synology les ports non privilégiés.</string>

@@ -263,6 +263,8 @@
     <string name="error_host_missing">Voer het adres van de NAS in.</string>
     <string name="error_export_missing" tools:ignore="Typos">Voer het koppelpad in, bijvoorbeeld /volume1/video.</string>
     <string name="error_share_missing">Voer de naam van de gedeelde map in, bijvoorbeeld video.</string>
+    <string name="error_full_path_missing_nfs" tools:ignore="Typos">Voer het pad van uw map in, bijvoorbeeld /volume1/video/Films.</string>
+    <string name="error_full_path_missing_smb">Voer het pad van uw map in, bijvoorbeeld video/Films.</string>
     <string name="error_uid_missing">Voer ook de gebruiker (UID) in.</string>
     <string name="error_gid_missing">Voer ook de groep (GID) in.</string>
     <string name="nfs_hint_player">Zonder wachtwoord: sta op de NAS deze speler (%s) alleen-lezen toe, en op een Synology niet-geprivilegieerde poorten.</string>

@@ -257,6 +257,8 @@
     <string name="error_host_missing">請輸入 NAS 位址。</string>
     <string name="error_export_missing">請輸入掛載路徑，例如 /volume1/video。</string>
     <string name="error_share_missing">請輸入共用資料夾的名稱，例如 video。</string>
+    <string name="error_full_path_missing_nfs">請輸入資料夾的路徑，例如 /volume1/video/電影。</string>
+    <string name="error_full_path_missing_smb">請輸入資料夾的路徑，例如 video/電影。</string>
     <string name="error_uid_missing">請同時輸入使用者（UID）。</string>
     <string name="error_gid_missing">請同時輸入群組（GID）。</string>
     <string name="nfs_hint_player">不需密碼：請在 NAS 上以唯讀方式允許此播放器（%s），在 Synology 上還需允許非特權連接埠。</string>

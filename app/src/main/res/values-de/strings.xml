@@ -263,6 +263,8 @@
     <string name="error_host_missing">Geben Sie die Adresse des NAS ein.</string>
     <string name="error_export_missing" tools:ignore="Typos">Geben Sie den Mount-Pfad ein, zum Beispiel /volume1/video.</string>
     <string name="error_share_missing">Geben Sie den Namen des freigegebenen Ordners ein, zum Beispiel video.</string>
+    <string name="error_full_path_missing_nfs" tools:ignore="Typos">Geben Sie den Pfad Ihres Ordners ein, zum Beispiel /volume1/video/Filme.</string>
+    <string name="error_full_path_missing_smb">Geben Sie den Pfad Ihres Ordners ein, zum Beispiel video/Filme.</string>
     <string name="error_uid_missing">Geben Sie auch den Benutzer (UID) ein.</string>
     <string name="error_gid_missing">Geben Sie auch die Gruppe (GID) ein.</string>
     <string name="nfs_hint_player">Ohne Passwort: Erlauben Sie diesem Player (%s) auf dem NAS den Lesezugriff, auf einem Synology auch von nicht privilegierten Ports.</string>

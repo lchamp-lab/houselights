@@ -257,6 +257,8 @@
     <string name="error_host_missing">NAS 주소를 입력하세요.</string>
     <string name="error_export_missing">마운트 경로를 입력하세요(예: /volume1/video).</string>
     <string name="error_share_missing">공유 폴더 이름을 입력하세요(예: video).</string>
+    <string name="error_full_path_missing_nfs">폴더 경로를 입력하세요(예: /volume1/video/Movies).</string>
+    <string name="error_full_path_missing_smb">폴더 경로를 입력하세요(예: video/Movies).</string>
     <string name="error_uid_missing">사용자(UID)도 입력하세요.</string>
     <string name="error_gid_missing">그룹(GID)도 입력하세요.</string>
     <string name="nfs_hint_player">비밀번호가 필요 없습니다. NAS에서 이 플레이어(%s)에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>

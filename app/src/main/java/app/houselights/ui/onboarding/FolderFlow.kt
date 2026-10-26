@@ -47,7 +47,6 @@ import app.houselights.ui.onboarding.FlowKeys.FOLDER
 import app.houselights.ui.onboarding.FlowKeys.GUEST
 import app.houselights.ui.onboarding.FlowKeys.NAS
 import app.houselights.ui.onboarding.FlowKeys.NFS_ACCOUNT
-import app.houselights.ui.onboarding.FlowKeys.SHARE
 import app.houselights.ui.onboarding.FlowKeys.SIGN_IN
 import app.houselights.ui.onboarding.FlowKeys.SUGGESTION
 import app.houselights.ui.onboarding.FlowKeys.TYPE_ADDRESS
@@ -198,28 +197,34 @@ class FolderFlow(
     fun typeAddress() = go(FlowStep.ADDRESS, FIELD_HOST)
 
     /**
-     * OK on a disk of this player ([Volume]): opened at its root, as a shared folder is, once the app may read it; else
-     * [ask] asks Android ([DiskAccess]), the row saying « Non autorisé » and the panel what to allow until it does, then
-     * the disk opens; after its settings, the disk is chosen again.
+     * OK on a disk of this player ([Volume]), [name]d as its row names it: opened at its root, as a shared folder is,
+     * once the app may read it; else [ask] asks Android ([DiskAccess]), what was under way stopped as OK on another row
+     * stops it, the row saying « Non autorisé » and the panel what to allow until it does, then the disk opens; after
+     * its settings, the disk is chosen again.
      */
-    fun chooseDisk(disk: Volume, ask: DiskAsk) {
+    fun chooseDisk(disk: Volume, name: String, ask: DiskAsk) {
         val key = diskKey(disk.id)
         val access = network.diskAccess(disksRefused)
-        if (access == DiskAccess.GRANTED) return openDisk(disk)
+        if (access == DiskAccess.GRANTED) return openDisk(disk, name)
+        job?.cancel()
+        pressed = null
+        silent = false
         rowFailures[key] = RowFailure.NOT_ALLOWED
         message = FlowMessage.DiskRefused(settings = access == DiskAccess.IN_SETTINGS)
         ask.ask(access) { refusedForGood ->
             disksRefused = refusedForGood
             val now = network.diskAccess(refusedForGood)
-            if (now == DiskAccess.GRANTED) return@ask openDisk(disk)
+            // Android answering once the flow has gone on: the disk is chosen again from its row.
+            if (step != FlowStep.WHERE) return@ask
+            if (now == DiskAccess.GRANTED) return@ask openDisk(disk, name)
             message = FlowMessage.DiskRefused(settings = now == DiskAccess.IN_SETTINGS)
             aim(key)
         }
     }
 
-    /** The disk's root, its folders read as a NAS's shared folder's are; Back returns to its row. */
-    private fun openDisk(disk: Volume) = press(diskKey(disk.id), R.string.opening) {
-        begin(FlowNas(disk.id, disk.name.takeIf { it.isNotBlank() }), typedAddress = false)
+    /** The disk's root, its folders read as a NAS's shared folder's are, the disk [name]d as its row; Back returns to it. */
+    private fun openDisk(disk: Volume, name: String) = press(diskKey(disk.id), R.string.opening) {
+        begin(FlowNas(disk.id, name), typedAddress = false)
         protocolName = Protocol.LOCAL.name
         reached = true
         val root = FlowShare("")
@@ -295,7 +300,7 @@ class FolderFlow(
         guest = false
         accountKept = false
         signedIn = false
-        changing = false
+        accountChanged()
         keptPassword = null
         uid = ""
         gid = ""
@@ -367,21 +372,22 @@ class FolderFlow(
             null -> {
                 accountKept = false
                 signedIn = true
-                changing = false
+                accountChanged()
                 showShares(listed.getOrThrow().map { FlowShare(it.name, it.remark) })
             }
             FlowFailure.LOGIN_REFUSED, FlowFailure.SILENT -> throw listed.exceptionOrNull() ?: FlowRefusal(FlowFailure.OTHER)
             // Signed in, but no list: its shared folder is typed.
             else -> {
                 signedIn = true
-                changing = false
+                accountChanged()
                 typeInstead()
             }
         }
     }
 
+    /** « Changer de compte »: the account step, the account the shared folders were listed with kept until another signs in. */
     fun changeAccount() {
-        changing = true
+        keepAccount()
         go(FlowStep.ACCOUNT, FIELD_USER)
     }
 
@@ -423,7 +429,10 @@ class FolderFlow(
     fun standingOf(opened: FlowShare?, at: List<String> = emptyList()): Standing =
         opened?.let { place(it, at).standing(folders) } ?: Standing.Apart
 
-    fun openNfsAccount() = go(FlowStep.NFS_ACCOUNT, FIELD_UID)
+    fun openNfsAccount() {
+        keepIdentity()
+        go(FlowStep.NFS_ACCOUNT, FIELD_UID)
+    }
 
     /** « Continuer » on « Compte NFS »: both or neither, then back where it was opened, on the folder last tried. */
     fun continueIdentity() {
@@ -436,8 +445,7 @@ class FolderFlow(
                 },
             )
         }
-        // Another user and group: what refused root may open now.
-        rowFailures.keys.filter { it.startsWith(SHARE) }.forEach { rowFailures.remove(it) }
+        identityChanged()
         message = null
         val tried = trying?.let { path -> shares.firstOrNull { it.path == path } }
         if (noList) go(FlowStep.TYPE_PATH, FIELD_PATH) else go(FlowStep.SHARES, tried?.let { shareKey(it) } ?: NFS_ACCOUNT)
@@ -453,14 +461,18 @@ class FolderFlow(
         val way = protocol ?: return
         val names = TypedPaths.read(typedPath, nas = host, protocol = way)?.names.orEmpty()
         if (names.isEmpty()) {
-            val missing = if (way == Protocol.NFS) R.string.error_export_missing else R.string.error_share_missing
+            val missing = if (way == Protocol.NFS) R.string.error_full_path_missing_nfs else R.string.error_full_path_missing_smb
             return said(FieldError(FIELD_PATH, FlowMessage.Missing(missing)))
         }
         press(CONTINUE, R.string.signing_in) { openTyped(names, way) }
     }
 
+    /**
+     * Opens [names]: over SMB its first name is the share, listed or not (one hidden, "video$", is never listed), as
+     * the NAS spells it when listed; over NFS the longest export listed starts it, else the longest start that mounts.
+     */
     private suspend fun openTyped(names: List<String>, way: Protocol) {
-        val known = if (noList) null else shares.map { it.path }
+        val known = shares.map { it.path }.takeIf { !noList && way == Protocol.NFS && it.isNotEmpty() }
         val located = TypedPaths.locate(names, way, known) { export -> network.level(place(FlowShare(export)), "") }
         if (located == null) return shareMissing(names, way)
         val opened = shares.firstOrNull { sameShare(it.path, located.share) }
@@ -637,18 +649,21 @@ class FolderFlow(
             FlowStep.ACCOUNT -> beforeAccount(at)
             FlowStep.SHARES -> beforeShares(at)
             FlowStep.TYPE_PATH -> if (noList) beforeShares(at) else go(FlowStep.SHARES, TYPE_PATH)
-            FlowStep.NFS_ACCOUNT -> go(if (noList) FlowStep.TYPE_PATH else FlowStep.SHARES, NFS_ACCOUNT)
+            FlowStep.NFS_ACCOUNT -> {
+                identityBack()
+                go(if (noList) FlowStep.TYPE_PATH else FlowStep.SHARES, NFS_ACCOUNT)
+            }
             FlowStep.BROWSE -> up()
             FlowStep.KIND -> go(FlowStep.BROWSE, CHOOSE)
         }
     }
 
-    /** Back from the account step: the shared folders it was opened from to change the account, else the step before. */
+    /**
+     * Back from the account step: the shared folders it was opened from to change the account, with the account they
+     * were listed as ([accountBack]); else, or that account lost with a stopped process, the step before.
+     */
     private fun beforeAccount(at: String) = when {
-        changing -> {
-            changing = false
-            go(FlowStep.SHARES, CHANGE_ACCOUNT)
-        }
+        accountBack() -> go(FlowStep.SHARES, CHANGE_ACCOUNT)
         askedProtocol -> go(FlowStep.PROTOCOLS, protocolKey(Protocol.SMB))
         else -> nasStep(at)
     }
@@ -768,17 +783,6 @@ class FolderFlow(
         row(key, failure, name, joined(TypedPaths.names(share?.path.orEmpty(), protocol) + path + name))
     }
 
-    /** A row's failure: its two words, and the sentence in the panel; focus stays on it, OK tries again. */
-    private fun row(key: String, failure: FlowFailure, name: String, where: String) {
-        rowFailures[key] = failure.words()
-        panel(key, asking().refusal(failure, name, where))
-    }
-
-    private fun panel(key: String, sentence: FlowMessage) {
-        message = sentence
-        aim(key)
-    }
-
     /** What refused a path typed, said under its field: the shared folder tried, else the path as typed. */
     private fun pathRefused(failure: FlowFailure) {
         val typed = typedPath.trim()
@@ -791,21 +795,6 @@ class FolderFlow(
         }
         val name = if (failure == FlowFailure.MISSING) names.firstOrNull().orEmpty() else FlowShare(opened).name
         said(FieldError(FIELD_PATH, asking().refusal(failure, name, where)))
-    }
-
-    private fun said(error: FieldError) {
-        fieldError = error
-        aim(error.field)
-    }
-
-    private fun go(next: FlowStep, focus: String) {
-        stepName = next.name
-        view++
-        aim(focus)
-    }
-
-    private fun aim(key: String) {
-        aim = Aim(key, (aim?.serial ?: 0) + 1)
     }
 
     companion object {

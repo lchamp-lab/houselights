@@ -275,6 +275,8 @@
     <string name="error_host_missing">Wpisz adres serwera NAS.</string>
     <string name="error_export_missing">Wpisz ścieżkę montowania, na przykład /volume1/video.</string>
     <string name="error_share_missing">Wpisz nazwę udostępnionego folderu, na przykład video.</string>
+    <string name="error_full_path_missing_nfs">Wpisz ścieżkę folderu, na przykład /volume1/video/Filmy.</string>
+    <string name="error_full_path_missing_smb">Wpisz ścieżkę folderu, na przykład video/Filmy.</string>
     <string name="error_uid_missing">Wpisz też użytkownika (UID).</string>
     <string name="error_gid_missing">Wpisz też grupę (GID).</string>
     <string name="nfs_hint_player">Bez hasła: na serwerze NAS zezwól temu odtwarzaczowi (%s) na odczyt, a na Synology także na porty nieuprzywilejowane.</string>

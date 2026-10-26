@@ -257,6 +257,8 @@
     <string name="error_host_missing">NASのアドレスを入力してください。</string>
     <string name="error_export_missing">マウントパスを入力してください（例：/volume1/video）。</string>
     <string name="error_share_missing">共有フォルダ名を入力してください（例：video）。</string>
+    <string name="error_full_path_missing_nfs">フォルダのパスを入力してください（例：/volume1/video/Movies）。</string>
+    <string name="error_full_path_missing_smb">フォルダのパスを入力してください（例：video/Movies）。</string>
     <string name="error_uid_missing">ユーザー（UID）も入力してください。</string>
     <string name="error_gid_missing">グループ（GID）も入力してください。</string>
     <string name="nfs_hint_player">パスワードは不要です。NAS側でこのプレーヤー（%s）に読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>

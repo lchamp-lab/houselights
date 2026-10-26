@@ -126,8 +126,18 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
     /** This player's address, which an NFS export must allow; null when unknown. */
     protected var player: Inet4Address? = null
 
-    /** « Changer de compte » opened the account step: Back returns to the shared folders. */
-    protected var changing by saved.kept(KEPT_CHANGING, false)
+    /**
+     * The account the shared folders were listed with, kept while « Changer de compte » types another ([keepAccount]):
+     * Back gives it back ([accountBack]). Its password is never saved, so a stopped process forgets it.
+     */
+    private var listedWith by mutableStateOf<ListedWith?>(null)
+
+    /** Who the shared folders were listed as: the account typed in « Changer de compte » only once it signs in. */
+    val listedUser: String get() = listedWith?.user ?: user
+    val listedAsGuest: Boolean get() = listedWith?.guest ?: guest
+
+    /** The user and group « Compte NFS » was opened with, which Back gives back for a pair half typed ([identityBack]). */
+    private var identityBefore: Pair<String, String>? = null
 
     protected var sharePaths by saved.kept<List<String>>(KEPT_SHARE_PATHS, arrayListOf())
     protected var shareRemarks by saved.kept<List<String>>(KEPT_SHARE_REMARKS, arrayListOf())
@@ -199,6 +209,51 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
         )
     }
 
+    /** « Changer de compte » opens the account step: the account the shared folders were listed with is kept. */
+    protected fun keepAccount() {
+        listedWith = ListedWith(user, password, guest, keptPassword, accountKept)
+    }
+
+    /** Back from « Changer de compte »: the account kept given back, true; false when there is none (not changing, or lost). */
+    protected fun accountBack(): Boolean {
+        val kept = listedWith ?: return false
+        user = kept.user
+        password = kept.password
+        guest = kept.guest
+        keptPassword = kept.keptPassword
+        accountKept = kept.accountKept
+        listedWith = null
+        return true
+    }
+
+    /** Another account signed in, or another NAS: the one kept is no longer given back. */
+    protected fun accountChanged() {
+        listedWith = null
+    }
+
+    protected fun keepIdentity() {
+        identityBefore = uid to gid
+    }
+
+    /**
+     * Back from « Compte NFS »: what was typed is kept when it is both or neither; one alone, which the NAS is never
+     * presented ([place]), gives back the pair it was opened with, else root. Another pair clears what refused the last.
+     */
+    protected fun identityBack() {
+        val before = identityBefore ?: ("" to "")
+        if (uid.isEmpty() != gid.isEmpty()) {
+            uid = before.first
+            gid = before.second
+        }
+        if ((uid to gid) != before) identityChanged()
+        identityBefore = null
+    }
+
+    /** Another user and group: the shared folders that refused the last may open now. */
+    protected fun identityChanged() {
+        rowFailures.keys.filter { it.startsWith(FlowKeys.SHARE) }.forEach { rowFailures.remove(it) }
+    }
+
     protected fun listShares(listed: List<FlowShare>) {
         sharePaths = ArrayList(listed.map { it.path })
         shareRemarks = ArrayList(listed.map { it.remark })
@@ -208,7 +263,10 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
     /** [names] as a path typed on this NAS: from the root over NFS ("/volume1/video"), from the share over SMB. */
     protected fun joined(names: List<String>): String = names.joinToString("/").let { if (protocol == Protocol.NFS) "/$it" else it }
 
-    internal fun asking() = Asking(host.orEmpty(), protocol == Protocol.NFS, guest, user.trim(), player?.hostAddress)
+    internal fun asking() = Asking(host.orEmpty(), protocol == Protocol.NFS, guest, user.trim(), player?.hostAddress, identity()?.first)
+
+    /** The NFS user and group « Compte NFS » presents, both typed; null for root, as [place] presents it then. */
+    protected fun identity(): Pair<String, String>? = uid.takeIf { it.isNotEmpty() && gid.isNotEmpty() }?.let { it to gid }
 
     /** The account refused: a guest's, or the password. */
     protected fun refusal(): FlowMessage = if (guest) FlowMessage.GuestRefused else FlowMessage.LoginRefused
@@ -218,6 +276,32 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
         val mine = TypedPaths.names(a, protocol)
         val theirs = TypedPaths.names(b, protocol)
         return mine.size == theirs.size && mine.indices.all { mine[it].equals(theirs[it], ignoreCase = smb) }
+    }
+
+    /** A row's failure: its two words, and the sentence in the panel; focus stays on it, OK tries again. */
+    protected fun row(key: String, failure: FlowFailure, name: String, where: String) {
+        rowFailures[key] = failure.words()
+        panel(key, asking().refusal(failure, name, where))
+    }
+
+    protected fun panel(key: String, sentence: FlowMessage) {
+        message = sentence
+        aim(key)
+    }
+
+    protected fun said(error: FieldError) {
+        fieldError = error
+        aim(error.field)
+    }
+
+    protected fun go(next: FlowStep, focus: String) {
+        stepName = next.name
+        view++
+        aim(focus)
+    }
+
+    protected fun aim(key: String) {
+        aim = Aim(key, (aim?.serial ?: 0) + 1)
     }
 
     /** The first row of the step shown, where Back brings focus from deep in its list. */
@@ -240,6 +324,15 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
         else -> FIELD_PASSWORD
     }
 }
+
+/** An account as the shared folders were listed with it: its user, its password typed or [keptPassword], or a [guest]. */
+private class ListedWith(
+    val user: String,
+    val password: String,
+    val guest: Boolean,
+    val keptPassword: Secret?,
+    val accountKept: Boolean,
+)
 
 /** A value of the flow's state, written to [this] saved state as it changes, so a stopped process finds it again. */
 private fun <T> SavedStateHandle.kept(key: String, initial: T): ReadWriteProperty<Any?, T> = object : ReadWriteProperty<Any?, T> {
@@ -269,7 +362,6 @@ private const val KEPT_GID = "flowGid"
 private const val KEPT_GUEST = "flowGuest"
 private const val KEPT_ACCOUNT_KEPT = "flowAccountKept"
 private const val KEPT_SIGNED_IN = "flowSignedIn"
-private const val KEPT_CHANGING = "flowChanging"
 private const val KEPT_SHARE_PATHS = "flowSharePaths"
 private const val KEPT_SHARE_REMARKS = "flowShareRemarks"
 private const val KEPT_REFUSED_PATHS = "flowRefusedPaths"
