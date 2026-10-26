@@ -196,20 +196,8 @@ private fun stepSentence(flow: FolderFlow): String = when (flow.step) {
 @Composable
 private fun FlowStatus(flow: FolderFlow) {
     val nas = flow.nas
-    val pressed = flow.pressed
-    val (state, words) = when {
-        pressed != null && pressed.words != R.string.adding -> StatusState.Pending to R.string.connection_testing
-        flow.notSaved != null -> StatusState.Off to R.string.folder_not_saved_state
-        flow.silent -> StatusState.Off to R.string.connection_failed
-        flow.reached -> StatusState.Done to R.string.connection_ok
-        else -> StatusState.Off to R.string.connection_untested
-    }
+    val (state, words) = connectionOf(flow)
     val protocol = flow.protocol
-    val account = when {
-        protocol != Protocol.SMB || !flow.signedIn -> null
-        flow.guest -> stringResource(R.string.guest_fact)
-        else -> flow.user.trim()
-    }
     val share = flow.share
     val detail = share?.let { opened ->
         "/" + (opened.path.trim('/').split('/') + flow.path).filter { it.isNotEmpty() }.joinToString("/")
@@ -223,10 +211,30 @@ private fun FlowStatus(flow: FolderFlow) {
         name = nas?.name,
         detail = detail,
         badges = listOfNotNull(protocol?.name),
-        facts = listOf(account, identityText(flow)),
+        facts = listOf(accountText(flow), identityText(flow)),
         result = if (failed != null) stringResource(welcomeProblem(failed)) else flow.message?.let { flowText(it) },
         resultIsError = true,
     )
+}
+
+/** The connection's state and its words: under way, not saved, silent, reached, or not tried yet. */
+private fun connectionOf(flow: FolderFlow): Pair<StatusState, Int> {
+    val pressed = flow.pressed
+    return when {
+        pressed != null && pressed.words != R.string.adding -> StatusState.Pending to R.string.connection_testing
+        flow.notSaved != null -> StatusState.Off to R.string.folder_not_saved_state
+        flow.silent -> StatusState.Off to R.string.connection_failed
+        flow.reached -> StatusState.Done to R.string.connection_ok
+        else -> StatusState.Off to R.string.connection_untested
+    }
+}
+
+/** Who the SMB shares were listed as, once they were: the account, or « Invité ». */
+@Composable
+private fun accountText(flow: FolderFlow): String? = when {
+    flow.protocol != Protocol.SMB || !flow.signedIn -> null
+    flow.guest -> stringResource(R.string.guest_fact)
+    else -> flow.user.trim()
 }
 
 /** The NFS user and group the flow presents, "UID 1026 · GID 100"; null for root, or over SMB. */

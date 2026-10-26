@@ -41,7 +41,7 @@ class FakeFlowNetwork : FlowNetwork {
     val folders = mutableMapOf(
         "volume1/video" to FolderLevel(listOf("Archives 2019", "Films", "Films2", "Séries", "Spectacles"), 0),
         "volume1/video/Films" to FolderLevel(listOf("Heat (1995)"), 1),
-        "volume1/video/Films2" to FolderLevel((1..FILMS2).map { "Film %02d".format(it) }, 2),
+        "volume1/video/Films2" to FolderLevel((1..FILMS2).map { "Film " + it.toString().padStart(2, '0') }, 2),
         "volume1/video/Séries" to FolderLevel(listOf("One Piece (1999)", "Severance (2022)"), 0),
         "volume1/video/Spectacles" to FolderLevel(emptyList(), 3),
         "volume1/video/Archives 2019" to FolderLevel(emptyList(), 0),

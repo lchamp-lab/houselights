@@ -152,12 +152,7 @@ fun HlSettingRow(
                 if (description != null) RowDescription(description, progress, focused, enabled)
             }
             Spacer(Modifier.width(HlSpace.l))
-            when {
-                trailing != null -> trailing()
-                shown != null -> SettingValue(shown, valueStyle, valueLit, valueAttention, focused, enabled, valueLight)
-                // A state without words: its light alone at the row's end.
-                valueLight != null -> StatusLight(valueLight, ink = if (focused) c.onFocusSecondary else null)
-            }
+            if (trailing != null) trailing() else RowEnd(shown, valueStyle, valueLit, valueAttention, focused, enabled, valueLight)
         }
     }
 
@@ -235,6 +230,23 @@ private fun ValueLines(
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val room = with(LocalDensity.current) { (maxWidth - beside).roundToPx() }
         line(if (words + wide(value, style) <= room) value else value.replace(VALUE_PARTS, "\n"))
+    }
+}
+
+/** What ends a row: its value ([SettingValue]), else a state's [light] alone (a search under way), else nothing. */
+@Composable
+private fun RowEnd(
+    value: String?,
+    style: TextStyle,
+    lit: Boolean,
+    attention: Boolean,
+    focused: Boolean,
+    enabled: Boolean,
+    light: StatusState?,
+) {
+    when {
+        value != null -> SettingValue(value, style, lit, attention, focused, enabled, light)
+        light != null -> StatusLight(light, ink = if (focused) Hl.colors.onFocusSecondary else null)
     }
 }
 

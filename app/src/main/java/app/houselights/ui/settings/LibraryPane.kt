@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -144,6 +145,19 @@ private fun librarySummary(): String? {
 /** A folder « Ajouter un dossier » just added ([id]), whose showcase takes focus once it shows, then [shown]. */
 internal class NewFolder(val id: Long, val shown: () -> Unit)
 
+/** Focus on [added]'s showcase once [sources] hold it, the [row] of showcases scrolled to it first. */
+@Composable
+private fun FocusOnAdded(added: NewFolder, sources: List<Folder>, row: LazyListState, rows: PaneRows) {
+    LaunchedEffect(added.id, sources) {
+        val index = sources.indexOfFirst { it.id == added.id }
+        if (index < 0) return@LaunchedEffect
+        row.scrollToItem(index)
+        // Once laid out, and once the screen has put focus back where it was left (RestoreFocus).
+        withFrameNanos { }
+        if (rows.requester(folderRow(added.id)).tryRequestFocus()) added.shown()
+    }
+}
+
 /**
  * One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. The last
  * one removed gives way to the kept server, its home then shown ([onResumed]), else to the welcome screen. A folder just
@@ -178,15 +192,7 @@ private fun Showcases(
     }
 
     val row = rememberLazyListState()
-    LaunchedEffect(added?.id, sources) {
-        val new = added ?: return@LaunchedEffect
-        val index = sources.indexOfFirst { it.id == new.id }
-        if (index < 0) return@LaunchedEffect
-        row.scrollToItem(index)
-        // Once laid out, and once the screen has put focus back where it was left (RestoreFocus).
-        withFrameNanos { }
-        if (rows.requester(folderRow(new.id)).tryRequestFocus()) new.shown()
-    }
+    if (added != null) FocusOnAdded(added, sources, row, rows)
     if (sources.isNotEmpty()) {
         ShowcaseRow(state = row) {
             items(sources, key = { it.id }) { source ->

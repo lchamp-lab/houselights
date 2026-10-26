@@ -121,9 +121,9 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
     /** « Changer de compte » opened the account step: Back returns to the shared folders. */
     protected var changing by saved.kept(KEPT_CHANGING, false)
 
-    protected var sharePaths by saved.kept(KEPT_SHARE_PATHS, arrayListOf<String>())
-    protected var shareRemarks by saved.kept(KEPT_SHARE_REMARKS, arrayListOf<String>())
-    protected var refusedPaths by saved.kept(KEPT_REFUSED_PATHS, arrayListOf<String>())
+    protected var sharePaths by saved.kept<List<String>>(KEPT_SHARE_PATHS, arrayListOf())
+    protected var shareRemarks by saved.kept<List<String>>(KEPT_SHARE_REMARKS, arrayListOf())
+    protected var refusedPaths by saved.kept<List<String>>(KEPT_REFUSED_PATHS, arrayListOf())
 
     /** The NAS gave no list of its shared folders: « Saisir un chemin » takes their step. */
     var noList by saved.kept(KEPT_NO_LIST, false)
@@ -140,12 +140,12 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
     /** The shared folder last tried, which « Compte NFS » goes back to. */
     protected var trying by saved.kept<String?>(KEPT_TRYING, null)
 
-    protected var pathNames by saved.kept(KEPT_PATH, arrayListOf<String>())
+    protected var pathNames by saved.kept<List<String>>(KEPT_PATH, arrayListOf())
 
     /** The folder shown at [FlowStep.BROWSE], then chosen, under [share]'s root. */
     val path: List<String> get() = pathNames
 
-    protected var levelFolders by saved.kept(KEPT_LEVEL_FOLDERS, arrayListOf<String>())
+    protected var levelFolders by saved.kept<List<String>>(KEPT_LEVEL_FOLDERS, arrayListOf())
     protected var levelVideos by saved.kept(KEPT_LEVEL_VIDEOS, -1)
 
     /** The level shown at [FlowStep.BROWSE]. */
