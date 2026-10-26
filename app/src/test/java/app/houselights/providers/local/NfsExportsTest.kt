@@ -88,7 +88,12 @@ class NfsExportsTest {
         call.setOffset(0)
         val head = List(7) { call.int }
         assertEquals(listOf(0, 2, 100_005, 3, 5, 1), head.drop(1))
-        call.byteArray
+        // AUTH_SYS's body (RFC 5531 appendix A): a stamp, the machine's name, then root's user, group and no other group.
+        val credential = Xdr(call.byteArray)
+        credential.int
+        credential.string
+        assertEquals("uid 0, gid 0, no group besides", listOf(0, 0, 0), List(3) { credential.int })
+        assertEquals("nothing after its groups", credential.size, credential.offset)
         assertEquals("AUTH_NONE's verifier, empty", listOf(0, 0), List(2) { call.int })
         assertEquals(end, call.offset)
     }
@@ -111,26 +116,31 @@ class NfsExportsTest {
     private fun access(vararg groups: String) = exportAccess(groups.toList(), player)
 
     @Test
-    fun anExportTakesInThePlayerByItsAddressItsNetworkOrAWildcard() {
-        listOf("*", "192.168.1.42", "192.168.1.0/24", "192.168.0.0/16", "192.168.1.0/255.255.255.0", "0.0.0.0/0").forEach {
-            assertEquals(it, ExportAccess.ALLOWED, access(it))
-        }
-        listOf("192.168.1.*", "192.168.*", "192.168.1.4?", " 192.168.1.42 ").forEach { assertEquals(it, ExportAccess.ALLOWED, access(it)) }
+    fun anExportTakesInThePlayerByItsAddressOrItsNetwork() {
+        listOf("*", "192.168.1.42", "192.168.1.0/24", "192.168.0.0/16", "192.168.1.0/255.255.255.0", "0.0.0.0/0", " 192.168.1.42 ")
+            .forEach { assertEquals(it, ExportAccess.ALLOWED, access(it)) }
         assertEquals("no group: everyone", ExportAccess.ALLOWED, access())
     }
 
     @Test
     fun anExportForOthersRefusesThePlayer() {
-        listOf("192.168.1.4", "192.168.1.43", "192.168.2.0/24", "10.0.0.0/8", "192.168.1.0/255.255.255.252", "10.0.0.*", "192.168.1.4?2")
+        listOf("192.168.1.4", "192.168.1.43", "192.168.2.0/24", "10.0.0.0/8", "192.168.1.0/255.255.255.252")
             .forEach { assertEquals(it, ExportAccess.REFUSED, access(it)) }
         assertEquals("IPv6 is never this address", ExportAccess.REFUSED, access("fe80::/10", "2a01:cb00::1"))
     }
 
-    /** Names are the server's to resolve: never looked up here, they leave the answer open unless another group settles it. */
+    /**
+     * Names are the server's to resolve: never looked up here, they leave the answer open unless another group settles
+     * it. So are wildcards, even of digits: Linux's mountd matches them against the player's name, not its address.
+     */
     @Test
-    fun aHostNameOrANetgroupLeavesItUnknown() {
+    fun aHostNameANetgroupOrAWildcardLeavesItUnknown() {
         listOf("zidoo", "zidoo.home", "*.home", "@media", "192.168.1.0/33").forEach { assertEquals(it, ExportAccess.UNKNOWN, access(it)) }
+        listOf("192.168.1.*", "192.168.*", "192.168.1.4?", "10.0.0.*", "192.168.1.4?2", "192.168.1.[0-9]*").forEach {
+            assertEquals(it, ExportAccess.UNKNOWN, access(it))
+        }
         assertEquals(ExportAccess.ALLOWED, access("zidoo.home", "192.168.1.0/24"))
         assertEquals(ExportAccess.UNKNOWN, access("10.0.0.0/8", "zidoo.home"))
+        assertEquals("an address settles it whatever the wildcard", ExportAccess.ALLOWED, access("10.0.0.*", "192.168.1.42"))
     }
 }

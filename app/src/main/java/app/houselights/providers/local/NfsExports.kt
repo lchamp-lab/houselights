@@ -32,7 +32,7 @@ enum class ExportAccess {
     /** No group names the player's address. */
     REFUSED,
 
-    /** None names its address, but one names a host or a netgroup, which only the server resolves. */
+    /** None names its address, but one names a host, a netgroup or a wildcard, which only the server resolves. */
     UNKNOWN,
 }
 
@@ -125,10 +125,10 @@ internal object NfsExports {
 
 /**
  * Whether [address], this player's, may mount an export allowing [groups]: [ExportAccess.ALLOWED] when a group names
- * it (the address itself, a network holding it as "192.168.1.0/24" or "192.168.1.0/255.255.255.0", a wildcard such
- * as "192.168.1.*", or "*"), or when there is no group, which the protocol says means everyone;
- * [ExportAccess.UNKNOWN] when none does but one is a host name, a host wildcard ("*.home") or a netgroup ("@media"),
- * which only the server resolves; [ExportAccess.REFUSED] otherwise. No name is looked up.
+ * it (the address itself, a network holding it as "192.168.1.0/24" or "192.168.1.0/255.255.255.0", or "*"), or when
+ * there is no group, which the protocol says means everyone; [ExportAccess.UNKNOWN] when none does but one is a host
+ * name, a netgroup ("@media") or a wildcard, which only the server resolves; [ExportAccess.REFUSED] otherwise. No name
+ * is looked up.
  */
 fun exportAccess(groups: List<String>, address: Inet4Address): ExportAccess {
     if (groups.isEmpty()) return ExportAccess.ALLOWED
@@ -140,24 +140,21 @@ fun exportAccess(groups: List<String>, address: Inet4Address): ExportAccess {
     }
 }
 
-/** Whether [group] names [address]; null when only the server can tell (a host name, a netgroup). */
+/**
+ * Whether [group] names [address]; null when only the server can tell: a host name, a netgroup, or a wildcard, which
+ * Linux's mountd (Synology's, QNAP's, TrueNAS SCALE's) matches against the player's name as the network's reverse
+ * lookup gives it, never its address, so "192.168.1.*" takes in a player only when that lookup fails (exports(5)).
+ */
 private fun allows(group: String, address: Inet4Address): Boolean? {
     val mine = address.address.fold(0) { bits, byte -> bits shl Byte.SIZE_BITS or (byte.toInt() and BYTE_MASK) }
     return when {
         group == "*" -> true
+        group.any { it in WILDCARDS } -> null
         '/' in group -> inNetwork(group.substringBefore('/'), group.substringAfter('/'), mine)
-        group.any { it in WILDCARDS } -> matches(group, address)
         // IPv6: never this IPv4 address.
         ':' in group -> false
         else -> ipv4(group)?.let { it == mine }
     }
-}
-
-/** An address wildcard ("192.168.1.*", "192.168.1.?") matched as the server would; a host name's ("*.home") is the server's to tell. */
-private fun matches(group: String, address: Inet4Address): Boolean? {
-    if (!group.all { it.isDigit() || it == '.' || it in WILDCARDS }) return null
-    val pattern = group.split('*').joinToString(".*") { run -> run.split('?').joinToString(".") { Regex.escape(it) } }
-    return Regex(pattern).matches(address.hostAddress.orEmpty())
 }
 
 /** [network], an address, with [length], bits or a mask ("24", "255.255.255.0"), holding [mine]; null when unreadable. */
@@ -181,6 +178,7 @@ private fun ipv4(text: String): Int? {
     return if (bytes.any { it > BYTE_MASK }) null else bytes.fold(0) { bits, byte -> bits shl Byte.SIZE_BITS or byte }
 }
 
-private const val WILDCARDS = "*?"
+/** mountd's wildcards, a client name's pattern (exports(5)). */
+private const val WILDCARDS = "*?["
 private const val BYTE_MASK = 0xFF
 private const val IPV4_BITS = 32
