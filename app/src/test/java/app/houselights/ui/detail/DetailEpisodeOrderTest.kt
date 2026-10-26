@@ -141,7 +141,8 @@ class DetailEpisodeOrderTest {
         compose.waitForIdle()
 
         compose.onNodeWithText(text(R.string.episode_order_applying)).assertExists()
-        compose.onNodeWithText("e1").assertExists()
+        // The cards of the order before, kept until the page reads again.
+        compose.onNode(hasText("e1") and hasClickAction()).assertExists()
         placing.complete(Unit)
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.episode_order_applying)).assertDoesNotExist()
