@@ -343,5 +343,8 @@ any later version ([LICENSE](LICENSE), `GPL-3.0-or-later`).
   ([third_party/archivo/OFL.txt](third_party/archivo/OFL.txt)).
 - Icons are Lucide's (https://lucide.dev), under the ISC license, those derived from Feather under the MIT
   license ([third_party/lucide/LICENSE](third_party/lucide/LICENSE)).
+- `RPCRecordDecoder` (`app/src/main/java/com/emc/ecs/nfsclient/network`) is nfs-client's
+  (https://github.com/EMCECS/nfs-client-java, Dell Inc.), changed to join an NFS reply's fragments, under the Apache
+  License 2.0 ([third_party/nfs-client/LICENSE](third_party/nfs-client/LICENSE)).
 - This product uses the TMDB API but is not endorsed or certified by TMDB. The TMDB logo is a trademark of
   TMDB, shown under its attribution guidelines, and is not covered by the GPL.

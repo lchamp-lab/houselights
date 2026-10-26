@@ -1,9 +1,9 @@
 """NFS over TCP on port 2049, forwarded to unfsd on 127.0.0.1:2050, each RPC reply sent on in one record fragment.
 
 A NAS's NFS server (Linux's knfsd on a Synology, a QNAP, TrueNAS SCALE, Unraid) sends a reply as one fragment.
-unfsd, on libtirpc, splits a reply above 64 KB into fragments of 64 KB (RFC 5531, section 11), which Houselights'
-NFS client, nfs-client 1.1.0, does not join (README, What they do not simulate): this answers as the NAS does.
-Calls go to unfsd unchanged. Once listening, it registers NFS version 3 over TCP at 2049 with rpcbind.
+unfsd, on libtirpc, splits a reply above 64 KB into fragments of 64 KB (RFC 5531, section 11), as the nfs-fragments
+service sends them (README, NFS replies in fragments): this answers as the NAS does, so that the app's tests read
+both. Calls go to unfsd unchanged. Once listening, it registers NFS version 3 over TCP at 2049 with rpcbind.
 """
 import asyncio
 import socket
