@@ -26,15 +26,22 @@ import app.houselights.player.TrackChooser
 import app.houselights.player.ZidooPlayer
 import app.houselights.player.ZidooSettings
 import app.houselights.player.Redact
+import app.houselights.journal.HomeAddress
+import app.houselights.providers.jellyfin.DiscoveryAhead
+import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.JellyfinProvider
+import app.houselights.providers.local.AndroidVolumes
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.DetailsLanguage
+import app.houselights.providers.local.DiskAccess
+import app.houselights.providers.local.DiskPermission
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalEditor
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.RemoteBrowsers
+import app.houselights.providers.local.Volumes
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TrackChoiceEntity
 import app.houselights.providers.local.followDetailsLanguage
@@ -84,6 +91,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.Locale
@@ -264,8 +272,14 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** Library-generated rows shown below home's own, chosen once a day. */
     val libraryRows = LibraryRows({ provider }, { settledVersion.value })
 
-    /** NAS browsers, with the sessions and mounts they keep open between files. */
-    val remoteBrowsers = RemoteBrowsers()
+    /** The player's own disks a folder can be on: its storage, USB disks and SD cards, where Android mounts each now. */
+    val volumes: Volumes = AndroidVolumes(app)
+
+    /** Whether the app may read those disks, and where Android grants it. */
+    val diskPermission = DiskPermission(app)
+
+    /** NAS browsers, with the sessions and mounts they keep open between files, and the player's disks'. */
+    val remoteBrowsers = RemoteBrowsers(volumes) { diskPermission.access() == DiskAccess.GRANTED }
     val scanner = LibraryScanner(
         dao = database.dao(),
         tmdb = ::tmdb,
@@ -278,6 +292,12 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         started = onScreen,
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
+
+    /** This player's address on the home network ([HomeAddress]), the one a NAS's NFS rules allow; null without one. */
+    suspend fun playerAddress(): String? = withContext(Dispatchers.IO) { HomeAddress.find(app)?.hostAddress }
+
+    /** Jellyfin's sign-in on the network, its discovery started ahead as « Serveur Jellyfin » takes focus on Welcome. */
+    val jellyfin = DiscoveryAhead(JellyfinNetwork.Lan, scope)
 
     /** Whether the folders hold one at least ([LocalLibrary.anyFolder]); null until read. */
     val hasFolders: StateFlow<Boolean?> = library.anyFolder.stateIn(scope, SharingStarted.Eagerly, null)
@@ -362,7 +382,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         val created = when (source) {
             SourceConfig.Local -> {
                 val editor = LocalEditor(database.dao(), scanner, ::tmdbInteractive)
-                LocalProvider(app, database.dao(), editor, traktSync) { settings.state.value.collectionMinFilms }
+                LocalProvider(app, database.dao(), editor, traktSync, volumes) { settings.state.value.collectionMinFilms }
             }
             is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
         }

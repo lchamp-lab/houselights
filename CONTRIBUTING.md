@@ -24,7 +24,7 @@ Trakt). `local.properties` is git-ignored: **never commit a key.**
 ```
 app/src/main/java/app/houselights/
   core/          backend-independent model and the MediaProvider interface
-  providers/     local (SMB, NFS, TMDB, Room), jellyfin and trakt (the folders' Trakt account)
+  providers/     local (SMB, NFS, the player's own disks, TMDB, Room), jellyfin and trakt (the folders' Trakt account)
   player/        Zidoo player launch, progress tracking, audio and subtitle tracks, path mapping
   settings/      the app's settings (DataStore), display modes, text size, interface language, source switching
   journal/       the app's own log, masked, served to a phone on the home network (Settings > About)

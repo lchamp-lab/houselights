@@ -37,13 +37,13 @@ open class NfsServerTest : NasServerTest() {
     @Test
     fun aFolderPresentingAUserOfTheNasReadsAsThatUser() = runBlocking {
         val films = folder("volume1/video", "Films", uid = 1026, gid = 100)
-        assertEquals(Samples.FILMS_ENTRIES, browsers.of(films).test(films))
+        assertEquals(Samples.FILMS, browsers.of(films).test(films).counted())
     }
 
     @Test
     fun aSecondExportOfTheNasPassesItsTest() = runBlocking {
         val media = folder("volume1/media")
-        assertEquals(2, browsers.of(media).test(media))
+        assertEquals("Films and Vidéos perso", 2 to 0, browsers.of(media).test(media).counted())
     }
 
     @Test

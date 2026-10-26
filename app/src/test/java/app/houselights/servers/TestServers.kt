@@ -1,6 +1,7 @@
 package app.houselights.servers
 
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanErrors
@@ -62,11 +63,11 @@ internal object Samples {
     const val DUNE = "Films/Dune (2021)/Dune (2021).mkv"
     const val DUNE_NFO = "Films/Dune (2021)/Dune (2021).nfo"
 
-    /** The folders at the root of « video » the app counts: #recycle and @eaDir are left out. */
-    const val ROOT_FOLDERS = 2
+    /** What the app counts at the root of « video », its folders and its videos: Films and Séries; #recycle and @eaDir left out. */
+    val ROOT = 2 to 0
 
-    /** The entries of Films the app counts: six films, five in folders, one loose; .DS_Store left out. */
-    const val FILMS_ENTRIES = 6
+    /** What the app counts in Films: six films, five in folders, one loose; .DS_Store left out. */
+    val FILMS = 5 to 1
 
     val videos = setOf(
         "Films/Alien (1979)/Alien (1979).mp4",
@@ -94,3 +95,6 @@ internal object Samples {
     const val INTERSTELLAR_NFO = "Interstellar (2014)/Interstellar (2014).nfo"
     const val INTERSTELLAR_ACTORS = 500
 }
+
+/** A level's folders and videos, counted apart, as a folder's test says them: « 5 dossiers et 1 vidéo ». */
+internal fun FolderLevel.counted(): Pair<Int, Int> = folders.size to videos

@@ -142,7 +142,10 @@ class JellyfinLoginViewModel(
     var error by mutableStateOf<LoginError?>(null)
         private set
 
-    /** Servers that answered discovery on the network, offered as choices: any device can answer one. */
+    /**
+     * Servers that answered discovery on the network, offered as choices: any device can answer one. Each comes as it
+     * answers, after those shown.
+     */
     var discovered by mutableStateOf<List<DiscoveredServer>>(emptyList())
         private set
 
@@ -167,9 +170,12 @@ class JellyfinLoginViewModel(
             user = known.second
         }
         viewModelScope.launch {
-            discovered = network.discover()
-            // Each checked at once, in the background, so its row says how it will be reached before it is picked.
-            discovered.forEach { found -> checking[found] = async { check(found) } }
+            network.discover().collect { found ->
+                if (found in discovered) return@collect
+                discovered = discovered + found
+                // Checked at once, in the background, so its row says how it will be reached before it is picked.
+                checking[found] = async { check(found) }
+            }
         }
     }
 
@@ -269,7 +275,7 @@ class JellyfinLoginViewModel(
 
     companion object {
         fun factory(app: AppContainer, fill: LoginFill): ViewModelProvider.Factory = viewModelFactory {
-            initializer { JellyfinLoginViewModel(app.settings, app.sources, fill = fill) }
+            initializer { JellyfinLoginViewModel(app.settings, app.sources, app.jellyfin, fill) }
         }
     }
 }

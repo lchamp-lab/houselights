@@ -1,9 +1,10 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">Meus arquivos</string>
-    <string name="source_local_desc">Vídeos no seu NAS ou em um compartilhamento de rede (NFS ou SMB). O Houselights analisa os arquivos e obtém cartazes e detalhes do TMDB.</string>
+    <string name="source_local_desc">Seus vídeos em um NAS ou um computador da rede. O Houselights analisa os arquivos e obtém cartazes e sinopses.</string>
     <string name="source_jellyfin">Servidor Jellyfin</string>
     <string name="source_jellyfin_desc">A biblioteca do seu servidor</string>
+    <string name="welcome_jellyfin_desc">Os filmes e as séries do seu servidor Jellyfin.</string>
     <string name="welcome_title">Escolha sua biblioteca</string>
 
     <!-- Libraries and sections -->
@@ -223,19 +224,20 @@
     <string name="edit_folder_not_found_desc">A pasta ou o caminho pode ter mudado</string>
     <string name="password_kept">Inalterada</string>
     <string name="jellyfin_desc">Digite o endereço do seu servidor e suas credenciais do Jellyfin.</string>
+    <string name="jellyfin_desc_found">Escolha seu servidor ou digite o endereço dele, depois suas credenciais do Jellyfin.</string>
     <string name="folder_kind">Conteúdo</string>
     <string name="field_protocol">Protocolo</string>
     <string name="field_host">Endereço do NAS</string>
-    <string name="field_export">Exportação NFS</string>
-    <string name="nfs_hint">Sem senha: no NAS, autorize o endereço deste dispositivo em somente leitura, a partir de portas não privilegiadas.</string>
-    <string name="nfs_identity_title">Conectar como</string>
-    <string name="nfs_identity_desc">Usuário visto pelo NAS</string>
-    <string name="nfs_identity_hint">Campos vazios: o Houselights se conecta como root (UID 0, GID 0). O player Zidoo abre os vídeos com a própria conta.</string>
+    <string name="field_export">Caminho de montagem</string>
+    <string name="nfs_hint">Sem senha: no NAS, autorize este player em somente leitura e, em um Synology, as portas não privilegiadas.</string>
+    <string name="nfs_identity_title">Conta NFS</string>
+    <string name="nfs_identity_desc">A que o NAS vê, root por padrão</string>
+    <string name="nfs_identity_hint">Deixe vazio para root. Digite um UID e um GID se o NAS recusar root.</string>
     <string name="field_uid">Usuário (UID)</string>
     <string name="field_gid">Grupo (GID)</string>
     <string name="smb_hint">A senha fica salva neste dispositivo e é passada ao player Zidoo. Prefira uma conta dedicada, somente leitura.</string>
-    <string name="field_share">Compartilhamento</string>
-    <string name="field_path">Pasta</string>
+    <string name="field_share">Pasta compartilhada</string>
+    <string name="field_path">Subpasta</string>
     <string name="field_optional">%1$s (opcional)</string>
     <string name="field_user">Usuário</string>
     <string name="field_password">Senha</string>
@@ -243,8 +245,8 @@
     <string name="placeholder_server_path">Ex.: /media/filmes</string>
     <string name="placeholder_network_path">Ex.: nfs://192.168.1.10/volume1/filmes</string>
     <string name="placeholder_tmdb_key">Ex.: 0123456789abcdef0123456789abcdef</string>
-    <string name="placeholder_export">Ex.: /volume1/media</string>
-    <string name="placeholder_share">Ex.: media</string>
+    <string name="placeholder_export">Ex.: /volume1/video</string>
+    <string name="placeholder_share">Ex.: video</string>
     <string name="placeholder_path_movies">Ex.: filmes</string>
     <string name="placeholder_path_shows">Ex.: séries</string>
     <string name="placeholder_uid">Ex.: 1026</string>
@@ -258,25 +260,41 @@
     <string name="folder_gone_state">Pasta não encontrada</string>
     <string name="folder_gone">Esta pasta não está mais na biblioteca: foi removida nesse meio-tempo. Volte às configurações para adicioná-la de novo.</string>
     <string name="folder_already_added">Esta pasta já está na biblioteca, como “%s”.</string>
-    <string name="folder_overlaps">Esta pasta se sobrepõe a “%s”, que já está na biblioteca: os títulos apareceriam duas vezes. Escolha outra pasta, ou edite aquela em Configurações.</string>
     <string name="folder_overlaps_state">Já está na biblioteca</string>
     <string name="folder_not_saved_state">Não salvo</string>
     <string name="folder_unread">Não foi possível reler esta pasta</string>
     <string name="saving">Salvando…</string>
-    <plurals name="entries_found">
-        <item quantity="one">%d item encontrado</item>
-        <item quantity="many">%d itens encontrados</item>
-        <item quantity="other">%d itens encontrados</item>
-    </plurals>
     <string name="error_nas_unreachable">%s não responde. Verifique se o NAS está ligado e conectado à rede.</string>
     <string name="error_access_denied">O NAS recusou o acesso. No NFS, autorize o endereço IP deste dispositivo no compartilhamento; no SMB, verifique as permissões da conta.</string>
     <string name="error_login_failed">O NAS recusou o usuário ou a senha.</string>
     <string name="error_not_found">Este compartilhamento ou pasta não existe no NAS. Verifique a grafia.</string>
     <string name="error_host_missing">Digite o endereço do NAS.</string>
-    <string name="error_export_missing">Digite a exportação NFS, por exemplo /volume1/media.</string>
-    <string name="error_share_missing">Digite o nome da pasta compartilhada, por exemplo media.</string>
+    <string name="error_export_missing">Digite o caminho de montagem, por exemplo /volume1/video.</string>
+    <string name="error_share_missing">Digite o nome da pasta compartilhada, por exemplo video.</string>
     <string name="error_uid_missing">Digite também o usuário (UID).</string>
     <string name="error_gid_missing">Digite também o grupo (GID).</string>
+    <string name="nfs_hint_player">Sem senha: no NAS, autorize este player (%s) em somente leitura e, em um Synology, as portas não privilegiadas.</string>
+    <string name="folder_holds">Esta pasta contém “%s”, que já está na biblioteca: os títulos apareceriam duas vezes. Escolha uma subpasta.</string>
+    <string name="folder_inside">Esta pasta está dentro de “%s”, que já está na biblioteca: os títulos já estão lá. Escolha outra pasta.</string>
+    <string name="folder_nested_state">Sobrepõe uma pasta</string>
+    <string name="folder_empty_state">Pasta vazia</string>
+    <string name="folder_no_content">Esta pasta não contém vídeos nem subpastas. Verifique o caminho.</string>
+    <plurals name="video_count">
+        <item quantity="one">%d vídeo</item>
+        <item quantity="many">%d vídeos</item>
+        <item quantity="other">%d vídeos</item>
+    </plurals>
+    <string name="folder_content">%1$s e %2$s</string>
+    <string name="error_share_not_found">%1$s não tem a pasta compartilhada “%2$s”. Verifique o nome na interface do NAS.</string>
+    <string name="error_export_not_found">O NAS não compartilha %s via NFS. Em um Synology, o caminho de montagem começa com /volume1/.</string>
+    <string name="error_subfolder_not_found">%1$s responde, mas “%2$s” não está lá. Verifique o nome, incluindo maiúsculas.</string>
+    <string name="error_subfolder_not_found_share">“%1$s” responde, mas “%2$s” não está lá. Verifique o nome, incluindo maiúsculas.</string>
+    <string name="error_nfs_refused">O NAS recusa este player. Autorize %1$s em %2$s, em somente leitura e, em um Synology, as portas não privilegiadas.</string>
+    <string name="error_nfs_refused_no_address">O NAS recusa este player. Autorize o endereço deste player em %s, em somente leitura e, em um Synology, as portas não privilegiadas.</string>
+    <string name="error_nfs_root_refused">O NAS não deixa root ler %s. Escolha “Conta NFS” e digite uma conta com acesso.</string>
+    <string name="error_nfs_account_refused">O NAS não deixa o UID %1$s ler %2$s. Em “Conta NFS”, digite uma conta com acesso.</string>
+    <string name="error_smb_denied">A conta “%1$s” não tem acesso a “%2$s”. Dê a ela permissão de leitura no NAS, ou troque de conta.</string>
+    <string name="error_guest_refused">Este NAS não aceita convidados: digite uma conta.</string>
     <string name="error_scan_other">Não foi possível ler a pasta. Tente de novo, ou verifique o compartilhamento no NAS.</string>
     <string name="error_folder_empty">A pasta parece vazia no NAS: nada foi removido. Verifique se o disco dela está montado; se estiver vazia de vez, remova-a.</string>
     <string name="error_storage_full">Este dispositivo está sem espaço livre: a análise parou. Libere espaço em Configurações, Armazenamento.</string>
@@ -529,6 +547,22 @@
     </plurals>
     <string name="identify_state_matched">Identificado</string>
     <string name="result_current">Atual</string>
+    <string name="to_identify">A identificar</string>
+    <string name="to_identify_row_desc">Não reconhecidos com certeza</string>
+    <string name="to_identify_desc">O Houselights não reconheceu estes títulos com certeza. Escolha o certo: sua escolha é mantida nas próximas análises. Os outros são pesquisados de novo, primeiro todo dia, depois toda semana.</string>
+    <string name="to_identify_unsure">Vários títulos possíveis</string>
+    <string name="to_identify_not_found">Não encontrado no TMDB</string>
+    <string name="to_identify_none">Nada a identificar</string>
+    <string name="to_identify_none_hint">Os títulos que o Houselights não reconheceu com certeza aparecerão aqui.</string>
+    <string name="to_identify_best">Talvez “%1$s” (%2$d)</string>
+    <string name="to_identify_best_undated">Talvez “%1$s”</string>
+    <string name="identify_menu_desc_none">Encontrar este título no TMDB</string>
+    <string name="identify_desc_none">O Houselights não reconheceu este título com certeza. Pesquise-o no TMDB: sua escolha é mantida nas próximas análises.</string>
+    <string name="identify_desc_unsure">O Houselights está em dúvida entre estes títulos. Escolha o certo ou pesquise-o no TMDB: sua escolha é mantida nas próximas análises.</string>
+    <string name="identify_keep">Deixar como está</string>
+    <string name="identify_kept">Deixado como está</string>
+    <string name="identify_suggestions">Sugestões</string>
+    <string name="identify_skip">Pular</string>
     <string name="error_offline_title">Biblioteca inacessível</string>
     <string name="error_offline_nas_title">NAS inacessível</string>
     <string name="error_offline_server_title">Servidor inacessível</string>

@@ -1,11 +1,15 @@
 package app.houselights.providers.local
 
+import app.houselights.core.DiskAbsentException
 import app.houselights.core.SecretUnreadException
+import app.houselights.ui.util.UiError
+import app.houselights.ui.util.toUiError
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.File
 
 /** The address the player is given for a folder's file, credentials and all. */
 @RunWith(RobolectricTestRunner::class)
@@ -28,6 +32,25 @@ class FileUriTest {
                 LocalProvider.fileUri(source(Protocol.NFS), "Fast # Furious 100%?.mkv"),
         )
         uris.forEach { (expected, uri) -> assertEquals(expected, uri) }
+    }
+
+    /**
+     * A film of the player's own disks is a file:// URI on where its disk is mounted now, escaped as a share's; never
+     * handed as such (PlaybackManager). Without a mount, the disk is out of reach as a NAS asleep.
+     */
+    @Test
+    fun aDisksFileIsOnItsMountNow() {
+        val films = diskFolder(path = "Vidéos/Films/")
+        assertEquals(
+            "file:///storage/1234-ABCD/Vidéos/Films/Fast %23 Furious 100%25%3F.mkv",
+            LocalProvider.fileUri(films, "Fast # Furious 100%?.mkv", File("/storage/1234-ABCD/")),
+        )
+        assertEquals(
+            "file:///mnt/media_rw/1234-ABCD/Vidéos/Films/Heat.mkv",
+            LocalProvider.fileUri(films, "Heat.mkv", File("/mnt/media_rw/1234-ABCD")),
+        )
+        val absent = assertThrows(DiskAbsentException::class.java) { LocalProvider.fileUri(films, "Heat.mkv") }
+        assertEquals(UiError.OFFLINE, absent.toUiError())
     }
 
     /** A password the Keystore did not open for now is never handed to the player empty; a guest needs none. */

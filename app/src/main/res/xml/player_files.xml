@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the app's FileProvider may hand out, for one file at a time and only when it grants it (PlaybackManager): the
+     films of the player's own disks, wherever Android mounts each (/storage/emulated/0, /storage/1234-ABCD), so from the
+     device's root. -->
+<paths>
+    <root-path name="disk" path="" />
+</paths>

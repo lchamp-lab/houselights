@@ -28,6 +28,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
+import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
@@ -89,7 +90,7 @@ class NfsIdentityTest {
         val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
         val id = folder?.let { runBlocking { db.dao().insertSource(it) } }
-        val vm = AddFolderViewModel(library, id, scope, useFolders = { false }, probe = { 0 })
+        val vm = AddFolderViewModel(library, id, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
         compose.waitForIdle()
         return vm

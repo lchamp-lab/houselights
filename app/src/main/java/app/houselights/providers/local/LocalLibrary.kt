@@ -42,6 +42,9 @@ class LocalLibrary(
 
     val titleCount: Flow<Int> = dao.observeAllTitleCount().paced()
 
+    /** How many films and shows are to identify ([TO_IDENTIFY]). */
+    val toIdentifyCount: Flow<Int> = dao.observeToIdentifyCount().paced()
+
     val scan: StateFlow<ScanState> = scanner.state
 
     /** One query for all sources rather than two each, as Flow queries rerun on every scan write. */
@@ -64,11 +67,17 @@ class LocalLibrary(
         emit(true)
     }
 
-    /** The NAS the library's folders are on, for the add-folder flow to offer before any discovery ([nasOf]). */
-    suspend fun usedNas(): List<UsedNas> = nasOf(dao.sources())
+    /**
+     * The NAS the library's folders are on, for the add-folder flow to offer before any discovery ([nasOf]); a folder on
+     * the player's own disks is on none.
+     */
+    suspend fun usedNas(): List<UsedNas> = nasOf(dao.sources().filter { it.protocol != Protocol.LOCAL })
 
-    /** The most recently added source: the next one is usually on the same server, often in the same share. */
-    suspend fun lastFolder(): SourceEntity? = dao.sources().maxByOrNull { it.id }
+    /**
+     * The most recently added folder on a NAS: the next one is usually on the same server, often in the same share. One
+     * on the player's own disks has no server to start from.
+     */
+    suspend fun lastFolder(): SourceEntity? = dao.sources().filter { it.protocol != Protocol.LOCAL }.maxByOrNull { it.id }
 
     /** An existing source other than [except] that [folder] [overlaps]; null if none. */
     suspend fun overlapping(folder: SourceEntity, except: Long? = null): SourceEntity? =
@@ -177,7 +186,10 @@ internal fun nasOf(sources: List<SourceEntity>): List<UsedNas> =
             UsedNas(latest.first().host.trim(), latest.map { it.protocol }.distinct(), folders.map { it.name }.sortedWith(byName()))
         }
 
-/** True when both read the same files: same protocol and host, and one path (share included) contains the other. */
+/**
+ * True when both read the same files: same protocol and host (for the player's own disks, the same disk), and one path
+ * (share included) contains the other.
+ */
 internal fun SourceEntity.overlaps(other: SourceEntity): Boolean {
     if (protocol != other.protocol || !host.trim().equals(other.host.trim(), ignoreCase = true)) return false
     val mine = place()
@@ -189,10 +201,16 @@ internal fun SourceEntity.overlaps(other: SourceEntity): Boolean {
 /** True when this source and [other] are the same folder, possibly spelled differently. */
 internal fun SourceEntity.samePlace(other: SourceEntity): Boolean = overlaps(other) && place() == other.place()
 
-/** Path segments from the host root; lowercase for SMB, which is case-insensitive (Samba's default, Windows). */
+/** True when this source holds [other], a folder inside it: their titles would show twice. */
+internal fun SourceEntity.holds(other: SourceEntity): Boolean = overlaps(other) && place().size < other.place().size
+
+/**
+ * Path segments from the host root; lowercase for SMB, which is case-insensitive (Samba's default, Windows), and for
+ * the player's own disks, whose storage and FAT, exFAT or NTFS disks are too.
+ */
 private fun SourceEntity.place(): List<String> {
     val segments = segments(share) + segments(path)
-    return if (protocol == Protocol.SMB) segments.map { it.lowercase(Locale.ROOT) } else segments
+    return if (protocol == Protocol.SMB || protocol == Protocol.LOCAL) segments.map { it.lowercase(Locale.ROOT) } else segments
 }
 
 private fun segments(path: String) = path.split('/').filter { it.isNotEmpty() }

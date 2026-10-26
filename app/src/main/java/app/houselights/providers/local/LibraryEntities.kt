@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
 import app.houselights.core.Job
+import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaInfo
 import app.houselights.core.Opened
 import app.houselights.core.SecretUnreadException
@@ -13,7 +14,12 @@ import app.houselights.core.Secrets
 
 enum class SourceKind { MOVIES, SHOWS }
 
-enum class Protocol { SMB, NFS }
+/**
+ * How a folder is read, stored by name (TEXT): SMB or NFS on a NAS, or [LOCAL], a folder on the player's own disks
+ * ([LocalBrowser]), which needed no new column: its [SourceEntity.host] holds the disk's id ([Volume.id]), its
+ * [SourceEntity.share] stays empty and its [SourceEntity.path] is the folder inside the disk, its credentials empty.
+ */
+enum class Protocol { SMB, NFS, LOCAL }
 
 /**
  * A plain-text password in memory; stored sealed (see [SecretConverter]) and redacted from toString. [unopened] is the
@@ -93,17 +99,18 @@ class SecretConverter(private val secrets: Secrets) {
     }
 }
 
-/** A network folder holding either movies or TV shows. */
+/** A folder holding either movies or TV shows, on a NAS or on one of the player's own disks ([Protocol.LOCAL]). */
 @Entity(tableName = "sources")
 data class SourceEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val kind: SourceKind,
     val protocol: Protocol = Protocol.SMB,
+    /** The NAS's address; for [Protocol.LOCAL], the disk's id ([Volume.id]: its UUID, or "internal"), wherever it is mounted. */
     val host: String,
-    /** SMB share name, or NFS export path; stored without leading or trailing slash. */
+    /** SMB share name, or NFS export path; stored without leading or trailing slash; empty for [Protocol.LOCAL]. */
     val share: String,
-    /** Folder inside the share, without leading or trailing slash ("" for the share root). */
+    /** Folder inside the share, or inside the disk, without leading or trailing slash ("" for its root). */
     val path: String,
     val username: String,
     val password: Secret,
@@ -348,6 +355,25 @@ data class ItemEntity(
  * nothing for it, [UNSURE] when several candidates came and none was clearly ahead ([SuggestionEntity] holds them).
  */
 enum class MatchState { MATCHED, NOT_FOUND, UNSURE }
+
+/**
+ * Why this film or show is to identify, as [TO_IDENTIFY] selects it, its file held missing or not; null when it is not.
+ * Held, it waits outside the list until its file is back, its page saying it is held and Modifier opening Identifier.
+ */
+internal fun ItemEntity.doubt(): MatchDoubt? {
+    val titled = kind == ItemKind.MOVIE || kind == ItemKind.SERIES
+    // Matched, or left as it is by the user.
+    val aside = tmdbId != null || userNoMatch
+    if (!titled || aside) return null
+    return when (matchState) {
+        MatchState.NOT_FOUND -> MatchDoubt.NOT_FOUND
+        MatchState.UNSURE -> MatchDoubt.UNSURE
+        MatchState.MATCHED, null -> null
+    }
+}
+
+/** A show's first episode file by path, which says where the show's folder is ([LibraryDao.showFiles]). */
+data class ShowFile(val seriesId: Long, val filePath: String?)
 
 /**
  * One of a film's or show's best TMDB candidates when none was clearly ahead ([MatchState.UNSURE]), [rank] 0 the best,
