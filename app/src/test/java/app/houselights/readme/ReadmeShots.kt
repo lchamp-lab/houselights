@@ -1,5 +1,6 @@
 package app.houselights.readme
 
+import android.view.KeyEvent
 import androidx.compose.ui.input.key.Key
 import org.junit.Rule
 import org.junit.Test
@@ -87,6 +88,10 @@ internal class ReadmeShots {
     @Test
     fun update() {
         camera.homeWithAnUpdate()
+        // Down to Later and back: Update in focus, as on the TV.
+        camera.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
+        camera.pressInSheet(KeyEvent.KEYCODE_DPAD_UP)
+        camera.assertFocusOn("Update")
         camera.capture("update")
     }
 

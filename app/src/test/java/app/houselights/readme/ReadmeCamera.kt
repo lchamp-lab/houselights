@@ -8,6 +8,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.os.Build
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -386,6 +387,18 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
             press(key)
         }
         fail("Focus never reached ${labels.take(3)}…, only $seen")
+    }
+
+    /**
+     * A key of the remote ([KeyEvent] code) in the open sheet, sent to its window as Android does: Robolectric draws a
+     * sheet's first focus only once a key moved it.
+     */
+    fun pressInSheet(keyCode: Int) {
+        compose.runOnIdle {
+            val window = checkNotNull(ShadowDialog.getLatestDialog()?.takeIf { it.isShowing }?.window) { "No sheet shows" }
+            listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP).forEach { window.decorView.dispatchKeyEvent(KeyEvent(it, keyCode)) }
+        }
+        settle(ROUNDS_AFTER_KEY)
     }
 
     /** What the focused elements say (text, then description), in every window. */
