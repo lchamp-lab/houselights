@@ -217,7 +217,7 @@
     <string name="edit_folder_row_desc">Son adresse ou ses identifiants</string>
     <string name="edit_folder_unreachable_desc">Son adresse a peut-être changé</string>
     <string name="edit_folder_login_desc">Saisissez à nouveau vos identifiants</string>
-    <string name="edit_folder_not_found_desc">Son dossier partagé ou son chemin a changé</string>
+    <string name="edit_folder_not_found_desc">Son dossier partagé ou chemin a pu changer</string>
     <string name="password_kept">Inchangé</string>
     <string name="jellyfin_desc">Saisissez l’adresse de votre serveur et vos identifiants Jellyfin.</string>
     <string name="jellyfin_desc_found">Choisissez votre serveur ou saisissez son adresse, puis vos identifiants Jellyfin.</string>
