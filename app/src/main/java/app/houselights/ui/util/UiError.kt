@@ -47,6 +47,12 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** What was asked for has left the library: Back is the way out. */
     GONE(R.string.error_gone_title, R.string.error_gone, null),
 
+    /**
+     * A title held while its file is missing ([app.houselights.core.MediaItem.held]): not tried, said by the ring, as it
+     * may be no failure; plugging the disk back or removing the title fixes it.
+     */
+    HELD(R.string.error_gone_title, R.string.held_gone_fix, null),
+
     /** None of a person's titles remains in the library: Back is the way out. */
     PERSON_GONE(R.string.error_person_gone_title, R.string.error_person_gone, null),
 

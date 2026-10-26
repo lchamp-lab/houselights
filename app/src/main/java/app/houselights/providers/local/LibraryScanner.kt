@@ -95,9 +95,6 @@ class LibraryScanner(
     private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
     private val reidentify = Reidentify(dao, lock, movies, shows, clock) { waitForThePlayer() }
 
-    /** Rows this process saw missing, timed on [elapsed] as the wall clock can jump. */
-    private val sightings = MissingSightings(elapsed)
-
     /** Scans every source; [asked] (user-initiated, unlike [scanIfStale]) retries unmatched titles on TMDB at once. */
     fun scanAll(refreshMetadata: Boolean = false, asked: Boolean = true) {
         if (asked) askTmdbAgain.set(true)
@@ -337,6 +334,55 @@ class LibraryScanner(
         _changed.emit(Unit)
     }
 
+    /**
+     * « Garder »: the titles held in folder [sourceId] ([MissingFiles.isDrop]) wait for their files, nothing asking again
+     * until another drop; only while they are those the user was [shown], so that a drop held meanwhile is asked about.
+     */
+    suspend fun keepHeld(sourceId: Long, shown: Collection<Long>) {
+        withContext(Dispatchers.IO) { lock.withLock { withContext(NonCancellable) { keepHeldLocked(sourceId, shown) } } }
+    }
+
+    private suspend fun keepHeldLocked(sourceId: Long, shown: Collection<Long>) {
+        val held = dao.heldIn(sourceId)
+        if (held.isNotEmpty() && shown.toHashSet().containsAll(held)) dao.setHeldKept(sourceId, true)
+    }
+
+    /**
+     * « Retirer »: the rows among [ids] still held leave the library, as a pass removes files gone, what the user did kept
+     * by title; nothing is deleted on the NAS. Rows whose files came back meanwhile stay.
+     */
+    suspend fun removeHeld(ids: Collection<Long>) {
+        val removed = withContext(Dispatchers.IO) { lock.withLock { withContext(NonCancellable) { removeHeldLocked(ids) } } }
+        if (removed > 0) _changed.emit(Unit)
+    }
+
+    /** Removes the rows among [ids] still held, then the artwork only they used; how many went. */
+    private suspend fun removeHeldLocked(ids: Collection<Long>): Int {
+        val count = dao.removeHeld(ids, handedOver = shows.handedOver())
+        if (count > 0) suspendRunCatching { cleanupLocked() }.onFailure { Log.w(TAG, "Cleanup after removing titles held failed", it) }
+        return count
+    }
+
+    /**
+     * Removes title [itemId] alone while it is held: a film's copies held, a show's episodes held, or an episode. What
+     * holds it after: its own row, the copy now holding the film once that row went, an episode's show once the episode
+     * went; null once nothing of it is left.
+     */
+    suspend fun removeHeldTitle(itemId: Long): Long? {
+        val (removed, stays) = withContext(Dispatchers.IO) {
+            lock.withLock {
+                withContext(NonCancellable) {
+                    val rows = dao.titleRows(itemId)
+                    val show = dao.rows(listOf(itemId)).singleOrNull()?.seriesId
+                    val count = removeHeldLocked(dao.heldOf(itemId))
+                    count to (dao.titleAmong(rows) ?: show?.let { dao.titleAmong(listOf(it)) })
+                }
+            }
+        }
+        if (removed > 0) _changed.emit(Unit)
+        return stays
+    }
+
     /** [scan], whole for a folder due in this pass's language ([refreshAllIn]), which is then no longer due. */
     private suspend fun scanFolder(
         source: SourceEntity,
@@ -398,7 +444,7 @@ class LibraryScanner(
         Log.i(
             TAG,
             "${source.name}: ${files.size} files, ${missing.relinked.size} renamed, ${missing.removed.size} removed, " +
-                "${missing.absorbed.size} now parts, ${missing.held.size} held, ${todo.size} to do",
+                "${missing.absorbed.size} now parts, ${missing.held.size} held, ${missing.waiting.size} still held, ${todo.size} to do",
         )
 
         if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
@@ -650,13 +696,14 @@ class LibraryScanner(
         listing: Listing,
         stacks: Stacks,
     ): MissingFiles.Outcome {
-        val now = clock()
-        val time = MissingFiles.PassTime(now, source.lastScanAt, sightings::seenLong)
-        val missing = MissingFiles.settle(source.kind, known, listing, time, stacks)
+        val missing = MissingFiles.settle(source.kind, known, listing, stacks)
         lock.withLock {
-            dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, now, missing.absorbed)
+            dao.inTransaction {
+                dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, clock(), missing.absorbed)
+                // A new drop is asked about, with what an earlier one held and the user kept.
+                if (missing.held.isNotEmpty()) dao.setHeldKept(source.id, false)
+            }
         }
-        sightings.note(known, missing)
         return missing
     }
 

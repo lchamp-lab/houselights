@@ -85,29 +85,44 @@ class ScanStacksTest {
 
     /** While its first part is out of sight, the film's other parts make no title that TMDB might mismatch. */
     @Test
-    fun theOtherPartsOfAFilmWaitingForItsFirstMakeNoTitle() = runTest {
+    fun theOtherPartsOfAFilmWhoseFirstIsOutOfSightMakeNoTitle() = runTest {
         godfather()
         bench.scan()
         val film = rows().single()
-        bench.dao.setFavorite(film.id, true)
         bench.withTmdb = true
+        val first = "$DIR/Le Parrain (1972) CD1.mkv"
+
+        // Not queried: out of sight, not missing.
+        nas.remove(first)
+        nas.unreadable = listOf(first)
+        bench.scan()
+        assertEquals(listOf(film.id), rows().map { it.id })
+        assertEquals(null, rows().single().missingSince)
+        assertEquals("TMDB not asked for its second part", emptyList<String>(), bench.tmdb.requests)
+    }
+
+    /**
+     * Its first part deleted, a film leaves as any title missing does, its second part then a film of its own given
+     * back what the user did; the first part back, they are one film again, still as the user left it.
+     */
+    @Test
+    fun aFilmWhoseFirstPartLeftIsOneFilmAgainOnceItIsBack() = runTest {
+        godfather()
+        bench.scan()
+        bench.dao.setFavorite(rows().single().id, true)
         val first = "$DIR/Le Parrain (1972) CD1.mkv"
 
         nas.remove(first)
         bench.scan()
-        assertEquals(listOf(film.id), rows().map { it.id })
-        assertTrue("its row waits", rows().single().missingSince != null)
-        // Not queried: out of sight, not missing.
-        nas.unreadable = listOf(first)
-        bench.scan()
-        assertEquals(listOf(film.id), rows().map { it.id })
-        assertEquals("TMDB not asked for its second part", emptyList<String>(), bench.tmdb.requests)
+        val second = rows().single()
+        assertEquals("$DIR/Le Parrain (1972) CD2.mkv", second.filePath)
+        assertEquals(null, second.missingSince)
+        assertTrue("given back", second.favorite)
 
-        nas.unreadable = emptyList()
         nas.put(first, size = 7_000_000_000)
         bench.scan()
         val back = rows().single()
-        assertEquals(film.id, back.id)
+        assertEquals(first, back.filePath)
         assertEquals(listOf("$DIR/Le Parrain (1972) CD2.mkv"), back.parts)
         assertTrue(back.favorite)
         assertEquals(null, back.missingSince)

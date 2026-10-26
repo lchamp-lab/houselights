@@ -48,6 +48,9 @@ class LocalLibrary(
     val folderCounts: Flow<Map<Long, FolderCounts>> =
         dao.observeFolderCounts(Definition.ULTRA_HD.token).paced().map { counts -> counts.associateBy { it.sourceId } }
 
+    /** The films and episodes a sudden drop holds while their files are missing ([MissingFiles.isDrop]), by folder and title. */
+    val held: Flow<List<HeldRow>> = dao.observeHeld().paced()
+
     fun latestPosters(folder: Folder, limit: Int): Flow<List<ImageRef>> = dao.observePosters(folder.id, limit).paced().map(::posters)
 
     /** The [limit] posters last added to the whole library. */
@@ -105,6 +108,22 @@ class LocalLibrary(
     }
 
     fun scan(refreshMetadata: Boolean = false) = scanner.scanAll(refreshMetadata)
+
+    /** « Garder »: the titles held in [folder], those [shown], wait for their files; nothing asks again until another drop. */
+    suspend fun keepHeld(folder: Long, shown: Collection<Long>) = scanner.keepHeld(folder, shown)
+
+    /** « Retirer »: the titles held among rows [ids] leave the library, what the user did kept; nothing goes on the NAS. */
+    suspend fun removeHeld(ids: Collection<Long>) = scanner.removeHeld(ids)
+
+    /**
+     * « Retirer de la bibliothèque » on a title held ([LocalId] [itemId]): it alone leaves, as [removeHeld] does. The id
+     * of what holds it after: its own, the copy of the film left, an episode's show once the episode went; null once
+     * nothing of it is left ([LibraryScanner.removeHeldTitle]).
+     */
+    suspend fun removeHeldTitle(itemId: String): String? {
+        val key = (LocalId.parse(itemId) as? LocalId.Item)?.key ?: return itemId
+        return scanner.removeHeldTitle(key)?.toString()
+    }
 
     /** Tells library screens to reload after a setting they read changed (collection visibility). */
     fun settingsChanged() = scanner.notifyChanged()

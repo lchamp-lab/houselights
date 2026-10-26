@@ -854,4 +854,34 @@
     <string name="update_incompatible_message">Volgens Android past deze versie niet bij deze speler.</string>
     <string name="update_install_failed_title">Installatie mislukt</string>
     <string name="update_install_failed_message">Android heeft de update niet geïnstalleerd. Probeer het opnieuw; het logboek zegt meer.</string>
+    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <plurals name="held_titles">
+        <item quantity="one">%d titel niet gevonden</item>
+        <item quantity="other">%d titels niet gevonden</item>
+    </plurals>
+    <plurals name="held_home">
+        <item quantity="one">%1$d titel uit “%2$s” niet gevonden op de NAS</item>
+        <item quantity="other">%1$d titels uit “%2$s” niet gevonden op de NAS</item>
+    </plurals>
+    <string name="held_see">Bekijken</string>
+    <string name="held_text">Houselights vindt deze titels niet meer in “%s”, hoewel de map antwoordt. Hebt u ze verwijderd of verplaatst, verwijder ze dan. Is een schijf van de NAS losgekoppeld, bewaar ze dan en sluit de schijf weer aan: ze komen terug zoals ze waren.</string>
+    <string name="held_text_one">Houselights vindt deze titel niet meer in “%s”, hoewel de map antwoordt. Hebt u hem verwijderd of verplaatst, verwijder hem dan. Is een schijf van de NAS losgekoppeld, bewaar hem dan en sluit de schijf weer aan: hij komt terug zoals hij was.</string>
+    <string name="held_keep">Bewaren</string>
+    <string name="held_keep_desc">Ze blijven en wachten op hun bestanden</string>
+    <string name="held_keep_desc_one">Hij blijft en wacht op zijn bestand</string>
+    <string name="held_remove_desc">Wist niets op de NAS, ook niet wat bekeken is</string>
+    <plurals name="held_more">
+        <item quantity="one">En nog %d</item>
+        <item quantity="other">En nog %d</item>
+    </plurals>
+    <plurals name="held_count">
+        <item quantity="one">%d niet gevonden</item>
+        <item quantity="other">%d niet gevonden</item>
+    </plurals>
+    <string name="held_row_desc">Verwijderen, of bewaren tot ze terug zijn</string>
+    <string name="held_row_desc_one">Verwijderen, of bewaren tot hij terug is</string>
+    <string name="held_since">Al %s niet gevonden op de NAS</string>
+    <string name="held_gone_fix">Sluit de schijf van de NAS weer aan of verwijder deze titel.</string>
+    <string name="held_remove_title">Uit de bibliotheek verwijderen</string>
+    <string name="card_held">niet gevonden</string>
 </resources>

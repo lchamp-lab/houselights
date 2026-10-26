@@ -312,6 +312,34 @@ class LocalCatalogTest {
         assertEquals(emptyList<Any>(), catalog.versions(item(uhd)))
     }
 
+    /**
+     * A film in several copies is held as the copy Lire plays is, its card, page and Lire alike: the best unless one is
+     * chosen, another copy's file missing or not; each copy as its own file is.
+     */
+    @Test
+    fun aFilmInCopiesIsHeldAsTheCopyLirePlays() = runTest {
+        val first = film("Heat", 1995, tmdbId = 949, path = "Heat.1080p.mkv", badges = listOf("1080p"))
+        val uhd = film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
+        dao.groupVersions()
+        suspend fun heldSince() = provider.item(first.toString()).missingSince
+        suspend fun wall() = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 10).items.map { it.missingSince }
+
+        dao.setMissingSince(listOf(uhd), 5)
+        assertEquals("the 4K plays, and is missing", 5L, heldSince())
+        assertEquals(listOf<Long?>(5), wall())
+        assertEquals(listOf(5L, null), catalog.versions(item(first)).map { it.item.missingSince })
+
+        catalog.chooseVersion(item(first), catalog.versions(item(first)).single { it.key == first.toString() })
+        assertNull("the 1080p chosen plays, and is there", heldSince())
+        assertEquals(listOf<Long?>(null), wall())
+
+        dao.setMissingSince(listOf(uhd), null)
+        dao.setMissingSince(listOf(first), 7)
+        assertEquals("the copy chosen missing", 7L, heldSince())
+        catalog.chooseVersion(item(first), null)
+        assertNull("the best plays again, and is there", heldSince())
+    }
+
     /** Watched and favourite apply to a film, so to all its copies, whichever is played or marked. */
     @Test
     fun aFilmsCopiesAreWatchedAndFavouredTogether() = runTest {
