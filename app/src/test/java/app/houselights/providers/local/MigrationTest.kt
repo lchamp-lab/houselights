@@ -414,7 +414,7 @@ class MigrationTest {
     fun version21ReadsAgainWhatMayBeNumberedAnotherWayAndKeepsTheRest() = runTest {
         for (from in listOf(20, 15)) {
             val dao = migrated(from) {
-                showsFolder()
+                showsFolder(from)
                 val dvd = "<tvshow><title>Firefly</title><displayorder>dvd</displayorder></tvshow>"
                 show(1, "Firefly", nfo = dvd, from = from)
                 show(2, "One Piece", nfo = "<tvshow><title>One Piece</title></tvshow>", from = from)
@@ -439,11 +439,14 @@ class MigrationTest {
         }
     }
 
-    /** Folder 1, "Séries", as schemas 8 and later hold it. */
-    private fun SupportSQLiteDatabase.showsFolder() = execSQL(
-        "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-            "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000)"
-    )
+    /** Folder 1, "Séries", as schema [from] holds it, from 8; version 20's tables, made by Room, hold no default for heldKept. */
+    private fun SupportSQLiteDatabase.showsFolder(from: Int) {
+        val (kept, notKept) = if (from >= 20) ", heldKept" to ", 0" else "" to ""
+        execSQL(
+            "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt$kept) " +
+                "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000$notKept)"
+        )
+    }
 
     /** Show [id], matched, its season [id] * 100 under it; [from] the schema it is written in. */
     private fun SupportSQLiteDatabase.show(id: Long, title: String, nfo: String, from: Int) {
