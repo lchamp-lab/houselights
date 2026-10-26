@@ -252,13 +252,7 @@ private fun Modifier.arrowsWhileTyping(
     moveTo: (TextFieldValue) -> Unit,
     leave: (FocusDirection) -> Unit,
 ): Modifier = onPreviewKeyEvent { event ->
-    val direction = when (event.key) {
-        Key.DirectionUp -> FocusDirection.Up
-        Key.DirectionDown -> FocusDirection.Down
-        Key.DirectionLeft -> FocusDirection.Left
-        Key.DirectionRight -> FocusDirection.Right
-        else -> null
-    }
+    val direction = arrow(event.key)
     if (!editing || direction == null || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
     val across = direction == FocusDirection.Left || direction == FocusDirection.Right
     if (across && !event.fromRemote()) return@onPreviewKeyEvent false
@@ -268,6 +262,15 @@ private fun Modifier.arrowsWhileTyping(
         !across || event.nativeKeyEvent.repeatCount == 0 -> leave(direction)
     }
     true
+}
+
+/** Where [key] points when it is an arrow. */
+private fun arrow(key: Key): FocusDirection? = when (key) {
+    Key.DirectionUp -> FocusDirection.Up
+    Key.DirectionDown -> FocusDirection.Down
+    Key.DirectionLeft -> FocusDirection.Left
+    Key.DirectionRight -> FocusDirection.Right
+    else -> null
 }
 
 /**
