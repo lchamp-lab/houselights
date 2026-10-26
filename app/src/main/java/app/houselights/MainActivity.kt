@@ -454,11 +454,11 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                 // « Ajouter un dossier », its steps; Back from the first leaves it where it was opened.
                 AddFolderFlowScreen(onLeave = { nav.popBackStack() }, onDone = { done ->
                     // A first folder or a new source: home, its first scan showing; another: Réglages, on its showcase.
-                    val settings = nav.settingsEntry()
-                    if (done.switched || settings == null) {
+                    val opener = nav.settingsEntry()
+                    if (done.switched || opener == null) {
                         goHome()
                     } else {
-                        settings.savedStateHandle[ADDED_FOLDER] = done.folderId
+                        opener.savedStateHandle[ADDED_FOLDER] = done.folderId
                         nav.popBackStack<Route.Settings>(inclusive = false)
                     }
                 })
