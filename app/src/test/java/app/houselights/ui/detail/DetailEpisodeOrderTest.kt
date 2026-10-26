@@ -111,6 +111,15 @@ class DetailEpisodeOrderTest {
         compose.onNodeWithText(line(text(R.string.episode_order_auto), text(R.string.episode_order_aired))).assertExists()
     }
 
+    /** Automatique by the NFO says the order by its kind and the NFO, so the longest kinds hold on the row's one line. */
+    @Test
+    fun modifierSaysTheOrderTheNfoNamesByItsKindAndTheNfo() {
+        provider.orders = mapOf(SHOW to FIREFLY.copy(automatic = FIREFLY.options[1], fromNfo = true))
+        page()
+        modifier()
+        compose.onNodeWithText(context.getString(R.string.episode_order_auto_nfo, text(R.string.episode_order_dvd))).assertExists()
+    }
+
     @Test
     fun aShowTmdbNumbersOneWayOffersNoOrder() {
         provider.orders = emptyMap()

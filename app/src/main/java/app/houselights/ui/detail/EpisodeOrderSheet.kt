@@ -42,18 +42,20 @@ internal fun EpisodeOrderSheet(
 }
 
 /**
- * The order in use, as Modifier's row says it on one line: "Automatique · Saisons TMDB", "Automatique · DVD, d’après le
- * NFO", "DVD · DVD Order" for a group chosen (its kind, then its TMDB name), "Saisons TMDB" when chosen.
+ * The order in use, as Modifier's row says it on one line: "Automatique · Saisons TMDB", "DVD, d’après le NFO" (the NFO
+ * saying it is automatic, and the longest kinds keeping to one line beside the row's icon), "DVD · DVD Order" for a group
+ * chosen (its kind, then its TMDB name), "Saisons TMDB" when chosen.
  */
 @Composable
 internal fun orderInUse(orders: EpisodeOrderChoices): String {
     val chosen = orders.options.firstOrNull { it.id == orders.chosen }
-    val more = when {
-        chosen == null -> automaticDetail(orders)
-        chosen.kind == EpisodeOrderKind.AIRED -> null
-        else -> chosen.name
+    val parts = when {
+        chosen == null && orders.fromNfo -> listOf(automaticDetail(orders))
+        chosen == null -> listOf(orderName(null), automaticDetail(orders))
+        chosen.kind == EpisodeOrderKind.AIRED -> listOf(orderName(chosen))
+        else -> listOfNotNull(orderName(chosen), chosen.name)
     }
-    return listOfNotNull(orderName(chosen), more).joinToString(ROW_PARTS)
+    return parts.joinToString(ROW_PARTS)
 }
 
 /** An order by its kind: "Automatique" for none, "Saisons TMDB", "DVD"… */

@@ -936,7 +936,7 @@
     <string name="episode_order_auto">Automatico</string>
     <string name="episode_order_auto_nfo">%s, secondo il NFO</string>
     <string name="episode_order_aired">Stagioni TMDB</string>
-    <string name="episode_order_original">Data di prima messa in onda</string>
+    <string name="episode_order_original">Prima messa in onda</string>
     <string name="episode_order_absolute">Assoluto</string>
     <string name="episode_order_dvd">DVD</string>
     <string name="episode_order_digital">Digitale</string>

@@ -905,7 +905,7 @@
     <string name="episode_order_auto">Automatisch</string>
     <string name="episode_order_auto_nfo">%s, volgens de NFO</string>
     <string name="episode_order_aired">TMDB-seizoenen</string>
-    <string name="episode_order_original">Oorspronkelijke uitzenddatum</string>
+    <string name="episode_order_original">Eerste uitzending</string>
     <string name="episode_order_absolute">Absoluut</string>
     <string name="episode_order_dvd">Dvd</string>
     <string name="episode_order_digital">Digitaal</string>

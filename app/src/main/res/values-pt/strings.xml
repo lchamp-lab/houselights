@@ -930,7 +930,7 @@
     <string name="episode_order_auto">Automática</string>
     <string name="episode_order_auto_nfo">%s, segundo o NFO</string>
     <string name="episode_order_aired">Temporadas do TMDB</string>
-    <string name="episode_order_original">Data de exibição original</string>
+    <string name="episode_order_original">Exibição original</string>
     <string name="episode_order_absolute">Absoluta</string>
     <string name="episode_order_dvd">DVD</string>
     <string name="episode_order_digital">Digital</string>
