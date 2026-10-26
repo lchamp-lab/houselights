@@ -46,6 +46,7 @@ import app.houselights.R
 import app.houselights.core.ArtworkKind
 import app.houselights.core.AudioTrack
 import app.houselights.core.MatchDoubt
+import app.houselights.core.EpisodeOrderChoices
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
@@ -221,11 +222,12 @@ internal fun DetailPage(
     val tracks = state.tracksToChoose
     var showSynopsis by remember { mutableStateOf(false) }
     var showNfo by remember { mutableStateOf(false) }
-    var showEdit by remember { mutableStateOf(false) }
-    var showOrders by remember { mutableStateOf(false) }
+    val editing = remember { mutableStateOf(false) }
     // The episode whose options are open, and the watched tile's.
     var episodeOptions by remember { mutableStateOf<String?>(null) }
     var showMarks by remember { mutableStateOf(false) }
+    // Its Identifier button and « À identifier » come and go together.
+    val identifiable = state.canEdit && item.matchDoubt != null && !item.held
     val actions = DetailActions(
         onPlay = { title, resume -> onPlay(title, resume, PlayOrigin(screen)) },
         onTogglePlayed = vm::togglePlayed,
@@ -241,22 +243,22 @@ internal fun DetailPage(
         onShowSynopsis = { showSynopsis = true },
         copy = state.playedCopy,
         copyIndex = state.playedCopyIndex,
-        onEdit = { showEdit = true }.takeIf { state.canEdit },
+        onEdit = { editing.value = true }.takeIf { state.canEdit },
         season = state.shownSeason,
         onShowMarks = { showMarks = true },
         nextUpError = state.lireError,
         retrying = state.retrying,
         onRetry = vm::retry,
-        // Held too, a title to identify keeps Identifier: its page says it is held, and identifying can wait.
-        onIdentify = { onIdentify(item.id) }.takeIf { state.canEdit && item.matchDoubt != null },
+        // Held, a title to identify says it is held and its Identifier waits with « À identifier », Modifier opening it.
+        onIdentify = { onIdentify(item.id) }.takeIf { identifiable },
         // A title held while its file is missing: out of the library alone, nothing deleted on the NAS.
         onRemove = vm::removeHeld.takeIf { item.held },
     )
     // Réessayer gone with the failure it said, or Lire and the Réessayer in its place swapped: focus goes to Lire.
     FocusOnPlayAfter(swap = state.error != null, held = RETRY_PAGE, memory, actionRow)
     FocusOnPlayAfter(swap = state.nextUpError != null, held = PLAY, memory, actionRow)
-    // Identified meanwhile, Identifier leaves the row with the state it said: focus goes to Lire.
-    FocusOnPlayAfter(swap = item.matchDoubt != null, held = IDENTIFY, memory, actionRow)
+    // Identified or held meanwhile, Identifier leaves the row with the state it said: focus goes to Lire.
+    FocusOnPlayAfter(swap = identifiable, held = IDENTIFY, memory, actionRow)
 
     val recede = rememberRecede { scrolled }
 
@@ -333,21 +335,35 @@ internal fun DetailPage(
         )
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
-        if (showEdit) {
-            val orders = state.episodeOrders
-            EditMenu(
-                item = item,
-                onDismiss = { showEdit = false },
-                onArtwork = { kind -> showEdit = false; onEditArtwork(item.id, kind) },
-                onIdentify = { showEdit = false; onIdentify(item.id) },
-                episodeOrder = orders?.let { orderInUse(it) },
-                onEpisodeOrder = { showOrders = true }.takeIf { orders != null },
-            )
-        }
-        EpisodeOrderSheet(
-            item, state.episodeOrders, open = showOrders, onChoose = vm::chooseEpisodeOrder, onDismiss = { showOrders = false },
+        EditSheets(item, state.episodeOrders, editing, onEditArtwork, onIdentify, onChooseOrder = vm::chooseEpisodeOrder)
+    }
+}
+
+/**
+ * Modifier while [editing], and the order of a show's episodes it opens ([EpisodeOrderSheet]) from its row, offered
+ * while TMDB numbers the show more than one way ([orders]).
+ */
+@Composable
+private fun EditSheets(
+    item: MediaItem,
+    orders: EpisodeOrderChoices?,
+    editing: MutableState<Boolean>,
+    onEditArtwork: (String, ArtworkKind) -> Unit,
+    onIdentify: (String) -> Unit,
+    onChooseOrder: (String?) -> Unit,
+) {
+    var showOrders by remember { mutableStateOf(false) }
+    if (editing.value) {
+        EditMenu(
+            item = item,
+            onDismiss = { editing.value = false },
+            onArtwork = { kind -> editing.value = false; onEditArtwork(item.id, kind) },
+            onIdentify = { editing.value = false; onIdentify(item.id) },
+            episodeOrder = orders?.let { orderInUse(it) },
+            onEpisodeOrder = { showOrders = true }.takeIf { orders != null },
         )
     }
+    EpisodeOrderSheet(item, orders, open = showOrders, onChoose = onChooseOrder, onDismiss = { showOrders = false })
 }
 
 /**
@@ -596,7 +612,7 @@ private data class DetailActions(
     val nextUpError: UiError? = null,
     val retrying: Boolean = false,
     val onRetry: () -> Unit = {},
-    /** Opens Identifier on a title to identify, its state said at the row's end unless it is held; null for any other. */
+    /** Opens Identifier on a title to identify, its state said at the row's end; null for any other, or one held. */
     val onIdentify: (() -> Unit)? = null,
     /** Removes the title held while its file is missing from the library alone; null hides the tile. */
     val onRemove: (() -> Unit)? = null,

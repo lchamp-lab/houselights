@@ -378,7 +378,7 @@ enum class MatchState { MATCHED, NOT_FOUND, UNSURE }
 
 /**
  * Why this film or show is to identify, as [TO_IDENTIFY] selects it, its file held missing or not; null when it is not.
- * Held, it waits outside the list until its file is back, its page saying it is held and still offering Identifier.
+ * Held, it waits outside the list until its file is back, its page saying it is held and Modifier opening Identifier.
  */
 internal fun ItemEntity.doubt(): MatchDoubt? {
     val titled = kind == ItemKind.MOVIE || kind == ItemKind.SERIES

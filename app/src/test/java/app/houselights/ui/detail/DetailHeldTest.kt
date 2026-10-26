@@ -42,7 +42,7 @@ import org.robolectric.annotation.Config
  * A title held while its file is missing: its page says since when beside its actions, by the ring, offers to remove it
  * alone, and Lire, refused before any try, says it is gone and what to do; removed, the page leaves, for the film's page
  * again when a copy of it is left, and stays while it is there. A show's episode held says so on its row, and its
- * options remove it alone. Held and to identify, a title says it is held, and still offers Identifier.
+ * options remove it alone. Held and to identify, a title says it is held, Identifier waiting in Modifier.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -137,28 +137,29 @@ class DetailHeldTest {
 
     /**
      * Held and to identify, its file not there and identifying able to wait: its page says since when its file is
-     * missing, never "To identify", and Lire that it is gone, untried; Identifier still follows Lire, and the removal ends
-     * the actions.
+     * missing, never "To identify", and Lire that it is gone, untried; its Identifier button waits with "To identify",
+     * the removal ending the actions as on any title held, and Modifier opens Identifier, to find the title on TMDB.
      */
     @Test
-    fun aTitleHeldAndToIdentifySaysItIsHeldAndKeepsIdentifier() {
+    fun aTitleHeldAndToIdentifySaysItIsHeldAndOpensIdentifierFromModifier() {
         page("m3")
         said("Not found on the NAS for 14${NB}h").assertIsDisplayed()
         said("To identify").assertDoesNotExist()
         said("Several possible titles").assertDoesNotExist()
+        compose.onNode(identify).assertDoesNotExist()
         compose.onNode(removeTile).assertExists()
 
-        compose.press(Key.DirectionRight)
-        compose.onNode(identify).assertIsFocused()
-        compose.press(Key.DirectionCenter)
-        assertEquals(listOf("m3"), identifying)
-
-        compose.press(Key.DirectionLeft)
         compose.press(Key.DirectionCenter)
         said("This title is gone").assertIsDisplayed()
         said("To identify").assertDoesNotExist()
-        compose.onNode(identify).assertExists()
         assertEquals(emptyList<String>(), dimmed)
+
+        compose.onNode(hasContentDescription("Edit") and hasClickAction()).requestFocus()
+        compose.press(Key.DirectionCenter)
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNode(hasText("Find this title on TMDB") and isFocused()).assertExists()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        assertEquals(listOf("m3"), identifying)
     }
 
     private val identify = hasText("Identify") and hasClickAction()
