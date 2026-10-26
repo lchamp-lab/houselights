@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import app.houselights.testing.hex
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,6 +13,9 @@ import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.DataOutputStream
 import java.net.InetAddress
+import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** NAS found over mDNS: the answers' bytes as responders send them, and the discovery's flow on a scripted network. */
 class NasDiscoveryTest {
@@ -97,6 +101,20 @@ class NasDiscoveryTest {
     fun aNasWithSeveralAddressesIsAtTheOneItAnsweredFrom() {
         val docker = answer(ptr("DS920"), srv("DS920", "DS920"), a("DS920", "172.17.0.1"), a("DS920", "192.168.1.20"))
         assertEquals(listOf(FoundNas("DS920", "192.168.1.20")), Mdns.announced(docker, at("192.168.1.20")))
+    }
+
+    /**
+     * Anyone on the network may answer: an answer relayed for an address beyond the local networks is no NAS of this
+     * one, and nothing is sent there; a reflector relays for private networks and links' own addresses.
+     */
+    @Test
+    fun anAnswerRelayedForAnAddressBeyondTheLocalNetworksAnnouncesNothing() {
+        val beyond = answer(ptr("X"), srv("X", "x"), a("x", "203.0.113.7"))
+        assertEquals(emptyList<FoundNas>(), Mdns.announced(beyond, at("192.168.1.50")))
+        listOf("10.0.5.20", "172.20.0.4", "169.254.10.20").forEach { address ->
+            val relayed = answer(ptr("X"), srv("X", "x"), a("x", "203.0.113.7"), a("x", address))
+            assertEquals(address, listOf(FoundNas("X", address)), Mdns.announced(relayed, at("192.168.1.1")))
+        }
     }
 
     /** Without SRV and A records, the NAS is where its answer came from; several in one answer, and any name, are read. */
@@ -197,5 +215,46 @@ class NasDiscoveryTest {
         assertTrue(network.closed)
         assertFalse("the multicast lock released", held)
         assertEquals(setOf(Protocol.SMB), runBlocking { discovery.protocols("192.168.1.31") })
+    }
+
+    /** One answer announcing more NAS than a home holds: [NasDiscovery.MAX_NAS] come, and as many probes start. */
+    @Test
+    fun noMoreNasComeThanTheCapEvenFromOneAnswer() {
+        val records = (1..20).flatMap { listOf(ptr("NAS$it"), srv("NAS$it", "nas$it"), a("nas$it", "192.168.1.${100 + it}")) }
+        val network = Network(listOf(40L to MdnsPacket(answer(*records.toTypedArray()), at("192.168.1.1"))))
+        val probed = Collections.synchronizedList(mutableListOf<String>())
+        val discovery = NasDiscovery(
+            open = { network },
+            probe = { address -> setOf(Protocol.SMB).also { probed += address } },
+            hold = { Closeable {} },
+            clock = { network.now },
+        )
+        val found = runBlocking { discovery.discover().toList() }
+        assertEquals((1..NasDiscovery.MAX_NAS).map { "NAS$it" }, found.filter { it.protocols == null }.map { it.name })
+        assertEquals(NasDiscovery.MAX_NAS, probed.size)
+    }
+
+    /**
+     * A NAS the library knows by its name is looked up once for both its ports, and a lookup that does not end, as a
+     * router's for a name it does not know, ends the probe within a moment: no protocol answered.
+     */
+    @Test
+    fun aNasKnownByItsNameIsLookedUpOnceAndForAMoment() = runBlocking {
+        val asked = Collections.synchronizedList(mutableListOf<String>())
+        NasDiscovery.probePorts("ds920.local") { host -> InetAddress.getLoopbackAddress().also { asked += host } }
+        assertEquals(listOf("ds920.local"), asked)
+
+        val released = CountDownLatch(1)
+        try {
+            val started = System.nanoTime()
+            val protocols = withTimeout(20_000) {
+                NasDiscovery.probePorts("nas.home") { released.await(15, TimeUnit.SECONDS); error("never answered") }
+            }
+            val waitedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
+            assertEquals(emptySet<Protocol>(), protocols)
+            assertTrue("waited $waitedMs ms", waitedMs < 5_000)
+        } finally {
+            released.countDown()
+        }
     }
 }

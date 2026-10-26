@@ -216,8 +216,10 @@ address.
   Export it **read-only, with root squashed** or mapped to a guest or media account; the user the app presents
   only chooses whose rights it reads with, and the Zidoo player opens videos with its own NFS access.
 - Finding NAS to add a folder asks one mDNS question to the local network and reads only the answers to it: no
-  WS-Discovery, no NetBIOS, no scan of addresses. Over Wi-Fi it holds a multicast lock (`CHANGE_WIFI_MULTICAST_STATE`,
-  granted without asking) for those seconds alone. Listing a NAS's shares signs in with the account typed, or as a
+  WS-Discovery, no NetBIOS, no scan of addresses. Ports are tried only on the NAS that answered, sixteen at most, at
+  the address they answered from or a private one a relay names, never beyond the local networks, and on those the
+  library uses. Over Wi-Fi it holds a multicast lock (`CHANGE_WIFI_MULTICAST_STATE`, granted without asking) for
+  those seconds alone. Listing a NAS's shares signs in with the account typed, or as a
   guest, on a connection of its own closed once listed; listing its NFS exports needs no account.
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
   held in the Android Keystore, never replaced once made: one the Keystore does not open for now is kept, said as

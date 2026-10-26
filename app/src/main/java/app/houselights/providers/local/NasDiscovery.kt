@@ -5,6 +5,7 @@ import android.net.wifi.WifiManager
 import android.os.SystemClock
 import android.util.Log
 import app.houselights.core.MalformedAnswerException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.ProducerScope
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.Closeable
 import java.io.IOException
 import java.net.DatagramPacket
@@ -23,6 +25,7 @@ import java.net.InetSocketAddress
 import java.net.MulticastSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.nio.ByteBuffer
 
 /** A NAS that answered on the local network ([NasDiscovery]). */
@@ -57,7 +60,7 @@ class NasDiscovery internal constructor(
     /** Opens the socket the question goes from and answers come to. */
     private val open: () -> MdnsSocket,
     /** Which of a NAS's protocols answer, by their ports. */
-    private val probe: suspend (address: String) -> Set<Protocol>,
+    private val probe: suspend (host: String) -> Set<Protocol>,
     /** Held while discovering: a multicast lock on Wi-Fi. */
     private val hold: () -> Closeable,
     /** Monotonic milliseconds. */
@@ -65,7 +68,7 @@ class NasDiscovery internal constructor(
 ) {
     constructor(context: Context) : this(
         open = ::openSocket,
-        probe = ::probePorts,
+        probe = { probePorts(it) },
         hold = { multicastLock(context.applicationContext) },
         clock = SystemClock::elapsedRealtime,
     )
@@ -73,17 +76,19 @@ class NasDiscovery internal constructor(
     /**
      * The NAS answering within [timeoutMs], each emitted when it first answers (by its address), then once more with
      * the protocols whose port answered, so a list shows it at once and its protocols a moment later; [MAX_NAS] at
-     * most. A socket that cannot open fails the flow; an answer that cannot be read is passed over.
+     * most, and as many probes, even when one answer announces more. A socket that cannot open fails the flow; an
+     * answer that cannot be read is passed over.
      */
     fun discover(timeoutMs: Long = DISCOVERY_MS): Flow<FoundNas> = channelFlow {
         hold().use { open().use { socket -> listen(this, socket, timeoutMs) } }
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Which of [address]'s protocols answer, by their ports (SMB 445, NFS 2049, both tried at once, each for a moment):
-     * as [discover] tells a NAS found, for one known otherwise, a NAS already used.
+     * Which of [host]'s protocols answer, by their ports (SMB 445, NFS 2049, both tried at once, each for a moment):
+     * as [discover] tells a NAS found, for one known otherwise, a NAS already used, by its address or its name, a name
+     * looked up once and for a moment too ([probePorts]).
      */
-    suspend fun protocols(address: String): Set<Protocol> = probe(address)
+    suspend fun protocols(host: String): Set<Protocol> = probe(host)
 
     /** Asks on [socket], then listens to it for [timeoutMs], sending each NAS found to [found], then launching its probe. */
     private suspend fun listen(found: ProducerScope<FoundNas>, socket: MdnsSocket, timeoutMs: Long) {
@@ -98,7 +103,8 @@ class NasDiscovery internal constructor(
             }
             val until = if (asked < ASKS) minOf(asked * ASK_AGAIN_MS, timeoutMs) else timeoutMs
             val heard = socket.receive((until - elapsed).coerceIn(1, RECEIVE_SLICE_MS).toInt())?.let { Mdns.announced(it.bytes, it.from) }
-            heard.orEmpty().filter { seen.add(it.address) }.forEach { nas ->
+            // One answer may announce more than a home holds: the cap holds inside it too.
+            heard.orEmpty().filter { seen.size < MAX_NAS && seen.add(it.address) }.forEach { nas ->
                 found.send(nas)
                 found.launch { found.send(nas.copy(protocols = probe(nas.address))) }
             }
@@ -119,7 +125,7 @@ class NasDiscovery internal constructor(
         /** A receive's longest wait, so that cancelling is heard soon. */
         private const val RECEIVE_SLICE_MS = 250L
 
-        /** A port's wait for a connection. */
+        /** A port's wait for a connection, and a name's for its lookup. */
         private const val PROBE_MS = 1_500
 
         private const val SMB_PORT = 445
@@ -127,15 +133,38 @@ class NasDiscovery internal constructor(
 
         private const val TAG = "NasDiscovery"
 
-        /** SMB and NFS, as their ports accept a connection, both tried at once. */
-        private suspend fun probePorts(address: String): Set<Protocol> = coroutineScope {
-            val smb = async(Dispatchers.IO) { accepts(address, SMB_PORT) }
-            val nfs = async(Dispatchers.IO) { accepts(address, NFS_PORT) }
-            setOfNotNull(Protocol.SMB.takeIf { smb.await() }, Protocol.NFS.takeIf { nfs.await() })
+        /**
+         * SMB and NFS, as their ports accept a connection, both tried at once on [host] [resolve]d once beforehand (an
+         * address is read as it is, a name looked up: "ds920.local", "NAS"), so that a resolver slow to answer, as a
+         * router's may be for a name it does not know, takes [PROBE_MS] at most, once, rather than its own seconds
+         * before each port's wait even starts. None when the lookup finds nothing or does not end in time.
+         */
+        internal suspend fun probePorts(host: String, resolve: (String) -> InetAddress = InetAddress::getByName): Set<Protocol> {
+            val address = lookUp(host, resolve) ?: return emptySet()
+            return coroutineScope {
+                val smb = async(Dispatchers.IO) { accepts(address, SMB_PORT) }
+                val nfs = async(Dispatchers.IO) { accepts(address, NFS_PORT) }
+                setOfNotNull(Protocol.SMB.takeIf { smb.await() }, Protocol.NFS.takeIf { nfs.await() })
+            }
         }
 
-        /** Whether [address], an IP address (never looked up), accepts a connection on [port] within [PROBE_MS]. */
-        private fun accepts(address: String, port: Int): Boolean = try {
+        /**
+         * [host]'s address, [PROBE_MS] at most: a lookup cannot be cut short, so it runs outside the caller's scope and
+         * is left to end on its own thread when the wait does.
+         */
+        private suspend fun lookUp(host: String, resolve: (String) -> InetAddress): InetAddress? {
+            val lookup = CoroutineScope(Dispatchers.IO).async {
+                try {
+                    resolve(host)
+                } catch (_: UnknownHostException) {
+                    null
+                }
+            }
+            return withTimeoutOrNull(PROBE_MS.toLong()) { lookup.await() }
+        }
+
+        /** Whether [address] accepts a connection on [port] within [PROBE_MS]. */
+        private fun accepts(address: InetAddress, port: Int): Boolean = try {
             Socket().use { it.connect(InetSocketAddress(address, port), PROBE_MS) }
             true
         } catch (_: IOException) {
@@ -257,8 +286,10 @@ internal object Mdns {
     /**
      * The NAS [bytes], an answer from [from], announce: each _smb._tcp instance it points to, by its name, at the
      * address its SRV and A records give, the sender's when they give none or name the sender among others (a
-     * Docker bridge beside the network's), another only when the sender relays for it (a reflector between networks).
-     * A query, a goodbye (time to live 0), another service or bytes that cannot be read announce nothing.
+     * Docker bridge beside the network's), another only when the sender relays for it (a reflector between networks)
+     * and that address is a local network's ([isLocal]): an instance pointing elsewhere is no NAS of this network, and
+     * its address is never probed. A query, a goodbye (time to live 0), another service or bytes that cannot be read
+     * announce nothing.
      */
     fun announced(bytes: ByteArray, from: InetAddress): List<FoundNas> = try {
         Records(Dns(bytes)).run { instances.mapNotNull { (name, instance) -> nas(name, instance, from) } }
@@ -310,10 +341,16 @@ internal object Mdns {
 
         fun nas(name: String, instance: String, from: InetAddress): FoundNas? {
             val known = targets[instance]?.let { addresses[it] }.orEmpty()
-            val address = if (known.isEmpty() || from in known) from else known.first()
+            val address = when {
+                known.isEmpty() || from in known -> from
+                else -> known.firstOrNull { isLocal(it) } ?: return null
+            }
             return (address as? Inet4Address)?.let { FoundNas(name, it.hostAddress.orEmpty()) }
         }
     }
+
+    /** A private network's address (10/8, 172.16/12, 192.168/16) or a link's own (169.254/16), where a reflector relays. */
+    private fun isLocal(address: InetAddress) = address.isSiteLocalAddress || address.isLinkLocalAddress
 
     /** DNS's wire format read from [message], its names' compression followed (RFC 1035 4.1.4), never past its end. */
     private class Dns(private val message: ByteArray) {
