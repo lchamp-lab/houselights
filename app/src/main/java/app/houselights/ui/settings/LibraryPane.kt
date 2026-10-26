@@ -148,7 +148,11 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
     val scan by vm.library.scan.collectAsStateWithLifecycle()
     // Collected once for all showcases: each scan write re-runs it.
     val counts by vm.library.folderCounts.collectAsStateWithLifecycle(emptyMap())
+    // Titles held while their files are missing, answered for or not: counted on their folder, its sheet opening theirs.
+    val heldRows by vm.library.held.collectAsStateWithLifecycle(emptyList())
+    val held = remember(heldRows, sources) { heldByFolder(heldRows, sources).associateBy { it.folder.id } }
     var actionsFor by remember { mutableStateOf<Folder?>(null) }
+    var heldFor by remember { mutableStateOf<Long?>(null) }
     // The folder being removed, and where focus goes once its showcase has gone.
     var removing by remember { mutableStateOf<Pair<Long, FocusRequester>?>(null) }
     LaunchedEffect(sources) {
@@ -165,9 +169,11 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
                 FolderShowcase(
                     source,
                     counts = counts[source.id],
+                    held = held[source.id]?.rows?.size ?: 0,
                     scan = scan.takeIf { it.running && it.sourceId == source.id },
                     error = scan.errors[source.id],
                     removeError = vm.errorOf(SettingAction.REMOVE_FOLDER, source.id),
+                    heldError = vm.errorOf(SettingAction.HELD, source.id),
                     // Removal waits for any file a scan is reading in the folder: say so rather than look stuck.
                     removing = source.id in vm.removing,
                     onClick = { actionsFor = source },
@@ -186,6 +192,8 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
                 else -> stringResource(R.string.remove_last_folder_desc)
             },
             error = scan.errors[source.id],
+            held = held[source.id]?.rows?.size ?: 0,
+            onHeld = { heldFor = source.id },
             onDismiss = { actionsFor = null },
             onEdit = { focus -> onEdit(source.id, focus) },
             // Runs in the app's scope, so leaving the pane never cancels it.
@@ -196,11 +204,27 @@ private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderFiel
             },
         )
     }
+    HeldSheetFor(heldFor, held, vm.heldAnswers) { heldFor = null }
+}
+
+/**
+ * The sheet of the titles held in folder [folder] (none while null), « Retirer » there at any time, its [answers]
+ * saved in Settings' work; closed ([onClose]) once they are back.
+ */
+@Composable
+private fun HeldSheetFor(folder: Long?, held: Map<Long, HeldTitles>, answers: HeldAnswers, onClose: () -> Unit) {
+    if (folder == null) return
+    val titles = held[folder]
+    if (titles == null) {
+        LaunchedEffect(Unit) { onClose() }
+        return
+    }
+    HeldSheet(titles, onKeep = { answers.keep(titles) }, onRemove = { answers.remove(titles) }, onDismiss = onClose)
 }
 
 /**
  * A folder's sheet: scan, edit or remove (confirmed in place, saying its [consequence]); Edit comes first after a failure
- * it can fix.
+ * it can fix. While titles of it are [held] ([onHeld] opens their sheet), they come first, focused.
  */
 @Composable
 private fun SourceActions(
@@ -210,14 +234,18 @@ private fun SourceActions(
     onDismiss: () -> Unit,
     onEdit: (focus: FolderField) -> Unit,
     onRemove: () -> Unit,
+    held: Int = 0,
+    onHeld: () -> Unit = {},
 ) {
     val vm = settingsViewModel()
     val posters by remember(source.id) { vm.library.latestPosters(source, HEADER_POSTERS) }.collectAsStateWithLifecycle(emptyList())
     val kind = sourceKindName(source.kind)
     val scan = remember { FocusRequester() }
     val edit = remember { FocusRequester() }
+    val heldRow = remember { FocusRequester() }
     // Read once: a scan ending while the sheet is open does not move its rows under focus.
     val fix = remember { editFixes(error) }
+    val holds = remember { held > 0 }
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
@@ -234,7 +262,11 @@ private fun SourceActions(
                 }
             }
         },
-        initialFocus = if (fix != null) edit else scan,
+        initialFocus = when {
+            holds -> heldRow
+            fix != null -> edit
+            else -> scan
+        },
     ) { sheet ->
         SheetConfirm(
             question = stringResource(R.string.remove_folder_confirm, sourceName(source)),
@@ -266,6 +298,15 @@ private fun SourceActions(
                 onClick = { sheet.dismiss { onEdit(FolderField.after(fix)) } },
             )
             HlSettingGroup(null) {
+                // Its titles held while their files are missing: their sheet, « Retirer » there at any time.
+                if (held > 0) {
+                    HlSettingRow(
+                        pluralStringResource(R.plurals.held_titles, held, held),
+                        Modifier.focusRequester(heldRow),
+                        description = stringResource(if (held == 1) R.string.held_row_desc_one else R.string.held_row_desc),
+                        onClick = { sheet.dismiss(onHeld) },
+                    )
+                }
                 if (fix != null) {
                     EditRow()
                     ScanRow()
@@ -297,9 +338,11 @@ private fun sourceName(source: Folder) = source.name.replaceFirstChar { it.upper
 private fun FolderShowcase(
     source: Folder,
     counts: FolderCounts?,
+    held: Int,
     scan: ScanState?,
     error: ScanError?,
     removeError: UiError?,
+    heldError: UiError?,
     removing: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -320,12 +363,20 @@ private fun FolderShowcase(
         // white, and what it holds after them.
         facts = listOf(lastScanned(source.lastScanAt).takeIf { source.lastScanAt <= 0 }) + folderFacts(counts) +
             kind.takeIf { !source.name.equals(it, ignoreCase = true) },
-        state = lastScanned(source.lastScanAt).takeIf { source.lastScanAt > 0 },
+        // Titles held while their files are missing take the state's place, by the ring: it may be no failure.
+        state = if (held > 0) {
+            pluralStringResource(R.plurals.held_count, held, held)
+        } else {
+            lastScanned(source.lastScanAt).takeIf { source.lastScanAt > 0 }
+        },
+        stateLight = if (held > 0) StatusState.Off else StatusState.Done,
         status = when {
             removing -> ({ HlStatus(StatusState.Pending, removingText) })
             scan != null -> ({ ScanProgress(scan.processed, scan.total, current = scan.current) })
             // On the facts' one line: the folder's sheet says it in full.
             notRemoved != null -> ({ AttentionNote(notRemoved, maxLines = 1) })
+            // An answer for its titles held that did not save: they stay as they were.
+            heldError != null -> ({ AttentionNote(stringResource(heldError.title), maxLines = 1) })
             failed != null -> ({ AttentionNote(failed, maxLines = 1) })
             else -> null
         },

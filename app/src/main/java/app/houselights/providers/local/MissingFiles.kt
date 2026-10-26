@@ -4,51 +4,46 @@ package app.houselights.providers.local
  * Rows of files no longer listed. What the user did to a title is kept by title when its row goes ([KeptStates]) and
  * given back when it returns, as when Radarr or Sonarr remove the old file before importing the new one:
  * - a renamed or moved file (Radarr or Sonarr upgrade, renamed folder) keeps its row;
- * - a few files missing go on the pass that misses them; back, they are new rows, read again (media info, TMDB
- *   details, credits) and given back what the user did;
- * - a NAS can list short without failing (pool disk offline, disk not mounted yet): many missing at once wait a day,
- *   so the walls are not emptied and refilled; so does a film whose later part is listed, for its first;
- * - the wall clock can jump ([PassTime]), so a waiting row also waits its day on the monotonic clock when this process
- *   held it, else to be seen missing an hour apart by this process.
+ * - files missing while their folder lists go on the pass that misses them; back, they are new rows, read again (media
+ *   info, TMDB details, credits) and given back what the user did;
+ * - a NAS can list short without failing (a disk of its pool offline, a volume not mounted yet), which the app cannot
+ *   tell from a clean-up: a sudden drop ([isDrop]) removes nothing; its rows are held, still shown, until their files
+ *   are back or the user answers ([LibraryScanner.keepHeld], [LibraryScanner.removeHeld]). No clock decides.
  */
 internal object MissingFiles {
-    /** More missing files than this wait a day, whatever the source size, as one pool disk holds a small share. */
-    private const val FEW = 20
+    /** The fewest titles a sudden drop holds, so that a handful deleted never asks. */
+    const val DROP_MIN = 10
 
-    /** How long a row held by an earlier process must be seen missing by this one ([MissingSightings.seenLong]). */
-    const val SEEN_AGAIN_MS = 60 * 60_000L
-
-    /** How long a row held waits ([Outcome.held]), from when it was first missed. */
-    const val HOLD_MS = 24 * 60 * 60_000L
+    /** A sudden drop takes more than a folder's titles divided by this: a quarter. */
+    private const val DROP_SHARE = 4
 
     /**
-     * When a pass runs. The wall clock dates rows, but a device without a battery starts on its build date and jumps
-     * once the network sets it: a pass earlier than the folder's last one ([lastScanAt]) deletes nothing, and a row
-     * is deleted only once [seenLong] tells this process saw it missing long enough for its hold ([MissingSightings]).
+     * Whether [missing] titles newly missing from a folder of [titles] are a sudden drop, as when a disk of the NAS's
+     * pool is offline: more than a quarter of them, and [DROP_MIN] at least.
      */
-    class PassTime(val now: Long, val lastScanAt: Long = 0, val seenLong: (id: Long, hold: Long) -> Boolean = { _, _ -> true })
+    fun isDrop(missing: Int, titles: Int): Boolean = missing >= DROP_MIN && missing.toLong() * DROP_SHARE > titles
 
     /** Decisions by row id. */
     data class Outcome(
         /** Rows of renamed files, with their new file. */
         val relinked: List<Pair<Long, RemoteFile>>,
+        /** Rows held whose files are listed again: they are as they were. */
         val back: List<Long>,
-        /**
-         * Rows newly missing while many are, films whose later part is listed, and rows missing since a time still to
-         * come: they wait [HOLD_MS] from now.
-         */
+        /** Rows newly missing in a sudden drop ([isDrop]): held from now, and asked about. */
         val held: List<Long>,
-        /** Rows of titles whose files left: a few newly missing, or held for [HOLD_MS]. Their user state is kept. */
+        /** Rows newly missing short of a drop: their titles leave, what the user did kept by title. */
         val removed: List<Long>,
         /** Multi-file films whose parts changed, with their current parts. */
         val parts: List<Pair<Long, List<String>>> = emptyList(),
-        /** Rows held before and still waiting. */
+        /** Rows held by an earlier drop and still missing: they wait for their files or the user's answer. */
         val waiting: List<Long> = emptyList(),
         /** Rows of files now a later part of a film, whose row holds the title: deleted, nothing kept. */
         val absorbed: List<Long> = emptyList(),
     ) {
-        /** Whether screens now show something else: a file renamed, a title gone, a film's parts. */
-        val changed: Boolean get() = relinked.isNotEmpty() || removed.isNotEmpty() || absorbed.isNotEmpty() || parts.isNotEmpty()
+        /** Whether screens now show something else: a file renamed, a title gone, held or back, a film's parts. */
+        val changed: Boolean
+            get() = relinked.isNotEmpty() || removed.isNotEmpty() || absorbed.isNotEmpty() || parts.isNotEmpty() ||
+                held.isNotEmpty() || back.isNotEmpty()
     }
 
     /** Rows under unreadable subfolders (lost+found, another user's) are out of sight, not missing. */
@@ -56,12 +51,11 @@ internal object MissingFiles {
         kind: SourceKind,
         known: Collection<KnownFile>,
         listing: Listing,
-        time: PassTime,
         stacks: Stacks = Stacks.of(kind, listing.videos),
     ): Outcome {
         val hidden = listing.unreadable
         val seen = if (hidden.isEmpty()) known else known.filterNot { item -> hidden.any { item.filePath.isIn(it) } }
-        return settle(kind, seen, stacks, time)
+        return settle(kind, seen, stacks)
     }
 
     /**
@@ -80,7 +74,7 @@ internal object MissingFiles {
      * A file that became a later part ([Stacks.titles]) is not missing: its row stands in for the film when the film
      * has none, else is deleted at once, unless the stack is [split].
      */
-    fun settle(kind: SourceKind, known: Collection<KnownFile>, stacks: Stacks, time: PassTime): Outcome {
+    fun settle(kind: SourceKind, known: Collection<KnownFile>, stacks: Stacks): Outcome {
         val files = stacks.titles
         val present = files.mapTo(HashSet()) { it.relativePath }
         val split = split(known, stacks)
@@ -95,7 +89,8 @@ internal object MissingFiles {
         val added = files.filter { it.relativePath !in knownPaths && it.relativePath !in taken }
         val relinked = standIns + relinks(kind, missing, added, files, stacks)
         val moved = relinked.mapTo(HashSet()) { it.first.id }
-        val gone = gone(missing.filter { it.id !in moved }, present, time)
+        // The folder's titles: its rows but those now parts of a film.
+        val gone = gone(missing.filter { it.id !in moved }, titles = rest.size)
         val titles = listed.map { it to it.filePath } + relinked.map { (row, file) -> row to file.relativePath }
         return Outcome(
             relinked = relinked.map { (row, file) -> row.id to file },
@@ -114,22 +109,15 @@ internal object MissingFiles {
     private class Gone(val held: List<Long>, val removed: List<Long>, val waiting: List<Long>)
 
     /**
-     * Rows [missing] among titles [present]. A few newly missing go at once, whatever the clock; many wait a day, and
-     * a film whose later part is listed too, without counting towards many. A hold is decided when a row is first
-     * missed and never shortened: a row held while many were gone waits its day when the others are back.
+     * Rows [missing] of a folder of [titles]: held by an earlier drop, they wait; newly missing, they go, unless they are
+     * a sudden drop ([isDrop]), which holds them all. A film whose first part is missing is missing too, its later parts
+     * then waiting with it while it is held ([waitingParts]).
      */
-    private fun gone(missing: List<KnownFile>, present: Set<String>, time: PassTime): Gone {
-        val partial = missing.filter { row -> row.parts.any { it in present } }.mapTo(HashSet()) { it.id }
-        val many = missing.count { it.id !in partial } > FEW
-        // Missing since a time still to come: held before the clock was set back, so it waits again from now.
-        val (dated, fresh) = missing.partition { row -> row.missingSince.let { it != null && it <= time.now } }
-        val (held, removed) = fresh.partition { many || it.id in partial || it.missingSince != null }
-        // A clock set back since the folder's last pass deletes nothing.
-        val settled = time.now >= time.lastScanAt
-        val (due, waiting) = dated.partition { row ->
-            settled && time.now - (row.missingSince ?: time.now) >= HOLD_MS && time.seenLong(row.id, HOLD_MS)
-        }
-        return Gone(held = held.map { it.id }, removed = (removed + due).map { it.id }, waiting = waiting.map { it.id })
+    private fun gone(missing: List<KnownFile>, titles: Int): Gone {
+        val (waiting, fresh) = missing.partition { it.missingSince != null }
+        val drop = isDrop(fresh.size, titles)
+        val ids = fresh.map { it.id }
+        return Gone(held = if (drop) ids else emptyList(), removed = if (drop) emptyList() else ids, waiting = waiting.map { it.id })
     }
 
     /** First parts of stacks whose rows match different titles ("X CD1" and "X CD2" as a film and its sequel). */
@@ -213,39 +201,5 @@ internal object MissingFiles {
         val episode = FilenameParser.parseEpisode(path.substringAfterLast('/'), path.split('/').dropLast(1)) ?: return null
         val show = episode.showTitle ?: return null
         return Triple(FilenameParser.showKey(show), episode.season, episode.episode)
-    }
-}
-
-/**
- * Rows this process saw missing, with when it first did on the monotonic clock [elapsed], which no setting of the
- * wall clock moves. A restart forgets them, so rows then wait once more: the safe side. Used by one pass at a time.
- */
-internal class MissingSightings(private val elapsed: () -> Long) {
-    /** First seen missing, and whether this process dated the row ([MissingFiles.Outcome.held]). */
-    private class Sighting(val at: Long, var heldHere: Boolean)
-
-    private val since = HashMap<Long, Sighting>()
-
-    /**
-     * Whether row [id] was seen missing long enough: its whole [hold] when this process dated it, as a clock jump
-     * since would shorten its age; else [MissingFiles.SEEN_AGAIN_MS], its date coming from an earlier process.
-     */
-    fun seenLong(id: Long, hold: Long): Boolean {
-        val seen = since[id] ?: return false
-        return elapsed() - seen.at >= if (seen.heldHere) hold else MissingFiles.SEEN_AGAIN_MS
-    }
-
-    /** Notes a pass over [known] rows: those still missing are seen, from now if not before; the others forgotten. */
-    fun note(known: Collection<KnownFile>, outcome: MissingFiles.Outcome) {
-        val held = outcome.held.toHashSet()
-        val waiting = outcome.waiting.toHashSet()
-        val now = elapsed()
-        for (row in known) {
-            when (row.id) {
-                in held -> since.getOrPut(row.id) { Sighting(now, heldHere = true) }.heldHere = true
-                in waiting -> since.getOrPut(row.id) { Sighting(now, heldHere = false) }
-                else -> since.remove(row.id)
-            }
-        }
     }
 }

@@ -151,6 +151,30 @@ class LocalEditorTest {
     }
 
     /**
+     * Held while its file is missing, a title to identify still says why to its page and in Identifier, its suggestions
+     * kept, though « À identifier » leaves it out until its file is back.
+     */
+    @Test
+    fun aTitleHeldStillSaysWhyItIsToIdentifyOutOfTheList() = runTest {
+        bench.tmdb.movie(DUNE, "Dune", 2021, votes = 12_000)
+        bench.tmdb.movie(LYNCH, "Dune", 1984, votes = 3_000)
+        bench.tmdb.searches["dune"] = listOf(DUNE, LYNCH)
+        val dune = film("Dune.mkv")
+        val editor = editor()
+        val pages = LocalProvider(ApplicationProvider.getApplicationContext(), bench.dao, editor)
+        bench.dao.setMissingSince(listOf(dune.id.toLong()), HOUR_MS)
+
+        assertEquals(emptyList<ToIdentify>(), editor.toIdentify())
+        val identity = editor.identity(dune)
+        assertEquals(MatchDoubt.UNSURE, identity.doubt)
+        assertEquals(listOf("$DUNE", "$LYNCH"), identity.suggestions.map { it.id })
+        assertEquals(MatchDoubt.UNSURE to true, pages.item(dune.id).let { it.matchDoubt to it.held })
+
+        bench.dao.setMissingSince(listOf(dune.id.toLong()), null)
+        assertEquals(listOf(dune.id), editor.toIdentify().map { it.item.id })
+    }
+
+    /**
      * Left as it is, a title says so, in Identifier and to its page (Modifier), and is no longer to identify; back to
      * automatic, it is to identify again.
      */

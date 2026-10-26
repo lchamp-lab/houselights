@@ -703,7 +703,10 @@ fun PosterStrip(
     }
 }
 
-/** At most one mark, top right: unwatched episode count, watched check or new-title ember dot. */
+/**
+ * At most one mark, top right: a title held while its file is missing, by the ring, first; else unwatched episode count,
+ * watched check or new-title ember dot.
+ */
 @Composable
 private fun StatusMark(item: MediaItem, modifier: Modifier) {
     val unplayed = item.user.unplayedCount ?: 0
@@ -712,6 +715,7 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
     // The card's state description says it in words, so the bare number is not read.
     val mark = modifier.clearAndSetSemantics {}
     when {
+        item.held -> HeldMark(mark)
         unplayed > 0 -> Box(
             mark
                 .clip(HlShapes.mark)
@@ -724,8 +728,28 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
     }
 }
 
-/** A card wears the dot of a title new to the library unless it counts unwatched episodes instead; a row counts these. */
-fun MediaItem.wearsNewDot(): Boolean = (user.unplayedCount ?: 0) == 0 && isNew()
+/**
+ * A title held while its file is missing ([MediaItem.held]): the ring of a state that is off, white on the marks' dark
+ * plate, never ember, as it may be no failure; it recedes with it.
+ */
+@Composable
+private fun HeldMark(modifier: Modifier) {
+    val c = Hl.colors
+    Box(
+        modifier
+            .size(HlSize.mark)
+            .clip(HlShapes.mark)
+            .background(c.background.copy(alpha = HlAlpha.VEIL))
+            .receding(LocalArtworkRecede.current, c.background),
+        contentAlignment = Alignment.Center,
+    ) { StatusLight(StatusState.Off, ink = c.content) }
+}
+
+/**
+ * A card wears the dot of a title new to the library unless it counts unwatched episodes or is held instead; a row
+ * counts these.
+ */
+fun MediaItem.wearsNewDot(): Boolean = !held && (user.unplayedCount ?: 0) == 0 && isNew()
 
 /** A title new to the library: a solid ember dot ringed in black, so it stands off any picture; it recedes with it. */
 @Composable
@@ -759,11 +783,12 @@ internal fun CheckMark(modifier: Modifier = Modifier, choice: Boolean = false) {
     }
 }
 
-/** The card's state for accessibility ("6 épisodes non vus", "vu", "nouveau, en cours, 40 %"), or null. */
+/** The card's state for accessibility ("introuvable", "6 épisodes non vus", "vu", "nouveau, en cours, 40 %"), or null. */
 @Composable
 private fun cardState(item: MediaItem): String? {
     val unplayed = item.user.unplayedCount ?: 0
     val mark = when {
+        item.held -> stringResource(R.string.card_held)
         unplayed > 0 -> pluralStringResource(R.plurals.card_unwatched, unplayed, unplayed)
         item.user.played -> stringResource(R.string.card_watched)
         item.wearsNewDot() -> stringResource(R.string.card_new)
@@ -778,14 +803,15 @@ private const val PERCENT = 100
 /**
  * Ember progress line for titles in progress, [thickness] tall, the ember light stretched over the part seen.
  * On artwork it burns at the picture's foot over the dark plate ([groundPlate]), cut by the picture's corners,
- * and recedes with it. On a [focused] plate it is a mark in solid raspberry on the plate itself: a track there
- * would hold it under 3:1.
+ * and recedes with it. On a [focused] plate it is a mark in solid raspberry on the plate itself, a track under it
+ * would hold it under 3:1; the part to come is pale there, so a count at the line's end reads as a whole gauge's.
  */
 @Composable
 fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlSize.progress, focused: Boolean = false) {
     if (progress <= 0f) return
     val c = Hl.colors
     val under = if (focused) null else groundPlate() ?: c.content.copy(alpha = HlAlpha.FILL_STRONG)
+    val toCome = if (focused) c.onFocus.copy(alpha = HlAlpha.FILL) else null
     val mark = FocusStyle.emberMark(focused).takeIf { focused }
     val seen = progress.coerceAtMost(1f)
     val recede = LocalArtworkRecede.current
@@ -796,6 +822,7 @@ fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp =
             val light = c.emberLight(across = part.width)
             onDrawBehind {
                 under?.let { drawRect(it) }
+                toCome?.let { drawRect(it, topLeft = Offset(part.width, 0f), size = Size(size.width - part.width, size.height)) }
                 if (mark != null) drawRect(mark, size = part) else drawRect(light, size = part, colorFilter = recedeFilterAt(recede()))
             }
         },

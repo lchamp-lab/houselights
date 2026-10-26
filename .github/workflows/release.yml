@@ -1,11 +1,13 @@
 # Publishes a release when a tag vX.Y.Z (or vX.Y.Z-beta.N, a pre-release) is pushed: the checks of CI,
-# then the release APK signed with the project's key, its SHA-256, and notes made of the commits since
-# the previous tag (each one a sentence of what is now true).
+# then the release APK signed with the project's key, its SHA-256, the update.json the app's updater reads, and notes
+# from docs/releases/X.Y.Z/ (or, without it, the commits since the previous tag, each one a sentence of what is now
+# true).
 #
 # Two jobs, so that what the checks run (Gradle plugins, lint checks, detekt rules, test libraries,
-# Robolectric's Android) never sees the signing key: check has no secret and a read-only token. Once it
-# passes, release writes the key for assembleRelease alone and erases it; its token, which can write, is
-# left in no .git/config and only the step that publishes has it in its environment.
+# Robolectric's Android) never sees the signing key: check has no secret and a read-only token, which only its step
+# reading the published releases, before any build, has in its environment. Once it passes, release writes the key
+# for assembleRelease alone and erases it; its token, which can write, is left in no .git/config and only the step
+# that publishes has it in its environment.
 #
 # Repository secrets (Settings > Secrets and variables > Actions):
 #   HOUSELIGHTS_KEYSTORE           the release keystore, in base64 (base64 -w0 houselights-release.jks)
@@ -17,8 +19,11 @@
 #   TRAKT_CLIENT_SECRET            optional: only for a Trakt app that has one; built into the APK, it can be read there
 #   TRAKT_REDIRECT_URI             optional: the Trakt app's redirect URI, when not the project's (README, Trakt)
 #
-# To release: set versionName in app/build.gradle.kts, commit, then tag that commit
-# (git tag -a v0.2.0 -m "Houselights 0.2.0" && git push origin v0.2.0).
+# To release: set versionName in app/build.gradle.kts, write docs/releases/X.Y.Z/en.md (and fr.md), commit, then tag
+# that commit (git tag -a v0.2.0 -m "Houselights 0.2.0" && git push origin v0.2.0). A final needs at least one commit
+# after its last beta: its versionCode, the commit count, must grow. Before a first beta whose updater has never run, a
+# dry run with two locally signed builds against a test repository (-Phouselights.updateRepo=owner/repo) tries the
+# update from one to the next (CONTRIBUTING, Releases).
 name: Release
 
 on:
@@ -56,6 +61,29 @@ jobs:
           echo "name=$tag" >> "$GITHUB_OUTPUT"
           case "$tag" in *-*) echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=" >> "$GITHUB_OUTPUT" ;; esac
 
+      # The app offers a release only above its installed versionCode, and Android refuses a lower one: the new one, the
+      # commit count, must be above every release published (a hotfix branched from an old tag, or a history rewritten,
+      # would count fewer). The read-only token, here alone and before any build; 946 is v0.3.0's, the last release
+      # published without an update.json.
+      - name: The versionCode grows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          code="$(git rev-list --count HEAD)"
+          highest=946
+          tags="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 --json tagName --jq '.[].tagName')"
+          for tag in $tags; do
+            [ "$tag" = "$GITHUB_REF_NAME" ] && continue
+            published="$(gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern update.json --output - 2>/dev/null \
+              | jq -r '.versionCode // empty' 2>/dev/null || true)"
+            if [ -n "$published" ] && [ "$published" -gt "$highest" ]; then highest="$published"; fi
+          done
+          if [ "$code" -le "$highest" ]; then
+            echo "::error::versionCode $code is not above $highest, already published: tag a commit that descends from the last release. A final needs at least one commit after its last beta (its docs/releases notes give one)."
+            exit 1
+          fi
+          echo "versionCode $code, above $highest"
+
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
@@ -85,9 +113,6 @@ jobs:
     permissions:
       contents: write
     env:
-      # The project's signing certificate. A release signed with any other key could not update the app
-      # people have installed: the build stops rather than publish one.
-      CERT_SHA256: ca0adf07526458f6cb3e57e4c58466c455b686f5843ae64d45a376a293eb4da8
       VERSION: ${{ needs.check.outputs.version }}
       PRERELEASE: ${{ needs.check.outputs.prerelease }}
       APK: Houselights-${{ needs.check.outputs.version }}.apk
@@ -98,6 +123,18 @@ jobs:
           fetch-depth: 0
           # No token left in .git/config for the build to find.
           persist-credentials: false
+
+      # The project's signing certificate, from its only copy (gradle.properties), which the app pins too. A release
+      # signed with any other key could not update the app people have installed: the build stops rather than publish
+      # one.
+      - name: The project's certificate
+        run: |
+          cert="$(sed -n 's/^houselights\.releaseCertSha256=\([0-9a-f]\{64\}\)$/\1/p' gradle.properties)"
+          if [ -z "$cert" ]; then
+            echo "::error::gradle.properties names no houselights.releaseCertSha256 of 64 lowercase hex digits."
+            exit 1
+          fi
+          echo "CERT_SHA256=$cert" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
@@ -124,7 +161,8 @@ jobs:
           printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=houselights\nkeyPassword=%s\n' \
             "$RUNNER_TEMP/houselights-release.jks" "$PASSWORD" "$PASSWORD" > keystore.properties
 
-      # The release alone: its lint ran in check, without the key.
+      # The release alone: its lint ran in check, without the key. Named as its tag, a beta's included (0.4.0-beta.1),
+      # which the updater tells from its final by that name.
       - name: The signed release
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
@@ -135,6 +173,7 @@ jobs:
           ./gradlew --no-daemon --max-workers=2
           -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
           -Pkotlin.compiler.execution.strategy=in-process
+          -PversionName="$VERSION"
           assembleRelease -x lintVitalRelease
 
       - name: Forget the key
@@ -164,30 +203,97 @@ jobs:
           # holds class and member names only.
           cp app/build/outputs/mapping/release/mapping.txt "${APK%.apk}-mapping.txt"
 
+      # What is new: docs/releases/X.Y.Z/en.md (and fr.md) when written, at most 4000 characters each, as the app shows
+      # them; else the subjects of the commits since the previous tag, in English, whole ones up to 4000 characters.
       - name: Notes
         run: |
-          previous="$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
-          range="${previous:+$previous..}$GITHUB_REF_NAME"
+          dir="docs/releases/$VERSION"
+          if [ -d "$dir" ]; then
+            if [ ! -s "$dir/en.md" ]; then
+              echo "::error::$dir has no en.md: the notes in English are the ones every language falls back to."
+              exit 1
+            fi
+            for lang in en fr; do
+              [ -f "$dir/$lang.md" ] || continue
+              length="$(wc -m < "$dir/$lang.md")"
+              if [ "$length" -gt 4000 ]; then
+                echo "::error::$dir/$lang.md holds $length characters, 4000 at most: the app shows no more."
+                exit 1
+              fi
+              cp "$dir/$lang.md" "notes-$lang.md"
+            done
+          else
+            previous="$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
+            range="${previous:+$previous..}$GITHUB_REF_NAME"
+            git log --no-merges --format='- %s' "$range" -- app/src \
+              | awk '{ n += length($0) + 1; if (n > 4000) exit; print }' > notes-en.md
+            [ -s notes-en.md ] || echo "- Houselights $VERSION" > notes-en.md
+          fi
           {
             echo "## What's new"
             echo
-            git log --no-merges --format='- %s' "$range" -- app/src
+            cat notes-en.md
             echo
             echo "## Install"
             echo
-            echo "Download \`$APK\` and install it on your player (README, Install)."
-            echo "It updates an earlier release in place, its library and watch history kept."
+            echo "Update from the app (Settings > About > Updates), or download \`$APK\` and install it on your player"
+            echo "(README, Install). It updates an earlier release in place, its library and watch history kept."
             echo
             echo "SHA-256 of the APK: \`$(cut -d' ' -f1 "$APK.sha256")\`"
             echo
             echo "Signing certificate SHA-256: \`$CERT_SHA256\`"
           } > notes.md
 
+      # The manifest the app's updater reads (app/src/main/java/app/houselights/update/UpdateManifest.kt), read from the
+      # APK itself, never recomputed, and checked before it is published.
+      - name: update.json
+        run: |
+          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)aapt2"
+          badging="$("$aapt2" dump badging "$APK")"
+          package="$(printf '%s\n' "$badging" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")"
+          code="$(printf '%s\n' "$badging" | sed -n "s/^package: .* versionCode='\([0-9]*\)'.*/\1/p")"
+          name="$(printf '%s\n' "$badging" | sed -n "s/^package: .* versionName='\([^']*\)'.*/\1/p")"
+          sdk="$(printf '%s\n' "$badging" | sed -n "s/^sdkVersion:'\([0-9]*\)'.*/\1/p")"
+          if [ "$package" != "app.houselights" ] || [ "$name" != "$VERSION" ] || [ -z "$code" ] || [ -z "$sdk" ]; then
+            echo "::error::The APK reads package '$package', versionName '$name', versionCode '$code', minSdk '$sdk'."
+            exit 1
+          fi
+          if [ -n "$PRERELEASE" ]; then prerelease=true; else prerelease=false; fi
+          [ -f notes-fr.md ] || : > notes-fr.md
+          jq -n \
+            --arg tag "$GITHUB_REF_NAME" --arg versionName "$name" --argjson versionCode "$code" \
+            --argjson prerelease "$prerelease" --argjson minSdk "$sdk" \
+            --arg apk "$APK" --argjson size "$(stat -c %s "$APK")" --arg sha256 "$(cut -d' ' -f1 "$APK.sha256")" \
+            --arg cert "$CERT_SHA256" --rawfile en notes-en.md --rawfile fr notes-fr.md \
+            '{
+              schema: 1,
+              tag: $tag,
+              versionName: $versionName,
+              versionCode: $versionCode,
+              prerelease: $prerelease,
+              minSdk: $minSdk,
+              apk: {name: $apk, size: $size, sha256: $sha256},
+              certSha256: $cert,
+              notes: ({en: $en} + (if $fr == "" then {} else {fr: $fr} end))
+            }' > update.json
+          jq -e --arg tag "$GITHUB_REF_NAME" --arg apk "$APK" '
+            .schema == 1 and .tag == $tag and .versionName == ($tag | ltrimstr("v"))
+            and (.versionCode | type == "number" and . > 0) and (.prerelease | type == "boolean")
+            and (.minSdk | type == "number") and .apk.name == $apk and (.apk.size | type == "number" and . > 0)
+            and (.apk.sha256 | test("^[0-9a-f]{64}$")) and (.certSha256 | test("^[0-9a-f]{64}$"))
+            and (.notes.en | type == "string" and length > 0 and length <= 4000)
+            and ((.notes.fr // "") | length <= 4000)
+          ' update.json
+          cat update.json
+
+      # A draft first, all its files uploaded, then published: no one ever sees a release whose APK or update.json is
+      # still on its way.
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "$GITHUB_REF_NAME" --verify-tag
-          --title "Houselights $VERSION"
-          --notes-file notes.md ${PRERELEASE:+"$PRERELEASE"}
-          "$APK" "$APK.sha256" Houselights.apk "${APK%.apk}-mapping.txt"
+        run: |
+          gh release create "$GITHUB_REF_NAME" --verify-tag --draft \
+            --title "Houselights $VERSION" \
+            --notes-file notes.md ${PRERELEASE:+"$PRERELEASE"} \
+            "$APK" "$APK.sha256" Houselights.apk "${APK%.apk}-mapping.txt" update.json
+          gh release edit "$GITHUB_REF_NAME" --draft=false

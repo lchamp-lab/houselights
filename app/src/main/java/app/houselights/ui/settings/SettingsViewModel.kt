@@ -85,6 +85,13 @@ internal enum class SettingAction {
     /** Resuming or forgetting the server kept beside the folders, said on the source's row. */
     KEPT_SERVER,
     TRACKS,
+
+    /** « Recherche automatique » and « Versions proposées », in About's « Mises à jour ». */
+    UPDATE_CHECK,
+    UPDATE_CHANNEL,
+
+    /** Answering for a folder's titles held while their files are missing, said on its showcase. */
+    HELD,
 }
 
 /** Why the change made from [action] failed; [folderId] is the folder a removal targeted. */
@@ -95,6 +102,7 @@ internal data class ActionError(val action: SettingAction, val error: UiError, v
  * removal and TMDB key saving run in [work], which outlives the screen. Holds the image loader, not a context,
  * so no screen leaks.
  */
+@Suppress("TooManyFunctions") // What Settings changes, a function a setting.
 internal class SettingsViewModel(
     private val store: SettingsStore,
     val library: LocalLibrary,
@@ -271,6 +279,14 @@ internal class SettingsViewModel(
     /** Saves « Taille du texte »; every screen is laid out again at it. */
     fun setTextSize(size: TextSize) = change("Saving the text size", SettingAction.TEXT_SIZE) { store.setTextSize(size) }
 
+    /** « Recherche automatique »: once a day, or only when asked. */
+    fun setUpdateCheck(daily: Boolean) = change("Saving the update check", SettingAction.UPDATE_CHECK) { store.setUpdateCheck(daily) }
+
+    /** « Versions proposées »: the betas too, or the releases alone. */
+    fun setUpdatePrereleases(betas: Boolean) = change("Saving the versions offered", SettingAction.UPDATE_CHANNEL) {
+        store.setUpdatePrereleases(betas)
+    }
+
     /**
      * Saves a personal TMDB key unless TMDB refuses it (blank reverts to the built-in one), in [work] as the sheet
      * may close meanwhile; [tmdbKey] reports the outcome. Returns the attempt number, or null while another runs.
@@ -317,6 +333,18 @@ internal class SettingsViewModel(
             }
         }
     }
+
+    /**
+     * « Garder » (they wait for their files) and « Retirer » (they leave, what the user did kept by title) for a folder's
+     * titles held, in [work]; a failure is said on the folder's showcase.
+     */
+    val heldAnswers = HeldAnswers(
+        keep = { held -> answer(held, "Keeping") { library.keepHeld(held.folder.id, held.ids) } },
+        remove = { held -> answer(held, "Removing") { library.removeHeld(held.ids) } },
+    )
+
+    private fun answer(held: HeldTitles, what: String, save: suspend () -> Unit) =
+        change("$what the titles held in folder ${held.folder.id}", SettingAction.HELD, work, held.folder.id) { save() }
 
     private val _mappings = mutableStateListOf<PathMapping>().apply { addAll(store.state.value.pathMappings) }
 

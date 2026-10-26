@@ -321,6 +321,8 @@ class MainActivity : ComponentActivity() {
         cancelCue()
         // Secrets the Keystore did not open are tried again.
         container.settings.readAgain()
+        // Back from Android's settings, which may now let the app install its update, or from its installer's window.
+        container.updates.returned()
     }
 
     // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.
@@ -331,11 +333,19 @@ class MainActivity : ComponentActivity() {
         return dispatchUnseen(event, covered, lightsDown.value, ::cancelCue) { super.dispatchKeyEvent(it) }
     }
 
-    /** Plays [item] after the house-light cue; a failure is said where play was asked ([origin]). */
+    /**
+     * Plays [item] after the house-light cue; a failure is said where play was asked ([origin]). A title whose file is
+     * missing is not tried ([tryPlay][app.houselights.ui.util.PlaybackOutcome.tryPlay]): the room stays lit, and where
+     * play was asked says why.
+     */
     private fun play(item: MediaItem, resume: Boolean, origin: PlayOrigin) {
         // One cue at a time.
         if (lightsDown.value) return
-        container.playback.clearProblem()
+        container.playback.tryPlay(item, origin) { dimAndPlay(item, resume, origin) }
+    }
+
+    /** Dims the house lights while the plan of [item] resolves, then hands it to the player. */
+    private fun dimAndPlay(item: MediaItem, resume: Boolean, origin: PlayOrigin) {
         lightsDown.value = true
         cue = lifecycleScope.launch {
             val s = container.settings.state.value
@@ -494,6 +504,11 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
                     onIdentify = { nav.navigate(Route.Identify(it)) },
                     onOpenPerson = { nav.navigate(Route.Person(it)) },
+                    // A copy of the film left under another row: its page in this one's place.
+                    onLeave = { stays ->
+                        nav.popBackStack()
+                        stays?.let(::openItem)
+                    },
                 )
             }
         }

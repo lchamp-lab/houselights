@@ -20,9 +20,12 @@ import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.tracksHint
 import app.houselights.ui.util.formatDuration
 
-/** An episode's card opens options when it has one: a mark the source keeps, a start over, a choice of tracks. */
+/**
+ * An episode's card opens options when it has one: a mark the source keeps, a start over, a choice of tracks, its
+ * removal while it is held ([MediaItem.held]).
+ */
 internal fun episodeHasOptions(episode: MediaItem, canMark: Boolean, tracks: TrackPlan?): Boolean =
-    canMark || episode.user.positionMs > 0 || tracks != null
+    canMark || episode.user.positionMs > 0 || tracks != null || episode.held
 
 /** What an episode's options do; null hides an option. */
 @Immutable
@@ -31,13 +34,16 @@ internal class EpisodeActions(
     val onPlayFromStart: (MediaItem) -> Unit,
     /** Opens the show's audio and subtitles. */
     val onTracks: () -> Unit,
+    /** Removes an episode held while its file is missing from the library alone ([DetailViewModel.removeHeldEpisode]). */
+    val onRemove: (MediaItem) -> Unit = {},
 )
 
 /**
  * The options of the episode [episodeId] of [state]'s season, in a side sheet: its name, its season, number and length,
- * then marking it watched or not (focused, so Menu then OK marks it), playing it from its start once started, and the
- * show's audio and subtitles where they apply, saying what Lire plays. An action closes the sheet first; an episode no
- * longer shown closes it for good.
+ * then marking it watched or not (focused, so Menu then OK marks it), playing it from its start once started, the
+ * show's audio and subtitles where they apply, saying what Lire plays, and last, held while its file is missing, « Retirer
+ * de la bibliothèque », it alone, nothing deleted on the NAS. An action closes the sheet first; an episode no longer
+ * shown closes it for good.
  */
 @Composable
 internal fun EpisodeOptions(state: DetailState, episodeId: String?, actions: EpisodeActions, onDismiss: () -> Unit) {
@@ -59,6 +65,8 @@ internal fun EpisodeOptions(state: DetailState, episodeId: String?, actions: Epi
         SheetOption(stringResource(R.string.play_from_start), HlIcons.Restart) { actions.onPlayFromStart(episode) }
             .takeIf { episode.user.positionMs > 0 },
         tracks?.let { SheetOption(stringResource(R.string.tracks), HlIcons.Captions, tracksHint(it), actions.onTracks) },
+        // As the title page's tile: a list crossed out, nothing deleted on the NAS.
+        SheetOption(stringResource(R.string.held_remove_title), HlIcons.Remove) { actions.onRemove(episode) }.takeIf { episode.held },
     )
     val seasonItem = state.seasons.firstOrNull { it.id == episode.seasonId }
     // Said in the app's language beside the number and length; specials, season 0, keep the source's name.

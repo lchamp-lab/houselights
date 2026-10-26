@@ -117,6 +117,11 @@ data class SourceEntity(
     /** NFS: the user the app presents itself as to the NAS (AUTH_SYS), with [gid]; both null for root. */
     val uid: Int? = null,
     val gid: Int? = null,
+    /**
+     * The user kept the titles a sudden drop holds in this folder (« Garder », [MissingFiles.isDrop]): they wait for their
+     * files, and nothing asks again until another drop holds more.
+     */
+    val heldKept: Boolean = false,
 )
 
 data class SourceFirstScan(val id: Long, val firstScanAt: Long)
@@ -178,7 +183,15 @@ internal fun KnownFile.sizeChanged(file: RemoteFile): Boolean = fileSize != null
 internal fun ItemEntity.withMedia(info: MediaInfo): ItemEntity =
     copy(mediaInfo = MediaProbe.encode(info), probeVersion = info.probedWith, fileDurationMs = info.durationMs)
 
-data class SeriesCounts(val seriesId: Long, val unplayed: Int, val seasons: Int)
+/** A show's episodes: those not watched, its seasons, how many, how many held ([ItemEntity.missingSince]) and since when. */
+data class SeriesCounts(
+    val seriesId: Long,
+    val unplayed: Int,
+    val seasons: Int,
+    val episodes: Int = 0,
+    val held: Int = 0,
+    val heldSince: Long? = null,
+)
 
 data class SeasonCounts(val seasonId: Long, val episodes: Int, val played: Int)
 
@@ -282,7 +295,10 @@ data class ItemEntity(
     /** Later parts of a multi-file film (CD2, disc 2…), in order; [filePath] is the first. */
     val parts: List<String> = emptyList(),
     val fileSize: Long? = null,
-    /** When a scan first missed the file; the row is kept for a while (see [MissingFiles]). Null while listed. */
+    /**
+     * When a scan first missed the file, among many of its folder gone at once: the row is held, shown, until its file is
+     * back or the user answers ([MissingFiles.isDrop]). Null while listed.
+     */
     val missingSince: Long? = null,
     val badges: List<String> = emptyList(),
     /** [app.houselights.core.MediaInfo] as JSON; null until probed. Written with [withMedia]. */
@@ -334,11 +350,14 @@ data class ItemEntity(
  */
 enum class MatchState { MATCHED, NOT_FOUND, UNSURE }
 
-/** Why this film or show is to identify, as [TO_IDENTIFY] selects it; null when it is not. */
+/**
+ * Why this film or show is to identify, as [TO_IDENTIFY] selects it, its file held missing or not; null when it is not.
+ * Held, it waits outside the list until its file is back, its page saying it is held and still offering Identifier.
+ */
 internal fun ItemEntity.doubt(): MatchDoubt? {
     val titled = kind == ItemKind.MOVIE || kind == ItemKind.SERIES
-    // Matched, left as it is by the user, or its file held missing.
-    val aside = tmdbId != null || userNoMatch || missingSince != null
+    // Matched, or left as it is by the user.
+    val aside = tmdbId != null || userNoMatch
     if (!titled || aside) return null
     return when (matchState) {
         MatchState.NOT_FOUND -> MatchDoubt.NOT_FOUND

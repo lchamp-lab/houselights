@@ -22,6 +22,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -41,6 +42,7 @@ import app.houselights.core.MediaKind
 import app.houselights.providers.local.Folder
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
+import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
@@ -50,6 +52,7 @@ import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.drawnWhole
+import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.AttentionNote
@@ -71,6 +74,7 @@ import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlSideSheet
+import app.houselights.ui.design.components.HeadNote
 import app.houselights.ui.design.components.HomeDoor
 import app.houselights.ui.design.components.HomeHead
 import app.houselights.ui.design.components.ResumeCase
@@ -80,13 +84,19 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.gridHeights
 import app.houselights.ui.design.components.rememberCutPosters
 import app.houselights.ui.design.components.rememberFigureSize
+import app.houselights.ui.settings.UpdateOnHome
+import app.houselights.ui.settings.UpdateUi
+import app.houselights.ui.settings.HeldSheet
+import app.houselights.ui.settings.HeldTitles
 import app.houselights.ui.settings.relativeTime
+import app.houselights.ui.settings.updateSaid
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatCount
+import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.run
 import app.houselights.ui.util.scanErrorText
@@ -115,6 +125,10 @@ data class HomeActions(
     val onRescan: () -> Unit = {},
     /** Prefetches a library's wall as its door is chosen. */
     val onLibraryAhead: (Library, sagas: Library?) -> Unit = { _, _ -> },
+    /** « Garder » for a folder's titles held while their files are missing. */
+    val onKeepHeld: (HeldTitles) -> Unit = {},
+    /** « Retirer » for a folder's titles held while their files are missing. */
+    val onRemoveHeld: (HeldTitles) -> Unit = {},
 )
 
 /** Home; [playProblem] says why a play asked from it did not start. */
@@ -125,16 +139,31 @@ fun HomeScreen(actions: HomeActions, playProblem: UiError? = null) {
     ReloadOnLibraryChange(vm.libraryShown) { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
     val search = actions.onOpenSearch.takeIf { app.providerOrNull()?.capabilities?.search == true }
-    HomeGrid(state, vm.scan, actions.copy(onOpenSearch = search, onReload = vm::load, onRescan = vm::rescan), playProblem)
+    val updates = remember(app) { UpdateUi(app.updates.state, app.updates) }
+    val answers = actions.copy(
+        onOpenSearch = search,
+        onReload = vm::load,
+        onRescan = vm::rescan,
+        onKeepHeld = vm::keepHeld,
+        onRemoveHeld = vm::removeHeld,
+    )
+    HomeGrid(state, vm.scan, answers, playProblem, updates)
 }
 
 /**
  * Home for [state] (DESIGN.md, Layout): the lockup, then the grid of the case and its doors, or what says why there is
  * none. Focus comes back to the door left; Back says once that a second one quits. Why the case did not play
- * ([playProblem]) is said in place of its facts until a click on it, and first in its options.
+ * ([playProblem]) is said in place of its facts until a click on it, and first in its options. A version found by the
+ * app's [updates] opens its sheet once over the grid, and the update that brought the app back is said once at its head.
  */
 @Composable
-internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: HomeActions, playProblem: UiError? = null) {
+internal fun HomeGrid(
+    state: HomeState,
+    scan: StateFlow<ScanState>,
+    actions: HomeActions,
+    playProblem: UiError? = null,
+    updates: UpdateUi? = null,
+) {
     val content = state.content
     val memory = rememberFocusMemory()
     // The line saying a second Back quits goes as soon as focus moves to another door.
@@ -145,19 +174,20 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
     RestoreFocus(memory, fallback = plan?.start?.let { memory.requester(it) }, ready = ready)
     val listing = rememberSaveable { mutableStateOf(false) }
     val options = rememberSaveable { mutableStateOf(false) }
+    val heldOpen = rememberSaveable { mutableStateOf(false) }
+    // Titles of a folder held while their files are missing, until answered: said where home says how things stand.
+    val held = state.held.takeIf { content is HomeContent.Rows }
     val case = plan?.case
     ClosedWithout(options, case != null)
     ClosedWithout(listing, plan?.doors?.any { it is Door.Libraries } == true)
+    ClosedWithout(heldOpen, held != null)
+    FocusAfterNote(gone = held == null, memory, plan?.start)
     // Whole for the launch screen once the grid shows with its doors read, or a message.
     val whole = content !is HomeContent.Loading && (plan == null || state.doors?.shelvesRead == true)
     Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current).drawnWhole(whole)) {
-        // Without a grid, the settings stay one tile away, where a message may send the viewer.
-        val settings: (@Composable () -> Unit)? = if (content is HomeContent.Message) {
-            { HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = actions.onOpenSettings) }
-        } else {
-            null
-        }
-        HomeHead(stringResource(R.string.back_again_to_quit).takeIf { quitting }, end = settings)
+        val end = headEnd(content, held, memory, actions) { heldOpen.value = true }
+        val (status, light) = passing(quitting, updates)
+        HomeHead(status, statusState = light, end = end)
         when {
             plan != null -> Grid(
                 plan, state, scan, actions, memory, playProblem, onList = { listing.value = true }, onOptions = { options.value = true },
@@ -168,7 +198,82 @@ internal fun HomeGrid(state: HomeState, scan: StateFlow<ScanState>, actions: Hom
     }
     if (listing.value && plan != null) LibrariesSheet(plan, state.sagas, actions) { listing.value = false }
     if (options.value && case != null) CaseOptions(case, actions, playProblem) { options.value = false }
+    HeldSheetOf(heldOpen, held, actions)
+    // A version found: its sheet, opened by the app once home's grid is drawn and no sheet lies over it, once per version.
+    UpdateOnHome(updates, drawn = whole, grid = plan != null)
 }
+
+/**
+ * What home's head says in passing, by its light: that a second Back quits, while [quitting]; else, once, the update that
+ * brought the app back ([updateSaid]); else nothing.
+ */
+@Composable
+private fun passing(quitting: Boolean, updates: UpdateUi?): Pair<String?, StatusState> {
+    val said = updateSaid(updates)
+    return when {
+        quitting -> stringResource(R.string.back_again_to_quit) to StatusState.Pending
+        said != null -> said
+        else -> null to StatusState.Pending
+    }
+}
+
+/**
+ * What stands at the end of home's head: without a grid, the settings stay one tile away, where a message may send the
+ * viewer; with titles [held], what home says of them, Voir opening their sheet ([openHeld]); else nothing.
+ */
+private fun headEnd(
+    content: HomeContent,
+    held: HeldTitles?,
+    memory: FocusMemory,
+    actions: HomeActions,
+    openHeld: () -> Unit,
+): (@Composable () -> Unit)? = when {
+    content is HomeContent.Message -> {
+        { HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = actions.onOpenSettings) }
+    }
+    held != null -> {
+        {
+            val count = held.rows.size
+            HeadNote(
+                pluralStringResource(R.plurals.held_home, count, count, held.name),
+                stringResource(R.string.held_see),
+                onAction = openHeld,
+                actionModifier = Modifier.focusKey(HELD_SEE, memory),
+            )
+        }
+    }
+    else -> null
+}
+
+/** The sheet of the titles [held] while [open], its answers home's [actions]. */
+@Composable
+private fun HeldSheetOf(open: MutableState<Boolean>, held: HeldTitles?, actions: HomeActions) {
+    if (!open.value || held == null) return
+    HeldSheet(
+        held,
+        onKeep = { actions.onKeepHeld(held) },
+        onRemove = { actions.onRemoveHeld(held) },
+        onDismiss = { open.value = false },
+    )
+}
+
+/**
+ * Voir gone with its note (answered, or the files back) while it had focus: focus goes where home starts ([start]), the
+ * case. Read as the change composes, so focus moved elsewhere meanwhile is left there.
+ */
+@Composable
+private fun FocusAfterNote(gone: Boolean, memory: FocusMemory, start: String?) {
+    val had = remember(gone) { memory.hasFocus(HELD_SEE) }
+    LaunchedEffect(gone) {
+        if (gone && had && start != null) {
+            withFrameNanos { }
+            memory.focus(start)
+        }
+    }
+}
+
+/** Voir, at the end of home's head, in the screen's focus memory. */
+private val HELD_SEE = FocusKey.action("held")
 
 /** A [sheet] whose [element] went with a reload closes, and does not open again by itself when it comes back. */
 @Composable
@@ -282,9 +387,23 @@ private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit
         onLongClick = onOptions,
         onLongClickLabel = stringResource(R.string.more_options),
         says = failed?.let {
-            { HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(it.reason()), maxLines = 1) }
+            { CaseSays(it, case.item) }
         },
     )
+}
+
+/**
+ * Why the case did not play, in its facts' room: a title held, by the ring, never ember, since when its file is missing;
+ * else "Lecture impossible" and the reason in a word.
+ */
+@Composable
+private fun CaseSays(failed: CaseFailure, item: MediaItem) {
+    if (failed.error == UiError.HELD) {
+        val since = item.missingSince?.let { heldSince(it) } ?: stringResource(failed.error.message)
+        HlStatus(StatusState.Off, stringResource(failed.error.title), detail = since, maxLines = 1)
+    } else {
+        HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(failed.reason()), maxLines = 1)
+    }
 }
 
 /** A door of the grid, drawn for what it shows. */

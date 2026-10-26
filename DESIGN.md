@@ -88,7 +88,7 @@ Small surfaces (a settings pane, a message, a running scan) borrow exactly one g
 |---|---|---|
 | **Case back** | what a pane states | A `FactPlate` of `PlateFact`s: each label in secondary `meta` over its value, words in `entry`, a format or a figure in `spec`, its measure after it in `meta`, a state by its dot. Several of a kind in a `SpecTable` on a plate, the one in use by its white dot. Measures (sizes, counts, rates, durations) are tabular. Only what acts is a row. Unknown values are omitted, never shown as zero. No charts. |
 | **Intertitle** | every message | A short rule, one line in `subject`, one line of secondary `body` (`readableNarrow`), at most one action and a quieter one. An ember rule means attention. It replaces the content it concerns, aligned on the screen margin: never centred, never a snackbar, Toast or dialog. `HlEmptyState` on a screen, `SheetConfirm` in a sheet. |
-| **Counter** | progress | The ember line with its count in tabular figures ("3 / 9", `scan_progress`) and the current file, quiet, in `meta` on its line or under a label (`ScanProgress`); before the files are counted, a sliver and no count. On a focused plate, a raspberry line on the plate itself. Durations read "2 h 02", time left "Il reste 20 min"; a timecode only names a frame. |
+| **Counter** | progress | The ember line with its count in tabular figures ("3 / 9", `scan_progress`) and the current file, quiet, in `meta` on its line or under a label (`ScanProgress`); before the files are counted, a sliver and no count. On a focused plate, a raspberry line on the plate itself, the part to come pale (`ProgressLine`), so a count at its end reads as a whole gauge's. On a row (`HlSettingRow`'s `progress`), the count follows its line: an update downloading, "2,1 Mo / 6,4 Mo", each figure with its unit. Durations read "2 h 02", time left "Il reste 20 min"; a timecode only names a frame. |
 
 The library in numbers follows the case back: its figures on a plate (`FactPlate`), each in `spec` over what it
 counts in secondary `meta`, then a group of rows per kind, each row opening what it counts.
@@ -404,7 +404,8 @@ its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a f
 them: 24 dp grid, stroke 2, round caps and joins. A state that reads as on is the same drawing filled (`Heart`,
 `HeartFilled`) or its check cut out of a filled circle (`CheckFilled`); a connection encrypted is a lock, closed
 (`Lock`), one that is not the same lock open (`LockOpen`); Play is filled, as on a remote; the Menu key's
-lines are `square-menu`'s, its square drawn as the key's frame (`MenuKey`). There is no other family: no Material
+lines are `square-menu`'s, its square drawn as the key's frame (`MenuKey`); a title out of the library, nothing deleted,
+is a list crossed out (`list-x`, `HlIcons.Remove`), never a bin. There is no other family: no Material
 icon is drawn, imported or declared as a dependency (`DesignTokenGuardTest`).
 
 ### Scrolling (`Scroll.kt`)
@@ -559,7 +560,9 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   door to the case, Up and Down to the door over or under, the one last visited among two (Down from Films: Sagas,
   or Rechercher once visited, `doorBelow`); coming back, focus is on the door left; a door with focus that goes after
   a reload leaves it on the door last visited still there; the first focus waits for the case (`HomeGridFocusTest`).
-  Without a grid (a message), the settings tile stands at the end of home's head.
+  Without a grid (a message), the settings tile stands at the end of home's head. A note standing there (titles of a
+  folder not found on the NAS, `HeadNote`) never takes focus: Up from the grid's first row reaches its button, and
+  once it goes with its note while it has focus, focus goes back to the case (`HomeHeldTest`).
 - **Disabled controls** keep focus, ringed, never filled. What is only read (a technical sheet's block, an NFO)
   is not disabled: it takes the ring and OK does nothing.
 - **Nothing grows.** Focus reaches `HlFocus.reach` past what it frames, whatever its size: the room a
@@ -640,9 +643,9 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 | `TracksSheet`, `tracksHint` | the audio and subtitles of what Lire plays, as the player numbers them (`TrackPlan`); the Captions tile after the copies, its second line saying what Lire asks of the player ("Français, sous-titres forcés"), shown when the file's track order is known and there is a choice to make. A wide side sheet in two columns, audio then subtitles, each headed by "Selon vos réglages" and then the file's tracks in order; the choice applies at once, the sheet staying open, and holds for the film's copies or the whole show. Settings > Lecture sets the same for every title (audio language, subtitle mode, subtitle language), "Selon le lecteur" by default |
 | `SearchQuery`, `LetterGrid`, `ResultsHeading`, `ResultName` | library search (`SearchScreen`), a place in the light of the result in focus (`Diffuse`), kept while it is found, a person leaving it: the typed query on a field the keys always type in (the ember ring, a still raspberry cursor), an on-screen keyboard of square tiles (`LETTER_KEYS` A to Z then 0 to 9, Erase and Space), all glass in the picture's dark, white with focus; results in rows (titles, sagas as wide images, people), each counted, the result in light named under its row; accent-insensitive, debounced 150 ms; a search that failed says why with Retry (`HlErrorState`), the keys keeping focus |
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `HeroSkeleton`, `ProgressLine` | the welcome wall (nine tilted columns at `HlScrim.WALL`, drifting over `WALL_DRIFT`) and its black veil; the playback cue's black; placeholders shaped like what is coming (after `SKELETON_DELAY`, `skeletonDelayPassed`; never a shimmer); progress lines in the ember light, stretched over the part seen: burning at a picture's foot (`HlSize.progressPoster`, `HlSize.progressWide`) on a black track, beside text, in a hero and on home's case on `FILL_STRONG`; on a focused plate, solid raspberry on the plate (`focused`) |
-| `HomeHead`, `DoorGrid`, `ResumeCase`, `HomeDoor`, `DoorStill`, `DoorPosters`, `DoorFigures`, `DoorSagas`, `DoorWall`, `DoorFacts` | home's grid (see *Layout*): its head, the grid that lays and links its doors, the case, a door and the pictures it holds: a still with its logo, a band of posters, a count cut in posters (`CutPosters`), two sagas stacked, a wall of posters out, the app's state (`StateFact`) |
+| `HomeHead`, `HeadNote`, `DoorGrid`, `ResumeCase`, `HomeDoor`, `DoorStill`, `DoorPosters`, `DoorFigures`, `DoorSagas`, `DoorWall`, `DoorFacts` | home's grid (see *Layout*): its head and a note standing at its end, the grid that lays and links its doors, the case, a door and the pictures it holds: a still with its logo, a band of posters, a count cut in posters (`CutPosters`), two sagas stacked, a wall of posters out, the app's state (`StateFact`) |
 | `PosterStrip` | a folder's latest posters in fixed slots, empty frames for the free ones; without posters, its name set like a one-sheet |
-| `Showcase` | a library folder in its posters' light (see *Secondary screens*): its name in `subject` beside its printed protocol, its facts, the first in white, and its state by the white dot, or what is happening to it (`status`); framed with focus, without a glow |
+| `Showcase` | a library folder in its posters' light (see *Secondary screens*): its name in `subject` beside its printed protocol, its facts, the first in white, and its state by its light (`stateLight`): the white dot ("Analysé il y a 3 heures"), the ring while titles of it are held ("12 introuvables", in its last scan's place, answered or not); or what is happening to it (`status`); framed with focus, without a glow |
 | `GalleryTile` | one of a title's images to change, at its shape of use, a logo fitted on a neutral step; its name under it in `cardName`, white with focus; framed and glowing in the film's light |
 | `PosterField` | the room of the settings and their forms, under them: a library's posters as a wall's field (see *Veils*), its light theirs (`LocalAmbient`) |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose, at its shape of use, its name in `meta`; the one in use carries the ember check |
@@ -670,6 +673,7 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 | `HlChoiceSheet`, `HlChoiceSetting` | a setting's choices on one plate in a side sheet: the current one checked and focused; choosing applies and closes. A change that failed says so in the row ("Non enregistré") |
 | `traktPane` | Trakt (`HlIcons.History`), with "Mes fichiers", a state said beside its title by its dot: not connected, what it keeps to read and the row that connects; connecting, the `DeviceCodePlate` in the pane, never ember, Back cancelling, focus going to the code from its row only and returning to the row; connected, a plate with the account's name in `subject`, its last sync, and what it holds watched and in progress in `spec`, then the rows that sync now (disabled while a sync runs, which its value says, a failed exchange said under it) and disconnect, the one row whose words follow the account so focus stays on it. Between them, while the last sync that read Trakt left entries out, a row counts them ("2 éléments ignorés"), never in ember: the sync went through. Its sheet (`SkippedSheet`) says why, lists the entries by their title and year, ten at most, then on one line a kind what it leaves unnamed, the rest past ten ("Et 590 autres") else those naming nothing ("1 élément sans titre"), over where Trakt keeps it, on a `ReadingPlate`, then the marks a history read in part holds back and how to fix it, its label set as a name; nothing takes focus but, in a sheet taller than the screen, the plate, which Down rings and the remote reads the sheet through from. An `AttentionNote` once Trakt ended the connection; a build without Trakt's keys says so beside the title. Under a server, while it keeps an account (connected, or its session not opened at this launch), Trakt pauses: "En pause" by the pending dot, "Trakt suit vos dossiers ; il reprend quand vous y revenez." read in place of what it keeps, the account's plate when its session was read, its last sync alone while a name Trakt could not say waits for the folders (nothing is asked of Trakt meanwhile), then disconnecting, the one row, no note asking to connect again; disconnected there, its place leaves the settings and the place after it opens, focused (`SettingsPlaces`) |
 | `ToIdentifyScreen` | « À identifier »: in Réglages › Bibliothèque, the last row of the actions' plate while titles are to identify (TMDB found none for them, or several none of which is clearly ahead), "Non reconnus avec certitude", their count in white `jaquette`, never ember (no `valueAttention`): nothing failed, a choice is left; gone, from under focus or while its list was open, focus is on « Analyser maintenant » (`ToIdentifyRowTest`). OK opens the list, an `HlTwoPane` (`sideWide`): the task's title in white and what it does, then the count and a result a title (`HlResultItem`), the latest added first: its poster or an empty frame, its name, its year and why as facts, what it may be as its note, where it lies as its overview (the folder, then the file or the show's folder). Focus opens on the first title, stays on its title as the list reloads, and goes to the one taking the place of a title identified, else the last; Back from past the first title returns to it, then to the row (`ToIdentifyScreenTest`). OK opens Identifier in the queue (see *Focus*); Menu on a title TMDB hesitated on opens a side sheet titled Identifier, its name, year and why by the ring, then the group Suggestions: the three best, each its overview on one line and its year as value, no poster, the best first and focused, so Menu then OK accepts it, no search asked, one not saved saying so over the titles ("Non enregistré" and why) while its title is listed; a title not found on TMDB has no Menu key, OK alone leading on. Empty, it says so ("Rien à identifier"), and Back leaves it |
+| `UpdatesGroup` | About, between État and Générique, "Mises à jour", in the project's release alone (`UpdaterAvailability`): the state row, its title the installed version ("Houselights 0.4.0"), which never changes while its words follow the update ("Vérifié il y a 2 h" and "À jour" while GitHub's answer is under two days old, "Version 0.4.1 disponible" and its size, "Téléchargement de la 0.4.1…" and its count, a failure's title and "Échec" in ember, "Requise" in ember while Android must allow the install, "Dans 20 min" while GitHub asks to wait), OK always opening the update sheet, as `JournalRow` does; then « Recherche automatique » (Une fois par jour, Jamais) and « Versions proposées » (Stables, Stables et bêta, following the installed build until chosen), each a `HlChoiceSetting` |
 | `JournalRow`, `JournalSheet` | About, under Soutenir Houselights, "Envoyer le journal" ("Pour signaler un problème, depuis votre téléphone"): a QR code sheet whose page, served on the home network while it is open and ten minutes at most (`JournalServer`), shows the app's own log on a phone (`AppLog`), each line masked (`Redact.text`); the sheet closes with the page, and both once the app leaves the screen |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens (navigation or explanation left, content right, a gap and no rule between); a form lies on the settings' posters (`room`); `StatusPanel` shows where a setup stands beside its form, on a plate, its state by the white dot, a server found by its name, its protocol printed and its kind a fact; a server found picked, the protocol its check verified and the connection in Réglages' words ("HTTPS", "Connexion chiffrée"), "Vérification…" alone while it is checked; `FieldLabel` names a track of choices in `group` |
 | `ConnectionState` | how a server found will be reached, beside its name, as its check says (`ServerCheck`): the lock closed and white, "Chiffré", only when its HTTPS address answered as that server with a certificate the player trusts; open and grey, "Non chiffré"; the quiet dot, "Vérification…"; the ring, "Ne répond pas", the row still a choice, which signing in checks again first ("Vérification…" meanwhile). Never ember: none is an error or a choice. Its column as wide as the longest of the four at the viewer's text size, the check's place kept after it on every row (`ChoicePlace`), so states line up; the address under the name is where signing in reaches it |
@@ -685,7 +689,9 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 Artwork carries no text: the top of the screen names what has focus.
 
 - **At rest**, a faint edge (`EDGE_ARTWORK`) keeps dark artwork from dissolving into the room.
-- **One mark at most**, top right, on a dark plate: unwatched episodes, else the check of a watched title,
+- **One mark at most**, top right, on a dark plate: a title held while its file is missing (among many of its folder
+  gone at once, `MediaItem.held`) by the ring of a state that is off, white, never ember, first, so a held title shows
+  no check nor dot meanwhile; else unwatched episodes, else the check of a watched title,
   else the ember dot of a new title (added in the last week, not watched; ringed in black). Progress is the
   ember line burning at the foot, 4 dp on a poster and 5 on a wide image, its light stretched over the part
   seen. Formats are never a card mark.
@@ -698,7 +704,8 @@ Artwork carries no text: the top of the screen names what has focus.
   focus alone: a side sheet titled with its name, "Saison 1 Épisode 2 52 min" under it (the season by its number,
   in the app's language, specials by the source's name), then "Marquer comme vu" or "Marquer comme non vu", focused;
   "Lire depuis le début" once started; "Audio et sous-titres" where the tracks apply, as the tracks tile, saying what
-  Lire plays and opening the show's. A card with none of these opens nothing.
+  Lire plays and opening the show's; last, for an episode held while its file is missing, « Retirer de la
+  bibliothèque », it alone, as the title page's tile. A card with none of these opens nothing.
   A mark is made with no question, its season's count, the show and Lire following at once, a started episode back to
   its start, as the watched tile does. A mark that did not save comes undone and is said under the row, in place of
   the overview, until an OK there.
@@ -708,8 +715,8 @@ Artwork carries no text: the top of the screen names what has focus.
 - **Stepping back**, siblings lose colour through the image's own filter in `RECEDE_STEPS` steps; no layer is
   drawn per card.
 
-**Accessibility.** A card is one element: its title, then its state in words (`stateDescription`: "6 épisodes
-non vus", "vu", "nouveau, en cours, 40 %"). Marks are not read. A person who does nothing is read once as
+**Accessibility.** A card is one element: its title, then its state in words (`stateDescription`: "introuvable",
+"6 épisodes non vus", "vu", "nouveau, en cours, 40 %"). Marks are not read. A person who does nothing is read once as
 "name, role", not as a button. What is chosen says so (`selected`).
 
 ## Sheets
@@ -737,8 +744,32 @@ motion it came in with. Focus stays inside and returns where it was (`SheetFocus
 - **`SheetConfirm`**: an irreversible action asks in the sheet, as an intertitle in place of the rows: ember
   rule, the question in `subject`, the consequence, then Cancel (focused) and the action, its label in ember.
   Never red. Cancel or Back returns to the row that asked.
+- **A question of two answers** that is not irreversible (`HeldSheet`) is a sheet of its own: what it is about in its
+  head, what the app sees and what each answer is for in `body`, then the answers on one plate above what they concern,
+  so they stay in view at the largest text size, the one that changes nothing first and focused, each saying in its line
+  what it does; nothing in ember, no second question. Back answers nothing. What they concern lies under them on a
+  `ReadingPlate`, ten at most and how many more ("Et 2 autres"), that Down rings and reads the sheet through from.
+  « 12 titres introuvables »: the folder by its printed protocol and name, « Garder » ("Ils restent en attendant leurs
+  fichiers"), then « Retirer » ("Rien n’est effacé du NAS, ni ce qui a été vu"), then each title and its year (an
+  episode by its show and number) in white `entry` over its file as the NAS names it in `meta`, two lines at most.
 - **The technical sheet** is read block by block, each ringed with focus and scrolled through when taller than the
   sheet; OK does nothing.
+- **The update sheet** (`UpdateSheet`) is one sheet wherever it opens: from About, "Mises à jour"; on home, opened by
+  the app, "Une nouvelle version est disponible". Its head gives the version ("Version 0.4.1", the installed one when
+  none is offered), "Bêta" printed for a pre-release, and how it stands by its light ("Prête à installer", "Autorisation
+  d’installer requise", a failure's title by the attention mark), none while its row already says it. Then what is new
+  on a `ReadingPlate`, focused only when the sheet scrolls; then one action row, focused, whose words follow the step,
+  focus never moving: "Mettre à jour" ("6,4 Mo depuis github.com"), "Téléchargement…" with its Counter,
+  "Vérification…", "Installer", "Installation…", "Autoriser l’installation", "Réessayer", "Rechercher maintenant". OK
+  does nothing while the row only says what is under way, nor for `HlMotion.SETTLE` after its words change or after
+  the app opened the sheet on home, nor on a key let go once they changed, a second press given too soon never doing
+  twice what the first asked (`UpdateSheetTest`). "Annuler le téléchargement" is the row under it, reached with Down
+  alone, focus back on the action row as it goes; on home "Plus tard", which Back is too. Back closes the sheet in every step and
+  cancels nothing; Android's window opens only over the sheet, never by itself. Under the row, what Android will do:
+  ask to confirm, keep the library, close the app (open it again on Android 9). Where Android's settings cannot allow
+  the install, the sheet says so without guessing a menu, and gives the release page's address then adb's line as
+  text; a failure says what happened and what to do, its row the remedy, "Rechercher maintenant" when nothing in the app
+  mends it: always a row to focus.
 - **A QR code sheet** shows the `QrCode` in place of the rows; nothing in it takes focus. Envoyer le journal's
   (`JournalSheet`) says under its `small` code, in secondary `meta`, what the log keeps and when its page closes; its
   description always says what the code opens, a log holding almost nothing in the same sentence, and no home network
@@ -774,7 +805,9 @@ server stays connected in a sentence; the Source row, beside its value, in fewer
 ## Messages
 
 A message appears where the action was, in the app's voice: no Toast (a test forbids it), no snackbar, no dialog. Back
-once on home is said at the end of its head (`HomeHead`'s `status`), gone after 2.5 s. A title that fails to play says
+once on home is said at the end of its head (`HomeHead`'s `status`), gone after 2.5 s. The update that brought the app
+back is said there the same way, once (`updateSaid`): "Houselights 0.4.1 installé" by the white dot (`statusState`
+`Done`), "La version 0.4.1 n’a pas été installée" by the attention mark. A title that fails to play says
 so where play was asked (`PlayOrigin`): at the end of a page's actions, under the episode row for an episode, until an
 OK there, another play or another screen (`PlaybackOutcome`). On home's case it takes the facts' place, the logo never
 moving: "Lecture impossible" and the reason on a line each (`HlStatus` `Attention`, `maxLines` 1, else an ellipsis), the
@@ -804,8 +837,33 @@ shows an intertitle with what fixes it (`HlEmptyState`): home's folders without 
 les dossiers; without a folder home draws nothing, the welcome screen taking its place. Exception text never reaches
 the screen; it goes to the log.
 
+Titles a folder lost at once while it answers (more than a quarter of them, ten at least: a disk of the NAS's pool
+offline, a volume not mounted yet) are no failure the app can tell from a clean-up: they are held, shown, and asked
+about once, never in ember, always by the ring of a state that is off. Home says so at the end of its head, where it
+says how things stand, "12 titres de « Films » introuvables sur le NAS" with Voir (`HeadNote`), until the user
+answers in the sheet it opens or the files are back; Réglages › Bibliothèque counts them on their folder's showcase,
+answered or not, its sheet's first row opening theirs (two OKs), « Retirer » there at any time. A title held says on
+its page, at the end of its actions, "Introuvable sur le NAS depuis 14 h" (rounded down to the hour), its actions
+ending with « Retirer de la bibliothèque », which takes it alone out and closes the page, opening the film's again
+when a copy of it is left; an episode held offers it last in its options (Menu), the show's page staying. A film in
+several copies is held as the copy Lire plays is. Lire or Reprendre on a title held is never tried, the room staying
+lit: in that place, "Ce titre n’est plus là" and "Rebranchez le disque du NAS ou retirez ce titre." (`UiError.HELD`,
+`PlaybackOutcome.tryPlay`), under the episode row for an episode, on home's case in its facts' room with since when.
+The files back end it all without a word (`HomeHeldTest`, `DetailHeldTest`, `HeldFolderTest`, `HeldCardTest`).
+
+A title held that is also to identify, or left as it is, says it is held: its file is not there, and identifying can
+wait. "Introuvable sur le NAS depuis 14 h" takes the place of "À identifier" at the end of its actions, Lire saying it
+is gone without trying; a title to identify keeps its Identifier button after Lire and its parts, Modifier still calls
+Identifier "Trouver ce titre sur TMDB", and Identifier still says why, with its suggestions, or "Laissé tel quel". A
+film held waits outside « À identifier » until its file is back
+(`DetailHeldTest.aTitleHeldAndToIdentifySaysItIsHeldAndKeepsIdentifier`,
+`LocalEditorTest.aTitleHeldStillSaysWhyItIsToIdentifyOutOfTheList`).
+
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
-prompt.
+prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is
+drawn and in front, never over another sheet, a first scan or an update under way, behind the player, under the launch
+screen, for a failure or with the check off: « Plus tard », Back, or the version acted on from About wait for a newer
+one, never a reminder, no mark on a door; About's row states it meanwhile (`HomeUpdateTest`).
 
 ## Writing
 
@@ -933,7 +991,7 @@ design system.
 
 Remote behaviour is tested as the remote drives it, on Robolectric with the app's theme on the TV canvas
 (`ui/testing/Remote.kt`): `MediaRowFocusTest`, `SheetFocusTest`, `SegmentedFocusTest`, `HomeGridFocusTest`,
-`PagesNavigationTest`, `WallPageTest`, `WatchPageTest`, `QuitAgainTest`, `RestoreFocusTest`, `ScrollAreaTest`, `TextFieldMessageTest`,
+`PagesNavigationTest`, `WallPageTest`, `WatchPageTest`, `QuitAgainTest`, `HomeHeldTest`, `RestoreFocusTest`, `ScrollAreaTest`, `TextFieldMessageTest`,
 `SupportRowTest`, `JournalSheetTest`, `TraktPaneTest`, `OkPressTest`. A focus rule that
 changes comes with its test.
 

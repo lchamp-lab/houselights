@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.MediaItem
@@ -25,6 +26,7 @@ import app.houselights.ui.design.components.DoorProgress
 import app.houselights.ui.design.components.DoorSagas
 import app.houselights.ui.design.components.DoorStill
 import app.houselights.ui.design.components.DoorWall
+import app.houselights.ui.design.components.HeadNote
 import app.houselights.ui.design.components.HomeDoor
 import app.houselights.ui.design.components.HomeHead
 import app.houselights.ui.design.components.ResumeCase
@@ -39,9 +41,12 @@ import app.houselights.ui.design.components.StatusState
 /** Home's grid, part by part: its head, its case, and each door at its size, every picture from the app's resources. */
 internal fun LazyListScope.catalogDoors() {
     item {
-        Group("Home's head: the lockup, then Back's passing line at its end") {
+        Group("Home's head: the lockup, then a passing line at its end: Back's, an update installed, one that was not; or a note") {
             HomeHead(null)
             HomeHead(stringResource(R.string.back_again_to_quit))
+            HomeHead(stringResource(R.string.update_installed_home, "0.4.1"), statusState = StatusState.Done)
+            HomeHead(stringResource(R.string.update_not_installed, "0.4.1"), statusState = StatusState.Attention)
+            HomeHead(null, end = { HeldNote() })
         }
     }
     item { Group("Home's case: resuming, then a film not seen; its action fills white with the case's focus") { Cases() } }
@@ -197,4 +202,11 @@ private fun ToolDoors() {
             )
         }
     }
+}
+
+/** Titles of a folder not found on the NAS, said where home says how things stand, by the ring, never ember. */
+@Composable
+private fun HeldNote() {
+    val count = 12
+    HeadNote(pluralStringResource(R.plurals.held_home, count, count, "Films"), stringResource(R.string.held_see), onAction = {})
 }

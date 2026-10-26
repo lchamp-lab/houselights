@@ -22,6 +22,15 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
     private val counts = mutableMapOf<Long, SeriesCounts>()
     private var firstScans: Map<Long, Long>? = null
 
+    /** Films read for copies held ([playedHeld]), by main row. */
+    private val filmsRead = HashSet<Long>()
+
+    /**
+     * Films in several copies, one of them at least held, by main row: since when the copy Lire plays ([VersionRank.played])
+     * is missing, null while it is there. Lire plays that copy, so the film is held as it is.
+     */
+    private val playedHeld = mutableMapOf<Long, Long?>()
+
     suspend fun mapAll(entities: List<ItemEntity>): List<MediaItem> {
         if (firstScans == null) firstScans = dao.firstScans().associate { it.id to it.firstScanAt }
         val shows = entities.filter { it.kind == ItemKind.SERIES }.map { it.id }.filter { it !in counts }
@@ -29,6 +38,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             chunk.forEach { counts[it] = SeriesCounts(it, unplayed = 0, seasons = 0) }
             dao.seriesCounts(chunk).forEach { counts[it.seriesId] = it }
         }
+        readCopiesHeld(entities)
         val parents = entities.mapNotNull { it.seriesId }.distinct().filter { it !in series }
         for (chunk in parents.chunked(SQL_IN_LIMIT)) {
             chunk.forEach { series[it] = null }
@@ -38,6 +48,19 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
     }
 
     suspend fun map(e: ItemEntity): MediaItem = mapAll(listOf(e)).single()
+
+    /** Fills [playedHeld] for the films among [entities]: one query per list, then, rare, each film held in several copies. */
+    private suspend fun readCopiesHeld(entities: List<ItemEntity>) {
+        val films = entities.filter { it.kind == ItemKind.MOVIE && it.versionOf == null }.map { it.id }.filter(filmsRead::add)
+        for (chunk in films.chunked(SQL_IN_LIMIT)) {
+            // Read whole, as Lire ranks them.
+            for (title in dao.heldAmongCopies(chunk)) {
+                val copies = dao.copies(title)
+                val played = VersionRank.played(copies) ?: continue
+                playedHeld[title] = copies.first { it.id == played }.missingSince
+            }
+        }
+    }
 
     /** When [e] was added after its source's first scan; null for titles that scan found. */
     private fun addedLater(e: ItemEntity): Long? {
@@ -114,13 +137,27 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             edition = e.edition,
             matchDoubt = e.doubt(),
             keptUnidentified = e.userNoMatch && e.tmdbId == null,
+            missingSince = heldSince(e, showCounts),
         )
+    }
+
+    /** Since when [e]'s file is missing: a film in several copies as the copy Lire plays is, a show once every episode is. */
+    private fun heldSince(e: ItemEntity, showCounts: SeriesCounts?): Long? = if (e.id in playedHeld) {
+        playedHeld[e.id]
+    } else {
+        e.missingSince ?: showCounts?.takeIf { it.episodes > 0 && it.held == it.episodes }?.heldSince
     }
 
     private fun partsOf(e: ItemEntity, title: String): List<MediaItem> {
         if (e.parts.isEmpty()) return emptyList()
         return (listOfNotNull(e.filePath) + e.parts).mapIndexed { i, path ->
-            MediaItem(id = LocalId.ofPart(e.id, i + 1), kind = MediaKind.MOVIE, title = title, fileName = path.substringAfterLast('/'))
+            MediaItem(
+                id = LocalId.ofPart(e.id, i + 1),
+                kind = MediaKind.MOVIE,
+                title = title,
+                fileName = path.substringAfterLast('/'),
+                missingSince = e.missingSince,
+            )
         }
     }
 

@@ -228,7 +228,8 @@ class LargeLibraryTest {
         const val EPISODES_PER_SEASON = 10
         const val NFO_BYTES = 20_000
         const val PAGE = 120
-        const val HOME_QUERIES = 10
+        /** Its rows, their shows' counts, sources' first scans, and once per list of films their copies held (LocalMapper). */
+        const val HOME_QUERIES = 11
         const val PAGE_QUERIES = 5
 
         /** A page and its count, then its films, their sources' first scans, its sagas and their films. */

@@ -43,11 +43,17 @@ import kotlin.math.roundToInt
 // Home's grid (DESIGN.md, Layout): its head, where its doors lie and how focus moves between them.
 
 /**
- * Home's head over the grid: the lockup at the safe area's start, a passing [status] then [end] (a tile where home
- * shows no grid) at its end, then the gap to the grid.
+ * Home's head over the grid: the lockup at the safe area's start, a passing [status] by its [statusState]'s light (the
+ * quiet dot of Back once, the white one of an update installed, the attention mark of one that was not) then [end] (a
+ * tile where home shows no grid) at its end, then the gap to the grid.
  */
 @Composable
-fun HomeHead(status: String?, modifier: Modifier = Modifier, end: (@Composable () -> Unit)? = null) {
+fun HomeHead(
+    status: String?,
+    modifier: Modifier = Modifier,
+    statusState: StatusState = StatusState.Pending,
+    end: (@Composable () -> Unit)? = null,
+) {
     Row(
         modifier
             .fillMaxWidth()
@@ -58,7 +64,7 @@ fun HomeHead(status: String?, modifier: Modifier = Modifier, end: (@Composable (
         Lockup(HomeGridDefaults.lockup)
         Spacer(Modifier.weight(1f))
         // Taller than the band, they stand over it, never squeezed.
-        if (status != null) Box(Modifier.wrapContentHeight(unbounded = true)) { PassingStatus(status) }
+        if (status != null) Box(Modifier.wrapContentHeight(unbounded = true)) { PassingStatus(status, statusState) }
         if (end != null) {
             Spacer(Modifier.width(HlSpace.s))
             Box(Modifier.wrapContentHeight(unbounded = true)) { HeaderControls(end) }
@@ -66,19 +72,36 @@ fun HomeHead(status: String?, modifier: Modifier = Modifier, end: (@Composable (
     }
 }
 
-/** A passing line (Back once on home), quiet, on a tile label's plate since a picture may be white there; read out as it comes. */
+/**
+ * A passing line (Back once on home, an update), by its [state]'s light, on a tile label's plate since a picture may be
+ * white there; read out as it comes.
+ */
 @Composable
-internal fun PassingStatus(text: String) {
+internal fun PassingStatus(text: String, state: StatusState = StatusState.Pending) {
     val c = Hl.colors
     val light = LocalAmbient.current
     HlStatus(
-        StatusState.Pending,
+        state,
         text,
         Modifier
             .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }
             .labelPlate(c, light)
             .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
     )
+}
+
+/**
+ * A note standing at the end of home's head, as [HomeHead]'s `end` (titles of a folder not found on the NAS): its [text]
+ * by the ring of a state that is off, quiet and on one line, never ember, as it may be no failure; then the button that
+ * opens what it says ([action]), at the header's size, [actionModifier] on it. Up from the grid's first row reaches it.
+ */
+@Composable
+fun HeadNote(text: String, action: String, onAction: () -> Unit, modifier: Modifier = Modifier, actionModifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        HlStatus(StatusState.Off, text, Modifier.weight(1f, fill = false), maxLines = 1)
+        Spacer(Modifier.width(HlSpace.m))
+        HlButton(action, onClick = onAction, modifier = actionModifier)
+    }
 }
 
 /** A door in a row of the grid: [span] of the row's four parts, named [key] in the screen's focus memory. */

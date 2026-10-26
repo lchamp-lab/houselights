@@ -81,7 +81,16 @@ data class MediaItem(
     val matchDoubt: MatchDoubt? = null,
     /** Left as it is by the user (« Laisser tel quel »), without a match ([Identity.kept]). */
     val keptUnidentified: Boolean = false,
+    /**
+     * Since when its file is missing, among many of its folder gone at once (a disk of the NAS offline): held, shown and
+     * not played until its file is back or it is removed; a film in several copies, the copy Lire plays; a show's when
+     * every episode is. Null for a title there.
+     */
+    val missingSince: Long? = null,
 ) {
+    /** Its file is missing, held until it is back ([missingSince]): nothing to play. */
+    val held: Boolean get() = missingSince != null
+
     val isPlayable get() = kind == MediaKind.MOVIE || kind == MediaKind.EPISODE || kind == MediaKind.VIDEO
 
     /** Added to a library in the last [NEW_FOR_MS], and not watched yet. */

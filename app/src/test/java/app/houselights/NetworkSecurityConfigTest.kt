@@ -9,7 +9,7 @@ import org.junit.Test
 import org.w3c.dom.Element
 import java.io.File
 
-/** The network security config per host, as Android resolves it: user CAs for home servers, not for TMDB or Trakt. */
+/** The network security config per host, as Android resolves it: user CAs for home servers, not for TMDB, Trakt or GitHub. */
 class NetworkSecurityConfigTest {
     private val file = File("src/main/res/xml/network_security_config.xml")
 
@@ -27,6 +27,14 @@ class NetworkSecurityConfigTest {
     fun traktTrustsTheSystemOnly() {
         val called = listOf(TraktClient.API_URL, TraktClient.AUTH_URL).map { it.toHttpUrl().host }
         (called + "trakt.tv").forEach { host ->
+            assertEquals(host, Policy(cleartext = false, anchors = setOf("system")), policy(host))
+        }
+    }
+
+    /** The updater's hosts: the API, the pages a release's files are named at, and the CDN their downloads redirect to. */
+    @Test
+    fun githubTrustsTheSystemOnly() {
+        listOf("api.github.com", "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com").forEach { host ->
             assertEquals(host, Policy(cleartext = false, anchors = setOf("system")), policy(host))
         }
     }

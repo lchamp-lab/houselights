@@ -54,6 +54,26 @@ val appVersionCode: Int = providers.gradleProperty("versionCode").orNull
     ?: commitCount
     ?: 1
 
+// The release's full version name, a beta's included (0.4.0-beta.1), from the release workflow: -PversionName, which
+// must be versionName below or start with it and "-". Without it, the release is named versionName.
+val fullVersionName: String? = providers.gradleProperty("versionName").orNull
+
+// The in-app updater (README, Install): built into the release only, its permission with it (src/updater);
+// -Phouselights.updater=false builds a release without it (F-Droid). Debug and bench never have it.
+val updaterBuilt: Boolean = providers.gradleProperty("houselights.updater").orNull?.toBooleanStrict() ?: true
+
+// The project's signing certificate (gradle.properties, its only copy): the updater installs an APK signed with it
+// alone, and runs only in an app signed with it.
+val releaseCertSha256: String = providers.gradleProperty("houselights.releaseCertSha256").get().also {
+    require(Regex("[0-9a-f]{64}").matches(it)) { "houselights.releaseCertSha256 must be 64 lowercase hex digits" }
+}
+
+// Where the release's updater looks for releases: the project's repository, or for a dry run before a release a test
+// one, -Phouselights.updateRepo=owner/repo (CONTRIBUTING, Releases).
+val updateRepo: String = (providers.gradleProperty("houselights.updateRepo").orNull ?: "lchamp-lab/houselights").also {
+    require(Regex("[A-Za-z0-9-]+/[A-Za-z0-9._-]+").matches(it)) { "-Phouselights.updateRepo must read owner/repo, not \"$it\"" }
+}
+
 android {
     namespace = "app.houselights"
     compileSdk = 35
@@ -69,6 +89,10 @@ android {
         buildConfigField("String", "TRAKT_CLIENT_ID", "\"${traktClientId.trim()}\"")
         buildConfigField("String", "TRAKT_CLIENT_SECRET", "\"${traktClientSecret.trim()}\"")
         buildConfigField("String", "TRAKT_REDIRECT_URI", "\"${traktRedirectUri.trim()}\"")
+        buildConfigField("String", "RELEASE_CERT_SHA256", "\"$releaseCertSha256\"")
+        // The updater, in the release alone (below); the repository it reads.
+        buildConfigField("boolean", "UPDATER", "false")
+        buildConfigField("String", "UPDATE_REPO", "\"lchamp-lab/houselights\"")
         manifestPlaceholders["appLabel"] = "@string/app_name"
         // The languages of the interface (InterfaceLanguage.LANGUAGES): the libraries' strings in 80 others would only be
         // shipped. The libraries write Chinese by region.
@@ -104,6 +128,9 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Without a key, packageRelease refuses the debug key unless asked (below).
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // A release signed with another key than the project's never runs it (UpdaterAvailability).
+            buildConfigField("boolean", "UPDATER", "$updaterBuilt")
+            buildConfigField("String", "UPDATE_REPO", "\"$updateRepo\"")
         }
         // Optimised like a release, beside it and signed with the debug key: what the player really
         // runs, to measure frames and start-up without installing the release package.
@@ -113,8 +140,14 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += "release"
             manifestPlaceholders["appLabel"] = "Houselights bench"
+            // initWith copied the release's: bench never updates itself.
+            buildConfigField("boolean", "UPDATER", "false")
+            buildConfigField("String", "UPDATE_REPO", "\"lchamp-lab/houselights\"")
         }
     }
+    // The permission to install packages and the updater's receivers, in the release alone and only when it has the
+    // updater: debug, bench and the builds :baselineprofile makes never ask for it.
+    if (updaterBuilt) sourceSets.getByName("release").manifest.srcFile("src/updater/AndroidManifest.xml")
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -162,6 +195,14 @@ androidComponents {
     // (Android refuses a lower versionCode, and only uninstalling would get past it).
     onVariants(selector().withBuildType("release")) { variant ->
         variant.outputs.forEach { it.versionCode.set(appVersionCode) }
+        // A beta is named as its tag (0.4.0-beta.1): the updater tells it from its final by that name.
+        if (fullVersionName != null) {
+            val base = requireNotNull(android.defaultConfig.versionName)
+            require(fullVersionName == base || fullVersionName.startsWith("$base-")) {
+                "-PversionName=$fullVersionName must be versionName ($base) or start with \"$base-\""
+            }
+            variant.outputs.forEach { it.versionName.set(fullVersionName) }
+        }
     }
 }
 

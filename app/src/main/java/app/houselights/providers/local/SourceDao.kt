@@ -78,4 +78,8 @@ interface SourceDao {
 
     @Query("DELETE FROM sources WHERE id = :id")
     suspend fun deleteSource(id: Long)
+
+    /** Whether the user kept the titles held in folder [id] ([SourceEntity.heldKept]). */
+    @Query("UPDATE sources SET heldKept = :kept WHERE id = :id")
+    suspend fun setHeldKept(id: Long, kept: Boolean)
 }

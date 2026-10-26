@@ -8,9 +8,8 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import app.houselights.core.SigningCertificates
 import app.houselights.core.isWebUrl
-import java.security.MessageDigest
-import java.util.Locale
 
 /** The device as its build names it ([Build]), read-only firmware properties no app can change. */
 data class DeviceIdentity(
@@ -236,13 +235,8 @@ class ZidooPlayer(
         } catch (_: PackageManager.NameNotFoundException) {
             null
         }
-        val signers = signing?.apkContentsSigners.orEmpty()
-        if (signers.isEmpty()) return null
-        val sha256 = MessageDigest.getInstance("SHA-256")
-        return signers.map { sha256.digest(it.toByteArray()).toHex() }.sorted().joinToString(",")
+        return SigningCertificates.sha256(signing?.apkContentsSigners).takeIf { it.isNotEmpty() }?.joinToString(",")
     }
-
-    private fun ByteArray.toHex() = joinToString("") { "%02x".format(Locale.ROOT, it) }
 
     private fun device(): Device {
         // From Android 11, only the apps visible to this one (see <queries> in the manifest).
