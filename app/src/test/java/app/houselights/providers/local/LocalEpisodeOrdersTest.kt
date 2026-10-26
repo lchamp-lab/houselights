@@ -20,7 +20,8 @@ import org.robolectric.RobolectricTestRunner
 /**
  * The orders a show's page offers ([LocalEditor.episodeOrders]): read from the library alone, as its scans listed them,
  * TMDB never asked, so the page opens TMDB out of reach; none for a show TMDB numbers one way; Automatique following its
- * NFO when it names one; a choice placing the episodes.
+ * NFO when it names one; a choice placing the episodes; a show matched before its groups were kept learning them at a
+ * later pass, a few shows a pass, and again a month later.
  */
 @RunWith(RobolectricTestRunner::class)
 class LocalEpisodeOrdersTest {
@@ -91,8 +92,47 @@ class LocalEpisodeOrdersTest {
         assertEquals(DVD, editor().episodeOrders(show())?.chosen)
     }
 
+    /** A show matched before its groups were kept, as by 0.3, learns them at a later pass, its files unchanged. */
+    @Test
+    fun aShowMatchedBeforeItsGroupsWereKeptLearnsThemAtALaterPass() = runTest {
+        dvd()
+        bench.scan()
+        bench.db.openHelper.writableDatabase.execSQL("DELETE FROM episode_orders")
+        assertNull("nothing to offer meanwhile", editor().episodeOrders(show()))
+
+        val pass = bench.pass()
+        assertEquals(1, pass.requests.count { it == "tv/$FIREFLY/episode_groups" })
+        assertEquals(listOf(EpisodeOrderEntity.AIRED, DVD), editor().episodeOrders(show())?.options?.map { it.id })
+    }
+
+    /** Groups to list are listed five shows a pass, those never listed first, and each again a month later. */
+    @Test
+    fun groupsAreListedAFewShowsAPassAndAgainAMonthLater() = runTest {
+        val names = listOf("Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf")
+        val others = names.indices.map { OTHERS + it }
+        names.forEachIndexed { i, name ->
+            bench.tmdb.show(OTHERS + i, name, 2020)
+            bench.tmdb.season(OTHERS + i, 1, episodes = 3)
+            bench.showsNas.put("$name/Season 1/$name - S01E01.mkv")
+        }
+        bench.scan()
+        bench.db.openHelper.writableDatabase.execSQL("DELETE FROM episode_orders")
+        // The shows whose groups a pass lists.
+        fun listed(pass: ScanBench.Pass) = pass.requests.filter { it.endsWith("/episode_groups") }.map { it.split('/')[1].toInt() }.sorted()
+
+        assertEquals(others.take(5), listed(bench.pass()))
+        assertEquals(others.drop(5) + FIREFLY, listed(bench.pass()))
+        assertEquals("all listed", emptyList<Int>(), listed(bench.pass()))
+        bench.later(MONTH_MS)
+        assertEquals("a month later", others.take(5), listed(bench.pass()))
+    }
+
     private companion object {
         const val FIREFLY = 1437
+
+        /** The first of seven more shows, all before Firefly. */
+        const val OTHERS = 101
+        const val MONTH_MS = 30 * 24 * 60 * 60_000L
         const val DVD = "5b11ba820e0a265847002c6e"
         const val PILOT = "Firefly/Season 1/Firefly - S01E01.mkv"
     }

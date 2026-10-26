@@ -245,6 +245,16 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("UPDATE items SET userEpisodeOrder = :order WHERE id = :id")
     suspend fun setUserEpisodeOrder(id: Long, order: String?)
 
+    /**
+     * Show [seriesId] read again at the next pass, through its first episode, as the 20→21 migration leaves a show whose
+     * tvshow.nfo names an order: its episodes could not be placed in the order they follow, TMDB not answering.
+     */
+    @Query(
+        "UPDATE items SET matchedAt = NULL WHERE id = :seriesId OR id = " +
+            "(SELECT MIN(id) FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId)"
+    )
+    suspend fun readAgain(seriesId: Long)
+
     @Query("SELECT * FROM items WHERE parentId = :parentId ORDER BY seasonNumber, episodeNumber, sortTitle")
     suspend fun children(parentId: Long): List<ItemEntity>
 

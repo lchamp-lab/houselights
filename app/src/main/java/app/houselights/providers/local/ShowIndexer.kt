@@ -2,7 +2,6 @@ package app.houselights.providers.local
 
 import app.houselights.core.NfoInfo
 import app.houselights.core.yearOf
-import java.util.Locale
 
 /** Indexes episodes with their season and show: NFOs, artwork and TMDB match. */
 internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanFiles, private val clock: () -> Long) {
@@ -140,18 +139,17 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         if (numbering != null) {
             val key = parsed.key()
             val placement = EpisodeNumbering.place(parsed, numbering) { place ->
-                dao.episodesAt(series.id, place.season, place.episode).any { it.id != current?.id && it.fileKey() != key }
+                dao.episodesAt(series.id, place.season, place.episode).any { it.id != current?.id && fileKeyOf(it.filePath) != key }
             }
             return Placed(placement, numbering.order, numbered = true, keepsTmdb = placement.keptTmdb(numbering.order))
         }
         val unknown = ShowNumbering.UNKNOWN.order
         val named = current?.placement() ?: EpisodeNumbering.place(parsed, ShowNumbering.UNKNOWN) { false }
-        // Kept as it was: a TMDB episode of its own stays, as in an order of its show's ([ItemEntity.episodeOrder]).
-        return Placed(named, unknown, numbered = false, keepsTmdb = series.episodeOrder != null || named.keptTmdb(unknown))
+        // Kept as it was: a TMDB episode of its own stays, as in an order of its show's ([ItemEntity.episodeOrder]). A new
+        // one shows none yet, so Trakt is never sent its name's numbers in an order where they name another episode.
+        val keeps = current != null && (series.episodeOrder != null || named.keptTmdb(unknown))
+        return Placed(named, unknown, numbered = false, keepsTmdb = keeps)
     }
-
-    /** An episode file's numbering ([ParsedEpisode.key]); a file whose name places it nowhere holds no place. */
-    private fun PlacedFile.fileKey(): String? = filePath?.let(FilenameParser::parseShowPath)?.episode?.key()
 
     /**
      * Where an episode goes ([placement]), the [order] that put it there, whether TMDB answered for its numbering
@@ -239,26 +237,42 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val anew = seasons != null && series.tmdbId != null
         val base = if (removed || anew) MetadataMerge.withoutDetails(read, title, year).copy(matchedAt = null) else read
         val saved = saveShow(base, nfo, tv, art, tmdb.client, now, was, refreshMetadata, seasons)
-        return if (settle(pass, saved)) dao.item(saved.id) ?: saved else saved
+        return settled(pass, saved, named = seasons != null)
+    }
+
+    /**
+     * [saved] once its episodes are placed in the order they follow ([settle]), as it is now when they moved or it was
+     * [named] anew; when TMDB did not answer, read again whole at the next pass, as an unanswered refresh is: matched, it
+     * would never be placed.
+     */
+    private suspend fun settled(pass: ScanPass, saved: ItemEntity, named: Boolean): ItemEntity {
+        // Named anew, its order went with the show it was taken for ([inTmdbsSeasons]).
+        val series = if (named) dao.item(saved.id) ?: saved else saved
+        return when (settle(pass, series)) {
+            true -> dao.item(series.id) ?: series
+            false -> series
+            null -> series.copy(matchedAt = null).also { dao.readAgain(series.id) }
+        }
     }
 
     /**
      * Once [series] was read: its groups listed the first time, then its episodes placed anew when the order they follow
      * is no longer the one they are in (the user's choice, its tvshow.nfo), or its numbers from the start when TMDB counts
-     * its seasons otherwise. TMDB not answering leaves them for a later read; true when they moved.
+     * its seasons otherwise. True when they moved, false when they stay; null when TMDB had to be asked and did not
+     * answer, which leaves them for the next pass.
      */
-    private suspend fun settle(pass: ScanPass, series: ItemEntity): Boolean {
+    private suspend fun settle(pass: ScanPass, series: ItemEntity): Boolean? {
         val recount = recounted.remove(series.id)
         series.tmdbId?.let { pass.orders.listed(it) }
         val absolute = recount || dao.hasAbsoluteEpisodes(series.id)
-        val numbering = pass.orders.of(series, absolute).value ?: return false
+        val numbering = pass.orders.of(series, absolute).value ?: return null
         val anew = numbering.order.id != (series.episodeOrder ?: EpisodeOrderEntity.AIRED)
         val episodes = when {
             anew -> dao.episodesOfSeries(series.id)
             recount -> dao.episodesOfSeries(series.id).filter { it.absoluteNumber != null }
             else -> return false
         }
-        val moved = placing.placeAnew(series, numbering, episodes, pass.seasons, reordered = anew) ?: return false
+        val moved = placing.placeAnew(series, numbering, episodes, pass.seasons, reordered = anew) ?: return null
         pass.orders.forget(series.id)
         if (moved) namedAnew += series.id
         return moved
@@ -436,7 +450,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
     /**
      * Fetches everything a new match needs (show, then each owned season), then returns the writes for the caller to
-     * run in a transaction ([LibraryScanner.identify]); a TMDB failure throws before anything is written.
+     * run in a transaction ([LibraryScanner.identify]); a TMDB failure throws before anything is written. The same show
+     * in another order than TMDB's seasons keeps its episodes where they are, for its order to place them again
+     * ([EpisodePlacing.reorder]): left as they were should that fail.
      */
     suspend fun identify(series: ItemEntity, tmdbId: Int?, tmdb: TmdbClient): suspend () -> Unit {
         val (title, year) = showQuery(series)
@@ -446,10 +462,15 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         // The TMDB id saveShow will store: TMDB's, else that of an NFO describing the show.
         val showId = tv.value?.value?.id ?: nfo?.takeUnless { MetadataMerge.describesOther(it, tmdbId, null) }?.tmdbId
         val cache = SeasonCache(TmdbPass(tmdb, strict = true))
-        val seasons = showId?.let { id ->
-            dao.children(series.id).filter { it.kind == ItemKind.SEASON }.mapNotNull { it.seasonNumber }
-                .associateWith { cache.get(id, it).value }
-        }.orEmpty()
+        val inItsOrder = series.episodeOrder != null && tv.value?.value?.id == series.tmdbId
+        val seasons = if (inItsOrder) {
+            null
+        } else {
+            showId?.let { id ->
+                dao.children(series.id).filter { it.kind == ItemKind.SEASON }.mapNotNull { it.seasonNumber }
+                    .associateWith { cache.get(id, it).value }
+            }.orEmpty()
+        }
         return {
             dao.setUserTmdbId(series.id, tmdbId)
             // A choice, or automatic matching asked back, undoes « Laisser tel quel ».
@@ -606,13 +627,21 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             dao.offer(series, lookup)
             dao.saveCredits(series.id, credits, tmdbAnswered = answered, complete = answered || series.tmdbId == null, at = now)
             tv?.let { if (dao.recount(it, refresh, now)) recounted += series.id }
-            seasons?.let {
-                refreshSeasons(series, it, now)
-                namedAnew += series.id
-            }
+            seasons?.let { inTmdbsSeasons(series, was, it, now) }
             given = givenBack(series, was)
         }
         return if (given) dao.item(series.id) ?: series else series
+    }
+
+    /**
+     * After a new match, [series]'s episodes back in TMDB's seasons with their [details] ([refreshSeasons]); an order is a
+     * show's own at TMDB, so one named anew since [was] drops its, as an identification does.
+     */
+    private suspend fun inTmdbsSeasons(series: ItemEntity, was: Int?, details: Map<Int, TmdbSeason?>, now: Long) {
+        if ((series.userTmdbId ?: series.tmdbId) != was) dao.setUserEpisodeOrder(series.id, null)
+        dao.setEpisodeOrder(series.id, null)
+        refreshSeasons(series, details, now)
+        namedAnew += series.id
     }
 
     /** For a user match TMDB did not answer for, an NFO with only IMDb or TVDB ids is set aside until TMDB confirms it. */
@@ -634,7 +663,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val source = pass.source
         val number = at.number
         val localPoster = pass.sidecars.seasonPoster(at.dir, number)
-        var season = seasonRow(series, number, source.id, now)
+        var season = dao.seasonRow(series, number, source.id, now)
 
         // A matched season is not fetched again per episode; a refresh fetches it once per pass.
         val refreshDue = pass.refreshMetadata && season.matchedAt != null && season.id !in refreshedSeasons
@@ -657,20 +686,6 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         }
         return season
     }
-
-    /** Season [number]'s row of [series], made in folder [sourceId] when missing. */
-    private suspend fun seasonRow(series: ItemEntity, number: Int, sourceId: Long, now: Long): ItemEntity =
-        dao.season(series.id, number) ?: ItemEntity(
-            kind = ItemKind.SEASON,
-            sourceId = sourceId,
-            parentId = series.id,
-            seriesId = series.id,
-            matchKey = "${series.id}:$number",
-            title = "",
-            sortTitle = "%03d".format(Locale.ROOT, number),
-            seasonNumber = number,
-            addedAt = now,
-        ).let { it.copy(id = dao.insert(it)) }
 
     /** Whether a season [asked] about is described: TMDB gave its details, or it is a group's that TMDB did not fail for. */
     private fun described(answer: TmdbAnswer<TmdbSeason>?, asked: Boolean, shows: SeasonSource): Boolean =

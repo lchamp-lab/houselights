@@ -144,21 +144,31 @@ class FakeTmdb : Interceptor {
 
     /**
      * Episode group [id] of show [showId], of TMDB's [type] (2 absolute, 3 DVD…), its [seasons] each a list of TMDB's
-     * (season, episode), numbered from [first]; listed with the show's others.
+     * (season, episode), numbered from [first], its episodes saying they are of show [of]; listed with the show's others,
+     * in its place when it was already: TMDB editing it.
      */
-    fun group(showId: Int, id: String, type: Int, name: String, seasons: List<List<Pair<Int, Int>>>, first: Int = 1): TmdbEpisodeGroup {
+    fun group(
+        showId: Int,
+        id: String,
+        type: Int,
+        name: String,
+        seasons: List<List<Pair<Int, Int>>>,
+        first: Int = 1,
+        of: Int = showId,
+    ): TmdbEpisodeGroup {
         val group = TmdbEpisodeGroup(
             id, type, name,
             seasons.mapIndexed { i, episodes ->
                 TmdbGroupSeason(
                     "Group ${first + i}", first + i,
-                    episodes.mapIndexed { j, (season, episode) -> TmdbGroupEpisode(season, episode, j, showId) },
+                    episodes.mapIndexed { j, (season, episode) -> TmdbGroupEpisode(season, episode, j, of) },
                 )
             },
         )
         groups[id] = group
-        val count = seasons.sumOf { it.size }
-        episodeGroups[showId] = episodeGroups[showId].orEmpty() + TmdbEpisodeGroupRef(id, type, name, count, seasons.size)
+        val ref = TmdbEpisodeGroupRef(id, type, name, seasons.sumOf { it.size }, seasons.size)
+        val listed = episodeGroups[showId].orEmpty()
+        episodeGroups[showId] = if (listed.any { it.id == id }) listed.map { if (it.id == id) ref else it } else listed + ref
         return group
     }
 

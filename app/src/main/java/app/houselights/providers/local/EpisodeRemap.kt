@@ -38,8 +38,12 @@ internal class EpisodeRemap(private val dao: LibraryDao, private val seasons: Sh
         val details = details(series.tmdbId, placements.mapNotNull { it.second.tmdb?.season } + sources.values.mapNotNull { it.tmdbSeason })
             ?: return null
         val now = clock()
+        // A season made anew is in the folder of an episode it holds, as a scan makes it.
+        val folders = placements.associate { (row, placement) -> placement.season to row.sourceId }
         return {
-            val seasonIds = sources.mapValues { (number, source) -> seasonRow(series, number, source, details, now) }
+            val seasonIds = sources.mapValues { (number, source) ->
+                shownSeason(series, number, folders.getValue(number), source, details, now)
+            }
             val places = placements.mapNotNull { (row, placement) ->
                 val place = placed(row, placement, numbering.order, details, seasonIds.getValue(placement.season), now)
                 place.takeIf { it.copy(matchedAt = row.matchedAt) != row.place() }
@@ -63,19 +67,17 @@ internal class EpisodeRemap(private val dao: LibraryDao, private val seasons: Sh
         return details
     }
 
-    /** Season [number]'s row of [series], made when missing, with what its [source] shows; its id. */
-    private suspend fun seasonRow(series: ItemEntity, number: Int, source: SeasonSource, details: Map<Int, TmdbSeason?>, now: Long): Long {
-        val season = dao.season(series.id, number) ?: ItemEntity(
-            kind = ItemKind.SEASON,
-            sourceId = series.sourceId,
-            parentId = series.id,
-            seriesId = series.id,
-            matchKey = "${series.id}:$number",
-            title = "",
-            sortTitle = "%03d".format(Locale.ROOT, number),
-            seasonNumber = number,
-            addedAt = now,
-        ).let { it.copy(id = dao.insert(it)) }
+    /** Season [number]'s row of [series], made in folder [sourceId] when missing, with what its [source] shows; its id. */
+    @Suppress("LongParameterList") // A season, where it is made, and what it shows.
+    private suspend fun shownSeason(
+        series: ItemEntity,
+        number: Int,
+        sourceId: Long,
+        source: SeasonSource,
+        details: Map<Int, TmdbSeason?>,
+        now: Long,
+    ): Long {
+        val season = dao.seasonRow(series, number, sourceId, now)
         val shown = season.withSeasonDetails(source.tmdbSeason?.let { details[it] }, now, source)
         if (shown != season) dao.saveScanned(shown)
         return season.id
@@ -165,17 +167,23 @@ internal class EpisodePlacing(private val dao: LibraryDao, private val clock: ()
 
     /**
      * Places show [seriesId]'s episodes waiting for TMDB to list them ([ItemEntity.absoluteNumber] without a TMDB episode),
-     * once TMDB counted its seasons again ([EpisodeOrders.saveAired]); true when one moved.
+     * once TMDB counted its seasons again ([EpisodeOrders.saveAired]), its absolute group fetched again when it stops
+     * short of them ([EpisodeOrders.refetchShort]); every episode numbered from its start when the seasons now count
+     * otherwise, as a refresh places them ([ShowIndexer]). True when one moved.
      */
     suspend fun placeWaiting(seriesId: Long, orders: EpisodeOrders, seasons: ShowIndexer.SeasonCache): Boolean {
         val series = dao.item(seriesId)?.takeIf { it.kind == ItemKind.SERIES } ?: return false
         val tv = series.tmdbId?.let { orders.tv(it) } ?: return false
         val groupsAt = dao.episodeOrders(tv.id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }?.groupsAt
-        orders.saveAired(tv.id, tv.seasons, groupsAt)
+        val recounted = orders.saveAired(tv.id, tv.seasons, groupsAt)
+        val absolute = dao.episodesOfSeries(seriesId).filter { it.absoluteNumber != null }
+        val waiting = absolute.filter { it.tmdbEpisode == null }
+        waiting.mapNotNull { it.absoluteNumber }.maxOrNull()?.let { reach ->
+            orders.refetchShort(tv.id, reach, counted = tv.seasons.filter { it.seasonNumber > 0 }.sumOf { it.episodeCount })
+        }
         orders.forget(seriesId)
         val numbering = orders.of(series, absolute = true).value ?: return false
-        val waiting = dao.episodesOfSeries(seriesId).filter { it.absoluteNumber != null && it.tmdbEpisode == null }
-        return placeAnew(series, numbering, waiting, seasons, reordered = false) == true
+        return placeAnew(series, numbering, if (recounted) absolute else waiting, seasons, reordered = false) == true
     }
 }
 
@@ -209,8 +217,25 @@ internal fun ItemEntity.tmdbNumber(): TmdbNumber? {
     }
 }
 
-/** An episode file's numbering as its name gives it ([ParsedEpisode.key]). */
-internal fun ItemEntity.fileKey(): String? = filePath?.let(FilenameParser::parseShowPath)?.episode?.key()
+/** An episode file's numbering as its name gives it ([ParsedEpisode.key]); a file whose name places it nowhere holds none. */
+internal fun ItemEntity.fileKey(): String? = fileKeyOf(filePath)
+
+/** The numbering the episode file at [filePath] names ([ParsedEpisode.key]); null for none. */
+internal fun fileKeyOf(filePath: String?): String? = filePath?.let(FilenameParser::parseShowPath)?.episode?.key()
+
+/** Season [number]'s row of [series], made in folder [sourceId] when missing, as the scan and a re-placement make it. */
+internal suspend fun LibraryDao.seasonRow(series: ItemEntity, number: Int, sourceId: Long, now: Long): ItemEntity =
+    season(series.id, number) ?: ItemEntity(
+        kind = ItemKind.SEASON,
+        sourceId = sourceId,
+        parentId = series.id,
+        seriesId = series.id,
+        matchKey = "${series.id}:$number",
+        title = "",
+        sortTitle = "%03d".format(Locale.ROOT, number),
+        seasonNumber = number,
+        addedAt = now,
+    ).let { it.copy(id = insert(it)) }
 
 /** Without what TMDB or the NFO said of it, a thumb of its own kept: to be read anew. */
 internal fun ItemEntity.withoutDetails() =

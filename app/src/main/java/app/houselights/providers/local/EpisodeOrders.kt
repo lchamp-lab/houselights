@@ -5,7 +5,8 @@ import app.houselights.core.NfoInfo
 /**
  * How TMDB numbers each show, for one pass or one action ([tmdb]): its seasons' counts and its episode groups as the
  * library keeps them ([EpisodeOrderEntity]), TMDB asked only for what is missing and what an episode needs: a show's
- * counts once (those matched before they were kept), its groups' list once, a group's places once. The order a show
+ * counts once (those matched before they were kept), its groups' list once, a group's places once, again once TMDB
+ * lists it with another count or, absolute, its seasons count past it ([refetchShort]). The order a show
  * follows is the user's choice, else its tvshow.nfo's (a TMDB group's link as Kodi writes it, else Jellyfin's
  * `<displayorder>`), else TMDB's seasons; a choice TMDB no longer lists is forgotten.
  */
@@ -63,12 +64,40 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
         return EpisodeOrder.Aired(OrderPlaces.aired(OrderPlaces.ofAired(seasons)).orEmpty())
     }
 
-    /** Show [id] as TMDB has it now, its seasons counted; null when TMDB did not answer or has no such show. */
-    suspend fun tv(id: Int): TmdbTv? = tmdb.ask { it.tvById(id) }.value
+    /**
+     * Show [id] as TMDB has it now, its seasons counted; null when TMDB did not answer, or has no such show any more, which
+     * is then noted as asked about now, so it waits a day as the others do ([EpisodeOrderDao.waitingShows]).
+     */
+    suspend fun tv(id: Int): TmdbTv? {
+        val answer = tmdb.ask { it.tvById(id) } as? TmdbAnswer.Given ?: return null
+        if (answer.value == null) askedNow(id)
+        return answer.value
+    }
 
     /** Keeps show [id]'s TMDB [seasons], counted now; true when their counts differ from those kept. */
     suspend fun saveAired(id: Int, seasons: List<TmdbSeasonSummary>, groupsAt: Long?): Boolean =
         dao.saveAired(id, seasons, clock(), groupsAt)
+
+    /** Notes show [id]'s counts asked about now, whatever TMDB answered. */
+    private suspend fun askedNow(id: Int) {
+        val row = dao.episodeOrders(id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }
+            ?: EpisodeOrderEntity(id, EpisodeOrderEntity.AIRED, type = 0, name = "", episodeCount = 0)
+        dao.saveEpisodeOrders(listOf(row.copy(fetchedAt = clock())))
+    }
+
+    /**
+     * Show [id]'s absolute groups whose episodes stop before its [reach]th, once its seasons count that far ([counted]),
+     * fetched again when next needed: TMDB has since listed an episode the group held no place for when it was fetched.
+     */
+    suspend fun refetchShort(id: Int, reach: Int, counted: Int) {
+        if (counted < reach) return
+        val short = dao.episodeOrders(id).filter { row ->
+            row.type == EpisodeOrderEntity.ABSOLUTE_TYPE && OrderPlaces.group(row.places)?.let { held(it) < reach } == true
+        }
+        if (short.isNotEmpty()) dao.saveEpisodeOrders(short.map { it.copy(places = null, fetchedAt = null) })
+    }
+
+    private fun held(seasons: List<OrderSeason>): Int = seasons.sumOf { it.episodes.size }
 
     /** Show [id]'s groups as kept, else listed by TMDB and kept; null when TMDB did not answer. */
     suspend fun listed(id: Int): List<EpisodeOrderEntity>? {
@@ -78,15 +107,16 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
     }
 
     /**
-     * Lists show [id]'s groups again and keeps them, in TMDB's order, with the places already fetched, those TMDB refused
-     * to be asked again; groups TMDB lists no more are forgotten. Null when TMDB did not answer.
+     * Lists show [id]'s groups again and keeps them, in TMDB's order, with the places already fetched while TMDB counts
+     * them as many episodes, those it refused or counts otherwise to be asked again; groups TMDB lists no more are
+     * forgotten. Null when TMDB did not answer.
      */
     suspend fun list(id: Int): List<EpisodeOrderEntity>? {
         val answer = tmdb.ask { it.episodeGroups(id) } as? TmdbAnswer.Given ?: return null
         val rows = dao.episodeOrders(id)
         val known = rows.associateBy { it.orderId }
         val groups = answer.value.orEmpty().mapIndexed { i, ref ->
-            val kept = known[ref.id]?.takeUnless { it.places == REFUSED }
+            val kept = known[ref.id]?.takeUnless { it.places == REFUSED || it.episodeCount != ref.episodeCount }
             EpisodeOrderEntity(
                 id, ref.id, ref.type, ref.name.orEmpty(), ref.episodeCount, rank = i + 1, places = kept?.places,
                 fetchedAt = kept?.fetchedAt,

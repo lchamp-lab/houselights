@@ -13,11 +13,14 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Shows whose files follow another order than TMDB's seasons (Firefly on DVD): named by their tvshow.nfo, or chosen.
  * The files keep their numbers; each shows the TMDB episode its order puts there, Trakt names it so, and what was
- * watched stays, row by row; back to automatic undoes it; an order TMDB cannot give changes nothing.
+ * watched stays, row by row; back to automatic undoes it; an order TMDB cannot give changes nothing, and one it did not
+ * give this pass is placed at the next; a group of another show is asked once a listing.
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanOrdersTest {
@@ -157,10 +160,106 @@ class ScanOrdersTest {
         assertTrue(bench.item(shows, file(1)).tmdbEpisode == null)
     }
 
+    /** A group TMDB gives with another show's episodes, which a Kodi NFO links: refused, asked once, then after a refresh. */
+    @Test
+    fun aGroupOfAnotherShowIsAskedOnceThenOnlyOnceListedAgain() = runTest {
+        tmdb.group(FIREFLY, ELSEWHERE, type = 3, name = "DVD", listOf(listOf(1 to 11, 1 to 1, 1 to 2)), of = OTHER)
+        val link = "https://www.themoviedb.org/tv/$FIREFLY-firefly/episode_group/$ELSEWHERE"
+        showsNas.putText("Firefly/tvshow.nfo", "<tvshow><title>Firefly</title><episodeguide>$link</episodeguide></tvshow>\n$link")
+        bench.scan()
+        showsNas.put(file(4))
+        bench.scan()
+
+        assertEquals("asked once", 1, tmdb.requests.count { it == "tv/episode_group/$ELSEWHERE" })
+        assertEquals("never followed", listOf("Episode 1.1", "Episode 1.2", "Episode 1.3"), titles())
+        assertNull(show().episodeOrder)
+        bench.scan(refreshMetadata = true)
+        assertEquals("asked again once listed again", 2, tmdb.requests.count { it == "tv/episode_group/$ELSEWHERE" })
+    }
+
+    /** TMDB failing once for the group a new tvshow.nfo names, the show is read again at the next pass and placed whole. */
+    @Test
+    fun anOrderTmdbDidNotGiveIsPlacedWholeAtTheNextPass() = runTest {
+        bench.scan()
+        showsNas.putText("Firefly/tvshow.nfo", nfo(order = "dvd"))
+        val failed = AtomicBoolean(false)
+        tmdb.onRequest = { path ->
+            if (path == "tv/episode_group/$DVD" && failed.compareAndSet(false, true)) throw IOException("Stream reset")
+        }
+        bench.scan()
+        bench.scan()
+
+        assertTrue(failed.get())
+        assertEquals(listOf("Episode 1.11", "Episode 1.1", "Episode 1.2"), titles())
+        assertEquals(DVD, show().episodeOrder)
+        assertEquals(listOf(1 to 11, 1 to 1, 1 to 2), traktNumbers())
+    }
+
+    /** Named anew by its tvshow.nfo, the show starts in TMDB's seasons: its old show's order goes, TMDB failing after. */
+    @Test
+    fun aShowNamedAnewStartsInTmdbsSeasonsThoughTmdbFailsAfter() = runTest {
+        bench.scan()
+        bench.scanner.chooseOrder(show().id, DVD)
+        tmdb.show(OTHER, "Firefly", 2024)
+        tmdb.season(OTHER, 1, episodes = 3)
+        tmdb.failingPath = "tv/$OTHER/episode_groups"
+        showsNas.putText("Firefly/tvshow.nfo", "<tvshow><title>Firefly</title><tmdbid>$OTHER</tmdbid></tvshow>")
+        bench.scan()
+
+        assertEquals(OTHER, show().tmdbId)
+        assertEquals(null to null, show().userEpisodeOrder to show().episodeOrder)
+        assertEquals(listOf(1 to 1, 1 to 2, 1 to 3), traktNumbers())
+    }
+
+    /** A new file of a show in DVD order while TMDB cannot say where it goes shows no TMDB episode: Trakt is told none. */
+    @Test
+    fun aNewFileTmdbCannotPlaceInItsShowsOrderIsNotSentToTrakt() = runTest {
+        bench.scan()
+        bench.scanner.chooseOrder(show().id, DVD)
+        showsNas.put(file(4))
+        tmdb.failingPath = "tv/$FIREFLY/episode_groups"
+        bench.scan(refreshMetadata = true)
+
+        assertNull(bench.item(shows, file(4)).tmdbEpisode)
+        assertEquals(listOf(1 to 11, 1 to 1, 1 to 2), traktNumbers())
+    }
+
+    /** Identified again as itself, a show in DVD order keeps its episodes where they are, TMDB failing to place them again. */
+    @Test
+    fun identifiedAgainAsItselfTheShowKeepsItsOrderShouldTmdbFailAfter() = runTest {
+        bench.scan()
+        bench.scanner.chooseOrder(show().id, DVD)
+        tmdb.failingPath = "tv/$FIREFLY/season"
+        bench.scanner.identify(show().id, FIREFLY)
+
+        assertEquals(listOf("Episode 1.11", "Episode 1.1", "Episode 1.2"), titles())
+        assertEquals(listOf(1 to 11, 1 to 1, 1 to 2), traktNumbers())
+        assertEquals(DVD to DVD, show().userEpisodeOrder to show().episodeOrder)
+    }
+
+    /** TMDB listing the group with one more episode a month later, its places are fetched again when next needed. */
+    @Test
+    fun aGroupListedWithMoreEpisodesIsFetchedAgain() = runTest {
+        bench.scan()
+        bench.scanner.chooseOrder(show().id, DVD)
+        tmdb.group(FIREFLY, DVD, type = 3, name = "DVD Order", listOf(listOf(1 to 11, 1 to 1, 1 to 2, 1 to 3)))
+        bench.later(MONTH_MS)
+        bench.scan()
+        showsNas.put(file(4))
+        val pass = bench.pass()
+
+        assertEquals("fetched again", 1, pass.requests.count { it == "tv/episode_group/$DVD" })
+        assertEquals("Episode 1.3", bench.item(shows, file(4)).title)
+    }
+
     private companion object {
         const val FIREFLY = 1437
         const val OTHER = 99999
         const val DVD = "5b11ba820e0a265847002c6e"
         const val GONE = "5b11ba820e0a265847002c6f"
+        const val ELSEWHERE = "5b11ba820e0a265847002c70"
+
+        /** How long a show's groups are listed before they are listed again. */
+        const val MONTH_MS = 30 * 24 * 60 * 60_000L
     }
 }
