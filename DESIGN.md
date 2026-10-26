@@ -404,7 +404,8 @@ its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a f
 them: 24 dp grid, stroke 2, round caps and joins. A state that reads as on is the same drawing filled (`Heart`,
 `HeartFilled`) or its check cut out of a filled circle (`CheckFilled`); a connection encrypted is a lock, closed
 (`Lock`), one that is not the same lock open (`LockOpen`); Play is filled, as on a remote; the Menu key's
-lines are `square-menu`'s, its square drawn as the key's frame (`MenuKey`). There is no other family: no Material
+lines are `square-menu`'s, its square drawn as the key's frame (`MenuKey`); a title out of the library, nothing deleted,
+is a list crossed out (`list-x`, `HlIcons.Remove`), never a bin. There is no other family: no Material
 icon is drawn, imported or declared as a dependency (`DesignTokenGuardTest`).
 
 ### Scrolling (`Scroll.kt`)
@@ -559,7 +560,9 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   door to the case, Up and Down to the door over or under, the one last visited among two (Down from Films: Sagas,
   or Rechercher once visited, `doorBelow`); coming back, focus is on the door left; a door with focus that goes after
   a reload leaves it on the door last visited still there; the first focus waits for the case (`HomeGridFocusTest`).
-  Without a grid (a message), the settings tile stands at the end of home's head.
+  Without a grid (a message), the settings tile stands at the end of home's head. A note standing there (titles of a
+  folder not found on the NAS, `HeadNote`) never takes focus: Up from the grid's first row reaches its button, and
+  once it goes with its note while it has focus, focus goes back to the case (`HomeHeldTest`).
 - **Disabled controls** keep focus, ringed, never filled. What is only read (a technical sheet's block, an NFO)
   is not disabled: it takes the ring and OK does nothing.
 - **Nothing grows.** Focus reaches `HlFocus.reach` past what it frames, whatever its size: the room a
@@ -631,9 +634,9 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 | `TracksSheet`, `tracksHint` | the audio and subtitles of what Lire plays, as the player numbers them (`TrackPlan`); the Captions tile after the copies, its second line saying what Lire asks of the player ("Français, sous-titres forcés"), shown when the file's track order is known and there is a choice to make. A wide side sheet in two columns, audio then subtitles, each headed by "Selon vos réglages" and then the file's tracks in order; the choice applies at once, the sheet staying open, and holds for the film's copies or the whole show. Settings > Lecture sets the same for every title (audio language, subtitle mode, subtitle language), "Selon le lecteur" by default |
 | `SearchQuery`, `LetterGrid`, `ResultsHeading`, `ResultName` | library search (`SearchScreen`), a place in the light of the result in focus (`Diffuse`), kept while it is found, a person leaving it: the typed query on a field the keys always type in (the ember ring, a still raspberry cursor), an on-screen keyboard of square tiles (`LETTER_KEYS` A to Z then 0 to 9, Erase and Space), all glass in the picture's dark, white with focus; results in rows (titles, sagas as wide images, people), each counted, the result in light named under its row; accent-insensitive, debounced 150 ms; a search that failed says why with Retry (`HlErrorState`), the keys keeping focus |
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `HeroSkeleton`, `ProgressLine` | the welcome wall (nine tilted columns at `HlScrim.WALL`, drifting over `WALL_DRIFT`) and its black veil; the playback cue's black; placeholders shaped like what is coming (after `SKELETON_DELAY`, `skeletonDelayPassed`; never a shimmer); progress lines in the ember light, stretched over the part seen: burning at a picture's foot (`HlSize.progressPoster`, `HlSize.progressWide`) on a black track, beside text, in a hero and on home's case on `FILL_STRONG`; on a focused plate, solid raspberry on the plate (`focused`) |
-| `HomeHead`, `DoorGrid`, `ResumeCase`, `HomeDoor`, `DoorStill`, `DoorPosters`, `DoorFigures`, `DoorSagas`, `DoorWall`, `DoorFacts` | home's grid (see *Layout*): its head, the grid that lays and links its doors, the case, a door and the pictures it holds: a still with its logo, a band of posters, a count cut in posters (`CutPosters`), two sagas stacked, a wall of posters out, the app's state (`StateFact`) |
+| `HomeHead`, `HeadNote`, `DoorGrid`, `ResumeCase`, `HomeDoor`, `DoorStill`, `DoorPosters`, `DoorFigures`, `DoorSagas`, `DoorWall`, `DoorFacts` | home's grid (see *Layout*): its head and a note standing at its end, the grid that lays and links its doors, the case, a door and the pictures it holds: a still with its logo, a band of posters, a count cut in posters (`CutPosters`), two sagas stacked, a wall of posters out, the app's state (`StateFact`) |
 | `PosterStrip` | a folder's latest posters in fixed slots, empty frames for the free ones; without posters, its name set like a one-sheet |
-| `Showcase` | a library folder in its posters' light (see *Secondary screens*): its name in `subject` beside its printed protocol, its facts, the first in white, and its state by the white dot, or what is happening to it (`status`); framed with focus, without a glow |
+| `Showcase` | a library folder in its posters' light (see *Secondary screens*): its name in `subject` beside its printed protocol, its facts, the first in white, and its state by its light (`stateLight`): the white dot ("Analysé il y a 3 heures"), the ring while titles of it are held ("12 introuvables", in its last scan's place, answered or not); or what is happening to it (`status`); framed with focus, without a glow |
 | `GalleryTile` | one of a title's images to change, at its shape of use, a logo fitted on a neutral step; its name under it in `cardName`, white with focus; framed and glowing in the film's light |
 | `PosterField` | the room of the settings and their forms, under them: a library's posters as a wall's field (see *Veils*), its light theirs (`LocalAmbient`) |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose, at its shape of use, its name in `meta`; the one in use carries the ember check |
@@ -644,7 +647,7 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 |---|---|
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton`, `HeaderControls`, `HlActionRow` | actions 48 dp tall, radius 10. The primary one, Lire or Reprendre and nothing else, is the ember light in black ink (`onEmber`), `HlIcons.Play`, a duration in `jaquette`; focus frames it. A secondary one is a plate by its ground (over a picture `plate(light)` edged by `plateEdge`, glass on the room, `FILL` on glass) that focus fills white. `HlIconButton` is a square tile (48, its glyph `HlSize.tileIcon`) showing its label below on focus, on a plate as wide as `tileLabelWidth` allows, at most `HlIconButtonDefaults.labelEdge` from the screen's side, hidden while a sheet is open; `HlActionRow` keeps room for it. In a header (`HeaderControls`): buttons 44, tiles 40, glyphs 20. Toggles name what OK does and show the state with the icon (`lit`: the glyph in ember, raspberry on white; `HlIcons.CheckFilled`). On a show's page with a season track, the watched toggle marks the season shown when it holds episodes ("Marquer la saison comme vue", `shownSeason`); Menu or a long OK opens its options (`ShowMarks`): "Marquer la saison 2 comme vue" or "non vue", then "Marquer toute la série comme vue" or "non vue", each as it stands. The Menu key under its label says so, on a hint's line (`hintRoom`), which a show's `HlActionRow` keeps (`hinted`); a tile without options may say a second line there in tertiary `meta` (`hint`, the tracks tile's), bound as the label. Films and episodes have no options on their tile. `detailLit` lights a chosen value in the detail. Disabled: a faint well (over a picture, its plate), tertiary ink, ringed by focus, OK ignored. `busy`: a pending dot and `busyLabel` ("Connexion…"), width kept, OK ignored |
 | `HlSegmented` | where you are among a few places, as words in `place`: seasons (`scrollable`, chosen as focus moves with `selectOnFocus`, each with its `SegmentDetail`), NFO views, form choices. The current word is lit in ember (`placeCurrent`), the others grey, on no plate; focus is the white plate, with a raspberry dot (`HlSize.wordDot`) before the current word. Words line up with the start edge and plates hang past it, each word as wide as in bold and set from its start: nothing moves as focus or the choice moves. Focus entering lands on the current option (`enterAt`). Exposed as tabs |
-| `HlTextField` | a glass plate `HlSize.field` tall edged by a hairline (`field`), its name in white over it, ringed white with focus, keyboard on OK, "OK saisir" hint (`KeyHint`); OK starts typing after the text, where the keyboard's erase reaches it all, and at rest the text shows from its start; while typing, the ember ring and a raspberry cursor. One line below in `meta`: `supporting` or `error` (`AttentionNote`). Its label is always read out, shown or not (`showLabel`), "(facultatif)" after it when `optional`; `password` hides the value. Placeholders are examples from resources. Saved when left, never while typing |
+| `HlTextField` | a glass plate `HlSize.field` tall edged by a hairline (`field`), its name in white over it, ringed white with focus, keyboard on OK, "OK saisir" hint (`KeyHint`); OK starts typing after the text, where the keyboard's erase reaches it all, and at rest the text shows from its start; while typing, the ember ring and a raspberry cursor, which the remote's Left and Right move a character once Back hid the keyboard (shown, it takes the arrows): held they repeat and stop at the text's edge, a press from its start or its end leaving that way, as Up and Down leave at once, and OK shows the keyboard again at the cursor; a keyboard's own Left and Right, the one shown or one plugged in, move it as in any field, Shift selecting, and never leave. One line below in `meta`: `supporting` or `error` (`AttentionNote`). Its label is always read out, shown or not (`showLabel`), "(facultatif)" after it when `optional`; `password` hides the value. Placeholders are examples from resources. Saved when left, never while typing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a sectioned menu anchored to its button (sort, filters), on raised glass (`panel`, 320 wide), opening below or above within the safe area and growing from `ENTER_SCALE`; options 44 tall, the chosen one white with its ember check (raspberry on focus's white plate), the others grey; a sort applies once the menu has closed, filters at once with the menu kept open (`closeOnSelect`) |
 | `HlScrollArea` | long content read with the remote: focusable only when scrollable, or always where it is what a sheet is read for (`alwaysFocusable`), ringed white with focus, `HlSize.scrollStep` per press, a held key adding steps; in a sheet a group's plate in the film's light; `HlScrollArea(lines)` lays out only the lines shown of a raw text in `code`, each where the whole text would set it |
 | `QrCode` | an address for a phone: black modules on projector white at whole pixels (`QrCodeDefaults`), the address below in `spec`; `compact` beside words in a pane, the address centred in secondary `jaquette`; `small` in a sheet that says more under it, `compact`'s modules and the address as it is. A `qrencode` vector, or a text known only at run time encoded here (`QrModules`: level M, the smallest version up to 6, an address in capitals in alphanumeric mode, so the log's fits version 3). Never on artwork |
@@ -676,7 +679,9 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 Artwork carries no text: the top of the screen names what has focus.
 
 - **At rest**, a faint edge (`EDGE_ARTWORK`) keeps dark artwork from dissolving into the room.
-- **One mark at most**, top right, on a dark plate: unwatched episodes, else the check of a watched title,
+- **One mark at most**, top right, on a dark plate: a title held while its file is missing (among many of its folder
+  gone at once, `MediaItem.held`) by the ring of a state that is off, white, never ember, first, so a held title shows
+  no check nor dot meanwhile; else unwatched episodes, else the check of a watched title,
   else the ember dot of a new title (added in the last week, not watched; ringed in black). Progress is the
   ember line burning at the foot, 4 dp on a poster and 5 on a wide image, its light stretched over the part
   seen. Formats are never a card mark.
@@ -689,7 +694,8 @@ Artwork carries no text: the top of the screen names what has focus.
   focus alone: a side sheet titled with its name, "Saison 1 Épisode 2 52 min" under it (the season by its number,
   in the app's language, specials by the source's name), then "Marquer comme vu" or "Marquer comme non vu", focused;
   "Lire depuis le début" once started; "Audio et sous-titres" where the tracks apply, as the tracks tile, saying what
-  Lire plays and opening the show's. A card with none of these opens nothing.
+  Lire plays and opening the show's; last, for an episode held while its file is missing, « Retirer de la
+  bibliothèque », it alone, as the title page's tile. A card with none of these opens nothing.
   A mark is made with no question, its season's count, the show and Lire following at once, a started episode back to
   its start, as the watched tile does. A mark that did not save comes undone and is said under the row, in place of
   the overview, until an OK there.
@@ -699,8 +705,8 @@ Artwork carries no text: the top of the screen names what has focus.
 - **Stepping back**, siblings lose colour through the image's own filter in `RECEDE_STEPS` steps; no layer is
   drawn per card.
 
-**Accessibility.** A card is one element: its title, then its state in words (`stateDescription`: "6 épisodes
-non vus", "vu", "nouveau, en cours, 40 %"). Marks are not read. A person who does nothing is read once as
+**Accessibility.** A card is one element: its title, then its state in words (`stateDescription`: "introuvable",
+"6 épisodes non vus", "vu", "nouveau, en cours, 40 %"). Marks are not read. A person who does nothing is read once as
 "name, role", not as a button. What is chosen says so (`selected`).
 
 ## Sheets
@@ -728,6 +734,14 @@ motion it came in with. Focus stays inside and returns where it was (`SheetFocus
 - **`SheetConfirm`**: an irreversible action asks in the sheet, as an intertitle in place of the rows: ember
   rule, the question in `subject`, the consequence, then Cancel (focused) and the action, its label in ember.
   Never red. Cancel or Back returns to the row that asked.
+- **A question of two answers** that is not irreversible (`HeldSheet`) is a sheet of its own: what it is about in its
+  head, what the app sees and what each answer is for in `body`, then the answers on one plate above what they concern,
+  so they stay in view at the largest text size, the one that changes nothing first and focused, each saying in its line
+  what it does; nothing in ember, no second question. Back answers nothing. What they concern lies under them on a
+  `ReadingPlate`, ten at most and how many more ("Et 2 autres"), that Down rings and reads the sheet through from.
+  « 12 titres introuvables »: the folder by its printed protocol and name, « Garder » ("Ils restent en attendant leurs
+  fichiers"), then « Retirer » ("Rien n’est effacé du NAS, ni ce qui a été vu"), then each title and its year (an
+  episode by its show and number) in white `entry` over its file as the NAS names it in `meta`, two lines at most.
 - **The technical sheet** is read block by block, each ringed with focus and scrolled through when taller than the
   sheet; OK does nothing.
 - **The update sheet** (`UpdateSheet`) is one sheet wherever it opens: from About, "Mises à jour"; on home, opened by
@@ -803,6 +817,20 @@ goes back to its own, as do episodes failing later, on a season chosen. A screen
 shows an intertitle with what fixes it (`HlEmptyState`): home's folders without a film, Ajouter un dossier and Voir
 les dossiers; without a folder home draws nothing, the welcome screen taking its place. Exception text never reaches
 the screen; it goes to the log.
+
+Titles a folder lost at once while it answers (more than a quarter of them, ten at least: a disk of the NAS's pool
+offline, a volume not mounted yet) are no failure the app can tell from a clean-up: they are held, shown, and asked
+about once, never in ember, always by the ring of a state that is off. Home says so at the end of its head, where it
+says how things stand, "12 titres de « Films » introuvables sur le NAS" with Voir (`HeadNote`), until the user
+answers in the sheet it opens or the files are back; Réglages › Bibliothèque counts them on their folder's showcase,
+answered or not, its sheet's first row opening theirs (two OKs), « Retirer » there at any time. A title held says on
+its page, at the end of its actions, "Introuvable sur le NAS depuis 14 h" (rounded down to the hour), its actions
+ending with « Retirer de la bibliothèque », which takes it alone out and closes the page, opening the film's again
+when a copy of it is left; an episode held offers it last in its options (Menu), the show's page staying. A film in
+several copies is held as the copy Lire plays is. Lire or Reprendre on a title held is never tried, the room staying
+lit: in that place, "Ce titre n’est plus là" and "Rebranchez le disque du NAS ou retirez ce titre." (`UiError.HELD`,
+`PlaybackOutcome.tryPlay`), under the episode row for an episode, on home's case in its facts' room with since when.
+The files back end it all without a word (`HomeHeldTest`, `DetailHeldTest`, `HeldFolderTest`, `HeldCardTest`).
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is
@@ -936,9 +964,12 @@ design system.
 
 Remote behaviour is tested as the remote drives it, on Robolectric with the app's theme on the TV canvas
 (`ui/testing/Remote.kt`): `MediaRowFocusTest`, `SheetFocusTest`, `SegmentedFocusTest`, `HomeGridFocusTest`,
-`PagesNavigationTest`, `WallPageTest`, `WatchPageTest`, `QuitAgainTest`, `RestoreFocusTest`, `ScrollAreaTest`, `TextFieldMessageTest`,
+`PagesNavigationTest`, `WallPageTest`, `WatchPageTest`, `QuitAgainTest`, `HomeHeldTest`, `RestoreFocusTest`, `ScrollAreaTest`, `TextFieldMessageTest`,
 `SupportRowTest`, `JournalSheetTest`, `TraktPaneTest`, `OkPressTest`. A focus rule that
-changes comes with its test.
+changes comes with its test. Robolectric's keys come from no device; a text field's are sent from the remote's D-pad
+(`pressOnRemote`, `holdOnRemote`), whose arrows and OK Compose's own text field reads otherwise, or from a keyboard,
+the one shown or one plugged in (`pressOnShownKeyboard`, `pressOnPluggedKeyboard`), whose arrows it keeps
+(`TextFieldCaretTest`).
 
 ## Catalogue
 

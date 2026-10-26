@@ -220,6 +220,9 @@ object HlIcons {
     /** Add: a plus (`plus`). */
     val Add = icon("Add", "M5 12h14", "M12 5v14")
 
+    /** Out of the library, nothing deleted: a list crossed out (`list-x`), never a bin. */
+    val Remove = icon("Remove", "M11 12H3", "M16 6H3", "M16 18H3", "m19 10-4 4", "m15 10 4 4")
+
     /** Try again: two arrows going round (`refresh-cw`). */
     val Refresh = icon(
         "Refresh",

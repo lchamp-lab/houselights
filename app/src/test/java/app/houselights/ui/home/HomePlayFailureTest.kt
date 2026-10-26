@@ -119,6 +119,22 @@ class HomePlayFailureTest {
         }
     }
 
+    /**
+     * A title held while its file is missing, not tried: gone, and since when in the reason's place, by the ring, never
+     * "Lecture impossible" in ember; the fix's sentence would not hold on the case's one line.
+     */
+    @Test
+    fun aTitleHeldSaysItIsGoneAndSinceWhen() {
+        val sections = (fullHome().content as HomeContent.Rows).sections
+        val heat = resuming.first().copy(missingSince = System.currentTimeMillis() - 14 * HOUR - 5 * MINUTE)
+        val held = listOf(sections.first().copy(items = listOf(heat) + resuming.drop(1))) + sections.drop(1)
+        open(fullHome(sections = held), failed = UiError.HELD)
+        said(text(R.string.error_gone_title)).assertIsDisplayed()
+        said("Not found on the NAS for 14${Typography.nbsp}h").assertIsDisplayed()
+        said(text(R.string.play_failed)).assertDoesNotExist()
+        said(text(R.string.held_gone_fix)).assertDoesNotExist()
+    }
+
     /** Réessayer plays the title again, as the case did. */
     @Test
     fun aRetryPlateRetriesOnClick() {
@@ -239,5 +255,7 @@ class HomePlayFailureTest {
     private companion object {
         const val LARGEST_TEXT = 1.3f
         const val HALF_PX = 0.5f
+        const val MINUTE = 60_000L
+        const val HOUR = 60 * MINUTE
     }
 }

@@ -375,6 +375,37 @@ class MigrationTest {
     }
 
     /**
+     * Version 20 asks rather than holds by the clock: no folder's titles are kept yet, so a drop asks; a row the versions
+     * before held a day is listed again, its next pass judging it by the drop alone, everything else as it was.
+     */
+    @Test
+    fun version20HoldsNothingByTheClockAndKeepsNoAnswerYet() = runTest {
+        // From the previous version, and from 0.2.0's.
+        for (from in listOf(19, 15)) {
+            // Version 19's tables, made by Room, hold no default for the choice to leave a title as it is.
+            val (noMatch, notLeft) = if (from >= 19) ", userNoMatch" to ", 0" else "" to ""
+            val dao = migrated(from) {
+                filmsFolder()
+                listOf(arrayOf<Any?>(1, "Dune", "Dune (2021).mkv", null), arrayOf<Any?>(2, "Heat", "Heat (1995).mkv", 5_000)).forEach {
+                    execSQL(
+                        "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
+                            "badges, probeVersion, addedAt, positionMs, played, favorite, missingSince$noMatch) " +
+                            "VALUES (?1, 'MOVIE', 1, ?2, ?2, 0, '', '', ?3, '', '', 0, 5, 0, 0, 1, ?4$notLeft)",
+                        it,
+                    )
+                }
+            }.dao()
+            val films = checkNotNull(dao.source(1))
+            assertEquals("from $from", false, films.heldKept)
+            assertEquals("from $from", "Films" to 1000L, films.name to films.lastScanAt)
+            val rows = listOf(1L, 2L).map { checkNotNull(dao.item(it)) }
+            assertEquals("from $from", listOf(null, null), rows.map { it.missingSince })
+            assertEquals("from $from", listOf(true, true), rows.map { it.favorite })
+            assertEquals("from $from", emptyList<Long>(), dao.heldIn(1))
+        }
+    }
+
+    /**
      * Version 16 marks the tracks the probe read in the file's order, so no file is read again for it. Never an NFO's:
      * an MKV the probe found no picture in takes its <streamdetails>, picture and tracks in the NFO's order.
      */

@@ -877,4 +877,34 @@
     <string name="update_row" translatable="false">Houselights %1$s</string>
     <string name="update_bytes_of" translatable="false">%1$s / %2$s</string>
     <string name="update_adb_line" translatable="false">adb shell appops set app.houselights REQUEST_INSTALL_PACKAGES allow</string>
+    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <plurals name="held_titles">
+        <item quantity="one">%d title not found</item>
+        <item quantity="other">%d titles not found</item>
+    </plurals>
+    <plurals name="held_home">
+        <item quantity="one">%1$d title of “%2$s” not found on the NAS</item>
+        <item quantity="other">%1$d titles of “%2$s” not found on the NAS</item>
+    </plurals>
+    <string name="held_see">See</string>
+    <string name="held_text">Houselights no longer finds these titles in “%s”, although the folder answers. If you deleted or moved them, remove them. If a disk of the NAS is unplugged, keep them and plug it back in: they will come back as they were.</string>
+    <string name="held_text_one">Houselights no longer finds this title in “%s”, although the folder answers. If you deleted or moved it, remove it. If a disk of the NAS is unplugged, keep it and plug the disk back in: it will come back as it was.</string>
+    <string name="held_keep">Keep</string>
+    <string name="held_keep_desc">They stay, waiting for their files</string>
+    <string name="held_keep_desc_one">It stays, waiting for its file</string>
+    <string name="held_remove_desc">Deletes nothing on the NAS, nor what you saw</string>
+    <plurals name="held_more">
+        <item quantity="one">And %d more</item>
+        <item quantity="other">And %d more</item>
+    </plurals>
+    <plurals name="held_count">
+        <item quantity="one">%d not found</item>
+        <item quantity="other">%d not found</item>
+    </plurals>
+    <string name="held_row_desc">Remove them, or keep them until they return</string>
+    <string name="held_row_desc_one">Remove it, or keep it until it returns</string>
+    <string name="held_since">Not found on the NAS for %s</string>
+    <string name="held_gone_fix">Plug the NAS’s disk back in or remove this title.</string>
+    <string name="held_remove_title">Remove from the library</string>
+    <string name="card_held">not found</string>
 </resources>

@@ -38,6 +38,12 @@ import app.houselights.core.TrackChoice
 import app.houselights.core.TrackPlan
 import app.houselights.core.Version
 
+/**
+ * The page's title held, removed ([DetailViewModel.removeHeld]): the page leaves, for the page of [stays] when a copy
+ * of the film is left under another row, its own having gone with its file.
+ */
+data class TitleRemoved(val stays: String? = null)
+
 data class DetailState(
     val item: MediaItem? = null,
     /** Why the page did not load: in place of the title, else under it, with Réessayer ([retrying] meanwhile). */
@@ -78,6 +84,8 @@ data class DetailState(
     val versions: List<Version> = emptyList(),
     /** The tracks of what Lire plays ([tracksTarget]), and what Settings and the title's choice ask of the player. */
     val tracks: TrackPlan? = null,
+    /** The title held while its file is missing left the library ([DetailViewModel.removeHeld]): the page leaves. */
+    val removed: TitleRemoved? = null,
 ) {
     /** The audio track Lire asks of the player for the title shown; null when the player chooses it. */
     val playedAudio: AudioTrack? get() = tracks?.takeIf { item?.isPlayable == true }?.let { p -> p.audio?.let(p.audioTracks::getOrNull) }
@@ -125,6 +133,11 @@ class DetailViewModel(
     private val tracksOf: suspend (MediaItem) -> TrackPlan? = { null },
     /** Changes a title's stored choice of tracks, under its key; an empty one leaves it to Settings. */
     private val keepTracks: suspend (String, (TrackChoice) -> TrackChoice) -> Unit = { _, _ -> },
+    /**
+     * Removes a title held while its file is missing from the library alone, by its id; the id it stays under, null once
+     * it left ([LocalLibrary.removeHeldTitle][app.houselights.providers.local.LocalLibrary.removeHeldTitle]).
+     */
+    private val removeHeldTitle: suspend (String) -> String? = { null },
 ) : ViewModel() {
     private val _state = MutableStateFlow(DetailState(selectedSeasonId = saved[SEASON]))
     val state: StateFlow<DetailState> = _state
@@ -447,6 +460,55 @@ class DetailViewModel(
     /** Dismisses the error shown on the episode row. */
     fun clearEpisodeMarkError() = _state.update { it.copy(episodeMarkError = null) }
 
+    /** Whether the title held is being removed: a press meanwhile does nothing. */
+    private var removing = false
+
+    /**
+     * « Retirer de la bibliothèque » on the page's title held while its file is missing: it alone leaves the library, in
+     * [work], nothing deleted on the NAS and what the user did kept by title; then the page leaves ([DetailState.removed]),
+     * for the film's page again when a copy of it is left. Back meanwhile, it stays, read again. A failure is said beside
+     * the actions.
+     */
+    fun removeHeld() {
+        val item = _state.value.item?.takeIf { it.held } ?: return
+        remove(item, onRow = false)
+    }
+
+    /**
+     * « Retirer de la bibliothèque » in the options of an [episode] held of the show shown: it alone leaves, the show read
+     * again; the page leaves with the show should it go with it. A failure is said on the episode row.
+     */
+    fun removeHeldEpisode(episode: MediaItem) {
+        if (!episode.held) return
+        remove(episode, onRow = true)
+    }
+
+    /**
+     * Removes [title] held, one removal at a time; the page reads again while it stays ([removeHeldTitle]'s answer is the
+     * page's title), else leaves. A failure is said on the episode row ([onRow]) or beside the actions.
+     */
+    private fun remove(title: MediaItem, onRow: Boolean) {
+        if (removing) return
+        removing = true
+        _state.update { if (onRow) it.copy(episodeMarkError = null) else it.copy(actionError = null) }
+        work.launch {
+            suspendRunCatching { removeHeldTitle(title.id) }
+                .onSuccess { stays ->
+                    if (stays == itemId) {
+                        load()
+                    } else {
+                        // Only a film's copy holds the title under another row; an episode's show is no page to open.
+                        _state.update { it.copy(removed = TitleRemoved(stays.takeIf { title.kind == MediaKind.MOVIE })) }
+                    }
+                }
+                .onFailure { e ->
+                    val error = e.reported(TAG, "Removing ${title.id}")
+                    _state.update { s -> if (onRow) s.copy(episodeMarkError = error) else s.copy(actionError = error) }
+                }
+            removing = false
+        }
+    }
+
     /**
      * Shows a change of user state at once ([shown]) and saves it in [work], one at a time: a press meanwhile does
      * nothing. Then reloads; on failure, the page as it was and why, on the episode row for an episode ([onRow]).
@@ -481,7 +543,7 @@ class DetailViewModel(
             initializer {
                 DetailViewModel(
                     itemId, app::provider, app, app.scope, createSavedStateHandle(),
-                    tracksOf = app::tracksOf, keepTracks = app.tracks::choose,
+                    tracksOf = app::tracksOf, keepTracks = app.tracks::choose, removeHeldTitle = app.library::removeHeldTitle,
                 )
             }
         }

@@ -872,4 +872,38 @@
     <string name="update_incompatible_message">Android indique que cette version ne convient pas à ce lecteur.</string>
     <string name="update_install_failed_title">Installation impossible</string>
     <string name="update_install_failed_message">Android n’a pas installé la mise à jour. Réessayez ; le journal en dit plus.</string>
+    <!-- Titres introuvables (#70) : beaucoup de fichiers d’un dossier disparus d’un coup alors qu’il répond, gardés jusqu’à une réponse ou leur retour. -->
+    <plurals name="held_titles">
+        <item quantity="one">%d titre introuvable</item>
+        <item quantity="other">%d titres introuvables</item>
+        <item quantity="many">%d titres introuvables</item>
+    </plurals>
+    <plurals name="held_home">
+        <item quantity="one">%1$d titre de « %2$s » introuvable sur le NAS</item>
+        <item quantity="other">%1$d titres de « %2$s » introuvables sur le NAS</item>
+        <item quantity="many">%1$d titres de « %2$s » introuvables sur le NAS</item>
+    </plurals>
+    <string name="held_see">Voir</string>
+    <string name="held_text">Houselights ne trouve plus ces titres dans « %s », alors que le dossier répond. Si vous les avez supprimés ou déplacés, retirez-les. Si un disque du NAS est débranché, gardez-les et rebranchez-le : ils reviendront tels quels.</string>
+    <string name="held_text_one">Houselights ne trouve plus ce titre dans « %s », alors que le dossier répond. Si vous l’avez supprimé ou déplacé, retirez-le. Si un disque du NAS est débranché, gardez-le et rebranchez le disque : il reviendra tel quel.</string>
+    <string name="held_keep">Garder</string>
+    <string name="held_keep_desc">Ils restent en attendant leurs fichiers</string>
+    <string name="held_keep_desc_one">Il reste en attendant son fichier</string>
+    <string name="held_remove_desc">Rien n’est effacé du NAS, ni ce qui a été vu</string>
+    <plurals name="held_more">
+        <item quantity="one">Et %d autre</item>
+        <item quantity="other">Et %d autres</item>
+        <item quantity="many">Et %d autres</item>
+    </plurals>
+    <plurals name="held_count">
+        <item quantity="one">%d introuvable</item>
+        <item quantity="other">%d introuvables</item>
+        <item quantity="many">%d introuvables</item>
+    </plurals>
+    <string name="held_row_desc">Les retirer, ou les garder jusqu’à leur retour</string>
+    <string name="held_row_desc_one">Le retirer, ou le garder jusqu’à son retour</string>
+    <string name="held_since">Introuvable sur le NAS depuis %s</string>
+    <string name="held_gone_fix">Rebranchez le disque du NAS ou retirez ce titre.</string>
+    <string name="held_remove_title">Retirer de la bibliothèque</string>
+    <string name="card_held">introuvable</string>
 </resources>

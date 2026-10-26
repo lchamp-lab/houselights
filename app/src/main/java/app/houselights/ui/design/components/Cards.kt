@@ -703,7 +703,10 @@ fun PosterStrip(
     }
 }
 
-/** At most one mark, top right: unwatched episode count, watched check or new-title ember dot. */
+/**
+ * At most one mark, top right: a title held while its file is missing, by the ring, first; else unwatched episode count,
+ * watched check or new-title ember dot.
+ */
 @Composable
 private fun StatusMark(item: MediaItem, modifier: Modifier) {
     val unplayed = item.user.unplayedCount ?: 0
@@ -712,6 +715,7 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
     // The card's state description says it in words, so the bare number is not read.
     val mark = modifier.clearAndSetSemantics {}
     when {
+        item.held -> HeldMark(mark)
         unplayed > 0 -> Box(
             mark
                 .clip(HlShapes.mark)
@@ -724,8 +728,28 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
     }
 }
 
-/** A card wears the dot of a title new to the library unless it counts unwatched episodes instead; a row counts these. */
-fun MediaItem.wearsNewDot(): Boolean = (user.unplayedCount ?: 0) == 0 && isNew()
+/**
+ * A title held while its file is missing ([MediaItem.held]): the ring of a state that is off, white on the marks' dark
+ * plate, never ember, as it may be no failure; it recedes with it.
+ */
+@Composable
+private fun HeldMark(modifier: Modifier) {
+    val c = Hl.colors
+    Box(
+        modifier
+            .size(HlSize.mark)
+            .clip(HlShapes.mark)
+            .background(c.background.copy(alpha = HlAlpha.VEIL))
+            .receding(LocalArtworkRecede.current, c.background),
+        contentAlignment = Alignment.Center,
+    ) { StatusLight(StatusState.Off, ink = c.content) }
+}
+
+/**
+ * A card wears the dot of a title new to the library unless it counts unwatched episodes or is held instead; a row
+ * counts these.
+ */
+fun MediaItem.wearsNewDot(): Boolean = !held && (user.unplayedCount ?: 0) == 0 && isNew()
 
 /** A title new to the library: a solid ember dot ringed in black, so it stands off any picture; it recedes with it. */
 @Composable
@@ -759,11 +783,12 @@ internal fun CheckMark(modifier: Modifier = Modifier, choice: Boolean = false) {
     }
 }
 
-/** The card's state for accessibility ("6 épisodes non vus", "vu", "nouveau, en cours, 40 %"), or null. */
+/** The card's state for accessibility ("introuvable", "6 épisodes non vus", "vu", "nouveau, en cours, 40 %"), or null. */
 @Composable
 private fun cardState(item: MediaItem): String? {
     val unplayed = item.user.unplayedCount ?: 0
     val mark = when {
+        item.held -> stringResource(R.string.card_held)
         unplayed > 0 -> pluralStringResource(R.plurals.card_unwatched, unplayed, unplayed)
         item.user.played -> stringResource(R.string.card_watched)
         item.wearsNewDot() -> stringResource(R.string.card_new)

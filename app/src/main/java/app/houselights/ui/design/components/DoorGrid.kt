@@ -90,6 +90,20 @@ internal fun PassingStatus(text: String, state: StatusState = StatusState.Pendin
     )
 }
 
+/**
+ * A note standing at the end of home's head, as [HomeHead]'s `end` (titles of a folder not found on the NAS): its [text]
+ * by the ring of a state that is off, quiet and on one line, never ember, as it may be no failure; then the button that
+ * opens what it says ([action]), at the header's size, [actionModifier] on it. Up from the grid's first row reaches it.
+ */
+@Composable
+fun HeadNote(text: String, action: String, onAction: () -> Unit, modifier: Modifier = Modifier, actionModifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        HlStatus(StatusState.Off, text, Modifier.weight(1f, fill = false), maxLines = 1)
+        Spacer(Modifier.width(HlSpace.m))
+        HlButton(action, onClick = onAction, modifier = actionModifier)
+    }
+}
+
 /** A door in a row of the grid: [span] of the row's four parts, named [key] in the screen's focus memory. */
 @Immutable
 data class DoorCell(val key: String, val span: Int = 1, val content: @Composable (Modifier) -> Unit)
