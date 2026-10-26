@@ -65,10 +65,12 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.emberLight
+import java.text.BreakIterator
 
 /**
  * A text field for the remote, [HlSize.field] tall: a glass plate edged by a hairline, the keyboard on OK ([KeyHint]);
- * focus rings it in white, and while typing the ring is the ember light and the cursor raspberry. Its [label] in
+ * focus rings it in white, and while typing the ring is the ember light and the cursor raspberry, which Left and Right
+ * move, leaving the field only from the text's start or end. Its [label] in
  * white over it, followed by "(optional)" in grey when [optional], is always read out, even when [showLabel] is
  * false. Below, [error] or else [supporting]; [placeholder] is an example ("Ex. : 192.168.1.10").
  */
@@ -134,18 +136,16 @@ private fun FieldBox(
     val fieldFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    // The remote cannot move the cursor: every start of typing, and text the field did not type while typing, puts it
-    // after the text, where erase reaches all of it. Not a selection, which TV keyboards' erase skips. At rest it is
-    // at the start, which a one-line field scrolls to, focused or not.
+    // Every start of typing, and text the field did not type while typing, puts the cursor after the text, where erase
+    // reaches all of it; then Left and Right move it, and OK types where they left it. Not a selection, which TV
+    // keyboards' erase skips. At rest it is at the start, which a one-line field scrolls to, focused or not.
     val latest by rememberUpdatedState(value)
     var typed by remember { mutableStateOf(atEnd(value)) }
     // The last text told to the owner: the keyboard may send several edits between two compositions.
     var told by remember(value) { mutableStateOf(value) }
-    val shown = when {
-        !editing -> TextFieldValue(value)
-        typed.text == value -> typed
-        else -> atEnd(value)
-    }
+    // While typing, [text] with the cursor the keyboard or the arrows left, or after it when it came from elsewhere.
+    fun typing(text: String) = if (typed.text == text) typed else atEnd(text)
+    val shown = if (editing) typing(value) else TextFieldValue(value)
     val shape = HlShapes.field
     val c = Hl.colors
 
@@ -206,7 +206,8 @@ private fun FieldBox(
                 .height(oneLine)
                 .focusRequester(fieldFocus)
                 .focusProperties { canFocus = editing }
-                .leaveVertically(editing) { direction ->
+                // Read as each arrow comes, so presses quicker than frames each count.
+                .arrowsWhileTyping(editing, field = { typing(latest) }, moveTo = { typed = it }) { direction ->
                     boxFocus.requestFocus()
                     editing = false
                     focusManager.moveFocus(direction)
@@ -235,20 +236,54 @@ private fun FieldBox(
 /** [text] with the cursor after it. */
 private fun atEnd(text: String) = TextFieldValue(text, TextRange(text.length))
 
-/** Back hides the keyboard without telling the app, so up or down while [editing] ends typing and leaves. */
-private fun Modifier.leaveVertically(editing: Boolean, leave: (FocusDirection) -> Unit): Modifier = onPreviewKeyEvent { event ->
+/**
+ * The arrows while [editing], which reach the app once Back hid the keyboard without telling it: Left and Right move
+ * the cursor of [field] a character ([moveTo]), held they repeat, and a press from the text's start or end leaves that
+ * way, a held key stopping there; up or down ends typing and leaves at once. Set on the text itself, before Compose's
+ * own handling, which turns a remote's arrows into focus moves wherever the cursor is.
+ */
+private fun Modifier.arrowsWhileTyping(
+    editing: Boolean,
+    field: () -> TextFieldValue,
+    moveTo: (TextFieldValue) -> Unit,
+    leave: (FocusDirection) -> Unit,
+): Modifier = onPreviewKeyEvent { event ->
     val direction = when (event.key) {
         Key.DirectionUp -> FocusDirection.Up
         Key.DirectionDown -> FocusDirection.Down
+        Key.DirectionLeft -> FocusDirection.Left
+        Key.DirectionRight -> FocusDirection.Right
         else -> null
     }
-    if (editing && direction != null && event.type == KeyEventType.KeyDown) {
-        leave(direction)
-        true
-    } else {
-        false
+    if (!editing || direction == null || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+    val across = direction == FocusDirection.Left || direction == FocusDirection.Right
+    val moved = if (across) stepped(field(), forward = direction == FocusDirection.Right) else null
+    when {
+        moved != null -> moveTo(moved)
+        !across || event.nativeKeyEvent.repeatCount == 0 -> leave(direction)
     }
+    true
 }
+
+/**
+ * [field] with its cursor a character on, towards the end when [forward] (a selection collapsing to that side); null
+ * when the cursor is already at the start, or at the end when [forward].
+ */
+private fun stepped(field: TextFieldValue, forward: Boolean): TextFieldValue? {
+    val text = field.text
+    val selection = field.selection
+    val from = if (forward) selection.max else selection.min
+    val to = when {
+        !selection.collapsed -> from
+        forward && from < text.length -> characters(text).following(from)
+        !forward && from > 0 -> characters(text).preceding(from)
+        else -> null
+    }
+    return to?.let { TextFieldValue(text, TextRange(it)) }
+}
+
+/** [text]'s characters as a reader counts them: an accent typed apart or an emoji is one. */
+private fun characters(text: String): BreakIterator = BreakIterator.getCharacterInstance().apply { setText(text) }
 
 /** OK starts typing on key release, so the keyboard does not receive it. */
 private fun Modifier.openOnOk(waiting: Boolean, open: () -> Unit): Modifier = onKeyEvent { event ->
