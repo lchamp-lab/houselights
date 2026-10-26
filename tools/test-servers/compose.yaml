@@ -1,0 +1,101 @@
+# Test servers for Houselights (README.md beside this file): an SMB NAS and an NFS NAS and, with --profile jellyfin, a
+# Jellyfin server, all serving the sample files make-media.sh writes to ./media, as a Synology lays them out under
+# /volume1. Every port is published on 127.0.0.1 alone: this machine, and the Android emulator through 10.0.2.2,
+# reach them; the network around does not. The accounts and passwords are test-only and read sample files.
+name: houselights-test-servers
+
+# Jellyfin's official image, at one release: the server, and the ffmpeg it bundles to write the samples.
+x-jellyfin-image: &jellyfin-image jellyfin/jellyfin:12.3.20261023-013714@sha256:2038fe038ab3876a80f6e7b7e0aef6607b032c7dc0c9b3ad3296d0b2eba3bbb5
+
+# The sample files, read-only, never created by Docker (as root) when make-media.sh has not written them yet.
+x-media: &media
+  type: bind
+  source: ./media
+  target: /volume1
+  read_only: true
+  bind:
+    create_host_path: false
+
+# Every container: no privilege gained through a setuid file, and none of root's capabilities but those each server
+# adds back (a server's own process becoming a client's user, binding its ports below 1024).
+x-confined: &confined
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+
+services:
+  # Samba 4.23 on Alpine: shares video, media, photos, admin$ and public (samba/smb.conf).
+  samba:
+    build: samba
+    image: houselights-test-samba:1
+    <<: *confined
+    cap_add: [SETUID, SETGID, NET_BIND_SERVICE]
+    ports:
+      - "127.0.0.1:445:445"
+    volumes:
+      - *media
+
+  # unfs3 0.10 and rpcbind on Alpine: exports /volume1/video, /volume1/media, /volume1/private and /volume1/public
+  # (nfs/exports).
+  # UNFS3_FRAGMENTS=1 docker compose up -d nfs: unfsd's replies in 64 KB fragments, as it sends them (README).
+  nfs:
+    build: nfs
+    image: houselights-test-nfs:1
+    init: true
+    <<: *confined
+    cap_add: [SETUID, SETGID, NET_BIND_SERVICE]
+    environment:
+      UNFS3_FRAGMENTS: ${UNFS3_FRAGMENTS:-0}
+    # Each port as itself: the portmapper tells clients 892 and 2049, which must be the ports they reach. NFS over TCP.
+    ports:
+      - "127.0.0.1:111:111/tcp"
+      - "127.0.0.1:111:111/udp"
+      - "127.0.0.1:892:892/tcp"
+      - "127.0.0.1:892:892/udp"
+      - "127.0.0.1:2049:2049/tcp"
+    volumes:
+      - *media
+
+  # Jellyfin, started only when asked (--profile jellyfin), then set up by bootstrap-jellyfin.sh.
+  jellyfin:
+    image: *jellyfin-image
+    profiles: [jellyfin]
+    <<: *confined
+    ports:
+      - "127.0.0.1:8096:8096"
+    environment:
+      TZ: Europe/Paris
+    # Enough for a few sample titles, and a laptop keeps the rest.
+    mem_limit: 1g
+    # The image's own check, asked every few seconds rather than every 30, so that up --wait does not wait for nothing,
+    # and passed at « Healthy » alone: until it has started, Jellyfin answers « Degraded », with a 200.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8096/health | grep -qx Healthy"]
+      interval: 3s
+      timeout: 3s
+      retries: 100
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      - *media
+
+  # make-media.sh's encoder: Jellyfin's ffmpeg, without a network, writing as the user who runs the script.
+  ffmpeg:
+    image: *jellyfin-image
+    profiles: [tools]
+    <<: *confined
+    network_mode: none
+    entrypoint: ["/usr/lib/jellyfin-ffmpeg/ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin"]
+    working_dir: /media
+    volumes:
+      - ./media:/media
+
+  # smbclient, showmount, rpcinfo, nfs-ls and nfs-cat, to look at the servers from inside (README, Checking).
+  client:
+    build: client
+    image: houselights-test-client:1
+    profiles: [tools]
+    <<: *confined
+
+volumes:
+  jellyfin-config:
+  jellyfin-cache:
