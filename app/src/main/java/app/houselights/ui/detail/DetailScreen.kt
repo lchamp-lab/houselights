@@ -215,6 +215,7 @@ internal fun DetailPage(
 
     val screenHeight = screenHeight()
     val focusedEpisode = remember { mutableStateOf<MediaItem?>(null) }
+    val heldFocus = episodesHeldFocus(memory, state.selectedSeasonId)
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     var showVersions by remember { mutableStateOf(false) }
@@ -307,7 +308,7 @@ internal fun DetailPage(
                     onOptions = { episodeOptions = it.id },
                     problem = episodeProblem,
                 )
-                seasonRows(state, memory, focusedEpisode, vm, links)
+                seasonRows(state, memory, focusedEpisode, vm, links, heldFocus)
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
             } }
         // Over the page, in its light.
@@ -387,6 +388,8 @@ private fun LazyListScope.seasonRows(
     focusedEpisode: MutableState<MediaItem?>,
     vm: DetailViewModel,
     links: EpisodeLinks,
+    /** Focus was in the episode row as its season last changed. */
+    heldFocus: Boolean = false,
 ) {
     val item = state.item ?: return
     if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
@@ -406,6 +409,7 @@ private fun LazyListScope.seasonRows(
                     memory.focus(FocusKey.row(EPISODES))
                 }
             }
+            FocusFirstEpisode(state.seasonMoved, heldFocus, state.episodes.firstOrNull(), memory)
             val canMark = state.capabilities?.markPlayed == true
             when {
                 failed != null -> EpisodesFailed(
@@ -432,6 +436,28 @@ private fun LazyListScope.seasonRows(
                     pending = state.reordering,
                 )
             }
+        }
+    }
+}
+
+/**
+ * Whether focus was in the episode row as the season shown became [seasonId]: read as the change composes, before the
+ * row of the season before leaves.
+ */
+@Composable
+private fun episodesHeldFocus(memory: FocusMemory, seasonId: String?): Boolean =
+    remember(seasonId) { memory.last?.startsWith(FocusKey.within(FocusKey.row(EPISODES), "")) == true }
+
+/**
+ * Focus on [first], the first episode of the season the episodes shown [moved] to, theirs gone, as after a change of
+ * their order, when their row [held] it.
+ */
+@Composable
+private fun FocusFirstEpisode(moved: Boolean, held: Boolean, first: MediaItem?, memory: FocusMemory) {
+    LaunchedEffect(moved, first?.id) {
+        if (moved && held && first != null) {
+            withFrameNanos { }
+            memory.focus(FocusKey.within(FocusKey.row(EPISODES), FocusKey.item(first.id)))
         }
     }
 }

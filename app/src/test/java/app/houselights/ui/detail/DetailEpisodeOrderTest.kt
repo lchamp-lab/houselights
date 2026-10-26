@@ -159,6 +159,32 @@ class DetailEpisodeOrderTest {
         assertFalse(vm.state.value.reordering)
     }
 
+    /**
+     * The order chosen empties the season shown, its episodes placed in season 21: the page shows that season, not the
+     * first, and focus, on an episode of the row meanwhile, goes to its first episode.
+     */
+    @Test
+    fun theShownSeasonEmptiedFocusGoesToTheFirstEpisodeOfTheSeasonTheEpisodesMovedTo() {
+        val placing = provider.gate("order $SHOW $DVD")
+        val vm = page()
+        choices()
+        repeat(2) { compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN) }
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.waitForIdle()
+        compose.onNode(hasText("e2") and hasClickAction()).requestFocus()
+        compose.waitForIdle()
+
+        val moved = (1..3).map { episode("e$it", "s21", 179 + it) }
+        provider.seasons = mapOf(SHOW to listOf(season("s2", 2, SHOW), season("s21", 21, SHOW)))
+        provider.episodes = mapOf("s2" to listOf(episode("x1", "s2", 1)), "s21" to moved)
+        moved.forEach { provider.items[it.id] = it }
+        placing.complete(Unit)
+        compose.waitForIdle()
+
+        assertEquals("s21", vm.state.value.selectedSeasonId)
+        compose.onNode(hasText("e1") and hasClickAction()).assertIsFocused()
+    }
+
     @Test
     fun theOrderInUseAndBackChangeNothing() {
         page()

@@ -91,6 +91,11 @@ data class DetailState(
     val episodeOrders: EpisodeOrderChoices? = null,
     /** The show's episodes are being placed in another order ([DetailViewModel.chooseEpisodeOrder]): its row says so. */
     val reordering: Boolean = false,
+    /**
+     * [selectedSeasonId] is the season the episodes shown moved to, theirs gone, as after a change of their order: focus
+     * that was in their row goes to its first episode.
+     */
+    val seasonMoved: Boolean = false,
 ) {
     /** The audio track Lire asks of the player for the title shown; null when the player chooses it. */
     val playedAudio: AudioTrack? get() = tracks?.takeIf { item?.isPlayable == true }?.let { p -> p.audio?.let(p.audioTracks::getOrNull) }
@@ -258,7 +263,9 @@ class DetailViewModel(
                 suspendRunCatching { source.editor?.episodeOrders(item) }.onFailure { Log.w(TAG, "Orders of $itemId", it) }.getOrNull()
             }
             val seasons = seasonsLoad.await()
-            val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
+            val kept = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
+            val moved = if (kept == null) movedTo(source, seasons) else null
+            val seasonId = kept ?: moved
                 ?: next?.seasonId
                 ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
                 ?: seasons.firstOrNull()?.id
@@ -278,8 +285,19 @@ class DetailViewModel(
                 similar = similar.await(),
                 tracks = tracks.await(),
                 episodeOrders = orders.await(),
+                seasonMoved = moved != null,
             )
         }
+
+    /**
+     * The season the episodes shown moved to once theirs is gone from [seasons], as after a change of their order: that
+     * of the first of them, read again; null when none was shown, or it is in none of them.
+     */
+    private suspend fun movedTo(source: MediaProvider, seasons: List<MediaItem>): String? {
+        val shown = _state.value.episodes.firstOrNull()?.takeIf { _state.value.selectedSeasonId != null } ?: return null
+        val read = suspendRunCatching { source.item(shown.id) }.getOrNull() ?: return null
+        return read.seasonId?.takeIf { id -> seasons.any { it.id == id } }
+    }
 
     /** A collection's page: its films (requested once; Lire picks from them) and the whole saga if known. */
     private suspend fun collectionPage(source: MediaProvider, item: MediaItem): DetailState {
@@ -336,7 +354,7 @@ class DetailViewModel(
         _state.update {
             it.copy(
                 selectedSeasonId = seasonId, episodes = emptyList(), episodesLoading = true, episodesError = null,
-                episodeMarkError = null,
+                episodeMarkError = null, seasonMoved = false,
             )
         }
         loadSeason(series, seasonId, settle = true)
@@ -607,6 +625,7 @@ internal fun DetailState.keepingSeasonOf(current: DetailState): DetailState {
     if (chosen == null || chosen == selectedSeasonId || seasons.none { it.id == chosen }) return this
     return copy(
         selectedSeasonId = chosen,
+        seasonMoved = false,
         episodes = current.episodes,
         episodesLoading = current.episodesLoading,
         episodesError = current.episodesError,
