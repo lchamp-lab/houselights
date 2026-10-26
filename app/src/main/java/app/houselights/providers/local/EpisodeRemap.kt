@@ -168,8 +168,9 @@ internal class EpisodePlacing(private val dao: LibraryDao, private val clock: ()
     /**
      * Places show [seriesId]'s episodes waiting for TMDB to list them ([ItemEntity.absoluteNumber] without a TMDB episode),
      * once TMDB counted its seasons again ([EpisodeOrders.saveAired]), its absolute group fetched again when it stops
-     * short of them ([EpisodeOrders.refetchShort]); every episode numbered from its start when the seasons now count
-     * otherwise, as a refresh places them ([ShowIndexer]). True when one moved.
+     * short of those its seasons now count ([EpisodeOrders.refetchShort]), a number they never reach holding back none
+     * of them; every episode numbered from its start when the seasons now count otherwise, as a refresh places them
+     * ([ShowIndexer]). True when one moved.
      */
     suspend fun placeWaiting(seriesId: Long, orders: EpisodeOrders, seasons: ShowIndexer.SeasonCache): Boolean {
         val series = dao.item(seriesId)?.takeIf { it.kind == ItemKind.SERIES } ?: return false
@@ -178,8 +179,10 @@ internal class EpisodePlacing(private val dao: LibraryDao, private val clock: ()
         val recounted = orders.saveAired(tv.id, tv.seasons, groupsAt)
         val absolute = dao.episodesOfSeries(seriesId).filter { it.absoluteNumber != null }
         val waiting = absolute.filter { it.tmdbEpisode == null }
-        waiting.mapNotNull { it.absoluteNumber }.maxOrNull()?.let { reach ->
-            orders.refetchShort(tv.id, reach, counted = tv.seasons.filter { it.seasonNumber > 0 }.sumOf { it.episodeCount })
+        val counted = tv.seasons.filter { it.seasonNumber > 0 }.sumOf { it.episodeCount }
+        // A stray "Show - 1200" beside the 1101st, numbered as TMDB never will, leaves the group fetched again for the 1101st.
+        waiting.mapNotNull { it.absoluteNumber }.filter { it <= counted }.maxOrNull()?.let { reach ->
+            orders.refetchShort(tv.id, reach, counted)
         }
         orders.forget(seriesId)
         val numbering = orders.of(series, absolute = true).value ?: return false

@@ -15,8 +15,9 @@ import org.robolectric.RobolectricTestRunner
 /**
  * Anime numbered from their show's start, as a scan places them: in TMDB's seasons, by the show's absolute group when it
  * has one, else by its seasons' counts; one TMDB does not list yet waits in season 1 and moves once it does, a day later
- * at most, its row and what was watched of it kept, ten shows a pass the longest waiting first; all move when TMDB counts
- * the seasons otherwise; copies of one episode move together; TMDB asked once for what it needs.
+ * at most, its row and what was watched of it kept, ten shows a pass the longest waiting first, a number TMDB never
+ * counts holding back none it does; all move when TMDB counts the seasons otherwise; copies of one episode move
+ * together; TMDB asked once for what it needs.
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanAbsoluteTest {
@@ -217,6 +218,31 @@ class ScanAbsoluteTest {
         bench.scan()
         assertEquals(listOf(2, 4, 7, 2, 4), row(path).numbers())
         assertEquals("Episode 2.4", row(path).title)
+    }
+
+    /** A stray number past what TMDB counts ("Naruto - 012") holds back none it counts: the group is fetched again for them. */
+    @Test
+    fun aStrayNumberPastTmdbsCountsHoldsBackNoneOfTheEpisodesItCounts() = runTest {
+        tmdb.show(NARUTO, "Naruto", 2002)
+        tmdb.season(NARUTO, 1, episodes = 3)
+        tmdb.season(NARUTO, 2, episodes = 3)
+        val six = listOf(1 to 1, 1 to 2, 2 to 1, 1 to 3, 2 to 2, 2 to 3)
+        tmdb.group(NARUTO, ABSOLUTE_GROUP, type = 2, name = "Absolute", listOf(six))
+        val path = "Naruto/Naruto - 007.mkv"
+        val stray = "Naruto/Naruto - 012.mkv"
+        showsNas.put(path)
+        showsNas.put(stray)
+        bench.scan()
+        assertEquals("waiting", listOf(1, 7, 7, null, null), row(path).numbers())
+
+        tmdb.season(NARUTO, 2, episodes = 4)
+        tmdb.group(NARUTO, ABSOLUTE_GROUP, type = 2, name = "Absolute", listOf(six + (2 to 4)))
+        bench.later(DAY_MS)
+        val pass = bench.pass()
+        assertEquals("the group fetched again", 1, pass.requests.count { it == "tv/episode_group/$ABSOLUTE_GROUP" })
+        assertEquals(listOf(2, 4, 7, 2, 4), row(path).numbers())
+        assertEquals("Episode 2.4", row(path).title)
+        assertEquals("still waiting", listOf(1, 12, 12, null, null), row(stray).numbers())
     }
 
     /** TMDB splitting season 21 as an episode waits, the episodes placed by its counts move with the one it lists. */
