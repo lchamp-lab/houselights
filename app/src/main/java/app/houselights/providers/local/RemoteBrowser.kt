@@ -179,11 +179,12 @@ internal fun level(folder: RemoteFolder, locale: Locale = Locale.getDefault(), i
 }
 
 /**
- * Names as a reader looks for them in [locale]'s order, case aside ("films" beside "Films", "Été" after "Ete", not after
- * "Z" as code points would put it); names equal but for case follow code points, so the order never varies.
+ * Names as a reader looks for them in [locale]'s order, accents and case aside ("films" beside "Films", "Été" beside
+ * "Ete", not after "Z" as code points would put it); names equal but for them follow code points, so the order never
+ * varies.
  */
 fun byName(locale: Locale = Locale.getDefault()): Comparator<String> {
-    val collator = Collator.getInstance(locale).apply { strength = Collator.SECONDARY }
+    val collator = Collator.getInstance(locale).apply { strength = Collator.PRIMARY }
     return Comparator<String> { a, b -> collator.compare(a, b) }.then(naturalOrder())
 }
 

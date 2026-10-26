@@ -32,7 +32,7 @@ class FolderLevelTest {
 
     private val neverFatal: (Throwable) -> Boolean = { false }
 
-    /** As a reader looks for them in French: case aside, an accent after the letter bare, never after "Z". */
+    /** As a reader looks for them in French: accents and case aside, never after "Z". */
     @Test
     fun namesSortAsAReaderLooksForThem() {
         val names = listOf("Zodiac", "été", "Ete", "eau", "films", "Films", "Arrival", "Ébauches")
@@ -40,6 +40,8 @@ class FolderLevelTest {
             listOf("Arrival", "eau", "Ébauches", "Ete", "été", "Films", "films", "Zodiac"),
             names.sortedWith(byName(Locale.FRENCH)),
         )
+        val alike = listOf("Etre", "ete", "Eté").sortedWith(byName(Locale.FRENCH))
+        assertEquals("names alike but for accents and case follow code points", listOf("Eté", "ete", "Etre"), alike)
     }
 
     @Test
