@@ -300,8 +300,9 @@ abstract class LibraryDatabase : RoomDatabase() {
          * v20 → v21: episodes numbered from their show's start ([ItemEntity.absoluteNumber]) and the TMDB episode each
          * shows ([ItemEntity.tmdbSeason]); the order a show's episodes follow, placed and chosen ([ItemEntity.episodeOrder],
          * [ItemEntity.userEpisodeOrder]), kept with a show that leaves ([KeptStateEntity.userEpisodeOrder]), and when it
-         * changed ([ItemEntity.reorderedAt]); an episode kept by its file's numbering ([KeptStateEntity.span]); TMDB's
-         * orders of each show ([EpisodeOrderEntity]) and the videos a shows folder places nowhere ([IgnoredFileEntity]).
+         * changed ([ItemEntity.reorderedAt]); an episode kept by its file's numbering ([KeptStateEntity.span]); a title
+         * left as it is kept so when its files leave ([KeptStateEntity.userNoMatch]), none yet; TMDB's orders of each show
+         * ([EpisodeOrderEntity]) and the videos a shows folder places nowhere ([IgnoredFileEntity]).
          * Episodes numbered 100 or more are read again, as they may be numbered from their show's start, and so is one
          * episode of each show whose tvshow.nfo names an order, which it then follows; nothing else changes.
          */
@@ -314,6 +315,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                 for (column in columns) db.execSQL("ALTER TABLE items ADD COLUMN $column")
                 db.execSQL("ALTER TABLE kept_states ADD COLUMN span TEXT")
                 db.execSQL("ALTER TABLE kept_states ADD COLUMN userEpisodeOrder TEXT")
+                db.execSQL("ALTER TABLE kept_states ADD COLUMN userNoMatch INTEGER NOT NULL DEFAULT 0")
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `episode_orders` (`showTmdbId` INTEGER NOT NULL, `orderId` TEXT NOT NULL, " +
                         "`type` INTEGER NOT NULL, `name` TEXT NOT NULL, `episodeCount` INTEGER NOT NULL, `rank` INTEGER NOT NULL, " +

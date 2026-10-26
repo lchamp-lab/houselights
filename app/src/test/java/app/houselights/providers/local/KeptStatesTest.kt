@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -237,6 +238,18 @@ class KeptStatesTest {
         assertTrue(kept.copy(played = false, positionMs = 0).holdsAnything)
         val born = ItemEntity(kind = ItemKind.SERIES, sourceId = FOLDER, title = "Firefly", sortTitle = "firefly", addedAt = 0)
         assertEquals("dvd", KeptStates.onto(born, kept).userEpisodeOrder)
+    }
+
+    /** A film left as it is, with nothing else done to it, is kept so, a copy's choice counting, and born so when back. */
+    @Test
+    fun aFilmLeftAsItIsIsKeptSo() {
+        val left = film(1, "Vacances à Biarritz (2019).mkv").copy(userNoMatch = true)
+        val kept = kept(left)
+        assertTrue(kept.userNoMatch && kept.holdsAnything)
+        assertTrue("a copy's", KeptStates.merge(kept(film(2, "Vacances à Biarritz (2019).mkv")), kept).userNoMatch)
+        val born = ItemEntity(kind = ItemKind.MOVIE, sourceId = FOLDER, title = "Vacances à Biarritz", sortTitle = "vacances", addedAt = 0)
+        assertTrue(KeptStates.onto(born, kept).userNoMatch)
+        assertFalse("nothing to keep otherwise", kept(film(3, "Vacances à Biarritz (2019).mkv")).holdsAnything)
     }
 
     private companion object {

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 21,
-    "identityHash": "59573318b9cfe350cfb7ab1153f2b2ba",
+    "identityHash": "b6a793bb33351097cb44211bd6ebdfb0",
     "entities": [
       {
         "tableName": "sources",
@@ -1066,7 +1066,7 @@
       },
       {
         "tableName": "kept_states",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`title` TEXT NOT NULL, `kind` TEXT NOT NULL, `nameKey` TEXT NOT NULL, `tmdbId` INTEGER, `showTmdbId` INTEGER, `sourceId` INTEGER NOT NULL, `folder` TEXT, `seasonNumber` INTEGER, `episodeNumber` INTEGER, `lastEpisodeNumber` INTEGER, `played` INTEGER NOT NULL, `positionMs` INTEGER NOT NULL, `durationMs` INTEGER, `lastPlayedAt` INTEGER, `favorite` INTEGER NOT NULL, `userTmdbId` INTEGER, `userPosterPath` TEXT, `userBackdropPath` TEXT, `userLogoPath` TEXT, `addedAt` INTEGER NOT NULL, `audio` TEXT, `subtitles` TEXT, `tracksAt` INTEGER, `span` TEXT, `userEpisodeOrder` TEXT, PRIMARY KEY(`title`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`title` TEXT NOT NULL, `kind` TEXT NOT NULL, `nameKey` TEXT NOT NULL, `tmdbId` INTEGER, `showTmdbId` INTEGER, `sourceId` INTEGER NOT NULL, `folder` TEXT, `seasonNumber` INTEGER, `episodeNumber` INTEGER, `lastEpisodeNumber` INTEGER, `played` INTEGER NOT NULL, `positionMs` INTEGER NOT NULL, `durationMs` INTEGER, `lastPlayedAt` INTEGER, `favorite` INTEGER NOT NULL, `userTmdbId` INTEGER, `userPosterPath` TEXT, `userBackdropPath` TEXT, `userLogoPath` TEXT, `addedAt` INTEGER NOT NULL, `audio` TEXT, `subtitles` TEXT, `tracksAt` INTEGER, `span` TEXT, `userEpisodeOrder` TEXT, `userNoMatch` INTEGER NOT NULL, PRIMARY KEY(`title`))",
         "fields": [
           {
             "fieldPath": "title",
@@ -1217,6 +1217,12 @@
             "columnName": "userEpisodeOrder",
             "affinity": "TEXT",
             "notNull": false
+          },
+          {
+            "fieldPath": "userNoMatch",
+            "columnName": "userNoMatch",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -1431,7 +1437,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '59573318b9cfe350cfb7ab1153f2b2ba')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b6a793bb33351097cb44211bd6ebdfb0')"
     ]
   }
 }

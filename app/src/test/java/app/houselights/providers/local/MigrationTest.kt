@@ -408,7 +408,8 @@ class MigrationTest {
     /**
      * Version 21 keeps every episode where it was and reads again those that may be numbered from their show's start
      * (E100 and more), and one episode of a show whose tvshow.nfo names an order, so it is read and follows it; its new
-     * columns and tables start empty and take what a scan writes. From 20, and from 0.2.0's version 15.
+     * columns and tables start empty and take what a scan writes, what was kept of a title not left as it is, and a
+     * title left as it is kept so. From 20, and from 0.2.0's version 15.
      */
     @Test
     fun version21ReadsAgainWhatMayBeNumberedAnotherWayAndKeepsTheRest() = runTest {
@@ -422,6 +423,13 @@ class MigrationTest {
                 episode(12, show = 1, number = 2, from = from)
                 episode(21, show = 2, number = 1071, from = from)
                 episode(22, show = 2, number = 99, from = from)
+                // What was kept of a show whose files left, from version 18 on.
+                if (from >= 18) {
+                    execSQL(
+                        "INSERT INTO kept_states (title, kind, nameKey, sourceId, played, positionMs, favorite, addedAt) " +
+                            "VALUES ('show:name:1:kaamelott', 'SERIES', 'kaamelott', 1, 0, 0, 1, 5)"
+                    )
+                }
             }.dao()
             val matched = listOf(1L, 11L, 12L, 2L, 21L, 22L).map { checkNotNull(dao.item(it)).matchedAt != null }
             assertEquals("from $from: the show naming an order and its first episode", listOf(false, false, true), matched.take(3))
@@ -436,6 +444,11 @@ class MigrationTest {
             assertEquals("from $from", listOf(EpisodeOrderEntity.AIRED), dao.episodeOrders(FIREFLY).map { it.orderId })
             dao.replaceIgnored(1, listOf(IgnoredFileEntity(1, "S01E01.mkv", IgnoredReason.NO_SHOW)))
             assertEquals("from $from", listOf("S01E01.mkv"), dao.ignoredOf(1).map { it.filePath })
+            val before = dao.keptNamed(ItemKind.SERIES, "kaamelott").map { it.favorite to it.userNoMatch }
+            assertEquals("from $from: kept as it was, not left as it is", if (from >= 18) listOf(true to false) else emptyList(), before)
+            dao.setUserNoMatch(2, true)
+            dao.keep(listOfNotNull(KeptStates.of(dao.keptRows(listOf(2L)).single())))
+            assertEquals("from $from: left as it is", true, dao.keptState(KeptKeys.show(ONE_PIECE))?.userNoMatch)
         }
     }
 

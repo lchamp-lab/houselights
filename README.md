@@ -65,7 +65,8 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     where it lies; a title's page says it is to identify, beside an Identify button. Identify shows its suggestions at
     once, the best ready for OK, and from the list the titles follow one another (Skip passes one); Menu on a title of
     the list opens its suggestions. Leave as is takes a title TMDB will never know (a home video, a concert) off the
-    list and stops searching for it by its name; an id in its name or its NFO still applies.
+    list and stops searching for it by its name, also once its file leaves and comes back; an id in its name or its
+    NFO still applies.
   - Technical details are read from the files and set on a title's page as on a case back: a line for the video
     (resolution, Dolby Vision and HDR, codec, frame rate), one for the audio (format, channels, bitrate, and its
     language when a track is asked for), and every track in its technical sheet.
