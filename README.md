@@ -23,7 +23,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/hero.webp" width="100%" alt="Houselights' home on a TV in a dark room lit by its picture: the case resumes Dune: Part Two, 1 h 14 left, beside the next episode of Severance and the five titles new this week, the 20 films and 6 shows counted in their posters, the sagas, search, and the settings saying the library's source, Trakt connected and the last scan">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.webp">
+    <img src="docs/images/hero.webp" width="100%" alt="Houselights' home on a TV on the wall of a dark room lit by its picture: the case resumes Dune: Part Two, 1 h 14 left, beside the next episode of Severance and the five titles new this week, the 20 films and 6 shows counted in their posters, the sagas, search, and the settings saying the library's source, Trakt connected and the last scan">
+  </picture>
 </p>
 
 > **Beta.** Made for Zidoo players (Android 9 with Zidoo's launcher), tested on a Z1000 Pro: reports from other
@@ -163,27 +166,25 @@ My files reads a title from its folder's and file's names, as Plex, Jellyfin, Ko
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/film.webp" width="49%" alt="Avatar: Fire and Ash's page: its logo over its backdrop, 2025, 3 h 17, PG-13, 7.6; Ultra HD, Dolby Vision, HDR10+, HEVC, 23.976 fps and Dolby TrueHD Atmos 7.1, 5,318 kbps, read from the file; its tagline, overview and credits, and Play, 3 h 17, in focus">
-  <img src="docs/images/show.webp" width="49%" alt="Severance's season 2: episodes 3 and 4 watched, episode 5, Trojan's Horse, 52 min, in focus, its overview under the row, then the cast's photos">
-  <br><sub><b>A film's page</b>, its picture and sound read from the file itself · <b>A show</b>, on its next episode</sub>
+  <img src="docs/images/film.webp" width="100%" alt="Avatar: Fire and Ash's page: its logo over its backdrop, 2025, 3 h 17, PG-13, 7.6; Ultra HD, Dolby Vision, HDR10+, HEVC, 23.976 fps and Dolby TrueHD Atmos 7.1, 5,318 kbps, read from the file; its tagline, overview and credits, and Play, 3 h 17, in focus">
+  <br><sub><b>A film's page</b>, its picture and sound read from the file itself</sub>
 </p>
 
 <p align="center">
+  <img src="docs/images/show.webp" width="49%" alt="Severance's page: its logo over its picture, 2022 –, 2 seasons, TV-MA, 8.4, its tagline, overview and cast, Play S2 E5 in focus, and its seasons under it, season 1 watched and 4 of season 2's 10 episodes">
   <img src="docs/images/saga.webp" width="49%" alt="The Dune Collection's page: 2021 – 2024, 2 films, 8.0, Science Fiction and Adventure, its overview, and Resume Dune: Part Two, 1 h 14 left, in focus, over a desert at sunset">
-  <img src="docs/images/library.webp" width="49%" alt="The Movies wall: 18 titles and a saga, sorted by title, the Dune Collection among the films, Avatar: Fire and Ash in focus and its colours lighting the wall, films watched checked and new ones dotted">
-  <br><sub><b>A saga</b>, resumed where you left off · <b>The Movies wall</b>, lit by the poster in focus</sub>
+  <br><sub><b>A show</b>, on its next episode · <b>A saga</b>, resumed where you left off</sub>
 </p>
 
 <p align="center">
-  <img src="docs/images/watch.webp" width="49%" alt="To watch: Spider-Man: Brand New Day's logo, 2026, 2 h 20, PG-13, 8.5 and overview over its backdrop, above the recently added movies, 4 new, the first in focus">
-  <img src="docs/images/settings.webp" width="49%" alt="Settings, Display: the output set by the player, the interface rendered in Full HD, 1920 × 1080, the interface's language, English, and the text size, Standard, in focus">
-  <br><sub><b>To watch</b>, one door from home · <b>Settings › Display</b>: the language and the text size</sub>
+  <img src="docs/images/library.webp" width="100%" alt="The Movies wall: 18 titles and a saga, sorted by title, the Dune Collection among the films, Avatar: Fire and Ash in focus and its colours lighting the wall, films watched checked and new ones dotted">
+  <br><sub><b>The Movies wall</b>, lit by the poster in focus</sub>
 </p>
 
 <p align="center">
-  <img src="docs/images/identify.webp" width="49%" alt="Identify on Little Women.mkv, several possible titles: TMDB's suggestions at once, Little Women (2019) in focus above Little Women (1994), with Skip and Leave as is beside them">
-  <img src="docs/images/update.webp" width="49%" alt="The update sheet over home: a new version is available, 0.4.1, what is new in three lines, Update, 6.4 MB from github.com, in focus, and Later">
-  <br><sub><b>Identify</b>, TMDB's suggestions at once · <b>An update</b>, found, checked and installed from the app</sub>
+  <img src="docs/images/watch.webp" width="49%" alt="To watch: Project Hail Mary's logo, 2026, 2 h 36, PG-13, 8.6 and overview over its backdrop, above the recently added movies, 4 new, Project Hail Mary in focus between The Odyssey and Avatar: Fire and Ash">
+  <img src="docs/images/settings.webp" width="49%" alt="Settings, Playback: the tracks the Zidoo player plays for all films and shows, the audio in English when the film has that track, the subtitles Automatic, in full when the audio is not in English, in focus, and their language English">
+  <br><sub><b>To watch</b>, one door from home · <b>Settings › Playback</b>: the audio and subtitles asked of the player</sub>
 </p>
 
 ## Install

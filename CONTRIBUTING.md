@@ -164,9 +164,10 @@ another URI); CI reads the key and the client ID and secret too. `v*` tags can b
 
 The README's images are the app's own screens: a test shoots them (`app/src/test/java/app/houselights/readme`), in
 English at 1920 × 1080, over a library of recent films and shows that the app's scanner names from TMDB, then
-`tools/readme-images/compose.py` frames them: home on a TV lit by its own picture (`hero.webp`, and
-`social-preview.jpg`, GitHub's link preview), each screen on a card, and the animation from home to Play
-(`tour.webp`). Make them again before a release, once its screens are final:
+`tools/readme-images/compose.py` frames them: home on a TV lit by its own picture (`hero.webp`, `hero-dark.webp`
+for GitHub's dark theme, and `social-preview.jpg`, GitHub's link preview), each screen on a card, cut where a row
+would show as a sliver (`CARDS`), and the animation from home to Play (`tour.webp`), cut on the cues the test films.
+Make them again before a release, once its screens are final:
 
 1. Push the branch whose screens they show as `readme-images/<anything>` (`git push origin HEAD:readme-images/0.4.0`),
    or, once the workflow is on `main`, Actions, README images, Run workflow on that branch.
@@ -174,11 +175,13 @@ English at 1920 × 1080, over a library of recent films and shows that the app's
 3. Look at each and at the README's alt texts, which say what each shows, then commit them; upload
    `social-preview.jpg` in the repository's Settings, General, Social preview.
 
-The films and shows are listed by TMDB id in `ReadmeTitles`, with their files' picture and sound and what was
-watched; their texts and pictures are TMDB's, read at each run (the `TMDB_API_KEY` secret) and never committed but
-in the images. A title TMDB does not name by its id fails the run, which says what the library holds. The artifact
-« readme-captures » keeps the unframed shots (« To identify »'s too, which the README does not show), the frames and
-what TMDB named (`library.txt`), to frame them again with `--only` (hero, social, cards, tour). On a machine with a
+The films and shows are listed by TMDB id in `ReadmeTitles`, with their files' picture and sound, what was watched,
+and, where TMDB's own poster reads badly (all but black, lettering where home's doors cut their figures), another of
+TMDB's by its file path; their texts and pictures are TMDB's, read at each run (the `TMDB_API_KEY` secret) and never
+committed but in the images. A title TMDB does not name by its id, or a chosen poster it no longer lists, fails the
+run, which says what it holds. The artifact « readme-captures » keeps the unframed shots (« To identify »'s,
+Identify's and the update sheet's too, which the README does not show), the frames and their cues, and what TMDB
+named and rated (`library.txt`), to frame them again with `--only` (hero, social, cards, tour). On a machine with a
 TMDB key in `local.properties` and Pillow 11 (`tools/readme-images/requirements.txt`):
 
 ```sh

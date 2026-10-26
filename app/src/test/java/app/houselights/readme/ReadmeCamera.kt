@@ -436,10 +436,26 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         Thread.sleep(PAUSE_MS)
     }
 
-    /** Shoots the screen as the TV shows it, every window in its order, as [name].png under `stills`. */
+    /**
+     * Shoots the screen as the TV shows it, every window in its order, as [name].png under `stills`, once two draws a
+     * settle apart are alike: what ends off the main thread lands first, as a door's figures cut in its posters, ink
+     * until then.
+     */
     fun capture(name: String) {
         settle()
-        save(draw(), "stills/$name.png", Bitmap.CompressFormat.PNG, LOSSLESS)
+        save(steadyDraw(), "stills/$name.png", Bitmap.CompressFormat.PNG, LOSSLESS)
+    }
+
+    /** The screen drawn once two draws a settle apart are alike, or after [STILL_DRAWS] more. */
+    private fun steadyDraw(): Bitmap {
+        var shot = draw()
+        repeat(STILL_DRAWS) {
+            settle()
+            val again = draw()
+            if (again.sameAs(shot)) return again
+            shot = again
+        }
+        return shot
     }
 
     /** The room goes dark, its cue run whole: a reel starts on black, then lights it ([lightsUp]). */
@@ -670,6 +686,9 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
         const val OPAQUE = 255
         const val ROUNDS = 40
         const val ROUNDS_AFTER_KEY = 8
+
+        /** The draws a still waits for the screen to stay as it is. */
+        const val STILL_DRAWS = 6
         const val PAUSE_MS = 25L
         const val PAGE = "page"
 

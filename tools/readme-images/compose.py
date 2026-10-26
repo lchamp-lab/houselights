@@ -2,19 +2,23 @@
 
     python3 -I tools/readme-images/compose.py CAPTURES OUT
 
-CAPTURES holds what the capture test wrote: stills/<name>.png at 1920 x 1080 and frames/NNNN.jpg, a frame every
-32 ms. OUT receives:
+CAPTURES holds what the capture test wrote: stills/<name>.png at 1920 x 1080, and frames/NNNN.png, a frame every
+32 ms, with frames/cues.txt, the frame each step of the animation starts on. OUT receives:
 
-- hero.webp, home on a TV in a dark room lit by its own picture (bias lighting), 2400 px wide;
+- hero.webp, home on a TV on the wall of a dark room lit by its own picture (bias lighting), 2400 px wide, and
+  hero-dark.webp, the same on a wall of GitHub's dark theme, into which its edges melt;
 - social-preview.jpg, GitHub's link preview, 1280 x 640;
 - a card per screen (film.webp, show.webp...): rounded, a hairline at its edge and a soft shadow on a transparent
-  ground, so it reads on GitHub's light and dark themes;
-- tour.webp, the animation, framed as the cards are, looping.
+  ground, so it reads on GitHub's light and dark themes; film and library the README's width, the others half of it;
+- tour.webp, the animation, framed as a card the README's width, looping on home as the lights come up.
 
-Pillow only, no text drawn: captions stay in the README. Run with Pillow 11 (tools/readme-images/requirements.txt).
+Cards are measured in the README's own pixels, so that their corners, hairlines and shadows look alike whatever
+their size there. Pillow only, no text drawn: captions stay in the README. Run with Pillow 11
+(tools/readme-images/requirements.txt).
 """
 
 import argparse
+import functools
 import re
 import sys
 import warnings
@@ -22,23 +26,57 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, features
 
-# The room: pure black, as the app's own (DESIGN.md, Colour).
+# The room: pure black, as the app's own (DESIGN.md, Colour); and the page of GitHub's dark theme.
 ROOM = (0, 0, 0)
+GITHUB_DARK = (13, 17, 23)
 
 # Supersampling for the curves: masks are drawn at this scale, then reduced.
 SS = 4
 
-# The screens the README shows, framed as cards, by the still each comes from; the captures hold one more, to-identify,
-# for whoever needs it.
-CARDS = ["film", "show", "saga", "library", "watch", "settings", "identify", "update"]
+# The README's column on GitHub, in CSS pixels, and the share of it a card takes: all of it, or one of a pair.
+README_PX = 880
+WIDE, HALF = 1.0, 0.49
 
-# The screen inside a card, and around it the room the shadow takes.
-CARD_WIDTH = 1200
+# The screens the README shows, framed as cards, by the still each comes from: the screen's width in the card, the
+# share of the column it takes, and the part of the TV kept, 16:9 still, so that no row shows as a sliver at its foot.
+# The captures hold more (to-identify, identify, update) for whoever needs them.
+CARDS = {
+    "film": (1760, WIDE, (0, 0, 1760, 990)),
+    "show": (1200, HALF, None),
+    "saga": (1200, HALF, (0, 0, 1707, 960)),
+    "library": (1760, WIDE, (62, 0, 1858, 1010)),
+    "watch": (1200, HALF, (0, 0, 1776, 999)),
+    "settings": (1200, HALF, None),
+}
+
+# A card, in the README's pixels: its corners, its hairline, and its two shadows (blur, drop, opacity), a wide soft
+# one and a tight one, as light falls on a thing a little above its ground; its margin holds the wide one whole.
+RADIUS = 8
+HAIRLINE = 0.6
+SHADOWS = ((4.5, 2.5, 0.30), (1.5, 0.8, 0.22))
+MARGIN = 12.5
+
+# The animation: the screen's width in its card, the README's width; a frame every 32 ms (cues.txt says it).
 TOUR_WIDTH = 1200
 
-# The animation: a frame every 32 ms (the capture's), starting on home lit, its lights-up last.
-FRAME_MS = 32
-LIGHTS_UP_FRAMES = 31
+# Where « To watch » opens, its hero settles on the title in focus (rememberSettled, then its backdrop's fade): the
+# animation cuts to it through a fade of FADE frames from home rather than show the empty header meanwhile.
+SETTLE_MS = 420
+FADE = 6
+
+# Between the dim and the lights coming up, this many black frames on each side, with the cue's darkest steps about
+# 0.25 s of black: black longer reads as an image that failed to load. A frame is black when no pixel is above
+# BLACK_LEVEL.
+BLACK_FRAMES = 2
+BLACK_LEVEL = 6
+
+# The light on the wall: the picture's colours a little richer, the far light warmed toward a neutral glow rather than
+# left to mix into a muddy tone, computed at a quarter of the size, then dithered so that no contour shows.
+SATURATION = 1.15
+WARM = (255, 170, 120)
+WARMTH = 0.35
+GLOW_STEP = 4
+DITHER = 0.7
 
 TITLE_CARD = Path(__file__).resolve().parents[2] / "docs" / "images" / "houselights.svg"
 
@@ -47,7 +85,7 @@ def rounded_mask(size, radius):
     """An antialiased mask of a rectangle of [size] with corners of [radius]."""
     w, h = size
     big = Image.new("L", (w * SS, h * SS), 0)
-    ImageDraw.Draw(big).rounded_rectangle([0, 0, w * SS - 1, h * SS - 1], radius * SS, fill=255)
+    ImageDraw.Draw(big).rounded_rectangle([0, 0, w * SS - 1, h * SS - 1], round(radius * SS), fill=255)
     return big.resize(size, Image.LANCZOS)
 
 
@@ -56,9 +94,10 @@ def ring_mask(size, radius, width):
     w, h = size
     big = Image.new("L", (w * SS, h * SS), 0)
     d = ImageDraw.Draw(big)
-    d.rounded_rectangle([0, 0, w * SS - 1, h * SS - 1], radius * SS, fill=255)
+    d.rounded_rectangle([0, 0, w * SS - 1, h * SS - 1], round(radius * SS), fill=255)
     inset = round(width * SS)
-    d.rounded_rectangle([inset, inset, w * SS - 1 - inset, h * SS - 1 - inset], max(radius * SS - inset, 0), fill=0)
+    inner = max(round(radius * SS) - inset, 0)
+    d.rounded_rectangle([inset, inset, w * SS - 1 - inset, h * SS - 1 - inset], inner, fill=0)
     return big.resize(size, Image.LANCZOS)
 
 
@@ -68,36 +107,65 @@ def scaled(im, width):
     return im.resize((width, height), Image.LANCZOS)
 
 
-def card(shot, width=CARD_WIDTH, transparent=True):
-    """A screen as a card: rounded corners, a hairline at its edge, a soft shadow beneath, on a transparent ground."""
-    screen = scaled(shot.convert("RGB"), width)
-    w, h = screen.size
-    radius = round(w * 0.016)
-    pad = round(w * 0.045)
-    canvas = Image.new("RGBA", (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
-    # Two shadows, as light falls on a thing a little above its ground: a wide soft one, and a tighter one under it.
-    for blur, drop, opacity in ((w * 0.026, w * 0.012, 0.30), (w * 0.008, w * 0.004, 0.22)):
-        shade = Image.new("L", canvas.size, 0)
-        shade.paste(rounded_mask((w, h), radius).point(lambda v, o=opacity: round(v * o)), (pad, pad + round(drop)))
-        shade = shade.filter(ImageFilter.GaussianBlur(blur))
-        canvas.alpha_composite(Image.merge("RGBA", (*[Image.new("L", canvas.size, 0)] * 3, shade)))
-    face = screen.convert("RGBA")
-    face.putalpha(rounded_mask((w, h), radius))
+@functools.lru_cache(maxsize=4)
+def chrome(size, share):
+    """What every card of a screen of [size] taking [share] of the column has: its margin, its ground with the
+    shadows, its face's mask and its hairline; made once for all the animation's frames."""
+    w, h = size
+    # Image pixels to the README's: the card, margins included, takes the share of the column.
+    px = w / (README_PX * share - 2 * MARGIN)
+    pad = round(MARGIN * px)
+    radius = RADIUS * px
+    canvas = (w + 2 * pad, h + 2 * pad)
+    ground = Image.new("RGBA", canvas, (0, 0, 0, 0))
+    face = rounded_mask((w, h), radius)
+    for blur, drop, opacity in SHADOWS:
+        shade = Image.new("L", canvas, 0)
+        shade.paste(face.point(lambda v, o=opacity: round(v * o)), (pad, pad + round(drop * px)))
+        shade = shade.filter(ImageFilter.GaussianBlur(blur * px))
+        ground.alpha_composite(Image.merge("RGBA", (*[Image.new("L", canvas, 0)] * 3, shade)))
     # The hairline: projector white at 14 % over the picture's edge, which a black screen on a dark page needs.
     edge = Image.new("RGBA", (w, h), (244, 244, 245, 255))
-    edge.putalpha(ring_mask((w, h), radius, 1.5).point(lambda v: round(v * 0.14)))
+    edge.putalpha(ring_mask((w, h), radius, max(HAIRLINE * px, 1.0)).point(lambda v: round(v * 0.14)))
+    return pad, ground, face, edge
+
+
+def card(shot, width, share=HALF, crop=None):
+    """A screen as a card: [crop] of it at [width], rounded, a hairline at its edge, soft shadows beneath, on a
+    transparent ground; [share] of the README's column."""
+    shot = shot.convert("RGB")
+    if crop:
+        shot = shot.crop(crop)
+    screen = scaled(shot, width)
+    pad, ground, mask, edge = chrome(screen.size, share)
+    canvas = ground.copy()
+    face = screen.convert("RGBA")
+    face.putalpha(mask)
     face.alpha_composite(edge)
     canvas.alpha_composite(face, (pad, pad))
-    return canvas if transparent else canvas.convert("RGB")
+    return canvas
 
 
-def glow(screen, size, at, spread, blur, strength, reach=(0.62, 0.70)):
-    """[screen]'s colours spread [spread] times its size around it, blurred by [blur] of its width, faded by [reach]."""
+def luma(colour):
+    return 0.299 * colour[0] + 0.587 * colour[1] + 0.114 * colour[2]
+
+
+def tinted(im, colour):
+    """[im] in [colour]'s hue, each pixel as bright as it was."""
+    grey = im.convert("L")
+    y = luma(colour)
+    return Image.merge("RGB", [grey.point(lambda v, c=c: min(255, round(v * c / y))) for c in colour])
+
+
+def glow(screen, size, at, spread, blur, strength, reach=(0.62, 0.70), warmth=0.0):
+    """[screen]'s colours spread [spread] times its size around it, blurred by [blur] of its width, faded by [reach],
+    [warmth] of the way to a warm neutral."""
     w, h = size
     sw, sh = screen.size
-    q = 8
-    small = screen.resize((64, 36), Image.BOX)
-    small = ImageEnhance.Color(small).enhance(1.45)
+    q = GLOW_STEP
+    small = ImageEnhance.Color(screen.resize((64, 36), Image.BOX)).enhance(SATURATION)
+    if warmth:
+        small = Image.blend(small, tinted(small, WARM), warmth)
     gw, gh = round(sw * spread / q), round(sh * spread / q)
     pad = max(gw, gh)
     room = Image.new("RGB", (w // q + 2 * pad, h // q + 2 * pad), ROOM)
@@ -114,39 +182,40 @@ def glow(screen, size, at, spread, blur, strength, reach=(0.62, 0.70)):
 
 
 def bias_light(screen, size, at):
-    """The light a TV's back throws on the wall: its picture's own colours, bright close to the set, fading far off."""
+    """The light a TV's back throws on the wall: its picture's own colours, bright close to the set, fading far off,
+    to nothing at the image's edges."""
     screen = screen.convert("RGB")
-    near = glow(screen, size, at, spread=1.16, blur=0.05, strength=0.62)
-    far = glow(screen, size, at, spread=1.75, blur=0.14, strength=0.42, reach=(0.6, 0.66))
-    return ImageChops.screen(near, far)
+    near = glow(screen, size, at, spread=1.16, blur=0.05, strength=0.55)
+    far = glow(screen, size, at, spread=1.75, blur=0.14, strength=0.42, reach=(0.6, 0.66), warmth=WARMTH)
+    light = ImageChops.screen(near, far)
+    w, h = size
+    inset = round(min(w, h) * 0.06)
+    edges = Image.new("L", size, 0)
+    ImageDraw.Draw(edges).rectangle([inset, inset, w - 1 - inset, h - 1 - inset], fill=255)
+    edges = edges.filter(ImageFilter.GaussianBlur(inset / 2))
+    return Image.composite(light, Image.new("RGB", size, ROOM), edges)
 
 
-def tv(shot, width=2400, height=1350, screen_width=1800, top=120):
-    """[shot] on a TV in a dark room, lit by its own picture: a thin bezel, a slim stand and its shadow."""
+def dithered(light):
+    """[light] with a little noise where it glows, so that its gradients show no contour once quantised."""
+    # The difference of two of Pillow's noises, whose own rounds down: centred on 128, DITHER levels across.
+    one, two = (Image.effect_noise(light.size, DITHER / 1.75) for _ in range(2))
+    noise = ImageChops.subtract(one, two, 1.0, 128)
+    flat = Image.new("L", light.size, 128)
+    lit = light.convert("L").point(lambda v: min(255, v * 64))
+    noise = Image.composite(noise, flat, lit)
+    return ImageChops.add(light, Image.merge("RGB", (noise, noise, noise)), 1.0, -128)
+
+
+def tv(shot, width=2400, height=1350, screen_width=1800, top=160, wall=ROOM):
+    """[shot] on a TV hung on a wall of [wall], in a dark room lit by its own picture, a thin bezel around it."""
     screen = scaled(shot.convert("RGB"), screen_width)
     sw, sh = screen.size
     x = (width - sw) // 2
-    room = bias_light(screen, (width, height), (x, top)).convert("RGBA")
-    bezel = round(sw * 0.0055)
-    cx = width // 2
-    foot_top = top + sh + bezel
-    # The stand: a slim neck on a low plate, catching a little of the picture's light; their shadow on the floor.
-    neck_w, neck_h = round(sw * 0.05), round(sw * 0.03)
-    plate_w, plate_h = round(sw * 0.28), round(sw * 0.008)
-    floor = foot_top + neck_h + plate_h
-    shadow = Image.new("L", room.size, 0)
-    footprint = [cx - plate_w * 0.7, floor - plate_h, cx + plate_w * 0.7, floor + plate_h * 3]
-    ImageDraw.Draw(shadow).ellipse(footprint, fill=230)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(sw * 0.014))
-    room.alpha_composite(Image.merge("RGBA", (*[Image.new("L", room.size, 0)] * 3, shadow)))
-    stand = Image.new("RGBA", room.size, (0, 0, 0, 0))
-    d = ImageDraw.Draw(stand)
-    d.rectangle([cx - neck_w // 2, foot_top - bezel, cx + neck_w // 2, foot_top + neck_h], fill=(20, 20, 23, 255))
-    left, right, plate_top = cx - plate_w // 2, cx + plate_w // 2, foot_top + neck_h
-    d.rounded_rectangle([left, plate_top, right, floor], plate_h // 2, fill=(26, 26, 30, 255))
-    d.line([left + plate_h, plate_top, right - plate_h, plate_top], fill=(58, 58, 66, 255), width=2)
-    room.alpha_composite(stand)
+    light = dithered(bias_light(screen, (width, height), (x, top)))
+    room = ImageChops.screen(light, Image.new("RGB", light.size, wall)).convert("RGBA")
     # The set: a thin black bezel, its outer edge catching a little of the room's light; then the picture.
+    bezel = round(sw * 0.0055)
     body = (sw + 2 * bezel, sh + 2 * bezel)
     set_layer = Image.new("RGBA", body, (10, 10, 12, 255))
     set_layer.putalpha(rounded_mask(body, bezel + 4))
@@ -160,9 +229,9 @@ def tv(shot, width=2400, height=1350, screen_width=1800, top=120):
     return room
 
 
-def hero(shot):
+def hero(shot, wall=ROOM):
     """Home on the TV, 2400 px wide, the room's corners rounded off the page."""
-    room = tv(shot)
+    room = tv(shot, wall=wall)
     room.putalpha(rounded_mask(room.size, 28))
     return room
 
@@ -275,19 +344,90 @@ def draw_path(mask, d, unit):
         mask.paste(ImageChops.logical_xor(mask.convert("1"), layer.convert("1")).convert("L"))
 
 
+def read_cues(frames):
+    """The frame each step of the animation starts on, by name, and the frames' interval: frames/cues.txt."""
+    path = frames / "cues.txt"
+    if not path.exists():
+        sys.exit(f"No {path}: the frames were filmed without their cues")
+    lines = (line.split() for line in path.read_text().splitlines() if line.strip())
+    cues = {name: int(at) for name, at in lines}
+    missing = {"frame-ms", "lit", "watch", "page", "play"} - cues.keys()
+    if missing:
+        sys.exit(f"{path} names no {', '.join(sorted(missing))}")
+    return cues
+
+
+def black(path):
+    """Whether the frame at [path] is all black."""
+    with Image.open(path) as im:
+        return im.convert("L").getextrema()[1] <= BLACK_LEVEL
+
+
+def cut(files, cues):
+    """The animation's frames, each a frame's index or a fade (from, to, how far): from home lit, its focus moving to
+    the latest titles, through a fade to « To watch » once its hero settled, to the film's page and Play's dim, a few
+    black frames, then the lights coming up on home, where the loop starts again."""
+    lit, watch, play = cues["lit"], cues["watch"], cues["play"]
+    settled = watch + round(SETTLE_MS / cues["frame-ms"])
+    home = [*range(lit, watch)]
+    fade = [(watch - 1, settled + k, (k + 1) / (FADE + 1)) for k in range(FADE)]
+    dark = next((i for i in range(play, len(files)) if black(files[i])), len(files))
+    rest = [*range(settled + FADE, min(dark + BLACK_FRAMES, len(files)))]
+    light = next((i for i in range(lit) if not black(files[i])), lit)
+    return home + fade + rest + [*range(max(light - BLACK_FRAMES, 0), lit)]
+
+
+class Reel:
+    """Frames for Pillow's encoder, which reads a multi-frame image a frame at a time (n_frames, seek): each card is
+    made as the encoder seeks it, so that never more than one is in memory. Everything else is the card's."""
+
+    def __init__(self, count, make):
+        self.n_frames = count
+        self._make = make
+        self._frame = None
+        self._at = 0
+
+    def seek(self, at):
+        self._at = at
+        self._frame = self._make(at)
+
+    def tell(self):
+        return self._at
+
+    def __getattr__(self, name):
+        if name.startswith("__") or self.__dict__.get("_frame") is None:
+            raise AttributeError(name)
+        return getattr(self._frame, name)
+
+
 def tour(frames, out, width=TOUR_WIDTH, quality=72):
-    """The animation, framed as a card, from the home frame lit: its lights-up plays last, so the loop closes on it."""
-    files = sorted(frames.glob("*.jpg"))
+    """The animation, framed as a card the README's width, from home lit: its lights-up plays last, so the loop closes
+    on it."""
+    files = sorted(frames.glob("*.png"))
     if not files:
         return None
-    order = files[LIGHTS_UP_FRAMES:] + files[:LIGHTS_UP_FRAMES]
-    shown = [card(Image.open(f), width) for f in order]
-    first, rest = shown[0], shown[1:]
+    cues = read_cues(frames)
+    shots = cut(files, cues)
+
+    def make(at):
+        shot = shots[at]
+        if isinstance(shot, tuple):
+            start, end, t = shot
+            with Image.open(files[start]) as a, Image.open(files[end]) as b:
+                picture = Image.blend(a.convert("RGB"), b.convert("RGB"), t)
+        else:
+            with Image.open(files[shot]) as im:
+                picture = im.convert("RGB")
+        return card(picture, width, WIDE)
+
+    first = make(0)
+    # libwebp's slowest and best method. Not minimize_size, nor key frames further apart: both let a frame keep blocks
+    # of the one before where they look alike, which a change of screen leaves behind, smudged.
     first.save(
-        out, "WEBP", save_all=True, append_images=rest, duration=FRAME_MS, loop=0,
-        quality=quality, method=4, minimize_size=False, allow_mixed=False,
+        out, "WEBP", save_all=True, append_images=[Reel(len(shots) - 1, lambda at: make(at + 1))],
+        duration=cues["frame-ms"], loop=0, quality=quality, method=6, minimize_size=False, allow_mixed=False,
     )
-    return out
+    return out, len(shots), len(shots) * cues["frame-ms"]
 
 
 def webp_animates():
@@ -318,29 +458,27 @@ def main():
     if wanted & {"hero", "social"}:
         home = Image.open(stills / "home.png")
         if "hero" in wanted:
-            hero(home).save(args.out / "hero.webp", "WEBP", quality=88, method=6)
-            written.append(args.out / "hero.webp")
+            for name, wall in (("hero.webp", ROOM), ("hero-dark.webp", GITHUB_DARK)):
+                hero(home, wall).save(args.out / name, "WEBP", quality=92, method=6)
+                written.append((args.out / name, ""))
         if "social" in wanted:
             social(home).save(args.out / "social-preview.jpg", "JPEG", quality=90, optimize=True, progressive=True)
-            written.append(args.out / "social-preview.jpg")
-    for name in CARDS if "cards" in wanted else []:
+            written.append((args.out / "social-preview.jpg", ""))
+    for name, (width, share, crop) in CARDS.items() if "cards" in wanted else []:
         still = stills / f"{name}.png"
         if not still.exists():
             print(f"no {still.name}: skipped", file=sys.stderr)
             continue
-        card(Image.open(still)).save(args.out / f"{name}.webp", "WEBP", quality=86, method=6)
-        written.append(args.out / f"{name}.webp")
+        card(Image.open(still), width, share, crop).save(args.out / f"{name}.webp", "WEBP", quality=86, method=6)
+        written.append((args.out / f"{name}.webp", ""))
     if "tour" in wanted:
         made = tour(args.captures / "frames", args.out / "tour.webp", quality=args.tour_quality)
         if made:
-            written.append(made)
-    frames = len(list((args.captures / "frames").glob("*.jpg")))
-    for path in written:
+            path, count, ms = made
+            written.append((path, f"  {count} frames, {ms / 1000:.2f} s"))
+    for path, more in written:
         with Image.open(path) as im:
-            line = f"{path.name:20} {im.width:5} x {im.height:<5} {path.stat().st_size:>10,} bytes"
-        if path.name == "tour.webp":
-            line += f"  {frames} frames, {frames * FRAME_MS / 1000:.2f} s"
-        print(line)
+            print(f"{path.name:20} {im.width:5} x {im.height:<5} {path.stat().st_size:>10,} bytes{more}")
 
 
 if __name__ == "__main__":
