@@ -58,7 +58,7 @@ data class FolderForm(
             name = path.substringAfterLast('/').ifBlank { share.substringAfterLast('/') },
             kind = kind,
             protocol = protocol,
-            host = host.trim().removePrefix("smb://").removePrefix("nfs://").trimEnd('/'),
+            host = address(),
             share = share,
             path = path,
             username = if (protocol == Protocol.SMB) user.trim() else "",
@@ -68,19 +68,23 @@ data class FolderForm(
         )
     }
 
+    /** The NAS's address, without a scheme or a slash after it. */
+    private fun address() = host.trim().removePrefix("smb://").removePrefix("nfs://").trimEnd('/')
+
     /**
      * The share (or export) and the folder inside it, however much of the NAS's path each field holds. The folder's
      * first segments are dropped when they repeat the share whole, compared as the library compares folders (SMB
      * ignoring case): "/volume1/video" and "/volume1/video/films2" read "films2", as "video" and "video/films2" do. For
-     * SMB, "\" reads as "/", the NAS's address before the share ("\\nas\", "smb://nas/") is dropped, and what the
-     * share's field holds after the share goes before the folder; an address before the folder is dropped only when
-     * what follows it repeats the share. Nothing else changes: a name that repeats no share is read as typed.
+     * SMB, "\" reads as "/", the NAS's address before the share ("\\nas\", "smb://nas/") is dropped when it is the
+     * address field's ([withoutAddress]), and what the share's field holds after the share goes before the folder; an
+     * address before the folder is dropped only when what follows it repeats the share. Nothing else changes: a name
+     * that repeats no share, or names another NAS, is read as typed.
      */
     private fun place(): Pair<String, String> {
         val smb = protocol == Protocol.SMB
-        val shared = segments(if (smb) withoutAddress(share) else share, smb)
+        val shared = segments(if (smb) withoutAddress(share, address()) else share, smb)
         val written = segments(path, smb)
-        val unc = if (smb) segments(withoutAddress(path), smb) else written
+        val unc = if (smb) segments(withoutAddress(path, address()), smb) else written
         val fromRoot = if (unc.repeats(shared, ignoreCase = smb)) unc else written
         val folder = if (fromRoot.repeats(shared, ignoreCase = smb)) fromRoot.drop(shared.size) else fromRoot
         if (!smb) return shared.joinToString("/") to folder.joinToString("/")
@@ -146,11 +150,27 @@ data class FolderForm(
     }
 }
 
-/** A NAS's address before an SMB path, its "\" read as "/": "//nas/" or "smb://nas/". */
-private val SMB_ADDRESS = Regex("^(?:smb:)?//[^/]+/", RegexOption.IGNORE_CASE)
+/** A NAS's name before an SMB path, its "\" read as "/": "//nas/" or "smb://nas/", or the name alone ("//nas"). */
+private val SMB_ADDRESS = Regex("^(smb:)?//([^/]+)(/|$)", RegexOption.IGNORE_CASE)
 
-/** [text] as typed for SMB, "\" read as "/", without the NAS's address in front ([SMB_ADDRESS]). */
-private fun withoutAddress(text: String) = SMB_ADDRESS.replaceFirst(text.trim().replace('\\', '/'), "")
+/**
+ * [text] as typed for SMB, "\" read as "/", without the NAS's name in front ([SMB_ADDRESS]) when it names [host]
+ * ([names]). Any other name is kept as the share it reads as, so "\\video\Films" stays share video, and another NAS's
+ * path is never read on this one.
+ */
+private fun withoutAddress(text: String, host: String): String {
+    val typed = text.trim().replace('\\', '/')
+    val address = SMB_ADDRESS.find(typed) ?: return typed
+    val (scheme, name) = address.destructured
+    return if (names(name, host)) typed.substring(address.range.last + 1) else typed.removePrefix(scheme)
+}
+
+/** Whether [name], before an SMB share, names the NAS at [host]: as written, or by its first name ("NAS", nas.local). */
+private fun names(name: String, host: String) =
+    host.isNotEmpty() && (name.equals(host, ignoreCase = true) || name.firstName().equals(host.firstName(), ignoreCase = true))
+
+/** A host's first name, before its domain; an IP address, which has no letter, whole. */
+private fun String.firstName() = if (any { it.isLetter() }) substringBefore('.') else this
 
 /** The names of the folders in [path], from the first; for [smb], "\" separates them too. */
 private fun segments(path: String, smb: Boolean): List<String> =

@@ -56,19 +56,42 @@ class FolderFormTest {
         assertEquals("typed whole in both fields, read once", "video" to "Films/HD", twice.place())
     }
 
-    /** SMB: the NAS's address before the share, as Windows or a link writes it, is dropped; the address field says where. */
+    /**
+     * SMB: the NAS's address before the share, as Windows or a link writes it, is dropped when it names the NAS of the
+     * address field, as written there or by its first name; the address field says where.
+     */
     @Test
     fun aShareTypedAsUncDropsItsHost() {
-        val smb = FolderForm(protocol = Protocol.SMB, host = "192.168.1.10")
-        listOf("\\\\NAS\\video\\Films2", "\\\\NAS\\video\\Films2\\", "smb://nas.local/video/Films2", "SMB://192.168.1.10/video/Films2")
+        val smb = FolderForm(protocol = Protocol.SMB, host = "nas.local")
+        listOf("\\\\NAS\\video\\Films2", "\\\\NAS\\video\\Films2\\", "smb://nas.local/video/Films2", "SMB://NAS.LOCAL/video/Films2")
             .forEach { typed ->
                 val source = smb.copy(share = typed).toSource()
-                assertEquals(typed, listOf("192.168.1.10", "video", "Films2"), listOf(source.host, source.share, source.path))
+                assertEquals(typed, listOf("nas.local", "video", "Films2"), listOf(source.host, source.share, source.path))
             }
+        val byIp = smb.copy(host = "192.168.1.10", share = "\\\\192.168.1.10\\video\\Films2").toSource()
+        assertEquals("video" to "Films2", byIp.place())
         assertEquals("video" to "", smb.copy(share = "\\\\NAS\\video").toSource().place())
         val inFolder = smb.copy(share = "video", path = "\\\\NAS\\video\\Films2").toSource()
         assertEquals("the whole address in the folder's field, under its share", "video" to "Films2", inFolder.place())
-        assertEquals("the address alone names no share", R.string.error_share_missing, smb.copy(share = "\\\\NAS\\").missing())
+        listOf("\\\\NAS\\", "\\\\NAS").forEach { typed ->
+            assertEquals("the address alone names no share", R.string.error_share_missing, smb.copy(share = typed).missing())
+        }
+    }
+
+    /**
+     * SMB: a name after "\\" that is not the address field's NAS is no address but the share it names, so a share typed
+     * after "\\" or "//" stays that share rather than giving way to the next name, and a path on another NAS is never
+     * looked for on this one.
+     */
+    @Test
+    fun aNameAfterTwoSlashesThatIsNotTheNasIsTheShare() {
+        val smb = FolderForm(protocol = Protocol.SMB, host = "192.168.1.10")
+        listOf("\\\\video\\Films", "//video/Films", "\\\\video\\Films\\").forEach { typed ->
+            assertEquals(typed, "video" to "Films", smb.copy(share = typed).toSource().place())
+        }
+        assertEquals("another NAS's share", "192.168.1.20" to "video", smb.copy(share = "\\\\192.168.1.20\\video").toSource().place())
+        val elsewhere = smb.copy(share = "video", path = "\\\\192.168.1.20\\video\\Films").toSource()
+        assertEquals("another NAS's folder", "video" to "192.168.1.20/video/Films", elsewhere.place())
     }
 
     /** Only the whole share again is dropped: a folder whose name is only like it is read as typed. */
