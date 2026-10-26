@@ -113,6 +113,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             childCount = seasonCount,
             edition = e.edition,
             matchDoubt = e.doubt(),
+            keptUnidentified = e.userNoMatch && e.tmdbId == null,
         )
     }
 

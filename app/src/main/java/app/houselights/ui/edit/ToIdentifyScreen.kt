@@ -109,19 +109,15 @@ internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit, q
         val shown = titles ?: return@LaunchedEffect
         // Back from the queue: the title it reached, once.
         val wanted = queueAt ?: at
-        focusTitle(shown, wanted, place, memory, list)?.let { (id, index) ->
-            at = id
-            place = index
-        }
+        // None left: nothing to return to, so Back leaves.
+        val (id, index) = focusTitle(shown, wanted, place, memory, list) ?: (null to 0)
+        at = id
+        place = index
         settled = shown
         if (queueAt != null) onQueueSeen()
     }
     var options by remember { mutableStateOf<ToIdentify?>(null) }
-    BackToStart(away = place > 0) {
-        list.scrollToItem(0)
-        withFrameNanos { }
-        titles?.firstOrNull()?.let { memory.focus(titleKey(it.item.id)) }
-    }
+    BackToFirst(titles?.firstOrNull(), away = place > 0, list, memory)
 
     HlTwoPane(
         side = {
@@ -175,6 +171,16 @@ internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit, q
         }
     }
     options?.let { t -> Suggestions(t, onChoose = { vm.choose(t, it) }, onDismiss = { options = null }) }
+}
+
+/** Back, from past the [first] title ([away]), first returns to it; with none left, it leaves. */
+@Composable
+private fun BackToFirst(first: ToIdentify?, away: Boolean, list: LazyListState, memory: FocusMemory) {
+    BackToStart(away = away && first != null) {
+        list.scrollToItem(0)
+        withFrameNanos { }
+        first?.let { memory.focus(titleKey(it.item.id)) }
+    }
 }
 
 /** A title to identify: why, as its facts; what it may be, as its note; where it lies, as its overview. */
@@ -282,8 +288,9 @@ data class ToIdentifyState(
     val titles: List<ToIdentify>? = null,
     val loading: Boolean = false,
     val error: UiError? = null,
-    /** Why the last suggestion chosen from the list was not saved. */
+    /** Why the last suggestion chosen from the list was not saved, said while its title ([chooseErrorFor]) is listed. */
     val chooseError: UiError? = null,
+    val chooseErrorFor: String? = null,
 )
 
 /**
@@ -303,22 +310,29 @@ class ToIdentifyViewModel(private val provider: () -> MediaProvider, private val
         _state.update { it.copy(loading = true) }
         loads.launch {
             suspendRunCatching { provider().editor?.toIdentify().orEmpty() }
-                .onSuccess { titles -> _state.update { it.copy(titles = titles, loading = false, error = null) } }
+                .onSuccess { titles -> _state.update { it.listing(titles) } }
                 .onFailure { e -> _state.update { it.copy(loading = false, error = e.reported(TAG, "Titles to identify")) } }
         }
     }
 
     /** Identifies [title] as [candidate], one of its suggestions; the list then reads again without it. */
     fun choose(title: ToIdentify, candidate: MatchCandidate) {
-        _state.update { it.copy(chooseError = null) }
+        _state.update { it.copy(chooseError = null, chooseErrorFor = null) }
         work.launch {
             suspendRunCatching { provider().editor?.identify(title.item, candidate) }
                 .onSuccess { load() }
                 .onFailure { e ->
                     val error = e.reported(TAG, "Identification of ${title.item.id} as ${candidate.id}")
-                    _state.update { it.copy(chooseError = error) }
+                    _state.update { it.copy(chooseError = error, chooseErrorFor = title.item.id) }
                 }
         }
+    }
+
+    /** [titles] read; a suggestion not saved is no longer said once its title leaves them, identified otherwise. */
+    private fun ToIdentifyState.listing(titles: List<ToIdentify>): ToIdentifyState {
+        val failed = chooseErrorFor?.takeIf { id -> titles.any { it.item.id == id } }
+        val notSaved = chooseError.takeIf { failed != null }
+        return copy(titles = titles, loading = false, error = null, chooseError = notSaved, chooseErrorFor = failed)
     }
 
     companion object {

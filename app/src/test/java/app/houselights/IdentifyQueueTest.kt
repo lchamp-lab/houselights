@@ -1,5 +1,6 @@
 package app.houselights
 
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -157,6 +158,26 @@ class IdentifyQueueTest {
         assertTrue("identify m1 1" in source.calls)
         assertEquals("Back returns to the list, not from title to title", listOf("settings", "list", "m2"), nav.stack())
         focusIsOn("Best 2")
+    }
+
+    /**
+     * OK pressed twice on a title of the list before Identifier shows, both presses reaching the list, as on a box too
+     * busy to draw between them: Identifier opens once, so Back returns to the list.
+     */
+    @Test
+    fun okTwiceOnTheListOpensIdentifierOnce() {
+        val nav = app()
+        focusIsOn("Film 1")
+        compose.runOnUiThread {
+            val window = compose.activity.window.decorView
+            repeat(2) {
+                listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP).forEach { action ->
+                    window.dispatchKeyEvent(KeyEvent(action, KeyEvent.KEYCODE_DPAD_CENTER))
+                }
+            }
+        }
+        compose.waitForIdle()
+        assertEquals(listOf("settings", "list", "m1"), nav.stack())
     }
 
     @Test

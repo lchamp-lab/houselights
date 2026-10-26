@@ -194,6 +194,17 @@ class LibraryDaoTest {
         assertTrue(checkNotNull(dao.item(home)).userNoMatch)
     }
 
+    /** A show left as it is, its episodes taken over by another show row (two season packs merging), leaves that one so. */
+    @Test
+    fun aShowLeftAsItIsHandsItOver() = runTest {
+        val left = dao.insert(row(ItemKind.SERIES, "Vacances S01").copy(matchState = MatchState.NOT_FOUND, userNoMatch = true))
+        val taking = dao.insert(row(ItemKind.SERIES, "Vacances").copy(matchState = MatchState.NOT_FOUND))
+        dao.handOver(left, taking)
+        assertTrue(checkNotNull(dao.item(taking)).userNoMatch)
+        dao.deleteItems(listOf(left))
+        assertEquals("not to identify", emptyList<ItemEntity>(), dao.toIdentify())
+    }
+
     @Test
     fun holdsMoreItemsThanAStatementTakes() = runTest {
         val ids = films(1_500)

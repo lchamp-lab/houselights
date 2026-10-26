@@ -220,6 +220,7 @@ class EditViewModelsTest {
         advanceUntilIdle()
         assertEquals(provider.choices, vm.state.value.choices)
     }
+
     /** What automatic matching hesitated between shows at once, asking TMDB nothing; a search then replaces it. */
     @Test
     fun theSuggestionsShowAtOnceUntilASearchReplacesThem() = runTest {
@@ -235,6 +236,24 @@ class EditViewModelsTest {
         advanceUntilIdle()
         assertEquals(listOf(heat), vm.state.value.results)
         assertFalse(vm.state.value.suggested)
+    }
+
+    /** A search typed before Android stopped the app is run again, in place of the suggestions. */
+    @Test
+    fun aSearchTypedBeforeAStoppedProcessReplacesTheSuggestions() = runTest {
+        val dune = MatchCandidate("438631", "Dune", null, 2021, null, null)
+        provider.identity = provider.identity!!.copy(doubt = MatchDoubt.UNSURE, suggestions = listOf(dune))
+        val saved = SavedStateHandle()
+        val before = IdentifyViewModel("m1", { provider }, work = this, saved)
+        advanceUntilIdle()
+        before.setQuery("Heat")
+
+        provider.calls.clear()
+        val after = IdentifyViewModel("m1", { provider }, work = this, saved.afterProcessDeath())
+        advanceUntilIdle()
+        assertTrue("search Heat" in provider.calls)
+        assertEquals(listOf(heat), after.state.value.results)
+        assertFalse(after.state.value.suggested)
     }
 
     /** In the queue, the title after this one is read while it is still to identify, then this one is matched. */

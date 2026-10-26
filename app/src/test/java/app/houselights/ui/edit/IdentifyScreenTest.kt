@@ -128,7 +128,8 @@ class IdentifyScreenTest {
         button("Leave as is").assertDoesNotExist()
         button("Back to automatic").assertDoesNotExist()
     }
-    /** Its suggestions at once, under « Suggestions », the best focused: OK then OK, no search asked. */
+
+    /** Its suggestions at once, under « Suggestions », the best focused: a deliberate OK accepts it, no search asked. */
     @Test
     fun theSuggestionsShowAtOnceTheBestFocused() {
         show(identity(MatchDoubt.UNSURE, suggestions = listOf(dune, lynch)))

@@ -25,6 +25,7 @@ import app.houselights.ui.testing.longClickNamed
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,6 +38,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.IOException
 
 /**
  * « À identifier » as the remote drives it: focus opens on the first title, stays on the one it is on as the list
@@ -168,6 +170,18 @@ class ToIdentifyScreenTest {
         assertEquals(1, left)
     }
 
+    /** Every title leaving at once, a scan having found their ids, focus past the first: Back leaves the emptied list. */
+    @Test
+    fun backLeavesTheListEmptiedFromPastItsFirstTitle() {
+        show()
+        compose.press(Key.DirectionDown)
+        focusIsOn("Film 2")
+        reload { emptyList() }
+        compose.onNodeWithText("Nothing to identify").assertExists()
+        back()
+        assertEquals(1, left)
+    }
+
     /** Menu on a title TMDB hesitated on opens its suggestions, the best focused: Menu then OK accepts it. */
     @Test
     fun menuThenOkAcceptsTheBestSuggestion() {
@@ -181,6 +195,28 @@ class ToIdentifyScreenTest {
         compose.waitForIdle()
         focusIsOn("Film 2")
         assertTrue("no Identifier opened", opened.isEmpty())
+    }
+
+    /**
+     * A suggestion chosen from Menu and not saved says so, and why, over the titles, focus still on its title; said
+     * while that title is listed, it leaves with it, identified since in Identifier.
+     */
+    @Test
+    fun aSuggestionNotSavedIsSaidWhileItsTitleIsListed() {
+        provider.fail = { call -> IOException("NAS asleep").takeIf { call.startsWith("identify") } }
+        show()
+        compose.press(Key.Menu)
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.waitForIdle()
+        compose.onNodeWithText("Not saved").assertExists()
+        compose.onNodeWithText(compose.activity.getString(UiError.OFFLINE.message)).assertExists()
+        focusIsOn("Film 1")
+        reload { it }
+        compose.onNodeWithText("Not saved").assertExists()
+
+        reload { titles -> titles.drop(1) }
+        compose.onNodeWithText("Not saved").assertDoesNotExist()
+        focusIsOn("Film 2")
     }
 
     /** Back closes the suggestions, nothing chosen, focus on the title. */

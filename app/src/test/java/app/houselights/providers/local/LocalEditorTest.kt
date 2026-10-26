@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ArtworkKind
 import app.houselights.core.FailureKind
 import app.houselights.core.MatchCandidate
@@ -46,11 +47,21 @@ class LocalEditorTest {
         return MediaItem(row.id.toString(), MediaKind.MOVIE, row.title)
     }
 
+    private suspend fun show(path: String): MediaItem {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        bench.showsNas.put(path)
+        bench.scan()
+        val row = bench.showOf(shows, path)
+        return MediaItem(row.id.toString(), MediaKind.SERIES, row.title)
+    }
+
     private fun editor(tmdb: TmdbClient? = bench.tmdb.client()) = LocalEditor(bench.dao, bench.scanner) { tmdb }
 
     private companion object {
         const val DUNE = 438631
         const val LYNCH = 841
+        const val KAAMELOTT = 2167
+        const val PILOT = "Kaamelott/Livre 1/Kaamelott - S01E01.mkv"
         const val HOUR_MS = 60 * 60_000L
     }
 
@@ -139,11 +150,15 @@ class LocalEditorTest {
         assertEquals(emptyList<MatchCandidate>(), editor.identity(listed.first().item).suggestions)
     }
 
-    /** Left as it is, a title says so and is no longer to identify; back to automatic, it is to identify again. */
+    /**
+     * Left as it is, a title says so, in Identifier and to its page (Modifier), and is no longer to identify; back to
+     * automatic, it is to identify again.
+     */
     @Test
     fun aTitleLeftAsItIsSaysSoUntilPutBackToAutomatic() = runTest {
         val holidays = film("Vacances à Biarritz (2019).mkv")
         val editor = editor()
+        val pages = LocalProvider(ApplicationProvider.getApplicationContext(), bench.dao, editor)
         assertEquals(MatchDoubt.NOT_FOUND, editor.identity(holidays).doubt)
         assertFalse(editor.identity(holidays).kept)
 
@@ -152,12 +167,14 @@ class LocalEditorTest {
         assertTrue(kept.kept)
         assertNull("no longer to identify", kept.doubt)
         assertEquals(emptyList<ToIdentify>(), editor.toIdentify())
+        assertEquals(null to true, pages.item(holidays.id).let { it.matchDoubt to it.keptUnidentified })
 
         editor.identify(holidays, null)
         val back = editor.identity(holidays)
         assertFalse(back.kept)
         assertEquals(MatchDoubt.NOT_FOUND, back.doubt)
         assertEquals(listOf(holidays.id), editor.toIdentify().map { it.item.id })
+        assertEquals(MatchDoubt.NOT_FOUND to false, pages.item(holidays.id).let { it.matchDoubt to it.keptUnidentified })
     }
 
     /** Choosing a title undoes leaving it as it is. */
@@ -171,6 +188,36 @@ class LocalEditorTest {
         val row = checkNotNull(bench.dao.item(holidays.id.toLong()))
         assertEquals(949 to false, row.tmdbId to row.userNoMatch)
         assertFalse(editor.identity(holidays).kept)
+    }
+
+    /** A show left as it is, put back to automatic, is to identify again, as a film is. */
+    @Test
+    fun aShowLeftAsItIsSaysSoUntilPutBackToAutomatic() = runTest {
+        val kaamelott = show(PILOT)
+        val editor = editor()
+        editor.keepUnidentified(kaamelott)
+        assertTrue(editor.identity(kaamelott).kept)
+        assertEquals(emptyList<ToIdentify>(), editor.toIdentify())
+
+        editor.identify(kaamelott, null)
+        val back = editor.identity(kaamelott)
+        assertFalse(back.kept)
+        assertEquals(MatchDoubt.NOT_FOUND, back.doubt)
+        assertEquals(listOf(kaamelott.id), editor.toIdentify().map { it.item.id })
+    }
+
+    /** Choosing a show undoes leaving it as it is. */
+    @Test
+    fun aShowLeftAsItIsAndThenChosenIsMatched() = runTest {
+        val kaamelott = show(PILOT)
+        val editor = editor()
+        editor.keepUnidentified(kaamelott)
+        bench.tmdb.show(KAAMELOTT, "Kaamelott", 2005)
+        bench.tmdb.season(KAAMELOTT, 1, episodes = 1)
+        editor.identify(kaamelott, editor.search(kaamelott, "Kaamelott", null).single())
+        val row = checkNotNull(bench.dao.item(kaamelott.id.toLong()))
+        assertEquals(KAAMELOTT to false, row.tmdbId to row.userNoMatch)
+        assertFalse(editor.identity(kaamelott).kept)
     }
 
     /** Nothing failed: there is nothing to list before the title is identified. */

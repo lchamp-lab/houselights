@@ -621,7 +621,10 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("UPDATE items SET addedAt = :at WHERE id = :id")
     suspend fun setAddedAt(id: Long, at: Long)
 
-    /** Copies favourite, user match and artwork from [fromId] where [toId] lacks them ([ShowIndexer]). */
+    /**
+     * Copies favourite, user match and artwork from [fromId] where [toId] lacks them ([ShowIndexer]); a show left as it
+     * is leaves the show taking it over so.
+     */
     @Transaction
     suspend fun handOver(fromId: Long, toId: Long) {
         val from = item(fromId) ?: return
@@ -633,6 +636,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
                 userPosterPath = to.userPosterPath ?: from.userPosterPath,
                 userBackdropPath = to.userBackdropPath ?: from.userBackdropPath,
                 userLogoPath = to.userLogoPath ?: from.userLogoPath,
+                userNoMatch = to.userNoMatch || from.userNoMatch,
             )
         )
     }

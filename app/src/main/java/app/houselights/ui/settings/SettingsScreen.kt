@@ -188,7 +188,7 @@ internal fun SettingsPlaces(panes: List<Pane>, open: Pane, memory: FocusMemory, 
  * Scrolls [list] item by item until row [key] can be focused (a pane holds a dozen items at most); a row gone, back
  * where it was, so the plate it was on can take focus.
  */
-private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMemory): Boolean {
+internal suspend fun revealRow(list: LazyListState, key: String, memory: FocusMemory): Boolean {
     val (index, offset) = list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset
     for (i in 0 until list.layoutInfo.totalItemsCount) {
         list.scrollToItem(i)

@@ -1,9 +1,13 @@
 package app.houselights.ui.settings
 
 import android.content.Context
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -13,6 +17,7 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -113,14 +118,21 @@ class ToIdentifyRowTest {
         db.close()
     }
 
-    /** The library pane, focus restored from [memory] as Réglages restores it. */
-    private fun show(memory: FocusMemory = FocusMemory()) {
+    /**
+     * The library pane, focus restored from [memory] as Réglages restores it, a row not in view revealed; [longer], with
+     * rows below it, as many folders make it, so a pass revealing a row gone scrolls the actions out of view.
+     */
+    private fun show(memory: FocusMemory = FocusMemory(), longer: Boolean = false) {
         compose.setTvContent {
             CompositionLocalProvider(LocalSettingsViewModel provides vm) {
                 val s by vm.settings.collectAsStateWithLifecycle()
                 val rows = PaneRows(memory, PANE)
-                RestoreFocus(memory, fallback = null)
-                LazyColumn { libraryPane(s, { _, _ -> }, SourceDoors({}, {}, {}, toIdentify = { opened++ }), rows) }
+                val list = rememberLazyListState()
+                RestoreFocus(memory, fallback = null) { key -> revealRow(list, key, memory) }
+                LazyColumn(state = list) {
+                    libraryPane(s, { _, _ -> }, SourceDoors({}, {}, {}, toIdentify = { opened++ }), rows)
+                    if (longer) items(BELOW) { Spacer(Modifier.height(BELOW_HEIGHT)) }
+                }
             }
         }
         compose.waitForIdle()
@@ -161,10 +173,13 @@ class ToIdentifyRowTest {
         focusIsOn("Scan now")
     }
 
-    /** Back from the list, or from the queue's last title, once nothing is left to identify. */
+    /**
+     * Back from the list, or from the queue's last title, once nothing is left to identify: the pane, scrolled as it
+     * looked for the row, comes back where it was, on its actions.
+     */
     @Test
     fun backWithTheRowGoneFocusIsOnScanNow() {
-        show(FocusMemory(initial = "pane:$PANE/row:actions/row:to_identify"))
+        show(FocusMemory(initial = "pane:$PANE/row:actions/row:to_identify"), longer = true)
         compose.onNodeWithText("Scan now").assertExists()
         focusIsOn("Scan now")
     }
@@ -178,5 +193,7 @@ class ToIdentifyRowTest {
 
     private companion object {
         const val PANE = "library"
+        const val BELOW = 6
+        val BELOW_HEIGHT = 200.dp
     }
 }

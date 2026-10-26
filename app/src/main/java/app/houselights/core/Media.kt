@@ -79,6 +79,8 @@ data class MediaItem(
     val edition: String? = null,
     /** Why a film or show is to identify ([MatchDoubt]); null once matched or left as it is, and for a source that cannot tell. */
     val matchDoubt: MatchDoubt? = null,
+    /** Left as it is by the user (« Laisser tel quel »), without a match ([Identity.kept]). */
+    val keptUnidentified: Boolean = false,
 ) {
     val isPlayable get() = kind == MediaKind.MOVIE || kind == MediaKind.EPISODE || kind == MediaKind.VIDEO
 

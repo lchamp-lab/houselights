@@ -185,6 +185,10 @@ class LocalEditor(
         }
     }
 
+    /**
+     * Written at once, not under the scanner's lock: a check asking TMDB about the title meanwhile then writes nothing
+     * of what it found ([Reidentify]), where waiting for it would let its search match the title first.
+     */
     override suspend fun keepUnidentified(item: MediaItem) {
         val e = entity(item)
         if (e.kind != ItemKind.MOVIE && e.kind != ItemKind.SERIES) return
