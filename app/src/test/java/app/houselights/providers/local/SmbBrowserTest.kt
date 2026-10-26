@@ -195,6 +195,43 @@ class SmbBrowserTest {
         assertEquals(listOf(1_760_000_060_000L), listing.sidecars.map { it.lastModified })
     }
 
+    /**
+     * The add-folder flow's level, on a session of its own signed off once listed, so a password typed wrong fails though
+     * a scan's session of that account is kept: subfolders by name, hidden and system ones left out, its videos counted.
+     */
+    @Test
+    fun aLevelIsListedOnASessionOfItsOwn() = runTest {
+        tree = mapOf(
+            "" to listOf(
+                SmbEntry("Séries", isFolder = true, size = 0),
+                SmbEntry("films", isFolder = true, size = 0),
+                SmbEntry("#recycle", isFolder = true, size = 0),
+                SmbEntry("@eaDir", isFolder = true, size = 0),
+                SmbEntry("Arrival", isFolder = true, size = 0),
+                SmbEntry("Dune (2021).mkv", isFolder = false, size = 4),
+                SmbEntry("movie.nfo", isFolder = false, size = 1),
+            ),
+            "films\\4K" to listOf(SmbEntry("Dune (2021)", isFolder = true, size = 0)),
+        )
+        val films = folder()
+        browser.list(films)
+        val refused = runCatching { browser.folders(films.copy(password = Secret("wrong"))) }.exceptionOrNull()
+        assertEquals(ScanErrorKind.LOGIN_FAILED, refused?.let { ScanErrors.classify(it).kind })
+
+        assertEquals(FolderLevel(listOf("Arrival", "films", "Séries"), videos = 1), browser.folders(films))
+        assertEquals(FolderLevel(listOf("Dune (2021)"), videos = 0), browser.folders(films, "/films/4K/"))
+        assertEquals(3, opened.size)
+        assertEquals("each signed off once listed", listOf(listOf(false), listOf(false)), opened.drop(1).map { it.closes })
+        assertEquals("the scan's session stays", emptyList<Boolean>(), opened[0].closes)
+    }
+
+    /** A folder the share does not hold, or the account may not read, fails as the form's test does. */
+    @Test
+    fun aLevelTheShareRefusesFails() = runTest {
+        val refused = runCatching { browser.folders(folder(), "Private") }.exceptionOrNull()
+        assertEquals(ScanErrorKind.ACCESS_DENIED, refused?.let { ScanErrors.classify(it).kind })
+    }
+
     @Test
     fun forgettingAShareClosesItsSessionsWhoeverSignedIn() = runTest {
         browser.list(folder("films", user = "kodi"))

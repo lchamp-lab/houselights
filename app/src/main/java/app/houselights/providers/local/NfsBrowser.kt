@@ -52,6 +52,13 @@ internal class NfsBrowser(
         }
     }
 
+    /** On the export's kept mount: a mount that failed is not kept, so trying again after the NAS's rules changed mounts anew. */
+    override suspend fun folders(source: SourceEntity, path: String): FolderLevel = withMount(source) { mounted ->
+        val export = mounted.export
+        val at = remotePath(source, cleanPath(path))
+        level(Folders(export).folder(at, export.folder("/$at"))) { ScanErrors.isUnreachable(it) || isBroken(it) }
+    }
+
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
         withMount(source) { it.read(remotePath(source, relativePath), offset, length) }
 

@@ -2,6 +2,8 @@ package app.houselights.providers.local
 
 import app.houselights.core.RepeatedFailures
 import app.houselights.core.suspendRunCatching
+import java.text.Collator
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 data class RemoteFile(
@@ -15,12 +17,30 @@ data class RemoteFile(
 /** Videos and sidecars of a source; [unreadable] lists paths that failed, which are not missing. */
 data class Listing(val videos: List<RemoteFile>, val sidecars: List<RemoteFile>, val unreadable: List<String> = emptyList())
 
+/** One level of a folder, as the add-folder flow browses it ([RemoteBrowser.folders]). */
+data class FolderLevel(
+    /** Its subfolders' names, sorted as a reader looks for them ([byName]), hidden and system folders left out. */
+    val folders: List<String>,
+    /** The videos it holds itself, its subfolders' not counted. */
+    val videos: Int,
+) {
+    /** Neither a subfolder nor a video: « Ce dossier est vide ». */
+    val isEmpty: Boolean get() = folders.isEmpty() && videos == 0
+}
+
 /** Lists and reads a network source, whatever the protocol; [RemoteBrowsers] holds the app's instances. */
 interface RemoteBrowser {
     suspend fun list(source: SourceEntity): Listing
 
     /** Number of entries at the source root; throws with a readable message on failure. */
     suspend fun test(source: SourceEntity): Int
+
+    /**
+     * The subfolders of [path] (from [source]'s folder, "/" separators, "" for that folder itself), one level, and the
+     * videos it holds, for the add-folder flow to browse. Throws as [test] does when [path] cannot be listed; an entry
+     * whose type cannot be read (a link leading nowhere, a file gone since listed) is left out.
+     */
+    suspend fun folders(source: SourceEntity, path: String = ""): FolderLevel
 
     /** The first [length] bytes of a file, or the whole file when shorter. */
     suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray = readAt(source, relativePath, 0, length)
@@ -143,6 +163,32 @@ private class Walk(private val isFatal: (Throwable) -> Boolean, private val fail
         unreadable += path
     }
 }
+
+/**
+ * One level of [folder] ([RemoteBrowser.folders]): hidden and system entries left out ([RemoteBrowser.skip]), as is an
+ * entry whose type cannot be read, unless [isFatal] accepts its failure (NAS gone, connection broken), which throws, as
+ * a failure listing [folder] does. Asks only what telling a folder from a file needs: nothing more over SMB, a LOOKUP
+ * over NFS for an entry READDIRPLUS answered without its type, and a link's target.
+ */
+internal fun level(folder: RemoteFolder, locale: Locale = Locale.getDefault(), isFatal: (Throwable) -> Boolean): FolderLevel {
+    val read = folder.entries().filterNot { RemoteBrowser.skip(it.name) }.mapNotNull { entry ->
+        suspendRunCatching { entry.name to (entry.folder() != null) }.getOrElse { e -> if (isFatal(e)) throw e else null }
+    }
+    val folders = read.filter { (_, isFolder) -> isFolder }.map { (name, _) -> name }
+    return FolderLevel(folders.sortedWith(byName(locale)), read.count { (name, isFolder) -> !isFolder && RemoteBrowser.isWanted(name) })
+}
+
+/**
+ * Names as a reader looks for them in [locale]'s order, case aside ("films" beside "Films", "Été" after "Ete", not after
+ * "Z" as code points would put it); names equal but for case follow code points, so the order never varies.
+ */
+fun byName(locale: Locale = Locale.getDefault()): Comparator<String> {
+    val collator = Collator.getInstance(locale).apply { strength = Collator.SECONDARY }
+    return Comparator<String> { a, b -> collator.compare(a, b) }.then(naturalOrder())
+}
+
+/** [path] without its empty segments: "/Films//4K/" reads "Films/4K". */
+internal fun cleanPath(path: String): String = path.split('/').filter { it.isNotEmpty() }.joinToString("/")
 
 /** [relativePath] under [source]'s folder, from the share or export root, joined by [separator]; "" for the root. */
 internal fun remotePath(source: SourceEntity, relativePath: String = "", separator: Char = '/'): String =

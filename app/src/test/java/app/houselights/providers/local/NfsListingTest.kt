@@ -4,6 +4,7 @@ import com.emc.ecs.nfsclient.nfs.NfsException
 import com.emc.ecs.nfsclient.nfs.NfsStatus
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -199,6 +200,55 @@ class NfsListingTest {
     fun aTestCountsTheFolder() = runTest {
         library()
         assertEquals(3, browser(Export()).test(films))
+    }
+
+    /**
+     * The add-folder flow's level: subfolders by name as a reader looks for them (« été » before « Zodiac »), hidden
+     * and system ones left out, and the videos of this level alone counted, from one READDIRPLUS.
+     */
+    @Test
+    fun aLevelGivesItsFoldersByNameAndCountsItsOwnVideos() = runTest {
+        library()
+        folder("Zodiac (2007)")
+        folder("été")
+        folder("#recycle")
+        folder(".snapshot")
+        file("Sicario (2015).nfo", size = 4_096)
+        val export = Export()
+        val level = browser(export).folders(films)
+        assertEquals(listOf("Arrival (2016)", "Dune (2021)", "été", "Zodiac (2007)"), level.folders)
+        assertEquals(1, level.videos)
+        assertEquals(listOf("READDIRPLUS / from 0"), export.asked)
+    }
+
+    /** A level inside the folder, however its path is slashed; one holding only a video and its files has no folder. */
+    @Test
+    fun aLevelIsReadByItsPathFromTheFolder() = runTest {
+        library()
+        folder("Dune (2021)/Extras")
+        val level = browser(Export()).folders(films, "/Dune (2021)/")
+        assertEquals(FolderLevel(folders = listOf("Extras"), videos = 1), level)
+        assertEquals(FolderLevel(emptyList(), 0), browser(Export()).folders(films, "Dune (2021)/Extras"))
+        assertTrue(browser(Export()).folders(films, "Dune (2021)/Extras").isEmpty)
+    }
+
+    /** An entry READDIRPLUS gave without its type is looked up; a link to a folder is a folder, one leading nowhere left out. */
+    @Test
+    fun aLevelTellsFoldersFromFilesThroughLinksAndLookups() = runTest {
+        linkedLibrary()
+        link("films/Arrival (2016)", "/volume1/media/storage/arrival")
+        folder("films/Sicario (2015)")
+        withheld += "films/Sicario (2015)"
+        val level = browser(Export()).folders(linked)
+        assertEquals(listOf("Dune (2021)", "Sicario (2015)"), level.folders)
+        assertEquals("Heat, through its link", 1, level.videos)
+    }
+
+    @Test
+    fun aLevelNotThereIsNotFound() = runTest {
+        library()
+        val failure = runCatching { browser(Export()).folders(films, "Films2") }.exceptionOrNull()
+        assertEquals(ScanErrorKind.NOT_FOUND, failure?.let { ScanErrors.classify(it).kind })
     }
 
     /** A file deep in the export, by its path from the export's root: each name is looked up from the root. */

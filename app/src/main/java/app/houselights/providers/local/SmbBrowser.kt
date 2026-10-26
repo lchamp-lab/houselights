@@ -48,6 +48,16 @@ internal class SmbBrowser(
         }
     }
 
+    /**
+     * On a session of its own, as [test]: browsing is the add-folder flow's test of the account typed, which a kept
+     * session, signed in with another password, would pass.
+     */
+    override suspend fun folders(source: SourceEntity, path: String): FolderLevel = withContext(Dispatchers.IO) {
+        sessions.once({ connect(source) }) { share ->
+            level(folder(share, remotePath(source, cleanPath(path), '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        }
+    }
+
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
         withSession(source) { share -> share.read(remotePath(source, relativePath, '\\'), offset, length) }
 
