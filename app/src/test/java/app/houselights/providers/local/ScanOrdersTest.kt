@@ -20,7 +20,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Shows whose files follow another order than TMDB's seasons (Firefly on DVD): named by their tvshow.nfo, or chosen.
  * The files keep their numbers; each shows the TMDB episode its order puts there, Trakt names it so, and what was
  * watched stays, row by row; back to automatic undoes it; an order TMDB cannot give changes nothing, and one it did not
- * give this pass is placed at the next; a group of another show is asked once a listing.
+ * give this pass is placed at the next; a group of another show is asked once a listing; kept by title, a chosen order
+ * comes back with its show, TMDB closed meanwhile.
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanOrdersTest {
@@ -237,6 +238,31 @@ class ScanOrdersTest {
         assertEquals(DVD to DVD, show().userEpisodeOrder to show().episodeOrder)
     }
 
+    /**
+     * The show in DVD order removed, then back while TMDB is closed, takes its order back at once, kept by its title; TMDB
+     * naming it at the next pass for the first time since, the order stays: a first match is no show named anew.
+     */
+    @Test
+    fun aChosenOrderKeptByTitleOutlivesTheShowBackWhileTmdbIsClosed() = runTest {
+        // Another show keeps the folder from emptying, which would leave the library as it is.
+        showsNas.put(ANOTHER)
+        bench.scan()
+        bench.scanner.chooseOrder(show().id, DVD)
+        (1..3).forEach { showsNas.remove(file(it)) }
+        bench.scan()
+
+        (1..3).forEach { showsNas.put(file(it)) }
+        bench.withTmdb = false
+        bench.scan()
+        assertEquals("born with it, TMDB not asked", DVD to null, show().userEpisodeOrder to show().tmdbId)
+        bench.withTmdb = true
+        bench.scan()
+
+        assertEquals(FIREFLY, show().tmdbId)
+        assertEquals(DVD to DVD, show().userEpisodeOrder to show().episodeOrder)
+        assertEquals(listOf("Episode 1.11", "Episode 1.1", "Episode 1.2"), titles())
+    }
+
     /** TMDB listing the group with one more episode a month later, its places are fetched again when next needed. */
     @Test
     fun aGroupListedWithMoreEpisodesIsFetchedAgain() = runTest {
@@ -258,6 +284,9 @@ class ScanOrdersTest {
         const val DVD = "5b11ba820e0a265847002c6e"
         const val GONE = "5b11ba820e0a265847002c6f"
         const val ELSEWHERE = "5b11ba820e0a265847002c70"
+
+        /** An episode of a show TMDB does not know, beside Firefly. */
+        const val ANOTHER = "Dollhouse/Season 1/Dollhouse - S01E01.mkv"
 
         /** How long a show's groups are listed before they are listed again. */
         const val MONTH_MS = 30 * 24 * 60 * 60_000L

@@ -635,10 +635,12 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
     /**
      * After a new match, [series]'s episodes back in TMDB's seasons with their [details] ([refreshSeasons]); an order is a
-     * show's own at TMDB, so one named anew since [was] drops its, as an identification does.
+     * show's own at TMDB, so one named anew since [was] drops its, as an identification does. A first match keeps the
+     * order a show was born with or took over (kept by title, [KeptStates.atBirth], or handed over, [takenOver]) before
+     * TMDB named it.
      */
     private suspend fun inTmdbsSeasons(series: ItemEntity, was: Int?, details: Map<Int, TmdbSeason?>, now: Long) {
-        if ((series.userTmdbId ?: series.tmdbId) != was) dao.setUserEpisodeOrder(series.id, null)
+        if (was != null && (series.userTmdbId ?: series.tmdbId) != was) dao.setUserEpisodeOrder(series.id, null)
         dao.setEpisodeOrder(series.id, null)
         refreshSeasons(series, details, now)
         namedAnew += series.id
