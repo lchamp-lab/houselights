@@ -61,6 +61,9 @@ class LocalLibrary(
         emit(true)
     }
 
+    /** The NAS the library's folders are on, for the add-folder flow to offer before any discovery ([nasOf]). */
+    suspend fun usedNas(): List<UsedNas> = nasOf(dao.sources())
+
     /** The most recently added source: the next one is usually on the same server, often in the same share. */
     suspend fun lastFolder(): SourceEntity? = dao.sources().maxByOrNull { it.id }
 
@@ -135,6 +138,25 @@ private fun <T> Flow<T>.paced(): Flow<T> = transform {
 private const val PANE_PACE_MS = 2_000L
 
 private const val TAG = "Library"
+
+/** A NAS the library already reads ([LocalLibrary.usedNas]): known without asking the network. */
+data class UsedNas(
+    /** As its latest folder spells it: "192.168.1.20", "ds920.local". */
+    val host: String,
+    /** Its folders' protocols, the latest added folder's first. */
+    val protocols: List<Protocol>,
+    /** Its folders' names, by name ([byName]): "Films", "Séries". */
+    val folders: List<String>,
+)
+
+/** The NAS of [sources]: one per host, however spelled (case, spaces), the latest used first. */
+internal fun nasOf(sources: List<SourceEntity>): List<UsedNas> =
+    sources.groupBy { it.host.trim().lowercase(Locale.ROOT) }.values
+        .sortedByDescending { folders -> folders.maxOf { it.id } }
+        .map { folders ->
+            val latest = folders.sortedByDescending { it.id }
+            UsedNas(latest.first().host.trim(), latest.map { it.protocol }.distinct(), folders.map { it.name }.sortedWith(byName()))
+        }
 
 /** True when both read the same files: same protocol and host, and one path (share included) contains the other. */
 internal fun SourceEntity.overlaps(other: SourceEntity): Boolean {

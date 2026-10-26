@@ -243,6 +243,26 @@ class LocalLibraryTest {
         assertEquals(FolderSave.Overlaps(dao.sources().single { it.host == "nas3" }), library.addFolder(nfs("nas3", "export", "films")))
     }
 
+    /**
+     * The add-folder flow's first step offers the NAS the folders are on, one per host however typed, the latest used
+     * first, with their protocols (the latest folder's first) and their folders' names, by name.
+     */
+    @Test
+    fun theNasAlreadyUsedAreTheFoldersHosts() = runTest {
+        assertEquals(emptyList<UsedNas>(), library.usedNas())
+        library.addFolder(nfs("192.168.1.20", "volume1/video", "Films").copy(name = "Films"))
+        library.addFolder(nfs("nas2", "media", "films").copy(name = "Films"))
+        library.addFolder(nfs(" 192.168.1.20", "video", "Séries", Protocol.SMB).copy(name = "Séries", kind = SourceKind.SHOWS))
+        library.addFolder(nfs("192.168.1.20", "volume1/video", "4K").copy(name = "4K"))
+        assertEquals(
+            listOf(
+                UsedNas("192.168.1.20", listOf(Protocol.NFS, Protocol.SMB), listOf("4K", "Films", "Séries")),
+                UsedNas("nas2", listOf(Protocol.NFS), listOf("Films")),
+            ),
+            library.usedNas(),
+        )
+    }
+
     @Test
     fun aFolderEditedOntoAnotherIsNotSaved() = runTest {
         library.addFolder(nfs("nas", "volume1/media", "films"))
