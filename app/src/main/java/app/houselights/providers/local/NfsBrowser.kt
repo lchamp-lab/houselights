@@ -47,10 +47,12 @@ internal class NfsBrowser(
         walk(folder, unreadable.of(source)) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
-    /** Uses a fresh mount so the NAS checks access now. */
-    override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
+    /** Uses a fresh mount so the NAS checks access now; links are followed as a scan follows them. */
+    override suspend fun test(source: SourceEntity): FolderLevel = withContext(Dispatchers.IO) {
         mounts.once({ mounted(source) }) { mounted ->
-            entries(mounted.export, mounted.export.folder(root(source))).count { !RemoteBrowser.skip(it.name) }
+            val export = mounted.export
+            val folder = Folders(export).folder(remotePath(source), export.folder(root(source)))
+            level(folder) { ScanErrors.isUnreachable(it) || isBroken(it) }
         }
     }
 

@@ -13,6 +13,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
+import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
@@ -82,7 +83,7 @@ class FolderUnreadTest {
             )
         }
         folders(readable = false)
-        val vm = AddFolderViewModel(library, id, scope, useFolders = { false }, probe = { 0 })
+        val vm = AddFolderViewModel(library, id, scope, useFolders = { false }, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
         compose.waitForIdle()
 

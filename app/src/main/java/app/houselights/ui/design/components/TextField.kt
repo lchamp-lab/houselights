@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -42,6 +44,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -136,6 +139,9 @@ private fun FieldBox(
     var fieldFocused by remember { mutableStateOf(false) }
     val boxFocus = remember { FocusRequester() }
     val fieldFocus = remember { FocusRequester() }
+    // The room « OK saisir » takes at the field's end, which the example leaves it, never running under it.
+    var hintWidth by remember { mutableIntStateOf(0) }
+    val hinted = boxFocused && !editing
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     // Every start of typing, and text the field did not type while typing, puts the cursor after the text, where erase
@@ -221,17 +227,12 @@ private fun FieldBox(
                 },
             decorationBox = { inner ->
                 Box {
-                    Placeholder(placeholder, shown = value.isEmpty())
+                    Placeholder(placeholder, shown = value.isEmpty(), hint = hintWidth.takeIf { hinted })
                     inner()
                 }
             },
         )
-        if (boxFocused && !editing) {
-            // Over the text's end, on the field's surface, never taller than the field.
-            Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
-                KeyHint(Modifier.wrapContentHeight(unbounded = true).background(c.glass).padding(start = HlSpace.s))
-            }
-        }
+        EndHint(hinted) { hintWidth = it }
     }
 }
 
@@ -326,11 +327,37 @@ private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
     }
 }
 
-/** Shown while the field is empty; skipped when blank, since empty text would change the field's height. */
+/**
+ * Shown while the field is empty, ending [hint] px before the field's end while « OK saisir » shows there; skipped when
+ * blank, since empty text would change the field's height.
+ */
 @Composable
-private fun Placeholder(text: String, shown: Boolean) {
+private fun Placeholder(text: String, shown: Boolean, hint: Int?) {
     if (shown && text.isNotEmpty()) {
-        Text(text, style = Hl.type.body, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val room = with(LocalDensity.current) { (hint ?: 0).toDp() }
+        Text(
+            text,
+            style = Hl.type.body,
+            color = Hl.colors.contentTertiary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(end = room),
+        )
+    }
+}
+
+/** « OK saisir » over the text's end, while [shown], on the field's surface, never taller than it; its width to [onWidth]. */
+@Composable
+private fun BoxScope.EndHint(shown: Boolean, onWidth: (Int) -> Unit) {
+    if (!shown) return
+    Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
+        KeyHint(
+            Modifier
+                .wrapContentHeight(unbounded = true)
+                .onSizeChanged { onWidth(it.width) }
+                .background(Hl.colors.glass)
+                .padding(start = HlSpace.s),
+        )
     }
 }
 

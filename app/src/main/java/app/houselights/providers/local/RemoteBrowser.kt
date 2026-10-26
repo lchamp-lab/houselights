@@ -17,7 +17,7 @@ data class RemoteFile(
 /** Videos and sidecars of a source; [unreadable] lists paths that failed, which are not missing. */
 data class Listing(val videos: List<RemoteFile>, val sidecars: List<RemoteFile>, val unreadable: List<String> = emptyList())
 
-/** One level of a folder, as the add-folder flow browses it ([RemoteBrowser.folders]). */
+/** One level of a folder, as the add-folder flow browses it ([RemoteBrowser.folders]) and a form tests it ([RemoteBrowser.test]). */
 data class FolderLevel(
     /** Its subfolders' names, sorted as a reader looks for them ([byName]), hidden and system folders left out. */
     val folders: List<String>,
@@ -32,8 +32,11 @@ data class FolderLevel(
 interface RemoteBrowser {
     suspend fun list(source: SourceEntity): Listing
 
-    /** Number of entries at the source root; throws with a readable message on failure. */
-    suspend fun test(source: SourceEntity): Int
+    /**
+     * What the source's folder holds at its first level, its subfolders and its videos ([FolderLevel]), signed in or
+     * mounted anew so the NAS checks the form's credentials and rules now; throws with a readable message on failure.
+     */
+    suspend fun test(source: SourceEntity): FolderLevel
 
     /**
      * The subfolders of [path] (from [source]'s folder, "/" separators, "" for that folder itself), one level, and the

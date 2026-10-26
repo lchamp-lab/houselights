@@ -1,8 +1,10 @@
 package app.houselights.providers.local
 
 import app.houselights.core.FailureKind
+import app.houselights.core.FailurePlace
 import app.houselights.core.causeChain
 import app.houselights.core.failureKind
+import app.houselights.core.failurePlace
 
 /** Why a source could not be scanned, in terms the user can act on. */
 enum class ScanErrorKind {
@@ -22,8 +24,11 @@ enum class ScanErrorKind {
 /** An empty listing for a source with titles, likely an unmounted disk: nothing is removed. */
 class EmptyFolderException : IllegalStateException("The folder lists no video, yet the library holds some")
 
-/** A failure as shown in the UI; the exception is logged where caught. */
-data class ScanError(val kind: ScanErrorKind)
+/**
+ * A failure as shown in the UI; the exception is logged where caught. A folder missing or refused says [place], where
+ * on the NAS, when the NAS's answer told it: the share or export itself, or a folder inside one that answered.
+ */
+data class ScanError(val kind: ScanErrorKind, val place: FailurePlace? = null)
 
 object ScanErrors {
     /** The NAS (not TMDB) is unreachable: retry later, stop now. */
@@ -37,7 +42,8 @@ object ScanErrors {
             chain.any { it is UnreadableFolderException } -> ScanErrorKind.ACCESS_DENIED
             else -> e.failureKind().scanErrorKind()
         }
-        return ScanError(kind)
+        val placed = kind == ScanErrorKind.NOT_FOUND || kind == ScanErrorKind.ACCESS_DENIED
+        return ScanError(kind, e.failurePlace().takeIf { placed })
     }
 
     /** TMDB failures are reported separately ([ScanState.tmdbIssue]); other kinds map to OTHER. */

@@ -35,9 +35,9 @@ abstract class NasServerTest {
     @Test
     fun aFolderPassesItsTestCountingWhatItShows() = runBlocking {
         val root = video()
-        assertEquals(Samples.ROOT_FOLDERS, browsers.of(root).test(root))
+        assertEquals(Samples.ROOT, browsers.of(root).test(root).counted())
         val films = video("Films")
-        assertEquals(Samples.FILMS_ENTRIES, browsers.of(films).test(films))
+        assertEquals(Samples.FILMS, browsers.of(films).test(films).counted())
     }
 
     @Test

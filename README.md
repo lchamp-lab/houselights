@@ -74,6 +74,12 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     the player cannot follow, is left out and logged.
   - NFS sends no password: the app presents itself to the NAS as root, unless a folder names the user and group
     (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
+  - A folder is tested before it is saved, in the NAS's own words (mount path, shared folder, subfolder): the test
+    says what it found, "412 folders and 3 videos", the fields then showing the path as it was read (a whole path
+    typed under its mount path keeps only the subfolder), and a failure says what to change under the field to change,
+    which takes focus: the shared folder or the export missing, or a subfolder missing in one that answers; the NAS
+    refusing this player, by its address, or root, or an SMB account without the right. A folder holding neither a
+    video nor a subfolder, or one nesting with a folder of the library, is never saved.
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
   - A show whose files follow another order than TMDB's seasons (Firefly on DVD, an anime's absolute order) is
@@ -110,9 +116,10 @@ gratuite, l’application est entièrement en français. [Installer](#install)
       still connected, and sends what waited once your folders are the source again; Settings > Trakt says
       so meanwhile, and disconnects it.
 - **Jellyfin**: browses your server and reports playback progress back to it. Servers found on the network are
-  checked as they appear, a closed lock on those that answer over HTTPS, as the same server, with a certificate
-  the player trusts ([Security](#security)). Switching to your folders keeps the server signed in: it comes back
-  from Settings in one OK, without signing in again. Emby and Plex are planned.
+  looked for as its choice takes focus on the welcome screen, the first one found focused, and checked as they
+  appear, a closed lock on those that answer over HTTPS, as the same server, with a certificate the player trusts
+  ([Security](#security)). Switching to your folders keeps the server signed in: it comes back from Settings in one
+  OK, without signing in again. Emby and Plex are planned.
 - **Without a library** (the last folder removed, or the only server signed out of), the app goes back to its
   welcome screen, wherever it was, to choose where your films are.
 - **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,
@@ -236,7 +243,7 @@ address.
   (the Z1000 Pro's), anyone can sign an update of the system player that Android installs over it, and it
   would receive them too: install the player's updates from Zidoo alone.
 - NFS sends no password: the NAS trusts the player's address and the user it claims, root (uid 0, gid 0)
-  unless the folder's "Connect as" names another user and group. Any app on the player can claim root
+  unless the folder's "NFS account" names another user and group. Any app on the player can claim root
   too: on an export that does not squash root (Synology's "No mapping"), the export is open with root's rights.
   Export it **read-only, with root squashed** or mapped to a guest or media account; the user the app presents
   only chooses whose rights it reads with, and the Zidoo player opens videos with its own NFS access.
