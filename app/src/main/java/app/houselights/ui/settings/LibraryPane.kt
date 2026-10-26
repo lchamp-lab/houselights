@@ -28,11 +28,13 @@ import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.local.Folder
 import app.houselights.providers.local.FolderCounts
+import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbKeyCheck
+import app.houselights.providers.local.Volume
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.Hl
@@ -255,15 +257,33 @@ private fun HeldSheetFor(folder: Long?, held: Map<Long, HeldTitles>, answers: He
     HeldSheet(titles, onKeep = { answers.keep(titles) }, onRemove = { answers.remove(titles) }, onDismiss = onClose)
 }
 
-/** Where [folder] is: its NAS's address, then its path from the NAS's root, apart ([FACT_GAP]); the address alone at a root. */
-internal fun placeOf(folder: Folder): String {
+/**
+ * Where [folder] is: its NAS's address, or the [disk] of this player it is on, then its path from the root, apart
+ * ([FACT_GAP]); the address or the disk alone at a root.
+ */
+internal fun placeOf(folder: Folder, disk: String? = null): String {
     val path = folder.address.removePrefix(folder.host).trim('/')
-    return if (path.isEmpty()) folder.host else folder.host + FACT_GAP + "/" + path
+    val at = disk ?: folder.host
+    return if (path.isEmpty()) at else at + FACT_GAP + "/" + path
+}
+
+/**
+ * The disk [source] is on, a folder of this player's, as « Ajouter un dossier » names it: « Disque interne », a USB
+ * disk by its name while it is plugged in, else « Disque USB »; null for a NAS's folder.
+ */
+@Composable
+private fun diskOf(source: Folder): String? {
+    if (source.protocol != Protocol.LOCAL) return null
+    if (source.host == Volume.INTERNAL) return stringResource(R.string.disk_internal)
+    val volumes = settingsViewModel().volumes
+    val name = remember(source.host) { volumes.mounted().firstOrNull { it.id.equals(source.host, ignoreCase = true) }?.name }
+    return name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.disk_usb)
 }
 
 /**
  * A folder's sheet: scan, edit or remove (confirmed in place, saying its [consequence]); Edit comes first after a failure
- * it can fix. While titles of it are [held] ([onHeld] opens their sheet), they come first, focused.
+ * it can fix. While titles of it are [held] ([onHeld] opens their sheet), they come first, focused. A folder of this
+ * player's disks says its disk as « Ajouter un dossier » does, no protocol, and has no Edit: the form is a NAS's.
  */
 @Composable
 private fun SourceActions(
@@ -282,16 +302,17 @@ private fun SourceActions(
     val scan = remember { FocusRequester() }
     val edit = remember { FocusRequester() }
     val heldRow = remember { FocusRequester() }
+    val disk = diskOf(source)
     // Read once: a scan ending while the sheet is open does not move its rows under focus.
-    val fix = remember { editFixes(error) }
+    val fix = remember { editFixes(error).takeIf { disk == null } }
     val holds = remember { held > 0 }
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
         facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }),
-        badges = listOf(source.protocol.name),
+        badges = listOfNotNull(source.protocol.name.takeIf { disk == null }),
         // Its address and its path apart, the path as the folder's form composes it: "192.168.1.20   /volume1/video/Films".
-        description = placeOf(source),
+        description = placeOf(source, disk),
         artwork = if (posters.isEmpty()) {
             null
         } else {
@@ -352,7 +373,7 @@ private fun SourceActions(
                     ScanRow()
                 } else {
                     ScanRow()
-                    EditRow()
+                    if (disk == null) EditRow()
                 }
                 HlSettingRow(
                     stringResource(R.string.remove_folder),
@@ -395,7 +416,8 @@ private fun FolderShowcase(
     val removingText = stringResource(R.string.folder_removing, sourceName(source))
     Showcase(
         name = sourceName(source),
-        mark = source.protocol.name,
+        // A folder of this player's disks has no protocol to print.
+        mark = source.protocol.name.takeIf { source.protocol != Protocol.LOCAL },
         posters = posters,
         onClick = onClick,
         modifier = modifier,

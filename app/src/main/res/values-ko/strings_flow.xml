@@ -42,6 +42,7 @@
     <string name="full_path_supporting_nfs">Synology에서는 /volume1/로 시작합니다.</string>
     <string name="full_path_supporting_smb">공유 폴더 다음에 하위 폴더를 입력합니다.</string>
     <string name="use_suggestion">%s 사용</string>
+    <string name="use_suggestion_name">‘%s’ 사용</string>
     <string name="suggested_by_nas">NAS가 제안함</string>
     <string name="flow_browse_desc">영화나 TV 프로그램 폴더를 연 다음 선택하세요.</string>
     <string name="choose_folder">이 폴더 선택</string>

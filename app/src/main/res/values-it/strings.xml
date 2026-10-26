@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">I miei file</string>
-    <string name="source_local_desc">Video su un NAS o un computer della rete. Houselights li analizza e recupera locandine e trame.</string>
+    <string name="source_local_desc">Video su un NAS, un computer della rete o un disco collegato al lettore. Houselights li analizza e recupera locandine e trame.</string>
     <string name="source_jellyfin">Server Jellyfin</string>
     <string name="source_jellyfin_desc">La libreria del proprio server</string>
     <string name="welcome_jellyfin_desc">I film e le serie del proprio server Jellyfin.</string>

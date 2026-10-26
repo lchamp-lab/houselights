@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Sources -->
     <string name="source_local">Meine Dateien</string>
-    <string name="source_local_desc">Ihre Videos auf einem NAS oder einem Computer im Netzwerk. Houselights scannt sie und lädt Poster und Inhaltsangaben.</string>
+    <string name="source_local_desc">Ihre Videos auf einem NAS, Computer im Netzwerk oder Laufwerk am Player. Houselights scannt sie und lädt Poster und Inhaltsangaben.</string>
     <string name="source_jellyfin">Jellyfin-Server</string>
     <string name="source_jellyfin_desc">Die Bibliothek Ihres Servers</string>
     <string name="welcome_jellyfin_desc">Die Filme und Serien Ihres Jellyfin-Servers.</string>
@@ -223,7 +223,7 @@
     <string name="field_export">Mount-Pfad</string>
     <string name="nfs_hint">Ohne Passwort: Erlauben Sie diesem Player auf dem NAS den Lesezugriff, auf einem Synology auch von nicht privilegierten Ports.</string>
     <string name="nfs_identity_title">NFS-Konto</string>
-    <string name="nfs_identity_desc">Den das NAS sieht, standardmäßig root</string>
+    <string name="nfs_identity_desc">Vom NAS gesehen, standardmäßig root</string>
     <string name="nfs_identity_hint">Für root leer lassen. Geben Sie eine UID und eine GID ein, wenn das NAS root ablehnt.</string>
     <string name="field_uid">Benutzer (UID)</string>
     <string name="field_gid">Gruppe (GID)</string>

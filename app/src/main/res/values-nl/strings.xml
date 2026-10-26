@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Sources -->
     <string name="source_local">Mijn bestanden</string>
-    <string name="source_local_desc">Uw video’s op een NAS of een computer in het netwerk. Houselights scant ze en haalt posters en samenvattingen op.</string>
+    <string name="source_local_desc">Uw video’s op een NAS, een computer in het netwerk of een schijf aan de speler. Houselights scant ze en haalt posters en samenvattingen op.</string>
     <string name="source_jellyfin">Jellyfin-server</string>
     <string name="source_jellyfin_desc">De bibliotheek van uw server</string>
     <string name="welcome_jellyfin_desc">De films en series van uw Jellyfin-server.</string>

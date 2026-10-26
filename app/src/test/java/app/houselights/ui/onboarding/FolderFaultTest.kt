@@ -40,6 +40,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.wholePath
 import app.houselights.testing.folderNames
 import com.emc.ecs.nfsclient.mount.MountStatus
 import kotlinx.coroutines.CoroutineScope
@@ -156,15 +157,16 @@ class FolderFaultTest {
         vm.test()
         compose.waitUntil { vm.check != null }
         compose.waitForIdle()
-        val message = "/volume1/video answers, but “Films” is not in it. Check its name, capitals included."
+        // Its path whole on its line, as every path in a sentence ([wholePath]).
+        val message = "${wholePath("/volume1/video")} answers, but “Films” is not in it. Check its name, capitals included."
         saysUnder("Subfolder (optional)", message).assertIsFocused()
         compose.onAllNodesWithText(message).assertCountEquals(1)
         compose.onNodeWithText("Cannot connect").assertExists()
     }
 
     /**
-     * A folder the export lacks comes with what the NAS has within a letter of it, under the actions, which takes focus;
-     * OK writes it in « Sous-dossier » and tests again, focus on Test.
+     * A folder the export lacks comes with what the NAS has within a letter of it, under the actions, named alone, which
+     * takes focus; OK writes it in « Sous-dossier » and tests again, focus on Test.
      */
     @Test
     fun whatTheNasProposesTakesFocusAndOkUsesIt() {
@@ -175,12 +177,12 @@ class FolderFaultTest {
                 if (missing) throw FileNotFoundException("lookup /volume1/video/Film")
                 FolderLevel(folderNames(12), videos = 3)
             },
-            nearby = { _, _ -> FolderSuggestion("volume1/video", "Films") },
+            nearby = { _, _ -> FolderSuggestion("volume1/video", "Films", named = "Films") },
         )
         vm.test()
         compose.waitUntil(WAIT_MS) { vm.check != null }
         compose.waitForIdle()
-        compose.onNode(hasText("Use /volume1/video/Films") and hasClickAction()).assertIsFocused()
+        compose.onNode(hasText("Use “Films”") and hasClickAction()).assertIsFocused()
         compose.onNodeWithText("Suggested by the NAS").assertExists()
 
         missing = false
@@ -230,7 +232,7 @@ class FolderFaultTest {
         vm.test()
         compose.waitUntil { vm.check != null }
         compose.waitForIdle()
-        val message = "The NAS refuses this player. Allow 192.168.1.42 on /volume1/video, read-only, and on a Synology " +
+        val message = "The NAS refuses this player. Allow 192.168.1.42 on ${wholePath("/volume1/video")}, read-only, and on a Synology " +
             "non-privileged ports."
         compose.onAllNodesWithText(message).assertCountEquals(1)
         compose.onNode(isFocused()).assert(hasText("Test") or hasAnyDescendant(hasText("Test")))

@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">Moje pliki</string>
-    <string name="source_local_desc">Pliki wideo na serwerze NAS lub komputerze w sieci. Houselights skanuje je i pobiera plakaty oraz opisy.</string>
+    <string name="source_local_desc">Wideo na serwerze NAS, komputerze w sieci lub dysku podłączonym do odtwarzacza. Houselights skanuje je i pobiera plakaty oraz opisy.</string>
     <string name="source_jellyfin">Serwer Jellyfin</string>
     <string name="source_jellyfin_desc">Biblioteka z serwera</string>
     <string name="welcome_jellyfin_desc">Filmy i seriale z serwera Jellyfin.</string>

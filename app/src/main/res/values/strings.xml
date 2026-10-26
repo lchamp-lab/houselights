@@ -7,7 +7,7 @@
 
     <!-- Sources -->
     <string name="source_local">My files</string>
-    <string name="source_local_desc">Videos on a NAS or a computer on your network. Houselights scans them and fetches posters and summaries.</string>
+    <string name="source_local_desc">Videos on a NAS, a computer on your network or a disk plugged into the player. Houselights scans them and fetches posters and summaries.</string>
     <string name="source_jellyfin">Jellyfin server</string>
     <string name="source_jellyfin_desc">Your server’s library</string>
     <string name="welcome_jellyfin_desc">The films and shows of your Jellyfin server.</string>

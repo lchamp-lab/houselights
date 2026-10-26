@@ -44,6 +44,7 @@
     <string name="full_path_supporting_nfs">Em um Synology, ele começa com /volume1/.</string>
     <string name="full_path_supporting_smb">Primeiro a pasta compartilhada, depois as subpastas.</string>
     <string name="use_suggestion">Usar %s</string>
+    <string name="use_suggestion_name">Usar “%s”</string>
     <string name="suggested_by_nas">Sugerido pelo NAS</string>
     <string name="flow_browse_desc">Abra a pasta dos seus filmes ou séries e depois escolha-a.</string>
     <string name="choose_folder">Escolher esta pasta</string>

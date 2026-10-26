@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">マイファイル</string>
-    <string name="source_local_desc">NASやネットワーク上のパソコンにある動画です。Houselightsがスキャンし、ポスターとあらすじを取得します。</string>
+    <string name="source_local_desc">NAS、ネットワーク上のパソコン、プレーヤーに接続したディスクの動画です。Houselightsがスキャンし、ポスターとあらすじを取得します。</string>
     <string name="source_jellyfin">Jellyfinサーバー</string>
     <string name="source_jellyfin_desc">サーバーのライブラリ</string>
     <string name="welcome_jellyfin_desc">Jellyfinサーバーの映画とシリーズです。</string>

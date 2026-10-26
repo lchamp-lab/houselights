@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">我的檔案</string>
-    <string name="source_local_desc">NAS 或網路中電腦上的影片。Houselights 會掃描這些影片，並取得海報和簡介。</string>
+    <string name="source_local_desc">NAS、網路中的電腦或連接到播放器的磁碟上的影片。Houselights 會掃描這些影片，並取得海報和簡介。</string>
     <string name="source_jellyfin">Jellyfin 伺服器</string>
     <string name="source_jellyfin_desc">伺服器中的媒體庫</string>
     <string name="welcome_jellyfin_desc">您的 Jellyfin 伺服器中的電影和影集。</string>

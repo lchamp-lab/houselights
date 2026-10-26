@@ -56,6 +56,7 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.sourceKindName
+import app.houselights.ui.util.wholePath
 
 /** Display order of the options: NFS first, since it needs no password. */
 private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
@@ -455,14 +456,21 @@ private fun FolderActions(vm: AddFolderViewModel, adding: Boolean, test: FocusRe
 }
 
 /**
- * What the NAS proposes for the path it lacks ([proposed], « Utiliser /volume1/media »), on a plate under the actions,
- * [focus] its row's; OK does [onUse].
+ * What the NAS proposes for the path it lacks ([proposed]), on a plate under the actions, naming what it changes: the
+ * folder or share by its name, « Utiliser « Films » », else the export, « Utiliser /volume1/media »; [focus] its
+ * row's; OK does [onUse].
  */
 @Composable
 private fun Suggestion(proposed: FolderSuggestion, focus: FocusRequester, onUse: () -> Unit) {
+    val named = proposed.named
+    val title = if (named != null) {
+        stringResource(R.string.use_suggestion_name, named)
+    } else {
+        stringResource(R.string.use_suggestion, proposed.export)
+    }
     HlSettingGroup(null) {
         HlSettingRow(
-            stringResource(R.string.use_suggestion, proposed.shown()),
+            title,
             Modifier.focusRequester(focus).revealOnFocus(),
             description = stringResource(R.string.suggested_by_nas),
             onClick = onUse,
@@ -527,17 +535,17 @@ private fun faultText(check: FolderCheck): String? = when (check) {
     is FolderCheck.SaveFailed -> stringResource(welcomeProblem(check.error))
 }
 
-/** What [trouble] asks to change, on the NAS at [host]. */
+/** What [trouble] asks to change, on the NAS at [host], its paths kept whole ([wholePath]) as the flow's. */
 @Composable
 private fun troubleText(trouble: FolderTrouble, host: String): String = when (trouble) {
     FolderTrouble.Unreachable -> stringResource(R.string.error_nas_unreachable, host)
     is FolderTrouble.ShareMissing -> stringResource(R.string.error_share_not_found, host, trouble.share)
-    is FolderTrouble.ExportMissing -> stringResource(R.string.error_export_not_found, trouble.export)
-    is FolderTrouble.SubfolderMissing -> stringResource(
-        if (trouble.nfs) R.string.error_subfolder_not_found else R.string.error_subfolder_not_found_share,
-        trouble.within,
-        trouble.name,
-    )
+    is FolderTrouble.ExportMissing -> stringResource(R.string.error_export_not_found, wholePath(trouble.export))
+    is FolderTrouble.SubfolderMissing -> if (trouble.nfs) {
+        stringResource(R.string.error_subfolder_not_found, wholePath(trouble.within), trouble.name)
+    } else {
+        stringResource(R.string.error_subfolder_not_found_share, trouble.within, trouble.name)
+    }
     FolderTrouble.Missing -> stringResource(R.string.error_not_found)
     is FolderTrouble.PlayerRefused, is FolderTrouble.ReadRefused -> refusalText(trouble)
     is FolderTrouble.AccountDenied -> stringResource(R.string.error_smb_denied, trouble.user, trouble.share)
@@ -550,11 +558,11 @@ private fun troubleText(trouble: FolderTrouble, host: String): String = when (tr
 @Composable
 private fun refusalText(trouble: FolderTrouble): String = when {
     trouble is FolderTrouble.PlayerRefused && trouble.player != null ->
-        stringResource(R.string.error_nfs_refused, trouble.player, trouble.export)
-    trouble is FolderTrouble.PlayerRefused -> stringResource(R.string.error_nfs_refused_no_address, trouble.export)
+        stringResource(R.string.error_nfs_refused, trouble.player, wholePath(trouble.export))
+    trouble is FolderTrouble.PlayerRefused -> stringResource(R.string.error_nfs_refused_no_address, wholePath(trouble.export))
     trouble is FolderTrouble.ReadRefused && trouble.uid != null ->
-        stringResource(R.string.error_nfs_account_refused, trouble.uid.toString(), trouble.folder)
-    trouble is FolderTrouble.ReadRefused -> stringResource(R.string.error_nfs_root_refused, trouble.folder)
+        stringResource(R.string.error_nfs_account_refused, trouble.uid.toString(), wholePath(trouble.folder))
+    trouble is FolderTrouble.ReadRefused -> stringResource(R.string.error_nfs_root_refused, wholePath(trouble.folder))
     else -> stringResource(R.string.error_scan_other)
 }
 

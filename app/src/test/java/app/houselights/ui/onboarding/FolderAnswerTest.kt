@@ -400,7 +400,8 @@ class FolderAnswerTest {
         advanceUntilIdle()
         assertEquals(listOf<FolderTrouble>(FolderTrouble.ExportMissing("/media")), asked)
         assertEquals(FolderSuggestion("volume1/media", "Films"), vm.suggestion)
-        assertEquals("/volume1/media/Films", vm.suggestion?.shown())
+        val said = vm.suggestion?.export to vm.suggestion?.named
+        assertEquals("« Utiliser /volume1/media », the export alone", "/volume1/media" to null, said)
 
         vm.useSuggestion()
         advanceUntilIdle()

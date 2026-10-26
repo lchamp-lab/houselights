@@ -42,6 +42,7 @@
     <string name="full_path_supporting_nfs">在 Synology 上，路徑以 /volume1/ 開頭。</string>
     <string name="full_path_supporting_smb">先寫共用資料夾，再寫子資料夾。</string>
     <string name="use_suggestion">使用 %s</string>
+    <string name="use_suggestion_name">使用「%s」</string>
     <string name="suggested_by_nas">NAS 建議</string>
     <string name="flow_browse_desc">請開啟存放電影或影集的資料夾，然後選擇它。</string>
     <string name="choose_folder">選擇此資料夾</string>

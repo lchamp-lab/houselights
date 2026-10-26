@@ -6,25 +6,26 @@ import app.houselights.providers.local.TypedPaths
 
 /**
  * A place on the NAS that a folder's path it lacks may mean (#59): [share], an NFS export's path from the NAS's root or
- * an SMB share's name, and the folder [path] inside it, both as a folder keeps them ([SourceEntity.share], [SourceEntity.path]).
+ * an SMB share's name, and the folder [path] inside it, both as a folder keeps them ([SourceEntity.share], [SourceEntity.path]);
+ * [named], the share or folder whose name it changes, null when it gives the export instead.
  */
-data class FolderSuggestion(val share: String, val path: String) {
-    /** As « Utiliser … » and the panel beside the form say it, from the NAS's root: "/volume1/media/Films". */
-    fun shown(): String = "/" + listOf(share, path).filter { it.isNotEmpty() }.joinToString("/")
+data class FolderSuggestion(val share: String, val path: String, val named: String? = null) {
+    /** The export it gives, from the NAS's root, as « Utiliser /volume1/media » names it. */
+    val export: String get() = "/" + share.trim('/')
 }
 
 /**
  * What the NAS has that [source]'s path, which [trouble] says it lacks, may mean, read from [network] as « Ajouter un
  * dossier » reads it: for an NFS export it does not have, the export it lists whose path the one typed is the end or the
  * start of, case and accents aside ("/volume1/media" for « /media », [TypedPaths.meant]); for an SMB share, or a folder
- * inside the shared folder, the one at that level spelled alike or within one letter of it ([TypedPaths.closest]). Null
- * when nothing is near; throws when the NAS cannot say.
+ * inside the shared folder, the one at that level spelled alike or within one letter of it ([TypedPaths.closest]),
+ * [FolderSuggestion.named] by it. Null when nothing is near; throws when the NAS cannot say.
  */
 internal suspend fun suggestionFor(source: SourceEntity, trouble: FolderTrouble, network: FlowNetwork): FolderSuggestion? =
     when (trouble) {
         is FolderTrouble.ExportMissing -> exportMeant(source, network)
-        is FolderTrouble.ShareMissing ->
-            TypedPaths.closest(source.share, network.shares(source).map { it.name })?.let { FolderSuggestion(it, source.path.trim('/')) }
+        is FolderTrouble.ShareMissing -> TypedPaths.closest(source.share, network.shares(source).map { it.name })
+            ?.let { FolderSuggestion(it, source.path.trim('/'), named = it) }
         is FolderTrouble.SubfolderMissing -> folderMeant(source, network)
         else -> null
     }
@@ -49,7 +50,7 @@ private suspend fun folderMeant(source: SourceEntity, network: FlowNetwork): Fol
         val name = names[i]
         if (level.none { it == name || smb && it.equals(name, ignoreCase = true) }) {
             val near = TypedPaths.closest(name, level) ?: return null
-            return FolderSuggestion(source.share.trim('/'), (names.take(i) + near + names.drop(i + 1)).joinToString("/"))
+            return FolderSuggestion(source.share.trim('/'), (names.take(i) + near + names.drop(i + 1)).joinToString("/"), near)
         }
     }
     return null

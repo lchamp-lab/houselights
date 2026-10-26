@@ -22,6 +22,7 @@ import app.houselights.providers.local.IgnoredFileRow
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbKeyCheck
+import app.houselights.providers.local.Volumes
 import app.houselights.settings.AppSettings
 import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.Resumed
@@ -125,11 +126,13 @@ internal class SettingsViewModel(
     toIdentifyCount: Flow<Int> = library.toIdentifyCount,
     /** The videos the shows folders hold that the library leaves out ([LocalLibrary.ignored]). */
     ignoredFiles: Flow<List<IgnoredFileRow>> = library.ignored,
+    /** The player's disks, which name the folders on them in their sheet. */
+    val volumes: Volumes = Volumes.NONE,
 ) : ViewModel() {
     constructor(app: AppContainer, images: ImageLoader) : this(
         app.settings, app.library, app::providerOrNull, app.scope, app.sources, images,
         chooseLanguage = app.language::choose, deviceLocale = app.deviceLocale, interfaceLanguage = app.language.chosen,
-        asksTracks = app.asksTracks,
+        asksTracks = app.asksTracks, volumes = app.volumes,
     )
 
     val settings: StateFlow<AppSettings> = store.state

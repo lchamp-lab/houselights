@@ -1,7 +1,7 @@
 <resources>
     <!-- Sources -->
     <string name="source_local">내 파일</string>
-    <string name="source_local_desc">NAS 또는 네트워크의 컴퓨터에 있는 동영상입니다. Houselights가 이를 스캔하고 포스터와 줄거리를 가져옵니다.</string>
+    <string name="source_local_desc">NAS, 네트워크의 컴퓨터 또는 플레이어에 연결한 디스크에 있는 동영상입니다. Houselights가 이를 스캔하고 포스터와 줄거리를 가져옵니다.</string>
     <string name="source_jellyfin">Jellyfin 서버</string>
     <string name="source_jellyfin_desc">서버의 라이브러리</string>
     <string name="welcome_jellyfin_desc">Jellyfin 서버의 영화와 시리즈입니다.</string>

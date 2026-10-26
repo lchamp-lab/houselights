@@ -1,6 +1,6 @@
 <resources>
     <string name="source_local">Mes fichiers</string>
-    <string name="source_local_desc">Vos vidéos sur un NAS ou un ordinateur du réseau. Houselights les analyse et récupère affiches et résumés.</string>
+    <string name="source_local_desc">Vos vidéos sur un NAS, un ordinateur du réseau ou un disque branché au lecteur. Houselights les analyse et récupère affiches et résumés.</string>
     <string name="source_jellyfin">Serveur Jellyfin</string>
     <string name="source_jellyfin_desc">La bibliothèque de votre serveur</string>
     <string name="welcome_jellyfin_desc">Les films et les séries de votre serveur Jellyfin.</string>
