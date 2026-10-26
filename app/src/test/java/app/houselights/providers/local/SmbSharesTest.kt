@@ -165,16 +165,22 @@ class SmbSharesTest {
         }
     }
 
-    /** Cut short, a count past its end, another call's answer, big-endian: refused rather than read on. */
+    /**
+     * Cut short (the PDU, the shares' array, a string's code units), a string's count past the stub's end, a count
+     * beyond any share's, another call's answer, big-endian: refused rather than read on.
+     */
     @Test
     fun aMalformedAnswerFails() {
         val whole = response(enumerated)
-        // The first string's actual count, 0x7f7f units.
-        val stringPastTheEnd = enumerated.copyOf().also { it[104] = 0x7f; it[105] = 0x7f }
+        // The first string's counts, maximum and actual, 0x0fff units: a share's name could be that long, not this stub.
+        val stringPastTheEnd = enumerated.copyOf().also { it[96] = 0xff.toByte(); it[97] = 0x0f; it[104] = 0xff.toByte(); it[105] = 0x0f }
+        // Its actual count alone, 0x7f7f units: more than its maximum, and than any share's name.
+        val countBeyondAnyName = enumerated.copyOf().also { it[104] = 0x7f; it[105] = 0x7f }
         val anotherCall = whole.copyOf().also { it[12] = 9 }
         val bigEndian = whole.copyOf().also { it[4] = 0 }
-        val cut = listOf(whole.copyOf(100), response(enumerated.copyOf(64)))
-        (cut + listOf(response(stringPastTheEnd), anotherCall, bigEndian)).forEach { answer ->
+        // The stub ending in its array, then inside "video"'s code units (bytes 108 to 119).
+        val cut = listOf(whole.copyOf(100), response(enumerated.copyOf(64)), response(enumerated.copyOf(110)))
+        (cut + listOf(response(stringPastTheEnd), response(countBeyondAnyName), anotherCall, bigEndian)).forEach { answer ->
             val failure = runCatching { shares(answer) }.exceptionOrNull()
             assertTrue("$failure", failure is MalformedAnswerException)
         }
