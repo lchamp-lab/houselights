@@ -215,6 +215,29 @@ class LocalProviderTest {
         }
     }
 
+    /**
+     * A film or an episode held while its file is missing says since when; a show, once every episode is, since the
+     * first of them; a film in several files, each part too.
+     */
+    @Test
+    fun aTitleHeldSaysSinceWhenItsFileIsMissing() = runTest {
+        val heat = movie("Heat", path = "Heat CD1.avi") { copy(parts = listOf("Heat CD2.avi")) }
+        dao.setMissingSince(listOf(heat), 7)
+        val film = provider.item(heat.toString())
+        assertEquals(7L, film.missingSince)
+        assertTrue(film.held)
+        assertEquals(listOf(7L, 7L), film.parts.map { it.missingSince })
+
+        val show = show("MobLand")
+        val episodes = (1..3).map { show.episode(1, it) }
+        dao.setMissingSince(episodes.take(2), 5)
+        dao.setMissingSince(episodes.drop(2), 9)
+        assertEquals(5L, provider.item(show.id.toString()).missingSince)
+        assertEquals(9L, provider.item(episodes.last().toString()).missingSince)
+        dao.setMissingSince(episodes.drop(2), null)
+        assertNull("an episode there: the show is", provider.item(show.id.toString()).missingSince)
+    }
+
     /** Each season of a show reports its episodes and those not yet watched, in one query. */
     @Test
     fun seasonsSayHowFarTheyAreWatched() = runTest {

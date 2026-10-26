@@ -128,7 +128,7 @@ class StacksTest {
     private fun row(id: Long, path: String, parts: List<String> = emptyList()) = KnownFile(id = id, filePath = path, parts = parts)
 
     private fun settle(rows: List<KnownFile>, vararg paths: String) =
-        MissingFiles.settle(SourceKind.MOVIES, rows, stacks(*paths), MissingFiles.PassTime(NOW))
+        MissingFiles.settle(SourceKind.MOVIES, rows, stacks(*paths))
 
     @Test
     fun aPartRenamedIsAChangeOfItsFilm() {
@@ -168,9 +168,5 @@ class StacksTest {
         assertEquals(listOf(2L to RemoteFile("Heat CD1.avi", 1_000)), alone.relinked)
         assertEquals(listOf(2L to listOf("Heat CD2.avi")), alone.parts)
         assertTrue(alone.removed.isEmpty())
-    }
-
-    private companion object {
-        const val NOW = 1_800_000_000_000L
     }
 }

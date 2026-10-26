@@ -112,13 +112,21 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             lastEpisodeNumber = e.lastEpisodeNumber,
             childCount = seasonCount,
             edition = e.edition,
+            // A show is held once every episode is.
+            missingSince = e.missingSince ?: showCounts?.takeIf { it.episodes > 0 && it.held == it.episodes }?.heldSince,
         )
     }
 
     private fun partsOf(e: ItemEntity, title: String): List<MediaItem> {
         if (e.parts.isEmpty()) return emptyList()
         return (listOfNotNull(e.filePath) + e.parts).mapIndexed { i, path ->
-            MediaItem(id = LocalId.ofPart(e.id, i + 1), kind = MediaKind.MOVIE, title = title, fileName = path.substringAfterLast('/'))
+            MediaItem(
+                id = LocalId.ofPart(e.id, i + 1),
+                kind = MediaKind.MOVIE,
+                title = title,
+                fileName = path.substringAfterLast('/'),
+                missingSince = e.missingSince,
+            )
         }
     }
 

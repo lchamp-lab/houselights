@@ -11,6 +11,8 @@ data class Folder(
     val address: String,
     /** When its last scan ended; 0 until one has. */
     val lastScanAt: Long,
+    /** Whether the user kept the titles a sudden drop holds in it ([SourceEntity.heldKept]). */
+    val heldKept: Boolean = false,
 )
 
-internal fun SourceEntity.toFolder() = Folder(id, name, kind, protocol, host, address(withScheme = false), lastScanAt)
+internal fun SourceEntity.toFolder() = Folder(id, name, kind, protocol, host, address(withScheme = false), lastScanAt, heldKept)

@@ -22,7 +22,7 @@ import kotlinx.coroutines.withContext
         SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class, TrackChoiceEntity::class,
         KeptStateEntity::class, SuggestionEntity::class,
     ],
-    version = 19,
+    version = 20,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
@@ -285,6 +285,18 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
+         * v19 → v20: whether the user kept the titles a sudden drop holds in a folder ([SourceEntity.heldKept]). No clock
+         * holds a row any longer: rows held a day by the versions before are listed again, so the next pass judges them
+         * by the drop alone ([MissingFiles.isDrop]), gone if few, held and asked about if many.
+         */
+        private val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sources ADD COLUMN heldKept INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE items SET missingSince = NULL WHERE missingSince IS NOT NULL")
+            }
+        }
+
+        /**
          * Sets [MediaInfo.tracksInOrder] where the probe read the tracks, so that no file is read again for it; decoded
          * in Kotlin as in [MIGRATION_10_11], by batches so a large library's JSON is never held whole.
          */
@@ -447,7 +459,7 @@ abstract class LibraryDatabase : RoomDatabase() {
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-            MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19,
+            MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =

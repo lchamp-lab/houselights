@@ -77,7 +77,15 @@ data class MediaItem(
     val addedAt: Long? = null,
     /** This copy's edition ([Editions]: "Extended"…), when its file or NFO names one. */
     val edition: String? = null,
+    /**
+     * Since when its file is missing, among many of its folder gone at once (a disk of the NAS offline): held, shown and
+     * not played until its file is back or it is removed; a show's when every episode is. Null for a title there.
+     */
+    val missingSince: Long? = null,
 ) {
+    /** Its file is missing, held until it is back ([missingSince]): nothing to play. */
+    val held: Boolean get() = missingSince != null
+
     val isPlayable get() = kind == MediaKind.MOVIE || kind == MediaKind.EPISODE || kind == MediaKind.VIDEO
 
     /** Added to a library in the last [NEW_FOR_MS], and not watched yet. */
