@@ -8,6 +8,8 @@ import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
 import app.houselights.core.UserState
 import app.houselights.providers.local.Folder
+import app.houselights.providers.local.HeldRow
+import app.houselights.providers.local.ItemKind
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
@@ -39,6 +41,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -445,5 +448,51 @@ class HomeViewModelTest {
         advanceUntilIdle()
         assertEquals(HomeContent.Rows(rows), vm.content())
         assertEquals("its count unread", listOf<Int?>(null), vm.state.value.doors?.shelves?.map { it.count })
+    }
+
+    private fun heldRow(id: Long, folder: Long) = HeldRow(
+        id = id, sourceId = folder, kind = ItemKind.MOVIE, title = "Film $id", year = 2020, filePath = "Film $id.mkv",
+        missingSince = 1, showTitle = null, seasonNumber = null, episodeNumber = null,
+    )
+
+    /**
+     * Home says the titles held of the first folder the user has not kept, in the folders' order, with the local folders
+     * alone; kept, nothing asks again. Its answers are about the folder and the rows shown.
+     */
+    @Test
+    fun homeSaysTheFirstFolderNotKept() = runTest {
+        val held = MutableStateFlow(listOf(heldRow(1, folder = 1), heldRow(2, folder = 2), heldRow(3, folder = 2)))
+        folders.value = listOf(folder(1).copy(heldKept = true), folder(2))
+        val answers = mutableListOf<String>()
+        val vm = HomeViewModel(
+            { provider }, scan, folders.filterNotNull(), settings, scanAll = {}, held = held,
+            keep = { folder, shown -> answers += "keep $folder $shown" }, remove = { answers += "remove $it" },
+            work = backgroundScope,
+        )
+        backgroundScope.launch { vm.state.collect {} }
+        advanceUntilIdle()
+        val note = checkNotNull(vm.state.value.held) { "no note" }
+        assertEquals("the folder kept says nothing", 2L, note.folder.id)
+        assertEquals(listOf(2L, 3L), note.ids)
+        vm.keepHeld(note)
+        vm.removeHeld(note)
+        advanceUntilIdle()
+        assertEquals(listOf("keep 2 [2, 3]", "remove [2, 3]"), answers)
+
+        folders.value = listOf(folder(1).copy(heldKept = true), folder(2).copy(heldKept = true))
+        advanceUntilIdle()
+        assertNull("kept, nothing asks again", vm.state.value.held)
+
+        folders.value = listOf(folder(1), folder(2))
+        advanceUntilIdle()
+        assertEquals("another drop asks again", 1L, vm.state.value.held?.folder?.id)
+        held.value = emptyList()
+        advanceUntilIdle()
+        assertNull("their files back", vm.state.value.held)
+
+        held.value = listOf(heldRow(1, folder = 1))
+        settings.value = AppSettings(loaded = true, source = SourceConfig.Jellyfin("http://nas:8096", "Maison", "u1", "viewer", "token"))
+        advanceUntilIdle()
+        assertNull("a server's home says nothing of the folders", vm.state.value.held)
     }
 }

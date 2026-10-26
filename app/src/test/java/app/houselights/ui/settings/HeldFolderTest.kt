@@ -10,6 +10,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import androidx.lifecycle.ViewModelProvider
@@ -23,6 +24,7 @@ import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.ItemEntity
 import app.houselights.providers.local.ItemKind
+import app.houselights.providers.local.LibraryDao
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
@@ -54,6 +56,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.IOException
 import java.util.concurrent.Executors
 
 /**
@@ -82,6 +85,22 @@ class HeldFolderTest {
     private lateinit var vm: SettingsViewModel
     private var films = 0L
 
+    /** Whether the player's storage refuses the answers' writes. */
+    private var refused = false
+
+    /** The library's rows, the answers' writes refused while [refused] says, as a full storage refuses them. */
+    private class Answers(private val dao: LibraryDao, private val refused: () -> Boolean) : LibraryDao by dao {
+        override suspend fun setHeldKept(id: Long, kept: Boolean) {
+            if (refused()) throw IOException("No space left on device")
+            dao.setHeldKept(id, kept)
+        }
+
+        override suspend fun removeHeld(ids: Collection<Long>, handedOver: Set<Long>): Int {
+            if (refused()) throw IOException("No space left on device")
+            return dao.removeHeld(ids, handedOver)
+        }
+    }
+
     @Before
     fun open() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -95,8 +114,9 @@ class HeldFolderTest {
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // No scan runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+        val dao = Answers(db.dao()) { refused }
+        val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
+        val library = LocalLibrary(context, dao, scanner, artwork) {}
         store = testSettings(folder.root, files)
         val factory = viewModelFactory {
             initializer {
@@ -183,6 +203,35 @@ class HeldFolderTest {
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         compose.waitUntil(TIMEOUT_MS) { held().isEmpty() }
         assertEquals("the title there stays", listOf("Film 13.mkv"), runBlocking { db.dao().filesOf(films).mapNotNull { it.filePath } })
+    }
+
+    private fun saysNothingSaved() = compose.waitUntil(TIMEOUT_MS) {
+        compose.onAllNodesWithText("Rien n’a été enregistré", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    /** « Garder » not saved: said on the folder's showcase, their sheet still to answer. */
+    @Test
+    fun aKeepNotSavedIsSaidOnTheFolder() {
+        refused = true
+        show()
+        openTheirSheet()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        saysNothingSaved()
+        assertEquals(false, runBlocking { db.dao().source(films)?.heldKept })
+        assertEquals(12, held().size)
+    }
+
+    /** « Retirer » not saved: said on the folder's showcase, the titles still held there. */
+    @Test
+    fun aRemovalNotSavedIsSaidOnTheFolder() {
+        refused = true
+        show()
+        openTheirSheet()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        saysNothingSaved()
+        assertEquals(12, held().size)
+        compose.onNodeWithText("12 introuvables", useUnmergedTree = true).assertExists()
     }
 
     private companion object {

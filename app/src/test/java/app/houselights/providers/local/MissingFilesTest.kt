@@ -161,6 +161,38 @@ class MissingFilesTest {
         assertEquals(more.take(9).map { it.id }, few.removed)
     }
 
+    /**
+     * The share is of all the folder's titles, those held already included: thirty held, fifteen newly missing and forty
+     * listed are no drop (60 is not more than 85), though they would be of the titles listed, or of those not held.
+     */
+    @Test
+    fun theShareIsOfAllTheFoldersTitles() {
+        val held = films(30).map { it.copy(missingSince = NOW) }
+        val fresh = (31L..45).map { film(it, "Film $it (2020).mkv") }
+        val listed = (46L..85).map { film(it, "Film $it (2020).mkv") }
+        val outcome = settled(held + fresh + listed, *listed.map { it.filePath }.toTypedArray())
+        assertEquals(fresh.map { it.id }, outcome.removed)
+        assertEquals(emptyList<Long>(), outcome.held)
+        assertEquals(held.map { it.id }, outcome.waiting)
+    }
+
+    /**
+     * Files now later parts of a film are no titles of the folder: ten missing of thirty titles, ten more rows parts now,
+     * are a drop (40 is more than 30), which they would not be of forty rows.
+     */
+    @Test
+    fun laterPartsAreNoTitlesOfTheFolder() {
+        val firsts = (1L..10).map { film(it, "Heat $it (1995)/Heat (1995) CD1.avi") }
+        val seconds = (11L..20).map { film(it, "Heat ${it - 10} (1995)/Heat (1995) CD2.avi") }
+        val listed = (21L..30).map { film(it, "Film $it (2020).mkv") }
+        val missing = (31L..40).map { film(it, "Film $it (2020).mkv") }
+        val paths = (firsts + seconds + listed).map { it.filePath }
+        val outcome = settled(firsts + seconds + listed + missing, *paths.toTypedArray())
+        assertEquals("now parts of their films", seconds.map { it.id }, outcome.absorbed)
+        assertEquals(missing.map { it.id }, outcome.held)
+        assertEquals(emptyList<Long>(), outcome.removed)
+    }
+
     private companion object {
         const val NOW = 1_000_000L
         const val YEAR = 365 * 24 * 60 * 60_000L
