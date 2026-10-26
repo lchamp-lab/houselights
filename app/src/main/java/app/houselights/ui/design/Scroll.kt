@@ -7,8 +7,12 @@ import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -165,6 +169,53 @@ fun Modifier.scrollEdges(state: ScrollableState, color: () -> Color): Modifier =
             )
         }
     }
+}
+
+/**
+ * Fades the content itself out into what lies under it, a field of posters, over [HlSpace.fadeEdge] at an end with
+ * more beyond, so a plate cut by the list's edge reads as more to come where a fade into black would not show over
+ * plates as dark: while there is something to fade, the content is composed in a layer of its own (offscreen, set
+ * while drawing) whose edge a gradient erases. The layer reaches [start] and [end] past the element's sides, so the
+ * plates and focus frames hanging past them are not cut. Focus stays clear of the fade, as with [scrollEdges].
+ */
+fun Modifier.fadeIntoField(state: ScrollableState, start: Dp, end: Dp): Modifier = composed {
+    val fade = tween<Float>(HlMotion.FAST, easing = HlMotion.fallBack)
+    val top by animateFloatAsState(if (state.canScrollBackward) 1f else 0f, fade, label = "fieldTop")
+    val bottom by animateFloatAsState(if (state.canScrollForward) 1f else 0f, fade, label = "fieldBottom")
+    this
+        .layout { measurable, constraints ->
+            val before = start.roundToPx()
+            val after = end.roundToPx()
+            val wider = if (constraints.hasBoundedWidth) {
+                constraints.copy(minWidth = constraints.minWidth + before + after, maxWidth = constraints.maxWidth + before + after)
+            } else {
+                constraints
+            }
+            val placeable = measurable.measure(wider)
+            layout((placeable.width - before - after).coerceAtLeast(0), placeable.height) { placeable.place(-before, 0) }
+        }
+        .graphicsLayer { compositingStrategy = if (top > 0f || bottom > 0f) CompositingStrategy.Offscreen else CompositingStrategy.Auto }
+        .drawWithContent {
+            drawContent()
+            if (top <= 0f && bottom <= 0f) return@drawWithContent
+            val length = HlSpace.fadeEdge.toPx().coerceAtMost(size.height / 2)
+            val edge = Size(size.width, length)
+            if (top > 0f) {
+                val erase = Brush.verticalGradient(0f to Color.Black.copy(alpha = top), 1f to Color.Transparent, endY = length)
+                drawRect(erase, size = edge, blendMode = BlendMode.DstOut)
+            }
+            if (bottom > 0f) {
+                val from = size.height - length
+                val erase = Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    1f to Color.Black.copy(alpha = bottom),
+                    startY = from,
+                    endY = size.height,
+                )
+                drawRect(erase, topLeft = Offset(0f, from), size = edge, blendMode = BlendMode.DstOut)
+            }
+        }
+        .padding(start = start, end = end)
 }
 
 /**

@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
@@ -108,8 +109,9 @@ fun HeaderControls(content: @Composable () -> Unit) {
 /**
  * Button. The primary one is the main action: the ember light in black ink, framed by focus. A secondary one is
  * a plate turning white. Disabled, it keeps focus, ringed, and ignores OK; [busy] shows the pending dot and
- * [busyLabel] at the same width and ignores OK. [detailLit] lights the detail for a state it names (an active
- * filter, the sort chosen).
+ * [busyLabel] and ignores OK. A button with a busy label of its own takes from the start the width of the wider of
+ * its words at rest and busy, [reserveFor] included (another busy label it shows in turn), so nothing beside it moves
+ * as they change. [detailLit] lights the detail for a state it names (an active filter, the sort chosen).
  */
 @Composable
 fun HlButton(
@@ -124,7 +126,8 @@ fun HlButton(
     enabled: Boolean = true,
     busy: Boolean = false,
     busyLabel: String = text,
-) = ButtonPlate(text, onClick, modifier, icon, detail, emphasis, detailLit, enabled, busy, busyLabel)
+    reserveFor: String? = null,
+) = ButtonPlate(text, onClick, modifier, icon, detail, emphasis, detailLit, enabled, busy, busyLabel, reserveFor = reserveFor)
 
 /** The plate of [HlButton]; [caution] sets the label in ember for an irreversible action ([SheetConfirm]). */
 @Composable
@@ -140,12 +143,13 @@ internal fun ButtonPlate(
     busy: Boolean = false,
     busyLabel: String = text,
     caution: Boolean = false,
+    reserveFor: String? = null,
 ) {
     val c = Hl.colors
     val busyState = stringResource(R.string.control_busy)
     val height = if (LocalInHeader.current) HlSize.controlCompact else HlSize.control
     val surface = modifier.height(height).semantics { if (busy) stateDescription = busyState }
-    val words = ButtonWords(text, icon, detail, detailLit, busy, busyLabel)
+    val words = ButtonWords(text, icon, detail, detailLit, busy, busyLabel, reserveFor)
     if (emphasis == Emphasis.Primary) {
         val light = remember(c) { c.emberLight() }
         HlFocusSurface(
@@ -191,6 +195,7 @@ private class ButtonWords(
     val detailLit: Boolean,
     val busy: Boolean,
     val busyLabel: String,
+    val reserveFor: String?,
 )
 
 @Composable
@@ -199,6 +204,7 @@ private fun BoxScope.ButtonRow(words: ButtonWords, primary: Boolean, lit: Boolea
         Modifier
             .align(Alignment.Center)
             .keepWidthWhile(words.busy)
+            .widthIn(min = reservedWidth(words))
             .padding(
                 start = if (words.icon != null || words.busy) HlControl.buttonPaddingIcon else HlControl.buttonPaddingH,
                 end = HlControl.buttonPaddingH,
@@ -242,6 +248,31 @@ private fun ButtonDetail(text: String, primary: Boolean, lit: Boolean, enabled: 
     }
     val color = if (primary) Color.Unspecified else FocusStyle.quietInk(lit && enabled, enabled, lit = false)
     Text(text, style = style, color = color, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+}
+
+/**
+ * The wider of a button's row at rest and busy, its icon or pending dot and paddings included, for a button whose
+ * words change ([HlButton]'s busy labels), so it takes that width from the start; unspecified for one that keeps its
+ * words, or says a detail.
+ */
+@Composable
+private fun reservedWidth(words: ButtonWords): Dp {
+    val changes = words.busyLabel != words.text || words.reserveFor != null
+    if (!changes || words.detail != null) return Dp.Unspecified
+    val style = Hl.type.entry
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val icon = words.icon != null
+    return remember(words.text, words.busyLabel, words.reserveFor, icon, style, density) {
+        with(density) {
+            fun wide(label: String) =
+                measurer.measure(label, style, softWrap = false, maxLines = 1).size.width.toDp().coerceAtMost(HlLayout.readableNarrow)
+            val lead = HlControl.buttonPaddingIcon + HlSize.icon + HlControl.iconGap
+            val rest = (if (icon) lead else HlControl.buttonPaddingH) + wide(words.text) + HlControl.buttonPaddingH
+            val said = maxOf(wide(words.busyLabel), words.reserveFor?.let(::wide) ?: wide(words.busyLabel))
+            maxOf(rest, lead + said + HlControl.buttonPaddingH)
+        }
+    }
 }
 
 /** Records the content width at rest and keeps at least that width while [busy], so the row does not shift. */
@@ -510,6 +541,22 @@ fun HlListItem(
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) { badges.forEach { Badge(it) } }
             }
         }
+    }
+}
+
+/**
+ * The lines the longest of [descriptions] takes in an [HlListItem] [width] wide, as its description is set at the
+ * viewer's text size: choices side by side or stacked reserve as many ([HlListItem]'s `descriptionLines`), so they keep
+ * one height.
+ */
+@Composable
+fun rememberDescriptionLines(descriptions: List<String>, width: Dp): Int {
+    val style = Hl.type.meta
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    return remember(descriptions, width, style, density) {
+        val room = with(density) { (width - HlInset.card * 2).roundToPx() }.coerceAtLeast(0)
+        descriptions.maxOfOrNull { measurer.measure(it, style, constraints = Constraints(maxWidth = room)).lineCount } ?: 1
     }
 }
 

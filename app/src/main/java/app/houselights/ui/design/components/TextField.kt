@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -42,6 +43,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -136,6 +138,9 @@ private fun FieldBox(
     var fieldFocused by remember { mutableStateOf(false) }
     val boxFocus = remember { FocusRequester() }
     val fieldFocus = remember { FocusRequester() }
+    // The room « OK saisir » takes at the field's end, which the example leaves it, never running under it.
+    var hintWidth by remember { mutableIntStateOf(0) }
+    val hinted = boxFocused && !editing
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     // Every start of typing, and text the field did not type while typing, puts the cursor after the text, where erase
@@ -221,15 +226,22 @@ private fun FieldBox(
                 },
             decorationBox = { inner ->
                 Box {
-                    Placeholder(placeholder, shown = value.isEmpty())
+                    val room = with(density) { hintWidth.toDp() }.takeIf { hinted } ?: HlSpace.none
+                    Placeholder(placeholder, shown = value.isEmpty(), Modifier.padding(end = room))
                     inner()
                 }
             },
         )
-        if (boxFocused && !editing) {
+        if (hinted) {
             // Over the text's end, on the field's surface, never taller than the field.
             Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
-                KeyHint(Modifier.wrapContentHeight(unbounded = true).background(c.glass).padding(start = HlSpace.s))
+                KeyHint(
+                    Modifier
+                        .wrapContentHeight(unbounded = true)
+                        .onSizeChanged { hintWidth = it.width }
+                        .background(c.glass)
+                        .padding(start = HlSpace.s),
+                )
             }
         }
     }
@@ -328,9 +340,16 @@ private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
 
 /** Shown while the field is empty; skipped when blank, since empty text would change the field's height. */
 @Composable
-private fun Placeholder(text: String, shown: Boolean) {
+private fun Placeholder(text: String, shown: Boolean, modifier: Modifier = Modifier) {
     if (shown && text.isNotEmpty()) {
-        Text(text, style = Hl.type.body, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            text,
+            style = Hl.type.body,
+            color = Hl.colors.contentTertiary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier,
+        )
     }
 }
 
