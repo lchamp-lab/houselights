@@ -27,6 +27,8 @@ internal class NfsBrowser(
         Nfs3Export(Nfs3(host, export, credential, RETRIES))
     },
     clock: () -> Long = SystemClock::elapsedRealtime,
+    /** Lists a server's exports (a request to the NAS); replaceable in tests. */
+    private val listExports: (host: String) -> List<ExportedFolder> = NfsExports::list,
 ) : RemoteBrowser {
     /** One mount per export and identity; nfs-client owns its sockets, so closing a mount is just dropping it. */
     private val mounts = KeptConnections<NfsMount>(
@@ -73,6 +75,9 @@ internal class NfsBrowser(
 
     /** [source]'s export, mounted as [source] presents itself. */
     private fun mounted(source: SourceEntity) = NfsMount(mount(source.host, export(source), credential(source)))
+
+    /** The exports of the server at [host], each with the clients it allows ([exportAccess]); throws as a mount does. */
+    suspend fun exports(host: String): List<ExportedFolder> = withContext(Dispatchers.IO) { listExports(host.trim()) }
 
     /** Drops the mounts of [source]'s export, under any identity, after its address or identity changed. */
     suspend fun forget(source: SourceEntity) {
