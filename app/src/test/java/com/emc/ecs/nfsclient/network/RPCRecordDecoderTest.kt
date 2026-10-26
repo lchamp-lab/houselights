@@ -181,7 +181,8 @@ class RPCRecordDecoderTest {
     /** The build takes nfs-client's own decoder out of its jar: the app's is the only one left, the one nfs-client builds. */
     @Test
     fun nfsClientsOwnDecoderIsGone() {
-        val copies = RPCRecordDecoder::class.java.classLoader.getResources("com/emc/ecs/nfsclient/network/RPCRecordDecoder.class").toList()
+        val loader = requireNotNull(RPCRecordDecoder::class.java.classLoader)
+        val copies = loader.getResources("com/emc/ecs/nfsclient/network/RPCRecordDecoder.class").toList()
         assertEquals("$copies", 1, copies.size)
         assertFalse("$copies", copies.single().path.contains("nfs-client"))
     }
