@@ -217,23 +217,28 @@ class FolderFaultTest {
     @Test
     fun doneOnTheLastFieldSaves() {
         var done = false
-        form(series) { done = true }
+        val vm = form(series) { done = true }
         compose.onNodeWithContentDescription("Password").requestFocus()
         compose.press(Key.DirectionCenter)
         compose.onNode(isFocused() and hasSetTextAction()).performImeAction()
-        compose.waitUntil(WAIT_MS) { done }
+        compose.waitUntil(WAIT_MS) { tested.isNotEmpty() }
+        compose.waitForIdle()
         assertEquals(listOf("video Séries"), tested)
+        // Tested, then saving in the app's scope, as Save does; a test alone never saves.
+        assertTrue("saving", vm.saving || done)
     }
 
     @Test
     fun doneOnAnNfsSubfolderSaves() {
         var done = false
-        form(films) { done = true }
+        val vm = form(films) { done = true }
         compose.onNodeWithContentDescription("Subfolder (optional)").requestFocus()
         compose.press(Key.DirectionCenter)
         compose.onNode(isFocused() and hasSetTextAction()).performImeAction()
-        compose.waitUntil(WAIT_MS) { done }
+        compose.waitUntil(WAIT_MS) { tested.isNotEmpty() }
+        compose.waitForIdle()
         assertEquals(listOf("volume1/video Films"), tested)
+        assertTrue("saving", vm.saving || done)
     }
 
     /** Back goes in two steps: from a field, to « Protocole » at the form's top; from there, out of the form. */
@@ -250,7 +255,7 @@ class FolderFaultTest {
     }
 
     private companion object {
-        /** Saving runs in the app's scope, on another thread. */
+        /** Testing reads the library first, from another thread. */
         const val WAIT_MS = 5_000L
     }
 }

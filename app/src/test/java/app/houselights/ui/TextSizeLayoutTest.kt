@@ -166,7 +166,8 @@ class TextSizeLayoutTest {
             listOf(TEXT_SCALE_MAX, 1f, TEXT_SCALE_MIN).forEach { scale ->
                 system = scale
                 compose.waitForIdle()
-                val shown = compose.onAllNodesWithText(help).fetchSemanticsNodes()
+                // Left out where it does not fit whole: measured, never placed.
+                val shown = compose.onAllNodesWithText(help).fetchSemanticsNodes().filter { it.layoutInfo.isPlaced }
                 if (shown.isNotEmpty()) {
                     assertFalse("the help cut at $scale", help in compose.cutTexts())
                     val box = compose.onNodeWithText(help).getUnclippedBoundsInRoot()

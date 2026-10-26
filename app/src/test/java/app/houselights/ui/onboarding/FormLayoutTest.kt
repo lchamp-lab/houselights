@@ -175,9 +175,9 @@ class FormLayoutTest {
         assertTrue(compose.onNodeWithText(help).getUnclippedBoundsInRoot().bottom <= SCREEN_H - HlSpace.safeV)
     }
 
-    /** [help], when shown, ends inside the safe area, whole. */
+    /** [help], when shown, ends inside the safe area, whole; left out, it is not placed at all. */
     private fun helpWholeOrAbsent(help: String) {
-        if (compose.onAllNodesWithText(help).fetchSemanticsNodes().isEmpty()) return
+        if (compose.onAllNodesWithText(help).fetchSemanticsNodes().none { it.layoutInfo.isPlaced }) return
         assertFalse("$help cut", cut(help))
         val box = compose.onNodeWithText(help).getUnclippedBoundsInRoot()
         assertTrue("$box over the safe area's foot", box.bottom <= SCREEN_H - HlSpace.safeV)
