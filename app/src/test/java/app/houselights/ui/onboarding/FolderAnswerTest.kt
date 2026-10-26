@@ -34,6 +34,7 @@ import com.emc.ecs.nfsclient.mount.MountStatus
 import com.emc.ecs.nfsclient.nfs.NfsException
 import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.hierynomus.mserref.NtStatus
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -105,19 +106,19 @@ class FolderAnswerTest {
         )
     )
 
-    /** A new folder's form, its test answering [probe], this player at [player], the NFS server exporting [exports]. */
+    /** A new folder's form, its test answering [probe], this player at [player], the NFS server listing [exports]. */
     private fun form(
         probe: suspend (SourceEntity) -> FolderLevel = { folder ->
             calls += "test ${folder.host}"
             FolderLevel(folderNames(12), videos = 3)
         },
         player: String? = null,
-        exports: List<String>? = null,
+        exports: suspend (host: String) -> List<String>? = { null },
     ): AddFolderViewModel {
         val factory = viewModelFactory {
             initializer {
                 AddFolderViewModel(
-                    library, null, app, useFolders = { true }, probe = probe, playerAddress = { player }, exports = { exports },
+                    library, null, app, useFolders = { true }, probe = probe, playerAddress = { player }, exports = exports,
                 )
             }
         }
@@ -176,6 +177,9 @@ class FolderAnswerTest {
         val readRefused = NfsException(NfsStatus.NFS3ERR_ACCES, "readdirplus error code: NfsStatus:13")
         assertEquals(FolderTrouble.ReadRefused("/volume1/video/Films", uid = null), trouble(readRefused, nfs))
         assertEquals(FolderTrouble.ReadRefused("/volume1/video/Films", uid = 1026), trouble(readRefused, nfs.copy(uid = 1026, gid = 100)))
+        val root = nfs.copy(share = "", path = "")
+        assertEquals("the NAS's root exported", FolderTrouble.ReadRefused("/", uid = null), trouble(readRefused, root))
+        assertEquals(FolderTrouble.ReadRefused("/Films", uid = null), trouble(readRefused, root.copy(path = "Films")))
 
         assertEquals(FolderTrouble.ShareMissing("video"), trouble(smbStatus(NtStatus.STATUS_BAD_NETWORK_NAME), smb))
         assertEquals(
@@ -293,7 +297,7 @@ class FolderAnswerTest {
     fun aMountRefusedForAnExportTheNasLacksIsTheExportMissing() = runTest {
         val vm = form(
             probe = { throw mountFailure(MountStatus.MNT3ERR_ACCES) }, player = "192.168.1.42",
-            exports = listOf("/volume1/video", "/volume1/media"),
+            exports = { listOf("/volume1/video", "/volume1/media") },
         )
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/media", path = "") }
@@ -311,5 +315,61 @@ class FolderAnswerTest {
         advanceUntilIdle()
         val inside = (vm.check as FolderCheck.Failed).trouble
         assertEquals("inside an export", FolderTrouble.PlayerRefused("/volume1/video/Films", "192.168.1.42"), inside)
+    }
+
+    /**
+     * Once the NAS answered a test, the path's fields show the folder as it was read: a whole path typed in
+     * « Sous-dossier » under its « Chemin de montage » shows the subfolder alone, an SMB « Dossier partagé » typed with
+     * its NAS and subfolder shows them apart, a subfolder missing included; the answer stays, and a test again reads the
+     * same folder.
+     */
+    @Test
+    fun afterATestTheFieldsShowThePathAsRead() = runTest {
+        val tested = mutableListOf<String>()
+        var missing = false
+        val vm = form(probe = { folder ->
+            tested += "${folder.share} ${folder.path}"
+            if (missing) throw smbStatus(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND)
+            FolderLevel(folderNames(412), videos = 3)
+        })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/volume1/video", path = "/volume1/video/Films") }
+        vm.test()
+        advanceUntilIdle()
+        assertEquals(FolderCheck.Reachable(folders = 412, videos = 3), vm.check)
+        assertEquals("/volume1/video" to "Films", vm.form.share to vm.form.path)
+        vm.test()
+        advanceUntilIdle()
+
+        missing = true
+        vm.edit { copy(protocol = Protocol.SMB, share = "\\\\192.168.1.20\\video\\Film", path = "") }
+        vm.test()
+        advanceUntilIdle()
+        assertEquals(FolderTrouble.SubfolderMissing("video", "Film", nfs = false), (vm.check as FolderCheck.Failed).trouble)
+        assertEquals("video" to "Film", vm.form.share to vm.form.path)
+        assertEquals("said under the subfolder it shows", FaultSpot.SUBFOLDER, spotOf(vm.check, vm.form))
+        assertEquals(listOf("volume1/video Films", "volume1/video Films", "video Film"), tested)
+    }
+
+    /**
+     * A field changed while the NAS is asked which paths it exports, to tell a mount refused: the answer speaks of the
+     * folder the form no longer describes, so nothing is said, nor does focus leave the field being typed.
+     */
+    @Test
+    fun aRefusalToFieldsChangedWhileTheExportsAreListedIsNotSaid() = runTest {
+        val listed = CompletableDeferred<List<String>?>()
+        val vm = form(probe = { throw mountFailure(MountStatus.MNT3ERR_ACCES) }, player = "192.168.1.42", exports = { listed.await() })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/media", path = "") }
+        vm.test()
+        advanceUntilIdle()
+        assertTrue("the exports still asked", vm.testing)
+        vm.edit { copy(share = "/volume1/media") }
+        listed.complete(listOf("/volume1/video", "/volume1/media"))
+        advanceUntilIdle()
+        assertFalse(vm.testing)
+        assertNull("another export, not tested yet", vm.check)
+        assertEquals("no answer, focus left where it is", 0, vm.answers)
+        assertEquals("/volume1/media", vm.form.share)
     }
 }

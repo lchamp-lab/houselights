@@ -105,6 +105,17 @@ data class FolderForm(
         return user to group
     }
 
+    /**
+     * The form with its share and folder as [place] reads them, written as [of] shows a folder so that they read back the
+     * same: « /volume1/video/Films » typed in « Sous-dossier » under « /volume1/video » shows « Films », SMB's
+     * « \\nas\video\Films2 » shows « video » and « Films2 », a folder inside one named as its share keeps its path
+     * ("video/video/Films"). What a test reads is unchanged.
+     */
+    fun asRead(): FolderForm {
+        val read = toSource()
+        return copy(share = exportOrShare(read), path = pathOf(read))
+    }
+
     /** [stored] with the form's changes, same id and kind; an empty password field keeps its password. */
     fun toSource(stored: SourceEntity): SourceEntity {
         val typed = toSource()
@@ -254,7 +265,7 @@ internal fun troubleOf(error: ScanError, source: SourceEntity, player: String?):
 /** [source] refused at [place]: to its SMB account, to this [player] mounting its export, or to the NFS account reading it. */
 private fun refusalOf(place: FailurePlace?, source: SourceEntity, player: String?): FolderTrouble = when {
     source.protocol == Protocol.SMB -> FolderTrouble.AccountDenied(source.username.trim(), source.share)
-    place == FailurePlace.FOLDER -> FolderTrouble.ReadRefused(listOf(exportOf(source), source.path.trim('/')).joined(), source.uid)
+    place == FailurePlace.FOLDER -> FolderTrouble.ReadRefused(folderOf(source), source.uid)
     else -> FolderTrouble.PlayerRefused(exportOf(source), player)
 }
 
@@ -274,8 +285,9 @@ private fun missingOf(place: FailurePlace?, source: SourceEntity): FolderTrouble
 /** An NFS export as the NAS names it, from its root: "/volume1/video". */
 private fun exportOf(source: SourceEntity) = "/" + source.share.trim('/')
 
-/** These parts of a path joined by single slashes: "/volume1/video" and "Films" read "/volume1/video/Films". */
-private fun List<String>.joined() = filter { it.isNotEmpty() }.joinToString("/") { it.trimEnd('/') }
+/** [source]'s folder from the NAS's root, as the panel beside the form shows it: "/volume1/video/Films", "/" for the root. */
+private fun folderOf(source: SourceEntity) =
+    "/" + listOf(source.share, source.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
 
 /** Where the form says what went wrong: under the field to change, which takes focus, or in the panel beside the form. */
 internal enum class FaultSpot { HOST, SHARE, SUBFOLDER, USER, PASSWORD, UID, GID, PANEL }
@@ -644,27 +656,33 @@ class AddFolderViewModel(
 
     /**
      * Tests [source] (the form as [typed]); false, result dropped, if a field a test reads changed meanwhile, and false
-     * for a folder holding nothing ([FolderCheck.Empty]), which a scan could not fill.
+     * for a folder holding nothing ([FolderCheck.Empty]), which a scan could not fill. Once the NAS answered, the path's
+     * fields show the folder as the test read it ([FolderForm.asRead]).
      */
     private suspend fun reaches(source: SourceEntity, typed: FolderForm): Boolean {
         testing = true
         check = null
-        // The browser signs in on its own for a test, so the form's own credentials are what is tested.
-        val answer = suspendRunCatching { probe(source) }
-        answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
-        val current = form.testsAs(typed)
-        if (current) {
-            val said: FolderCheck = answer.fold(
-                { found -> if (found.isEmpty) FolderCheck.Empty else FolderCheck.Reachable(found.folders.size, found.videos) },
-                { e -> failed(e, source) },
-            )
+        try {
+            // The browser signs in on its own for a test, so the form's own credentials are what is tested.
+            val answer = suspendRunCatching { probe(source) }
+            answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
+            // Checked again once the answer is read: telling an export missing asks the NAS for its exports meanwhile.
+            val said = if (form.testsAs(typed)) answer.fold(::found) { e -> failed(e, source) } else null
+            if (said == null || !form.testsAs(typed)) return false
+            form = form.asRead()
+            saved.keep(form)
             say(said)
             // A read refused to the account presented: the NFS account is to change, its row opened.
             if ((said as? FolderCheck.Failed)?.trouble is FolderTrouble.ReadRefused) showIdentity(true)
+            return answer.getOrNull()?.isEmpty == false
+        } finally {
+            testing = false
         }
-        testing = false
-        return current && answer.getOrNull()?.isEmpty == false
     }
+
+    /** What a test found: the folder's first level, or nothing a scan could fill. */
+    private fun found(level: FolderLevel): FolderCheck =
+        if (level.isEmpty) FolderCheck.Empty else FolderCheck.Reachable(level.folders.size, level.videos)
 
     /**
      * [e], the answer to testing [source], as the form says it. A mount refused for an export the NAS does not list is an
@@ -675,7 +693,7 @@ class AddFolderViewModel(
         val error = ScanErrors.classify(e)
         val trouble = troubleOf(error, source, player)
         val lacking = trouble is FolderTrouble.PlayerRefused && unexported(source)
-        return FolderCheck.Failed(error, source.host, if (lacking) FolderTrouble.ExportMissing("/" + source.share.trim('/')) else trouble)
+        return FolderCheck.Failed(error, source.host, if (lacking) FolderTrouble.ExportMissing(exportOf(source)) else trouble)
     }
 
     /** Whether the NFS server at [source]'s host lists its exports and none holds [source]'s export; false when it does not say. */
@@ -684,7 +702,7 @@ class AddFolderViewModel(
             .onFailure { Log.w(TAG, "Listing the exports of ${source.host} failed", it) }
             .getOrNull()
         if (listed.isNullOrEmpty()) return false
-        val export = "/" + source.share.trim('/')
+        val export = exportOf(source)
         return listed.map { "/" + it.trim('/') }.none { it == "/" || export == it || export.startsWith("$it/") }
     }
 

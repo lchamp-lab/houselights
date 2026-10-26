@@ -69,7 +69,8 @@ gratuite, l’application est entièrement en français. [Installer](#install)
   - NFS sends no password: the app presents itself to the NAS as root, unless a folder names the user and group
     (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
   - A folder is tested before it is saved, in the NAS's own words (mount path, shared folder, subfolder): the test
-    says what it found, "412 folders and 3 videos", and a failure says what to change under the field to change,
+    says what it found, "412 folders and 3 videos", the fields then showing the path as it was read (a whole path
+    typed under its mount path keeps only the subfolder), and a failure says what to change under the field to change,
     which takes focus: the shared folder or the export missing, or a subfolder missing in one that answers; the NAS
     refusing this player, by its address, or root, or an SMB account without the right. A folder holding neither a
     video nor a subfolder, or one nesting with a folder of the library, is never saved.
