@@ -438,11 +438,11 @@ internal fun UpdateOnHome(ui: UpdateUi?, drawn: Boolean, grid: Boolean) {
     var open by remember { mutableStateOf(false) }
     val launch = LocalLaunchScreen.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val offer = state.offer?.takeIf { state.offeredOnHome }
     val shown = drawn && grid && OpenSheets.count == 0
-    val ready = shown && !open && offer != null
-    LaunchedEffect(ready, offer?.versionCode) {
-        if (!ready || offer == null) return@LaunchedEffect
+    // The version to open the sheet for, while nothing else shows.
+    val due = state.offer?.takeIf { state.offeredOnHome && shown && !open }
+    LaunchedEffect(due?.versionCode) {
+        val offer = due ?: return@LaunchedEffect
         // In front, not under the launch screen nor behind the player, and settled.
         lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.RESUMED) }
         while (launch.covers) delay(LAUNCH_POLL_MS)

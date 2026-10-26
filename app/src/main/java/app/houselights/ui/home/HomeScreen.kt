@@ -168,13 +168,8 @@ internal fun HomeGrid(
         } else {
             null
         }
-        // Once after an update, as Back once is said; Back's word goes first.
-        val said = updateSaid(updates)
-        HomeHead(
-            stringResource(R.string.back_again_to_quit).takeIf { quitting } ?: said?.first,
-            statusState = said?.second?.takeUnless { quitting } ?: StatusState.Pending,
-            end = settings,
-        )
+        val (status, light) = passing(quitting, updates)
+        HomeHead(status, statusState = light, end = settings)
         when {
             plan != null -> Grid(
                 plan, state, scan, actions, memory, playProblem, onList = { listing.value = true }, onOptions = { options.value = true },
@@ -187,6 +182,20 @@ internal fun HomeGrid(
     if (options.value && case != null) CaseOptions(case, actions, playProblem) { options.value = false }
     // A version found: its sheet, opened by the app once home's grid is drawn and no sheet lies over it, once per version.
     UpdateOnHome(updates, drawn = whole, grid = plan != null)
+}
+
+/**
+ * What home's head says in passing, by its light: that a second Back quits, while [quitting]; else, once, the update that
+ * brought the app back ([updateSaid]); else nothing.
+ */
+@Composable
+private fun passing(quitting: Boolean, updates: UpdateUi?): Pair<String?, StatusState> {
+    val said = updateSaid(updates)
+    return when {
+        quitting -> stringResource(R.string.back_again_to_quit) to StatusState.Pending
+        said != null -> said
+        else -> null to StatusState.Pending
+    }
 }
 
 /** A [sheet] whose [element] went with a reload closes, and does not open again by itself when it comes back. */

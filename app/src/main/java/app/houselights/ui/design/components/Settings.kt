@@ -146,26 +146,7 @@ fun HlSettingRow(
             }
             Column(Modifier.weight(1f)) {
                 Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (description != null && progress != null) {
-                    Spacer(Modifier.height(HlSpace.xxs))
-                    // The count at the end of its line: a figure that changes, not a description.
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ProgressLine(progress.coerceAtLeast(PROGRESS_SLIVER), Modifier.width(HlSize.progressShort), focused = focused)
-                        Spacer(Modifier.width(HlSpace.s))
-                        val ink = FocusStyle.ink(focused)
-                        Text(description, style = Hl.type.meta, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                } else if (description != null) {
-                    Spacer(Modifier.height(HlSpace.xxs))
-                    // One line, so rows keep one height.
-                    Text(
-                        description,
-                        style = Hl.type.meta,
-                        color = FocusStyle.quietInk(focused, enabled, lit = false),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                if (description != null) RowDescription(description, progress, focused, enabled)
             }
             Spacer(Modifier.width(HlSpace.l))
             when {
@@ -197,6 +178,30 @@ fun HlSettingRow(
     ) { focused ->
         // A disabled row keeps its rest colours under focus.
         Content(focused && enabled)
+    }
+}
+
+/**
+ * A row's [description] under its name, on one line so rows keep one height; with [progress], a count at the end of its
+ * line, in the words' ink: a figure that changes, not a description.
+ */
+@Composable
+private fun RowDescription(description: String, progress: Float?, focused: Boolean, enabled: Boolean) {
+    Spacer(Modifier.height(HlSpace.xxs))
+    if (progress == null) {
+        Text(
+            description,
+            style = Hl.type.meta,
+            color = FocusStyle.quietInk(focused, enabled, lit = false),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        ProgressLine(progress.coerceAtLeast(PROGRESS_SLIVER), Modifier.width(HlSize.progressShort), focused = focused)
+        Spacer(Modifier.width(HlSpace.s))
+        Text(description, style = Hl.type.meta, color = FocusStyle.ink(focused), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

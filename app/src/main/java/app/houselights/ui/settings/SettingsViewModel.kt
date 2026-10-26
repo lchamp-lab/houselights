@@ -96,6 +96,7 @@ internal data class ActionError(val action: SettingAction, val error: UiError, v
  * removal and TMDB key saving run in [work], which outlives the screen. Holds the image loader, not a context,
  * so no screen leaks.
  */
+@Suppress("TooManyFunctions") // What Settings changes, a function a setting.
 internal class SettingsViewModel(
     private val store: SettingsStore,
     val library: LocalLibrary,
