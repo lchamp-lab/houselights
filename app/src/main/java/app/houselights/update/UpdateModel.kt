@@ -150,12 +150,18 @@ data class UpdateState(
     val backOnHome: Boolean = false,
 ) {
     /**
-     * The version offered opens its sheet on home: once per version (« Plus tard » waits for a newer one), never when
-     * the automatic check is off, nor in a build without the updater.
+     * The version offered opens its sheet on home, in its « available » state alone, never for a failure nor over an
+     * update under way: once per version (« Plus tard » waits for a newer one), never with the automatic check off,
+     * nor in a build without the updater. Back where it stood when Android closed the app, it opens whatever the check.
      */
     val offeredOnHome: Boolean
         get() {
-            val unseen = offer?.let { it.versionCode > seenOnHome || backOnHome } == true
-            return on && automatic && unseen
+            val quiet = on && failure == null
+            val due = if (backOnHome) {
+                step == UpdateStep.Idle || step is UpdateStep.NeedsPermission
+            } else {
+                automatic && step == UpdateStep.Idle && (offer?.versionCode ?: 0L) > seenOnHome
+            }
+            return quiet && offer != null && due
         }
 }

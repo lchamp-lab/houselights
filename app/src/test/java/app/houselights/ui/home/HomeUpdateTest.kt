@@ -10,6 +10,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.LaunchScreen
 import app.houselights.ui.design.LocalLaunchScreen
@@ -21,10 +25,13 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.update.UpdateFailure
 import app.houselights.update.UpdateState
+import app.houselights.update.UpdateStep
 import app.houselights.update.Updated
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -33,8 +40,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * DESIGN.md, Messages: a version found opens its sheet on home once, never over another sheet, under the launch screen
- * or with the check off; once the app is back from an update, home's head says it for 2.5 s, once.
+ * DESIGN.md, Messages: a version found opens its sheet on home once, in its « available » state, never over another
+ * sheet, under the launch screen, behind the player, over a first scan, over an update under way, for a failure or with
+ * the check off; once the app is back from an update, home's head says it for 2.5 s, once.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr-$TV")
@@ -45,7 +53,7 @@ class HomeUpdateTest {
     @get:Rule
     val settle = SettleMainLooper()
 
-    private val home = fullHome()
+    private var home by mutableStateOf(fullHome())
 
     private val title = "Une nouvelle version est disponible"
 
@@ -56,21 +64,29 @@ class HomeUpdateTest {
         override fun drawn() = Unit
     }
 
+    /** The app behind Zidoo's player: started, never resumed, until it is in front again. */
+    private class Behind : LifecycleOwner {
+        override val lifecycle = LifecycleRegistry.createUnsafe(this).apply { currentState = Lifecycle.State.STARTED }
+    }
+
     /** Another sheet over home, open while [other] is. */
     private var other by mutableStateOf(false)
 
-    private fun show(state: MutableStateFlow<UpdateState>, launch: LaunchScreen? = null): FakeControls {
+    private fun show(state: MutableStateFlow<UpdateState>, launch: LaunchScreen? = null, front: LifecycleOwner? = null): FakeControls {
         val controls = FakeControls(state)
         compose.setTvContent {
             val grid: @Composable () -> Unit = {
                 HomeGrid(home, remember { MutableStateFlow(ScanState()) }, HomeActions(onOpenSearch = {}), updates = controls.ui)
                 if (other) HlSideSheet("Autre", onDismiss = { other = false }) {}
             }
-            if (launch == null) grid() else CompositionLocalProvider(LocalLaunchScreen provides launch) { grid() }
+            val locals = listOfNotNull(launch?.let { LocalLaunchScreen provides it }, front?.let { LocalLifecycleOwner provides it })
+            CompositionLocalProvider(*locals.toTypedArray()) { grid() }
         }
         settle()
         return controls
     }
+
+    private val FakeControls.shown get() = asked.any { it.startsWith("shownOnHome") }
 
     /** Lets home settle, as it does before it opens a sheet or says a word. */
     private fun settle(ms: Long = SETTLED_MS) {
@@ -121,6 +137,46 @@ class HomeUpdateTest {
         show(MutableStateFlow(updates()), cover)
         compose.onNodeWithText(title).assertDoesNotExist()
         cover.covers = false
+        settle()
+        compose.onNodeWithText(title).assertExists()
+    }
+
+    @Test
+    fun itNeverOpensBehindThePlayer() {
+        val app = Behind()
+        val controls = show(MutableStateFlow(updates()), front = app)
+        compose.onNodeWithText(title).assertDoesNotExist()
+        assertFalse(controls.shown)
+        compose.runOnIdle { app.lifecycle.currentState = Lifecycle.State.RESUMED }
+        settle()
+        compose.onNodeWithText(title).assertExists()
+    }
+
+    @Test
+    fun itNeverOpensOverAFirstScan() {
+        home = HomeState(content = HomeContent.FirstScan)
+        val controls = show(MutableStateFlow(updates()))
+        compose.onNodeWithText(title).assertDoesNotExist()
+        assertFalse(controls.shown)
+        home = fullHome()
+        settle()
+        compose.onNodeWithText(title).assertExists()
+    }
+
+    /** Started from About and left running, or failed: home opens nothing over it, nor Android's window with it. */
+    @Test
+    fun itNeverOpensOverAnUpdateUnderWayNorForAFailure() {
+        val state = MutableStateFlow(updates().copy(step = UpdateStep.Downloading(2_100_000, OFFER.size)))
+        val controls = show(state)
+        compose.onNodeWithText(title).assertDoesNotExist()
+        state.value = updates().copy(step = UpdateStep.Ready)
+        settle()
+        compose.onNodeWithText(title).assertDoesNotExist()
+        state.value = updates().copy(failure = UpdateFailure.OFFLINE)
+        settle()
+        compose.onNodeWithText(title).assertDoesNotExist()
+        assertFalse(controls.shown)
+        state.value = updates()
         settle()
         compose.onNodeWithText(title).assertExists()
     }

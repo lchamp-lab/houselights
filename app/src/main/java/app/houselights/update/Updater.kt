@@ -8,6 +8,7 @@ import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.Redact
 import app.houselights.settings.AppSettings
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -114,8 +115,11 @@ class Updater(
     /** The user is in Android's settings, allowing installs. */
     private var allowing = false
 
-    /** What « Réessayer » asks again: the check, or the update. */
-    private var again: () -> Unit = ::checkNow
+    /** What « Réessayer » asks again: the check (a check failed, which GitHub's next answer puts behind it), or the update. */
+    private var retriesCheck = true
+
+    /** What this start found pending, once read: the update that replaced the app, if it was its own. */
+    private val started = CompletableDeferred<Pending?>()
 
     /** The automatic checks that failed in the last day: each waits an hour, three a day at most. */
     private val failedAt = ArrayDeque<Long>()
@@ -129,12 +133,15 @@ class Updater(
     suspend fun run() {
         if (!app.available) return
         _state.update { it.copy(on = true, installed = app.versionName()) }
+        val saved = store.read()
+        started.complete(saved.pending)
         withContext(io) { parts.download.clear() }
         parts.installer.abandonAll()
-        val saved = store.read()
         settle(saved)
         scope.launch { followSettings() }
         scope.launch { followScreen() }
+        // What was kept is offered in the channel the settings choose, once read: never in the one before them.
+        settings.first { it.loaded }
         restore(saved)
         moments.launched()
         delay(FIRST_CHECK_MS)
@@ -235,12 +242,14 @@ class Updater(
     private fun beta(s: AppSettings = settings.value): Boolean = s.updatePrereleases ?: state.value.installed.contains('-')
 
     /**
-     * « Rechercher maintenant », « Réessayer », or a sheet opened: an answer under a minute old stands; never while GitHub
-     * asks to wait.
+     * « Rechercher maintenant », « Réessayer », or a sheet opened: Android's permission given meanwhile is seen; an answer
+     * under a minute old stands; never while GitHub asks to wait.
      */
     override fun checkNow() {
+        if (!state.value.on) return
+        allowedMeanwhile()
         val s = state.value
-        if (!s.on || s.waitUntil.waits() || asking?.isActive == true) return
+        if (s.waitUntil.waits() || asking?.isActive == true) return
         if (clock() - answeredAt in 0 until SINGLE_FLIGHT_MS && s.failure == null) return
         asking = scope.launch { ask(manual = true) }
     }
@@ -250,36 +259,44 @@ class Updater(
     /** Asks GitHub; a check asked shows that it asks and how it failed, the daily one only logs. */
     private suspend fun ask(manual: Boolean) = checks.withLock {
         if (state.value.waitUntil.waits()) {
-            if (manual) _state.update { it.copy(failure = UpdateFailure.BUSY) }
+            if (manual) checkFailed(UpdateFailure.BUSY)
             return@withLock
         }
         if (manual) _state.update { it.copy(failure = null, step = if (it.offer == null && it.idle) UpdateStep.Checking else it.step) }
         suspendRunCatching { look() }
-            .onSuccess { found ->
-                answeredAt = clock()
-                failedAt.clear()
-                when (found) {
-                    is Found.Offer -> offer(found.offer)
-                    Found.UpToDate -> offer(null)
-                    Found.Unreadable -> {
-                        offer(null)
-                        if (manual) _state.update { it.copy(failure = UpdateFailure.UNREADABLE) }
-                    }
-                }
-            }
+            .onSuccess { found -> answered(found, manual) }
             .onFailure { e ->
                 currentCoroutineContext().ensureActive()
                 val failure = failureOf(e, UpdateFailure.GITHUB_FAILED)
                 Log.w(TAG, "${if (manual) "Check" else "Daily check"} failed: $failure", e)
                 rememberWait(e)
-                if (manual) {
-                    again = ::checkNow
-                    _state.update { it.copy(failure = failure) }
-                } else {
-                    failedAt.addLast(clock())
-                }
+                if (manual) checkFailed(failure) else failedAt.addLast(clock())
             }
         _state.update { if (it.step == UpdateStep.Checking) it.copy(step = UpdateStep.Idle) else it }
+    }
+
+    /**
+     * GitHub answered: the version it offers, or none, or one this version cannot read (said when asked); a check's
+     * failure, the daily one's included, is behind it, an update's stays as long as its version is offered.
+     */
+    private fun answered(found: Found, manual: Boolean) {
+        answeredAt = clock()
+        failedAt.clear()
+        if (retriesCheck) _state.update { it.copy(failure = null) }
+        when (found) {
+            is Found.Offer -> offer(found.offer)
+            Found.UpToDate -> offer(null)
+            Found.Unreadable -> {
+                offer(null)
+                if (manual) _state.update { it.copy(failure = UpdateFailure.UNREADABLE) }
+            }
+        }
+    }
+
+    /** A check asked failed: said, and « Réessayer » asks again. */
+    private fun checkFailed(failure: UpdateFailure) {
+        retriesCheck = true
+        _state.update { it.copy(failure = failure) }
     }
 
     /** GitHub's list, then the manifests of its newest releases of the channel; the one offered is kept for the next start. */
@@ -300,14 +317,18 @@ class Updater(
         return found
     }
 
-    /** Offers [offer] (none: up to date), unless an update is under way. */
+    /** Offers [offer] (none: up to date), unless an update is under way; what the version before failed with goes with it. */
     private fun offer(offer: UpdateOffer?) {
         _state.update { s ->
             when {
                 s.offer == offer -> s
                 !s.idle && s.step != UpdateStep.Ready -> s
-                offer == null -> s.copy(offer = null, step = UpdateStep.Idle)
-                else -> s.copy(offer = offer, step = if (ready?.first == offer.versionCode) UpdateStep.Ready else UpdateStep.Idle)
+                offer == null -> s.copy(offer = null, step = UpdateStep.Idle, failure = null)
+                else -> s.copy(
+                    offer = offer,
+                    step = if (ready?.first == offer.versionCode) UpdateStep.Ready else UpdateStep.Idle,
+                    failure = s.failure.takeIf { s.offer?.versionCode == offer.versionCode },
+                )
             }
         }
     }
@@ -318,9 +339,13 @@ class Updater(
         _state.update { it.copy(waitUntil = wait) }
     }
 
-    /** A sheet opened: it asks GitHub only with the automatic check on, no version offered, and an answer over an hour old. */
+    /**
+     * A sheet opened: it sees Android's permission given meanwhile, and asks GitHub only with the automatic check on, no
+     * version offered, and an answer over an hour old.
+     */
     override fun opened() {
         sheets++
+        allowedMeanwhile()
         val s = state.value
         val stale = s.checkedAt?.let { clock() - it !in 0 until HOUR_MS } ?: true
         // Nothing offered nor under way, nothing failed: an hour-old answer is asked again.
@@ -333,16 +358,25 @@ class Updater(
         sheets = (sheets - 1).coerceAtLeast(0)
     }
 
-    /** « Mettre à jour » or « Installer »: the permission, the download and its check, then Android's window. */
+    /**
+     * « Mettre à jour » or « Installer »: the permission, the download and its check, then Android's window. The version
+     * acted on is seen: home does not offer it again.
+     */
     override fun update() {
         val offer = state.value.offer
         if (!state.value.on || offer == null || work?.isActive == true) return
-        again = ::update
+        retriesCheck = false
+        shownOnHome(offer.versionCode)
         work = scope.launch { install(offer) }
     }
 
     /** « Réessayer »: what failed, asked again. */
-    override fun retry() = again()
+    override fun retry() = if (retriesCheck) checkNow() else update()
+
+    /** Android's permission given meanwhile another way (adb's line, its settings): the sheet is back to « Mettre à jour ». */
+    private fun allowedMeanwhile() {
+        if (state.value.step is UpdateStep.NeedsPermission && parts.installer.allowed()) step(UpdateStep.Idle)
+    }
 
     private suspend fun install(offer: UpdateOffer) {
         _state.update { it.copy(failure = null) }
@@ -437,7 +471,10 @@ class Updater(
         step(UpdateStep.Installing(reopen = !parts.installer.confirm(intent)))
     }
 
-    /** The app is back in front (the activity resumed): from Android's settings, or from elsewhere while Android installs. */
+    /**
+     * The app is back in front (the activity resumed): from Android's settings, or from elsewhere while Android installs
+     * or once the permission was given another way.
+     */
     fun returned() {
         if (!state.value.on) return
         if (allowing) {
@@ -451,6 +488,7 @@ class Updater(
             }
             return
         }
+        allowedMeanwhile()
         // Android's window left with the Home key: the session waits for the user, who can open it again.
         val waiting = session?.takeIf { confirmation != null }?.let(parts.installer::holds) == true
         if (state.value.step is UpdateStep.Installing && away && waiting) {
@@ -478,7 +516,7 @@ class Updater(
             else -> {
                 ended()
                 if (status == PackageInstaller.STATUS_FAILURE_INVALID) dropReady()
-                again = ::update
+                retriesCheck = false
                 _state.update { it.copy(step = UpdateStep.Idle, failure = sessionFailure(status)) }
             }
         }
@@ -511,10 +549,13 @@ class Updater(
         scope.launch { store.updated(updated) }
     }
 
-    /** The app was just replaced (MY_PACKAGE_REPLACED): whether it updated itself in the last minutes, so reopens. */
+    /**
+     * The app was just replaced (MY_PACKAGE_REPLACED): whether it updated itself in the last minutes, so reopens; from
+     * what this start found pending, which it settles meanwhile.
+     */
     suspend fun replaced(): Boolean {
         if (!app.available) return false
-        val pending = store.read().pending ?: return false
+        val pending = started.await() ?: return false
         return clock() - pending.at in 0..REOPEN_MS
     }
 

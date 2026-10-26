@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithText
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.keyInSheet
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.update.PermissionScreen
@@ -97,6 +98,35 @@ class UpdateSheetTest {
         assertEquals(listOf("checkNow", "update"), controls.actions)
     }
 
+    /** OK pressed while the row only said what was under way, let go once it offers more: the press does nothing. */
+    @Test
+    fun anOkLetGoOverOtherWordsDoesNothing() {
+        val state = MutableStateFlow(updates(offer = null).copy(step = UpdateStep.Checking))
+        val controls = show(state)
+        compose.onNodeWithText("Rechercher maintenant").assertIsFocused()
+        compose.keyInSheet(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER)
+        // GitHub answers while the key is down.
+        state.value = updates()
+        compose.waitForIdle()
+        compose.onNodeWithText("Mettre à jour").assertIsFocused()
+        compose.keyInSheet(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER)
+        assertEquals("Nothing downloads", emptyList<String>(), controls.actions)
+    }
+
+    /** On home the sheet opens by itself, maybe under an OK meant for home: its first moment, OK does nothing. */
+    @Test
+    fun onHomeAnOkAsTheSheetOpensDoesNothing() {
+        compose.mainClock.autoAdvance = false
+        val controls = show(MutableStateFlow(updates()), UpdateOrigin.Home)
+        compose.mainClock.advanceTimeByFrame()
+        compose.onNodeWithText("Mettre à jour").assertIsFocused()
+        ok()
+        assertEquals("Meant for home", emptyList<String>(), controls.actions)
+        compose.mainClock.advanceTimeBy(HlMotion.SETTLE + FRAME_MS)
+        ok()
+        assertEquals(listOf("update"), controls.actions)
+    }
+
     @Test
     fun okDoesNothingWhileTheRowOnlySaysWhatIsUnderWay() {
         val state = MutableStateFlow(updates().copy(step = UpdateStep.Downloading(0, OFFER.size)))
@@ -123,6 +153,7 @@ class UpdateSheetTest {
     fun theDownloadIsCancelledFromTheRowUnderItAlone() {
         val state = MutableStateFlow(updates().copy(step = UpdateStep.Downloading(2_100_000, OFFER.size)))
         val controls = show(state)
+        controls.onAsk = { if (it == "cancel") state.value = state.value.copy(step = UpdateStep.Idle) }
         ok()
         assertEquals(emptyList<String>(), controls.actions)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
@@ -130,6 +161,19 @@ class UpdateSheetTest {
         compose.onNodeWithText("Le fichier reçu est effacé").assertExists()
         ok()
         assertEquals(listOf("cancel"), controls.actions)
+        // Cancelled, the sheet is back to « Mettre à jour », focused.
+        compose.onNodeWithText("Annuler le téléchargement").assertDoesNotExist()
+        compose.onNodeWithText("Mettre à jour").assertIsFocused()
+    }
+
+    @Test
+    fun focusOnCancelComesBackToTheActionAsTheDownloadEnds() {
+        val state = MutableStateFlow(updates().copy(step = UpdateStep.Downloading(2_100_000, OFFER.size)))
+        show(state)
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNodeWithText("Annuler le téléchargement").assertIsFocused()
+        state.step(UpdateStep.Verifying)
+        compose.onNodeWithText("Vérification…").assertIsFocused()
     }
 
     @Test

@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -51,6 +52,7 @@ import app.houselights.ui.design.components.OpenSheets
 import app.houselights.ui.design.components.ReadingPlate
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.formatBytes
 import app.houselights.ui.util.formatDuration
 import app.houselights.update.UpdateControls
@@ -61,7 +63,9 @@ import app.houselights.update.UpdateStep
 import app.houselights.update.Updated
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 // The app's updates as the screens show them (DESIGN.md, the update sheet): About's group, the update's sheet wherever
 // it opens, home's sheet once per version, and home's word once an update is installed.
@@ -72,6 +76,16 @@ internal class UpdateUi(val state: StateFlow<UpdateState>, val controls: UpdateC
 
 /** Where the update's sheet opened: from About's row, or on home, by the app, once per version. */
 internal enum class UpdateOrigin { About, Home }
+
+/**
+ * The updater as About shows it, in a build that updates itself alone: null in the others (debug, bench, CI's,
+ * F-Droid's), so About has no « Mises à jour » there. Its state is read by the group, not the screen.
+ */
+@Composable
+internal fun aboutUpdates(state: StateFlow<UpdateState>, controls: UpdateControls): UpdateUi? {
+    val on by remember(state) { state.map { it.on }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
+    return remember(state, controls) { UpdateUi(state, controls) }.takeIf { on }
+}
 
 /**
  * About's group « Mises à jour », between the device's state and the credits: the state row, whose title stays (the
@@ -209,6 +223,7 @@ private fun now(): Long {
 @Composable
 internal fun UpdateSheet(state: UpdateState, controls: UpdateControls, origin: UpdateOrigin, onDismiss: () -> Unit) {
     val action = remember { FocusRequester() }
+    val cancelRow = remember { Held() }
     val scroll = rememberScrollState()
     val now = now()
     DisposableEffect(controls) {
@@ -238,10 +253,11 @@ internal fun UpdateSheet(state: UpdateState, controls: UpdateControls, origin: U
         }
         val doing = actionOf(state, now)
         HlSettingGroup(null) {
-            ActionRow(state, doing, controls, Modifier.focusRequester(action))
+            ActionRow(state, doing, controls, Modifier.focusRequester(action), calmAtFirst = origin == UpdateOrigin.Home)
             when {
                 doing == UpdateAction.DOWNLOADING -> HlSettingRow(
                     stringResource(R.string.update_cancel),
+                    Modifier.onFocusChanged { cancelRow.focused = it.hasFocus },
                     description = stringResource(R.string.update_cancel_desc),
                     onClick = controls::cancel,
                 )
@@ -253,7 +269,20 @@ internal fun UpdateSheet(state: UpdateState, controls: UpdateControls, origin: U
             }
         }
         footWords(doing)?.let { Text(it, style = Hl.type.meta, color = Hl.colors.contentSecondary) }
+        // « Annuler le téléchargement » leaving with focus (cancelled, or the download done): focus back on the action,
+        // read before the row goes, which takes its focus with it.
+        if (doing != UpdateAction.DOWNLOADING && cancelRow.focused) {
+            LaunchedEffect(Unit) {
+                cancelRow.focused = false
+                action.tryRequestFocus()
+            }
+        }
     }
+}
+
+/** Whether a row holds focus, kept outside the snapshot: read as it leaves, after focus has gone with it. */
+private class Held {
+    var focused = false
 }
 
 /** How the update stands, by its light, in the head: none while the row says it, nor on home's sheet while offered. */
@@ -305,15 +334,15 @@ private fun footWords(doing: UpdateAction): String? = when (doing) {
 
 /**
  * The action row, its words and what OK does following [doing]; OK does nothing while it only says what is under way
- * (GitHub's wait is said under the head), and for a moment after its words change ([calmAfterChange]). Downloading,
- * its count follows the line.
+ * (GitHub's wait is said under the head), and for a moment after its words change ([calmAfterChange]), or after the
+ * sheet opened by itself ([calmAtFirst]). Downloading, its count follows the line.
  */
 @Composable
-private fun ActionRow(state: UpdateState, doing: UpdateAction, controls: UpdateControls, modifier: Modifier) {
+private fun ActionRow(state: UpdateState, doing: UpdateAction, controls: UpdateControls, modifier: Modifier, calmAtFirst: Boolean) {
     val downloading = (state.step as? UpdateStep.Downloading)?.takeIf { doing == UpdateAction.DOWNLOADING }
     HlSettingRow(
         stringResource(doing.title),
-        modifier.calmAfterChange(doing),
+        modifier.calmAfterChange(doing, calmAtFirst),
         description = actionWords(doing, state),
         progress = downloading?.let { it.read.toFloat() / it.total },
         onClick = { act(doing, controls) },
@@ -360,13 +389,17 @@ private fun act(doing: UpdateAction, controls: UpdateControls) {
 
 /**
  * OK does nothing for [HlMotion.SETTLE] after [doing] changed under it, nor the key's repeats or release: a second press
- * given too soon, or a key held, never does twice what the first asked, nor undoes it.
+ * given too soon, a key held, or one let go once the words changed under it never does twice what the first asked,
+ * nor what the new words say, nor undoes it. [calmAtFirst]: the sheet opened by itself, under a finger that may be
+ * pressing OK for the screen under it, so calm from its first moment.
  */
 @Composable
-private fun Modifier.calmAfterChange(doing: UpdateAction): Modifier {
-    var calm by remember { mutableStateOf(false) }
+private fun Modifier.calmAfterChange(doing: UpdateAction, calmAtFirst: Boolean): Modifier {
+    var calm by remember { mutableStateOf(calmAtFirst) }
     var swallowed by remember { mutableStateOf(false) }
-    var shown by remember { mutableStateOf(doing) }
+    // What the row said when OK went down on it: let go over other words, the press does nothing.
+    var downOn by remember { mutableStateOf<UpdateAction?>(null) }
+    var shown by remember { mutableStateOf(doing.takeUnless { calmAtFirst }) }
     LaunchedEffect(doing) {
         if (doing == shown) return@LaunchedEffect
         shown = doing
@@ -381,9 +414,14 @@ private fun Modifier.calmAfterChange(doing: UpdateAction): Modifier {
                 swallowed = true
                 true
             }
-            event.type == KeyEventType.KeyUp && swallowed -> {
-                swallowed = false
-                true
+            event.type == KeyEventType.KeyDown -> {
+                if (event.nativeKeyEvent.repeatCount == 0) downOn = doing
+                false
+            }
+            event.type == KeyEventType.KeyUp -> {
+                val changed = downOn != null && downOn != doing
+                downOn = null
+                (swallowed || changed).also { swallowed = false }
             }
             else -> false
         }

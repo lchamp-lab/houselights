@@ -30,8 +30,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
 import app.houselights.core.Library
@@ -121,9 +119,8 @@ fun SettingsScreen(
     var inPane by remember { mutableStateOf(false) }
     BackToStart(away = inPane) { memory.focus(paneKey(pane)) }
     val storage by vm.storage.collectAsStateWithLifecycle()
-    // About's « Mises à jour », in a build that updates itself alone; its state read by the group, not the screen.
-    val updatesOn by remember(app) { app.updates.state.map { it.on }.distinctUntilChanged() }.collectAsStateWithLifecycle(false)
-    val updates = remember(app) { UpdateUi(app.updates.state, app.updates) }.takeIf { updatesOn }
+    // About's « Mises à jour », in a build that updates itself alone.
+    val updates = aboutUpdates(app.updates.state, app.updates)
 
     // The room is the library's posters, as a wall's field.
     PosterField(roomPosters()) {

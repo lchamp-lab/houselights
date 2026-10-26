@@ -61,11 +61,19 @@ fun longClickNamed(label: String) =
 /** A key of the remote ([KeyEvent] code) in the open sheet, sent to its window as Android does, so its own handlers get it. */
 fun ComposeContentTestRule.pressInSheet(keyCode: Int) {
     runOnIdle {
-        val window = checkNotNull(ShadowDialog.getLatestDialog()?.takeIf { it.isShowing }?.window) { "No sheet shows" }
+        val window = sheetWindow()
         listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP).forEach { window.decorView.dispatchKeyEvent(KeyEvent(it, keyCode)) }
     }
     waitForIdle()
 }
+
+/** Half a press in the open sheet: the key going down ([KeyEvent.ACTION_DOWN]) or let go, what happens between them the test's. */
+fun ComposeContentTestRule.keyInSheet(action: Int, keyCode: Int) {
+    runOnIdle { sheetWindow().decorView.dispatchKeyEvent(KeyEvent(action, keyCode)) }
+    waitForIdle()
+}
+
+private fun sheetWindow() = checkNotNull(ShadowDialog.getLatestDialog()?.takeIf { it.isShowing }?.window) { "No sheet shows" }
 
 /** Draws the activity's window now, as Android does each frame, and returns it: Robolectric draws only when asked. */
 fun AndroidComposeTestRule<*, out ComponentActivity>.drawWindow(): Bitmap = runOnUiThread {

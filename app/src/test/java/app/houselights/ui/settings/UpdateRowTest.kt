@@ -106,6 +106,28 @@ class UpdateRowTest {
         says(state, updated, "Installée il y a 3", "À jour")
     }
 
+    /** About in a build that does not update itself (debug, bench, CI's, F-Droid's): no « Mises à jour », nor its rows. */
+    @Test
+    fun withoutTheUpdaterAboutShowsNoUpdates() {
+        val state = MutableStateFlow(updates().copy(on = false))
+        val controls = FakeControls(state)
+        compose.setTvContent {
+            val memory = rememberFocusMemory()
+            val rows = remember { PaneRows(memory, Pane.About.name) }
+            // As About lays out its group, from what the screen hands it.
+            val ui = aboutUpdates(state, controls)
+            CompositionLocalProvider(LocalSettingsViewModel provides settings.vm) {
+                LazyColumn { if (ui != null) item { UpdatesGroup(ui, rows) } }
+            }
+        }
+        compose.onNodeWithText("Mises à jour").assertDoesNotExist()
+        compose.onNodeWithText("Recherche automatique").assertDoesNotExist()
+        state.value = updates()
+        compose.waitForIdle()
+        compose.onNodeWithText("Mises à jour").assertExists()
+        compose.onNodeWithText("Houselights 0.4.0").assertExists()
+    }
+
     @Test
     fun anOldAnswerIsNotUpToDate() {
         show(MutableStateFlow(updates(offer = null, checkedAt = now - 6 * DAY_MS)))

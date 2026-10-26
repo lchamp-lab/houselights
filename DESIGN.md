@@ -737,9 +737,10 @@ motion it came in with. Focus stays inside and returns where it was (`SheetFocus
   on a `ReadingPlate`, focused only when the sheet scrolls; then one action row, focused, whose words follow the step,
   focus never moving: "Mettre à jour" ("6,4 Mo depuis github.com"), "Téléchargement…" with its Counter,
   "Vérification…", "Installer", "Installation…", "Autoriser l’installation", "Réessayer", "Rechercher maintenant". OK
-  does nothing while the row only says what is under way, nor for `HlMotion.SETTLE` after its words change, a second
-  press given too soon never doing twice what the first asked (`UpdateSheetTest`). "Annuler le téléchargement" is the
-  row under it, reached with Down alone; on home "Plus tard", which Back is too. Back closes the sheet in every step and
+  does nothing while the row only says what is under way, nor for `HlMotion.SETTLE` after its words change or after
+  the app opened the sheet on home, nor on a key let go once they changed, a second press given too soon never doing
+  twice what the first asked (`UpdateSheetTest`). "Annuler le téléchargement" is the row under it, reached with Down
+  alone, focus back on the action row as it goes; on home "Plus tard", which Back is too. Back closes the sheet in every step and
   cancels nothing; Android's window opens only over the sheet, never by itself. Under the row, what Android will do:
   ask to confirm, keep the library, close the app (open it again on Android 9). Where Android's settings cannot allow
   the install, the sheet says so without guessing a menu, and gives the release page's address then adb's line as
@@ -804,9 +805,10 @@ les dossiers; without a folder home draws nothing, the welcome screen taking its
 the screen; it goes to the log.
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
-prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), once home is drawn and in front, never
-over another sheet, under the launch screen or with the check off: « Plus tard » and Back wait for a newer version,
-never a reminder, no mark on a door; About's row states it meanwhile (`HomeUpdateTest`).
+prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is
+drawn and in front, never over another sheet, a first scan or an update under way, behind the player, under the launch
+screen, for a failure or with the check off: « Plus tard », Back, or the version acted on from About wait for a newer
+one, never a reminder, no mark on a door; About's row states it meanwhile (`HomeUpdateTest`).
 
 ## Writing
 

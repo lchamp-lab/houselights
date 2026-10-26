@@ -164,12 +164,14 @@ class ReleaseChoice(
         }
     }
 
-    /** What the releases hold above [installedCode], reading each candidate's manifest through [manifest]. */
+    /**
+     * What the releases hold above [installedCode], reading each candidate's manifest through [manifest]; one it has
+     * none of (only what was kept is read) is passed over, as a check passes over a manifest it cannot read.
+     */
     suspend fun pick(listed: List<ListedRelease>, beta: Boolean, installedCode: Long, manifest: suspend (Candidate) -> String?): Found {
         var unreadable = false
         for (candidate in candidates(listed, beta)) {
-            // Unknown, as when only what was kept is read: no answer rather than a guess.
-            val text = manifest(candidate) ?: return Found.UpToDate
+            val text = manifest(candidate) ?: continue
             when (val verdict = read(candidate, text)) {
                 is Verdict.Valid ->
                     return if (verdict.offer.versionCode > installedCode) {

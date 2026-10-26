@@ -135,6 +135,45 @@ class InstallPermissionTest {
         assertNull(f.store.read().trip)
     }
 
+    /** Allowed another way (adb's line from a computer, Android's settings): the sheet sees it as soon as it is asked. */
+    @Test
+    fun aPermissionGivenAnotherWayIsSeenAtOnce() = runTest {
+        val f = UpdaterFixture(this, folder.root)
+        f.installer.allowed = false
+        f.installer.screen = PermissionScreen.NONE
+        f.offered()
+        f.updater.update()
+        runCurrent()
+        assertTrue((f.updater.state.value.step as UpdateStep.NeedsPermission).stuck)
+        f.installer.allowed = true
+        // « Rechercher maintenant », the stuck sheet's row.
+        f.updater.checkNow()
+        runCurrent()
+        assertEquals(UpdateStep.Idle, f.updater.state.value.step)
+        f.updater.update()
+        runCurrent()
+        assertEquals(1, f.downloads.fetched)
+
+        val g = UpdaterFixture(this, folder.newFolder())
+        g.installer.allowed = false
+        g.offered()
+        g.updater.update()
+        runCurrent()
+        g.updater.closed()
+        g.installer.allowed = true
+        g.updater.opened()
+        assertEquals("The sheet opened again", UpdateStep.Idle, g.updater.state.value.step)
+
+        val h = UpdaterFixture(this, folder.newFolder())
+        h.installer.allowed = false
+        h.offered()
+        h.updater.update()
+        runCurrent()
+        h.installer.allowed = true
+        h.updater.returned()
+        assertEquals("The app back in front", UpdateStep.Idle, h.updater.state.value.step)
+    }
+
     @Test
     fun aScreenThatDoesNotOpenSaysTheOtherWays() = runTest {
         val f = UpdaterFixture(this, folder.root)
@@ -164,6 +203,7 @@ class InstallPermissionTest {
         val back = f.updater.state.value
         assertEquals(UpdateStep.NeedsPermission(PermissionScreen.APP, refused = true), back.step)
         assertTrue("Even after « Plus tard »", back.backOnHome)
+        assertTrue("Even with the check off", back.offeredOnHome)
         assertNull("Settled once", f.store.read().trip)
 
         val g = UpdaterFixture(this, folder.newFolder())

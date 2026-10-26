@@ -163,6 +163,47 @@ class UpdaterTest {
         assertNull(f.updater.state.value.failure)
     }
 
+    /** A check asked failed, then the daily one finds a version: home offers it as found, nothing failed. */
+    @Test
+    fun aCheckThatFailedIsBehindTheNextAnswer() = runTest {
+        val f = fixture()
+        f.source.failure = IOException("Network is unreachable")
+        f.start()
+        f.updater.checkNow()
+        runCurrent()
+        assertEquals(UpdateFailure.OFFLINE, f.updater.state.value.failure)
+        f.source.failure = null
+        f.source.publish("v0.4.1", 1010)
+        wait(21_000)
+        assertEquals("v0.4.1", f.updater.state.value.offer?.tag)
+        assertNull("GitHub answered", f.updater.state.value.failure)
+        assertTrue(f.updater.state.value.offeredOnHome)
+    }
+
+    /** An update's failure stays while its version is offered, and goes with it once a newer one is found. */
+    @Test
+    fun anUpdatesFailureGoesWithItsVersion() = runTest {
+        val f = fixture()
+        f.source.publish("v0.4.1", 1010)
+        f.start()
+        wait(21_000)
+        f.downloads.failure = UpdateFailure.DOWNLOAD_CUT
+        f.updater.opened()
+        f.updater.update()
+        runCurrent()
+        f.updater.closed()
+        assertEquals(UpdateFailure.DOWNLOAD_CUT, f.updater.state.value.failure)
+        wait(DAY)
+        assertEquals(2, f.source.lists)
+        assertEquals("The same version: « Réessayer » still says it", UpdateFailure.DOWNLOAD_CUT, f.updater.state.value.failure)
+        assertFalse("Acted on: home does not offer it", f.updater.state.value.offeredOnHome)
+        f.source.publish("v0.4.2", 1020)
+        wait(DAY)
+        assertEquals("v0.4.2", f.updater.state.value.offer?.tag)
+        assertNull(f.updater.state.value.failure)
+        assertTrue(f.updater.state.value.offeredOnHome)
+    }
+
     @Test
     fun anAutomaticFailureIsOnlyLogged() = runTest {
         val f = fixture()
@@ -215,6 +256,63 @@ class UpdaterTest {
         runCurrent()
         assertEquals("Asked again for the stable releases", 2, f.source.lists)
         assertEquals("v0.4.0", f.updater.state.value.offer?.tag)
+    }
+
+    /** What was kept is offered in the channel the settings choose once read, never in the one before them. */
+    @Test
+    fun theOfferKeptWaitsForTheChannelTheSettingsChoose() = runTest {
+        suspend fun UpdaterFixture.keptABeta() {
+            store.answered(START, listOf(release("v0.4.1-beta.2")), "\"e\"")
+            store.manifest("v0.4.1-beta.2", manifestJson("v0.4.1-beta.2", 1008))
+            settings.value = AppSettings()
+        }
+        val f = fixture()
+        f.app.name = "0.4.1-beta.1"
+        f.app.code = 1005
+        f.keptABeta()
+        f.start()
+        f.settings.value = AppSettings(loaded = true, updateCheck = false, updatePrereleases = false)
+        runCurrent()
+        assertNull("No beta once the stable releases are chosen", f.updater.state.value.offer)
+
+        val g = UpdaterFixture(this, folder.newFolder())
+        g.keptABeta()
+        g.start()
+        g.settings.value = AppSettings(loaded = true, updateCheck = false, updatePrereleases = true)
+        runCurrent()
+        assertEquals("The betas chosen, a final installed", "v0.4.1-beta.2", g.updater.state.value.offer?.tag)
+    }
+
+    /** A newer release this version cannot read is passed over at the next start too: the version found stays offered. */
+    @Test
+    fun aRestartOffersWhatWasFoundPastAReleaseItCannotRead() = runTest {
+        val f = fixture()
+        f.source.publish("v0.4.1", 1010)
+        f.source.publish("v0.5.0", 1100)
+        f.source.manifests = f.source.manifests + (downloads("v0.5.0") + "update.json" to manifestJson("v0.5.0", 1100, schema = 2))
+        f.start()
+        wait(21_000)
+        assertEquals("v0.4.1", f.updater.state.value.offer?.tag)
+        f.start()
+        assertEquals("Offered again from what was kept", "v0.4.1", f.updater.state.value.offer?.tag)
+        assertEquals(1, f.source.lists)
+    }
+
+    /** With the check off, the betas chosen keep the version found offered: nothing asks GitHub until the user does. */
+    @Test
+    fun anotherChannelWithTheCheckOffKeepsTheVersionFound() = runTest {
+        val f = fixture()
+        f.settings.value = AppSettings(loaded = true, updateCheck = false)
+        f.source.publish("v0.4.1", 1010)
+        f.source.publish("v0.5.0-beta.1", 1050)
+        f.start()
+        f.updater.checkNow()
+        runCurrent()
+        assertEquals("v0.4.1", f.updater.state.value.offer?.tag)
+        f.settings.value = AppSettings(loaded = true, updateCheck = false, updatePrereleases = true)
+        runCurrent()
+        assertEquals("Nothing asked with the check off", 1, f.source.lists)
+        assertEquals("v0.4.1", f.updater.state.value.offer?.tag)
     }
 
     @Test
@@ -450,15 +548,23 @@ class UpdaterTest {
         assertEquals(Updated("0.4.1", installed = false, at = START), f.updater.state.value.updated)
     }
 
+    /** As Android starts the app once replaced: the start settles what was pending while the receiver asks. */
     @Test
     fun theUpdatedAppReopensOnlyAfterItsOwnRecentUpdate() = runTest {
         val f = fixture()
         f.start()
-        assertFalse(f.updater.replaced())
+        assertFalse("Not replaced by its own update", f.updater.replaced())
         f.store.pending(Pending(1010, "0.4.1", START))
+        f.app.code = 1010
+        f.start()
+        assertNull("Settled by the start", f.store.read().pending)
         assertTrue(f.updater.replaced())
-        wait(16 * MINUTE)
-        assertFalse(f.updater.replaced())
+
+        val g = UpdaterFixture(this, folder.newFolder())
+        g.store.pending(Pending(1010, "0.4.1", START - 16 * MINUTE))
+        g.app.code = 1010
+        g.start()
+        assertFalse("Not after a quarter of an hour", g.updater.replaced())
     }
 
     @Test
