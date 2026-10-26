@@ -217,7 +217,7 @@
     <string name="field_export">マウントパス</string>
     <string name="nfs_hint">パスワードは不要です。NAS側でこのプレーヤーに読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>
     <string name="nfs_identity_title">NFSアカウント</string>
-    <string name="nfs_identity_desc">NASから見えるアカウント（既定はroot）</string>
+    <string name="nfs_identity_desc">NASが見るアカウント（既定はroot）</string>
     <string name="nfs_identity_hint">rootのままなら空欄にします。NASがrootを拒否する場合は、UIDとGIDを入力してください。</string>
     <string name="field_uid">ユーザー（UID）</string>
     <string name="field_gid">グループ（GID）</string>

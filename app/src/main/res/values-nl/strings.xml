@@ -223,7 +223,7 @@
     <string name="field_export">Koppelpad</string>
     <string name="nfs_hint">Zonder wachtwoord: sta op de NAS deze speler alleen-lezen toe, en op een Synology niet-geprivilegieerde poorten.</string>
     <string name="nfs_identity_title">NFS-account</string>
-    <string name="nfs_identity_desc">Het account dat de NAS ziet, standaard root</string>
+    <string name="nfs_identity_desc">Account dat de NAS ziet, standaard root</string>
     <string name="nfs_identity_hint">Laat leeg voor root. Voer een UID en een GID in als de NAS root weigert.</string>
     <string name="field_uid">Gebruiker (UID)</string>
     <string name="field_gid">Groep (GID)</string>

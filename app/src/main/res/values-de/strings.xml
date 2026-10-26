@@ -223,7 +223,7 @@
     <string name="field_export">Mount-Pfad</string>
     <string name="nfs_hint">Ohne Passwort: Erlauben Sie diesem Player auf dem NAS den Lesezugriff, auf einem Synology auch von nicht privilegierten Ports.</string>
     <string name="nfs_identity_title">NFS-Konto</string>
-    <string name="nfs_identity_desc">Wie das NAS es sieht, standardmäßig root</string>
+    <string name="nfs_identity_desc">Den das NAS sieht, standardmäßig root</string>
     <string name="nfs_identity_hint">Für root leer lassen. Geben Sie eine UID und eine GID ein, wenn das NAS root ablehnt.</string>
     <string name="field_uid">Benutzer (UID)</string>
     <string name="field_gid">Gruppe (GID)</string>
