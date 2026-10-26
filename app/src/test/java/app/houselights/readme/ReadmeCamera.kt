@@ -376,7 +376,7 @@ internal class ReadmeCamera(private val extra: ReadmeLibrary.() -> Unit = {}) : 
     /** Presses [key] until focus is on what says [label] (its apostrophes as the app sets them), at most [limit] times. */
     fun pressUntil(key: Key, label: String, limit: Int = 12) {
         repeat(limit) {
-            if (focusedLabels().any { typeset(label) in typeset(it) }) return
+            if (focusedLabels().any { shown -> typeset(label) in typeset(shown) }) return
             press(key)
         }
         assertFocusOn(label)
