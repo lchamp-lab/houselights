@@ -80,10 +80,12 @@ class JellyfinProvider(
 
     /** Rows fetched in parallel; failed rows are left out, but if all fail the first failure is thrown. */
     override suspend fun home(): List<HomeSection> = coroutineScope {
-        val resume = async { row("Resume") { api.resume(userId, 20, ROW_FIELDS).items } }
-        val nextUp = async { row("Next up") { api.nextUp(userId, 20, ROW_FIELDS).items } }
+        val resume = async { row("Resume") { api.resume(userId, HOME_ROW, ROW_FIELDS).items } }
+        val nextUp = async { row("Next up") { api.nextUp(userId, HOME_ROW, ROW_FIELDS).items } }
         val libraries = librariesRead.getAndSet(null) ?: askLibraries()
-        val latest = libraries.map { lib -> lib to async { row("Latest of ${lib.title}") { api.latest(userId, lib.id, 24, ROW_FIELDS) } } }
+        val latest = libraries.map { lib ->
+            lib to async { row("Latest of ${lib.title}") { api.latest(userId, lib.id, LATEST_ROW, ROW_FIELDS) } }
+        }
         val rows = listOf(resume.await(), nextUp.await()) + latest.map { it.second.await() }
         rows.firstNotNullOfOrNull { it.exceptionOrNull() }?.takeIf { rows.all(Result<*>::isFailure) }?.let { throw it }
         withContext(mapping) {
@@ -140,7 +142,7 @@ class JellyfinProvider(
             fields = GRID_FIELDS,
             filters = statusFilter(filter.status),
             genres = filter.genre,
-            years = filter.decade?.let { d -> (d..d + 9).joinToString(",") },
+            years = filter.decade?.let { d -> (d until d + DECADE_YEARS).joinToString(",") },
             is4K = if (filter.quality == Quality.UHD_4K) true else null,
             personIds = filter.person,
             // Said either way for films, so the server's own setting never decides.
@@ -211,7 +213,7 @@ class JellyfinProvider(
 
     override suspend fun similar(item: MediaItem): List<MediaItem> =
         if (item.kind == MediaKind.EPISODE) emptyList()
-        else row("Similar to ${item.id}") { titles(api.similar(item.id, userId, 16, ROW_FIELDS).items) }.getOrDefault(emptyList())
+        else row("Similar to ${item.id}") { titles(api.similar(item.id, userId, SIMILAR, ROW_FIELDS).items) }.getOrDefault(emptyList())
 
     /** A show or season by its own id: the server marks each of its episodes, clearing their resume points. */
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
@@ -384,6 +386,15 @@ class JellyfinProvider(
         private const val NANOS_PER_MS = 1_000_000L
 
         private const val COLLECTION_LIMIT = 200
+
+        /** Titles a row of home asks for: Resume and Next up, then each library's latest; and a page's similar titles. */
+        private const val HOME_ROW = 20
+        private const val LATEST_ROW = 24
+        private const val SIMILAR = 16
+
+        /** A decade's years, from its first. */
+        private const val DECADE_YEARS = 10
+
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)
         private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,DateCreated"
 

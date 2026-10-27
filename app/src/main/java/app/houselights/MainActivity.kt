@@ -308,7 +308,7 @@ class MainActivity : ComponentActivity() {
 
     /** Requests 2160p60 for the UI where listed; a Zidoo lists only placeholder modes and sets its own output. */
     private fun applyDisplayMode(ui4k: Boolean) {
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION") // defaultDisplay until the window is attached, as Context.getDisplay is Android 11's.
         val display: Display = window.decorView.display ?: windowManager.defaultDisplay
         val modes = display.outputModes()
         val control = DisplayModes.control(modes)

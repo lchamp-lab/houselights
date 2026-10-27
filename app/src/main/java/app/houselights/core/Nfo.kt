@@ -178,23 +178,29 @@ object NfoParser {
         while (p.eventType != XmlPullParser.START_TAG) {
             if (p.next() == XmlPullParser.END_DOCUMENT) return null
         }
-        val kind = NfoKind.ofRoot(p.name) ?: return null
+        val read = NfoRead(NfoKind.ofRoot(p.name) ?: return null)
+        // The root's own elements, each read whole.
+        while (p.nextWithin(depth = 1)) {
+            if (p.eventType == XmlPullParser.START_TAG && p.depth == 2) read.element(p)
+        }
+        return read.info()
+    }
 
-        var info = NfoInfo(kind = kind)
-        val genres = mutableListOf<String>()
-        val directors = mutableListOf<String>()
-        val writers = mutableListOf<String>()
-        val studios = mutableListOf<String>()
-        val actors = mutableListOf<NfoActor>()
-        var defaultRating: RatingRead? = null
-        var firstRating: RatingRead? = null
-        var votes: Int? = null
+    /** What an NFO's root holds, read an element at a time ([element]), then gathered ([info]). */
+    private class NfoRead(kind: NfoKind) {
+        private var info = NfoInfo(kind = kind)
+        private val genres = mutableListOf<String>()
+        private val directors = mutableListOf<String>()
+        private val writers = mutableListOf<String>()
+        private val studios = mutableListOf<String>()
+        private val actors = mutableListOf<NfoActor>()
+        private var defaultRating: RatingRead? = null
+        private var firstRating: RatingRead? = null
+        private var votes: Int? = null
 
-        while (true) {
-            val event = p.next()
-            if (event == XmlPullParser.END_DOCUMENT) break
-            if (event == XmlPullParser.END_TAG && p.depth == 1) break
-            if (event != XmlPullParser.START_TAG || p.depth != 2) continue
+        /** Reads the element [p] is at, to its end. */
+        @Suppress("CyclomaticComplexMethod") // A when over the elements Kodi and its tools write, a field each.
+        fun element(p: XmlPullParser) {
             when (p.name) {
                 "title" -> info = info.copy(title = p.text())
                 "originaltitle" -> info = info.copy(originalTitle = p.text())
@@ -216,50 +222,63 @@ object NfoParser {
                 "displayorder" -> info = info.copy(displayOrder = p.text()?.trim()?.lowercase(java.util.Locale.ROOT))
                 "studio" -> p.text()?.let(studios::add)
                 "actor" -> actor(p)?.let(actors::add)
-                "uniqueid" -> {
-                    val type = p.getAttributeValue(null, "type")?.lowercase()
-                    val value = p.text()
-                    when (type) {
-                        "tmdb" -> info = info.copy(tmdbId = value?.toIntOrNull())
-                        "imdb" -> info = info.copy(imdbId = value)
-                        "tvdb" -> info = info.copy(tvdbId = value)
-                    }
-                }
+                "uniqueid" -> uniqueId(p)
                 "tmdbid" -> info = info.copy(tmdbId = p.text()?.toIntOrNull())
                 "imdbid" -> info = info.copy(imdbId = p.text())
                 "id" -> p.text()?.let { id -> if (id.startsWith("tt")) info = info.copy(imdbId = info.imdbId ?: id) }
-                "set" -> {
-                    val id = p.getAttributeValue(null, "tmdbcolid")?.toIntOrNull()
-                    info = info.copy(collection = setName(p), collectionTmdbId = id ?: info.collectionTmdbId)
-                }
+                "set" -> collection(p)
                 "tmdbcolid", "tmdbCollectionId" -> info = info.copy(collectionTmdbId = p.text()?.toIntOrNull() ?: info.collectionTmdbId)
                 "season" -> info = info.copy(season = p.text()?.toIntOrNull())
                 "episode" -> info = info.copy(episode = p.text()?.toIntOrNull())
                 "status" -> info = info.copy(status = p.text())
-                "thumb" -> {
-                    val aspect = p.getAttributeValue(null, "aspect")
-                    val url = p.text()?.let(::imageUrl)
-                    when (aspect) {
-                        "poster", null -> if (info.posterUrl == null) info = info.copy(posterUrl = url)
-                        "clearlogo", "logo" -> if (info.logoUrl == null) info = info.copy(logoUrl = url)
-                        "landscape", "fanart" -> if (info.fanartUrl == null) info = info.copy(fanartUrl = url)
-                    }
-                }
+                "thumb" -> thumb(p)
                 "fanart" -> fanart(p)?.let { if (info.fanartUrl == null) info = info.copy(fanartUrl = it) }
                 "fileinfo" -> info = info.copy(streams = streams(p))
                 else -> skip(p)
             }
         }
-        val rating = defaultRating ?: firstRating
-        return info.copy(
-            rating = rating?.value,
-            votes = rating?.votes ?: votes.takeIf { rating != null && rating === firstRating },
-            genres = genres.distinct(),
-            directors = directors.distinct(),
-            writers = writers.distinct(),
-            studios = studios.distinct(),
-            actors = actors,
-        )
+
+        /** An id by its type: TMDB's, IMDb's or TheTVDB's. */
+        private fun uniqueId(p: XmlPullParser) {
+            val type = p.getAttributeValue(null, "type")?.lowercase()
+            val value = p.text()
+            when (type) {
+                "tmdb" -> info = info.copy(tmdbId = value?.toIntOrNull())
+                "imdb" -> info = info.copy(imdbId = value)
+                "tvdb" -> info = info.copy(tvdbId = value)
+            }
+        }
+
+        /** The saga, by its name, and its TMDB id when the element gives it. */
+        private fun collection(p: XmlPullParser) {
+            val id = p.getAttributeValue(null, "tmdbcolid")?.toIntOrNull()
+            info = info.copy(collection = setName(p), collectionTmdbId = id ?: info.collectionTmdbId)
+        }
+
+        /** A picture by its aspect, the first of each aspect kept. */
+        private fun thumb(p: XmlPullParser) {
+            val aspect = p.getAttributeValue(null, "aspect")
+            val url = p.text()?.let(::imageUrl)
+            when (aspect) {
+                "poster", null -> if (info.posterUrl == null) info = info.copy(posterUrl = url)
+                "clearlogo", "logo" -> if (info.logoUrl == null) info = info.copy(logoUrl = url)
+                "landscape", "fanart" -> if (info.fanartUrl == null) info = info.copy(fanartUrl = url)
+            }
+        }
+
+        /** What the elements said, the rating marked default before the first. */
+        fun info(): NfoInfo {
+            val rating = defaultRating ?: firstRating
+            return info.copy(
+                rating = rating?.value,
+                votes = rating?.votes ?: votes.takeIf { rating != null && rating === firstRating },
+                genres = genres.distinct(),
+                directors = directors.distinct(),
+                writers = writers.distinct(),
+                studios = studios.distinct(),
+                actors = actors,
+            )
+        }
     }
 
     /** NFO artwork over HTTPS only (http is upgraded), so an NFO cannot make the app call LAN servers in plain HTTP. */

@@ -12,23 +12,23 @@ object PathResolver {
     fun resolve(serverPath: String?, mappings: List<PathMapping>): String? {
         if (serverPath.isNullOrBlank()) return null
         val normalized = serverPath.replace('\\', '/')
-
-        // 1. User-defined rules, longest prefix first. What follows the prefix is the server's own path.
-        mappings
-            .filter { it.from.isNotBlank() && it.to.isNotBlank() }
-            .sortedByDescending { it.from.length }
-            .firstOrNull { normalized.startsWith(it.from.replace('\\', '/').trimEnd('/') + "/") }
-            ?.let { m ->
-                val from = m.from.replace('\\', '/').trimEnd('/')
-                return m.to.trimEnd('/') + escapeUriPath(normalized.removePrefix(from))
-            }
-
-        // 2. The server already exposes a network URI ("shared network folder" option).
-        if (normalized.startsWith("smb://") || normalized.startsWith("nfs://")) return escapeUriPathEnds(normalized)
-
-        // 3. Windows UNC path: \\host\share\... -> smb://host/share/...
-        if (normalized.startsWith("//")) return escapeUriPathEnds("smb:$normalized")
-
-        return null
+        // 1. User-defined rules ([mapped]).
+        return mapped(normalized, mappings) ?: when {
+            // 2. The server already exposes a network URI ("shared network folder" option).
+            normalized.startsWith("smb://") || normalized.startsWith("nfs://") -> escapeUriPathEnds(normalized)
+            // 3. Windows UNC path: \\host\share\... -> smb://host/share/...
+            normalized.startsWith("//") -> escapeUriPathEnds("smb:$normalized")
+            else -> null
+        }
     }
+
+    /** User-defined rules, longest prefix first. What follows the prefix is the server's own path. */
+    private fun mapped(path: String, mappings: List<PathMapping>): String? = mappings
+        .filter { it.from.isNotBlank() && it.to.isNotBlank() }
+        .sortedByDescending { it.from.length }
+        .firstOrNull { path.startsWith(it.from.replace('\\', '/').trimEnd('/') + "/") }
+        ?.let { m ->
+            val from = m.from.replace('\\', '/').trimEnd('/')
+            m.to.trimEnd('/') + escapeUriPath(path.removePrefix(from))
+        }
 }

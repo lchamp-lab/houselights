@@ -300,7 +300,7 @@ private fun Posters(
                 if (!it.hasFocus) grid.focusedIndex.value = null
             },
         ) {
-            itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
+            itemsIndexed(state.items, key = { _, item -> item.id }) { index, item ->
                 PosterCard(
                     item = item,
                     onClick = { onOpenItem(item) },
@@ -496,7 +496,9 @@ private fun filterSections(
     return listOfNotNull(
         MenuSection(
             stringResource(R.string.filter_status),
-            WatchStatus.entries.map { st -> MenuOption(statusLabels.getValue(st), filter.status == st) { onChange(filter.copy(status = st)) } },
+            WatchStatus.entries.map { st ->
+                MenuOption(statusLabels.getValue(st), filter.status == st) { onChange(filter.copy(status = st)) }
+            },
         ),
         choices(R.string.filter_genre, R.string.all_genres, facets.genres, filter.genre, { it }, { g, held -> sameGenre(held, g) }) {
             onChange(filter.copy(genre = it))

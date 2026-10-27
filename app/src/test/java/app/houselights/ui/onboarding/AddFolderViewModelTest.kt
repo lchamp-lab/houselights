@@ -106,7 +106,7 @@ class AddFolderViewModelTest {
 
     /** Without a transaction, which would wait for a thread the test does not give it. */
     private fun removeBehindTheForm(id: Long) {
-        db.openHelper.writableDatabase.delete("sources", "id = ?", arrayOf(id))
+        db.openHelper.writableDatabase.delete("sources", "id = ?", arrayOf<Any>(id))
     }
 
     /** The folders' table out of reach: reading them fails as a failing database does, until [readableFolders]. */

@@ -1,5 +1,5 @@
 # Built on detekt's defaults (buildUponDefaultConfig); only what Compose and this codebase need differs.
-# Existing findings live in app/detekt-baseline.xml: new code must pass.
+# No baseline: a finding is fixed, else its rule is set aside where it stands with its reason (CONTRIBUTING, Checks).
 
 naming:
   FunctionNaming:

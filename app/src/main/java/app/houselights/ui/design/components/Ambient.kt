@@ -40,6 +40,9 @@ import kotlinx.coroutines.withContext
 /** Width of the sample a backdrop's light, veils and diffuse field are read from. */
 internal const val SAMPLE_PX = 96
 
+/** A backdrop's sample is 16:9, as the backdrop. */
+private const val BACKDROP_SAMPLE_HEIGHT_PX = SAMPLE_PX * 9 / 16
+
 /** A picture's light, read once from its sample: its own [deep] (veils, plates) and its [glow]. */
 @Immutable
 data class ImageLight(val deep: Color, val glow: Color) {
@@ -82,7 +85,9 @@ internal fun glowOf(hue: Float, saturation: Float): Color =
 
 private const val CHANNEL_MAX = 255f
 
-private fun hsvOf(rgb: Int) = FloatArray(3).also { android.graphics.Color.colorToHSV(rgb, it) }
+private const val HSV_COMPONENTS = 3
+
+private fun hsvOf(rgb: Int) = FloatArray(HSV_COMPONENTS).also { android.graphics.Color.colorToHSV(rgb, it) }
 
 /**
  * A backdrop ready to show: [picture] (the screen-size image, or a wall's diffuse field), the [sample] its
@@ -135,7 +140,7 @@ internal suspend fun decodeUrl(context: Context, url: String): Bitmap? =
 
 /** Request for the small sample of a backdrop that its veils and light are read from. */
 internal fun backdropSampleRequest(context: Context, image: ImageRef): ImageRequest =
-    sampleRequest(context, image.url(SAMPLE_PX), SAMPLE_PX, SAMPLE_PX * 9 / 16)
+    sampleRequest(context, image.url(SAMPLE_PX), SAMPLE_PX, BACKDROP_SAMPLE_HEIGHT_PX)
 
 /** Request for a card's glow sample; kept out of the memory cache, since [glowTones] caches the tone. */
 internal fun glowSampleRequest(context: Context, url: String): ImageRequest =

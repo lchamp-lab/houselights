@@ -48,7 +48,7 @@ class LocalCatalogTest {
     @After
     fun close() = db.close()
 
-    @Suppress("LongParameterList")
+    @Suppress("LongParameterList") // One per column a test sets.
     private suspend fun film(
         title: String,
         year: Int? = 2020,

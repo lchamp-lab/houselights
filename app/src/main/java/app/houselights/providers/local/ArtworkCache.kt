@@ -171,7 +171,10 @@ class ArtworkCache(
         /** Free space kept when caching, for the database to grow and for the system. */
         const val MIN_FREE_BYTES = 200L shl 20
 
-        private fun hash(s: String): String =
-            MessageDigest.getInstance("SHA-1").digest(s.toByteArray()).joinToString("") { "%02x".format(Locale.ROOT, it) }.take(24)
+        /** A cached file's name: the first 24 hex digits of its source's SHA-1, 96 bits. */
+        private const val HASH_DIGITS = 24
+
+        private fun hash(s: String): String = MessageDigest.getInstance("SHA-1").digest(s.toByteArray())
+            .joinToString("") { "%02x".format(Locale.ROOT, it) }.take(HASH_DIGITS)
     }
 }

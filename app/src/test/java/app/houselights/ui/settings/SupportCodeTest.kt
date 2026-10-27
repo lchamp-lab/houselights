@@ -107,7 +107,7 @@ class SupportCodeTest {
     }
 
     /** The eight masks of the standard, by row and column. */
-    @Suppress("MagicNumber")
+    @Suppress("MagicNumber") // The standard's own formulas, a mask a line.
     private fun masked(mask: Int, i: Int, j: Int): Boolean = when (mask) {
         0 -> (i + j) % 2 == 0
         1 -> i % 2 == 0

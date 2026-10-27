@@ -657,10 +657,16 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
         return own || given.isNotEmpty()
     }
 
-    @Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")
+    @Query(
+        "DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN " +
+            "(SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)"
+    )
     suspend fun deleteEmptySeasons()
 
-    @Query("DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)")
+    @Query(
+        "DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN " +
+            "(SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)"
+    )
     suspend fun deleteEmptySeries()
 
     /** Shows of folders still there that have no episode left. */

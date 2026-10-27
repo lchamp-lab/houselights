@@ -45,6 +45,9 @@ object ServerDiscovery {
     /** Cap on collected answers; more than this is not a useful choice list. */
     private const val MAX_SERVERS = 16
 
+    /** Room for one server's reply, a few hundred bytes of JSON. */
+    private const val REPLY_BYTES = 4096
+
     /**
      * Servers that answered within [timeoutMs], deduplicated by id, each given to [onFound] as it first answers. The
      * deadline is overall, so repeated answers cannot extend it; cancellation stops the receive loop.
@@ -62,7 +65,7 @@ object ServerDiscovery {
                     socket.broadcast = true
                     val msg = "who is JellyfinServer?".toByteArray()
                     socket.send(DatagramPacket(msg, msg.size, target))
-                    val buf = ByteArray(4096)
+                    val buf = ByteArray(REPLY_BYTES)
                     while (isActive && found.size < MAX_SERVERS) {
                         val packet = DatagramPacket(buf, buf.size)
                         if (!socket.receiveBefore(deadline, packet)) break

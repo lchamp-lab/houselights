@@ -81,16 +81,25 @@ object MkvProbe {
 
     private val DOLBY_VISION_CONFIGS = setOf(0x64766343L /* dvcC */, 0x64767643L /* dvvC */, 0x64767743L /* dvwC */)
 
+    /** An element ID takes 1 to 4 bytes; the top level's (EBML, Segment, Tags) take 4. */
+    private const val MAX_ID_BYTES = 4
+
+    /** Matroska's default TimestampScale: a tick is a millisecond, in nanoseconds. */
+    private const val DEFAULT_TIMESTAMP_SCALE = 1_000_000L
+    private const val NANOS_PER_MS = 1_000_000L
+
+    // An EBML walk: each element it cannot read, or no longer needs, stops it where it is.
+    @Suppress("CyclomaticComplexMethod", "ReturnCount", "LoopWithTooManyJumpStatements")
     fun probe(bytes: ByteArray): Result {
         val r = Reader(bytes)
-        if (r.remaining < 4 || r.peekId() != EBML) return Result.NotMatroska
+        if (r.remaining < MAX_ID_BYTES || r.peekId() != EBML) return Result.NotMatroska
         r.skipElement()
-        if (r.remaining < 4 || r.readId() != SEGMENT) return Result.NotMatroska
+        if (r.remaining < MAX_ID_BYTES || r.readId() != SEGMENT) return Result.NotMatroska
         r.readSize() // Usually "unknown": read children until the data runs out.
         val segmentStart = r.pos
 
         var seek = emptyMap<Long, Long>()
-        var timestampScale = 1_000_000L
+        var timestampScale = DEFAULT_TIMESTAMP_SCALE
         var durationTicks: Double? = null
         var entries: List<Entry>? = null
         val frames = mutableMapOf<Int, MutableList<IntRange>>()
@@ -128,7 +137,7 @@ object MkvProbe {
         }
 
         val tracks = entries ?: return seek[TRACKS]?.takeIf { it >= bytes.size }?.let { Result.NeedMore(it) } ?: Result.NotMatroska
-        return found(bytes, tracks, frames, seek[TAGS], durationTicks?.let { (it * timestampScale / 1_000_000).toLong() })
+        return found(bytes, tracks, frames, seek[TAGS], durationTicks?.let { (it * timestampScale / NANOS_PER_MS).toLong() })
     }
 
     private fun found(
@@ -158,7 +167,7 @@ object MkvProbe {
     /** Bitrates by track UID (mkvmerge's BPS tag, bits per second) from a Tags element at the start of [bytes]. */
     fun bitrates(bytes: ByteArray): Map<Long, Long> {
         val r = Reader(bytes)
-        if (r.remaining < 4 || runCatching { r.readId() }.getOrNull() != TAGS) return emptyMap()
+        if (r.remaining < MAX_ID_BYTES || runCatching { r.readId() }.getOrNull() != TAGS) return emptyMap()
         val size = runCatching { r.readSize() }.getOrNull() ?: return emptyMap()
         val tags = Reader(bytes, r.pos, (r.pos + size).coerceAtMost(bytes.size.toLong()).toInt())
         val found = mutableMapOf<Long, Long>()
@@ -225,6 +234,7 @@ object MkvProbe {
         }
     }
 
+    @Suppress("CyclomaticComplexMethod") // A when over a Matroska track's elements, a field each.
     private fun parseTracks(r: Reader): List<Entry> {
         val entries = mutableListOf<Entry>()
         r.children { id, entry ->
@@ -270,8 +280,9 @@ object MkvProbe {
                             e.dolbyVision = true
                             // DOVIDecoderConfigurationRecord: profile in the 7 high bits of byte 2,
                             // base-layer compatibility (1 HDR10, 4 HLG, 6 PQ) in the high nibble of byte 4.
-                            extra?.takeIf { it.size > 2 }?.let { e.dvProfile = (it[2].toInt() and 0xFF) shr 1 }
-                            extra?.takeIf { it.size > 4 }?.let { e.dvCompatibility = (it[4].toInt() and 0xF0) shr 4 }
+                            extra?.takeIf { it.size > DV_PROFILE_AT }?.let { e.dvProfile = (it[DV_PROFILE_AT].toInt() and BYTE_MASK) shr 1 }
+                            extra?.takeIf { it.size > DV_COMPATIBILITY_AT }
+                                ?.let { e.dvCompatibility = (it[DV_COMPATIBILITY_AT].toInt() and HIGH_NIBBLE) shr NIBBLE_BITS }
                         }
                     }
                 }
@@ -292,6 +303,23 @@ object MkvProbe {
     /** Frames collected per track; TrueHD's major sync may come a few frames in. */
     private const val FRAMES_TRUEHD = 16
     private const val FRAMES_OTHER = 4
+
+    /** DOVIDecoderConfigurationRecord: the byte holding the profile, and the one holding the base layer's compatibility. */
+    private const val DV_PROFILE_AT = 2
+    private const val DV_COMPATIBILITY_AT = 4
+    private const val HIGH_NIBBLE = 0xF0
+    private const val NIBBLE_BITS = 4
+
+    /** A byte read unsigned. */
+    private const val BYTE_MASK = 0xFF
+
+    /** Dual-layer Dolby Vision, over an HDR10 base layer. */
+    private const val DV_PROFILE_DUAL_LAYER = 7
+
+    /** The base layer's compatibility a Dolby Vision record gives: HDR10, HLG, PQ. */
+    private const val DV_BASE_HDR10 = 1
+    private const val DV_BASE_HLG = 4
+    private const val DV_BASE_PQ = 6
 
     private class Entry {
         var type = 0
@@ -315,7 +343,7 @@ object MkvProbe {
         /** Frame duration in nanoseconds: 41708333 at 23.976 fps. */
         var frameNanos: Long? = null
 
-        private val nameLower get() = name?.lowercase() ?: ""
+        private val nameLower get() = name?.lowercase().orEmpty()
 
         /** First frames needed to detect this track's format; 0 when the header suffices. */
         val framesWanted: Int
@@ -362,13 +390,14 @@ object MkvProbe {
         /** HDR formats from headers: colour transfer, or the base layer under Dolby Vision. */
         private fun baseRanges(): List<HdrFormat> = buildList {
             when (transfer) {
-                16 -> add(HdrFormat.HDR10) // SMPTE ST 2084 (PQ)
-                18 -> add(HdrFormat.HLG)
+                PQ_TRANSFER -> add(HdrFormat.HDR10)
+                HLG_TRANSFER -> add(HdrFormat.HLG)
             }
             // Many files only signal the HDR10 or HLG base layer through Dolby Vision.
             when {
-                dvProfile == 7 || dvCompatibility == 1 || dvCompatibility == 6 -> add(HdrFormat.HDR10)
-                dvCompatibility == 4 -> add(HdrFormat.HLG)
+                dvProfile == DV_PROFILE_DUAL_LAYER || dvCompatibility == DV_BASE_HDR10 || dvCompatibility == DV_BASE_PQ ->
+                    add(HdrFormat.HDR10)
+                dvCompatibility == DV_BASE_HLG -> add(HdrFormat.HLG)
             }
         }
 
@@ -380,8 +409,9 @@ object MkvProbe {
         private fun bitDepthFromPrivate(): Int? {
             val p = codecPrivate ?: return null
             return when {
-                codecId == HEVC_ID && p.size > 17 -> (p[17].toInt() and 0x07) + 8
-                codecId == AVC_ID && p.size > 1 -> if ((p[1].toInt() and 0xFF) == 110) 10 else 8
+                codecId == HEVC_ID && p.size > HVCC_BIT_DEPTH_AT -> (p[HVCC_BIT_DEPTH_AT].toInt() and BIT_DEPTH_BITS) + BASE_BIT_DEPTH
+                codecId == AVC_ID && p.size > AVC_PROFILE_AT ->
+                    if ((p[AVC_PROFILE_AT].toInt() and BYTE_MASK) == AVC_HIGH_10) HIGH_10_BIT_DEPTH else BASE_BIT_DEPTH
                 else -> null
             }
         }
@@ -461,10 +491,19 @@ object MkvProbe {
         0x2001 to Codecs.DTS,
         0xF1AC to Codecs.FLAC,
     )
+
+    /** Colour transfers: SMPTE ST 2084 (PQ), ARIB STD-B67 (HLG). */
+    private const val PQ_TRANSFER = 16
     private const val HLG_TRANSFER = 18
     private const val HVCC_LENGTH_SIZE_AT = 21
     private const val NAL_LENGTH_SIZE_BITS = 0x03
     private const val DEFAULT_NAL_LENGTH_SIZE = 4
+    private const val HVCC_BIT_DEPTH_AT = 17
+    private const val BIT_DEPTH_BITS = 0x07
+    private const val BASE_BIT_DEPTH = 8
+    private const val AVC_PROFILE_AT = 1
+    private const val AVC_HIGH_10 = 110
+    private const val HIGH_10_BIT_DEPTH = 10
 
     private val MA = Regex("""\bma\b""")
     private val DTS_X = Regex("""dts[:\- ]?x\b""")
@@ -542,10 +581,11 @@ object MkvProbe {
         /** Element ID, marker bits kept. */
         fun readId(): Long {
             val first = byte(pos)
-            val length = Integer.numberOfLeadingZeros(first) - 23
-            require(length in 1..4) { "Bad element ID" }
+            // The length marker's place in the first byte: its leading zeros, plus itself.
+            val length = Integer.numberOfLeadingZeros(first) - (Int.SIZE_BITS - Byte.SIZE_BITS) + 1
+            require(length in 1..MAX_ID_BYTES) { "Bad element ID" }
             var value = 0L
-            repeat(length) { value = (value shl 8) or byte(pos++).toLong() }
+            repeat(length) { value = (value shl Byte.SIZE_BITS) or byte(pos++).toLong() }
             return value
         }
 
@@ -576,13 +616,13 @@ object MkvProbe {
 
         fun uint(): Long {
             var v = 0L
-            for (i in pos until end) v = (v shl 8) or byte(i).toLong()
+            for (i in pos until end) v = (v shl Byte.SIZE_BITS) or byte(i).toLong()
             return v
         }
 
         fun float(): Double = when (remaining) {
-            4 -> java.lang.Float.intBitsToFloat(uint().toInt()).toDouble()
-            8 -> java.lang.Double.longBitsToDouble(uint())
+            Float.SIZE_BYTES -> java.lang.Float.intBitsToFloat(uint().toInt()).toDouble()
+            Double.SIZE_BYTES -> java.lang.Double.longBitsToDouble(uint())
             else -> 0.0
         }
 
@@ -591,8 +631,8 @@ object MkvProbe {
         fun bytes(): ByteArray = bytes.copyOfRange(pos, end)
 
         private fun byte(i: Int): Int {
-            if (i < 0 || i >= end) throw IndexOutOfBoundsException()
-            return bytes[i].toInt() and 0xFF
+            if (i < 0 || i >= end) throw IndexOutOfBoundsException("Byte $i outside 0 until $end")
+            return bytes[i].toInt() and BYTE_MASK
         }
     }
 }

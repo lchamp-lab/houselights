@@ -72,7 +72,7 @@ internal class FakeApps(private val context: Context) {
     }
 
     /** Makes [component] the default app for videos. */
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION") // The call the system makes a default app with, deprecated as apps may not.
     fun makeDefault(component: ComponentName) {
         context.packageManager.addPreferredActivity(video("smb", "nfs"), IntentFilter.MATCH_CATEGORY_SCHEME, arrayOf(component), component)
         context.packageManager.addPreferredActivity(video(), IntentFilter.MATCH_CATEGORY_TYPE, arrayOf(component), component)

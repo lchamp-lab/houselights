@@ -135,10 +135,10 @@ class HouselightsApp : Application(), ImageLoaderFactory {
         .diskCache {
             DiskCache.Builder()
                 .directory(cacheDir.resolve("images"))
-                .maxSizeBytes(1_000_000_000L) // 1 GB, shown as such in Settings > Storage.
+                .maxSizeBytes(IMAGE_DISK_BYTES)
                 .build()
         }
-        .crossfade(300)
+        .crossfade(IMAGE_CROSSFADE_MS)
         .respectCacheHeaders(false)
         // Waits for a picture the launch is already prefetching rather than loading it twice.
         .components { add(AwaitAhead) }
@@ -449,6 +449,12 @@ private fun metadataLocale(s: AppSettings, device: Locale): Locale = s.metadataL
 
 /** Decoded pictures kept in memory: a few backdrops and the posters of several rows. */
 internal const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
+
+/** Pictures kept on disk: 1 GB, shown as such in Settings > Storage. */
+private const val IMAGE_DISK_BYTES = 1_000_000_000L
+
+/** A picture arriving fades in over this long. */
+private const val IMAGE_CROSSFADE_MS = 300
 
 /**
  * Image client sharing [api]'s pool with its own queue: OkHttp runs five requests per host, and Jellyfin serves

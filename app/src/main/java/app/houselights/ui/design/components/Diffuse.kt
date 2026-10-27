@@ -96,7 +96,7 @@ private fun encoded(linear: Float): Int =
  * [plane] ([width] × [height]) averaged along one axis over [span] points from [from] into [out] points, each
  * point weighted by how much of it falls in each output's share.
  */
-@Suppress("LongParameterList")
+@Suppress("LongParameterList") // A plane, its size, the axis, the span and the points out: one pass of the average.
 private fun averaged(plane: FloatArray, width: Int, height: Int, horizontal: Boolean, from: Float, span: Float, out: Int): FloatArray {
     val outW = if (horizontal) out else width
     val outH = if (horizontal) height else out

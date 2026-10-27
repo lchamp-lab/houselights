@@ -89,7 +89,7 @@ class LargeLibraryTest {
         roomWork.shutdown()
     }
 
-    @Suppress("LongParameterList")
+    @Suppress("LongParameterList") // One per column a test sets.
     private fun item(
         kind: ItemKind, source: Long, title: String, parentId: Long? = null, seriesId: Long? = null, season: Int? = null,
         episode: Int? = null, addedAt: Long = 0, nfo: String? = null, played: Boolean = false, lastPlayedAt: Long? = null,
