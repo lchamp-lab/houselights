@@ -41,20 +41,20 @@ interface CreditDao {
     /** Credits of title [itemId] by job in billing order, each with its person's title count. */
     @Query(
         "SELECT c.personKey, c.name, c.job, c.ord, c.character, c.profilePath, $TITLES_OF_PERSON AS titles " +
-            "FROM credits c WHERE c.itemId = :itemId ORDER BY c.job, c.ord"
+            "FROM credits c WHERE c.itemId = :itemId ORDER BY c.job, c.ord",
     )
     suspend fun creditsOf(itemId: Long): List<TitleCredit>
 
     @Query(
         "SELECT c.itemId, c.job, c.ord, c.name, c.character, c.profilePath FROM credits c JOIN items i ON i.id = c.itemId " +
-            "WHERE c.personKey = :personKey AND i.versionOf IS NULL"
+            "WHERE c.personKey = :personKey AND i.versionOf IS NULL",
     )
     suspend fun creditsOfPerson(personKey: String): List<PersonCredit>
 
     /** People of [job] credited on at least [minTitles] titles of [kind] (any if null), most titles first. */
     @Query(
         "$PERSON_SUMMARY WHERE c.job = :job AND i.versionOf IS NULL AND (:kind IS NULL OR i.kind = :kind) " +
-            "GROUP BY c.personKey HAVING COUNT(DISTINCT c.itemId) >= :minTitles ORDER BY titles DESC, name LIMIT :limit"
+            "GROUP BY c.personKey HAVING COUNT(DISTINCT c.itemId) >= :minTitles ORDER BY titles DESC, name LIMIT :limit",
     )
     suspend fun topPeople(job: Job, kind: ItemKind?, minTitles: Int, limit: Int): List<PersonSummary>
 
@@ -77,7 +77,7 @@ interface CreditDao {
     /** TMDB keys already used in credits for [foldedNames]. */
     @Query(
         "SELECT foldedName, MIN(personKey) AS personKey FROM credits WHERE foldedName IN (:foldedNames) " +
-            "AND personKey LIKE '${PersonKeys.TMDB}%' GROUP BY foldedName"
+            "AND personKey LIKE '${PersonKeys.TMDB}%' GROUP BY foldedName",
     )
     suspend fun tmdbKeysOf(foldedNames: List<String>): List<NamedKey>
 

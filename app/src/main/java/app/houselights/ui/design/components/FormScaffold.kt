@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
@@ -26,9 +25,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Text
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
@@ -37,6 +36,7 @@ import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.OnArtwork
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.fadeIntoField
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.scrollEdges

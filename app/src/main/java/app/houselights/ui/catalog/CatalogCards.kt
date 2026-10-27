@@ -1,12 +1,11 @@
 package app.houselights.ui.catalog
 
-import app.houselights.ui.design.TwoPaneDefaults
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,11 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
@@ -30,21 +30,25 @@ import app.houselights.core.ArtworkKind
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
-import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.OnArtwork
+import app.houselights.ui.design.TwoPaneDefaults
+import app.houselights.ui.design.components.AbsentCard
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.ArtworkSurface
+import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.HeroSkeleton
 import app.houselights.ui.design.components.HlResultItem
 import app.houselights.ui.design.components.LandscapeCard
+import app.houselights.ui.design.components.LocalBackdropRelay
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
@@ -54,10 +58,6 @@ import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.formatDuration
-import androidx.compose.runtime.CompositionLocalProvider
-import app.houselights.ui.design.components.LocalBackdropRelay
-import app.houselights.ui.design.components.Backdrop
-import app.houselights.ui.design.components.AbsentCard
 
 // Images come from app resources, and a failed one from a missing file: nothing needs the network.
 
@@ -135,20 +135,22 @@ private fun PosterRow() {
 private fun AmbientBackdrops() {
     val art = shippedImage(R.drawable.banner)
     // Isolated backdrops: no relay hands a picture to them or from them.
-    CompositionLocalProvider(LocalBackdropRelay provides null) { Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-        listOf("a picture: its light" to art, "no picture: the black room, no light" to null).forEach { (state, image) ->
-            Specimen(state, width = TwoPaneDefaults.sideWide) {
-                Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
-                    AmbientBackdrop(image, BackdropStyle.Hero) {
-                        PosterCard(sample("Le Samouraï", 1967), {}, Modifier.align(Alignment.CenterStart).padding(start = HlSpace.l))
+    CompositionLocalProvider(LocalBackdropRelay provides null) {
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            listOf("a picture: its light" to art, "no picture: the black room, no light" to null).forEach { (state, image) ->
+                Specimen(state, width = TwoPaneDefaults.sideWide) {
+                    Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
+                        AmbientBackdrop(image, BackdropStyle.Hero) {
+                            PosterCard(sample("Le Samouraï", 1967), {}, Modifier.align(Alignment.CenterStart).padding(start = HlSpace.l))
+                        }
                     }
                 }
             }
+            Specimen("quiet, a person's titles: the picture dimmed down to the foot", width = TwoPaneDefaults.sideWide) {
+                Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, BackdropStyle.Quiet) }
+            }
         }
-        Specimen("quiet, a person's titles: the picture dimmed down to the foot", width = TwoPaneDefaults.sideWide) {
-            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, BackdropStyle.Quiet) }
-        }
-    } }
+    }
 }
 
 /** The focus treatment alone, and the image inside it: loaded, or failed with its fallback in its place. */

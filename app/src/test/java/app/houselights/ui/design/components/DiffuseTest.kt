@@ -201,12 +201,16 @@ class DiffuseTest {
 
     /** Serves, for any test:// address, a noisy picture of the requested size, as a decoder would. */
     private val files = Fetcher.Factory<Uri> { data, options, _ ->
-        if (data.scheme != "test") null else Fetcher {
-            val width = (options.size.width as? Dimension.Pixels)?.px ?: W
-            val height = (options.size.height as? Dimension.Pixels)?.px ?: H
-            val noise = IntArray(width * height) { 0xFF000000.toInt() or it * 7919 % 0xFFFFFF }
-            val bitmap = Bitmap.createBitmap(noise, width, height, Bitmap.Config.ARGB_8888)
-            DrawableResult(BitmapDrawable(context.resources, bitmap), isSampled = true, dataSource = DataSource.DISK)
+        if (data.scheme != "test") {
+            null
+        } else {
+            Fetcher {
+                val width = (options.size.width as? Dimension.Pixels)?.px ?: W
+                val height = (options.size.height as? Dimension.Pixels)?.px ?: H
+                val noise = IntArray(width * height) { 0xFF000000.toInt() or it * 7919 % 0xFFFFFF }
+                val bitmap = Bitmap.createBitmap(noise, width, height, Bitmap.Config.ARGB_8888)
+                DrawableResult(BitmapDrawable(context.resources, bitmap), isSampled = true, dataSource = DataSource.DISK)
+            }
         }
     }
 
@@ -219,16 +223,20 @@ class DiffuseTest {
         const val BLACK = 0xFF000000.toInt()
         const val SCREEN_W = 960
         const val SCREEN_H = 540
+
         /** The dither pattern's side, and a tile of it at mid-height, clear of the veils. */
         const val TILE = 8
         const val MID_TILE = SCREEN_H / 2 / TILE * TILE
+
         /** What the pattern adds on average, rounded to the nearest level. */
         const val HALF = 0.5f
+
         /** In levels: rings, or a pattern stuck at whole levels, step a level every 15 points across. */
         const val RAMP_SLACK = 0.15f
         const val STEP_SLACK = 0.2f
         const val FRACTION_SLACK = 0.1f
         const val GREY_60 = 0xFF3C3C3C.toInt()
+
         /** Skia on the CPU filters the field from here, as the player's GPU does: Robolectric's API 28 does not. */
         const val SHADER_FILTERS = 35
         const val BACKDROP = "test://fanart/7"

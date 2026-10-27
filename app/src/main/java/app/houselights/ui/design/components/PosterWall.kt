@@ -117,4 +117,3 @@ fun PosterWallScrim(modifier: Modifier = Modifier) {
             .background(Brush.verticalGradient(*HlScrim.WALL_DOWN.colorStops(black))),
     )
 }
-

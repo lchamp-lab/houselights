@@ -257,7 +257,7 @@ if (keystoreProps.isEmpty && !debugSignedRelease) {
                     "one signed with yours could only be installed after uninstalling it, which loses the library " +
                     "and watch history kept on the player. Create your key first (CONTRIBUTING, Signing), or pass " +
                     "-Phouselights.debugSignedRelease=true for a build that will not be installed; " +
-                    "scripts/install.sh bench installs an optimised build beside the release."
+                    "scripts/install.sh bench installs an optimised build beside the release.",
             )
         }
     }

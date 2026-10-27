@@ -17,9 +17,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -716,9 +716,13 @@ class LibraryScanner(
         if (dao.source(source.id) == null) return@withLock false
         val existing = folder.known[file.relativePath]?.let { dao.item(it.id) }
         val before = existing?.let { shown(it) }
-        if (work == Work.PROBE && existing != null) reprobe(source, file, existing) else when (source.kind) {
-            SourceKind.MOVIES -> movies.process(folder.pass, file, existing)
-            SourceKind.SHOWS -> shows.process(folder.pass, file, existing)
+        if (work == Work.PROBE && existing != null) {
+            reprobe(source, file, existing)
+        } else {
+            when (source.kind) {
+                SourceKind.MOVIES -> movies.process(folder.pass, file, existing)
+                SourceKind.SHOWS -> shows.process(folder.pass, file, existing)
+            }
         }
         if (existing == null) dao.hasFile(source.id, file.relativePath) else dao.item(existing.id)?.let { shown(it) } != before
     }
@@ -733,7 +737,10 @@ class LibraryScanner(
     private suspend fun shown(item: ItemEntity): List<ItemEntity> =
         (listOf(item) + dao.rows(listOfNotNull(item.parentId, item.seriesId)).sortedBy { it.id }).map { row ->
             row.copy(
-                matchedAt = row.matchedAt?.let { MATCHED }, sidecarKey = null, probeVersion = 0, mediaInfo = unstamped(row.mediaInfo),
+                matchedAt = row.matchedAt?.let { MATCHED },
+                sidecarKey = null,
+                probeVersion = 0,
+                mediaInfo = unstamped(row.mediaInfo),
                 creditsAt = null,
             )
         }

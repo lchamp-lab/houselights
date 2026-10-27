@@ -95,7 +95,7 @@ internal class Backfill(
                             backdropPath = fresh.backdropPath ?: full.backdropPath,
                             partCount = CollectionRules.released(full.parts.map { it.releaseDate }, CollectionRules.today()),
                             fetchedAt = now,
-                        )
+                        ),
                     )
                     dao.replaceSagaParts(fresh.id, CollectionRules.parts(fresh.id, full))
                 }

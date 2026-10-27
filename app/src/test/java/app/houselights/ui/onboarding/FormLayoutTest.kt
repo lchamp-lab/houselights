@@ -1,6 +1,5 @@
 package app.houselights.ui.onboarding
 
-import app.houselights.ui.design.TwoPaneDefaults
 import android.content.Context
 import android.os.Looper
 import androidx.activity.ComponentActivity
@@ -42,6 +41,7 @@ import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
@@ -52,9 +52,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -123,9 +123,15 @@ class FormLayoutTest {
         val id = runBlocking {
             db.dao().insertSource(
                 SourceEntity(
-                    name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/video",
-                    path = "Films", username = "", password = Secret(""),
-                )
+                    name = "Films",
+                    kind = SourceKind.MOVIES,
+                    protocol = Protocol.NFS,
+                    host = "192.168.1.20",
+                    share = "volume1/video",
+                    path = "Films",
+                    username = "",
+                    password = Secret(""),
+                ),
             )
         }
         val vm = AddFolderViewModel(library(), id, scope, probe = { FolderLevel(emptyList(), videos = 0) })
@@ -140,9 +146,15 @@ class FormLayoutTest {
         val id = runBlocking {
             db.dao().insertSource(
                 SourceEntity(
-                    name = "Séries", kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.20", share = "video",
-                    path = "Séries", username = "houselights", password = Secret("stored"),
-                )
+                    name = "Séries",
+                    kind = SourceKind.SHOWS,
+                    protocol = Protocol.SMB,
+                    host = "192.168.1.20",
+                    share = "video",
+                    path = "Séries",
+                    username = "houselights",
+                    password = Secret("stored"),
+                ),
             )
         }
         return AddFolderViewModel(library(), id, scope, probe = probe)
@@ -303,9 +315,15 @@ class FormLayoutTest {
         runBlocking {
             db.dao().insertSource(
                 SourceEntity(
-                    name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = FakeFlowNetwork.DS920,
-                    share = "volume1/video", path = "Films", username = "", password = Secret(""),
-                )
+                    name = "Films",
+                    kind = SourceKind.MOVIES,
+                    protocol = Protocol.NFS,
+                    host = FakeFlowNetwork.DS920,
+                    share = "volume1/video",
+                    path = "Films",
+                    username = "",
+                    password = Secret(""),
+                ),
             )
         }
         val library = LocalLibrary(context, db.dao(), scanner, artwork) {}

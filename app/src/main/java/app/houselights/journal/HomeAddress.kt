@@ -59,6 +59,7 @@ object HomeAddress {
         val manager = context.getSystemService(ConnectivityManager::class.java) ?: return emptyList()
         return try {
             val active = manager.activeNetwork
+
             // Listed at once, as a callback would tell them later; still answered on every Android version.
             @Suppress("DEPRECATION")
             val all = manager.allNetworks

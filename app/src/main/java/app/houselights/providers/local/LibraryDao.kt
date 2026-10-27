@@ -191,7 +191,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     @Query(
         "SELECT id, filePath, parts, fileSize, missingSince, seriesId, tmdbId, userTmdbId, matchedAt, sidecarKey, probeVersion, " +
-            "hintKey FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL"
+            "hintKey FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL",
     )
     suspend fun knownFiles(sourceId: Long): List<KnownFile>
 
@@ -208,7 +208,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** Episodes under [dir] (never ""): paths between "dir/" and "dir0", a range scan on the index. */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind = 'EPISODE' AND sourceId = :sourceId " +
-            "AND filePath > :dir || '/' AND filePath < :dir || '0'"
+            "AND filePath > :dir || '/' AND filePath < :dir || '0'",
     )
     suspend fun episodesUnder(sourceId: Long, dir: String): List<ItemEntity>
 
@@ -221,7 +221,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** Show [seriesId]'s episodes at season [season], episode [episode]: who holds a place ([EpisodeNumbering]). */
     @Query(
         "SELECT id, filePath FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId AND seasonNumber = :season " +
-            "AND episodeNumber = :episode"
+            "AND episodeNumber = :episode",
     )
     suspend fun episodesAt(seriesId: Long, season: Int, episode: Int): List<PlacedFile>
 
@@ -251,7 +251,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
      */
     @Query(
         "UPDATE items SET matchedAt = NULL WHERE id = :seriesId OR id = " +
-            "(SELECT MIN(id) FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId)"
+            "(SELECT MIN(id) FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId)",
     )
     suspend fun readAgain(seriesId: Long)
 
@@ -274,20 +274,20 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query(
         "SELECT seriesId, SUM(played = 0) AS unplayed, COUNT(DISTINCT parentId) AS seasons, COUNT(*) AS episodes, " +
             "SUM(missingSince IS NOT NULL) AS held, MIN(missingSince) AS heldSince FROM items " +
-            "WHERE kind = 'EPISODE' AND seriesId IN (:seriesIds) GROUP BY seriesId"
+            "WHERE kind = 'EPISODE' AND seriesId IN (:seriesIds) GROUP BY seriesId",
     )
     suspend fun seriesCounts(seriesIds: List<Long>): List<SeriesCounts>
 
     /** Episode and watched counts per season, in one query for the season track. */
     @Query(
         "SELECT parentId AS seasonId, COUNT(*) AS episodes, SUM(played) AS played FROM items " +
-            "WHERE kind = 'EPISODE' AND seriesId = :seriesId AND parentId IS NOT NULL GROUP BY parentId"
+            "WHERE kind = 'EPISODE' AND seriesId = :seriesId AND parentId IS NOT NULL GROUP BY parentId",
     )
     suspend fun seasonCounts(seriesId: Long): List<SeasonCounts>
 
     @Query(
         "SELECT seriesId AS id, MAX(lastPlayedAt) AS at FROM items WHERE kind = 'EPISODE' AND seriesId IS NOT NULL " +
-            "AND lastPlayedAt IS NOT NULL GROUP BY seriesId ORDER BY MAX(lastPlayedAt) DESC LIMIT :limit"
+            "AND lastPlayedAt IS NOT NULL GROUP BY seriesId ORDER BY MAX(lastPlayedAt) DESC LIMIT :limit",
     )
     suspend fun recentSeries(limit: Int): List<Recent>
 
@@ -299,7 +299,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
             "FROM items WHERE kind = 'MOVIE' AND versionOf IS NULL " +
             "AND collectionId IN (SELECT collectionId FROM items WHERE kind = 'MOVIE' AND collectionId IS NOT NULL AND played = 1 " +
             "AND lastPlayedAt IS NOT NULL GROUP BY collectionId ORDER BY MAX(lastPlayedAt) DESC LIMIT :limit) " +
-            "ORDER BY collectionId, year IS NULL, year, sortTitle, id"
+            "ORDER BY collectionId, year IS NULL, year, sortTitle, id",
     )
     suspend fun startedSagas(limit: Int): List<SagaFilmState>
 
@@ -309,13 +309,13 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** Watch state of every episode of [seriesIds], in order: finds next episodes without loading full rows. */
     @Query(
         "SELECT id, seriesId, seasonNumber, episodeNumber, played, positionMs FROM items " +
-            "WHERE kind = 'EPISODE' AND seriesId IN (:seriesIds) ORDER BY seriesId, seasonNumber, episodeNumber, id"
+            "WHERE kind = 'EPISODE' AND seriesId IN (:seriesIds) ORDER BY seriesId, seasonNumber, episodeNumber, id",
     )
     suspend fun episodeStates(seriesIds: List<Long>): List<EpisodeState>
 
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind IN ('MOVIE','EPISODE') AND positionMs > 0 AND played = 0 " +
-            "ORDER BY lastPlayedAt DESC LIMIT :limit"
+            "ORDER BY lastPlayedAt DESC LIMIT :limit",
     )
     suspend fun inProgress(limit: Int): List<ItemEntity>
 
@@ -329,7 +329,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** Episodes added since [since], not watched, found after their folder's first scan, as a title counts as new. */
     @Query(
         "SELECT COUNT(*) FROM items WHERE kind = 'EPISODE' AND played = 0 AND addedAt >= :since " +
-            "AND addedAt > (SELECT firstScanAt FROM sources WHERE sources.id = items.sourceId AND firstScanAt > 0)"
+            "AND addedAt > (SELECT firstScanAt FROM sources WHERE sources.id = items.sourceId AND firstScanAt > 0)",
     )
     suspend fun newEpisodes(since: Long): Int
 
@@ -357,7 +357,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** The title to identify after the one added at [addedAt] as row [id], in [toIdentify]'s order; null after the last. */
     @Query(
         "SELECT id FROM items WHERE $TO_IDENTIFY AND (addedAt < :addedAt OR (addedAt = :addedAt AND id < :id)) " +
-            "ORDER BY addedAt DESC, id DESC LIMIT 1"
+            "ORDER BY addedAt DESC, id DESC LIMIT 1",
     )
     suspend fun nextToIdentify(addedAt: Long, id: Long): Long?
 
@@ -368,7 +368,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
      */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE $TO_IDENTIFY AND kind = :kind AND userTmdbId IS NULL AND matchedAt IS NOT NULL " +
-            "AND matchedAt <= (CASE WHEN addedAt > :newSince THEN :newDue ELSE :due END) ORDER BY matchedAt LIMIT :limit"
+            "AND matchedAt <= (CASE WHEN addedAt > :newSince THEN :newDue ELSE :due END) ORDER BY matchedAt LIMIT :limit",
     )
     suspend fun recheckDue(kind: ItemKind, newSince: Long, newDue: Long, due: Long, limit: Int): List<ItemEntity>
 
@@ -425,14 +425,14 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query(
         "SELECT COALESCE(NULLIF(userPosterPath, ''), posterPath) FROM items " +
             "WHERE sourceId = :sourceId AND kind IN ('MOVIE','SERIES') " +
-            "AND COALESCE(NULLIF(userPosterPath, ''), posterPath) IS NOT NULL ORDER BY addedAt DESC LIMIT :limit"
+            "AND COALESCE(NULLIF(userPosterPath, ''), posterPath) IS NOT NULL ORDER BY addedAt DESC LIMIT :limit",
     )
     fun observePosters(sourceId: Long, limit: Int): Flow<List<String>>
 
     @Query(
         "SELECT COALESCE(NULLIF(userPosterPath, ''), posterPath) FROM items " +
             "WHERE kind IN ('MOVIE','SERIES') " +
-            "AND COALESCE(NULLIF(userPosterPath, ''), posterPath) IS NOT NULL ORDER BY addedAt DESC LIMIT :limit"
+            "AND COALESCE(NULLIF(userPosterPath, ''), posterPath) IS NOT NULL ORDER BY addedAt DESC LIMIT :limit",
     )
     fun observeAllPosters(limit: Int): Flow<List<String>>
 
@@ -444,7 +444,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
         "SELECT sourceId, SUM(kind IN ('MOVIE','SERIES')) AS titles, " +
             "SUM(filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}) AS ultraHd, " +
             "SUM(kind = 'SERIES') AS shows, SUM(kind = 'EPISODE') AS episodes " +
-            "FROM items GROUP BY sourceId"
+            "FROM items GROUP BY sourceId",
     )
     fun observeFolderCounts(token: String): Flow<List<FolderCounts>>
 
@@ -457,7 +457,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** Titles of [kind] with [genre], best rated first; ties sort by id so the row order is stable. */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind = :kind AND id != :excludeId AND versionOf IS NULL AND ${PipeList.GENRES_MATCH} " +
-            "ORDER BY rating DESC, id LIMIT :limit"
+            "ORDER BY rating DESC, id LIMIT :limit",
     )
     suspend fun byGenre(kind: ItemKind, genre: String, excludeId: Long, limit: Int): List<ItemEntity>
 
@@ -476,14 +476,14 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
         "UPDATE items SET filePath = :filePath, fileSize = :fileSize, " +
             "mediaInfo = CASE WHEN fileSize = :fileSize THEN mediaInfo ELSE NULL END, " +
             "probeVersion = CASE WHEN fileSize = :fileSize THEN probeVersion ELSE 0 END, " +
-            "fileDurationMs = CASE WHEN fileSize = :fileSize THEN fileDurationMs ELSE NULL END, missingSince = NULL WHERE id = :id"
+            "fileDurationMs = CASE WHEN fileSize = :fileSize THEN fileDurationMs ELSE NULL END, missingSince = NULL WHERE id = :id",
     )
     suspend fun relink(id: Long, filePath: String, fileSize: Long)
 
     /** Sets [ItemEntity.parts]; a film gaining parts is rematched, as it was matched by its first part ("Film CD1"). */
     @Query(
         "UPDATE items SET parts = :parts, " +
-            "matchedAt = CASE WHEN parts = '' AND :parts != '' THEN NULL ELSE matchedAt END WHERE id = :id"
+            "matchedAt = CASE WHEN parts = '' AND :parts != '' THEN NULL ELSE matchedAt END WHERE id = :id",
     )
     suspend fun setParts(id: Long, parts: String)
 
@@ -500,7 +500,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
         "SELECT i.id, i.sourceId, i.kind, i.title, i.year, i.filePath, i.missingSince, s.title AS showTitle, i.seasonNumber, " +
             "i.episodeNumber FROM items i LEFT JOIN items s ON s.id = i.seriesId " +
             "WHERE i.missingSince IS NOT NULL AND i.filePath IS NOT NULL " +
-            "ORDER BY i.sourceId, COALESCE(s.sortTitle, i.sortTitle), i.seasonNumber, i.episodeNumber, i.id"
+            "ORDER BY i.sourceId, COALESCE(s.sortTitle, i.sortTitle), i.seasonNumber, i.episodeNumber, i.id",
     )
     fun observeHeld(): Flow<List<HeldRow>>
 
@@ -529,7 +529,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
      */
     @Query(
         "SELECT DISTINCT c.versionOf FROM items c JOIN items t ON t.id = c.versionOf " +
-            "WHERE c.versionOf IN (:ids) AND (c.missingSince IS NOT NULL OR t.missingSince IS NOT NULL)"
+            "WHERE c.versionOf IN (:ids) AND (c.missingSince IS NOT NULL OR t.missingSince IS NOT NULL)",
     )
     suspend fun heldAmongCopies(ids: List<Long>): List<Long>
 
@@ -659,20 +659,20 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     @Query(
         "DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN " +
-            "(SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)"
+            "(SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)",
     )
     suspend fun deleteEmptySeasons()
 
     @Query(
         "DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN " +
-            "(SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)"
+            "(SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)",
     )
     suspend fun deleteEmptySeries()
 
     /** Shows of folders still there that have no episode left. */
     @Query(
         "SELECT id FROM items s WHERE kind = 'SERIES' AND sourceId IN (SELECT id FROM sources) " +
-            "AND NOT EXISTS (SELECT 1 FROM items e WHERE e.kind = 'EPISODE' AND e.seriesId = s.id)"
+            "AND NOT EXISTS (SELECT 1 FROM items e WHERE e.kind = 'EPISODE' AND e.seriesId = s.id)",
     )
     suspend fun emptySeries(): List<Long>
 
@@ -701,7 +701,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
         "UPDATE items SET sourceId = (SELECT e.sourceId FROM items e WHERE e.kind = 'EPISODE' " +
             "AND (e.seriesId = items.id OR e.parentId = items.id) ORDER BY e.id LIMIT 1) " +
             "WHERE kind IN ('SERIES', 'SEASON') AND sourceId NOT IN (SELECT id FROM sources) " +
-            "AND EXISTS (SELECT 1 FROM items e WHERE e.kind = 'EPISODE' AND (e.seriesId = items.id OR e.parentId = items.id))"
+            "AND EXISTS (SELECT 1 FROM items e WHERE e.kind = 'EPISODE' AND (e.seriesId = items.id OR e.parentId = items.id))",
     )
     suspend fun moveOrphanShows()
 
@@ -752,7 +752,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
                 episodeOrder = current.episodeOrder,
                 userEpisodeOrder = current.userEpisodeOrder,
                 reorderedAt = current.reorderedAt,
-            )
+            ),
         )
         if (item.title != current.title || item.originalTitle != current.originalTitle) indexTitle(item)
         if (item.tmdbId != current.tmdbId) moveTrackChoice(tracksKey(current), tracksKey(item))
@@ -771,7 +771,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     @Query(
         "INSERT OR IGNORE INTO track_choices (title, audio, subtitles, at) " +
-            "SELECT :to, audio, subtitles, at FROM track_choices WHERE title = :from"
+            "SELECT :to, audio, subtitles, at FROM track_choices WHERE title = :from",
     )
     suspend fun copyTrackChoice(from: String, to: String)
 
@@ -799,7 +799,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
                 userLogoPath = to.userLogoPath ?: from.userLogoPath,
                 userNoMatch = to.userNoMatch || from.userNoMatch,
                 userEpisodeOrder = to.userEpisodeOrder ?: from.userEpisodeOrder,
-            )
+            ),
         )
     }
 
@@ -831,7 +831,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
             // Chosen for a title whose files left, which takes them again once back.
             "UNION SELECT userPosterPath FROM kept_states WHERE userPosterPath LIKE 'file:%' " +
             "UNION SELECT userBackdropPath FROM kept_states WHERE userBackdropPath LIKE 'file:%' " +
-            "UNION SELECT userLogoPath FROM kept_states WHERE userLogoPath LIKE 'file:%'"
+            "UNION SELECT userLogoPath FROM kept_states WHERE userLogoPath LIKE 'file:%'",
     )
     suspend fun cachedArtworkPaths(): List<String>
 
@@ -846,7 +846,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query(
         "DELETE FROM search_words WHERE (kind = 'TITLE' AND ref NOT IN (SELECT CAST(id AS TEXT) FROM items)) " +
             "OR (kind = 'PERSON' AND ref NOT IN (SELECT personKey FROM credits)) " +
-            "OR (kind = 'SAGA' AND ref NOT IN (SELECT CAST(id AS TEXT) FROM collections))"
+            "OR (kind = 'SAGA' AND ref NOT IN (SELECT CAST(id AS TEXT) FROM collections))",
     )
     suspend fun deleteOrphanSearchWords(): Int
 
@@ -864,27 +864,27 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** Films and shows whose sort title starts with [prefix] ([upper] from [SearchWords.upperBound]), in sort order. */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind IN ('MOVIE', 'SERIES') AND versionOf IS NULL " +
-            "AND sortTitle >= :prefix AND sortTitle < :upper ORDER BY sortTitle, id LIMIT :limit"
+            "AND sortTitle >= :prefix AND sortTitle < :upper ORDER BY sortTitle, id LIMIT :limit",
     )
     suspend fun titlesStarting(prefix: String, upper: String, limit: Int): List<ItemEntity>
 
     /** Best rated titles of [kind] with at least [minVotes] votes, or an unknown vote count. */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind = :kind AND versionOf IS NULL AND rating IS NOT NULL " +
-            "AND (votes IS NULL OR votes >= :minVotes) ORDER BY rating DESC, sortTitle, id LIMIT :limit"
+            "AND (votes IS NULL OR votes >= :minVotes) ORDER BY rating DESC, sortTitle, id LIMIT :limit",
     )
     suspend fun bestRated(kind: ItemKind, minVotes: Int, limit: Int): List<ItemEntity>
 
     @Query(
         "SELECT id, kind, versionOf, seriesId, badges, filePath, parts, fileSize, fileDurationMs, durationMs, runtimeMin " +
-            "FROM items WHERE kind IN ('MOVIE', 'EPISODE')"
+            "FROM items WHERE kind IN ('MOVIE', 'EPISODE')",
     )
     suspend fun fileFacts(): List<FileFacts>
 
     /** Distinct path endings of [kind]'s files, enough to tell their file types without loading every path. */
     @Query(
         "SELECT DISTINCT lower(substr(filePath, -5)) AS tail, filePath LIKE '%BDMV/STREAM/%' AS bluRay, " +
-            "filePath LIKE '%VIDEO_TS/%' AS dvd FROM items WHERE kind = :kind AND filePath IS NOT NULL"
+            "filePath LIKE '%VIDEO_TS/%' AS dvd FROM items WHERE kind = :kind AND filePath IS NOT NULL",
     )
     suspend fun fileEnds(kind: ItemKind): List<FileEnd>
 
@@ -921,7 +921,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     @Query(
         "SELECT $CARD_ROW FROM items WHERE collectionId = :collectionId AND kind = 'MOVIE' AND versionOf IS NULL " +
-            "ORDER BY year IS NULL, year, sortTitle"
+            "ORDER BY year IS NULL, year, sortTitle",
     )
     suspend fun collectionFilms(collectionId: Long): List<ItemEntity>
 
@@ -931,13 +931,13 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
             "CASE WHEN addedAt > (SELECT firstScanAt FROM sources WHERE sources.id = items.sourceId AND firstScanAt > 0) " +
             "THEN addedAt END AS addedLater " +
             "FROM items WHERE kind = 'MOVIE' AND versionOf IS NULL AND collectionId IN (:collectionIds) " +
-            "ORDER BY collectionId, year IS NULL, year, sortTitle, id"
+            "ORDER BY collectionId, year IS NULL, year, sortTitle, id",
     )
     suspend fun collectionMembers(collectionIds: List<Long>): List<CollectionMember>
 
     @Query(
         "SELECT COUNT(*) FROM (SELECT collectionId FROM items WHERE kind = 'MOVIE' AND collectionId IS NOT NULL " +
-            "AND versionOf IS NULL GROUP BY collectionId HAVING COUNT(*) >= :minFilms)"
+            "AND versionOf IS NULL GROUP BY collectionId HAVING COUNT(*) >= :minFilms)",
     )
     suspend fun collectionCount(minFilms: Int): Int
 
@@ -986,7 +986,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     /** TMDB parts of a saga in release order, each with the library's main row when present. */
     @Query(
         "SELECT p.*, (SELECT i.id FROM items i WHERE i.kind = 'MOVIE' AND i.tmdbId = p.tmdbId AND i.versionOf IS NULL " +
-            "ORDER BY i.id LIMIT 1) AS itemId FROM saga_parts p WHERE p.collectionId = :collectionId ORDER BY p.ord"
+            "ORDER BY i.id LIMIT 1) AS itemId FROM saga_parts p WHERE p.collectionId = :collectionId ORDER BY p.ord",
     )
     suspend fun sagaParts(collectionId: Long): List<SagaPartRow>
 
@@ -1030,7 +1030,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
      */
     @Query(
         "SELECT * FROM items WHERE kind IN ('MOVIE', 'SERIES') AND creditsAt IS NULL " +
-            "AND (tmdbId IS NULL OR (:withTmdb AND matchedAt IS NOT NULL)) ORDER BY id LIMIT :limit"
+            "AND (tmdbId IS NULL OR (:withTmdb AND matchedAt IS NOT NULL)) ORDER BY id LIMIT :limit",
     )
     suspend fun creditsDue(withTmdb: Boolean, limit: Int): List<ItemEntity>
 

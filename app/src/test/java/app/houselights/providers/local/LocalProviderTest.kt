@@ -72,7 +72,7 @@ class LocalProviderTest {
             kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = title.lowercase(), year = year,
             genres = genres, played = played, collectionId = collectionId, runtimeMin = runtimeMin,
             filePath = path, badges = badges, addedAt = addedAt,
-        ).more()
+        ).more(),
     )
 
     private suspend fun page(filter: LibraryFilter = LibraryFilter(), start: Int = 0, limit: Int = 50) =
@@ -200,9 +200,15 @@ class LocalProviderTest {
             val parent = seasons.getOrPut(season) {
                 dao.insert(
                     ItemEntity(
-                        kind = ItemKind.SEASON, sourceId = source, parentId = id, seriesId = id, title = "Season $season",
-                        sortTitle = "%03d".format(season), seasonNumber = season, addedAt = 0,
-                    )
+                        kind = ItemKind.SEASON,
+                        sourceId = source,
+                        parentId = id,
+                        seriesId = id,
+                        title = "Season $season",
+                        sortTitle = "%03d".format(season),
+                        seasonNumber = season,
+                        addedAt = 0,
+                    ),
                 )
             }
             return dao.insert(
@@ -210,7 +216,7 @@ class LocalProviderTest {
                     kind = ItemKind.EPISODE, sourceId = source, parentId = parent, seriesId = id, title = "S${season}E$n",
                     sortTitle = "%03d-%04d".format(season, n), seasonNumber = season, episodeNumber = n,
                     filePath = "$id/S${season}E$n.mkv", badges = badges, played = played, addedAt = 0,
-                )
+                ),
             )
         }
     }
@@ -262,7 +268,7 @@ class LocalProviderTest {
             ItemEntity(
                 kind = ItemKind.SEASON, sourceId = source, parentId = show.id, seriesId = show.id, title = "Season 2",
                 sortTitle = "002", seasonNumber = 2, played = true, addedAt = 0,
-            )
+            ),
         )
         val seasons = provider.seasons(provider.item(show.id.toString()))
         assertEquals(listOf(1, 0), seasons.map { it.childCount })
@@ -504,8 +510,11 @@ class LocalProviderTest {
         val id = movie("Heat") {
             // A sidecar fanart, kept as a file of the app's; the user chose a local logo over TMDB's.
             copy(
-                backdropPath = "file:///data/artwork/heat-fanart.jpg", logoPath = "/tmdbLogo.png",
-                userLogoPath = "file:///data/artwork/heat-logo.png", nfoPath = "Heat.nfo", nfo = nfo,
+                backdropPath = "file:///data/artwork/heat-fanart.jpg",
+                logoPath = "/tmdbLogo.png",
+                userLogoPath = "file:///data/artwork/heat-logo.png",
+                nfoPath = "Heat.nfo",
+                nfo = nfo,
             )
         }
         val item = provider.item(id.toString())
@@ -523,16 +532,22 @@ class LocalProviderTest {
     fun anEpisodeGetsItsShowsWebArtworkWhenItsOwnIsOutOfReach() = runTest {
         val series = dao.insert(
             ItemEntity(
-                kind = ItemKind.SERIES, sourceId = source, title = "Show", sortTitle = "show", addedAt = 0,
-                backdropPath = "/showBackdrop.jpg", logoPath = "/showLogo.png", userLogoPath = "",
-            )
+                kind = ItemKind.SERIES,
+                sourceId = source,
+                title = "Show",
+                sortTitle = "show",
+                addedAt = 0,
+                backdropPath = "/showBackdrop.jpg",
+                logoPath = "/showLogo.png",
+                userLogoPath = "",
+            ),
         )
         val episode = dao.insert(
             ItemEntity(
                 kind = ItemKind.EPISODE, sourceId = source, seriesId = series, title = "E1", sortTitle = "001-0001",
                 seasonNumber = 1, episodeNumber = 1, filePath = "Show/S01E01.mkv", addedAt = 0,
                 backdropPath = "file:///data/artwork/s01e01-fanart.jpg",
-            )
+            ),
         )
         val item = provider.item(episode.toString())
         assertEquals("file:///data/artwork/s01e01-fanart.jpg", item.backdrop?.url(1920))
@@ -589,7 +604,7 @@ class LocalProviderTest {
             ItemEntity(
                 kind = ItemKind.EPISODE, sourceId = source, seriesId = show, title = "E1", sortTitle = "001-0001",
                 seasonNumber = 1, episodeNumber = 1, filePath = "Show/S01E01.mkv", addedAt = 0,
-            ).withMedia(dubbed)
+            ).withMedia(dubbed),
         )
         val titles = listOf(heat, unmatched, iso, parts, episode).map { provider.item(it.toString()) }
         for (item in titles + titles.flatMap { it.parts }) {
@@ -654,7 +669,10 @@ class LocalProviderTest {
 
     /** French AC3 alone, read by the probe in the file's order. */
     private fun readInOrder() = MediaInfo(
-        container = "MKV", audio = listOf(AudioTrack(Codecs.AC3, 6, "fre")), probedWith = MediaProbe.VERSION, tracksInOrder = true,
+        container = "MKV",
+        audio = listOf(AudioTrack(Codecs.AC3, 6, "fre")),
+        probedWith = MediaProbe.VERSION,
+        tracksInOrder = true,
     )
 
     /** No logo chosen (the title set in type): the player gets none either. */

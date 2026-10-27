@@ -56,7 +56,8 @@ class TrackFollowTest {
         plan: PlaybackPlan.Launch = PLAN,
         file: () -> Pair<Long, String?> = { FILM to null },
     ) = PlaybackManager(
-        context, this,
+        context,
+        this,
         status = {
             val (length, path) = file()
             PlayerAnswer.Playing(ZidooPlayState(playing = true, paused = false, positionMs = currentTime, durationMs = length, path = path))
@@ -313,8 +314,14 @@ class TrackFollowTest {
         const val PART = 2_400_000L
 
         val PLAN = PlaybackPlan.Launch(
-            uri = "nfs://nas/films/Colony.mkv", container = "mkv", title = "Colony", backdropUrl = null, logoUrl = null, startMs = 0,
-            reporter = null, resumeKey = "3",
+            uri = "nfs://nas/films/Colony.mkv",
+            container = "mkv",
+            title = "Colony",
+            backdropUrl = null,
+            logoUrl = null,
+            startMs = 0,
+            reporter = null,
+            resumeKey = "3",
         )
 
         /** As the scan read it from the file. */

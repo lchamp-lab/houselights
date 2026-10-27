@@ -16,5 +16,4 @@ fun HouseLights(modifier: Modifier = Modifier) {
     // Reads only its own step, so the layer updates while the black comes in, not for the whole cue.
     val darkness = rememberCueStep(HouseLightCue::darkness)
     Box(modifier.fillMaxSize().graphicsLayer { alpha = darkness.value }.background(Hl.colors.background))
-
 }

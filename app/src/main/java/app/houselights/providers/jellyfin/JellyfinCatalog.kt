@@ -113,9 +113,11 @@ internal class JellyfinCatalog(
         return withContext(mapping) {
             val title = mapper.toMedia(full)
             val copies = sources.map { source -> source to JellyfinMapper.mediaInfo(full, source) }
-            val best = copies.indices.maxWith(compareBy(VersionRank.comparator) { i ->
-                copies[i].let { (source, media) -> VersionRank.Copy(media?.badges().orEmpty(), media, source.size) }
-            })
+            val best = copies.indices.maxWith(
+                compareBy(VersionRank.comparator) { i ->
+                    copies[i].let { (source, media) -> VersionRank.Copy(media?.badges().orEmpty(), media, source.size) }
+                },
+            )
             copies.mapIndexed { i, (source, media) ->
                 Version(
                     item = title.copy(media = media, badges = media?.badges().orEmpty(), runtimeMs = media?.durationMs ?: title.runtimeMs),
@@ -148,7 +150,11 @@ internal class JellyfinCatalog(
         val uhd = async { suspendRunCatching { count("Movie", is4K = true) }.onFailure { Log.w(TAG, "4K count failed", it) }.getOrNull() }
         val uhdFilms = uhd.await()
         LibraryNumbers(
-            films = films.await(), shows = shows.await(), episodes = episodes.await(), sizeBytes = null, runtimeMs = null,
+            films = films.await(),
+            shows = shows.await(),
+            episodes = episodes.await(),
+            sizeBytes = null,
+            runtimeMs = null,
             picture = listOfNotNull(
                 uhdFilms?.takeIf { it > 0 }?.let { Tally(Definition.ULTRA_HD.token, it, 0, LibraryFilter(quality = Quality.UHD_4K)) },
             ),

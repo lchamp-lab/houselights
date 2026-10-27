@@ -157,7 +157,7 @@ interface KeptStateDao {
     /** Episodes of the shows known by TMDB as one of [shows]. */
     @Query(
         "$KEPT_ROW WHERE i.kind = 'EPISODE' AND i.seriesId IN " +
-            "(SELECT id FROM items WHERE kind = 'SERIES' AND COALESCE(userTmdbId, tmdbId) IN (:shows))"
+            "(SELECT id FROM items WHERE kind = 'SERIES' AND COALESCE(userTmdbId, tmdbId) IN (:shows))",
     )
     suspend fun episodesOfShowsKnownAs(shows: List<Int>): List<KeptRow>
 
@@ -407,7 +407,9 @@ internal object KeptStates {
         val untouched = !row.played && row.positionMs == 0L && (kept.played || kept.positionMs > 0)
         val play = when {
             untouched -> row.copy(
-                played = kept.played, positionMs = kept.positionMs, durationMs = kept.durationMs ?: row.durationMs,
+                played = kept.played,
+                positionMs = kept.positionMs,
+                durationMs = kept.durationMs ?: row.durationMs,
                 lastPlayedAt = kept.lastPlayedAt,
             )
             !row.played && kept.played ->

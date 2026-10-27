@@ -8,11 +8,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -47,9 +47,9 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
-import app.houselights.ui.design.HlMenuDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlMenuDefaults
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -163,29 +163,29 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
     ) {
         val scroll = rememberScrollState()
         Column(Modifier.scrollEdges(scroll, c.glass).verticalScroll(scroll)) {
-        sections.forEachIndexed { s, section ->
-            if (s > 0) {
-                Spacer(Modifier.height(HlSpace.s))
-                HlDivider()
-                Spacer(Modifier.height(HlSpace.s))
+            sections.forEachIndexed { s, section ->
+                if (s > 0) {
+                    Spacer(Modifier.height(HlSpace.s))
+                    HlDivider()
+                    Spacer(Modifier.height(HlSpace.s))
+                }
+                section.title?.let {
+                    Text(
+                        it,
+                        style = Hl.type.group,
+                        color = c.contentSecondary,
+                        modifier = Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs),
+                    )
+                }
+                val initial = section.options.indexOfFirst { it.selected }.coerceAtLeast(0)
+                section.options.forEachIndexed { i, option ->
+                    // Focus starts on the current choice of the first section.
+                    val mod = if (s == 0 && i == initial) Modifier.focusRequester(first) else Modifier
+                    // A closing choice applies after the menu has gone, so the change is seen on its own.
+                    val choose = if (closeOnSelect) ({ motion.sheet.dismiss(option.onSelect) }) else option.onSelect
+                    MenuItem(option.label, option.selected, onClick = choose, modifier = mod)
+                }
             }
-            section.title?.let {
-                Text(
-                    it,
-                    style = Hl.type.group,
-                    color = c.contentSecondary,
-                    modifier = Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs),
-                )
-            }
-            val initial = section.options.indexOfFirst { it.selected }.coerceAtLeast(0)
-            section.options.forEachIndexed { i, option ->
-                // Focus starts on the current choice of the first section.
-                val mod = if (s == 0 && i == initial) Modifier.focusRequester(first) else Modifier
-                // A closing choice applies after the menu has gone, so the change is seen on its own.
-                val choose = if (closeOnSelect) ({ motion.sheet.dismiss(option.onSelect) }) else option.onSelect
-                MenuItem(option.label, option.selected, onClick = choose, modifier = mod)
-            }
-        }
         }
     }
 }
@@ -193,7 +193,6 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
 /** An option: the chosen one white with its ember check, raspberry on focus's white; the others grey. */
 @Composable
 private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-
     val c = Hl.colors
     HlRowSurface(
         onClick = onClick,

@@ -50,7 +50,10 @@ class MkvProbeTest {
             byteArrayOf(0x7F, 0xFF.toByte(), 0xFF.toByte(), 0x00, 2, 1) + ByteArray(8)
         val video = element(
             0xAE,
-            uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEGH/ISO/HEVC"), str(0x536E, "HDR10+"),
+            uint(0xD7, 1),
+            uint(0x83, 1),
+            str(0x86, "V_MPEGH/ISO/HEVC"),
+            str(0x536E, "HDR10+"),
             element(0xE0, uint(0xB0, 3840), uint(0xBA, 2160), element(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10))),
         )
         val audio = element(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_AC3"), element(0xE1, uint(0x9F, 6)))

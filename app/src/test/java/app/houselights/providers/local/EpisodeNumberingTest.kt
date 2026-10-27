@@ -137,7 +137,9 @@ class EpisodeNumberingTest {
         val seasons = listOf(TmdbSeasonSummary(0, 3), TmdbSeasonSummary(1, 61, "1999-10-20"))
         assertEquals(listOf(AiredSeason(0, 3), AiredSeason(1, 61, "1999-10-20")), OrderPlaces.aired(OrderPlaces.ofAired(seasons)))
         val group = TmdbEpisodeGroup(
-            "g", 3, "DVD",
+            "g",
+            3,
+            "DVD",
             listOf(TmdbGroupSeason("Disc 1", 1, listOf(TmdbGroupEpisode(1, 2, order = 1), TmdbGroupEpisode(1, 11, order = 0)))),
         )
         val read = OrderPlaces.group(OrderPlaces.ofGroup(group))?.single()

@@ -44,12 +44,16 @@ class AmbientTest {
         var reads = 0
 
         override fun create(data: Uri, options: Options, imageLoader: ImageLoader): Fetcher? =
-            if (data.scheme != "test") null else Fetcher {
-                reads++
-                val width = (options.size.width as? Dimension.Pixels)?.px ?: FULL
-                val height = (options.size.height as? Dimension.Pixels)?.px ?: FULL
-                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                DrawableResult(BitmapDrawable(context.resources, bitmap), isSampled = true, dataSource = DataSource.DISK)
+            if (data.scheme != "test") {
+                null
+            } else {
+                Fetcher {
+                    reads++
+                    val width = (options.size.width as? Dimension.Pixels)?.px ?: FULL
+                    val height = (options.size.height as? Dimension.Pixels)?.px ?: FULL
+                    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    DrawableResult(BitmapDrawable(context.resources, bitmap), isSampled = true, dataSource = DataSource.DISK)
+                }
             }
     }
 

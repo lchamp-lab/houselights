@@ -1,10 +1,7 @@
 package app.houselights.ui.detail
 
-import app.houselights.ui.util.timeLeft
-import app.houselights.ui.design.HlMotion
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,18 +16,22 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -46,100 +47,99 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ArtworkKind
 import app.houselights.core.AudioTrack
-import app.houselights.core.MatchDoubt
+import app.houselights.core.Credits
 import app.houselights.core.EpisodeOrderChoices
+import app.houselights.core.Job
+import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.Person
 import app.houselights.core.ProviderCapabilities
-import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.HlSize
-import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.textRoom
-import app.houselights.ui.design.LocalHouseLights
-import app.houselights.ui.design.houseLit
-import app.houselights.ui.design.OnArtwork
-import app.houselights.ui.design.scrollsAsBlock
-import app.houselights.ui.design.ListScroll
-import app.houselights.ui.design.fadeOutsideSafeArea
+import app.houselights.core.SagaPart
+import app.houselights.core.TrackChoice
+import app.houselights.core.TrackPlan
+import app.houselights.core.Version
+import app.houselights.core.hasPage
 import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.ListScroll
+import app.houselights.ui.design.LocalHouseLights
+import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.RestoreFocus
-import app.houselights.ui.design.focusGroupKey
-import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.rememberFocusMemory
-import app.houselights.ui.design.tryRequestFocus
-import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.AbsentCard
 import app.houselights.ui.design.components.AmbientBackdrop
+import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
-import app.houselights.ui.design.components.FormatLines
 import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.CardSkeleton
-import app.houselights.ui.design.components.SectionHeader
-import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
+import app.houselights.ui.design.components.EpisodeHeading
+import app.houselights.ui.design.components.FormatLines
+import app.houselights.ui.design.components.HeadOverview
+import app.houselights.ui.design.components.HeroSkeleton
 import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlMenuButton
-import app.houselights.ui.design.components.MenuOption
-import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.HlSegmented
-import app.houselights.ui.design.components.HeroSkeleton
 import app.houselights.ui.design.components.HlStatus
-import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
+import app.houselights.ui.design.components.MenuOption
+import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.MetaLine
-import app.houselights.ui.design.components.filmCount
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.SectionHeader
+import app.houselights.ui.design.components.SegmentDetail
+import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.components.SynopsisSheet
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
+import app.houselights.ui.design.components.TracksSheet
+import app.houselights.ui.design.components.VersionsSheet
+import app.houselights.ui.design.components.filmCount
+import app.houselights.ui.design.components.tracksHint
+import app.houselights.ui.design.fadeOutsideSafeArea
+import app.houselights.ui.design.focusGroupKey
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.houseLit
+import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.scrollsAsBlock
+import app.houselights.ui.design.textRoom
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.edit.doubtText
 import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.LocalErrorFix
+import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.PartFailed
-import app.houselights.ui.util.run
-import app.houselights.ui.util.okClears
 import app.houselights.ui.util.PlayOrigin
 import app.houselights.ui.util.PlaybackOutcome
 import app.houselights.ui.util.PlaybackProblem
-import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.ReloadOnLibraryChange
-import app.houselights.ui.util.retainedError
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
-import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
+import app.houselights.ui.util.heldSince
+import app.houselights.ui.util.jobName
+import app.houselights.ui.util.okClears
+import app.houselights.ui.util.retainedError
+import app.houselights.ui.util.run
 import app.houselights.ui.util.screenHeight
 import app.houselights.ui.util.skeletonDelayPassed
-import app.houselights.ui.util.UiError
-import app.houselights.ui.design.components.SegmentDetail
-import app.houselights.ui.util.NBSP
-import app.houselights.core.Credits
-import app.houselights.core.Job
-import app.houselights.core.Person
-import androidx.compose.foundation.lazy.itemsIndexed
-import app.houselights.ui.util.jobName
-import app.houselights.ui.design.components.HeadOverview
-import app.houselights.ui.design.components.SynopsisSheet
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.runtime.MutableState
-import app.houselights.core.SagaPart
-import app.houselights.ui.design.components.AbsentCard
-import app.houselights.core.TrackChoice
-import app.houselights.core.TrackPlan
-import app.houselights.core.Version
-import app.houselights.ui.design.components.TracksSheet
-import app.houselights.ui.design.components.VersionsSheet
-import app.houselights.ui.design.components.tracksHint
+import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.versionName
-import app.houselights.core.hasPage
 
 @Composable
 fun DetailScreen(
@@ -271,7 +271,8 @@ internal fun DetailPage(
         recede = { recede.value },
     ) {
         // Scrolls by blocks: an incoming row rises to the safe area; the wider block gap hides the row above.
-        ListScroll(top = HlFocus.edge, toTop = true) { LazyColumn(
+        ListScroll(top = HlFocus.edge, toTop = true) {
+            LazyColumn(
                 Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
                 state = page,
                 contentPadding = PaddingValues(bottom = HlFocus.edge),
@@ -311,7 +312,8 @@ internal fun DetailPage(
                 )
                 seasonRows(state, memory, focusedEpisode, vm, links, heldFocus)
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
-            } }
+            }
+        }
         // Over the page, in its light.
         if (showTech && media != null) TechSpecs(item, onDismiss = { showTech = false })
         if (showVersions) {
@@ -368,8 +370,14 @@ private fun EditSheets(
         EditMenu(
             item = item,
             onDismiss = onEndEditing,
-            onArtwork = { kind -> onEndEditing(); onEditArtwork(item.id, kind) },
-            onIdentify = { onEndEditing(); onIdentify(item.id) },
+            onArtwork = { kind ->
+                onEndEditing()
+                onEditArtwork(item.id, kind)
+            },
+            onIdentify = {
+                onEndEditing()
+                onIdentify(item.id)
+            },
             episodeOrder = orders?.let { orderInUse(it) },
             onEpisodeOrder = { showOrders = true }.takeIf { orders != null },
         )
@@ -438,7 +446,9 @@ private fun LazyListScope.seasonRows(
                     onFocus = { focusedEpisode.value = it },
                     onPlay = { ep -> links.onPlay(ep, ep.user.positionMs > 0) },
                     onOptions = { ep ->
-                        { links.onOptions(ep) }.takeIf { episodeHasOptions(ep, canMark, state.tracksToChoose) }
+                        {
+                            links.onOptions(ep)
+                        }.takeIf { episodeHasOptions(ep, canMark, state.tracksToChoose) }
                     },
                     markError = state.episodeMarkError,
                     onClearMarkError = vm::clearEpisodeMarkError,
@@ -728,78 +738,85 @@ private fun Actions(
 ) {
     // A tile may say a second line under its label: room for it from the start, so nothing moves.
     val hinted = hintsUnderTiles(item, capabilities, actions.tracks)
-    OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted) {
-        PlayButtons(item, nextUp, memory, actions)
-        Parts(item, memory, actions.onPlay)
-        // A title to identify: Right then OK from Lire reaches it.
-        if (actions.onIdentify != null) {
-            HlButton(
-                stringResource(R.string.identify),
-                onClick = actions.onIdentify,
-                modifier = Modifier.focusKey(IDENTIFY, memory),
-                icon = HlIcons.Search,
+    OnArtwork {
+        HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted) {
+            PlayButtons(item, nextUp, memory, actions)
+            Parts(item, memory, actions.onPlay)
+            // A title to identify: Right then OK from Lire reaches it.
+            if (actions.onIdentify != null) {
+                HlButton(
+                    stringResource(R.string.identify),
+                    onClick = actions.onIdentify,
+                    modifier = Modifier.focusKey(IDENTIFY, memory),
+                    icon = HlIcons.Search,
+                )
+            }
+            // Several copies: the one Lire plays is chosen in a side sheet.
+            if (actions.onShowVersions != null) {
+                HlIconButton(
+                    HlIcons.Versions,
+                    stringResource(R.string.versions),
+                    onClick = actions.onShowVersions,
+                    modifier = Modifier.focusKey(VERSIONS, memory),
+                )
+            }
+            if (actions.tracks != null) {
+                HlIconButton(
+                    HlIcons.Captions,
+                    stringResource(R.string.tracks),
+                    onClick = actions.onShowTracks,
+                    modifier = Modifier.focusKey(TRACKS, memory),
+                    hint = tracksHint(actions.tracks),
+                )
+            }
+            if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
+                HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
+            }
+            if (capabilities?.markPlayed == true) WatchedTile(item, actions, Modifier.focusKey(WATCHED, memory))
+            // A button bears the name of what it opens.
+            if (actions.onShowTech != null) {
+                HlIconButton(
+                    HlIcons.Info,
+                    stringResource(R.string.tech_details),
+                    onClick = actions.onShowTech,
+                    modifier = Modifier.focusKey(TECH, memory),
+                )
+            }
+            if (item.hasNfo) {
+                HlIconButton(
+                    HlIcons.Document,
+                    stringResource(R.string.nfo_title),
+                    onClick = actions.onOpenNfo,
+                    modifier = Modifier.focusKey(NFO, memory),
+                )
+            }
+            if (capabilities?.favorites == true && item.kind != MediaKind.COLLECTION) {
+                HlIconButton(
+                    if (item.user.favorite) HlIcons.HeartFilled else HlIcons.Heart,
+                    stringResource(if (item.user.favorite) R.string.remove_favorite else R.string.add_favorite),
+                    onClick = actions.onToggleFavorite,
+                    modifier = Modifier.focusKey(FAVORITE, memory),
+                    lit = item.user.favorite,
+                )
+            }
+            if (actions.onEdit != null) {
+                HlIconButton(
+                    HlIcons.Edit,
+                    stringResource(R.string.edit),
+                    onClick = actions.onEdit,
+                    modifier = Modifier.focusKey(EDIT, memory),
+                )
+            }
+            RemoveTile(actions.onRemove, memory)
+            ActionFailure(
+                problem,
+                actionError,
+                actions.nextUpError,
+                heldSince = item.missingSince,
+                doubt = item.matchDoubt.takeIf { actions.onIdentify != null },
             )
         }
-        // Several copies: the one Lire plays is chosen in a side sheet.
-        if (actions.onShowVersions != null) {
-            HlIconButton(
-                HlIcons.Versions,
-                stringResource(R.string.versions),
-                onClick = actions.onShowVersions,
-                modifier = Modifier.focusKey(VERSIONS, memory),
-            )
-        }
-        if (actions.tracks != null) {
-            HlIconButton(
-                HlIcons.Captions,
-                stringResource(R.string.tracks),
-                onClick = actions.onShowTracks,
-                modifier = Modifier.focusKey(TRACKS, memory),
-                hint = tracksHint(actions.tracks),
-            )
-        }
-        if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
-            HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
-        }
-        if (capabilities?.markPlayed == true) WatchedTile(item, actions, Modifier.focusKey(WATCHED, memory))
-        // A button bears the name of what it opens.
-        if (actions.onShowTech != null) {
-            HlIconButton(
-                HlIcons.Info,
-                stringResource(R.string.tech_details),
-                onClick = actions.onShowTech,
-                modifier = Modifier.focusKey(TECH, memory),
-            )
-        }
-        if (item.hasNfo) {
-            HlIconButton(
-                HlIcons.Document,
-                stringResource(R.string.nfo_title),
-                onClick = actions.onOpenNfo,
-                modifier = Modifier.focusKey(NFO, memory),
-            )
-        }
-        if (capabilities?.favorites == true && item.kind != MediaKind.COLLECTION) {
-            HlIconButton(
-                if (item.user.favorite) HlIcons.HeartFilled else HlIcons.Heart,
-                stringResource(if (item.user.favorite) R.string.remove_favorite else R.string.add_favorite),
-                onClick = actions.onToggleFavorite,
-                modifier = Modifier.focusKey(FAVORITE, memory),
-                lit = item.user.favorite,
-            )
-        }
-        if (actions.onEdit != null) {
-            HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
-        }
-        RemoveTile(actions.onRemove, memory)
-        ActionFailure(
-            problem,
-            actionError,
-            actions.nextUpError,
-            heldSince = item.missingSince,
-            doubt = item.matchDoubt.takeIf { actions.onIdentify != null },
-        )
-    } }
+    }
 }
 
 /**

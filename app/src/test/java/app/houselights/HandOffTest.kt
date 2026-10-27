@@ -41,8 +41,14 @@ class HandOffTest {
         PlaybackManager(context, backgroundScope, status = { PlayerAnswer.NoAnswer }, players = ZidooPlayer(context) { device }) { null }
 
     private fun plan(uri: String) = PlaybackPlan.Launch(
-        uri = uri, container = "mkv", title = "Heat", backdropUrl = null, logoUrl = null, startMs = 0,
-        reporter = null, resumeKey = "m1",
+        uri = uri,
+        container = "mkv",
+        title = "Heat",
+        backdropUrl = null,
+        logoUrl = null,
+        startMs = 0,
+        reporter = null,
+        resumeKey = "m1",
     )
 
     private suspend fun PlaybackManager.hand(uri: String, start: (Intent) -> Unit = { started += it }) =

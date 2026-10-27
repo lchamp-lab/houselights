@@ -1,5 +1,6 @@
 package app.houselights.core
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
@@ -8,7 +9,6 @@ import android.util.Log
 import java.security.KeyStore
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
-import android.annotation.SuppressLint
 
 /** Where the keys of [Secrets] are kept, by version. */
 interface Keyring {

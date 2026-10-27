@@ -42,9 +42,18 @@ class FocusTest {
         runBlocking {
             restoreFocus(
                 key,
-                focus = { tried += it; it in onScreen },
-                reveal = { tried += "reveal $it"; (it in hidden).also { found -> if (found) onScreen += it } },
-                fallback = { tried += "fallback"; fallback },
+                focus = {
+                    tried += it
+                    it in onScreen
+                },
+                reveal = {
+                    tried += "reveal $it"
+                    (it in hidden).also { found -> if (found) onScreen += it }
+                },
+                fallback = {
+                    tried += "fallback"
+                    fallback
+                },
             )
         }
         return tried

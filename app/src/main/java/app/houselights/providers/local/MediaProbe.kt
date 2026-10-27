@@ -19,6 +19,7 @@ sealed interface ProbeResult {
 /** Reads a video file's stream details from its first megabytes. */
 object MediaProbe {
     private const val TAG = "MediaProbe"
+
     /** Track lists usually sit in the first 100 KB; a later list is read in a second pass. */
     private const val FIRST_READ = 256 shl 10
     private const val MAX_READ = 16 shl 20

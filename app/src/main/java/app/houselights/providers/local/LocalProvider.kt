@@ -4,43 +4,43 @@ import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
-import app.houselights.core.nextIn
-import app.houselights.core.NfoParser
-import app.houselights.core.NotFoundException
 import app.houselights.core.BadgeTokens
 import app.houselights.core.Catalog
 import app.houselights.core.Codecs
+import app.houselights.core.CollectionThreshold
 import app.houselights.core.Definition
+import app.houselights.core.DiskAbsentException
 import app.houselights.core.HdrFormat
 import app.houselights.core.HomeSection
-import app.houselights.core.Job
 import app.houselights.core.ImageRef
+import app.houselights.core.Job
 import app.houselights.core.Library
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
-import app.houselights.core.Quality
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.MetadataEditor
 import app.houselights.core.NfoDocument
+import app.houselights.core.NfoParser
+import app.houselights.core.NotFoundException
 import app.houselights.core.Page
+import app.houselights.core.Person
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
-import app.houselights.core.PlayedTracks
 import app.houselights.core.PlaybackReporter
-import app.houselights.core.launch
-import app.houselights.core.Person
+import app.houselights.core.PlayedTracks
 import app.houselights.core.ProviderCapabilities
+import app.houselights.core.Quality
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.Typeset
 import app.houselights.core.UserState
 import app.houselights.core.escapeUriPath
+import app.houselights.core.launch
+import app.houselights.core.nextIn
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
-import app.houselights.core.CollectionThreshold
-import app.houselights.core.DiskAbsentException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -343,7 +343,8 @@ class LocalProvider(
         val mapped = mapper.map(entity)
         val shown = if (entity.parts.isEmpty()) mapped else mapped.copy(title = partTitle(mapped.title, part ?: 1, files.size))
         return mapper.forPlayer(entity, shown).launch(
-            fileUri(source, file, disk), container,
+            fileUri(source, file, disk),
+            container,
             startMs = if (resume && part == null) entity.positionMs else 0L,
             reporter = LocalReporter(dao, entity.id, part ?: 1, history),
             resumeKey = if (part == null) entity.id.toString() else LocalId.ofPart(entity.id, part),

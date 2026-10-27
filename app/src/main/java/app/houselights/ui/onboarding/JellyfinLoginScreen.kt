@@ -26,7 +26,6 @@ import app.houselights.core.ImageRef
 import app.houselights.providers.jellyfin.DiscoveredServer
 import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.design.components.ChoicePlace
 import app.houselights.ui.design.components.ConnectionSecurity
 import app.houselights.ui.design.components.ConnectionState
@@ -37,6 +36,7 @@ import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.roomPosters
@@ -114,12 +114,18 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
         Column(Modifier.scrollsAsBlock(), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                 HlTextField(
-                    stringResource(R.string.field_user), vm.user, { vm.user = it },
+                    stringResource(R.string.field_user),
+                    vm.user,
+                    { vm.user = it },
                     Modifier.weight(1f).focusRequester(userField),
                 )
                 HlTextField(
-                    stringResource(R.string.field_password), vm.password, { vm.password = it },
-                    password = true, imeAction = ImeAction.Done, onImeAction = ::login,
+                    stringResource(R.string.field_password),
+                    vm.password,
+                    { vm.password = it },
+                    password = true,
+                    imeAction = ImeAction.Done,
+                    onImeAction = ::login,
                     modifier = Modifier.weight(1f).focusRequester(passwordField),
                 )
             }

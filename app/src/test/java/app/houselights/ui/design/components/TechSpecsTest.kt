@@ -78,17 +78,23 @@ class TechSpecsTest {
     @Test
     fun theFileIsAFactOfTheHead() {
         compose.setTvContent { TechSpecs(film, onDismiss = {}) }
-        compose.onAllNodes(SemanticsMatcher("MKV, 8.67 GB") { node ->
-            node.config.getOrNull(SemanticsProperties.Text)?.any { it.text.startsWith("MKV, ") } == true
-        }).assertCountEquals(1)
+        compose.onAllNodes(
+            SemanticsMatcher("MKV, 8.67 GB") { node ->
+                node.config.getOrNull(SemanticsProperties.Text)?.any { it.text.startsWith("MKV, ") } == true
+            },
+        ).assertCountEquals(1)
     }
 
     /** Formats as on a case's back, measures and what qualifies them alike, a video's bitrate as an audio track's. */
     @Test
     fun aValueSpeaksInTheVoiceOfItsKind() {
         val formats = listOf(
-            TechValue.Word("Ultra HD"), TechValue.Word("Dolby Vision"), TechValue.Word("HDR10"), TechValue.StandardRange,
-            TechValue.DolbyVisionProfile("8.1"), TechValue.BaseLayer(BaseRange.HDR10),
+            TechValue.Word("Ultra HD"),
+            TechValue.Word("Dolby Vision"),
+            TechValue.Word("HDR10"),
+            TechValue.StandardRange,
+            TechValue.DolbyVisionProfile("8.1"),
+            TechValue.BaseLayer(BaseRange.HDR10),
         )
         val measures = listOf(
             TechValue.Dimensions(1920, 804), TechValue.Ratio(2.39f), TechValue.FrameRate(23.976f), TechValue.BitDepth(10),
@@ -103,8 +109,13 @@ class TechSpecsTest {
     @Test
     fun aFactLedByAFormatStartsAMark() {
         val video = VideoInfo(
-            codec = Codecs.HEVC, width = 3840, height = 1608, bitDepth = 10,
-            hdr = listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS), dolbyVisionProfile = 8, dolbyVisionCompatibility = 1,
+            codec = Codecs.HEVC,
+            width = 3840,
+            height = 1608,
+            bitDepth = 10,
+            hdr = listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS),
+            dolbyVisionProfile = 8,
+            dolbyVisionCompatibility = 1,
         )
         compose.setTvContent { TechSpecs(film.copy(media = MediaInfo(video = video)), onDismiss = {}) }
         val read = compose.onNode(block("Video")).fetchSemanticsNode().config[SemanticsProperties.ContentDescription].first()

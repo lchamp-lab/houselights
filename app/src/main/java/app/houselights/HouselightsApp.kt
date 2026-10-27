@@ -6,13 +6,12 @@ import android.content.res.Resources
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import app.houselights.core.Http
 import app.houselights.core.LibraryEvents
 import app.houselights.core.MediaItem
-import app.houselights.ui.design.components.FIELD_POSTERS
-import app.houselights.ui.util.RoomPosters
 import app.houselights.core.MediaProvider
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.Secrets
@@ -20,12 +19,12 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.TrackPlan
 import app.houselights.core.Typeset
 import app.houselights.core.suspendRunCatching
+import app.houselights.journal.HomeAddress
 import app.houselights.player.PlaybackManager
+import app.houselights.player.Redact
 import app.houselights.player.TrackChooser
 import app.houselights.player.ZidooPlayer
 import app.houselights.player.ZidooSettings
-import app.houselights.player.Redact
-import app.houselights.journal.HomeAddress
 import app.houselights.providers.jellyfin.DiscoveryAhead
 import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.JellyfinProvider
@@ -41,9 +40,9 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.NasDiscovery
 import app.houselights.providers.local.RemoteBrowsers
-import app.houselights.providers.local.Volumes
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TrackChoiceEntity
+import app.houselights.providers.local.Volumes
 import app.houselights.providers.local.followDetailsLanguage
 import app.houselights.providers.trakt.TraktAccount
 import app.houselights.providers.trakt.TraktKeys
@@ -53,7 +52,15 @@ import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.settings.TraktFollow
+import app.houselights.ui.design.components.AwaitAhead
+import app.houselights.ui.design.components.CutPosterCache
+import app.houselights.ui.design.components.FIELD_POSTERS
 import app.houselights.ui.home.HomeLaunch
+import app.houselights.ui.home.LibraryRows
+import app.houselights.ui.home.UnseenPick
+import app.houselights.ui.library.LibraryAhead
+import app.houselights.ui.util.PlaybackOutcome
+import app.houselights.ui.util.RoomPosters
 import app.houselights.update.ApkDownload
 import app.houselights.update.GithubReleases
 import app.houselights.update.PackageArchive
@@ -65,10 +72,6 @@ import app.houselights.update.UpdateParts
 import app.houselights.update.UpdateStore
 import app.houselights.update.UpdateVerifier
 import app.houselights.update.Updater
-import app.houselights.ui.library.LibraryAhead
-import app.houselights.ui.design.components.AwaitAhead
-import app.houselights.ui.design.components.CutPosterCache
-import app.houselights.ui.util.PlaybackOutcome
 import coil.EventListener
 import coil.ImageLoader
 import coil.ImageLoaderFactory
@@ -96,9 +99,6 @@ import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
-import app.houselights.ui.home.LibraryRows
-import app.houselights.ui.home.UnseenPick
-import androidx.core.net.toUri
 
 class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -176,7 +176,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** Work that outlives screens (scans, playback reports); uncaught failures are logged, never fatal. */
     val scope = CoroutineScope(
         SupervisorJob() + Dispatchers.Main.immediate +
-            CoroutineExceptionHandler { _, e -> Log.e("Houselights", "Background task failed", e) }
+            CoroutineExceptionHandler { _, e -> Log.e("Houselights", "Background task failed", e) },
     )
     val settings = SettingsStore(app, scope, Secrets.device(app))
 
@@ -221,6 +221,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         following = traktFollow::queues,
     )
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
+
     /** The audio and subtitles asked of the player: Settings', or each title's own choice. */
     val tracks = TrackChooser(
         preferences = { settings.state.value.tracks },
@@ -268,7 +269,6 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 
     /** The posters home's doors cut their counts in, let go when the player or the system needs the memory. */
     val cutPosters = CutPosterCache()
-
 
     /** Prefetches a wall's first page and posters as its door on home is chosen. */
     val libraryAhead = LibraryAhead({ provider })

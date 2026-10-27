@@ -43,7 +43,11 @@ class DiskPlaybackTest {
         val folder = dao.insertSource(diskFolder(path = "Films"))
         val id = dao.insert(
             ItemEntity(
-                kind = ItemKind.MOVIE, sourceId = folder, title = "Heat", sortTitle = "heat", filePath = "Heat (1995)/Heat (1995).mkv",
+                kind = ItemKind.MOVIE,
+                sourceId = folder,
+                title = "Heat",
+                sortTitle = "heat",
+                filePath = "Heat (1995)/Heat (1995).mkv",
                 addedAt = 0,
             ),
         )

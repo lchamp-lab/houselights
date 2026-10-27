@@ -387,7 +387,11 @@ private fun UsedRow(flow: FolderFlow, focus: FlowFocus, nas: UsedNas) {
     val folders = nas.folders.joinToString(", ") { folder -> folder.replaceFirstChar { it.uppercase() } }
     val silent = flow.answers[nas.host] == NasAnswer.Silent
     FlowRow(
-        flow, focus, nasKey(nas.host), name ?: nas.host, { flow.chooseUsed(nas) },
+        flow,
+        focus,
+        nasKey(nas.host),
+        name ?: nas.host,
+        { flow.chooseUsed(nas) },
         description = if (name != null) nas.host + FACT_GAP + folders else folders,
         rest = if (silent) {
             RowValue(stringResource(R.string.server_silent), StatusState.Off)
@@ -406,7 +410,11 @@ private fun DiskRow(flow: FolderFlow, focus: FlowFocus, id: String, internal: Bo
     val usb = stringResource(R.string.disk_usb)
     val name = if (internal) stringResource(R.string.disk_internal) else label.ifBlank { usb }
     FlowRow(
-        flow, focus, diskKey(id), name, { flow.chooseDisk(id, name, ask) },
+        flow,
+        focus,
+        diskKey(id),
+        name,
+        { flow.chooseDisk(id, name, ask) },
         description = if (internal) stringResource(R.string.disk_internal_desc) else usb,
     )
 }
@@ -531,11 +539,19 @@ private fun protocolParts(flow: FolderFlow, focus: FlowFocus): List<FlowPart> = 
     FlowPart("protocols", PROTOCOLS.map { protocolKey(it) }.toSet()) {
         HlSettingGroup(null) {
             FlowRow(
-                flow, focus, protocolKey(Protocol.SMB), Protocol.SMB.name, { flow.chooseProtocol(Protocol.SMB) },
+                flow,
+                focus,
+                protocolKey(Protocol.SMB),
+                Protocol.SMB.name,
+                { flow.chooseProtocol(Protocol.SMB) },
                 description = stringResource(R.string.protocol_smb_desc),
             )
             FlowRow(
-                flow, focus, protocolKey(Protocol.NFS), Protocol.NFS.name, { flow.chooseProtocol(Protocol.NFS) },
+                flow,
+                focus,
+                protocolKey(Protocol.NFS),
+                Protocol.NFS.name,
+                { flow.chooseProtocol(Protocol.NFS) },
                 description = stringResource(R.string.protocol_nfs_desc),
             )
         }
@@ -547,12 +563,16 @@ private fun accountParts(flow: FolderFlow, focus: FlowFocus): List<FlowPart> = l
     FlowPart("account", setOf(FIELD_USER, FIELD_PASSWORD)) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             HlTextField(
-                stringResource(R.string.field_user), flow.user, { flow.type(FIELD_USER, it) },
+                stringResource(R.string.field_user),
+                flow.user,
+                { flow.type(FIELD_USER, it) },
                 Modifier.weight(1f).focusRequester(focus[FIELD_USER]),
                 error = fieldError(flow, FIELD_USER),
             )
             HlTextField(
-                stringResource(R.string.field_password), flow.password, { flow.type(FIELD_PASSWORD, it) },
+                stringResource(R.string.field_password),
+                flow.password,
+                { flow.type(FIELD_PASSWORD, it) },
                 Modifier.weight(1f).focusRequester(focus[FIELD_PASSWORD]),
                 error = fieldError(flow, FIELD_PASSWORD),
                 password = true,
@@ -573,7 +593,11 @@ private fun accountParts(flow: FolderFlow, focus: FlowFocus): List<FlowPart> = l
     FlowPart(GUEST, setOf(GUEST)) {
         HlSettingGroup(null) {
             FlowRow(
-                flow, focus, GUEST, stringResource(R.string.guest), { flow.signIn(asGuest = true) },
+                flow,
+                focus,
+                GUEST,
+                stringResource(R.string.guest),
+                { flow.signIn(asGuest = true) },
                 description = stringResource(R.string.guest_desc),
             )
         }
@@ -613,7 +637,11 @@ private fun ShareRow(flow: FolderFlow, focus: FlowFocus, share: FlowShare) {
     val standing = flow.standingOf(share)
     val about = if (flow.protocol == Protocol.NFS) share.path else share.remark.ifBlank { null }
     FlowRow(
-        flow, focus, shareKey(share), share.name, { flow.openShare(share) },
+        flow,
+        focus,
+        shareKey(share),
+        share.name,
+        { flow.openShare(share) },
         description = listOfNotNull(about, standingText(standing)).joinToString(FACT_GAP).ifEmpty { null },
         rest = if (share.refused) RowValue(stringResource(R.string.not_allowed), StatusState.Off) else null,
         enabled = standing !is Standing.Added,
@@ -655,7 +683,11 @@ private fun NfsAccountRow(flow: FolderFlow, focus: FlowFocus) {
 @Composable
 private fun ChangeAccountRow(flow: FolderFlow, focus: FlowFocus) {
     FlowRow(
-        flow, focus, CHANGE_ACCOUNT, stringResource(R.string.change_account), flow::changeAccount,
+        flow,
+        focus,
+        CHANGE_ACCOUNT,
+        stringResource(R.string.change_account),
+        flow::changeAccount,
         description = if (flow.listedAsGuest) {
             stringResource(R.string.change_account_guest_desc)
         } else {
@@ -704,7 +736,9 @@ private fun identityParts(flow: FolderFlow, focus: FlowFocus): List<FlowPart> = 
     FlowPart("identity", setOf(FIELD_UID, FIELD_GID)) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             HlTextField(
-                stringResource(R.string.field_uid), flow.uid, { flow.type(FIELD_UID, it) },
+                stringResource(R.string.field_uid),
+                flow.uid,
+                { flow.type(FIELD_UID, it) },
                 Modifier.weight(1f).focusRequester(focus[FIELD_UID]),
                 placeholder = stringResource(R.string.placeholder_uid),
                 error = fieldError(flow, FIELD_UID),
@@ -742,7 +776,11 @@ private fun browseParts(flow: FolderFlow, focus: FlowFocus, onDone: (FlowDone) -
         FlowPart(CHOOSE, setOf(CHOOSE)) {
             HlSettingGroup(null) {
                 FlowRow(
-                    flow, focus, CHOOSE, stringResource(R.string.choose_folder), { flow.chooseFolder(named, onDone) },
+                    flow,
+                    focus,
+                    CHOOSE,
+                    stringResource(R.string.choose_folder),
+                    { flow.chooseFolder(named, onDone) },
                     description = description,
                     icon = HlIcons.Check,
                     enabled = enabled,
@@ -800,11 +838,19 @@ private fun kindParts(flow: FolderFlow, focus: FlowFocus, onDone: (FlowDone) -> 
     FlowPart("kinds", SourceKind.entries.map { kindKey(it) }.toSet()) {
         HlSettingGroup(null) {
             FlowRow(
-                flow, focus, kindKey(SourceKind.MOVIES), stringResource(R.string.library_movies), { flow.add(SourceKind.MOVIES, onDone) },
+                flow,
+                focus,
+                kindKey(SourceKind.MOVIES),
+                stringResource(R.string.library_movies),
+                { flow.add(SourceKind.MOVIES, onDone) },
                 description = stringResource(R.string.kind_movies_desc),
             )
             FlowRow(
-                flow, focus, kindKey(SourceKind.SHOWS), stringResource(R.string.library_shows), { flow.add(SourceKind.SHOWS, onDone) },
+                flow,
+                focus,
+                kindKey(SourceKind.SHOWS),
+                stringResource(R.string.library_shows),
+                { flow.add(SourceKind.SHOWS, onDone) },
                 description = stringResource(R.string.kind_shows_desc),
             )
         }

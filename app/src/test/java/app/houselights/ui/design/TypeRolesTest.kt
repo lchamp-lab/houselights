@@ -110,7 +110,6 @@ class TypeRolesTest {
         compose.assertSetIn(t.body, "192.168.1.20")
     }
 
-
     @Test
     fun theQueryAndTheLettersAreLeadsAfterAnIconOfTwenty() {
         compose.setTvContent {

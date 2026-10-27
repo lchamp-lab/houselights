@@ -28,8 +28,14 @@ class BadgeTokensTest {
         // Each badge a name can give besides its definition, so that none is left untried.
         assertEquals(
             setOf(
-                HdrFormat.DOLBY_VISION.token, HdrFormat.HDR10_PLUS.token, BadgeTokens.HDR,
-                Codecs.TRUEHD, BadgeTokens.ATMOS, Codecs.DTS_HD_MA, BadgeTokens.DTS_X, BadgeTokens.REMUX,
+                HdrFormat.DOLBY_VISION.token,
+                HdrFormat.HDR10_PLUS.token,
+                BadgeTokens.HDR,
+                Codecs.TRUEHD,
+                BadgeTokens.ATMOS,
+                Codecs.DTS_HD_MA,
+                BadgeTokens.DTS_X,
+                BadgeTokens.REMUX,
             ),
             badges.toSet() - Definition.entries.map { it.token }.toSet(),
         )

@@ -4,13 +4,13 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
+import androidx.core.graphics.scale
 import app.houselights.core.suspendRunCatching
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Locale
 import java.security.MessageDigest
+import java.util.Locale
 import kotlin.math.roundToInt
-import androidx.core.graphics.scale
 
 /** True for artwork cached from the NAS ("file://..."), as opposed to a TMDB or NFO URL. */
 internal fun String?.isCachedArtwork(): Boolean = this?.startsWith("file:") == true

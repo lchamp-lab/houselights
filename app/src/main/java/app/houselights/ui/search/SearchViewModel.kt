@@ -47,14 +47,18 @@ class SearchViewModel(
         .debounce(WAIT_MS)
         .flatMapLatest<String, Found?> { typed ->
             val words = typed.trim()
-            if (words.isEmpty()) flowOf(null) else flow {
-                var found = search(words)
-                emit(found)
-                retries.collect {
-                    if (found.results !is LoadState.Failed) return@collect
-                    emit(found.copy(results = found.results.readingAgain()))
-                    found = search(words)
+            if (words.isEmpty()) {
+                flowOf(null)
+            } else {
+                flow {
+                    var found = search(words)
                     emit(found)
+                    retries.collect {
+                        if (found.results !is LoadState.Failed) return@collect
+                        emit(found.copy(results = found.results.readingAgain()))
+                        found = search(words)
+                        emit(found)
+                    }
                 }
             }
         }

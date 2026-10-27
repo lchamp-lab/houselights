@@ -68,7 +68,7 @@ class JellyfinClient(
                 chain.request().newBuilder()
                     .header("Authorization", auth)
                     .header("X-Emby-Authorization", auth)
-                    .build()
+                    .build(),
             )
         }
         // Every request sent, redirects included: the token, a password or the device's name go to the server only.
@@ -159,6 +159,7 @@ class JellyfinClient(
         suspend fun check(found: DiscoveredServer, http: OkHttpClient = Http.client, waitMs: Long = CHECK_MS): ServerCheck {
             val announced = normalizeUrl(found.address)
             val url = "$announced/".toHttpUrlOrNull() ?: return ServerCheck.Silent
+
             // Cancelling the coroutine, not OkHttp's call timeout, which cannot cut a name's lookup short.
             suspend fun info(at: String) = withTimeoutOrNull(waitMs) { publicInfo(at, deviceId = null, http, waitMs) }?.getOrNull()
             val https = if (url.isHttps) announced else url.newBuilder().scheme("https").port(HTTPS_PORT).build().toString().trimEnd('/')

@@ -1,6 +1,5 @@
 package app.houselights.ui.util
 
-import app.houselights.core.MediaItem
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
@@ -8,15 +7,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.Definition
+import app.houselights.core.Editions
 import app.houselights.core.HomeSection
+import app.houselights.core.Job
 import app.houselights.core.Languages
 import app.houselights.core.LibraryKind
+import app.houselights.core.MediaItem
 import app.houselights.core.SectionType
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.SourceKind
-import app.houselights.core.Job
-import app.houselights.core.Editions
 
 /** No-break space: keeps a number with its unit, and French punctuation with its word. */
 const val NBSP = Typography.nbsp
@@ -117,7 +117,7 @@ fun jobName(job: Job): String = stringResource(
         Job.COMPOSER -> R.string.job_music
         Job.CINEMATOGRAPHY -> R.string.job_cinematography
         Job.EDITING -> R.string.job_editing
-    }
+    },
 )
 
 /** What a network folder holds, by the name of the library it fills: "Films" or "Séries". */
@@ -126,7 +126,7 @@ fun sourceKindName(kind: SourceKind): String = stringResource(
     when (kind) {
         SourceKind.MOVIES -> R.string.library_movies
         SourceKind.SHOWS -> R.string.library_shows
-    }
+    },
 )
 
 @Composable

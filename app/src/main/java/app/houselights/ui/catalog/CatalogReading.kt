@@ -1,67 +1,67 @@
 package app.houselights.ui.catalog
 
-import app.houselights.ui.design.HeroDefaults
-import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
+import app.houselights.core.Editions
 import app.houselights.core.HdrFormat
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.SubtitleMode
 import app.houselights.core.SubtitleTrack
+import app.houselights.core.TrackPlan
+import app.houselights.core.TrackPreferences
+import app.houselights.core.Version
 import app.houselights.core.VideoInfo
+import app.houselights.ui.design.HeroDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.Badge
-import app.houselights.ui.design.components.FormatLines
 import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.EpisodeHeading
+import app.houselights.ui.design.components.FilmsOfHeading
+import app.houselights.ui.design.components.FormatLines
+import app.houselights.ui.design.components.HeadOverview
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.LetterGrid
 import app.houselights.ui.design.components.MetaLine
+import app.houselights.ui.design.components.ResultName
+import app.houselights.ui.design.components.ResultsHeading
+import app.houselights.ui.design.components.SearchQuery
+import app.houselights.ui.design.components.SynopsisSheet
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.TitleLine
-import app.houselights.ui.util.NBSP
-import app.houselights.ui.design.components.WithItsPicture
-import app.houselights.ui.design.components.HeadOverview
-import app.houselights.ui.design.components.SynopsisSheet
-import app.houselights.ui.design.components.FilmsOfHeading
-import app.houselights.core.Version
-import app.houselights.core.Editions
+import app.houselights.ui.design.components.TracksSheet
 import app.houselights.ui.design.components.VersionRow
 import app.houselights.ui.design.components.VersionsSheet
-import app.houselights.core.TrackPreferences
-import app.houselights.core.TrackPlan
-import app.houselights.core.SubtitleMode
+import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.components.tracksHint
-import app.houselights.ui.design.components.TracksSheet
+import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.versionName
-import app.houselights.ui.design.components.SearchQuery
-import app.houselights.ui.design.components.LetterGrid
-import app.houselights.ui.design.components.ResultName
-import app.houselights.ui.design.components.ResultsHeading
-import androidx.compose.foundation.layout.fillMaxWidth
 
 /** What a title says about itself (name, facts, credits, sheets), without artwork, at the widths screens give. */
 internal fun LazyListScope.catalogReading() {
@@ -92,15 +92,17 @@ private fun ReadingTitleArtSection() {
             }
             Specimen("logo that fails to load", Modifier.weight(1f), gap = HlSpace.xxs) {
                 TitleArt(
-                    title = "Playtime", logo = READING_BROKEN_LOGO,
-                    maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight,
+                    title = "Playtime",
+                    logo = READING_BROKEN_LOGO,
+                    maxWidth = HlLayout.titleArtWidth,
+                    maxHeight = HlLayout.titleArtHeight,
                 )
             }
         }
         ReadingRow {
             Specimen("long title: two lines at most", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 TitleArt(
-                    title = "Docteur Folamour ou${NBSP}: comment j’ai appris à ne plus m’en faire et à aimer la bombe",
+                    title = "Docteur Folamour ou$NBSP: comment j’ai appris à ne plus m’en faire et à aimer la bombe",
                     logo = null,
                     maxWidth = HlLayout.titleArtWidth,
                     maxHeight = HlLayout.titleArtHeight,
@@ -503,8 +505,8 @@ private val READING_HERO_FILM = sample("La Nuit américaine", 1973, positionMs =
     communityRating = 7.8,
     genres = listOf("Comédie", "Drame", "Romance"),
     badges = listOf("1080p", "DTS-HD MA", "2.0"),
-    overview = "Aux studios de la Victorine, à Nice, Ferrand tourne «${NBSP}Je vous présente Paméla${NBSP}». Caprices de la vedette, " +
-        "amours de l’équipe, accidents de tournage${NBSP}: le film avance malgré tout, et le cinéma passe avant la vie.",
+    overview = "Aux studios de la Victorine, à Nice, Ferrand tourne «${NBSP}Je vous présente Paméla$NBSP». Caprices de la vedette, " +
+        "amours de l’équipe, accidents de tournage$NBSP: le film avance malgré tout, et le cinéma passe avant la vie.",
 )
 
 private val READING_HERO_EPISODE = sample("Zen, ou l’art d’attraper un tueur", 1990, kind = MediaKind.EPISODE).copy(
@@ -516,7 +518,7 @@ private val READING_HERO_EPISODE = sample("Zen, ou l’art d’attraper un tueur
     communityRating = 8.6,
     genres = listOf("Drame", "Mystère"),
     badges = listOf("1080p", "DTS-HD MA", "5.1"),
-    overview = "Cooper fait part au shérif Truman d’un rêve étrange${NBSP}: un homme au bras manquant, une pièce aux rideaux rouges, " +
+    overview = "Cooper fait part au shérif Truman d’un rêve étrange$NBSP: un homme au bras manquant, une pièce aux rideaux rouges, " +
         "et une femme qui lui murmure à l’oreille le nom du meurtrier.",
 )
 
@@ -550,7 +552,9 @@ private val READING_TECH_FULL = sample("Le Samouraï", 1967).copy(
             AudioTrack(codec = Codecs.TRUEHD, channels = 8, language = "fre", title = "Version restaurée", atmos = true, default = true),
             AudioTrack(codec = Codecs.DTS_HD_MA, channels = 6, language = "eng"),
             AudioTrack(
-                codec = Codecs.AC3, channels = 2, language = "fre",
+                codec = Codecs.AC3,
+                channels = 2,
+                language = "fre",
                 title = "Commentaire audio de Ginette Vincendeau, historienne du cinéma",
             ),
         ),
@@ -636,7 +640,9 @@ private val READING_TECH_STRESS = sample("Cidade de Deus", 2002).copy(
             AudioTrack(codec = Codecs.EAC3, channels = 8, language = "pt-BR", atmos = true, default = true, bitrateKbps = 1_024),
             AudioTrack(codec = Codecs.DTS_HD_MA, channels = 8, language = "pt-PT", bitrateKbps = 4_054),
             AudioTrack(
-                codec = Codecs.AC3, channels = 2, language = "por",
+                codec = Codecs.AC3,
+                channels = 2,
+                language = "por",
                 title = "Commentaire audio du réalisateur Fernando Meirelles et de la co-réalisatrice Kátia Lund",
                 bitrateKbps = 192,
             ),

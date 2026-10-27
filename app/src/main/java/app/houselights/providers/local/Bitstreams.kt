@@ -188,10 +188,16 @@ internal object Bitstreams {
         var at = 0
         while (at < p.size - 1) {
             var type = 0
-            while (p[at] == 0xFF.toByte()) { type += 0xFF; at++ }
+            while (p[at] == 0xFF.toByte()) {
+                type += 0xFF
+                at++
+            }
             type += p[at++].toInt() and 0xFF
             var size = 0
-            while (p[at] == 0xFF.toByte()) { size += 0xFF; at++ }
+            while (p[at] == 0xFF.toByte()) {
+                size += 0xFF
+                at++
+            }
             size += p[at++].toInt() and 0xFF
             val whole = size <= p.size - at
             when {

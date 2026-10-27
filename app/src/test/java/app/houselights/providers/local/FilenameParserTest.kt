@@ -423,8 +423,11 @@ class FilenameParserTest {
     @Test
     fun episodesTitledWithAWordOfExtras() {
         val episodes = listOf(
-            "Show - S01E05 - Crime-Scene.mkv", "Show - S01E05 - Self-Deleted.mkv", "Show.S01E05.The.Big-Short.mkv",
-            "Show - 1x05 - The-Other.mkv", "Show - S01E05 - Exit-Interview.mkv",
+            "Show - S01E05 - Crime-Scene.mkv",
+            "Show - S01E05 - Self-Deleted.mkv",
+            "Show.S01E05.The.Big-Short.mkv",
+            "Show - 1x05 - The-Other.mkv",
+            "Show - S01E05 - Exit-Interview.mkv",
         )
         episodes.forEach { assertFalse(it, ScanTitles.isExtraName(it)) }
         val extras = listOf("Show - S01E05-deleted.mkv", "Show - S01E05 -scene.mkv", "Show.S01E05.-interview.mkv", "Show 1x05-other.mkv")

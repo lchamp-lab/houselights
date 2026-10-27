@@ -73,7 +73,7 @@ class TraktScrobbleTest {
         ItemEntity(
             kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", tmdbId = 949, runtimeMin = runtimeMin,
             fileDurationMs = fileDurationMs, filePath = "Heat.mkv", addedAt = 0,
-        )
+        ),
     )
 
     /** Plays film [id] with the player saying [said], then returns from it at [returnedMs]. */

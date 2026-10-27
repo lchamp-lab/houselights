@@ -17,12 +17,21 @@ class FolderSuggestionTest {
     private val network = FakeFlowNetwork()
 
     private val nfs = SourceEntity(
-        name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = FakeFlowNetwork.DS920, share = "media",
-        path = "Films", username = "", password = Secret(""),
+        name = "Films",
+        kind = SourceKind.MOVIES,
+        protocol = Protocol.NFS,
+        host = FakeFlowNetwork.DS920,
+        share = "media",
+        path = "Films",
+        username = "",
+        password = Secret(""),
     )
 
     private val smb = nfs.copy(
-        protocol = Protocol.SMB, share = "vido", path = "Films", username = FakeFlowNetwork.USER,
+        protocol = Protocol.SMB,
+        share = "vido",
+        path = "Films",
+        username = FakeFlowNetwork.USER,
         password = Secret(FakeFlowNetwork.PASSWORD),
     )
 

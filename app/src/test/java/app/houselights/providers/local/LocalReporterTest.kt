@@ -35,7 +35,7 @@ class LocalReporterTest {
             ItemEntity(
                 kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", runtimeMin = runtimeMin,
                 filePath = "Heat.mkv", fileDurationMs = fileDurationMs, addedAt = 0, positionMs = positionMs, played = played,
-            )
+            ),
         )
 
     @Test

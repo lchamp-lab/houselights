@@ -34,9 +34,6 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.RestoreFocus
-import app.houselights.ui.design.focusGroupKey
-import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.DetailAhead
@@ -51,6 +48,9 @@ import app.houselights.ui.design.components.ResultName
 import app.houselights.ui.design.components.ResultsHeading
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SearchQuery
+import app.houselights.ui.design.focusGroupKey
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.rememberSettled
@@ -134,67 +134,69 @@ internal fun Results(
         return
     }
     val lit = shown.value
-    ListScroll(top = HlSpace.none) { LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = HlFocus.edge),
-        verticalArrangement = Arrangement.spacedBy(HlSpace.xl),
-    ) {
-        if (results.titles.isNotEmpty()) {
-            item(key = TITLES) {
-                Column {
-                    val row = Modifier.focusGroupKey(FocusKey.row(TITLES), memory)
-                    MediaRow(null, row, heading = { ResultsHeading(stringResource(R.string.search_titles), results.titles.size) }) {
-                        items(results.titles, key = { it.id }) { title ->
-                            PosterCard(
-                                title,
-                                onClick = { onOpenItem(title) },
-                                modifier = memory.result(TITLES, title.id),
-                                onFocus = { onItemFocus(title.id) },
+    ListScroll(top = HlSpace.none) {
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = HlFocus.edge),
+            verticalArrangement = Arrangement.spacedBy(HlSpace.xl),
+        ) {
+            if (results.titles.isNotEmpty()) {
+                item(key = TITLES) {
+                    Column {
+                        val row = Modifier.focusGroupKey(FocusKey.row(TITLES), memory)
+                        MediaRow(null, row, heading = { ResultsHeading(stringResource(R.string.search_titles), results.titles.size) }) {
+                            items(results.titles, key = { it.id }) { title ->
+                                PosterCard(
+                                    title,
+                                    onClick = { onOpenItem(title) },
+                                    modifier = memory.result(TITLES, title.id),
+                                    onFocus = { onItemFocus(title.id) },
+                                )
+                            }
+                        }
+                        ResultName(lit?.takeIf { it in results.titles }, Modifier.padding(start = HlSpace.safeH))
+                    }
+                }
+            }
+            if (results.sagas.isNotEmpty()) {
+                item(key = SAGAS) {
+                    Column {
+                        val row = Modifier.focusGroupKey(FocusKey.row(SAGAS), memory)
+                        MediaRow(null, row, heading = { ResultsHeading(stringResource(R.string.search_sagas), results.sagas.size) }) {
+                            items(results.sagas, key = { it.id }) { saga ->
+                                LandscapeCard(
+                                    saga,
+                                    onClick = { onOpenItem(saga) },
+                                    modifier = memory.result(SAGAS, saga.id),
+                                    onFocus = { onItemFocus(saga.id) },
+                                )
+                            }
+                        }
+                        ResultName(lit?.takeIf { it in results.sagas }, Modifier.padding(start = HlSpace.safeH))
+                    }
+                }
+            }
+            if (results.people.isNotEmpty()) {
+                item(key = PEOPLE) {
+                    val row = Modifier.focusGroupKey(FocusKey.row(PEOPLE), memory)
+                    MediaRow(
+                        null,
+                        row,
+                        spacing = HlSpace.s,
+                        heading = { ResultsHeading(stringResource(R.string.search_people), results.people.size) },
+                    ) {
+                        items(results.people, key = { it.id ?: it.name }) { person ->
+                            PersonCard(
+                                person,
+                                memory.result(PEOPLE, person.id ?: person.name),
+                                onOpen = person.id?.takeIf { person.hasPage }?.let { id -> { onOpenPerson(id) } },
                             )
                         }
                     }
-                    ResultName(lit?.takeIf { it in results.titles }, Modifier.padding(start = HlSpace.safeH))
                 }
             }
         }
-        if (results.sagas.isNotEmpty()) {
-            item(key = SAGAS) {
-                Column {
-                    val row = Modifier.focusGroupKey(FocusKey.row(SAGAS), memory)
-                    MediaRow(null, row, heading = { ResultsHeading(stringResource(R.string.search_sagas), results.sagas.size) }) {
-                        items(results.sagas, key = { it.id }) { saga ->
-                            LandscapeCard(
-                                saga,
-                                onClick = { onOpenItem(saga) },
-                                modifier = memory.result(SAGAS, saga.id),
-                                onFocus = { onItemFocus(saga.id) },
-                            )
-                        }
-                    }
-                    ResultName(lit?.takeIf { it in results.sagas }, Modifier.padding(start = HlSpace.safeH))
-                }
-            }
-        }
-        if (results.people.isNotEmpty()) {
-            item(key = PEOPLE) {
-                val row = Modifier.focusGroupKey(FocusKey.row(PEOPLE), memory)
-                MediaRow(
-                    null,
-                    row,
-                    spacing = HlSpace.s,
-                    heading = { ResultsHeading(stringResource(R.string.search_people), results.people.size) },
-                ) {
-                    items(results.people, key = { it.id ?: it.name }) { person ->
-                        PersonCard(
-                            person,
-                            memory.result(PEOPLE, person.id ?: person.name),
-                            onOpen = person.id?.takeIf { person.hasPage }?.let { id -> { onOpenPerson(id) } },
-                        )
-                    }
-                }
-            }
-        }
-    } }
+    }
 }
 
 /** Focus key of a result within its row: the same title can appear as a title and, as a saga, in another row. */

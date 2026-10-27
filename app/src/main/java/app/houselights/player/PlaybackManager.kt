@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.FileProvider
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import app.houselights.R
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
@@ -28,8 +30,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.math.abs
-import androidx.core.content.edit
-import androidx.core.net.toUri
 
 /**
  * Launches the native Zidoo player and reports progress to the backend: polled from its local API while

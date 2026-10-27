@@ -41,7 +41,11 @@ class FilenameNumberingTest {
     @Test
     fun resolutionsYearsAndHashesAreNoNumber() {
         val none = listOf(
-            "Show - 1080p.mkv", "Show (1080p).mkv", "Show - 2019.mkv", "Blade Runner - 2049.mkv", "Show - 100 Days.mkv",
+            "Show - 1080p.mkv",
+            "Show (1080p).mkv",
+            "Show - 2019.mkv",
+            "Blade Runner - 2049.mkv",
+            "Show - 100 Days.mkv",
             "Show [ABCD1234].mkv",
         )
         none.forEach { assertNull(it, episode(it)) }
@@ -51,7 +55,13 @@ class FilenameNumberingTest {
     @Test
     fun booksPartsAndVolumesAreSeasonsInRomanNumeralsOrNot() {
         val seasons = mapOf(
-            "Livre I" to 1, "Livre IV" to 4, "Livre XII" to 12, "Book 2" to 2, "Partie 3" to 3, "Part IX" to 9, "Volume 1" to 1,
+            "Livre I" to 1,
+            "Livre IV" to 4,
+            "Livre XII" to 12,
+            "Book 2" to 2,
+            "Partie 3" to 3,
+            "Part IX" to 9,
+            "Volume 1" to 1,
             "Vol. 2" to 2,
         )
         seasons.forEach { (folder, season) -> assertEquals(folder, season, FilenameParser.seasonFromFolder(folder)) }
@@ -64,7 +74,9 @@ class FilenameNumberingTest {
         assertEquals(ParsedEpisode("Kaamelott", 1, 1), episode("Kaamelott - Livre I - 01 - Heat.avi"))
         // Films are named by their volumes and parts.
         val films = listOf(
-            "Kill Bill - Volume 1 (2003).mkv", "Harry Potter and the Deathly Hallows - Part 2 (2011).mkv", "Dune - Part 2 - 2160p.mkv",
+            "Kill Bill - Volume 1 (2003).mkv",
+            "Harry Potter and the Deathly Hallows - Part 2 (2011).mkv",
+            "Dune - Part 2 - 2160p.mkv",
         )
         films.forEach { assertNull(it, episode(it)) }
         val finalSeason = episode("Shingeki no Kyojin - The Final Season Part 2 - 01.mkv")

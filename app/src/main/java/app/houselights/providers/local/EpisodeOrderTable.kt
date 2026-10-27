@@ -61,7 +61,7 @@ interface EpisodeOrderDao {
     /** Show [show]'s groups to fetch again when next needed, and its list to read again, as after a refresh. */
     @Query(
         "UPDATE episode_orders SET places = CASE WHEN orderId = 'aired' THEN places ELSE NULL END, " +
-            "fetchedAt = CASE WHEN orderId = 'aired' THEN fetchedAt ELSE NULL END, groupsAt = NULL WHERE showTmdbId = :show"
+            "fetchedAt = CASE WHEN orderId = 'aired' THEN fetchedAt ELSE NULL END, groupsAt = NULL WHERE showTmdbId = :show",
     )
     suspend fun staleEpisodeGroups(show: Int)
 
@@ -73,7 +73,7 @@ interface EpisodeOrderDao {
         "SELECT s.tmdbId FROM items s LEFT JOIN episode_orders o ON o.showTmdbId = s.tmdbId AND o.orderId = 'aired' " +
             "WHERE s.kind = 'SERIES' AND s.tmdbId IS NOT NULL " +
             "AND (o.groupsAt IS NULL OR o.groupsAt <= :before OR o.groupsAt > :now) " +
-            "GROUP BY s.tmdbId ORDER BY MIN(IFNULL(o.groupsAt, 0)), s.tmdbId LIMIT :limit"
+            "GROUP BY s.tmdbId ORDER BY MIN(IFNULL(o.groupsAt, 0)), s.tmdbId LIMIT :limit",
     )
     suspend fun groupsDue(before: Long, now: Long, limit: Int): List<Int>
 
@@ -87,14 +87,14 @@ interface EpisodeOrderDao {
             "AND (o.fetchedAt IS NULL OR o.fetchedAt <= :before OR o.fetchedAt > :now) " +
             "AND EXISTS (SELECT 1 FROM items e WHERE e.kind = 'EPISODE' AND e.seriesId = s.id " +
             "AND e.absoluteNumber IS NOT NULL AND e.tmdbEpisode IS NULL) " +
-            "ORDER BY IFNULL(o.fetchedAt, 0), s.id LIMIT :limit"
+            "ORDER BY IFNULL(o.fetchedAt, 0), s.id LIMIT :limit",
     )
     suspend fun waitingShows(before: Long, now: Long, limit: Int): List<Long>
 
     /** The orders of TMDB ids no show has any more. */
     @Query(
         "DELETE FROM episode_orders WHERE showTmdbId NOT IN " +
-            "(SELECT tmdbId FROM items WHERE kind = 'SERIES' AND tmdbId IS NOT NULL)"
+            "(SELECT tmdbId FROM items WHERE kind = 'SERIES' AND tmdbId IS NOT NULL)",
     )
     suspend fun deleteOrphanEpisodeOrders()
 }

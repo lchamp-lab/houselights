@@ -44,8 +44,10 @@ class StacksTest {
         assertNull(part("Counterpart 2.mkv"))
         assertNull(part("CD1.avi"))
         // Titles alone.
-        listOf("Bugonia.mkv", "Colony.mkv", "Disclosure Day.mkv", "I See You.mkv", "Spider-Man Brand New Day.mkv",
-            "Spider-Man No Way Home.mkv", "The Furious.mkv", "Top Gun Maverick.mkv", "evil dead burn.mkv").forEach {
+        listOf(
+            "Bugonia.mkv", "Colony.mkv", "Disclosure Day.mkv", "I See You.mkv", "Spider-Man Brand New Day.mkv",
+            "Spider-Man No Way Home.mkv", "The Furious.mkv", "Top Gun Maverick.mkv", "evil dead burn.mkv",
+        ).forEach {
             assertNull(it, part(it))
         }
     }

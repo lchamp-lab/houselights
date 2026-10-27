@@ -83,7 +83,11 @@ class HomeViewModelTest {
         provider.catalog = FakeCatalog().apply { best = (1..6).map { film("best$it") } }
         val launchLeft = CompletableDeferred<Unit>()
         val vm = HomeViewModel(
-            { provider }, scan, folders.filterNotNull(), settings, scanAll = {},
+            { provider },
+            scan,
+            folders.filterNotNull(),
+            settings,
+            scanAll = {},
             libraryRows = LibraryRows({ provider }),
             afterLaunch = { launchLeft.await() },
         )
@@ -330,6 +334,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
         assertEquals(HomeContent.Rows(rows), vm.content())
     }
+
     @Test
     fun theDoorsAreReadAfterTheRows() = runTest {
         provider.libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"), Library("shows", LibraryKind.SHOWS, "Séries"))

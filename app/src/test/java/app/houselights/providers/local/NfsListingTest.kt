@@ -270,7 +270,10 @@ class NfsListingTest {
         assertEquals(listOf("/films/4K/Dune (2021)/movie.nfo", "/Sicario (2015).mp4"), export.read)
         assertEquals(
             listOf(
-                "LOOKUP /films", "LOOKUP /films/4K", "LOOKUP /films/4K/Dune (2021)", "LOOKUP /films/4K/Dune (2021)/movie.nfo",
+                "LOOKUP /films",
+                "LOOKUP /films/4K",
+                "LOOKUP /films/4K/Dune (2021)",
+                "LOOKUP /films/4K/Dune (2021)/movie.nfo",
                 "LOOKUP /Sicario (2015).mp4",
             ),
             export.asked,
@@ -288,7 +291,9 @@ class NfsListingTest {
         nas.readPrefix(films, "Dune (2021)/poster.jpg", 4_096)
         assertEquals(
             listOf(
-                "LOOKUP /Dune (2021)", "LOOKUP /Dune (2021)/Dune (2021).mkv", "LOOKUP /Dune (2021)/movie.nfo",
+                "LOOKUP /Dune (2021)",
+                "LOOKUP /Dune (2021)/Dune (2021).mkv",
+                "LOOKUP /Dune (2021)/movie.nfo",
                 "LOOKUP /Dune (2021)/poster.jpg",
             ),
             export.asked,

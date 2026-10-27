@@ -62,7 +62,7 @@ class SagaWallTest {
         ItemEntity(
             kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = title.lowercase(), year = year, rating = rating,
             addedAt = addedAt, played = played, genres = genres, badges = badges, collectionId = saga, filePath = "$title.mkv",
-        ).more()
+        ).more(),
     )
 
     private suspend fun grouped(

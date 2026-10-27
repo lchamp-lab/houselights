@@ -140,7 +140,7 @@ internal fun DeviceFacts(device: String, player: PlayerStatus, api: Boolean?) {
                     null -> R.string.testing
                     true -> R.string.online
                     false -> R.string.offline
-                }
+                },
             ),
             state = when (api) {
                 null -> StatusState.Pending
@@ -180,7 +180,9 @@ private fun AboutCredits() {
 }
 
 private const val LICENSE = "GPL-3.0"
+
 /** The address `support_qr` encodes, without its scheme, as a phone shows it and a person types it. */
 private const val SUPPORT_ADDRESS = "ko-fi.com/lchamp_lab"
+
 /** Debug builds only, not translated. */
 private const val CATALOG = "Design system"

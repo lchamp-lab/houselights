@@ -11,10 +11,10 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import androidx.core.net.toUri
 
 /** The settings screen that may let the app install apps: its own first, then Security, then Android's settings. */
 enum class PermissionScreen {

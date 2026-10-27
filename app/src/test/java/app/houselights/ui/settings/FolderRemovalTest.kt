@@ -126,7 +126,7 @@ class FolderRemovalTest {
         compose.press(Key.DirectionCenter)
         compose.onNode(hasText("Retirer ce dossier") and hasClickAction()).requestFocus()
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
-        compose.onNodeWithText("Retirer «${NB}$folder$NB»${NB}?").assertExists()
+        compose.onNodeWithText("Retirer «${NB}$folder$NB»$NB?").assertExists()
     }
 
     @Test

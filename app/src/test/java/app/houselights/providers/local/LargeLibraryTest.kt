@@ -74,7 +74,7 @@ class LargeLibraryTest {
                             item(
                                 ItemKind.EPISODE, shows, "Episode $e", parentId = season, seriesId = series, season = n + 1,
                                 episode = e + 1, nfo = nfo, played = played, lastPlayedAt = if (played) (s * 100L + e) else null,
-                            )
+                            ),
                         )
                     }
                 }
@@ -91,8 +91,17 @@ class LargeLibraryTest {
 
     @Suppress("LongParameterList") // One per column a test sets.
     private fun item(
-        kind: ItemKind, source: Long, title: String, parentId: Long? = null, seriesId: Long? = null, season: Int? = null,
-        episode: Int? = null, addedAt: Long = 0, nfo: String? = null, played: Boolean = false, lastPlayedAt: Long? = null,
+        kind: ItemKind,
+        source: Long,
+        title: String,
+        parentId: Long? = null,
+        seriesId: Long? = null,
+        season: Int? = null,
+        episode: Int? = null,
+        addedAt: Long = 0,
+        nfo: String? = null,
+        played: Boolean = false,
+        lastPlayedAt: Long? = null,
     ) = ItemEntity(
         kind = kind, sourceId = source, title = title, sortTitle = title.lowercase(), parentId = parentId, seriesId = seriesId,
         seasonNumber = season, episodeNumber = episode, addedAt = addedAt, nfo = nfo, nfoPath = nfo?.let { "$title.nfo" },
@@ -228,6 +237,7 @@ class LargeLibraryTest {
         const val EPISODES_PER_SEASON = 10
         const val NFO_BYTES = 20_000
         const val PAGE = 120
+
         /** Its rows, their shows' counts, sources' first scans, and once per list of films their copies held (LocalMapper). */
         const val HOME_QUERIES = 11
         const val PAGE_QUERIES = 5

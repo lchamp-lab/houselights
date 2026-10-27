@@ -1,5 +1,6 @@
 package app.houselights.ui.home
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -22,19 +23,17 @@ import app.houselights.settings.AppSettings
 import app.houselights.ui.settings.HeldTitles
 import app.houselights.ui.settings.heldByFolder
 import app.houselights.ui.util.LatestJob
-import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.LibraryShown
 import app.houselights.ui.util.RoomPosters
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.reported
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.Flow
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -43,7 +42,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import android.util.Log
+import kotlinx.coroutines.isActive
+import kotlin.coroutines.cancellation.CancellationException
 
 /** What Home shows under its head: the grid of its [Rows], or a [Message] saying why there is none. */
 sealed interface HomeContent {

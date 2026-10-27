@@ -18,10 +18,12 @@ import app.houselights.ui.util.screenWidthPx
 /** Entry point to the design tokens: `Hl.colors`, `Hl.type`. */
 object Hl {
     val colors: HlColors
-        @Composable @ReadOnlyComposable get() = LocalHlColors.current
+        @Composable @ReadOnlyComposable
+        get() = LocalHlColors.current
 
     val type: HlType
-        @Composable @ReadOnlyComposable get() = LocalHlType.current
+        @Composable @ReadOnlyComposable
+        get() = LocalHlType.current
 }
 
 /** The design system on the canvas, its text at the system's size times [textStep] (« Taille du texte », [textScaleOf]). */

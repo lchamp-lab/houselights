@@ -4,13 +4,13 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
+import androidx.core.graphics.createBitmap
 import coil.size.Size
 import coil.transform.Transformation
 import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
-import androidx.core.graphics.createBitmap
 
 /**
  * Sets a clear logo to a constant visual weight in a [boxWidth] by [boxHeight] px box ([planLogo]): its
@@ -56,7 +56,10 @@ internal fun planLogo(pixels: IntArray, width: Int, height: Int, boxWidth: Int, 
     val w = h * ratio
     val fit = minOf(1.0, boxWidth / w, boxHeight / h, inkWidth * enlarge / w)
     return LogoPlan(
-        left, top, found.right + 1, found.bottom + 1,
+        left,
+        top,
+        found.right + 1,
+        found.bottom + 1,
         (w * fit).roundToInt().coerceAtLeast(1),
         (h * fit).roundToInt().coerceAtLeast(1),
     )

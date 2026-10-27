@@ -133,7 +133,10 @@ class JellyfinReachTest {
      */
     @Test
     fun aFoundServerThatStallsIsGivenUpOnInTime() = runBlocking {
-        val server = FakeServer { Thread.sleep(STALL_MS); Answer(200, info("10.10.3")) }
+        val server = FakeServer {
+            Thread.sleep(STALL_MS)
+            Answer(200, info("10.10.3"))
+        }
         val start = System.nanoTime()
         assertEquals(ServerCheck.Silent, JellyfinClient.check(FOUND, server.http, waitMs = 100))
         val took = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)

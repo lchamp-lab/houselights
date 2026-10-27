@@ -166,8 +166,14 @@ class ScanStacksTest {
     }
 
     private fun row(path: String, size: Long) = ItemEntity(
-        kind = ItemKind.MOVIE, sourceId = films.id, title = "Le Parrain", sortTitle = "parrain", year = 1972, filePath = path,
-        fileSize = size, addedAt = bench.now,
+        kind = ItemKind.MOVIE,
+        sourceId = films.id,
+        title = "Le Parrain",
+        sortTitle = "parrain",
+        year = 1972,
+        filePath = path,
+        fileSize = size,
+        addedAt = bench.now,
     )
 
     @Test
@@ -212,12 +218,20 @@ class ScanStacksTest {
     @Test
     fun namesThatOnlyLookLikePartsAreFilmsOfTheirOwn() = runTest {
         listOf(
-            "Dune Part 2.mkv", "Hunger Games Mockingjay Part 1.mkv", "Hunger Games Mockingjay Part 2.mkv", "Kill Bill Vol. 1 (2003).mkv",
-            "Kill Bill Vol. 2 (2004).mkv", "Top Gun Maverick.mkv",
+            "Dune Part 2.mkv",
+            "Hunger Games Mockingjay Part 1.mkv",
+            "Hunger Games Mockingjay Part 2.mkv",
+            "Kill Bill Vol. 1 (2003).mkv",
+            "Kill Bill Vol. 2 (2004).mkv",
+            "Top Gun Maverick.mkv",
         ).forEach { nas.put(it) }
         bench.scan()
         val titles = listOf(
-            "Dune Part 2", "Hunger Games Mockingjay Part 1", "Hunger Games Mockingjay Part 2", "Kill Bill Vol. 1", "Kill Bill Vol. 2",
+            "Dune Part 2",
+            "Hunger Games Mockingjay Part 1",
+            "Hunger Games Mockingjay Part 2",
+            "Kill Bill Vol. 1",
+            "Kill Bill Vol. 2",
             "Top Gun Maverick",
         )
         assertEquals(titles, rows().map { it.title })

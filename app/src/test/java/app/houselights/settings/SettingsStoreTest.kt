@@ -342,8 +342,11 @@ class SettingsStoreTest {
         advanceTimeBy(2_100)
         assertTrue(settings.state.value.unreadSource)
         val sources = SourceSwitcher(
-            { settings.state.value }, settings::setSource, backgroundScope,
-            signOut = { _, _ -> error("Nothing is revoked") }, keepUnopened = settings::setSourceKeepingUnopened,
+            { settings.state.value },
+            settings::setSource,
+            backgroundScope,
+            signOut = { _, _ -> error("Nothing is revoked") },
+            keepUnopened = settings::setSourceKeepingUnopened,
         )
 
         sources.switchTo(SourceConfig.Local)

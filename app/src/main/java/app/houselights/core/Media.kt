@@ -167,8 +167,14 @@ data class LibraryFilter(
 ) {
     val activeCount: Int
         get() = listOf(
-            status != WatchStatus.ALL, genre != null, decade != null, quality != null, picture != null, sound != null,
-            fileType != null, person != null,
+            status != WatchStatus.ALL,
+            genre != null,
+            decade != null,
+            quality != null,
+            picture != null,
+            sound != null,
+            fileType != null,
+            person != null,
         ).count { it }
 }
 

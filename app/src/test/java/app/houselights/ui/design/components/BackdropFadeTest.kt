@@ -272,8 +272,10 @@ class BackdropFadeTest {
         const val FRAMES = 6
         const val FRAME_MS = 16
         const val TINT_FRAMES = HlMotion.TINT / FRAME_MS
+
         /** 352 ms: a title settled every 350 ms or so, as an arrow pressed a little over twice a second. */
         const val EVERY_350_MS = (350 + FRAME_MS - 1) / FRAME_MS
+
         /** The most one layer's share moves in a frame of a linear `TINT`, and a frame's slack. */
         const val STEP = 2f * FRAME_MS / HlMotion.TINT
         const val NOT_DRAWN = -1f

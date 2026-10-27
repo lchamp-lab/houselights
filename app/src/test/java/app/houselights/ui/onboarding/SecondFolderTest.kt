@@ -68,13 +68,22 @@ class SecondFolderTest {
         val id = runBlocking {
             db.dao().insertSource(
                 SourceEntity(
-                    name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-                    path = "films", username = "kodi", password = Secret(""),
-                )
+                    name = "films",
+                    kind = SourceKind.MOVIES,
+                    protocol = Protocol.SMB,
+                    host = "192.168.1.10",
+                    share = "media",
+                    path = "films",
+                    username = "kodi",
+                    password = Secret(""),
+                ),
             )
         }
         val vm = AddFolderViewModel(
-            library, id, scope, probe = { FolderLevel(emptyList(), videos = 0) },
+            library,
+            id,
+            scope,
+            probe = { FolderLevel(emptyList(), videos = 0) },
         )
         compose.setTvContent { AddFolderForm(vm, focusOn) {} }
         compose.waitForIdle()

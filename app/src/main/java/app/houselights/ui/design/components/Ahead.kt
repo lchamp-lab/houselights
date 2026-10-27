@@ -1,14 +1,22 @@
 package app.houselights.ui.design.components
 
-import app.houselights.ui.design.HeroDefaults
 import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import app.houselights.core.MediaItem
+import app.houselights.ui.design.HeroDefaults
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HomeGridDefaults
+import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.design.canvasDensityOf
+import app.houselights.ui.util.screenWidthPx
 import coil.ImageLoader
+import coil.imageLoader
 import coil.intercept.Interceptor
 import coil.request.ImageRequest
 import coil.request.ImageResult
@@ -17,14 +25,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import app.houselights.ui.design.LocalLaunchScreen
-import app.houselights.ui.util.screenWidthPx
-import coil.imageLoader
 
 /**
  * The requests a screen's components will make on a screen [screenWidthPx] wide at [textScale] ([textScaleOf]), so the

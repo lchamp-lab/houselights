@@ -28,19 +28,19 @@ import app.houselights.settings.TextSize
 import app.houselights.settings.outputModes
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.textScaleOf
 import app.houselights.ui.design.components.ChoiceOption
+import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
-import app.houselights.ui.design.components.HlSettingGroup
-import app.houselights.ui.design.components.HlSettingRow
-import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlGroup
 import app.houselights.ui.design.components.HlPlate
+import app.houselights.ui.design.components.HlSettingGroup
+import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.PlateFact
-import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.SpecTable
 import app.houselights.ui.design.components.SpecTableRow
+import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.textScaleOf
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDimensions
@@ -196,6 +196,7 @@ private fun interfaceLanguageName(tag: String, locale: Locale = Locale.forLangua
 @Composable
 private fun OutputFacts(control: OutputControl) {
     val view = LocalView.current
+
     // Read again once laid out: a screen made again with its activity is composed before its window has a size.
     fun rendered() = IntSize(view.rootView.width, view.rootView.height)
     var size by remember { mutableStateOf(rendered()) }

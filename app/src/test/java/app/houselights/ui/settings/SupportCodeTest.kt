@@ -160,9 +160,11 @@ class SupportCodeTest {
 
     private companion object {
         const val URL = "https://ko-fi.com/lchamp_lab"
+
         /** The page the code opens is the one Settings names under it. */
         const val TRAKT_URL = "https://${TraktClient.ACTIVATE}"
         val RUN = Regex("""M(\d+),(\d+)h(\d+)v1h-(\d+)z""")
+
         /** Where a run starts and how long it is: the figures before the one it goes back by. */
         const val RUN_FIGURES = 3
 

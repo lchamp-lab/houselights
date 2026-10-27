@@ -10,7 +10,7 @@ interface PlaybackStateDao {
 
     @Query(
         "UPDATE items SET positionMs = :positionMs, durationMs = :durationMs, played = :played, " +
-            "lastPlayedAt = :lastPlayedAt WHERE id = :id"
+            "lastPlayedAt = :lastPlayedAt WHERE id = :id",
     )
     suspend fun savePlayback(id: Long, positionMs: Long, durationMs: Long?, played: Boolean, lastPlayedAt: Long)
 

@@ -36,8 +36,14 @@ class FilterMenuTest {
     val compose = createComposeRule()
 
     private val local = ProviderCapabilities(
-        markPlayed = true, favorites = true, similar = true, pathMapping = false, formatNumbers = true, formatFilters = true,
-        personFilter = true, sagaFilters = true,
+        markPlayed = true,
+        favorites = true,
+        similar = true,
+        pathMapping = false,
+        formatNumbers = true,
+        formatFilters = true,
+        personFilter = true,
+        sagaFilters = true,
     )
     private val jellyfin =
         ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = true, personFilter = true)
@@ -59,7 +65,11 @@ class FilterMenuTest {
     private fun open(facets: LibraryFacets, can: ProviderCapabilities, person: Person? = null) {
         compose.setTvContent {
             FilterButton(
-                filter, facets, can, person, view,
+                filter,
+                facets,
+                can,
+                person,
+                view,
                 onView = { view = it },
                 onClear = {
                     filter = LibraryFilter()

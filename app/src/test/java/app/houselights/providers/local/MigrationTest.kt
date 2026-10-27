@@ -50,7 +50,7 @@ class MigrationTest {
     /** Folder 1, "Films", as schemas 8 and later hold it. */
     private fun SupportSQLiteDatabase.filmsFolder() = execSQL(
         "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-            "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
+            "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)",
     )
 
     /** Schemas 1 to 5 predate Room's schema export and were rebuilt (app/schemas); Room checks them on open. */
@@ -67,7 +67,7 @@ class MigrationTest {
                 execSQL(
                     "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
                         "badges, addedAt, matchedAt, positionMs, played, favorite) " +
-                        "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, 'Science-fiction', '', 'Dune.mkv', 42, '', 0, 500, 600000, 0, 1)"
+                        "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, 'Science-fiction', '', 'Dune.mkv', 42, '', 0, 500, 600000, 0, 1)",
                 )
             }
             val source = db.dao().sources().single()
@@ -123,12 +123,12 @@ class MigrationTest {
         val db = migrated(from = 9) {
             execSQL(
                 "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-                    "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000)"
+                    "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000)",
             )
             execSQL(
                 "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, seasonNumber, episodeNumber, " +
                     "filePath, fileSize, badges, nfoPath, addedAt, positionMs, played, favorite) " +
-                    "VALUES (1, 'EPISODE', 1, 'Pilot', 'pilot', 0, '', '', 1, 1, 'Show/S01E01.mkv', 42, '', 'Show/S01E01.nfo', 0, 0, 1, 0)"
+                    "VALUES (1, 'EPISODE', 1, 'Pilot', 'pilot', 0, '', '', 1, 1, 'Show/S01E01.mkv', 42, '', 'Show/S01E01.nfo', 0, 0, 1, 0)",
             )
         }
         val pilot = checkNotNull(db.dao().item(1))
@@ -205,7 +205,7 @@ class MigrationTest {
                 execSQL(
                     "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
                         "badges, collectionId, addedAt, matchedAt, positionMs, played, favorite) " +
-                        "VALUES ($id, 'MOVIE', 1, 'Film $id', 'film $id', 0, '', '', 'Film $id.mkv', 42, '', $collection, 0, 500, 0, 0, 0)"
+                        "VALUES ($id, 'MOVIE', 1, 'Film $id', 'film $id', 0, '', '', 'Film $id.mkv', 42, '', $collection, 0, 500, 0, 0, 0)",
                 )
             }
         }
@@ -258,7 +258,7 @@ class MigrationTest {
             execSQL(
                 "INSERT INTO items (id, kind, sourceId, tmdbId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
                     "badges, probeVersion, addedAt, positionMs, played, favorite, lastPlayedAt) " +
-                    "VALUES (1, 'MOVIE', 1, 949, 'Heat', 'heat', 0, '', '', 'Heat.mkv', '', '', 0, 0, 600000, 1, 0, 5)"
+                    "VALUES (1, 'MOVIE', 1, 949, 'Heat', 'heat', 0, '', '', 'Heat.mkv', '', '', 0, 0, 600000, 1, 0, 5)",
             )
         }
         db.dao().item(1)!!.let { assertEquals(Triple(true, 600_000L, 5L), Triple(it.played, it.positionMs, it.lastPlayedAt)) }
@@ -319,7 +319,7 @@ class MigrationTest {
                 execSQL(
                     "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
                         "badges, probeVersion, addedAt, positionMs, played, favorite) " +
-                        "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, '', '', 'Dune (2021).mkv', '', '', 0, 5, 600000, 0, 1)"
+                        "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, '', '', 'Dune (2021).mkv', '', '', 0, 5, 600000, 0, 1)",
                 )
             }.dao()
             val dune = checkNotNull(dao.item(1))
@@ -427,7 +427,7 @@ class MigrationTest {
                 if (from >= 18) {
                     execSQL(
                         "INSERT INTO kept_states (title, kind, nameKey, sourceId, played, positionMs, favorite, addedAt) " +
-                            "VALUES ('show:name:1:kaamelott', 'SERIES', 'kaamelott', 1, 0, 0, 1, 5)"
+                            "VALUES ('show:name:1:kaamelott', 'SERIES', 'kaamelott', 1, 0, 0, 1, 5)",
                     )
                 }
             }.dao()
@@ -457,7 +457,7 @@ class MigrationTest {
         val (kept, notKept) = if (from >= 20) ", heldKept" to ", 0" else "" to ""
         execSQL(
             "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt$kept) " +
-                "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000$notKept)"
+                "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000$notKept)",
         )
     }
 
@@ -503,7 +503,9 @@ class MigrationTest {
         val fromNfo = NfoStreamDetails.toMediaInfo(nfo, MediaInfo(container = "MKV", sizeBytes = 42, probedWith = 4))
         assertEquals("an MKV with a picture", "MKV" to "HEVC", fromNfo.container to fromNfo.video?.codec)
         val stored = listOf(
-            probed, fromNfo, MediaInfo(container = "MP4", sizeBytes = 42, probedWith = 4),
+            probed,
+            fromNfo,
+            MediaInfo(container = "MP4", sizeBytes = 42, probedWith = 4),
             // A read that failed midway: read again at the next scan.
             probed.copy(probedWith = 0),
         ).map(MediaProbe::encode)

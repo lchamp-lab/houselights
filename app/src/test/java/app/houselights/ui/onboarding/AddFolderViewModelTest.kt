@@ -22,12 +22,12 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
+import app.houselights.testing.folderNames
 import app.houselights.testing.secretsOf
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.util.UiError
-import app.houselights.testing.folderNames
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -99,9 +99,15 @@ class AddFolderViewModelTest {
 
     private suspend fun smbFolder(): Long = dao.insertSource(
         SourceEntity(
-            name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-            path = "films", username = "kodi", password = Secret("stored"),
-        )
+            name = "films",
+            kind = SourceKind.MOVIES,
+            protocol = Protocol.SMB,
+            host = "192.168.1.10",
+            share = "media",
+            path = "films",
+            username = "kodi",
+            password = Secret("stored"),
+        ),
     )
 
     /** Without a transaction, which would wait for a thread the test does not give it. */
@@ -131,7 +137,9 @@ class AddFolderViewModelTest {
         val factory = viewModelFactory {
             initializer {
                 AddFolderViewModel(
-                    library, folderId, app,
+                    library,
+                    folderId,
+                    app,
                     probe = probe,
                     saved = saved,
                 )
@@ -400,9 +408,15 @@ class AddFolderViewModelTest {
         network.complete(Unit)
         val id = dao.insertSource(
             SourceEntity(
-                name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "video",
-                path = "video/Films", username = "kodi", password = Secret("stored"),
-            )
+                name = "Films",
+                kind = SourceKind.MOVIES,
+                protocol = Protocol.SMB,
+                host = "192.168.1.10",
+                share = "video",
+                path = "video/Films",
+                username = "kodi",
+                password = Secret("stored"),
+            ),
         )
         val tested = mutableListOf<String>()
         val vm = form(id, probe = { folder -> FOUND.also { tested += "${folder.share} ${folder.path}" } })
@@ -500,16 +514,22 @@ class AddFolderViewModelTest {
     /** A folder of the library on a NAS no test types, NFS and complete, so a test changes only what it is about. */
     private suspend fun otherFolder(): Long = dao.insertSource(
         SourceEntity(
-            name = "archives", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.99", share = "volume1/archives",
-            path = "", username = "", password = Secret(""),
-        )
+            name = "archives",
+            kind = SourceKind.MOVIES,
+            protocol = Protocol.NFS,
+            host = "192.168.1.99",
+            share = "volume1/archives",
+            path = "",
+            username = "",
+            password = Secret(""),
+        ),
     )
 
     private suspend fun nfsFolder(uid: Int? = null, gid: Int? = null): Long = dao.insertSource(
         SourceEntity(
             name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/media",
             path = "films", username = "", password = Secret(""), uid = uid, gid = gid,
-        )
+        ),
     )
 
     /** The user and group typed are what the test presents to the NAS, and what the folder keeps. */
@@ -620,9 +640,15 @@ class AddFolderViewModelTest {
             // Without a password, nothing to seal: it is stored.
             val id = broken.dao().insertSource(
                 SourceEntity(
-                    name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-                    path = "films", username = "kodi", password = Secret(""),
-                )
+                    name = "films",
+                    kind = SourceKind.MOVIES,
+                    protocol = Protocol.SMB,
+                    host = "192.168.1.10",
+                    share = "media",
+                    path = "films",
+                    username = "kodi",
+                    password = Secret(""),
+                ),
             )
             val vm = form(id, library = sealing)
             advanceUntilIdle()

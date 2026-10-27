@@ -50,25 +50,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.focused
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -78,41 +80,39 @@ import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.Person
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.GroupFocus
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlColors
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlColors
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.groundPlate
-import app.houselights.ui.design.LocalGround
-import app.houselights.ui.design.Ground
-import app.houselights.ui.design.fadeOutsideSafeArea
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.LocalGroupFocus
 import app.houselights.ui.design.RowScroll
+import app.houselights.ui.design.Scrub
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.fadeOutsideSafeArea
+import app.houselights.ui.design.groundPlate
 import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.rememberGroupMember
 import app.houselights.ui.design.rememberedInGroup
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.util.toPx
-import app.houselights.ui.design.HlLayout
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
-import app.houselights.ui.design.Scrub
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.onLongClick
 
 /** True while a card of the enclosing row or grid has focus, so the others recede. */
 val LocalGroupFocused = compositionLocalOf { false }
@@ -276,8 +276,18 @@ private fun cardReading(
         Modifier.clearAndSetSemantics {
             contentDescription = readAs
             this.focused = focused
-            onClick?.let { act -> onClick { act(); true } }
-            onLongClick?.let { act -> onLongClick(label = longClickLabel) { act(); true } }
+            onClick?.let { act ->
+                onClick {
+                    act()
+                    true
+                }
+            }
+            onLongClick?.let { act ->
+                onLongClick(label = longClickLabel) {
+                    act()
+                    true
+                }
+            }
         }
     } else {
         Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
@@ -774,7 +784,6 @@ fun MediaItem.wearsNewDot(): Boolean = !held && (user.unplayedCount ?: 0) == 0 &
 /** A title new to the library: a solid ember dot ringed in black, so it stands off any picture; it recedes with it. */
 @Composable
 private fun NewDot(modifier: Modifier = Modifier) {
-
     val c = Hl.colors
     val ring = c.background.copy(alpha = HlAlpha.VEIL)
     val recede = LocalArtworkRecede.current

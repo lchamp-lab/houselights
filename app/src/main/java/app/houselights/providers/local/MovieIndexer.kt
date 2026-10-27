@@ -463,7 +463,10 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             val beside = folder?.takeIf { bare && !FilenameParser.bareYear(it) }?.let(FilenameParser::parseMovie)
                 ?.takeIf { it.year != null && it.year != parsed.year }
             return Wanted.of(
-                parsed.title, year, bareYear = bare && nfo?.year == null, original = nfo?.originalTitle,
+                parsed.title,
+                year,
+                bareYear = bare && nfo?.year == null,
+                original = nfo?.originalTitle,
                 folder = beside?.let { Reading(it.title, it.year) },
             )
         }

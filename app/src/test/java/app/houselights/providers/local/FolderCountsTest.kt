@@ -40,7 +40,7 @@ class FolderCountsTest {
         ItemEntity(
             kind = kind, sourceId = source, title = title, sortTitle = title, parentId = parentId, seriesId = parentId,
             filePath = "$title.mkv".takeIf { file }, badges = badges, addedAt = 0,
-        )
+        ),
     )
 
     @Test

@@ -29,7 +29,7 @@ class JellyfinRedirectTest {
         .dns(
             object : Dns {
                 override fun lookup(hostname: String): List<InetAddress> = listOf(InetAddress.getByName(server.hostName))
-            }
+            },
         )
         .build()
 

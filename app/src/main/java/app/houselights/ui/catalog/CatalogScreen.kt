@@ -1,7 +1,5 @@
 package app.houselights.ui.catalog
 
-import app.houselights.ui.design.PaneDefaults
-import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -36,18 +33,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ImageRef
-import app.houselights.ui.edit.EditMenu
 import app.houselights.core.MediaKind
 import app.houselights.journal.JournalAccess
 import app.houselights.providers.trakt.SkippedEntry
 import app.houselights.providers.trakt.SkippedKind
-import app.houselights.ui.settings.JournalSheet
-import app.houselights.ui.settings.SkippedSheet
-import kotlinx.coroutines.awaitCancellation
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
@@ -56,6 +50,8 @@ import app.houselights.ui.design.HlPalette
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.PaneDefaults
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Badge
@@ -76,8 +72,8 @@ import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.LocalBackdropRelay
-import app.houselights.ui.design.components.MeterInk
 import app.houselights.ui.design.components.MeterFact
+import app.houselights.ui.design.components.MeterInk
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.PosterCard
@@ -89,11 +85,15 @@ import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.emberLit
 import app.houselights.ui.design.plate
 import app.houselights.ui.design.tryRequestFocus
+import app.houselights.ui.edit.EditMenu
+import app.houselights.ui.settings.JournalSheet
+import app.houselights.ui.settings.SkippedSheet
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.roundToInt
-import kotlinx.coroutines.delay
 
 /** Every token and component in its states, for review on a real screen; debug builds only, untranslated. */
 @Composable
@@ -103,7 +103,6 @@ fun CatalogScreen(modifier: Modifier = Modifier) {
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.tryRequestFocus() }
     Box(modifier.fillMaxSize()) {
-
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.safeV),
@@ -284,13 +283,23 @@ fun CatalogScreen(modifier: Modifier = Modifier) {
                     // Raised on glass, as over the welcome wall.
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                         HlListItem(
-                            stringResource(R.string.source_local), "Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB).", {},
-                            Modifier.weight(1f), icon = HlIcons.Folder, badges = listOf("NFS", "SMB", "TMDB"), descriptionLines = 2,
+                            stringResource(R.string.source_local),
+                            "Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB).",
+                            {},
+                            Modifier.weight(1f),
+                            icon = HlIcons.Folder,
+                            badges = listOf("NFS", "SMB", "TMDB"),
+                            descriptionLines = 2,
                             level = PanelLevel.Raised,
                         )
                         HlListItem(
-                            stringResource(R.string.source_jellyfin), "Votre serveur Jellyfin.", {},
-                            Modifier.weight(1f), icon = HlIcons.Server, badges = listOf("HTTPS", "HTTP"), descriptionLines = 2,
+                            stringResource(R.string.source_jellyfin),
+                            "Votre serveur Jellyfin.",
+                            {},
+                            Modifier.weight(1f),
+                            icon = HlIcons.Server,
+                            badges = listOf("HTTPS", "HTTP"),
+                            descriptionLines = 2,
                             level = PanelLevel.Raised,
                         )
                     }
@@ -388,8 +397,11 @@ private fun Colours() {
         // Ember and what it lies on; the picture's own dark and its plate, on the room.
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             listOf(
-                "ember" to c.ember, "on ember" to c.onEmber, "ember on light" to c.emberOnLight,
-                "ambient deep" to c.ambientDeep, "plate" to c.plate().compositeOver(c.background),
+                "ember" to c.ember,
+                "on ember" to c.onEmber,
+                "ember on light" to c.emberOnLight,
+                "ambient deep" to c.ambientDeep,
+                "plate" to c.plate().compositeOver(c.background),
             ).forEach { (name, color) -> Swatch(name, color) }
             Swatch("ember light", c.emberLight())
         }
@@ -497,7 +509,9 @@ private fun SheetStatusField(onDismiss: () -> Unit) {
         status = { HlStatus(StatusState.On, stringResource(R.string.tmdb_key_builtin_state)) },
     ) {
         HlTextField(
-            personal, key, { typed ->
+            personal,
+            key,
+            { typed ->
                 key = typed
                 refused = false
             },
@@ -537,7 +551,6 @@ private val CATALOG_SKIPPED = listOf(
     SkippedEntry(SkippedKind.PAUSED, "The Matrix", 1999),
     SkippedEntry(SkippedKind.PAUSED),
 )
-
 
 @Composable
 private fun Swatch(name: String, color: Color) = Swatch(name, SolidColor(color))

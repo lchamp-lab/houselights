@@ -69,8 +69,13 @@ class SynopsisTest {
     @Test
     fun theSheetReadsAtASheetsWidth() {
         val film = MediaItem(
-            "f1", MediaKind.MOVIE, "Zéro de conduite", year = 1933, overview = story + " " + story,
-            tagline = "Une révolte au collège.", directors = listOf("Jean Vigo"),
+            "f1",
+            MediaKind.MOVIE,
+            "Zéro de conduite",
+            year = 1933,
+            overview = story + " " + story,
+            tagline = "Une révolte au collège.",
+            directors = listOf("Jean Vigo"),
         )
         compose.setTvContent { SynopsisSheet(film, onDismiss = {}) }
         compose.onNodeWithText("Jean Vigo").assertIsDisplayed()

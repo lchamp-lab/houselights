@@ -34,6 +34,7 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
+import app.houselights.testing.folderNames
 import app.houselights.testing.mountFailure
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.testing.TV
@@ -41,7 +42,6 @@ import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.wholePath
-import app.houselights.testing.folderNames
 import com.emc.ecs.nfsclient.mount.MountStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -104,7 +104,9 @@ class FolderFaultTest {
         val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
         val id = runBlocking { db.dao().insertSource(folder) }
         val vm = AddFolderViewModel(
-            library, id, scope,
+            library,
+            id,
+            scope,
             probe = { tried ->
                 tested += "${tried.share} ${tried.path}"
                 probe(tried)
@@ -118,13 +120,25 @@ class FolderFaultTest {
     }
 
     private val films = SourceEntity(
-        name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/video",
-        path = "Films", username = "", password = Secret(""),
+        name = "Films",
+        kind = SourceKind.MOVIES,
+        protocol = Protocol.NFS,
+        host = "192.168.1.20",
+        share = "volume1/video",
+        path = "Films",
+        username = "",
+        password = Secret(""),
     )
 
     private val series = SourceEntity(
-        name = "Séries", kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.20", share = "video",
-        path = "Séries", username = "houselights", password = Secret("stored"),
+        name = "Séries",
+        kind = SourceKind.SHOWS,
+        protocol = Protocol.SMB,
+        host = "192.168.1.20",
+        share = "video",
+        path = "Séries",
+        username = "houselights",
+        password = Secret("stored"),
     )
 
     private fun saysUnder(field: String, message: String) = compose.onNodeWithContentDescription(field)

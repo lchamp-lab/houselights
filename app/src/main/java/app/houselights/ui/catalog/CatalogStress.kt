@@ -1,6 +1,5 @@
 package app.houselights.ui.catalog
 
-import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,6 +14,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.Density
 import androidx.tv.material3.Text
 import app.houselights.core.MediaItem
@@ -25,6 +25,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.design.TEXT_SCALE_MIN
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.PosterCard
@@ -37,7 +38,6 @@ import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 import kotlin.math.roundToInt
-import androidx.compose.ui.platform.LocalResources
 
 /** The fullest content the screens can meet, unadjusted: what overflows here overflows on screen. */
 internal fun LazyListScope.catalogStress() {
@@ -215,7 +215,7 @@ private val STRESS_HERO = sample("La Petite Marchande d’allumettes et le grand
     communityRating = 8.2,
     genres = listOf("Comédie", "Drame", "Fantastique"),
     badges = listOf("4K", "Dolby Vision", "HDR10+", "TrueHD Atmos", "7.1"),
-    overview = "La veille de Noël, une petite marchande d’allumettes se glisse dans le plus grand magasin de la ville${NBSP}: " +
+    overview = "La veille de Noël, une petite marchande d’allumettes se glisse dans le plus grand magasin de la ville$NBSP: " +
         "chaque allumette qu’elle frotte allume un rayon, une vitrine, un souvenir, jusqu’à la fermeture des portes.",
 )
 
@@ -227,4 +227,3 @@ private val STRESS_FACTS = listOf(
     "Il reste 20${NBSP}min",
     "24,3${NBSP}Go",
 )
-

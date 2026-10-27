@@ -75,9 +75,9 @@ import app.houselights.ui.design.rememberCueStep
 import app.houselights.ui.util.screenSizePx
 import app.houselights.ui.util.screenWidthPx
 import coil.request.ImageRequest
-import kotlin.math.max
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.conflate
+import kotlin.math.max
 
 /** How a backdrop shows its picture: its veils (DESIGN.md, Veils) and what it draws them over. */
 enum class BackdropStyle(
@@ -91,14 +91,17 @@ enum class BackdropStyle(
 ) {
     /** « À regarder », a person's page with few titles: the picture fills the top of the screen; rows sit on black below. */
     Hero(Veils(1f, HlScrim.LEFT_HOME, HlScrim.TOP, HlScrim.BOTTOM_HOME), BackdropDefaults.homeFade),
+
     /** Detail: the picture fills the screen behind the text and fades to black under its rows. */
     Full(Veils(1f, HlScrim.LEFT_DETAIL, HlScrim.TOP, HlScrim.BOTTOM_DETAIL), BackdropDefaults.detailFade),
+
     /** A person's titles and the artwork editor: a dimmed picture down to the bottom; a smaller file suffices. */
     Quiet(
         Veils(HlScrim.QUIET_PICTURE, HlScrim.LEFT_QUIET, HlScrim.TOP_QUIET, HlScrim.BOTTOM_QUIET),
         BackdropDefaults.quietFade,
         maxWidthPx = 1280,
     ),
+
     /** A library wall: the picture's light as a diffuse field under black veils, no column to veil. */
     Diffuse(Veils(1f, emptyList(), HlScrim.DIFFUSE_TOP, HlScrim.DIFFUSE_BOTTOM, tinted = false), 0.dp, diffuse = true),
 }

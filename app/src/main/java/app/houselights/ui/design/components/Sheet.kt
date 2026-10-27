@@ -6,7 +6,9 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -24,11 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.CompositionLocalProvider
-import app.houselights.ui.design.SheetScroll
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,6 +56,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,6 +81,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.SheetScroll
 import app.houselights.ui.design.capitalsAtTop
 import app.houselights.ui.design.edge
 import app.houselights.ui.design.scrollEdges
@@ -138,7 +138,6 @@ internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
             currentOnDismiss()
             then()
         }
-
     }
     return remember { SheetMotion(shown, travel, opacity, sheet) }
 }
@@ -441,7 +440,6 @@ private fun ConfirmCard(
     val cancel = remember { FocusRequester() }
     LaunchedEffect(Unit) { cancel.tryRequestFocus() }
     Intertitle(question, modifier, message = consequence, attention = true) {
-
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))
             ButtonPlate(confirm, onClick = onConfirm, caution = true)

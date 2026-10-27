@@ -15,8 +15,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.AppContainer
 import app.houselights.HouselightsApp
@@ -26,7 +27,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.random.Random
-import androidx.compose.ui.platform.LocalResources
 
 @Composable
 fun appContainer(): AppContainer = (LocalContext.current.applicationContext as HouselightsApp).container

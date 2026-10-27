@@ -141,7 +141,6 @@ fun HlPanelButton(
         enabled = enabled,
     ) { focused ->
         CompositionLocalProvider(LocalGround provides if (raised) Ground.Glass else LocalGround.current) { content(focused) }
-
     }
 }
 
@@ -357,19 +356,21 @@ fun HlEmptyState(
         message = message,
         attention = attention,
         actions = when {
-            action != null -> ({
-                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    HlButton(
-                        action,
-                        onAction,
-                        Modifier.focusRequester(focus),
-                        icon = actionIcon,
-                        busy = busy != null,
-                        busyLabel = busy ?: action,
-                    )
-                    if (secondaryAction != null) HlButton(secondaryAction, onSecondaryAction)
+            action != null -> (
+                {
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                        HlButton(
+                            action,
+                            onAction,
+                            Modifier.focusRequester(focus),
+                            icon = actionIcon,
+                            busy = busy != null,
+                            busyLabel = busy ?: action,
+                        )
+                        if (secondaryAction != null) HlButton(secondaryAction, onSecondaryAction)
+                    }
                 }
-            })
+                )
             backHint -> ({ BackHint() })
             else -> null
         },
@@ -436,7 +437,7 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
                 StatusState.On, StatusState.Done -> dot.background(ink ?: c.content)
                 StatusState.Pending -> dot.background(ink ?: c.contentTertiary)
                 else -> dot.border(HlSize.dotRing, ink ?: c.contentSecondary, CircleShape)
-            }
+            },
         )
     }
 }

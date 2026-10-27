@@ -1,8 +1,8 @@
 package app.houselights.ui.settings
 
 import android.view.KeyEvent
-import androidx.activity.ComponentActivity
 import android.view.View
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.Modifier

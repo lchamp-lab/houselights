@@ -1,7 +1,6 @@
 package app.houselights.providers.trakt
 
 import app.houselights.core.TraktSession
-import app.houselights.testing.Answer
 import app.houselights.providers.local.TraktAction
 import app.houselights.providers.local.TraktPendingEntity
 import app.houselights.providers.local.TraktStateEntity
@@ -11,6 +10,7 @@ import app.houselights.providers.trakt.FakeTrakt.Companion.movie
 import app.houselights.providers.trakt.FakeTrakt.Companion.pausedEpisode
 import app.houselights.providers.trakt.FakeTrakt.Companion.pausedMovie
 import app.houselights.providers.trakt.FakeTrakt.Companion.show
+import app.houselights.testing.Answer
 import app.houselights.ui.testing.waitFor
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -417,7 +417,7 @@ class TraktSyncTest : TraktSyncFixture() {
             listOf(
                 TraktPendingEntity("movie:51", TraktAction.PROGRESS, hourAgo, progress = 90f),
                 TraktPendingEntity("movie:52", TraktAction.PROGRESS, hourAgo, progress = 90f),
-            )
+            ),
         )
 
         sync.scanned(changedLibrary = false)
@@ -438,7 +438,7 @@ class TraktSyncTest : TraktSyncFixture() {
             listOf(
                 TraktPendingEntity("movie:53", TraktAction.PROGRESS, earlier, progress = 30f),
                 TraktPendingEntity("movie:54", TraktAction.PROGRESS, earlier, progress = 30f),
-            )
+            ),
         )
 
         sync.scanned(changedLibrary = false)

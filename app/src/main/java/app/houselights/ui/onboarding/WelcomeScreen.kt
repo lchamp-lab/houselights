@@ -1,7 +1,7 @@
 package app.houselights.ui.onboarding
 
-import androidx.compose.foundation.background
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +26,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.settings.AppSettings
@@ -35,17 +37,15 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.tryRequestFocus
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlListItem
-import app.houselights.ui.design.components.PosterWall
-import app.houselights.ui.design.components.PosterWallScrim
 import app.houselights.ui.design.components.Lockup
 import app.houselights.ui.design.components.PanelLevel
-import app.houselights.ui.design.components.rememberDescriptionLines
+import app.houselights.ui.design.components.PosterWall
+import app.houselights.ui.design.components.PosterWallScrim
 import app.houselights.ui.design.components.TaskTitle
+import app.houselights.ui.design.components.rememberDescriptionLines
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
@@ -127,7 +127,9 @@ internal fun Welcome(
                     // Kept, but not opened for now: said so, with a way to read it again.
                     readAgain?.let {
                         PartFailed(
-                            UiError.SECRETS_UNREAD, reading, it,
+                            UiError.SECRETS_UNREAD,
+                            reading,
+                            it,
                             Modifier.widthIn(max = HlLayout.welcomeTagline),
                             actionModifier = Modifier.focusRequester(retry),
                         )

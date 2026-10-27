@@ -56,8 +56,13 @@ internal data class Candidate(
         /** A film a name's id found but did not trust ([NameIds.trusts]), offered first as TMDB's search did not give it. */
         fun of(movie: TmdbMovie) = of(
             TmdbSearchResult(
-                movie.id, title = movie.title, releaseDate = movie.releaseDate, posterPath = movie.posterPath,
-                originalTitle = movie.originalTitle, overview = movie.overview, voteCount = movie.voteCount ?: 0,
+                movie.id,
+                title = movie.title,
+                releaseDate = movie.releaseDate,
+                posterPath = movie.posterPath,
+                originalTitle = movie.originalTitle,
+                overview = movie.overview,
+                voteCount = movie.voteCount ?: 0,
             ),
             rank = 0,
         )
@@ -65,8 +70,13 @@ internal data class Candidate(
         /** A show a name's id found but did not trust, as [of] a film. */
         fun of(tv: TmdbTv) = of(
             TmdbSearchResult(
-                tv.id, name = tv.name, firstAirDate = tv.firstAirDate, posterPath = tv.posterPath, originalName = tv.originalName,
-                overview = tv.overview, voteCount = tv.voteCount ?: 0,
+                tv.id,
+                name = tv.name,
+                firstAirDate = tv.firstAirDate,
+                posterPath = tv.posterPath,
+                originalName = tv.originalName,
+                overview = tv.overview,
+                voteCount = tv.voteCount ?: 0,
             ),
             rank = 0,
         )
@@ -165,8 +175,10 @@ internal object MatchScore {
 
     /** A digit's ordinal, folded: "1st", "2nd", "1re", "1er", "2e", "2eme". */
     private val ORDINAL = Regex("""^(\d{1,2})(?:st|nd|rd|th|e|er|re|eme)$""")
-    private val ROMAN = listOf("i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv",
-        "xvi", "xvii", "xviii", "xix", "xx").withIndex().associate { (i, roman) -> roman to "${i + 1}" }
+    private val ROMAN = listOf(
+        "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv",
+        "xvi", "xvii", "xviii", "xix", "xx",
+    ).withIndex().associate { (i, roman) -> roman to "${i + 1}" }
 
     /** Number words up to twenty, English and French ("un" and "une" being articles), and ordinals in words. */
     private val NUMBER_WORDS = listOf(

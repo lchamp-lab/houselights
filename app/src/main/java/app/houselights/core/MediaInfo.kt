@@ -142,8 +142,11 @@ object Formats {
     /** Snaps a frame rate to a film or broadcast standard within 0.1 % (23.976023976 → 23.976), else to 0.001. */
     fun frameRate(fps: Float): Double {
         val standard = FRAME_RATES.minBy { kotlin.math.abs(it - fps) }
-        return if (kotlin.math.abs(standard - fps) / standard < FRAME_RATE_TOLERANCE) standard
-        else kotlin.math.round(fps * THOUSANDTHS) / THOUSANDTHS
+        return if (kotlin.math.abs(standard - fps) / standard < FRAME_RATE_TOLERANCE) {
+            standard
+        } else {
+            kotlin.math.round(fps * THOUSANDTHS) / THOUSANDTHS
+        }
     }
 
     private const val DOLBY_ATMOS = "Dolby Atmos"

@@ -39,9 +39,11 @@ import java.util.Locale
 
 /** Each ink on what it sits on, composed as the screens compose it, with its ratio (DESIGN.md, Contrast). */
 internal fun LazyListScope.catalogContrast() {
-    item { Group("Contrast: each ink on what it sits on, over the lightest picture; 4.5:1 for words, 3:1 for marks", still = true) {
-        ContrastBoard()
-    } }
+    item {
+        Group("Contrast: each ink on what it sits on, over the lightest picture; 4.5:1 for words, 3:1 for marks", still = true) {
+            ContrastBoard()
+        }
+    }
 }
 
 /** An ink of the system, as words or as a mark (a glyph, a dot, a line). */

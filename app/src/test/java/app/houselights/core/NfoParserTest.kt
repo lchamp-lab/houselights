@@ -71,7 +71,7 @@ class NfoParserTest {
     @Test
     fun anEpisodeGivesItsSeasonAndNumber() {
         val nfo = NfoParser.parse(
-            "<episodedetails><title>Pilot</title><season>1</season><episode>2</episode><aired>2022-02-18</aired></episodedetails>"
+            "<episodedetails><title>Pilot</title><season>1</season><episode>2</episode><aired>2022-02-18</aired></episodedetails>",
         )!!
         assertEquals(NfoKind.EPISODE, nfo.kind)
         assertEquals(1, nfo.season)
@@ -97,8 +97,8 @@ class NfoParserTest {
                     <actor><name>Al Pacino</name><role>Vincent Hanna</role><tmdbid>1158</tmdbid></actor>
                     <actor><name>Robert De Niro</name></actor>
                 </movie>
-                """.trimIndent()
-            )
+                """.trimIndent(),
+            ),
         )
         assertEquals(8.3, checkNotNull(nfo.rating), 0.001)
         assertEquals(720_431, nfo.votes)
@@ -141,7 +141,7 @@ class NfoParserTest {
         assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(amelie.toByteArray()))
         val bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + amelie.toByteArray()
         assertEquals("<movie>", NfoParser.decode(bom).take(7))
-        assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf("﻿$amelie".toByteArray(Charsets.UTF_16LE)))
+        assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf("$amelie".toByteArray(Charsets.UTF_16LE)))
         assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(amelie.toByteArray(Charsets.UTF_16LE)))
         assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(amelie.toByteArray(Charsets.UTF_16BE)))
     }

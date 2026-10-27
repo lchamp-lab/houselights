@@ -89,8 +89,14 @@ class DiskFolderEditTest : FlowHarness() {
         val alien = runBlocking {
             db.dao().insert(
                 ItemEntity(
-                    kind = ItemKind.MOVIE, sourceId = EDITED, title = "Alien", sortTitle = "alien", filePath = "Alien (1979)/Alien.mkv",
-                    addedAt = 0, positionMs = 1_800_000, favorite = true,
+                    kind = ItemKind.MOVIE,
+                    sourceId = EDITED,
+                    title = "Alien",
+                    sortTitle = "alien",
+                    filePath = "Alien (1979)/Alien.mkv",
+                    addedAt = 0,
+                    positionMs = 1_800_000,
+                    favorite = true,
                 ),
             )
         }

@@ -94,7 +94,12 @@ fun VersionRow(name: String, version: Version, onChoose: (() -> Unit)?, modifier
         modifier = modifier.fillMaxWidth().clearAndSetSemantics {
             contentDescription = readAs
             this.focused = focused
-            if (onChoose != null) onClick { onChoose(); true }
+            if (onChoose != null) {
+                onClick {
+                    onChoose()
+                    true
+                }
+            }
         },
         interactionSource = interaction,
     ) { _ ->

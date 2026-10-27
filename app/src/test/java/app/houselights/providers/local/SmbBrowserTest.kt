@@ -56,8 +56,14 @@ class SmbBrowserTest {
     )
 
     private fun folder(share: String = "films", user: String = "kodi") = SourceEntity(
-        name = share, kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = share, path = "",
-        username = user, password = Secret(PASSWORD),
+        name = share,
+        kind = SourceKind.MOVIES,
+        protocol = Protocol.SMB,
+        host = "192.168.1.10",
+        share = share,
+        path = "",
+        username = user,
+        password = Secret(PASSWORD),
     )
 
     @Test

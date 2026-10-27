@@ -72,4 +72,3 @@ fun DrawScope.drawGradation(bars: List<Rect>, lights: List<Brush>, level: (Int) 
         if (alpha > 0f) drawRect(lights[i], bar.topLeft, bar.size, alpha)
     }
 }
-

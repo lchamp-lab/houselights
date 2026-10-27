@@ -50,10 +50,6 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.design.RestoreFocus
-import app.houselights.ui.design.drawnWhole
-import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.houseLit
-import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.DoorCell
 import app.houselights.ui.design.components.DoorFacts
@@ -65,15 +61,15 @@ import app.houselights.ui.design.components.DoorProgress
 import app.houselights.ui.design.components.DoorSagas
 import app.houselights.ui.design.components.DoorStill
 import app.houselights.ui.design.components.DoorWall
+import app.houselights.ui.design.components.HeadNote
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
+import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
-import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlSideSheet
-import app.houselights.ui.design.components.HeadNote
+import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HomeDoor
 import app.houselights.ui.design.components.HomeHead
 import app.houselights.ui.design.components.ResumeCase
@@ -83,10 +79,14 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.gridHeights
 import app.houselights.ui.design.components.rememberCutPosters
 import app.houselights.ui.design.components.rememberFigureSize
-import app.houselights.ui.settings.UpdateOnHome
-import app.houselights.ui.settings.UpdateUi
+import app.houselights.ui.design.drawnWhole
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.houseLit
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.settings.HeldSheet
 import app.houselights.ui.settings.HeldTitles
+import app.houselights.ui.settings.UpdateOnHome
+import app.houselights.ui.settings.UpdateUi
 import app.houselights.ui.settings.relativeTime
 import app.houselights.ui.settings.updateSaid
 import app.houselights.ui.util.ErrorAction
@@ -192,7 +192,14 @@ internal fun HomeGrid(
         HomeHead(status, statusState = light, end = end)
         when {
             plan != null -> Grid(
-                plan, state, scan, actions, memory, playProblem, onList = { listing.value = true }, onOptions = { options.value = true },
+                plan,
+                state,
+                scan,
+                actions,
+                memory,
+                playProblem,
+                onList = { listing.value = true },
+                onOptions = { options.value = true },
             )
             content is HomeContent.Message -> NoRows(content, scan, actions, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
             else -> Unit
@@ -389,7 +396,9 @@ private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit
         onLongClick = onOptions,
         onLongClickLabel = stringResource(R.string.more_options),
         says = failed?.let {
-            { CaseSays(it, case.item) }
+            {
+                CaseSays(it, case.item)
+            }
         },
     )
 }

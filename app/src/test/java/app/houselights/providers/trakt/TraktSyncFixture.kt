@@ -79,19 +79,25 @@ open class TraktSyncFixture {
             kind = ItemKind.MOVIE, sourceId = films, title = "F$tmdb", sortTitle = "f$tmdb", tmdbId = tmdb, runtimeMin = runtimeMin,
             filePath = if (versionOf == null) "F$tmdb.mkv" else "F$tmdb 4K.mkv", addedAt = 0, played = played,
             positionMs = positionMs, lastPlayedAt = lastPlayedAt, versionOf = versionOf,
-        )
+        ),
     )
 
     /** A show and its first season, as (show, season) rows. */
     protected suspend fun series(tmdb: Int?): Pair<Long, Long> {
         val show = dao.insert(
-            ItemEntity(kind = ItemKind.SERIES, sourceId = shows, title = "S$tmdb", sortTitle = "s$tmdb", tmdbId = tmdb, addedAt = 0)
+            ItemEntity(kind = ItemKind.SERIES, sourceId = shows, title = "S$tmdb", sortTitle = "s$tmdb", tmdbId = tmdb, addedAt = 0),
         )
         val season = dao.insert(
             ItemEntity(
-                kind = ItemKind.SEASON, sourceId = shows, parentId = show, seriesId = show, title = "Saison 1", sortTitle = "1",
-                seasonNumber = 1, addedAt = 0,
-            )
+                kind = ItemKind.SEASON,
+                sourceId = shows,
+                parentId = show,
+                seriesId = show,
+                title = "Saison 1",
+                sortTitle = "1",
+                seasonNumber = 1,
+                addedAt = 0,
+            ),
         )
         return show to season
     }
@@ -108,7 +114,7 @@ open class TraktSyncFixture {
             kind = ItemKind.EPISODE, sourceId = shows, parentId = show.second, seriesId = show.first, title = "E$number",
             sortTitle = "e$number", seasonNumber = 1, episodeNumber = number, lastEpisodeNumber = last, filePath = "S01E$number.mkv",
             runtimeMin = 40, addedAt = 0, played = played, positionMs = positionMs, lastPlayedAt = lastPlayedAt,
-        )
+        ),
     )
 
     protected suspend fun LocalProvider.mark(id: Long, played: Boolean) = setPlayed(item(id.toString()), played)

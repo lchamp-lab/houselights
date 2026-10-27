@@ -4,8 +4,8 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,25 +16,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.scale
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HomeGridDefaults
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
-import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.isActive
-import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.max
 import kotlin.math.roundToInt
-import androidx.core.graphics.scale
 
 // The posters a library door's count is cut in, loaded off the main thread and kept for the app, and their tint.
 

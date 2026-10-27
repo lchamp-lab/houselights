@@ -135,7 +135,6 @@ private fun FieldBox(
     onImeAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-
     var editing by remember { mutableStateOf(false) }
     var boxFocused by remember { mutableStateOf(false) }
     var fieldFocused by remember { mutableStateOf(false) }
@@ -153,6 +152,7 @@ private fun FieldBox(
     var typed by remember { mutableStateOf(atEnd(value)) }
     // The last text told to the owner: the keyboard may send several edits between two compositions.
     var told by remember(value) { mutableStateOf(value) }
+
     // While typing, [text] with the cursor the keyboard or the arrows left, or after it when it came from elsewhere.
     fun typing(text: String) = if (typed.text == text) typed else atEnd(text)
     val shown = if (editing) typing(value) else TextFieldValue(value)

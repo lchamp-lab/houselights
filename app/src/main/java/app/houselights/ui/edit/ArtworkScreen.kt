@@ -31,12 +31,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.withResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.withResumed
 import androidx.tv.material3.Text
-import app.houselights.ui.design.components.HlEmptyState
-import app.houselights.ui.design.components.FactRow
-import app.houselights.ui.design.HlLayout
 import app.houselights.R
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
@@ -44,22 +41,25 @@ import app.houselights.core.ArtworkOption
 import app.houselights.core.ArtworkOrigin
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.BackdropStyle
-import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.FactRow
+import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.TaskTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.tryRequestFocus
-import app.houselights.ui.design.components.HlErrorState
-import app.houselights.ui.design.HlSize
+import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
-import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.languageName
 import app.houselights.ui.util.rememberSettled
@@ -248,4 +248,3 @@ private val ArtworkKind.cardWidth: Dp
 
 private val ArtworkKind.aspectRatio: Float
     get() = if (this == ArtworkKind.POSTER) HlSize.POSTER_RATIO else 16f / 9f
-

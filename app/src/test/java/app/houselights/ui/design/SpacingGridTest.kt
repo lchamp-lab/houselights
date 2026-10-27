@@ -10,7 +10,10 @@ class SpacingGridTest {
     private fun measures(owner: Any): Map<String, Float> =
         owner.javaClass.declaredFields
             .filter { it.type == Float::class.javaPrimitiveType }
-            .associate { field -> field.isAccessible = true; field.name to field.getFloat(owner) }
+            .associate { field ->
+                field.isAccessible = true
+                field.name to field.getFloat(owner)
+            }
 
     @Test
     fun spaceAndInsetsAreOnTheGrid() {

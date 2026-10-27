@@ -27,16 +27,16 @@ import app.houselights.ui.design.components.DoorSagas
 import app.houselights.ui.design.components.DoorStill
 import app.houselights.ui.design.components.DoorWall
 import app.houselights.ui.design.components.HeadNote
+import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HomeDoor
 import app.houselights.ui.design.components.HomeHead
 import app.houselights.ui.design.components.ResumeCase
 import app.houselights.ui.design.components.StateFact
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.caseHeight
 import app.houselights.ui.design.components.doorWidth
 import app.houselights.ui.design.components.rememberCutPosters
 import app.houselights.ui.design.components.rememberFigureSize
-import app.houselights.ui.design.components.HlStatus
-import app.houselights.ui.design.components.StatusState
 
 /** Home's grid, part by part: its head, its case, and each door at its size, every picture from the app's resources. */
 internal fun LazyListScope.catalogDoors() {

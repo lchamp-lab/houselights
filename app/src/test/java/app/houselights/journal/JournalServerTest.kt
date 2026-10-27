@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong
 class JournalServerTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val now = AtomicLong(1_000_000)
+
     /** Lines as logcat writes them, secrets included: the page masks them, whatever gave them. */
     private val lines = listOf(
         "10-23 10:40:02.100  4321  4350 I Playback: Launch smb://zidoo:p4ss@nas/series/MobLand/S01E02.mkv",

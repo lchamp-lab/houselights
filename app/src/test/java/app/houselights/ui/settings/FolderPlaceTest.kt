@@ -10,7 +10,13 @@ import org.junit.Test
 /** A folder's sheet says where it is: its NAS's address, then its path, apart by the app's space, never a dot. */
 class FolderPlaceTest {
     private fun folder(protocol: Protocol, address: String) = Folder(
-        id = 1, name = "Films", kind = SourceKind.MOVIES, protocol = protocol, host = "192.168.1.20", address = address, lastScanAt = 0,
+        id = 1,
+        name = "Films",
+        kind = SourceKind.MOVIES,
+        protocol = protocol,
+        host = "192.168.1.20",
+        address = address,
+        lastScanAt = 0,
     )
 
     @Test
@@ -24,7 +30,12 @@ class FolderPlaceTest {
     @Test
     fun theDiskThenThePath() {
         val films = Folder(
-            id = 2, name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.LOCAL, host = "1234-ABCD", address = "1234-ABCD/Films",
+            id = 2,
+            name = "Films",
+            kind = SourceKind.MOVIES,
+            protocol = Protocol.LOCAL,
+            host = "1234-ABCD",
+            address = "1234-ABCD/Films",
             lastScanAt = 0,
         )
         assertEquals("Samsung T7$FACT_GAP/Films", placeOf(films, disk = "Samsung T7"))

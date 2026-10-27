@@ -32,14 +32,14 @@ import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HouselightsColors
 import app.houselights.ui.design.LocalAmbient
-import kotlin.math.max
-import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.withContext
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 /** Posters a [PosterField] is drawn from, side by side. */
 const val FIELD_POSTERS = 6

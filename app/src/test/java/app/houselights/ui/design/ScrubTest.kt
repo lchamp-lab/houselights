@@ -20,7 +20,10 @@ class ScrubTest {
     private fun release(key: Int = KeyEvent.KEYCODE_DPAD_RIGHT) = scrub.onKey(KeyEvent.ACTION_UP, key, 0)
     private fun advance(ms: Long) {
         clock += ms
-        pending.filter { it.first <= clock }.forEach { pending -= it; it.second() }
+        pending.filter { it.first <= clock }.forEach {
+            pending -= it
+            it.second()
+        }
     }
 
     @Test
@@ -47,13 +50,17 @@ class ScrubTest {
     /** An infrared remote repeats by pressing again: quick presses run too, and no card lights up between them. */
     @Test
     fun quickPressesRunAsAHeldArrow() {
-        press(); release(); advance(80)
+        press()
+        release()
+        advance(80)
         press()
         assertTrue(scrub.active)
-        release(); advance(80)
+        release()
+        advance(80)
         press()
         assertTrue("Still running between two presses", scrub.active)
-        release(); advance(ScrubTracker.SETTLE_MS)
+        release()
+        advance(ScrubTracker.SETTLE_MS)
         assertFalse(scrub.active)
     }
 

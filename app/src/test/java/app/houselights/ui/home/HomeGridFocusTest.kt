@@ -1,5 +1,9 @@
 package app.houselights.ui.home
 
+import android.view.KeyEvent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasContentDescription
@@ -7,6 +11,8 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
@@ -17,12 +23,6 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.holdOk
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
-import android.view.KeyEvent
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.NBSP
 import org.junit.Assert.assertEquals
@@ -190,6 +190,7 @@ class HomeGridFocusTest {
         compose.press(Key.DirectionRight, times = 3)
         focusIsOn("Libraries")
     }
+
     /** Menu, or OK held, on the case opens its options: its page first, then from its start once started. */
     @Test
     fun theCasesOptionsOpenItsPage() {
@@ -202,6 +203,7 @@ class HomeGridFocusTest {
         compose.waitForIdle()
         assertEquals(listOf("heat"), opened)
     }
+
     /** The case stays one element as what it shows changes: a film proposed, played, then resumed. */
     @Test
     fun focusStaysOnTheCaseAsItChangesKind() {

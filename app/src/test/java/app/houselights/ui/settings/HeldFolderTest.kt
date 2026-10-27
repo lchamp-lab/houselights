@@ -144,9 +144,15 @@ class HeldFolderTest {
             (1..13).forEach { n ->
                 db.dao().insert(
                     ItemEntity(
-                        kind = ItemKind.MOVIE, sourceId = films, title = "Film $n", sortTitle = "film %02d".format(n), year = 2000 + n,
-                        filePath = "Film $n.mkv", addedAt = 0, missingSince = 1L.takeIf { n <= 12 },
-                    )
+                        kind = ItemKind.MOVIE,
+                        sourceId = films,
+                        title = "Film $n",
+                        sortTitle = "film %02d".format(n),
+                        year = 2000 + n,
+                        filePath = "Film $n.mkv",
+                        addedAt = 0,
+                        missingSince = 1L.takeIf { n <= 12 },
+                    ),
                 )
             }
             store.setSource(SourceConfig.Local, null)

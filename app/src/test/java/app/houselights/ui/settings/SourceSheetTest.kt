@@ -54,8 +54,12 @@ class SourceSheetTest {
     fun onTheFoldersTheKeptServerResumesInOneOk() {
         show(SourceConfig.Local, kept = salon)
         shows(
-            "Vos dossiers sont conservés", "2 dossiers sur votre NAS", "Jellyfin · léa · sans vous reconnecter",
-            "Un autre serveur Jellyfin", "Une autre adresse ou un autre compte", "Houselights s’en déconnecte ici",
+            "Vos dossiers sont conservés",
+            "2 dossiers sur votre NAS",
+            "Jellyfin · léa · sans vous reconnecter",
+            "Un autre serveur Jellyfin",
+            "Une autre adresse ou un autre compte",
+            "Houselights s’en déconnecte ici",
         )
         row("NAS du salon").assertIsFocused()
         ok("NAS du salon")
@@ -67,7 +71,7 @@ class SourceSheetTest {
         show(SourceConfig.Local, kept = salon)
         ok("Oublier «${NB}NAS du salon$NB»")
         shows(
-            "Oublier «${NB}NAS du salon$NB»${NB}?",
+            "Oublier «${NB}NAS du salon$NB»$NB?",
             "Houselights se déconnectera de ce serveur sur cet appareil. Pour le retrouver, il faudra vous reconnecter.",
         )
         assertEquals(emptyList<SourceChoice>(), chosen)
@@ -117,8 +121,8 @@ class SourceSheetTest {
         compose.onNodeWithText("2 dossiers sur votre NAS").assertExists()
         ok("Se déconnecter de «${NB}NAS du salon$NB»")
         shows(
-            "Se déconnecter de «${NB}NAS du salon$NB»${NB}?",
-            "Houselights oubliera ce serveur sur cet appareil${NB}; vos dossiers prendront sa place. " +
+            "Se déconnecter de «${NB}NAS du salon$NB»$NB?",
+            "Houselights oubliera ce serveur sur cet appareil$NB; vos dossiers prendront sa place. " +
                 "Pour le retrouver, il faudra vous reconnecter.",
         )
         ok("Se déconnecter")
@@ -131,7 +135,7 @@ class SourceSheetTest {
         show(salon, folders = 0)
         ok("Se déconnecter de «${NB}NAS du salon$NB»")
         shows(
-            "Houselights oubliera ce serveur sur cet appareil${NB}; vous choisirez de nouveau votre bibliothèque. " +
+            "Houselights oubliera ce serveur sur cet appareil$NB; vous choisirez de nouveau votre bibliothèque. " +
                 "Pour le retrouver, il faudra vous reconnecter.",
         )
         ok("Se déconnecter")
