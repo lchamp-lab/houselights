@@ -19,11 +19,13 @@ import app.houselights.providers.local.TypedPaths
 import app.houselights.providers.local.UsedNas
 import app.houselights.providers.local.Volume
 import app.houselights.ui.onboarding.FlowKeys.CHOOSE
+import app.houselights.ui.onboarding.FlowKeys.DISK
 import app.houselights.ui.onboarding.FlowKeys.FIELD_HOST
 import app.houselights.ui.onboarding.FlowKeys.FIELD_PASSWORD
 import app.houselights.ui.onboarding.FlowKeys.FIELD_PATH
 import app.houselights.ui.onboarding.FlowKeys.FIELD_UID
 import app.houselights.ui.onboarding.FlowKeys.FIELD_USER
+import app.houselights.ui.onboarding.FlowKeys.FOLDER
 import app.houselights.ui.onboarding.FlowKeys.GUEST
 import app.houselights.ui.onboarding.FlowKeys.NET_FIRST
 import app.houselights.ui.onboarding.FlowKeys.TYPE_PATH
@@ -322,6 +324,66 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
         guest -> GUEST
         user.isBlank() -> FIELD_USER
         else -> FIELD_PASSWORD
+    }
+
+    // Failures ----------------------------------------------------------------------------------------------------------
+
+    /**
+     * Says [failure] of [key]: on its row in two words and in the panel, or under its field in a typing step; a disk of
+     * this player's what Android must allow, in its [settings] once only they grant it.
+     */
+    protected fun refused(key: String, failure: FlowFailure, settings: () -> Boolean) {
+        val at = host.orEmpty()
+        if (failure == FlowFailure.SILENT) {
+            silent = true
+            if (used.any { it.host == at }) answers[at] = NasAnswer.Silent
+        }
+        when (step) {
+            FlowStep.ADDRESS -> addressRefused(failure)
+            FlowStep.ACCOUNT -> accountRefused(key, failure)
+            FlowStep.TYPE_PATH -> pathRefused(failure)
+            FlowStep.SHARES -> trying?.let { row(key, failure, FlowShare(it).name, it) } ?: row(key, failure, "", "")
+            FlowStep.BROWSE -> folderRefused(key, failure)
+            else -> if (key.startsWith(DISK)) diskRefused(key, failure, settings()) else row(key, failure, "", "")
+        }
+    }
+
+    /** A disk of this player that did not open: its row in two words; the panel says what to allow, or that it failed. */
+    private fun diskRefused(key: String, failure: FlowFailure, settings: Boolean) {
+        rowFailures[key] = failure.words()
+        val refused = failure == FlowFailure.READ_REFUSED || failure == FlowFailure.MOUNT_REFUSED
+        panel(key, if (refused) FlowMessage.DiskRefused(settings) else FlowMessage.Other)
+    }
+
+    /** An address typed that did not answer, said under it. */
+    private fun addressRefused(failure: FlowFailure) =
+        said(FieldError(FIELD_HOST, if (failure == FlowFailure.SILENT) FlowMessage.Silent(host.orEmpty()) else FlowMessage.Other))
+
+    /** The account step's failure: the account under its field, else in the panel. */
+    private fun accountRefused(key: String, failure: FlowFailure) = when (failure) {
+        FlowFailure.LOGIN_REFUSED -> said(FieldError(if (guest) FIELD_USER else FIELD_PASSWORD, refusal()))
+        FlowFailure.SILENT -> panel(key, FlowMessage.Silent(host.orEmpty()))
+        else -> panel(key, FlowMessage.Other)
+    }
+
+    /** A subfolder that did not open: its row, the sentence naming it from the NAS's root ([joined]). */
+    private fun folderRefused(key: String, failure: FlowFailure) {
+        val name = key.removePrefix(FOLDER)
+        row(key, failure, name, joined(TypedPaths.names(share?.path.orEmpty(), protocol) + path + name))
+    }
+
+    /** What refused a path typed, said under its field: the shared folder tried, else the path as typed. */
+    private fun pathRefused(failure: FlowFailure) {
+        val typed = typedPath.trim()
+        val names = TypedPaths.names(typed, protocol)
+        val opened = trying ?: joined(names)
+        val where = when (failure) {
+            FlowFailure.MISSING -> typed
+            FlowFailure.READ_REFUSED -> joined(names)
+            else -> opened
+        }
+        val name = if (failure == FlowFailure.MISSING) names.firstOrNull().orEmpty() else FlowShare(opened).name
+        said(FieldError(FIELD_PATH, asking().refusal(failure, name, where)))
     }
 }
 
