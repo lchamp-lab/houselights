@@ -129,8 +129,8 @@ internal fun relativeTime(context: Context, at: Long, now: Long, alone: Boolean 
                 elapsed < DateUtils.DAY_IN_MILLIS -> elapsed / DateUtils.HOUR_IN_MILLIS to RelativeUnit.HOURS
                 elapsed < DateUtils.WEEK_IN_MILLIS -> elapsed / DateUtils.DAY_IN_MILLIS to RelativeUnit.DAYS
                 elapsed < MONTH_IN_MILLIS -> elapsed / DateUtils.WEEK_IN_MILLIS to RelativeUnit.WEEKS
-                elapsed < DateUtils.YEAR_IN_MILLIS -> elapsed / MONTH_IN_MILLIS to RelativeUnit.MONTHS
-                else -> elapsed / DateUtils.YEAR_IN_MILLIS to RelativeUnit.YEARS
+                elapsed < YEAR_IN_MILLIS -> elapsed / MONTH_IN_MILLIS to RelativeUnit.MONTHS
+                else -> elapsed / YEAR_IN_MILLIS to RelativeUnit.YEARS
             }
             if (count == 1L && unit == RelativeUnit.DAYS) {
                 words.format(Direction.LAST, AbsoluteUnit.DAY)
@@ -143,3 +143,6 @@ internal fun relativeTime(context: Context, at: Long, now: Long, alone: Boolean 
 }
 
 private const val MONTH_IN_MILLIS = 30 * DateUtils.DAY_IN_MILLIS
+
+/** A year of 365 days: DateUtils.YEAR_IN_MILLIS, deprecated, counts 52 weeks (364 days). */
+private const val YEAR_IN_MILLIS = 365 * DateUtils.DAY_IN_MILLIS

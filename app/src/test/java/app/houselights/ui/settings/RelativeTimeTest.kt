@@ -15,6 +15,7 @@ class RelativeTimeTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val now = 1_800_000_000_000L
     private val minute = 60_000L
+    private val day = 24 * 60 * minute
 
     @Test
     fun aSentenceGoesOnInLowerCase() {
@@ -42,6 +43,13 @@ class RelativeTimeTest {
     @Config(qualifiers = "en")
     fun shortInEnglish() {
         assertEquals("2 hr. ago", relativeTime(context, now - 2 * 60 * minute, now, alone = true, short = true).normal())
+    }
+
+    /** A year counts 365 days, not DateUtils's 52 weeks: the 364th day is still months ago. */
+    @Test
+    fun aYearIsThreeHundredAndSixtyFiveDays() {
+        assertEquals("Il y a 12 mois", relativeTime(context, now - 364 * day, now, alone = true).normal())
+        assertEquals("Il y a 1 an", relativeTime(context, now - 365 * day, now, alone = true).normal())
     }
 
     @Test
