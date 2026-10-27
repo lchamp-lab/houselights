@@ -3,7 +3,6 @@ package app.houselights
 import android.app.Application
 import android.content.res.Configuration
 import android.content.res.Resources
-import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
@@ -99,6 +98,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import app.houselights.ui.home.LibraryRows
 import app.houselights.ui.home.UnseenPick
+import androidx.core.net.toUri
 
 class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -154,7 +154,7 @@ internal class ImageFailureLog(private val clock: () -> Long = SystemClock::elap
         // A request without data is not a failure.
         if (result.throwable is NullRequestDataException) return
         val address = request.data.toString()
-        val uri = Uri.parse(address)
+        val uri = address.toUri()
         val now = clock()
         var tell = false
         toldAt.compute("${uri.scheme}://${uri.authority.orEmpty()}") { _, last ->

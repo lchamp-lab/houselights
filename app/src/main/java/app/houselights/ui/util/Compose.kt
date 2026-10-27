@@ -13,7 +13,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
@@ -27,6 +26,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.random.Random
+import androidx.compose.ui.platform.LocalResources
 
 @Composable
 fun appContainer(): AppContainer = (LocalContext.current.applicationContext as HouselightsApp).container
@@ -134,9 +134,8 @@ fun Dp.toPx(): Int = with(LocalDensity.current) { this@toPx.roundToPx() }
 /** The screen in physical pixels, whatever density the device declares. */
 @Composable
 fun screenSizePx(): IntSize {
-    // Read so a configuration change recomposes the callers.
-    LocalConfiguration.current
-    val metrics = LocalContext.current.resources.displayMetrics
+    // LocalResources recomposes the callers on a configuration change.
+    val metrics = LocalResources.current.displayMetrics
     return IntSize(metrics.widthPixels, metrics.heightPixels)
 }
 

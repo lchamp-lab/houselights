@@ -137,6 +137,8 @@ class DetailViewModel(
     private val provider: () -> MediaProvider,
     private val events: LibraryEvents,
     private val work: CoroutineScope,
+    // An empty handle for a test that gives none: the factory hands the real one.
+    //noinspection VisibleForTests
     private val saved: SavedStateHandle = SavedStateHandle(),
     private val now: () -> Long = SystemClock::elapsedRealtime,
     /** The tracks of what Lire plays for an item ([AppContainer.tracksOf]). */

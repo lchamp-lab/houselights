@@ -78,6 +78,8 @@ class FolderFlow(
     private val background: CoroutineScope,
     /** Makes the folders the source; true when it changed (it was a server, or nothing yet). */
     private val useFolders: suspend () -> Boolean,
+    // An empty handle for a test that gives none: the factory hands the real one.
+    //noinspection VisibleForTests
     saved: SavedStateHandle = SavedStateHandle(),
     editing: Long? = null,
 ) : FlowState(saved, editing) {

@@ -2,7 +2,6 @@ package app.houselights.ui.catalog
 
 import android.content.Context
 import android.graphics.drawable.AdaptiveIconDrawable
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Canvas
@@ -35,6 +34,9 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Lockup
 import kotlin.math.roundToInt
+import androidx.core.graphics.drawable.toDrawable
+import androidx.compose.ui.platform.LocalResources
+import androidx.core.content.res.ResourcesCompat
 
 /** Gradation as Android draws it before the app runs (icon, banner, splash), then on screen: the lockup. */
 internal fun LazyListScope.catalogBrand() {
@@ -68,7 +70,7 @@ internal fun LazyListScope.catalogBrand() {
 /** The launcher icon as a launcher draws it: an adaptive icon, cut by this device's mask. */
 private fun launcherIcon(context: Context, @DrawableRes icon: Int, foreground: Boolean): Drawable? {
     val drawable = context.getDrawable(icon) ?: return null
-    return if (foreground) AdaptiveIconDrawable(ColorDrawable(context.getColor(R.color.room)), drawable) else drawable
+    return if (foreground) AdaptiveIconDrawable(context.getColor(R.color.room).toDrawable(), drawable) else drawable
 }
 
 /** How much closer the second view of each drawable is. */
@@ -85,12 +87,13 @@ private const val LAUNCH_ICON = 288f
 @Composable
 private fun BrandSample(says: String, @DrawableRes icon: Int, @DrawableRes banner: Int, foreground: Boolean = false) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val density = LocalDensity.current
     val iconDrawable = remember(icon) { launcherIcon(context, icon, foreground) } ?: return
-    val bannerDrawable = remember(banner) { context.getDrawable(banner) } ?: return
+    val bannerDrawable = remember(banner) { ResourcesCompat.getDrawable(resources, banner, context.theme) } ?: return
     // Sizes in this device's pixels, as the launcher draws them; the catalogue's own density differs.
-    val iconPx = context.resources.getDimensionPixelSize(android.R.dimen.app_icon_size)
-    val deviceDensity = context.resources.displayMetrics.density
+    val iconPx = resources.getDimensionPixelSize(android.R.dimen.app_icon_size)
+    val deviceDensity = resources.displayMetrics.density
     val iconSize = with(density) { DpSize(iconPx.toDp(), iconPx.toDp()) }
     val bannerSize = with(density) { DpSize((TV_BANNER_WIDTH * deviceDensity).toDp(), (TV_BANNER_HEIGHT * deviceDensity).toDp()) }
     val c = Hl.colors
@@ -113,8 +116,9 @@ private fun BrandSample(says: String, @DrawableRes icon: Int, @DrawableRes banne
 @Composable
 private fun LaunchMark(@DrawableRes launch: Int) {
     val context = LocalContext.current
-    val drawable = remember(launch) { context.getDrawable(launch) } ?: return
-    val size = with(LocalDensity.current) { (LAUNCH_ICON * context.resources.displayMetrics.density).toDp() }
+    val resources = LocalResources.current
+    val drawable = remember(launch) { ResourcesCompat.getDrawable(resources, launch, context.theme) } ?: return
+    val size = with(LocalDensity.current) { (LAUNCH_ICON * resources.displayMetrics.density).toDp() }
     val ring = Hl.colors.contentDecorative
     Box(Modifier.background(Hl.colors.background)) {
         DrawableBox(drawable, DpSize(size, size))

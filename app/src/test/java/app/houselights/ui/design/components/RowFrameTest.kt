@@ -41,6 +41,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.time.Duration
+import android.annotation.SuppressLint
 
 /** DESIGN.md, Focus: a row draws one frame, which travels from the card left to the card reached. */
 @RunWith(RobolectricTestRunner::class)
@@ -88,6 +89,7 @@ class RowFrameTest {
                     MediaRow(header = null) {
                         items((0 until 8).map { "$row$it" }) { card ->
                             frames[row] = checkNotNull(LocalRowFrame.current)
+                            @SuppressLint("RememberInComposition") // The test's own map keeps it across compositions.
                             val requester = requesters.getOrPut(card) { FocusRequester() }
                             ArtworkSurface(
                                 onClick = {},

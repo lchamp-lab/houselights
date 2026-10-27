@@ -35,6 +35,8 @@ data class Found(val query: String, val results: LoadState<SearchResults>)
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
     private val provider: () -> MediaProvider,
+    // An empty handle for a test that gives none: the factory hands the real one.
+    //noinspection VisibleForTests
     private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
     val query: StateFlow<String> = saved.getStateFlow(QUERY, "")

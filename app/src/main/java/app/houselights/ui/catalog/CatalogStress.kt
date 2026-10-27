@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.tv.material3.Text
@@ -38,6 +37,7 @@ import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalResources
 
 /** The fullest content the screens can meet, unadjusted: what overflows here overflows on screen. */
 internal fun LazyListScope.catalogStress() {
@@ -143,7 +143,7 @@ private fun StressDeviceSection() {
     Group("Device", still = true) {
         val screen = screenSizePx()
         val density = LocalDensity.current
-        val declared = LocalContext.current.resources.displayMetrics.density
+        val declared = LocalResources.current.displayMetrics.density
         val canvas = with(density) {
             "${screen.width.toDp().value.roundToInt()}$NBSP×$NBSP${screen.height.toDp().value.roundToInt()}${NBSP}dp"
         }

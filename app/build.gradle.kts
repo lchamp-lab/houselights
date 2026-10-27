@@ -83,6 +83,8 @@ android {
     defaultConfig {
         applicationId = "app.houselights"
         minSdk = 28 // Zidoo Z1000 Pro : Android 9
+        // Android 16's behaviour, once the app targets it, is a change of its own, tried on players first.
+        //noinspection OldTargetApi
         targetSdk = 35
         // The release's own is set with its variant (androidComponents, below).
         versionCode = 1
@@ -180,7 +182,23 @@ android {
     lint {
         abortOnError = true
         checkReleaseBuilds = true
-        baseline = file("lint-baseline.xml")
+        // A warning fails the build as an error does, and no baseline keeps old ones (CONTRIBUTING, Checks).
+        warningsAsErrors = true
+        // Whether a dependency has a newer version is Dependabot's to say, in a pull request of its own: these checks
+        // read what was published the day they run, so a build that changed nothing would fail the day one comes out.
+        disable += setOf("GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable")
+        // The app's language is the default locale (InterfaceLanguage.applyDefault), and a change of it, the app's or
+        // the device's, makes the activity again: a composition that reads it is never left behind.
+        disable += "NonObservableLocale"
+        // Compose's rule for a library's modifiers: the app's helpers that hand a Modifier made of something else, a
+        // screen's focus keys (FocusMemory), a raise or a frame remembered, are no modifier factories to chain.
+        disable += "ModifierFactoryExtensionFunction"
+    }
+    // A bundle, should one be built, keeps every language in its APK: the interface's is chosen in the app.
+    bundle {
+        language {
+            enableSplit = false
+        }
     }
 }
 

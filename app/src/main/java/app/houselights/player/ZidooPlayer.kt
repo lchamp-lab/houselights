@@ -10,6 +10,9 @@ import android.net.Uri
 import android.os.Build
 import app.houselights.core.SigningCertificates
 import app.houselights.core.isWebUrl
+import androidx.core.content.edit
+import androidx.core.net.toUri
+import android.annotation.SuppressLint
 
 /** The device as its build names it ([Build]), read-only firmware properties no app can change. */
 data class DeviceIdentity(
@@ -146,7 +149,7 @@ class ZidooPlayer(
      */
     fun opens(player: Candidate, uri: String): Boolean {
         if (player.component.packageName == KNOWN_PACKAGE || !isWebUrl(uri)) return true
-        return packages.queryIntentActivities(probe(Uri.parse(uri)), 0).any { it.activityInfo?.component() == player.component }
+        return packages.queryIntentActivities(probe(uri.toUri()), 0).any { it.activityInfo?.component() == player.component }
     }
 
     fun status(): PlayerStatus {
@@ -164,7 +167,7 @@ class ZidooPlayer(
         val certificate = choice.certificate ?: return
         if (!choice.decision.trusted) return
         if (trusted.getString(KEY_PACKAGE, null) == pkg && trusted.getString(KEY_CERTIFICATE, null) == certificate) return
-        trusted.edit().putString(KEY_PACKAGE, pkg).putString(KEY_CERTIFICATE, certificate).apply()
+        trusted.edit { putString(KEY_PACKAGE, pkg).putString(KEY_CERTIFICATE, certificate) }
     }
 
     /** [choice] in one log line, without secrets: decision and why, player, certificate, candidates, build. */
@@ -238,8 +241,9 @@ class ZidooPlayer(
         return SigningCertificates.sha256(signing?.apkContentsSigners).takeIf { it.isNotEmpty() }?.joinToString(",")
     }
 
+    // From Android 11, only the apps visible to this one (see <queries> in the manifest): never every app.
+    @SuppressLint("QueryPermissionsNeeded")
     private fun device(): Device {
-        // From Android 11, only the apps visible to this one (see <queries> in the manifest).
         val zidooApps = packages.getInstalledApplications(0)
             .filter { it.isSystem() && it.packageName.startsWith(ZIDOO_PREFIX) }
             .map { it.packageName }
@@ -342,7 +346,7 @@ class ZidooPlayer(
             "https://nas/film.mkv",
             "file:///storage/film.mkv",
             "content://media/external/video/media/1",
-        ).map { Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(it), VIDEO) }
+        ).map { Intent(Intent.ACTION_VIEW).setDataAndType(it.toUri(), VIDEO) }
 
         /** Index of the first file or content probe in [probes]; earlier ones are share or stream addresses. */
         private const val FIRST_FILE_PROBE = 5

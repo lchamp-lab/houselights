@@ -16,6 +16,8 @@
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <!-- A player on Ethernet alone will do: without Wi-Fi, NasDiscovery goes without the multicast lock above. -->
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
 
     <!-- From Android 11, the apps this one may see (ZidooPlayer): the Z1000 Pro's player; an app
          Zidoo's firmwares install, which tells a Zidoo whose build names only its chip; and the apps

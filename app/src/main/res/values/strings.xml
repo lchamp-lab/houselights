@@ -1,5 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name" translatable="false">Houselights</string>
+    <!-- tools:ignore="UnusedResources": the manifest names it through the appLabel placeholder (app/build.gradle.kts). -->
+    <string name="app_name" translatable="false" tools:ignore="UnusedResources">Houselights</string>
     <string name="wordmark" translatable="false">houselights</string>
     <!-- Typographic placeholders: a value still coming, and one that isn't there. -->
     <string name="placeholder_pending" translatable="false">…</string>
@@ -251,7 +252,8 @@
     <string name="field_password">Password</string>
     <string name="placeholder_host">e.g. 192.168.1.10</string>
     <string name="placeholder_server_path">e.g. /media/movies</string>
-    <string name="placeholder_network_path">e.g. nfs://192.168.1.10/volume1/movies</string>
+    <!-- tools:ignore="Typos": Lint reads /volume1, how a Synology NAS names its first volume, and a shared folder named video as misspellings. -->
+    <string name="placeholder_network_path" tools:ignore="Typos">e.g. nfs://192.168.1.10/volume1/movies</string>
     <string name="placeholder_tmdb_key">e.g. 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export" tools:ignore="Typos">e.g. /volume1/video</string>
     <string name="placeholder_share">e.g. video</string>

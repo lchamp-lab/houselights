@@ -8,6 +8,7 @@ import android.util.Log
 import java.security.KeyStore
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import android.annotation.SuppressLint
 
 /** Where the keys of [Secrets] are kept, by version. */
 interface Keyring {
@@ -74,6 +75,7 @@ internal class SavedKeyRecord(private val prefs: SharedPreferences, private val 
     private fun begin(): Set<Int> = (if (updated()) setOf(Secrets.FIRST_KEY) else emptySet()).also(::save)
 
     /** Written at once: text sealed with a new key is stored only once its version is recorded. */
+    @SuppressLint("UseKtx") // commit()'s answer says whether they were written; edit(commit = true) drops it.
     private fun save(versions: Set<Int>) {
         if (!prefs.edit().putStringSet(MADE, versions.mapTo(HashSet(), Int::toString)).commit()) Log.w(TAG, "Key versions not recorded")
     }

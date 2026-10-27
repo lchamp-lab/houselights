@@ -1,6 +1,7 @@
 package app.houselights.player
 
 import android.net.Uri
+import androidx.core.net.toUri
 
 /** Masks credentials in a URI before it is logged or shown, and detects URIs that carry them. */
 object Redact {
@@ -99,7 +100,7 @@ object Redact {
      * an @. A share named with an @ after a port is flagged too: a password is never missed. [ours] is the mask.
      */
     private fun typedRaw(uri: String, ours: String?): Boolean {
-        val parsed = Uri.parse(uri)
+        val parsed = uri.toUri()
         val authority = parsed.encodedAuthority ?: return false
         if ('@' in authority) return authority.substringBeforeLast('@') != ours
         // An IPv6 host is bracketed and contains colons.

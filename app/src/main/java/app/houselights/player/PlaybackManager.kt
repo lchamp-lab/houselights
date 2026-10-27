@@ -28,6 +28,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import kotlin.math.abs
+import androidx.core.content.edit
+import androidx.core.net.toUri
 
 /**
  * Launches the native Zidoo player and reports progress to the backend: polled from its local API while
@@ -159,15 +161,17 @@ class PlaybackManager(
             usual(TrackKind.SUBTITLE, asked?.pick?.subtitle)
         }
         // Pending apply() writes complete before our activity stops, so the resume point survives a killed process.
-        saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs)
-            .putString(KEY_FILE, nameOf(plan.uri).takeUnless { plan.disc }).apply()
+        saved.edit {
+            putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs)
+                .putString(KEY_FILE, nameOf(plan.uri).takeUnless { plan.disc })
+        }
         return intent
     }
 
     private fun playerIntent(player: ComponentName, plan: PlaybackPlan.Launch, tracks: TrackPlan?) = Intent(Intent.ACTION_VIEW).apply {
         component = player
         // A path as a URI of its own, never parsed: a colon in a file's name would read as its scheme.
-        val data = pathOf(plan.uri)?.let { Uri.Builder().encodedPath(it).build() } ?: Uri.parse(plan.uri)
+        val data = pathOf(plan.uri)?.let { Uri.Builder().encodedPath(it).build() } ?: plan.uri.toUri()
         setDataAndType(data, "video/${plan.container ?: "*"}")
         putExtra("title", plan.title)
         // The player is another app: it can fetch a web address but not one of our files.
@@ -197,7 +201,7 @@ class PlaybackManager(
         val path = pathOf(plan.uri)
         val any = Intent(Intent.ACTION_VIEW).apply {
             if (path == null) {
-                setDataAndType(Uri.parse(plan.uri), "video/*")
+                setDataAndType(plan.uri.toUri(), "video/*")
             } else {
                 setDataAndType(FileProvider.getUriForFile(context, context.packageName + FILES, File(Uri.decode(path))), "video/*")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -214,7 +218,7 @@ class PlaybackManager(
     fun onLaunchFailed() {
         session = null
         _playing.value = false
-        saved.edit().clear().apply()
+        saved.edit { clear() }
     }
 
     /** Call once the player activity has started; remembers a player given a secret ([ZidooPlayer.remember]). */
@@ -222,7 +226,7 @@ class PlaybackManager(
         val s = session ?: return
         s.trusting?.let(players::remember)
         // From the start, the player's memory of the file no longer matters.
-        if (s.positionMs <= 0) s.key?.let { unfollowed.edit().remove(it).apply() }
+        if (s.positionMs <= 0) s.key?.let { unfollowed.edit { remove(it) } }
         _playing.value = true
         s.started = scope.launch { report(s, "started") { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()
@@ -326,7 +330,7 @@ class PlaybackManager(
                 s.path = state.path
                 s.file = next.path
                 // So a new process receiving the result reports this part; skipped once the result ended the session.
-                if (session === s) saved.edit().putString(KEY_RESUME, next.resumeKey).putString(KEY_FILE, nameOf(next.path)).apply()
+                if (session === s) saved.edit { putString(KEY_RESUME, next.resumeKey).putString(KEY_FILE, nameOf(next.path)) }
             } else {
                 Log.i(TAG, "The title is ${state.durationMs} ms long, past a menu or an intro of $launched ms")
             }
@@ -440,7 +444,7 @@ class PlaybackManager(
 
     /** Persists the session's position for a new process if Android kills this one (see [saved]). */
     private fun keep(s: Session) {
-        saved.edit().putLong(KEY_POSITION, s.positionMs).apply()
+        saved.edit { putLong(KEY_POSITION, s.positionMs) }
     }
 
     /**
@@ -457,10 +461,10 @@ class PlaybackManager(
         val savedFile = saved.getString(KEY_FILE, null)
         session = null
         _playing.value = false
-        saved.edit().clear().apply()
+        saved.edit { clear() }
         if (live == null && resumeKey == null) return
         // Stopped while the film played, the app could not follow what the user chose in the player.
-        if (live == null) unfollowed.edit().putBoolean(resumeKey, true).apply()
+        if (live == null) unfollowed.edit { putBoolean(resumeKey, true) }
         val poll = pollJob
         pollJob = null
         val returned = data?.getIntExtra("position", -1) ?: -1

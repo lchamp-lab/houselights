@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Sources -->
     <string name="source_local">Meus arquivos</string>
     <string name="source_local_desc">Seus vídeos em um NAS, um computador da rede ou um disco conectado ao player. O Houselights analisa os arquivos e obtém cartazes e sinopses.</string>
@@ -76,7 +76,8 @@
     <string name="show_all">Todos</string>
     <string name="sort_year">Ano</string>
     <string name="sort_rating">Nota</string>
-    <string name="sort_title_order">Título, de A a Z</string>
+    <!-- tools:ignore="Typos": "de A a Z" (from A to Z) is no misspelling of "A". -->
+    <string name="sort_title_order" tools:ignore="Typos">Título, de A a Z</string>
     <string name="sort_added_order">Data de adição, recentes primeiro</string>
     <string name="sort_year_order">Ano, recentes primeiro</string>
     <string name="sort_rating_order">Nota, mais altas primeiro</string>
@@ -242,10 +243,11 @@
     <string name="field_password">Senha</string>
     <string name="placeholder_host">Ex.: 192.168.1.10</string>
     <string name="placeholder_server_path">Ex.: /media/filmes</string>
-    <string name="placeholder_network_path">Ex.: nfs://192.168.1.10/volume1/filmes</string>
+    <!-- tools:ignore="Typos": Lint reads /volume1, how a Synology NAS names its first volume, and a shared folder named video as misspellings. -->
+    <string name="placeholder_network_path" tools:ignore="Typos">Ex.: nfs://192.168.1.10/volume1/filmes</string>
     <string name="placeholder_tmdb_key">Ex.: 0123456789abcdef0123456789abcdef</string>
-    <string name="placeholder_export">Ex.: /volume1/video</string>
-    <string name="placeholder_share">Ex.: video</string>
+    <string name="placeholder_export" tools:ignore="Typos">Ex.: /volume1/video</string>
+    <string name="placeholder_share" tools:ignore="Typos">Ex.: video</string>
     <string name="placeholder_path_movies">Ex.: filmes</string>
     <string name="placeholder_path_shows">Ex.: séries</string>
     <string name="placeholder_uid">Ex.: 1026</string>
@@ -268,10 +270,10 @@
     <string name="error_login_failed">O NAS recusou o usuário ou a senha.</string>
     <string name="error_not_found">Este compartilhamento ou pasta não existe no NAS. Verifique a grafia.</string>
     <string name="error_host_missing">Digite o endereço do NAS.</string>
-    <string name="error_export_missing">Digite o caminho de montagem, por exemplo /volume1/video.</string>
-    <string name="error_share_missing">Digite o nome da pasta compartilhada, por exemplo video.</string>
-    <string name="error_full_path_missing_nfs">Digite o caminho da pasta, por exemplo /volume1/video/Filmes.</string>
-    <string name="error_full_path_missing_smb">Digite o caminho da pasta, por exemplo video/Filmes.</string>
+    <string name="error_export_missing" tools:ignore="Typos">Digite o caminho de montagem, por exemplo /volume1/video.</string>
+    <string name="error_share_missing" tools:ignore="Typos">Digite o nome da pasta compartilhada, por exemplo video.</string>
+    <string name="error_full_path_missing_nfs" tools:ignore="Typos">Digite o caminho da pasta, por exemplo /volume1/video/Filmes.</string>
+    <string name="error_full_path_missing_smb" tools:ignore="Typos">Digite o caminho da pasta, por exemplo video/Filmes.</string>
     <string name="error_uid_missing">Digite também o usuário (UID).</string>
     <string name="error_gid_missing">Digite também o grupo (GID).</string>
     <string name="nfs_hint_player">Sem senha: no NAS, autorize este player (%s) em somente leitura e, em um Synology, as portas não privilegiadas.</string>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- « Ajouter un dossier », the guided flow (#83): its steps, rows and messages. -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="flow_where_desc">Wählen Sie das Gerät, auf dem Ihre Videos liegen.</string>
     <string name="nas_used">Bereits verwendet</string>
     <string name="nas_found">Im Netzwerk gefundene NAS</string>
@@ -38,9 +38,10 @@
     <string name="flow_path_desc">Geben Sie den vollständigen Pfad Ihres Ordners auf dem NAS ein.</string>
     <string name="flow_path_no_list_desc">Dieses NAS listet seine freigegebenen Ordner nicht auf: Geben Sie den vollständigen Pfad Ihres Ordners ein.</string>
     <string name="field_full_path">Ordnerpfad</string>
-    <string name="placeholder_full_path_nfs">z. B. /volume1/video/Filme</string>
+    <!-- tools:ignore="Typos": Lint reads /volume1, how a Synology NAS names its first volume, and a shared folder named video as misspellings. -->
+    <string name="placeholder_full_path_nfs" tools:ignore="Typos">z. B. /volume1/video/Filme</string>
     <string name="placeholder_full_path_smb">z. B. video/Filme</string>
-    <string name="full_path_supporting_nfs">Auf einem Synology beginnt er mit /volume1/.</string>
+    <string name="full_path_supporting_nfs" tools:ignore="Typos">Auf einem Synology beginnt er mit /volume1/.</string>
     <string name="full_path_supporting_smb">Zuerst der freigegebene Ordner, dann die Unterordner.</string>
     <string name="use_suggestion">%s verwenden</string>
     <string name="use_suggestion_name">„%s“ verwenden</string>
