@@ -309,6 +309,7 @@ fun CatalogScreen(modifier: Modifier = Modifier) {
             catalogSecondary()
             catalogForms()
             catalogCards()
+            catalogVolets()
             catalogDoors()
             catalogReading()
 

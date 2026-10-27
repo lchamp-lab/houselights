@@ -321,6 +321,43 @@ internal object HeroDefaults {
     val titleHeight = 56.dp
 }
 
+/**
+ * A saga's polyptych (« Les volets »): its panels' widths, their numbers' sizes by the closed panels' width, the open
+ * panel's words' melt, and how a panel opens.
+ */
+internal object VoletDefaults {
+    /** The open panel: a hero's title box and a card's inset on each side (380 + 2 × 24), so its words never reflow. */
+    val open = HeroDefaults.titleWidth + HlInset.card * 2
+
+    /** Between two panels: narrow enough that they read as one object, a focused frame passing 2.5 from the next. */
+    val gap = HlSpace.xs
+
+    /** A closed panel at its narrowest: eight films and the saga's own in the safe area; past them, they scroll. */
+    val narrowest = 45.dp
+
+    /** Over [melt] above its words' top an open panel's picture melts into its dark, whole [melt] under it. */
+    val melt = 64.dp
+
+    /** A panel's number under its top edge. */
+    val numberTop = HlSpace.m
+
+    /** From this closed width the numbers take the signature (72), from [numberMedium] `display` (48), else `headline`. */
+    val numberLarge = 120.dp
+    val numberMedium = 64.dp
+
+    /**
+     * The least room between two closed panels' years (« greffe 2 »): under it the plan drops every closed panel's year
+     * at once, the open one saying its own in its facts.
+     */
+    val yearsApart = 4.dp
+
+    /**
+     * The panels jump instead of opening (« greffe 3 »): every press does what a held arrow does, both widths at once,
+     * then the picture, the words and the room once settled. Decided on the Zidoo before 0.4.0, never a setting.
+     */
+    const val opensAtOnce = false
+}
+
 /** The widest value on the right of a setting row, and the room above and below its words. */
 internal object HlSettingRowDefaults {
     val valueWidth = 360.dp
