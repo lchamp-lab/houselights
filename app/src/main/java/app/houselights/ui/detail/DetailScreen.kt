@@ -1049,7 +1049,7 @@ private fun Episodes(
                 HlStatus(StatusState.Attention, stringResource(R.string.action_not_saved), detail = stringResource(markError.message))
             } else {
                 Text(
-                    shown?.overview ?: "",
+                    shown?.overview.orEmpty(),
                     style = Hl.type.body,
                     color = Hl.colors.contentSecondary,
                     maxLines = 3,

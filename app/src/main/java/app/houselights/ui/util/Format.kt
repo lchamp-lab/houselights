@@ -23,15 +23,18 @@ const val NBSP = Typography.nbsp
 
 /** "2 h 02", "1 h", "45 min": never split across lines. */
 fun formatDuration(ms: Long): String {
-    val totalMin = ms / 60_000
-    val h = totalMin / 60
-    val m = totalMin % 60
+    val totalMin = ms / MS_PER_MINUTE
+    val h = totalMin / MINUTES_PER_HOUR
+    val m = totalMin % MINUTES_PER_HOUR
     return when {
         h > 0 && m > 0 -> "$h${NBSP}h$NBSP${"%02d".format(m)}"
         h > 0 -> "$h${NBSP}h"
         else -> "$m${NBSP}min"
     }
 }
+
+private const val MS_PER_MINUTE = 60_000L
+private const val MINUTES_PER_HOUR = 60
 
 /** Gap between facts inside one text, where a layout gap is impossible: three spaces wide, breaking after. */
 const val FACT_GAP = "$NBSP$NBSP "
@@ -173,13 +176,16 @@ fun formatBytes(context: Context, bytes: Long): String {
     return when {
         // A library's room, to a tenth: "38,4 To".
         bytes >= TERABYTE -> context.getString(R.string.terabytes, amount(bytes / TERABYTE.toDouble(), 1))
-        bytes >= 1_000_000_000L -> context.getString(R.string.gigabytes, amount(bytes / 1e9, 2))
-        bytes >= 1_000_000L -> context.getString(R.string.megabytes, amount(bytes / 1e6, 1))
-        else -> context.getString(R.string.kilobytes, amount(bytes / 1e3, 0))
+        bytes >= GIGABYTE -> context.getString(R.string.gigabytes, amount(bytes / GIGABYTE.toDouble(), 2))
+        bytes >= MEGABYTE -> context.getString(R.string.megabytes, amount(bytes / MEGABYTE.toDouble(), 1))
+        else -> context.getString(R.string.kilobytes, amount(bytes / KILOBYTE.toDouble(), 0))
     }
 }
 
 private const val TERABYTE = 1_000_000_000_000L
+private const val GIGABYTE = 1_000_000_000L
+private const val MEGABYTE = 1_000_000L
+private const val KILOBYTE = 1_000L
 
 @Composable
 fun formatBytes(bytes: Long): String = formatBytes(LocalContext.current, bytes)

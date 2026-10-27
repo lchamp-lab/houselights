@@ -98,13 +98,15 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
                     if (item != null) Preview(kind, item, preview)
                 }
             }
+            val error = state.error
             when {
-                state.error != null -> HlErrorState(state.error!!, vm::load, ChoicesPadding)
-                choices == null -> Skeletons(kind)
+                error != null -> HlErrorState(error, vm::load, ChoicesPadding)
+                // The title and its choices come with the same page.
+                choices == null || item == null -> Skeletons(kind)
                 choices.options.isEmpty() -> HlEmptyState(stringResource(R.string.artwork_empty), ChoicesPadding, backHint = true)
                 else -> Choices(
                     kind = kind,
-                    item = item!!,
+                    item = item,
                     choices = choices,
                     onFocus = { focused = it },
                     onChoose = vm::choose,

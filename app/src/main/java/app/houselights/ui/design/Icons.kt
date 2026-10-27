@@ -16,9 +16,12 @@ import androidx.compose.ui.unit.dp
 object HlIcons {
     private const val STROKE = 2f
 
+    /** Lucide's grid, its icons' size. */
+    private const val GRID = 24f
+
     /** A Lucide drawing from its SVG [paths], stroked; [filled] fills them too. */
     private fun icon(name: String, vararg paths: String, filled: Boolean = false): ImageVector =
-        ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
+        ImageVector.Builder(name, GRID.dp, GRID.dp, GRID, GRID).apply {
             paths.forEach { d ->
                 addPath(
                     pathData = addPathNodes(d),

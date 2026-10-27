@@ -25,14 +25,21 @@ val LocalHouseLights = staticCompositionLocalOf<() -> Float> { { 0f } }
 /** Lights down: the room fades first as the scrims lift, then black covers everything; lights up reverses it. */
 object HouseLightCue {
     /** Opacity of the room's content (text, buttons, rows). */
-    fun room(down: Float) = 1f - smooth(0f, 0.3f, down)
+    fun room(down: Float) = 1f - smooth(0f, ROOM_OUT, down)
 
     /** Strength of the scrims laid over the picture for legibility. */
-    fun scrims(down: Float) = 1f - smooth(0.05f, 0.4f, down)
+    fun scrims(down: Float) = 1f - smooth(SCRIMS_FROM, SCRIMS_OUT, down)
 
     /** Opacity of the black over everything, the last step. */
-    fun darkness(down: Float) = smooth(0.58f, 1f, down)
+    fun darkness(down: Float) = smooth(DARK_FROM, 1f, down)
 
+    /** Where each step starts and ends, 0 browsing to 1 film. */
+    private const val ROOM_OUT = 0.3f
+    private const val SCRIMS_FROM = 0.05f
+    private const val SCRIMS_OUT = 0.4f
+    private const val DARK_FROM = 0.58f
+
+    @Suppress("MagicNumber") // Smoothstep, t²(3 − 2t): the curve's own coefficients.
     private fun smooth(from: Float, to: Float, x: Float): Float {
         val t = ((x - from) / (to - from)).coerceIn(0f, 1f)
         return t * t * (3f - 2f * t)

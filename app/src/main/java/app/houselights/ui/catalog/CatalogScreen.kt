@@ -179,7 +179,13 @@ fun CatalogScreen() {
                         Column(Modifier.widthIn(max = HlLayout.readable)) {
                             HlSettingGroup("Group") {
                                 HlSettingRow("Leads somewhere", value = "Value", onClick = {})
-                                HlSettingRow("Your choice", value = "Chosen", valueLit = true, description = "A line of description", onClick = {})
+                                HlSettingRow(
+                                    "Your choice",
+                                    value = "Chosen",
+                                    valueLit = true,
+                                    description = "A line of description",
+                                    onClick = {},
+                                )
                                 HlSettingRow("States a value", value = "1920 × 1080")
                             }
                         }
@@ -490,8 +496,8 @@ private fun SheetStatusField(onDismiss: () -> Unit) {
         status = { HlStatus(StatusState.On, stringResource(R.string.tmdb_key_builtin_state)) },
     ) {
         HlTextField(
-            personal, key, {
-                key = it
+            personal, key, { typed ->
+                key = typed
                 refused = false
             },
             placeholder = stringResource(R.string.placeholder_tmdb_key),

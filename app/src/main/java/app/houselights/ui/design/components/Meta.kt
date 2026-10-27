@@ -66,13 +66,7 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
     val seasons = item.childCount?.takeIf { item.kind == MediaKind.SERIES && it > 0 }
         ?.let { pluralStringResource(R.plurals.season_count, it, it) }
     val films = item.childCount?.takeIf { item.kind == MediaKind.COLLECTION }?.let { owned -> filmCount(owned, item.totalCount) }
-    val years = when {
-        item.kind == MediaKind.COLLECTION && item.year != null && item.endYear != null -> "${item.year} – ${item.endYear}"
-        item.kind != MediaKind.SERIES -> item.year?.toString()
-        item.year != null && item.continuing -> "${item.year} –"
-        item.year != null && item.endYear != null && item.endYear != item.year -> "${item.year} – ${item.endYear}"
-        else -> item.year?.toString()
-    }
+    val years = item.years()
     val length = when (item.kind) {
         MediaKind.SERIES -> seasons
         MediaKind.COLLECTION -> films
@@ -97,6 +91,15 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
             )
         }
     }
+}
+
+/** A title's years: a saga's from first to last film, a show's run (open while it continues), else its year. */
+private fun MediaItem.years(): String? = when {
+    kind == MediaKind.COLLECTION && year != null && endYear != null -> "$year – $endYear"
+    kind != MediaKind.SERIES -> year?.toString()
+    year != null && continuing -> "$year –"
+    year != null && endYear != null && endYear != year -> "$year – $endYear"
+    else -> year?.toString()
 }
 
 /** A score out of ten, star then figure, quiet: a score is not a state, so it never lights. */
@@ -329,13 +332,13 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
     val and = stringResource(R.string.billing_and)
     fun credits(castCount: Int) = buildAnnotatedString {
         // Names never break inside, nor away from the word before them.
-        fun join(word: String) = withStyle(t.billingJoin.toSpanStyle().copy(color = c.contentTertiary)) { append(word.unbreakable() + NBSP) }
-        fun comma() = withStyle(t.billing.toSpanStyle().copy(color = c.contentTertiary)) { append(", ") }
+        fun join(word: String) =
+            withStyle(t.billingJoin.toSpanStyle().copy(color = c.contentTertiary)) { append(word.unbreakable() + NBSP) }
         fun names(list: List<String>) = list.forEachIndexed { i, name ->
             when {
                 i == 0 -> Unit
                 i == list.lastIndex -> { append(" "); join(and) }
-                else -> comma()
+                else -> withStyle(t.billing.toSpanStyle().copy(color = c.contentTertiary)) { append(", ") }
             }
             withStyle(t.billing.toSpanStyle().copy(color = c.contentSecondary)) { append(name.uppercase(locale).unbreakable()) }
         }
