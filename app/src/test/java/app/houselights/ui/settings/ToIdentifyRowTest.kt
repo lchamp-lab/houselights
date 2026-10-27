@@ -130,7 +130,7 @@ class ToIdentifyRowTest {
                 val list = rememberLazyListState()
                 RestoreFocus(memory, fallback = null) { key -> revealRow(list, key, memory) }
                 LazyColumn(state = list) {
-                    libraryPane(s, { _, _ -> }, SourceDoors({}, {}, {}, toIdentify = { opened++ }), rows)
+                    libraryPane(s, { _, _, _ -> }, SourceDoors({}, {}, {}, toIdentify = { opened++ }), rows)
                     if (longer) items(BELOW) { Spacer(Modifier.height(BELOW_HEIGHT)) }
                 }
             }

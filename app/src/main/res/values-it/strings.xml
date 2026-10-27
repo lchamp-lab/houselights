@@ -218,6 +218,7 @@
     <string name="edit_folder">Modifica la cartella</string>
     <string name="edit_folder_desc">Modificarne l’indirizzo o le credenziali. Houselights verifica la connessione prima di salvare; titoli, stato di visione e scelte restano invariati.</string>
     <string name="edit_folder_row_desc">Indirizzo o credenziali</string>
+    <string name="edit_folder_disk_desc">Cartella sul disco</string>
     <string name="edit_folder_unreachable_desc">L’indirizzo potrebbe essere cambiato</string>
     <string name="edit_folder_login_desc">Reinserire nome utente o password</string>
     <string name="edit_folder_not_found_desc">Cartella o percorso forse cambiati</string>

@@ -214,6 +214,7 @@
     <string name="edit_folder">Modifier le dossier</string>
     <string name="edit_folder_desc">Modifiez son adresse ou ses identifiants. Houselights teste la connexion avant d’enregistrer ; ses titres, vos visionnages et vos choix sont conservés.</string>
     <string name="edit_folder_row_desc">Son adresse ou ses identifiants</string>
+    <string name="edit_folder_disk_desc">Son dossier sur le disque</string>
     <string name="edit_folder_unreachable_desc">Son adresse a peut-être changé</string>
     <string name="edit_folder_login_desc">Saisissez à nouveau vos identifiants</string>
     <string name="edit_folder_not_found_desc">Son dossier partagé ou chemin a pu changer</string>

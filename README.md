@@ -67,7 +67,8 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     disk at each scan, whichever port it is plugged into. A disk unplugged is out of reach as a NAS asleep: nothing
     leaves the library, nothing is held, and the folder is read again once the disk is back. The Zidoo player gets the
     file's path; another player, a `content://` address that reads that file alone. Reading the disks needs a
-    permission of Android's ([Privacy](#privacy)).
+    permission of Android's ([Privacy](#privacy)). Edit folder on one opens its disk where the folder is, to pick
+    another folder of it with the same steps, its titles and what was done with them kept.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids and ids in names identify titles exactly ([Naming your files](#naming-your-files)).
   - Without an id, TMDB's results are weighed (titles, original and alternative ones included, year, votes and

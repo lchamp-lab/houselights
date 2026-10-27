@@ -212,6 +212,7 @@
     <string name="edit_folder">Map bewerken</string>
     <string name="edit_folder_desc">Wijzig het adres of de inloggegevens. Houselights test de verbinding vóór het opslaan; de titels, wat u hebt bekeken en uw keuzes blijven behouden.</string>
     <string name="edit_folder_row_desc">Het adres of de inloggegevens</string>
+    <string name="edit_folder_disk_desc">De map op de schijf</string>
     <string name="edit_folder_unreachable_desc">Het adres is misschien gewijzigd</string>
     <string name="edit_folder_login_desc">Voer uw inloggegevens opnieuw in</string>
     <string name="edit_folder_not_found_desc">Gedeelde map of pad misschien gewijzigd</string>

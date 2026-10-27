@@ -206,6 +206,7 @@
     <string name="edit_folder">フォルダを編集</string>
     <string name="edit_folder_desc">アドレスやログイン情報を変更します。Houselightsは保存する前に接続をテストします。作品、視聴履歴、選択内容はそのまま残ります。</string>
     <string name="edit_folder_row_desc">アドレスやログイン情報</string>
+    <string name="edit_folder_disk_desc">ディスク上のフォルダ</string>
     <string name="edit_folder_unreachable_desc">アドレスが変わった可能性があります</string>
     <string name="edit_folder_login_desc">ログイン情報を再入力</string>
     <string name="edit_folder_not_found_desc">共有フォルダやパスが変わった可能性</string>

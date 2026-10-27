@@ -206,6 +206,7 @@
     <string name="edit_folder">폴더 편집</string>
     <string name="edit_folder_desc">주소나 로그인 정보를 변경하세요. Houselights는 저장하기 전에 연결을 테스트하며, 작품과 시청 기록, 선택한 항목은 그대로 유지됩니다.</string>
     <string name="edit_folder_row_desc">주소 또는 로그인 정보</string>
+    <string name="edit_folder_disk_desc">디스크의 폴더</string>
     <string name="edit_folder_unreachable_desc">주소가 바뀌었을 수 있습니다</string>
     <string name="edit_folder_login_desc">로그인 정보를 다시 입력하세요</string>
     <string name="edit_folder_not_found_desc">공유 폴더나 경로가 바뀌었을 수 있음</string>

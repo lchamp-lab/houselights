@@ -218,6 +218,7 @@
     <string name="edit_folder">Editar pasta</string>
     <string name="edit_folder_desc">Altere o endereço ou as credenciais. O Houselights testa a conexão antes de salvar; os títulos, o que você já viu e suas escolhas são mantidos.</string>
     <string name="edit_folder_row_desc">Endereço ou credenciais</string>
+    <string name="edit_folder_disk_desc">Pasta no disco</string>
     <string name="edit_folder_unreachable_desc">O endereço pode ter mudado</string>
     <string name="edit_folder_login_desc">Digite de novo o usuário ou a senha</string>
     <string name="edit_folder_not_found_desc">A pasta ou o caminho pode ter mudado</string>

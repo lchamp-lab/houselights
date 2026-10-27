@@ -450,18 +450,26 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
         composable<Route.AddFolder> { entry ->
             val route = entry.toRoute<Route.AddFolder>()
             val folderId = route.folderId
-            if (folderId == null) {
-                // « Ajouter un dossier », its steps; Back from the first leaves it where it was opened.
-                AddFolderFlowScreen(onLeave = { nav.popBackStack() }, onDone = { done ->
-                    // A first folder or a new source: home, its first scan showing; another: Réglages, on its showcase.
-                    val opener = nav.settingsEntry()
-                    if (done.switched || opener == null) {
-                        goHome()
-                    } else {
-                        opener.savedStateHandle[ADDED_FOLDER] = done.folderId
-                        nav.popBackStack<Route.Settings>(inclusive = false)
-                    }
-                })
+            if (folderId == null || route.onDisk) {
+                // « Ajouter un dossier », its steps; Back from the first leaves it where it was opened. A folder of the
+                // player's disks is edited through them, Back from its disk's root returning to its sheet.
+                AddFolderFlowScreen(
+                    onLeave = {
+                        if (folderId != null) nav.settingsEntry()?.savedStateHandle?.set(FOLDER_SHEET, folderId)
+                        nav.popBackStack()
+                    },
+                    onDone = { done ->
+                        // A first folder or a new source: home, its first scan showing; another: Réglages, on its showcase.
+                        val opener = nav.settingsEntry()
+                        if (done.switched || opener == null) {
+                            goHome()
+                        } else {
+                            opener.savedStateHandle[ADDED_FOLDER] = done.folderId
+                            nav.popBackStack<Route.Settings>(inclusive = false)
+                        }
+                    },
+                    editing = folderId,
+                )
             } else {
                 AddFolderScreen(folderId, route.focus, onDone = {
                     // A folder edited: back to settings, else (opened from home's problem) home.
@@ -546,12 +554,14 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
             WithSource(source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
         }
         composable<Route.Settings> { entry ->
-            // A folder « Ajouter un dossier » added from here: its showcase takes focus.
+            // A folder « Ajouter un dossier » added or edited from here: its showcase takes focus, its sheet too once its
+            // edit was left.
             val added by entry.savedStateHandle.getStateFlow<Long?>(ADDED_FOLDER, null).collectAsStateWithLifecycle()
+            val sheet by entry.savedStateHandle.getStateFlow<Long?>(FOLDER_SHEET, null).collectAsStateWithLifecycle()
             // Source changes keep Settings on the back stack: Back returns to it, the source unchanged.
             WithSource(source) {
                 SettingsScreen(
-                    onFolderForm = { folderId, focus -> nav.navigate(Route.AddFolder(folderId, focus)) },
+                    onFolderForm = { folderId, focus, onDisk -> nav.navigate(Route.AddFolder(folderId, focus, onDisk)) },
                     onUseFolders = ::useFolders,
                     onSignIn = { nav.navigate(Route.JellyfinLogin.of(it)) },
                     onSourceResumed = ::goHome,
@@ -560,7 +570,11 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
                     onOpenToIdentify = { nav.openOnce(Route.ToIdentify) },
                     addedFolder = added,
-                    onAddedFolderShown = { entry.savedStateHandle[ADDED_FOLDER] = null },
+                    folderSheet = sheet,
+                    onAddedFolderShown = {
+                        entry.savedStateHandle[ADDED_FOLDER] = null
+                        entry.savedStateHandle[FOLDER_SHEET] = null
+                    },
                 )
             }
         }
@@ -598,8 +612,11 @@ private fun NavController.settingsEntry(): NavBackStackEntry? = try {
     null
 }
 
-/** The folder « Ajouter un dossier » just added, handed to Settings beneath it so that its showcase takes focus. */
+/** The folder « Ajouter un dossier » just added or edited, handed to Settings beneath it so that its showcase takes focus. */
 private const val ADDED_FOLDER = "addedFolder"
+
+/** The folder whose edit through the flow's steps was left by Back, handed to Settings so that its sheet opens again. */
+private const val FOLDER_SHEET = "folderSheet"
 
 // A wall is a page over the screen that opens it, home or another page: Back goes back to that screen.
 

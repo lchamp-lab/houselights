@@ -77,11 +77,12 @@ import java.util.Locale
 
 /**
  * The library pane: its folders' showcases or its server, then actions; rows that open a screen are keyed in [rows]. A
- * folder just [added] takes focus on its showcase.
+ * folder just [added] takes focus on its showcase. [onFolderForm] adds a folder, or edits one, a folder of the player's
+ * disks ([Protocol.LOCAL]) through « Ajouter un dossier »'s steps.
  */
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
-    onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
+    onFolderForm: (folderId: Long?, focus: FolderField, onDisk: Boolean) -> Unit,
     sources: SourceDoors,
     rows: PaneRows,
     added: NewFolder? = null,
@@ -93,7 +94,7 @@ internal fun LazyListScope.libraryPane(
                     Showcases(rows, onEdit = onFolderForm, onResumed = sources.resumed, added = added)
                 }
             }
-            item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, rows, sources.toIdentify) }
+            item { LibraryActions({ onFolderForm(null, FolderField.FIRST, false) }, rows, sources.toIdentify) }
             item { FilmData() }
             item { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(sources, rows.focus(SOURCE)) } }
         }
@@ -147,31 +148,37 @@ private fun librarySummary(): String? {
     )
 }
 
-/** A folder « Ajouter un dossier » just added ([id]), whose showcase takes focus once it shows, then [shown]. */
-internal class NewFolder(val id: Long, val shown: () -> Unit)
+/**
+ * A folder « Ajouter un dossier » just added or edited ([id]), whose showcase takes focus once it shows, then [shown];
+ * with [sheet], « Modifier le dossier » left by Back, its sheet opens again over it.
+ */
+internal class NewFolder(val id: Long, val sheet: Boolean = false, val shown: () -> Unit)
 
-/** Focus on [added]'s showcase once [sources] hold it, the [row] of showcases scrolled to it first. */
+/** Focus on [added]'s showcase once [sources] hold it, the [row] of showcases scrolled to it first; its sheet then [opens]. */
 @Composable
-private fun FocusOnAdded(added: NewFolder, sources: List<Folder>, row: LazyListState, rows: PaneRows) {
+private fun FocusOnAdded(added: NewFolder, sources: List<Folder>, row: LazyListState, rows: PaneRows, opens: (Folder) -> Unit) {
     LaunchedEffect(added.id, sources) {
         val index = sources.indexOfFirst { it.id == added.id }
         if (index < 0) return@LaunchedEffect
         row.scrollToItem(index)
         // Once laid out, and once the screen has put focus back where it was left (RestoreFocus).
         withFrameNanos { }
-        if (rows.requester(folderRow(added.id)).tryRequestFocus()) added.shown()
+        if (!rows.requester(folderRow(added.id)).tryRequestFocus()) return@LaunchedEffect
+        if (added.sheet) opens(sources[index])
+        added.shown()
     }
 }
 
 /**
  * One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. The last
  * one removed gives way to the kept server, its home then shown ([onResumed]), else to the welcome screen. A folder just
- * [added] takes focus on its showcase as soon as it shows, its scan running there, the row scrolled to it.
+ * [added] takes focus on its showcase as soon as it shows, its scan running there, the row scrolled to it; one whose
+ * edit was left, its sheet opening again, focus on « Modifier le dossier ».
  */
 @Composable
 private fun Showcases(
     rows: PaneRows,
-    onEdit: (folderId: Long, focus: FolderField) -> Unit,
+    onEdit: (folderId: Long, focus: FolderField, onDisk: Boolean) -> Unit,
     onResumed: () -> Unit,
     added: NewFolder? = null,
 ) {
@@ -185,6 +192,8 @@ private fun Showcases(
     val heldRows by vm.library.held.collectAsStateWithLifecycle(emptyList())
     val held = remember(heldRows, sources) { heldByFolder(heldRows, sources).associateBy { it.folder.id } }
     var actionsFor by remember { mutableStateOf<Folder?>(null) }
+    // The sheet opened again as its edit was left: focus on « Modifier le dossier », as Back brings focus to the row chosen.
+    var backFromEdit by remember { mutableStateOf(false) }
     var heldFor by remember { mutableStateOf<Long?>(null) }
     // The folder being removed, and where focus goes once its showcase has gone.
     var removing by remember { mutableStateOf<Pair<Long, FocusRequester>?>(null) }
@@ -197,7 +206,12 @@ private fun Showcases(
     }
 
     val row = rememberLazyListState()
-    if (added != null) FocusOnAdded(added, sources, row, rows)
+    if (added != null) {
+        FocusOnAdded(added, sources, row, rows) {
+            actionsFor = it
+            backFromEdit = true
+        }
+    }
     if (sources.isNotEmpty()) {
         ShowcaseRow(state = row) {
             items(sources, key = { it.id }) { source ->
@@ -211,7 +225,10 @@ private fun Showcases(
                     heldError = vm.errorOf(SettingAction.HELD, source.id),
                     // Removal waits for any file a scan is reading in the folder: say so rather than look stuck.
                     removing = source.id in vm.removing,
-                    onClick = { actionsFor = source },
+                    onClick = {
+                        actionsFor = source
+                        backFromEdit = false
+                    },
                     modifier = rows.focus(folderRow(source.id)),
                 )
             }
@@ -230,7 +247,8 @@ private fun Showcases(
             held = held[source.id]?.rows?.size ?: 0,
             onHeld = { heldFor = source.id },
             onDismiss = { actionsFor = null },
-            onEdit = { focus -> onEdit(source.id, focus) },
+            onEdit = { focus -> onEdit(source.id, focus, source.protocol == Protocol.LOCAL) },
+            editFirst = backFromEdit,
             // Runs in the app's scope, so leaving the pane never cancels it.
             onRemove = {
                 val next = sources.getOrNull(sources.indexOfFirst { it.id == source.id } + 1)
@@ -282,8 +300,9 @@ private fun diskOf(source: Folder): String? {
 
 /**
  * A folder's sheet: scan, edit or remove (confirmed in place, saying its [consequence]); Edit comes first after a failure
- * it can fix. While titles of it are [held] ([onHeld] opens their sheet), they come first, focused. A folder of this
- * player's disks says its disk as « Ajouter un dossier » does, no protocol, and has no Edit: the form is a NAS's.
+ * it can fix, and takes focus with [editFirst], its edit left. While titles of it are [held] ([onHeld] opens their
+ * sheet), they come first, focused. A folder of this player's disks says its disk as « Ajouter un dossier » does, no
+ * protocol, and Edit chooses another folder of the disk through the flow's steps, first once a scan no longer finds it.
  */
 @Composable
 private fun SourceActions(
@@ -295,6 +314,7 @@ private fun SourceActions(
     onRemove: () -> Unit,
     held: Int = 0,
     onHeld: () -> Unit = {},
+    editFirst: Boolean = false,
 ) {
     val vm = settingsViewModel()
     val posters by remember(source.id) { vm.library.latestPosters(source, HEADER_POSTERS) }.collectAsStateWithLifecycle(emptyList())
@@ -303,8 +323,9 @@ private fun SourceActions(
     val edit = remember { FocusRequester() }
     val heldRow = remember { FocusRequester() }
     val disk = diskOf(source)
-    // Read once: a scan ending while the sheet is open does not move its rows under focus.
-    val fix = remember { editFixes(error).takeIf { disk == null } }
+    // Read once: a scan ending while the sheet is open does not move its rows under focus. A disk's folder mends only
+    // its folder gone: its disk is plugged in, not typed.
+    val fix = remember { editFixes(error).takeIf { disk == null || it == ScanErrorKind.NOT_FOUND } }
     val holds = remember { held > 0 }
     HlSideSheet(
         title = sourceName(source),
@@ -324,6 +345,7 @@ private fun SourceActions(
             }
         },
         initialFocus = when {
+            editFirst -> edit
             holds -> heldRow
             fix != null -> edit
             else -> scan
@@ -348,7 +370,7 @@ private fun SourceActions(
             fun EditRow() = HlSettingRow(
                 stringResource(R.string.edit_folder),
                 Modifier.focusRequester(edit),
-                description = stringResource(editWords(fix)),
+                description = stringResource(if (disk != null) R.string.edit_folder_disk_desc else editWords(fix)),
                 onClick = { sheet.dismiss { onEdit(FolderField.after(fix)) } },
             )
             HlSettingGroup(null) {
@@ -366,7 +388,7 @@ private fun SourceActions(
                     ScanRow()
                 } else {
                     ScanRow()
-                    if (disk == null) EditRow()
+                    EditRow()
                 }
                 HlSettingRow(
                     stringResource(R.string.remove_folder),

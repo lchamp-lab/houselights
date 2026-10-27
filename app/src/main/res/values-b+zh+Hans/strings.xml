@@ -206,6 +206,7 @@
     <string name="edit_folder">编辑文件夹</string>
     <string name="edit_folder_desc">更改其地址或登录信息。Houselights 会在保存前测试连接；其中的作品、观看记录和您的选择都会保留。</string>
     <string name="edit_folder_row_desc">地址或登录信息</string>
+    <string name="edit_folder_disk_desc">磁盘上的文件夹</string>
     <string name="edit_folder_unreachable_desc">地址可能已更改</string>
     <string name="edit_folder_login_desc">重新输入用户名或密码</string>
     <string name="edit_folder_not_found_desc">共享文件夹或路径可能已更改</string>
