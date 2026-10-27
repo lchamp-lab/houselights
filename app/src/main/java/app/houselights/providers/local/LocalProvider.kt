@@ -77,13 +77,13 @@ class LocalProvider(
 
     override suspend fun home(): List<HomeSection> {
         val mapper = LocalMapper(dao, context)
-        val inProgress = dao.inProgress(20)
+        val inProgress = dao.inProgress(IN_PROGRESS)
         return buildList {
             if (inProgress.isNotEmpty()) add(HomeSection(SectionType.CONTINUE, mapper.mapAll(inProgress), landscape = true))
             val next = nextUp(exclude = inProgress.map { it.id }.toSet())
             if (next.isNotEmpty()) add(HomeSection(SectionType.NEXT_UP, mapper.mapAll(next), landscape = true))
             for ((kind, library) in listOf(LibraryKind.MOVIES to MOVIES, LibraryKind.SHOWS to SHOWS)) {
-                val items = dao.latest(if (kind == LibraryKind.MOVIES) ItemKind.MOVIE else ItemKind.SERIES, 24)
+                val items = dao.latest(if (kind == LibraryKind.MOVIES) ItemKind.MOVIE else ItemKind.SERIES, LATEST)
                 if (items.isEmpty()) continue
                 val mapped = mapper.mapAll(items)
                 add(HomeSection(SectionType.LATEST, mapped, landscape = false, libraryKind = kind, libraryId = library))
@@ -164,7 +164,7 @@ class LocalProvider(
             val badges = badgeLists.flatMap(PipeList::fromText).toSet()
             LibraryFacets(
                 genres = PipeList.distinctGenres(genreLists),
-                decades = years.map { it / 10 * 10 }.distinct().sortedDescending(),
+                decades = years.map { it / DECADE_YEARS * DECADE_YEARS }.distinct().sortedDescending(),
                 qualities = buildList {
                     if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
                     if (badges.any { it in LocalFilters.HDR_BADGES }) add(Quality.HDR)
@@ -226,9 +226,10 @@ class LocalProvider(
             communityRating = members.mapNotNull { it.rating }.takeIf { it.isNotEmpty() }?.average(),
             // Genres grouped case-insensitively, as in the genre filter: an NFO's "drame" is TMDB's "Drame".
             genres = members.flatMap { it.genres }.groupBy { it.lowercase(Locale.ROOT) }.values
-                .sortedByDescending { it.size }.take(3).map(PipeList::spellingOf),
+                .sortedByDescending { it.size }.take(SAGA_GENRES).map(PipeList::spellingOf),
             poster = (c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })?.let { image(it, ImageType.POSTER) },
-            backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })?.let { image(it, ImageType.BACKDROP) },
+            backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })
+                ?.let { image(it, ImageType.BACKDROP) },
             // As a film's: its latest film added since its folder's first scan, the month a wall sorted by Ajout shows.
             addedAt = members.mapNotNull { it.addedLater }.maxOrNull(),
             user = UserState(played = members.isNotEmpty() && unplayed == 0, unplayedCount = unplayed),
@@ -275,8 +276,7 @@ class LocalProvider(
 
     override suspend fun similar(item: MediaItem): List<MediaItem> {
         if (item.kind == MediaKind.COLLECTION) return emptyList()
-        val entity = entity(item) ?: return emptyList()
-        if (entity.kind != ItemKind.MOVIE && entity.kind != ItemKind.SERIES) return emptyList()
+        val entity = entity(item)?.takeIf { it.kind == ItemKind.MOVIE || it.kind == ItemKind.SERIES } ?: return emptyList()
         val genre = entity.genres.firstOrNull() ?: return emptyList()
         val mapper = LocalMapper(dao, context)
         // Exclude the film's main row, so a copy does not list its own film as similar.
@@ -410,6 +410,16 @@ class LocalProvider(
         const val COLLECTIONS = "collections"
 
         private const val NEXT_UP_SHOWS = 20
+
+        /** Home's rows: Continue, then each library's latest titles. */
+        private const val IN_PROGRESS = 20
+        private const val LATEST = 24
+
+        /** A decade's years, from its first, as the filter by decade lists them. */
+        private const val DECADE_YEARS = 10
+
+        /** A saga's genres, its films' most shared first. */
+        private const val SAGA_GENRES = 3
 
         private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16

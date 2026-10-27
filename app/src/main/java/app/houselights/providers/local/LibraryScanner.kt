@@ -267,7 +267,7 @@ class LibraryScanner(
         // Based on library references, not on the NAS listing, so an unreachable NAS never deletes artwork.
         val result = artwork.sweep(dao.cachedArtworkPaths())
         if (result.deletedFiles > 0 || orphanCast > 0) {
-            Log.i(TAG, "Cleanup: ${result.deletedFiles} images (${result.freedBytes / 1024} KB), $orphanCast cast rows")
+            Log.i(TAG, "Cleanup: ${result.deletedFiles} images (${result.freedBytes / KIB} KB), $orphanCast cast rows")
         }
         return result
     }
@@ -820,6 +820,7 @@ class LibraryScanner(
         /** Below this free space a failure is attributed to the full device. */
         private const val NEARLY_FULL_BYTES = 50L shl 20
         private const val MAX_PAUSE_MS = 4 * 60 * 60_000L
+        private const val KIB = 1024
 
         /** Title and year from the file name or folder ("Title (Year)/movie.mkv"); a disc by its folder. */
         fun parseMovie(relativePath: String): ParsedMovie {

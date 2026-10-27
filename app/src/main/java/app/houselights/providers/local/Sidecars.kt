@@ -36,8 +36,14 @@ class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>, private val st
             find(dir, bases.flatMap { base -> suffixes.map { base + it } } + if (ownFolder) folderNames else emptyList())
         return VideoSidecars(
             nfo = pick(listOf(".nfo"), listOf("movie.nfo")),
-            poster = pick(IMAGES.map { "-poster.$it" } + listOf(".tbn"), IMAGES.flatMap { listOf("poster.$it", "folder.$it", "cover.$it") }),
-            fanart = pick(IMAGES.map { "-fanart.$it" } + IMAGES.map { "-backdrop.$it" }, IMAGES.flatMap { listOf("fanart.$it", "backdrop.$it") }),
+            poster = pick(
+                IMAGES.map { "-poster.$it" } + listOf(".tbn"),
+                IMAGES.flatMap { listOf("poster.$it", "folder.$it", "cover.$it") },
+            ),
+            fanart = pick(
+                IMAGES.map { "-fanart.$it" } + IMAGES.map { "-backdrop.$it" },
+                IMAGES.flatMap { listOf("fanart.$it", "backdrop.$it") },
+            ),
             logo = pick(listOf("-clearlogo.png", "-logo.png"), listOf("clearlogo.png", "logo.png")),
             thumb = pick(IMAGES.map { "-thumb.$it" } + IMAGES.map { "-landscape.$it" }, IMAGES.map { "landscape.$it" }),
         )

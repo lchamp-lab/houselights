@@ -109,7 +109,7 @@ data class TechSheet(val sections: List<TechSection>) {
             val regions = tracks.map { (code, title) -> TrackNames.region(code, title) }
             return tracks.indices.map { i ->
                 val alike = tracks.indices.filter { languages[i] != null && languages[it] == languages[i] }
-                regions[i].takeIf { alike.size > 1 && alike.map { regions[it] }.distinct().size > 1 }
+                regions[i].takeIf { alike.size > 1 && alike.map(regions::get).distinct().size > 1 }
             }
         }
 

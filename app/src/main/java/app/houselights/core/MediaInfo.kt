@@ -14,12 +14,17 @@ enum class Definition(val token: String, val label: String) {
     ;
 
     companion object {
+        /** Narrowest frames of each definition, a little under 3840, 1920 and 1280 for crops and odd encodes. */
+        private const val ULTRA_HD_WIDTH = 3200
+        private const val FULL_HD_WIDTH = 1800
+        private const val HD_WIDTH = 1200
+
         /** From the frame width: wide films are shorter than their definition's height. */
         fun of(width: Int?): Definition? = when {
             width == null -> null
-            width >= 3200 -> ULTRA_HD
-            width >= 1800 -> FULL_HD
-            width >= 1200 -> HD
+            width >= ULTRA_HD_WIDTH -> ULTRA_HD
+            width >= FULL_HD_WIDTH -> FULL_HD
+            width >= HD_WIDTH -> HD
             else -> SD
         }
 

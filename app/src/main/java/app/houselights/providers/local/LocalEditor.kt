@@ -44,26 +44,10 @@ class LocalEditor(
         val e = entity(item)
         val tmdb = client()
         val (online, onlineError) = onlineImages(e, tmdb)
-        val images = when (kind) {
-            ArtworkKind.POSTER -> online?.posters
-            ArtworkKind.BACKDROP -> online?.backdrops
-            ArtworkKind.LOGO -> online?.logos
-        }.orEmpty()
+        val images = online.of(kind)
         val known = images.associateBy { it.filePath }
-        val language = tmdb?.languageCode ?: java.util.Locale.getDefault().language
-        // Backdrops work best without text; posters and logos prefer the viewer's language.
-        val preference = if (kind == ArtworkKind.BACKDROP) listOf(null, language, "en") else listOf(language, "en", null)
-        val ranked = images.sortedWith(
-            compareBy<TmdbImage> { preference.indexOf(it.iso6391).let { i -> if (i < 0) preference.size else i } }
-                .thenByDescending { it.voteAverage }
-        )
-        // Up to 1 MB of XML, so parse off the main thread.
-        val nfo = e.nfo?.let { text -> withContext(Dispatchers.Default) { NfoParser.parse(text) } }
-        val nfoUrl = when (kind) {
-            ArtworkKind.POSTER -> nfo?.posterUrl
-            ArtworkKind.BACKDROP -> nfo?.fanartUrl
-            ArtworkKind.LOGO -> nfo?.logoUrl
-        }
+        val ranked = ranked(images, kind, language = tmdb?.languageCode ?: java.util.Locale.getDefault().language)
+        val nfoUrl = nfoUrl(e, kind)
 
         val automatic = e.automaticValue(kind)
         val current = e.userValue(kind) ?: automatic
@@ -76,23 +60,7 @@ class LocalEditor(
         // A chosen image missing from TMDB's list stays visible next to the automatic one.
         if (current != null && current !in values) values.add(if (automatic != null) 1 else 0, current)
 
-        fun option(value: String): ArtworkOption {
-            val image = known[value]
-            return ArtworkOption(
-                value = value,
-                image = value.takeIf { it != NONE }?.let { LocalProvider.image(it, kind.imageType) },
-                origin = when {
-                    value == NONE -> ArtworkOrigin.NONE
-                    value.isCachedArtwork() -> ArtworkOrigin.LOCAL_FILE
-                    value.startsWith("http") -> ArtworkOrigin.NFO
-                    else -> ArtworkOrigin.ONLINE
-                },
-                language = image?.iso6391,
-                width = image?.width ?: 0,
-                height = image?.height ?: 0,
-            )
-        }
-        val options = values.map(::option)
+        val options = values.map { option(it, kind, known[it]) }
         return ArtworkChoices(
             options = options,
             automatic = automatic?.let { a -> options.first { it.value == a } },
@@ -101,6 +69,49 @@ class LocalEditor(
             onlineError = onlineError,
         )
     }
+
+    /** TMDB's images of [kind]; none without them. */
+    private fun TmdbImageSet?.of(kind: ArtworkKind): List<TmdbImage> = when (kind) {
+        ArtworkKind.POSTER -> this?.posters
+        ArtworkKind.BACKDROP -> this?.backdrops
+        ArtworkKind.LOGO -> this?.logos
+    }.orEmpty()
+
+    /** [images] in the order they are offered: by [language] as [kind] prefers it, then by TMDB's votes. */
+    private fun ranked(images: List<TmdbImage>, kind: ArtworkKind, language: String): List<TmdbImage> {
+        // Backdrops work best without text; posters and logos prefer the viewer's language.
+        val preference = if (kind == ArtworkKind.BACKDROP) listOf(null, language, "en") else listOf(language, "en", null)
+        return images.sortedWith(
+            compareBy<TmdbImage> { preference.indexOf(it.iso6391).let { i -> if (i < 0) preference.size else i } }
+                .thenByDescending { it.voteAverage }
+        )
+    }
+
+    /** The picture of [kind] the title's NFO names, if any. */
+    private suspend fun nfoUrl(e: ItemEntity, kind: ArtworkKind): String? {
+        // Up to 1 MB of XML, so parse off the main thread.
+        val nfo = e.nfo?.let { text -> withContext(Dispatchers.Default) { NfoParser.parse(text) } }
+        return when (kind) {
+            ArtworkKind.POSTER -> nfo?.posterUrl
+            ArtworkKind.BACKDROP -> nfo?.fanartUrl
+            ArtworkKind.LOGO -> nfo?.logoUrl
+        }
+    }
+
+    /** The choice of [value], with what TMDB says of its [image] when it is one of TMDB's. */
+    private fun option(value: String, kind: ArtworkKind, image: TmdbImage?) = ArtworkOption(
+        value = value,
+        image = value.takeIf { it != NONE }?.let { LocalProvider.image(it, kind.imageType) },
+        origin = when {
+            value == NONE -> ArtworkOrigin.NONE
+            value.isCachedArtwork() -> ArtworkOrigin.LOCAL_FILE
+            value.startsWith("http") -> ArtworkOrigin.NFO
+            else -> ArtworkOrigin.ONLINE
+        },
+        language = image?.iso6391,
+        width = image?.width ?: 0,
+        height = image?.height ?: 0,
+    )
 
     /**
      * TMDB images of [e], or why they are unavailable: no key, or a TMDB failure (logged). An unidentified title
@@ -208,7 +219,7 @@ class LocalEditor(
         suspend fun find(y: Int?) = if (show) tmdb.searchShows(q, y) else tmdb.searchMovies(q, y)
         // File-name years are often off by one, so few results are completed by a search without the year.
         val withYear = find(year)
-        val results = if (year != null && withYear.size < 5) withYear + find(null) else withYear
+        val results = if (year != null && withYear.size < FEW_RESULTS) withYear + find(null) else withYear
         return results.distinctBy { it.id }.take(MAX_RESULTS).map { it.toCandidate() }
     }
 
@@ -273,7 +284,7 @@ class LocalEditor(
     )
 
     private fun TmdbSearchResult.toCandidate(): MatchCandidate {
-        val name = title ?: name ?: ""
+        val name = (title ?: name).orEmpty()
         return MatchCandidate(
             id = id.toString(),
             title = Typeset.text(name),
@@ -291,6 +302,9 @@ class LocalEditor(
         const val NONE = ""
         const val MAX_OPTIONS = 80
         const val MAX_RESULTS = 20
+
+        /** Fewer results than this for a year are completed by a search without it. */
+        const val FEW_RESULTS = 5
         val IMDB_ID = Regex("(?i)tt\\d{6,9}")
 
         val ArtworkKind.imageType

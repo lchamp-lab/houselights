@@ -22,15 +22,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
         if (itemId != null && tag != null) ImageRef("$itemId/$type/$tag") { w -> client.imageUrl(itemId, type, tag, w) } else null
 
     fun toMedia(dto: BaseItem): MediaItem {
-        val kind = when (dto.type) {
-            "Movie" -> MediaKind.MOVIE
-            "Series" -> MediaKind.SERIES
-            "Season" -> MediaKind.SEASON
-            "Episode" -> MediaKind.EPISODE
-            "BoxSet" -> MediaKind.COLLECTION
-            "Video", "MusicVideo" -> MediaKind.VIDEO
-            else -> MediaKind.FOLDER
-        }
+        val kind = kindOf(dto.type)
         val media = mediaInfo(dto)
         val backdrop = image(dto.id, "Backdrop", dto.backdropImageTags.firstOrNull())
             ?: image(dto.parentBackdropItemId, "Backdrop", dto.parentBackdropImageTags.firstOrNull())
@@ -56,7 +48,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             officialRating = dto.officialRating,
             communityRating = dto.communityRating,
             genres = dto.genres,
-            cast = dto.people.filter { it.type == "Actor" }.take(30).map {
+            cast = dto.people.filter { it.type == "Actor" }.take(CAST_KEPT).map {
                 Person(Typeset.text(it.name.orEmpty()), Typeset.text(it.role), image(it.id, "Primary", it.primaryImageTag))
             },
             directors = dto.people.filter { it.type == "Director" }.mapNotNull { it.name }.map { Typeset.text(it) },
@@ -83,6 +75,20 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
     }
 
     companion object {
+        /** The cast a title keeps, in billing order, as a scan keeps of TMDB's. */
+        private const val CAST_KEPT = 30
+
+        /** What a server's item type is to the app; any other is a folder. */
+        private fun kindOf(type: String?): MediaKind = when (type) {
+            "Movie" -> MediaKind.MOVIE
+            "Series" -> MediaKind.SERIES
+            "Season" -> MediaKind.SEASON
+            "Episode" -> MediaKind.EPISODE
+            "BoxSet" -> MediaKind.COLLECTION
+            "Video", "MusicVideo" -> MediaKind.VIDEO
+            else -> MediaKind.FOLDER
+        }
+
         /**
          * HDR formats for each VideoRangeType value (Jellyfin 10.9 to 10.11). DOVIInvalid plays as its
          * base layer, whose format the server does not name, so it maps to none.

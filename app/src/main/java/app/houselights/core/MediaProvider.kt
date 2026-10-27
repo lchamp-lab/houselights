@@ -128,6 +128,7 @@ data class ProviderCapabilities(
 }
 
 /** A media library backend: local folders on the NAS, or a Jellyfin server. */
+@Suppress("TooManyFunctions") // One per thing a screen asks of a source, as both sources answer it.
 interface MediaProvider {
     val capabilities: ProviderCapabilities
 

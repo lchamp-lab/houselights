@@ -11,6 +11,7 @@ import retrofit2.http.Query
  * Subset of the Jellyfin REST API (10.9+ routes). Write routes return Unit so that Retrofit throws an
  * HttpException on any non-2xx answer, which a Response return type would hide.
  */
+@Suppress("TooManyFunctions") // One per route of the server the app calls.
 interface JellyfinApi {
     @GET("System/Info/Public")
     suspend fun publicInfo(): PublicSystemInfo

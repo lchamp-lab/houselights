@@ -6,7 +6,9 @@ import java.time.LocalDate
 /** How films are grouped into collections. */
 object CollectionRules {
     /** Words that only mark a name as a collection, in the languages TMDB and media managers use. */
-    private val GENERIC = setOf("collection", "saga", "la", "le", "les", "the", "trilogy", "trilogie", "series", "franchise", "films", "movies")
+    private val GENERIC = setOf(
+        "collection", "saga", "la", "le", "les", "the", "trilogy", "trilogie", "series", "franchise", "films", "movies",
+    )
 
     /**
      * The TMDB id when known, else the name's significant words; a name with none ("Collection", Japanese script)
