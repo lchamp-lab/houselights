@@ -99,7 +99,7 @@ private fun SecondaryRoom() {
                     HlIcons.Display to R.string.section_display,
                     HlIcons.Info to R.string.section_about,
                 ).forEachIndexed { i, (icon, label) ->
-                    HlNavItem(icon, stringResource(label), selected = i == place, onFocused = { place = i })
+                    HlNavItem(icon, stringResource(label), selected = i == place, onFocus = { place = i })
                 }
             }
             Spacer(Modifier.width(HlSpace.xxl))

@@ -15,10 +15,16 @@ import app.houselights.ui.design.components.StatusState
 
 /**
  * A part that could not load (episodes, a wall's next page): why, and the fixing action, none when nothing
- * fixes it. While [retrying], its button stays busy and focused; [action] is that button's modifier.
+ * fixes it. While [retrying], its button stays busy and focused; [actionModifier] is that button's modifier.
  */
 @Composable
-fun PartFailed(error: UiError, retrying: Boolean, onRetry: () -> Unit, modifier: Modifier = Modifier, action: Modifier = Modifier) {
+fun PartFailed(
+    error: UiError,
+    retrying: Boolean,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    actionModifier: Modifier = Modifier,
+) {
     val fix = LocalErrorFix.current
     Column(modifier) {
         HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
@@ -27,7 +33,7 @@ fun PartFailed(error: UiError, retrying: Boolean, onRetry: () -> Unit, modifier:
         HlButton(
             stringResource(fixedBy.label),
             onClick = { fixedBy.run(onRetry, fix) },
-            modifier = action,
+            modifier = actionModifier,
             icon = HlIcons.Refresh.takeIf { fixedBy == ErrorAction.RETRY },
             busy = retrying && fixedBy == ErrorAction.RETRY,
             busyLabel = stringResource(R.string.retrying),

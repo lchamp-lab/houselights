@@ -120,10 +120,10 @@ fun DoorSagas(items: List<MediaItem>, modifier: Modifier = Modifier) {
     val shade = remember { ColorFilter.colorMatrix(ColorMatrix().apply { setToScale(SAGA, SAGA, SAGA, 1f) }) }
     Box(modifier.fillMaxSize()) {
         items.getOrNull(1)?.let { back ->
-            SagaPoster(back, width, decoded, Modifier.offset(HomeGridDefaults.sagaBack, HomeGridDefaults.sagaBackTop), shade)
+            SagaPoster(back, width, decoded, shade, Modifier.offset(HomeGridDefaults.sagaBack, HomeGridDefaults.sagaBackTop))
         }
         items.firstOrNull()?.let { front ->
-            SagaPoster(front, width, decoded, Modifier.offset(HomeGridDefaults.sagaFront, HomeGridDefaults.sagaFrontTop), null)
+            SagaPoster(front, width, decoded, null, Modifier.offset(HomeGridDefaults.sagaFront, HomeGridDefaults.sagaFrontTop))
         }
     }
 }
@@ -131,7 +131,8 @@ fun DoorSagas(items: List<MediaItem>, modifier: Modifier = Modifier) {
 private const val SAGA = HlScrim.SAGA_BEHIND
 
 @Composable
-private fun SagaPoster(item: MediaItem, px: Int, decoded: IntSize, modifier: Modifier, filter: ColorFilter?) {
+private fun SagaPoster(item: MediaItem, px: Int, decoded: IntSize, filter: ColorFilter?, modifier: Modifier = Modifier) {
+
     ArtworkImage(
         item.poster?.url(px),
         null,

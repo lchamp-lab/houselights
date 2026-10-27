@@ -2,6 +2,7 @@ package app.houselights.ui.catalog
 
 import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -73,7 +74,7 @@ internal fun LazyListScope.catalogForms() {
 }
 
 @Composable
-private fun FormSettings() {
+private fun ColumnScope.FormSettings() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl), verticalAlignment = Alignment.Top) {
         Specimen(
             "no well: the pane you are in lights its icon, raspberry on focus's white",
@@ -81,9 +82,9 @@ private fun FormSettings() {
             gap = HlSpace.xs,
         ) {
             Column {
-                HlNavItem(HlIcons.Folder, stringResource(R.string.section_source), selected = true, onFocused = {})
-                HlNavItem(HlIcons.Numbers, stringResource(R.string.section_numbers), selected = false, onFocused = {})
-                HlNavItem(HlIcons.Display, stringResource(R.string.section_display), selected = false, onFocused = {})
+                HlNavItem(HlIcons.Folder, stringResource(R.string.section_source), selected = true, onFocus = {})
+                HlNavItem(HlIcons.Numbers, stringResource(R.string.section_numbers), selected = false, onFocus = {})
+                HlNavItem(HlIcons.Display, stringResource(R.string.section_display), selected = false, onFocus = {})
             }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
@@ -150,7 +151,7 @@ private fun FormSettings() {
 }
 
 @Composable
-private fun FormTextFields() {
+private fun ColumnScope.FormTextFields() {
     Text(
         "A field is a glass plate 60 tall edged by a hairline, its name in white over it. Focus rings it in projector " +
             "white and shows, at its end, that OK types; OK opens the keyboard, and while typing the ring is the ember " +
@@ -263,7 +264,7 @@ private fun FormFoundServers() {
 
 /** An NFS folder's identity under its form's actions: folded, its value said; open, what it changes over two fields. */
 @Composable
-private fun FormFoldedFields() {
+private fun ColumnScope.FormFoldedFields() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("a setting folded under a form's actions, its value said; root in words", Modifier.weight(1f), gap = HlSpace.xs) {
             HlSettingGroup(null) {
@@ -329,7 +330,7 @@ private fun FormFoldedFields() {
 private const val LONG_ID = "2000001"
 
 @Composable
-private fun FormStatusPanels() {
+private fun ColumnScope.FormStatusPanels() {
     val films = stringResource(R.string.library_movies)
     val nfs = listOf("NFS", films)
     val address = stringResource(R.string.label_address)

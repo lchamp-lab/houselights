@@ -43,11 +43,19 @@ import app.houselights.ui.util.versionName
  * that keeps no choice, the sheet only reads: it says the server plays its first copy, and OK does nothing.
  */
 @Composable
-fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: ((Version) -> Unit)?, onDismiss: () -> Unit) {
+fun VersionsSheet(
+    item: MediaItem,
+    versions: List<Version>,
+    onChoose: ((Version) -> Unit)?,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val first = remember { FocusRequester() }
     HlSideSheet(
         stringResource(R.string.versions),
         onDismiss = onDismiss,
+        modifier = modifier,
+
         facts = listOf(item.title, item.year?.toString()),
         description = if (onChoose == null) stringResource(R.string.versions_server_first) else null,
         initialFocus = first.takeIf { versions.isNotEmpty() },

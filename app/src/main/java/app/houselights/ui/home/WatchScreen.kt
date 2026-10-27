@@ -147,10 +147,10 @@ private fun Sections(
                                 modifier = mod,
                                 title = item.seriesTitle ?: item.title,
                                 facts = listOf(item.episodeLabel, timeLeft(item)),
-                                onFocused = focus,
+                                onFocus = focus,
                             )
                         } else {
-                            PosterCard(item, onClick = { onOpen(item) }, modifier = mod, onFocused = focus)
+                            PosterCard(item, onClick = { onOpen(item) }, modifier = mod, onFocus = focus)
                         }
                     }
                 }

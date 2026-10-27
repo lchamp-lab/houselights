@@ -49,7 +49,7 @@ import app.houselights.ui.design.HlSpace
 
 /**
  * A place in the settings' list (DESIGN.md, Secondary screens): its icon and its name alone, grey until it is the
- * open one ([selected]: white, its icon lit, raspberry on focus's white); focus whitens it and tells [onFocused], OK
+ * open one ([selected]: white, its icon lit, raspberry on focus's white); focus whitens it and tells [onFocus], OK
  * [onClick]. Its plate hangs [HlSpace.s] past the column's start, so its icon lines up with the title above.
  */
 @Composable
@@ -57,9 +57,9 @@ fun HlNavItem(
     icon: ImageVector,
     title: String,
     selected: Boolean,
-    onFocused: () -> Unit,
+    onFocus: () -> Unit,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = onFocused,
+    onClick: () -> Unit = onFocus,
 ) {
     val c = Hl.colors
     HlRowSurface(
@@ -67,7 +67,7 @@ fun HlNavItem(
         modifier = modifier
             .fillMaxWidth()
             .hang(HlSpace.s)
-            .onFocusChanged { if (it.isFocused) onFocused() }
+            .onFocusChanged { if (it.isFocused) onFocus() }
             .semantics { this.selected = selected },
     ) { focused ->
         Row(
@@ -158,7 +158,7 @@ fun HlSettingRow(
 
     @Composable
     fun Content(focused: Boolean) {
-        val shown = value?.takeIf { valueBreaks }
+        val shown = value?.takeIf { valueBreaks && VALUE_PARTS in it }
         if (shown == null) return Line(focused, value)
         ValueLines(shown, valueStyle, title, description, icon != null) { Line(focused, it) }
     }
@@ -186,7 +186,7 @@ fun HlSettingRow(
  * line, in the words' ink: a figure that changes, not a description.
  */
 @Composable
-private fun RowDescription(description: String, progress: Float?, focused: Boolean, enabled: Boolean) {
+private fun ColumnScope.RowDescription(description: String, progress: Float?, focused: Boolean, enabled: Boolean) {
     Spacer(Modifier.height(HlSpace.xxs))
     if (progress == null) {
         Text(
@@ -209,8 +209,8 @@ private fun RowDescription(description: String, progress: Float?, focused: Boole
 private const val VALUE_PARTS = " · "
 
 /**
- * [line] with [value] as a row shows it beside its [title] and [description]: on one line, or its parts on a line each
- * where one line would cut them.
+ * [line] with [value], of parts, as a row shows it beside its [title] and [description]: on one line, or its parts on
+ * a line each where one line would cut them.
  */
 @Composable
 private fun ValueLines(
@@ -221,7 +221,6 @@ private fun ValueLines(
     icon: Boolean,
     line: @Composable (String) -> Unit,
 ) {
-    if (VALUE_PARTS !in value) return line(value)
     val measurer = rememberTextMeasurer()
     fun wide(text: String, style: TextStyle) = measurer.measure(text, style, softWrap = false, maxLines = 1).size.width
     val words = maxOf(wide(title, Hl.type.entry), description?.let { wide(it, Hl.type.meta) } ?: 0)
@@ -298,11 +297,13 @@ fun HlChoiceSheet(
     selected: Int,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
     description: String? = null,
     facts: List<String?> = emptyList(),
 ) {
     val current = remember { FocusRequester() }
-    HlSideSheet(title, onDismiss, facts = facts, description = description, initialFocus = current) { sheet ->
+    HlSideSheet(title, onDismiss, modifier, facts = facts, description = description, initialFocus = current) { sheet ->
+
         HlSettingGroup(null) {
             options.forEachIndexed { i, option ->
                 HlSettingRow(
@@ -331,7 +332,7 @@ internal fun ChoiceCheck() {
 
 /** The current choice's check after what a row states, [HlSpace.m] from it, its place kept on rows not [chosen]. */
 @Composable
-internal fun ChoicePlace(chosen: Boolean) {
+internal fun RowScope.ChoicePlace(chosen: Boolean) {
     Spacer(Modifier.width(HlSpace.m))
     Box(Modifier.size(HlSize.icon)) { if (chosen) ChoiceCheck() }
 }

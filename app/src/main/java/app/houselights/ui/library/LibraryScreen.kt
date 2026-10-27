@@ -305,7 +305,7 @@ private fun Posters(
                     item = item,
                     onClick = { onOpenItem(item) },
                     width = null,
-                    onFocused = {
+                    onFocus = {
                         grid.selectedId.value = item.id
                         grid.focusedIndex.value = index
                         // The first line sits under the padding: show it all.
@@ -325,7 +325,7 @@ private fun Posters(
                         retrying = state.pageRetrying,
                         onRetry = vm::retryPage,
                         modifier = Modifier.padding(top = HlSpace.m),
-                        action = Modifier.focusKey(RETRY_PAGE, memory),
+                        actionModifier = Modifier.focusKey(RETRY_PAGE, memory),
                     )
                 }
             }

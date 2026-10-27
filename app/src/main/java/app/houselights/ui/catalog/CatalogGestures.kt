@@ -1,6 +1,7 @@
 package app.houselights.ui.catalog
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -90,7 +91,7 @@ private fun SideBySide() {
 }
 
 @Composable
-private fun Intertitles() {
+private fun ColumnScope.Intertitles() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("neutral: what to do, and a quieter way", Modifier.weight(1f)) {
             Intertitle(stringResource(R.string.home_empty_title), message = stringResource(R.string.home_empty_local)) {
@@ -144,7 +145,7 @@ private fun ErrorSpecimen(error: UiError, retrying: Boolean = false) =
     HlErrorState(error, onRetry = {}, retrying = retrying, focusOnAppear = false)
 
 @Composable
-private fun Counters() {
+private fun ColumnScope.Counters() {
     Specimen("first scan, on home: what is read, a line a reading column long, the file") {
         ScanProgress(
             41,
@@ -171,7 +172,7 @@ private fun Counters() {
 }
 
 @Composable
-private fun Jackets() {
+private fun ColumnScope.Jackets() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("Affichage, on a TV that lists Ultra HD: the row that acts comes last", Modifier.width(HlLayout.readableNarrow)) {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
@@ -239,7 +240,7 @@ private fun Jackets() {
 }
 
 @Composable
-private fun Frames() {
+private fun ColumnScope.Frames() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("a folder's card: one poster that fails, five free places", Modifier.width(HlLayout.readableNarrow)) {
             PosterStrip(listOf(BROKEN), slots = 6)

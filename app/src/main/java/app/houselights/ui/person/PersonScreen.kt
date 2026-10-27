@@ -125,7 +125,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                             item,
                             onClick = { onOpenItem(item) },
                             modifier = card(i, item),
-                            onFocused = { selectedId.value = item.id },
+                            onFocus = { selectedId.value = item.id },
                         )
                     }
                 }
@@ -144,7 +144,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                             onClick = { onOpenItem(item) },
                             modifier = card(i, item),
                             width = null,
-                            onFocused = { selectedId.value = item.id },
+                            onFocus = { selectedId.value = item.id },
                         )
                     }
                 }

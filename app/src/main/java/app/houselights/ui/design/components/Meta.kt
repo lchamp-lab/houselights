@@ -187,7 +187,8 @@ private class CaseLine(val name: String, val glyph: ImageVector, val words: List
  * then its formats in `jaquette`, a detail (the codec) in grey, and their measures in a secondary `meta`.
  */
 @Composable
-private fun Jaquette(lines: List<CaseLine>, modifier: Modifier) {
+private fun Jaquette(lines: List<CaseLine>, modifier: Modifier = Modifier) {
+
     val c = Hl.colors
     Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
         lines.filter { it.words.isNotEmpty() }.forEach { line ->

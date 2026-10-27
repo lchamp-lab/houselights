@@ -107,8 +107,14 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
 
 /** The welcome wall's veil, black and darker where text sits; nothing glows behind the lockup. */
 @Composable
-fun PosterWallScrim() {
+fun PosterWallScrim(modifier: Modifier = Modifier) {
     val black = Hl.colors.background
-    Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(*HlScrim.WALL_ACROSS.colorStops(black))))
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(*HlScrim.WALL_DOWN.colorStops(black))))
+    // Across, then down over it.
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(Brush.horizontalGradient(*HlScrim.WALL_ACROSS.colorStops(black)))
+            .background(Brush.verticalGradient(*HlScrim.WALL_DOWN.colorStops(black))),
+    )
 }
+

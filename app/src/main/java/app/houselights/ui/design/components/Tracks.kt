@@ -33,12 +33,21 @@ import java.util.Locale
  * the one Lire plays checked. Choosing keeps the sheet open, for the other column; [show] words it for a whole show.
  */
 @Composable
-fun TracksSheet(name: String, plan: TrackPlan, show: Boolean, onChoose: (TrackChoice) -> Unit, onDismiss: () -> Unit) {
+fun TracksSheet(
+    name: String,
+    plan: TrackPlan,
+    show: Boolean,
+    onChoose: (TrackChoice) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val first = remember { FocusRequester() }
     val choice = plan.choice ?: TrackChoice()
     HlSideSheet(
         stringResource(R.string.tracks),
         onDismiss = onDismiss,
+        modifier = modifier,
+
         facts = listOf(name, stringResource(if (show) R.string.tracks_for_show else R.string.tracks_for_film)),
         initialFocus = first,
         wide = true,

@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -114,6 +115,7 @@ internal class SheetMotion(
 /** Sheet and menu motion: in over [HlMotion.FOCUS_IN], out over [HlMotion.FOCUS_OUT]; [onDismiss] runs once gone. */
 @Composable
 internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
     val shown = remember { MutableTransitionState(false).apply { targetState = true } }
     var then by remember { mutableStateOf({}) }
     val sheet = remember {
@@ -133,9 +135,10 @@ internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
     }
     if (shown.isIdle && !shown.currentState) {
         LaunchedEffect(Unit) {
-            onDismiss()
+            currentOnDismiss()
             then()
         }
+
     }
     return remember { SheetMotion(shown, travel, opacity, sheet) }
 }
@@ -300,7 +303,7 @@ private data class SheetHead(
  * the title's line, their words on its baseline and their plates hanging past the edge as they do past the start.
  */
 @Composable
-private fun SheetHeader(
+private fun ColumnScope.SheetHeader(
     head: SheetHead,
     artwork: (@Composable () -> Unit)?,
     places: (@Composable () -> Unit)?,
@@ -391,7 +394,7 @@ private fun HeadWords(head: SheetHead, capitalsAtTop: Boolean) {
 /**
  * Confirms an irreversible action inside its side sheet: [rows] get `ask` and `origin` (the asking row's
  * modifier); asking replaces them with an attention intertitle ([question], [consequence], Cancel focused,
- * [confirm]). Cancel or Back restores the rows, refocuses the asking row and runs [onCancel].
+ * [confirm]), which [modifier] is for. Cancel or Back restores the rows, refocuses the asking row and runs [onCancel].
  */
 @Composable
 fun SheetConfirm(
@@ -399,6 +402,7 @@ fun SheetConfirm(
     consequence: String,
     confirm: String,
     onConfirm: () -> Unit,
+    modifier: Modifier = Modifier,
     onCancel: () -> Unit = {},
     rows: @Composable (ask: () -> Unit, origin: Modifier) -> Unit,
 ) {
@@ -413,7 +417,7 @@ fun SheetConfirm(
             onCancel()
         }
         BackHandler(onBack = cancel)
-        ConfirmCard(question, consequence, confirm, onConfirm, cancel)
+        ConfirmCard(question, consequence, confirm, onConfirm, cancel, modifier)
     } else {
         rows({ asking = true }, Modifier.focusRequester(origin))
         if (answered) {
@@ -426,10 +430,18 @@ fun SheetConfirm(
 }
 
 @Composable
-private fun ConfirmCard(question: String, consequence: String, confirm: String, onConfirm: () -> Unit, onCancel: () -> Unit) {
+private fun ConfirmCard(
+    question: String,
+    consequence: String,
+    confirm: String,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val cancel = remember { FocusRequester() }
     LaunchedEffect(Unit) { cancel.tryRequestFocus() }
-    Intertitle(question, message = consequence, attention = true) {
+    Intertitle(question, modifier, message = consequence, attention = true) {
+
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))
             ButtonPlate(confirm, onClick = onConfirm, caution = true)

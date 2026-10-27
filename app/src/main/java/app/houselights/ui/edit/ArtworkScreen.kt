@@ -191,7 +191,7 @@ private fun Choices(
                 aspectRatio = kind.aspectRatio,
                 fit = kind == ArtworkKind.LOGO,
                 placeholder = item.title.takeIf { option.origin == ArtworkOrigin.NONE },
-                onFocused = { onFocus(option) },
+                onFocus = { onFocus(option) },
                 modifier = if (i == selectedIndex) Modifier.focusRequester(selectedFocus) else Modifier,
             )
         }

@@ -122,7 +122,7 @@ internal fun LazyListScope.numbersPane(
         LoadState.Loading -> item { Section(stringResource(R.string.numbers_title)) {} }
         is LoadState.Failed -> item {
             Section(stringResource(R.string.numbers_title)) {
-                PartFailed(state.error, state.retrying, onRetry, action = rows.focus(RETRY))
+                PartFailed(state.error, state.retrying, onRetry, actionModifier = rows.focus(RETRY))
             }
         }
         is LoadState.Ready -> {

@@ -181,7 +181,8 @@ fun TitleArt(
  * standard text size the signature is chosen as at it, then set at the viewer's: a smaller size never grows a title.
  */
 @Composable
-private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLines: Int, modifier: Modifier) {
+private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLines: Int, modifier: Modifier = Modifier) {
+
     val measurer = rememberTextMeasurer(cacheSize = TITLE_MEASURES)
     val signature = Hl.type.titleSignature
     val density = LocalDensity.current

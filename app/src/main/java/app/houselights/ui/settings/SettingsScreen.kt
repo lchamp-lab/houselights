@@ -185,7 +185,7 @@ internal fun SettingsPlaces(panes: List<Pane>, open: Pane, memory: FocusMemory, 
                 title = stringResource(p.label),
                 selected = p == open,
                 // The window's own first focus, before the screen is restored, leaves the pane that was open.
-                onFocused = { if (!memory.arriving) focused = p },
+                onFocus = { if (!memory.arriving) focused = p },
                 modifier = Modifier.focusKey(paneKey(p), memory),
                 onClick = { if (p != open) onOpen(p) },
             )

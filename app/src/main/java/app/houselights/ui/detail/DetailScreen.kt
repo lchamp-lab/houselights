@@ -376,7 +376,7 @@ private fun LazyListScope.partFailed(state: DetailState, memory: FocusMemory, on
     val error = state.error?.takeUnless { state.failedWithLire } ?: return
     item(key = "failed") {
         Box(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
-            PartFailed(error, state.retrying, onRetry, action = Modifier.focusKey(RETRY_PAGE, memory))
+            PartFailed(error, state.retrying, onRetry, actionModifier = Modifier.focusKey(RETRY_PAGE, memory))
         }
     }
 }
@@ -1027,7 +1027,7 @@ private fun Episodes(
                     title = ep.title,
                     number = ep.episodeNumbers,
                     facts = listOf(ep.runtimeMs?.let(::formatDuration), episodeState(ep)),
-                    onFocused = { onFocus(ep) },
+                    onFocus = { onFocus(ep) },
                     onLongClick = onOptions(ep),
                     onLongClickLabel = stringResource(R.string.more_options),
                 )
@@ -1085,7 +1085,7 @@ private fun EpisodesSkeleton(header: String?) {
 private fun EpisodesFailed(header: String?, error: UiError?, retrying: Boolean, onRetry: () -> Unit, action: Modifier) {
     Column(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
         header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }
-        error?.let { PartFailed(it, retrying, onRetry, action = action) }
+        error?.let { PartFailed(it, retrying, onRetry, actionModifier = action) }
     }
 }
 

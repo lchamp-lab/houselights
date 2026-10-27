@@ -1,16 +1,13 @@
 package app.houselights.ui.design
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.ScrollableState
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.ScrollState
@@ -19,8 +16,6 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
@@ -29,13 +24,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -57,6 +49,19 @@ import androidx.compose.ui.relocation.bringIntoView
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.toSize
 import kotlin.math.abs
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.focus.FocusEventModifierNode
+import androidx.compose.ui.focus.FocusState
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.requireGraphicsContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import androidx.compose.ui.graphics.layer.CompositingStrategy as LayerCompositing
 
 /**
  * Scrolls only as far as needed to bring an element into [leading, containerSize − trailing] (px), not to a
@@ -139,16 +144,36 @@ private val ROW_MARGIN = HlSpace.safeH + HlSpace.xl
  * Fades content into [color] over [HlSpace.fadeEdge] at an end with more beyond, so a cut line reads as more
  * to come. Drawn without a layer, so the surface must be opaque there. Not for poster rows ([RowScroll]).
  */
-fun Modifier.scrollEdges(state: ScrollableState, color: Color): Modifier = scrollEdges(state) { color }
+fun Modifier.scrollEdges(state: ScrollableState, color: Color): Modifier = scrollEdges(state, SteadyColor(color))
 
 /** [scrollEdges] into a surface whose [color] is read while drawing (a sheet in its film's light). */
-fun Modifier.scrollEdges(state: ScrollableState, color: () -> Color): Modifier = composed {
-    val fade = tween<Float>(HlMotion.FAST, easing = HlMotion.fallBack)
-    val top by animateFloatAsState(if (state.canScrollBackward) 1f else 0f, fade, label = "fadeTop")
-    val bottom by animateFloatAsState(if (state.canScrollForward) 1f else 0f, fade, label = "fadeBottom")
-    drawWithContent {
+fun Modifier.scrollEdges(state: ScrollableState, color: () -> Color): Modifier = this then ScrollEdgesElement(state, color)
+
+/** A colour that never changes, equal to another of the same colour, so a recomposition hands the node nothing new. */
+private data class SteadyColor(private val color: Color) : () -> Color {
+    override fun invoke() = color
+}
+
+private data class ScrollEdgesElement(val state: ScrollableState, val color: () -> Color) : ModifierNodeElement<ScrollEdgesNode>() {
+    override fun create() = ScrollEdgesNode(state, color)
+
+    override fun update(node: ScrollEdgesNode) {
+        node.follow(state)
+        node.color = color
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "scrollEdges"
+    }
+}
+
+/** Draws the fades of [scrollEdges] over the content, into [color]. */
+private class ScrollEdgesNode(state: ScrollableState, var color: () -> Color) : EdgeFadeNode(state), DrawModifierNode {
+    override fun ContentDrawScope.draw() {
         drawContent()
-        if (top <= 0f && bottom <= 0f) return@drawWithContent
+        val top = top
+        val bottom = bottom
+        if (top <= 0f && bottom <= 0f) return
         val into = color()
         val length = HlSpace.fadeEdge.toPx().coerceAtMost(size.height / 2)
         val edge = Size(size.width, length)
@@ -168,32 +193,111 @@ fun Modifier.scrollEdges(state: ScrollableState, color: () -> Color): Modifier =
 }
 
 /**
+ * Whether [state] has more before ([top]) and after ([bottom]) it, each going from 0 to 1 over [HlMotion.FAST] in the
+ * fall back as there comes to be more beyond that end, and back as there no longer is, read while drawing. They start
+ * where the state stands, as an animated state does.
+ */
+private sealed class EdgeFadeNode(private var state: ScrollableState) : Modifier.Node() {
+    private var topFade: Animatable<Float, AnimationVector1D>? = null
+    private var bottomFade: Animatable<Float, AnimationVector1D>? = null
+    private var following: Job? = null
+
+    protected val top: Float get() = topFade?.value ?: 0f
+    protected val bottom: Float get() = bottomFade?.value ?: 0f
+
+    override fun onAttach() {
+        topFade = Animatable(state.canScrollBackward.level)
+        bottomFade = Animatable(state.canScrollForward.level)
+        follow()
+    }
+
+    override fun onDetach() {
+        following = null
+    }
+
+    /** Follows [to] from now on, the fades going on from where they are. */
+    fun follow(to: ScrollableState) {
+        if (to == state) return
+        state = to
+        if (isAttached) follow()
+    }
+
+    private fun follow() {
+        val top = topFade ?: return
+        val bottom = bottomFade ?: return
+        following?.cancel()
+        following = coroutineScope.launch {
+            launch { snapshotFlow { state.canScrollBackward.level }.collect { fadeTo(top, it) } }
+            launch { snapshotFlow { state.canScrollForward.level }.collect { fadeTo(bottom, it) } }
+        }
+    }
+
+    /** Animates [fade] to [target] unless it is going there already, as an animated state does on a new target. */
+    private fun CoroutineScope.fadeTo(fade: Animatable<Float, AnimationVector1D>, target: Float) {
+        if (target != fade.targetValue) launch { fade.animateTo(target, EDGE_FADE) }
+    }
+
+    private val Boolean.level: Float get() = if (this) 1f else 0f
+}
+
+/** How a fade at a scrolled end comes and goes. */
+private val EDGE_FADE = tween<Float>(HlMotion.FAST, easing = HlMotion.fallBack)
+
+/**
  * Fades the content itself out into what lies under it, a field of posters, over [HlSpace.fadeEdge] at an end with
  * more beyond, so a plate cut by the list's edge reads as more to come where a fade into black would not show over
  * plates as dark: while there is something to fade, the content is composed in a layer of its own (offscreen, set
  * while drawing) whose edge a gradient erases. The layer reaches [start] and [end] past the element's sides, so the
  * plates and focus frames hanging past them are not cut. Focus stays clear of the fade, as with [scrollEdges].
  */
-fun Modifier.fadeIntoField(state: ScrollableState, start: Dp, end: Dp): Modifier = composed {
-    val fade = tween<Float>(HlMotion.FAST, easing = HlMotion.fallBack)
-    val top by animateFloatAsState(if (state.canScrollBackward) 1f else 0f, fade, label = "fieldTop")
-    val bottom by animateFloatAsState(if (state.canScrollForward) 1f else 0f, fade, label = "fieldBottom")
-    this
-        .layout { measurable, constraints ->
-            val before = start.roundToPx()
-            val after = end.roundToPx()
-            val wider = if (constraints.hasBoundedWidth) {
-                constraints.copy(minWidth = constraints.minWidth + before + after, maxWidth = constraints.maxWidth + before + after)
-            } else {
-                constraints
-            }
-            val placeable = measurable.measure(wider)
-            layout((placeable.width - before - after).coerceAtLeast(0), placeable.height) { placeable.place(-before, 0) }
+fun Modifier.fadeIntoField(state: ScrollableState, start: Dp, end: Dp): Modifier = this
+    .layout { measurable, constraints ->
+        val before = start.roundToPx()
+        val after = end.roundToPx()
+        val wider = if (constraints.hasBoundedWidth) {
+            constraints.copy(minWidth = constraints.minWidth + before + after, maxWidth = constraints.maxWidth + before + after)
+        } else {
+            constraints
         }
-        .graphicsLayer { compositingStrategy = if (top > 0f || bottom > 0f) CompositingStrategy.Offscreen else CompositingStrategy.Auto }
-        .drawWithContent {
-            drawContent()
-            if (top <= 0f && bottom <= 0f) return@drawWithContent
+        val placeable = measurable.measure(wider)
+        layout((placeable.width - before - after).coerceAtLeast(0), placeable.height) { placeable.place(-before, 0) }
+    }
+    .then(FieldFadeElement(state))
+    .padding(start = start, end = end)
+
+private data class FieldFadeElement(val state: ScrollableState) : ModifierNodeElement<FieldFadeNode>() {
+    override fun create() = FieldFadeNode(state)
+
+    override fun update(node: FieldFadeNode) = node.follow(state)
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "fadeIntoField"
+    }
+}
+
+/** Draws the content of [fadeIntoField], in a layer of its own whose ends it erases while there is more beyond them. */
+private class FieldFadeNode(state: ScrollableState) : EdgeFadeNode(state), DrawModifierNode {
+    private var layer: GraphicsLayer? = null
+
+    override fun onAttach() {
+        super.onAttach()
+        layer = requireGraphicsContext().createGraphicsLayer().apply { compositingStrategy = LayerCompositing.Offscreen }
+    }
+
+    override fun onDetach() {
+        layer?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
+        layer = null
+        super.onDetach()
+    }
+
+    override fun ContentDrawScope.draw() {
+        val top = top
+        val bottom = bottom
+        val layer = layer
+        if (layer == null || (top <= 0f && bottom <= 0f)) return drawContent()
+
+        layer.record {
+            this@draw.drawContent()
             val length = HlSpace.fadeEdge.toPx().coerceAtMost(size.height / 2)
             val edge = Size(size.width, length)
             if (top > 0f) {
@@ -211,7 +315,8 @@ fun Modifier.fadeIntoField(state: ScrollableState, start: Dp, end: Dp): Modifier
                 drawRect(erase, topLeft = Offset(0f, from), size = edge, blendMode = BlendMode.DstOut)
             }
         }
-        .padding(start = start, end = end)
+        drawLayer(layer)
+    }
 }
 
 /**
@@ -305,28 +410,68 @@ private class BlockNode : Modifier.Node(), BringIntoViewModifierNode {
 }
 
 /** Scrolls the whole element into view on focus, for groups whose title sits above their first focusable. */
-@OptIn(ExperimentalFoundationApi::class)
-fun Modifier.revealOnFocus(): Modifier = composed {
-    val requester = remember { BringIntoViewRequester() }
-    val scope = rememberCoroutineScope()
-    this
-        .bringIntoViewRequester(requester)
-        .onFocusChanged { if (it.hasFocus) scope.launch { requester.bringIntoView() } }
+fun Modifier.revealOnFocus(): Modifier = this then RevealOnFocus
+
+private data object RevealOnFocus : ModifierNodeElement<RevealOnFocusNode>() {
+    override fun create() = RevealOnFocusNode()
+
+    override fun update(node: RevealOnFocusNode) = Unit
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "revealOnFocus"
+    }
+}
+
+/** Asks the lists around it for the whole element as focus comes into it, as onFocusChanged tells a change. */
+private class RevealOnFocusNode : Modifier.Node(), FocusEventModifierNode {
+    private var was: FocusState? = null
+
+    override fun onFocusEvent(focusState: FocusState) {
+        if (focusState == was) return
+        was = focusState
+        if (focusState.hasFocus) coroutineScope.launch { bringIntoView() }
+    }
+
+    override fun onDetach() {
+        was = null
+    }
 }
 
 /** Scrolls the whole element into view as it [opens], once laid out at its new size: a block unfolding under its row. */
-@OptIn(ExperimentalFoundationApi::class)
-fun Modifier.revealOnOpen(opens: Boolean): Modifier = composed {
-    val requester = remember { BringIntoViewRequester() }
-    var was by remember { mutableStateOf(opens) }
-    LaunchedEffect(opens) {
-        if (opens && !was) {
-            withFrameNanos { }
-            requester.bringIntoView()
-        }
-        was = opens
+fun Modifier.revealOnOpen(opens: Boolean): Modifier = this then RevealOnOpenElement(opens)
+
+private data class RevealOnOpenElement(val opens: Boolean) : ModifierNodeElement<RevealOnOpenNode>() {
+    override fun create() = RevealOnOpenNode(opens)
+
+    override fun update(node: RevealOnOpenNode) = node.update(opens)
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "revealOnOpen"
+        properties["opens"] = opens
     }
-    bringIntoViewRequester(requester)
+}
+
+/** Reveals the element the frame after it [opened][update], laid out at its new size; a change meanwhile calls it off. */
+private class RevealOnOpenNode(private var opens: Boolean) : Modifier.Node() {
+    private var revealing: Job? = null
+
+    fun update(now: Boolean) {
+        if (now == opens) return
+        revealing?.cancel()
+        revealing = if (now && isAttached) {
+            coroutineScope.launch {
+                withFrameNanos { }
+                bringIntoView()
+            }
+        } else {
+            null
+        }
+        opens = now
+    }
+
+    override fun onDetach() {
+        revealing = null
+    }
 }
 
 /**

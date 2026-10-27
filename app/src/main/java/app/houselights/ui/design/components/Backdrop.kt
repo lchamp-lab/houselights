@@ -110,7 +110,7 @@ enum class BackdropStyle(
  */
 @Composable
 fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier, recede: (() -> Float)? = null) =
-    BackdropOf(rememberBackdropState(), image, style, modifier, recede)
+    BackdropOf(rememberBackdropState(), image, style, recede, modifier)
 
 /** A backdrop's state, starting from the previous screen's picture when a [BackdropRelay] hands one on. */
 @Composable
@@ -121,7 +121,13 @@ private fun rememberBackdropState(): BackdropState {
 
 /** A [Backdrop] showing [state], which reports when the picture of [image] is prepared. */
 @Composable
-private fun BackdropOf(state: BackdropState, image: ImageRef?, style: BackdropStyle, modifier: Modifier, recede: (() -> Float)?) {
+private fun BackdropOf(
+    state: BackdropState,
+    image: ImageRef?,
+    style: BackdropStyle,
+    recede: (() -> Float)?,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val launch = LocalLaunchScreen.current
     val screen = screenWidthPx()
@@ -137,7 +143,7 @@ private fun BackdropOf(state: BackdropState, image: ImageRef?, style: BackdropSt
     val shown = state.shown
     SideEffect { relay?.shows(state, shown) }
     DisposableEffect(relay) { onDispose { relay?.release(state) } }
-    BackdropShots(shown, modifier, recede, lights = state)
+    BackdropShots(shown, recede, modifier, lights = state)
 }
 
 /**
@@ -147,8 +153,8 @@ private fun BackdropOf(state: BackdropState, image: ImageRef?, style: BackdropSt
 @Composable
 internal fun BackdropShots(
     shown: Shot?,
-    modifier: Modifier,
     recede: (() -> Float)?,
+    modifier: Modifier = Modifier,
     level: () -> Float = { 1f },
     lights: BackdropState? = null,
 ) {
@@ -299,7 +305,7 @@ fun LeavingBackdrop(relay: BackdropRelay) {
         relay.gone(leaving)
     }
     // Fades through the layer's alpha, without redrawing the picture.
-    BackdropShots(leaving, Modifier, recede = null, level = { out.value })
+    BackdropShots(leaving, recede = null, level = { out.value })
 }
 
 /** Only the first picture, preloaded ([inMemory]) while the launch screen [covered] it, shows without a fade. */
@@ -322,7 +328,7 @@ fun AmbientBackdrop(
     val settled = remember(backdrop) { { shown: ImageRef? -> backdrop.settledOn(shown) } }
     CompositionLocalProvider(LocalAmbient provides backdrop, LocalBackdropSettled provides settled) {
         Box(modifier.fillMaxSize().drawnWhole(ready && backdrop.settledOn(image))) {
-            BackdropOf(backdrop, image, style, Modifier, recede)
+            BackdropOf(backdrop, image, style, recede)
             content()
         }
     }
@@ -456,7 +462,8 @@ private fun LendsItsLight(lights: BackdropState, light: ImageLight, plateAlpha: 
 @Composable
 internal fun <T> FadeBetween(
     target: T,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
+
     atOnce: (T) -> Boolean = { false },
     empty: (T) -> Boolean = { false },
     content: @Composable (T, alpha: () -> Float) -> Unit,

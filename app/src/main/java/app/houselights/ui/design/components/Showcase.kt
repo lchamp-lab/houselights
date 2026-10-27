@@ -61,7 +61,7 @@ fun Showcase(
     facts: List<String?> = emptyList(),
     state: String? = null,
     status: (@Composable () -> Unit)? = null,
-    onFocused: () -> Unit = {},
+    onFocus: () -> Unit = {},
     stateLight: StatusState = StatusState.Done,
 ) {
     val c = Hl.colors
@@ -76,7 +76,7 @@ fun Showcase(
         onClick = onClick,
         look = FocusStyle.frame(rest = glass, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.plateEdge)),
         shape = HlShapes.panel,
-        modifier = modifier.width(HlSize.showcase).onFocusChanged { if (it.isFocused) onFocused() },
+        modifier = modifier.width(HlSize.showcase).onFocusChanged { if (it.isFocused) onFocus() },
         covered = covered.takeIf { full },
     ) {
         val plate = LocalPlate.current

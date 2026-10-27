@@ -147,7 +147,7 @@ internal fun Results(
                                 title,
                                 onClick = { onOpenItem(title) },
                                 modifier = memory.result(TITLES, title.id),
-                                onFocused = { focusedId.value = title.id },
+                                onFocus = { focusedId.value = title.id },
                             )
                         }
                     }
@@ -165,7 +165,7 @@ internal fun Results(
                                 saga,
                                 onClick = { onOpenItem(saga) },
                                 modifier = memory.result(SAGAS, saga.id),
-                                onFocused = { focusedId.value = saga.id },
+                                onFocus = { focusedId.value = saga.id },
                             )
                         }
                     }

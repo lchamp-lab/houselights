@@ -45,7 +45,7 @@ import app.houselights.ui.design.QrCodeDefaults
 fun QrCode(@DrawableRes code: Int, address: String, modifier: Modifier = Modifier, compact: Boolean = false, small: Boolean = compact) {
     val modules = ImageVector.vectorResource(code)
     val ink = Hl.colors.background
-    QrFrame(modules.viewportWidth.toInt(), address, modifier, compact, small) { frame ->
+    QrFrame(modules.viewportWidth.toInt(), address, compact, small, modifier) { frame ->
         Image(
             rememberVectorPainter(modules),
             contentDescription = stringResource(R.string.qr_code),
@@ -64,7 +64,7 @@ fun QrCode(data: String, address: String, modifier: Modifier = Modifier, compact
     val modules = remember(data) { QrModules.encode(data) }
     val ink = Hl.colors.background
     val description = stringResource(R.string.qr_code)
-    QrFrame(modules.size, address, modifier, compact, small) { frame ->
+    QrFrame(modules.size, address, compact, small, modifier) { frame ->
         Spacer(
             frame
                 .semantics {
@@ -99,10 +99,11 @@ private fun darkPath(modules: QrModules, module: Float): Path {
 private fun QrFrame(
     modulesAcross: Int,
     address: String,
-    modifier: Modifier,
     compact: Boolean,
     small: Boolean,
+    modifier: Modifier = Modifier,
     code: @Composable (Modifier) -> Unit,
+
 ) {
     val c = Hl.colors
     val module: Dp = if (small) QrCodeDefaults.moduleCompact else QrCodeDefaults.module

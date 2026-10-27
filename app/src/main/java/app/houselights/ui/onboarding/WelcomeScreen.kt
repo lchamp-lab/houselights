@@ -124,7 +124,7 @@ internal fun Welcome(
                         PartFailed(
                             UiError.SECRETS_UNREAD, reading, it,
                             Modifier.widthIn(max = HlLayout.welcomeTagline),
-                            action = Modifier.focusRequester(retry),
+                            actionModifier = Modifier.focusRequester(retry),
                         )
                     }
                     problem?.let { AttentionNote(stringResource(welcomeProblem(it))) }
