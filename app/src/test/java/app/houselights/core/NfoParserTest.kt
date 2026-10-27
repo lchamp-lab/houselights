@@ -141,9 +141,9 @@ class NfoParserTest {
         assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(amelie.toByteArray()))
         val bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + amelie.toByteArray()
         assertEquals("<movie>", NfoParser.decode(bom).take(7))
-        // The byte order mark as an escape: ktlint strips the character itself from a string.
+        // The byte order mark as an escape: ktlint --format drops the character itself whenever it rewrites the file.
         listOf(Charsets.UTF_16LE, Charsets.UTF_16BE).forEach { charset ->
-            val marked = "﻿$amelie".toByteArray(charset)
+            val marked = "\uFEFF$amelie".toByteArray(charset)
             assertEquals("<movie>", NfoParser.decode(marked).take(7))
             assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(marked))
         }
