@@ -79,7 +79,7 @@ data class DetailState(
     val partial: Boolean = false,
     /** People by job ([app.houselights.core.Catalog.credits]); null when the source reports only the cast. */
     val credits: Credits? = null,
-    /** For a collection: the whole saga, missing films in place; null when the source does not know it. */
+    /** For a collection, or a film's: the whole saga, missing films in place; null when the source does not know it. */
     val saga: Saga? = null,
     /** For a film in several copies: each one, the one Lire plays marked ([Version.chosen]); empty for one copy. */
     val versions: List<Version> = emptyList(),
@@ -320,10 +320,17 @@ class DetailViewModel(
         return DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films, saga = saga)
     }
 
-    /** A film's page: its saga, then [similar] titles outside it; the tracks of what Lire plays, read meanwhile. */
+    /**
+     * A film's page: its saga, whole when the source knows it (the films the library lacks in their place), then [similar]
+     * titles outside it; the tracks of what Lire plays, read meanwhile.
+     */
     private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState = coroutineScope {
         val tracks = async { item.takeIf { it.isPlayable }?.let { readTracks(it, keep = it) } }
         val collection = source.collectionOf(item)
+        // Optional: without it, the row holds the films held. A source that lists only those is not asked twice.
+        val whole = collection?.takeIf { source.capabilities.sagaParts }?.let { c ->
+            async { suspendRunCatching { source.catalog?.saga(c) }.onFailure { Log.w(TAG, "Saga of $itemId", it) }.getOrNull() }
+        }
         // Includes the film itself, showing its place in the saga.
         val saga = collection?.let { c -> source.collectionItems(c) }.orEmpty()
         // Films of the same saga are shown as such, not again as "similar".
@@ -334,6 +341,7 @@ class DetailViewModel(
             similar = similarFilms,
             collection = collection,
             collectionFilms = saga,
+            saga = whole?.await(),
             versions = versionsOf(source, item),
             tracks = tracks.await(),
         )

@@ -55,6 +55,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
 import app.houselights.core.ProviderCapabilities
+import app.houselights.core.SagaPart
 import app.houselights.core.TrackChoice
 import app.houselights.core.TrackPlan
 import app.houselights.core.Version
@@ -73,6 +74,7 @@ import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.components.AbsentCard
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
@@ -235,6 +237,8 @@ internal fun DetailPage(
     var showTracks by remember { mutableStateOf(false) }
     val tracks = state.tracksToChoose
     var showSynopsis by remember { mutableStateOf(false) }
+    // A film of its saga the library lacks, or not out yet, whose synopsis is open from its row.
+    var partShown by remember { mutableStateOf<SagaPart?>(null) }
     var showNfo by remember { mutableStateOf(false) }
     val editing = remember { mutableStateOf(false) }
     // The episode whose options are open, and the watched tile's.
@@ -323,7 +327,7 @@ internal fun DetailPage(
                     problem = episodeProblem,
                 )
                 seasonRows(state, memory, focusedEpisode, vm, links, heldFocus)
-                titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
+                titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson, onOpenPart = { partShown = it }))
             }
         }
         // Over the page, in its light.
@@ -350,6 +354,7 @@ internal fun DetailPage(
             onDismiss = { showMarks = false },
         )
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
+        PartSynopsis(partShown, onDismiss = { partShown = null })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
         EditSheets(
             item,
@@ -494,14 +499,30 @@ private fun FocusFirstEpisode(moved: Boolean, held: Boolean, first: MediaItem?, 
     }
 }
 
-/** A film's saga with the film in its place. */
-private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: FocusMemory, onOpenItem: (String) -> Unit) {
+/**
+ * A film's saga, the film in its place: the whole saga in release order when the source knows it, a film held as its
+ * poster, one the library lacks or not out yet as its poster in grey, OK opening its synopsis ([RowLinks.onOpenPart]);
+ * else the films held. Its heading never changes: a grey poster is named by its synopsis and by the screen reader.
+ */
+private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: FocusMemory, links: RowLinks) {
     // No row when the saga holds only this film.
     state.collection?.takeIf { state.collectionFilms.any { film -> film.id != item.id } }?.let { collection ->
+        val parts = state.saga?.parts ?: state.collectionFilms.map { SagaPart(it, it.title, it.year) }
         item(key = "collection") {
             MediaRow(collection.title, memory.rowGroup(SAGA), count = filmCount(state.collectionFilms.size, collection.totalCount)) {
-                items(state.collectionFilms, key = { it.id }) { f ->
-                    PosterCard(f, onClick = { if (f.id != item.id) onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
+                itemsIndexed(parts, key = { i, part -> part.item?.id ?: "absent-$i" }) { _, part ->
+                    val f = part.item
+                    if (f != null) {
+                        PosterCard(f, onClick = { if (f.id != item.id) links.onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
+                    } else {
+                        AbsentCard(
+                            part.title,
+                            part.year?.takeIf { part.released },
+                            poster = part.poster,
+                            said = absentWords(part),
+                            onClick = { links.onOpenPart(part) }.takeIf { !part.overview.isNullOrBlank() },
+                        )
+                    }
                 }
             }
         }
@@ -518,7 +539,7 @@ private fun LazyListScope.titleRows(
 ) {
     val onOpenItem = links.onOpenItem
     val onOpenPerson = links.onOpenPerson
-    sagaRows(item, state, memory, onOpenItem)
+    sagaRows(item, state, memory, links)
 
     if (people.isNotEmpty()) {
         item(key = "cast") {
@@ -593,8 +614,9 @@ private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
     return recede
 }
 
+/** What the rows under a title open: a title's page, a person's, the synopsis of a film of its saga the library lacks. */
 @Immutable
-private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (String) -> Unit)
+private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (String) -> Unit, val onOpenPart: (SagaPart) -> Unit)
 
 /**
  * What an episode's card does: OK plays it, from where it was left; Menu or a long OK opens its options. A play asked

@@ -403,6 +403,10 @@ internal fun PartSynopsis(part: SagaPart?, onDismiss: () -> Unit) {
 private fun absentFacts(part: SagaPart): List<String> =
     if (part.released) listOfNotNull(part.year?.toString(), stringResource(R.string.saga_absent)) else listOf(releaseWords(part))
 
+/** Why a film of the saga is not in the library: « Absent de votre bibliothèque », « Sortie le… », « Annoncé ». */
+@Composable
+internal fun absentWords(part: SagaPart): String = if (part.released) stringResource(R.string.saga_absent) else releaseWords(part)
+
 /** « Sortie le 15 décembre 2026 », else « Annoncé ». */
 @Composable
 private fun releaseWords(part: SagaPart): String =
