@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.paddingFrom
 import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -81,14 +82,15 @@ fun PaneHead(
     val c = Hl.colors
     val baseline = screenTitleBaseline()
     Column(modifier.fillMaxWidth()) {
-        Row(Modifier.endOnBaseline(baseline)) {
+        Row(Modifier.endAt(baseline)) {
             Text(
                 title,
                 style = Hl.type.subject,
                 color = c.content,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.alignByBaseline().weight(1f, fill = false),
+                // Its baseline on the screen title's, which the aside's is aligned on.
+                modifier = Modifier.alignByBaseline().weight(1f, fill = false).paddingFrom(FirstBaseline, before = baseline),
             )
             if (aside != null) {
                 Spacer(Modifier.width(HlSpace.fact))
@@ -122,12 +124,14 @@ fun PaneHead(
     }
 }
 
-/** Sets a line's first baseline [at] from the top and ends its box there, the rest of the line hanging below. */
-private fun Modifier.endOnBaseline(at: Dp): Modifier = layout { measurable, constraints ->
+/**
+ * Ends a line's box [at] from its top, the rest of the line hanging below; its title sets its own baseline there. Not
+ * the line's baseline, read here: Compose 1.10 on keeps the aside nested in the line where it stood before the line
+ * moved, in the positions it reports (not in what it draws).
+ */
+private fun Modifier.endAt(at: Dp): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
-    val baseline = placeable[FirstBaseline]
-    val top = at.roundToPx()
-    layout(placeable.width, top) { placeable.placeRelative(0, top - baseline) }
+    layout(placeable.width, at.roundToPx()) { placeable.placeRelative(0, 0) }
 }
 
 /**
