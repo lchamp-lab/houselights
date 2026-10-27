@@ -1,6 +1,10 @@
 package app.houselights.ui.design.components
 
 import android.content.Context
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.absolutePadding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -9,37 +13,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.absolutePadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
-import androidx.compose.foundation.layout.heightIn
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.ImageRef
 import app.houselights.ui.design.Gradation
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlType
 import app.houselights.ui.design.drawGradation
-import app.houselights.core.ImageRef
+import app.houselights.ui.design.emberLit
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.Constraints
-import app.houselights.ui.design.HlType
-import app.houselights.ui.design.emberLit
-import androidx.compose.ui.platform.LocalContext
 import kotlin.math.roundToInt
 
 /** Row and section header in the poster's voice, sentence case. */
@@ -182,7 +182,6 @@ fun TitleArt(
  */
 @Composable
 private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLines: Int, modifier: Modifier = Modifier) {
-
     val measurer = rememberTextMeasurer(cacheSize = TITLE_MEASURES)
     val signature = Hl.type.titleSignature
     val density = LocalDensity.current

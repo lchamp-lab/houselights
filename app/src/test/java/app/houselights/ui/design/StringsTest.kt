@@ -75,7 +75,7 @@ class StringsTest {
         listOf("l'instant", "Lecture...", "aucune → flux", "Attention : danger", "Prêt!", "« fixer »", "«${NB}fixer »").forEach {
             assertTrue(it, problems(it).isNotEmpty())
         }
-        listOf("l’instant", "Lecture…", "Attention${NB}: danger${NB}!", "«${NB}fixer${NB}»", "2,39:1", "https://themoviedb.org").forEach {
+        listOf("l’instant", "Lecture…", "Attention$NB: danger$NB!", "«${NB}fixer$NB»", "2,39:1", "https://themoviedb.org").forEach {
             assertEquals(it, emptyList<String>(), problems(it))
         }
     }
@@ -117,7 +117,7 @@ class StringsTest {
     private fun ratio(text: String, i: Int) =
         text[i] == ':' && text.getOrNull(i - 1)?.isDigit() == true && text.getOrNull(i + 1)?.isDigit() == true
 
-    private val Element.key get() = "${tagName}/${getAttribute("name")}"
+    private val Element.key get() = "$tagName/${getAttribute("name")}"
 
     /** The strings, plurals and arrays of a resource folder, from each of its string files. */
     private fun resources(folder: File): List<Element> =

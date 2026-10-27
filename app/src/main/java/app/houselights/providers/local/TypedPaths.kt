@@ -185,7 +185,6 @@ object TypedPaths {
     /** Failures no other start of the path would change. */
     private val FINAL = setOf(FailureKind.UNREACHABLE, FailureKind.LOGIN_FAILED)
 
-
     private fun starts(names: List<String>, start: List<String>, ignoreCase: Boolean) =
         start.size <= names.size && start.indices.all { names[it].equals(start[it], ignoreCase) }
 }

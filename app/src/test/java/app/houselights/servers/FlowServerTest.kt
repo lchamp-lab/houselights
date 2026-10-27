@@ -19,10 +19,10 @@ import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SharedFolder
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.Volumes
 import app.houselights.providers.local.exportAccess
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
-import app.houselights.providers.local.Volumes
 import app.houselights.ui.onboarding.FieldError
 import app.houselights.ui.onboarding.FlowDone
 import app.houselights.ui.onboarding.FlowKeys
@@ -254,13 +254,25 @@ class FlowServerTest {
     }
 
     private fun nfs() = SourceEntity(
-        name = "Test", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = TestServers.host, share = "volume1/video", path = "",
-        username = "", password = Secret(""),
+        name = "Test",
+        kind = SourceKind.MOVIES,
+        protocol = Protocol.NFS,
+        host = TestServers.host,
+        share = "volume1/video",
+        path = "",
+        username = "",
+        password = Secret(""),
     )
 
     private fun smb() = SourceEntity(
-        name = "Test", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = TestServers.host, share = "video", path = "",
-        username = TestServers.USER, password = Secret(TestServers.PASSWORD),
+        name = "Test",
+        kind = SourceKind.MOVIES,
+        protocol = Protocol.SMB,
+        host = TestServers.host,
+        share = "video",
+        path = "",
+        username = TestServers.USER,
+        password = Secret(TestServers.PASSWORD),
     )
 
     private companion object {

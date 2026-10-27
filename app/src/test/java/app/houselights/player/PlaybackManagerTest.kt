@@ -402,7 +402,10 @@ class PlaybackManagerTest {
     fun aSessionOutlivesTheProcess() = runTest {
         // The first process dies: its tracking, in the background scope, never completes.
         val first = PlaybackManager(
-            context, backgroundScope, status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer }, clock = { currentTime },
+            context,
+            backgroundScope,
+            status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer },
+            clock = { currentTime },
         ) { null }
         first.intentFor(plan())
         statuses += playing(600_000)
@@ -424,7 +427,10 @@ class PlaybackManagerTest {
     @Test
     fun aNewProcessKnowsTheFileItLaunched() = runTest {
         val first = PlaybackManager(
-            context, backgroundScope, status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer }, clock = { currentTime },
+            context,
+            backgroundScope,
+            status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer },
+            clock = { currentTime },
         ) { null }
         first.intentFor(plan("nfs://nas/series/Show/S01E01.mkv"))
         statuses += playing(E01 - 4_000, E01, "/mnt/nfs/nas/series/Show/S01E01.mkv")

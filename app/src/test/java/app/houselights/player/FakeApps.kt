@@ -49,7 +49,7 @@ internal class FakeApps(private val context: Context) {
                 // Its signing info alone, as the app reads it, which Robolectric's checkSignatures compares from
                 // Android 9 on rather than the signatures deprecated then.
                 signingInfo = signatures?.let(::signingInfo)
-            }
+            },
         )
         if (installer != null) {
             context.packageManager.setInstallerPackageName(pkg, installer)
@@ -107,21 +107,45 @@ internal class FakeApps(private val context: Context) {
 
         /** A Zidoo whose build says so. */
         val ZIDOO_BUILD = DeviceIdentity(
-            "ZIDOO", "ZIDOO", "Z9X Pro", "Z9X_Pro", "rtd1619b", "ZIDOO/Z9X_Pro/rtd1619b:11/RP1A/1:user/release-keys", "release-keys",
+            "ZIDOO",
+            "ZIDOO",
+            "Z9X Pro",
+            "Z9X_Pro",
+            "rtd1619b",
+            "ZIDOO/Z9X_Pro/rtd1619b:11/RP1A/1:user/release-keys",
+            "release-keys",
         )
 
         /** The Z1000 Pro, as its build names it on the device: its chip's brand, and AOSP's test keys. */
         val Z1000_PRO_BUILD = DeviceIdentity(
-            "ZIDOO", "rtk", "Z1000 Pro", "thor32", "thor32", "rtk/thor32/thor32:9/PPR1.180610.011/1:userdebug/test-keys", "test-keys",
+            "ZIDOO",
+            "rtk",
+            "Z1000 Pro",
+            "thor32",
+            "thor32",
+            "rtk/thor32/thor32:9/PPR1.180610.011/1:userdebug/test-keys",
+            "test-keys",
         )
 
         /** A Realtek board whose build names only its chip: a Zidoo, or not. */
         val REALTEK_BUILD = DeviceIdentity(
-            "Realtek", "Realtek", "RTD1619", "rtd1619", "rtd1619", "Realtek/rtd1619/rtd1619:9/PPR1/1:user/release-keys", "release-keys",
+            "Realtek",
+            "Realtek",
+            "RTD1619",
+            "rtd1619",
+            "rtd1619",
+            "Realtek/rtd1619/rtd1619:9/PPR1/1:user/release-keys",
+            "release-keys",
         )
 
         val OTHER_BUILD = DeviceIdentity(
-            "Google", "google", "Chromecast", "sabrina", "sabrina", "google/sabrina/sabrina:12/STTE/1:user/release-keys", "release-keys",
+            "Google",
+            "google",
+            "Chromecast",
+            "sabrina",
+            "sabrina",
+            "google/sabrina/sabrina:12/STTE/1:user/release-keys",
+            "release-keys",
         )
     }
 }

@@ -106,7 +106,14 @@ class IgnoredFilesRowTest {
             initializer {
                 val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> })
                 SettingsViewModel(
-                    store, library, { FakeProvider() }, work, sources, images = null, toIdentifyCount = toIdentify, ignoredFiles = ignored,
+                    store,
+                    library,
+                    { FakeProvider() },
+                    work,
+                    sources,
+                    images = null,
+                    toIdentifyCount = toIdentify,
+                    ignoredFiles = ignored,
                 )
             }
         }

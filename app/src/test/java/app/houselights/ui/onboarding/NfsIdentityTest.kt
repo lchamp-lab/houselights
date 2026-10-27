@@ -4,15 +4,10 @@ import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.test.hasAnyAncestor
-import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.font.createFontFamilyResolver
-import androidx.compose.ui.unit.LayoutDirection
-import app.houselights.ui.design.HouselightsType
-import org.robolectric.RuntimeEnvironment
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -23,6 +18,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.font.createFontFamilyResolver
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
@@ -40,6 +38,7 @@ import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HouselightsType
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
@@ -56,6 +55,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -190,8 +190,14 @@ class NfsIdentityTest {
         const val LARGEST = 1.3f
 
         val FOLDER = SourceEntity(
-            name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/media",
-            path = "films", username = "", password = Secret(""),
+            name = "films",
+            kind = SourceKind.MOVIES,
+            protocol = Protocol.NFS,
+            host = "192.168.1.20",
+            share = "volume1/media",
+            path = "films",
+            username = "",
+            password = Secret(""),
         )
     }
 }

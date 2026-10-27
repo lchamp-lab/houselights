@@ -56,8 +56,8 @@ import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.formatRatio
 import app.houselights.ui.util.languageName
-import java.util.Locale
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.min
 
 /**
@@ -130,7 +130,6 @@ private class Placed {
 /** A block's name in `group`, and how many tracks it holds ("Son   2 pistes"). */
 @Composable
 private fun ColumnScope.BlockName(name: String, count: String? = null) {
-
     val c = Hl.colors
     Row {
         Text(name, style = Hl.type.group, color = c.contentSecondary, modifier = Modifier.alignByBaseline())
@@ -198,9 +197,11 @@ private fun TracksBlock(section: TechSection, modifier: Modifier = Modifier) {
         Triple(track, format?.text(), (track.value - listOfNotNull(format) + track.detail).map { it.text() } + listOfNotNull(track.note))
     }
     val languages = tracks.map { (track) -> trackLanguage(track.language, track.region) }
-    val readAs = (listOfNotNull(name, count) + tracks.mapIndexed { i, (track, format, words) ->
-        (listOfNotNull(format, languages[i]) + words + listOfNotNull(inUse.takeIf { track.inUse })).joinToString(", ")
-    }).joinToString(", ")
+    val readAs = (
+        listOfNotNull(name, count) + tracks.mapIndexed { i, (track, format, words) ->
+            (listOfNotNull(format, languages[i]) + words + listOfNotNull(inUse.takeIf { track.inUse })).joinToString(", ")
+        }
+        ).joinToString(", ")
     val formatColumn = formatColumn(tracks.mapNotNull { (_, format) -> format })
     ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
         BlockName(name, count)

@@ -1,6 +1,5 @@
 package app.houselights.ui.catalog
 
-import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,13 +11,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
@@ -34,21 +33,18 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.BackdropStyle
-import app.houselights.ui.design.components.FIELD_POSTERS
 import app.houselights.ui.design.components.DefinitionPlate
 import app.houselights.ui.design.components.DeviceCodePlate
+import app.houselights.ui.design.components.FIELD_POSTERS
 import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.Gallery
 import app.houselights.ui.design.components.GalleryTile
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlGroup
 import app.houselights.ui.design.components.HlMeter
-import app.houselights.ui.design.components.JaquetteLine
-import app.houselights.ui.design.components.MeterFact
-import app.houselights.ui.design.components.MeterInk
-import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlPlate
@@ -56,7 +52,11 @@ import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.JaquetteLine
 import app.houselights.ui.design.components.LocalBackdropRelay
+import app.houselights.ui.design.components.MeterFact
+import app.houselights.ui.design.components.MeterInk
+import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PaneHead
 import app.houselights.ui.design.components.PaneLockup
 import app.houselights.ui.design.components.PanelLevel
@@ -192,20 +192,32 @@ private fun SecondaryShowcases() {
     ShowcaseRow {
         item {
             Showcase(
-                "Films", "NFS", listOf(art, mark, art, mark), {},
-                facts = listOf("11 titres", "8 en Ultra HD"), state = "Analysé à l’instant",
+                "Films",
+                "NFS",
+                listOf(art, mark, art, mark),
+                {},
+                facts = listOf("11 titres", "8 en Ultra HD"),
+                state = "Analysé à l’instant",
             )
         }
         item { Showcase("Séries", "SMB", listOf(mark), {}, facts = listOf("1 série", "10 épisodes")) }
         item {
             Showcase(
-                "Spectacles", "NFS", listOf(art, mark), {},
-                facts = listOf("22 titres"), state = "12 introuvables", stateLight = StatusState.Off,
+                "Spectacles",
+                "NFS",
+                listOf(art, mark),
+                {},
+                facts = listOf("22 titres"),
+                state = "12 introuvables",
+                stateLight = StatusState.Off,
             )
         }
     }
     Showcase(
-        "Concerts", "SMB", emptyList(), {},
+        "Concerts",
+        "SMB",
+        emptyList(),
+        {},
         status = { ScanProgress(3, 9, current = "Concert pour la paix.mkv") },
     )
 }

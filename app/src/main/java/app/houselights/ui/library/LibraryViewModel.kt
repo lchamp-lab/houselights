@@ -220,7 +220,12 @@ class LibraryViewModel(
                 val items = page.items.distinctBy(MediaItem::id)
                 _state.update {
                     it.copy(
-                        items = items, total = page.total, sagas = page.sagas, loading = false, error = null, pageError = null,
+                        items = items,
+                        total = page.total,
+                        sagas = page.sagas,
+                        loading = false,
+                        error = null,
+                        pageError = null,
                         pageRetrying = false,
                     )
                 }

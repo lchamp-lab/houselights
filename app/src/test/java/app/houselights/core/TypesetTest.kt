@@ -10,8 +10,8 @@ class TypesetTest {
 
     @Test
     fun punctuationStaysWithItsWord() {
-        assertEquals("un «${nb}fixer${nb}», connaît", Typeset.text("un « fixer », connaît", french = true))
-        assertEquals("Attention${nb}: danger${nb}!", Typeset.text("Attention : danger !", french = true))
+        assertEquals("un «${nb}fixer$nb», connaît", Typeset.text("un « fixer », connaît", french = true))
+        assertEquals("Attention$nb: danger$nb!", Typeset.text("Attention : danger !", french = true))
     }
 
     @Test
@@ -42,9 +42,9 @@ class TypesetTest {
 
     @Test
     fun straightDoubleQuotesBecomeGuillemetsInFrench() {
-        assertEquals("Surnommé «${nb}le Boucher${nb}», il…", Typeset.text("Surnommé \"le Boucher\", il...", french = true))
-        assertEquals("«${nb}Bella${nb}» et «${nb}Bo${nb}»", Typeset.text("\" Bella \" et \"Bo\"", french = true))
-        assertEquals("«${nb}Silence${nb}!${nb}»", Typeset.text("\"Silence !\"", french = true))
+        assertEquals("Surnommé «${nb}le Boucher$nb», il…", Typeset.text("Surnommé \"le Boucher\", il...", french = true))
+        assertEquals("«${nb}Bella$nb» et «${nb}Bo$nb»", Typeset.text("\" Bella \" et \"Bo\"", french = true))
+        assertEquals("«${nb}Silence$nb!$nb»", Typeset.text("\"Silence !\"", french = true))
     }
 
     @Test

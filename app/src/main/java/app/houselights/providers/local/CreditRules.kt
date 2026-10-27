@@ -45,8 +45,14 @@ internal object CreditRules {
             val size = if (job == Job.CAST) CAST_SIZE else CREW_SIZE
             people.map { it.keyed(known) }.distinctBy { it.first }.take(size).mapIndexed { i, (key, person) ->
                 CreditEntity(
-                    itemId = itemId, job = job, ord = i, personKey = key, name = person.name, foldedName = PersonKeys.fold(person.name),
-                    character = person.character?.ifBlank { null }, profilePath = person.profilePath,
+                    itemId = itemId,
+                    job = job,
+                    ord = i,
+                    personKey = key,
+                    name = person.name,
+                    foldedName = PersonKeys.fold(person.name),
+                    character = person.character?.ifBlank { null },
+                    profilePath = person.profilePath,
                 )
             }
         }

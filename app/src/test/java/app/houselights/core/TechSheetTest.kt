@@ -56,14 +56,23 @@ class TechSheetTest {
     @Test
     fun thePictureIsReadInOrderAndOnlyWhatIsKnown() {
         val full = VideoInfo(
-            Codecs.HEVC, 3840, 1608, 10, listOf(HdrFormat.HDR10),
-            frameRate = 24000f / 1001f, bitrateKbps = 6_500,
+            Codecs.HEVC,
+            3840,
+            1608,
+            10,
+            listOf(HdrFormat.HDR10),
+            frameRate = 24000f / 1001f,
+            bitrateKbps = 6_500,
         )
         val rows = facts(TechSheet.of(MediaInfo(video = full)), TechTopic.PICTURE)
         assertEquals(
             listOf(
-                TechLabel.DEFINITION, TechLabel.ASPECT_RATIO, TechLabel.DYNAMIC_RANGE,
-                TechLabel.CODEC, TechLabel.FRAME_RATE, TechLabel.BITRATE,
+                TechLabel.DEFINITION,
+                TechLabel.ASPECT_RATIO,
+                TechLabel.DYNAMIC_RANGE,
+                TechLabel.CODEC,
+                TechLabel.FRAME_RATE,
+                TechLabel.BITRATE,
             ),
             rows.map { it.label },
         )

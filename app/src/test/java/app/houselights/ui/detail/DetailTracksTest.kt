@@ -7,8 +7,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
-import androidx.tv.material3.Text
 import androidx.test.core.app.ApplicationProvider
+import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
@@ -21,6 +21,7 @@ import app.houselights.core.TrackChoice
 import app.houselights.core.TrackPlan
 import app.houselights.core.TrackPreferences
 import app.houselights.player.TrackChooser
+import app.houselights.ui.design.components.tracksHint
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
@@ -28,7 +29,6 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
-import app.houselights.ui.design.components.tracksHint
 import app.houselights.ui.util.PlaybackOutcome
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +58,7 @@ class DetailTracksTest {
     private val provider = FakeProvider().apply { items["colony"] = film("colony", "Colony") }
 
     private var plan: TrackPlan? = TrackPlan(COLONY, TrackPreferences(), null, "fr", "FR", "local:colony")
+
     /** What was stored for the title, and what each choice made of it. */
     private val stored = TrackChoice(subtitles = SubtitleChoice.Off)
     private val kept = mutableListOf<Pair<String, TrackChoice>>()

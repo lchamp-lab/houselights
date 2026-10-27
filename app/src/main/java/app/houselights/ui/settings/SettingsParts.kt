@@ -1,19 +1,5 @@
 package app.houselights.ui.settings
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalContext
 import android.content.Context
 import android.icu.text.DisplayContext
 import android.icu.text.RelativeDateTimeFormatter
@@ -22,17 +8,31 @@ import android.icu.text.RelativeDateTimeFormatter.Direction
 import android.icu.text.RelativeDateTimeFormatter.RelativeUnit
 import android.icu.util.ULocale
 import android.text.format.DateUtils
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import app.houselights.R
-import app.houselights.ui.design.HlInset
-import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
-import app.houselights.ui.design.focusGroupKey
-import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.PaneHead
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.focusGroupKey
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.UiError
 
 /**

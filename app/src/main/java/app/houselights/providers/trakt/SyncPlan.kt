@@ -52,10 +52,14 @@ internal class SyncPlan(
             val seenThere = watched[title] ?: 0L
             val main = mainOf(rows)
             val resume = main?.let { resumeOf(title, it, seenThere) }
-            val send = if (!union) emptyList() else listOfNotNull(
-                playOf(title, rows),
-                main?.takeIf { resume == null }?.let { progressOf(title, it, seenThere) },
-            )
+            val send = if (!union) {
+                emptyList()
+            } else {
+                listOfNotNull(
+                    playOf(title, rows),
+                    main?.takeIf { resume == null }?.let { progressOf(title, it, seenThere) },
+                )
+            }
             val seen = rows.any { it.played || it.id in marked }
             val position = resume?.positionMs ?: main?.positionMs ?: 0L
             return Outcome(seen, !seen && position > 0, resume, send)

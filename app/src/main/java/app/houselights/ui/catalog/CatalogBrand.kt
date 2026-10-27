@@ -24,7 +24,10 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.DpSize
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toDrawable
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Gradation
@@ -34,9 +37,6 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Lockup
 import kotlin.math.roundToInt
-import androidx.core.graphics.drawable.toDrawable
-import androidx.compose.ui.platform.LocalResources
-import androidx.core.content.res.ResourcesCompat
 
 /** Gradation as Android draws it before the app runs (icon, banner, splash), then on screen: the lockup. */
 internal fun LazyListScope.catalogBrand() {

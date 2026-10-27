@@ -59,7 +59,10 @@ class ScanLanguageTest {
     /** A launch: the app follows the language its settings hold, then its passes run. */
     private suspend fun launch() {
         val language = DetailsLanguage(wanted, read, refreshable = true)
-        followDetailsLanguage(flowOf(language), { refreshes += it; bench.scanner.refreshAllIn(it) }) { read = it }
+        followDetailsLanguage(flowOf(language), {
+            refreshes += it
+            bench.scanner.refreshAllIn(it)
+        }) { read = it }
         bench.awaitScans()
     }
 

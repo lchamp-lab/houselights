@@ -1,7 +1,7 @@
 package app.houselights.providers.local
 
-import app.houselights.core.SortKeys
 import app.houselights.core.NfoInfo
+import app.houselights.core.SortKeys
 import app.houselights.core.yearOf
 
 /** TMDB details of a film or show, in a shape common to both. */
@@ -84,7 +84,6 @@ data class LocalArt(
 object MetadataMerge {
     /** Leading articles ignored when sorting (see [SortKeys]). */
     internal const val ARTICLE_WORDS = SortKeys.ARTICLE_WORDS
-
 
     fun sortKey(title: String): String = SortKeys.sortKey(title)
 

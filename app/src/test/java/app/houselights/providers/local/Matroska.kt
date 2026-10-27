@@ -40,7 +40,8 @@ object Matroska {
     fun sample(): ByteArray {
         val video = element(
             0xAE,
-            uint(0x83, 1), str(0x86, "V_MPEGH/ISO/HEVC"),
+            uint(0x83, 1),
+            str(0x86, "V_MPEGH/ISO/HEVC"),
             // DefaultDuration: 41,708,333 ns per frame, 24000/1001 frames per second.
             element(0x23E383, byteArrayOf(0x02, 0x7C, 0x6B, 0x2D)),
             element(0xE0, uint(0xB0, 3840), uint(0xBA, 2160), element(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10))),
@@ -48,7 +49,11 @@ object Matroska {
         )
         val atmos = element(
             0xAE,
-            uint(0x83, 2), str(0x86, "A_TRUEHD"), str(0x22B59C, "eng"), str(0x536E, "Dolby Atmos 7.1 Mix"), element(0xE1, uint(0x9F, 8)),
+            uint(0x83, 2),
+            str(0x86, "A_TRUEHD"),
+            str(0x22B59C, "eng"),
+            str(0x536E, "Dolby Atmos 7.1 Mix"),
+            element(0xE1, uint(0x9F, 8)),
         )
         val french = element(0xAE, uint(0x83, 2), str(0x86, "A_AC3"), uint(0x88, 0), str(0x22B59C, "fre"), element(0xE1, uint(0x9F, 6)))
         val forced = element(0xAE, uint(0x83, 17), str(0x86, "S_TEXT/UTF8"), str(0x22B59C, "fre"), str(0x536E, "Forced"))

@@ -268,7 +268,13 @@ class TmdbClientTest {
     @Test
     fun aShowComesWithItsIdsElsewhere() = runTest {
         val asked = mutableListOf<HttpUrl>()
-        val client = TmdbClient("key", transport = Interceptor { chain -> asked += chain.request().url; tmdb.intercept(chain) })
+        val client = TmdbClient(
+            "key",
+            transport = Interceptor { chain ->
+                asked += chain.request().url
+                tmdb.intercept(chain)
+            },
+        )
         tmdb.show(2316, "The Office", 2005)
         tmdb.rawBody = """{"id":2316,"name":"The Office","external_ids":{"imdb_id":"tt0386676","tvdb_id":73244,"wikidata_id":"Q23831"}}"""
         assertEquals(TmdbExternalIds("tt0386676", 73244), client.tv(2316).externalIds)
@@ -300,7 +306,10 @@ class TmdbClientTest {
     fun aClientAsksInItsOwnLanguage() = runTest {
         val asked = mutableListOf<HttpUrl>()
         val quebec = Locale.forLanguageTag("fr-CA")
-        val transport = Interceptor { chain -> asked += chain.request().url; tmdb.intercept(chain) }
+        val transport = Interceptor { chain ->
+            asked += chain.request().url
+            tmdb.intercept(chain)
+        }
         val client = TmdbClient("key", transport = transport, locale = quebec)
         client.movie(438631)
         assertEquals("fr-CA", asked.single().queryParameter("language"))

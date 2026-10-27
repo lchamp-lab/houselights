@@ -1,9 +1,8 @@
 package app.houselights.ui.catalog
 
-import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,12 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,12 +26,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.LibraryKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.ChoicePlace
 import app.houselights.ui.design.components.ConnectionSecurity
@@ -56,7 +57,6 @@ import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
-import app.houselights.core.LibraryKind
 import app.houselights.ui.util.libraryName
 
 /** Forms, menus, choice sheets and long text; HlTwoPane and HlFormScaffold fill the screen (see setup). */
@@ -164,7 +164,9 @@ private fun ColumnScope.FormTextFields() {
         var host by remember { mutableStateOf("") }
         Specimen("empty, label and placeholder", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
-                stringResource(R.string.field_host), host, { host = it },
+                stringResource(R.string.field_host),
+                host,
+                { host = it },
                 placeholder = stringResource(R.string.placeholder_host),
                 keyboardType = KeyboardType.Uri,
             )
@@ -172,7 +174,9 @@ private fun ColumnScope.FormTextFields() {
         var share by remember { mutableStateOf("media") }
         Specimen("filled", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
-                stringResource(R.string.field_share), share, { share = it },
+                stringResource(R.string.field_share),
+                share,
+                { share = it },
                 placeholder = stringResource(R.string.placeholder_share),
             )
         }
@@ -186,7 +190,9 @@ private fun ColumnScope.FormTextFields() {
         var key by remember { mutableStateOf("") }
         Specimen("label hidden, read out; placeholder, supporting line", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
-                personal, key, { key = it },
+                personal,
+                key,
+                { key = it },
                 placeholder = personal,
                 showLabel = false,
                 supporting = stringResource(R.string.tmdb_key_builtin),
@@ -197,7 +203,9 @@ private fun ColumnScope.FormTextFields() {
         var refused by remember { mutableStateOf("0123456789abcdef0123456789abcdef") }
         Specimen("error: in ember under the field, its edge unchanged", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
-                personal, refused, { refused = it },
+                personal,
+                refused,
+                { refused = it },
                 showLabel = false,
                 error = stringResource(R.string.error_tmdb_key_refused_title),
                 password = true,
@@ -207,7 +215,9 @@ private fun ColumnScope.FormTextFields() {
         var export by remember { mutableStateOf("/volume1/video/Films/Cinéma français/Nouvelle Vague/Restaurations 4K") }
         Specimen("value longer than the field", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
-                stringResource(R.string.field_export), export, { export = it },
+                stringResource(R.string.field_export),
+                export,
+                { export = it },
                 placeholder = stringResource(R.string.placeholder_export),
             )
         }
@@ -223,7 +233,9 @@ private fun ColumnScope.FormTextFields() {
         var folder by remember { mutableStateOf("") }
         Specimen("optional: said after its name, in grey", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
-                stringResource(R.string.field_path), folder, { folder = it },
+                stringResource(R.string.field_path),
+                folder,
+                { folder = it },
                 placeholder = stringResource(R.string.placeholder_path_movies),
                 optional = true,
             )
@@ -298,12 +310,20 @@ private fun ColumnScope.FormFoldedFields() {
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                     HlTextField(
-                        stringResource(R.string.field_uid), uid, { uid = it }, Modifier.weight(1f),
-                        placeholder = stringResource(R.string.placeholder_uid), keyboardType = KeyboardType.Number,
+                        stringResource(R.string.field_uid),
+                        uid,
+                        { uid = it },
+                        Modifier.weight(1f),
+                        placeholder = stringResource(R.string.placeholder_uid),
+                        keyboardType = KeyboardType.Number,
                     )
                     HlTextField(
-                        stringResource(R.string.field_gid), gid, { gid = it }, Modifier.weight(1f),
-                        placeholder = stringResource(R.string.placeholder_gid), keyboardType = KeyboardType.Number,
+                        stringResource(R.string.field_gid),
+                        gid,
+                        { gid = it },
+                        Modifier.weight(1f),
+                        placeholder = stringResource(R.string.placeholder_gid),
+                        keyboardType = KeyboardType.Number,
                     )
                 }
             }
@@ -340,16 +360,25 @@ private fun ColumnScope.FormStatusPanels() {
         }
         Specimen("pending: testing", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.Pending, stringResource(R.string.connection_testing), address, "192.168.1.10",
-                detail = "/volume1/media/films", badges = nfs,
+                StatusState.Pending,
+                stringResource(R.string.connection_testing),
+                address,
+                "192.168.1.10",
+                detail = "/volume1/media/films",
+                badges = nfs,
             )
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("on: its white dot, with what was found", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.10",
-                detail = "/volume1/media/films", badges = nfs, result = folderContent(),
+                StatusState.On,
+                stringResource(R.string.connection_ok),
+                address,
+                "192.168.1.10",
+                detail = "/volume1/media/films",
+                badges = nfs,
+                result = folderContent(),
             )
         }
         Specimen(
@@ -358,8 +387,12 @@ private fun ColumnScope.FormStatusPanels() {
             gap = HlSpace.xs,
         ) {
             StatusPanel(
-                StatusState.Off, stringResource(R.string.connection_failed), address, "nas-salon.local",
-                detail = "/films", badges = listOf("SMB", films),
+                StatusState.Off,
+                stringResource(R.string.connection_failed),
+                address,
+                "nas-salon.local",
+                detail = "/films",
+                badges = listOf("SMB", films),
                 result = stringResource(R.string.error_nas_unreachable, "nas-salon.local"),
                 resultIsError = true,
             )
@@ -368,7 +401,9 @@ private fun ColumnScope.FormStatusPanels() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("done: a fact, white; a long value stops at three lines", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.Done, stringResource(R.string.identify_state_matched), stringResource(R.string.identify_file),
+                StatusState.Done,
+                stringResource(R.string.identify_state_matched),
+                stringResource(R.string.identify_file),
                 "Le.Samourai.1967.REMASTERED.2160p.UHD.BluRay.HDR10.DTS-HD.MA.5.1.x265-HOUSELIGHTS.mkv",
                 valueStyle = Hl.type.entry,
                 content = {
@@ -386,7 +421,10 @@ private fun ColumnScope.FormStatusPanels() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("done: a server found, by its name, its protocol verified", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "jellyfin.mondomaine.fr",
+                StatusState.Done,
+                stringResource(R.string.server_found),
+                stringResource(R.string.field_server),
+                "jellyfin.mondomaine.fr",
                 name = "Salon",
                 badges = listOf("HTTPS"),
                 facts = listOf(stringResource(R.string.connection_is_encrypted)),
@@ -394,15 +432,22 @@ private fun ColumnScope.FormStatusPanels() {
         }
         Specimen("picked while checked: no protocol yet", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "192.168.1.42:8096",
+                StatusState.Done,
+                stringResource(R.string.server_found),
+                stringResource(R.string.field_server),
+                "192.168.1.42:8096",
                 name = "Chambre",
                 facts = listOf(stringResource(R.string.checking)),
             )
         }
         Specimen("on: an NFS folder presenting another user, among its facts", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.20",
-                detail = "/volume1/media/films", badges = listOf("NFS"),
+                StatusState.On,
+                stringResource(R.string.connection_ok),
+                address,
+                "192.168.1.20",
+                detail = "/volume1/media/films",
+                badges = listOf("NFS"),
                 facts = listOf(films, stringResource(R.string.nfs_identity, "1026", "100")),
                 result = folderContent(),
             )
@@ -528,34 +573,34 @@ private fun FormFilterMenu(initial: FormFilters) {
                     MenuOption(stringResource(R.string.show_grouped), !f.sagas) { f = f.copy(sagas = false) },
                     MenuOption(sagasName, f.sagas) { f = f.copy(sagas = true) },
                 ),
-            )
+            ),
         )
         add(
             MenuSection(
                 stringResource(R.string.filter_status),
                 statuses.mapIndexed { i, label -> MenuOption(label, f.status == i) { f = f.copy(status = i) } },
-            )
+            ),
         )
         add(
             MenuSection(
                 stringResource(R.string.filter_genre),
                 listOf(MenuOption(stringResource(R.string.all_genres), f.genre == null) { f = f.copy(genre = null) }) +
                     FORM_GENRES.map { g -> MenuOption(g, f.genre == g) { f = f.copy(genre = g) } },
-            )
+            ),
         )
         add(
             MenuSection(
                 stringResource(R.string.filter_decade),
                 listOf(MenuOption(stringResource(R.string.all_decades), f.decade == null) { f = f.copy(decade = null) }) +
                     decades.map { (d, label) -> MenuOption(label, f.decade == d) { f = f.copy(decade = d) } },
-            )
+            ),
         )
         add(
             MenuSection(
                 stringResource(R.string.filter_quality),
                 listOf(MenuOption(stringResource(R.string.all_qualities), f.quality == null) { f = f.copy(quality = null) }) +
                     FORM_QUALITIES.map { q -> MenuOption(q, f.quality == q) { f = f.copy(quality = q) } },
-            )
+            ),
         )
         val reset = MenuOption(stringResource(R.string.reset_filters), false) { f = FormFilters() }
         if (f.active > 0 || f.sagas) add(MenuSection(null, listOf(reset)))
@@ -665,7 +710,11 @@ private fun formSortOrders() =
 /** The library's statuses, as its filter menu offers them. */
 @Composable
 private fun formStatuses() = listOf(
-    R.string.show_all, R.string.filter_unwatched, R.string.status_in_progress, R.string.status_watched, R.string.section_favorites,
+    R.string.show_all,
+    R.string.filter_unwatched,
+    R.string.status_in_progress,
+    R.string.status_watched,
+    R.string.section_favorites,
 ).map { stringResource(it) }
 
 /** TMDB's genres, and Jellyfin's longest ones. */

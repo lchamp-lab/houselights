@@ -5,11 +5,11 @@ import app.houselights.core.Library
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
-import app.houselights.core.MediaItem
-import app.houselights.core.MediaKind
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.FakeProvider.Asked
 import app.houselights.ui.testing.MainDispatcherRule
@@ -196,8 +196,14 @@ class LibraryViewModelTest {
     fun theSortAndFilterOutliveAStoppedProcess() = runTest {
         val saved = SavedStateHandle()
         val filter = LibraryFilter(
-            status = WatchStatus.UNWATCHED, genre = "Drame", decade = 1990, quality = Quality.UHD_4K,
-            picture = "Dolby Vision", sound = "TrueHD Atmos", fileType = "mkv", person = "p7",
+            status = WatchStatus.UNWATCHED,
+            genre = "Drame",
+            decade = 1990,
+            quality = Quality.UHD_4K,
+            picture = "Dolby Vision",
+            sound = "TrueHD Atmos",
+            fileType = "mkv",
+            person = "p7",
         )
         val before = LibraryViewModel({ provider }, library, saved)
         before.setSort(SortOption.ADDED)

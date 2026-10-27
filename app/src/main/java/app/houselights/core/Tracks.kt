@@ -39,7 +39,9 @@ sealed interface SubtitleChoice {
     companion object {
         private const val OFF = "off"
 
-        fun parse(stored: String): SubtitleChoice? = if (stored == OFF) Off else {
+        fun parse(stored: String): SubtitleChoice? = if (stored == OFF) {
+            Off
+        } else {
             val language = stored.substringBefore(':')
             val kind = SubtitleKind.entries.firstOrNull { it.name == stored.substringAfter(':') }
             kind?.takeIf { language.isNotEmpty() }?.let { Track(language, it) }

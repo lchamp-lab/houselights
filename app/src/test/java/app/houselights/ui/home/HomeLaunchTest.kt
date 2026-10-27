@@ -312,6 +312,7 @@ class HomeLaunchTest {
     private companion object {
         const val CAP = 1_500L
     }
+
     @Test
     fun theLaunchReadsTheDoorsAndHomeKeepsThem() = runTest {
         provider.walls = mapOf("films" to (1..20).map { film("f$it") })

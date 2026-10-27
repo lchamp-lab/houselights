@@ -63,7 +63,7 @@ class FailuresTest {
             EmptyFolderException() to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.EMPTY),
             UnreadableFolderException(3) to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),
             IllegalStateException("This source cannot be edited") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.OTHER),
-        )
+        ),
     )
 
     @Test
@@ -83,7 +83,7 @@ class FailuresTest {
             SerializationException("Unexpected JSON token") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.OTHER),
             // A NAS's RPC answer cut short is no network failure.
             MalformedAnswerException("cut short at byte 40") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.OTHER),
-        )
+        ),
     )
 
     /** No answer reads as the network on a screen, the storage after a write, and the NAS in a scan. */
@@ -94,7 +94,7 @@ class FailuresTest {
             IOException("wrapped", ConnectException("Connection refused")) to
                 Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
             IOException("NAS away") to Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
-        )
+        ),
     )
 
     /** A certificate refused is said as one, the server's or TMDB's, never as no answer. */
@@ -103,7 +103,7 @@ class FailuresTest {
         mapOf(
             certificateRefused() to Told(UiError.CERTIFICATE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
             TmdbCertificateException(certificateRefused()) to Told(UiError.CERTIFICATE, UiError.NOT_SAVED, ScanErrorKind.OTHER),
-        )
+        ),
     )
 
     /** smbj wraps failures in RuntimeExceptions: read through the causes, a NAS timeout stays a NAS timeout. */
@@ -113,7 +113,7 @@ class FailuresTest {
             SMBRuntimeException(TransportException(ExecutionException(SMBRuntimeException(TimeoutException("Timeout expired"))))) to
                 Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
             RuntimeException(SocketTimeoutException()) to Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
-        )
+        ),
     )
 
     /** NAS refusals and missing paths: Settings reports them per folder; a screen shows a generic failure. */
@@ -126,7 +126,7 @@ class FailuresTest {
             mountFailure(MountStatus.MNT3ERR_ACCES) to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),
             // On the device, a file that cannot be opened for writing is a storage fault.
             FileNotFoundException("/volume1/media/Heat.nfo") to Told(UiError.FAILED, UiError.NOT_SAVED, ScanErrorKind.NOT_FOUND),
-        )
+        ),
     )
 
     /**
@@ -156,7 +156,7 @@ class FailuresTest {
                 Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
             NoSuchFileException("/storage/emulated/0/Films") to Told(UiError.FAILED, UiError.NOT_SAVED, ScanErrorKind.NOT_FOUND),
             AccessDeniedException("/storage/emulated/0/Films") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),
-        )
+        ),
     )
 
     @Test
@@ -167,7 +167,7 @@ class FailuresTest {
                 Told(UiError.NOT_SAVED, UiError.NOT_SAVED, ScanErrorKind.STORAGE_FULL),
             // A disk failing may fail a read as well as a write: only a write says nothing was saved.
             SQLiteDiskIOException("disk I/O error") to Told(UiError.FAILED, UiError.NOT_SAVED, ScanErrorKind.OTHER),
-        )
+        ),
     )
 
     /** A 401 or 403 refuses the account (403: disabled, or not allowed at the moment). */

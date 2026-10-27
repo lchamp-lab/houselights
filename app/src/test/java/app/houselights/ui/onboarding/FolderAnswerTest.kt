@@ -99,9 +99,15 @@ class FolderAnswerTest {
 
     private suspend fun smbFolder(): Long = dao.insertSource(
         SourceEntity(
-            name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-            path = "films", username = "kodi", password = Secret("stored"),
-        )
+            name = "films",
+            kind = SourceKind.MOVIES,
+            protocol = Protocol.SMB,
+            host = "192.168.1.10",
+            share = "media",
+            path = "films",
+            username = "kodi",
+            password = Secret("stored"),
+        ),
     )
 
     /**
@@ -121,7 +127,13 @@ class FolderAnswerTest {
         val factory = viewModelFactory {
             initializer {
                 AddFolderViewModel(
-                    library, id, app, probe = probe, playerAddress = { player }, exports = exports, nearby = nearby,
+                    library,
+                    id,
+                    app,
+                    probe = probe,
+                    playerAddress = { player },
+                    exports = exports,
+                    nearby = nearby,
                 )
             }
         }
@@ -159,8 +171,14 @@ class FolderAnswerTest {
     @Test
     fun eachFailureSaysWhatToChange() {
         val nfs = SourceEntity(
-            name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/video",
-            path = "Films", username = "", password = Secret(""),
+            name = "Films",
+            kind = SourceKind.MOVIES,
+            protocol = Protocol.NFS,
+            host = "192.168.1.20",
+            share = "volume1/video",
+            path = "Films",
+            username = "",
+            password = Secret(""),
         )
         val smb = nfs.copy(protocol = Protocol.SMB, share = "video", username = "houselights")
         fun trouble(e: Throwable, folder: SourceEntity, player: String? = "192.168.1.42") =
@@ -299,7 +317,8 @@ class FolderAnswerTest {
     @Test
     fun aMountRefusedForAnExportTheNasLacksIsTheExportMissing() = runTest {
         val vm = form(
-            probe = { throw mountFailure(MountStatus.MNT3ERR_ACCES) }, player = "192.168.1.42",
+            probe = { throw mountFailure(MountStatus.MNT3ERR_ACCES) },
+            player = "192.168.1.42",
             exports = { listOf("/volume1/video", "/volume1/media") },
         )
         advanceUntilIdle()
@@ -419,8 +438,14 @@ class FolderAnswerTest {
     private companion object {
         /** The folder each test's form edits, on a NAS and in a folder no test types. */
         val EDITED = SourceEntity(
-            name = "autres", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-            path = "autres", username = "kodi", password = Secret("stored"),
+            name = "autres",
+            kind = SourceKind.MOVIES,
+            protocol = Protocol.SMB,
+            host = "192.168.1.10",
+            share = "media",
+            path = "autres",
+            username = "kodi",
+            password = Secret("stored"),
         )
     }
 }

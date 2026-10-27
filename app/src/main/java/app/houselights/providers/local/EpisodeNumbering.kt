@@ -173,7 +173,11 @@ internal object EpisodeNumbering {
         val lastTmdb = last?.let { sequence.getOrNull(it - 1) }
         val lastPlace = lastTmdb?.let { numbering.order.placeOf(it) ?: it }?.takeIf { it.season == place.season }
         return Placement(
-            place.season, place.episode, lastPlace?.episode, tmdb, lastTmdb?.takeIf { it.season == tmdb.season }?.episode,
+            place.season,
+            place.episode,
+            lastPlace?.episode,
+            tmdb,
+            lastTmdb?.takeIf { it.season == tmdb.season }?.episode,
             absolute = first,
         )
     }

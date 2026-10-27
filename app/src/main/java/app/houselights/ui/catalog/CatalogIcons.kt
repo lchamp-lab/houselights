@@ -2,8 +2,8 @@ package app.houselights.ui.catalog
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -83,7 +83,6 @@ private fun Glyph(icon: ImageVector, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Sizes(icon: ImageVector, ink: Color, modifier: Modifier = Modifier) {
-
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.largeIcon))
         Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.icon))
@@ -151,4 +150,3 @@ private fun Facts() {
         }
     }
 }
-

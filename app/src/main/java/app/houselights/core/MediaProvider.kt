@@ -134,6 +134,7 @@ interface MediaProvider {
 
     suspend fun libraries(): List<Library>
     suspend fun home(): List<HomeSection>
+
     /**
      * A page of [library]'s wall. [grouped], a films library shows each saga ([LibraryKind.COLLECTIONS]) as one title in
      * place of its films, as far as the source groups them, and counts them in [Page.sagas] when it knows how many.

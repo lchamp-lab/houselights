@@ -28,7 +28,14 @@ fun diskFolder(
     disk: String = USB_DISK,
     path: String = name,
 ) = SourceEntity(
-    name = name, kind = kind, protocol = Protocol.LOCAL, host = disk, share = "", path = path, username = "", password = Secret(""),
+    name = name,
+    kind = kind,
+    protocol = Protocol.LOCAL,
+    host = disk,
+    share = "",
+    path = path,
+    username = "",
+    password = Secret(""),
 )
 
 /** Writes [bytes] at [path] under this folder, its folders made, dated [modified] when given; returns the file. */

@@ -7,8 +7,10 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.AppContainer
 import app.houselights.core.MediaProvider
 import app.houselights.core.PathMapping
@@ -31,10 +33,12 @@ import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.settings.TextSize
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toWriteError
 import coil.ImageLoader
 import coil.annotation.ExperimentalCoilApi
+import coil.imageLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -47,10 +51,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
-import app.houselights.ui.util.appContainer
-import coil.imageLoader
 
 /** What Houselights keeps on the device. */
 internal data class StorageStats(

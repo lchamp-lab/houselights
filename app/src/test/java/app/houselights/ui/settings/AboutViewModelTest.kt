@@ -21,7 +21,10 @@ class AboutViewModelTest {
         val answers = ArrayDeque(listOf(true, false))
         val gate = CompletableDeferred<Unit>()
         val player = PlayerStatus.Detected("com.zidoo.player")
-        val vm = AboutViewModel({ player.also { playerAsked++ } }, { gate.await(); answers.removeFirst() })
+        val vm = AboutViewModel({ player.also { playerAsked++ } }, {
+            gate.await()
+            answers.removeFirst()
+        })
         assertEquals(player, vm.player)
 
         vm.check()
@@ -42,7 +45,10 @@ class AboutViewModelTest {
     @Test
     fun anAnswerAfterAboutHasGoneIsNotKept() = runTest {
         val gate = CompletableDeferred<Unit>()
-        val vm = AboutViewModel({ PlayerStatus.NotDetected }, { gate.await(); true })
+        val vm = AboutViewModel({ PlayerStatus.NotDetected }, {
+            gate.await()
+            true
+        })
         assertEquals(PlayerStatus.NotDetected, vm.player)
         vm.check()
         vm.forget()

@@ -11,7 +11,7 @@ internal object SidecarKey {
         when (kind) {
             SourceKind.MOVIES -> local
             SourceKind.SHOWS -> VideoSidecars(nfo = local.nfo, thumb = local.thumb)
-        }
+        },
     )
 
     /** Null when there are no sidecars. */

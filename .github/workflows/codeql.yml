@@ -1,0 +1,60 @@
+# CodeQL's security queries on the app's Kotlin (CONTRIBUTING, Checks): on every pull request, on main and the release
+# branches as they move, so that a pull request is compared with its base, and each week, for the queries' own updates.
+# CodeQL reads the code as the compiler sees it (build-mode manual): the debug build's sources, compiled by Gradle as
+# CI compiles them. Its alerts are under Security, Code scanning; on a pull request, a new one of high severity fails
+# its CodeQL check (the repository's default threshold).
+name: CodeQL
+
+on:
+  push:
+    branches: [main, "release/**"]
+  pull_request:
+  schedule:
+    # Mondays, 05:17 UTC.
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      # Actions are pinned to a commit, which cannot move under the build.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2, MIT; v6 caches through a proprietary component
+
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: java-kotlin
+          build-mode: manual
+
+      # Kotlin compiled inside Gradle's JVM, where CodeQL's tracer sees it, as CI runs it; nothing taken from a cache.
+      - name: Compile
+        run: >-
+          ./gradlew --no-daemon --no-build-cache --max-workers=2
+          -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
+          -Pkotlin.compiler.execution.strategy=in-process
+          :app:compileDebugKotlin
+
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:java-kotlin

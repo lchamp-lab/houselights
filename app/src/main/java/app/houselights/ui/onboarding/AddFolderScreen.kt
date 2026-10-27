@@ -1,5 +1,6 @@
 package app.houselights.ui.onboarding
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -7,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -41,8 +41,6 @@ import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.revealOnFocus
-import app.houselights.ui.design.revealOnOpen
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlEmptyState
@@ -53,6 +51,8 @@ import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.revealOnOpen
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.roomPosters
@@ -271,16 +271,20 @@ private fun ColumnScope.FolderFields(
 ) {
     val nfs = form.protocol == Protocol.NFS
     HlTextField(
-        stringResource(R.string.field_host), form.host, { v -> onEdit { copy(host = v) } },
+        stringResource(R.string.field_host),
+        form.host,
+        { v -> onEdit { copy(host = v) } },
         Modifier.focusRequester(focus.host).shownWith(faults.at(FaultSpot.HOST)),
-        placeholder = stringResource(R.string.placeholder_host), keyboardType = KeyboardType.Uri,
+        placeholder = stringResource(R.string.placeholder_host),
+        keyboardType = KeyboardType.Uri,
         error = faults.at(FaultSpot.HOST),
     )
     val subfolderLast = nfs && !identityOpen
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
         HlTextField(
             stringResource(if (nfs) R.string.field_export else R.string.field_share),
-            form.share, { v -> onEdit { copy(share = v) } },
+            form.share,
+            { v -> onEdit { copy(share = v) } },
             placeholder = stringResource(shareExample(form.protocol)),
             modifier = Modifier.weight(1f).focusRequester(focus.share).shownWith(faults.at(FaultSpot.SHARE)),
             error = faults.at(FaultSpot.SHARE),
@@ -298,7 +302,9 @@ private fun ColumnScope.FolderFields(
     if (!nfs) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             HlTextField(
-                stringResource(R.string.field_user), form.user, { v -> onEdit { copy(user = v) } },
+                stringResource(R.string.field_user),
+                form.user,
+                { v -> onEdit { copy(user = v) } },
                 modifier = Modifier.weight(1f).focusRequester(focus.user).shownWith(faults.at(FaultSpot.USER)),
                 error = faults.at(FaultSpot.USER),
             )
@@ -358,9 +364,12 @@ private fun NfsIdentity(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                 HlTextField(
-                    stringResource(R.string.field_uid), form.uid, { v -> if (FolderForm.isId(v)) onEdit { copy(uid = v) } },
+                    stringResource(R.string.field_uid),
+                    form.uid,
+                    { v -> if (FolderForm.isId(v)) onEdit { copy(uid = v) } },
                     Modifier.weight(1f).focusRequester(focus.uid).shownWith(uidError),
-                    placeholder = stringResource(R.string.placeholder_uid), keyboardType = KeyboardType.Number,
+                    placeholder = stringResource(R.string.placeholder_uid),
+                    keyboardType = KeyboardType.Number,
                     error = uidError,
                 )
                 HlTextField(

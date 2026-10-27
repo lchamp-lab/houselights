@@ -113,8 +113,13 @@ class FakeTmdb : Interceptor {
     ).also { movies[id] = it }
 
     fun show(id: Int, name: String, year: Int? = null, tvdbId: Int? = null, imdbId: String? = null, votes: Int = 0) = TmdbTv(
-        id = id, name = name, firstAirDate = year?.let { "$it-01-01" }, overview = "About $name", posterPath = "/show-$id.jpg",
-        externalIds = TmdbExternalIds(imdbId = imdbId, tvdbId = tvdbId), voteCount = votes,
+        id = id,
+        name = name,
+        firstAirDate = year?.let { "$it-01-01" },
+        overview = "About $name",
+        posterPath = "/show-$id.jpg",
+        externalIds = TmdbExternalIds(imdbId = imdbId, tvdbId = tvdbId),
+        voteCount = votes,
     ).also { shows[id] = it }
 
     /** Changes what TMDB answers for the film [id], added before. */
@@ -157,10 +162,13 @@ class FakeTmdb : Interceptor {
         of: Int = showId,
     ): TmdbEpisodeGroup {
         val group = TmdbEpisodeGroup(
-            id, type, name,
+            id,
+            type,
+            name,
             seasons.mapIndexed { i, episodes ->
                 TmdbGroupSeason(
-                    "Group ${first + i}", first + i,
+                    "Group ${first + i}",
+                    first + i,
                     episodes.mapIndexed { j, (season, episode) -> TmdbGroupEpisode(season, episode, j, of) },
                 )
             },
@@ -267,15 +275,25 @@ class FakeTmdb : Interceptor {
             if (path == "search/movie") {
                 movies.values.filter { asked(it.id, it.title) && matches(year, it.releaseDate) }.sortedBy { order(it.id) }.map {
                     TmdbSearchResult(
-                        it.id, title = named(it.id, it.title), releaseDate = it.releaseDate, posterPath = it.posterPath,
-                        originalTitle = it.originalTitle, overview = it.overview, voteCount = it.voteCount ?: 0,
+                        it.id,
+                        title = named(it.id, it.title),
+                        releaseDate = it.releaseDate,
+                        posterPath = it.posterPath,
+                        originalTitle = it.originalTitle,
+                        overview = it.overview,
+                        voteCount = it.voteCount ?: 0,
                     )
                 }
             } else {
                 shows.values.filter { asked(it.id, it.name) && matches(year, it.firstAirDate) }.sortedBy { order(it.id) }.map {
                     TmdbSearchResult(
-                        it.id, name = named(it.id, it.name), firstAirDate = it.firstAirDate, posterPath = it.posterPath,
-                        originalName = it.originalName, overview = it.overview, voteCount = it.voteCount ?: 0,
+                        it.id,
+                        name = named(it.id, it.name),
+                        firstAirDate = it.firstAirDate,
+                        posterPath = it.posterPath,
+                        originalName = it.originalName,
+                        overview = it.overview,
+                        voteCount = it.voteCount ?: 0,
                     )
                 }
             },

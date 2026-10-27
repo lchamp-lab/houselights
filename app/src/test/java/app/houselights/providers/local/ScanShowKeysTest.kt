@@ -209,9 +209,13 @@ class ScanShowKeysTest {
         bench.withTmdb = false
         val old = dao.insert(
             ItemEntity(
-                kind = ItemKind.SERIES, sourceId = shows.id, matchKey = "severance", title = "Severance", sortTitle = "severance",
+                kind = ItemKind.SERIES,
+                sourceId = shows.id,
+                matchKey = "severance",
+                title = "Severance",
+                sortTitle = "severance",
                 addedAt = 0,
-            )
+            ),
         )
         dao.setFavorite(old, true)
         nas.put("Severance (2022)/Season 2/Severance - S02E01.mkv")

@@ -95,7 +95,7 @@ object ZidooStatus {
                 durationMs = duration,
                 // Also undocumented: a path that is not a string is ignored, and the status still stands.
                 path = (video["path"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null },
-            )
+            ),
         )
     }.getOrDefault(PlayerAnswer.NoAnswer)
 

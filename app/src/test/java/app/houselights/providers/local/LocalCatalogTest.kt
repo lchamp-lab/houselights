@@ -71,11 +71,11 @@ class LocalCatalogTest {
             tmdbId = tmdbId, filePath = path, badges = badges, rating = rating, votes = votes, collectionId = collectionId,
             played = played, lastPlayedAt = lastPlayedAt, positionMs = positionMs, fileSize = fileSize, runtimeMin = runtimeMin,
             originalTitle = originalTitle, addedAt = 0, matchedAt = 1, genres = genres,
-        )
+        ),
     )
 
     private suspend fun show(title: String): Long = dao.insert(
-        ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = title, sortTitle = title.lowercase(), addedAt = 0)
+        ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = title, sortTitle = title.lowercase(), addedAt = 0),
     )
 
     private fun credit(itemId: Long, job: Job, ord: Int, name: String, tmdbId: Int? = null, character: String? = null): CreditEntity {
@@ -96,12 +96,16 @@ class LocalCatalogTest {
         val arrival = film("Arrival", 2016)
         val dune = film("Dune", 2021)
         credits(
-            arrival, credit(arrival, Job.DIRECTOR, 0, "Denis Villeneuve", 137427),
+            arrival,
+            credit(arrival, Job.DIRECTOR, 0, "Denis Villeneuve", 137427),
             credit(arrival, Job.CAST, 0, "Amy Adams", 9273, "Louise Banks"),
         )
         credits(
-            dune, credit(dune, Job.DIRECTOR, 0, "Denis Villeneuve", 137427), credit(dune, Job.CINEMATOGRAPHY, 0, "Greig Fraser", 1000),
-            credit(dune, Job.COMPOSER, 0, "Hans Zimmer", 947), credit(dune, Job.CAST, 0, "Timothée Chalamet", 1190668, "Paul Atreides"),
+            dune,
+            credit(dune, Job.DIRECTOR, 0, "Denis Villeneuve", 137427),
+            credit(dune, Job.CINEMATOGRAPHY, 0, "Greig Fraser", 1000),
+            credit(dune, Job.COMPOSER, 0, "Hans Zimmer", 947),
+            credit(dune, Job.CAST, 0, "Timothée Chalamet", 1190668, "Paul Atreides"),
         )
 
         val credits = catalog.credits(item(dune))
@@ -122,12 +126,14 @@ class LocalCatalogTest {
         val gran = film("Gran Torino", 2008)
         val eastwood = 190
         credits(
-            unforgiven, credit(unforgiven, Job.DIRECTOR, 0, "Clint Eastwood", eastwood),
+            unforgiven,
+            credit(unforgiven, Job.DIRECTOR, 0, "Clint Eastwood", eastwood),
             credit(unforgiven, Job.CAST, 0, "Clint Eastwood", eastwood, "Will Munny"),
         )
         credits(mystic, credit(mystic, Job.DIRECTOR, 0, "Clint Eastwood", eastwood))
         credits(
-            gran, credit(gran, Job.CAST, 0, "Clint Eastwood", eastwood, "Walt Kowalski"),
+            gran,
+            credit(gran, Job.CAST, 0, "Clint Eastwood", eastwood, "Walt Kowalski"),
             credit(gran, Job.DIRECTOR, 0, "Clint Eastwood", eastwood),
         )
 
@@ -200,7 +206,8 @@ class LocalCatalogTest {
             CollectionRules.parts(
                 saga,
                 TmdbCollection(
-                    10, "Mad Max - Saga",
+                    10,
+                    "Mad Max - Saga",
                     parts = listOf(
                         TmdbSearchResult(76341, title = "Fury Road", releaseDate = "2015-05-13"),
                         TmdbSearchResult(9659, title = "Mad Max", releaseDate = "1979-04-12"),
@@ -267,8 +274,12 @@ class LocalCatalogTest {
     fun theCopiesOfAFilmAreOneTitleTheBestPlayedUnlessOneIsChosen() = runTest {
         val first = film("Blade Runner", 1982, tmdbId = 78, path = "Blade Runner (1982).mkv", badges = listOf("1080p"), fileSize = 10)
         val final = film(
-            "Blade Runner", 1982, tmdbId = 78, path = "Blade Runner (1982) {edition-Final Cut}.mkv",
-            badges = listOf("4K", "Dolby Vision", "TrueHD Atmos"), fileSize = 60,
+            "Blade Runner",
+            1982,
+            tmdbId = 78,
+            path = "Blade Runner (1982) {edition-Final Cut}.mkv",
+            badges = listOf("4K", "Dolby Vision", "TrueHD Atmos"),
+            fileSize = 60,
         )
         film("Blade Runner 2049", 2017, tmdbId = 335984)
         dao.groupVersions()

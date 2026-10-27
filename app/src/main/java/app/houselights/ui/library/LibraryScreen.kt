@@ -1,8 +1,5 @@
 package app.houselights.ui.library
 
-import app.houselights.ui.design.components.HeaderControls
-import app.houselights.ui.design.OnArtwork
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,18 +12,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -39,67 +39,67 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
-import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.BackToStart
-import app.houselights.ui.design.FocusKey
-import app.houselights.ui.design.RestoreFocus
-import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.rememberFocusMemory
-import app.houselights.ui.design.tryRequestFocus
 import app.houselights.R
+import app.houselights.core.BadgeTokens
 import app.houselights.core.Definition
+import app.houselights.core.FileTypes
+import app.houselights.core.Formats
 import app.houselights.core.HdrFormat
 import app.houselights.core.Library
+import app.houselights.core.LibraryFacets
+import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
-import app.houselights.core.BadgeTokens
-import app.houselights.core.FileTypes
-import app.houselights.core.Formats
 import app.houselights.core.Person
 import app.houselights.core.ProviderCapabilities
-import app.houselights.core.LibraryFacets
-import app.houselights.core.LibraryFilter
 import app.houselights.core.Quality
+import app.houselights.core.SortKeys
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
+import app.houselights.ui.design.BackToStart
+import app.houselights.ui.design.FocusKey
+import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.TitleLine
-import app.houselights.ui.design.components.BackdropStyle
-import app.houselights.ui.design.components.AmbientBackdrop
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.OnArtwork
+import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.components.AmbientBackdrop
+import app.houselights.ui.design.components.BackdropStyle
+import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.DetailAhead
+import app.houselights.ui.design.components.HeaderControls
+import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlMenuButton
+import app.houselights.ui.design.components.LocalGroupFocused
 import app.houselights.ui.design.components.MenuOption
 import app.houselights.ui.design.components.MenuSection
-import app.houselights.ui.design.components.LocalGroupFocused
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.PosterWallGrid
 import app.houselights.ui.design.components.ScreenTitle
-import app.houselights.ui.design.components.CardSkeleton
-import app.houselights.ui.design.components.HlEmptyState
-import app.houselights.ui.design.components.HlErrorState
+import app.houselights.ui.design.components.TitleLine
+import app.houselights.ui.design.components.WithItsPicture
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.tryRequestFocus
+import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.ReloadOnLibraryChange
-import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
-import app.houselights.ui.util.rememberSettled
-import app.houselights.ui.util.skeletonDelayPassed
-import kotlinx.coroutines.launch
-import app.houselights.core.SortKeys
-import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.pictureName
+import app.houselights.ui.util.rememberSettled
+import app.houselights.ui.util.retainedError
+import app.houselights.ui.util.skeletonDelayPassed
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import app.houselights.ui.design.components.WithItsPicture
-import app.houselights.ui.design.components.DetailAhead
-import app.houselights.ui.design.HlSize
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.Stable
-import app.houselights.ui.design.FocusMemory
 
 /** Placeholder rows while the wall loads: more than the screen shows, like the wall. */
 private const val SKELETON_ROWS = 3
@@ -220,20 +220,24 @@ private fun WallHeader(
     can: ProviderCapabilities,
     choices: WallChoices,
 ) {
-    OnArtwork { HeaderControls { Row(
-        Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row {
-            ScreenTitle(name, Modifier.alignByBaseline())
-            if (state.total > 0) {
-                val count = wallCount(state, kind)
-                WallFolio(count, state.items, shown, state.total, state.sort, Modifier.alignByBaseline().padding(start = HlSpace.m))
+    OnArtwork {
+        HeaderControls {
+            Row(
+                Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row {
+                    ScreenTitle(name, Modifier.alignByBaseline())
+                    if (state.total > 0) {
+                        val count = wallCount(state, kind)
+                        WallFolio(count, state.items, shown, state.total, state.sort, Modifier.alignByBaseline().padding(start = HlSpace.m))
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                WallMenus(kind, state, can, person, choices)
             }
         }
-        Spacer(Modifier.weight(1f))
-        WallMenus(kind, state, can, person, choices)
-    } } }
+    }
 }
 
 /** What the wall shows: "8 titres · 1 saga", its titles alone where the source does not count its sagas. */
@@ -413,7 +417,7 @@ private fun sortLabel(sort: SortOption): String = stringResource(
         SortOption.ADDED -> R.string.sort_added
         SortOption.YEAR -> R.string.sort_year
         SortOption.RATING -> R.string.sort_rating
-    }
+    },
 )
 
 /** A sort as the menu offers it: its key and direction. */
@@ -424,7 +428,7 @@ private fun sortOrder(sort: SortOption): String = stringResource(
         SortOption.ADDED -> R.string.sort_added_order
         SortOption.YEAR -> R.string.sort_year_order
         SortOption.RATING -> R.string.sort_rating_order
-    }
+    },
 )
 
 /**

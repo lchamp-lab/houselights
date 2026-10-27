@@ -1,6 +1,7 @@
 package app.houselights.ui.detail
 
 import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -10,11 +11,18 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.LibraryChanges
+import app.houselights.core.AudioTrack
+import app.houselights.core.Credits
+import app.houselights.core.EpisodeOrderChoices
 import app.houselights.core.LibraryEvents
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.ProviderCapabilities
+import app.houselights.core.Saga
+import app.houselights.core.TrackChoice
+import app.houselights.core.TrackPlan
+import app.houselights.core.Version
 import app.houselights.core.nextUpIn
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.design.HlMotion
@@ -22,6 +30,7 @@ import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.reported
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -29,15 +38,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Deferred
-import android.util.Log
-import app.houselights.core.AudioTrack
-import app.houselights.core.Credits
-import app.houselights.core.EpisodeOrderChoices
-import app.houselights.core.Saga
-import app.houselights.core.TrackChoice
-import app.houselights.core.TrackPlan
-import app.houselights.core.Version
 
 /**
  * The page's title held, removed ([DetailViewModel.removeHeld]): the page leaves, for the page of [stays] when a copy
@@ -177,29 +177,33 @@ class DetailViewModel(
             // What Lire starts, read by this load: shown even should the rest of the page fail after it.
             var lire: DetailState.() -> DetailState = { this }
             // In a scope of its own, a failed parallel request ends up here instead of crashing the app.
-            suspendRunCatching { coroutineScope {
-                val source = provider()
-                val item = source.item(itemId)
-                val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
-                // Optional: on failure the page keeps its cast.
-                val credits = async {
-                    suspendRunCatching { source.catalog?.credits(item) }.onFailure { Log.w(TAG, "Credits of $itemId", it) }.getOrNull()
-                }
-                when (item.kind) {
-                    MediaKind.SERIES -> seriesPage(source, item, similar) { next -> lire = { copy(nextUp = next, nextUpError = null) } }
-                    MediaKind.COLLECTION -> collectionPage(source, item)
-                    else -> {
-                        sayFirst(source, item)
-                        filmPage(source, item, similar)
+            suspendRunCatching {
+                coroutineScope {
+                    val source = provider()
+                    val item = source.item(itemId)
+                    val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
+                    // Optional: on failure the page keeps its cast.
+                    val credits = async {
+                        suspendRunCatching { source.catalog?.credits(item) }.onFailure { Log.w(TAG, "Credits of $itemId", it) }.getOrNull()
                     }
-                }.copy(credits = credits.await(), canEdit = source.editor?.canEdit(item) == true)
-            } }.onSuccess { loaded ->
+                    when (item.kind) {
+                        MediaKind.SERIES -> seriesPage(source, item, similar) { next -> lire = { copy(nextUp = next, nextUpError = null) } }
+                        MediaKind.COLLECTION -> collectionPage(source, item)
+                        else -> {
+                            sayFirst(source, item)
+                            filmPage(source, item, similar)
+                        }
+                    }.copy(credits = credits.await(), canEdit = source.editor?.canEdit(item) == true)
+                }
+            }.onSuccess { loaded ->
                 // Keep the errors, any season chosen during the reload, a change still being saved, and an order being
                 // applied until a load after it.
                 val placed = reordered
                 _state.update {
                     val page = loaded.copy(
-                        actionError = it.actionError, episodeMarkError = it.episodeMarkError, reordering = it.reordering && !placed,
+                        actionError = it.actionError,
+                        episodeMarkError = it.episodeMarkError,
+                        reordering = it.reordering && !placed,
                     ).keepingSeasonOf(it)
                     pending?.invoke(page) ?: page
                 }
@@ -212,7 +216,11 @@ class DetailViewModel(
                     _state.update { s ->
                         val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
                         s.copy(
-                            error = error, episodesLoading = false, episodesError = rowError, partial = false, retrying = false,
+                            error = error,
+                            episodesLoading = false,
+                            episodesError = rowError,
+                            partial = false,
+                            retrying = false,
                             reordering = s.reordering && !placed,
                         ).lire()
                     }
@@ -234,7 +242,11 @@ class DetailViewModel(
         val canEdit = source.editor?.canEdit(item) == true
         _state.update {
             it.copy(
-                item = item, capabilities = source.capabilities, nextUp = nextUp, nextUpError = nextUpError, canEdit = canEdit,
+                item = item,
+                capabilities = source.capabilities,
+                nextUp = nextUp,
+                nextUpError = nextUpError,
+                canEdit = canEdit,
                 partial = true,
             )
         }
@@ -355,8 +367,12 @@ class DetailViewModel(
         saved[SEASON] = seasonId
         _state.update {
             it.copy(
-                selectedSeasonId = seasonId, episodes = emptyList(), episodesLoading = true, episodesError = null,
-                episodeMarkError = null, seasonMoved = false,
+                selectedSeasonId = seasonId,
+                episodes = emptyList(),
+                episodesLoading = true,
+                episodesError = null,
+                episodeMarkError = null,
+                seasonMoved = false,
             )
         }
         loadSeason(series, seasonId, settle = true)
@@ -381,7 +397,9 @@ class DetailViewModel(
             _state.update {
                 if (it.selectedSeasonId != seasonId) return@update it
                 it.copy(
-                    episodes = result.getOrDefault(emptyList()), episodesLoading = false, episodesError = error,
+                    episodes = result.getOrDefault(emptyList()),
+                    episodesLoading = false,
+                    episodesError = error,
                     episodesReadApart = true,
                 )
             }
@@ -608,8 +626,14 @@ class DetailViewModel(
         fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 DetailViewModel(
-                    itemId, app::provider, app, app.scope, createSavedStateHandle(),
-                    tracksOf = app::tracksOf, keepTracks = app.tracks::choose, removeHeldTitle = app.library::removeHeldTitle,
+                    itemId,
+                    app::provider,
+                    app,
+                    app.scope,
+                    createSavedStateHandle(),
+                    tracksOf = app::tracksOf,
+                    keepTracks = app.tracks::choose,
+                    removeHeldTitle = app.library::removeHeldTitle,
                 )
             }
         }

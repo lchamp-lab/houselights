@@ -1,11 +1,10 @@
 package app.houselights.ui.catalog
 
-import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -34,8 +33,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.edge
-import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.AbsentCard
 import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.ArtworkSurface
@@ -48,6 +46,8 @@ import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.MediaRow
+import app.houselights.ui.design.edge
+import app.houselights.ui.design.groundStepFill
 
 /** Every shape at a size it takes, then focus in its two gestures and its ring, live with the remote. */
 internal fun LazyListScope.catalogFocus() {

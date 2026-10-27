@@ -238,7 +238,6 @@ fun Throwable.failurePlace(): FailurePlace? {
     }
 }
 
-
 /** smbj Session's message when it must sign a request without a key, as in a guest session. */
 private const val NO_SIGNING_KEY = "Message signing is required, but no signing key is negotiated"
 
@@ -252,6 +251,12 @@ private const val NO_SHARE = "BAD_NETWORK_NAME"
 private val NO_FOLDER = listOf("OBJECT_NAME_NOT_FOUND", "OBJECT_PATH_NOT_FOUND")
 
 private val NO_ANSWER = listOf(
-    "waiting for connection", "timed out", "rpc request timeout", "connection is broken", "tcp IO error",
-    "STATUS_IO_TIMEOUT", "STATUS_CONNECTION_DISCONNECTED", "STATUS_CONNECTION_RESET",
+    "waiting for connection",
+    "timed out",
+    "rpc request timeout",
+    "connection is broken",
+    "tcp IO error",
+    "STATUS_IO_TIMEOUT",
+    "STATUS_CONNECTION_DISCONNECTED",
+    "STATUS_CONNECTION_RESET",
 )

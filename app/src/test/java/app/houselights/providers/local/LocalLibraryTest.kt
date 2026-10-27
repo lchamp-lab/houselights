@@ -64,7 +64,7 @@ class LocalLibraryTest {
             name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
             path = "films", username = "kodi", password = Secret("old"), domain = "WORKGROUP", lastScanAt = 2_000,
             firstScanAt = 1_000,
-        )
+        ),
     )
 
     @Test
@@ -74,7 +74,7 @@ class LocalLibraryTest {
             ItemEntity(
                 kind = ItemKind.MOVIE, sourceId = id, title = "Heat", sortTitle = "heat", filePath = "Heat.mkv",
                 addedAt = 0, positionMs = 4_200_000, favorite = true, userTmdbId = 949, lastPlayedAt = 3_000,
-            )
+            ),
         )
 
         assertEquals(FolderSave.Saved, library.updateFolder(id, EDITED))
@@ -144,7 +144,12 @@ class LocalLibraryTest {
             context,
             dao,
             LibraryScanner(
-                dao = dao, tmdb = { null }, scope = CoroutineScope(passes), artwork = artwork, browsers = { nas }, closeIdle = {},
+                dao = dao,
+                tmdb = { null },
+                scope = CoroutineScope(passes),
+                artwork = artwork,
+                browsers = { nas },
+                closeIdle = {},
             ),
             artwork,
             // The session kept on the old address is busy with a listing: closing it waits.
@@ -181,9 +186,14 @@ class LocalLibraryTest {
         repeat(10) { n ->
             dao.insert(
                 ItemEntity(
-                    kind = ItemKind.MOVIE, sourceId = id, title = "Film $n", sortTitle = "film $n", filePath = "Film $n.mkv",
-                    posterPath = "/p$n.jpg", addedAt = n.toLong(),
-                )
+                    kind = ItemKind.MOVIE,
+                    sourceId = id,
+                    title = "Film $n",
+                    sortTitle = "film $n",
+                    filePath = "Film $n.mkv",
+                    posterPath = "/p$n.jpg",
+                    addedAt = n.toLong(),
+                ),
             )
             delay(50)
         }
@@ -199,14 +209,26 @@ class LocalLibraryTest {
     private companion object {
         /** As the form gives it: its kind is not the folder's and must be ignored. */
         val EDITED = SourceEntity(
-            name = "films-4k", kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.20", share = "video",
-            path = "films-4k", username = "kodi", password = Secret("new"),
+            name = "films-4k",
+            kind = SourceKind.SHOWS,
+            protocol = Protocol.SMB,
+            host = "192.168.1.20",
+            share = "video",
+            path = "films-4k",
+            username = "kodi",
+            password = Secret("new"),
         )
     }
 
     private fun nfs(host: String, share: String, path: String, protocol: Protocol = Protocol.NFS) = SourceEntity(
-        name = path.substringAfterLast('/').ifBlank { share }, kind = SourceKind.MOVIES, protocol = protocol, host = host,
-        share = share, path = path, username = "", password = Secret(""),
+        name = path.substringAfterLast('/').ifBlank { share },
+        kind = SourceKind.MOVIES,
+        protocol = protocol,
+        host = host,
+        share = share,
+        path = path,
+        username = "",
+        password = Secret(""),
     )
 
     /** The same folder twice, or one inside another: every title would show twice, so the second is refused. */

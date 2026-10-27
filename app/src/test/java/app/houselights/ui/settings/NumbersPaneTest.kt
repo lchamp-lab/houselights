@@ -41,8 +41,14 @@ class NumbersPaneTest {
     private val walls = mapOf(LibraryKind.MOVIES to films, LibraryKind.SHOWS to shows)
 
     private val local = ProviderCapabilities(
-        markPlayed = true, favorites = true, similar = true, pathMapping = false, people = true,
-        formatNumbers = true, formatFilters = true, personFilter = true,
+        markPlayed = true,
+        favorites = true,
+        similar = true,
+        pathMapping = false,
+        people = true,
+        formatNumbers = true,
+        formatFilters = true,
+        personFilter = true,
     )
     private val jellyfin =
         ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = true, people = true, personFilter = true)

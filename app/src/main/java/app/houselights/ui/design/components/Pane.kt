@@ -38,8 +38,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainWidth
 import androidx.tv.material3.Text
 import app.houselights.ui.design.EdgeScroll
 import app.houselights.ui.design.Gradation

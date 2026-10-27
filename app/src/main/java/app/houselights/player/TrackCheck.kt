@@ -93,8 +93,12 @@ object TrackCheck {
     }
 
     private fun subtitlesOf(plays: PlayerTracks, index: Int): SubtitleChoice? =
-        if (index == TrackPlan.NONE) SubtitleChoice.Off else plays.subtitles.firstOrNull { it.index == index }?.let { t ->
-            TrackPlan.known(t.language)?.let { SubtitleChoice.Track(it, TrackPlan.kindOf(t.forced, t.hearingImpaired)) }
+        if (index == TrackPlan.NONE) {
+            SubtitleChoice.Off
+        } else {
+            plays.subtitles.firstOrNull { it.index == index }?.let { t ->
+                TrackPlan.known(t.language)?.let { SubtitleChoice.Track(it, TrackPlan.kindOf(t.forced, t.hearingImpaired)) }
+            }
         }
 
     private fun PlayerTracks.audioAt(index: Int): PlayerTrack? = audio.firstOrNull { it.index == index }

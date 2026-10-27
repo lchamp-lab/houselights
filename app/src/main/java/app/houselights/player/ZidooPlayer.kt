@@ -1,5 +1,6 @@
 package app.houselights.player
 
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -8,11 +9,10 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import app.houselights.core.SigningCertificates
-import app.houselights.core.isWebUrl
 import androidx.core.content.edit
 import androidx.core.net.toUri
-import android.annotation.SuppressLint
+import app.houselights.core.SigningCertificates
+import app.houselights.core.isWebUrl
 
 /** The device as its build names it ([Build]), read-only firmware properties no app can change. */
 data class DeviceIdentity(
@@ -191,8 +191,9 @@ class ZidooPlayer(
         Decision.FIRMWARE -> "a system app"
         Decision.SIGNED_LIKE_FIRMWARE -> "signed like a system app of Zidoo's"
         Decision.REMEMBERED -> "the player a secret last went to, with the same certificate"
-        Decision.FIRST_USE -> "no secret went to a player yet" +
-            if (choice.device.identity.testKeys) "; test-keys: a certificate shared with the firmware proves nothing" else ""
+        Decision.FIRST_USE ->
+            "no secret went to a player yet" +
+                if (choice.device.identity.testKeys) "; test-keys: a certificate shared with the firmware proves nothing" else ""
         Decision.CHANGED -> "a secret last went to ${trusted.getString(KEY_PACKAGE, null)}, " +
             "certificate SHA-256 ${trusted.getString(KEY_CERTIFICATE, null)}"
         Decision.NO_CERTIFICATE -> "its certificate cannot be read"

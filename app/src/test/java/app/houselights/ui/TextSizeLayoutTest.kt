@@ -1,5 +1,6 @@
 package app.houselights.ui
 
+import android.content.Context
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -20,7 +21,6 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.AudioTrack
@@ -44,6 +44,7 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
+import app.houselights.testing.folderNames
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.TEXT_SCALE_MAX
@@ -72,14 +73,13 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.cutTexts
 import app.houselights.ui.util.PlaybackOutcome
-import app.houselights.testing.folderNames
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -150,13 +150,22 @@ class TextSizeLayoutTest {
             val id = runBlocking {
                 db.dao().insertSource(
                     SourceEntity(
-                        name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20",
-                        share = "volume1/video", path = "Films", username = "", password = Secret(""),
-                    )
+                        name = "Films",
+                        kind = SourceKind.MOVIES,
+                        protocol = Protocol.NFS,
+                        host = "192.168.1.20",
+                        share = "volume1/video",
+                        path = "Films",
+                        username = "",
+                        password = Secret(""),
+                    ),
                 )
             }
             val vm = AddFolderViewModel(
-                library, id, work, probe = { FolderLevel(folderNames(412), videos = 3) },
+                library,
+                id,
+                work,
+                probe = { FolderLevel(folderNames(412), videos = 3) },
                 playerAddress = { "192.168.1.42" },
             )
             show { AddFolderForm(vm, FolderField.FIRST) {} }

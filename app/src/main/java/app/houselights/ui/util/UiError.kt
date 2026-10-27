@@ -99,5 +99,6 @@ fun FailureKind.toUiError(): UiError = when (this) {
     FailureKind.STORAGE_FULL -> UiError.NOT_SAVED
     // NAS refusals and missing paths show in Settings, per folder; a failing disk can fail reads too.
     FailureKind.LOGIN_FAILED, FailureKind.ACCESS_DENIED, FailureKind.MISSING, FailureKind.STORAGE_FAILED,
-    FailureKind.SERVER_FAILED, FailureKind.UNEXPECTED_ANSWER, FailureKind.OTHER -> UiError.FAILED
+    FailureKind.SERVER_FAILED, FailureKind.UNEXPECTED_ANSWER, FailureKind.OTHER,
+    -> UiError.FAILED
 }

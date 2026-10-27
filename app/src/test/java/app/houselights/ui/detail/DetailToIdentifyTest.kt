@@ -27,9 +27,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.IOException
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.IOException
 
 /**
  * A title to identify says so at the end of its page's actions, by the ring, never ember: a state, not a failure; its

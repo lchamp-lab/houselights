@@ -169,7 +169,7 @@ class TraktSync(
                         // A file holding several episodes is watched or not: Trakt pauses one episode at a time.
                         percent >= SyncPlan.WATCHED_PERCENT -> titles.map { TraktPendingEntity(it.key, TraktAction.WATCHED, at) }
                         else -> emptyList()
-                    }
+                    },
                 )
             }
         }

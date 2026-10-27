@@ -208,7 +208,14 @@ class SettingsViewModelTest {
                 val store = fullSettings(backgroundScope)
                 val sources = SourceSwitcher({ store.state.value }, store::setSource, backgroundScope)
                 SettingsViewModel(
-                    store, library, { null }, backgroundScope, sources, images = null, toIdentifyCount = closed, ignoredFiles = closed,
+                    store,
+                    library,
+                    { null },
+                    backgroundScope,
+                    sources,
+                    images = null,
+                    toIdentifyCount = closed,
+                    ignoredFiles = closed,
                 )
             }
         }

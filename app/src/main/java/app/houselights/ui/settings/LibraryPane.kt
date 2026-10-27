@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -24,6 +25,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.BuildConfig
 import app.houselights.R
+import app.houselights.core.CollectionThreshold
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.local.Folder
@@ -47,19 +49,19 @@ import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
-import app.houselights.ui.design.components.HlSideSheet
-import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.PlateFact
+import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.SHOWCASE_SLOTS
+import app.houselights.ui.design.components.ScanProgress
+import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.Showcase
 import app.houselights.ui.design.components.ShowcaseRow
-import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
-import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
@@ -70,11 +72,9 @@ import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
 import app.houselights.ui.util.toUiError
-import app.houselights.core.CollectionThreshold
 import kotlinx.coroutines.launch
 import java.text.Collator
 import java.util.Locale
-import androidx.compose.runtime.rememberUpdatedState
 
 /**
  * The library pane: its folders' showcases or its server, then actions; rows that open a screen are keyed in [rows]. A
@@ -586,7 +586,7 @@ private fun FilmData() {
                     s.tmdbApiKey != null -> R.string.tmdb_personal
                     hasBuiltIn -> R.string.tmdb_builtin_short
                     else -> R.string.tmdb_missing_short
-                }
+                },
             ),
             description = issue?.let { stringResource(it.title) },
             // A personal key is lit; no key, or one TMDB refused, needs attention.
@@ -605,6 +605,7 @@ private fun FilmData() {
 private fun CollectionsRow() {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
+
     @Composable
     fun option(label: Int, description: Int) = ChoiceOption(stringResource(label), stringResource(description))
     val options = listOf(
@@ -831,7 +832,7 @@ private fun LeaveConfirm(
                 !signsOut -> R.string.forget_server_consequence
                 folders == 0 -> R.string.sign_out_no_folder_desc
                 else -> R.string.sign_out_desc
-            }
+            },
         ),
         confirm = stringResource(if (signsOut) R.string.sign_out else R.string.forget),
         onConfirm = { leave?.let(onChoose) },

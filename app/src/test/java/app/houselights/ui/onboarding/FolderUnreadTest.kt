@@ -77,9 +77,15 @@ class FolderUnreadTest {
         val id = runBlocking {
             db.dao().insertSource(
                 SourceEntity(
-                    name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-                    path = "films", username = "kodi", password = Secret("stored"),
-                )
+                    name = "films",
+                    kind = SourceKind.MOVIES,
+                    protocol = Protocol.SMB,
+                    host = "192.168.1.10",
+                    share = "media",
+                    path = "films",
+                    username = "kodi",
+                    password = Secret("stored"),
+                ),
             )
         }
         folders(readable = false)

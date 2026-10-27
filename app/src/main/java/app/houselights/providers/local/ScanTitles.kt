@@ -46,12 +46,19 @@ internal object ScanTitles {
 
     /** Plex, Jellyfin and Kodi extras suffixes: "Dune (2021)-trailer.mkv", Jellyfin's "Dune (2021).trailer.mkv". */
     private val EXTRA_SUFFIX = Regex(
-        """(?i)(?:-(?:trailer|sample|featurette|behindthescenes|deleted|interview|scene|short|other)|[ ._](?:trailer|sample))$"""
+        """(?i)(?:-(?:trailer|sample|featurette|behindthescenes|deleted|interview|scene|short|other)|[ ._](?:trailer|sample))$""",
     )
 
     /** Plex and Jellyfin extras folders that never hold films (lowercase). */
     private val FILM_EXTRAS_FOLDERS = setOf(
-        "extras", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes", "trailers", "samples",
+        "extras",
+        "featurettes",
+        "behind the scenes",
+        "deleted scenes",
+        "interviews",
+        "scenes",
+        "trailers",
+        "samples",
     )
 
     /** All Plex and Jellyfin extras folders (lowercase), including those that may hold films. */

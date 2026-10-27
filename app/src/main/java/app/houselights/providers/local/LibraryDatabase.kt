@@ -68,7 +68,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `collections` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
                         "`matchKey` TEXT NOT NULL, `tmdbId` INTEGER, `name` TEXT NOT NULL, `sortTitle` TEXT NOT NULL, " +
-                        "`overview` TEXT, `posterPath` TEXT, `backdropPath` TEXT, `partCount` INTEGER, `fetchedAt` INTEGER)"
+                        "`overview` TEXT, `posterPath` TEXT, `backdropPath` TEXT, `partCount` INTEGER, `fetchedAt` INTEGER)",
                 )
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_collections_matchKey` ON `collections` (`matchKey`)")
                 db.execSQL("ALTER TABLE items ADD COLUMN collectionId INTEGER")
@@ -154,7 +154,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                 val credits = formerCredits(db)
                 db.compileStatement(
                     "INSERT OR REPLACE INTO credits (itemId, job, ord, personKey, name, foldedName, character, profilePath) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 ).use { insert ->
                     for (c in credits) {
                         val values =
@@ -187,7 +187,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                 for (state in listOf("played", "favorite")) {
                     db.execSQL(
                         "UPDATE items SET $state = 1 WHERE kind = 'MOVIE' AND versionOf IS NULL AND $state = 0 " +
-                            "AND id IN (SELECT versionOf FROM items WHERE versionOf IS NOT NULL AND $state = 1)"
+                            "AND id IN (SELECT versionOf FROM items WHERE versionOf IS NOT NULL AND $state = 1)",
                     )
                 }
                 db.execSQL("UPDATE collections SET fetchedAt = NULL WHERE tmdbId IS NOT NULL")
@@ -199,11 +199,11 @@ abstract class LibraryDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `trakt_pending` (`title` TEXT NOT NULL, `action` TEXT NOT NULL, `at` INTEGER NOT NULL, " +
-                        "`progress` REAL, `seq` INTEGER NOT NULL, PRIMARY KEY(`title`))"
+                        "`progress` REAL, `seq` INTEGER NOT NULL, PRIMARY KEY(`title`))",
                 )
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `trakt_state` (`id` INTEGER NOT NULL, `syncedAt` INTEGER, `watched` INTEGER NOT NULL, " +
-                        "`inProgress` INTEGER NOT NULL, `error` TEXT, `activities` TEXT, PRIMARY KEY(`id`))"
+                        "`inProgress` INTEGER NOT NULL, `error` TEXT, `activities` TEXT, PRIMARY KEY(`id`))",
                 )
             }
         }
@@ -228,7 +228,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `track_choices` (`title` TEXT NOT NULL, `audio` TEXT, `subtitles` TEXT, " +
-                        "`at` INTEGER NOT NULL, PRIMARY KEY(`title`))"
+                        "`at` INTEGER NOT NULL, PRIMARY KEY(`title`))",
                 )
                 markTracksInOrder(db)
             }
@@ -251,7 +251,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                         "`episodeNumber` INTEGER, `lastEpisodeNumber` INTEGER, `played` INTEGER NOT NULL, `positionMs` INTEGER NOT NULL, " +
                         "`durationMs` INTEGER, `lastPlayedAt` INTEGER, `favorite` INTEGER NOT NULL, `userTmdbId` INTEGER, " +
                         "`userPosterPath` TEXT, `userBackdropPath` TEXT, `userLogoPath` TEXT, `addedAt` INTEGER NOT NULL, " +
-                        "`audio` TEXT, `subtitles` TEXT, `tracksAt` INTEGER, PRIMARY KEY(`title`))"
+                        "`audio` TEXT, `subtitles` TEXT, `tracksAt` INTEGER, PRIMARY KEY(`title`))",
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_kept_states_nameKey` ON `kept_states` (`nameKey`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_kept_states_sourceId` ON `kept_states` (`sourceId`)")
@@ -274,12 +274,12 @@ abstract class LibraryDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `suggestions` (`itemId` INTEGER NOT NULL, `rank` INTEGER NOT NULL, " +
                         "`tmdbId` INTEGER NOT NULL, `title` TEXT NOT NULL, `originalTitle` TEXT, `year` INTEGER, `overview` TEXT, " +
-                        "`posterPath` TEXT, `score` REAL NOT NULL, PRIMARY KEY(`itemId`, `rank`))"
+                        "`posterPath` TEXT, `score` REAL NOT NULL, PRIMARY KEY(`itemId`, `rank`))",
                 )
                 db.execSQL("UPDATE items SET matchState = 'MATCHED' WHERE kind IN ('MOVIE', 'SERIES') AND tmdbId IS NOT NULL")
                 db.execSQL(
                     "UPDATE items SET matchState = 'NOT_FOUND' WHERE kind IN ('MOVIE', 'SERIES') AND tmdbId IS NULL " +
-                        "AND matchedAt IS NOT NULL"
+                        "AND matchedAt IS NOT NULL",
                 )
             }
         }
@@ -309,8 +309,13 @@ abstract class LibraryDatabase : RoomDatabase() {
         private val MIGRATION_20_21 = object : Migration(20, 21) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 val columns = listOf(
-                    "absoluteNumber INTEGER", "tmdbSeason INTEGER", "tmdbEpisode INTEGER", "tmdbLastEpisode INTEGER",
-                    "episodeOrder TEXT", "userEpisodeOrder TEXT", "reorderedAt INTEGER",
+                    "absoluteNumber INTEGER",
+                    "tmdbSeason INTEGER",
+                    "tmdbEpisode INTEGER",
+                    "tmdbLastEpisode INTEGER",
+                    "episodeOrder TEXT",
+                    "userEpisodeOrder TEXT",
+                    "reorderedAt INTEGER",
                 )
                 for (column in columns) db.execSQL("ALTER TABLE items ADD COLUMN $column")
                 db.execSQL("ALTER TABLE kept_states ADD COLUMN span TEXT")
@@ -319,11 +324,11 @@ abstract class LibraryDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `episode_orders` (`showTmdbId` INTEGER NOT NULL, `orderId` TEXT NOT NULL, " +
                         "`type` INTEGER NOT NULL, `name` TEXT NOT NULL, `episodeCount` INTEGER NOT NULL, `rank` INTEGER NOT NULL, " +
-                        "`places` TEXT, `fetchedAt` INTEGER, `groupsAt` INTEGER, PRIMARY KEY(`showTmdbId`, `orderId`))"
+                        "`places` TEXT, `fetchedAt` INTEGER, `groupsAt` INTEGER, PRIMARY KEY(`showTmdbId`, `orderId`))",
                 )
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `ignored_files` (`sourceId` INTEGER NOT NULL, `filePath` TEXT NOT NULL, " +
-                        "`reason` TEXT NOT NULL, PRIMARY KEY(`sourceId`, `filePath`))"
+                        "`reason` TEXT NOT NULL, PRIMARY KEY(`sourceId`, `filePath`))",
                 )
                 db.execSQL("UPDATE items SET matchedAt = NULL WHERE kind = 'EPISODE' AND episodeNumber >= 100")
                 val ordered = "SELECT id FROM items WHERE kind = 'SERIES' AND nfo IS NOT NULL " +
@@ -331,7 +336,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                 db.execSQL("UPDATE items SET matchedAt = NULL WHERE id IN ($ordered)")
                 db.execSQL(
                     "UPDATE items SET matchedAt = NULL WHERE id IN (SELECT MIN(id) FROM items WHERE kind = 'EPISODE' " +
-                        "AND seriesId IN ($ordered) GROUP BY seriesId)"
+                        "AND seriesId IN ($ordered) GROUP BY seriesId)",
                 )
             }
         }
@@ -376,7 +381,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             db.execSQL(
                 "CREATE TABLE IF NOT EXISTS `credits` (`itemId` INTEGER NOT NULL, `job` TEXT NOT NULL, `ord` INTEGER NOT NULL, " +
                     "`personKey` TEXT NOT NULL, `name` TEXT NOT NULL, `foldedName` TEXT NOT NULL, `character` TEXT, " +
-                    "`profilePath` TEXT, PRIMARY KEY(`itemId`, `job`, `ord`))"
+                    "`profilePath` TEXT, PRIMARY KEY(`itemId`, `job`, `ord`))",
             )
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_credits_personKey_itemId` ON `credits` (`personKey`, `itemId`)")
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_credits_job_personKey` ON `credits` (`job`, `personKey`)")
@@ -384,12 +389,12 @@ abstract class LibraryDatabase : RoomDatabase() {
             db.execSQL(
                 "CREATE TABLE IF NOT EXISTS `saga_parts` (`collectionId` INTEGER NOT NULL, `tmdbId` INTEGER NOT NULL, " +
                     "`ord` INTEGER NOT NULL, `title` TEXT NOT NULL, `releaseDate` TEXT, `overview` TEXT, `posterPath` TEXT, " +
-                    "`backdropPath` TEXT, PRIMARY KEY(`collectionId`, `tmdbId`))"
+                    "`backdropPath` TEXT, PRIMARY KEY(`collectionId`, `tmdbId`))",
             )
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_saga_parts_tmdbId` ON `saga_parts` (`tmdbId`)")
             db.execSQL(
                 "CREATE TABLE IF NOT EXISTS `search_words` (`kind` TEXT NOT NULL, `word` TEXT NOT NULL, `ref` TEXT NOT NULL, " +
-                    "PRIMARY KEY(`kind`, `word`, `ref`))"
+                    "PRIMARY KEY(`kind`, `word`, `ref`))",
             )
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_words_kind_ref` ON `search_words` (`kind`, `ref`)")
             for (column in listOf("edition TEXT", "versionOf INTEGER", "versionChoice INTEGER", "votes INTEGER", "creditsAt INTEGER")) {

@@ -9,12 +9,12 @@ import app.houselights.core.TmdbKeyRefusedException
 import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
 import app.houselights.core.failureKind
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNamingStrategy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -301,6 +301,7 @@ class TmdbClient(
         private const val GATEWAY_RETRY_MS = 1_000L
         private const val MAX_RETRY_AFTER_MS = 5_000L
         private const val MS_PER_SECOND = 1_000L
+
         /** TMDB's image CDN, whose pictures load more at once ([app.houselights.ImageCalls]). */
         internal const val IMAGE_HOST = "image.tmdb.org"
         private const val IMAGE_BASE = "https://$IMAGE_HOST/t/p/"

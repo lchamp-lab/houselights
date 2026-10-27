@@ -69,8 +69,14 @@ class FocusStyleGuardTest {
         val ui = File("src/main/java/app/houselights/ui")
         val row = Regex("""(?<!fun )\bMediaRow\(""")
         val controls = listOf(
-            "HlButton", "HlIconButton", "HlTextField", "HlSettingRow", "HlListItem",
-            "HlNavItem", "HlSegmented", "HlMenuButton",
+            "HlButton",
+            "HlIconButton",
+            "HlTextField",
+            "HlSettingRow",
+            "HlListItem",
+            "HlNavItem",
+            "HlSegmented",
+            "HlMenuButton",
         )
         val control = Regex("""\b(${controls.joinToString("|")})\(""")
         val found = kotlinSources(ui).flatMap { file ->
@@ -198,8 +204,11 @@ class FocusStyleGuardTest {
             .forEach { assertTrue(it, click.containsMatchIn(it)) }
         assertTrue(!click.containsMatchIn("Modifier.selectableGroup()"))
         listOf(
-            "graphicsLayer { scaleX = s }", "Modifier.scale(1.08f)", "graphicsLayer(scaleY = s)",
-            "import androidx.compose.ui.draw.scale", "import androidx.compose.ui.graphics.drawscope.scale",
+            "graphicsLayer { scaleX = s }",
+            "Modifier.scale(1.08f)",
+            "graphicsLayer(scaleY = s)",
+            "import androidx.compose.ui.draw.scale",
+            "import androidx.compose.ui.graphics.drawscope.scale",
             "import androidx.compose.ui.graphics.drawscope.withTransform",
         ).forEach { assertTrue(it, scaling.containsMatchIn(it)) }
         listOf(".scale(Scale.FIT)", "display = scale(HlFonts.condensed, FontWeight.Bold, 64, 72)", "import androidx.compose.ui.draw.clip")

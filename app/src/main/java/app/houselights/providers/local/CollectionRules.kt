@@ -39,9 +39,14 @@ object CollectionRules {
             .sortedWith(compareBy<TmdbSearchResult> { it.releaseDate.isNullOrBlank() }.thenBy { it.releaseDate }.thenBy { it.title })
             .mapIndexed { i, part ->
                 SagaPartEntity(
-                    collectionId = collectionId, tmdbId = part.id, ord = i, title = part.title ?: part.name.orEmpty(),
-                    releaseDate = part.releaseDate?.ifBlank { null }, overview = part.overview?.ifBlank { null },
-                    posterPath = part.posterPath, backdropPath = part.backdropPath,
+                    collectionId = collectionId,
+                    tmdbId = part.id,
+                    ord = i,
+                    title = part.title ?: part.name.orEmpty(),
+                    releaseDate = part.releaseDate?.ifBlank { null },
+                    overview = part.overview?.ifBlank { null },
+                    posterPath = part.posterPath,
+                    backdropPath = part.backdropPath,
                 )
             }
 

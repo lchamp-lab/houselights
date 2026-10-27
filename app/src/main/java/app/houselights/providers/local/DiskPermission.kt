@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -8,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
-import android.annotation.SuppressLint
 
 /** Whether the app may read the player's own disks, and what grants it. */
 enum class DiskAccess {

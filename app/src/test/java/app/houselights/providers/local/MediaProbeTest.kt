@@ -46,9 +46,13 @@ class MediaProbeTest {
     private fun remux(videoFrame: Int): ByteArray {
         val video = element(
             0xAE,
-            uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEGH/ISO/HEVC"), element(0xE0, uint(0xB0, 3840), uint(0xBA, 2160)),
+            uint(0xD7, 1),
+            uint(0x83, 1),
+            str(0x86, "V_MPEGH/ISO/HEVC"),
+            element(0xE0, uint(0xB0, 3840), uint(0xBA, 2160)),
         )
         val audio = element(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_AC3"), element(0xE1, uint(0x9F, 6)))
+
         // A SimpleBlock: its track's number, a timestamp, the flags of a keyframe without lacing, then the frame.
         fun block(track: Int, frame: Int) = element(0xA3, byteArrayOf((0x80 or track).toByte(), 0, 0, 0x80.toByte()) + ByteArray(frame))
         val cluster = element(0x1F43B675, uint(0xE7, 0), block(1, videoFrame), block(2, 1_536))
@@ -64,7 +68,10 @@ class MediaProbeTest {
     fun aTrackListLongerThanTheFirstReadIsReadToItsEnd() = runTest {
         val video = element(
             0xAE,
-            uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEG4/ISO/AVC"), element(0x63A2, ByteArray(300 shl 10)),
+            uint(0xD7, 1),
+            uint(0x83, 1),
+            str(0x86, "V_MPEG4/ISO/AVC"),
+            element(0x63A2, ByteArray(300 shl 10)),
             element(0xE0, uint(0xB0, 1920), uint(0xBA, 1080)),
         )
         val file = file(element(0x1654AE6B, video))

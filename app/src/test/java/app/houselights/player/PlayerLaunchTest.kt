@@ -48,8 +48,14 @@ class PlayerLaunchTest {
         PlaybackManager(context, backgroundScope, status = { PlayerAnswer.NoAnswer }, players = ZidooPlayer(context) { device }) { null }
 
     private fun plan(uri: String, backdrop: String? = null) = PlaybackPlan.Launch(
-        uri = uri, container = "mkv", title = "Heat", backdropUrl = backdrop, logoUrl = null, startMs = 0,
-        reporter = null, resumeKey = "m1",
+        uri = uri,
+        container = "mkv",
+        title = "Heat",
+        backdropUrl = backdrop,
+        logoUrl = null,
+        startMs = 0,
+        reporter = null,
+        resumeKey = "m1",
     )
 
     /** A newer firmware: no com.android.gallery3d, its own player answers videos. */

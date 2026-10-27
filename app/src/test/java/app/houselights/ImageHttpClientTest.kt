@@ -51,7 +51,7 @@ class ImageHttpClientTest {
             override fun onFailure(call: Call, e: IOException) = done.countDown()
 
             override fun onResponse(call: Call, response: Response) = response.use { done.countDown() }
-        }
+        },
     )
 
     @Test

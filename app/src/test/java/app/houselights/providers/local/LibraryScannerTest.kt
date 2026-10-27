@@ -213,11 +213,17 @@ class LibraryScannerTest {
         dao.source(
             dao.insertSource(
                 SourceEntity(
-                    name = "Partage", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "nas", share = "media",
-                    path = "films", username = "zidoo", password = Secret("s3cret"),
-                )
-            )
-        )
+                    name = "Partage",
+                    kind = SourceKind.MOVIES,
+                    protocol = Protocol.SMB,
+                    host = "nas",
+                    share = "media",
+                    path = "films",
+                    username = "zidoo",
+                    password = Secret("s3cret"),
+                ),
+            ),
+        ),
     )
 
     private fun sealedPassword(source: SourceEntity): String =

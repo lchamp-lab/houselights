@@ -93,7 +93,9 @@ internal fun numbersPage(counted: CountedLibrary): NumbersPage {
         add(rows(TallyKind.DIRECTORS, n.directors) { it })
     }.filter { it.rows.isNotEmpty() }
     return NumbersPage(
-        n.films, n.shows, n.episodes,
+        n.films,
+        n.shows,
+        n.episodes,
         sizeBytes = n.sizeBytes?.takeIf { formats && it > 0 },
         runtimeMs = n.runtimeMs?.takeIf { formats && it > 0 },
         groups = groups,

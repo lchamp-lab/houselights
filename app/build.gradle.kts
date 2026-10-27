@@ -257,7 +257,7 @@ if (keystoreProps.isEmpty && !debugSignedRelease) {
                     "one signed with yours could only be installed after uninstalling it, which loses the library " +
                     "and watch history kept on the player. Create your key first (CONTRIBUTING, Signing), or pass " +
                     "-Phouselights.debugSignedRelease=true for a build that will not be installed; " +
-                    "scripts/install.sh bench installs an optimised build beside the release."
+                    "scripts/install.sh bench installs an optimised build beside the release.",
             )
         }
     }
@@ -299,6 +299,8 @@ baselineProfile {
 detekt {
     buildUponDefaultConfig = true
     config.setFrom(rootProject.file("config/detekt.yml"))
+    // The build scripts too, which the pre-commit hook's ktlint checks: this one and the root project's.
+    source.from(files("build.gradle.kts"), rootProject.files("build.gradle.kts", "settings.gradle.kts"))
 }
 
 // nfs-client 1.1.0 cannot read an NFS reply sent in several record fragments, as NFS servers on libtirpc (unfs3 among
@@ -328,7 +330,7 @@ val nfsClientWithoutDecoder = tasks.register<Jar>("nfsClientWithoutDecoder") {
     }
 }
 
-// detekt 1.23 is built against Kotlin 2.0; keep its own compiler instead of the project's, for Compose's rules too.
+// detekt 1.23 is built against Kotlin 2.0; keep its own compiler instead of the project's, for its plugins' rules too.
 configurations.matching { it.name == "detekt" || it.name == "detektPlugins" }.configureEach {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.kotlin") useVersion(io.gitlab.arturbosch.detekt.getSupportedKotlinVersion())
@@ -388,6 +390,8 @@ dependencies {
 
     // Compose's own rules for detekt: naming, modifiers, state, CompositionLocals (config/detekt.yml, Compose).
     detektPlugins(libs.compose.rules.detekt)
+    // ktlint's rules, the code's style (config/detekt.yml, formatting; .editorconfig for the pre-commit hook's ktlint).
+    detektPlugins(libs.detekt.formatting)
 
     testImplementation(libs.junit)
     // XmlPullParser implementation for JVM tests (Android provides its own).

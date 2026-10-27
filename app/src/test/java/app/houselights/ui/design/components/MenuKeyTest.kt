@@ -13,9 +13,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import app.houselights.core.MediaItem
@@ -110,7 +110,13 @@ class MenuKeyTest {
     @Test
     fun theCasesKeyIsInItsActionAndItsFactsKeepTheirScore() {
         val film = MediaItem(
-            "tgm", MediaKind.MOVIE, "Top Gun: Maverick", year = 2022, runtimeMs = 7_800_000, officialRating = "TP", communityRating = 8.2,
+            "tgm",
+            MediaKind.MOVIE,
+            "Top Gun: Maverick",
+            year = 2022,
+            runtimeMs = 7_800_000,
+            officialRating = "TP",
+            communityRating = 8.2,
         )
         compose.setTvContent {
             Box(Modifier.size(HomeGridDefaults.case, caseHeight())) {

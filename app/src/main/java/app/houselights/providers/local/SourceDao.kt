@@ -37,7 +37,7 @@ interface SourceDao {
      */
     @Query(
         "UPDATE sources SET name = :name, protocol = :protocol, host = :host, share = :share, path = :path, " +
-            "username = :username, password = :password, uid = :uid, gid = :gid WHERE id = :id"
+            "username = :username, password = :password, uid = :uid, gid = :gid WHERE id = :id",
     )
     @Suppress("LongParameterList") // One per column written.
     suspend fun updateConnection(

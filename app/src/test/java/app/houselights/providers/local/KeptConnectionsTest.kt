@@ -36,7 +36,12 @@ class KeptConnectionsTest {
     private fun connect() = synchronized(made) { Connection(made.size).also { made += it } }
 
     private fun use(key: String = "nas/films", block: (Connection) -> Unit = {}) =
-        runBlocking { kept.use(key, ::connect) { block(it); it } }
+        runBlocking {
+            kept.use(key, ::connect) {
+                block(it)
+                it
+            }
+        }
 
     @Test
     fun aConnectionServesTheNextFile() {
@@ -107,7 +112,12 @@ class KeptConnectionsTest {
     fun aConnectionThatCannotBeMadeIsNotTriedTwice() {
         var tries = 0
         assertThrows(IOException::class.java) {
-            runBlocking { kept.use("nas/films", { tries++; throw IOException("Connection refused") }) {} }
+            runBlocking {
+                kept.use("nas/films", {
+                    tries++
+                    throw IOException("Connection refused")
+                }) {}
+            }
         }
         assertEquals(1, tries)
     }

@@ -56,8 +56,11 @@ class RestoreFocusTest {
         var away by mutableStateOf(false)
         compose.setTvContent {
             val screens = rememberSaveableStateHolder()
-            if (away) HlButton("Lire", onClick = {}, modifier = Modifier.testTag("player"))
-            else screens.SaveableStateProvider("titles") { Titles(titles) }
+            if (away) {
+                HlButton("Lire", onClick = {}, modifier = Modifier.testTag("player"))
+            } else {
+                screens.SaveableStateProvider("titles") { Titles(titles) }
+            }
         }
         compose.onNodeWithTag("t1").assertIsFocused()
         compose.press(Key.DirectionDown, times = 4)

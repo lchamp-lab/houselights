@@ -2,6 +2,7 @@ package app.houselights.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
@@ -33,7 +34,6 @@ import app.houselights.ui.util.formatDuration
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Locale
-import androidx.compose.foundation.layout.ColumnScope
 
 /** Sending the app's log, for a report: OK opens a sheet whose QR code opens the log on a phone ([JournalSheet]). */
 @Composable

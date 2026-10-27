@@ -2,8 +2,8 @@ package app.houselights.ui.catalog
 
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -15,15 +15,14 @@ import app.houselights.core.MediaKind
 import app.houselights.core.UserState
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.SectionHeader
+import app.houselights.ui.design.revealOnFocus
 
 // Parts shared by the sections of the catalogue, each in its own file.
 
 /** A catalogue section; one with nothing to focus ([still]) takes focus itself, so the remote reaches it. */
 @Composable
 internal fun Group(title: String, modifier: Modifier = Modifier, still: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-
     Column(
         modifier.revealOnFocus().then(if (still) Modifier.focusable() else Modifier),
         verticalArrangement = Arrangement.spacedBy(HlSpace.m),

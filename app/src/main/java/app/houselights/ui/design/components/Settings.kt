@@ -39,11 +39,11 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
 import app.houselights.R
-import app.houselights.ui.design.HlSettingRowDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlSettingRowDefaults
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
@@ -135,6 +135,7 @@ fun HlSettingRow(
 ) {
     val c = Hl.colors
     val least = if (onClick == null) HlSize.control else HlSize.row
+
     @Composable
     fun Line(focused: Boolean, shown: String?) {
         Row(

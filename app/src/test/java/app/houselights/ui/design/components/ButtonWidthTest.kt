@@ -42,8 +42,12 @@ class ButtonWidthTest {
         compose.setTvContent {
             Row {
                 HlButton(
-                    "Enregistrer", {}, icon = HlIcons.Check,
-                    busy = saving != null, busyLabel = saving ?: "Vérification…", reserveFor = "Enregistrement…",
+                    "Enregistrer",
+                    {},
+                    icon = HlIcons.Check,
+                    busy = saving != null,
+                    busyLabel = saving ?: "Vérification…",
+                    reserveFor = "Enregistrement…",
                 )
                 HlButton("Tester", {}, icon = HlIcons.Test, busy = testing, busyLabel = "Vérification…")
             }

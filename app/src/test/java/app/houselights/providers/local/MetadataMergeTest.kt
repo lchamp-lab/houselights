@@ -13,14 +13,21 @@ import org.junit.Test
 /** Which source wins for each detail of a film or a show, and when an NFO describes another title than the one matched. */
 class MetadataMergeTest {
     private val film = ItemEntity(
-        kind = ItemKind.MOVIE, sourceId = 1, title = "heat 1995", sortTitle = "heat 1995", year = 1995,
-        overview = "Known before", genres = listOf("Known"), addedAt = 0,
+        kind = ItemKind.MOVIE,
+        sourceId = 1,
+        title = "heat 1995",
+        sortTitle = "heat 1995",
+        year = 1995,
+        overview = "Known before",
+        genres = listOf("Known"),
+        addedAt = 0,
     )
     private val heatCredits = TmdbCredits(cast = listOf(TmdbCastMember("Al Pacino", "Vincent Hanna", order = 0)))
     private val tmdb = TmdbMovie(
         id = 949, title = "Heat", originalTitle = "Heat", overview = "", tagline = "A Los Angeles crime saga",
         releaseDate = "1995-12-15", runtime = 170, voteAverage = 7.9, genres = listOf(TmdbGenre("Action"), TmdbGenre("Crime")),
-        posterPath = "/tmdb-poster.jpg", credits = heatCredits.copy(
+        posterPath = "/tmdb-poster.jpg",
+        credits = heatCredits.copy(
             crew = listOf(TmdbCrewMember("Michael Mann", "Director"), TmdbCrewMember("Dante Spinotti", "Director of Photography")),
         ),
     ).details(certification = "12", logo = "/logo.png")

@@ -138,12 +138,16 @@ private fun MappingSheet(index: Int?, onDismiss: () -> Unit) {
     ) { sheet ->
         // Its parts the sheet's own gap apart.
         HlTextField(
-            stringResource(R.string.server_path), from, { from = it },
+            stringResource(R.string.server_path),
+            from,
+            { from = it },
             Modifier.fillMaxWidth().focusRequester(first),
             placeholder = stringResource(R.string.placeholder_server_path),
         )
         HlTextField(
-            stringResource(R.string.network_path), to, { to = it },
+            stringResource(R.string.network_path),
+            to,
+            { to = it },
             Modifier.fillMaxWidth(),
             placeholder = stringResource(R.string.placeholder_network_path),
             onImeAction = { sheet.dismiss() },

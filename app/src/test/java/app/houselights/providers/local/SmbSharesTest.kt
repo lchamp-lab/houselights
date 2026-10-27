@@ -173,9 +173,17 @@ class SmbSharesTest {
     fun aMalformedAnswerFails() {
         val whole = response(enumerated)
         // The first string's counts, maximum and actual, 0x0fff units: a share's name could be that long, not this stub.
-        val stringPastTheEnd = enumerated.copyOf().also { it[96] = 0xff.toByte(); it[97] = 0x0f; it[104] = 0xff.toByte(); it[105] = 0x0f }
+        val stringPastTheEnd = enumerated.copyOf().also {
+            it[96] = 0xff.toByte()
+            it[97] = 0x0f
+            it[104] = 0xff.toByte()
+            it[105] = 0x0f
+        }
         // Its actual count alone, 0x7f7f units: more than its maximum, and than any share's name.
-        val countBeyondAnyName = enumerated.copyOf().also { it[104] = 0x7f; it[105] = 0x7f }
+        val countBeyondAnyName = enumerated.copyOf().also {
+            it[104] = 0x7f
+            it[105] = 0x7f
+        }
         val anotherCall = whole.copyOf().also { it[12] = 9 }
         val bigEndian = whole.copyOf().also { it[4] = 0 }
         // The stub ending in its array, then inside "video"'s code units (bytes 108 to 119).
@@ -195,8 +203,14 @@ class SmbSharesTest {
             expected
         }
         val nas = SourceEntity(
-            name = "", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.20", share = "", path = "",
-            username = "kodi", password = Secret("secret"),
+            name = "",
+            kind = SourceKind.MOVIES,
+            protocol = Protocol.SMB,
+            host = "192.168.1.20",
+            share = "",
+            path = "",
+            username = "kodi",
+            password = Secret("secret"),
         )
         assertEquals(expected, RemoteBrowsers(smb, NfsBrowser()).shares(nas))
         assertEquals(listOf(nas), asked)

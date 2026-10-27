@@ -34,7 +34,7 @@ class TraktDaoTest {
             ItemEntity(
                 kind = ItemKind.MOVIE, sourceId = source, title = "F$tmdb", sortTitle = "f$tmdb", tmdbId = tmdb, addedAt = 0,
                 filePath = "F$tmdb${versionOf?.let { " 4K" }.orEmpty()}.mkv", lastPlayedAt = lastPlayedAt, versionOf = versionOf,
-            )
+            ),
         )
     }
 
@@ -175,8 +175,14 @@ class TraktDaoTest {
         val source = db.dao().insertSource(nfsFolder())
         val id = db.dao().insert(
             ItemEntity(
-                kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", tmdbId = 949, addedAt = 0, played = true,
-            )
+                kind = ItemKind.MOVIE,
+                sourceId = source,
+                title = "Heat",
+                sortTitle = "heat",
+                tmdbId = 949,
+                addedAt = 0,
+                played = true,
+            ),
         )
         dao.queue(listOf(intent("movie:949", TraktAction.UNWATCHED)))
         dao.saveState(TraktStateEntity(syncedAt = 5, watched = 1))

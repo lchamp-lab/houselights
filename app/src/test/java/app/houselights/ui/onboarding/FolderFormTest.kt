@@ -21,7 +21,12 @@ class FolderFormTest {
     @Test
     fun theFormOfAFolderShowsAllButItsPassword() {
         val form = FolderForm(
-            kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.10", share = "media", path = "films", user = "kodi",
+            kind = SourceKind.SHOWS,
+            protocol = Protocol.SMB,
+            host = "192.168.1.10",
+            share = "media",
+            path = "films",
+            user = "kodi",
         )
         assertEquals(form, FolderForm.of(stored))
         val nfs = stored.copy(protocol = Protocol.NFS, share = "volume1/media", username = "", password = Secret(""))

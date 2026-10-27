@@ -19,17 +19,29 @@ import kotlin.math.roundToInt
 object HlScrim {
     /** A hero's left veil (« À regarder », a person's page) at the column's band edges, raised where needed ([ArtworkSample.leftVeil]). */
     val LEFT_HOME = listOf(
-        VeilStop(0f, 0.95f), VeilStop(0.25f, 0.94f), VeilStop(0.5f, 0.905f), VeilStop(0.75f, 0.785f), VeilStop(1f, 0.48f),
+        VeilStop(0f, 0.95f),
+        VeilStop(0.25f, 0.94f),
+        VeilStop(0.5f, 0.905f),
+        VeilStop(0.75f, 0.785f),
+        VeilStop(1f, 0.48f),
     )
 
     /** A detail page's: darker to the column's end, where its text runs longer. */
     val LEFT_DETAIL = listOf(
-        VeilStop(0f, 0.96f), VeilStop(0.25f, 0.955f), VeilStop(0.5f, 0.94f), VeilStop(0.75f, 0.885f), VeilStop(1f, 0.67f),
+        VeilStop(0f, 0.96f),
+        VeilStop(0.25f, 0.955f),
+        VeilStop(0.5f, 0.94f),
+        VeilStop(0.75f, 0.885f),
+        VeilStop(1f, 0.67f),
     )
 
     /** Over a dimmed picture ([QUIET_PICTURE]). */
     val LEFT_QUIET = listOf(
-        VeilStop(0f, 0.6f), VeilStop(0.25f, 0.564f), VeilStop(0.5f, 0.48f), VeilStop(0.75f, 0.36f), VeilStop(1f, 0.252f),
+        VeilStop(0f, 0.6f),
+        VeilStop(0.25f, 0.564f),
+        VeilStop(0.5f, 0.48f),
+        VeilStop(0.75f, 0.36f),
+        VeilStop(1f, 0.252f),
     )
 
     /**
@@ -40,30 +52,53 @@ object HlScrim {
 
     /** A hero's top veil: 0.74 at the edge, 0.44 at 72 dp, gone at 164 dp. */
     val TOP = listOf(
-        VeilStop(0f, 0.74f), VeilStop(dp(34f), 0.64f), VeilStop(dp(72f), 0.44f),
-        VeilStop(dp(110f), 0.22f), VeilStop(dp(140f), 0.07f), VeilStop(dp(164f), 0f),
+        VeilStop(0f, 0.74f),
+        VeilStop(dp(34f), 0.64f),
+        VeilStop(dp(72f), 0.44f),
+        VeilStop(dp(110f), 0.22f),
+        VeilStop(dp(140f), 0.07f),
+        VeilStop(dp(164f), 0f),
     )
 
     /** A hero's bottom veil: its rows sit on the room from 77 % of the height. */
     val BOTTOM_HOME = listOf(
-        VeilStop(0.4f, 0f), VeilStop(0.47f, 0.2f), VeilStop(0.54f, 0.48f), VeilStop(0.6f, 0.74f),
-        VeilStop(0.66f, 0.9f), VeilStop(0.72f, 0.98f), VeilStop(0.77f, 1f), VeilStop(1f, 1f),
+        VeilStop(0.4f, 0f),
+        VeilStop(0.47f, 0.2f),
+        VeilStop(0.54f, 0.48f),
+        VeilStop(0.6f, 0.74f),
+        VeilStop(0.66f, 0.9f),
+        VeilStop(0.72f, 0.98f),
+        VeilStop(0.77f, 1f),
+        VeilStop(1f, 1f),
     )
 
     /** A detail page's: the picture runs behind its text down to 45 %. */
     val BOTTOM_DETAIL = listOf(
-        VeilStop(0.45f, 0f), VeilStop(0.56f, 0.24f), VeilStop(0.68f, 0.55f), VeilStop(0.8f, 0.82f),
-        VeilStop(0.9f, 0.96f), VeilStop(0.96f, 1f), VeilStop(1f, 1f),
+        VeilStop(0.45f, 0f),
+        VeilStop(0.56f, 0.24f),
+        VeilStop(0.68f, 0.55f),
+        VeilStop(0.8f, 0.82f),
+        VeilStop(0.9f, 0.96f),
+        VeilStop(0.96f, 1f),
+        VeilStop(1f, 1f),
     )
 
     /** A showcase's posters melting into its glass from a third of their height, deep under its name, whole at their foot. */
     val SHOWCASE_FOOT = listOf(
-        VeilStop(0.36f, 0f), VeilStop(0.53f, 0.22f), VeilStop(0.72f, 0.6f), VeilStop(0.89f, 0.88f), VeilStop(1f, 1f),
+        VeilStop(0.36f, 0f),
+        VeilStop(0.53f, 0.22f),
+        VeilStop(0.72f, 0.6f),
+        VeilStop(0.89f, 0.88f),
+        VeilStop(1f, 1f),
     )
 
     /** Home's case: its picture whole to a third of its height, then melting into its dark under its words. */
     val CASE_FOOT = listOf(
-        VeilStop(0.36f, 0f), VeilStop(0.47f, 0.42f), VeilStop(0.57f, 0.8f), VeilStop(0.65f, 0.95f), VeilStop(0.73f, 1f),
+        VeilStop(0.36f, 0f),
+        VeilStop(0.47f, 0.42f),
+        VeilStop(0.57f, 0.8f),
+        VeilStop(0.65f, 0.95f),
+        VeilStop(0.73f, 1f),
         VeilStop(1f, 1f),
     )
 

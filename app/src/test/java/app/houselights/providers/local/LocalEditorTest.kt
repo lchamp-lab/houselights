@@ -7,8 +7,8 @@ import app.houselights.core.MatchCandidate
 import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
-import app.houselights.core.ToIdentify
 import app.houselights.core.TmdbKeyRefusedException
+import app.houselights.core.ToIdentify
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals

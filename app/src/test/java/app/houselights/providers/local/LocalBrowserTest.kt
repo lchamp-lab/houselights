@@ -217,7 +217,9 @@ class LocalBrowserTest {
         disk.put("Films/Heat (1995)/Heat (1995).mkv")
         readable = false
         val reads = listOf<suspend () -> Any>(
-            { list() }, { browser.test(diskFolder()) }, { browser.folders(diskFolder()) },
+            { list() },
+            { browser.test(diskFolder()) },
+            { browser.folders(diskFolder()) },
             { browser.readAt(diskFolder(), "Heat (1995)/Heat (1995).mkv", 0, 10) },
         )
 

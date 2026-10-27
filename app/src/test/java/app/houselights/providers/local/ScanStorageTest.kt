@@ -35,7 +35,10 @@ class ScanStorageTest {
     /** Prevents the database from growing by another page. */
     private fun fillTheDatabase(full: Boolean) {
         val db = bench.db.openHelper.writableDatabase
-        val pages = db.query("PRAGMA page_count").use { it.moveToFirst(); it.getLong(0) }
+        val pages = db.query("PRAGMA page_count").use {
+            it.moveToFirst()
+            it.getLong(0)
+        }
         db.query("PRAGMA max_page_count = ${if (full) pages else Int.MAX_VALUE}").use { it.moveToFirst() }
         // The free space the device reports then.
         bench.freeSpace = if (full) 1L shl 20 else Long.MAX_VALUE

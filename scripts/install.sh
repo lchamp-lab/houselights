@@ -3,17 +3,28 @@
 # its dex metadata (.dm) go in one session, so the player is smooth from the first launch instead of
 # the first night it spends in standby (when Android compiles apps in the background).
 # Usage: scripts/install.sh [release|bench] [device serial]   (default: bench, the only device)
+#        scripts/install.sh hooks   instead, the pre-commit hook for this clone and the ktlint it runs (CONTRIBUTING)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/env.sh"
 VARIANT="${1:-bench}"
+
+# The hook (.githooks/pre-commit) for every commit of this clone and its worktrees, and ktlint, fetched once so that the
+# hook never needs the network.
+if [[ "$VARIANT" == hooks ]]; then
+    git -C "$ROOT" config core.hooksPath .githooks
+    "$ROOT/scripts/ktlint.sh" --fetch
+    echo "The pre-commit hook is on (git config core.hooksPath .githooks); git commit --no-verify skips it."
+    exit 0
+fi
+
 SERIAL="${2:-${ANDROID_SERIAL:-}}"
 adb() { if [[ -n "$SERIAL" ]]; then "$ADB" -s "$SERIAL" "$@"; else "$ADB" "$@"; fi; }
 
 case "$VARIANT" in
     release | bench) ;;
-    *) echo "Variant: release or bench (debug builds are not compiled ahead of time)." >&2; exit 1 ;;
+    *) echo "Variant: release or bench (debug builds are not compiled ahead of time), or hooks." >&2; exit 1 ;;
 esac
 
 cd "$ROOT"

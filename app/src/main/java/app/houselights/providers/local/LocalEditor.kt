@@ -15,9 +15,9 @@ import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MetadataEditor
+import app.houselights.core.NfoParser
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.NotFoundException
-import app.houselights.core.NfoParser
 import app.houselights.core.ToIdentify
 import app.houselights.core.Typeset
 import app.houselights.core.failureKind
@@ -83,7 +83,7 @@ class LocalEditor(
         val preference = if (kind == ArtworkKind.BACKDROP) listOf(null, language, "en") else listOf(language, "en", null)
         return images.sortedWith(
             compareBy<TmdbImage> { preference.indexOf(it.iso6391).let { i -> if (i < 0) preference.size else i } }
-                .thenByDescending { it.voteAverage }
+                .thenByDescending { it.voteAverage },
         )
     }
 
@@ -241,7 +241,10 @@ class LocalEditor(
         val counted = rows.firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }?.places
         val seasons = OrderPlaces.aired(counted).orEmpty().filter { it.n > 0 }
         val aired = EpisodeOrderOption(
-            EpisodeOrderEntity.AIRED, EpisodeOrderKind.AIRED, episodes = seasons.sumOf { it.c }, seasons = seasons.size,
+            EpisodeOrderEntity.AIRED,
+            EpisodeOrderKind.AIRED,
+            episodes = seasons.sumOf { it.c },
+            seasons = seasons.size,
         )
         val options = listOf(aired) + groups.mapNotNull { g ->
             g.kind()?.let { EpisodeOrderOption(g.orderId, it, Typeset.text(g.name.ifBlank { null }), g.episodeCount) }
@@ -316,9 +319,13 @@ class LocalEditor(
 
         /** TMDB's types of episode groups, as their kinds. */
         val GROUP_KINDS = mapOf(
-            1 to EpisodeOrderKind.ORIGINAL_AIR_DATE, EpisodeOrderEntity.ABSOLUTE_TYPE to EpisodeOrderKind.ABSOLUTE,
-            3 to EpisodeOrderKind.DVD, 4 to EpisodeOrderKind.DIGITAL, EpisodeOrderEntity.STORY_ARC_TYPE to EpisodeOrderKind.STORY_ARC,
-            6 to EpisodeOrderKind.PRODUCTION, 7 to EpisodeOrderKind.TV,
+            1 to EpisodeOrderKind.ORIGINAL_AIR_DATE,
+            EpisodeOrderEntity.ABSOLUTE_TYPE to EpisodeOrderKind.ABSOLUTE,
+            3 to EpisodeOrderKind.DVD,
+            4 to EpisodeOrderKind.DIGITAL,
+            EpisodeOrderEntity.STORY_ARC_TYPE to EpisodeOrderKind.STORY_ARC,
+            6 to EpisodeOrderKind.PRODUCTION,
+            7 to EpisodeOrderKind.TV,
         )
 
         /** The kind of a group's TMDB type ([EpisodeOrderEntity.type]); null for one this version does not know. */

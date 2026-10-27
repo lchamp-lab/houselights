@@ -46,9 +46,9 @@ import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouselightsType
-import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.testing.FakeTraktLink
 import app.houselights.ui.testing.FakeTraktSync
 import app.houselights.ui.testing.TV
@@ -57,7 +57,6 @@ import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.FACT_GAP
-import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -69,6 +68,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.Locale
 
 /** The Trakt pane as the remote drives it: connect with a code shown in the pane, Back to cancel, disconnect, and its notes. */
 @RunWith(RobolectricTestRunner::class)

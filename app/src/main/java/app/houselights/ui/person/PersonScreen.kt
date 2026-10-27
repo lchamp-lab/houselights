@@ -5,11 +5,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -28,8 +28,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
-import app.houselights.ui.design.groundStepFill
-import app.houselights.ui.design.components.FactRow
 import app.houselights.core.Job
 import app.houselights.core.MediaItem
 import app.houselights.core.Person
@@ -41,14 +39,11 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.RestoreFocus
-import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.rememberFocusMemory
-import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.ArtworkImage
-import app.houselights.ui.design.components.artworkEdge
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.DetailAhead
+import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.MediaRow
@@ -57,13 +52,18 @@ import app.houselights.ui.design.components.PosterWallGrid
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.WithItsPicture
+import app.houselights.ui.design.components.artworkEdge
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.textRoom
+import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.jobName
 import app.houselights.ui.util.rememberSettled
-import app.houselights.ui.util.LoadState
-import app.houselights.ui.util.valueOrNull
 import app.houselights.ui.util.toPx
+import app.houselights.ui.util.valueOrNull
 
 /**
  * A person's page: portrait, name, jobs and title count ("Réalisation  Interprétation  7 titres"), then their

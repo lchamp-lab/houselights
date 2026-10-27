@@ -39,7 +39,10 @@ class SearchViewModelTest {
     fun itSearchesOnceTheKeysStop() = runTest {
         val vm = SearchViewModel({ provider })
         backgroundScope.launch { vm.found.collect {} }
-        "AME".forEach { vm.type(it); advanceTimeBy(SearchViewModel.WAIT_MS / 2) }
+        "AME".forEach {
+            vm.type(it)
+            advanceTimeBy(SearchViewModel.WAIT_MS / 2)
+        }
         assertEquals("AME", vm.query.value)
         assertEquals("not while typing", emptyList<String>(), catalog.calls)
         advanceUntilIdle()
@@ -52,9 +55,12 @@ class SearchViewModelTest {
         val vm = SearchViewModel({ provider })
         vm.space()
         assertEquals("", vm.query.value)
-        vm.type('A'); vm.space(); vm.space()
+        vm.type('A')
+        vm.space()
+        vm.space()
         assertEquals("A ", vm.query.value)
-        vm.delete(); vm.delete()
+        vm.delete()
+        vm.delete()
         assertEquals("", vm.query.value)
     }
 
@@ -62,7 +68,8 @@ class SearchViewModelTest {
     fun nothingTypedFindsNothing() = runTest {
         val vm = SearchViewModel({ provider })
         backgroundScope.launch { vm.found.collect {} }
-        vm.type('A'); vm.delete()
+        vm.type('A')
+        vm.delete()
         advanceUntilIdle()
         assertNull(vm.found.value)
         assertEquals(emptyList<String>(), catalog.calls)

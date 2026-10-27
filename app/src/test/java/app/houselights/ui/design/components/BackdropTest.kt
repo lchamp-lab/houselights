@@ -33,12 +33,16 @@ class BackdropTest {
 
     /** Serves, for any test:// address, a PNG file of [width] by [height], as a disk would; [asked] gets each width asked for. */
     private fun files(width: Int, height: Int, asked: MutableList<Int?>) = Fetcher.Factory<Uri> { data, options, _ ->
-        if (data.scheme != "test") null else Fetcher {
-            asked += (options.size.width as? Dimension.Pixels)?.px
-            val png = ByteArrayOutputStream().also {
-                Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.PNG, 100, it)
+        if (data.scheme != "test") {
+            null
+        } else {
+            Fetcher {
+                asked += (options.size.width as? Dimension.Pixels)?.px
+                val png = ByteArrayOutputStream().also {
+                    Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+                SourceResult(ImageSource(Buffer().write(png.toByteArray()), context), mimeType = "image/png", dataSource = DataSource.DISK)
             }
-            SourceResult(ImageSource(Buffer().write(png.toByteArray()), context), mimeType = "image/png", dataSource = DataSource.DISK)
         }
     }
 

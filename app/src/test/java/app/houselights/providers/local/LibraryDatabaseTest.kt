@@ -28,7 +28,12 @@ class LibraryDatabaseTest {
     fun close() = db.close()
 
     private fun source(name: String, password: String) = SourceEntity(
-        name = name, kind = SourceKind.MOVIES, host = "nas", share = "media", path = name.lowercase(), username = "zidoo",
+        name = name,
+        kind = SourceKind.MOVIES,
+        host = "nas",
+        share = "media",
+        path = name.lowercase(),
+        username = "zidoo",
         password = Secret(password),
     )
 
@@ -74,7 +79,10 @@ class LibraryDatabaseTest {
             val read = checkNotNull(dao.source(id))
             assertEquals("", read.password.value)
             with(read) { dao.updateConnection(id, "Films 4K", protocol, host, share, path, username, password, uid, gid) }
-            val stored = flaky.openHelper.readableDatabase.query("SELECT password FROM sources").use { it.moveToFirst(); it.getString(0) }
+            val stored = flaky.openHelper.readableDatabase.query("SELECT password FROM sources").use {
+                it.moveToFirst()
+                it.getString(0)
+            }
             assertEquals(sealed, stored)
 
             down = false

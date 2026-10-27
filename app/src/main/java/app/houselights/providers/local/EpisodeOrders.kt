@@ -132,7 +132,13 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
         val groups = answer.value.orEmpty().mapIndexed { i, ref ->
             val kept = known[ref.id]?.takeUnless { it.places == REFUSED || it.episodeCount != ref.episodeCount }
             EpisodeOrderEntity(
-                id, ref.id, ref.type, ref.name.orEmpty(), ref.episodeCount, rank = i + 1, places = kept?.places,
+                id,
+                ref.id,
+                ref.type,
+                ref.name.orEmpty(),
+                ref.episodeCount,
+                rank = i + 1,
+                places = kept?.places,
                 fetchedAt = kept?.fetchedAt,
             )
         }
@@ -238,7 +244,14 @@ internal suspend fun LibraryDao.saveAired(id: Int, seasons: List<TmdbSeasonSumma
     val places = OrderPlaces.ofAired(seasons)
     val episodes = seasons.filter { it.seasonNumber > 0 }.sumOf { it.episodeCount }
     val row = EpisodeOrderEntity(
-        id, EpisodeOrderEntity.AIRED, type = 0, name = "", episodeCount = episodes, places = places, fetchedAt = at, groupsAt = groupsAt,
+        id,
+        EpisodeOrderEntity.AIRED,
+        type = 0,
+        name = "",
+        episodeCount = episodes,
+        places = places,
+        fetchedAt = at,
+        groupsAt = groupsAt,
     )
     saveEpisodeOrders(listOf(row))
     val counted = { text: String? -> OrderPlaces.aired(text)?.map { it.n to it.c } }
@@ -259,8 +272,13 @@ internal suspend fun LibraryDao.recount(tv: TmdbTv, refresh: Boolean, at: Long):
 internal object NfoOrders {
     /** Jellyfin's and Emby's `<displayorder>`, by TMDB's group types; "aired" and "official" are TMDB's seasons. */
     private val TYPES = mapOf(
-        "originalairdate" to 1, "absolute" to EpisodeOrderEntity.ABSOLUTE_TYPE, "dvd" to 3, "digital" to 4,
-        "storyarc" to EpisodeOrderEntity.STORY_ARC_TYPE, "production" to 6, "tv" to 7,
+        "originalairdate" to 1,
+        "absolute" to EpisodeOrderEntity.ABSOLUTE_TYPE,
+        "dvd" to 3,
+        "digital" to 4,
+        "storyarc" to EpisodeOrderEntity.STORY_ARC_TYPE,
+        "production" to 6,
+        "tv" to 7,
     )
 
     /** The group type [displayOrder] names; null for TMDB's seasons and orders TMDB does not have (TVDB's "alternate"). */

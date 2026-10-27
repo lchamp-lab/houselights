@@ -10,7 +10,6 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.Shader
 import android.os.Build
-import androidx.compose.ui.geometry.Size as DrawSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import app.houselights.core.ImageRef
@@ -23,6 +22,7 @@ import coil.transform.Transformation
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
+import androidx.compose.ui.geometry.Size as DrawSize
 
 /** A wall's diffuse field: 64 × 36 points, 9 KB a title, enlarged to the screen as it is drawn. */
 internal const val FIELD_W = 64
@@ -186,13 +186,21 @@ internal class DiffusePaint(private val field: Bitmap, private val size: DrawSiz
 internal fun diffusePaint(field: Bitmap, width: Float, height: Float, down: List<VeilStop>, lift: Float): Paint {
     val scale = max(width / field.width, height / field.height)
     val picture = BitmapShader(field, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
-        setLocalMatrix(Matrix().apply { setScale(scale, scale); postTranslate(width - field.width * scale, 0f) })
+        setLocalMatrix(
+            Matrix().apply {
+                setScale(scale, scale)
+                postTranslate(width - field.width * scale, 0f)
+            },
+        )
         // From Android 13 a shader inside another ignores the paint's filter, so it sets its own.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) filterMode = BitmapShader.FILTER_MODE_LINEAR
     }
     val stops = down.colorStops(Color.Black)
     val kept = LinearGradient(
-        0f, 0f, 0f, height,
+        0f,
+        0f,
+        0f,
+        height,
         IntArray(stops.size) { grey(1f - lift * stops[it].second.alpha) },
         FloatArray(stops.size) { stops[it].first },
         Shader.TileMode.CLAMP,

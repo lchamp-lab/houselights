@@ -167,6 +167,7 @@ class HomePlanTest {
         val b = HomeSection(SectionType.LATEST, listOf(poster("b1", 5), poster("b2")), landscape = false, libraryId = "b")
         assertEquals(listOf("a1", "b1", "a2", "b2"), newest(listOf(a, b)).map(MediaItem::id))
     }
+
     @Test
     fun aNextEpisodeAlreadyInProgressIsNotWhatFollows() {
         // A server lists the episode in progress among its next ones too: the case resumes it, À suivre shows the next.

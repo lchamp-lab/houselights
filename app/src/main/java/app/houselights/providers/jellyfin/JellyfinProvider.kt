@@ -7,8 +7,6 @@ import app.houselights.core.Http
 import app.houselights.core.Library
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
-import app.houselights.core.Quality
-import app.houselights.core.WatchStatus
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -16,14 +14,16 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.Page
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
-import app.houselights.core.PlayedTracks
 import app.houselights.core.PlaybackReporter
-import app.houselights.core.launch
+import app.houselights.core.PlayedTracks
 import app.houselights.core.ProviderCapabilities
+import app.houselights.core.Quality
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.SourceConfig
 import app.houselights.core.Typeset
+import app.houselights.core.WatchStatus
+import app.houselights.core.launch
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PathResolver
 import app.houselights.player.Redact
@@ -193,8 +193,11 @@ class JellyfinProvider(
     // A title's page depends on these two: they fail as such, never as nothing next or an empty saga.
 
     override suspend fun nextUp(series: MediaItem): MediaItem? =
-        if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
-        else api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia)
+        if (series.kind == MediaKind.COLLECTION) {
+            super.nextUp(series)
+        } else {
+            api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia)
+        }
 
     override suspend fun collectionItems(collection: MediaItem): List<MediaItem> {
         val films = api.items(
@@ -212,8 +215,11 @@ class JellyfinProvider(
     }
 
     override suspend fun similar(item: MediaItem): List<MediaItem> =
-        if (item.kind == MediaKind.EPISODE) emptyList()
-        else row("Similar to ${item.id}") { titles(api.similar(item.id, userId, SIMILAR, ROW_FIELDS).items) }.getOrDefault(emptyList())
+        if (item.kind == MediaKind.EPISODE) {
+            emptyList()
+        } else {
+            row("Similar to ${item.id}") { titles(api.similar(item.id, userId, SIMILAR, ROW_FIELDS).items) }.getOrDefault(emptyList())
+        }
 
     /** A show or season by its own id: the server marks each of its episodes, clearing their resume points. */
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
@@ -251,10 +257,12 @@ class JellyfinProvider(
         val media = toMedia(full)
         val startMs = if (resume) media.user.positionMs else 0L
         // Debug only: a page reads the plan too, for its tracks; a launch is logged by the player.
-        Log.d(TAG, "Plan ${full.name} -> ${Redact.uri(uri)} (start ${startMs} ms)")
+        Log.d(TAG, "Plan ${full.name} -> ${Redact.uri(uri)} (start $startMs ms)")
 
         return media.launch(
-            uri, container, startMs,
+            uri,
+            container,
+            startMs,
             reporter = Reporter(full.id, source?.id),
             resumeKey = listOfNotNull(full.id, source?.id).joinToString(RESUME_KEY_SEPARATOR),
             disc = isDisc(source, container),
@@ -420,7 +428,5 @@ class JellyfinProvider(
             "boxsets" -> LibraryKind.COLLECTIONS
             else -> LibraryKind.MIXED
         }
-
     }
 }
-

@@ -18,7 +18,9 @@ class MissingFilesTest {
     private val heat = film(3, "Private films/Heat (1995).mkv")
 
     private fun settle(vararg unreadable: String) = MissingFiles.settle(
-        SourceKind.MOVIES, listOf(dune, arrival, heat), Listing(emptyList(), emptyList(), unreadable.toList()),
+        SourceKind.MOVIES,
+        listOf(dune, arrival, heat),
+        Listing(emptyList(), emptyList(), unreadable.toList()),
     )
 
     /** A file the NAS could not be asked about (gone between listing and query) is out of sight, not missing. */

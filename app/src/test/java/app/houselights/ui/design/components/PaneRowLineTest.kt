@@ -13,15 +13,13 @@ import app.houselights.settings.InterfaceLanguage
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.TwoPaneDefaults
-import app.houselights.ui.testing.TV
-import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.settings.relativeTime
 import app.houselights.ui.settings.title
+import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
-import app.houselights.ui.util.formatBytes as bytes
+import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
 import app.houselights.update.UpdateFailure
-import java.util.Locale
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -30,6 +28,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.util.Locale
+import app.houselights.ui.util.formatBytes as bytes
 
 /**
  * DESIGN.md, Secondary screens: every row of a pane, a sheet or « Ajouter un dossier » says what it does in one line,
@@ -324,8 +324,12 @@ class PaneRowLineTest {
 
         /** The kinds of TMDB's episode groups, as a show's orders name them. */
         val GROUP_KINDS = listOf(
-            R.string.episode_order_original, R.string.episode_order_absolute, R.string.episode_order_dvd,
-            R.string.episode_order_digital, R.string.episode_order_story, R.string.episode_order_production,
+            R.string.episode_order_original,
+            R.string.episode_order_absolute,
+            R.string.episode_order_dvd,
+            R.string.episode_order_digital,
+            R.string.episode_order_story,
+            R.string.episode_order_production,
             R.string.episode_order_tv,
         )
 

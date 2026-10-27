@@ -14,20 +14,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
@@ -39,17 +40,16 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlControl
-import app.houselights.ui.design.plate
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.plate
+import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.languageName
 import java.text.NumberFormat
 import java.util.Locale
-import app.houselights.ui.util.NBSP
-import androidx.compose.ui.graphics.Color
 
 /** The films of a saga held, [owned] of [total] when its length is known: "2 films sur 4", else "2 films". */
 @Composable
@@ -80,15 +80,17 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
         item.officialRating?.let { Badge(it) }
         item.communityRating?.let { Score(it) }
         // Genres drop one by one from the last, as billing block names do.
-        if (showGenres) item.genres.take(3).forEachIndexed { i, genre ->
-            Text(
-                if (i == 0) genre else ", $genre",
-                style = Hl.type.meta,
-                color = c.contentTertiary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = if (i == 0) Modifier else Modifier.layoutId(Continued),
-            )
+        if (showGenres) {
+            item.genres.take(3).forEachIndexed { i, genre ->
+                Text(
+                    if (i == 0) genre else ", $genre",
+                    style = Hl.type.meta,
+                    color = c.contentTertiary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (i == 0) Modifier else Modifier.layoutId(Continued),
+                )
+            }
         }
     }
 }
@@ -188,7 +190,6 @@ private class CaseLine(val name: String, val glyph: ImageVector, val words: List
  */
 @Composable
 private fun Jaquette(lines: List<CaseLine>, modifier: Modifier = Modifier) {
-
     val c = Hl.colors
     Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
         lines.filter { it.words.isNotEmpty() }.forEach { line ->
@@ -338,7 +339,10 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
         fun names(list: List<String>) = list.forEachIndexed { i, name ->
             when {
                 i == 0 -> Unit
-                i == list.lastIndex -> { append(" "); join(and) }
+                i == list.lastIndex -> {
+                    append(" ")
+                    join(and)
+                }
                 else -> withStyle(t.billing.toSpanStyle().copy(color = c.contentTertiary)) { append(", ") }
             }
             withStyle(t.billing.toSpanStyle().copy(color = c.contentSecondary)) { append(name.uppercase(locale).unbreakable()) }
@@ -366,6 +370,5 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
         Text(line, style = t.billing, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
-
 
 private fun String.unbreakable() = replace(' ', NBSP).replace('-', '\u2011')

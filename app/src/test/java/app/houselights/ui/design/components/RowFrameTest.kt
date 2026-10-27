@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import android.annotation.SuppressLint
 import android.os.Looper
 import android.view.KeyEvent
 import androidx.compose.foundation.layout.Column
@@ -41,7 +42,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.time.Duration
-import android.annotation.SuppressLint
 
 /** DESIGN.md, Focus: a row draws one frame, which travels from the card left to the card reached. */
 @RunWith(RobolectricTestRunner::class)

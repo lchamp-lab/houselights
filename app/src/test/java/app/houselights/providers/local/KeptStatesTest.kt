@@ -67,7 +67,9 @@ class KeptStatesTest {
     fun aRelinkAndAKeptStateKnowAFilmByOneName() {
         val heat = KnownFile(id = 1, filePath = "Heat (1995) CD1.avi", parts = listOf("Heat (1995) CD2.avi"))
         fun settled(path: String) = MissingFiles.settle(
-            SourceKind.MOVIES, listOf(heat), Stacks.of(SourceKind.MOVIES, listOf(RemoteFile(path, 1_000))),
+            SourceKind.MOVIES,
+            listOf(heat),
+            Stacks.of(SourceKind.MOVIES, listOf(RemoteFile(path, 1_000))),
         )
         val upgrade = "Heat (1995) Remux-1080p.mkv"
         assertEquals(listOf(1L to RemoteFile(upgrade, 1_000)), settled(upgrade).relinked)

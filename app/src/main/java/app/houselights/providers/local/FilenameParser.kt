@@ -71,7 +71,7 @@ object FilenameParser {
      */
     private val SXXEYY = Regex(
         """(?i)(?<![a-z0-9])s(\d{1,2}|$YEAR_SEASON)[ ._-]?e(\d{1,4})(?![0-9])""" +
-            """(?:(?:[ ._-]?(?:s\1[ ._-]?)?e|-)(\d{1,4})(?![0-9a-z]))*"""
+            """(?:(?:[ ._-]?(?:s\1[ ._-]?)?e|-)(\d{1,4})(?![0-9a-z]))*""",
     )
     private val NXNN = Regex("""(?i)(?<![a-z0-9])(\d{1,2})x(\d{2,3})(?![0-9])""")
 
@@ -102,19 +102,19 @@ object FilenameParser {
      */
     private val BOOK_EPISODE = Regex(
         """(?i)(?<![\p{L}0-9])(?:(?:livre|book)[ ._-]*(\d{1,2}|[ivx]{1,5})|(?:volume|vol\.?)[ ._-]*([ivx]{1,5}))""" +
-            """[ ._-]+(?:-[ ._-]*)?(?:(?:e|ep\.?|episode|[éÉ]pisode)[ ._-]*)?(\d{1,3})(?![0-9\p{L}])"""
+            """[ ._-]+(?:-[ ._-]*)?(?:(?:e|ep\.?|episode|[éÉ]pisode)[ ._-]*)?(\d{1,3})(?![0-9\p{L}])""",
     )
 
     /** "Season 1 Episode 5", "Saison 2 - Épisode 3": the season and episode in words. */
     private val SEASON_EPISODE_WORDS = Regex(
         """(?i)(?<![\p{L}0-9])(?:season|saison|staffel|temporada)[ ._-]*(\d{1,2})[ ._-]*(?:-[ ._-]*)?""" +
-            """(?:episode|[éÉ]pisode|episodio|folge|ep\.?|e)[ ._-]*(\d{1,4})(?![0-9])"""
+            """(?:episode|[éÉ]pisode|episodio|folge|ep\.?|e)[ ._-]*(\d{1,4})(?![0-9])""",
     )
 
     /** An anime sequel's season, then its episode: "Mushoku Tensei S2 - 01", "Spy x Family Season 2 - 01", "2nd Season - 01". */
     private val SEQUEL_DASH = Regex(
         """(?i)(?<![\p{L}0-9])(?:s(\d{1,2})|(?:season|saison|staffel|temporada)[ ._-]*(\d{1,2})|(\d)(?:nd|rd|th)[ ._-]+season)""" +
-            """\s+-\s+$NOT_YEAR(\d{1,4})(?:v\d)?(?:-(\d{1,4}))?(?![0-9\p{L}])"""
+            """\s+-\s+$NOT_YEAR(\d{1,4})(?:v\d)?(?:-(\d{1,4}))?(?![0-9\p{L}])""",
     )
 
     /**
@@ -127,12 +127,12 @@ object FilenameParser {
     /** A number after a word that says it: "One Piece E1071", "Ep 12", "Ep.12", "Episode 1071", "Épisode 12", "Folge 3". */
     private val WORD_NUMBER = Regex(
         """(?i)(?<![\p{L}0-9])(?:e(?=\d)|ep\.?[ ._-]?|(?:episode|[éÉ]pisode|episodio|folge)[ ._-]*)$NOT_YEAR(\d{1,4})(?:v\d)?""" +
-            """(?![0-9\p{L}])"""
+            """(?![0-9\p{L}])""",
     )
 
     /** A batch's range ending a folder's name, cut as a season is: "One Piece (1001-1100)", "One Piece 1001-1100"; never years. */
     private val NUMBER_RANGE = Regex(
-        """(?<![0-9])(?:\($NOT_YEAR\d{1,4}\s?[-~]\s?\d{1,4}\)|(?<=\s)$NOT_YEAR\d{1,4}\s?[-~]\s?\d{1,4}(?=\s*$))"""
+        """(?<![0-9])(?:\($NOT_YEAR\d{1,4}\s?[-~]\s?\d{1,4}\)|(?<=\s)$NOT_YEAR\d{1,4}\s?[-~]\s?\d{1,4}(?=\s*$))""",
     )
 
     /** Lowercase folder names for season 0. Not "Special", which is also a show's title. */
@@ -356,7 +356,7 @@ object FilenameParser {
     /** "S01", "S01-S03", "S01E01", "Saison 1", "Saisons 1 à 5", "Season 2023", "Livre I"; never "The Four Seasons". */
     private val SEASON_TOKEN = Regex(
         """(?i)(?<![a-z0-9])(?:(?:s|(?:saisons?|seasons?)[ ._-]?)(?:\d{1,2}|$YEAR_SEASON)(?:e\d{1,4}|-s?\d{1,2})?""" +
-            """|livre[ ._-]*(?:\d{1,2}|[ivx]{1,5})|book[ ._-]*[ivx]{1,5})(?![a-z0-9])"""
+            """|livre[ ._-]*(?:\d{1,2}|[ivx]{1,5})|book[ ._-]*[ivx]{1,5})(?![a-z0-9])""",
     )
 
     /** True when [folder] is [title] followed by release tags: "Friends - The Complete Series". */

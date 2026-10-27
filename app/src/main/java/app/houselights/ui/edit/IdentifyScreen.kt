@@ -28,12 +28,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.withResumed
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.withResumed
 import androidx.tv.material3.Text
-import app.houselights.ui.design.HlLayout
 import app.houselights.R
 import app.houselights.core.Identity
 import app.houselights.core.MatchCandidate
@@ -41,15 +40,17 @@ import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlFormScaffold
-import app.houselights.ui.design.components.HlEmptyState
-import app.houselights.ui.design.components.HlStatus
-import app.houselights.ui.design.components.HlResultItem
-import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.FactRow
+import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.components.HlErrorState
+import app.houselights.ui.design.components.HlFormScaffold
+import app.houselights.ui.design.components.HlResultItem
+import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.StatusPanel
@@ -58,7 +59,6 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.calmAfter
 import app.houselights.ui.util.retainedError
-import app.houselights.ui.design.components.HlErrorState
 
 /**
  * Matching a title with the right TMDB entry, when automatic matching got it wrong or left it to identify, its

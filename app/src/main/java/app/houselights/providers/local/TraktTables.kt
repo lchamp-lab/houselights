@@ -120,7 +120,7 @@ interface TraktDao {
     /** Watched on Trakt at [at]: a resume point goes unless the row was played since. */
     @Query(
         "UPDATE items SET played = 1, positionMs = CASE WHEN lastPlayedAt > :at THEN positionMs ELSE 0 END, " +
-            "lastPlayedAt = CASE WHEN :at > IFNULL(lastPlayedAt, 0) THEN :at ELSE lastPlayedAt END WHERE id IN (:ids)"
+            "lastPlayedAt = CASE WHEN :at > IFNULL(lastPlayedAt, 0) THEN :at ELSE lastPlayedAt END WHERE id IN (:ids)",
     )
     suspend fun watchedBatch(ids: List<Long>, at: Long)
 

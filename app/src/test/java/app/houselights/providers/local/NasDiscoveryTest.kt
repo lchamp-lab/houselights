@@ -248,7 +248,10 @@ class NasDiscoveryTest {
         try {
             val started = System.nanoTime()
             val protocols = withTimeout(20_000) {
-                NasDiscovery.probePorts("nas.home") { released.await(15, TimeUnit.SECONDS); error("never answered") }
+                NasDiscovery.probePorts("nas.home") {
+                    released.await(15, TimeUnit.SECONDS)
+                    error("never answered")
+                }
             }
             val waitedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)
             assertEquals(emptySet<Protocol>(), protocols)

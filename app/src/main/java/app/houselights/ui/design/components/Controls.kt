@@ -46,10 +46,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
@@ -305,7 +305,6 @@ private class KeepWidthNode(var busy: Boolean) : Modifier.Node(), LayoutModifier
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
 }
-
 
 @Composable
 private fun ButtonLabel(text: String) {

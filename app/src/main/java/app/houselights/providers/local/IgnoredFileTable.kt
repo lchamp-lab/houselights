@@ -30,7 +30,7 @@ interface IgnoredFileDao {
     /** Every folder's, by folder name then path. */
     @Query(
         "SELECT f.sourceId, s.name AS folder, f.filePath, f.reason FROM ignored_files f JOIN sources s ON s.id = f.sourceId " +
-            "ORDER BY s.name, s.id, f.filePath"
+            "ORDER BY s.name, s.id, f.filePath",
     )
     fun observeIgnored(): Flow<List<IgnoredFileRow>>
 

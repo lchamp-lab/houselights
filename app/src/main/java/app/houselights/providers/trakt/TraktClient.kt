@@ -89,7 +89,7 @@ class TraktClient(
                     .header("User-Agent", "Houselights/${BuildConfig.VERSION_NAME}")
                     .header("trakt-api-version", "2")
                     .header("trakt-api-key", clientId)
-                    .build()
+                    .build(),
             )
         }
 

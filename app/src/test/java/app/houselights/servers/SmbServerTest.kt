@@ -20,8 +20,14 @@ import org.robolectric.RobolectricTestRunner
 class SmbServerTest : NasServerTest() {
     private fun folder(share: String, path: String = "", user: String = TestServers.USER, password: String = TestServers.PASSWORD) =
         SourceEntity(
-            name = "Test", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = TestServers.host, share = share, path = path,
-            username = user, password = Secret(password),
+            name = "Test",
+            kind = SourceKind.MOVIES,
+            protocol = Protocol.SMB,
+            host = TestServers.host,
+            share = share,
+            path = path,
+            username = user,
+            password = Secret(password),
         )
 
     override fun video(path: String) = folder("video", path)

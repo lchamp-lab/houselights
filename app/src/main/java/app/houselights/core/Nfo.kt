@@ -214,7 +214,10 @@ object NfoParser {
                 "mpaa", "certification" -> info = info.copy(certification = certification(p.text()))
                 "rating" -> p.text()?.replace(',', '.')?.toDoubleOrNull()?.let { firstRating = firstRating ?: RatingRead(it, null) }
                 "votes" -> votes = votesOf(p.text())
-                "ratings" -> ratings(p).let { (default, first) -> defaultRating = default; firstRating = firstRating ?: first }
+                "ratings" -> ratings(p).let { (default, first) ->
+                    defaultRating = default
+                    firstRating = firstRating ?: first
+                }
                 "genre" -> p.text()?.split('/')?.map { it.trim() }?.filter { it.isNotEmpty() }?.let(genres::addAll)
                 "director" -> p.text()?.let(directors::add)
                 "credits" -> p.text()?.let(writers::add)

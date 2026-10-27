@@ -1,12 +1,12 @@
 package app.houselights.ui.settings
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -46,17 +46,17 @@ import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.PosterField
-import app.houselights.ui.design.components.bleed
 import app.houselights.ui.design.components.ScreenTitle
+import app.houselights.ui.design.components.bleed
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.onboarding.LoginFill
-import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.roomPosters
 import kotlinx.coroutines.delay
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {

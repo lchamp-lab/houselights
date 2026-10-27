@@ -81,7 +81,11 @@ class DetailHeldTest {
 
     private fun page(id: String) {
         val vm = DetailViewModel(
-            id, { provider }, FakeEvents(), work, tracksOf = { null },
+            id,
+            { provider },
+            FakeEvents(),
+            work,
+            tracksOf = { null },
             removeHeldTitle = { title ->
                 removed += title
                 stays(title)

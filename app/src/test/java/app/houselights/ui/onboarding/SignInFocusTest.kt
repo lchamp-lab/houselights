@@ -37,10 +37,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -140,9 +140,15 @@ class SignInFocusTest {
         val id = runBlocking {
             db.dao().insertSource(
                 SourceEntity(
-                    name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-                    path = "films", username = user, password = Secret(""),
-                )
+                    name = "films",
+                    kind = SourceKind.MOVIES,
+                    protocol = Protocol.SMB,
+                    host = "192.168.1.10",
+                    share = "media",
+                    path = "films",
+                    username = user,
+                    password = Secret(""),
+                ),
             )
         }
         val vm = AddFolderViewModel(library, id, scope, probe = { FolderLevel(emptyList(), videos = 0) })

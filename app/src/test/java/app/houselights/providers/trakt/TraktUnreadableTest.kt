@@ -1,6 +1,5 @@
 package app.houselights.providers.trakt
 
-import app.houselights.testing.Answer
 import app.houselights.providers.local.TraktAction
 import app.houselights.providers.local.TraktPendingEntity
 import app.houselights.providers.local.TraktSyncError
@@ -8,6 +7,7 @@ import app.houselights.providers.trakt.FakeTrakt.Companion.activities
 import app.houselights.providers.trakt.FakeTrakt.Companion.movie
 import app.houselights.providers.trakt.FakeTrakt.Companion.pausedMovie
 import app.houselights.providers.trakt.FakeTrakt.Companion.show
+import app.houselights.testing.Answer
 import app.houselights.ui.testing.waitFor
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonArray
@@ -155,7 +155,7 @@ class TraktUnreadableTest : TraktSyncFixture() {
             listOf(
                 TraktPendingEntity("movie:51", TraktAction.PROGRESS, hourAgo, progress = 90f),
                 TraktPendingEntity("movie:52", TraktAction.PROGRESS, hourAgo, progress = 90f),
-            )
+            ),
         )
         queue.sending(queue.pending().filter { it.title == "movie:52" }, at = hourAgo)
 
@@ -188,7 +188,7 @@ class TraktUnreadableTest : TraktSyncFixture() {
             listOf(
                 TraktPendingEntity("movie:65", TraktAction.WATCHED, NOW),
                 TraktPendingEntity("movie:66", TraktAction.PROGRESS, NOW, progress = 30f),
-            )
+            ),
         )
         trakt.stage("POST /sync/history", Answer(201))
         trakt.stage("POST /scrobble/stop", Answer(201, "{}"))

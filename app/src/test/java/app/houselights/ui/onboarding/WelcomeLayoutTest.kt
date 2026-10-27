@@ -105,7 +105,12 @@ class WelcomeLayoutTest {
     private fun holds(unread: Boolean = false) {
         compose.setTvContent {
             Welcome(
-                emptyList(), {}, {}, lostSource = !unread, problem = UiError.OFFLINE, settingsReset = !unread,
+                emptyList(),
+                {},
+                {},
+                lostSource = !unread,
+                problem = UiError.OFFLINE,
+                settingsReset = !unread,
                 readAgain = {}.takeIf { unread },
             )
         }

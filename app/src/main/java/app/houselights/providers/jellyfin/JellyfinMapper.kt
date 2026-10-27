@@ -1,19 +1,19 @@
 package app.houselights.providers.jellyfin
 
-import app.houselights.core.Typeset
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
 import app.houselights.core.HdrFormat
-import app.houselights.core.MediaInfo
-import app.houselights.core.SubtitleTrack
-import app.houselights.core.VideoInfo
-import app.houselights.core.bpsToKbps
 import app.houselights.core.ImageRef
+import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
-import app.houselights.core.epochMillisOf
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
+import app.houselights.core.SubtitleTrack
+import app.houselights.core.Typeset
 import app.houselights.core.UserState
+import app.houselights.core.VideoInfo
+import app.houselights.core.bpsToKbps
+import app.houselights.core.epochMillisOf
 import app.houselights.core.yearOf
 
 /** Maps Jellyfin items to [MediaItem]s, with artwork URLs resolved at the requested width. */
@@ -26,8 +26,11 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
         val media = mediaInfo(dto)
         val backdrop = image(dto.id, "Backdrop", dto.backdropImageTags.firstOrNull())
             ?: image(dto.parentBackdropItemId, "Backdrop", dto.parentBackdropImageTags.firstOrNull())
-        val poster = if (kind == MediaKind.EPISODE) image(dto.seriesId, "Primary", dto.seriesPrimaryImageTag)
-        else image(dto.id, "Primary", dto.imageTags["Primary"])
+        val poster = if (kind == MediaKind.EPISODE) {
+            image(dto.seriesId, "Primary", dto.seriesPrimaryImageTag)
+        } else {
+            image(dto.id, "Primary", dto.imageTags["Primary"])
+        }
         val thumb = when (kind) {
             MediaKind.EPISODE -> image(dto.id, "Primary", dto.imageTags["Primary"])
             else -> image(dto.id, "Thumb", dto.imageTags["Thumb"]) ?: image(dto.parentThumbItemId, "Thumb", dto.parentThumbImageTag)

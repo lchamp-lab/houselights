@@ -46,8 +46,11 @@ internal object LocalFilters {
             WatchStatus.ALL -> null
             WatchStatus.UNWATCHED -> if (show) "EXISTS ($episodes AND e.played = 0)" else "played = 0 AND positionMs = 0"
             WatchStatus.IN_PROGRESS ->
-                if (show) "EXISTS ($episodes AND (e.played = 1 OR e.positionMs > 0)) AND EXISTS ($episodes AND e.played = 0)"
-                else "played = 0 AND positionMs > 0"
+                if (show) {
+                    "EXISTS ($episodes AND (e.played = 1 OR e.positionMs > 0)) AND EXISTS ($episodes AND e.played = 0)"
+                } else {
+                    "played = 0 AND positionMs > 0"
+                }
             WatchStatus.WATCHED -> if (show) "NOT EXISTS ($episodes AND e.played = 0)" else "played = 1"
             WatchStatus.FAVORITES -> "favorite = 1"
         }

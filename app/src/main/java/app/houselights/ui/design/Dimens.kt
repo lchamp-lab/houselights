@@ -207,6 +207,7 @@ object HlLayout {
     private fun detailPeek(header: Dp) = detailGap + header + HlSpace.xxs + HlFocus.room + HlSpace.s
     /** Least height of a detail hero on a [screen]: all but [detailPeek], keeping a [header] in the safe area. */
     internal fun detailHeroMin(screen: Dp, header: Dp): Dp = screen - detailPeek(header)
+
     /** [detailHeroMin] with the row's header at the viewer's text size (28 at the default one). */
     @Composable
     @ReadOnlyComposable

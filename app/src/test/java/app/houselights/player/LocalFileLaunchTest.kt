@@ -51,8 +51,14 @@ class LocalFileLaunchTest {
 
     /** As LocalProvider.fileUri writes a disk's file: "#", "?" and "%" escaped, spaces and accents as they are. */
     private fun plan(file: File) = PlaybackPlan.Launch(
-        uri = "file://" + escapeUriPath(file.path), container = "mkv", title = "Mission: Impossible", backdropUrl = null, logoUrl = null,
-        startMs = 0, reporter = null, resumeKey = "m1",
+        uri = "file://" + escapeUriPath(file.path),
+        container = "mkv",
+        title = "Mission: Impossible",
+        backdropUrl = null,
+        logoUrl = null,
+        startMs = 0,
+        reporter = null,
+        resumeKey = "m1",
     )
 
     /** What Android checks as an intent leaves the app, death on a file:// address as for an app targeting Android 7 or later. */

@@ -107,8 +107,12 @@ class ScanNamesTest {
         bench.scan()
 
         val kept = listOf(
-            "Animation/Shorts/Bao (2018).mkv", "Dune (2021)/Dune (2021).mkv", "Shorts/Night Shift.mkv", "The Big Short.mkv",
-            "The Interview.mkv", "Trailers/Trailers.mkv",
+            "Animation/Shorts/Bao (2018).mkv",
+            "Dune (2021)/Dune (2021).mkv",
+            "Shorts/Night Shift.mkv",
+            "The Big Short.mkv",
+            "The Interview.mkv",
+            "Trailers/Trailers.mkv",
         )
         assertEquals(kept, filmPaths())
         val dune = bench.item(films, "Dune (2021)/Dune (2021).mkv")
@@ -132,8 +136,12 @@ class ScanNamesTest {
         bench.scan()
 
         val kept = listOf(
-            "Animation/Coco (2017).mkv", "Animation/Shorts/Bao (2018).mkv", "Arrival/arrival.mkv", "Heat/Heat CD1.avi",
-            "Kids/Kid Film.mkv", "Kids/Other/Film (2010).mkv",
+            "Animation/Coco (2017).mkv",
+            "Animation/Shorts/Bao (2018).mkv",
+            "Arrival/arrival.mkv",
+            "Heat/Heat CD1.avi",
+            "Kids/Kid Film.mkv",
+            "Kids/Other/Film (2010).mkv",
         )
         assertEquals(kept, filmPaths())
     }
@@ -151,7 +159,8 @@ class ScanNamesTest {
         bench.scan()
 
         val kept = listOf(
-            "Amélie/Le Fabuleux Destin d'Amélie Poulain (2001).mkv", "Le Parrain/The.Godfather.1972.CD1.avi",
+            "Amélie/Le Fabuleux Destin d'Amélie Poulain (2001).mkv",
+            "Le Parrain/The.Godfather.1972.CD1.avi",
             "Le Seigneur des Anneaux/The.Lord.of.the.Rings.2001.mkv",
         )
         assertEquals(kept, filmPaths())

@@ -27,7 +27,10 @@ class AuditoriumTest {
         val reads = steps.map { step -> cueStep({ down.floatValue }, step).let { state -> { state.value } } } + { down.floatValue }
         val told = IntArray(reads.size)
         val stale = BooleanArray(reads.size) { true }
-        val tell: (Int) -> Unit = { told[it]++; stale[it] = true }
+        val tell: (Int) -> Unit = {
+            told[it]++
+            stale[it] = true
+        }
         val observer = SnapshotStateObserver { it() }
         observer.start()
         try {

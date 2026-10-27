@@ -118,45 +118,47 @@ private fun Sections(
     onFocus: (item: MediaItem) -> Unit,
 ) {
     // A row that must scroll comes to the list's top, where the first rests; the one above leaves whole.
-    ListScroll(top = HlSpace.none, toTop = true) { LazyColumn(
-        state = rows,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = HlFocus.edge),
-        verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
-    ) {
-        sections.forEach { section ->
-            item(key = section.key) {
-                MediaRow(
-                    header = sectionTitle(section),
-                    // A director's row is headed as a poster bills it.
-                    heading = section.person?.takeIf { section.type == SectionType.DIRECTOR }?.let { p -> { FilmsOfHeading(p.name) } },
-                    // If the focused card is gone, focus returns to its row.
-                    modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
-                    spacing = section.spacing,
-                    state = rememberRowState(section.items.map { it.id }),
-                    news = section.items.count { it.wearsNewDot() },
-                ) {
-                    items(section.items, key = { it.id }) { item ->
-                        val mod = Modifier.focusKey(cardKey(section, item), memory)
-                        val focus = { onFocus(item) }
-                        if (section.landscape) {
-                            // Named under the picture, as an episode is: a still does not say which film it is.
-                            LandscapeCard(
-                                item,
-                                onClick = { onOpen(item) },
-                                modifier = mod,
-                                title = item.seriesTitle ?: item.title,
-                                facts = listOf(item.episodeLabel, timeLeft(item)),
-                                onFocus = focus,
-                            )
-                        } else {
-                            PosterCard(item, onClick = { onOpen(item) }, modifier = mod, onFocus = focus)
+    ListScroll(top = HlSpace.none, toTop = true) {
+        LazyColumn(
+            state = rows,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = HlFocus.edge),
+            verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
+        ) {
+            sections.forEach { section ->
+                item(key = section.key) {
+                    MediaRow(
+                        header = sectionTitle(section),
+                        // A director's row is headed as a poster bills it.
+                        heading = section.person?.takeIf { section.type == SectionType.DIRECTOR }?.let { p -> { FilmsOfHeading(p.name) } },
+                        // If the focused card is gone, focus returns to its row.
+                        modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
+                        spacing = section.spacing,
+                        state = rememberRowState(section.items.map { it.id }),
+                        news = section.items.count { it.wearsNewDot() },
+                    ) {
+                        items(section.items, key = { it.id }) { item ->
+                            val mod = Modifier.focusKey(cardKey(section, item), memory)
+                            val focus = { onFocus(item) }
+                            if (section.landscape) {
+                                // Named under the picture, as an episode is: a still does not say which film it is.
+                                LandscapeCard(
+                                    item,
+                                    onClick = { onOpen(item) },
+                                    modifier = mod,
+                                    title = item.seriesTitle ?: item.title,
+                                    facts = listOf(item.episodeLabel, timeLeft(item)),
+                                    onFocus = focus,
+                                )
+                            } else {
+                                PosterCard(item, onClick = { onOpen(item) }, modifier = mod, onFocus = focus)
+                            }
                         }
                     }
                 }
             }
         }
-    } }
+    }
 }
 
 /** Placeholder rows in the real rows' footprint, shown once loading is slow. */

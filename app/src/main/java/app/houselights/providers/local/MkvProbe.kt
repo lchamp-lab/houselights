@@ -26,6 +26,7 @@ object MkvProbe {
             val audioUids: List<Long?> = emptyList(),
             val framesRead: Boolean = true,
         ) : Result
+
         /** Tracks extend to at least [upTo] (cut off, or located by the SeekHead): read further and retry. */
         data class NeedMore(val upTo: Long) : Result
         data object NotMatroska : Result
@@ -79,7 +80,11 @@ object MkvProbe {
     private const val BLOCK_ADD_ID_TYPE = 0x41E7L
     private const val BLOCK_ADD_ID_EXTRA = 0x41EDL
 
-    private val DOLBY_VISION_CONFIGS = setOf(0x64766343L /* dvcC */, 0x64767643L /* dvvC */, 0x64767743L /* dvwC */)
+    private val DOLBY_VISION_CONFIGS = setOf(
+        0x64766343L, // dvcC
+        0x64767643L, // dvvC
+        0x64767743L, // dvwC
+    )
 
     /** An element ID takes 1 to 4 bytes; the top level's (EBML, Segment, Tags) take 4. */
     private const val MAX_ID_BYTES = 4
@@ -340,6 +345,7 @@ object MkvProbe {
         var dolbyVision = false
         var dvProfile: Int? = null
         var dvCompatibility: Int? = null
+
         /** Frame duration in nanoseconds: 41708333 at 23.976 fps. */
         var frameNanos: Long? = null
 
