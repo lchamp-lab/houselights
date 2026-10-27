@@ -270,7 +270,6 @@ baselineProfile {
 detekt {
     buildUponDefaultConfig = true
     config.setFrom(rootProject.file("config/detekt.yml"))
-    baseline = file("detekt-baseline.xml")
 }
 
 // nfs-client 1.1.0 cannot read an NFS reply sent in several record fragments, as NFS servers on libtirpc (unfs3 among
