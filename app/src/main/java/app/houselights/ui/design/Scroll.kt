@@ -33,9 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.foundation.focusGroup
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.Dp
@@ -54,11 +52,9 @@ import androidx.compose.ui.node.requireDensity
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.relocation.BringIntoViewResponder
-import androidx.compose.foundation.relocation.bringIntoViewResponder
+import androidx.compose.ui.relocation.BringIntoViewModifierNode
+import androidx.compose.ui.relocation.bringIntoView
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toSize
 import kotlin.math.abs
 
@@ -281,30 +277,31 @@ private fun marginShare(distance: Float, margin: Float): Float =
     if (margin <= 0f) 1f else (distance / margin).coerceIn(0f, 1f)
 
 /** Keeps up and down inside this column instead of jumping to a neighbour; left and right still leave it. */
-@OptIn(ExperimentalComposeUiApi::class)
 fun Modifier.keepVerticalFocus(): Modifier = this
     .focusProperties {
-        exit = { direction ->
-            if (direction == FocusDirection.Up || direction == FocusDirection.Down) FocusRequester.Cancel else FocusRequester.Default
+        onExit = {
+            if (requestedFocusDirection == FocusDirection.Up || requestedFocusDirection == FocusDirection.Down) cancelFocusChange()
         }
     }
     .focusGroup()
 
 /** Scrolls as one block: whatever inside asks to be shown, the list brings in the whole block, header included. */
-@OptIn(ExperimentalFoundationApi::class)
-fun Modifier.scrollsAsBlock(): Modifier = composed {
-    val block = remember { Block() }
-    this.onSizeChanged { block.size = it }.bringIntoViewResponder(block)
+fun Modifier.scrollsAsBlock(): Modifier = this then BlockElement
+
+private data object BlockElement : ModifierNodeElement<BlockNode>() {
+    override fun create() = BlockNode()
+
+    override fun update(node: BlockNode) = Unit
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "scrollsAsBlock"
+    }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-private class Block : BringIntoViewResponder {
-    var size = IntSize.Zero
-
-    override fun calculateRectForParent(localRect: Rect): Rect = Rect(Offset.Zero, size.toSize())
-
-    // The list around the block scrolls, for the rectangle above.
-    override suspend fun bringChildIntoView(localRect: () -> Rect?) = Unit
+/** Answers a request from inside by asking the list around it for the whole block, which it then scrolls to. */
+private class BlockNode : Modifier.Node(), BringIntoViewModifierNode {
+    // The extension's bringIntoView, with no bounds: the node's own, the whole block.
+    override suspend fun bringIntoView(childCoordinates: LayoutCoordinates, boundsProvider: () -> Rect?) = bringIntoView()
 }
 
 /** Scrolls the whole element into view on focus, for groups whose title sits above their first focusable. */

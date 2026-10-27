@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.test.core.app.ApplicationProvider

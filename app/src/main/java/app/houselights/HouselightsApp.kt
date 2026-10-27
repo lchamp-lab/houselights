@@ -225,7 +225,10 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     val tracks = TrackChooser(
         preferences = { settings.state.value.tracks },
         // The app's own language, which may not be the device's, in the device's region.
-        locale = { Locale(app.resources.configuration.locales[0].language, deviceLocale.value.country) },
+        locale = {
+            Locale.Builder().setLanguage(app.resources.configuration.locales[0].language)
+                .setRegion(deviceLocale.value.country).build()
+        },
         load = { database.trackChoices().choice(it)?.choice() },
         save = { key, choice ->
             database.trackChoices().save(TrackChoiceEntity(key, choice.audio, choice.subtitles?.stored, System.currentTimeMillis()))

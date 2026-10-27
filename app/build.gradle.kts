@@ -77,7 +77,8 @@ val updateRepo: String = (providers.gradleProperty("houselights.updateRepo").orN
 
 android {
     namespace = "app.houselights"
-    compileSdk = 35
+    // Android 16's SDK, which core and activity need; the app keeps Android 15's behaviour (targetSdk).
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.houselights"

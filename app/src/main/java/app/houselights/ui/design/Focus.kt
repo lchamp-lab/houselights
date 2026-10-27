@@ -21,7 +21,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusEventModifierNode
@@ -68,13 +67,11 @@ object FocusKey {
     private fun boundaries(key: String) = boundary.findAll(key).map { it.range.first }.toList()
 }
 
-/** Requests focus; false when no node carries this requester (the [IllegalStateException] case). */
-fun FocusRequester.tryRequestFocus(): Boolean = try {
-    requestFocus()
-    true
-} catch (_: IllegalStateException) {
-    false
-}
+/**
+ * Requests focus; false when none was taken, as when no node carries this requester (not composed yet, or gone):
+ * Compose answers false there since 1.8, where it threw.
+ */
+fun FocusRequester.tryRequestFocus(): Boolean = requestFocus()
 
 /**
  * Where focus was on a screen, so returning to it refocuses the element left, even after a reload.
@@ -124,7 +121,7 @@ class FocusMemory(initial: String? = null) {
 
     /**
      * Focuses [key]; false when it is absent or took no focus. A keyed element must be placed (lists
-     * compose unseen items ahead); for a bare requester, true only means something carries it.
+     * compose unseen items ahead).
      */
     fun focus(key: String): Boolean {
         nodes[key]?.let { return it.placed && it.requestFocus() }
@@ -357,10 +354,9 @@ val LocalGroupFocus = staticCompositionLocalOf<GroupFocus?> { null }
  * twice when the list changes (a crash). Enter goes where it asks; with no child remembered, focus
  * enters as usual.
  */
-@OptIn(ExperimentalComposeUiApi::class)
 fun Modifier.keepChildFocus(group: GroupFocus): Modifier = this
     .focusProperties {
-        enter = { direction -> group.last.takeIf { direction != FocusDirection.Enter } ?: FocusRequester.Default }
+        onEnter = { if (requestedFocusDirection != FocusDirection.Enter) group.last?.requestFocus() }
     }
     .focusGroup()
 

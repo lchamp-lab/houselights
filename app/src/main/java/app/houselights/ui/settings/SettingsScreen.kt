@@ -20,7 +20,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
@@ -288,7 +287,6 @@ internal val AppSettings.keepsTrakt: Boolean
     get() = trakt?.ended == false || SecretSetting.TRAKT in lostSecrets || SecretSetting.TRAKT in unreadSecrets
 
 /** The rows of [pane]. Focus returning from the navigation goes back to the row it left. */
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun PaneContent(
     pane: Pane,
@@ -317,7 +315,7 @@ private fun PaneContent(
             .onFocusChanged { onFocusIn(it.hasFocus) }
             .keepVerticalFocus()
             // Left goes back to the pane's own entry, not to the nearest one, which would open another pane.
-            .focusProperties { exit = { direction -> if (direction == FocusDirection.Left) entry else FocusRequester.Default } }
+            .focusProperties { onExit = { if (requestedFocusDirection == FocusDirection.Left) entry.requestFocus() } }
             .focusGroup(),
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.safeH),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),

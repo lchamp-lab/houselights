@@ -5,7 +5,6 @@ import app.houselights.core.MediaInfo
 import app.houselights.core.bpsToKbps
 import app.houselights.core.lenientJson
 import app.houselights.core.suspendRunCatching
-import kotlinx.serialization.encodeToString
 
 sealed interface ProbeResult {
     val info: MediaInfo

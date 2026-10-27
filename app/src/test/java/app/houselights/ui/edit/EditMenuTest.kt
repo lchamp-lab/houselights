@@ -1,6 +1,6 @@
 package app.houselights.ui.edit
 
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaItem

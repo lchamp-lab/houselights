@@ -327,7 +327,7 @@ private fun labelName(label: TechLabel): String = stringResource(
 @Composable
 internal fun trackLanguage(code: String?, region: String?): String {
     val name = languageName(code) ?: stringResource(R.string.unknown_language)
-    return region?.let { "$name (${Locale("", it).getDisplayCountry(Locale.getDefault())})" } ?: name
+    return region?.let { "$name (${Locale.Builder().setRegion(it).build().getDisplayCountry(Locale.getDefault())})" } ?: name
 }
 
 @Composable

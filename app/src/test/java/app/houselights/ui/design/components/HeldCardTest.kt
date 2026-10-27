@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.UserState

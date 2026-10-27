@@ -5,7 +5,7 @@ Everyone taking part follows the [Code of conduct](CODE_OF_CONDUCT.md). Security
 
 ## Setup
 
-Requirements: JDK 17 and the Android SDK (platform 35).
+Requirements: JDK 17 and the Android SDK (platform 36).
 
 ```sh
 echo "tmdb.apiKey=YOUR_KEY" >> local.properties           # optional, free at themoviedb.org

@@ -6,21 +6,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.Composition
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.compose.runtime.InternalComposeApi
 import androidx.compose.runtime.RecomposeScope
 import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.tooling.CompositionObserver
-import androidx.compose.runtime.tooling.observe
+import androidx.compose.runtime.tooling.ObservableComposition
+import androidx.compose.runtime.tooling.setObserver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlMotion
@@ -56,11 +56,21 @@ class RowFrameTest {
     /** Scopes recomposed anywhere in the screen, the rows' cards and their surfaces included. */
     private var recomposed = 0
     private val counting = object : CompositionObserver {
-        override fun onBeginComposition(composition: Composition, invalidationMap: Map<RecomposeScope, Set<Any>?>) {
-            recomposed += invalidationMap.size
+        override fun onScopeEnter(scope: RecomposeScope) {
+            recomposed++
         }
 
-        override fun onEndComposition(composition: Composition) = Unit
+        override fun onBeginComposition(composition: ObservableComposition) = Unit
+
+        override fun onReadInScope(scope: RecomposeScope, value: Any) = Unit
+
+        override fun onScopeExit(scope: RecomposeScope) = Unit
+
+        override fun onEndComposition(composition: ObservableComposition) = Unit
+
+        override fun onScopeInvalidated(scope: RecomposeScope, value: Any?) = Unit
+
+        override fun onScopeDisposed(scope: RecomposeScope) = Unit
     }
 
     /** Rows of eight posters named by [rows], focus on the first poster of the first. */
@@ -70,7 +80,7 @@ class RowFrameTest {
             // Observing the screen's composition observes the rows' items, composed apart, too.
             val composition = currentComposer.composition
             DisposableEffect(composition) {
-                val handle = composition.observe(counting)
+                val handle = composition.setObserver(counting)
                 onDispose { handle?.dispose() }
             }
             Column {
