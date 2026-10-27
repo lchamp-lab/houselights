@@ -228,6 +228,12 @@ object HlLayout {
     val specFormat = 136.dp
     /** Label column of a reading sheet's definitions (an NFO's), its values at 16 beside it. */
     val readingLabel = 180.dp
+    /**
+     * A saga's polyptych inside the safe area by a focused frame's reach, so the first panel's frame and the last's stay
+     * in it (853 across the canvas, from 33.5 down).
+     */
+    val voletSide = HlSpace.safeH + HlFocus.reach
+    val voletTop = HlSpace.safeV + HlFocus.reach
 }
 
 // Component parts: measures a component keeps to itself; screens lay out with HlLayout.

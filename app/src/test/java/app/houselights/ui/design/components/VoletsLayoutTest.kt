@@ -163,8 +163,8 @@ class VoletsLayoutTest {
 
     private companion object {
         /** The polyptych inside the safe area by a focused frame's reach: its margins, its width and height on the canvas. */
-        val SIDE = HlSpace.safeH + HlFocus.reach
-        val TOP = HlSpace.safeV + HlFocus.reach
+        val SIDE = HlLayout.voletSide
+        val TOP = HlLayout.voletTop
         val POLYPTYCH = HlLayout.CANVAS_WIDTH.dp - SIDE * 2
         val HEIGHT = 370.5.dp
 

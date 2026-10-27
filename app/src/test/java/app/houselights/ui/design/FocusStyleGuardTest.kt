@@ -11,9 +11,9 @@ import java.io.File
 /**
  * Focus is said in one place, `FocusStyle`, in two gestures (frame, fill) and the ring, and drawn by one
  * surface, `HlFocusSurface`, whose frame a row of cards takes over (`RowFrame`), so a row holds framed cards only:
- * no component builds its own white or frame, nothing grows with focus, tv-material's focus (its scale, glow and
- * Material timing) is never drawn, OK clicks through the surface, what takes focus shows it, and `focusRestorer` is
- * never used.
+ * no component builds its own white or frame, nothing grows with focus but a saga's panel, which opens with it,
+ * tv-material's focus (its scale, glow and Material timing) is never drawn, OK clicks through the surface, what takes
+ * focus shows it, and `focusRestorer` is never used.
  */
 class FocusStyleGuardTest {
     private val main = File("src/main/java/app/houselights")
@@ -93,8 +93,8 @@ class FocusStyleGuardTest {
     }
 
     /**
-     * Nothing grows with focus: no scale in `HlFocus`, none in the UI but a menu's opening, and a surface's light in
-     * no layer of its own (its content's clip is one, kept at rest).
+     * Nothing grows with focus: no scale in `HlFocus`, none in the UI but a menu's opening, no size animated but a saga's
+     * panel opening, and a surface's light in no layer of its own (its content's clip is one, kept at rest).
      */
     @Test
     fun nothingGrows() {
@@ -115,7 +115,33 @@ class FocusStyleGuardTest {
             lines.filter { it !in code }.map { "$path: $it" }
         }
         assertTrue("Exceptions for lines that are gone: ${stale.joinToString()}", stale.isEmpty())
+        val grown = kotlinSources(ui).filter { growing(it.readText()) }.map { it.relativeTo(ui).path }.filter { it !in opensWithFocus }
+        assertTrue("Nothing opens wider with focus but a saga's panel:\n" + grown.joinToString("\n"), grown.isEmpty())
+        val shut = opensWithFocus.keys.filter { path -> ui.resolve(path).let { !it.isFile || !growing(it.readText()) } }
+        assertTrue("Exceptions for files that no longer grow: ${shut.joinToString()}", shut.isEmpty())
     }
+
+    /**
+     * A size that grows: one animated, or children measured at the fixed sizes of a layout of its own read from an
+     * `Animatable` as they are placed.
+     */
+    private fun growing(text: String): Boolean {
+        val measuredFromAnimation = listOf(animatable, policy, fixed).all { it.containsMatchIn(text) }
+        return sizeAnimation.containsMatchIn(text) || measuredFromAnimation
+    }
+
+    private val sizeAnimation = Regex("""\banimate(ContentSize|DpAsState|SizeAsState|IntSizeAsState)\b""")
+    private val animatable = Regex("""\bAnimatable\(""")
+    private val policy = Regex("""\bMeasurePolicy\b""")
+    private val fixed = Regex("""\bConstraints\.fixed\(""")
+
+    /**
+     * What opens wider with focus, by file, and why: the one exception to « nothing grows » (DESIGN.md, Focus), a saga's
+     * panel that takes focus opening as the one left closes, the total kept.
+     */
+    private val opensWithFocus = mapOf(
+        "design/components/Volets.kt" to "a saga's panel opens with focus: its picture is cut wider, never scaled, a held arrow jumping",
+    )
 
     /** A scale set on a layer or a modifier, or drawn; Coil's `scale(Scale.FIT)` fits a picture to its request. */
     private val scaling = Regex(
@@ -215,6 +241,10 @@ class FocusStyleGuardTest {
             .forEach { assertTrue(it, !scaling.containsMatchIn(it)) }
         listOf("Modifier.graphicsLayer { alpha = a }", "placeable.placeWithLayer(0, 0)", "val layer = rememberGraphicsLayer()")
             .forEach { assertTrue(it, layer.containsMatchIn(it)) }
+        val opening = "val t = Animatable(0f)\nMeasurePolicy { m, c -> layout(0, 0) { m[0].measure(Constraints.fixed(w(t.value), h)) } }"
+        listOf("Modifier.animateContentSize()", "val width by animateDpAsState(target)", opening).forEach { assertTrue(it, growing(it)) }
+        listOf("val t = Animatable(0f)\nModifier.layout { m, c -> }", "MeasurePolicy { m, c -> m[0].measure(Constraints.fixed(w, h)) }")
+            .forEach { assertTrue(it, !growing(it)) }
         assertTrue(!layer.containsMatchIn("Box(Modifier.clip(shape))"))
     }
 }

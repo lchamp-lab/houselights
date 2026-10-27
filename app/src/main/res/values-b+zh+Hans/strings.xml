@@ -698,6 +698,27 @@
     <string name="row_films_of">导演作品</string>
     <string name="row_best_rated">媒体库中评分最高</string>
     <string name="saga_absent">不在您的媒体库中</string>
+    <!-- 系列页面：每部电影一个面板，系列的面板在前 -->
+    <plurals name="saga_watched_of">
+        <item quantity="other">已看 %1$d/%2$d 部</item>
+    </plurals>
+    <plurals name="saga_all_watched">
+        <item quantity="other">已看 %d 部</item>
+    </plurals>
+    <plurals name="saga_upcoming_count">
+        <item quantity="other">%d 部即将上映</item>
+    </plurals>
+    <string name="mark_saga_watched">将系列标记为已观看</string>
+    <string name="mark_saga_unwatched">将系列标记为未观看</string>
+    <string name="saga_release_on">%s 上映</string>
+    <string name="saga_announced">已宣布</string>
+    <!-- 屏幕阅读器读出的系列面板：标题在前 -->
+    <string name="saga_card_name">%1$s，第 %2$d 部</string>
+    <string name="saga_volet_saga">%s，系列</string>
+    <string name="saga_card_next">接下来观看</string>
+    <string name="saga_card_absent">不在您的媒体库中</string>
+    <string name="saga_card_release">%s 上映</string>
+    <string name="saga_card_announced">已宣布</string>
     <!-- A film's copies, and the editions their files and NFOs name. -->
     <string name="versions">版本</string>
     <string name="version_chosen">您的选择</string>

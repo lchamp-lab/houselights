@@ -739,6 +739,33 @@
     <string name="row_films_of">filmes de</string>
     <string name="row_best_rated">Mais bem avaliados na sua biblioteca</string>
     <string name="saga_absent">Não está na sua biblioteca</string>
+    <!-- A página de uma saga: um painel por filme, primeiro o da saga -->
+    <plurals name="saga_watched_of">
+        <item quantity="one">%1$d filme visto de %2$d</item>
+        <item quantity="many">%1$d filmes vistos de %2$d</item>
+        <item quantity="other">%1$d filmes vistos de %2$d</item>
+    </plurals>
+    <plurals name="saga_all_watched">
+        <item quantity="one">%d filme visto</item>
+        <item quantity="many">%d filmes vistos</item>
+        <item quantity="other">%d filmes vistos</item>
+    </plurals>
+    <plurals name="saga_upcoming_count">
+        <item quantity="one">%d por estrear</item>
+        <item quantity="many">%d por estrear</item>
+        <item quantity="other">%d por estrear</item>
+    </plurals>
+    <string name="mark_saga_watched">Marcar saga como vista</string>
+    <string name="mark_saga_unwatched">Marcar saga como não vista</string>
+    <string name="saga_release_on">Estreia em %s</string>
+    <string name="saga_announced">Anunciado</string>
+    <!-- Os painéis de uma saga, como um leitor de ecrã os lê: o título primeiro -->
+    <string name="saga_card_name">%1$s, filme %2$d</string>
+    <string name="saga_volet_saga">%s, saga</string>
+    <string name="saga_card_next">a seguir</string>
+    <string name="saga_card_absent">não está na sua biblioteca</string>
+    <string name="saga_card_release">estreia em %s</string>
+    <string name="saga_card_announced">anunciado</string>
     <!-- Versions and editions -->
     <string name="versions">Versões</string>
     <string name="version_chosen">Sua escolha</string>

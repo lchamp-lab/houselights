@@ -761,6 +761,36 @@
     <string name="row_films_of">reżyseria</string>
     <string name="row_best_rated">Najwyżej oceniane w bibliotece</string>
     <string name="saga_absent">Brak w bibliotece</string>
+    <!-- Strona sagi: jeden panel na film, najpierw panel sagi -->
+    <plurals name="saga_watched_of">
+        <item quantity="one">Obejrzano %1$d z %2$d</item>
+        <item quantity="few">Obejrzano %1$d z %2$d</item>
+        <item quantity="many">Obejrzano %1$d z %2$d</item>
+        <item quantity="other">Obejrzano %1$d z %2$d</item>
+    </plurals>
+    <plurals name="saga_all_watched">
+        <item quantity="one">Obejrzano %d film</item>
+        <item quantity="few">Obejrzano %d filmy</item>
+        <item quantity="many">Obejrzano %d filmów</item>
+        <item quantity="other">Obejrzano %d filmu</item>
+    </plurals>
+    <plurals name="saga_upcoming_count">
+        <item quantity="one">%d zapowiedziany</item>
+        <item quantity="few">%d zapowiedziane</item>
+        <item quantity="many">%d zapowiedzianych</item>
+        <item quantity="other">%d zapowiedzianego</item>
+    </plurals>
+    <string name="mark_saga_watched">Oznacz sagę jako obejrzaną</string>
+    <string name="mark_saga_unwatched">Oznacz sagę jako nieobejrzaną</string>
+    <string name="saga_release_on">Premiera %s</string>
+    <string name="saga_announced">Zapowiedziany</string>
+    <!-- Panele sagi, tak jak czyta je czytnik ekranu: najpierw tytuł -->
+    <string name="saga_card_name">%1$s, film %2$d</string>
+    <string name="saga_volet_saga">%s, saga</string>
+    <string name="saga_card_next">następny w kolejce</string>
+    <string name="saga_card_absent">brak w bibliotece</string>
+    <string name="saga_card_release">premiera %s</string>
+    <string name="saga_card_announced">zapowiedziany</string>
     <!-- Versions and editions -->
     <string name="versions">Wersje</string>
     <string name="version_chosen">Wybrana</string>
