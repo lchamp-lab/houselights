@@ -46,7 +46,7 @@ Run `scripts/check.sh` before pushing or opening a pull request. It runs what CI
 ```
 
 - Without a signing key, the release is signed with the debug key for the check.
-- On a machine short of memory: `scripts/check.sh --heap 2g --workers 2 --in-process --no-daemon`.
+- On a machine short of memory: `scripts/check.sh --heap 3g --workers 2 --in-process --no-daemon`.
 - `detekt` reads sources only; `detektDebug` and `detektDebugUnitTest` add type-aware rules (dispatchers,
   `!!`, unsafe casts).
 - detekt keeps no baseline: a finding is fixed, else its rule is set aside where it stands, `@Suppress` with its
