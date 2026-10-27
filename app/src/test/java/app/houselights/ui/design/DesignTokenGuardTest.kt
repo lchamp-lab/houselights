@@ -53,6 +53,8 @@ class DesignTokenGuardTest {
         // The catalogue's swatches of the palette and of ember's roles.
         "catalog/CatalogScreen.kt: to HlPalette.",
         "catalog/CatalogScreen.kt:\"ember\" to c.ember",
+        "catalog/CatalogScreen.kt:\"on ember\" to c.onEmber",
+        "catalog/CatalogScreen.kt:\"ember on light\" to c.emberOnLight",
         // The catalogue's own frames (swatches, a mark's white ground): a size no screen uses.
         "catalog/CatalogParts.kt:val CatalogSwatch = 52.dp",
         // The catalogue's swatch of the ember light, and the type specimen of the place you are in.
