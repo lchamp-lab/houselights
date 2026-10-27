@@ -177,6 +177,7 @@ class PaneRowLineTest {
             line(R.string.identify_menu_desc_none, Beside.Icon),
             line(R.string.scan_now_desc),
             line(R.string.edit_folder_row_desc),
+            line(R.string.edit_folder_disk_desc),
             line(R.string.edit_folder_login_desc),
             line(R.string.edit_folder_unreachable_desc),
             line(R.string.edit_folder_not_found_desc),

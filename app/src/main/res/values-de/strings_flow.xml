@@ -46,6 +46,7 @@
     <string name="use_suggestion_name">„%s“ verwenden</string>
     <string name="suggested_by_nas">Vom NAS vorgeschlagen</string>
     <string name="flow_browse_desc">Öffnen Sie den Ordner Ihrer Filme oder Serien und wählen Sie ihn dann.</string>
+    <string name="flow_edit_desc">Wählen Sie den Ordner, in dem die Videos von „%s“ jetzt liegen: Die Titel, was Sie gesehen haben, und Ihre Auswahl bleiben erhalten.</string>
     <string name="choose_folder">Diesen Ordner wählen</string>
     <string name="subfolders">Unterordner</string>
     <string name="opening">Wird geöffnet…</string>
@@ -64,4 +65,6 @@
     <string name="disk_usb">USB-Laufwerk</string>
     <string name="disk_access_settings">Houselights darf die Dateien dieses Players noch nicht lesen: Erlauben Sie es in den Android-Einstellungen und wählen Sie das Laufwerk dann erneut.</string>
     <string name="disk_access_refused">Houselights darf die Dateien dieses Players nicht lesen: Erlauben Sie es und wählen Sie das Laufwerk dann erneut.</string>
+    <string name="disk_absent">%s ist nicht mehr angeschlossen: Schließen Sie es wieder an und versuchen Sie es dann erneut.</string>
+    <string name="disk_absent_usb">Das USB-Laufwerk ist nicht mehr angeschlossen: Schließen Sie es wieder an und versuchen Sie es dann erneut.</string>
 </resources>

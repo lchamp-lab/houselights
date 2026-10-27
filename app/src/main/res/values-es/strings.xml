@@ -218,6 +218,7 @@
     <string name="edit_folder">Editar carpeta</string>
     <string name="edit_folder_desc">Cambie su dirección o sus credenciales. Houselights prueba la conexión antes de guardar; se conservan sus títulos, lo que ha visto y sus elecciones.</string>
     <string name="edit_folder_row_desc">Su dirección o sus credenciales</string>
+    <string name="edit_folder_disk_desc">Su carpeta en el disco</string>
     <string name="edit_folder_unreachable_desc">Puede que su dirección haya cambiado</string>
     <string name="edit_folder_login_desc">Vuelva a escribir sus credenciales</string>
     <string name="edit_folder_not_found_desc">Quizá cambió la carpeta o la ruta</string>

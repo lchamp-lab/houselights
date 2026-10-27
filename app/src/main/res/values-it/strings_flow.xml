@@ -47,6 +47,7 @@
     <string name="use_suggestion_name">Usa «%s»</string>
     <string name="suggested_by_nas">Proposto dal NAS</string>
     <string name="flow_browse_desc">Aprire la cartella dei film o delle serie, poi sceglierla.</string>
+    <string name="flow_edit_desc">Scegliere la cartella che ora contiene i video di «%s»: titoli, stato di visione e scelte restano invariati.</string>
     <string name="choose_folder">Scegli questa cartella</string>
     <string name="subfolders">Sottocartelle</string>
     <string name="opening">Apertura…</string>
@@ -65,4 +66,6 @@
     <string name="disk_usb">Disco USB</string>
     <string name="disk_access_settings">Houselights non può ancora leggere i file di questo lettore: autorizzarlo nelle impostazioni di Android, poi scegliere di nuovo il disco.</string>
     <string name="disk_access_refused">Houselights non può leggere i file di questo lettore: autorizzarlo, poi scegliere di nuovo il disco.</string>
+    <string name="disk_absent">%s non è più collegato: ricollegarlo, poi riprovare.</string>
+    <string name="disk_absent_usb">Il disco USB non è più collegato: ricollegarlo, poi riprovare.</string>
 </resources>

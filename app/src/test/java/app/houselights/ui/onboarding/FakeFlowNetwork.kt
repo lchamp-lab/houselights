@@ -1,5 +1,6 @@
 package app.houselights.ui.onboarding
 
+import app.houselights.core.DiskAbsentException
 import app.houselights.providers.local.DiskAccess
 import app.houselights.providers.local.ExportedFolder
 import app.houselights.providers.local.FolderLevel
@@ -25,8 +26,8 @@ import java.net.InetAddress
  * /volume1/video and /volume1/musique open to the home network, /volume1/photo to 192.168.1.10 alone, /volume1/media;
  * its shares video, photo, music and home for the account houselights, and video$, which it never lists; the player at
  * 192.168.1.42, its own storage and a USB disk « Samsung T7 » once a test plugs them in ([mounted]), read as [access]
- * says. A NAS is announced when a test says so ([announce]), a search ending when it says so too ([searchEnds]); a
- * call can be held until a test lets it go ([hold]).
+ * says, one not plugged in out of reach as on a player ([DiskAbsentException]). A NAS is announced when a test says so
+ * ([announce]), a search ending when it says so too ([searchEnds]); a call can be held until a test lets it go ([hold]).
  */
 class FakeFlowNetwork : FlowNetwork {
     /** The search under way, or the next one. */
@@ -66,8 +67,11 @@ class FakeFlowNetwork : FlowNetwork {
         "video$/Films" to FolderLevel(emptyList(), 2),
         // The player's disks, by their id.
         Volume.INTERNAL to FolderLevel(listOf("Download", "Movies"), 0),
-        T7 to FolderLevel(listOf("Films", "Séries"), 0),
+        T7 to FolderLevel(listOf("Films", "Films 4K", "Séries"), 0),
         "$T7/Films" to FolderLevel(listOf("Alien (1979)"), 1),
+        "$T7/Films/Alien (1979)" to FolderLevel(emptyList(), 1),
+        "$T7/Films 4K" to FolderLevel(listOf("Dune (2021)"), 0),
+        "$T7/Séries" to FolderLevel(listOf("Severance (2022)"), 0),
     )
 
     /** The player's own disks mounted: none, unless a test plugs them in ([DISKS]). */
@@ -134,6 +138,7 @@ class FakeFlowNetwork : FlowNetwork {
         val root = if (source.protocol == Protocol.LOCAL) source.host else source.share.trim('/')
         val at = listOf(root, source.path, path).filter { it.isNotEmpty() }.joinToString("/")
         call("level", at)
+        if (source.protocol == Protocol.LOCAL && mounted.none { it.id == source.host }) throw DiskAbsentException(source.host)
         refusal(source, at)?.let { throw it }
         val key = if (source.protocol == Protocol.SMB) folders.keys.firstOrNull { it.equals(at, ignoreCase = true) } else at
         return folders[key] ?: throw FileNotFoundException(at)

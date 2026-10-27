@@ -113,7 +113,7 @@ class FolderRemovalTest {
             CompositionLocalProvider(LocalSettingsViewModel provides vm) {
                 val s by vm.settings.collectAsStateWithLifecycle()
                 val rows = PaneRows(rememberFocusMemory(), "library")
-                LazyColumn { libraryPane(s, { _, _ -> }, SourceDoors({}, {}, {}), rows) }
+                LazyColumn { libraryPane(s, { _, _, _ -> }, SourceDoors({}, {}, {}), rows) }
             }
         }
         compose.waitForIdle()

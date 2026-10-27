@@ -77,12 +77,13 @@ internal enum class Pane(val label: Int, val icon: ImageVector) {
  * Settings in two panes: its places, a word each, and the focused one's rows. [onUseFolders] makes the folders the
  * source, keeping the server left or signing out of it, and reports a failure on the source's row; [onSignIn] opens
  * the sign-in, filled in as it says; [onSourceResumed] follows the kept server made the source again. The library in
- * numbers opens a filtered wall ([onOpenWall]) or a director's page ([onOpenPerson]). A folder just added
- * ([addedFolder]) takes focus on its showcase, then [onAddedFolderShown].
+ * numbers opens a filtered wall ([onOpenWall]) or a director's page ([onOpenPerson]). A folder just added or edited
+ * ([addedFolder]) takes focus on its showcase, one whose edit was left ([folderSheet]) its sheet too, then
+ * [onAddedFolderShown]. [onFolderForm] adds a folder or edits one, a folder of the player's disks through the flow.
  */
 @Composable
 fun SettingsScreen(
-    onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
+    onFolderForm: (folderId: Long?, focus: FolderField, onDisk: Boolean) -> Unit,
     onUseFolders: (keepServer: Boolean, onError: (UiError) -> Unit) -> Unit,
     onSignIn: (LoginFill) -> Unit,
     onSourceResumed: () -> Unit,
@@ -91,6 +92,7 @@ fun SettingsScreen(
     onOpenPerson: (personId: String) -> Unit = {},
     onOpenToIdentify: () -> Unit = {},
     addedFolder: Long? = null,
+    folderSheet: Long? = null,
     onAddedFolderShown: () -> Unit = {},
 ) {
     val app = appContainer()
@@ -145,7 +147,8 @@ fun SettingsScreen(
                     onFocusIn = { inPane = it },
                     numbers = NumbersDoors(onOpenWall, onOpenPerson),
                     updates = updates,
-                    added = addedFolder?.let { NewFolder(it, onAddedFolderShown) },
+                    added = folderSheet?.let { NewFolder(it, sheet = true, shown = onAddedFolderShown) }
+                        ?: addedFolder?.let { NewFolder(it, shown = onAddedFolderShown) },
                 )
             }
         }
@@ -291,7 +294,7 @@ private fun PaneContent(
     pane: Pane,
     s: AppSettings,
     storage: StorageStats?,
-    onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
+    onFolderForm: (folderId: Long?, focus: FolderField, onDisk: Boolean) -> Unit,
     sources: SourceDoors,
     onOpenCatalog: () -> Unit,
     rows: PaneRows,

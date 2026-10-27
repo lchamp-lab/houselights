@@ -45,6 +45,7 @@
     <string name="use_suggestion_name">使用“%s”</string>
     <string name="suggested_by_nas">NAS 推荐</string>
     <string name="flow_browse_desc">请打开存放电影或剧集的文件夹，然后选择它。</string>
+    <string name="flow_edit_desc">请选择现在存放“%s”视频的文件夹。其中的作品、观看记录和您的选择都会保留。</string>
     <string name="choose_folder">选择此文件夹</string>
     <string name="subfolders">子文件夹</string>
     <string name="opening">正在打开…</string>
@@ -63,4 +64,6 @@
     <string name="disk_usb">USB 磁盘</string>
     <string name="disk_access_settings">Houselights 还不能读取此播放器的文件：请在 Android 设置中允许，然后重新选择磁盘。</string>
     <string name="disk_access_refused">Houselights 不能读取此播放器的文件：请允许后重新选择磁盘。</string>
+    <string name="disk_absent">%s已断开连接。请重新连接，然后重试。</string>
+    <string name="disk_absent_usb">USB 磁盘已断开连接。请重新连接，然后重试。</string>
 </resources>

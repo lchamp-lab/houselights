@@ -45,6 +45,7 @@
     <string name="use_suggestion_name">「%s」を使用</string>
     <string name="suggested_by_nas">NASからの候補</string>
     <string name="flow_browse_desc">映画またはTV番組のフォルダを開いて、選んでください。</string>
+    <string name="flow_edit_desc">「%s」の動画が今あるフォルダを選んでください。作品、視聴履歴、選択内容はそのまま残ります。</string>
     <string name="choose_folder">このフォルダを選択</string>
     <string name="subfolders">サブフォルダ</string>
     <string name="opening">開いています…</string>
@@ -63,4 +64,6 @@
     <string name="disk_usb">USBディスク</string>
     <string name="disk_access_settings">Houselightsはまだこのプレーヤーのファイルを読み取れません。Androidの設定で許可してから、もう一度ディスクを選んでください。</string>
     <string name="disk_access_refused">Houselightsはこのプレーヤーのファイルを読み取れません。許可してから、もう一度ディスクを選んでください。</string>
+    <string name="disk_absent">%sが接続されていません。接続し直してから、もう一度お試しください。</string>
+    <string name="disk_absent_usb">USBディスクが接続されていません。接続し直してから、もう一度お試しください。</string>
 </resources>

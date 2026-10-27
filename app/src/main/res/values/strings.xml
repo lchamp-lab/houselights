@@ -225,6 +225,7 @@
     <string name="edit_folder">Edit folder</string>
     <string name="edit_folder_desc">Change its address or sign-in. Houselights tests the connection before saving; its titles, what you’ve watched and your choices stay.</string>
     <string name="edit_folder_row_desc">Its address or sign-in</string>
+    <string name="edit_folder_disk_desc">Its folder on the disk</string>
     <string name="edit_folder_unreachable_desc">Its address may have changed</string>
     <string name="edit_folder_login_desc">Enter the user name or password again</string>
     <string name="edit_folder_not_found_desc">Its shared folder or path may have changed</string>

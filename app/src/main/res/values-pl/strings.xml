@@ -224,6 +224,7 @@
     <string name="edit_folder">Edytuj folder</string>
     <string name="edit_folder_desc">Zmień jego adres lub dane logowania. Houselights testuje połączenie przed zapisaniem; tytuły, historia oglądania i dokonane wybory zostają zachowane.</string>
     <string name="edit_folder_row_desc">Adres lub dane logowania</string>
+    <string name="edit_folder_disk_desc">Folder na dysku</string>
     <string name="edit_folder_unreachable_desc">Adres mógł się zmienić</string>
     <string name="edit_folder_login_desc">Wpisz ponownie dane logowania</string>
     <string name="edit_folder_not_found_desc">Folder lub ścieżka mogły się zmienić</string>

@@ -33,9 +33,12 @@ object Route {
         }
     }
 
-    /** Adds a folder, or edits the folder [folderId] in place, focus starting on [focus]. */
+    /**
+     * Adds a folder, or edits the folder [folderId] in place, focus starting on [focus]; a folder of the player's disks
+     * ([onDisk]) is edited through « Ajouter un dossier »'s steps, on its disk.
+     */
     @Serializable
-    data class AddFolder(val folderId: Long? = null, val focus: FolderField = FolderField.FIRST)
+    data class AddFolder(val folderId: Long? = null, val focus: FolderField = FolderField.FIRST, val onDisk: Boolean = false)
 
     @Serializable
     data object Home

@@ -46,6 +46,7 @@
     <string name="use_suggestion_name">“%s” gebruiken</string>
     <string name="suggested_by_nas">Voorgesteld door de NAS</string>
     <string name="flow_browse_desc">Open de map van uw films of series en kies die dan.</string>
+    <string name="flow_edit_desc">Kies de map waarin de video’s van “%s” nu staan: de titels, wat u hebt bekeken en uw keuzes blijven behouden.</string>
     <string name="choose_folder">Deze map kiezen</string>
     <string name="subfolders">Submappen</string>
     <string name="opening">Openen…</string>
@@ -64,4 +65,6 @@
     <string name="disk_usb">USB-schijf</string>
     <string name="disk_access_settings">Houselights mag de bestanden van deze speler nog niet lezen: sta het toe in de instellingen van Android en kies de schijf daarna opnieuw.</string>
     <string name="disk_access_refused">Houselights mag de bestanden van deze speler niet lezen: sta het toe en kies de schijf daarna opnieuw.</string>
+    <string name="disk_absent">%s is niet meer aangesloten: sluit hem opnieuw aan en probeer het dan nog eens.</string>
+    <string name="disk_absent_usb">De USB-schijf is niet meer aangesloten: sluit hem opnieuw aan en probeer het dan nog eens.</string>
 </resources>

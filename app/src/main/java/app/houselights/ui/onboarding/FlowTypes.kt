@@ -83,9 +83,15 @@ sealed interface NasAnswer {
 @Immutable
 data class Aim(val key: String, val serial: Int)
 
-/** The row or button under way ([key]) and what it says meanwhile: « Connexion… », « Ouverture… », « Ajout… ». */
+/**
+ * The row or button under way ([key]) and what it says meanwhile: « Connexion… », « Ouverture… », « Ajout… »,
+ * « Enregistrement… ».
+ */
 @Immutable
-data class Pressed(val key: String, @StringRes val words: Int)
+data class Pressed(val key: String, @StringRes val words: Int) {
+    /** The folder is being written to the library, added or edited: nothing interrupts it. */
+    val writes: Boolean get() = words == R.string.adding || words == R.string.saving
+}
 
 /** What a row says of its last failure, in two words, by the ring. */
 enum class RowFailure(@StringRes val words: Int) {
@@ -133,14 +139,23 @@ sealed interface FlowMessage {
     /** The app may not read this player's disks: what to allow, in Android's [settings] or in its window. */
     data class DiskRefused(val settings: Boolean) : FlowMessage
 
+    /** The player's [disk] is not mounted: unplugged since, or not plugged back in yet. */
+    data class DiskAbsent(val disk: FlowNas) : FlowMessage
+
+    /** The folder edited is no longer in the library: removed meanwhile. */
+    data object Gone : FlowMessage
+
     data object Other : FlowMessage
 }
+
+/** Why « Modifier le dossier » has no folder to open: the player's storage did not give it, or the library no longer has it. */
+enum class EditLost { UNREAD, GONE }
 
 /** A failure said under the field [field] (its key), which takes focus. */
 @Immutable
 data class FieldError(val field: String, val message: FlowMessage)
 
-/** How the flow ended: the folder [folderId] was added, and [switched] whether the source became the folders. */
+/** How the flow ended: the folder [folderId] was added or edited, and [switched] whether the source became the folders. */
 data class FlowDone(val switched: Boolean, val folderId: Long?)
 
 /** What failed, as the flow tells it apart ([flowFailure]). */

@@ -133,7 +133,7 @@ class IgnoredFilesRowTest {
                 val rows = PaneRows(memory, PANE)
                 val list = rememberLazyListState()
                 RestoreFocus(memory, fallback = null) { key -> revealRow(list, key, memory) }
-                LazyColumn(state = list) { libraryPane(s, { _, _ -> }, SourceDoors({}, {}, {}), rows) }
+                LazyColumn(state = list) { libraryPane(s, { _, _, _ -> }, SourceDoors({}, {}, {}), rows) }
             }
         }
         compose.waitForIdle()

@@ -212,6 +212,7 @@
     <string name="edit_folder">Ordner bearbeiten</string>
     <string name="edit_folder_desc">Ändern Sie Adresse oder Anmeldedaten. Houselights testet die Verbindung vor dem Speichern; die Titel des Ordners, was Sie gesehen haben, und Ihre Auswahl bleiben erhalten.</string>
     <string name="edit_folder_row_desc">Adresse oder Anmeldedaten</string>
+    <string name="edit_folder_disk_desc">Ordner auf dem Laufwerk</string>
     <string name="edit_folder_unreachable_desc">Seine Adresse hat sich vielleicht geändert</string>
     <string name="edit_folder_login_desc">Geben Sie die Anmeldedaten neu ein</string>
     <string name="edit_folder_not_found_desc">Ordner oder Pfad vielleicht geändert</string>
