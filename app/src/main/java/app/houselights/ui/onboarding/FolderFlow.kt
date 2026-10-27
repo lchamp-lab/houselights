@@ -27,7 +27,6 @@ import app.houselights.providers.local.Standing
 import app.houselights.providers.local.TypedPath
 import app.houselights.providers.local.TypedPaths
 import app.houselights.providers.local.UsedNas
-import app.houselights.providers.local.Volume
 import app.houselights.providers.local.exportAccess
 import app.houselights.providers.local.nfsIdentity
 import app.houselights.providers.local.samePlace
@@ -69,7 +68,8 @@ import kotlinx.coroutines.withContext
  * « Ajouter un dossier » as a guided flow (#83): the NAS, its protocol and account, its shared folder, the folder, its
  * content, each picked from a list, typing only as the list's last row. Waiting happens on the row pressed ([pressed]):
  * listing is the test, and the next step shows once its list has come, focus placed once ([aim]). What was chosen and
- * typed, the password aside, and the lists shown are kept in [saved] across a stopped process.
+ * typed, the password aside, and the lists shown are kept in [saved] across a stopped process. With [editing], it is
+ * « Modifier le dossier » on that folder of the player's disks, opened at step 5 where the folder is ([edit]).
  */
 class FolderFlow(
     private val network: FlowNetwork,
@@ -79,8 +79,9 @@ class FolderFlow(
     /** Makes the folders the source; true when it changed (it was a server, or nothing yet). */
     private val useFolders: suspend () -> Boolean,
     saved: SavedStateHandle = SavedStateHandle(),
-) : FlowState(saved) {
-    constructor(app: AppContainer, context: Context, saved: SavedStateHandle) : this(
+    editing: Long? = null,
+) : FlowState(saved, editing) {
+    constructor(app: AppContainer, context: Context, saved: SavedStateHandle, editing: Long? = null) : this(
         network = AppFlowNetwork(app, context),
         library = app.library,
         background = app.scope,
@@ -92,9 +93,13 @@ class FolderFlow(
             switched
         },
         saved = saved,
+        editing = editing,
     )
 
-    /** The library's folders on the NAS chosen, the latest first: how each row stands to them, what is reused. */
+    /**
+     * The library's folders on the NAS chosen, the latest first, but the one edited: how each row stands to them, what is
+     * reused.
+     */
     private var folders: List<SourceEntity> = emptyList()
     private var kinds: Set<SourceKind> = emptySet()
     private val probes = mutableMapOf<String, Deferred<Set<Protocol>>>()
@@ -103,6 +108,7 @@ class FolderFlow(
 
     init {
         viewModelScope.launch {
+            editing?.let { return@launch edit(it) }
             used = suspendRunCatching { library.usedNas() }
                 .onFailure { Log.w(TAG, "Reading the NAS used failed", it) }
                 .getOrDefault(emptyList())
@@ -132,6 +138,53 @@ class FolderFlow(
         if (step == FlowStep.BROWSE || step == FlowStep.KIND) levels[path] = level ?: return go(FlowStep.WHERE, startKey())
         view++
         aim(entryKey())
+    }
+
+    // « Modifier le dossier » on a folder of this player's disks ----------------------------------------------------
+
+    /**
+     * Opens folder [id] of this player's disks at step 5 where it is (where a stopped process left it), else at the
+     * nearest folder above it still there; a disk unplugged, or one the app may not read, is said on its row, step 1
+     * holding it alone, OK trying again. A folder the library no longer has, or could not read, is said in the panel.
+     */
+    private suspend fun edit(id: Long) {
+        val read = suspendRunCatching { library.folder(id) }.onFailure { Log.w(TAG, "Reading folder $id failed", it) }
+        val folder = read.getOrNull()
+        edited = folder
+        if (folder == null) {
+            message = if (read.isFailure) FlowMessage.Unread else FlowMessage.Gone
+            ready = true
+            return
+        }
+        val at = if (step == FlowStep.BROWSE) path else folder.path.split('/').filter(String::isNotEmpty)
+        stepName = FlowStep.WHERE.name
+        suspendRunCatching { openEdited(name = null, at = at) }.onFailure { e ->
+            Log.w(TAG, "Opening folder $id failed", e)
+            failed(diskKey(folder.host), e)
+        }
+        ready = true
+    }
+
+    /**
+     * The disk of the folder edited, by the name Android gives a USB disk, else [name]d as its row names it, opened at
+     * [at], « Choisir ce dossier » focused; else at the nearest folder above it still there, focused as a level is.
+     */
+    private suspend fun openEdited(name: String?, at: List<String>) {
+        val disk = edited?.host ?: return
+        val mounted = withContext(Dispatchers.IO) { suspendRunCatching { network.disks() }.getOrDefault(emptyList()) }
+        val label = mounted.firstOrNull { !it.internal && it.id.equals(disk, ignoreCase = true) }?.name?.takeIf { it.isNotBlank() }
+        begin(FlowNas(disk, label ?: name), typedAddress = false)
+        protocolName = Protocol.LOCAL.name
+        reached = true
+        val root = FlowShare("")
+        sharePath = root.path
+        var shown = at
+        var read = suspendRunCatching { network.level(place(root), shown.joinToString("/")) }
+        while (shown.isNotEmpty() && read.exceptionOrNull()?.flowFailure() == FlowFailure.MISSING) {
+            shown = shown.dropLast(1)
+            read = suspendRunCatching { network.level(place(root), shown.joinToString("/")) }
+        }
+        show(shown, read.getOrThrow(), focusOn = CHOOSE.takeIf { shown == at })
     }
 
     // Step 1 · where the videos are --------------------------------------------------------------------------------
@@ -195,15 +248,15 @@ class FolderFlow(
     fun typeAddress() = go(FlowStep.ADDRESS, FIELD_HOST)
 
     /**
-     * OK on a disk of this player ([Volume]), [name]d as its row names it: opened at its root, as a shared folder is,
-     * once the app may read it; else [ask] asks Android ([DiskAccess]), what was under way stopped as OK on another row
-     * stops it, the row saying « Non autorisé » and the panel what to allow until it does, then the disk opens; after
-     * its settings, the disk is chosen again.
+     * OK on disk [id] of this player (its volume's), [name]d as its row names it: opened at its root, as a shared folder
+     * is, or where the folder edited is, once the app may read it; else [ask] asks Android ([DiskAccess]), what was under
+     * way stopped as OK on another row stops it, the row saying « Non autorisé » and the panel what to allow until it
+     * does, then the disk opens; after its settings, the disk is chosen again.
      */
-    fun chooseDisk(disk: Volume, name: String, ask: DiskAsk) {
-        val key = diskKey(disk.id)
+    fun chooseDisk(id: String, name: String, ask: DiskAsk) {
+        val key = diskKey(id)
         val access = network.diskAccess(disksRefused)
-        if (access == DiskAccess.GRANTED) return openDisk(disk, name)
+        if (access == DiskAccess.GRANTED) return openDisk(id, name)
         job?.cancel()
         pressed = null
         silent = false
@@ -214,15 +267,19 @@ class FolderFlow(
             val now = network.diskAccess(refusedForGood)
             // Android answering once the flow has gone on: the disk is chosen again from its row.
             if (step != FlowStep.WHERE) return@ask
-            if (now == DiskAccess.GRANTED) return@ask openDisk(disk, name)
+            if (now == DiskAccess.GRANTED) return@ask openDisk(id, name)
             message = FlowMessage.DiskRefused(settings = now == DiskAccess.IN_SETTINGS)
             aim(key)
         }
     }
 
-    /** The disk's root, its folders read as a NAS's shared folder's are, the disk [name]d as its row; Back returns to it. */
-    private fun openDisk(disk: Volume, name: String) = press(diskKey(disk.id), R.string.opening) {
-        begin(FlowNas(disk.id, name), typedAddress = false)
+    /**
+     * The disk's root, its folders read as a NAS's shared folder's are, the disk [name]d as its row; Back returns to it.
+     * The disk of a folder edited opens where the folder is instead ([openEdited]).
+     */
+    private fun openDisk(id: String, name: String) = press(diskKey(id), R.string.opening) {
+        edited?.let { return@press openEdited(name, it.path.split('/').filter(String::isNotEmpty)) }
+        begin(FlowNas(id, name), typedAddress = false)
         protocolName = Protocol.LOCAL.name
         reached = true
         val root = FlowShare("")
@@ -308,7 +365,7 @@ class FolderFlow(
         sharePath = null
         levels.clear()
         rowFailures.keys.filter { !it.startsWith(NAS) }.forEach { rowFailures.remove(it) }
-        folders = suspendRunCatching { library.foldersOn(chosen.host) }.getOrDefault(emptyList())
+        folders = suspendRunCatching { library.foldersOn(chosen.host) }.getOrDefault(emptyList()).filter { it.id != editing }
     }
 
     // Steps 2 and 3 · protocol, account -------------------------------------------------------------------------------
@@ -565,7 +622,14 @@ class FolderFlow(
         return (named ?: open.firstOrNull())?.let { folderKey(it) } ?: CHOOSE
     }
 
-    fun chooseFolder() = go(FlowStep.KIND, kindKey(suggestedKind()))
+    /**
+     * « Choisir ce dossier »: what it holds, asked at step 6; a folder edited keeps its kind, so it is saved at once
+     * ([write]), a disk's root [named] as its row names it, then [onDone].
+     */
+    fun chooseFolder(named: String = "", onDone: (FlowDone) -> Unit = {}) {
+        val kind = edited?.kind ?: return go(FlowStep.KIND, kindKey(suggestedKind()))
+        write(CHOOSE, kind, named, onDone)
+    }
 
     /** The folder's name, as the library will call it: its last segment; a disk's root, the disk's. */
     fun folderName(): String = path.lastOrNull() ?: if (protocol == Protocol.LOCAL) announcedName.orEmpty() else share?.name.orEmpty()
@@ -577,11 +641,16 @@ class FolderFlow(
     // Step 6 · what it holds ------------------------------------------------------------------------------------------
 
     /** OK on a kind adds the folder, its row saying « Ajout… »; [onDone] once it is in the library. */
-    fun add(kind: SourceKind, onDone: (FlowDone) -> Unit) {
+    fun add(kind: SourceKind, onDone: (FlowDone) -> Unit) = write(kindKey(kind), kind, named = "", onDone)
+
+    /**
+     * Writes the folder chosen as [kind], added or edited, [key]'s row saying « Ajout… » or « Enregistrement… », a disk's
+     * root [named] as its row when the flow has no name for it; [onDone] once the library has it.
+     */
+    private fun write(key: String, kind: SourceKind, named: String, onDone: (FlowDone) -> Unit) {
         val opened = share ?: return
-        val key = kindKey(kind)
-        press(key, R.string.adding) {
-            val folder = place(opened, path).copy(name = folderName(), kind = kind)
+        press(key, if (edited != null) R.string.saving else R.string.adding) {
+            val folder = place(opened, path).copy(name = folderName().ifEmpty { named }, kind = kind)
             val outcome = suspendRunCatching { saveInBackground(folder) }
             outcome.onFailure { e ->
                 Log.w(TAG, "The folder at ${folder.host} was not saved", e)
@@ -595,6 +664,7 @@ class FolderFlow(
                     message = FlowMessage.Overlaps(name, folder.standing(listOf(added.existing)))
                     aim(key)
                 }
+                Added.Gone -> panel(key, FlowMessage.Gone)
                 null -> {}
             }
         }
@@ -604,6 +674,9 @@ class FolderFlow(
         data class Done(val switched: Boolean, val id: Long?) : Added
 
         data class Overlaps(val existing: SourceEntity) : Added
+
+        /** The folder edited was removed meanwhile: nothing was saved. */
+        data object Gone : Added
     }
 
     /** Saves [folder] in the app's scope, so Back cannot half-save it; failures are logged even with no flow left. */
@@ -612,10 +685,23 @@ class FolderFlow(
     }.await().getOrThrow()
 
     /**
+     * Gives the folder edited [folder]'s place under its id, so its titles keep what was done with them, then scans
+     * ([LocalLibrary.updateFolder]); else adds it ([addNew]).
+     */
+    private suspend fun save(folder: SourceEntity): Added {
+        val id = editing ?: return addNew(folder)
+        return when (val result = library.updateFolder(id, folder)) {
+            FolderSave.Saved -> Added.Done(switched = false, id = id)
+            FolderSave.Gone -> Added.Gone
+            is FolderSave.Overlaps -> Added.Overlaps(result.existing)
+        }
+    }
+
+    /**
      * Adds [folder], checked once more against the library (a folder added meanwhile), and makes the folders the source.
      * One added earlier when switching the source failed is this one again: only the switch is left.
      */
-    private suspend fun save(folder: SourceEntity): Added = when (val result = library.addFolder(folder)) {
+    private suspend fun addNew(folder: SourceEntity): Added = when (val result = library.addFolder(folder)) {
         FolderSave.Saved -> Added.Done(useFolders(), library.overlapping(folder)?.id)
         is FolderSave.Overlaps -> if (result.existing.samePlace(folder) && useFolders()) {
             Added.Done(switched = true, id = result.existing.id)
@@ -629,10 +715,11 @@ class FolderFlow(
 
     /**
      * Back: up one level, else the step before, its choice kept and focused; from a typing step, the row that opened it;
-     * from the first step, [leave]. It cancels what is under way, but never an add.
+     * from the first step, or the root of a folder edited's disk, [leave]. It cancels what is under way, but never a
+     * write.
      */
     fun back(leave: () -> Unit) {
-        if (pressed?.words == R.string.adding) return
+        if (pressed?.writes == true) return
         job?.cancel()
         pressed = null
         fieldError = null
@@ -651,7 +738,7 @@ class FolderFlow(
                 identityBack()
                 go(if (noList) FlowStep.TYPE_PATH else FlowStep.SHARES, NFS_ACCOUNT)
             }
-            FlowStep.BROWSE -> up()
+            FlowStep.BROWSE -> up(leave)
             FlowStep.KIND -> go(FlowStep.BROWSE, CHOOSE)
         }
     }
@@ -675,11 +762,11 @@ class FolderFlow(
         else -> nasStep(at)
     }
 
-    /** Up one level, focus on the folder left; from the shared folder's root, its step. */
-    private fun up() {
+    /** Up one level, focus on the folder left; from the shared folder's root, its step, or [leave] for a folder edited. */
+    private fun up(leave: () -> Unit) {
         val now = path
         val opened = share
-        if (now.isEmpty() || opened == null) return beforeBrowse(opened)
+        if (now.isEmpty() || opened == null) return beforeBrowse(opened, leave)
         val above = now.dropLast(1)
         val left = folderKey(now.last())
         levels[above]?.let { return show(above, it, focusOn = left) }
@@ -689,13 +776,14 @@ class FolderFlow(
             read.onSuccess { show(above, it, focusOn = left) }
             read.onFailure {
                 Log.w(TAG, "Reading the level above failed", it)
-                beforeBrowse(opened)
+                beforeBrowse(opened, leave)
             }
         }
     }
 
-    /** Back from the root of [opened]: the shared folders, the path typed, or a disk's row. */
-    private fun beforeBrowse(opened: FlowShare?) = when {
+    /** Back from the root of [opened]: the shared folders, the path typed, or a disk's row; for a folder edited, [leave]. */
+    private fun beforeBrowse(opened: FlowShare?, leave: () -> Unit) = when {
+        editing != null -> leave()
         protocol == Protocol.LOCAL -> go(FlowStep.WHERE, diskKey(host.orEmpty()))
         noList -> go(FlowStep.TYPE_PATH, FIELD_PATH)
         else -> go(FlowStep.SHARES, opened?.let { shareKey(it) } ?: TYPE_PATH)
@@ -712,11 +800,11 @@ class FolderFlow(
 
     /**
      * Runs [work] for the row or button [key], which says [words] meanwhile; OK on it again does nothing, OK on another
-     * cancels it; a failure is said where it belongs ([failed]). Nothing interrupts an add.
+     * cancels it; a failure is said where it belongs ([failed]). Nothing interrupts a write.
      */
     private fun press(key: String, @StringRes words: Int, work: suspend () -> Unit) {
         val now = pressed
-        if (now?.key == key || now?.words == R.string.adding) return
+        if (now?.key == key || now?.writes == true) return
         job?.cancel()
         val mine = Pressed(key, words)
         pressed = mine
@@ -746,8 +834,9 @@ class FolderFlow(
         /** The steps that read the NAS with the account: after a stopped process, they need its password again. */
         private val AFTER_ACCOUNT = setOf(FlowStep.SHARES, FlowStep.TYPE_PATH, FlowStep.BROWSE, FlowStep.KIND)
 
-        fun factory(app: AppContainer, context: Context): ViewModelProvider.Factory = viewModelFactory {
-            initializer { FolderFlow(app, context.applicationContext, createSavedStateHandle()) }
+        /** The flow for « Ajouter un dossier », or with [editing] « Modifier le dossier » on that folder of the player's disks. */
+        fun factory(app: AppContainer, context: Context, editing: Long? = null): ViewModelProvider.Factory = viewModelFactory {
+            initializer { FolderFlow(app, context.applicationContext, createSavedStateHandle(), editing) }
         }
     }
 }

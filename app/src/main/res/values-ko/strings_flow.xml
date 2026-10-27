@@ -45,6 +45,7 @@
     <string name="use_suggestion_name">‘%s’ 사용</string>
     <string name="suggested_by_nas">NAS가 제안함</string>
     <string name="flow_browse_desc">영화나 TV 프로그램 폴더를 연 다음 선택하세요.</string>
+    <string name="flow_edit_desc">이제 ‘%s’의 동영상이 있는 폴더를 선택하세요. 작품과 시청 기록, 선택한 항목은 그대로 유지됩니다.</string>
     <string name="choose_folder">이 폴더 선택</string>
     <string name="subfolders">하위 폴더</string>
     <string name="opening">여는 중…</string>
@@ -63,4 +64,5 @@
     <string name="disk_usb">USB 디스크</string>
     <string name="disk_access_settings">Houselights가 아직 이 플레이어의 파일을 읽을 수 없습니다. Android 설정에서 허용한 다음 디스크를 다시 선택하세요.</string>
     <string name="disk_access_refused">Houselights가 이 플레이어의 파일을 읽을 수 없습니다. 허용한 다음 디스크를 다시 선택하세요.</string>
+    <string name="disk_absent">%s 연결이 끊겼습니다. 다시 연결한 다음 다시 시도하세요.</string>
 </resources>

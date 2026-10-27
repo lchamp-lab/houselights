@@ -38,7 +38,8 @@ import org.robolectric.Shadows.shadowOf
 
 /**
  * « Ajouter un dossier » drawn over the board's network (FakeFlowNetwork) and driven from the remote: the flow over a
- * library, the remote's keys, and what each test waits for. [AddFolderFlowTest], [FlowAccountPathTest].
+ * library, the remote's keys, and what each test waits for. [AddFolderFlowTest], [FlowAccountPathTest],
+ * [DiskFolderEditTest].
  */
 open class FlowHarness {
     @get:Rule
@@ -70,13 +71,15 @@ open class FlowHarness {
 
     /**
      * The flow over a library holding [folders], drawn and settled; [saved] as a stopped process left it, [useFolders]
-     * making the folders the source, [askDisk] asking Android to read the player's disks.
+     * making the folders the source, [askDisk] asking Android to read the player's disks; with [editing], « Modifier le
+     * dossier » on that folder.
      */
     protected fun flow(
         vararg folders: SourceEntity,
         saved: SavedStateHandle = SavedStateHandle(),
         useFolders: suspend () -> Boolean = { false },
         askDisk: DiskAsk = DiskAsk.NONE,
+        editing: Long? = null,
     ): FolderFlow {
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after an add never runs: it would go to the network.
@@ -84,7 +87,7 @@ open class FlowHarness {
         val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         runBlocking { folders.forEach { db.dao().insertSource(it) } }
         library = LocalLibrary(context, db.dao(), scanner, artwork) {}
-        val flow = FolderFlow(network, library, scope, useFolders = useFolders, saved = saved)
+        val flow = FolderFlow(network, library, scope, useFolders = useFolders, saved = saved, editing = editing)
         compose.setTvContent { AddFolderFlow(flow, onLeave = { left = true }, onDone = { done = it }, askDisk = askDisk) }
         until { flow.ready }
         compose.waitForIdle()

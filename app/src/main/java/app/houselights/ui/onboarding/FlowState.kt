@@ -41,10 +41,15 @@ import kotlin.reflect.KProperty
 /**
  * Where « Ajouter un dossier » stands ([FolderFlow]): the step shown and where focus goes, what the network answered,
  * and what was chosen and typed, the password aside, with the lists shown, written to [saved] as they change so that
- * a stopped process finds the flow where it was left. Screens read it; only the flow changes it.
+ * a stopped process finds the flow where it was left. Screens read it; only the flow changes it. With [editing], the
+ * flow is « Modifier le dossier » on that folder of the player's disks.
  */
-open class FlowState(saved: SavedStateHandle) : ViewModel() {
+open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewModel() {
     protected var stepName by saved.kept(KEPT_STEP, FlowStep.WHERE.name)
+
+    /** The folder [editing] as the library holds it, its kind kept; null for an add, or until it is read. */
+    var edited by mutableStateOf<SourceEntity?>(null)
+        protected set
 
     val step: FlowStep get() = FlowStep.entries.find { it.name == stepName } ?: FlowStep.WHERE
 
@@ -343,16 +348,23 @@ open class FlowState(saved: SavedStateHandle) : ViewModel() {
             FlowStep.ACCOUNT -> accountRefused(key, failure)
             FlowStep.TYPE_PATH -> pathRefused(failure)
             FlowStep.SHARES -> trying?.let { row(key, failure, FlowShare(it).name, it) } ?: row(key, failure, "", "")
-            FlowStep.BROWSE -> folderRefused(key, failure)
+            FlowStep.BROWSE -> if (protocol == Protocol.LOCAL) diskRefused(key, failure, settings()) else folderRefused(key, failure)
             else -> if (key.startsWith(DISK)) diskRefused(key, failure, settings()) else row(key, failure, "", "")
         }
     }
 
-    /** A disk of this player that did not open: its row in two words; the panel says what to allow, or that it failed. */
+    /**
+     * A disk of this player, or a folder on it, that did not open: its row in two words; the panel says what to allow,
+     * that the disk is no longer plugged in, or that it failed.
+     */
     private fun diskRefused(key: String, failure: FlowFailure, settings: Boolean) {
         rowFailures[key] = failure.words()
-        val refused = failure == FlowFailure.READ_REFUSED || failure == FlowFailure.MOUNT_REFUSED
-        panel(key, if (refused) FlowMessage.DiskRefused(settings) else FlowMessage.Other)
+        val sentence = when (failure) {
+            FlowFailure.READ_REFUSED, FlowFailure.MOUNT_REFUSED -> FlowMessage.DiskRefused(settings)
+            FlowFailure.SILENT -> FlowMessage.DiskAbsent(nas ?: FlowNas(key.removePrefix(DISK)))
+            else -> FlowMessage.Other
+        }
+        panel(key, sentence)
     }
 
     /** An address typed that did not answer, said under it. */

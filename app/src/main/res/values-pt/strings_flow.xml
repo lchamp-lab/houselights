@@ -47,6 +47,7 @@
     <string name="use_suggestion_name">Usar “%s”</string>
     <string name="suggested_by_nas">Sugerido pelo NAS</string>
     <string name="flow_browse_desc">Abra a pasta dos seus filmes ou séries e depois escolha-a.</string>
+    <string name="flow_edit_desc">Escolha a pasta onde agora estão os vídeos de “%s”: os títulos, o que você já viu e suas escolhas são mantidos.</string>
     <string name="choose_folder">Escolher esta pasta</string>
     <string name="subfolders">Subpastas</string>
     <string name="opening">Abrindo…</string>
@@ -65,4 +66,5 @@
     <string name="disk_usb">Disco USB</string>
     <string name="disk_access_settings">O Houselights ainda não pode ler os arquivos deste player: autorize nas configurações do Android e escolha o disco de novo.</string>
     <string name="disk_access_refused">O Houselights não pode ler os arquivos deste player: autorize e escolha o disco de novo.</string>
+    <string name="disk_absent">%s não está mais conectado: conecte-o de novo e tente outra vez.</string>
 </resources>
