@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 /** A title is new when added in the last week to an existing library and not yet watched. */
 class AddedTest {
@@ -27,5 +28,15 @@ class AddedTest {
         assertEquals(1_714_566_896_000L, epochMillisOf("2024-05-01T12:34:56.0000000Z"))
         assertNull(epochMillisOf("2024-05-01"))
         assertNull(epochMillisOf(null))
+    }
+
+    /** TMDB's release dates: a saga's film not out yet says its day (« Sortie le 15 décembre 2026 »). */
+    @Test
+    fun tmdbDatesAreRead() {
+        assertEquals(LocalDate.of(2026, 12, 15), dateOf("2026-12-15"))
+        assertNull(dateOf("2026"))
+        assertNull(dateOf("2026-02-30"))
+        assertNull(dateOf(""))
+        assertNull(dateOf(null))
     }
 }
