@@ -187,6 +187,13 @@ android {
         // Whether a dependency has a newer version is Dependabot's to say, in a pull request of its own: these checks
         // read what was published the day they run, so a build that changed nothing would fail the day one comes out.
         disable += setOf("GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable")
+        // Google Play's SDK Index checks read the index of the day too: a version it marks outdated, risky or out of
+        // policy without blocking it is reported at a warning, so an error here. Houselights is not on Google Play
+        // (README, Install), and a library's security fixes come from Dependabot's security updates.
+        disable += setOf(
+            "OutdatedLibrary", "RiskyLibrary", "PlaySdkIndexDeprecated", "PlaySdkIndexNonCompliant",
+            "PlaySdkIndexVulnerability", "PlaySdkIndexGenericIssues",
+        )
         // The app's language is the default locale (InterfaceLanguage.applyDefault), and a change of it, the app's or
         // the device's, makes the activity again: a composition that reads it is never left behind.
         disable += "NonObservableLocale"

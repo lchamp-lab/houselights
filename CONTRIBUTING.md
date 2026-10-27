@@ -54,7 +54,8 @@ Run `scripts/check.sh` before pushing or opening a pull request. It runs what CI
 - Lint keeps no baseline, and a warning fails it as an error does: fix it, else set it aside where it stands with its
   reason (`tools:ignore`, `@SuppressLint`, `//noinspection`), or in `app/build.gradle.kts`'s `lint` block where it
   never fits. Its checks for a newer version of a dependency are off: Dependabot proposes upgrades in pull requests
-  of their own.
+  of their own. So are its checks on Google Play's SDK Index, which read the index of the day: Houselights is not on
+  Google Play, and Dependabot's security updates bring a library's security fixes.
 - A Kotlin compiler warning fails the build, in the app, its tests, `:baselineprofile` and the build scripts: fix it,
   else `@Suppress` it where it stands with its reason in a line (a deprecated API that Android 9 needs).
   `SuppressionGuardTest` fails on a `@Suppress`, for either, that gives none.
