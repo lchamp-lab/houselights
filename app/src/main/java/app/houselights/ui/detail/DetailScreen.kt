@@ -139,6 +139,7 @@ import app.houselights.ui.design.components.VersionsSheet
 import app.houselights.ui.design.components.tracksHint
 import app.houselights.ui.util.versionName
 import app.houselights.core.hasPage
+import android.annotation.SuppressLint
 
 @Composable
 fun DetailScreen(
@@ -1080,6 +1081,7 @@ private fun EpisodesSkeleton(header: String?) {
  * [retrying], the row stays, its button busy and focused.
  */
 @Composable
+@SuppressLint("ModifierParameter") // Not the row's modifier: its retry button's, keyed for focus.
 private fun EpisodesFailed(header: String?, error: UiError?, retrying: Boolean, onRetry: () -> Unit, action: Modifier) {
     Column(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
         header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }

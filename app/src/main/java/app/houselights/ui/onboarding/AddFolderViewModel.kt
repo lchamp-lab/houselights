@@ -349,6 +349,8 @@ class AddFolderViewModel(
     private val background: CoroutineScope,
     /** Lists a folder's first level and counts its subfolders and videos; throws when it cannot. */
     private val probe: suspend (SourceEntity) -> FolderLevel,
+    // An empty handle for a test that gives none: the factory hands the real one.
+    //noinspection VisibleForTests
     private val saved: SavedStateHandle = SavedStateHandle(),
     /** This player's address on the network ([app.houselights.journal.HomeAddress]), which NFS rules allow; null when unknown. */
     private val playerAddress: suspend () -> String? = { null },

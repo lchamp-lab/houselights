@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Sources -->
     <string name="source_local">I miei file</string>
     <string name="source_local_desc">Video su un NAS, un computer della rete o un disco collegato al lettore. Houselights li analizza e recupera locandine e trame.</string>
@@ -242,9 +242,10 @@
     <string name="field_password">Password</string>
     <string name="placeholder_host">Es. 192.168.1.10</string>
     <string name="placeholder_server_path">Es. /media/film</string>
-    <string name="placeholder_network_path">Es. nfs://192.168.1.10/volume1/film</string>
+    <!-- tools:ignore="Typos": Lint reads /volume1, how a Synology NAS names its first volume, and a shared folder named video as misspellings. -->
+    <string name="placeholder_network_path" tools:ignore="Typos">Es. nfs://192.168.1.10/volume1/film</string>
     <string name="placeholder_tmdb_key">Es. 0123456789abcdef0123456789abcdef</string>
-    <string name="placeholder_export">Es. /volume1/video</string>
+    <string name="placeholder_export" tools:ignore="Typos">Es. /volume1/video</string>
     <string name="placeholder_share">Es. video</string>
     <string name="placeholder_path_movies">Es. film</string>
     <string name="placeholder_path_shows">Es. serie</string>
@@ -268,9 +269,9 @@
     <string name="error_login_failed">Il NAS ha rifiutato nome utente o password.</string>
     <string name="error_not_found">Questa condivisione o cartella non esiste sul NAS. Verificarne la grafia.</string>
     <string name="error_host_missing">Inserire l’indirizzo del NAS.</string>
-    <string name="error_export_missing">Inserire il percorso di montaggio, ad esempio /volume1/video.</string>
+    <string name="error_export_missing" tools:ignore="Typos">Inserire il percorso di montaggio, ad esempio /volume1/video.</string>
     <string name="error_share_missing">Inserire il nome della cartella condivisa, ad esempio video.</string>
-    <string name="error_full_path_missing_nfs">Inserire il percorso della cartella, ad esempio /volume1/video/Film.</string>
+    <string name="error_full_path_missing_nfs" tools:ignore="Typos">Inserire il percorso della cartella, ad esempio /volume1/video/Film.</string>
     <string name="error_full_path_missing_smb">Inserire il percorso della cartella, ad esempio video/Film.</string>
     <string name="error_uid_missing">Inserire anche l’utente (UID).</string>
     <string name="error_gid_missing">Inserire anche il gruppo (GID).</string>
@@ -287,7 +288,7 @@
     </plurals>
     <string name="folder_content">%1$s e %2$s</string>
     <string name="error_share_not_found">%1$s non ha una cartella condivisa «%2$s». Verificarne il nome nell’interfaccia del NAS.</string>
-    <string name="error_export_not_found">Il NAS non condivide %s via NFS. Su un Synology, il percorso di montaggio inizia con /volume1/.</string>
+    <string name="error_export_not_found" tools:ignore="Typos">Il NAS non condivide %s via NFS. Su un Synology, il percorso di montaggio inizia con /volume1/.</string>
     <string name="error_subfolder_not_found">%1$s risponde, ma «%2$s» non c’è. Verificarne il nome, maiuscole comprese.</string>
     <string name="error_subfolder_not_found_share">«%1$s» risponde, ma «%2$s» non c’è. Verificarne il nome, maiuscole comprese.</string>
     <string name="error_nfs_refused">Il NAS rifiuta questo lettore. Autorizzare %1$s su %2$s, in sola lettura e, su un Synology, le porte non privilegiate.</string>

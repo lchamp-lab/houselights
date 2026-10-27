@@ -9,7 +9,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
@@ -159,7 +159,8 @@ class HeldFolderTest {
                 LazyColumn { libraryPane(s, { _, _, _ -> }, SourceDoors({}, {}, {}), rows) }
             }
         }
-        compose.waitForIdle()
+        // Room answers on its own thread, and the pane's collection now waits its turn on the test's dispatcher.
+        compose.waitUntil(TIMEOUT_MS) { compose.onAllNodes(hasText("Films") and hasClickAction()).fetchSemanticsNodes().isNotEmpty() }
         compose.onNode(hasText("Films") and hasClickAction()).assertExists()
     }
 

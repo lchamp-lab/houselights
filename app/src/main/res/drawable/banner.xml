@@ -2,8 +2,11 @@
 <!-- Gradation, the TV banner, composed like a title card: the mark above in its one ember gradient, the name
      under it in white expanded capitals of Archivo whose weight goes down letter by letter (900 to 350), cap
      height 12 % of the banner. -->
+<!-- At the size Android asks of a TV banner, 320 by 180 dp, above Lint's 200 for an icon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="VectorRaster"
     android:width="320dp" android:height="180dp"
     android:viewportWidth="320" android:viewportHeight="180">
     <path android:fillColor="#000000" android:pathData="M0 0h320v180h-320z" />

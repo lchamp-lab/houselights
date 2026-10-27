@@ -123,8 +123,15 @@ class FocusStyleGuardTest {
     /** A layer of a surface's own, set on it, placed with it or recorded. */
     private val layer = Regex("""\b(graphicsLayer|placeWithLayer|placeRelativeWithLayer|rememberGraphicsLayer)\b""")
 
-    /** Lines that scale without focus, by file: a menu grows from its button as it opens, whatever has focus. */
-    private val scales = mapOf("design/components/Menu.kt" to setOf("scaleX = scale", "scaleY = scale"))
+    /**
+     * Lines that scale without focus, by file: a menu grows from its button as it opens, whatever has focus, and pictures
+     * are resampled to the size they are shown at (core's Bitmap.scale).
+     */
+    private val scales = mapOf(
+        "design/components/Menu.kt" to setOf("scaleX = scale", "scaleY = scale"),
+        "design/components/CutPosters.kt" to setOf("bitmap.scale(width, height).also { scaled = it }"),
+        "design/components/DoorFigures.kt" to setOf("return tint.scale(w, h).also {"),
+    )
 
     /** tv-material's surfaces bring Google TV's focus (scale, glow, 300 ms Material curves): only its theme stays. */
     @Test

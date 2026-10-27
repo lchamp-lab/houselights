@@ -2,7 +2,7 @@ package app.houselights.ui.home
 
 import android.app.Application
 import android.os.Looper
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.IMAGE_MEMORY_BYTES
 import app.houselights.core.HomeSection

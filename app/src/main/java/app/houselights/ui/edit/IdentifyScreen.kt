@@ -57,6 +57,7 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.calmAfter
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.design.components.HlErrorState
+import android.annotation.SuppressLint
 
 /**
  * Matching a title with the right TMDB entry, when automatic matching got it wrong or left it to identify, its
@@ -217,6 +218,7 @@ private fun SearchFields(state: IdentifyState, vm: IdentifyViewModel) {
  * goes to it); OK matches the title with one. Left from one goes to « Passer » ([skip]) in the queue.
  */
 @Composable
+@SuppressLint("ModifierParameter") // Not the results' modifier: the first one's, which focus goes to.
 private fun Results(state: IdentifyState, vm: IdentifyViewModel, first: Modifier, skip: FocusRequester?) {
     // Status shows above the results, which keep their place and focus; with none, a failure replaces them.
     val error = state.error
@@ -241,6 +243,7 @@ private fun Results(state: IdentifyState, vm: IdentifyViewModel, first: Modifier
 
 /** The results, under « Suggestions » for automatic matching's, else under their count. */
 @Composable
+@SuppressLint("ModifierParameter") // Not the list's modifier: its first result's, which focus goes to.
 private fun ResultList(results: List<MatchCandidate>, state: IdentifyState, vm: IdentifyViewModel, first: Modifier, skip: FocusRequester?) {
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
         SectionHeader(

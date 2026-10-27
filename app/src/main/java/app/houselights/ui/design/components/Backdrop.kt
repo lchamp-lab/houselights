@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.nativePaint
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -408,7 +409,7 @@ private fun BackdropPicture(
                 val topEnd = veils.top.last().at
                 val down = Brush.verticalGradient(*veils.down.colorStops { if (it <= topEnd) top else black })
                 // Dithered where the GPU does it.
-                val paint = Paint().apply { asFrameworkPaint().isDither = true }
+                val paint = Paint().apply { nativePaint.isDither = true }
                 val whole = size.toRect()
                 onDrawBehind {
                     val lift = scrims.value

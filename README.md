@@ -336,7 +336,7 @@ your files, shares and NAS stay, so read it before posting. With adb, the lines 
 
 ## Development
 
-Requires JDK 17 and the Android SDK (platform 35).
+Requires JDK 17 and the Android SDK (platform 36).
 
 ```sh
 echo "tmdb.apiKey=YOUR_KEY" >> local.properties           # optional; never commit it

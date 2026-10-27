@@ -141,8 +141,8 @@ fun TitleArt(
     logo: ImageRef?,
     maxWidth: Dp,
     maxHeight: Dp,
-    style: TextStyle = Hl.type.display,
     modifier: Modifier = Modifier,
+    style: TextStyle = Hl.type.display,
     maxLines: Int = 2,
     measured: Boolean = false,
 ) {

@@ -101,7 +101,7 @@ jobs:
       - name: Tests, lint, detekt
         run: >-
           ./gradlew --no-daemon --max-workers=2
-          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
+          -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
           -Pkotlin.compiler.execution.strategy=in-process
           testDebugUnitTest lintDebug lintVitalRelease detekt detektDebug detektDebugUnitTest
           :baselineprofile:compileNonMinifiedReleaseKotlin
@@ -172,7 +172,7 @@ jobs:
           TRAKT_REDIRECT_URI: ${{ secrets.TRAKT_REDIRECT_URI }}
         run: >-
           ./gradlew --no-daemon --max-workers=2
-          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
+          -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
           -Pkotlin.compiler.execution.strategy=in-process
           -PversionName="$VERSION"
           assembleRelease -x lintVitalRelease

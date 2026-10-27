@@ -1,6 +1,6 @@
 # Checks every push and pull request: unit tests, Android Lint, detekt (with and without the compiler's
 # types), a minified release build, signed with the runner's debug key and never published, and the baseline
-# profile's journeys compiled, every compilation failing on a warning.
+# profile's journeys compiled, every compilation and Lint failing on a warning.
 # TMDB_API_KEY is optional (a repository secret): without it the app builds and users enter their own key.
 # TRAKT_CLIENT_ID is optional too, and TRAKT_CLIENT_SECRET only for a Trakt app that has one: without them,
 # the app builds and says it has no Trakt. A pull request from a fork gets no secret, and needs none.
@@ -54,8 +54,9 @@ jobs:
           path: ~/.m2/repository/org/robolectric
           key: ${{ steps.robolectric.outputs.key }}
 
-      # The same checks as scripts/check.sh. A hosted runner has 16 GB: the 2 GB heap and the Kotlin
-      # compiler inside Gradle (3.5 GB at peak, measured) fit with room to spare.
+      # The same checks as scripts/check.sh. A hosted runner has 16 GB: a 3 GB heap and the Kotlin compiler
+      # inside Gradle fit with room to spare. 2 GB, enough until Compose 1.11 and KSP2, ran out compiling the debug
+      # and release builds side by side.
       - name: Tests, lint, detekt, release build
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
@@ -63,7 +64,7 @@ jobs:
           TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
         run: >-
           ./gradlew --no-daemon --max-workers=2
-          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
+          -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
           -Pkotlin.compiler.execution.strategy=in-process
           -Phouselights.debugSignedRelease=true
           testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest assembleRelease
@@ -123,7 +124,7 @@ jobs:
           HOUSELIGHTS_TEST_SERVERS: "1"
         run: >-
           ./gradlew --no-daemon --max-workers=2
-          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
+          -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
           -Pkotlin.compiler.execution.strategy=in-process
           :app:testDebugUnitTest --tests 'app.houselights.servers.*'
 

@@ -3,10 +3,10 @@
 # scripts/preview.sh installs. Branches are merged locally and only main is pushed, so CI sees a branch
 # once it is on main: run this on the branch first.
 # Usage: scripts/check.sh [--heap SIZE] [--workers N] [--in-process] [other Gradle arguments…]
-#   --heap SIZE    Gradle's maximum heap, 2g for CI's (default: gradle.properties's)
+#   --heap SIZE    Gradle's maximum heap, 3g for CI's (default: gradle.properties's)
 #   --workers N    at most N tasks at a time (default: one per core)
 #   --in-process   compiles Kotlin inside Gradle's JVM, not in a daemon of its own: one JVM less
-# CI's settings, for a machine short of memory: scripts/check.sh --heap 2g --workers 2 --in-process --no-daemon
+# CI's settings, for a machine short of memory: scripts/check.sh --heap 3g --workers 2 --in-process --no-daemon
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,7 +16,7 @@ options=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --heap)
-            [[ $# -ge 2 ]] || { echo "--heap needs a size, such as 2g." >&2; exit 1; }
+            [[ $# -ge 2 ]] || { echo "--heap needs a size, such as 3g." >&2; exit 1; }
             options+=("-Dorg.gradle.jvmargs=-Xmx$2 -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8")
             shift 2
             ;;

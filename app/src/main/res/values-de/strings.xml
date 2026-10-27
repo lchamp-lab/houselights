@@ -236,7 +236,8 @@
     <string name="field_password">Passwort</string>
     <string name="placeholder_host">z. B. 192.168.1.10</string>
     <string name="placeholder_server_path">z. B. /media/filme</string>
-    <string name="placeholder_network_path">z. B. nfs://192.168.1.10/volume1/filme</string>
+    <!-- tools:ignore="Typos": Lint reads /volume1, how a Synology NAS names its first volume, and a shared folder named video as misspellings. -->
+    <string name="placeholder_network_path" tools:ignore="Typos">z. B. nfs://192.168.1.10/volume1/filme</string>
     <string name="placeholder_tmdb_key">z. B. 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export" tools:ignore="Typos">z. B. /volume1/video</string>
     <string name="placeholder_share">z. B. video</string>

@@ -37,6 +37,7 @@ import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.formatBytes
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalResources
 
 internal fun LazyListScope.storagePane(storage: StorageStats?) {
     item {
@@ -125,6 +126,7 @@ internal val ScanState.storageFull: Boolean get() = errors.values.any { it.kind 
 private fun StorageActions(storage: StorageStats?) {
     val vm = settingsViewModel()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var cleaned by remember { mutableStateOf<String?>(null) }
     var cleared by remember { mutableStateOf(false) }
@@ -140,10 +142,10 @@ private fun StorageActions(storage: StorageStats?) {
             onClick = {
                 scope.launch {
                     val result = vm.cleanup() ?: return@launch
-                    cleaned = if (result.deletedFiles == 0) context.getString(R.string.cleanup_nothing)
-                    else context.getString(
+                    cleaned = if (result.deletedFiles == 0) resources.getString(R.string.cleanup_nothing)
+                    else resources.getString(
                         R.string.cleanup_done,
-                        context.resources.getQuantityString(R.plurals.file_count, result.deletedFiles, result.deletedFiles),
+                        resources.getQuantityString(R.plurals.file_count, result.deletedFiles, result.deletedFiles),
                         formatBytes(context, result.freedBytes),
                     )
                 }

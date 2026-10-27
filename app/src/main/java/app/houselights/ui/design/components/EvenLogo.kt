@@ -10,6 +10,7 @@ import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import androidx.core.graphics.createBitmap
 
 /**
  * Sets a clear logo to a constant visual weight in a [boxWidth] by [boxHeight] px box ([planLogo]): its
@@ -23,7 +24,7 @@ internal class EvenLogo(private val boxWidth: Int, private val boxHeight: Int, p
         val pixels = IntArray(input.width * input.height)
         input.getPixels(pixels, 0, input.width, 0, 0, input.width, input.height)
         val plan = planLogo(pixels, input.width, input.height, boxWidth, boxHeight, enlarge) ?: return input
-        val output = Bitmap.createBitmap(plan.width, plan.height, Bitmap.Config.ARGB_8888)
+        val output = createBitmap(plan.width, plan.height)
         val ink = Rect(plan.left, plan.top, plan.right, plan.bottom)
         Canvas(output).drawBitmap(input, ink, Rect(0, 0, plan.width, plan.height), Paint(Paint.FILTER_BITMAP_FLAG))
         return output

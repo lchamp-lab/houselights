@@ -1,7 +1,7 @@
 package app.houselights.ui.settings
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import app.houselights.player.PlayerStatus
 import app.houselights.player.ZidooPlayer.Decision

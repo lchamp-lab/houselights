@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import android.annotation.SuppressLint
 
 /** Whether the app may read the player's own disks, and what grants it. */
 enum class DiskAccess {
@@ -53,10 +54,11 @@ class DiskPermission(
      * and the next is tried; with none, a computer grants it (README, Privacy). Not looked up beforehand, as Android 11
      * hides from the app the activities its manifest does not query.
      */
+    @SuppressLint("InlinedApi") // Android 11's action, a string the compiler copies in, used from Android 11 alone.
     fun settings(): List<Intent> {
         val app = Uri.fromParts("package", context.packageName, null)
         return listOfNotNull(
-            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, app).takeIf { sdk >= Build.VERSION_CODES.R },
+            if (sdk >= Build.VERSION_CODES.R) Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, app) else null,
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, app),
         )
     }

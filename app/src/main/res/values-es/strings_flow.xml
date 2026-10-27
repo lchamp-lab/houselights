@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- « Ajouter un dossier », the guided flow (#83): its steps, rows and messages. -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="flow_where_desc">Elija el dispositivo donde están sus vídeos.</string>
     <string name="nas_used">Ya utilizados</string>
     <string name="nas_found">NAS encontrados en la red</string>
@@ -39,9 +39,10 @@
     <string name="flow_path_desc">Escriba la ruta completa de su carpeta en el NAS.</string>
     <string name="flow_path_no_list_desc">Este NAS no da la lista de sus carpetas compartidas: escriba la ruta completa de su carpeta.</string>
     <string name="field_full_path">Ruta de la carpeta</string>
-    <string name="placeholder_full_path_nfs">Ej.: /volume1/video/Películas</string>
+    <!-- tools:ignore="Typos": Lint reads /volume1, how a Synology NAS names its first volume, and a shared folder named video as misspellings. -->
+    <string name="placeholder_full_path_nfs" tools:ignore="Typos">Ej.: /volume1/video/Películas</string>
     <string name="placeholder_full_path_smb">Ej.: video/Películas</string>
-    <string name="full_path_supporting_nfs">En un Synology, empieza por /volume1/.</string>
+    <string name="full_path_supporting_nfs" tools:ignore="Typos">En un Synology, empieza por /volume1/.</string>
     <string name="full_path_supporting_smb">Primero la carpeta compartida, luego las subcarpetas.</string>
     <string name="use_suggestion">Usar %s</string>
     <string name="use_suggestion_name">Usar «%s»</string>

@@ -290,6 +290,7 @@ private fun FlowRow(
     key: String,
     title: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     description: String? = null,
     rest: RowValue? = null,
     icon: ImageVector? = null,
@@ -297,7 +298,6 @@ private fun FlowRow(
     valueBreaks: Boolean = false,
     searching: Boolean = false,
     also: String? = null,
-    modifier: Modifier = Modifier,
 ) {
     val pressed = flow.pressed
     val failure = flow.rowFailures[key]

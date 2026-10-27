@@ -71,6 +71,8 @@ class LibraryViewModel(
     /** The source's provider; null while there is none (its connection could not be read back), and nothing loads. */
     private val provider: () -> MediaProvider?,
     private val library: Library,
+    // An empty handle for a test that gives none: the factory hands the real one.
+    //noinspection VisibleForTests
     private val saved: SavedStateHandle = SavedStateHandle(),
     /** The first page, prefetched as its door on home was chosen. */
     private val ahead: LibraryAhead? = null,

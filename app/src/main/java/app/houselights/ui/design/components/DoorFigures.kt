@@ -52,6 +52,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.min
 import kotlin.math.roundToInt
+import androidx.core.graphics.scale
 
 // A library door's count cut in its posters, at the one size every library door shares (DESIGN.md, Layout).
 
@@ -169,7 +170,7 @@ private class ScaledTint {
         val h = size.height.roundToInt().coerceAtLeast(1)
         val key = Triple(tint, w, h)
         scaled?.takeIf { made == key }?.let { return it }
-        return Bitmap.createScaledBitmap(tint, w, h, true).also {
+        return tint.scale(w, h).also {
             made = key
             scaled = it
         }

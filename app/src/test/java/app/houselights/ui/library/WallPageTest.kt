@@ -6,7 +6,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,7 +43,8 @@ class WallPageTest {
     private val provider = FakeProvider().apply { wall = (1..40).map { film("m$it", "Film $it") } }
 
     private fun open() {
-        compose.setTvContent { Wall(LibraryViewModel({ provider }, films), films, "Films", onOpenItem = {}) }
+        val vm = LibraryViewModel({ provider }, films)
+        compose.setTvContent { Wall(vm, films, "Films", onOpenItem = {}) }
         compose.waitForIdle()
     }
 

@@ -15,7 +15,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -71,7 +71,7 @@ class FocusReachTest {
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun aRowDrawsTheGlowWhole() {
         var inRow by mutableStateOf(true)
-        show { card -> if (inRow) MediaRow(header = null) { item { card() } } else alone(card) }
+        show { card -> if (inRow) MediaRow(header = null) { item { card() } } else Alone(card) }
         val row = glowAbove()
         compose.runOnIdle { inRow = false }
         val free = glowAbove()
@@ -86,7 +86,7 @@ class FocusReachTest {
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun aWallCutsTheGlowOnceFaded() {
-        show { card -> alone(card) }
+        show { card -> Alone(card) }
         val glow = glowAbove()
         // The last line of pixels the grid draws.
         val cut = glow[HlFocus.wallRoom.px() - 1]
@@ -154,7 +154,7 @@ class FocusReachTest {
 
     /** The card alone, where a row would place it. */
     @Composable
-    private fun alone(card: @Composable () -> Unit) =
+    private fun Alone(card: @Composable () -> Unit) =
         Box(Modifier.padding(start = HlSpace.safeH, top = HlFocus.room)) { card() }
 
     /** With focus on the card, its glow's level (0 to 255) at each pixel above its top, 0 at its edge. */

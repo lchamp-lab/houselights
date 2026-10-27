@@ -77,11 +77,14 @@ val updateRepo: String = (providers.gradleProperty("houselights.updateRepo").orN
 
 android {
     namespace = "app.houselights"
-    compileSdk = 35
+    // Android 16's SDK, which core and activity need; the app keeps Android 15's behaviour (targetSdk).
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.houselights"
         minSdk = 28 // Zidoo Z1000 Pro : Android 9
+        // Android 16's behaviour, once the app targets it, is a change of its own, tried on players first.
+        //noinspection OldTargetApi
         targetSdk = 35
         // The release's own is set with its variant (androidComponents, below).
         versionCode = 1
@@ -95,9 +98,12 @@ android {
         buildConfigField("boolean", "UPDATER", "false")
         buildConfigField("String", "UPDATE_REPO", "\"lchamp-lab/houselights\"")
         manifestPlaceholders["appLabel"] = "@string/app_name"
+    }
+
+    androidResources {
         // The languages of the interface (InterfaceLanguage.LANGUAGES): the libraries' strings in 80 others would only be
         // shipped. The libraries write Chinese by region.
-        resourceConfigurations +=
+        localeFilters +=
             listOf("de", "en", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt", "b+zh+Hans", "b+zh+Hant", "zh-rCN", "zh-rTW", "zh-rHK")
     }
 
@@ -176,7 +182,30 @@ android {
     lint {
         abortOnError = true
         checkReleaseBuilds = true
-        baseline = file("lint-baseline.xml")
+        // A warning fails the build as an error does, and no baseline keeps old ones (CONTRIBUTING, Checks).
+        warningsAsErrors = true
+        // Whether a dependency has a newer version is Dependabot's to say, in a pull request of its own: these checks
+        // read what was published the day they run, so a build that changed nothing would fail the day one comes out.
+        disable += setOf("GradleDependency", "AndroidGradlePluginVersion", "NewerVersionAvailable")
+        // Google Play's SDK Index checks read the index of the day too: a version it marks outdated, risky or out of
+        // policy without blocking it is reported at a warning, so an error here. Houselights is not on Google Play
+        // (README, Install), and a library's security fixes come from Dependabot's security updates.
+        disable += setOf(
+            "OutdatedLibrary", "RiskyLibrary", "PlaySdkIndexDeprecated", "PlaySdkIndexNonCompliant",
+            "PlaySdkIndexVulnerability", "PlaySdkIndexGenericIssues",
+        )
+        // The app's language is the default locale (InterfaceLanguage.applyDefault), and a change of it, the app's or
+        // the device's, makes the activity again: a composition that reads it is never left behind.
+        disable += "NonObservableLocale"
+        // Compose's rule for a library's modifiers: the app's helpers that hand a Modifier made of something else, a
+        // screen's focus keys (FocusMemory), a raise or a frame remembered, are no modifier factories to chain.
+        disable += "ModifierFactoryExtensionFunction"
+    }
+    // A bundle, should one be built, keeps every language in its APK: the interface's is chosen in the app.
+    bundle {
+        language {
+            enableSplit = false
+        }
     }
 }
 

@@ -10,6 +10,7 @@ import java.io.FileOutputStream
 import java.util.Locale
 import java.security.MessageDigest
 import kotlin.math.roundToInt
+import androidx.core.graphics.scale
 
 /** True for artwork cached from the NAS ("file://..."), as opposed to a TMDB or NFO URL. */
 internal fun String?.isCachedArtwork(): Boolean = this?.startsWith("file:") == true
@@ -22,6 +23,8 @@ data class CacheUsage(val files: Int, val bytes: Long)
 class ArtworkCache(
     private val dir: File,
     /** Usable bytes on the volume that holds the cache. */
+    // What is free now, not what clearing other apps' caches would give.
+    //noinspection UsableSpace
     private val freeSpace: () -> Long = { generateSequence(dir) { it.parentFile }.firstOrNull { it.exists() }?.usableSpace ?: 0 },
 ) {
     /**
@@ -98,7 +101,7 @@ class ArtworkCache(
         var sample = 1
         while (width / (sample * 2) >= targetWidth && height / (sample * 2) >= targetHeight) sample *= 2
         val decoded = BitmapFactory.decodeFile(from.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return false
-        val scaled = Bitmap.createScaledBitmap(decoded, targetWidth, targetHeight, true)
+        val scaled = decoded.scale(targetWidth, targetHeight)
         if (scaled !== decoded) decoded.recycle()
         try {
             val format = if (scaled.hasAlpha()) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG

@@ -8,13 +8,13 @@ import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import androidx.core.net.toUri
 
 /** The settings screen that may let the app install apps: its own first, then Security, then Android's settings. */
 enum class PermissionScreen {
@@ -71,7 +71,7 @@ class SessionInstaller(private val context: Context, private val statusReceiver:
             ?: PermissionScreen.NONE
 
     private fun intent(screen: PermissionScreen): Intent? = when (screen) {
-        PermissionScreen.APP -> Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+        PermissionScreen.APP -> Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:${context.packageName}".toUri())
         PermissionScreen.SECURITY -> Intent(Settings.ACTION_SECURITY_SETTINGS)
         PermissionScreen.SETTINGS -> Intent(Settings.ACTION_SETTINGS)
         PermissionScreen.NONE -> null

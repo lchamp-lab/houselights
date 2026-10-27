@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Trakt's activation page, https://auth.trakt.tv/activate, as a QR code (qrencode, level M): dark modules
      only, to be drawn on a light ground with a quiet zone around it. -->
+<!-- Kept as qrencode drew it, above Lint's 200 dp for an icon: a code to be read across the room, shown on one pane. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="VectorRaster"
     android:width="232dp"
     android:height="232dp"
     android:viewportWidth="29"

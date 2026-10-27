@@ -34,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithCache
@@ -624,9 +623,8 @@ internal fun Modifier.hang(by: Dp): Modifier = layout { measurable, constraints 
 }
 
 /** A focus group entered on [current] from any side; on the nearest option when it is out of range. */
-@OptIn(ExperimentalComposeUiApi::class)
 private fun Modifier.enterOn(requesters: List<FocusRequester>, current: Int): Modifier = this
-    .focusProperties { enter = { requesters.getOrNull(current) ?: FocusRequester.Default } }
+    .focusProperties { onEnter = { requesters.getOrNull(current)?.requestFocus() } }
     .focusGroup()
 
 @Composable

@@ -57,6 +57,7 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.sourceKindName
 import app.houselights.ui.util.wholePath
+import android.annotation.SuppressLint
 
 /** Display order of the options: NFS first, since it needs no password. */
 private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
@@ -210,6 +211,7 @@ private fun UnreadFolder(vm: AddFolderViewModel) {
  * modifier; the folder keeps its kind (its titles stay), which the panel beside shows.
  */
 @Composable
+@SuppressLint("ModifierParameter") // Not the choices' modifier: their first control's, which focus comes back to.
 private fun FolderChoices(vm: AddFolderViewModel, first: Modifier) {
     Row(Modifier.padding(bottom = HlSpace.xs), horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
         Column(Modifier.weight(1f)) {

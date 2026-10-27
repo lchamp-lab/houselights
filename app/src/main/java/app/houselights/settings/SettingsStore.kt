@@ -37,7 +37,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.encodeToString
 import java.util.UUID
 import app.houselights.core.CollectionThreshold
 import kotlin.coroutines.CoroutineContext

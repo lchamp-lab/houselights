@@ -34,6 +34,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.roundToInt
+import androidx.core.graphics.scale
 
 // The posters a library door's count is cut in, loaded off the main thread and kept for the app, and their tint.
 
@@ -50,7 +51,7 @@ class CutPoster(val bitmap: Bitmap, val tone: Color) {
     internal fun scaledTo(height: Int): Bitmap = scaledOrNull(height) ?: synchronized(this) {
         scaledOrNull(height) ?: run {
             val width = (bitmap.width * height / bitmap.height.toFloat()).roundToInt().coerceAtLeast(1)
-            Bitmap.createScaledBitmap(bitmap, width, height, true).also { scaled = it }
+            bitmap.scale(width, height).also { scaled = it }
         }
     }
 }

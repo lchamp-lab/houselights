@@ -148,6 +148,8 @@ class IdentifyViewModel(
     private val itemId: String,
     private val provider: () -> MediaProvider,
     private val work: CoroutineScope,
+    // An empty handle for a test that gives none: the factory hands the real one.
+    //noinspection VisibleForTests
     private val saved: SavedStateHandle = SavedStateHandle(),
     private val queue: Boolean = false,
 ) : ViewModel() {
