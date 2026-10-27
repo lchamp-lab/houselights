@@ -1,7 +1,6 @@
 package app.houselights.ui.settings
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -75,9 +74,9 @@ internal class NumbersViewModel(private val provider: () -> MediaProvider) : Vie
     }
 }
 
-/** The library in numbers for Settings; counting starts the first time its pane shows. */
+/** The library in numbers for Settings, made the first time its pane shows, which then counts it. */
 @Composable
 internal fun numbersViewModel(): NumbersViewModel {
     val app = appContainer()
-    return viewModel { NumbersViewModel(app::provider) }.also { vm -> LaunchedEffect(vm) { vm.count() } }
+    return viewModel { NumbersViewModel(app::provider) }
 }
