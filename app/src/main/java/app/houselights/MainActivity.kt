@@ -100,6 +100,7 @@ import androidx.navigation.NavController
 import app.houselights.ui.library.LibraryScreen
 import app.houselights.ui.onboarding.AddFolderFlowScreen
 import app.houselights.ui.onboarding.AddFolderScreen
+import app.houselights.ui.onboarding.FlowDone
 import app.houselights.ui.onboarding.JellyfinLoginScreen
 import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.onboarding.WelcomeScreen
@@ -454,20 +455,8 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                 // « Ajouter un dossier », its steps; Back from the first leaves it where it was opened. A folder of the
                 // player's disks is edited through them, Back from its disk's root returning to its sheet.
                 AddFolderFlowScreen(
-                    onLeave = {
-                        if (folderId != null) nav.settingsEntry()?.savedStateHandle?.set(FOLDER_SHEET, folderId)
-                        nav.popBackStack()
-                    },
-                    onDone = { done ->
-                        // A first folder or a new source: home, its first scan showing; another: Réglages, on its showcase.
-                        val opener = nav.settingsEntry()
-                        if (done.switched || opener == null) {
-                            goHome()
-                        } else {
-                            opener.savedStateHandle[ADDED_FOLDER] = done.folderId
-                            nav.popBackStack<Route.Settings>(inclusive = false)
-                        }
-                    },
+                    onLeave = { nav.leaveFolderSteps(folderId) },
+                    onDone = { done -> nav.folderStepsDone(done, ::goHome) },
                     editing = folderId,
                 )
             } else {
@@ -610,6 +599,29 @@ private fun NavController.settingsEntry(): NavBackStackEntry? = try {
     getBackStackEntry<Route.Settings>()
 } catch (_: IllegalArgumentException) {
     null
+}
+
+/**
+ * Back from « Ajouter un dossier »'s first step: where it was opened; from the disk's root of the folder [editing], its
+ * sheet in Settings, open again.
+ */
+private fun NavController.leaveFolderSteps(editing: Long?) {
+    if (editing != null) settingsEntry()?.savedStateHandle?.set(FOLDER_SHEET, editing)
+    popBackStack()
+}
+
+/**
+ * A folder added or edited through « Ajouter un dossier »'s steps ([done]): a first folder or a new source home
+ * ([goHome]), its first scan showing; another Réglages, on its showcase.
+ */
+private fun NavController.folderStepsDone(done: FlowDone, goHome: () -> Unit) {
+    val opener = settingsEntry()
+    if (done.switched || opener == null) {
+        goHome()
+    } else {
+        opener.savedStateHandle[ADDED_FOLDER] = done.folderId
+        popBackStack<Route.Settings>(inclusive = false)
+    }
 }
 
 /** The folder « Ajouter un dossier » just added or edited, handed to Settings beneath it so that its showcase takes focus. */
