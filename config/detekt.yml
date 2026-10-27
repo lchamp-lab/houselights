@@ -53,3 +53,110 @@ coroutines:
   InjectDispatcher:
     # Dispatchers.IO wraps blocking reads only (SMB, NFS, files), where they happen; tests run them for real.
     active: false
+
+# Compose's own rules (io.nlopez.compose.rules, https://mrmans0n.github.io/compose-rules/): every one on, the opt-in
+# Material2 too; what differs says why.
+Compose:
+  ComposableAnnotationNaming:
+    active: true
+  ComposableNaming:
+    active: true
+  ComposableParamOrder:
+    active: true
+  CompositionLocalAllowlist:
+    active: true
+    # The design system hands down the theme and what a surface lies in, as MaterialTheme does (DESIGN.md): colours and
+    # type, the ground and the film's light, the house lights and the backdrop, focus groups, rows, cards and plates,
+    # the sheet or header a control is in. Beside them, the launch screen, an error's fix, and the view model Settings'
+    # panes share. A new one is added here with its reason.
+    allowedCompositionLocals:
+      - LocalHlColors
+      - LocalHlType
+      - LocalGround
+      - LocalAmbient
+      - LocalHouseLights
+      - LocalBackdropSettled
+      - LocalBackdropRelay
+      - LocalGroupFocus
+      - LocalGroupFocused
+      - LocalRowFrame
+      - LocalRaise
+      - LocalArtworkRecede
+      - LocalCutPosters
+      - LocalPlate
+      - LocalRoomField
+      - LocalInSheet
+      - LocalInHeader
+      - LocalLaunchScreen
+      - LocalErrorFix
+      - LocalSettingsViewModel
+  CompositionLocalNaming:
+    active: true
+  ContentEmitterReturningValues:
+    active: true
+  ContentSlotReused:
+    active: true
+  ContentTrailingLambda:
+    active: true
+  DefaultsVisibility:
+    active: true
+  LambdaParameterEventTrailing:
+    active: true
+  LambdaParameterInRestartableEffect:
+    active: true
+  Material2:
+    # The app draws with its design system on tv-material 3: no Material 2.
+    active: true
+  ModifierClickableOrder:
+    active: true
+  ModifierComposed:
+    active: true
+  ModifierMissing:
+    active: true
+  ModifierNaming:
+    active: true
+  ModifierNotUsedAtRoot:
+    active: true
+  ModifierReused:
+    active: true
+  ModifierWithoutDefault:
+    active: true
+  MultipleEmitters:
+    active: true
+  MutableParams:
+    active: true
+  MutableStateAutoboxing:
+    active: true
+  MutableStateParam:
+    active: true
+  ParameterNaming:
+    active: true
+  PreviewAnnotationNaming:
+    active: true
+  PreviewNaming:
+    # Opt-in, and the app has no preview: the catalogue shows every component in its states (DESIGN.md, Catalogue).
+    active: false
+  PreviewPublic:
+    active: true
+  RememberContentMissing:
+    active: true
+  RememberMissing:
+    active: true
+  UnstableCollections:
+    # Opt-in, for a compiler without strong skipping: Kotlin 2's skips a composable handed the same list again, as the
+    # view models' states hand on the lists they keep, so List stays, with no immutable collections library.
+    active: false
+  ViewModelForwarding:
+    active: true
+    # A screen gets its view model (a default parameter) and hands it to the page that draws it, which tests compose
+    # with a view model over fake sources; the page's parts take its state and events.
+    allowedForwarding:
+      - DetailPage
+      - IdentifyPage
+      - ToIdentifyPage
+      - Wall
+      - AddFolderForm
+      - JellyfinLoginForm
+      - WatchScreen
+  ViewModelInjection:
+    active: true

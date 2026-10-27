@@ -328,8 +328,8 @@ val nfsClientWithoutDecoder = tasks.register<Jar>("nfsClientWithoutDecoder") {
     }
 }
 
-// detekt 1.23 is built against Kotlin 2.0; keep its own compiler instead of the project's.
-configurations.matching { it.name == "detekt" }.configureEach {
+// detekt 1.23 is built against Kotlin 2.0; keep its own compiler instead of the project's, for Compose's rules too.
+configurations.matching { it.name == "detekt" || it.name == "detektPlugins" }.configureEach {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.kotlin") useVersion(io.gitlab.arturbosch.detekt.getSupportedKotlinVersion())
     }
@@ -385,6 +385,9 @@ dependencies {
             because("CVE-2024-29857, CVE-2024-30171, CVE-2024-30172, CVE-2024-34447, CVE-2025-8916; pulled in by smbj")
         }
     }
+
+    // Compose's own rules for detekt: naming, modifiers, state, CompositionLocals (config/detekt.yml, Compose).
+    detektPlugins(libs.compose.rules.detekt)
 
     testImplementation(libs.junit)
     // XmlPullParser implementation for JVM tests (Android provides its own).

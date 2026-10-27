@@ -5,6 +5,9 @@ agp = "8.13.2"
 kotlin = "2.1.21"
 ksp = "2.1.21-2.0.2"
 detekt = "1.23.8"
+# Compose's rules for detekt: 0.4.24 is the last built by Kotlin 2.1 for detekt 1.23. 0.4.25 to 0.4.28, for detekt 1.23
+# too, are built by Kotlin 2.2, whose standard library detekt's own 2.0.21 lacks (SpillingKt); 0.5 on need detekt 2.
+compose-rules = "0.4.24"
 
 # Compose 1.12 (BOM 2026.08.00 on), core 1.19, lifecycle 2.11 and navigation 2.10 ask for AGP 9.1 and Android 17's SDK
 # (API 37): they come with AGP 9. Compose 1.11 is 2026.06.01's.
@@ -96,6 +99,8 @@ junit = { module = "junit:junit", version.ref = "junit" }
 kxml2 = { module = "net.sf.kxml:kxml2", version.ref = "kxml2" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 androidx-test-core = { module = "androidx.test:core-ktx", version.ref = "androidx-test-core" }
+
+compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "compose-rules" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
