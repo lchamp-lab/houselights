@@ -180,9 +180,13 @@ android {
     }
 }
 
-// The unit tests opt in once to the coroutines' test APIs still experimental (advanceUntilIdle, currentTime,
-// setMain…); the app's own code says so where it uses one.
+// A compiler warning fails every compilation of the app, its release's and its unit tests' included, so none is left
+// behind (CONTRIBUTING, Checks). The unit tests opt in once to the coroutines' test APIs still experimental
+// (advanceUntilIdle, currentTime, setMain…); the app's own code says so where it uses one.
 kotlin {
+    compilerOptions {
+        allWarningsAsErrors = true
+    }
     target.compilations.matching { it.name.endsWith("UnitTest") }.configureEach {
         compileTaskProvider.configure { compilerOptions.optIn.add("kotlinx.coroutines.ExperimentalCoroutinesApi") }
     }

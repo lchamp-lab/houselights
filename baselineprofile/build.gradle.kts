@@ -56,6 +56,13 @@ androidComponents {
     }
 }
 
+// A compiler warning fails the journeys' compilation, as it does the app's (CONTRIBUTING, Checks).
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors = true
+    }
+}
+
 detekt {
     buildUponDefaultConfig = true
     config.setFrom(rootProject.file("config/detekt.yml"), file("detekt.yml"))
