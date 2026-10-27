@@ -46,7 +46,8 @@ internal class FakeApps(private val context: Context) {
                     packageName = pkg
                     flags = if (system) ApplicationInfo.FLAG_SYSTEM else 0
                 }
-                this.signatures = signatures
+                // Its signing info alone, as the app reads it, which Robolectric's checkSignatures compares from
+                // Android 9 on rather than the signatures deprecated then.
                 signingInfo = signatures?.let(::signingInfo)
             }
         )
