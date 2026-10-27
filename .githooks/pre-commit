@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# The checks a commit passes before it is made, on what it stages alone, in a few seconds (CONTRIBUTING, Checks):
+#   - no trailing space, no blank line at a file's end, no conflict marker in the lines it adds;
+#   - the Kotlin it stages in ktlint's style (.editorconfig), as detekt holds it in CI;
+#   - the French strings it stages typeset as StringsTest wants them: a no-break space (U+00A0) before : ; ! ? and
+#     inside « », a typographic apostrophe and ellipsis;
+#   - no private key, token or key-looking assignment in the lines it adds.
+# Enabled by scripts/install.sh hooks (git config core.hooksPath .githooks). In an emergency, git commit --no-verify
+# skips it; CI still holds the code's style and the French typography.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+failed=0
+
+red() { if [[ -t 2 ]]; then printf '\033[31m%s\033[0m\n' "$1" >&2; else printf '%s\n' "$1" >&2; fi; }
+
+# What the commit adds, copies, modifies or renames: never a file it deletes.
+staged=()
+while IFS= read -r -d '' file; do staged+=("$file"); done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+[[ ${#staged[@]} -eq 0 ]] && exit 0
+
+# 1. Whitespace, by git's own check on the lines added, but where files are kept as their tools write them (CRLF in
+#    the Windows wrapper, Room's schemas, the baseline profiles, third_party).
+if ! whitespace="$(git diff --cached --check -- . ':!*.bat' ':!app/schemas' ':!app/src/main/generated' \
+    ':!third_party')"; then
+    red "Trailing spaces, a blank line at a file's end or a conflict marker, in the lines staged:"
+    printf '%s\n' "$whitespace" >&2
+    failed=1
+fi
+
+# 2. ktlint on the staged Kotlin, as staged (not as the working tree has it), with the staged .editorconfig.
+kotlin=()
+for file in "${staged[@]}"; do
+    case "$file" in *.kt | *.kts) kotlin+=("$file") ;; esac
+done
+if [[ ${#kotlin[@]} -gt 0 ]]; then
+    stage="$(mktemp -d)"
+    trap 'rm -rf "$stage"' EXIT
+    printf '%s\0' .editorconfig "${kotlin[@]}" | git checkout-index --prefix="$stage/" -z --stdin
+    if ! report="$(cd "$stage" && "$ROOT/scripts/ktlint.sh" --offline --relative "${kotlin[@]}" 2>&1)"; then
+        if [[ "$report" == *"scripts/install.sh hooks"* || "$report" == *"needs Java"* ]]; then
+            red "ktlint could not run:"
+            printf '%s\n' "$report" >&2
+        else
+            red "Not in ktlint's style (.editorconfig):"
+            printf '%s\n' "$report" | grep -v -e '^$' -e 'Summary error count' -e '^  standard:' \
+                -e "can be autocorrected using 'ktlint --format'" >&2 || true
+            echo "Fix them with: scripts/ktlint.sh --format <files>, then git add them." >&2
+        fi
+        failed=1
+    fi
+fi
+
+# 3. The French strings, as StringsTest checks them, on the staged files (python3, which scripts/install.sh uses too).
+french=()
+for file in "${staged[@]}"; do
+    case "$file" in app/src/main/res/values-fr/strings*.xml) french+=("$file") ;; esac
+done
+if [[ ${#french[@]} -gt 0 ]]; then
+    if ! command -v python3 > /dev/null; then
+        echo "No python3: the French strings are not checked here (StringsTest checks them in CI)." >&2
+    else
+        for file in "${french[@]}"; do
+            if ! typeset="$(git show ":$file" | python3 -c '
+import sys
+import xml.etree.ElementTree as ET
+
+NB = " "
+
+def problems(text):
+    found = []
+    if "\x27" in text:
+        found.append("a straight apostrophe: ’")
+    if "..." in text:
+        found.append("three dots: …")
+    if "→" in text:
+        found.append("an arrow in a sentence: words")
+    for i, ch in enumerate(text):
+        before = text[i - 1] if i > 0 else ""
+        after = text[i + 1] if i + 1 < len(text) else ""
+        ratio = ch == ":" and before.isdigit() and after.isdigit()
+        if ch in ":;!?" and before != NB and not ratio and not text.startswith("://", i):
+            found.append("no no-break space before " + ch)
+        elif ch == "«" and after != NB:
+            found.append("no no-break space after «")
+        elif ch == "»" and before != NB:
+            found.append("no no-break space before »")
+    return found
+
+try:
+    root = ET.fromstring(sys.stdin.buffer.read())
+except ET.ParseError as error:
+    print("    not XML: %s" % error)
+    sys.exit(1)
+bad = False
+for resource in root:
+    if resource.tag not in ("string", "plurals", "string-array"):
+        continue
+    if resource.tag == "string":
+        texts = ["".join(resource.itertext())]
+    else:
+        texts = ["".join(item.itertext()) for item in resource.iter("item")]
+    for text in texts:
+        found = problems(text)
+        if found:
+            print("    %s: %s\n        %s" % (resource.get("name"), "; ".join(dict.fromkeys(found)), text))
+            bad = True
+sys.exit(1 if bad else 0)
+')"; then
+                red "French typography in $file:"
+                printf '%s\n' "$typeset" >&2
+                failed=1
+            fi
+        done
+    fi
+fi
+
+# 4. Secrets, in the lines added: a private key, a token of a known shape, or a long value, quoted or a properties
+#    file's, given to a name that says key, secret, token or password. A line saying "not a secret" (a test's fake key)
+#    is let through.
+quote="[\"']"
+named="(key|secret|token|passw(or)?d|passphrase)[A-Za-z0-9_.-]*$quote?[[:space:]]*[:=][[:space:]]*"
+value='[A-Za-z0-9+/_=-]{20,}'
+secrets="$(git diff --cached -U0 --no-color --no-ext-diff --src-prefix=a/ --dst-prefix=b/ --diff-filter=ACMR \
+    -- . ':!third_party' | awk '
+    /^diff --git / { hunk = 0; next }
+    !hunk && /^\+\+\+ b\// { file = substr($0, 7); next }
+    /^@@ / { hunk = 1; split($3, start, ","); line = substr(start[1], 2) - 1; next }
+    hunk && /^\+/ { line++; print file ":" line ": " substr($0, 2) }
+' | grep -v -i 'not a secret' | grep -E -i \
+    -e '-----BEGIN ([A-Z0-9]+ )*PRIVATE KEY( BLOCK)?-----' \
+    -e 'AKIA[0-9A-Z]{16}' \
+    -e 'AIza[0-9A-Za-z_-]{35}' \
+    -e 'gh[pousr]_[A-Za-z0-9]{36}' \
+    -e 'github_pat_[A-Za-z0-9_]{22,}' \
+    -e 'glpat-[A-Za-z0-9_-]{20}' \
+    -e 'xox[abposr]-[A-Za-z0-9-]{10,}' \
+    -e 'sk-(ant|proj)-[A-Za-z0-9_-]{20,}' \
+    -e "$named$quote$value$quote" \
+    -e "^[^:]+:[0-9]+: [[:space:]]*[A-Za-z0-9_.-]*$named$value[[:space:]]*\$" \
+    || true)"
+if [[ -n "$secrets" ]]; then
+    red "What looks like a secret, in the lines staged (never commit a key: local.properties, CONTRIBUTING, Setup):"
+    printf '%s\n' "$secrets" | cut -c 1-200 >&2
+    echo "A test's fake key passes with a comment saying \"not a secret\" on its line." >&2
+    failed=1
+fi
+
+if [[ $failed -ne 0 ]]; then
+    red "Commit stopped by .githooks/pre-commit. In an emergency, git commit --no-verify skips it."
+    exit 1
+fi

@@ -10,6 +10,7 @@ Requirements: JDK 17 and the Android SDK (platform 36).
 ```sh
 echo "tmdb.apiKey=YOUR_KEY" >> local.properties           # optional, free at themoviedb.org
 echo "trakt.clientId=YOUR_CLIENT_ID" >> local.properties  # optional, see README, Trakt
+scripts/install.sh hooks                                  # the pre-commit hook (Checks)
 scripts/preview.sh                                        # start the Android TV 9 emulator
 ./gradlew installDebug
 ```
@@ -45,6 +46,9 @@ Run `scripts/check.sh` before pushing or opening a pull request. It runs what CI
     :baselineprofile:compileNonMinifiedReleaseKotlin
 ```
 
+In short: no warning and no baseline, anywhere; the code in ktlint's style; a rule set aside only where it stands, with
+its reason, or where it never fits, with its reason too.
+
 - Without a signing key, the release is signed with the debug key for the check.
 - On a machine short of memory: `scripts/check.sh --heap 3g --workers 2 --in-process --no-daemon`.
 - `detekt` reads sources only; `detektDebug` and `detektDebugUnitTest` add type-aware rules (dispatchers,
@@ -55,7 +59,17 @@ Run `scripts/check.sh` before pushing or opening a pull request. It runs what CI
   rules run: IntelliJ IDEA's code style at 140 columns, a trailing comma ending a list over several lines, the imports
   in one block, java, javax and kotlin last. detekt holds the code and the build scripts to it (`config/detekt.yml`,
   `formatting`), and `./gradlew detekt --auto-correct` fixes what it reports. `.editorconfig` gives editors and ktlint
-  the same settings: a setting changed in one is changed in the other.
+  the same settings: a setting changed in one is changed in the other. A detekt update keeps ktlint's version in step
+  in `scripts/ktlint.sh`, with its SHA-256.
+- **The pre-commit hook** (`.githooks/pre-commit`): `scripts/install.sh hooks` turns it on for the clone and its
+  worktrees (`git config core.hooksPath .githooks`) and fetches the ktlint it runs, once, into `~/.cache/houselights`,
+  its SHA-256 checked (`scripts/ktlint.sh`), so that a commit never needs the network. On what a commit stages alone,
+  in a few seconds, it stops one that adds a trailing space, a blank line at a file's end or a conflict marker; Kotlin
+  out of ktlint's style, which `scripts/ktlint.sh --format <files>` fixes; a French string without its no-break space
+  (U+00A0) before `:` `;` `!` `?` and inside « », or with a straight apostrophe or three dots (`StringsTest`'s rules);
+  or what looks like a secret: a private key, a token, a long value given to a key, secret, token or password (a
+  test's fake key passes with `not a secret` on its line). In an emergency, `git commit --no-verify` skips it: CI
+  still holds the style and the strings.
 - detekt runs Compose's rules too ([compose-rules](https://mrmans0n.github.io/compose-rules/), `config/detekt.yml`,
   `Compose`): a composable that draws takes a `modifier` defaulting to `Modifier`, for its root, after what it needs;
   a screen's view model is a default parameter, handed to its page alone, whose parts take its state and events; an
@@ -70,6 +84,14 @@ Run `scripts/check.sh` before pushing or opening a pull request. It runs what CI
   else `@Suppress` it where it stands with its reason in a line (a deprecated API that Android 9 needs).
   `SuppressionGuardTest` fails on a `@Suppress`, for either, that gives none.
 - The design system has its own guard tests (DESIGN.md, *Guard*).
+- **What GitHub scans.** CodeQL analyses the app's Kotlin on every pull request, on main and the release branches as
+  they move, and each week (`.github/workflows/codeql.yml`; its alerts under Security, Code scanning). GitHub's
+  dependency graph holds the libraries the release ships, which `.github/workflows/dependencies.yml` submits, and on a
+  pull request its Dependency Review fails one that brings a library with a known vulnerability; Netty 3's advisories
+  are set aside there with their reason (its HTTP and compression codecs, which the app never uses). Dependabot
+  proposes the actions' upgrades each week and the Gradle libraries' each month, each time in one pull request, within
+  their majors but for what the catalog holds back (`.github/dependabot.yml`); a security fix comes at once, in a pull
+  request of its own.
 - **Against real servers.** `tools/test-servers` starts a Samba and an NFS NAS and a Jellyfin server in Docker, on
   generated samples and on 127.0.0.1 alone, which the emulator reaches at 10.0.2.2 (and, for the tests, the same NFS
   NAS sending its replies in fragments, on 127.0.0.2): try the app there without a NAS at hand. Their tests

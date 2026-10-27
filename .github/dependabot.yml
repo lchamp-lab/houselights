@@ -1,7 +1,6 @@
 version: 2
 updates:
-  # The workflows' actions, pinned by SHA: one pull request a week for them all. Gradle's own dependencies are
-  # upgraded by hand (CONTRIBUTING); their security fixes come from Dependabot's security updates.
+  # The workflows' actions, pinned by SHA: one pull request a week for them all.
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -12,3 +11,45 @@ updates:
     ignore:
       # v5.0.2 is v5's last release, and v6 caches through a proprietary component (ci.yml): bumped by hand.
       - dependency-name: gradle/actions
+
+  # The Gradle build's libraries, plugins and wrapper (gradle/libs.versions.toml): one pull request a month for them
+  # all, within their majors, the Compose BOM's year counting as one. A major is a step of its own, by hand, and so is
+  # what the catalog says waits for one: AGP 9, which Compose 1.12 and the AndroidX libraries below ask for, and Kotlin
+  # 2.2, whose standard library detekt 1.23 cannot read. A library's security fix comes as soon as it is known, in a
+  # pull request of its own (Dependabot's security updates, on the graph .github/workflows/dependencies.yml submits).
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      gradle:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Kotlin 2.1's last, for detekt 1.23, and KSP with it.
+      - dependency-name: "org.jetbrains.kotlin.*"
+        versions: ["[2.2,)"]
+      - dependency-name: "com.google.devtools.ksp"
+        versions: ["[2.2,)"]
+      # Built by Kotlin 2.2 from 0.4.25 on.
+      - dependency-name: "io.nlopez.compose.rules:*"
+        versions: ["[0.4.25,)"]
+      # Compose 1.12 (BOM 2026.08.00 on), core 1.19, lifecycle 2.11 and navigation 2.10 ask for AGP 9.1.
+      - dependency-name: "androidx.compose:compose-bom"
+        versions: ["[2026.08.00,)"]
+      - dependency-name: "androidx.core:core-ktx"
+        versions: ["[1.19,)"]
+      - dependency-name: "androidx.lifecycle:*"
+        versions: ["[2.11,)"]
+      - dependency-name: "androidx.navigation:*"
+        versions: ["[2.10,)"]
+      # They bring Kotlin 2.2's standard library.
+      - dependency-name: "androidx.datastore:*"
+        versions: ["[1.3,)"]
+      - dependency-name: "androidx.palette:*"
+        versions: ["[1.1,)"]
+      - dependency-name: "org.jetbrains.kotlinx:kotlinx-coroutines-*"
+        versions: ["[1.11,)"]
+      - dependency-name: "org.jetbrains.kotlinx:kotlinx-serialization-*"
+        versions: ["[1.9,)"]

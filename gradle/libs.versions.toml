@@ -101,7 +101,7 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 androidx-test-core = { module = "androidx.test:core-ktx", version.ref = "androidx-test-core" }
 
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "compose-rules" }
-# ktlint's rules for detekt, at detekt's version: ktlint 0.50.0, which the pre-commit hook runs too (.githooks).
+# ktlint's rules for detekt, at detekt's version: ktlint 0.50.0, which scripts/ktlint.sh pins for the pre-commit hook.
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 
 [plugins]
