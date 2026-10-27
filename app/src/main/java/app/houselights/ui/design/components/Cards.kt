@@ -140,8 +140,8 @@ fun MediaRow(
     Column(modifier.scrollsAsBlock()) {
         if (heading != null || header != null || pending != null) {
             RowHeading(
-                Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea(),
                 RowNotes(count, news, pending),
+                Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea(),
             ) { line -> if (heading != null) Box(line) { heading() } else if (header != null) SectionHeader(header, line) }
         }
         val group = remember { GroupFocus() }
@@ -173,7 +173,7 @@ private class RowNotes(val count: String?, val news: Int, val pending: String?)
 
 /** A row's title, then its count, its news and what it is pending ([notes]) in captions on the title's baseline. */
 @Composable
-private fun RowHeading(modifier: Modifier, notes: RowNotes, title: @Composable (Modifier) -> Unit) {
+private fun RowHeading(notes: RowNotes, modifier: Modifier = Modifier, title: @Composable (Modifier) -> Unit) {
     val c = Hl.colors
     val news = notes.news
     Row(modifier) {
@@ -215,7 +215,7 @@ fun ArtworkSurface(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = HlShapes.artwork,
-    onFocused: () -> Unit = {},
+    onFocus: () -> Unit = {},
     stateDescription: String? = null,
     readAs: String? = null,
     acts: Boolean = false,
@@ -250,7 +250,7 @@ fun ArtworkSurface(
         modifier = modifier
             .rememberedInGroup(group, member)
             .then(reading)
-            .onFocusChanged { if (it.isFocused) onFocused() },
+            .onFocusChanged { if (it.isFocused) onFocus() },
         onLongClick = onLongClick,
         onLongClickLabel = onLongClickLabel,
         glow = { if (light != null) own.value else ambient.glow() },
@@ -288,7 +288,7 @@ val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
 
 /**
  * Card artwork; [fallback] replaces it when missing or failing (NAS asleep); without one, the surface shows.
- * [picture] styles the loaded image only. Decoded at its laid out size, or at [size] (px) when given, as
+ * [pictureModifier] styles the loaded image only. Decoded at its laid out size, or at [size] (px) when given, as
  * a preload asks for it, cropped about [alignment]. Receding dims and desaturates it through its colour filter, not
  * a layer; a picture that never recedes may take a [filter] of its own.
  */
@@ -297,8 +297,8 @@ fun ArtworkImage(
     url: String?,
     description: String?,
     modifier: Modifier = Modifier,
+    pictureModifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
-    picture: Modifier = Modifier,
     size: IntSize? = null,
     alignment: Alignment = Alignment.Center,
     filter: ColorFilter? = null,
@@ -319,7 +319,7 @@ fun ArtworkImage(
             alignment = alignment,
             colorFilter = filter ?: recedeFilters[step],
             onError = { failed = true },
-            modifier = modifier.then(picture),
+            modifier = modifier.then(pictureModifier),
         )
     }
 }
@@ -386,7 +386,7 @@ fun PosterCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     width: Dp? = HlSize.poster,
-    onFocused: () -> Unit = {},
+    onFocus: () -> Unit = {},
 ) {
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
     val px = posterPx(width)
@@ -396,7 +396,7 @@ fun PosterCard(
     ArtworkSurface(
         onClick,
         sized.aspectRatio(HlSize.POSTER_RATIO),
-        onFocused = onFocused,
+        onFocus = onFocus,
         stateDescription = cardState(item),
         light = poster,
     ) {
@@ -420,7 +420,7 @@ fun LandscapeCard(
     title: String? = null,
     number: String? = null,
     facts: List<String?> = emptyList(),
-    onFocused: () -> Unit = {},
+    onFocus: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
 ) {
@@ -435,7 +435,7 @@ fun LandscapeCard(
                 .aspectRatio(STILL_SHAPE)
                 .then(if (keyed) Modifier.onFocusChanged { focused.value = it.isFocused } else Modifier),
             shape = HlShapes.wide,
-            onFocused = onFocused,
+            onFocus = onFocus,
             stateDescription = cardState(item),
             light = still,
             onLongClick = onLongClick,
@@ -506,7 +506,13 @@ private fun CardName(name: String, number: String?) {
  * [key] sits at the end of the first line, centred on it, its room kept whether it shows or not, so nothing moves.
  */
 @Composable
-private fun CardCaption(name: String?, number: String?, facts: List<String?>?, modifier: Modifier, key: (@Composable () -> Unit)? = null) {
+private fun CardCaption(
+    name: String?,
+    number: String?,
+    facts: List<String?>?,
+    modifier: Modifier = Modifier,
+    key: (@Composable () -> Unit)? = null,
+) {
     Layout(
         contents = listOf(
             { if (name != null) CardName(name, number) },
@@ -557,7 +563,7 @@ private val Placeable?.base: Int get() = this?.get(FirstBaseline)?.takeIf { it !
  */
 @Composable
 internal fun CardColumn(
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -722,7 +728,7 @@ fun PosterStrip(
  * watched check or new-title ember dot.
  */
 @Composable
-private fun StatusMark(item: MediaItem, modifier: Modifier) {
+private fun StatusMark(item: MediaItem, modifier: Modifier = Modifier) {
     val unplayed = item.user.unplayedCount ?: 0
     val c = Hl.colors
     val plate = c.background.copy(alpha = HlAlpha.VEIL)
@@ -747,7 +753,7 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
  * plate, never ember, as it may be no failure; it recedes with it.
  */
 @Composable
-private fun HeldMark(modifier: Modifier) {
+private fun HeldMark(modifier: Modifier = Modifier) {
     val c = Hl.colors
     Box(
         modifier
@@ -767,7 +773,8 @@ fun MediaItem.wearsNewDot(): Boolean = !held && (user.unplayedCount ?: 0) == 0 &
 
 /** A title new to the library: a solid ember dot ringed in black, so it stands off any picture; it recedes with it. */
 @Composable
-private fun NewDot(modifier: Modifier) {
+private fun NewDot(modifier: Modifier = Modifier) {
+
     val c = Hl.colors
     val ring = c.background.copy(alpha = HlAlpha.VEIL)
     val recede = LocalArtworkRecede.current

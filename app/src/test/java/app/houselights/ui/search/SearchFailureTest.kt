@@ -39,9 +39,8 @@ class SearchFailureTest {
     private fun results(found: Found) {
         val shown = mutableStateOf<Found?>(found)
         val lit = mutableStateOf<MediaItem?>(null)
-        val focused = mutableStateOf<String?>(null)
         compose.setTvContent {
-            Results(shown, lit, focused, rememberFocusMemory(), onOpenItem = {}, onOpenPerson = {}, onRetry = { retries++ })
+            Results(shown, lit, onItemFocus = {}, rememberFocusMemory(), onOpenItem = {}, onOpenPerson = {}, onRetry = { retries++ })
         }
     }
 

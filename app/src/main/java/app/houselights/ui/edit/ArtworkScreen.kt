@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -69,15 +70,20 @@ import app.houselights.ui.util.skeletonDelayPassed
  * preview, so its choices are larger, right under the header.
  */
 @Composable
-fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
-    val app = appContainer()
-    val vm: ArtworkViewModel = viewModel(key = "artwork-$itemId-$kind", factory = ArtworkViewModel.factory(app, itemId, kind))
+fun ArtworkScreen(
+    itemId: String,
+    kind: ArtworkKind,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+    vm: ArtworkViewModel = viewModel(key = "artwork-$itemId-$kind", factory = ArtworkViewModel.factory(appContainer(), itemId, kind)),
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
     val choices = state.choices
     // Once saved, return to the title when the app is resumed; the choice is saved even after Back.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(state.done) { if (state.done) lifecycle.withResumed { onDone() } }
+    val currentOnDone by rememberUpdatedState(onDone)
+    LaunchedEffect(state.done) { if (state.done) lifecycle.withResumed { currentOnDone() } }
 
     var focused by remember { mutableStateOf<ArtworkOption?>(null) }
     // Follows focus once it settles, so no image loads per step; the one in use until a choice is focused.
@@ -85,7 +91,7 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
     val preview = shown ?: choices?.selected
     val backdrop = if (kind == ArtworkKind.BACKDROP) preview?.image else item?.backdrop
 
-    AmbientBackdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full) {
+    AmbientBackdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full, modifier) {
         Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
             Header(kind, item, choices, state.onlineError)
             if (kind == ArtworkKind.POSTER) {
@@ -191,7 +197,7 @@ private fun Choices(
                 aspectRatio = kind.aspectRatio,
                 fit = kind == ArtworkKind.LOGO,
                 placeholder = item.title.takeIf { option.origin == ArtworkOrigin.NONE },
-                onFocused = { onFocus(option) },
+                onFocus = { onFocus(option) },
                 modifier = if (i == selectedIndex) Modifier.focusRequester(selectedFocus) else Modifier,
             )
         }

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -133,9 +132,12 @@ data class HomeActions(
 
 /** Home; [playProblem] says why a play asked from it did not start. */
 @Composable
-fun HomeScreen(actions: HomeActions, playProblem: UiError? = null) {
+fun HomeScreen(
+    actions: HomeActions,
+    playProblem: UiError? = null,
+    vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(appContainer())),
+) {
     val app = appContainer()
-    val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
     ReloadOnLibraryChange(vm.libraryShown) { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
     val search = actions.onOpenSearch.takeIf { app.providerOrNull()?.capabilities?.search == true }
@@ -178,9 +180,9 @@ internal fun HomeGrid(
     // Titles of a folder held while their files are missing, until answered: said where home says how things stand.
     val held = state.held.takeIf { content is HomeContent.Rows }
     val case = plan?.case
-    ClosedWithout(options, case != null)
-    ClosedWithout(listing, plan?.doors?.any { it is Door.Libraries } == true)
-    ClosedWithout(heldOpen, held != null)
+    ClosedWithout(case != null) { options.value = false }
+    ClosedWithout(plan?.doors?.any { it is Door.Libraries } == true) { listing.value = false }
+    ClosedWithout(held != null) { heldOpen.value = false }
     FocusAfterNote(gone = held == null, memory, plan?.start)
     // Whole for the launch screen once the grid shows with its doors read, or a message.
     val whole = content !is HomeContent.Loading && (plan == null || state.doors?.shelvesRead == true)
@@ -198,7 +200,7 @@ internal fun HomeGrid(
     }
     if (listing.value && plan != null) LibrariesSheet(plan, state.sagas, actions) { listing.value = false }
     if (options.value && case != null) CaseOptions(case, actions, playProblem) { options.value = false }
-    HeldSheetOf(heldOpen, held, actions)
+    HeldSheetOf(heldOpen.value, held, actions) { heldOpen.value = false }
     // A version found: its sheet, opened by the app once home's grid is drawn and no sheet lies over it, once per version.
     UpdateOnHome(updates, drawn = whole, grid = plan != null)
 }
@@ -245,15 +247,15 @@ private fun headEnd(
     else -> null
 }
 
-/** The sheet of the titles [held] while [open], its answers home's [actions]. */
+/** The sheet of the titles [held] while [open], its answers home's [actions], until [onDismiss]. */
 @Composable
-private fun HeldSheetOf(open: MutableState<Boolean>, held: HeldTitles?, actions: HomeActions) {
-    if (!open.value || held == null) return
+private fun HeldSheetOf(open: Boolean, held: HeldTitles?, actions: HomeActions, onDismiss: () -> Unit) {
+    if (!open || held == null) return
     HeldSheet(
         held,
         onKeep = { actions.onKeepHeld(held) },
         onRemove = { actions.onRemoveHeld(held) },
-        onDismiss = { open.value = false },
+        onDismiss = onDismiss,
     )
 }
 
@@ -275,10 +277,10 @@ private fun FocusAfterNote(gone: Boolean, memory: FocusMemory, start: String?) {
 /** Voir, at the end of home's head, in the screen's focus memory. */
 private val HELD_SEE = FocusKey.action("held")
 
-/** A [sheet] whose [element] went with a reload closes, and does not open again by itself when it comes back. */
+/** A sheet whose [element] went with a reload closes ([close]), and does not open again by itself when it comes back. */
 @Composable
-private fun ClosedWithout(sheet: MutableState<Boolean>, element: Boolean) {
-    SideEffect { if (!element) sheet.value = false }
+private fun ClosedWithout(element: Boolean, close: () -> Unit) {
+    SideEffect { if (!element) close() }
 }
 
 /** Home's grid for [state]'s rows, once there are; null for a message or while loading. */
@@ -323,7 +325,7 @@ private fun Grid(
         },
         heights = heights,
         modifier = Modifier.padding(horizontal = HlSpace.safeH),
-    ) { modifier -> CaseOf(plan.case, actions, onOptions, modifier, playProblem?.let { CaseFailure(it, state.status?.source) }) }
+    ) { modifier -> CaseOf(plan.case, actions, onOptions, playProblem?.let { CaseFailure(it, state.status?.source) }, modifier) }
 }
 
 /** Why the case did not play, and the [source] it played from (null unknown), to name what is out of reach. */
@@ -353,7 +355,7 @@ private fun CaseFailure.reason(): Int = when (error) {
  * again), else its own; a click dismisses it, a long one keeps it for the options.
  */
 @Composable
-private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit, modifier: Modifier, failed: CaseFailure?) {
+private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit, failed: CaseFailure?, modifier: Modifier = Modifier) {
     if (case == null) {
         // Nothing to propose: the grid moves focus to its first door.
         Box(modifier.fillMaxSize().clearAndSetSemantics {})
@@ -415,7 +417,7 @@ private fun DoorOf(
     actions: HomeActions,
     figure: TextUnit,
     onList: () -> Unit,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
 ) {
     when (door) {
         is Door.Next, is Door.AlsoResume, is Door.News -> WatchDoor(door, actions, modifier)
@@ -430,7 +432,7 @@ private fun DoorOf(
  * are one door, so focus stays on it as it changes from one to the other.
  */
 @Composable
-private fun WatchDoor(door: Door, actions: HomeActions, modifier: Modifier) {
+private fun WatchDoor(door: Door, actions: HomeActions, modifier: Modifier = Modifier) {
     if (door is Door.News) {
         HomeDoor(
             stringResource(R.string.home_news),
@@ -456,7 +458,7 @@ private fun WatchDoor(door: Door, actions: HomeActions, modifier: Modifier) {
 
 /** The libraries past the third, behind one door: their number cut in their posters; OK lists them. */
 @Composable
-private fun LibrariesDoor(door: Door.Libraries, figure: TextUnit, onList: () -> Unit, modifier: Modifier) {
+private fun LibrariesDoor(door: Door.Libraries, figure: TextUnit, onList: () -> Unit, modifier: Modifier = Modifier) {
     val cut = rememberCutPosters(door.posters)
     val name = stringResource(R.string.home_libraries)
     val count = formatCount(door.shelves.size.toLong())
@@ -469,7 +471,7 @@ private fun LibrariesDoor(door: Door.Libraries, figure: TextUnit, onList: () -> 
 
 /** A tool's door: the sagas, the search, the settings and the app's state. */
 @Composable
-private fun ToolDoor(door: Door, state: HomeState, scan: StateFlow<ScanState>, actions: HomeActions, modifier: Modifier) {
+private fun ToolDoor(door: Door, state: HomeState, scan: StateFlow<ScanState>, actions: HomeActions, modifier: Modifier = Modifier) {
     when (door) {
         is Door.Sagas -> HomeDoor(
             stringResource(R.string.library_collections),
@@ -496,7 +498,7 @@ private fun ToolDoor(door: Door, state: HomeState, scan: StateFlow<ScanState>, a
 
 /** A library's door: its count cut in its posters, and what is new in it. */
 @Composable
-private fun LibraryDoor(door: Door.Library, state: HomeState, actions: HomeActions, figure: TextUnit, modifier: Modifier) {
+private fun LibraryDoor(door: Door.Library, state: HomeState, actions: HomeActions, figure: TextUnit, modifier: Modifier = Modifier) {
     val library = door.shelf.library
     val cut = rememberCutPosters(door.posters)
     val sagas = state.sagas.takeIf { library.kind == LibraryKind.MOVIES }
@@ -721,7 +723,7 @@ private fun quitOnSecondBack(atStart: Boolean, where: () -> Any?): Boolean {
 
 /** The first scan's counter; only it reads [progress]. */
 @Composable
-private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier) {
+private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier = Modifier) {
     val scan by progress.collectAsStateWithLifecycle()
     val tmdbIssue = scan.tmdbIssue?.toUiError()
     Column(modifier) {
@@ -755,7 +757,7 @@ internal fun scanNoteAction(issue: UiError?): ErrorAction? = issue?.action?.take
 
 /** No rows and nothing loading: the first scan, a failure, a scan that failed, or a library still empty. */
 @Composable
-private fun NoRows(content: HomeContent.Message, progress: StateFlow<ScanState>, actions: HomeActions, modifier: Modifier) {
+private fun NoRows(content: HomeContent.Message, progress: StateFlow<ScanState>, actions: HomeActions, modifier: Modifier = Modifier) {
     when (content) {
         HomeContent.FirstScan -> FirstScan(progress, modifier)
         is HomeContent.Failed -> HlErrorState(content.error, actions.onReload, modifier, content.retrying)
@@ -769,7 +771,7 @@ private fun NoRows(content: HomeContent.Message, progress: StateFlow<ScanState>,
 
 /** Folders without a film yet: an action to add the folder holding them, and a link to the folders. */
 @Composable
-private fun NoFilms(actions: HomeActions, modifier: Modifier) {
+private fun NoFilms(actions: HomeActions, modifier: Modifier = Modifier) {
     HlEmptyState(
         stringResource(R.string.home_empty_title),
         modifier,
@@ -784,7 +786,7 @@ private fun NoFilms(actions: HomeActions, modifier: Modifier) {
 
 /** [folder] could not be read: the [error], a rescan and the folders. */
 @Composable
-private fun ScanFailed(folder: Folder, error: ScanError, actions: HomeActions, modifier: Modifier) {
+private fun ScanFailed(folder: Folder, error: ScanError, actions: HomeActions, modifier: Modifier = Modifier) {
     HlEmptyState(
         stringResource(R.string.home_scan_failed),
         modifier,

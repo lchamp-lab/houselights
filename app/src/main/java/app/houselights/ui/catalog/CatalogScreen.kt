@@ -97,12 +97,13 @@ import kotlinx.coroutines.delay
 
 /** Every token and component in its states, for review on a real screen; debug builds only, untranslated. */
 @Composable
-fun CatalogScreen() {
+fun CatalogScreen(modifier: Modifier = Modifier) {
     val c = Hl.colors
     val t = Hl.type
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.tryRequestFocus() }
-    Box(Modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize()) {
+
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.safeV),
@@ -173,8 +174,8 @@ fun CatalogScreen() {
                 Group("Lists and settings") {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                         Column(Modifier.width(TwoPaneDefaults.side)) {
-                            HlNavItem(HlIcons.Folder, "Selected", selected = true, onFocused = {})
-                            HlNavItem(HlIcons.Display, "Other", selected = false, onFocused = {})
+                            HlNavItem(HlIcons.Folder, "Selected", selected = true, onFocus = {})
+                            HlNavItem(HlIcons.Display, "Other", selected = false, onFocus = {})
                         }
                         Column(Modifier.widthIn(max = HlLayout.readable)) {
                             HlSettingGroup("Group") {

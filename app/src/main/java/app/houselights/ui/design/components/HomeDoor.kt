@@ -119,7 +119,8 @@ private fun DoorBand(name: String, icon: ImageVector, note: DoorNote?, progress:
  * it. A door of one part ([doorWidth]) keeps them closer.
  */
 @Composable
-private fun BandLine(modifier: Modifier, content: @Composable () -> Unit) {
+private fun BandLine(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+
     Layout(content, modifier.fillMaxWidth()) { measurables, constraints ->
         val narrow = constraints.maxWidth < (doorWidth(2) - HlSpace.s * 2).roundToPx()
         val gap = (if (narrow) HomeGridDefaults.bandGapNarrow else HlSpace.xs).roundToPx()

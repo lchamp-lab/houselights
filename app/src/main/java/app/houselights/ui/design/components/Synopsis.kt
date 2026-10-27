@@ -76,7 +76,7 @@ const val HEAD_OVERVIEW_LINES = 3
  * text in `body`; the text is focused, down and up scroll it [READING_STEP] lines per press.
  */
 @Composable
-fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
+fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val words = remember { FocusRequester() }
     val scroll = rememberScrollState()
@@ -85,6 +85,8 @@ fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
     HlSideSheet(
         stringResource(R.string.synopsis),
         onDismiss = onDismiss,
+        modifier = modifier,
+
         facts = listOf(item.title, item.year?.toString(), item.directors.firstOrNull()),
         initialFocus = words,
         scroll = scroll,

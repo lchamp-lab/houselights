@@ -50,6 +50,7 @@ import app.houselights.ui.design.scrollEdges
 @Composable
 fun HlTwoPane(
     side: @Composable ColumnScope.() -> Unit,
+    modifier: Modifier = Modifier,
     sideWidth: Dp = TwoPaneDefaults.side,
     state: ScrollableState? = null,
     fadeOnField: Boolean = false,
@@ -59,7 +60,7 @@ fun HlTwoPane(
     // On a field of posters, the edges fade short of black, read while drawing: the pane is read on the field.
     val room = LocalRoomField.current
     val fadeInto = remember(room, black) { { room?.edge(black) ?: black } }
-    Box(Modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)) {
             Column(Modifier.width(sideWidth).fillMaxHeight().padding(bottom = HlSpace.safeV), content = side)
             Spacer(Modifier.width(HlSpace.xxl))
@@ -88,27 +89,12 @@ fun HlFormScaffold(
     title: String,
     description: String,
     aside: @Composable ColumnScope.() -> Unit,
+    modifier: Modifier = Modifier,
     room: List<ImageRef>? = null,
     scroll: ScrollState = rememberScrollState(),
     form: @Composable ColumnScope.() -> Unit,
 ) {
-    @Composable
-    fun Screen() = HlTwoPane(
-        side = {
-            TaskTitle(title)
-            // From its baselines: its first under the title, its last over what stands beside the form.
-            Text(
-                description,
-                style = Hl.type.body,
-                color = Hl.colors.contentSecondary,
-                modifier = Modifier.paddingFromBaseline(top = HlSpace.xl, bottom = HlSpace.xl),
-            )
-            aside()
-        },
-        sideWidth = TwoPaneDefaults.sideWide,
-        state = scroll,
-        fadeOnField = true,
-    ) {
+    FormPanes(title, description, aside, scroll, room, modifier) {
         Column(
             // On a field the list already stops at the safe area: room for a focus frame is enough under its last part.
             Modifier
@@ -119,11 +105,6 @@ fun HlFormScaffold(
             verticalArrangement = Arrangement.spacedBy(HlSpace.l),
             content = form,
         )
-    }
-    if (room == null) {
-        Screen()
-    } else {
-        PosterField(room) { OnArtwork { Screen() } }
     }
 }
 
@@ -138,25 +119,11 @@ fun HlFormScaffold(
     description: String,
     aside: @Composable ColumnScope.() -> Unit,
     list: LazyListState,
+    modifier: Modifier = Modifier,
     room: List<ImageRef>? = null,
     form: LazyListScope.() -> Unit,
 ) {
-    @Composable
-    fun Screen() = HlTwoPane(
-        side = {
-            TaskTitle(title)
-            Text(
-                description,
-                style = Hl.type.body,
-                color = Hl.colors.contentSecondary,
-                modifier = Modifier.paddingFromBaseline(top = HlSpace.xl, bottom = HlSpace.xl),
-            )
-            aside()
-        },
-        sideWidth = TwoPaneDefaults.sideWide,
-        state = list,
-        fadeOnField = true,
-    ) {
+    FormPanes(title, description, aside, list, room, modifier) {
         LazyColumn(
             Modifier.fillMaxSize().keepVerticalFocus(),
             state = list,
@@ -164,10 +131,39 @@ fun HlFormScaffold(
             content = form,
         )
     }
+}
+
+/**
+ * A form's two panes, on [room]'s field or the black room: its [title], what it does ([description]) and [aside] on the
+ * left, [form] on the right, scrolled by [state].
+ */
+@Composable
+private fun FormPanes(
+    title: String,
+    description: String,
+    aside: @Composable ColumnScope.() -> Unit,
+    state: ScrollableState,
+    room: List<ImageRef>?,
+    modifier: Modifier = Modifier,
+    form: @Composable BoxScope.() -> Unit,
+) {
+    val side: @Composable ColumnScope.() -> Unit = {
+        TaskTitle(title)
+        // From its baselines: its first under the title, its last over what stands beside the form.
+        Text(
+            description,
+            style = Hl.type.body,
+            color = Hl.colors.contentSecondary,
+            modifier = Modifier.paddingFromBaseline(top = HlSpace.xl, bottom = HlSpace.xl),
+        )
+        aside()
+    }
     if (room == null) {
-        Screen()
+        HlTwoPane(side, modifier, TwoPaneDefaults.sideWide, state, fadeOnField = true, content = form)
     } else {
-        PosterField(room) { OnArtwork { Screen() } }
+        PosterField(room, modifier) {
+            OnArtwork { HlTwoPane(side, sideWidth = TwoPaneDefaults.sideWide, state = state, fadeOnField = true, content = form) }
+        }
     }
 }
 
@@ -235,6 +231,6 @@ fun StatusPanel(
 
 /** The name of a group of choices above them (a form's track), in `group`. */
 @Composable
-fun FieldLabel(text: String) {
-    Text(text, style = Hl.type.group, color = Hl.colors.contentSecondary, modifier = Modifier.padding(bottom = HlSpace.xxs))
+fun FieldLabel(text: String, modifier: Modifier = Modifier) {
+    Text(text, style = Hl.type.group, color = Hl.colors.contentSecondary, modifier = modifier.padding(bottom = HlSpace.xxs))
 }

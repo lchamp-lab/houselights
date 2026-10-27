@@ -56,7 +56,7 @@ fun ArtworkChoiceCard(
     fit: Boolean = false,
     /** Text shown when there is no picture (a title without a logo). */
     placeholder: String? = null,
-    onFocused: () -> Unit = {},
+    onFocus: () -> Unit = {},
 ) {
     val c = Hl.colors
     CardColumn(modifier.width(width)) {
@@ -64,7 +64,7 @@ fun ArtworkChoiceCard(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(aspectRatio).semantics { this.selected = selected },
             shape = if (aspectRatio > 1f) HlShapes.wide else HlShapes.artwork,
-            onFocused = onFocused,
+            onFocus = onFocus,
         ) {
             val url = image?.url(width.toPx())
             when {
@@ -109,7 +109,7 @@ fun GalleryTile(
     width: Dp,
     modifier: Modifier = Modifier,
     aspectRatio: Float = shape.ratio,
-    onFocused: () -> Unit = {},
+    onFocus: () -> Unit = {},
 ) {
     val c = Hl.colors
     var focused by remember { mutableStateOf(false) }
@@ -121,7 +121,7 @@ fun GalleryTile(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(aspectRatio),
             shape = artwork,
-            onFocused = onFocused,
+            onFocus = onFocus,
             readAs = name,
             acts = true,
         ) {
@@ -130,7 +130,7 @@ fun GalleryTile(
                 null,
                 Modifier.fillMaxSize(),
                 contentScale = if (logo) ContentScale.Fit else ContentScale.Crop,
-                picture = if (logo) Modifier.padding(horizontal = HlSpace.l, vertical = HlSpace.m) else Modifier,
+                pictureModifier = if (logo) Modifier.padding(horizontal = HlSpace.l, vertical = HlSpace.m) else Modifier,
             ) { EmptyFrame(Modifier.fillMaxSize(), artwork) }
         }
         Spacer(Modifier.height(HlSpace.xs))
@@ -252,7 +252,7 @@ fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp? = H
         description = null,
         modifier = sized,
         // While loading, the poster's slot shows its ground, edged like artwork at rest.
-        picture = Modifier.clip(HlShapes.thumb).background(groundStepFill()).artworkEdge(HlShapes.thumb, Hl.colors),
+        pictureModifier = Modifier.clip(HlShapes.thumb).background(groundStepFill()).artworkEdge(HlShapes.thumb, Hl.colors),
     ) { EmptyFrame(Modifier.fillMaxSize(), HlShapes.thumb) }
 }
 

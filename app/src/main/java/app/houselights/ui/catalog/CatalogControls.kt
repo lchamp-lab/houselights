@@ -1,6 +1,7 @@
 package app.houselights.ui.catalog
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -76,7 +77,7 @@ private fun ButtonStates() {
 
 /** Buttons and setting rows in their states, each named underneath. */
 @Composable
-private fun ControlStates() {
+private fun ColumnScope.ControlStates() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("detail lit: a state it names", gap = HlSpace.xs) {
             HlButton(

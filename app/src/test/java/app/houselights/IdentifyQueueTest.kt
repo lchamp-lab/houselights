@@ -95,7 +95,7 @@ class IdentifyQueueTest {
                     // Read again on its return, as a change of the library has it.
                     LaunchedEffect(Unit) { vm.load() }
                     val at by entry.savedStateHandle.getStateFlow<String?>(QUEUE_AT, null).collectAsStateWithLifecycle()
-                    ToIdentifyPage(vm, onOpen = nav::openQueue, queueAt = at, onQueueSeen = { entry.savedStateHandle[QUEUE_AT] = null })
+                    ToIdentifyPage(vm, onOpen = nav::openQueue, queueAt = at, onQueueAtFocus = { entry.savedStateHandle[QUEUE_AT] = null })
                 }
                 composable<Route.Identify> { entry ->
                     val route = entry.toRoute<Route.Identify>()

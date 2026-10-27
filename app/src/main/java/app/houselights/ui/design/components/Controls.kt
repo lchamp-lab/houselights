@@ -29,13 +29,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -50,8 +47,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
@@ -275,11 +277,35 @@ private fun reservedWidth(words: ButtonWords, reserveFor: String?): Dp {
 }
 
 /** Records the content width at rest and keeps at least that width while [busy], so the row does not shift. */
-private fun Modifier.keepWidthWhile(busy: Boolean): Modifier = composed {
-    var rest by remember { mutableIntStateOf(0) }
-    val density = LocalDensity.current
-    if (busy) widthIn(min = with(density) { rest.toDp() }) else onSizeChanged { rest = it.width }
+private fun Modifier.keepWidthWhile(busy: Boolean): Modifier = this then KeepWidthElement(busy)
+
+private data class KeepWidthElement(val busy: Boolean) : ModifierNodeElement<KeepWidthNode>() {
+    override fun create() = KeepWidthNode(busy)
+
+    override fun update(node: KeepWidthNode) {
+        node.busy = busy
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "keepWidthWhile"
+        properties["busy"] = busy
+    }
 }
+
+/** Measures the content as it comes while not [busy], keeping its width; while busy, at least as wide as that. */
+private class KeepWidthNode(var busy: Boolean) : Modifier.Node(), LayoutModifierNode {
+    private var rest = 0
+
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = if (busy) {
+            measurable.measure(constraints.copy(minWidth = rest.coerceIn(constraints.minWidth, constraints.maxWidth)))
+        } else {
+            measurable.measure(constraints).also { rest = it.width }
+        }
+        return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+}
+
 
 @Composable
 private fun ButtonLabel(text: String) {
@@ -597,7 +623,7 @@ fun HlSegmented(
                         detail = details.getOrNull(i),
                         current = i == selected,
                         onClick = { onSelect(i) },
-                        onFocused = { if (selectOnFocus) onSelect(i) },
+                        onFocus = { if (selectOnFocus) onSelect(i) },
                         modifier = Modifier.focusRequester(requesters[i]),
                     )
                 }
@@ -633,7 +659,7 @@ private fun SegmentItem(
     detail: SegmentDetail?,
     current: Boolean,
     onClick: () -> Unit,
-    onFocused: () -> Unit,
+    onFocus: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = Hl.colors
@@ -645,7 +671,7 @@ private fun SegmentItem(
         modifier = modifier
             .then(if (current) Modifier.hang(DotRoom) else Modifier)
             .height(HlSize.segment)
-            .onFocusChanged { if (it.isFocused) onFocused() },
+            .onFocusChanged { if (it.isFocused) onFocus() },
         role = Role.Tab,
         selected = current,
     ) { lit ->

@@ -100,7 +100,8 @@ fun HlPanel(
             )
             .padding(padding),
     ) {
-        if (raised) CompositionLocalProvider(LocalGround provides Ground.Glass) { content() } else content()
+        // Raised, on glass; else on the ground it lies on, the slot composed in one place either way.
+        CompositionLocalProvider(LocalGround provides if (raised) Ground.Glass else LocalGround.current) { content() }
     }
 }
 
@@ -113,7 +114,7 @@ internal fun Modifier.panel(shape: Shape, fill: Color, edge: BorderStroke): Modi
 fun HlPanelButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onFocused: () -> Unit = {},
+    onFocus: () -> Unit = {},
     lit: Boolean = false,
     enabled: Boolean = true,
     level: PanelLevel = PanelLevel.Quiet,
@@ -136,10 +137,11 @@ fun HlPanelButton(
             disabledInk = c.contentTertiary,
         ),
         shape = HlShapes.panel,
-        modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
+        modifier = modifier.onFocusChanged { if (it.isFocused) onFocus() },
         enabled = enabled,
     ) { focused ->
-        if (raised) CompositionLocalProvider(LocalGround provides Ground.Glass) { content(focused) } else content(focused)
+        CompositionLocalProvider(LocalGround provides if (raised) Ground.Glass else LocalGround.current) { content(focused) }
+
     }
 }
 

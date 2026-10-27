@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -57,7 +58,6 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.sourceKindName
 import app.houselights.ui.util.wholePath
-import android.annotation.SuppressLint
 
 /** Display order of the options: NFS first, since it needs no password. */
 private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
@@ -67,10 +67,12 @@ private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
  * added through « Ajouter un dossier »'s steps ([AddFolderFlowScreen]).
  */
 @Composable
-fun AddFolderScreen(folderId: Long, focusOn: FolderField = FolderField.FIRST, onDone: () -> Unit) {
-    val app = appContainer()
-    val context = LocalContext.current
-    val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, context, folderId))
+fun AddFolderScreen(
+    folderId: Long,
+    onDone: () -> Unit,
+    focusOn: FolderField = FolderField.FIRST,
+    vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(appContainer(), LocalContext.current, folderId)),
+) {
     AddFolderForm(vm, focusOn, roomPosters(), onDone)
 }
 
@@ -100,24 +102,32 @@ internal fun AddFolderForm(
         adding = true
         vm.submit(onDone)
     }
-    FocusOnFault(vm, focus)
+    FocusOnFault(vm.answers, vm.check, vm.suggestion, vm.form, focus)
     val first = backToFirst(vm, focus, scroll)
 
     HlFormScaffold(
         title = stringResource(R.string.edit_folder),
         description = stringResource(R.string.edit_folder_desc),
-        aside = { FolderStatus(vm, identity, panel = faults.at(FaultSpot.PANEL)) },
+        aside = {
+            FolderStatus(
+                vm.form,
+                vm.check,
+                FolderStanding(testing = vm.testing, gone = vm.gone, unread = vm.unread, player = vm.player),
+                identity,
+                panel = faults.at(FaultSpot.PANEL),
+            )
+        },
         room = room,
         scroll = scroll,
     ) {
         if (vm.unread) {
-            UnreadFolder(vm)
+            UnreadFolder(rereading = vm.rereading, onReadAgain = vm::readAgain)
             return@HlFormScaffold
         }
-        FolderChoices(vm, first)
-        FolderFields(vm, focus, faults, submit)
+        FolderChoices(vm.form.protocol, onEdit = vm::edit, firstModifier = first)
+        FolderFields(vm.form, identityOpen = vm.identityOpen, keepsPassword = vm.keepsPassword, focus, faults, submit, vm::edit)
         FolderActions(
-            vm,
+            FolderBusy(busy = vm.busy, saving = vm.saving, ready = vm.ready, gone = vm.gone),
             adding,
             focus.test,
             onAdd = submit,
@@ -136,7 +146,16 @@ internal fun AddFolderForm(
         }
         // Under the actions, so the form above stays whole on screen; SMB says who reads by its account.
         if (vm.form.protocol == Protocol.NFS) {
-            NfsIdentity(vm, identity, focus, errors = faults.at(FaultSpot.UID) to faults.at(FaultSpot.GID), onDone = submit)
+            NfsIdentity(
+                vm.form,
+                open = vm.identityOpen,
+                identity,
+                focus,
+                errors = faults.at(FaultSpot.UID) to faults.at(FaultSpot.GID),
+                onEdit = vm::edit,
+                onToggle = vm::toggleIdentity,
+                onDone = submit,
+            )
         }
     }
 }
@@ -155,19 +174,19 @@ private fun faultsOf(vm: AddFolderViewModel): Faults {
 }
 
 /**
- * After each answer to a press, focus goes to the field its message is under, once laid out with it, or to what the NAS
- * proposes instead; a read refused to the NFS account, to its row, unfolded. One said in the panel leaves focus on the
- * button pressed.
+ * After each answer to a press ([answers], the last one [check]), focus goes to the field of [form] its message is under,
+ * once laid out with it, or to what the NAS proposes instead ([suggestion]); a read refused to the NFS account, to its
+ * row, unfolded. One said in the panel leaves focus on the button pressed.
  */
 @Composable
-private fun FocusOnFault(vm: AddFolderViewModel, focus: FormFocus) {
-    LaunchedEffect(vm.answers) {
-        if (vm.answers == 0) return@LaunchedEffect
-        val refused = (vm.check as? FolderCheck.Failed)?.trouble is FolderTrouble.ReadRefused
+private fun FocusOnFault(answers: Int, check: FolderCheck?, suggestion: FolderSuggestion?, form: FolderForm, focus: FormFocus) {
+    LaunchedEffect(answers) {
+        if (answers == 0) return@LaunchedEffect
+        val refused = (check as? FolderCheck.Failed)?.trouble is FolderTrouble.ReadRefused
         val target = when {
             refused -> focus.identity
-            vm.suggestion != null -> focus.suggestion
-            else -> spotOf(vm.check, vm.form)?.let(focus::of)
+            suggestion != null -> focus.suggestion
+            else -> spotOf(check, form)?.let(focus::of)
         }
         withFrameNanos { }
         target?.tryRequestFocus()
@@ -191,9 +210,12 @@ private fun backToFirst(vm: AddFolderViewModel, focus: FormFocus, scroll: Scroll
     return Modifier.focusRequester(focus.first).onFocusChanged { atStart = it.hasFocus }
 }
 
-/** In the form's place: none of it is the folder's, and saving it would erase the folder's password. */
+/**
+ * In the form's place: none of it is the folder's, and saving it would erase the folder's password; Réessayer reads it
+ * again ([onReadAgain]), busy while [rereading].
+ */
 @Composable
-private fun UnreadFolder(vm: AddFolderViewModel) {
+private fun UnreadFolder(rereading: Boolean, onReadAgain: () -> Unit) {
     HlEmptyState(
         stringResource(R.string.folder_unread),
         // The library is read from the player's storage, as the settings are.
@@ -201,56 +223,70 @@ private fun UnreadFolder(vm: AddFolderViewModel) {
         attention = true,
         action = stringResource(R.string.retry),
         actionIcon = HlIcons.Refresh,
-        onAction = vm::readAgain,
-        busy = stringResource(R.string.retrying).takeIf { vm.rereading },
+        onAction = onReadAgain,
+        busy = stringResource(R.string.retrying).takeIf { rereading },
     )
 }
 
 /**
- * The protocol over the fields' columns, a little further from them than the fields from each other, [first] its
- * modifier; the folder keeps its kind (its titles stay), which the panel beside shows.
+ * The [protocol] over the fields' columns, a little further from them than the fields from each other, [firstModifier]
+ * its control's, which focus comes back to; a choice changes the form ([onEdit]). The folder keeps its kind (its titles
+ * stay), which the panel beside shows.
  */
 @Composable
-@SuppressLint("ModifierParameter") // Not the choices' modifier: their first control's, which focus comes back to.
-private fun FolderChoices(vm: AddFolderViewModel, first: Modifier) {
-    Row(Modifier.padding(bottom = HlSpace.xs), horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+private fun FolderChoices(
+    protocol: Protocol,
+    onEdit: (FolderForm.() -> FolderForm) -> Unit,
+    modifier: Modifier = Modifier,
+    firstModifier: Modifier = Modifier,
+) {
+    Row(modifier.padding(bottom = HlSpace.xs), horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
         Column(Modifier.weight(1f)) {
             FieldLabel(stringResource(R.string.field_protocol))
             HlSegmented(
                 PROTOCOLS.map { it.name },
-                selected = PROTOCOLS.indexOf(vm.form.protocol),
-                onSelect = { i -> vm.edit { copy(protocol = PROTOCOLS[i]) } },
-                modifier = first,
+                selected = PROTOCOLS.indexOf(protocol),
+                onSelect = { i -> onEdit { copy(protocol = PROTOCOLS[i]) } },
+                modifier = firstModifier,
             )
         }
     }
 }
 
 /**
- * The folder's place and SMB's account, each failure under its field ([faults]); « Terminé » on the last field
- * ([submit]) does what the first button does, the others go on to the next.
+ * The folder's place and SMB's account in [form], each failure under its field ([faults]), a field typed in changing it
+ * ([onEdit]); « Terminé » on the last field ([submit]) does what the first button does, the others go on to the next,
+ * the subfolder's being the last while the NFS account is folded ([identityOpen]). A password saved ([keepsPassword])
+ * stays while the field is left empty.
  */
 @Composable
-private fun FolderFields(vm: AddFolderViewModel, focus: FormFocus, faults: Faults, submit: () -> Unit) {
-    val form = vm.form
+private fun ColumnScope.FolderFields(
+    form: FolderForm,
+    identityOpen: Boolean,
+    keepsPassword: Boolean,
+    focus: FormFocus,
+    faults: Faults,
+    submit: () -> Unit,
+    onEdit: (FolderForm.() -> FolderForm) -> Unit,
+) {
     val nfs = form.protocol == Protocol.NFS
     HlTextField(
-        stringResource(R.string.field_host), form.host, { v -> vm.edit { copy(host = v) } },
+        stringResource(R.string.field_host), form.host, { v -> onEdit { copy(host = v) } },
         Modifier.focusRequester(focus.host).shownWith(faults.at(FaultSpot.HOST)),
         placeholder = stringResource(R.string.placeholder_host), keyboardType = KeyboardType.Uri,
         error = faults.at(FaultSpot.HOST),
     )
-    val subfolderLast = nfs && !vm.identityOpen
+    val subfolderLast = nfs && !identityOpen
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
         HlTextField(
             stringResource(if (nfs) R.string.field_export else R.string.field_share),
-            form.share, { v -> vm.edit { copy(share = v) } },
+            form.share, { v -> onEdit { copy(share = v) } },
             placeholder = stringResource(shareExample(form.protocol)),
             modifier = Modifier.weight(1f).focusRequester(focus.share).shownWith(faults.at(FaultSpot.SHARE)),
             error = faults.at(FaultSpot.SHARE),
         )
         HlTextField(
-            stringResource(R.string.field_path), form.path, { v -> vm.edit { copy(path = v) } },
+            stringResource(R.string.field_path), form.path, { v -> onEdit { copy(path = v) } },
             placeholder = stringResource(pathExample(form.kind)),
             modifier = Modifier.weight(1f).focusRequester(focus.subfolder).shownWith(faults.at(FaultSpot.SUBFOLDER)),
             optional = true,
@@ -262,14 +298,14 @@ private fun FolderFields(vm: AddFolderViewModel, focus: FormFocus, faults: Fault
     if (!nfs) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             HlTextField(
-                stringResource(R.string.field_user), form.user, { v -> vm.edit { copy(user = v) } },
+                stringResource(R.string.field_user), form.user, { v -> onEdit { copy(user = v) } },
                 modifier = Modifier.weight(1f).focusRequester(focus.user).shownWith(faults.at(FaultSpot.USER)),
                 error = faults.at(FaultSpot.USER),
             )
             HlTextField(
-                stringResource(R.string.field_password), form.password, { v -> vm.edit { copy(password = v) } },
+                stringResource(R.string.field_password), form.password, { v -> onEdit { copy(password = v) } },
                 // The password saved is never shown: left empty, it stays.
-                placeholder = if (vm.keepsPassword) stringResource(R.string.password_kept) else "",
+                placeholder = if (keepsPassword) stringResource(R.string.password_kept) else "",
                 password = true, imeAction = ImeAction.Done, onImeAction = submit,
                 modifier = Modifier.weight(1f).focusRequester(focus.password).shownWith(faults.at(FaultSpot.PASSWORD)),
                 error = faults.at(FaultSpot.PASSWORD),
@@ -288,16 +324,18 @@ private fun Modifier.shownWith(error: String?): Modifier = revealOnFocus().revea
  */
 @Composable
 private fun NfsIdentity(
-    vm: AddFolderViewModel,
+    form: FolderForm,
+    open: Boolean,
     identity: String?,
     focus: FormFocus,
     errors: Pair<String?, String?>,
+    onEdit: (FolderForm.() -> FolderForm) -> Unit,
+    onToggle: () -> Unit,
     onDone: () -> Unit,
 ) {
-    val form = vm.form
     val (uidError, gidError) = errors
     // Opened with OK, what it changes and its fields come into view under the row, which keeps focus.
-    Column(Modifier.revealOnOpen(vm.identityOpen)) {
+    Column(Modifier.revealOnOpen(open)) {
         HlSettingGroup(null) {
             HlSettingRow(
                 stringResource(R.string.nfs_identity_title),
@@ -305,12 +343,12 @@ private fun NfsIdentity(
                 description = stringResource(R.string.nfs_identity_desc),
                 value = identity ?: stringResource(R.string.nfs_identity_root),
                 valueStyle = if (identity != null) Hl.type.jaquette else Hl.type.meta,
-                onClick = vm::toggleIdentity,
+                onClick = onToggle,
                 // At the largest text size, or with long numbers, the user over the group.
                 valueBreaks = true,
             )
         }
-        if (vm.identityOpen) {
+        if (open) {
             // Over the fields, so it reads whole while they have focus.
             Text(
                 stringResource(R.string.nfs_identity_hint),
@@ -320,13 +358,13 @@ private fun NfsIdentity(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                 HlTextField(
-                    stringResource(R.string.field_uid), form.uid, { v -> if (FolderForm.isId(v)) vm.edit { copy(uid = v) } },
+                    stringResource(R.string.field_uid), form.uid, { v -> if (FolderForm.isId(v)) onEdit { copy(uid = v) } },
                     Modifier.weight(1f).focusRequester(focus.uid).shownWith(uidError),
                     placeholder = stringResource(R.string.placeholder_uid), keyboardType = KeyboardType.Number,
                     error = uidError,
                 )
                 HlTextField(
-                    stringResource(R.string.field_gid), form.gid, { v -> if (FolderForm.isId(v)) vm.edit { copy(gid = v) } },
+                    stringResource(R.string.field_gid), form.gid, { v -> if (FolderForm.isId(v)) onEdit { copy(gid = v) } },
                     Modifier.weight(1f).focusRequester(focus.gid).shownWith(gidError),
                     placeholder = stringResource(R.string.placeholder_gid), keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done, onImeAction = onDone,
@@ -345,22 +383,25 @@ private fun identityText(form: FolderForm): String? {
     return stringResource(R.string.nfs_identity, form.uid.ifEmpty { none }, form.gid.ifEmpty { none })
 }
 
+/** How the folder stands beside its form: under a test, deleted, unread, and the player it was found on. */
+@Immutable
+private data class FolderStanding(val testing: Boolean, val gone: Boolean, val unread: Boolean, val player: String?)
+
 /**
- * Where the folder of [vm] stands beside its form: the address the player will open, without credentials, its
- * protocol, kind and NFS [identity], then what the last test found or the failure no field can fix ([panel]); at rest,
- * without a result, what the NAS must allow, whole or not at all.
+ * Where the folder of [form] stands beside it ([standing]): the address the player will open, without credentials, its
+ * protocol, kind and NFS [identity], then what the last test found ([check]) or the failure no field can fix ([panel]);
+ * at rest, without a result, what the NAS must allow, whole or not at all.
  */
 @Composable
-private fun ColumnScope.FolderStatus(vm: AddFolderViewModel, identity: String?, panel: String?) {
-    val check = vm.check
-    val protocol = vm.form.protocol
-    val s = vm.form.toSource()
-    val (state, stateText) = connectionState(check, testing = vm.testing, gone = vm.gone)
+private fun ColumnScope.FolderStatus(form: FolderForm, check: FolderCheck?, standing: FolderStanding, identity: String?, panel: String?) {
+    val protocol = form.protocol
+    val s = form.toSource()
+    val (state, stateText) = connectionState(check, testing = standing.testing, gone = standing.gone)
     // A folder deleted or unread was never read: its protocol and kind would be the form's defaults.
-    val unknown = vm.gone || vm.unread
+    val unknown = standing.gone || standing.unread
     val pending = stringResource(R.string.placeholder_pending)
     val result = when {
-        vm.gone -> stringResource(R.string.folder_gone)
+        standing.gone -> stringResource(R.string.folder_gone)
         panel != null -> panel
         check is FolderCheck.Reachable -> contentText(check)
         else -> null
@@ -370,14 +411,14 @@ private fun ColumnScope.FolderStatus(vm: AddFolderViewModel, identity: String?, 
         stateText = stringResource(stateText),
         label = stringResource(R.string.label_address),
         value = s.host.ifBlank { pending },
-        detail = placeOf(s, typed = vm.form.share.isNotBlank(), pending = pending),
+        detail = placeOf(s, typed = form.share.isNotBlank(), pending = pending),
         badges = if (unknown) emptyList() else listOf(protocol.name),
-        facts = if (unknown) emptyList() else listOf(sourceKindName(vm.form.kind), identity),
+        facts = if (unknown) emptyList() else listOf(sourceKindName(form.kind), identity),
         result = result,
-        resultIsError = check !is FolderCheck.Reachable || vm.gone,
+        resultIsError = check !is FolderCheck.Reachable || standing.gone,
     )
-    if (!vm.unread && result == null) {
-        val player = vm.player
+    if (!standing.unread && result == null) {
+        val player = standing.player
         val hint = when {
             protocol == Protocol.SMB -> stringResource(R.string.smb_hint)
             player != null -> stringResource(R.string.nfs_hint_player, player)
@@ -407,7 +448,7 @@ private fun placeOf(s: SourceEntity, typed: Boolean, pending: String): String? {
 
 /** [content] stacked, placed only if it fits whole in the height it is given; else nothing of it. */
 @Composable
-private fun WholeOrNothing(modifier: Modifier, content: @Composable () -> Unit) {
+private fun WholeOrNothing(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Layout(content, modifier) { measurables, constraints ->
         val placeables = measurables.map { it.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity)) }
         val height = placeables.sumOf { it.height }
@@ -425,32 +466,36 @@ private fun WholeOrNothing(modifier: Modifier, content: @Composable () -> Unit) 
     }
 }
 
+/** Whether the folder's form is testing or saving ([busy], [saving] for the second), read ([ready]) or deleted ([gone]). */
+@Immutable
+private data class FolderBusy(val busy: Boolean, val saving: Boolean, val ready: Boolean, val gone: Boolean)
+
 /**
  * Save and Test ([test] its focus), both testing first: the pressed one says what it does in its own width, kept from
- * the start for each of its words, the other disabled meanwhile.
+ * the start for each of its words, the other disabled meanwhile ([state]).
  */
 @Composable
-private fun FolderActions(vm: AddFolderViewModel, adding: Boolean, test: FocusRequester, onAdd: () -> Unit, onTest: () -> Unit) {
+private fun FolderActions(state: FolderBusy, adding: Boolean, test: FocusRequester, onAdd: () -> Unit, onTest: () -> Unit) {
     val checking = stringResource(R.string.checking)
     val saving = stringResource(R.string.saving)
-    val busy = vm.busy
+    val busy = state.busy
     Row(Modifier.padding(top = HlSpace.xs), horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
         HlButton(
             stringResource(R.string.save),
             onAdd,
             icon = HlIcons.Check,
-            enabled = vm.ready && !vm.gone && (adding || !busy),
+            enabled = state.ready && !state.gone && (adding || !busy),
             busy = busy && adding,
-            busyLabel = if (vm.saving) saving else checking,
+            busyLabel = if (state.saving) saving else checking,
             // It tests, then saves: one width for both.
-            reserveFor = if (vm.saving) checking else saving,
+            reserveFor = if (state.saving) checking else saving,
         )
         HlButton(
             stringResource(R.string.test_connection),
             onTest,
             Modifier.focusRequester(test),
             icon = HlIcons.Test,
-            enabled = !vm.gone && (!adding || !busy),
+            enabled = !state.gone && (!adding || !busy),
             busy = busy && !adding,
             busyLabel = checking,
         )

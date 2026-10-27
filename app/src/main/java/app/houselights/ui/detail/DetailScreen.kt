@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -139,7 +140,6 @@ import app.houselights.ui.design.components.VersionsSheet
 import app.houselights.ui.design.components.tracksHint
 import app.houselights.ui.util.versionName
 import app.houselights.core.hasPage
-import android.annotation.SuppressLint
 
 @Composable
 fun DetailScreen(
@@ -156,9 +156,9 @@ fun DetailScreen(
      * then: a copy of the film left under another row.
      */
     onLeave: (String?) -> Unit = {},
+    vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(appContainer(), itemId)),
 ) {
     val app = appContainer()
-    val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
     ReloadOnLibraryChange { scanOnly -> vm.onLibraryChanged(scanOnly) }
     DetailPage(vm, app.playback, screen, onPlay, onOpenItem, onEditArtwork, onIdentify, onOpenPerson, onLeave)
 }
@@ -337,30 +337,39 @@ internal fun DetailPage(
         )
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
-        EditSheets(item, state.episodeOrders, editing, onEditArtwork, onIdentify, onChooseOrder = vm::chooseEpisodeOrder)
+        EditSheets(
+            item,
+            state.episodeOrders,
+            editing = editing.value,
+            onEndEditing = { editing.value = false },
+            onEditArtwork = onEditArtwork,
+            onIdentify = onIdentify,
+            onChooseOrder = vm::chooseEpisodeOrder,
+        )
     }
 }
 
 /**
- * Modifier while [editing], and the order of a show's episodes it opens ([EpisodeOrderSheet]) from its row, offered
- * while TMDB numbers the show more than one way ([orders]).
+ * Modifier while [editing], until it ends ([onEndEditing]), and the order of a show's episodes it opens
+ * ([EpisodeOrderSheet]) from its row, offered while TMDB numbers the show more than one way ([orders]).
  */
 @Composable
 private fun EditSheets(
     item: MediaItem,
     orders: EpisodeOrderChoices?,
-    editing: MutableState<Boolean>,
+    editing: Boolean,
+    onEndEditing: () -> Unit,
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
     onChooseOrder: (String?) -> Unit,
 ) {
     var showOrders by remember { mutableStateOf(false) }
-    if (editing.value) {
+    if (editing) {
         EditMenu(
             item = item,
-            onDismiss = { editing.value = false },
-            onArtwork = { kind -> editing.value = false; onEditArtwork(item.id, kind) },
-            onIdentify = { editing.value = false; onIdentify(item.id) },
+            onDismiss = onEndEditing,
+            onArtwork = { kind -> onEndEditing(); onEditArtwork(item.id, kind) },
+            onIdentify = { onEndEditing(); onIdentify(item.id) },
             episodeOrder = orders?.let { orderInUse(it) },
             onEpisodeOrder = { showOrders = true }.takeIf { orders != null },
         )
@@ -376,7 +385,7 @@ private fun LazyListScope.partFailed(state: DetailState, memory: FocusMemory, on
     val error = state.error?.takeUnless { state.failedWithLire } ?: return
     item(key = "failed") {
         Box(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
-            PartFailed(error, state.retrying, onRetry, action = Modifier.focusKey(RETRY_PAGE, memory))
+            PartFailed(error, state.retrying, onRetry, actionModifier = Modifier.focusKey(RETRY_PAGE, memory))
         }
     }
 }
@@ -418,7 +427,7 @@ private fun LazyListScope.seasonRows(
                     failed.takeUnless { state.failedWithLire },
                     retrying = state.episodesLoading,
                     onRetry = vm::retrySeason,
-                    action = Modifier.focusKey(RETRY_EPISODES, memory),
+                    actionModifier = Modifier.focusKey(RETRY_EPISODES, memory),
                 )
                 state.episodesLoading && state.episodes.isEmpty() -> EpisodesSkeleton(single?.title)
                 else -> Episodes(
@@ -567,9 +576,10 @@ private fun FocusOnPlayAfter(swap: Boolean, held: String, memory: FocusMemory, f
 @Composable
 private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
     val recede = remember { Animatable(0f) }
+    val currentAway by rememberUpdatedState(away)
     LaunchedEffect(Unit) {
         var first = true
-        snapshotFlow(away).collect { down ->
+        snapshotFlow { currentAway() }.collect { down ->
             val target = if (down) 1f else 0f
             if (first) recede.snapTo(target) else recede.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.fallBack))
             first = false
@@ -602,7 +612,8 @@ private fun TitleTracks(item: MediaItem, plan: TrackPlan?, open: Boolean, onChoo
     if (!open) return
     if (plan == null) {
         // The tracks went away (another copy, a file gone): the sheet closes for good.
-        LaunchedEffect(Unit) { onDismiss() }
+        val currentOnDismiss by rememberUpdatedState(onDismiss)
+        LaunchedEffect(Unit) { currentOnDismiss() }
         return
     }
     val show = item.kind == MediaKind.SERIES || item.kind == MediaKind.EPISODE
@@ -656,7 +667,7 @@ private fun Hero(
     actions: DetailActions,
     memory: FocusMemory,
     actionRow: FocusRequester,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
 ) {
     val isEpisode = item.kind == MediaKind.EPISODE
 
@@ -797,7 +808,7 @@ private fun Actions(
  * the check fills white.
  */
 @Composable
-private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modifier) {
+private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modifier = Modifier) {
     val season = actions.season
     val show = item.user.played
     val watched = season?.let(::seasonWatched) ?: show
@@ -867,12 +878,13 @@ private fun RemoveTile(onRemove: (() -> Unit)?, memory: FocusMemory) {
  */
 @Composable
 private fun LeaveOnceRemoved(removed: TitleRemoved?, onLeave: (String?) -> Unit) {
-    LaunchedEffect(removed) { if (removed != null) onLeave(removed.stays) }
+    val currentOnLeave by rememberUpdatedState(onLeave)
+    LaunchedEffect(removed) { if (removed != null) currentOnLeave(removed.stays) }
 }
 
 /** Since when the file of a title held ([since]) is missing, by the ring; nothing for a title there. */
 @Composable
-private fun HeldState(since: Long?, modifier: Modifier) {
+private fun HeldState(since: Long?, modifier: Modifier = Modifier) {
     if (since != null) HlStatus(StatusState.Off, heldSince(since), modifier)
 }
 
@@ -882,7 +894,7 @@ private fun HeldState(since: Long?, modifier: Modifier) {
  * reconnecter; nothing when nothing does), keyed as Lire, why said at the row's end.
  */
 @Composable
-private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, actions: DetailActions) {
+private fun RowScope.PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, actions: DetailActions) {
     val onPlay = actions.onPlay
     val series = item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION
     val failed = actions.nextUpError
@@ -1027,7 +1039,7 @@ private fun Episodes(
                     title = ep.title,
                     number = ep.episodeNumbers,
                     facts = listOf(ep.runtimeMs?.let(::formatDuration), episodeState(ep)),
-                    onFocused = { onFocus(ep) },
+                    onFocus = { onFocus(ep) },
                     onLongClick = onOptions(ep),
                     onLongClickLabel = stringResource(R.string.more_options),
                 )
@@ -1078,14 +1090,20 @@ private fun EpisodesSkeleton(header: String?) {
 
 /**
  * The episode row's error and its fix, its header alone when the error is said in Lire's place (null); while
- * [retrying], the row stays, its button busy and focused.
+ * [retrying], the row stays, its button busy and focused, keyed by [actionModifier].
  */
 @Composable
-@SuppressLint("ModifierParameter") // Not the row's modifier: its retry button's, keyed for focus.
-private fun EpisodesFailed(header: String?, error: UiError?, retrying: Boolean, onRetry: () -> Unit, action: Modifier) {
-    Column(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
+private fun EpisodesFailed(
+    header: String?,
+    error: UiError?,
+    retrying: Boolean,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    actionModifier: Modifier = Modifier,
+) {
+    Column(modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
         header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }
-        error?.let { PartFailed(it, retrying, onRetry, action = action) }
+        error?.let { PartFailed(it, retrying, onRetry, actionModifier = actionModifier) }
     }
 }
 

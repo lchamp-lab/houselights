@@ -47,6 +47,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import app.houselights.ui.util.appContainer
+import coil.imageLoader
 
 /** What Houselights keeps on the device. */
 internal data class StorageStats(
@@ -466,3 +470,11 @@ internal val LocalSettingsViewModel = staticCompositionLocalOf<SettingsViewModel
 /** The screen's ViewModel, shared by all its panes. */
 @Composable
 internal fun settingsViewModel(): SettingsViewModel = LocalSettingsViewModel.current
+
+/** The ViewModel [SettingsScreen] makes the first time it shows, for the app and its image loader. */
+@Composable
+internal fun rememberSettingsViewModel(): SettingsViewModel {
+    val app = appContainer()
+    val images = LocalContext.current.imageLoader
+    return viewModel { SettingsViewModel(app, images) }
+}

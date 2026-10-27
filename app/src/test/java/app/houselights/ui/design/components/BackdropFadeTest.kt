@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -148,7 +147,7 @@ class BackdropFadeTest {
         val state = BackdropState()
         var target by mutableStateOf<Shot?>(shot("A", grey = 0.2f, Color(0xFF1C0707)))
         compose.mainClock.autoAdvance = false
-        compose.setContent { HouselightsTheme { BackdropShots(target, Modifier, recede = null, lights = state) } }
+        compose.setContent { HouselightsTheme { BackdropShots(target, recede = null, lights = state) } }
         repeat(TINT_FRAMES) { compose.mainClock.advanceTimeByFrame() }
         val dark = state.plateAlpha()
         target = shot("B", grey = 1f, Color(0xFF07071C))
@@ -209,7 +208,7 @@ class BackdropFadeTest {
         compose.mainClock.autoAdvance = false
         var target by mutableStateOf(first)
         compose.setContent {
-            FadeBetween(target, Modifier, empty = { it == null }) { picture, alpha ->
+            FadeBetween(target, empty = { it == null }) { picture, alpha ->
                 SideEffect { drawn.layers[picture] = alpha }
                 DisposableEffect(picture) { onDispose { drawn.layers.remove(picture) } }
             }
@@ -243,7 +242,8 @@ class BackdropFadeTest {
         var target by mutableStateOf(from)
         var alpha = NOT_DRAWN
         compose.setContent {
-            FadeBetween(target, Modifier, atOnce, empty = { it == null }) { picture, drawnAt ->
+            FadeBetween(target, atOnce = atOnce, empty = { it == null }) { picture, drawnAt ->
+
                 if (picture == watched) {
                     val now = drawnAt()
                     SideEffect { alpha = now }

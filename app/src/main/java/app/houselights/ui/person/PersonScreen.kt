@@ -70,28 +70,31 @@ import app.houselights.ui.util.toPx
  * titles by year as posters; with at most two lines of them, a hero and one row as on Home.
  */
 @Composable
-fun PersonScreen(personId: String, onOpenItem: (MediaItem) -> Unit) {
-    val app = appContainer()
-    val vm: PersonViewModel = viewModel(key = "person-$personId", factory = PersonViewModel.factory(app, personId))
+fun PersonScreen(
+    personId: String,
+    onOpenItem: (MediaItem) -> Unit,
+    modifier: Modifier = Modifier,
+    vm: PersonViewModel = viewModel(key = "person-$personId", factory = PersonViewModel.factory(appContainer(), personId)),
+) {
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
     val page = state.valueOrNull
     if (page == null) {
         // While retrying, the error stays on screen with its button busy.
         val failed = state as? LoadState.Failed
-        Box(Modifier.fillMaxSize().padding(top = HlLayout.errorTop)) {
+        Box(modifier.fillMaxSize().padding(top = HlLayout.errorTop)) {
             if (failed != null) {
                 HlErrorState(failed.error, vm::load, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), failed.retrying)
             }
         }
         return
     }
-    PersonBands(page, onOpenItem)
+    PersonBands(page, onOpenItem, modifier)
 }
 
 /** Lays out [page]: its head, then its titles as a wall, or as one row when they are few ([smallPage]). */
 @Composable
-internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
+internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit, modifier: Modifier = Modifier) {
     val titles = remember(page) { page.titles.map { it.item } }
     val small = smallPage(titles.size)
     // The selected title survives navigation, defaulting to the first; it shows once focus settles.
@@ -107,7 +110,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
         index >= 0
     }
     DetailAhead(shown)
-    AmbientBackdrop(shown?.backdrop, if (small) BackdropStyle.Hero else BackdropStyle.Quiet) {
+    AmbientBackdrop(shown?.backdrop, if (small) BackdropStyle.Hero else BackdropStyle.Quiet, modifier) {
         Column(Modifier.fillMaxSize()) {
             PersonHead(page, Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV))
             fun card(index: Int, item: MediaItem) = Modifier
@@ -125,7 +128,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                             item,
                             onClick = { onOpenItem(item) },
                             modifier = card(i, item),
-                            onFocused = { selectedId.value = item.id },
+                            onFocus = { selectedId.value = item.id },
                         )
                     }
                 }
@@ -144,7 +147,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                             onClick = { onOpenItem(item) },
                             modifier = card(i, item),
                             width = null,
-                            onFocused = { selectedId.value = item.id },
+                            onFocus = { selectedId.value = item.id },
                         )
                     }
                 }

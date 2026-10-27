@@ -460,7 +460,7 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     editing = folderId,
                 )
             } else {
-                AddFolderScreen(folderId, route.focus, onDone = {
+                AddFolderScreen(folderId, focusOn = route.focus, onDone = {
                     // A folder edited: back to settings, else (opened from home's problem) home.
                     if (!nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
                 })
@@ -536,7 +536,7 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
         composable<Route.ToIdentify> { entry ->
             val at by entry.savedStateHandle.getStateFlow<String?>(QUEUE_AT, null).collectAsStateWithLifecycle()
             WithSource(source) {
-                ToIdentifyScreen(onOpen = nav::openQueue, queueAt = at, onQueueSeen = { entry.savedStateHandle[QUEUE_AT] = null })
+                ToIdentifyScreen(onOpen = nav::openQueue, queueAt = at, onQueueAtFocus = { entry.savedStateHandle[QUEUE_AT] = null })
             }
         }
         composable<Route.Person> { entry ->
@@ -553,14 +553,14 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     onFolderForm = { folderId, focus, onDisk -> nav.navigate(Route.AddFolder(folderId, focus, onDisk)) },
                     onUseFolders = ::useFolders,
                     onSignIn = { nav.navigate(Route.JellyfinLogin.of(it)) },
-                    onSourceResumed = ::goHome,
+                    onSourceResume = ::goHome,
                     onOpenCatalog = { nav.navigate(Route.Catalog) },
                     onOpenWall = nav::openWall,
                     onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
                     onOpenToIdentify = { nav.openOnce(Route.ToIdentify) },
                     addedFolder = added,
                     folderSheet = sheet,
-                    onAddedFolderShown = {
+                    onAddedFolderShow = {
                         entry.savedStateHandle[ADDED_FOLDER] = null
                         entry.savedStateHandle[FOLDER_SHEET] = null
                     },
@@ -577,10 +577,13 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
 
 /** « À regarder » at [entry], on the row it was opened on, with home's rows as home read them: what its doors showed. */
 @Composable
-private fun WatchPage(nav: NavController, entry: NavBackStackEntry, onOpenItem: (MediaItem) -> Unit) {
+private fun WatchPage(
+    nav: NavController,
+    entry: NavBackStackEntry,
+    onOpenItem: (MediaItem) -> Unit,
+    vm: HomeViewModel = viewModel(remember(entry) { nav.watchOwner(entry) }, factory = HomeViewModel.factory(appContainer())),
+) {
     val row = entry.toRoute<Route.Watch>().watchRow
-    val owner = remember(entry) { nav.watchOwner(entry) }
-    val vm: HomeViewModel = viewModel(owner, factory = HomeViewModel.factory(appContainer()))
     WatchScreen(vm, row, onOpenItem)
 }
 

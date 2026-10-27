@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -57,7 +59,6 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.calmAfter
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.design.components.HlErrorState
-import android.annotation.SuppressLint
 
 /**
  * Matching a title with the right TMDB entry, when automatic matching got it wrong or left it to identify, its
@@ -65,9 +66,13 @@ import android.annotation.SuppressLint
  * opens ([onNext], null after the last); else [onDone].
  */
 @Composable
-fun IdentifyScreen(itemId: String, onDone: () -> Unit, queue: Boolean = false, onNext: (String?) -> Unit = { onDone() }) {
-    val app = appContainer()
-    val vm: IdentifyViewModel = viewModel(key = "identify-$itemId", factory = IdentifyViewModel.factory(app, itemId, queue))
+fun IdentifyScreen(
+    itemId: String,
+    onDone: () -> Unit,
+    queue: Boolean = false,
+    onNext: (String?) -> Unit = { onDone() },
+    vm: IdentifyViewModel = viewModel(key = "identify-$itemId", factory = IdentifyViewModel.factory(appContainer(), itemId, queue)),
+) {
     IdentifyPage(vm, onDone, queue, onNext)
 }
 
@@ -82,8 +87,10 @@ internal fun IdentifyPage(vm: IdentifyViewModel, onDone: () -> Unit, queue: Bool
     // Once matched, return to the title when resumed (after a screen saver or dialog); the match outlives Back. In the
     // queue, the next title opens.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val currentOnDone by rememberUpdatedState(onDone)
+    val currentOnNext by rememberUpdatedState(onNext)
     LaunchedEffect(state.done) {
-        if (state.done) lifecycle.withResumed { if (queue) onNext(state.nextId) else onDone() }
+        if (state.done) lifecycle.withResumed { if (queue) currentOnNext(state.nextId) else currentOnDone() }
     }
     // In the queue, Left from the results reaches « Passer », the aside's action nearest them.
     val skip = remember { FocusRequester() }.takeIf { queue }
@@ -104,10 +111,10 @@ internal fun IdentifyPage(vm: IdentifyViewModel, onDone: () -> Unit, queue: Bool
         HlFormScaffold(
             title = stringResource(R.string.identify),
             description = stringResource(descriptionOf(state.identity)),
-            aside = { Aside(state, vm, skip) },
+            aside = { Aside(state, skip, onSkip = vm::skip, onKeep = vm::keep, onReset = { vm.identify(null) }) },
         ) {
-            SearchFields(state, vm)
-            Results(state, vm, Modifier.focusRequester(firstResult), skip)
+            SearchFields(state, onQueryChange = vm::setQuery, onYearChange = vm::setYear, onSearch = vm::search)
+            Results(state, firstResult, skip, onRetry = vm::retry, onIdentify = vm::identify)
         }
     }
 }
@@ -141,11 +148,17 @@ private fun stateTextOf(identity: Identity?): Int {
 }
 
 /**
- * The file or folder and its current match, in one panel; under it, in the queue, « Passer » ([skip]), then what leaves
- * the title as it is or puts it back.
+ * The file or folder and its current match, in one panel; under it, in the queue, « Passer » ([skip], [onSkip]), then
+ * what leaves the title as it is ([onKeep]) or puts it back ([onReset]).
  */
 @Composable
-private fun Aside(state: IdentifyState, vm: IdentifyViewModel, skip: FocusRequester?) {
+private fun ColumnScope.Aside(
+    state: IdentifyState,
+    skip: FocusRequester?,
+    onSkip: () -> Unit,
+    onKeep: () -> Unit,
+    onReset: () -> Unit,
+) {
     val identity = state.identity
     StatusPanel(
         state = stateOf(identity),
@@ -168,7 +181,7 @@ private fun Aside(state: IdentifyState, vm: IdentifyViewModel, skip: FocusReques
         Spacer(Modifier.height(gap))
         HlButton(
             stringResource(R.string.identify_skip),
-            onClick = vm::skip,
+            onClick = onSkip,
             modifier = Modifier.focusRequester(skip),
             busy = state.skipping,
         )
@@ -177,49 +190,59 @@ private fun Aside(state: IdentifyState, vm: IdentifyViewModel, skip: FocusReques
     // A home video TMDB will never know: no longer searched for, nor counted.
     if (identity.doubt != null) {
         Spacer(Modifier.height(gap))
-        HlButton(stringResource(R.string.identify_keep), onClick = vm::keep, busy = state.keeping)
+        HlButton(stringResource(R.string.identify_keep), onClick = onKeep, busy = state.keeping)
         gap = HlSpace.s
     }
     if (identity.manual || identity.kept) {
         Spacer(Modifier.height(gap))
-        HlButton(stringResource(R.string.identify_reset), onClick = { vm.identify(null) })
+        HlButton(stringResource(R.string.identify_reset), onClick = onReset)
     }
 }
 
 /** The title and year to search for, and Rechercher. */
 @Composable
-private fun SearchFields(state: IdentifyState, vm: IdentifyViewModel) {
+private fun SearchFields(
+    state: IdentifyState,
+    onQueryChange: (String) -> Unit,
+    onYearChange: (String) -> Unit,
+    onSearch: () -> Unit,
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Bottom) {
         HlTextField(
             label = stringResource(R.string.label_title),
             value = state.query,
-            onValueChange = vm::setQuery,
+            onValueChange = onQueryChange,
             modifier = Modifier.weight(1f),
             placeholder = stringResource(R.string.search_placeholder),
             imeAction = ImeAction.Search,
-            onImeAction = vm::search,
+            onImeAction = onSearch,
         )
         HlTextField(
             label = stringResource(R.string.label_year),
             value = state.year,
-            onValueChange = vm::setYear,
+            onValueChange = onYearChange,
             modifier = Modifier.width(HlLayout.fieldShort),
             placeholder = stringResource(R.string.placeholder_year),
             keyboardType = KeyboardType.Number,
             imeAction = ImeAction.Search,
-            onImeAction = vm::search,
+            onImeAction = onSearch,
         )
     }
-    HlButton(stringResource(R.string.search), onClick = vm::search, icon = HlIcons.Search)
+    HlButton(stringResource(R.string.search), onClick = onSearch, icon = HlIcons.Search)
 }
 
 /**
  * Where the search stands, then its results, or the suggestions automatic matching kept, the first one [first] (focus
- * goes to it); OK matches the title with one. Left from one goes to « Passer » ([skip]) in the queue.
+ * goes to it); OK matches the title with one ([onIdentify]). Left from one goes to « Passer » ([skip]) in the queue.
  */
 @Composable
-@SuppressLint("ModifierParameter") // Not the results' modifier: the first one's, which focus goes to.
-private fun Results(state: IdentifyState, vm: IdentifyViewModel, first: Modifier, skip: FocusRequester?) {
+private fun Results(
+    state: IdentifyState,
+    first: FocusRequester,
+    skip: FocusRequester?,
+    onRetry: () -> Unit,
+    onIdentify: (MatchCandidate) -> Unit,
+) {
     // Status shows above the results, which keep their place and focus; with none, a failure replaces them.
     val error = state.error
     val results = state.results
@@ -227,7 +250,7 @@ private fun Results(state: IdentifyState, vm: IdentifyViewModel, first: Modifier
     val retrying = state.searching || (state.item == null && error == null)
     val failure = retainedError(error?.takeIf { results.isNullOrEmpty() }, retrying)
     when {
-        failure != null -> HlErrorState(failure, vm::retry, retrying = retrying)
+        failure != null -> HlErrorState(failure, onRetry, retrying = retrying)
         state.identifying -> HlStatus(StatusState.Pending, stringResource(R.string.identifying))
         state.searching -> HlStatus(StatusState.Pending, stringResource(R.string.searching))
         error != null -> HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
@@ -237,14 +260,19 @@ private fun Results(state: IdentifyState, vm: IdentifyViewModel, first: Modifier
         results.isEmpty() -> if (!state.searching && error == null) {
             HlEmptyState(stringResource(R.string.search_empty), message = stringResource(R.string.search_empty_hint))
         }
-        else -> ResultList(results, state, vm, first, skip)
+        else -> ResultList(results, state, first, skip, onIdentify)
     }
 }
 
-/** The results, under « Suggestions » for automatic matching's, else under their count. */
+/** The results, under « Suggestions » for automatic matching's, else under their count; the [first] takes focus. */
 @Composable
-@SuppressLint("ModifierParameter") // Not the list's modifier: its first result's, which focus goes to.
-private fun ResultList(results: List<MatchCandidate>, state: IdentifyState, vm: IdentifyViewModel, first: Modifier, skip: FocusRequester?) {
+private fun ResultList(
+    results: List<MatchCandidate>,
+    state: IdentifyState,
+    first: FocusRequester,
+    skip: FocusRequester?,
+    onIdentify: (MatchCandidate) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
         SectionHeader(
             if (state.suggested) {
@@ -259,10 +287,10 @@ private fun ResultList(results: List<MatchCandidate>, state: IdentifyState, vm: 
                 title = candidate.title,
                 facts = listOf(candidate.year?.toString(), candidate.originalTitle),
                 overview = candidate.overview,
-                onClick = { vm.identify(candidate) },
+                onClick = { onIdentify(candidate) },
                 mark = stringResource(R.string.result_current).takeIf { candidate.id == state.identity?.current?.id },
                 busy = stringResource(R.string.identifying).takeIf { state.identifying && candidate.id == state.chosenId },
-                modifier = (if (i == 0) first else Modifier).then(
+                modifier = (if (i == 0) Modifier.focusRequester(first) else Modifier).then(
                     if (skip != null) Modifier.focusProperties { left = skip } else Modifier,
                 ),
             )

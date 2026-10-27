@@ -56,7 +56,7 @@ class TypeRolesTest {
 
     @Test
     fun aPlaceIsAnEntryAfterAnIconOfTwenty() {
-        compose.setTvContent { Box(Modifier.width(256.dp)) { HlNavItem(HlIcons.Folder, "Bibliothèque", selected = false, onFocused = {}) } }
+        compose.setTvContent { Box(Modifier.width(256.dp)) { HlNavItem(HlIcons.Folder, "Bibliothèque", selected = false, onFocus = {}) } }
         compose.assertSetIn(t.entry, "Bibliothèque")
         val place = compose.onNode(hasClickAction()).getUnclippedBoundsInRoot()
         val words = compose.onNodeWithText("Bibliothèque", useUnmergedTree = true).getUnclippedBoundsInRoot()

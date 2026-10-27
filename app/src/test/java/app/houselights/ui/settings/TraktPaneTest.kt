@@ -146,7 +146,7 @@ class TraktPaneTest {
         var open by mutableStateOf(false)
         compose.setTvContent {
             val place = Modifier.testTag(PLACE)
-            HlTwoPane(side = { HlNavItem(HlIcons.History, "Trakt", selected = open, onFocused = { open = true }, place) }) {
+            HlTwoPane(side = { HlNavItem(HlIcons.History, "Trakt", selected = open, onFocus = { open = true }, place) }) {
                 LazyColumn(Modifier.fillMaxSize()) { if (open) traktPane(vm, session) }
             }
         }
@@ -163,7 +163,7 @@ class TraktPaneTest {
         val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
         var placesFocused = 0
         compose.setTvContent {
-            HlTwoPane(side = { HlNavItem(HlIcons.Folder, "Bibliothèque", selected = false, onFocused = { placesFocused++ }) }) {
+            HlTwoPane(side = { HlNavItem(HlIcons.Folder, "Bibliothèque", selected = false, onFocus = { placesFocused++ }) }) {
                 LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session) }
             }
         }

@@ -4,6 +4,7 @@ import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -121,7 +122,7 @@ private fun Frames() {
 }
 
 @Composable
-private fun Fills() {
+private fun ColumnScope.Fills() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("secondary", gap = HlSpace.xs) { HlButton(stringResource(R.string.filter), {}, icon = HlIcons.Filter) }
         // A tile's label takes no room of its own: the row keeps it.

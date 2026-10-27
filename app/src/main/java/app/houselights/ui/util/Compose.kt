@@ -48,8 +48,9 @@ fun ReloadOnLibraryChange(reload: (scanOnly: Boolean) -> Unit) {
 internal fun ReloadOnLibraryChange(version: StateFlow<Long>, settled: StateFlow<Long>, reload: (scanOnly: Boolean) -> Unit) {
     val at by version.collectAsStateWithLifecycle()
     var shown by rememberSaveable { mutableStateOf(shownAt(at, settled.value)) }
+    val currentReload by rememberUpdatedState(reload)
     LaunchedEffect(at) {
-        if (isBehind(shown, at)) reload(scanOnly(shown, settled.value))
+        if (isBehind(shown, at)) currentReload(scanOnly(shown, settled.value))
         shown = shownAt(at, settled.value)
     }
 }
@@ -73,7 +74,8 @@ fun ReloadOnLibraryChange(shown: LibraryShown, reload: () -> Unit) = ReloadOnLib
 @Composable
 internal fun ReloadOnLibraryChange(version: StateFlow<Long>, shown: LibraryShown, reload: () -> Unit) {
     val at by version.collectAsStateWithLifecycle()
-    LaunchedEffect(at) { if (shown.moveTo(at)) reload() }
+    val currentReload by rememberUpdatedState(reload)
+    LaunchedEffect(at) { if (shown.moveTo(at)) currentReload() }
 }
 
 /** Identifies this process: library versions from two processes do not compare. */

@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
@@ -68,6 +69,7 @@ fun roomPosters(): List<ImageRef> {
 @Composable
 internal fun rememberRoomPosters(initial: List<ImageRef>, read: suspend () -> List<ImageRef>): List<ImageRef> {
     var posters by remember { mutableStateOf(initial) }
-    LaunchedEffect(Unit) { read().takeIf { it.isNotEmpty() }?.let { posters = it } }
+    val currentRead by rememberUpdatedState(read)
+    LaunchedEffect(Unit) { currentRead().takeIf { it.isNotEmpty() }?.let { posters = it } }
     return posters
 }

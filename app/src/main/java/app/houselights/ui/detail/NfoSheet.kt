@@ -39,9 +39,11 @@ import java.util.Locale
 
 /** A title's NFO in a reading sheet over its page: its details as a list of definitions, or its XML as written. */
 @Composable
-fun NfoSheet(item: MediaItem, onDismiss: () -> Unit) {
-    val app = appContainer()
-    val vm: NfoViewModel = viewModel(key = "nfo-${item.id}", factory = NfoViewModel.factory(app, item.id))
+fun NfoSheet(
+    item: MediaItem,
+    onDismiss: () -> Unit,
+    vm: NfoViewModel = viewModel(key = "nfo-${item.id}", factory = NfoViewModel.factory(appContainer(), item.id)),
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     NfoSheet(item, state, onRetry = vm::load, onDismiss = onDismiss)
 }

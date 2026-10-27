@@ -73,7 +73,7 @@ class PagesNavigationTest {
             nav = rememberNavController()
             NavHost(nav, startDestination = Route.Home) {
                 composable<Route.Home> { HomeGrid(fullHome(), nav.homeActions()) }
-                composable<Route.Library> { WallAt(it) { item -> nav.navigate(Route.Item(item.id)) } }
+                composable<Route.Library> { WallAt(it, onOpenItem = { item -> nav.navigate(Route.Item(item.id)) }) }
                 composable<Route.Item> {}
                 composable<Route.Watch> {}
                 composable<Route.Search> {}
@@ -85,19 +85,24 @@ class PagesNavigationTest {
         return nav
     }
 
-    /** The wall at [entry], its saved state from the route's arguments as the app's factory makes it. */
+    /** The wall at [entry]. */
     @Composable
-    private fun WallAt(entry: NavBackStackEntry, onOpenItem: (MediaItem) -> Unit) {
+    private fun WallAt(
+        entry: NavBackStackEntry,
+        onOpenItem: (MediaItem) -> Unit,
+        vm: LibraryViewModel = viewModel(factory = wallFactory(entry)),
+    ) {
+        val route = entry.toRoute<Route.Library>()
+        Wall(vm, route.wallLibrary, route.wallTitle(libraryName(route.kind)), onOpenItem)
+    }
+
+    /** The wall's view model at [entry], its saved state from the route's arguments as the app's factory makes it. */
+    private fun wallFactory(entry: NavBackStackEntry) = viewModelFactory {
         val route = entry.toRoute<Route.Library>()
         val library = route.wallLibrary
-        val vm: LibraryViewModel = viewModel(
-            factory = viewModelFactory {
-                initializer {
-                    LibraryViewModel({ source }, library, createSavedStateHandle(), opensOn = route.filter, sagas = route.sagasLibrary)
-                }
-            },
-        )
-        Wall(vm, library, route.wallTitle(libraryName(route.kind)), onOpenItem)
+        initializer {
+            LibraryViewModel({ source }, library, createSavedStateHandle(), opensOn = route.filter, sagas = route.sagasLibrary)
+        }
     }
 
     private fun focusIsOn(text: String) = compose.onNode(isFocused()).assert(hasText(text, substring = true))

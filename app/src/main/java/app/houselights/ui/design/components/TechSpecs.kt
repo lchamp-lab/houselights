@@ -4,6 +4,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -128,7 +129,8 @@ private class Placed {
 
 /** A block's name in `group`, and how many tracks it holds ("Son   2 pistes"). */
 @Composable
-private fun BlockName(name: String, count: String? = null) {
+private fun ColumnScope.BlockName(name: String, count: String? = null) {
+
     val c = Hl.colors
     Row {
         Text(name, style = Hl.type.group, color = c.contentSecondary, modifier = Modifier.alignByBaseline())
@@ -149,7 +151,7 @@ private data class Mark(val format: String, val measures: List<String>)
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PictureBlock(section: TechSection, modifier: Modifier) {
+private fun PictureBlock(section: TechSection, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val name = topicName(section.topic)
     val marks = mutableListOf<Mark>()
@@ -186,7 +188,7 @@ private fun PictureBlock(section: TechSection, modifier: Modifier) {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TracksBlock(section: TechSection, modifier: Modifier) {
+private fun TracksBlock(section: TechSection, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val name = topicName(section.topic)
     val count = section.tracks?.let { pluralStringResource(R.plurals.tech_track_count, it, it) }
@@ -257,7 +259,7 @@ private fun formatColumn(formats: List<String>): Dp {
 /** The file as a case's back states it: each fact's label over its value, then its name, whole. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FileBlock(section: TechSection, modifier: Modifier) {
+private fun FileBlock(section: TechSection, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val name = topicName(section.topic)
     val nameLabel = labelName(TechLabel.NAME)

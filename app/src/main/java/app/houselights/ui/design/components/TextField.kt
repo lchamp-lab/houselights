@@ -8,6 +8,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -106,10 +107,6 @@ fun HlTextField(
         FieldBox(
             value,
             onValueChange,
-            Modifier.semantics {
-                contentDescription = named
-                if (error != null) error(error)
-            },
             placeholder,
             keyboardOptions = KeyboardOptions(
                 keyboardType = if (password) KeyboardType.Password else keyboardType,
@@ -118,6 +115,10 @@ fun HlTextField(
             ),
             password = password,
             onImeAction = onImeAction,
+            modifier = Modifier.semantics {
+                contentDescription = named
+                if (error != null) error(error)
+            },
         )
         FieldMessage(error, supporting)
     }
@@ -128,12 +129,13 @@ fun HlTextField(
 private fun FieldBox(
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier,
     placeholder: String,
     keyboardOptions: KeyboardOptions,
     password: Boolean,
     onImeAction: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+
     var editing by remember { mutableStateOf(false) }
     var boxFocused by remember { mutableStateOf(false) }
     var fieldFocused by remember { mutableStateOf(false) }
@@ -373,7 +375,7 @@ internal fun KeyHint(modifier: Modifier = Modifier) {
 
 /** [error] as an [AttentionNote], else [supporting]; the edge stays unchanged, since ember there means typing. */
 @Composable
-private fun FieldMessage(error: String?, supporting: String?) {
+private fun ColumnScope.FieldMessage(error: String?, supporting: String?) {
     if (error == null && supporting == null) return
     Spacer(Modifier.height(HlSpace.xs))
     if (error != null) {

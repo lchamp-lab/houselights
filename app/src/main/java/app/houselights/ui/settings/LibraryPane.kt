@@ -74,6 +74,7 @@ import app.houselights.core.CollectionThreshold
 import kotlinx.coroutines.launch
 import java.text.Collator
 import java.util.Locale
+import androidx.compose.runtime.rememberUpdatedState
 
 /**
  * The library pane: its folders' showcases or its server, then actions; rows that open a screen are keyed in [rows]. A
@@ -91,7 +92,7 @@ internal fun LazyListScope.libraryPane(
         SourceConfig.Local -> {
             item {
                 Section(stringResource(R.string.section_source), aside = librarySummary()) {
-                    Showcases(rows, onEdit = onFolderForm, onResumed = sources.resumed, added = added)
+                    Showcases(rows, onEdit = onFolderForm, onSourceResume = sources.resumed, added = added)
                 }
             }
             item { LibraryActions({ onFolderForm(null, FolderField.FIRST, false) }, rows, sources.toIdentify) }
@@ -157,6 +158,7 @@ internal class NewFolder(val id: Long, val sheet: Boolean = false, val shown: ()
 /** Focus on [added]'s showcase once [sources] hold it, the [row] of showcases scrolled to it first; its sheet then [opens]. */
 @Composable
 private fun FocusOnAdded(added: NewFolder, sources: List<Folder>, row: LazyListState, rows: PaneRows, opens: (Folder) -> Unit) {
+    val currentOpens by rememberUpdatedState(opens)
     LaunchedEffect(added.id, sources) {
         val index = sources.indexOfFirst { it.id == added.id }
         if (index < 0) return@LaunchedEffect
@@ -164,14 +166,14 @@ private fun FocusOnAdded(added: NewFolder, sources: List<Folder>, row: LazyListS
         // Once laid out, and once the screen has put focus back where it was left (RestoreFocus).
         withFrameNanos { }
         if (!rows.requester(folderRow(added.id)).tryRequestFocus()) return@LaunchedEffect
-        if (added.sheet) opens(sources[index])
+        if (added.sheet) currentOpens(sources[index])
         added.shown()
     }
 }
 
 /**
  * One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. The last
- * one removed gives way to the kept server, its home then shown ([onResumed]), else to the welcome screen. A folder just
+ * one removed gives way to the kept server, its home then shown ([onSourceResume]), else to the welcome screen. A folder just
  * [added] takes focus on its showcase as soon as it shows, its scan running there, the row scrolled to it; one whose
  * edit was left, its sheet opening again, focus on « Modifier le dossier ».
  */
@@ -179,7 +181,7 @@ private fun FocusOnAdded(added: NewFolder, sources: List<Folder>, row: LazyListS
 private fun Showcases(
     rows: PaneRows,
     onEdit: (folderId: Long, focus: FolderField, onDisk: Boolean) -> Unit,
-    onResumed: () -> Unit,
+    onSourceResume: () -> Unit,
     added: NewFolder? = null,
 ) {
     val vm = settingsViewModel()
@@ -245,7 +247,7 @@ private fun Showcases(
             },
             error = scan.errors[source.id],
             held = held[source.id]?.rows?.size ?: 0,
-            onHeld = { heldFor = source.id },
+            onOpenHeldTitles = { heldFor = source.id },
             onDismiss = { actionsFor = null },
             onEdit = { focus -> onEdit(source.id, focus, source.protocol == Protocol.LOCAL) },
             editFirst = backFromEdit,
@@ -253,7 +255,7 @@ private fun Showcases(
             onRemove = {
                 val next = sources.getOrNull(sources.indexOfFirst { it.id == source.id } + 1)
                 removing = source.id to rows.requester(next?.let { folderRow(it.id) } ?: ADD_FOLDER)
-                vm.removeFolder(source, last, onResumed)
+                vm.removeFolder(source, last, onSourceResume)
             },
         )
     }
@@ -269,7 +271,8 @@ private fun HeldSheetFor(folder: Long?, held: Map<Long, HeldTitles>, answers: He
     if (folder == null) return
     val titles = held[folder]
     if (titles == null) {
-        LaunchedEffect(Unit) { onClose() }
+        val currentOnClose by rememberUpdatedState(onClose)
+        LaunchedEffect(Unit) { currentOnClose() }
         return
     }
     HeldSheet(titles, onKeep = { answers.keep(titles) }, onRemove = { answers.remove(titles) }, onDismiss = onClose)
@@ -300,7 +303,7 @@ private fun diskOf(source: Folder): String? {
 
 /**
  * A folder's sheet: scan, edit or remove (confirmed in place, saying its [consequence]); Edit comes first after a failure
- * it can fix, and takes focus with [editFirst], its edit left. While titles of it are [held] ([onHeld] opens their
+ * it can fix, and takes focus with [editFirst], its edit left. While titles of it are [held] ([onOpenHeldTitles] opens their
  * sheet), they come first, focused. A folder of this player's disks says its disk as « Ajouter un dossier » does, no
  * protocol, and Edit chooses another folder of the disk through the flow's steps, first once a scan no longer finds it.
  */
@@ -313,7 +316,7 @@ private fun SourceActions(
     onEdit: (focus: FolderField) -> Unit,
     onRemove: () -> Unit,
     held: Int = 0,
-    onHeld: () -> Unit = {},
+    onOpenHeldTitles: () -> Unit = {},
     editFirst: Boolean = false,
 ) {
     val vm = settingsViewModel()
@@ -380,7 +383,7 @@ private fun SourceActions(
                         pluralStringResource(R.plurals.held_titles, held, held),
                         Modifier.focusRequester(heldRow),
                         description = stringResource(if (held == 1) R.string.held_row_desc_one else R.string.held_row_desc),
-                        onClick = { sheet.dismiss(onHeld) },
+                        onClick = { sheet.dismiss(onOpenHeldTitles) },
                     )
                 }
                 if (fix != null) {
@@ -838,7 +841,7 @@ private fun LeaveConfirm(
 
 /** [choice] as its row, saying in one line what it is, checked while it is the source. */
 @Composable
-private fun SourceChoiceRow(choice: SourceChoice, folders: Int, modifier: Modifier, onClick: () -> Unit) {
+private fun SourceChoiceRow(choice: SourceChoice, folders: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
     when (choice) {
         is SourceChoice.Folders -> HlSettingRow(
             stringResource(R.string.source_local),

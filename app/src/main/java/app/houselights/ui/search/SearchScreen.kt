@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,9 +63,12 @@ import app.houselights.ui.util.valueOrNull
  * from a result refocuses it.
  */
 @Composable
-fun SearchScreen(onOpenItem: (MediaItem) -> Unit, onOpenPerson: (String) -> Unit) {
-    val app = appContainer()
-    val vm: SearchViewModel = viewModel(factory = SearchViewModel.factory(app))
+fun SearchScreen(
+    onOpenItem: (MediaItem) -> Unit,
+    onOpenPerson: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    vm: SearchViewModel = viewModel(factory = SearchViewModel.factory(appContainer())),
+) {
     val query by vm.query.collectAsStateWithLifecycle()
     // Read only below and while settling, so new results recompose the results, never the keyboard.
     val found = vm.found.collectAsStateWithLifecycle()
@@ -77,7 +79,7 @@ fun SearchScreen(onOpenItem: (MediaItem) -> Unit, onOpenPerson: (String) -> Unit
     val focusedId = remember { mutableStateOf<String?>(null) }
     val shown = rememberSettled { found.value?.results?.valueOrNull?.lit(focusedId.value) }
     DetailAhead(shown.value)
-    AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse) {
+    AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse, modifier) {
         Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV)) {
             ScreenTitle(stringResource(R.string.search), Modifier.padding(start = HlSpace.safeH))
             Spacer(Modifier.height(HlSpace.m))
@@ -90,7 +92,7 @@ fun SearchScreen(onOpenItem: (MediaItem) -> Unit, onOpenPerson: (String) -> Unit
                         LetterGrid(vm::type, vm::space, vm::delete, first = firstKey)
                     }
                 }
-                Results(found, shown, focusedId, memory, onOpenItem, onOpenPerson, vm::retry, Modifier.weight(1f))
+                Results(found, shown, { focusedId.value = it }, memory, onOpenItem, onOpenPerson, vm::retry, Modifier.weight(1f))
             }
         }
     }
@@ -107,7 +109,7 @@ internal fun SearchResults.lit(id: String?): MediaItem? = id?.let { (titles + sa
 internal fun Results(
     found: State<Found?>,
     shown: State<MediaItem?>,
-    focusedId: MutableState<String?>,
+    onItemFocus: (String) -> Unit,
     memory: FocusMemory,
     onOpenItem: (MediaItem) -> Unit,
     onOpenPerson: (String) -> Unit,
@@ -147,7 +149,7 @@ internal fun Results(
                                 title,
                                 onClick = { onOpenItem(title) },
                                 modifier = memory.result(TITLES, title.id),
-                                onFocused = { focusedId.value = title.id },
+                                onFocus = { onItemFocus(title.id) },
                             )
                         }
                     }
@@ -165,7 +167,7 @@ internal fun Results(
                                 saga,
                                 onClick = { onOpenItem(saga) },
                                 modifier = memory.result(SAGAS, saga.id),
-                                onFocused = { focusedId.value = saga.id },
+                                onFocus = { onItemFocus(saga.id) },
                             )
                         }
                     }

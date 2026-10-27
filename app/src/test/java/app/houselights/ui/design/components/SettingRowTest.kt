@@ -34,7 +34,7 @@ class SettingRowTest {
     fun aRowKeepsItsHeightInAPaneAndInASheet() {
         compose.setTvContent {
             Column {
-                HlNavItem(HlIcons.Folder, "Bibliothèque", selected = true, onFocused = {})
+                HlNavItem(HlIcons.Folder, "Bibliothèque", selected = true, onFocus = {})
                 HlSettingGroup("Groupe") { HlSettingRow("Dans un volet", description = "Une ligne", onClick = {}) }
             }
             HlSideSheet("Modifier", onDismiss = {}) {

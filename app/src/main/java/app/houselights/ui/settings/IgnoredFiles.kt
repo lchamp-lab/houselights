@@ -32,7 +32,7 @@ import app.houselights.ui.util.FACT_GAP
  * nothing.
  */
 @Composable
-internal fun IgnoredFilesRow(ignored: List<IgnoredFileRow>, modifier: Modifier, onOpen: () -> Unit) {
+internal fun IgnoredFilesRow(ignored: List<IgnoredFileRow>, modifier: Modifier = Modifier, onOpen: () -> Unit) {
     val count = ignored.size
     HlSettingRow(
         pluralStringResource(R.plurals.ignored_files, count, count),

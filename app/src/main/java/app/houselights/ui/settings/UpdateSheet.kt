@@ -253,7 +253,7 @@ internal fun UpdateSheet(state: UpdateState, controls: UpdateControls, origin: U
         }
         val doing = actionOf(state, now)
         HlSettingGroup(null) {
-            ActionRow(state, doing, controls, Modifier.focusRequester(action), calmAtFirst = origin == UpdateOrigin.Home)
+            ActionRow(state, doing, controls, calmAtFirst = origin == UpdateOrigin.Home, modifier = Modifier.focusRequester(action))
             when {
                 doing == UpdateAction.DOWNLOADING -> HlSettingRow(
                     stringResource(R.string.update_cancel),
@@ -338,7 +338,13 @@ private fun footWords(doing: UpdateAction): String? = when (doing) {
  * sheet opened by itself ([calmAtFirst]). Downloading, its count follows the line.
  */
 @Composable
-private fun ActionRow(state: UpdateState, doing: UpdateAction, controls: UpdateControls, modifier: Modifier, calmAtFirst: Boolean) {
+private fun ActionRow(
+    state: UpdateState,
+    doing: UpdateAction,
+    controls: UpdateControls,
+    calmAtFirst: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val downloading = (state.step as? UpdateStep.Downloading)?.takeIf { doing == UpdateAction.DOWNLOADING }
     HlSettingRow(
         stringResource(doing.title),

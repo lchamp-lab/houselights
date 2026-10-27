@@ -4,6 +4,7 @@ import app.houselights.ui.design.TwoPaneDefaults
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
@@ -430,7 +431,7 @@ private const val SEVEN_SAMURAI_OVERVIEW =
 
 /** Results of a search, about as wide as the identify form gives them. */
 @Composable
-private fun Results() {
+private fun ColumnScope.Results() {
     val poster = shippedImage(R.drawable.banner)
     val current = stringResource(R.string.result_current)
     val matching = stringResource(R.string.identifying)

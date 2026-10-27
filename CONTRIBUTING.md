@@ -51,6 +51,11 @@ Run `scripts/check.sh` before pushing or opening a pull request. It runs what CI
   `!!`, unsafe casts).
 - detekt keeps no baseline: a finding is fixed, else its rule is set aside where it stands, `@Suppress` with its
   reason in a line (a `when` over a format's codes), or in `config/detekt.yml` with its reason where it never fits.
+- detekt runs Compose's rules too ([compose-rules](https://mrmans0n.github.io/compose-rules/), `config/detekt.yml`,
+  `Compose`): a composable that draws takes a `modifier` defaulting to `Modifier`, for its root, after what it needs;
+  a screen's view model is a default parameter, handed to its page alone, whose parts take its state and events; an
+  effect calls its lambdas through `rememberUpdatedState`; a modifier that keeps state is a `Modifier.Node`, never
+  `composed`; a new `CompositionLocal` is listed there with the reason it is one.
 - Lint keeps no baseline, and a warning fails it as an error does: fix it, else set it aside where it stands with its
   reason (`tools:ignore`, `@SuppressLint`, `//noinspection`), or in `app/build.gradle.kts`'s `lint` block where it
   never fits. Its checks for a newer version of a dependency are off: Dependabot proposes upgrades in pull requests

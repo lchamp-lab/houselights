@@ -192,7 +192,8 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
 
 /** An option: the chosen one white with its ember check, raspberry on focus's white; the others grey. */
 @Composable
-private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+
     val c = Hl.colors
     HlRowSurface(
         onClick = onClick,
