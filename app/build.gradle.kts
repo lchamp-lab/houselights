@@ -95,9 +95,12 @@ android {
         buildConfigField("boolean", "UPDATER", "false")
         buildConfigField("String", "UPDATE_REPO", "\"lchamp-lab/houselights\"")
         manifestPlaceholders["appLabel"] = "@string/app_name"
+    }
+
+    androidResources {
         // The languages of the interface (InterfaceLanguage.LANGUAGES): the libraries' strings in 80 others would only be
         // shipped. The libraries write Chinese by region.
-        resourceConfigurations +=
+        localeFilters +=
             listOf("de", "en", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt", "b+zh+Hans", "b+zh+Hant", "zh-rCN", "zh-rTW", "zh-rHK")
     }
 

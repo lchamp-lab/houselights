@@ -1,8 +1,10 @@
 [versions]
-agp = "8.7.3"
-kotlin = "2.1.0"
-ksp = "2.1.0-1.0.29"
-detekt = "1.23.7"
+# 8.x's last: AGP 9 builds Kotlin in and turns its new DSL on, a step of its own.
+agp = "8.13.2"
+# 2.1's last: detekt 1.23 analyses the code with its own Kotlin 2.0.21, which reads classes up to Kotlin 2.1.
+kotlin = "2.1.21"
+ksp = "2.1.21-2.0.2"
+detekt = "1.23.8"
 
 compose-bom = "2024.12.01"
 tv-material = "1.0.0"
@@ -13,7 +15,7 @@ lifecycle = "2.8.7"
 navigation = "2.8.5"
 datastore = "1.1.1"
 palette = "1.0.0"
-room = "2.6.1"
+room = "2.8.5"
 
 coroutines = "1.9.0"
 serialization = "1.7.3"
