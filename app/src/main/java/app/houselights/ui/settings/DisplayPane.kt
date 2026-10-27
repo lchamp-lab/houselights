@@ -101,7 +101,7 @@ private fun InterfaceResolution(s: AppSettings) {
 
 /** The app's language: the device's, or one of [InterfaceLanguage.LANGUAGES]; the screens are made again in it. */
 @Composable
-private fun InterfaceLanguageRow(modifier: Modifier) {
+private fun InterfaceLanguageRow(modifier: Modifier = Modifier) {
     val vm = settingsViewModel()
     val chosen by vm.interfaceLanguage.collectAsStateWithLifecycle()
     val tags = remember { InterfaceLanguage.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::interfaceLanguageName)) }

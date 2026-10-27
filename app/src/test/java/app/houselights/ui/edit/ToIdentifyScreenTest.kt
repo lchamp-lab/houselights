@@ -245,7 +245,7 @@ class ToIdentifyScreenTest {
     @Test
     fun backFromTheQueueFocusIsOnTheTitleItReached() {
         var reached: String? = "m3"
-        compose.setTvContent { ToIdentifyPage(vm, onOpen = {}, queueAt = reached, onQueueSeen = { reached = null }) }
+        compose.setTvContent { ToIdentifyPage(vm, onOpen = {}, queueAt = reached, onQueueAtFocus = { reached = null }) }
         compose.waitForIdle()
         focusIsOn("Film 3")
         assertEquals(null, reached)

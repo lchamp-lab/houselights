@@ -26,10 +26,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
@@ -59,7 +57,6 @@ import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
-import coil.imageLoader
 import kotlinx.coroutines.delay
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
@@ -75,35 +72,35 @@ internal enum class Pane(val label: Int, val icon: ImageVector) {
 /**
  * Settings in two panes: its places, a word each, and the focused one's rows. [onUseFolders] makes the folders the
  * source, keeping the server left or signing out of it, and reports a failure on the source's row; [onSignIn] opens
- * the sign-in, filled in as it says; [onSourceResumed] follows the kept server made the source again. The library in
+ * the sign-in, filled in as it says; [onSourceResume] follows the kept server made the source again. The library in
  * numbers opens a filtered wall ([onOpenWall]) or a director's page ([onOpenPerson]). A folder just added or edited
  * ([addedFolder]) takes focus on its showcase, one whose edit was left ([folderSheet]) its sheet too, then
- * [onAddedFolderShown]. [onFolderForm] adds a folder or edits one, a folder of the player's disks through the flow.
+ * [onAddedFolderShow]. [onFolderForm] adds a folder or edits one, a folder of the player's disks through the flow.
  */
 @Composable
-fun SettingsScreen(
+internal fun SettingsScreen(
     onFolderForm: (folderId: Long?, focus: FolderField, onDisk: Boolean) -> Unit,
     onUseFolders: (keepServer: Boolean, onError: (UiError) -> Unit) -> Unit,
     onSignIn: (LoginFill) -> Unit,
-    onSourceResumed: () -> Unit,
+    onSourceResume: () -> Unit,
+    modifier: Modifier = Modifier,
     onOpenCatalog: () -> Unit = {},
     onOpenWall: (Library, LibraryFilter) -> Unit = { _, _ -> },
     onOpenPerson: (personId: String) -> Unit = {},
     onOpenToIdentify: () -> Unit = {},
     addedFolder: Long? = null,
     folderSheet: Long? = null,
-    onAddedFolderShown: () -> Unit = {},
+    onAddedFolderShow: () -> Unit = {},
+    vm: SettingsViewModel = rememberSettingsViewModel(),
 ) {
     val app = appContainer()
-    val images = LocalContext.current.imageLoader
-    val vm = viewModel { SettingsViewModel(app, images) }
     val sources = SourceDoors(
         useFolders = { keepServer ->
             vm.clearActionError()
             onUseFolders(keepServer) { vm.actionFailed(SettingAction.SOURCE, it) }
         },
         signIn = onSignIn,
-        resumed = onSourceResumed,
+        resumed = onSourceResume,
         toIdentify = onOpenToIdentify,
     )
     val s by vm.settings.collectAsStateWithLifecycle()
@@ -129,7 +126,7 @@ fun SettingsScreen(
     val updates = aboutUpdates(app.updates.state, app.updates)
 
     // The room is the library's posters, as a wall's field.
-    PosterField(roomPosters()) {
+    PosterField(roomPosters(), modifier) {
         HlTwoPane(
             state = list,
             side = {
@@ -146,8 +143,8 @@ fun SettingsScreen(
                     onFocusIn = { inPane = it },
                     numbers = NumbersDoors(onOpenWall, onOpenPerson),
                     updates = updates,
-                    added = folderSheet?.let { NewFolder(it, sheet = true, shown = onAddedFolderShown) }
-                        ?: addedFolder?.let { NewFolder(it, shown = onAddedFolderShown) },
+                    added = folderSheet?.let { NewFolder(it, sheet = true, shown = onAddedFolderShow) }
+                        ?: addedFolder?.let { NewFolder(it, shown = onAddedFolderShow) },
                 )
             }
         }
@@ -162,15 +159,15 @@ fun SettingsScreen(
  */
 @Composable
 internal fun SettingsPlaces(panes: List<Pane>, open: Pane, memory: FocusMemory, ready: Boolean, onOpen: (Pane) -> Unit) {
+    val opening by rememberUpdatedState(onOpen)
     LaunchedEffect(open, panes, ready) {
         if (ready && open !in panes) {
             val next = Pane.entries.drop(open.ordinal + 1).firstOrNull { it in panes } ?: panes.last()
-            onOpen(next)
+            opening(next)
             memory.focus(paneKey(next))
         }
     }
     val shown by rememberUpdatedState(open)
-    val opening by rememberUpdatedState(onOpen)
     // The place focus is on; null once focus leaves the list, as into the pane shown.
     var focused by remember { mutableStateOf<Pane?>(null) }
     LaunchedEffect(focused) {

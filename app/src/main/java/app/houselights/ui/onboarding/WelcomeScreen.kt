@@ -56,11 +56,16 @@ import app.houselights.ui.util.toPx
  * A saved connection the Keystore did not open is read again on Réessayer, and once read leads home ([onReadBack]).
  */
 @Composable
-fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError? = null, onReadBack: () -> Unit = {}) {
+fun WelcomeScreen(
+    onLocal: () -> Unit,
+    onJellyfin: () -> Unit,
+    problem: UiError? = null,
+    onReadBack: () -> Unit = {},
+    vm: WelcomeViewModel = viewModel(factory = WelcomeViewModel.factory(appContainer(), HlSize.welcomePoster.toPx())),
+) {
     val app = appContainer()
     val s = app.settings.state.collectAsStateWithLifecycle().value
     val reading by app.settings.reading.collectAsStateWithLifecycle()
-    val vm: WelcomeViewModel = viewModel(factory = WelcomeViewModel.factory(app, HlSize.welcomePoster.toPx()))
     val posters by vm.posters.collectAsStateWithLifecycle()
     // Returning from a choice retries a wall that TMDB left empty.
     LaunchedEffect(Unit) { vm.show() }

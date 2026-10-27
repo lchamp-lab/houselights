@@ -35,6 +35,7 @@ fun EditMenu(
     onDismiss: () -> Unit,
     onArtwork: (ArtworkKind) -> Unit,
     onIdentify: () -> Unit,
+    modifier: Modifier = Modifier,
     episodeOrder: String? = null,
     onEpisodeOrder: (() -> Unit)? = null,
 ) {
@@ -42,6 +43,7 @@ fun EditMenu(
     HlSideSheet(
         title = stringResource(R.string.edit),
         onDismiss = onDismiss,
+        modifier = modifier,
         facts = listOf(item.title, item.year?.toString()),
         initialFocus = first,
     ) { sheet ->

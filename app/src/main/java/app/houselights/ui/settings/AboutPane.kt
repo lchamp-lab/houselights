@@ -94,21 +94,26 @@ private fun AboutBrand() {
 
 /** What the app relies on on this device, each with its state, checked each time it comes into view. */
 @Composable
-private fun AboutStatus() {
-    val context = LocalContext.current.applicationContext
-    val vm = viewModel {
-        AboutViewModel(
-            // The same decision playback makes, so About shows what playback will do on this player.
-            playerStatus = { ZidooPlayer(context).status() },
-            apiAnswers = ZidooStatus::isAvailable,
-        )
-    }
+private fun AboutStatus(vm: AboutViewModel = aboutViewModel()) {
     val device = remember { DeviceIdentity.current().name }
     DisposableEffect(vm) {
         vm.check()
         onDispose { vm.forget() }
     }
     HlGroup(stringResource(R.string.about_status)) { DeviceFacts(device, vm.player, vm.api) }
+}
+
+/** About's view model, asking this player what playback asks it. */
+@Composable
+private fun aboutViewModel(): AboutViewModel {
+    val context = LocalContext.current.applicationContext
+    return viewModel {
+        AboutViewModel(
+            // The same decision playback makes, so About shows what playback will do on this player.
+            playerStatus = { ZidooPlayer(context).status() },
+            apiAnswers = ZidooStatus::isAvailable,
+        )
+    }
 }
 
 /**

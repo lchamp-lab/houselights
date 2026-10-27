@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -77,15 +78,18 @@ private const val TAG = "ToIdentify"
 /**
  * « À identifier » (Réglages › Bibliothèque): the films and shows Houselights did not recognise with certainty, the
  * latest added first, each with why, the title it may be and where it lies. OK opens Identifier on one, the titles
- * after it following ([onOpen]); back from them, focus is on the title the queue reached ([queueAt], then [onQueueSeen]).
+ * after it following ([onOpen]); back from them, focus is on the title the queue reached ([queueAt], then [onQueueAtFocus]).
  * Menu opens a title's suggestions, the best first and focused, so Menu then OK accepts it.
  */
 @Composable
-fun ToIdentifyScreen(onOpen: (String) -> Unit, queueAt: String? = null, onQueueSeen: () -> Unit = {}) {
-    val app = appContainer()
-    val vm: ToIdentifyViewModel = viewModel(factory = ToIdentifyViewModel.factory(app))
+fun ToIdentifyScreen(
+    onOpen: (String) -> Unit,
+    queueAt: String? = null,
+    onQueueAtFocus: () -> Unit = {},
+    vm: ToIdentifyViewModel = viewModel(factory = ToIdentifyViewModel.factory(appContainer())),
+) {
     ReloadOnLibraryChange { vm.load() }
-    ToIdentifyPage(vm, onOpen, queueAt, onQueueSeen)
+    ToIdentifyPage(vm, onOpen, queueAt, onQueueAtFocus)
 }
 
 /**
@@ -94,7 +98,7 @@ fun ToIdentifyScreen(onOpen: (String) -> Unit, queueAt: String? = null, onQueueS
  * place, else to the last. Back, from past the first title, first returns to it.
  */
 @Composable
-internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit, queueAt: String? = null, onQueueSeen: () -> Unit = {}) {
+internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit, queueAt: String? = null, onQueueAtFocus: () -> Unit = {}) {
     val state by vm.state.collectAsStateWithLifecycle()
     val titles = state.titles
     val list = rememberLazyListState()
@@ -105,6 +109,7 @@ internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit, q
     // The list focus was last placed in: while another shows, focus moving on its own is not the user's.
     var settled by remember { mutableStateOf<List<ToIdentify>?>(null) }
     val settling = titles !== settled
+    val currentOnQueueAtFocus by rememberUpdatedState(onQueueAtFocus)
     LaunchedEffect(titles, queueAt) {
         val shown = titles ?: return@LaunchedEffect
         // Back from the queue: the title it reached, once.
@@ -114,7 +119,7 @@ internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit, q
         at = id
         place = index
         settled = shown
-        if (queueAt != null) onQueueSeen()
+        if (queueAt != null) currentOnQueueAtFocus()
     }
     var options by remember { mutableStateOf<ToIdentify?>(null) }
     BackToFirst(titles?.firstOrNull(), away = place > 0, list, memory)
@@ -185,7 +190,7 @@ private fun BackToFirst(first: ToIdentify?, away: Boolean, list: LazyListState, 
 
 /** A title to identify: why, as its facts; what it may be, as its note; where it lies, as its overview. */
 @Composable
-private fun Title(title: ToIdentify, onOpen: () -> Unit, onOptions: (() -> Unit)?, modifier: Modifier) {
+private fun Title(title: ToIdentify, onOpen: () -> Unit, onOptions: (() -> Unit)?, modifier: Modifier = Modifier) {
     HlResultItem(
         poster = title.item.poster,
         title = title.item.title,

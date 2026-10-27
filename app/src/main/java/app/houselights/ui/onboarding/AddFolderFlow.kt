@@ -91,10 +91,13 @@ import app.houselights.ui.util.wholePath
  * disks, from its disk's folders; Back from the disk's root leaves it, saying the folder edited once the library gave it.
  */
 @Composable
-fun AddFolderFlowScreen(onLeave: (edited: Long?) -> Unit, onDone: (FlowDone) -> Unit, editing: Long? = null) {
+fun AddFolderFlowScreen(
+    onLeave: (edited: Long?) -> Unit,
+    onDone: (FlowDone) -> Unit,
+    editing: Long? = null,
+    flow: FolderFlow = viewModel(factory = FolderFlow.factory(appContainer(), LocalContext.current, editing)),
+) {
     val app = appContainer()
-    val context = LocalContext.current
-    val flow: FolderFlow = viewModel(factory = FolderFlow.factory(app, context, editing))
     AddFolderFlow(flow, roomPosters(), onLeave, onDone, rememberDiskAsk(app.diskPermission))
 }
 

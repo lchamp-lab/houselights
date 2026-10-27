@@ -33,6 +33,7 @@ import app.houselights.ui.util.formatDuration
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Locale
+import androidx.compose.foundation.layout.ColumnScope
 
 /** Sending the app's log, for a report: OK opens a sheet whose QR code opens the log on a phone ([JournalSheet]). */
 @Composable
@@ -110,7 +111,7 @@ internal fun JournalSheet(journal: JournalOpener, onDismiss: () -> Unit) {
 
 /** What the log keeps, and when the page closes. */
 @Composable
-private fun Notes() {
+private fun ColumnScope.Notes() {
     val c = Hl.colors
     Text(stringResource(R.string.journal_masked), style = Hl.type.meta, color = c.contentSecondary)
     Text(

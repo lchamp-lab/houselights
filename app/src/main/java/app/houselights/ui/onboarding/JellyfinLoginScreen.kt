@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -43,9 +45,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /** Signs in to Jellyfin, the form starting as [fill] says. */
 @Composable
-fun JellyfinLoginScreen(fill: LoginFill, onLoggedIn: () -> Unit) {
-    val app = appContainer()
-    val vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(app, fill))
+fun JellyfinLoginScreen(
+    fill: LoginFill,
+    onLoggedIn: () -> Unit,
+    vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(appContainer(), fill)),
+) {
     JellyfinLoginForm(vm, roomPosters(), onLoggedIn)
 }
 
@@ -59,7 +63,7 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
     val firstServer = remember { FocusRequester() }
     val userField = remember { FocusRequester() }
     val passwordField = remember { FocusRequester() }
-    FirstFocus(vm, firstServer, firstField, if (vm.user.isBlank()) userField else passwordField)
+    FirstFocus(vm.again, { vm.discovered.isNotEmpty() }, firstServer, firstField, if (vm.user.isBlank()) userField else passwordField)
     val server = vm.server
     val chosen = vm.chosen
     // While the address is the one picking it gave, signing in follows its check, which the panel says.
@@ -94,7 +98,7 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
         },
         room = room,
     ) {
-        FoundServers(vm, chosen, firstServer) { s ->
+        FoundServers(vm.discovered, chosen, firstServer, vm::addressOf, vm::checkOf) { s ->
             vm.choose(s)
             (if (vm.user.isBlank()) userField else passwordField).tryRequestFocus()
         }
@@ -131,19 +135,26 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
 }
 
 /**
- * Where the sign-in's focus starts. Signing in again, the server and user prefilled, on [account], what is left to
+ * Where the sign-in's focus starts. Signing in [again], the server and user prefilled, on [account], what is left to
  * type: the password, or the user when it is blank. Else on the first server found ([firstServer]), waiting for
- * discovery's first answer up to [FIRST_SERVER_MS], as home's first focus waits for its case, then on the address
- * ([address]); servers answering later come under it, focus left where it is.
+ * discovery's first answer ([anyFound]) up to [FIRST_SERVER_MS], as home's first focus waits for its case, then on the
+ * address ([address]); servers answering later come under it, focus left where it is.
  */
 @Composable
-private fun FirstFocus(vm: JellyfinLoginViewModel, firstServer: FocusRequester, address: FocusRequester, account: FocusRequester) {
+private fun FirstFocus(
+    again: Boolean,
+    anyFound: () -> Boolean,
+    firstServer: FocusRequester,
+    address: FocusRequester,
+    account: FocusRequester,
+) {
+    val currentAnyFound by rememberUpdatedState(anyFound)
     LaunchedEffect(Unit) {
-        if (vm.again) {
+        if (again) {
             account.tryRequestFocus()
             return@LaunchedEffect
         }
-        val found = withTimeoutOrNull(FIRST_SERVER_MS) { snapshotFlow { vm.discovered.isNotEmpty() }.first { it } }
+        val found = withTimeoutOrNull(FIRST_SERVER_MS) { snapshotFlow { currentAnyFound() }.first { it } }
         // Its row laid out first.
         withFrameNanos { }
         if (found == null || !firstServer.tryRequestFocus()) address.tryRequestFocus()
@@ -184,27 +195,28 @@ private fun ServerCheck.security(): ConnectionSecurity = when (this) {
 }
 
 /**
- * The servers found on the network, on one plate, each with its check and the address signing in reaches, the
- * [chosen] one checked; none, nothing.
+ * The [servers] found on the network, on one plate, each with its check ([checkOf]) and the address signing in reaches
+ * ([addressOf]), the [chosen] one checked; none, nothing.
  */
 @Composable
 private fun FoundServers(
-    vm: JellyfinLoginViewModel,
+    servers: List<DiscoveredServer>,
     chosen: DiscoveredServer?,
     first: FocusRequester,
+    addressOf: (DiscoveredServer) -> String,
+    checkOf: (DiscoveredServer) -> ServerCheck,
     onChoose: (DiscoveredServer) -> Unit,
 ) {
-    val servers = vm.discovered
     if (servers.isEmpty()) return
     HlSettingGroup(stringResource(R.string.servers_found)) {
         servers.forEachIndexed { i, s ->
-            val address = vm.addressOf(s).withoutScheme()
+            val address = addressOf(s).withoutScheme()
             HlSettingRow(
                 s.name ?: address,
                 description = address.takeIf { s.name != null },
                 onClick = { onChoose(s) },
                 trailing = {
-                    ConnectionState(vm.checkOf(s).security())
+                    ConnectionState(checkOf(s).security())
                     ChoicePlace(s == chosen)
                 },
                 modifier = (if (i == 0) Modifier.focusRequester(first) else Modifier).semantics { selected = s == chosen },

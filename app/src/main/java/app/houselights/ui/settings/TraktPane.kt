@@ -3,6 +3,7 @@ package app.houselights.ui.settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -44,6 +45,9 @@ import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.formatDuration
+import androidx.annotation.StringRes
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Trakt, for the folders, as a state said beside its title: not connected, what it keeps and the row that connects;
@@ -60,7 +64,7 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) 
     val live = session?.takeUnless { it.ended }
     val focus = rememberCodeFocus(vm.connecting)
     BackHandler(enabled = vm.connecting) { vm.cancel() }
-    ReadMissingName(vm, live, folders)
+    ReadMissingName(live, folders, onRead = vm::readName)
 
     Column(Modifier.revealOnFocus()) {
         val title = stringResource(R.string.section_trakt)
@@ -68,8 +72,8 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) 
         when {
             !vm.available -> PaneHead(title, aside = stringResource(R.string.trakt_no_keys), state = StatusState.Off)
             // The code until the row has taken its focus back: focus never leaves the pane.
-            vm.connecting || focus.waited -> Waiting(vm, focus, title)
-            !folders -> Paused(vm, live, title)
+            vm.connecting || focus.waited -> Waiting(vm.code, vm.connecting, focus, title)
+            !folders -> Paused(live, vm.syncState, title)
             live != null -> {
                 PaneHead(title, aside = stringResource(R.string.trakt_connected), state = StatusState.On)
                 Spacer(Modifier.height(HlSpace.l))
@@ -87,19 +91,33 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) 
         // The rows, but while the code waits; the row asking for it keeps focus until the code has it.
         if (vm.available && (!vm.connecting || focus.asked)) {
             Spacer(Modifier.height(HlSpace.l))
-            TraktRows(vm, connected = live != null || !folders, syncs = folders, Modifier.focusRequester(focus.row)) { focus.asked = true }
+            TraktRows(
+                connected = live != null || !folders,
+                syncs = folders,
+                note = vm.note,
+                disconnecting = vm.disconnecting,
+                syncState = vm.syncState,
+                onSync = vm::syncNow,
+                onConnect = {
+                    focus.asked = true
+                    vm.connect()
+                },
+                onDisconnect = vm::disconnect,
+                modifier = Modifier.focusRequester(focus.row),
+            )
         }
     }
 }
 
 /**
- * Connected while Trakt could not say the name: it is read once the pane shows with the [folders]. Paused, Trakt is not
- * asked, as reading it may renew the token or end the session.
+ * Connected while Trakt could not say the name: it is read ([onRead]) once the pane shows with the [folders]. Paused,
+ * Trakt is not asked, as reading it may renew the token or end the session.
  */
 @Composable
-private fun ReadMissingName(vm: TraktViewModel, live: TraktSession?, folders: Boolean) {
+private fun ReadMissingName(live: TraktSession?, folders: Boolean, onRead: () -> Unit) {
     val nameless = folders && live != null && live.username == null
-    LaunchedEffect(nameless) { if (nameless) vm.readName() }
+    val currentOnRead by rememberUpdatedState(onRead)
+    LaunchedEffect(nameless) { if (nameless) currentOnRead() }
 }
 
 /**
@@ -107,7 +125,7 @@ private fun ReadMissingName(vm: TraktViewModel, live: TraktSession?, folders: Bo
  * be read at this launch, its last sync alone while its name is unknown.
  */
 @Composable
-private fun Paused(vm: TraktViewModel, live: TraktSession?, title: String) {
+private fun ColumnScope.Paused(live: TraktSession?, syncState: StateFlow<TraktSyncState>, title: String) {
     PaneHead(
         title,
         aside = stringResource(R.string.trakt_paused),
@@ -116,17 +134,19 @@ private fun Paused(vm: TraktViewModel, live: TraktSession?, title: String) {
     )
     if (live != null) {
         Spacer(Modifier.height(HlSpace.l))
-        val sync by vm.syncState.collectAsStateWithLifecycle()
+        val sync by syncState.collectAsStateWithLifecycle()
         Account(live.username, sync)
     }
 }
 
-/** The code to type, its time left and its QR code, under the pane's title waiting for the viewer's approval. */
+/**
+ * The code to type ([shown]), its time left and its QR code, under the pane's title waiting for the viewer's approval
+ * while [connecting].
+ */
 @Composable
-private fun Waiting(vm: TraktViewModel, focus: CodeFocus, title: String) {
+private fun ColumnScope.Waiting(shown: ShownCode?, connecting: Boolean, focus: CodeFocus, title: String) {
     PaneHead(title, aside = stringResource(R.string.trakt_waiting), state = StatusState.Pending)
     Spacer(Modifier.height(HlSpace.l))
-    val shown = vm.code
     DeviceCodePlate(
         shown?.userCode,
         stringResource(R.string.trakt_code_desc),
@@ -134,7 +154,7 @@ private fun Waiting(vm: TraktViewModel, focus: CodeFocus, title: String) {
         shown?.address.orEmpty(),
         Modifier.focusRequester(focus.code).onFocusChanged {
             // Left for the places while it waits, it no longer holds focus to give back.
-            if (it.isFocused) focus.waited = true else if (vm.connecting) focus.waited = false
+            if (it.isFocused) focus.waited = true else if (connecting) focus.waited = false
         },
         left = shown?.let { stringResource(R.string.trakt_code_left, formatDuration(it.leftMinutesMs)) },
         asking = stringResource(R.string.trakt_asking),
@@ -211,41 +231,44 @@ private fun Account(name: String?, sync: TraktSyncState) {
 }
 
 /**
- * Sync and what the last sync left out when it did, while Trakt [syncs], then connect or disconnect: one row whose words
- * follow the account, so focus stays on it as the account comes and goes. A failure is said under its row
- * ([RowFailureNote]).
+ * Sync ([onSync]) and what the last sync left out when it did ([syncState]), while Trakt [syncs], then connect or
+ * disconnect, which says so while [disconnecting]: one row whose words follow the account, so focus stays on it as the
+ * account comes and goes. A failure ([note]) is said under its row ([RowFailureNote]).
  */
 @Composable
-private fun TraktRows(vm: TraktViewModel, connected: Boolean, syncs: Boolean, modifier: Modifier, onConnect: () -> Unit) {
-    val failure = vm.note?.let { RowFailure(stringResource(R.string.action_not_done), stringResource(it)) }
+private fun TraktRows(
+    connected: Boolean,
+    syncs: Boolean,
+    @StringRes note: Int?,
+    disconnecting: Boolean,
+    syncState: StateFlow<TraktSyncState>,
+    onSync: () -> Unit,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val failure = note?.let { RowFailure(stringResource(R.string.action_not_done), stringResource(it)) }
     HlSettingGroup(null) {
         if (connected && syncs) {
-            val sync by vm.syncState.collectAsStateWithLifecycle()
-            SyncRow(vm, sync)
+            val sync by syncState.collectAsStateWithLifecycle()
+            SyncRow(sync, onSync)
             if (sync.skipped.isNotEmpty()) SkippedRow(sync.skipped)
         }
         HlSettingRow(
             stringResource(if (connected) R.string.trakt_disconnect else R.string.trakt_connect),
             modifier,
             description = stringResource(if (connected) R.string.trakt_disconnect_desc else R.string.trakt_connect_desc),
-            value = if (vm.disconnecting) stringResource(R.string.trakt_disconnecting) else failure?.value,
-            valueAttention = failure != null && !vm.disconnecting,
-            onClick = {
-                if (connected) {
-                    vm.disconnect()
-                } else {
-                    onConnect()
-                    vm.connect()
-                }
-            },
+            value = if (disconnecting) stringResource(R.string.trakt_disconnecting) else failure?.value,
+            valueAttention = failure != null && !disconnecting,
+            onClick = if (connected) onDisconnect else onConnect,
         )
         RowFailureNote(failure)
     }
 }
 
-/** Syncs now, disabled while a sync runs, which it says; why the last exchange failed is said under it. */
+/** Syncs now ([onSync]), disabled while a sync runs, which it says; why the last exchange failed is said under it. */
 @Composable
-private fun SyncRow(vm: TraktViewModel, state: TraktSyncState) {
+private fun SyncRow(state: TraktSyncState, onSync: () -> Unit) {
     val failure = state.error?.takeUnless { state.running }?.let {
         RowFailure(stringResource(R.string.action_not_done), stringResource(noteOf(it)))
     }
@@ -254,7 +277,7 @@ private fun SyncRow(vm: TraktViewModel, state: TraktSyncState) {
         description = stringResource(R.string.trakt_sync_now_desc),
         value = if (state.running) stringResource(R.string.trakt_syncing) else failure?.value,
         valueAttention = failure != null,
-        onClick = vm::syncNow,
+        onClick = onSync,
         enabled = !state.running,
     )
     RowFailureNote(failure)

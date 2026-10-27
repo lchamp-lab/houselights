@@ -79,7 +79,5 @@ internal class NumbersViewModel(private val provider: () -> MediaProvider) : Vie
 @Composable
 internal fun numbersViewModel(): NumbersViewModel {
     val app = appContainer()
-    val vm = viewModel { NumbersViewModel(app::provider) }
-    LaunchedEffect(vm) { vm.count() }
-    return vm
+    return viewModel { NumbersViewModel(app::provider) }.also { vm -> LaunchedEffect(vm) { vm.count() } }
 }

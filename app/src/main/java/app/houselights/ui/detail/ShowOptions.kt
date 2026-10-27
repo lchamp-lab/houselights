@@ -3,6 +3,8 @@ package app.houselights.ui.detail
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -50,7 +52,8 @@ internal fun EpisodeOptions(state: DetailState, episodeId: String?, actions: Epi
     if (episodeId == null) return
     val episode = state.episodes.firstOrNull { it.id == episodeId }
     if (episode == null) {
-        LaunchedEffect(Unit) { onDismiss() }
+        val currentOnDismiss by rememberUpdatedState(onDismiss)
+        LaunchedEffect(Unit) { currentOnDismiss() }
         return
     }
     val tracks = state.tracksToChoose
@@ -97,7 +100,8 @@ internal fun ShowMarks(
 ) {
     if (!open) return
     if (season == null) {
-        LaunchedEffect(Unit) { onDismiss() }
+        val currentOnDismiss by rememberUpdatedState(onDismiss)
+        LaunchedEffect(Unit) { currentOnDismiss() }
         return
     }
     val seasonDone = seasonWatched(season)
