@@ -19,7 +19,6 @@ import app.houselights.player.FakeApps.Companion.GALLERY
 import app.houselights.player.FakeApps.Companion.MOVIE_ACTIVITY
 import app.houselights.player.FakeApps.Companion.Z1000_PRO_BUILD
 import app.houselights.player.FakeApps.Companion.ZIDOO_KEY
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -32,7 +31,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /** The tracks asked of the Zidoo player, checked once it plays, and what the user changes in it kept for the title. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class TrackFollowTest {
     private val context = ApplicationProvider.getApplicationContext<Application>()

@@ -3,7 +3,6 @@ package app.houselights.ui.settings
 import app.houselights.player.PlayerStatus
 import app.houselights.ui.testing.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -12,7 +11,6 @@ import org.junit.Rule
 import org.junit.Test
 
 /** About asks once what playback decides of the Zidoo player, and its control API each time it shows. */
-@OptIn(ExperimentalCoroutinesApi::class)
 class AboutViewModelTest {
     @get:Rule
     val main = MainDispatcherRule()

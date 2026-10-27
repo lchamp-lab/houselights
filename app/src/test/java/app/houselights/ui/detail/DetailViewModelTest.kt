@@ -25,7 +25,6 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.testing.season
 import app.houselights.ui.testing.series
 import app.houselights.ui.util.UiError
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -41,7 +40,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
 /** A title's page on a fake source: loading, failures, watched and favourites, seasons, sagas, copies, and process death. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class DetailViewModelTest {
     @get:Rule

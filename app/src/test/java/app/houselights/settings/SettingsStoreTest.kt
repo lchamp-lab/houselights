@@ -19,7 +19,6 @@ import app.houselights.ui.testing.testSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
@@ -56,7 +55,6 @@ import javax.crypto.SecretKey
 import kotlin.coroutines.EmptyCoroutineContext
 
 /** Reading the settings when the file or the Keystore fails. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class SettingsStoreTest {
     @get:Rule

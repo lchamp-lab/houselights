@@ -2,7 +2,6 @@ package app.houselights
 
 import app.houselights.core.SourceConfig
 import app.houselights.settings.AppSettings
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -11,7 +10,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** What the app does on its own when a setting changes, as its container starts it. */
-@OptIn(ExperimentalCoroutinesApi::class)
 class AppReactionsTest {
     private val folders = AppSettings(loaded = true, source = SourceConfig.Local, tmdbApiKey = "k0")
 

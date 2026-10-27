@@ -24,7 +24,6 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.testing.series
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
@@ -51,7 +50,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
 /** What home shows, decided by its ViewModel from the rows, the scan, the folders and the source. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeViewModelTest {
     @get:Rule

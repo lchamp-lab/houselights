@@ -9,7 +9,6 @@ import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.UiError
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -20,7 +19,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
 /** The library in numbers: counted once, with its walls; a failure recounts on demand. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class NumbersViewModelTest {
     @get:Rule

@@ -7,7 +7,6 @@ import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
 import app.houselights.core.failureKind
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
@@ -37,7 +36,6 @@ import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLHandshakeException
 
 /** TMDB's answers as the client reports them, against [FakeTmdb], on the device's clock. */
-@OptIn(ExperimentalCoroutinesApi::class) // currentTime: the waits are counted on the test's clock.
 @RunWith(RobolectricTestRunner::class)
 class TmdbClientTest {
     private val tmdb = FakeTmdb().apply { movie(438631, "Dune", 2021) }

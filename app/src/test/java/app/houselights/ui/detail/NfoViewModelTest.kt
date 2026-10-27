@@ -7,7 +7,6 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.UiError
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -20,7 +19,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
 /** A title's NFO: read from its source, parsed on the dispatcher the ViewModel is given, the latest load winning. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class NfoViewModelTest {
     @get:Rule

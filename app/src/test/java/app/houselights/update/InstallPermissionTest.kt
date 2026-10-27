@@ -10,7 +10,6 @@ import android.content.pm.PackageInfo
 import android.net.Uri
 import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -25,7 +24,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
 /** Android must let the app install apps: the screen that allows it, the way back, and the words where there is none. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class InstallPermissionTest {
     @get:Rule

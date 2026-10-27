@@ -17,7 +17,6 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -31,7 +30,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
 /** The wall: pages, reloads in place, failures, and the sort and filter it opens on or comes back to, on a fake source. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class LibraryViewModelTest {
     @get:Rule

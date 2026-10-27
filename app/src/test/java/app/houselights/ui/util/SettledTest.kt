@@ -2,7 +2,6 @@ package app.houselights.ui.util
 
 import androidx.compose.runtime.mutableStateOf
 import app.houselights.ui.design.HlMotion
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -14,7 +13,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** What follows focus (a backdrop, a hero, a preview) shows once focus settles; the first at once. */
-@OptIn(ExperimentalCoroutinesApi::class)
 class SettledTest {
     private val focus = MutableStateFlow<String?>(null)
     private val shown = mutableStateOf<String?>(null)

@@ -1,7 +1,6 @@
 package app.houselights.core
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
@@ -13,7 +12,6 @@ import org.junit.Test
 import java.io.IOException
 
 /** Catching failures but not cancellation, and throttling a flow to one value a period. */
-@OptIn(ExperimentalCoroutinesApi::class)
 class CoroutinesTest {
     @Test
     fun aFailureIsCaught() {

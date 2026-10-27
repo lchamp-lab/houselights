@@ -36,7 +36,6 @@ import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.hierynomus.mserref.NtStatus
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -61,7 +60,6 @@ import java.net.SocketTimeoutException
  * What the folder form says of each answer to a press, and where: what a test found, folders and videos apart, a folder
  * holding nothing, each failure as the NAS said it under the field that changes it, an overlap the right way round.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class FolderAnswerTest {
     @get:Rule
