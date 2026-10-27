@@ -104,6 +104,7 @@ jobs:
           -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
           -Pkotlin.compiler.execution.strategy=in-process
           testDebugUnitTest lintDebug lintVitalRelease detekt detektDebug detektDebugUnitTest
+          :baselineprofile:compileNonMinifiedReleaseKotlin
 
   release:
     needs: check

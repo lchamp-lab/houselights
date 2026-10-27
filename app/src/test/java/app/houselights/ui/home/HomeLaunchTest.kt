@@ -23,7 +23,6 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,7 +46,6 @@ import java.io.IOException
  * A cold start asks once for home's rows and first pictures under the launch screen, and home takes the rows
  * without asking again; the gate opens once both are in and drawn.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeLaunchTest {
     @get:Rule

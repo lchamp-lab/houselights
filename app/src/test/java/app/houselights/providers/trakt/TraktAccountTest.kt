@@ -7,7 +7,6 @@ import app.houselights.testing.FakeServer
 import app.houselights.testing.http
 import app.houselights.ui.testing.waitFor
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +38,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /** The Trakt account against a test server: the device code's every answer, renewing the tokens, signing out. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class TraktAccountTest {
     private var session: TraktSession? = null

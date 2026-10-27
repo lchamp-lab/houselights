@@ -14,7 +14,6 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
 import app.houselights.ui.testing.pictureServer
 import coil.ImageLoader
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -28,7 +27,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
 /** A wall's first page, asked while home's pill slides to it, opens that wall without asking again. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class LibraryAheadTest {
     @get:Rule

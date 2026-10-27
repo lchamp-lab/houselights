@@ -8,7 +8,6 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -24,7 +23,6 @@ import org.robolectric.shadows.ShadowLog
 import java.net.ConnectException
 
 /** Following the player through its local API, with a fake player in its place (launching it: [PlayerLaunchTest]). */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class PlaybackManagerTest {
     private val context = ApplicationProvider.getApplicationContext<Application>()

@@ -1,7 +1,6 @@
 package app.houselights.ui.onboarding
 
 import app.houselights.ui.testing.MainDispatcherRule
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -10,7 +9,6 @@ import org.junit.Rule
 import org.junit.Test
 
 /** The welcome posters are fetched from TMDB once while the screen is in the back stack; again if none came. */
-@OptIn(ExperimentalCoroutinesApi::class)
 class WelcomeViewModelTest {
     @get:Rule
     val main = MainDispatcherRule()

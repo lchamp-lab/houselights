@@ -6,7 +6,6 @@ import android.database.sqlite.SQLiteDiskIOException
 import android.database.sqlite.SQLiteFullException
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.TmdbUnreachableException
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -18,7 +17,6 @@ import java.io.IOException
 import java.security.ProviderException
 
 /** A write launched from a screen: its failure is said, never a crash; its cancellation is no failure. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class ActionsTest {
     @Test

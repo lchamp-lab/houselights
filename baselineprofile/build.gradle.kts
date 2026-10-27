@@ -51,7 +51,15 @@ baselineProfile {
 androidComponents {
     onVariants { variant ->
         val loader = variant.artifacts.getBuiltArtifactsLoader()
-        variant.instrumentationRunnerArguments.put("targetAppId", variant.testedApks.map { loader.load(it)?.applicationId })
+        val appId = variant.testedApks.map { requireNotNull(loader.load(it)) { "No APK metadata in $it" }.applicationId }
+        variant.instrumentationRunnerArguments.put("targetAppId", appId)
+    }
+}
+
+// A compiler warning fails the journeys' compilation, as it does the app's (CONTRIBUTING, Checks).
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors = true
     }
 }
 

@@ -6,7 +6,6 @@ import app.houselights.settings.AppSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -206,7 +205,6 @@ internal class FakeApp(
  * An updater on the test's scheduler and clock ([START] plus its virtual time), its store in [folder]: GitHub, the
  * downloads and Android's installer faked, the app on screen with nothing playing nor scanning, the launch done.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 internal class UpdaterFixture(private val test: TestScope, folder: File) {
     val source = FakeSource()
     val downloads = FakeDownloads(folder.resolve("updates"))

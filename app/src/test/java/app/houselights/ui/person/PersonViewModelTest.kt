@@ -11,7 +11,6 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.UiError
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -24,7 +23,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
 /** A person's page: read from the catalog, gone when none of their titles is left, kept when a reload fails. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class PersonViewModelTest {
     @get:Rule

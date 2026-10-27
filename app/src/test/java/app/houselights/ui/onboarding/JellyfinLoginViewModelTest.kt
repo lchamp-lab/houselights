@@ -18,7 +18,6 @@ import app.houselights.ui.testing.fullSettings
 import app.houselights.ui.testing.testSettings
 import app.houselights.ui.testing.waitFor
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -37,7 +36,6 @@ import java.io.IOException
 import java.security.ProviderException
 
 /** Signing in to Jellyfin, with a fake network in place of the server. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class JellyfinLoginViewModelTest {
     @get:Rule

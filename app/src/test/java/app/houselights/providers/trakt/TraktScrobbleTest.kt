@@ -20,7 +20,6 @@ import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.ui.testing.waitFor
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -36,7 +35,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /** The end of a playback, from the player's result to Trakt's scrobble: at the player's length, the file's, or none. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class TraktScrobbleTest {
     private val context = ApplicationProvider.getApplicationContext<Application>()

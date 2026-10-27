@@ -1,6 +1,5 @@
 package app.houselights.providers.jellyfin
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -18,7 +17,6 @@ import java.io.IOException
  * gets the servers already found at once, then those answering later, from that one discovery; one opening later asks
  * the network again.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 class DiscoveryAheadTest {
     /** A network whose discoveries answer as the test sends servers, each ending once closed. */
     private class Network : JellyfinNetwork {
