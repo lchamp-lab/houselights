@@ -160,3 +160,34 @@ Compose:
       - WatchScreen
   ViewModelInjection:
     active: true
+
+# ktlint 0.50.0's rules (detekt-formatting), the code's style: their defaults in IntelliJ IDEA's code style (android:
+# false), but what is said here. detekt reads this file, not .editorconfig, which gives the pre-commit hook's ktlint the
+# same settings: a setting changed here is changed there (CONTRIBUTING, Checks).
+formatting:
+  # Lines are wrapped at style's MaxLineLength, 140, which holds them, comments included.
+  ArgumentListWrapping:
+    maxLineLength: 140
+  FunctionReturnTypeSpacing:
+    maxLineLength: 140
+  MaximumLineLength:
+    active: false
+  ParameterListWrapping:
+    maxLineLength: 140
+  ParameterWrapping:
+    maxLineLength: 140
+  PropertyWrapping:
+    maxLineLength: 140
+  Wrapping:
+    maxLineLength: 140
+  Filename:
+    # As naming's MatchingDeclarationName: a file is named for what it holds (Routes.kt, Theme.kt), not its one class.
+    active: false
+  SpacingBetweenDeclarationsWithComments:
+    # The design tokens are tables, each token under its comment and no blank line between them (DESIGN.md, Tokens).
+    excludes: ['**/ui/design/Color.kt', '**/ui/design/Dimens.kt', '**/ui/design/Motion.kt']
+  TrailingCommaOnCallSite:
+    # A list over several lines ends with a comma, so that adding to it changes one line.
+    active: true
+  TrailingCommaOnDeclarationSite:
+    active: true

@@ -1,0 +1,50 @@
+# The files' style, for editors, and the code's, for ktlint 0.50.0 (https://pinterest.github.io/ktlint/0.50.0/), which
+# reads it in the pre-commit hook (.githooks/pre-commit). detekt runs the same rules in CI (detekt-formatting) but reads
+# config/detekt.yml's formatting block, not this file: a setting changed here is changed there (CONTRIBUTING, Checks).
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{kt,kts}]
+# IntelliJ IDEA's style, the one detekt's formatting rules run (android: false), at the project's line length.
+ktlint_code_style = intellij_idea
+max_line_length = 140
+# A list over several lines ends with a comma, so that adding to it changes one line.
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+# One block in lexicographic order, then java, javax and kotlin, then the aliases.
+ij_kotlin_imports_layout = *, java.**, javax.**, kotlin.**, ^
+# Left to detekt's own rules, as its formatting rules leave them: a line's length (style, MaxLineLength: 140, comments
+# included), a class's name (naming, ClassNaming), and a file's, named for what it holds rather than after its one
+# class (naming, MatchingDeclarationName, off).
+ktlint_standard_max-line-length = disabled
+ktlint_standard_class-naming = disabled
+ktlint_standard_filename = disabled
+# ktlint 0.50.0's function-naming is experimental and off, as in detekt, whose naming FunctionNaming holds the names:
+# an editor's newer ktlint runs it, and reads here that composables are named like types.
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# Experimental in ktlint 0.50.0, but among the rules detekt runs.
+ktlint_standard_unnecessary-parentheses-before-trailing-lambda = enabled
+
+# The design tokens are tables, each token under its comment and no blank line between them (config/detekt.yml).
+[app/src/main/java/app/houselights/ui/design/{Color,Dimens,Motion}.kt]
+ktlint_standard_spacing-between-declarations-with-comments = disabled
+
+# Gradle writes the wrapper's script for Windows with Windows' line ends.
+[*.bat]
+end_of_line = crlf
+
+# As their tools write them: Room's schemas and the baseline profiles end with no line end, and third_party's files
+# are as they came.
+[{app/schemas/**,app/src/main/generated/**,third_party/**}]
+insert_final_newline = unset
+trim_trailing_whitespace = unset

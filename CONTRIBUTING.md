@@ -51,6 +51,11 @@ Run `scripts/check.sh` before pushing or opening a pull request. It runs what CI
   `!!`, unsafe casts).
 - detekt keeps no baseline: a finding is fixed, else its rule is set aside where it stands, `@Suppress` with its
   reason in a line (a `when` over a format's codes), or in `config/detekt.yml` with its reason where it never fits.
+- The code's style is [ktlint](https://pinterest.github.io/ktlint/0.50.0/)'s, 0.50.0, the version detekt's formatting
+  rules run: IntelliJ IDEA's code style at 140 columns, a trailing comma ending a list over several lines, the imports
+  in one block, java, javax and kotlin last. detekt holds the code and the build scripts to it (`config/detekt.yml`,
+  `formatting`), and `./gradlew detekt --auto-correct` fixes what it reports. `.editorconfig` gives editors and ktlint
+  the same settings: a setting changed in one is changed in the other.
 - detekt runs Compose's rules too ([compose-rules](https://mrmans0n.github.io/compose-rules/), `config/detekt.yml`,
   `Compose`): a composable that draws takes a `modifier` defaulting to `Modifier`, for its root, after what it needs;
   a screen's view model is a default parameter, handed to its page alone, whose parts take its state and events; an

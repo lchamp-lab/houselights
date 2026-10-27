@@ -66,9 +66,11 @@ kotlin {
 detekt {
     buildUponDefaultConfig = true
     config.setFrom(rootProject.file("config/detekt.yml"), file("detekt.yml"))
+    // Its build script too, as in the app.
+    source.from(files("build.gradle.kts"))
 }
 
-// detekt 1.23 is built against Kotlin 2.0; keep its own compiler instead of the project's, for Compose's rules too.
+// detekt 1.23 is built against Kotlin 2.0; keep its own compiler instead of the project's, for its plugins' rules too.
 configurations.matching { it.name == "detekt" || it.name == "detektPlugins" }.configureEach {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.kotlin") useVersion(io.gitlab.arturbosch.detekt.getSupportedKotlinVersion())
@@ -78,6 +80,8 @@ configurations.matching { it.name == "detekt" || it.name == "detektPlugins" }.co
 dependencies {
     // Compose's rules for detekt, which config/detekt.yml's Compose block configures: the journeys have no composable.
     detektPlugins(libs.compose.rules.detekt)
+    // ktlint's rules, as in the app (config/detekt.yml, formatting).
+    detektPlugins(libs.detekt.formatting)
 
     implementation(libs.androidx.test.ext.junit)
     implementation(libs.androidx.test.uiautomator)
