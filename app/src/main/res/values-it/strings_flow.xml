@@ -67,4 +67,5 @@
     <string name="disk_access_settings">Houselights non può ancora leggere i file di questo lettore: autorizzarlo nelle impostazioni di Android, poi scegliere di nuovo il disco.</string>
     <string name="disk_access_refused">Houselights non può leggere i file di questo lettore: autorizzarlo, poi scegliere di nuovo il disco.</string>
     <string name="disk_absent">%s non è più collegato: ricollegarlo, poi riprovare.</string>
+    <string name="disk_absent_usb">Il disco USB non è più collegato: ricollegarlo, poi riprovare.</string>
 </resources>

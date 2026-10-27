@@ -145,11 +145,11 @@ sealed interface FlowMessage {
     /** The folder edited is no longer in the library: removed meanwhile. */
     data object Gone : FlowMessage
 
-    /** The folder edited could not be read from the player's storage. */
-    data object Unread : FlowMessage
-
     data object Other : FlowMessage
 }
+
+/** Why « Modifier le dossier » has no folder to open: the player's storage did not give it, or the library no longer has it. */
+enum class EditLost { UNREAD, GONE }
 
 /** A failure said under the field [field] (its key), which takes focus. */
 @Immutable

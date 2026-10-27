@@ -45,6 +45,7 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.GroupTitle
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
@@ -87,10 +88,10 @@ import app.houselights.ui.util.wholePath
  * « Ajouter un dossier » (DESIGN.md, Secondary screens): the guided flow of [FolderFlow], on the room's posters; Back
  * from its first step leaves it ([onLeave]); [onDone] once the folder is added. A disk of this player chosen asks
  * Android to read it first ([rememberDiskAsk]). With [editing], « Modifier le dossier » on that folder of the player's
- * disks, from its disk's folders; Back from the disk's root leaves it.
+ * disks, from its disk's folders; Back from the disk's root leaves it, saying the folder edited once the library gave it.
  */
 @Composable
-fun AddFolderFlowScreen(onLeave: () -> Unit, onDone: (FlowDone) -> Unit, editing: Long? = null) {
+fun AddFolderFlowScreen(onLeave: (edited: Long?) -> Unit, onDone: (FlowDone) -> Unit, editing: Long? = null) {
     val app = appContainer()
     val context = LocalContext.current
     val flow: FolderFlow = viewModel(factory = FolderFlow.factory(app, context, editing))
@@ -100,14 +101,14 @@ fun AddFolderFlowScreen(onLeave: () -> Unit, onDone: (FlowDone) -> Unit, editing
 /**
  * The flow as drawn: the task's title, the step's sentence and the panel filling in on the left, the step's rows on the
  * right, in a lazy list that composes only the rows shown; focus where the flow aims it, a row brought into view first.
- * Back goes up a level or a step, first to the list's start when it is scrolled. [askDisk] asks Android to read this
- * player's disks.
+ * Back goes up a level or a step, first to the list's start when it is scrolled, and leaves ([onLeave]) with the folder
+ * edited, when the library gave it (its sheet opens again), else null. [askDisk] asks Android to read this player's disks.
  */
 @Composable
 internal fun AddFolderFlow(
     flow: FolderFlow,
     room: List<ImageRef> = emptyList(),
-    onLeave: () -> Unit = {},
+    onLeave: (edited: Long?) -> Unit = {},
     onDone: (FlowDone) -> Unit = {},
     askDisk: DiskAsk = DiskAsk.NONE,
 ) {
@@ -130,7 +131,7 @@ internal fun AddFolderFlow(
         withFrameNanos { }
         target.tryRequestFocus()
     }
-    BackHandler { flow.back(onLeave) }
+    BackHandler { flow.back { onLeave(flow.edited?.id) } }
     val away by remember(list) { derivedStateOf { list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset > 0 } }
     // After the flow's own Back, so that it comes first: from deep in a step's list, Back brings focus to its first row.
     BackToStart(away) {
@@ -408,11 +409,12 @@ private fun DiskRow(flow: FolderFlow, focus: FlowFocus, id: String, internal: Bo
 }
 
 /**
- * A folder edited whose disk did not open: that disk's row alone, saying why, OK opening it where the folder is;
- * nothing once the folder is no longer in the library.
+ * A folder edited whose disk did not open: that disk's row alone, saying why, OK opening it where the folder is; one
+ * the flow could not open, why in the rows' place ([lostPart]).
  */
 @Composable
 private fun editedParts(flow: FolderFlow, focus: FlowFocus, askDisk: DiskAsk): List<FlowPart> {
+    flow.lost?.let { return listOf(lostPart(flow, it)) }
     val disk = flow.nas?.takeIf { flow.edited != null } ?: return emptyList()
     return listOf(
         FlowPart("disks", setOf(diskKey(disk.host))) {
@@ -421,6 +423,31 @@ private fun editedParts(flow: FolderFlow, focus: FlowFocus, askDisk: DiskAsk): L
             }
         },
     )
+}
+
+/**
+ * The folder edited, [lost]: unread, said as the folder's form says it, Réessayer focused; no longer in the library,
+ * nothing fixes it here, Back the way out.
+ */
+private fun lostPart(flow: FolderFlow, lost: EditLost) = FlowPart("lost", emptySet()) {
+    when (lost) {
+        // The library is read from the player's storage, as the settings are.
+        EditLost.UNREAD -> HlEmptyState(
+            stringResource(R.string.folder_unread),
+            message = stringResource(R.string.error_settings),
+            attention = true,
+            action = stringResource(R.string.retry),
+            actionIcon = HlIcons.Refresh,
+            onAction = flow::readAgain,
+            busy = stringResource(R.string.retrying).takeIf { flow.rereading },
+        )
+        EditLost.GONE -> HlEmptyState(
+            stringResource(R.string.folder_gone_state),
+            message = stringResource(R.string.folder_gone),
+            attention = true,
+            backHint = true,
+        )
+    }
 }
 
 /**
@@ -803,7 +830,6 @@ private fun flowText(message: FlowMessage): String = when (message) {
     is FlowMessage.Overlaps -> stringResource(overlapWords(message.standing), message.existing)
     is FlowMessage.Missing -> stringResource(message.words)
     FlowMessage.Gone -> stringResource(R.string.folder_gone)
-    FlowMessage.Unread -> stringResource(R.string.error_settings)
     else -> refusalText(message)
 }
 
@@ -830,6 +856,21 @@ private fun refusalText(message: FlowMessage): String = when (message) {
     is FlowMessage.Denied -> stringResource(R.string.error_smb_denied, message.user, message.share)
     is FlowMessage.GuestShare -> stringResource(R.string.error_smb_guest_share, message.share)
     is FlowMessage.DiskRefused -> stringResource(if (message.settings) R.string.disk_access_settings else R.string.disk_access_refused)
-    is FlowMessage.DiskAbsent -> stringResource(R.string.disk_absent, diskName(message.disk))
+    is FlowMessage.DiskAbsent -> diskAbsent(message.disk)
     else -> stringResource(R.string.error_scan_other)
+}
+
+/**
+ * A disk no longer plugged in: by its own name, else as « Le disque USB », Android naming no disk it does not have;
+ * the player's storage, never unplugged, as not answering.
+ */
+@Composable
+private fun diskAbsent(disk: FlowNas): String {
+    val usb = stringResource(R.string.disk_usb)
+    val named = disk.name?.takeIf { it.isNotBlank() && it != usb }
+    return when {
+        disk.host == Volume.INTERNAL -> stringResource(R.string.error_settings)
+        named != null -> stringResource(R.string.disk_absent, named)
+        else -> stringResource(R.string.disk_absent_usb)
+    }
 }

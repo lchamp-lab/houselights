@@ -59,6 +59,9 @@ open class FlowHarness {
     /** Back left the flow from its first step. */
     protected var left = false
 
+    /** The folder edited Back left with, whose sheet opens again; null for an add, or a folder the flow could not open. */
+    protected var leftWith: Long? = null
+
     protected lateinit var library: LocalLibrary
 
     @After
@@ -88,7 +91,11 @@ open class FlowHarness {
         runBlocking { folders.forEach { db.dao().insertSource(it) } }
         library = LocalLibrary(context, db.dao(), scanner, artwork) {}
         val flow = FolderFlow(network, library, scope, useFolders = useFolders, saved = saved, editing = editing)
-        compose.setTvContent { AddFolderFlow(flow, onLeave = { left = true }, onDone = { done = it }, askDisk = askDisk) }
+        val leave: (Long?) -> Unit = {
+            left = true
+            leftWith = it
+        }
+        compose.setTvContent { AddFolderFlow(flow, onLeave = leave, onDone = { done = it }, askDisk = askDisk) }
         until { flow.ready }
         compose.waitForIdle()
         return flow

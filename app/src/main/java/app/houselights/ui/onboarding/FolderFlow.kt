@@ -145,24 +145,41 @@ class FolderFlow(
     /**
      * Opens folder [id] of this player's disks at step 5 where it is (where a stopped process left it), else at the
      * nearest folder above it still there; a disk unplugged, or one the app may not read, is said on its row, step 1
-     * holding it alone, OK trying again. A folder the library no longer has, or could not read, is said in the panel.
+     * holding it alone, OK trying again. A folder the library no longer has, or could not read, is said in the rows'
+     * place ([lost]), on step 1 so that Back leaves.
      */
     private suspend fun edit(id: Long) {
         val read = suspendRunCatching { library.folder(id) }.onFailure { Log.w(TAG, "Reading folder $id failed", it) }
         val folder = read.getOrNull()
         edited = folder
+        val left = path.takeIf { step == FlowStep.BROWSE }
+        stepName = FlowStep.WHERE.name
         if (folder == null) {
-            message = if (read.isFailure) FlowMessage.Unread else FlowMessage.Gone
+            lost = if (read.isFailure) EditLost.UNREAD else EditLost.GONE
             ready = true
             return
         }
-        val at = if (step == FlowStep.BROWSE) path else folder.path.split('/').filter(String::isNotEmpty)
-        stepName = FlowStep.WHERE.name
+        val at = left ?: folder.path.split('/').filter(String::isNotEmpty)
         suspendRunCatching { openEdited(name = null, at = at) }.onFailure { e ->
             Log.w(TAG, "Opening folder $id failed", e)
             failed(diskKey(folder.host), e)
         }
+        lost = null
         ready = true
+    }
+
+    /** « Réessayer » on the folder edited the storage did not give: read again, then opened as [edit] opens it. */
+    fun readAgain() {
+        val id = editing ?: return
+        if (lost != EditLost.UNREAD || rereading) return
+        rereading = true
+        viewModelScope.launch {
+            try {
+                edit(id)
+            } finally {
+                rereading = false
+            }
+        }
     }
 
     /**

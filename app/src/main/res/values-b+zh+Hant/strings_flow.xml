@@ -65,4 +65,5 @@
     <string name="disk_access_settings">Houselights 還不能讀取此播放器的檔案：請在 Android 設定中允許，然後重新選擇磁碟。</string>
     <string name="disk_access_refused">Houselights 不能讀取此播放器的檔案：請允許後重新選擇磁碟。</string>
     <string name="disk_absent">%s已中斷連線。請重新連接，然後再試一次。</string>
+    <string name="disk_absent_usb">USB 磁碟已中斷連線。請重新連接，然後再試一次。</string>
 </resources>

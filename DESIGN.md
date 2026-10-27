@@ -190,8 +190,11 @@ is; the library's other folders are no choice, the folder's own place is. « Cho
 its id (« Enregistrement… »), its titles keeping what was done with them, then scans: no step 6, as its kind does not
 change, a choice of one being none. Back goes up a level at a time, then from the disk's root to the folder's sheet, open
 again on « Modifier le dossier »; saved, Réglages › Bibliothèque on its showcase. Its disk unplugged, step 1 holds that
-disk's row alone, « Ne répond pas », the panel saying to plug it back in, OK opening it once it is; a disk unplugged while
-it is browsed is said so on the folder's row.
+disk's row alone, « Ne répond pas », the panel saying to plug it back in, by its name, else « Le disque USB », as Android
+names no disk it does not have; OK opens it once it is; a disk unplugged while it is browsed is said so on the folder's
+row. A folder the storage does not give says "Ce dossier n’a pas pu être relu" in the rows' place, as the form does, with
+Réessayer focused; one removed meanwhile « Dossier introuvable », Back the way out (`HlEmptyState`), no sheet opening
+again for it.
 
 ## Tokens
 

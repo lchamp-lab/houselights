@@ -1,6 +1,7 @@
 package app.houselights.ui.onboarding
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -34,7 +35,8 @@ import org.robolectric.annotation.Config
 /**
  * « Modifier le dossier » on a folder of the player's own disks: the flow opened at step 5 on its disk where the folder
  * is, Back up to the disk's root then out, another folder chosen saved as the same folder (its id, its kind, its titles
- * and what was done with them), the library's other folders no choice, and a disk unplugged said on its row.
+ * and what was done with them), the library's other folders no choice, a disk unplugged said on its row, and a folder
+ * the flow cannot open said in its rows' place.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -72,6 +74,7 @@ class DiskFolderEditTest : FlowHarness() {
         assertFalse(left)
         back()
         assertTrue(left)
+        assertEquals("its sheet opens again", EDITED, leftWith)
         assertNull(done)
     }
 
@@ -151,9 +154,9 @@ class DiskFolderEditTest : FlowHarness() {
     }
 
     /**
-     * Its disk unplugged, the edit shows that disk's row alone, « Ne répond pas », the panel saying to plug it back in;
-     * plugged in, OK opens it where the folder is. Unplugged again while it is browsed, the folder's row says so and the
-     * panel names the disk; Back, the level above out of reach, leaves.
+     * Its disk unplugged, the edit shows that disk's row alone, « Ne répond pas », the panel saying to plug the USB disk
+     * back in, Android naming no disk it does not have; plugged in, OK opens it where the folder is. Unplugged again while
+     * it is browsed, the folder's row says so and the panel names the disk; Back, the level above out of reach, leaves.
      */
     @Test
     fun aDiskUnpluggedIsSaidOnItsRowAndOpensOncePluggedBackIn() {
@@ -162,7 +165,8 @@ class DiskFolderEditTest : FlowHarness() {
         assertEquals(FlowStep.WHERE, flow.step)
         focusIsOn(text(R.string.server_silent))
         compose.onNode(hasText(text(R.string.disk_usb)) and hasClickAction()).assertExists()
-        compose.onNodeWithText(text(R.string.disk_absent, text(R.string.disk_usb))).assertExists()
+        compose.onNodeWithText(text(R.string.disk_absent_usb)).assertExists()
+        compose.onNodeWithText(text(R.string.disk_absent, text(R.string.disk_usb))).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.nas_used)).assertDoesNotExist()
         compose.onNodeWithText(text(R.string.type_address)).assertDoesNotExist()
 
@@ -189,6 +193,59 @@ class DiskFolderEditTest : FlowHarness() {
         assertNull(done)
     }
 
+    /** The player's storage, never unplugged, out of reach all the same: its row says so, the panel that it did not answer. */
+    @Test
+    fun theStorageOutOfReachIsSaidAsNotAnswering() {
+        val flow = flow(onT7.copy(host = Volume.INTERNAL), editing = EDITED)
+        assertEquals(FlowStep.WHERE, flow.step)
+        focusIsOn(text(R.string.server_silent))
+        compose.onNodeWithText(text(R.string.error_settings)).assertExists()
+        compose.onNodeWithText(text(R.string.disk_absent, text(R.string.disk_internal))).assertDoesNotExist()
+    }
+
+    /**
+     * The folder edited the player's storage does not give: said in the rows' place as the folder's form says it, once,
+     * Réessayer focused; read again, the edit opens where the folder is.
+     */
+    @Test
+    fun aFolderTheStorageDoesNotGiveSaysSoWithRetry() {
+        network.mounted = DISKS
+        runBlocking { db.dao().insertSource(onT7) }
+        folders(readable = false)
+        val flow = flow(editing = EDITED)
+        assertEquals(EditLost.UNREAD, flow.lost)
+        compose.onNodeWithText(text(R.string.folder_unread)).assertExists()
+        compose.onAllNodesWithText(text(R.string.error_settings)).assertCountEquals(1)
+        focusIsOn(text(R.string.retry))
+
+        folders(readable = true)
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        compose.waitForIdle()
+        assertNull(flow.lost)
+        assertEquals(listOf("Films"), flow.path)
+        compose.onNodeWithText(text(R.string.folder_unread)).assertDoesNotExist()
+        focusIsOn(text(R.string.choose_folder))
+    }
+
+    /**
+     * The folder edited removed meanwhile: said in the rows' place, once, Back the way out as nothing fixes it here;
+     * Back leaves with no folder, so no sheet opens again for it.
+     */
+    @Test
+    fun aFolderNoLongerInTheLibrarySaysSoAndLeavesWithNoSheet() {
+        network.mounted = DISKS
+        val flow = flow(editing = EDITED)
+        assertEquals(EditLost.GONE, flow.lost)
+        compose.onNodeWithText(text(R.string.folder_gone_state)).assertExists()
+        compose.onAllNodesWithText(text(R.string.folder_gone)).assertCountEquals(1)
+        compose.onNodeWithText(text(R.string.sheet_back_hint)).assertExists()
+
+        back()
+        assertTrue(left)
+        assertNull(leftWith)
+    }
+
     /**
      * A folder no longer where it was opens at the nearest folder above it still there, here the player's storage's root,
      * focused as a level is; chosen there, the folder is named as the disk's row, « Disque interne ».
@@ -209,7 +266,10 @@ class DiskFolderEditTest : FlowHarness() {
         assertEquals(text(R.string.disk_internal) to "", saved?.name to saved?.path)
     }
 
-    /** The edit survives Android stopping the app: on its disk, at the level left, never its first step. */
+    /**
+     * The edit survives Android stopping the app: on its disk, at the level left, never its first step; the folder then
+     * not given by the storage, it is said on step 1 rather than the level left, so Back leaves.
+     */
     @Test
     fun theEditIsFoundAgainAfterAStoppedProcess() {
         network.mounted = DISKS
@@ -225,6 +285,17 @@ class DiskFolderEditTest : FlowHarness() {
         assertEquals(T7, again.nas?.host)
         assertEquals(EDITED to "Films", again.edited?.id to again.edited?.path)
         assertEquals(FlowKeys.CHOOSE, again.aim?.key)
+
+        folders(readable = false)
+        val unread = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath(), editing = EDITED)
+        until { unread.ready }
+        assertEquals(EditLost.UNREAD to FlowStep.WHERE, unread.lost to unread.step)
+    }
+
+    /** Renames the folders' table, so reading them fails as a failing database does, or back (FolderUnreadTest). */
+    private fun folders(readable: Boolean) {
+        val (from, to) = if (readable) "sources_away" to "sources" else "sources" to "sources_away"
+        db.openHelper.writableDatabase.execSQL("ALTER TABLE $from RENAME TO $to")
     }
 
     private companion object {

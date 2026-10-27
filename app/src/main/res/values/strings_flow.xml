@@ -66,4 +66,5 @@
     <string name="disk_access_settings">Houselights may not read this player’s files yet: allow it in Android’s settings, then choose the disk again.</string>
     <string name="disk_access_refused">Houselights may not read this player’s files: allow it, then choose the disk again.</string>
     <string name="disk_absent">%s is no longer plugged in: plug it back in, then try again.</string>
+    <string name="disk_absent_usb">The USB disk is no longer plugged in: plug it back in, then try again.</string>
 </resources>

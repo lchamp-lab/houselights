@@ -67,4 +67,5 @@
     <string name="disk_access_settings">Houselights aún no puede leer los archivos de este reproductor: autorícelo en los ajustes de Android y vuelva a elegir el disco.</string>
     <string name="disk_access_refused">Houselights no puede leer los archivos de este reproductor: autorícelo y vuelva a elegir el disco.</string>
     <string name="disk_absent">%s ya no está conectado: vuelva a conectarlo e inténtelo de nuevo.</string>
+    <string name="disk_absent_usb">El disco USB ya no está conectado: vuelva a conectarlo e inténtelo de nuevo.</string>
 </resources>

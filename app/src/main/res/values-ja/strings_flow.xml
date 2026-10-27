@@ -65,4 +65,5 @@
     <string name="disk_access_settings">Houselightsはまだこのプレーヤーのファイルを読み取れません。Androidの設定で許可してから、もう一度ディスクを選んでください。</string>
     <string name="disk_access_refused">Houselightsはこのプレーヤーのファイルを読み取れません。許可してから、もう一度ディスクを選んでください。</string>
     <string name="disk_absent">%sが接続されていません。接続し直してから、もう一度お試しください。</string>
+    <string name="disk_absent_usb">USBディスクが接続されていません。接続し直してから、もう一度お試しください。</string>
 </resources>

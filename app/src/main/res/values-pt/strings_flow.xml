@@ -67,4 +67,5 @@
     <string name="disk_access_settings">O Houselights ainda não pode ler os arquivos deste player: autorize nas configurações do Android e escolha o disco de novo.</string>
     <string name="disk_access_refused">O Houselights não pode ler os arquivos deste player: autorize e escolha o disco de novo.</string>
     <string name="disk_absent">%s não está mais conectado: conecte-o de novo e tente outra vez.</string>
+    <string name="disk_absent_usb">O disco USB não está mais conectado: conecte-o de novo e tente outra vez.</string>
 </resources>

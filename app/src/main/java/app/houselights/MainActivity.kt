@@ -455,7 +455,7 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                 // « Ajouter un dossier », its steps; Back from the first leaves it where it was opened. A folder of the
                 // player's disks is edited through them, Back from its disk's root returning to its sheet.
                 AddFolderFlowScreen(
-                    onLeave = { nav.leaveFolderSteps(folderId) },
+                    onLeave = { edited -> nav.leaveFolderSteps(edited) },
                     onDone = { done -> nav.folderStepsDone(done, ::goHome) },
                     editing = folderId,
                 )
@@ -602,11 +602,17 @@ private fun NavController.settingsEntry(): NavBackStackEntry? = try {
 }
 
 /**
- * Back from « Ajouter un dossier »'s first step: where it was opened; from the disk's root of the folder [editing], its
- * sheet in Settings, open again.
+ * Back from « Ajouter un dossier »'s first step: where it was opened; from the disk's root of the folder [edited], its
+ * sheet in Settings, open again. A folder the edit could not read (gone, or the storage silent) has no sheet to open.
  */
-private fun NavController.leaveFolderSteps(editing: Long?) {
-    if (editing != null) settingsEntry()?.savedStateHandle?.set(FOLDER_SHEET, editing)
+private fun NavController.leaveFolderSteps(edited: Long?) {
+    if (edited != null) {
+        settingsEntry()?.savedStateHandle?.let { opener ->
+            // Only the last folder Settings is handed is shown: one handed earlier and never shown would take its place.
+            opener[ADDED_FOLDER] = null
+            opener[FOLDER_SHEET] = edited
+        }
+    }
     popBackStack()
 }
 
@@ -619,6 +625,7 @@ private fun NavController.folderStepsDone(done: FlowDone, goHome: () -> Unit) {
     if (done.switched || opener == null) {
         goHome()
     } else {
+        opener.savedStateHandle[FOLDER_SHEET] = null
         opener.savedStateHandle[ADDED_FOLDER] = done.folderId
         popBackStack<Route.Settings>(inclusive = false)
     }

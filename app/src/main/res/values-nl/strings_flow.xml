@@ -66,4 +66,5 @@
     <string name="disk_access_settings">Houselights mag de bestanden van deze speler nog niet lezen: sta het toe in de instellingen van Android en kies de schijf daarna opnieuw.</string>
     <string name="disk_access_refused">Houselights mag de bestanden van deze speler niet lezen: sta het toe en kies de schijf daarna opnieuw.</string>
     <string name="disk_absent">%s is niet meer aangesloten: sluit hem opnieuw aan en probeer het dan nog eens.</string>
+    <string name="disk_absent_usb">De USB-schijf is niet meer aangesloten: sluit hem opnieuw aan en probeer het dan nog eens.</string>
 </resources>

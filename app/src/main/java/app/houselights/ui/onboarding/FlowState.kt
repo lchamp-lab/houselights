@@ -51,6 +51,12 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
     var edited by mutableStateOf<SourceEntity?>(null)
         protected set
 
+    /** The folder [editing] the flow could not open, said in its rows' place; Réessayer reads it again ([rereading]). */
+    var lost by mutableStateOf<EditLost?>(null)
+        protected set
+    var rereading by mutableStateOf(false)
+        protected set
+
     val step: FlowStep get() = FlowStep.entries.find { it.name == stepName } ?: FlowStep.WHERE
 
     /** Each step or level shown: its list starts at its top. */
