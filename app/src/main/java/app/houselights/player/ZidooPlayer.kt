@@ -200,7 +200,7 @@ class ZidooPlayer(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             packages.getInstallSourceInfo(pkg).installingPackageName
         } else {
-            @Suppress("DEPRECATION")
+            @Suppress("DEPRECATION") // Before Android 11, which brought getInstallSourceInfo.
             packages.getInstallerPackageName(pkg)
         }
     } catch (_: PackageManager.NameNotFoundException) {

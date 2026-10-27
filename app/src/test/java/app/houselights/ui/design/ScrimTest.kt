@@ -310,7 +310,7 @@ class ScrimTest {
     }
 
     /** Point-by-point reference for [ArtworkSample.floorAcross]: a black veil through the veils down. */
-    @Suppress("LongParameterList")
+    @Suppress("LongParameterList") // The picture's size and points, then what floorAcross is given.
     private fun floorPointByPoint(width: Int, height: Int, grey: FloatArray, screen: Size, veils: Veils, tint: Float): Float {
         val scale = maxOf(screen.width / width, screen.height / height)
         val left = screen.width - width * scale
@@ -327,7 +327,7 @@ class ScrimTest {
     }
 
     /** Point-by-point reference for [ArtworkSample.leftVeil], through the veils down. */
-    @Suppress("LongParameterList")
+    @Suppress("LongParameterList") // The picture's size and points, then what leftVeil is given.
     private fun pointByPoint(width: Int, height: Int, grey: FloatArray, screen: Size, veils: Veils, tint: Float): List<VeilStop> {
         val veil = veils.left
         if (veil.isEmpty()) return veil

@@ -143,7 +143,7 @@ class PlayerLaunchTest {
     fun aTokenGoesElsewhereOnlyThroughAChooser() = runTest {
         val intent = manager(OTHER_BUILD).intentFor(plan("http://nas:8096/Videos/1/stream.mkv?static=true&api_key=secret"))
         assertEquals(Intent.ACTION_CHOOSER, intent.action)
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION") // The typed getParcelableExtra is Android 13's: the tests run on Android 9.
         val inner = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
         assertEquals(Intent.ACTION_VIEW, inner?.action)
         // Android opens the only app a chooser lists without asking, unless told not to.

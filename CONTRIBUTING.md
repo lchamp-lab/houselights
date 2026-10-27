@@ -54,6 +54,7 @@ Run `scripts/check.sh` before pushing or opening a pull request. It runs what CI
 - Lint's existing findings are kept in `app/lint-baseline.xml`. New code must pass.
 - A Kotlin compiler warning fails the build, in the app, its tests, `:baselineprofile` and the build scripts: fix it,
   else `@Suppress` it where it stands with its reason in a line (a deprecated API that Android 9 needs).
+  `SuppressionGuardTest` fails on a `@Suppress`, for either, that gives none.
 - The design system has its own guard tests (DESIGN.md, *Guard*).
 - **Against real servers.** `tools/test-servers` starts a Samba and an NFS NAS and a Jellyfin server in Docker, on
   generated samples and on 127.0.0.1 alone, which the emulator reaches at 10.0.2.2 (and, for the tests, the same NFS

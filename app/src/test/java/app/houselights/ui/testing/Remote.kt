@@ -132,11 +132,10 @@ private fun fromADPad(event: KeyEvent): Boolean {
 }
 
 /**
- * The device as Android describes it, virtual when its id is negative. Made by Robolectric's ShadowInputDevice, deprecated
- * for its InputDeviceBuilder, which builds on the InputDevice.Builder Android 14 brought: the tests run on Android 9.
- * Named in full, as an import's deprecation cannot be suppressed.
+ * The device as Android describes it, virtual when its id is negative, made by Robolectric's ShadowInputDevice, named in
+ * full, as an import's deprecation cannot be suppressed.
  */
-@Suppress("DEPRECATION")
+@Suppress("DEPRECATION") // Its successor, InputDeviceBuilder, builds on Android 14's InputDevice.Builder: the tests run on Android 9.
 private fun KeySource.device(): InputDevice = org.robolectric.shadows.ShadowInputDevice.makeInputDeviceNamed(name).also {
     ReflectionHelpers.setField(it, "mId", id)
     ReflectionHelpers.setField(it, "mSources", sources)
