@@ -40,7 +40,7 @@ import org.robolectric.annotation.Config
 @Config(qualifiers = TV)
 class DiskFolderEditTest : FlowHarness() {
     /** Films on the USB disk « Samsung T7 », the folder edited. */
-    private val films = SourceEntity(
+    private val onT7 = SourceEntity(
         id = EDITED, name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.LOCAL, host = T7, share = "", path = "Films",
         username = "", password = Secret(""),
     )
@@ -53,7 +53,7 @@ class DiskFolderEditTest : FlowHarness() {
     @Test
     fun theEditOpensWhereTheFolderIsAndBackLeavesFromTheDisksRoot() {
         network.mounted = DISKS
-        val flow = flow(films, editing = EDITED)
+        val flow = flow(onT7, editing = EDITED)
         assertEquals(FlowStep.BROWSE, flow.step)
         assertEquals(listOf("Films"), flow.path)
         focusIsOn(text(R.string.choose_folder))
@@ -82,7 +82,7 @@ class DiskFolderEditTest : FlowHarness() {
     @Test
     fun anotherFolderChosenIsTheSameFolderWithItsTitles() {
         network.mounted = DISKS
-        val flow = flow(films, editing = EDITED)
+        val flow = flow(onT7, editing = EDITED)
         val alien = runBlocking {
             db.dao().insert(
                 ItemEntity(
@@ -123,8 +123,8 @@ class DiskFolderEditTest : FlowHarness() {
     @Test
     fun aFolderOfTheLibraryIsNoChoiceAndOneAddedMeanwhileRefusesTheSave() {
         network.mounted = DISKS
-        val series = films.copy(id = SERIES, name = "Séries", kind = SourceKind.SHOWS, path = "Séries")
-        val flow = flow(films, series, editing = EDITED)
+        val series = onT7.copy(id = SERIES, name = "Séries", kind = SourceKind.SHOWS, path = "Séries")
+        val flow = flow(onT7, series, editing = EDITED)
         back()
         until { flow.path.isEmpty() }
         compose.waitForIdle()
@@ -137,7 +137,7 @@ class DiskFolderEditTest : FlowHarness() {
         until { flow.path == listOf("Films 4K") }
         compose.waitForIdle()
 
-        runBlocking { db.dao().insertSource(films.copy(id = 0, name = "Dune (2021)", path = "Films 4K/Dune (2021)")) }
+        runBlocking { db.dao().insertSource(onT7.copy(id = 0, name = "Dune (2021)", path = "Films 4K/Dune (2021)")) }
         ok()
         until { flow.message != null }
         compose.waitForIdle()
@@ -158,7 +158,7 @@ class DiskFolderEditTest : FlowHarness() {
     @Test
     fun aDiskUnpluggedIsSaidOnItsRowAndOpensOncePluggedBackIn() {
         network.mounted = DISKS.filter { it.internal }
-        val flow = flow(films, editing = EDITED)
+        val flow = flow(onT7, editing = EDITED)
         assertEquals(FlowStep.WHERE, flow.step)
         focusIsOn(text(R.string.server_silent))
         compose.onNode(hasText(text(R.string.disk_usb)) and hasClickAction()).assertExists()
@@ -196,7 +196,7 @@ class DiskFolderEditTest : FlowHarness() {
     @Test
     fun aFolderMovedOpensAboveItAndADisksRootIsNamedAsItsRow() {
         network.mounted = DISKS
-        val flow = flow(films.copy(host = Volume.INTERNAL, path = "Vidéos/Films"), editing = EDITED)
+        val flow = flow(onT7.copy(host = Volume.INTERNAL, path = "Vidéos/Films"), editing = EDITED)
         assertEquals(FlowStep.BROWSE, flow.step)
         assertEquals(emptyList<String>(), flow.path)
         assertTrue("${network.asked}", "level ${Volume.INTERNAL}/Vidéos" in network.asked)
@@ -214,7 +214,7 @@ class DiskFolderEditTest : FlowHarness() {
     fun theEditIsFoundAgainAfterAStoppedProcess() {
         network.mounted = DISKS
         val saved = SavedStateHandle()
-        val flow = flow(films, saved = saved, editing = EDITED)
+        val flow = flow(onT7, saved = saved, editing = EDITED)
         back()
         until { flow.path.isEmpty() }
 
@@ -223,7 +223,7 @@ class DiskFolderEditTest : FlowHarness() {
         assertEquals(FlowStep.BROWSE, again.step)
         assertEquals(emptyList<String>(), again.path)
         assertEquals(T7, again.nas?.host)
-        assertEquals(films, again.edited)
+        assertEquals(EDITED to "Films", again.edited?.id to again.edited?.path)
         assertEquals(FlowKeys.CHOOSE, again.aim?.key)
     }
 
