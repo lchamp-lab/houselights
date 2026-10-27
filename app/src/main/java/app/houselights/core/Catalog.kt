@@ -1,5 +1,7 @@
 package app.houselights.core
 
+import java.time.LocalDate
+
 /** A credited job: the cast, then the crafts end credits name. Stored by name, so names never change. */
 enum class Job {
     CAST,
@@ -32,7 +34,10 @@ data class PersonTitle(val item: MediaItem, val jobs: List<Job>, val role: Strin
 /** A person's page: [person], library title counts per job ([jobs]), and their [titles] by year (unknown last). */
 data class PersonPage(val person: Person, val jobs: Map<Job, Int>, val titles: List<PersonTitle>)
 
-/** A saga's film, owned ([item]) or not; a missing one keeps its [title], [year] and [released] state, no poster. */
+/**
+ * A saga's film, owned ([item]) or not; a missing one keeps its [title], [year], [released] state, TMDB's [poster]
+ * and its [releaseDate] (null when TMDB dates it not, or the source lists only the films it holds).
+ */
 data class SagaPart(
     val item: MediaItem?,
     val title: String,
@@ -40,6 +45,8 @@ data class SagaPart(
     val released: Boolean = true,
     val overview: String? = null,
     val backdrop: ImageRef? = null,
+    val poster: ImageRef? = item?.poster,
+    val releaseDate: LocalDate? = null,
 ) {
     val owned: Boolean get() = item != null
 }

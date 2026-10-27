@@ -21,6 +21,7 @@ import app.houselights.core.yearOf
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 /** [Catalog] read from scan output: a few queries per call whatever the library size, mapped off the main thread. */
 internal class LocalCatalog(
@@ -106,6 +107,8 @@ internal class LocalCatalog(
                     released = part.releaseDate?.let { it <= today } ?: false,
                     overview = item?.overview ?: Typeset.text(part.overview),
                     backdrop = item?.backdrop ?: part.backdropPath?.let { LocalProvider.image(it, ImageType.BACKDROP) },
+                    poster = item?.poster ?: part.posterPath?.let { LocalProvider.image(it, ImageType.POSTER) },
+                    releaseDate = part.releaseDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
                 )
             }
             val listedIds = parts.mapNotNullTo(HashSet()) { it.itemId }

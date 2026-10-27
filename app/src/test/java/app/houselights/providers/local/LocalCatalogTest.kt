@@ -24,6 +24,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.time.LocalDate
 
 /** What the local library offers beyond titles ([LocalCatalog]): people, whole sagas, copies, numbers, search. */
 @RunWith(RobolectricTestRunner::class)
@@ -240,6 +241,54 @@ class LocalCatalogTest {
         val whole = checkNotNull(catalog.saga(MediaItem(LocalId.ofCollection(saga), MediaKind.COLLECTION, "")))
         assertEquals(listOf("Iron Man", "Thor"), whole.parts.map { it.title })
         assertTrue(whole.parts.all { it.owned })
+    }
+
+    /** A film the library lacks keeps TMDB's poster and its whole release date: its greyed panel, « Sortie le … ». */
+    @Test
+    fun aMissingFilmKeepsItsPosterAndItsDate() = runTest {
+        val saga = dao.insertCollection(
+            CollectionEntity(matchKey = "tmdb:726871", tmdbId = 726871, name = "Dune Collection", sortTitle = "dune"),
+        )
+        film("Dune", 2021, tmdbId = 438631, collectionId = saga)
+        dao.replaceSagaParts(
+            saga,
+            CollectionRules.parts(
+                saga,
+                TmdbCollection(
+                    726871,
+                    "Dune Collection",
+                    parts = listOf(
+                        TmdbSearchResult(438631, title = "Dune", releaseDate = "2021-09-15", posterPath = "/dune.jpg"),
+                        TmdbSearchResult(1170608, title = "Dune : Troisième partie", releaseDate = "2099-12-15", posterPath = "/trois.jpg"),
+                        TmdbSearchResult(1170609, title = "Dune Messiah"),
+                    ),
+                ),
+            ),
+        )
+
+        val whole = checkNotNull(catalog.saga(MediaItem(LocalId.ofCollection(saga), MediaKind.COLLECTION, "")))
+        assertEquals("TMDB's English name, without its « Collection »", "Dune", whole.collection.title)
+        val (held, coming, announced) = whole.parts
+        assertEquals(LocalDate.of(2021, 9, 15), held.releaseDate)
+        assertTrue("a film held without a poster of its own shows TMDB's", held.poster?.url(POSTER_PX).orEmpty().contains("/dune.jpg"))
+        assertNull(coming.item)
+        assertTrue(coming.poster?.url(POSTER_PX).orEmpty().contains("/trois.jpg"))
+        assertEquals(LocalDate.of(2099, 12, 15), coming.releaseDate)
+        assertFalse(coming.released)
+        assertNull("announced, undated: no poster, no date", announced.poster)
+        assertNull(announced.releaseDate)
+    }
+
+    /** A set of the user's own, which TMDB does not know, keeps its name as its NFO writes it, « Collection » and all. */
+    @Test
+    fun aSetOfTheUsersOwnKeepsItsName() = runTest {
+        val own = dao.insertCollection(
+            CollectionEntity(matchKey = "name:criterion", name = "The Criterion Collection", sortTitle = "criterion"),
+        )
+        film("Le Samouraï", 1967, collectionId = own)
+        film("Playtime", 1967, collectionId = own)
+        val whole = checkNotNull(catalog.saga(MediaItem(LocalId.ofCollection(own), MediaKind.COLLECTION, "")))
+        assertEquals("The Criterion Collection", whole.collection.title)
     }
 
     /** "À suivre": the film after the last one watched of a saga, the shows' next episodes with it, the latest first. */
@@ -480,6 +529,11 @@ class LocalCatalogTest {
         film("Top Gun", 1986, collectionId = saga)
         film("Top Gun: Maverick", 2022, collectionId = saga)
         assertEquals("Top Gun", provider.collectionOf(provider.item(dao.latest(ItemKind.MOVIE, 1).single().id.toString()))?.title)
-        assertFalse(CollectionRules.shownName("Saga").isEmpty())
+        assertFalse(CollectionRules.shownName("Saga", known = true).isEmpty())
+    }
+
+    private companion object {
+        /** The width a saga's panel asks its poster at. */
+        const val POSTER_PX = 494
     }
 }

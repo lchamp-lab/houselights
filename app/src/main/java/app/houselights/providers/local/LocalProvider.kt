@@ -219,7 +219,7 @@ class LocalProvider(
         return MediaItem(
             id = LocalId.ofCollection(c.id),
             kind = MediaKind.COLLECTION,
-            title = Typeset.text(CollectionRules.shownName(c.name)),
+            title = Typeset.text(CollectionRules.shownName(c.name, known = c.tmdbId != null)),
             overview = Typeset.text(c.overview),
             year = years.minOrNull(),
             endYear = years.maxOrNull()?.takeIf { it != years.minOrNull() },

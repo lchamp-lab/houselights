@@ -40,6 +40,27 @@ class CollectionRulesTest {
         assertEquals("name:evil dead", CollectionRules.key(null, "Evil Dead Collection"))
     }
 
+    /**
+     * A saga shows without the words that only mark it as one: TMDB's French « - Saga », and its English « Collection »
+     * when TMDB knows the saga; a set of the user's own keeps the word as its NFO writes it.
+     */
+    @Test
+    fun aSagaShowsWithoutTheWordsThatMarkItOne() {
+        assertEquals("Top Gun", CollectionRules.shownName("Top Gun - Saga", known = true))
+        assertEquals("Mission : Impossible", CollectionRules.shownName("Mission : Impossible – Saga", known = true))
+        assertEquals("Dune", CollectionRules.shownName("Dune Collection", known = true))
+        assertEquals("John Wick", CollectionRules.shownName("John Wick Collection", known = true))
+        assertEquals("Alien", CollectionRules.shownName("Alien - Collection", known = true))
+        assertEquals("The Criterion Collection", CollectionRules.shownName("The Criterion Collection", known = false))
+        assertEquals("Marvel", CollectionRules.shownName("Marvel", known = false))
+        // Only a word of its own at the name's end: inside a name, or glued to it, it stays.
+        assertEquals("La Collection Pixar", CollectionRules.shownName("La Collection Pixar", known = true))
+        assertEquals("MyCollection", CollectionRules.shownName("MyCollection", known = true))
+        // A name that is nothing but the word keeps it.
+        assertEquals("Collection", CollectionRules.shownName("Collection", known = true))
+        assertEquals("Saga", CollectionRules.shownName("Saga", known = true))
+    }
+
     @Test
     fun onlyReleasedFilmsCount() {
         val dates = listOf("1986-05-16", "2022-05-24", "", null, "2031-01-01")
