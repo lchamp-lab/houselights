@@ -15,6 +15,7 @@ import app.houselights.core.VideoInfo
 import app.houselights.core.bpsToKbps
 import app.houselights.core.epochMillisOf
 import app.houselights.core.yearOf
+import app.houselights.providers.local.CollectionRules
 
 /** Maps Jellyfin items to [MediaItem]s, with artwork URLs resolved at the requested width. */
 internal class JellyfinMapper(private val client: JellyfinClient) {
@@ -39,7 +40,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             id = dto.id,
             kind = kind,
             // Typeset for display only; the server sorts and searches its raw text.
-            title = Typeset.text(dto.name.orEmpty()),
+            title = Typeset.text(shownTitle(dto.name.orEmpty(), kind)),
             originalTitle = Typeset.text(dto.originalTitle),
             overview = Typeset.text(dto.overview),
             tagline = Typeset.text(dto.taglines.firstOrNull()),
@@ -80,6 +81,15 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
     companion object {
         /** The cast a title keeps, in billing order, as a scan keeps of TMDB's. */
         private const val CAST_KEPT = 30
+
+        /**
+         * A title as the app shows it: a box set's without « - Saga », as a set the library's own is ([CollectionRules]),
+         * its « Collection » kept, the server not saying it is TMDB's.
+         */
+        fun shownTitle(
+            name: String,
+            kind: MediaKind,
+        ): String = if (kind == MediaKind.COLLECTION) CollectionRules.shownName(name, known = false) else name
 
         /** What a server's item type is to the app; any other is a folder. */
         private fun kindOf(type: String?): MediaKind = when (type) {
