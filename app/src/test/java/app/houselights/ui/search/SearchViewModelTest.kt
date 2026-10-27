@@ -11,7 +11,6 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.errorOrNull
 import app.houselights.ui.util.valueOrNull
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -25,7 +24,6 @@ import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
 
 /** A search: what is typed shows at once, what it finds comes `WAIT_MS` after the last key, once. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class SearchViewModelTest {
     @get:Rule

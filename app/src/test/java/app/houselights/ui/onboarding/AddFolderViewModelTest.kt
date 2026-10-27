@@ -30,7 +30,6 @@ import app.houselights.ui.util.UiError
 import app.houselights.testing.folderNames
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -52,7 +51,6 @@ import java.io.IOException
 import java.security.ProviderException
 
 /** The folder form on an in-memory library: tested, then saved whole even if the form is left meanwhile. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class AddFolderViewModelTest {
     @get:Rule

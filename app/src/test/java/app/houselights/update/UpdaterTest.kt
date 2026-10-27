@@ -4,7 +4,6 @@ import android.content.Intent
 import android.content.pm.PackageInstaller
 import app.houselights.settings.AppSettings
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -21,7 +20,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
 /** When the updater asks GitHub, what it says after an update, and how it follows an install Android holds. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class UpdaterTest {
     @get:Rule

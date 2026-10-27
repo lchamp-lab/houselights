@@ -39,7 +39,6 @@ import coil.annotation.ExperimentalCoilApi
 import coil.disk.DiskCache
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -64,7 +63,6 @@ import java.util.Collections
 import kotlin.coroutines.EmptyCoroutineContext
 
 /** The settings' changes: never a crash, and what must not be cut off goes on once the settings are left. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class SettingsViewModelTest {
     @get:Rule

@@ -27,7 +27,6 @@ import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.design.components.LocalCutPosters
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowDialog
-import org.robolectric.shadows.ShadowInputDevice
 import org.robolectric.util.ReflectionHelpers
 import androidx.compose.ui.input.key.KeyEvent as ComposeKeyEvent
 
@@ -132,8 +131,13 @@ private fun fromADPad(event: KeyEvent): Boolean {
         event.source != InputDevice.SOURCE_KEYBOARD
 }
 
-/** The device as Android describes it, virtual when its id is negative. */
-private fun KeySource.device(): InputDevice = ShadowInputDevice.makeInputDeviceNamed(name).also {
+/**
+ * The device as Android describes it, virtual when its id is negative. Made by Robolectric's ShadowInputDevice, deprecated
+ * for its InputDeviceBuilder, which builds on the InputDevice.Builder Android 14 brought: the tests run on Android 9.
+ * Named in full, as an import's deprecation cannot be suppressed.
+ */
+@Suppress("DEPRECATION")
+private fun KeySource.device(): InputDevice = org.robolectric.shadows.ShadowInputDevice.makeInputDeviceNamed(name).also {
     ReflectionHelpers.setField(it, "mId", id)
     ReflectionHelpers.setField(it, "mSources", sources)
 }

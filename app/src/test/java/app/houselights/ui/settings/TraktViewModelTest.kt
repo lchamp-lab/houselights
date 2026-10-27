@@ -11,7 +11,6 @@ import app.houselights.ui.testing.FakeTraktSync
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.util.UiError
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -30,7 +29,6 @@ import java.security.ProviderException
 import javax.net.ssl.SSLPeerUnverifiedException
 
 /** Connecting Trakt: the code and its time left, how it ended, Back, and disconnecting. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class TraktViewModelTest {
     @get:Rule

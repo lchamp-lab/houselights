@@ -16,7 +16,6 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -31,7 +30,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
 /** Artwork and identification on a fake source. */
-@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class EditViewModelsTest {
     @get:Rule

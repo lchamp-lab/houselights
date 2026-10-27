@@ -1,7 +1,6 @@
 package app.houselights
 
 import app.houselights.LaunchGate.Reason
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
@@ -13,7 +12,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** The launch screen lifts once home has its rows, first images and a full frame drawn, never past the cap. */
-@OptIn(ExperimentalCoroutinesApi::class)
 class LaunchGateTest {
     /** Milliseconds since the process started, as the test sets them. */
     private var now = 0L

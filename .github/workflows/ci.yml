@@ -1,5 +1,6 @@
 # Checks every push and pull request: unit tests, Android Lint, detekt (with and without the compiler's
-# types), and a minified release build, signed with the runner's debug key and never published.
+# types), a minified release build, signed with the runner's debug key and never published, and the baseline
+# profile's journeys compiled, every compilation failing on a warning.
 # TMDB_API_KEY is optional (a repository secret): without it the app builds and users enter their own key.
 # TRAKT_CLIENT_ID is optional too, and TRAKT_CLIENT_SECRET only for a Trakt app that has one: without them,
 # the app builds and says it has no Trakt. A pull request from a fork gets no secret, and needs none.
@@ -66,6 +67,7 @@ jobs:
           -Pkotlin.compiler.execution.strategy=in-process
           -Phouselights.debugSignedRelease=true
           testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest assembleRelease
+          :baselineprofile:compileNonMinifiedReleaseKotlin
 
       - name: Reports
         if: failure()

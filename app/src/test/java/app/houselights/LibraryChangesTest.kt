@@ -1,6 +1,5 @@
 package app.houselights
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.drop
@@ -14,7 +13,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /** The library version as the app wires it (playback, user edits, a scan's progress and end, throttled), in virtual time. */
-@OptIn(ExperimentalCoroutinesApi::class)
 class LibraryChangesTest {
     @Test
     fun aChangeAloneShowsAtOnce() = runTest {
