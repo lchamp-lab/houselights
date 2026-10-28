@@ -277,12 +277,13 @@ class LibraryDaoTest {
     }
 
     /**
-     * Home's first scan shows the films and shows first added, then the latest, first added first: a film's copies
-     * once, never a season or an episode, a title without a poster too, the poster its user chose first; it counts
-     * them so.
+     * Home's first scan shows the films and shows first found, then the latest, first found first: a film's copies
+     * once, never a season or an episode, a title without a poster too, the poster its user chose first; found in the
+     * order the scan made them, a show's new episode not moving it on, a title given back from a kept state with its
+     * older date the latest found; it counts them so.
      */
     @Test
-    fun theFirstTitlesAreTheFirstAddedThenTheLatest() = runTest {
+    fun theFirstTitlesAreTheFirstFoundThenTheLatest() = runTest {
         val show = added("Severance", at = 1, kind = ItemKind.SERIES, poster = "/severance.jpg")
         val season = dao.insert(row(ItemKind.SEASON, "Saison 1", parentId = show, seriesId = show).copy(addedAt = 2))
         dao.insert(row(ItemKind.EPISODE, "Good News About Hell", parentId = season, seriesId = show).copy(addedAt = 3))
@@ -290,18 +291,25 @@ class LibraryDaoTest {
         dao.insert(row(ItemKind.MOVIE, "Dune 2160p").copy(addedAt = 5, versionOf = dune, posterPath = "/dune.jpg"))
         val heat = dao.insert(row(ItemKind.MOVIE, "Heat").copy(addedAt = 6, posterPath = "/heat.jpg", userPosterPath = "/mine.jpg"))
         val later = (7..12).map { added("Film $it", at = it.toLong()) }
+        dao.insert(row(ItemKind.EPISODE, "Half Loop", parentId = season, seriesId = show).copy(addedAt = LATER))
+        dao.setAddedAt(show, LATER)
+        val givenBack = added("Given back", at = 0)
 
         assertEquals(
             listOf(
                 FirstTitleRow(show, "Severance", null, "/severance.jpg"),
                 FirstTitleRow(dune, "Dune", null, null),
                 FirstTitleRow(heat, "Heat", null, "/mine.jpg"),
-                FirstTitleRow(later.last(), "Film 12", null, null),
+                FirstTitleRow(givenBack, "Given back", null, null),
             ),
             dao.observeFirstTitles(3).first(),
         )
-        assertEquals("the latest once among the first", listOf(show, dune, heat) + later, dao.observeFirstTitles(20).first().map { it.id })
-        assertEquals("the titles found, read as the wall says them", 9, dao.observeFirstTitleCount().first())
+        assertEquals(
+            "the latest once among the first",
+            listOf(show, dune, heat) + later + givenBack,
+            dao.observeFirstTitles(20).first().map { it.id },
+        )
+        assertEquals("the titles found, read as the wall says them", 10, dao.observeFirstTitleCount().first())
     }
 
     private suspend fun added(title: String, at: Long, kind: ItemKind = ItemKind.MOVIE, poster: String? = null): Long =
@@ -321,6 +329,9 @@ class LibraryDaoTest {
 
     private companion object {
         const val ANDROID_9_LIMIT = 999
+
+        /** When a show's latest episode was found, after every title. */
+        const val LATER = 99L
         const val DUNE = 438631
     }
 }

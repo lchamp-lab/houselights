@@ -12,14 +12,15 @@ private const val FIRST_TITLES = "kind IN ('MOVIE','SERIES') AND versionOf IS NU
 /** The titles home's first scan shows as they are found ([LocalLibrary.firstTitles]; [LibraryDao] extends it). */
 interface FirstTitleDao {
     /**
-     * The [limit] films and shows first added, then the latest, first added first: a film's copies once, titles
-     * without a poster too.
+     * The [limit] films and shows first found, then the latest, first found first: a film's copies once, titles without
+     * a poster too. Found in the order their rows were made (`id`), not by `addedAt`, which a title given back from a
+     * kept state takes from before and a show moves on with each new episode.
      */
     @Query(
         "SELECT id, title, year, COALESCE(NULLIF(userPosterPath, ''), posterPath) AS poster FROM items WHERE id IN (" +
-            "SELECT id FROM (SELECT id FROM items WHERE $FIRST_TITLES ORDER BY addedAt, id LIMIT :limit) " +
-            "UNION SELECT id FROM (SELECT id FROM items WHERE $FIRST_TITLES ORDER BY addedAt DESC, id DESC LIMIT 1)" +
-            ") ORDER BY addedAt, id",
+            "SELECT id FROM (SELECT id FROM items WHERE $FIRST_TITLES ORDER BY id LIMIT :limit) " +
+            "UNION SELECT id FROM (SELECT id FROM items WHERE $FIRST_TITLES ORDER BY id DESC LIMIT 1)" +
+            ") ORDER BY id",
     )
     fun observeFirstTitles(limit: Int): Flow<List<FirstTitleRow>>
 
