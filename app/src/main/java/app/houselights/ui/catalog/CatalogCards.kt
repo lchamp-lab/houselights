@@ -274,9 +274,20 @@ private fun LandscapeRow() {
 /** The cast row of a detail page: names of one and two lines side by side, their roles in line. */
 @Composable
 private fun SagaRow() {
+    val poster = shippedImage(R.drawable.banner)
     MediaRow("Alien", count = "1 film sur 4") {
         item { Specimen("held", width = HlSize.poster) { PosterCard(sample("Alien", 1979), {}) } }
-        item { Specimen("lacking: its title and year, focus outlined", width = HlSize.poster) { AbsentCard("Aliens", 1986) } }
+        item {
+            Specimen("lacking: its poster in grey, framed without a glow; OK opens its synopsis", width = HlSize.poster) {
+                AbsentCard("Aliens", 1986, poster = poster, onClick = {})
+            }
+        }
+        item {
+            Specimen("not out yet: in grey, read as when it comes out", width = HlSize.poster) {
+                AbsentCard("Alien: Earth", 2027, poster = poster, said = "Sortie le 15 décembre 2027", onClick = {})
+            }
+        }
+        item { Specimen("lacking, no poster: its title and year, focus outlined", width = HlSize.poster) { AbsentCard("Aliens", 1986) } }
         item { Specimen("a long title", width = HlSize.poster) { AbsentCard("Alien, la résurrection", 1997) } }
         item { Specimen("not out yet: no year", width = HlSize.poster) { AbsentCard("Alien: Romulus", null) } }
     }
