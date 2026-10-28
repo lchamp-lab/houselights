@@ -17,6 +17,7 @@ import java.security.InvalidKeyException
 import java.security.KeyStoreException
 import java.security.ProviderException
 import java.security.UnrecoverableKeyException
+import javax.crypto.SecretKey
 
 /** Secrets sealed under versioned Keystore keys, and what a failing Keystore leaves of them. */
 class SecretsTest {
@@ -215,13 +216,21 @@ class SecretsTest {
         assertEquals("new", keystore.secrets().open(sealed))
     }
 
-    /** A key the Keystore lists at launch is recorded, though no stored secret names it. */
+    /** Recording at launch reads the stored text alone: a Keystore failing at every call is never asked. */
     @Test
-    fun aKeyListedAtLaunchIsRecorded() {
-        val keystore = FakeKeystore(TestKeyRecord(Secrets.FIRST_KEY)).apply { keys[2] = testKey() }
-        keystore.secrets().recordKeys(emptyList())
-        assertEquals(setOf(1, 2), keystore.record.versions())
-        assertEquals(emptyList<Int>(), keystore.made)
+    fun recordingAtLaunchAsksTheKeystoreNothing() {
+        val failing = object : Keyring {
+            override fun listed(): Set<Int> = error("Listed")
+
+            override fun holds(version: Int): Boolean = error("Asked")
+
+            override fun load(version: Int): SecretKey = error("Loaded")
+
+            override fun create(version: Int): SecretKey = error("Made")
+        }
+        val record = TestKeyRecord()
+        Secrets(failing, record).recordKeys(listOf("sealed2:AAAA", "sealed7:not base64!", "legacy", ""))
+        assertEquals(setOf(2, 7), record.versions())
     }
 
     /** A key the Keystore lists is made, even if the record missed it: the newest seals, none is made again. */

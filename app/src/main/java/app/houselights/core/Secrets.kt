@@ -151,14 +151,12 @@ class Secrets(private val keyring: Keyring, private val record: KeyRecord) {
     fun isSealed(stored: String): Boolean = versionOf(stored) != null
 
     /**
-     * Records as made every key version the Keystore lists and every one [stored] was sealed with, opening nothing.
-     * Run at each launch before a store seals anything, so that a version an earlier version made, and nothing has
-     * opened since, is never made again while the Keystore reads empty for a moment.
+     * Records as made every key version [stored] was sealed with, from its text alone: nothing is opened, nor the
+     * Keystore asked, so a failing one never stops a store from loading. Run at each launch before a store seals
+     * anything, so that a version an earlier version made, and nothing has opened since, is never made again while the
+     * Keystore reads empty for a moment.
      */
-    fun recordKeys(stored: Iterable<String>) {
-        keystore { keyring.listed() }.getOrNull()?.forEach(record::add)
-        stored.forEach { versionOf(it)?.let(record::add) }
-    }
+    fun recordKeys(stored: Iterable<String>) = stored.forEach { versionOf(it)?.let(record::add) }
 
     companion object {
         /** The first key version; its alias has no number. */
