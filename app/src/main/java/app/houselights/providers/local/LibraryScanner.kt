@@ -87,8 +87,9 @@ class LibraryScanner(
     /** Foreground state; in the background the scan waits, as another app may be playing from the NAS. */
     private val started: Flow<Boolean> = flowOf(true),
     /**
-     * Whether Android's screensaver shows: the scan goes on under it as on screen, no player reading the NAS meanwhile,
-     * so a first scan of hours does not stop at the first one.
+     * Whether Android's screensaver shows over the app, begun while it was on screen: the scan goes on under it as on
+     * screen, no player reading the NAS meanwhile, so a first scan of hours does not stop at the first one. One begun
+     * over another app is not the app's: that app may play from the NAS again once woken.
      */
     private val dreaming: Flow<Boolean> = flowOf(false),
 ) {

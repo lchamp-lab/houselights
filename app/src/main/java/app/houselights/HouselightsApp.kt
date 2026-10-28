@@ -300,7 +300,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         browsers = remoteBrowsers::of,
         closeIdle = remoteBrowsers::closeIdle,
         started = onScreen,
-        dreaming = screensaverShows(app),
+        dreaming = screensaverShows(app) { ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) },
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
