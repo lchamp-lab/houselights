@@ -950,7 +950,7 @@ private fun RowScope.PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: Fo
         )
         return
     }
-    // A film in several copies plays the one chosen, from where that copy was left.
+    // A film in several copies plays the one chosen, from where that copy was left; a server keeps one place for the film.
     val copy = actions.copy
     val target = (if (series) nextUp else copy?.item ?: item.takeIf { it.isPlayable }) ?: return
     val resume = target.user.positionMs > 0

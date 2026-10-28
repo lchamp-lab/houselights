@@ -270,6 +270,28 @@ class JellyfinProviderTest {
         assertEquals(listOf(true, false), jellyfin.catalog.versions(film).map { it.chosen })
     }
 
+    /**
+     * A copy chosen resumes where the film was left, the one place the server keeps for it, whichever copy was playing:
+     * the sheet's copies say so, and the reports still name the film, with the copy played.
+     */
+    @Test
+    fun aCopyChosenResumesWhereTheFilmWasLeft() = runTest {
+        val left = heatInCopies().replaceFirst("{", """{"UserData":{"PlaybackPositionTicks":54000000000},""")
+        val server = copiesServer { left }
+        val jellyfin = provider(server)
+        val versions = jellyfin.catalog.versions(film)
+        assertEquals("every copy where the film was", listOf(5_400_000L, 5_400_000L), versions.map { it.item.user.positionMs })
+        jellyfin.catalog.chooseVersion(film, versions.last())
+
+        val resumed = jellyfin.playback(film, resume = true, stream) as PlaybackPlan.Launch
+        assertEquals("s2", resumed.streamedSource)
+        assertEquals(5_400_000L, resumed.startMs)
+        checkNotNull(resumed.reporter).stopped(5_460_000, null)
+        val stopped = server.requests.single { it.url.encodedPath == "/Sessions/Playing/Stopped" }
+        assertEquals("f1", stopped.itemId())
+        assertEquals("s2", stopped.mediaSourceId())
+    }
+
     /** The copy chosen gone from the server, the film plays the server's first again. */
     @Test
     fun aCopyChosenThatTheServerNoLongerHasGivesWayToTheFirst() = runTest {
