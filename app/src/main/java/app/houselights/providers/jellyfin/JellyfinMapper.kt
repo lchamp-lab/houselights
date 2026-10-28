@@ -15,6 +15,7 @@ import app.houselights.core.VideoInfo
 import app.houselights.core.bpsToKbps
 import app.houselights.core.epochMillisOf
 import app.houselights.core.yearOf
+import app.houselights.providers.local.CollectionRules
 
 /** Maps Jellyfin items to [MediaItem]s, with artwork URLs resolved at the requested width. */
 internal class JellyfinMapper(private val client: JellyfinClient) {
@@ -39,7 +40,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             id = dto.id,
             kind = kind,
             // Typeset for display only; the server sorts and searches its raw text.
-            title = Typeset.text(dto.name.orEmpty()),
+            title = Typeset.text(shownTitle(dto.name.orEmpty(), kind, known = knownToTmdb(dto))),
             originalTitle = Typeset.text(dto.originalTitle),
             overview = Typeset.text(dto.overview),
             tagline = Typeset.text(dto.taglines.firstOrNull()),
@@ -80,6 +81,23 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
     companion object {
         /** The cast a title keeps, in billing order, as a scan keeps of TMDB's. */
         private const val CAST_KEPT = 30
+
+        /**
+         * A title as the app shows it: a box set's without the word that marks it a saga, as a set of the library's own
+         * ([CollectionRules]): « - Saga » always, TMDB's « Collection » too when TMDB [known] it, its own kept.
+         */
+        fun shownTitle(name: String, kind: MediaKind, known: Boolean): String =
+            if (kind == MediaKind.COLLECTION) CollectionRules.shownName(name, known) else name
+
+        /**
+         * Whether TMDB knows [dto]: Jellyfin's TMDb provider gives a box set it made or filled TMDB's id, a set made by
+         * hand having none.
+         */
+        private fun knownToTmdb(
+            dto: BaseItem,
+        ): Boolean = dto.providerIds.any { (name, id) -> name.equals(TMDB, ignoreCase = true) && !id.isNullOrBlank() }
+
+        private const val TMDB = "Tmdb"
 
         /** What a server's item type is to the app; any other is a folder. */
         private fun kindOf(type: String?): MediaKind = when (type) {

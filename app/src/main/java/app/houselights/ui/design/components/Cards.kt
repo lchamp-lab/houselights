@@ -90,6 +90,7 @@ import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -206,8 +207,9 @@ private fun RowHeading(notes: RowNotes, modifier: Modifier = Modifier, title: @C
 
 /**
  * The focus treatment of all artwork (DESIGN.md, Cards): framed, it glows in its own tone ([light], else the
- * ambient light) while its siblings recede; in a [MediaRow], the row draws its frame.
- * Read as one element with [stateDescription]; with [readAs], that text alone, its click only if [acts].
+ * ambient light) while its siblings recede; in a [MediaRow], the row draws its frame. Without [glows], framed alone,
+ * as [AbsentCard] is: a film the library lacks has no light of its own to give.
+ * Read as one element with [stateDescription]; with [readAs], that text then its state, its click only if [acts].
  * A long OK does [onLongClick], named by [onLongClickLabel].
  */
 @Composable
@@ -220,6 +222,7 @@ fun ArtworkSurface(
     readAs: String? = null,
     acts: Boolean = false,
     light: String? = null,
+    glows: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
     content: @Composable BoxScope.() -> Unit,
@@ -253,7 +256,7 @@ fun ArtworkSurface(
             .onFocusChanged { if (it.isFocused) onFocus() },
         onLongClick = onLongClick,
         onLongClickLabel = onLongClickLabel,
-        glow = { if (light != null) own.value else ambient.glow() },
+        glow = if (glows) ({ if (light != null) own.value else ambient.glow() }) else null,
         interactionSource = interaction,
         row = LocalRowFrame.current,
     ) {
@@ -275,6 +278,8 @@ private fun cardReading(
     if (readAs != null) {
         Modifier.clearAndSetSemantics {
             contentDescription = readAs
+            // What it is, after its name: a saga's panel, « vu », « à suivre ».
+            stateDescription?.let { this.stateDescription = it }
             this.focused = focused
             onClick?.let { act ->
                 onClick {
@@ -338,7 +343,7 @@ fun ArtworkImage(
  * What stands in for an image, or lies on it (a mark's plate), recedes with it at the same step, dimmed by the
  * room drawn over it: no layer.
  */
-private fun Modifier.receding(recede: () -> Float, room: Color): Modifier = drawWithContent {
+internal fun Modifier.receding(recede: () -> Float, room: Color): Modifier = drawWithContent {
     drawContent()
     val dim = 1f - HlFocus.brightnessAt(HlFocus.recedeStep(recede()))
     if (dim > 0f) drawRect(room, alpha = dim)
@@ -356,7 +361,7 @@ private fun recedeFilter(step: Int): ColorFilter {
 private val recedeFilters: List<ColorFilter?> by lazy { (0..HlFocus.RECEDE_STEPS).map { if (it == 0) null else recedeFilter(it) } }
 
 /** The filter at how far [recede] has gone, read while drawing. */
-private fun recedeFilterAt(recede: Float): ColorFilter? = recedeFilters[HlFocus.recedeStep(recede)]
+internal fun recedeFilterAt(recede: Float): ColorFilter? = recedeFilters[HlFocus.recedeStep(recede)]
 
 /** The faint edge of artwork at rest, so a dark picture keeps its outline on black. */
 internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier = border(artworkEdge(colors), shape)
@@ -382,7 +387,7 @@ internal fun stillRequest(context: Context, item: MediaItem, widthPx: Int): Imag
     item.landscape?.let { artworkRequest(context, it.url(widthPx), widthPx, (widthPx / STILL_SHAPE).roundToInt()) }
 
 /** The request an [ArtworkImage] laid out [widthPx] by [heightPx] makes for [url], cropped to that shape. */
-private fun artworkRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
+internal fun artworkRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
     ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).precision(Precision.INEXACT).build()
 
 /** Cards [card] wide, [spacing] apart, visible in a [MediaRow] before it scrolls, the cut one included. */
@@ -624,43 +629,96 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Uni
     }
 }
 
-/** A saga film missing from the library: an empty poster frame, framed on focus; OK does nothing. */
+/**
+ * A saga film missing from the library, or not out yet: TMDB's [poster] without colour, its light lowered
+ * ([HlScrim.ABSENT_SATURATION], [HlScrim.ABSENT_BRIGHTNESS]), else an empty poster frame naming it, which says [said] on
+ * focus. Framed without a glow, it steps back further than its siblings; OK does [onClick] (its synopsis), else nothing.
+ * Read as its title, its [year] and [said].
+ */
 @Composable
-fun AbsentCard(title: String, year: Int?, modifier: Modifier = Modifier, width: Dp = HlSize.poster) {
+fun AbsentCard(
+    title: String,
+    year: Int?,
+    modifier: Modifier = Modifier,
+    width: Dp = HlSize.poster,
+    poster: ImageRef? = null,
+    said: String = stringResource(R.string.saga_absent),
+    onClick: (() -> Unit)? = null,
+) {
     val c = Hl.colors
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val absent = stringResource(R.string.saga_absent)
+    val receding = LocalGroupFocused.current && !focused
+    val recede = animateFloatAsState(
+        if (receding) 1f else 0f,
+        if (receding) tween(HlMotion.FOCUS_IN, easing = HlMotion.focusPull) else tween(HlMotion.FOCUS_OUT, easing = HlMotion.fallBack),
+        label = "recede",
+    )
+    val step by remember { derivedStateOf { HlFocus.recedeStep(recede.value) } }
+    val px = width.toPx()
+    val decoded = IntSize(px, (px / HlSize.POSTER_RATIO).roundToInt())
     HlFocusSurface(
-        onClick = null,
+        onClick = onClick,
         look = FocusStyle.frame(
             rest = c.content.copy(alpha = HlAlpha.FILL_FAINT),
             restInk = c.contentTertiary,
             edge = artworkEdge(c),
         ),
         shape = HlShapes.artwork,
-        modifier = modifier.width(width).aspectRatio(HlSize.POSTER_RATIO).clearAndSetSemantics {
-            contentDescription = listOfNotNull(title, year?.toString(), absent).joinToString(", ")
-            this.focused = focused
-        },
+        modifier = modifier
+            .width(width)
+            .aspectRatio(HlSize.POSTER_RATIO)
+            .clearAndSetSemantics {
+                contentDescription = listOfNotNull(title, year?.toString(), said).joinToString(", ")
+                this.focused = focused
+                onClick?.let { act ->
+                    onClick {
+                        act()
+                        true
+                    }
+                }
+            },
         role = null,
         interactionSource = interaction,
         row = LocalRowFrame.current,
     ) {
-        Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
-            Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentDecorative))
-            Spacer(Modifier.height(HlSpace.xs))
-            Text(title, style = Hl.type.cardTitle, color = c.contentTertiary, maxLines = 4, overflow = TextOverflow.Ellipsis)
-            if (year != null) {
-                Spacer(Modifier.height(HlSpace.xxs))
-                Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
-            }
-            // Shown on focus only; at rest the grey conveys it.
-            if (focused) {
-                Spacer(Modifier.height(HlSpace.xs))
-                Text(absent, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
+        // Artwork carries no text: the poster is the film's, its grey says it is not there.
+        ArtworkImage(poster?.url(px), null, Modifier.fillMaxSize(), size = decoded, filter = absentFilters[step]) {
+            AbsentFrame(title, year, said.takeIf { focused })
         }
+    }
+}
+
+/** An absent film without its poster: a short rule, its title and year, tertiary, and [said] once focused. */
+@Composable
+private fun BoxScope.AbsentFrame(title: String, year: Int?, said: String?) {
+    val c = Hl.colors
+    Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
+        Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentDecorative))
+        Spacer(Modifier.height(HlSpace.xs))
+        Text(title, style = Hl.type.cardTitle, color = c.contentTertiary, maxLines = 4, overflow = TextOverflow.Ellipsis)
+        if (year != null) {
+            Spacer(Modifier.height(HlSpace.xxs))
+            Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
+        }
+        // Shown on focus only; at rest the grey conveys it.
+        if (said != null) {
+            Spacer(Modifier.height(HlSpace.xs))
+            Text(said, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/**
+ * A film's poster the library lacks, at each step back: one cached filter a step, its colour taken
+ * ([HlScrim.ABSENT_SATURATION]) and its light lowered ([HlScrim.ABSENT_BRIGHTNESS]) times the siblings' step.
+ */
+internal val absentFilters: List<ColorFilter> by lazy {
+    (0..HlFocus.RECEDE_STEPS).map { step ->
+        val light = HlScrim.ABSENT_BRIGHTNESS * HlFocus.brightnessAt(step)
+        val matrix = ColorMatrix().apply { setToSaturation(HlScrim.ABSENT_SATURATION) }
+        matrix *= ColorMatrix().apply { setToScale(light, light, light, 1f) }
+        ColorFilter.colorMatrix(matrix)
     }
 }
 
@@ -763,7 +821,7 @@ private fun StatusMark(item: MediaItem, modifier: Modifier = Modifier) {
  * plate, never ember, as it may be no failure; it recedes with it.
  */
 @Composable
-private fun HeldMark(modifier: Modifier = Modifier) {
+internal fun HeldMark(modifier: Modifier = Modifier) {
     val c = Hl.colors
     Box(
         modifier
@@ -783,7 +841,7 @@ fun MediaItem.wearsNewDot(): Boolean = !held && (user.unplayedCount ?: 0) == 0 &
 
 /** A title new to the library: a solid ember dot ringed in black, so it stands off any picture; it recedes with it. */
 @Composable
-private fun NewDot(modifier: Modifier = Modifier) {
+internal fun NewDot(modifier: Modifier = Modifier) {
     val c = Hl.colors
     val ring = c.background.copy(alpha = HlAlpha.VEIL)
     val recede = LocalArtworkRecede.current

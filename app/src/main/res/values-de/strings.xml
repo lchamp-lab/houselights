@@ -720,6 +720,30 @@
     <string name="row_films_of">Filme von</string>
     <string name="row_best_rated">Bestbewertet in Ihrer Bibliothek</string>
     <string name="saga_absent">Nicht in Ihrer Bibliothek</string>
+    <!-- Die Seite einer Filmreihe: ein Feld je Film, das der Reihe zuerst -->
+    <plurals name="saga_watched_of">
+        <item quantity="one">%1$d von %2$d Filmen gesehen</item>
+        <item quantity="other">%1$d von %2$d Filmen gesehen</item>
+    </plurals>
+    <plurals name="saga_all_watched">
+        <item quantity="one">%d Film gesehen</item>
+        <item quantity="other">%d Filme gesehen</item>
+    </plurals>
+    <plurals name="saga_upcoming_count">
+        <item quantity="one">%d angekündigt</item>
+        <item quantity="other">%d angekündigt</item>
+    </plurals>
+    <string name="mark_saga_watched">Filmreihe als gesehen markieren</string>
+    <string name="mark_saga_unwatched">Filmreihe als ungesehen markieren</string>
+    <string name="saga_release_on">Erscheint am %s</string>
+    <string name="saga_announced">Angekündigt</string>
+    <!-- Die Felder einer Filmreihe, wie ein Screenreader sie liest: der Titel zuerst -->
+    <string name="saga_card_name">%1$s, Film %2$d</string>
+    <string name="saga_volet_saga">%s, Filmreihe</string>
+    <string name="saga_card_next">als Nächstes</string>
+    <string name="saga_card_absent">nicht in Ihrer Bibliothek</string>
+    <string name="saga_card_release">erscheint am %s</string>
+    <string name="saga_card_announced">angekündigt</string>
     <!-- A film's copies, and the editions their files and NFOs name. -->
     <string name="versions">Versionen</string>
     <string name="version_chosen">Ihre Wahl</string>

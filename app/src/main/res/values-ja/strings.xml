@@ -695,6 +695,27 @@
     <string name="row_films_of">監督作品</string>
     <string name="row_best_rated">ライブラリの高評価作品</string>
     <string name="saga_absent">ライブラリにありません</string>
+    <!-- シリーズのページ：作品ごとのパネル、最初にシリーズのパネル -->
+    <plurals name="saga_watched_of">
+        <item quantity="other">%2$d作中%1$d作を視聴済み</item>
+    </plurals>
+    <plurals name="saga_all_watched">
+        <item quantity="other">%d作を視聴済み</item>
+    </plurals>
+    <plurals name="saga_upcoming_count">
+        <item quantity="other">公開予定%d作</item>
+    </plurals>
+    <string name="mark_saga_watched">シリーズを視聴済みにする</string>
+    <string name="mark_saga_unwatched">シリーズを未視聴にする</string>
+    <string name="saga_release_on">%s公開</string>
+    <string name="saga_announced">公開予定</string>
+    <!-- スクリーンリーダーが読むシリーズのパネル：タイトルが先 -->
+    <string name="saga_card_name">%1$s、第%2$d作</string>
+    <string name="saga_volet_saga">%s、シリーズ</string>
+    <string name="saga_card_next">次に観る</string>
+    <string name="saga_card_absent">ライブラリにありません</string>
+    <string name="saga_card_release">%s公開</string>
+    <string name="saga_card_announced">公開予定</string>
     <!-- Versions -->
     <string name="versions">バージョン</string>
     <string name="version_chosen">選択中</string>

@@ -740,6 +740,30 @@
     <string name="row_films_of">films by</string>
     <string name="row_best_rated">Best rated in your library</string>
     <string name="saga_absent">Not in your library</string>
+    <!-- A saga's page, its panels: one a film, the saga's own first -->
+    <plurals name="saga_watched_of">
+        <item quantity="one">%1$d of %2$d films watched</item>
+        <item quantity="other">%1$d of %2$d films watched</item>
+    </plurals>
+    <plurals name="saga_all_watched">
+        <item quantity="one">%d film watched</item>
+        <item quantity="other">%d films watched</item>
+    </plurals>
+    <plurals name="saga_upcoming_count">
+        <item quantity="one">%d upcoming</item>
+        <item quantity="other">%d upcoming</item>
+    </plurals>
+    <string name="mark_saga_watched">Mark saga as watched</string>
+    <string name="mark_saga_unwatched">Mark saga as unwatched</string>
+    <string name="saga_release_on">Out %s</string>
+    <string name="saga_announced">Announced</string>
+    <!-- A saga's panels, as a screen reader reads them: the title first -->
+    <string name="saga_card_name">%1$s, film %2$d</string>
+    <string name="saga_volet_saga">%s, saga</string>
+    <string name="saga_card_next">next up</string>
+    <string name="saga_card_absent">not in your library</string>
+    <string name="saga_card_release">out %s</string>
+    <string name="saga_card_announced">announced</string>
     <!-- A film's copies, and the editions their files and NFOs name. -->
     <string name="versions">Versions</string>
     <string name="version_chosen">Your choice</string>

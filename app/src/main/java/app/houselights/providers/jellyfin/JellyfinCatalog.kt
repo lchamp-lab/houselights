@@ -164,12 +164,13 @@ internal class JellyfinCatalog(
     /** Server-side search of titles, people and box sets, as three parallel requests. */
     override suspend fun search(query: String, limit: Int): SearchResults = coroutineScope {
         val term = query.trim().ifEmpty { return@coroutineScope SearchResults() }
-        suspend fun found(types: String) = api.items(
+        suspend fun found(types: String, fields: String = ROW_FIELDS) = api.items(
             userId = userId, parentId = null, includeItemTypes = types, recursive = true,
-            sortBy = "SortName", sortOrder = "Ascending", startIndex = 0, limit = limit, fields = ROW_FIELDS, searchTerm = term,
+            sortBy = "SortName", sortOrder = "Ascending", startIndex = 0, limit = limit, fields = fields, searchTerm = term,
         ).items
         val titles = async { found("Movie,Series") }
-        val sagas = async { found("BoxSet") }
+        // A box set's ids say whether its name is TMDB's.
+        val sagas = async { found("BoxSet", "$ROW_FIELDS,${JellyfinProvider.PROVIDER_IDS}") }
         val people = api.persons(userId, term, limit).items
         withContext(mapping) {
             SearchResults(

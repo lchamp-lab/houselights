@@ -76,7 +76,21 @@ const val HEAD_OVERVIEW_LINES = 3
  * text in `body`; the text is focused, down and up scroll it [READING_STEP] lines per press.
  */
 @Composable
-fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit, modifier: Modifier = Modifier) =
+    SynopsisSheet(
+        facts = listOf(item.title, item.year?.toString(), item.directors.firstOrNull()),
+        tagline = item.tagline,
+        overview = item.overview.orEmpty(),
+        onDismiss = onDismiss,
+        modifier = modifier,
+    )
+
+/**
+ * The whole [overview] of what [facts] name in the sheet's head, after its [tagline]: a saga's film the library lacks,
+ * its title, its year and what it is (« Absent de votre bibliothèque », « Sortie le 15 décembre 2026 »).
+ */
+@Composable
+fun SynopsisSheet(facts: List<String?>, tagline: String?, overview: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val words = remember { FocusRequester() }
     val scroll = rememberScrollState()
@@ -86,19 +100,18 @@ fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit, modifier: Modifier = M
         stringResource(R.string.synopsis),
         onDismiss = onDismiss,
         modifier = modifier,
-
-        facts = listOf(item.title, item.year?.toString(), item.directors.firstOrNull()),
+        facts = facts,
         initialFocus = words,
         scroll = scroll,
     ) { _ ->
         Column {
             // The tagline as far under the head as over the text, from its baseline.
-            item.tagline?.takeIf { it.isNotBlank() }?.let {
+            tagline?.takeIf { it.isNotBlank() }?.let {
                 val apart = HlSpace.l + HlSpace.xxs
                 Text(it, style = Hl.type.lead, color = c.content, modifier = Modifier.paddingFromBaseline(top = apart, bottom = apart))
             }
             Text(
-                item.overview.orEmpty(),
+                overview,
                 style = Hl.type.body,
                 color = c.contentSecondary,
                 modifier = Modifier

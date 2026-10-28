@@ -4,10 +4,11 @@ import app.houselights.core.HdrFormat.DOLBY_VISION
 import app.houselights.core.HdrFormat.HDR10
 import app.houselights.core.HdrFormat.HDR10_PLUS
 import app.houselights.core.HdrFormat.HLG
+import app.houselights.core.MediaKind
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** How the app reads what Jellyfin says of a video: its range type as HDR formats. */
+/** How the app reads what Jellyfin says of a video, its range type as HDR formats, and of a box set, its name. */
 class JellyfinMapperTest {
     @Test
     fun eachVideoRangeSaysItsFormats() {
@@ -31,5 +32,20 @@ class JellyfinMapperTest {
             "Unknown" to emptyList(),
         )
         expected.forEach { (range, formats) -> assertEquals("$range", formats, JellyfinMapper.hdrFormats(range)) }
+    }
+
+    /**
+     * A box set shows without the word that marks it a saga, as a set of the library's own: TMDB's French « - Saga »
+     * always, its « Collection » once TMDB knows it; the user's own keeps it.
+     */
+    @Test
+    fun aBoxSetShowsWithoutTheWordThatMarksItASaga() {
+        assertEquals("John Wick", JellyfinMapper.shownTitle("John Wick - Saga", MediaKind.COLLECTION, known = false))
+        assertEquals("John Wick", JellyfinMapper.shownTitle("John Wick Collection", MediaKind.COLLECTION, known = true))
+        assertEquals(
+            "The Criterion Collection",
+            JellyfinMapper.shownTitle("The Criterion Collection", MediaKind.COLLECTION, known = false),
+        )
+        assertEquals("a film keeps its title", "Top Gun - Saga", JellyfinMapper.shownTitle("Top Gun - Saga", MediaKind.MOVIE, known = true))
     }
 }

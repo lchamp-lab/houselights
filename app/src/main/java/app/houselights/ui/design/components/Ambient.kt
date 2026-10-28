@@ -187,6 +187,36 @@ internal fun rememberGlowTone(url: String?, active: Boolean): State<Color?> {
     return tone
 }
 
+/** A picture's own dark ([ImageLight.deep]) and its [sample], read once from its small copy. */
+@Immutable
+internal class PictureRead(val deep: Color, val sample: ArtworkSample)
+
+/**
+ * [image] read once ([PictureRead]) from its sample's own small file, never the picture shown, which it would fetch and
+ * decode again beside it, and kept, so a saga's panel opening again has it at once: null until read.
+ */
+@Composable
+internal fun rememberPictureRead(image: ImageRef?): State<PictureRead?> {
+    val context = LocalContext.current
+    val url = image?.url(SAMPLE_PX)
+    val read = remember(url) { mutableStateOf(url?.let { synchronized(pictureReads) { pictureReads[it] } }) }
+    LaunchedEffect(url) {
+        if (url == null || read.value != null) return@LaunchedEffect
+        val bitmap = decodeUrl(context, url) ?: return@LaunchedEffect
+        val found = withContext(Dispatchers.Default) { PictureRead(lightOf(paletteOf(bitmap)).deep, sampleOf(bitmap)) }
+        synchronized(pictureReads) { pictureReads[url] = found }
+        read.value = found
+    }
+    return read
+}
+
+/** Pictures read by URL (LRU): a long saga's posters and the backdrops opened among them. */
+private val pictureReads = object : LinkedHashMap<String, PictureRead>(PICTURE_READS, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, PictureRead>) = size > PICTURE_READS
+}
+
+private const val PICTURE_READS = 40
+
 internal fun paletteOf(bitmap: Bitmap): Palette = Palette.from(bitmap).maximumColorCount(PALETTE_COLOURS).generate()
 
 private const val PALETTE_COLOURS = 16

@@ -110,13 +110,13 @@ fun skeletonDelayPassed(): Boolean {
 }
 
 /**
- * [value] once it has held for [HlMotion.SETTLE], so what follows focus loads no image per step; null at
- * first, immediate while nothing is shown. Read in an effect, so steps never recompose the caller.
+ * [value] once it has held for [HlMotion.SETTLE], so what follows focus loads no image per step; [initial] at
+ * first (null: none), immediate while nothing is shown. Read in an effect, so steps never recompose the caller.
  */
 @Composable
-fun <T : Any> rememberSettled(value: () -> T?): State<T?> {
+fun <T : Any> rememberSettled(initial: T? = null, value: () -> T?): State<T?> {
     val latest = rememberUpdatedState(value)
-    val settled = remember { mutableStateOf<T?>(null) }
+    val settled = remember { mutableStateOf(initial) }
     LaunchedEffect(Unit) { snapshotFlow { latest.value() }.settleInto(settled) }
     return settled
 }

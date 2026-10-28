@@ -119,6 +119,20 @@ object HlScrim {
     /** A saga stacked behind another, in its shade. */
     const val SAGA_BEHIND = 0.6f
 
+    /**
+     * A saga's closed panel (« volet »): its poster melting into its dark from 72 % of its height, lighter than home's
+     * case so the poster's own title still shows above its year; then the year's band, anchored to the year rather than
+     * to a share of the height: [VOLET_YEAR] from `HlSpace.xs` above its top, whole ([VOLET_YEAR_FLOOR]) from its top
+     * to the foot, as home's case is under its words, so the line a poster prints there no longer reads behind it.
+     */
+    val VOLET_FOOT = listOf(VeilStop(0.72f, 0f), VeilStop(0.84f, 0.55f))
+    const val VOLET_YEAR = 0.9f
+    const val VOLET_YEAR_FLOOR = 1f
+
+    /** A saga's film not in the library, or not out yet: its poster without colour, its light lowered. */
+    const val ABSENT_SATURATION = 0f
+    const val ABSENT_BRIGHTNESS = 0.45f
+
     /** Over a wall's diffuse field, black: 0.66 at the top, gone at 200 dp; 0.5 at the foot. */
     val DIFFUSE_TOP = listOf(VeilStop(0f, 0.66f), VeilStop(dp(200f), 0f))
     val DIFFUSE_BOTTOM = listOf(VeilStop(0.7f, 0f), VeilStop(1f, 0.5f))
@@ -167,7 +181,7 @@ object HlScrim {
     private const val FLARE = 0.05f
 
     /** The screen's height in dp on a TV, which the top veils are drawn against. */
-    private const val SCREEN_HEIGHT = 540f
+    internal const val SCREEN_HEIGHT = 540f
 
     private fun dp(at: Float) = at / SCREEN_HEIGHT
 
@@ -348,6 +362,26 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
         if (cols.isEmpty() || rows.isEmpty()) return HlAlpha.PLATE
         val need = quantileOfNeeds(cols, rows, Down(shown, veils, if (veils.tinted) deep else 0f), deep)
         return need.coerceIn(HlAlpha.PLATE, HlAlpha.PLATE_MAX)
+    }
+
+    /**
+     * Opacity a veil of grey [tint] laid over the picture's top [down] share needs for text of [ceiling] there, across
+     * the middle [across] share of its width (a saga's panel shows its picture's centre), each point's grey first
+     * lowered to [light] of itself (a picture its filter darkens): what [HlScrim.FLOOR_QUANTILE] of those points need.
+     */
+    fun topFloor(across: Float, down: Float, ceiling: Float, tint: Float, light: Float = 1f): Float {
+        if (grey.isEmpty()) return 0f
+        val shown = width * across.coerceIn(0f, 1f)
+        val first = floor((width - shown) / 2f).toInt().coerceIn(0, width - 1)
+        val last = (ceil((width + shown) / 2f).toInt() - 1).coerceIn(first, width - 1)
+        val rows = 0..(ceil(height * down.coerceIn(0f, 1f)).toInt() - 1).coerceIn(0, height - 1)
+        val needs = FloatArray((last - first + 1) * rows.length)
+        var count = 0
+        for (row in rows) {
+            for (col in first..last) needs[count++] = HlScrim.need(grey[row * width + col] * light, ceiling, tint)
+        }
+        needs.sort()
+        return needs[(needs.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
     }
 
     /** Whether any of the picture shows on [screen]. */

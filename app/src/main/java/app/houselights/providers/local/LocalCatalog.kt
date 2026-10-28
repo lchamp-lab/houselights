@@ -17,6 +17,7 @@ import app.houselights.core.SagaPart
 import app.houselights.core.SearchResults
 import app.houselights.core.Typeset
 import app.houselights.core.Version
+import app.houselights.core.dateOf
 import app.houselights.core.yearOf
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.Dispatchers
@@ -106,6 +107,8 @@ internal class LocalCatalog(
                     released = part.releaseDate?.let { it <= today } ?: false,
                     overview = item?.overview ?: Typeset.text(part.overview),
                     backdrop = item?.backdrop ?: part.backdropPath?.let { LocalProvider.image(it, ImageType.BACKDROP) },
+                    poster = item?.poster ?: part.posterPath?.let { LocalProvider.image(it, ImageType.POSTER) },
+                    releaseDate = dateOf(part.releaseDate),
                 )
             }
             val listedIds = parts.mapNotNullTo(HashSet()) { it.itemId }

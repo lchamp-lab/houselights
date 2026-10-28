@@ -352,11 +352,11 @@ val LocalGroupFocus = staticCompositionLocalOf<GroupFocus?> { null }
  * Re-enters the group on the child that last had focus, by redirecting to its requester. Compose 1.7's
  * focus restorer is avoided: it cancels the restored focus with the move, and releases a pinned item
  * twice when the list changes (a crash). Enter goes where it asks; with no child remembered, focus
- * enters as usual.
+ * enters on [first] when given (a saga's film Lire plays), else as usual.
  */
-fun Modifier.keepChildFocus(group: GroupFocus): Modifier = this
+fun Modifier.keepChildFocus(group: GroupFocus, first: FocusRequester? = null): Modifier = this
     .focusProperties {
-        onEnter = { if (requestedFocusDirection != FocusDirection.Enter) group.last?.requestFocus() }
+        onEnter = { if (requestedFocusDirection != FocusDirection.Enter) (group.last ?: first)?.requestFocus() }
     }
     .focusGroup()
 

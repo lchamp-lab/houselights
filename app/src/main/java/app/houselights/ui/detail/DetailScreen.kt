@@ -206,6 +206,20 @@ internal fun DetailPage(
         return
     }
 
+    // A saga is a polyptych, a tall panel a film beside its own (« Les volets »), on a page of its own that never scrolls.
+    if (item.kind == MediaKind.COLLECTION) {
+        val links = SagaLinks(
+            onPlay = { title, resume -> onPlay(title, resume, PlayOrigin(screen)) },
+            onTogglePlayed = vm::togglePlayed,
+            onOpenItem = onOpenItem,
+            onRetry = vm::retry,
+            onClearProblem = playback::clearProblem,
+            onClearActionError = vm::clearActionError,
+        )
+        SagaVolets(item, state, memory, actionRow, problem, links)
+        return
+    }
+
     val scrolled by remember {
         derivedStateOf { backReturnsToActions(page.firstVisibleItemIndex, page.firstVisibleItemScrollOffset) }
     }
@@ -223,6 +237,8 @@ internal fun DetailPage(
     var showTracks by remember { mutableStateOf(false) }
     val tracks = state.tracksToChoose
     var showSynopsis by remember { mutableStateOf(false) }
+    // A film of its saga the library lacks, or not out yet, whose synopsis is open from its row.
+    var partShown by remember { mutableStateOf<SagaPart?>(null) }
     var showNfo by remember { mutableStateOf(false) }
     val editing = remember { mutableStateOf(false) }
     // The episode whose options are open, and the watched tile's.
@@ -311,7 +327,7 @@ internal fun DetailPage(
                     problem = episodeProblem,
                 )
                 seasonRows(state, memory, focusedEpisode, vm, links, heldFocus)
-                titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
+                titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson, onOpenPart = { partShown = it }))
             }
         }
         // Over the page, in its light.
@@ -338,6 +354,7 @@ internal fun DetailPage(
             onDismiss = { showMarks = false },
         )
         if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
+        PartSynopsis(partShown, onDismiss = { partShown = null })
         if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
         EditSheets(
             item,
@@ -482,38 +499,37 @@ private fun FocusFirstEpisode(moved: Boolean, held: Boolean, first: MediaItem?, 
     }
 }
 
-/** A collection's films (its whole saga), or a film's saga with the film in its place. */
-private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: FocusMemory, onOpenItem: (String) -> Unit) {
-    // The whole saga in release order, missing films as empty frames; without it, the films held.
-    val parts = state.saga?.parts ?: state.collectionFilms.map { SagaPart(it, it.title, it.year) }
-    if (item.kind == MediaKind.COLLECTION && parts.isNotEmpty()) {
-        item(key = "films") {
-            MediaRow(stringResource(R.string.library_movies), memory.rowGroup(FILMS)) {
-                itemsIndexed(parts, key = { i, part -> part.item?.id ?: "absent-$i" }) { _, part ->
-                    val film = part.item
-                    if (film != null) {
-                        PosterCard(film, onClick = { onOpenItem(film.id) }, modifier = memory.card(FILMS, film))
-                    } else {
-                        AbsentCard(part.title, part.year)
-                    }
-                }
-            }
-        }
-    }
-
+/**
+ * A film's saga, the film in its place: the whole saga in release order when the source knows it, a film held as its
+ * poster, one the library lacks or not out yet as its poster in grey, OK opening its synopsis ([RowLinks.onOpenPart]);
+ * else the films held. Its heading never changes: a grey poster is named by its synopsis and by the screen reader.
+ */
+private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: FocusMemory, links: RowLinks) {
     // No row when the saga holds only this film.
     state.collection?.takeIf { state.collectionFilms.any { film -> film.id != item.id } }?.let { collection ->
+        val parts = state.saga?.parts ?: state.collectionFilms.map { SagaPart(it, it.title, it.year) }
         item(key = "collection") {
             MediaRow(collection.title, memory.rowGroup(SAGA), count = filmCount(state.collectionFilms.size, collection.totalCount)) {
-                items(state.collectionFilms, key = { it.id }) { f ->
-                    PosterCard(f, onClick = { if (f.id != item.id) onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
+                itemsIndexed(parts, key = { i, part -> part.item?.id ?: "absent-$i" }) { _, part ->
+                    val f = part.item
+                    if (f != null) {
+                        PosterCard(f, onClick = { if (f.id != item.id) links.onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
+                    } else {
+                        AbsentCard(
+                            part.title,
+                            part.year?.takeIf { part.released },
+                            poster = part.poster,
+                            said = absentWords(part),
+                            onClick = { links.onOpenPart(part) }.takeIf { !part.overview.isNullOrBlank() },
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-/** The rows below a title's head: a collection's films, a film's saga, its [people], similar titles. */
+/** The rows below a title's head: a film's saga, its [people], similar titles. */
 private fun LazyListScope.titleRows(
     item: MediaItem,
     state: DetailState,
@@ -523,7 +539,7 @@ private fun LazyListScope.titleRows(
 ) {
     val onOpenItem = links.onOpenItem
     val onOpenPerson = links.onOpenPerson
-    sagaRows(item, state, memory, onOpenItem)
+    sagaRows(item, state, memory, links)
 
     if (people.isNotEmpty()) {
         item(key = "cast") {
@@ -571,7 +587,7 @@ private fun NoTitleYet(error: UiError?, onRetry: () -> Unit) {
 
 /** Focuses Lire, else the actions ([fallback]), once [swap] changes while the element keyed [held] had focus. */
 @Composable
-private fun FocusOnPlayAfter(swap: Boolean, held: String, memory: FocusMemory, fallback: FocusRequester) {
+internal fun FocusOnPlayAfter(swap: Boolean, held: String, memory: FocusMemory, fallback: FocusRequester) {
     // Read as the change composes: the element it removes still has focus, focus moved elsewhere is left there.
     val had = remember(swap) { memory.hasFocus(held) }
     LaunchedEffect(swap) {
@@ -598,8 +614,9 @@ private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
     return recede
 }
 
+/** What the rows under a title open: a title's page, a person's, the synopsis of a film of its saga the library lacks. */
 @Immutable
-private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (String) -> Unit)
+private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (String) -> Unit, val onOpenPart: (SagaPart) -> Unit)
 
 /**
  * What an episode's card does: OK plays it, from where it was left; Menu or a long OK opens its options. A play asked
@@ -852,7 +869,7 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
  * its file not there and identifying able to wait.
  */
 @Composable
-private fun RowScope.ActionFailure(
+internal fun RowScope.ActionFailure(
     problem: UiError?,
     actionError: UiError?,
     nextUpError: UiError?,
@@ -1141,12 +1158,12 @@ private fun FocusMemory.rowGroup(row: String) = Modifier.focusGroupKey(FocusKey.
 private fun FocusMemory.card(row: String, item: MediaItem) =
     Modifier.focusKey(FocusKey.within(FocusKey.row(row), FocusKey.item(item.id)), this)
 
-private val PLAY = FocusKey.action("play")
+internal val PLAY = FocusKey.action("play")
 private val VERSIONS = FocusKey.action("versions")
 private val TRACKS = FocusKey.action("tracks")
-private val RESTART = FocusKey.action("restart")
+internal val RESTART = FocusKey.action("restart")
 private val SERIES = FocusKey.action("series")
-private val WATCHED = FocusKey.action("watched")
+internal val WATCHED = FocusKey.action("watched")
 private val TECH = FocusKey.action("tech")
 private val NFO = FocusKey.action("nfo")
 private val FAVORITE = FocusKey.action("favorite")
@@ -1164,7 +1181,6 @@ private val RETRY_PAGE = FocusKey.action("retry-page")
 
 /** Réessayer of a failed season, keyed within its row so returning focus finds the row. */
 private val RETRY_EPISODES = FocusKey.within(FocusKey.row(EPISODES), FocusKey.action("retry"))
-private const val FILMS = "films"
 private const val SAGA = "collection"
 private const val SIMILAR = "similar"
 private const val CAST = "cast"

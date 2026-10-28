@@ -73,6 +73,7 @@ class TileLabelTest {
         /** What the app's tiles say. */
         val TILE_LABELS = listOf(
             R.string.mark_watched, R.string.mark_unwatched, R.string.mark_season_watched, R.string.mark_season_unwatched,
+            R.string.mark_saga_watched, R.string.mark_saga_unwatched,
             R.string.add_favorite, R.string.remove_favorite, R.string.from_start, R.string.versions, R.string.tech_details,
             R.string.nfo_title, R.string.edit, R.string.add, R.string.remove, R.string.search, R.string.nav_settings,
             R.string.held_remove_title,

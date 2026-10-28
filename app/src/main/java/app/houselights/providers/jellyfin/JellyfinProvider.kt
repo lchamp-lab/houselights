@@ -130,6 +130,8 @@ class JellyfinProvider(
             SortOption.YEAR -> "ProductionYear,PremiereDate,SortName" to "Descending"
             SortOption.RATING -> "CommunityRating,SortName" to "Descending"
         }
+        // A films' wall grouped holds box sets, whose names show as TMDB's or as the user's own: their ids say which.
+        val sagas = library.kind == LibraryKind.COLLECTIONS || grouped && library.kind == LibraryKind.MOVIES
         val result = api.items(
             userId = userId,
             parentId = library.id,
@@ -139,7 +141,7 @@ class JellyfinProvider(
             sortOrder = order,
             startIndex = start,
             limit = limit,
-            fields = GRID_FIELDS,
+            fields = if (sagas) "$GRID_FIELDS,$PROVIDER_IDS" else GRID_FIELDS,
             filters = statusFilter(filter.status),
             genres = filter.genre,
             years = filter.decade?.let { d -> (d until d + DECADE_YEARS).joinToString(",") },
@@ -408,6 +410,9 @@ class JellyfinProvider(
 
         /** Fields a wall needs: year and ratings, without overview or genres. */
         private const val GRID_FIELDS = "ProductionYear,OfficialRating,CommunityRating,DateCreated"
+
+        /** The ids a box set is known by, TMDB's among them, which decide how its name is shown. */
+        internal const val PROVIDER_IDS = "ProviderIds"
 
         /** Seasons count their episodes on disk too: without the count, the server calls an empty season watched. */
         private const val SEASON_FIELDS = "$ROW_FIELDS,ChildCount,RecursiveItemCount"

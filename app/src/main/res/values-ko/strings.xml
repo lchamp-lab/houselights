@@ -695,6 +695,27 @@
     <string name="row_films_of">감독 작품</string>
     <string name="row_best_rated">라이브러리 최고 평점 작품</string>
     <string name="saga_absent">라이브러리에 없음</string>
+    <!-- 시리즈 페이지: 영화마다 패널 하나, 시리즈 패널이 먼저 -->
+    <plurals name="saga_watched_of">
+        <item quantity="other">%2$d편 중 %1$d편 시청</item>
+    </plurals>
+    <plurals name="saga_all_watched">
+        <item quantity="other">%d편 시청 완료</item>
+    </plurals>
+    <plurals name="saga_upcoming_count">
+        <item quantity="other">개봉 예정 %d편</item>
+    </plurals>
+    <string name="mark_saga_watched">시리즈를 시청 완료로 표시</string>
+    <string name="mark_saga_unwatched">시리즈를 미시청으로 표시</string>
+    <string name="saga_release_on">%s 개봉</string>
+    <string name="saga_announced">개봉 예정</string>
+    <!-- 화면 낭독기가 읽는 시리즈 패널: 제목이 먼저 -->
+    <string name="saga_card_name">%1$s, %2$d편</string>
+    <string name="saga_volet_saga">%s, 시리즈</string>
+    <string name="saga_card_next">다음에 볼 작품</string>
+    <string name="saga_card_absent">라이브러리에 없음</string>
+    <string name="saga_card_release">%s 개봉</string>
+    <string name="saga_card_announced">개봉 예정</string>
     <!-- Versions -->
     <string name="versions">버전</string>
     <string name="version_chosen">선택됨</string>
