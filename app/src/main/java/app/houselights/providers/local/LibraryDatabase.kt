@@ -10,6 +10,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.houselights.core.Job
 import app.houselights.core.MediaInfo
+import app.houselights.core.SecretStore
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.suspendRunCatching
@@ -515,13 +516,16 @@ abstract class LibraryDatabase : RoomDatabase() {
                 .build()
 
         /**
-         * Seals passwords left plain by v6 → v7 when the Keystore failed, as scans never rewrite them. Runs at each
-         * launch; failures are logged and retried at the next one.
+         * Records the key versions the passwords were sealed with ([Secrets.recordKeys]), then seals those left plain
+         * by v6 → v7 when the Keystore failed, as scans never rewrite them. Runs at each launch; failures are logged
+         * and retried at the next one.
          */
         suspend fun sealPlainPasswords(dao: SourceDao, secrets: Secrets) {
             suspendRunCatching {
                 withContext(Dispatchers.IO) {
-                    val plain = dao.storedPasswords().filterNot { secrets.isSealed(it.password) }
+                    val passwords = dao.storedPasswords()
+                    secrets.recordKeys(SecretStore.FOLDERS, passwords.map { it.password })
+                    val plain = passwords.filterNot { secrets.isSealed(it.password) }
                     for (stored in plain) dao.sealPassword(stored.id, stored.password, secrets.seal(stored.password))
                     plain.size
                 }

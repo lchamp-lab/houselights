@@ -1,11 +1,20 @@
 package app.houselights.providers.local
 
+import androidx.datastore.preferences.core.emptyPreferences
+import app.houselights.core.SecretStore
+import app.houselights.core.Secrets
+import app.houselights.core.SecretsUnavailableException
+import app.houselights.settings.SealSecrets
+import app.houselights.testing.FakeKeystore
+import app.houselights.testing.TestKeyRecord
 import app.houselights.testing.secretsOf
 import app.houselights.testing.testKey
 import app.houselights.testing.testSecrets
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -62,6 +71,60 @@ class LibraryDatabaseTest {
         assertEquals(sealedBefore, after.getValue(series))
         assertEquals("", after.getValue(open))
         assertEquals(mapOf(films to "pl@in", series to "s3cret", open to ""), dao.sources().associate { it.id to it.password.value })
+    }
+
+    /**
+     * Installed over a version from before the record that had moved on to a second key: the launch records the key a
+     * folder's password was sealed with before it seals one left plain, so the Keystore reading empty then, and making
+     * the key asked for, never gets to make the second again, which would lose that password.
+     */
+    @Test
+    fun theLaunchRecordsThePasswordsKeysBeforeItSealsOne() = runTest {
+        val keystore = FakeKeystore(TestKeyRecord(Secrets.FIRST_KEY))
+        val dao = db.dao()
+        val films = dao.insertSource(source("Films", ""))
+        val series = dao.insertSource(source("Series", ""))
+        val sealed = keystore.sealedBeforeTheRecord("s3cret")
+        db.openHelper.writableDatabase.execSQL("UPDATE sources SET password = ? WHERE id = ?", arrayOf<Any>(sealed, films))
+        db.openHelper.writableDatabase.execSQL("UPDATE sources SET password = 'pl@in' WHERE id = ?", arrayOf<Any>(series))
+
+        keystore.blank = true
+        LibraryDatabase.sealPlainPasswords(dao, keystore.secrets())
+        val after = raw()
+        assertTrue(after.getValue(series), after.getValue(series).startsWith("sealed3:"))
+        assertEquals(listOf(3), keystore.made)
+
+        keystore.blank = false
+        assertEquals("s3cret", keystore.secrets().open(after.getValue(films)))
+        assertEquals("pl@in", keystore.secrets().open(after.getValue(series)))
+    }
+
+    /**
+     * The first launch after an update: the settings are read, and Trakt's session renewed, while the library still
+     * migrates. The Keystore reading empty, the renewal's seal fails for now rather than make the second key again,
+     * which sealed a folder's password; once the passwords are counted, it seals under a third.
+     */
+    @Test
+    fun noKeyIsMadeBeforeThePasswordsAreCounted() = runTest {
+        val keystore = FakeKeystore(TestKeyRecord(Secrets.FIRST_KEY))
+        val dao = db.dao()
+        val films = dao.insertSource(source("Films", ""))
+        val sealed = keystore.sealedBeforeTheRecord("s3cret")
+        db.openHelper.writableDatabase.execSQL("UPDATE sources SET password = ? WHERE id = ?", arrayOf<Any>(sealed, films))
+
+        keystore.blank = true
+        val secrets = keystore.secrets(SecretStore.entries.toSet())
+        assertFalse(SealSecrets(secrets).shouldMigrate(emptyPreferences()))
+        assertThrows(SecretsUnavailableException::class.java) { secrets.seal("trakt") }
+        assertEquals(emptyList<Int>(), keystore.made)
+
+        LibraryDatabase.sealPlainPasswords(dao, secrets)
+        val renewed = secrets.seal("trakt")
+        assertTrue(renewed, renewed.startsWith("sealed3:"))
+        assertEquals(listOf(3), keystore.made)
+
+        keystore.blank = false
+        assertEquals("s3cret", keystore.secrets().open(raw().getValue(films)))
     }
 
     /** A password the Keystore does not open for now reads as empty, yet saving the folder keeps it as stored. */

@@ -11,6 +11,8 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.SubtitleMode
 import app.houselights.core.TrackPreferences
 import app.houselights.core.TraktSession
+import app.houselights.testing.FakeKeystore
+import app.houselights.testing.TestKeyRecord
 import app.houselights.testing.secretsOf
 import app.houselights.testing.testKey
 import app.houselights.testing.testSecrets
@@ -373,6 +375,30 @@ class SettingsStoreTest {
 
         val settings = SettingsStore(FlakyStore(0, migrated), backgroundScope, broken)
         assertEquals(home, settings.state.first { it.loaded }.source)
+    }
+
+    /**
+     * Installed over a version from before the record that had moved on to a second key: the launch's migration records
+     * the key the connection was sealed with before it seals the TMDB key left plain, so the Keystore reading empty
+     * then, and making the key asked for, never gets to make the second again, which would lose the connection.
+     */
+    @Test
+    fun theLaunchRecordsTheKeysOfTheSettingsBeforeItSealsOne() = runTest {
+        val tmdbKey = stringPreferencesKey("tmdb_api_key")
+        val keystore = FakeKeystore(TestKeyRecord(Secrets.FIRST_KEY))
+        val connection = Json.encodeToString<SourceConfig>(home)
+        val stored = mutablePreferencesOf(sourceKey to keystore.sealedBeforeTheRecord(connection), tmdbKey to "k3y")
+
+        keystore.blank = true
+        val migration = SealSecrets(keystore.secrets())
+        assertTrue(migration.shouldMigrate(stored))
+        val sealed = checkNotNull(migration.migrate(stored)[tmdbKey])
+        assertTrue(sealed, sealed.startsWith("sealed3:"))
+        assertEquals(listOf(3), keystore.made)
+
+        keystore.blank = false
+        assertEquals(connection, keystore.secrets().open(checkNotNull(stored[sourceKey])))
+        assertEquals("k3y", keystore.secrets().open(sealed))
     }
 
     /** Until chosen, the player picks the tracks; the choice is read back, a language left out follows the app. */
