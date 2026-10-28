@@ -263,6 +263,7 @@ internal fun DetailPage(
         copyIndex = state.playedCopyIndex,
         onEdit = { editing.value = true }.takeIf { state.canEdit },
         season = state.shownSeason,
+        soleSeason = state.soleSeason,
         onShowMarks = { showMarks = true },
         nextUpError = state.lireError,
         retrying = state.retrying,
@@ -668,6 +669,8 @@ private data class DetailActions(
     val onEdit: (() -> Unit)?,
     /** The season the watched tile marks; null where it marks the title. */
     val season: MediaItem? = null,
+    /** The title is a show of one season ([DetailState.soleSeason]): the tile marks it whole, said as its season. */
+    val soleSeason: Boolean = false,
     /** Opens the watched tile's options, the season and the whole show, where it marks a [season]. */
     val onShowMarks: () -> Unit = {},
     /**
@@ -838,8 +841,8 @@ private fun Actions(
 
 /**
  * The watched tile: the title, or the season shown ([DetailActions.season]), Menu or a long OK then opening its options,
- * which the Menu key under its label says. Label: what OK does; icon: the current state. Watched is done, not a choice:
- * the check fills white.
+ * which the Menu key under its label says; a show of one season said as its season ([DetailActions.soleSeason]), with no
+ * options. Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
  */
 @Composable
 private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modifier = Modifier) {
@@ -847,7 +850,7 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
     val show = item.user.played
     val watched = season?.let(::seasonWatched) ?: show
     val label = when {
-        season == null -> if (watched) R.string.mark_unwatched else R.string.mark_watched
+        season == null && !actions.soleSeason -> if (watched) R.string.mark_unwatched else R.string.mark_watched
         watched -> R.string.mark_season_unwatched
         else -> R.string.mark_season_watched
     }

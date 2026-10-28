@@ -136,6 +136,27 @@ class ShowMarksTest {
         tile(R.string.mark_season_unwatched).assertIsFocused()
     }
 
+    /** A show of one season has no season track: its tile marks the show, its one season, says so, and has no options. */
+    @Test
+    fun aShowOfOneSeasonSaysItsTileMarksTheSeason() {
+        provider.items["show"] = series("show").copy(user = UserState(unplayedCount = 2))
+        provider.seasons = mapOf("show" to listOf(season("s1", 1, "show").copy(childCount = 2, user = UserState(unplayedCount = 2))))
+        showPage()
+        // Words that read as one episode are gone.
+        tile(R.string.mark_watched).assertDoesNotExist()
+        tile(R.string.mark_season_watched).assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnLongClick)).requestFocus()
+        compose.press(Key.DirectionCenter)
+        assertTrue("played show true" in provider.calls)
+        tile(R.string.mark_season_unwatched).assertIsFocused()
+
+        compose.press(Key.Menu)
+        option(R.string.mark_series_watched).assertDoesNotExist()
+        tile(R.string.mark_season_unwatched).assertIsFocused()
+        compose.press(Key.DirectionCenter)
+        assertTrue("played show false" in provider.calls)
+        tile(R.string.mark_season_watched).assertIsFocused()
+    }
+
     /** Held, OK opens the tile's options and marks nothing; Back closes them. */
     @Test
     fun aLongOkOpensTheTilesOptions() {

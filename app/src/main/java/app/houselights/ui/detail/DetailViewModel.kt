@@ -126,6 +126,10 @@ data class DetailState(
         get() = seasons.takeIf { item?.kind == MediaKind.SERIES && it.size > 1 }
             ?.firstOrNull { it.id == selectedSeasonId }
             ?.takeIf { it.childCount != 0 }
+
+    /** A show of a single season, without a season track: the tile marks the show, which is that season, and says so. */
+    val soleSeason: Boolean
+        get() = item?.kind == MediaKind.SERIES && seasons.size == 1
 }
 
 /**
