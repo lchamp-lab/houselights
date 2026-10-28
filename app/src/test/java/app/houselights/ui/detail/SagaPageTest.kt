@@ -3,7 +3,11 @@ package app.houselights.ui.detail
 import android.content.Context
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composer
+import androidx.compose.runtime.CompositionTracer
+import androidx.compose.runtime.InternalComposeTracingApi
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -26,9 +30,11 @@ import app.houselights.core.MediaKind
 import app.houselights.core.UserState
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.VoletDefaults
 import app.houselights.ui.design.components.VoletPlan
+import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.film
@@ -49,6 +55,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * DESIGN.md, Saga page: a saga's polyptych with the remote. It opens on the saga's panel, Lire focused; Up enters on
@@ -72,6 +79,8 @@ class SagaPageTest {
     fun stop() = work.cancel()
 
     private fun text(id: Int, vararg args: Any) = context.getString(id, *args)
+
+    private fun plural(id: Int, count: Int) = context.resources.getQuantityString(id, count, count)
 
     private fun page(source: SagaSource = duneSource(), id: String = duneSaga.id) = SagaPage(compose, source, work).also { it.open(id) }
 
@@ -232,21 +241,127 @@ class SagaPageTest {
         third.assertIsFocused().isOpen()
     }
 
-    /** Each panel is one element, read by its title, its number and year, then its state; the saga's as « Dune, saga ». */
+    /**
+     * Each panel is one element, read by its title, its number and year, then its state and what it says open: the
+     * saga's as « Dune, saga », its facts, its progress and its overview, which OK opens only once cut; a film's its
+     * length, what is left of it and its overview.
+     */
     @Test
     fun theScreenReaderHearsEachPanelByItsTitle() {
         page()
         val films = hasAnyAncestor(hasContentDescription(text(R.string.library_movies)))
+        val sagaSays = listOf(
+            "2021 – 2024",
+            plural(R.plurals.film_count, 2),
+            formatDuration((155 + 166) * MIN),
+            plural(R.plurals.saga_upcoming_count, 1),
+            context.resources.getQuantityString(R.plurals.saga_watched_of, 1, 1, 2),
+            text(R.string.time_left, formatDuration(74 * MIN)),
+            duneSaga.overview,
+        )
         compose.onNode(hasContentDescription(text(R.string.saga_volet_saga, "Dune")) and films)
-            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, sagaSays.joinToString(", ")))
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
         listOf(
-            text(R.string.saga_card_name, dune.title, 1) + ", 2021" to text(R.string.card_watched),
-            text(R.string.saga_card_name, duneTwo.title, 2) + ", 2024" to text(R.string.card_in_progress, 55),
-            text(R.string.saga_card_name, duneThree.title, 3) + ", 2026" to text(R.string.saga_card_release, out()),
-        ).forEach { (name, state) ->
+            text(R.string.saga_card_name, dune.title, 1) + ", 2021" to
+                listOf(text(R.string.card_watched), formatDuration(155 * MIN), "Paul part pour Arrakis."),
+            text(R.string.saga_card_name, duneTwo.title, 2) + ", 2024" to listOf(
+                text(R.string.card_in_progress, 55),
+                formatDuration(166 * MIN),
+                text(R.string.time_left, formatDuration(74 * MIN)),
+                "Paul s’allie aux Fremen.",
+            ),
+            text(R.string.saga_card_name, duneThree.title, 3) + ", 2026" to
+                listOf(text(R.string.saga_card_release, out()), duneThree.overview),
+        ).forEach { (name, says) ->
             compose.onNode(hasContentDescription(name) and films)
-                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, state))
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, says.joinToString(", ")))
+                .assert(hasClickAction())
         }
+    }
+
+    /** A panel OK does nothing on, a film the library lacks without an overview, offers no action to a screen reader. */
+    @Test
+    fun aPanelOkCannotOpenIsNoButton() {
+        page(duneSource(third = duneThree.copy(overview = null)))
+        third.assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, text(R.string.saga_card_release, out())))
+    }
+
+    /** Left and back with a film open, its frame gone to Lire, Up enters on it: nothing opens or closes but the frame. */
+    @Test
+    fun upAfterThePageWasLeftEntersOnThePanelStillOpen() {
+        val page = page()
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionDown)
+        resume.assertIsFocused()
+        compose.runOnIdle { page.shown = false }
+        compose.waitForIdle()
+        compose.runOnIdle { page.shown = true }
+        compose.waitForIdle()
+        resume.assertIsFocused()
+        third.isOpen()
+        compose.press(Key.DirectionUp)
+        third.assertIsFocused().isOpen()
+        second.isClosed()
+    }
+
+    /** A scan bringing the film the library lacked while its panel is open and focused: it stays so, in colour. */
+    @Test
+    fun aFilmTheLibraryGainsKeepsItsPanelOpenAndFocused() {
+        val source = duneSource()
+        val page = page(source)
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight)
+        third.assertIsFocused().isOpen()
+        val held = MediaItem("dune3", MediaKind.MOVIE, duneThree.title, year = 2026, runtimeMs = 150 * MIN)
+        (source.catalog as FakeCatalog).sagas = mapOf(duneSaga.id to duneWhole(third = duneThree.copy(item = held, released = true)))
+        compose.runOnIdle { page.vm.load() }
+        compose.waitForIdle()
+        third.assertIsFocused().isOpen()
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.StateDescription,
+                    listOf(formatDuration(150 * MIN), duneThree.overview).joinToString(", "),
+                ),
+            )
+        second.isClosed()
+    }
+
+    /**
+     * A step along a long saga recomposes the panels it concerns, the one left and the one reached, never the others:
+     * a panel's body runs fewer times in a step than the saga has panels.
+     */
+    @OptIn(InternalComposeTracingApi::class)
+    @Test
+    fun aStepAlongRecomposesThePanelsItConcernsAlone() {
+        page(bondSource(), BOND_ID)
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight)
+        compose.mainClock.advanceTimeBy(HlMotion.SETTLE + HlMotion.HOLD + HlMotion.TINT)
+        compose.waitForIdle()
+        val panels = AtomicInteger()
+        Composer.setTracer(
+            object : CompositionTracer {
+                override fun traceEventStart(key: Int, dirty1: Int, dirty2: Int, info: String) {
+                    if (info.startsWith(VOLET_BODY)) panels.incrementAndGet()
+                }
+
+                override fun traceEventEnd() = Unit
+
+                override fun isTraceInProgress() = true
+            },
+        )
+        try {
+            compose.press(Key.DirectionRight)
+            compose.mainClock.advanceTimeBy(HlMotion.SETTLE + HlMotion.HOLD + HlMotion.TINT)
+            compose.waitForIdle()
+        } finally {
+            Composer.setTracer(NoTrace)
+        }
+        assertTrue("the panels' bodies ran: ${panels.get()}", panels.get() > 0)
+        assertTrue("${panels.get()} runs of a panel's body for ${BOND + 1} panels", panels.get() < BOND + 1)
     }
 
     /** Reprendre names the film it plays and what is left of it, beside Depuis le début; OK resumes it. */
@@ -268,7 +383,12 @@ class SagaPageTest {
         val lire = compose.onNode(hasText(text(R.string.play)) and hasClickAction())
         lire.assertIsFocused().assert(hasText(next.title, substring = true))
         compose.onNodeWithContentDescription(text(R.string.from_start)).assertDoesNotExist()
-        second.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, text(R.string.saga_card_next)))
+        second.assert(
+            SemanticsMatcher.expectValue(
+                SemanticsProperties.StateDescription,
+                listOf(text(R.string.saga_card_next), formatDuration(166 * MIN), "Paul s’allie aux Fremen.").joinToString(", "),
+            ),
+        )
         compose.press(Key.DirectionCenter)
         assertEquals(listOf("${next.id} false"), page.played)
     }
@@ -288,7 +408,8 @@ class SagaPageTest {
         compose.onNodeWithContentDescription(text(R.string.saga_volet_saga, box.title)).isOpen()
         films.forEachIndexed { i, film ->
             compose.onNodeWithContentDescription(text(R.string.saga_card_name, film.title, i + 1) + ", ${film.year}")
-                .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription))
+                // No state: nothing watched, none missing; its length alone.
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, formatDuration(130 * MIN)))
         }
     }
 
@@ -316,19 +437,26 @@ class SagaPageTest {
         saga.isOpen()
     }
 
+    private val bond = MediaItem(BOND_ID, MediaKind.COLLECTION, "James Bond", backdrop = picture("bond"))
+    private val bondFilms = (1..BOND).map { film("bond$it", "Bond $it").copy(year = 1960 + it * 2, runtimeMs = 120 * MIN) }
+
+    /** James Bond, a box set of 25 films. */
+    private fun bondSource(): SagaSource {
+        val provider = FakeProvider().apply {
+            items[bond.id] = bond
+            bondFilms.forEach { items[it.id] = it }
+        }
+        return SagaSource(provider, bond, bondFilms)
+    }
+
     /**
      * Past eight films the panels scroll at their narrowest, the open one two closed panels from either end of the
      * polyptych, but at its ends; Up from Lire lands on the film it plays.
      */
     @Test
     fun aLongSagaScrollsTheOpenPanelKeptInView() {
-        val bond = MediaItem("bond", MediaKind.COLLECTION, "James Bond", backdrop = picture("bond"))
-        val films = (1..BOND).map { film("bond$it", "Bond $it").copy(year = 1960 + it * 2, runtimeMs = 120 * MIN) }
-        val provider = FakeProvider().apply {
-            items[bond.id] = bond
-            films.forEach { items[it.id] = it }
-        }
-        page(SagaSource(provider, bond, films), bond.id)
+        val films = bondFilms
+        page(bondSource(), bond.id)
         val plan = VoletPlan.of(BOND + 1, HlLayout.CANVAS_WIDTH.dp - HlLayout.voletSide * 2, 370.5.dp)
         val kept = (plan.closed + plan.gap) * 2
         val start = HlLayout.voletSide
@@ -377,6 +505,20 @@ class SagaPageTest {
 
         /** James Bond's films: past eight, the panels scroll. */
         const val BOND = 25
+        const val BOND_ID = "bond"
+
+        /** What the compiler names a panel's body by as it traces it. */
+        const val VOLET_BODY = "app.houselights.ui.design.components.Volet ("
+
+        /** Tracing off again, as before the test. */
+        @OptIn(InternalComposeTracingApi::class)
+        val NoTrace = object : CompositionTracer {
+            override fun traceEventStart(key: Int, dirty1: Int, dirty2: Int, info: String) = Unit
+
+            override fun traceEventEnd() = Unit
+
+            override fun isTraceInProgress() = false
+        }
 
         /** The safe area's foot: 512 on the canvas. */
         val SAFE_FOOT = 540.dp - HlSpace.safeV

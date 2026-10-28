@@ -90,12 +90,12 @@ internal val duneThree = SagaPart(
 )
 
 /** The saga whole, in release order, as a source that knows it says it. */
-internal fun duneWhole(first: MediaItem = dune, second: MediaItem = duneTwo) = Saga(
+internal fun duneWhole(first: MediaItem = dune, second: MediaItem = duneTwo, third: SagaPart = duneThree) = Saga(
     duneSaga,
     listOf(
         SagaPart(first, first.title, first.year, overview = "Paul part pour Arrakis.", backdrop = first.backdrop),
         SagaPart(second, second.title, second.year, overview = "Paul s’allie aux Fremen.", backdrop = second.backdrop),
-        duneThree,
+        third,
     ),
 )
 
@@ -113,13 +113,13 @@ internal class SagaSource(source: FakeProvider, private val saga: MediaItem, pri
     override suspend fun nextUp(series: MediaItem): MediaItem? = super.nextUp(series)
 }
 
-/** A source that knows Dune whole, held films [first] and [second]. */
-internal fun duneSource(first: MediaItem = dune, second: MediaItem = duneTwo): SagaSource {
+/** A source that knows Dune whole, held films [first] and [second], then [third]. */
+internal fun duneSource(first: MediaItem = dune, second: MediaItem = duneTwo, third: SagaPart = duneThree): SagaSource {
     val provider = FakeProvider().apply {
         items[duneSaga.id] = duneSaga
         items[first.id] = first
         items[second.id] = second
-        catalog = FakeCatalog().apply { sagas = mapOf(duneSaga.id to duneWhole(first, second)) }
+        catalog = FakeCatalog().apply { sagas = mapOf(duneSaga.id to duneWhole(first, second, third)) }
         capabilities = capabilities.copy(sagaParts = true)
     }
     return SagaSource(provider, duneSaga, listOf(first, second))

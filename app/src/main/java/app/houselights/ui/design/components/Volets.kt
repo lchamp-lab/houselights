@@ -114,11 +114,12 @@ enum class VoletMark { None, Watched, New, Held, Absent, Upcoming }
 /**
  * What one of a saga's panels (« volet ») shows: a film's [number] in release order (null: the saga's own panel, its
  * box), its [poster] (closed) and [backdrop] (open), [grey] for a film the library lacks or not out yet, its [mark] and
- * [year] at its foot, the share of it seen ([progress]); read as [readAs] then [state]. The saga's panel sets its
- * [spine] name upright when closed.
+ * [year] at its foot, the share of it seen ([progress]); read as [readAs] then [state], then what its words [say] open.
+ * The saga's panel sets its [spine] name upright when closed. OK on it [acts] or does nothing. Equal when it shows the
+ * same, so a step along the polyptych recomposes the two panels it concerns alone.
  */
 @Immutable
-class VoletPart(
+data class VoletPart(
     val key: String,
     val number: Int?,
     val poster: ImageRef?,
@@ -130,6 +131,8 @@ class VoletPart(
     val progress: Float = 0f,
     val state: String? = null,
     val spine: String? = null,
+    val say: String? = null,
+    val acts: Boolean = true,
 )
 
 /** A saga's numbers, one size for the whole polyptych: the signature (72), `display` (48) or `headline` (36). */
@@ -545,9 +548,10 @@ private fun Volet(
         modifier = modifier,
         shape = HlShapes.wide,
         onFocus = onFocus,
-        stateDescription = part.state,
+        // Its state, then what it says open: a panel has focus only open.
+        stateDescription = listOfNotNull(part.state, part.say).joinToString(", ").ifEmpty { null },
         readAs = part.readAs,
-        acts = true,
+        acts = part.acts,
         light = if (part.grey) null else backdrop ?: poster,
         glows = !part.grey,
     ) {

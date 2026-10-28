@@ -601,13 +601,19 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     giving way first (`SagaWordsTest`). A box set (a source that lists only the films it holds) has a panel for each
     of them, numbered in the server's order, none grey.
   - **Remote** (`SagaPageTest`): the page opens on Lire, the saga's panel open. Up enters the panels on the film Lire
-    plays, then on the panel left (`keepChildFocus`); Left and Right open the panel reached as the one left closes; Down
+    plays, then on the panel left (`keepChildFocus`), on the film open once the page was left; Left and Right open the
+    panel reached as the one left closes, a move cut short going on from where each panel stood and a long saga's
+    scroll moving with the widths (`VoletsMotionTest`), a step recomposing those two panels alone; Down
     goes to Lire, the film open staying open, its words, its picture and the room as they were, its frame alone gone
     (« greffe 1 »): principle 7 holds here without exception. Back opens the saga's panel again, focus on Lire, then
     leaves the page. OK opens a film held, the synopsis of one the library lacks, the saga's own once cut. Back from a
-    film's page, its panel is laid out open from the first frame, focus on it, nothing moving.
+    film's page, its panel is laid out open from the first frame, focus on it, nothing moving, its picture whole at once
+    (`SagaRoomTest`). A panel keeps its place as the library gains the film it lacked, open and focused if it was.
   - **Read** as a group named « Films »: each panel by its title, its number and its year, then its state as a card's
-    (« Dune : Deuxième partie, film 2, 2024 », « en cours, 55 % »), the saga's as « Dune, saga »; marks are not read.
+    (« Dune : Deuxième partie, film 2, 2024 », « en cours, 55 % »), the saga's as « Dune, saga », then what its words
+    say open, as a case is read: the saga's facts, its progress and its overview, a film's length, what is left of it
+    and its overview. A panel OK opens nothing on (a film the library lacks without an overview, the saga's own uncut)
+    offers no action; marks are not read.
   - **A film's page** keeps its saga's row, whole in release order, its heading the saga's name and count, never the
     poster focused: the films held as posters, the film itself in its place, the others as grey `AbsentCard`s, OK
     opening their synopsis (`DetailSagaRowTest`).
@@ -842,7 +848,8 @@ year on the year's band; open, its words on their melt (see *Veils*), as the cas
   drawn per card.
 
 **Accessibility.** A card is one element: its title, then its state in words (`stateDescription`: "introuvable",
-"6 épisodes non vus", "vu", "nouveau, en cours, 40 %"), a saga's panel after its number and year. Marks are not read.
+"6 épisodes non vus", "vu", "nouveau, en cours, 40 %"), a saga's panel after its number and year, then its words. Marks
+are not read.
 A person who does nothing is read once as "name, role", not as a button. What is chosen says so (`selected`).
 
 ## Sheets

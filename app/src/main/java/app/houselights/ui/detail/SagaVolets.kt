@@ -112,14 +112,16 @@ internal fun SagaVolets(
 ) {
     val parts = remember(state.saga, state.collectionFilms) { partsOf(state) }
     val tally = remember(parts, state.nextUp) { SagaTally(parts, state.nextUp) }
-    val volets = voletsOf(item, parts, tally)
+    // Each panel by its place, as a film the library lacks comes in it: its panel stays, open if it was.
+    val keys = remember(parts.size) { listOf(SAGA_VOLET) + (1..parts.size).map(::partKey) }
+    var cut by remember { mutableStateOf(false) }
+    val volets = voletsOf(item, parts, tally, cut)
     // The film open, by its panel's key; none: the saga's. Kept back from a film's page and the player.
     var opened by rememberSaveable { mutableStateOf<String?>(null) }
     var focused by remember { mutableStateOf<Int?>(null) }
-    val open = volets.indexOfFirst { it.key == opened }.coerceAtLeast(0)
+    val open = keys.indexOf(opened).coerceAtLeast(0)
     // Settled on it from the first frame: back from a film's page, its panel is whole at once.
     val shown by rememberSettled(initial = open) { open }
-    var cut by remember { mutableStateOf(false) }
     var sagaShown by remember { mutableStateOf(false) }
     var partShown by remember { mutableStateOf<SagaPart?>(null) }
     // Back from a panel, or from the predella under a film open: the saga's panel open again, focus on Lire.
@@ -146,7 +148,7 @@ internal fun SagaVolets(
                 shown = shown,
                 onFocus = { at ->
                     focused = at
-                    if (at != null) opened = volets[at].key.takeIf { at > 0 }
+                    if (at != null) opened = keys[at].takeIf { at > 0 }
                 },
                 onOpen = onOpen,
                 modifier = Modifier
@@ -158,7 +160,8 @@ internal fun SagaVolets(
                         contentDescription = films
                         isTraversalGroup = true
                     },
-                enter = (parts.indexOf(tally.nextPart) + 1).takeIf { it > 0 },
+                // The film open, once the page was left (its last panel forgotten), else the film Lire plays.
+                enter = open.takeIf { it > 0 } ?: (parts.indexOf(tally.nextPart) + 1).takeIf { it > 0 },
                 downTo = if (state.nextUp != null) memory.requester(PLAY) else actionRow,
                 keyed = { at -> parts.getOrNull(at - 1)?.item?.let { Modifier.focusKey(voletKey(it), memory) } ?: Modifier },
             ) { at -> PanelWords(item, parts.getOrNull(at - 1), tally, onCut = { cut = it }) }
@@ -209,9 +212,12 @@ private fun sagaPicture(item: MediaItem, parts: List<SagaPart>): ImageRef? = ite
 private fun roomOf(item: MediaItem, parts: List<SagaPart>, at: Int): ImageRef? =
     if (at == 0) sagaPicture(item, parts) else parts.getOrNull(at - 1)?.takeIf { it.owned }?.let { it.backdrop ?: it.poster }
 
-/** The saga's panel, its box (its backdrop, its name on its spine), then a film's each, numbered in release order. */
+/**
+ * The saga's panel, its box (its backdrop, its name on its spine), then a film's each, numbered in release order. The
+ * saga's is read « Dune, saga », then its facts, its progress and its overview, which OK opens once [cut].
+ */
 @Composable
-private fun voletsOf(item: MediaItem, parts: List<SagaPart>, tally: SagaTally): List<VoletPart> {
+private fun voletsOf(item: MediaItem, parts: List<SagaPart>, tally: SagaTally, cut: Boolean): List<VoletPart> {
     val saga = VoletPart(
         key = SAGA_VOLET,
         number = null,
@@ -219,17 +225,29 @@ private fun voletsOf(item: MediaItem, parts: List<SagaPart>, tally: SagaTally): 
         backdrop = sagaPicture(item, parts),
         readAs = stringResource(R.string.saga_volet_saga, item.title),
         spine = item.title,
+        say = (sagaFacts(tally) + sagaProgress(tally) + listOfNotNull(item.overview?.takeIf { it.isNotBlank() }))
+            .joinToString(", ")
+            .ifEmpty { null },
+        acts = cut,
     )
     return listOf(saga) + parts.mapIndexed { i, part -> filmVolet(part, i + 1, tally) }
 }
 
-/** Film [number]'s panel: read by its title, number and year, then its state; a film the library lacks in grey. */
+/**
+ * Film [number]'s panel: read by its title, number and year, then its state, its length, what is left of it and its
+ * overview; a film the library lacks in grey, which OK opens only on its synopsis.
+ */
 @Composable
 private fun filmVolet(part: SagaPart, number: Int, tally: SagaTally): VoletPart {
     val film = part.item
     val year = part.year?.toString()
+    val say = listOfNotNull(
+        film?.runtimeMs?.let(::formatDuration),
+        film?.takeUnless { it.user.played }?.let { timeLeft(it) },
+        part.overview?.takeIf { it.isNotBlank() },
+    )
     return VoletPart(
-        key = film?.let { FocusKey.item(it.id) } ?: "part:$number",
+        key = partKey(number),
         number = number,
         poster = part.poster,
         backdrop = part.backdrop,
@@ -239,8 +257,13 @@ private fun filmVolet(part: SagaPart, number: Int, tally: SagaTally): VoletPart 
         year = year,
         progress = film?.takeUnless { it.user.played }?.progress ?: 0f,
         state = readState(part, tally),
+        say = say.joinToString(", ").ifEmpty { null },
+        acts = film != null || !part.overview.isNullOrBlank(),
     )
 }
+
+/** Film [number]'s panel's key: its place in release order, whether the library holds it or not. */
+private fun partKey(number: Int) = "part:$number"
 
 /** The sign at a closed film's foot: held first, then watched, new; the ring of a film missing, the quiet dot of one to come. */
 private fun markOf(part: SagaPart): VoletMark {
