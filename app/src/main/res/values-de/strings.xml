@@ -33,8 +33,8 @@
     <string name="empty_collections">Noch keine Filmreihen</string>
     <string name="empty_server">Der Server bietet diesem Konto keine Filme und keine Serien an.</string>
     <plurals name="title_count">
-        <item quantity="one">%d Titel</item>
-        <item quantity="other">%d Titel</item>
+        <item quantity="one">%s Titel</item>
+        <item quantity="other">%s Titel</item>
     </plurals>
     <string name="home_empty_title">Noch keine Filme</string>
     <string name="home_empty_local">Fügen Sie den Ordner hinzu, der sie enthält.</string>

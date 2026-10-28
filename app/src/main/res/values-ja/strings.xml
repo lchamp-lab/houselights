@@ -32,7 +32,7 @@
     <string name="empty_collections">シリーズはまだありません</string>
     <string name="empty_server">このアカウントで利用できる映画やTV番組がサーバーにありません。</string>
     <plurals name="title_count">
-        <item quantity="other">%d作品</item>
+        <item quantity="other">%s作品</item>
     </plurals>
     <string name="home_empty_title">映画はまだありません</string>
     <string name="home_empty_local">映画が入っているフォルダを追加してください。</string>

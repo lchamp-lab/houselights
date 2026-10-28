@@ -100,9 +100,11 @@ import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.run
+import app.houselights.ui.util.scanCount
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.titleAt
+import app.houselights.ui.util.titleCount
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -517,7 +519,7 @@ private fun LibraryDoor(door: Door.Library, state: HomeState, actions: HomeActio
     val name = library.title ?: libraryName(library.kind)
     val count = door.shelf.count
     // Read as it says: its name first, then how many titles, then what is new.
-    val titles = count?.let { pluralStringResource(R.plurals.title_count, it, it) }
+    val titles = count?.let { titleCount(it) }
     HomeDoor(
         name,
         iconOf(library.kind),
@@ -590,7 +592,7 @@ private fun stateFacts(status: HomeStatus, progress: Pair<Int, Int>?): List<Stat
         StateFact(
             stringResource(R.string.home_state_scan),
             stringResource(R.string.home_scan_running),
-            detail = stringResource(R.string.scan_progress, done, total).takeIf { total > 0 },
+            detail = scanCount(done, total).takeIf { total > 0 },
             wide = true,
             rank = 2,
         )
@@ -627,7 +629,7 @@ private fun LibrariesSheet(plan: HomePlan, sagas: Library?, actions: HomeActions
                 HlSettingRow(
                     library.title ?: libraryName(library.kind),
                     if (i == 0) Modifier.focusRequester(first) else Modifier,
-                    value = shelf.count?.let { pluralStringResource(R.plurals.title_count, it, it) },
+                    value = shelf.count?.let { titleCount(it) },
                     icon = iconOf(library.kind),
                     onClick = {
                         actions.onLibraryAhead(library, films)

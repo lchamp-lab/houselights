@@ -28,6 +28,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.text.NumberFormat
 import java.util.Locale
 import app.houselights.ui.util.formatBytes as bytes
 
@@ -99,6 +100,9 @@ class PaneRowLineTest {
         /** The language's own name, as a language row shows it. */
         val language: String get() = locale.getDisplayName(locale).replaceFirstChar { it.titlecase(locale) }
 
+        /** [count] with its thousands grouped as the language groups them ([app.houselights.ui.util.formatCount]). */
+        fun figure(count: Int): String = NumberFormat.getIntegerInstance(locale).format(count.toLong())
+
         /** The longest of [ids], as a choice row shows it. */
         fun longest(vararg ids: Int): String = ids.map(local::getString).maxBy { it.length }
     }
@@ -106,7 +110,7 @@ class PaneRowLineTest {
     /** A pane's rows, each beside the value it shows at rest. */
     private fun paneLines(w: Words): List<Line> = with(w) {
         listOf(
-            line(R.string.scan_now_desc, value = local.getString(R.string.scan_progress, SCANNED, FILES)),
+            line(R.string.scan_now_desc, value = local.getString(R.string.scan_progress, figure(SCANNED), figure(FILES))),
             line(R.string.add_folder_row_desc),
             line(R.string.refresh_metadata_desc),
             line(R.string.to_identify_row_desc, value = TO_IDENTIFY, jaquette = true),

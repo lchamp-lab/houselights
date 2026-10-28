@@ -33,8 +33,8 @@
     <string name="empty_collections">Nog geen saga’s</string>
     <string name="empty_server">De server biedt dit account geen films of series aan.</string>
     <plurals name="title_count">
-        <item quantity="one">%d titel</item>
-        <item quantity="other">%d titels</item>
+        <item quantity="one">%s titel</item>
+        <item quantity="other">%s titels</item>
     </plurals>
     <string name="home_empty_title">Nog geen films</string>
     <string name="home_empty_local">Voeg de map toe waarin ze staan.</string>

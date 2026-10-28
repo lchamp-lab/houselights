@@ -30,11 +30,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -52,6 +54,7 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.ContentScale
@@ -109,6 +112,7 @@ import app.houselights.ui.design.rememberedInGroup
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
@@ -305,7 +309,9 @@ val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
  * Card artwork; [fallback] replaces it when missing or failing (NAS asleep); without one, the surface shows.
  * [pictureModifier] styles the loaded image only. Decoded at its laid out size, or at [size] (px) when given, as
  * a preload asks for it, cropped about [alignment]. Receding dims and desaturates it through its colour filter, not
- * a layer; a picture that never recedes may take a [filter] of its own.
+ * a layer; a picture that never recedes may take a [filter] of its own. [onShow] is told once it shows, its picture
+ * decoded or its fallback in its place: its caller then brings it in itself, without the loader's fade under it, as the
+ * first scan's wall does ([FirstWall]).
  */
 @Composable
 fun ArtworkImage(
@@ -317,26 +323,43 @@ fun ArtworkImage(
     size: IntSize? = null,
     alignment: Alignment = Alignment.Center,
     filter: ColorFilter? = null,
+    onShow: (() -> Unit)? = null,
     fallback: @Composable BoxScope.() -> Unit = {},
 ) {
     var failed by remember(url) { mutableStateOf(false) }
     val recede = LocalArtworkRecede.current
     if (url == null || failed) {
+        if (onShow != null) {
+            val shown by rememberUpdatedState(onShow)
+            LaunchedEffect(url) { shown() }
+        }
         Box(modifier.receding(recede, Hl.colors.background), content = fallback)
     } else {
         val step by remember(recede) { derivedStateOf { HlFocus.recedeStep(recede()) } }
         val context = LocalContext.current
-        val model = remember(url, size, context) { size?.let { artworkRequest(context, url, it.width, it.height) } ?: url }
+        val fades = onShow == null
+        val model = remember(url, size, context, fades) { artworkModel(context, url, size, fades) }
         AsyncImage(
             model = model,
             contentDescription = description,
             contentScale = contentScale,
             alignment = alignment,
             colorFilter = filter ?: recedeFilters[step],
+            onSuccess = onShow?.let { shown -> { _: AsyncImagePainter.State.Success -> shown() } },
             onError = { failed = true },
             modifier = modifier.then(pictureModifier),
         )
     }
+}
+
+/**
+ * What an [ArtworkImage] asks the loader for: [url], at [size] (px) when given ([artworkRequest]); with the loader's
+ * fade, unless its caller brings the picture in itself ([fades] false).
+ */
+internal fun artworkModel(context: Context, url: String, size: IntSize?, fades: Boolean): Any = when {
+    fades -> size?.let { artworkRequest(context, url, it.width, it.height) } ?: url
+    size != null -> artworkRequest(context, url, size.width, size.height).newBuilder().crossfade(false).build()
+    else -> ImageRequest.Builder(context).data(url).crossfade(false).build()
 }
 
 /**
@@ -746,16 +769,19 @@ internal fun EmptyFrame(modifier: Modifier = Modifier, shape: Shape = HlShapes.a
         modifier
             .clip(shape)
             .background(groundStepFill())
-            .drawBehind {
-                val inset = HlSpace.s.toPx()
-                val length = HlSpace.l.toPx()
-                if (size.width >= length + 2 * inset && size.height >= length + 2 * inset) {
-                    val weight = HlSize.hairline.toPx()
-                    drawRect(rule, Offset(inset, size.height - inset - weight), Size(length, weight))
-                }
-            }
+            .drawBehind { emptyFrameRule(rule) }
             .artworkEdge(shape, c),
     )
+}
+
+/** An [EmptyFrame]'s short rule, low on its start, in [rule] at [alpha]; none in a frame too small to hold it. */
+internal fun DrawScope.emptyFrameRule(rule: Color, alpha: Float = 1f) {
+    val inset = HlSpace.s.toPx()
+    val length = HlSpace.l.toPx()
+    if (size.width >= length + 2 * inset && size.height >= length + 2 * inset) {
+        val weight = HlSize.hairline.toPx()
+        drawRect(rule, Offset(inset, size.height - inset - weight), Size(length, weight), alpha = alpha)
+    }
 }
 
 /**

@@ -19,6 +19,9 @@ class FakeRemoteBrowser : RemoteBrowser {
     /** Runs during a listing, to simulate what happens on the device mid-scan. */
     var onList: (suspend () -> Unit)? = null
 
+    /** Runs as a listing counts each video, once it is told: what a NAS takes to list the next folder, say. */
+    var onFound: (() -> Unit)? = null
+
     /** Thrown by reads instead of bytes, while set. */
     var readFailure: Throwable? = null
 
@@ -53,17 +56,20 @@ class FakeRemoteBrowser : RemoteBrowser {
 
     fun clear() = files.clear()
 
-    override suspend fun list(source: SourceEntity): Listing {
+    /** Its files, [found] told of its videos as the readers count them ([VideoCount]), in the order they were put. */
+    override suspend fun list(source: SourceEntity, found: (Int) -> Unit): Listing {
         listFailure?.let { throw it }
         onList?.invoke()
         val all = files.filterKeys { path -> unreadable.none { path.startsWith("$it/") } }
             .map { (path, entry) -> RemoteFile(path, entry.size, entry.lastModified) }
         fun name(file: RemoteFile) = file.relativePath.substringAfterLast('/')
-        return Listing(
-            videos = all.filter { RemoteBrowser.isWanted(name(it)) },
-            sidecars = all.filter { RemoteBrowser.isSidecar(name(it)) },
-            unreadable = unreadable,
-        )
+        val videos = all.filter { RemoteBrowser.isWanted(name(it)) }
+        val count = VideoCount { n ->
+            found(n)
+            onFound?.invoke()
+        }
+        videos.forEach { count.take(it.relativePath) }
+        return Listing(videos = videos, sidecars = all.filter { RemoteBrowser.isSidecar(name(it)) }, unreadable = unreadable)
     }
 
     /** The folder's own level, as [folders] gives it. */

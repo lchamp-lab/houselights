@@ -35,10 +35,10 @@
     <string name="empty_collections">Nie ma jeszcze sag</string>
     <string name="empty_server">Serwer nie udostępnia temu kontu żadnych filmów ani seriali.</string>
     <plurals name="title_count">
-        <item quantity="one">%d tytuł</item>
-        <item quantity="few">%d tytuły</item>
-        <item quantity="many">%d tytułów</item>
-        <item quantity="other">%d tytułu</item>
+        <item quantity="one">%s tytuł</item>
+        <item quantity="few">%s tytuły</item>
+        <item quantity="many">%s tytułów</item>
+        <item quantity="other">%s tytułu</item>
     </plurals>
     <string name="home_empty_title">Nie ma jeszcze filmów</string>
     <string name="home_empty_local">Dodaj folder, w którym się znajdują.</string>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home's first scan (« Premier scan »): the folder read, the videos its listing found, the way to home meanwhile. -->
+<resources>
+    <string name="first_scan_listing">正在讀取資料夾…</string>
+    <string name="first_scan_reading">正在掃描資料夾…</string>
+    <plurals name="first_scan_found">
+        <item quantity="other">已找到 %s 部影片…</item>
+    </plurals>
+    <string name="first_scan_home">前往首頁</string>
+    <string name="first_scan_home_goes_on">掃描會在背景繼續</string>
+</resources>

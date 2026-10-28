@@ -321,6 +321,34 @@ internal object HomeGridDefaults {
     val stateRows = 11.dp
 }
 
+/**
+ * Home's first scan (DESIGN.md, Layout): the folder's block on the margin and the wall of the titles found at the safe
+ * area's end, both standing on its foot; « Aller à l'accueil » over the wall.
+ */
+internal object FirstScanDefaults {
+    /** The wall: [COLUMNS] posters across ([HlSize.wallPoster]), [gap] apart both ways, at the safe area's end. */
+    const val COLUMNS = 4
+    val gap = HlSpace.xs
+
+    /** Its frames: two whole lines, every one inside the safe area. */
+    const val FRAMES = 8
+
+    /** The wall's width: 4 × 112 + 3 × 8 = 472. */
+    val wall = HlSize.wallPoster * COLUMNS + gap * (COLUMNS - 1)
+
+    /** The block's column: the safe area less the wall and [HlSpace.xxl] (344), the folder's name set to its measure in it. */
+    val column = HlLayout.CANVAS_WIDTH.dp - HlSpace.safeH * 2 - wall - HlSpace.xxl
+
+    /** The block's line, as a hero's ([HlSize.heroProgress]). */
+    val line = HlSize.heroProgress
+
+    /** « Aller à l'accueil » over the wall's posters. */
+    val buttonGap = HlSpace.m
+
+    /** A step of the wall at most this often: a frame filled or renewed, so each frame keeps a title 16 s at least. */
+    const val STEP_MS = 2_000L
+}
+
 /** The logo or title of a hero: « À regarder », a person's page. */
 internal object HeroDefaults {
     val titleWidth = 380.dp

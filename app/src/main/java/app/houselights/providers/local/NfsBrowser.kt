@@ -41,10 +41,11 @@ internal class NfsBrowser(
 
     private val unreadable = UnreadablePaths()
 
-    override suspend fun list(source: SourceEntity): Listing = withMount(source) { mounted ->
+    /** About a READDIRPLUS a folder: the count moves a folder at a time. */
+    override suspend fun list(source: SourceEntity, found: (Int) -> Unit): Listing = withMount(source) { mounted ->
         val export = mounted.export
         val folder = Folders(export).folder(remotePath(source), export.folder(root(source)))
-        walk(folder, unreadable.of(source)) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        walk(folder, unreadable.of(source), found) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     /** Uses a fresh mount so the NAS checks access now; links are followed as a scan follows them. */

@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import android.os.SystemClock
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
@@ -21,6 +22,7 @@ import org.robolectric.shadows.ShadowSystemClock
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.time.Duration
+import java.util.Collections
 
 /** Whole passes over folders on a NAS held in memory, without TMDB: when they run, what they wait for and write. */
 @RunWith(RobolectricTestRunner::class)
@@ -85,6 +87,73 @@ class LibraryScannerTest {
         assertEquals("closer, then as any pass", listOf(true, false), told.map { it.filling }.distinct())
         assertTrue("closer while the row fills: $told", told.filter { it.filling }.all { it.films < LocalProvider.LATEST })
         assertTrue("as any pass once it is full: $told", told.filterNot { it.filling }.all { it.films >= LocalProvider.LATEST })
+    }
+
+    /**
+     * The library's very first pass stays its first scan until it ends, past home's rows full, where screens follow it as
+     * any pass ([ScanState.homeFilling]); the next, over the titles it found, is not, nor is any once it ends.
+     */
+    @Test
+    fun theFirstScanLastsItsWholePass() = runTest {
+        repeat(40) { nas.put("Film $it (2001).mkv") }
+        val first = statesAsItRuns().filter { it.running }
+        assertEquals("closer, then as any pass", listOf(true, false), first.map { it.homeFilling }.distinct())
+        assertEquals("its first scan all along", listOf(true), first.map { it.firstPass }.distinct())
+        assertFalse("over", bench.scanner.state.value.firstPass)
+
+        nas.put("Film 40 (2002).mkv")
+        assertEquals(listOf(false), statesAsItRuns().filter { it.running }.map { it.firstPass }.distinct())
+    }
+
+    /**
+     * Once every folder's files are read, the pass says it is finishing while what is left of it goes on, never while a
+     * file is read; its end says it no more.
+     */
+    @Test
+    fun aPassSaysItIsFinishingOnceEveryFoldersFilesAreRead() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        repeat(6) { nas.put("Film $it (2001).mkv") }
+        bench.showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
+        val states = statesAsItRuns()
+        val at = states.indexOfFirst { it.finishing }
+        assertTrue("finishing as it runs: $states", at > 0 && states[at].running)
+        assertEquals("after the last folder's files", shows.id, states[at - 1].sourceId)
+        assertTrue("nothing read once finishing", states.drop(at).filter { it.running }.all { it.finishing && it == states[at] })
+        assertFalse("its end", bench.scanner.state.value.finishing)
+    }
+
+    /**
+     * While a folder is listed, the videos found so far reach screens at most once a second, the listing's start counting
+     * as one, a disc once and a film's trailer never: a word that changes, never figures scrolling.
+     */
+    @Test
+    fun theVideosAFolderListsAreToldAtMostOnceASecond() = runTest {
+        repeat(9) { nas.put("Film $it (2001)/Film $it (2001).mkv") }
+        nas.put("Film 0 (2001)/Film 0 (2001)-trailer.mkv")
+        nas.put("Heat (1995)/BDMV/STREAM/00001.m2ts")
+        nas.put("Heat (1995)/BDMV/STREAM/00002.m2ts")
+        // The NAS lists a film's folder each 400 ms.
+        nas.onFound = { SystemClock.sleep(LISTED_EACH_MS) }
+        val listing = statesAsItRuns().filter { it.running && it.total == 0 }.map { it.listed }.distinct()
+        assertEquals("at 1.2 s, 2.4 s and 3.6 s: ten videos, a disc once", listOf(0, 4, 7, 10), listing)
+    }
+
+    /** A folder listed in less than a second says no count: the files are counted at once. */
+    @Test
+    fun aFolderListedAtOnceSaysNoCount() = runTest {
+        repeat(9) { nas.put("Film $it (2001).mkv") }
+        assertEquals(listOf(0), statesAsItRuns().filter { it.running }.map { it.listed }.distinct())
+    }
+
+    /** Every state a pass goes through, in order, each read as it is written. */
+    private suspend fun statesAsItRuns(): List<ScanState> {
+        val states = Collections.synchronizedList(mutableListOf<ScanState>())
+        coroutineScope {
+            val watch = launch(Dispatchers.Unconfined) { bench.scanner.state.collect { states += it } }
+            bench.scan()
+            watch.cancel()
+        }
+        return states.toList()
     }
 
     /** What a pass told screens at one of its progress: whether home was still filling, and how many films it had read. */
@@ -207,6 +276,25 @@ class LibraryScannerTest {
         assertEquals(listOf("Dune (2021).mkv"), filePaths())
     }
 
+    /**
+     * Android's screensaver over the app is no other player reading the NAS: a pass waiting for the app to be on screen
+     * goes on under it, so a first scan of hours does not stop at the first one.
+     */
+    @Test
+    fun aScanGoesOnUnderAndroidsScreensaver() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { listed++ }
+        bench.started.value = false
+        bench.scanner.scanAll()
+        bench.started.subscriptionCount.first { it > 0 }
+        assertEquals("the app left: it waits", 0, listed)
+
+        bench.dreaming.value = true
+        bench.awaitScans()
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
     @Test
     fun aPassCutShortLetsTheNextOneStart() = runTest {
         nas.put("Dune (2021).mkv")
@@ -314,5 +402,8 @@ class LibraryScannerTest {
         const val START = ScanBench.START
         const val HOUR = 60 * 60_000L
         const val TEN_MINUTES = 10 * 60_000L
+
+        /** A film's folder listed, on a NAS listing one folder a request. */
+        const val LISTED_EACH_MS = 400L
     }
 }

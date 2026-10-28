@@ -43,6 +43,9 @@ internal const val TO_IDENTIFY =
         "AND missingSince IS NULL AND (kind = 'MOVIE' OR NOT EXISTS ($EPISODES_OF_SHOW) " +
         "OR EXISTS ($EPISODES_OF_SHOW AND e.missingSince IS NULL))"
 
+/** The films and shows home's first scan shows ([LibraryDao.observeFirstTitles]): a film's copies once. */
+private const val FIRST_TITLES = "kind IN ('MOVIE','SERIES') AND versionOf IS NULL"
+
 /** The keys of the local films' and shows' choices of tracks ([tracksKey]). */
 private const val TRACK_KEYS =
     "SELECT CASE WHEN kind = 'MOVIE' AND tmdbId IS NOT NULL THEN 'local:film:' || tmdbId ELSE 'local:' || id END " +
@@ -64,6 +67,9 @@ data class HeldRow(
     val seasonNumber: Int?,
     val episodeNumber: Int?,
 )
+
+/** A film or show as home's first scan shows it ([LibraryDao.observeFirstTitles]): its poster's path, the user's first. */
+data class FirstTitleRow(val id: Long, val title: String, val year: Int?, val poster: String?)
 
 /** Counts shown on a source's settings showcase: titles (films and shows), Ultra HD files, shows and their episodes. */
 data class FolderCounts(val sourceId: Long, val titles: Int, val ultraHd: Int, val shows: Int = 0, val episodes: Int = 0)
@@ -439,6 +445,18 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
             "AND COALESCE(NULLIF(userPosterPath, ''), posterPath) IS NOT NULL ORDER BY addedAt DESC LIMIT :limit",
     )
     fun observeAllPosters(limit: Int): Flow<List<String>>
+
+    /**
+     * The [limit] films and shows first added, then the latest, first added first: a film's copies once
+     * ([ItemEntity.versionOf]), titles without a poster too. What home's first scan shows of the titles it finds.
+     */
+    @Query(
+        "SELECT id, title, year, COALESCE(NULLIF(userPosterPath, ''), posterPath) AS poster FROM items WHERE id IN (" +
+            "SELECT id FROM (SELECT id FROM items WHERE $FIRST_TITLES ORDER BY addedAt, id LIMIT :limit) " +
+            "UNION SELECT id FROM (SELECT id FROM items WHERE $FIRST_TITLES ORDER BY addedAt DESC, id DESC LIMIT 1)" +
+            ") ORDER BY addedAt, id",
+    )
+    fun observeFirstTitles(limit: Int): Flow<List<FirstTitleRow>>
 
     @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}")
     fun observeDefinitionCount(sourceId: Long, token: String): Flow<Int>

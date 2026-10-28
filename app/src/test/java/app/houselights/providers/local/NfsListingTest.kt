@@ -142,6 +142,20 @@ class NfsListingTest {
         assertEquals(emptyList<String>(), listing.unreadable)
     }
 
+    /** An export's listing counts its videos as it finds them, about a request a folder: a disc once, a trailer never. */
+    @Test
+    fun aListingCountsItsVideosAsItFindsThem() = runTest {
+        library()
+        file("Dune (2021)/Dune (2021)-trailer.mkv", size = 1_000_000)
+        listOf("Heat (1995)", "Heat (1995)/BDMV", "Heat (1995)/BDMV/STREAM").forEach(::folder)
+        file("Heat (1995)/BDMV/STREAM/00000.m2ts", size = 1_000_000)
+        file("Heat (1995)/BDMV/STREAM/00001.m2ts", size = 40_000_000_000)
+        val counted = mutableListOf<Int>()
+        val listing = browser(Export()).list(films) { counted += it }
+        assertEquals("Arrival, Dune, Heat's disc, Sicario", listOf(1, 2, 3, 4), counted)
+        assertEquals(6, listing.videos.size)
+    }
+
     /** One request per folder, where READDIR then LOOKUP and GETATTR per entry would take about three per file. */
     @Test
     fun aFolderIsListedInOneRequest() = runTest {

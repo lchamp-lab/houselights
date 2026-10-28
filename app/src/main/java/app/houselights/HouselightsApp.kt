@@ -299,6 +299,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         browsers = remoteBrowsers::of,
         closeIdle = remoteBrowsers::closeIdle,
         started = onScreen,
+        dreaming = screensaverShows(app),
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 

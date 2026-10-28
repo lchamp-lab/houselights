@@ -270,6 +270,20 @@ class LocalBrowserTest {
         }
     }
 
+    /** A disk's listing counts its videos as it finds them, whatever order the disk gives: a disc once, a trailer never. */
+    @Test
+    fun aListingCountsItsVideosAsItFindsThem() = runTest {
+        disk.put("Films/Dune (2021)/Dune (2021).mkv")
+        disk.put("Films/Dune (2021)/Dune (2021)-trailer.mkv")
+        disk.put("Films/Heat (1995)/BDMV/STREAM/00000.m2ts")
+        disk.put("Films/Heat (1995)/BDMV/STREAM/00001.m2ts")
+        disk.put("Films/Arrival (2016).mkv")
+        val counted = mutableListOf<Int>()
+        val listing = browser.list(diskFolder()) { counted += it }
+        assertEquals("Dune, Heat's disc, Arrival", listOf(1, 2, 3), counted)
+        assertEquals(5, listing.videos.size)
+    }
+
     private companion object {
         /** Two dates in whole seconds, as every file system keeps them. */
         const val T1 = 1_760_000_000_000L

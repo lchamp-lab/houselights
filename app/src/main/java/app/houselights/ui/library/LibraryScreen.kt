@@ -96,6 +96,7 @@ import app.houselights.ui.util.pictureName
 import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.skeletonDelayPassed
+import app.houselights.ui.util.titleCount
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -247,7 +248,7 @@ private fun wallCount(state: LibraryState, kind: LibraryKind): String {
     val sagas = state.sagas ?: 0
     val titles = state.total - sagas
     return listOfNotNull(
-        titles.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.title_count, it, it) },
+        titles.takeIf { it > 0 }?.let { titleCount(it) },
         sagas.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.collection_count, it, it) },
     ).joinToString(DOT)
 }

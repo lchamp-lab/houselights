@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home's first scan (« Premier scan »): the folder read, the videos its listing found, the way to home meanwhile. -->
+<resources>
+    <string name="first_scan_listing">Lettura della cartella…</string>
+    <string name="first_scan_reading">Scansione della cartella…</string>
+    <plurals name="first_scan_found">
+        <item quantity="one">%s video trovato…</item>
+        <item quantity="many">%s video trovati…</item>
+        <item quantity="other">%s video trovati…</item>
+    </plurals>
+    <string name="first_scan_home">Vai alla home</string>
+    <string name="first_scan_home_goes_on">La scansione continua in background</string>
+</resources>
