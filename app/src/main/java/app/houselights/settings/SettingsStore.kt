@@ -16,6 +16,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import app.houselights.core.CollectionThreshold
 import app.houselights.core.Opened
 import app.houselights.core.PathMapping
+import app.houselights.core.SecretStore
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
@@ -114,7 +115,7 @@ private fun needsSealing(key: Preferences.Key<String>, plain: String): Boolean =
 internal class SealSecrets(private val secrets: Secrets) : DataMigration<Preferences> {
     /** Asked at each launch before the settings are read or written: the key versions they hold are recorded first. */
     override suspend fun shouldMigrate(currentData: Preferences): Boolean {
-        secrets.recordKeys(SECRET_KEYS.mapNotNull { currentData[it] })
+        secrets.recordKeys(SecretStore.SETTINGS, SECRET_KEYS.mapNotNull { currentData[it] })
         return SECRET_KEYS.any { key -> currentData[key]?.let { !secrets.isSealed(it) && needsSealing(key, it) } == true }
     }
 

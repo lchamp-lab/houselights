@@ -10,6 +10,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.houselights.core.Job
 import app.houselights.core.MediaInfo
+import app.houselights.core.SecretStore
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.suspendRunCatching
@@ -523,7 +524,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             suspendRunCatching {
                 withContext(Dispatchers.IO) {
                     val passwords = dao.storedPasswords()
-                    secrets.recordKeys(passwords.map { it.password })
+                    secrets.recordKeys(SecretStore.FOLDERS, passwords.map { it.password })
                     val plain = passwords.filterNot { secrets.isSealed(it.password) }
                     for (stored in plain) dao.sealPassword(stored.id, stored.password, secrets.seal(stored.password))
                     plain.size

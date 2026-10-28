@@ -64,7 +64,7 @@ class SavedKeyRecordTest {
         val keystore = FakeKeystore(SavedKeyRecord(prefs) { true })
         val token = keystore.sealedBeforeTheRecord("token")
         keystore.blank = true
-        keystore.secrets().recordKeys(listOf(token))
+        keystore.secrets().recordKeys(SecretStore.SETTINGS, listOf(token))
         val sealed = keystore.secrets().seal("new")
         assertTrue(sealed, sealed.startsWith("sealed3:"))
         assertEquals(listOf(3), keystore.made)
@@ -78,7 +78,7 @@ class SavedKeyRecordTest {
     @Test
     fun aFreshInstallFindsNoKeyAtLaunchThenMakesItsFirst() {
         val keystore = FakeKeystore(SavedKeyRecord(prefs) { false })
-        keystore.secrets().recordKeys(listOf("legacy"))
+        keystore.secrets().recordKeys(SecretStore.SETTINGS, listOf("legacy"))
         assertEquals(emptySet<Int>(), keystore.record.versions())
         assertTrue(keystore.secrets().seal("token").startsWith("sealed1:"))
         assertEquals(listOf(1), keystore.made)
@@ -95,7 +95,7 @@ class SavedKeyRecordTest {
         val record = SavedKeyRecord(Unwritable(prefs)) { true }
         val keystore = FakeKeystore(record, listing = false)
         val token = keystore.sealedBeforeTheRecord("token")
-        keystore.secrets().recordKeys(listOf(token))
+        keystore.secrets().recordKeys(SecretStore.SETTINGS, listOf(token))
         assertEquals(setOf(Secrets.FIRST_KEY), record.versions())
 
         keystore.absent += mapOf(1 to 2, 2 to 1)

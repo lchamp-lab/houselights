@@ -2,6 +2,7 @@ package app.houselights.testing
 
 import app.houselights.core.KeyRecord
 import app.houselights.core.Keyring
+import app.houselights.core.SecretStore
 import app.houselights.core.Secrets
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -55,8 +56,8 @@ class FakeKeystore(val record: KeyRecord = TestKeyRecord(), val listing: Boolean
         return if (version in unusable) SecretKeySpec(ByteArray(7), "AES") else key
     }
 
-    /** [Secrets] as a fresh app process sees them, with nothing cached. */
-    fun secrets() = Secrets(this, record)
+    /** [Secrets] as a fresh app process sees them, with nothing cached; no key is made before [stores] are counted. */
+    fun secrets(stores: Set<SecretStore> = emptySet()) = Secrets(this, record, stores)
 
     /**
      * [plain] as a version from before the record left it, which had moved on to a second key and sealed with its

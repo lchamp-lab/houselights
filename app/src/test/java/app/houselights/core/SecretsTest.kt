@@ -205,7 +205,7 @@ class SecretsTest {
         val token = keystore.sealedBeforeTheRecord("token")
 
         keystore.blank = true
-        keystore.secrets().recordKeys(listOf("legacy", token))
+        keystore.secrets().recordKeys(SecretStore.SETTINGS, listOf("legacy", token))
         assertEquals(setOf(1, 2), keystore.record.versions())
         val sealed = keystore.secrets().seal("new")
         assertTrue(sealed, sealed.startsWith("sealed3:"))
@@ -214,6 +214,32 @@ class SecretsTest {
         keystore.blank = false
         assertEquals("token", keystore.secrets().open(token))
         assertEquals("new", keystore.secrets().open(sealed))
+    }
+
+    /**
+     * The first launch after an update counts each store as it opens, the folders' passwords once the library has
+     * migrated: a seal meanwhile, the Keystore reading empty, fails for now rather than make a key the store not yet
+     * counted may name, and once both are counted the seal moves on past every key they name.
+     */
+    @Test
+    fun noKeyIsMadeBeforeEveryStoreIsCounted() {
+        val keystore = FakeKeystore(TestKeyRecord(Secrets.FIRST_KEY))
+        val password = keystore.sealedBeforeTheRecord("password")
+        keystore.blank = true
+        val secrets = keystore.secrets(SecretStore.entries.toSet())
+
+        secrets.recordKeys(SecretStore.SETTINGS, listOf("legacy"))
+        assertThrows(SecretsUnavailableException::class.java) { secrets.seal("token") }
+        assertEquals(emptyList<Int>(), keystore.made)
+
+        secrets.recordKeys(SecretStore.FOLDERS, listOf(password))
+        val sealed = secrets.seal("token")
+        assertTrue(sealed, sealed.startsWith("sealed3:"))
+        assertEquals(listOf(3), keystore.made)
+
+        keystore.blank = false
+        assertEquals("password", keystore.secrets().open(password))
+        assertEquals("token", keystore.secrets().open(sealed))
     }
 
     /** Recording at launch reads the stored text alone: a Keystore failing at every call is never asked. */
@@ -229,7 +255,7 @@ class SecretsTest {
             override fun create(version: Int): SecretKey = error("Made")
         }
         val record = TestKeyRecord()
-        Secrets(failing, record).recordKeys(listOf("sealed2:AAAA", "sealed7:not base64!", "legacy", ""))
+        Secrets(failing, record).recordKeys(SecretStore.FOLDERS, listOf("sealed2:AAAA", "sealed7:not base64!", "legacy", ""))
         assertEquals(setOf(2, 7), record.versions())
     }
 
