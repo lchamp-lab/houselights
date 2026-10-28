@@ -454,7 +454,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 
     init {
         scope.launch { settings.ensureDeviceId() }
-        // Seals passwords left in plain text by a failing Keystore (migration 6 to 7) once it works again.
+        // Records the passwords' key versions, then seals those a failing Keystore left plain (migration 6 to 7) once it works.
         scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device(app)) }
         // Trakt follows the account and the source; the end of a scan reads it again.
         scope.launch { traktFollow.drive(traktSync) }

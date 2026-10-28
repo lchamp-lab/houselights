@@ -294,9 +294,9 @@ adb shell appops set app.houselights MANAGE_EXTERNAL_STORAGE allow            # 
   those seconds alone. Listing a NAS's shares signs in with the account typed, or as a
   guest, on a connection of its own closed once listed; listing its NFS exports needs no account.
 - Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
-  held in the Android Keystore, never replaced once made: one the Keystore does not open for now is kept, said as
-  such, never tried empty on the NAS, and read again with Retry or on coming back to the app. Android backup is
-  disabled. Disconnecting Trakt revokes the app's token there.
+  held in the Android Keystore, never replaced once made, by this version or an earlier one: one the Keystore does
+  not open for now is kept, said as such, never tried empty on the NAS, and read again with Retry or on coming back
+  to the app. Android backup is disabled. Disconnecting Trakt revokes the app's token there.
 - Jellyfin is reached over HTTPS when the server offers it. A certificate the player refuses stops the sign-in
   rather than fall back to plain HTTP, which typing `http://` chooses; refused later (expired, or the player's clock
   wrong), as TMDB's may be, screens say "Certificate refused". Each server found on the network is checked as it
