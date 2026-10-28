@@ -551,7 +551,7 @@
     <string name="identify_kept">Unverändert gelassen</string>
     <string name="identify_suggestions">Vorschläge</string>
     <string name="identify_skip">Überspringen</string>
-    <string name="error_offline_title">Bibliothek nicht erreichbar</string>
+    <string name="error_offline_title">Bibliothek unerreichbar</string>
     <string name="error_offline_nas_title">NAS nicht erreichbar</string>
     <string name="error_offline_server_title">Server nicht erreichbar</string>
     <string name="error_disk_absent_title">Laufwerk fehlt</string>

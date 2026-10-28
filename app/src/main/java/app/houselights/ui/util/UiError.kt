@@ -2,10 +2,13 @@ package app.houselights.ui.util
 
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.R
 import app.houselights.core.DiskAbsentException
 import app.houselights.core.FailureKind
@@ -14,6 +17,10 @@ import app.houselights.core.causeChain
 import app.houselights.core.failureKind
 import app.houselights.providers.local.Folder
 import app.houselights.providers.local.Protocol
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /** What fixes an error, named on its button. Screens try again themselves; the others lead elsewhere. */
 enum class ErrorAction(@StringRes val label: Int) {
@@ -131,8 +138,25 @@ fun libraryPlaceOf(source: SourceConfig?, folders: List<Folder>): LibraryPlace? 
     null -> null
 }
 
-/** Where the library in use lies ([libraryPlaceOf]), provided with the navigation; null where it is not known. */
+/** Where the library lies ([libraryPlaceOf]) as the source in use ([sources]) and its folders ([folders]) change. */
+fun libraryPlaces(sources: Flow<SourceConfig?>, folders: Flow<List<Folder>>): Flow<LibraryPlace?> =
+    combine(sources, folders, ::libraryPlaceOf).distinctUntilChanged()
+
+/**
+ * Where the library in use lies ([libraryPlaceOf]), provided with the navigation ([ProvideLibraryPlace]); null where it
+ * is not known.
+ */
 val LocalLibraryPlace = compositionLocalOf<LibraryPlace?> { null }
+
+/**
+ * [content] told where the library lies ([LocalLibraryPlace]) as [place] moves, which names it out of reach wherever an
+ * error is said.
+ */
+@Composable
+internal fun ProvideLibraryPlace(place: StateFlow<LibraryPlace?>, content: @Composable () -> Unit) {
+    val at by place.collectAsStateWithLifecycle()
+    CompositionLocalProvider(LocalLibraryPlace provides at, content = content)
+}
 
 /**
  * This error's title, the library out of reach ([UiError.OFFLINE]) named by where it lies ([place]): « NAS

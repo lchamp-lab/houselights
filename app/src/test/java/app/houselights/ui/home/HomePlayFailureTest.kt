@@ -35,6 +35,7 @@ import app.houselights.ui.util.LibraryPlace
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.LocalLibraryPlace
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.titleAt
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -136,7 +137,7 @@ class HomePlayFailureTest {
 
     /**
      * Where the library lies is said whole on the case's line in each of the app's languages at the largest text size:
-     * the NAS, the server and a disk not found, never ending in an ellipsis.
+     * the NAS, the server, folders on the player's own disks alone and a disk not found, never ending in an ellipsis.
      */
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -144,8 +145,12 @@ class HomePlayFailureTest {
         val device = Locale.getDefault()
         fontScale = LARGEST_TEXT
         open(failed = UiError.OFFLINE)
-        val cases =
-            listOf(LibraryPlace.NAS to UiError.OFFLINE, LibraryPlace.SERVER to UiError.OFFLINE, LibraryPlace.NAS to UiError.DISK_ABSENT)
+        val cases = listOf(
+            LibraryPlace.NAS to UiError.OFFLINE,
+            LibraryPlace.SERVER to UiError.OFFLINE,
+            null to UiError.OFFLINE,
+            LibraryPlace.NAS to UiError.DISK_ABSENT,
+        )
         val cut = try {
             InterfaceLanguage.LANGUAGES.flatMap { tag ->
                 Locale.setDefault(Locale.forLanguageTag(tag))
@@ -156,7 +161,7 @@ class HomePlayFailureTest {
                         problem = error
                     }
                     compose.waitForIdle()
-                    val reason = spoken(tag, if (error == UiError.OFFLINE) at.title else error.title)
+                    val reason = spoken(tag, error.titleAt(at))
                     val layout = layoutOf(said(reason))
                     "$tag: «$reason»".takeIf { layout.hasVisualOverflow || (0 until layout.lineCount).any(layout::isLineEllipsized) }
                 }
@@ -166,10 +171,6 @@ class HomePlayFailureTest {
         }
         assertEquals("Cut at $LARGEST_TEXT", emptyList<String>(), cut)
     }
-
-    /** The case's word for the library out of reach at this place. */
-    private val LibraryPlace.title
-        get() = if (this == LibraryPlace.NAS) R.string.error_offline_nas_title else R.string.error_offline_server_title
 
     /** [id] as home says it in [tag]. */
     private fun spoken(tag: String, id: Int): String {

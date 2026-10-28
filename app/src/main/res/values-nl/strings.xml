@@ -550,7 +550,7 @@
     <string name="identify_kept">Zo gelaten</string>
     <string name="identify_suggestions">Suggesties</string>
     <string name="identify_skip">Overslaan</string>
-    <string name="error_offline_title">Bibliotheek onbereikbaar</string>
+    <string name="error_offline_title">Bibliotheek offline</string>
     <string name="error_offline_nas_title">NAS onbereikbaar</string>
     <string name="error_offline_server_title">Server onbereikbaar</string>
     <string name="error_disk_absent_title">Schijf niet gevonden</string>

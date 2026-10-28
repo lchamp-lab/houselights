@@ -1,5 +1,6 @@
 package app.houselights.ui.edit
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasClickAction
@@ -19,6 +20,8 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.film
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.LibraryPlace
+import app.houselights.ui.util.LocalLibraryPlace
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,6 +34,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.net.ConnectException
 
 /**
  * Identifier on a title to identify says why, by the panel's ring, in a sentence that follows the reason; it can leave
@@ -70,10 +74,14 @@ class IdentifyScreenTest {
         suggestions = suggestions,
     )
 
-    private fun show(identity: Identity, queue: Boolean = false) {
+    private fun show(identity: Identity, queue: Boolean = false, place: LibraryPlace? = null) {
         provider.identity = identity
         val vm = IdentifyViewModel("m1", { provider }, work, queue = queue)
-        compose.setTvContent { IdentifyPage(vm, onDone = { done++ }, queue = queue, onNext = { next += it }) }
+        compose.setTvContent {
+            CompositionLocalProvider(LocalLibraryPlace provides place) {
+                IdentifyPage(vm, onDone = { done++ }, queue = queue, onNext = { next += it })
+            }
+        }
         compose.waitForIdle()
     }
 
@@ -153,6 +161,18 @@ class IdentifyScreenTest {
         compose.onNodeWithText("Suggestions").assertDoesNotExist()
         compose.onNodeWithText("1${Typography.nbsp}result").assertExists()
         compose.onNodeWithText("Heat").assertExists()
+    }
+
+    /** A search that fails says why above the suggestions it leaves, the library out of reach by where it lies. */
+    @Test
+    fun aSearchFailingSaysTheServerOutOfReach() {
+        provider.fail = { call -> ConnectException("Connection refused").takeIf { call.startsWith("search") } }
+        show(identity(MatchDoubt.UNSURE, suggestions = listOf(dune, lynch)), place = LibraryPlace.SERVER)
+        compose.onNode(hasText("Search") and hasClickAction()).requestFocus()
+        compose.mainClock.advanceTimeBy(HlMotion.SETTLE)
+        compose.press(Key.DirectionCenter)
+        compose.onNodeWithText("Server unreachable").assertExists()
+        compose.onNodeWithText("Suggestions").assertExists()
     }
 
     /** In the queue, « Passer » comes first, nearest the results, Left from a suggestion reaching it. */

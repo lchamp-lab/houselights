@@ -13,6 +13,7 @@ import app.houselights.R
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -62,6 +63,22 @@ class OfflineTitleTest {
             CompositionLocalProvider(LocalLibraryPlace provides place) { HlErrorState(error, onRetry = {}) }
         }
         assertEachPlaceSaid()
+    }
+
+    /** As the app provides it, from the place it follows ([libraryPlaces]): each screen's title moves with it. */
+    @Test
+    fun theAppsPlaceReachesTheScreens() {
+        val provided = MutableStateFlow<LibraryPlace?>(null)
+        compose.setTvContent { ProvideLibraryPlace(provided) { HlErrorState(error, onRetry = {}) } }
+        mapOf(
+            LibraryPlace.NAS to R.string.error_offline_nas_title,
+            LibraryPlace.SERVER to R.string.error_offline_server_title,
+            null to R.string.error_offline_title,
+        ).forEach { (at, title) ->
+            provided.value = at
+            compose.waitForIdle()
+            said(title).assertIsDisplayed()
+        }
     }
 
     @Test
