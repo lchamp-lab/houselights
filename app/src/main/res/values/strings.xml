@@ -40,8 +40,8 @@
     <string name="empty_collections">No sagas yet</string>
     <string name="empty_server">The server offers no film or show to this account.</string>
     <plurals name="title_count">
-        <item quantity="one">%d title</item>
-        <item quantity="other">%d titles</item>
+        <item quantity="one">%s title</item>
+        <item quantity="other">%s titles</item>
     </plurals>
     <string name="home_empty_title">No films yet</string>
     <string name="home_empty_local">Add the folder that holds them.</string>
@@ -623,7 +623,7 @@
     <string name="error_action_add_tmdb_key">Add a key</string>
     <string name="error_action_edit_tmdb_key">Change the key</string>
     <!-- Settings rows -->
-    <string name="scan_progress" translatable="false">%1$d / %2$d</string>
+    <string name="scan_progress" translatable="false">%1$s / %2$s</string>
     <string name="refresh_metadata_desc">Fetch artwork and details from TMDB again</string>
     <string name="metadata_language">Details language</string>
     <string name="metadata_language_desc">Titles, summaries and artwork from TMDB</string>

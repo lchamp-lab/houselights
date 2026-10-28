@@ -24,8 +24,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * DESIGN.md, Focus: Back on home's grid says once that a second Back quits, in its head, then quits; under the
- * launch screen, the first quits.
+ * DESIGN.md, Focus: Back on home's grid says once that a second Back quits, in its head, then quits, and that the scan
+ * will resume while the library's first pass runs; under the launch screen, the first quits.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -37,6 +37,9 @@ class QuitAgainTest {
 
     private val line = "Press Back again to quit"
 
+    /** The line while the library's first pass runs: the scan waits while the app is away. */
+    private val waits = "Press Back again to quit: the scan will resume when you come back"
+
     /** The launch screen, covering until it lifts. */
     private class Cover : LaunchScreen {
         override var covers = true
@@ -44,9 +47,9 @@ class QuitAgainTest {
         override fun drawn() = Unit
     }
 
-    private fun open(launch: LaunchScreen? = null) {
+    private fun open(launch: LaunchScreen? = null, shown: HomeState = home) {
         compose.setTvContent {
-            if (launch == null) HomeGrid(home) else CompositionLocalProvider(LocalLaunchScreen provides launch) { HomeGrid(home) }
+            if (launch == null) HomeGrid(shown) else CompositionLocalProvider(LocalLaunchScreen provides launch) { HomeGrid(shown) }
         }
         compose.waitForIdle()
     }
@@ -108,6 +111,26 @@ class QuitAgainTest {
         back()
         assertFalse(quits)
         compose.onNodeWithText(line).assertIsDisplayed()
+    }
+
+    /** On the library's first scan, a first Back says the scan will resume, then a second quits. */
+    @Test
+    fun onTheFirstScanTheLineSaysTheScanWillResume() {
+        open(shown = HomeState(content = HomeContent.FirstScan, firstPass = true))
+        back()
+        compose.onNodeWithText(waits).assertIsDisplayed()
+        assertFalse(quits)
+        back()
+        assertTrue(quits)
+    }
+
+    /** On home's grid after « Aller à l'accueil », while the first pass goes on, the line says so as well. */
+    @Test
+    fun onTheGridWhileTheFirstPassRunsTheLineSaysTheScanWillResume() {
+        open(shown = home.copy(firstPass = true))
+        back()
+        compose.onNodeWithText(waits).assertIsDisplayed()
+        compose.onNodeWithText(line).assertDoesNotExist()
     }
 
     @Test

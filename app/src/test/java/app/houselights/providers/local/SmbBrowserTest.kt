@@ -178,6 +178,32 @@ class SmbBrowserTest {
         assertEquals(emptyList<Boolean>(), opened.single().closes)
     }
 
+    /** A share's listing counts its videos as it finds them, a folder a request: a disc once, a trailer never. */
+    @Test
+    fun aListingCountsItsVideosAsItFindsThem() = runTest {
+        tree = mapOf(
+            "" to listOf(
+                SmbEntry("Dune (2021)", isFolder = true, size = 0),
+                SmbEntry("Heat (1995)", isFolder = true, size = 0),
+                SmbEntry("Arrival (2016).mkv", isFolder = false, size = 4),
+            ),
+            "Dune (2021)" to listOf(
+                SmbEntry("Dune (2021).mkv", isFolder = false, size = 4),
+                SmbEntry("Dune (2021)-trailer.mkv", isFolder = false, size = 4),
+            ),
+            "Heat (1995)" to listOf(SmbEntry("BDMV", isFolder = true, size = 0)),
+            "Heat (1995)\\BDMV" to listOf(SmbEntry("STREAM", isFolder = true, size = 0)),
+            "Heat (1995)\\BDMV\\STREAM" to listOf(
+                SmbEntry("00000.m2ts", isFolder = false, size = 4),
+                SmbEntry("00001.m2ts", isFolder = false, size = 4),
+            ),
+        )
+        val counted = mutableListOf<Int>()
+        val listing = browser.list(folder()) { counted += it }
+        assertEquals("Dune, Heat's disc, Arrival", listOf(1, 2, 3), counted)
+        assertEquals(5, listing.videos.size)
+    }
+
     @Test
     fun aFileIsReadByItsPathInTheShare() = runTest {
         val films = folder().copy(path = "/Films/4K/")

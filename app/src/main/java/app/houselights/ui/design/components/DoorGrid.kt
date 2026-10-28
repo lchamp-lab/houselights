@@ -45,7 +45,8 @@ import kotlin.math.roundToInt
 /**
  * Home's head over the grid: the lockup at the safe area's start, a passing [status] by its [statusState]'s light (the
  * quiet dot of Back once, the white one of an update installed, the attention mark of one that was not) then [end] (a
- * tile where home shows no grid) at its end, then the gap to the grid.
+ * tile where home shows no grid) at its end, then the gap to the grid. The status takes what the lockup, a gap and the
+ * end leave, never squeezing the end: a long one (Back on the first scan, at the largest text) goes on two lines.
  */
 @Composable
 fun HomeHead(
@@ -62,9 +63,10 @@ fun HomeHead(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Lockup(HomeGridDefaults.lockup)
-        Spacer(Modifier.weight(1f))
-        // Taller than the band, they stand over it, never squeezed.
-        if (status != null) Box(Modifier.wrapContentHeight(unbounded = true)) { PassingStatus(status, statusState) }
+        // Taller than the band, they stand over it, never squeezed, at the end of what the lockup and the end leave.
+        Box(Modifier.weight(1f).padding(start = HlSpace.l).wrapContentHeight(unbounded = true), contentAlignment = Alignment.CenterEnd) {
+            if (status != null) PassingStatus(status, statusState)
+        }
         if (end != null) {
             Spacer(Modifier.width(HlSpace.s))
             Box(Modifier.wrapContentHeight(unbounded = true)) { HeaderControls(end) }

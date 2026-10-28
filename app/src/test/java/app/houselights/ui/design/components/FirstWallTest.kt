@@ -1,0 +1,252 @@
+package app.houselights.ui.design.components
+
+import android.app.Application
+import androidx.compose.runtime.MonotonicFrameClock
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.printToString
+import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.ImageRef
+import app.houselights.ui.design.FirstScanDefaults
+import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.pictureServer
+import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.NBSP
+import app.houselights.ui.util.formatCount
+import coil.Coil
+import coil.ImageLoader
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+/**
+ * DESIGN.md, Layout: home's first scan's wall shows at once the titles there as it comes, once read, then fills first
+ * found first, a batch a step; full, it renews in place, one frame a step once every title on it has its picture, the
+ * latest title found into the oldest frame, the poster it showed kept whole until the one coming is decoded; it reads
+ * as how many titles were found.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(qualifiers = TV)
+class FirstWallTest {
+    @get:Rule
+    val compose = createComposeRule()
+
+    private val context = ApplicationProvider.getApplicationContext<Application>()
+
+    @After
+    fun forgetTheLoader() = Coil.reset()
+
+    private fun title(n: Int, poster: Boolean = true) =
+        FirstTitle(n.toLong(), "Film $n", YEAR + n, ImageRef("first-$n") { "https://img.test/first-$n?w=$it" }.takeIf { poster })
+
+    /** The titles home reads once [count] are found, as `LocalLibrary.firstTitles` gives them: the first found, then the latest. */
+    private fun found(count: Int, latest: FirstTitle = title(count)): List<FirstTitle> =
+        (1..minOf(count, FRAMES)).map { title(it) } + listOf(latest).filter { count > FRAMES }
+
+    private fun FirstWallState.ids() = shown.map { it?.id }
+
+    /**
+     * The pictures of the frames' titles decoded, those coming and those filling them: each arrives, its animation run
+     * through at once; how many frames that took, none for titles shown at once.
+     */
+    private suspend fun FirstWallState.decoded(): Long = withContext(Frames) {
+        val before = Frames.drawn
+        frames.forEach { frame -> (frame.coming ?: frame.shows)?.let { frame.ready(it) } }
+        Frames.drawn - before
+    }
+
+    /** A frame clock that runs an animation through at once, frame after frame, outside a composition, counting them. */
+    private object Frames : MonotonicFrameClock {
+        var drawn = 0L
+            private set
+
+        override suspend fun <R> withFrameNanos(onFrame: (frameTimeNanos: Long) -> R): R {
+            drawn++
+            return onFrame(drawn * FRAME_NANOS)
+        }
+    }
+
+    /**
+     * The titles there as the wall comes (a new home, or back from Réglages), once read, take its free frames first found
+     * first and show at once, as does what waited there for its picture; those found after arrive.
+     */
+    @Test
+    fun theTitlesThereAsTheWallComesShowAtOnce() = runTest {
+        val wall = FirstWallState()
+        wall.step(found(2))
+        wall.come(found(4))
+        assertEquals((1L..4L).toList() + List(4) { null }, wall.ids())
+        assertEquals("at once, what waited included", 0L, wall.decoded())
+        assertTrue(wall.frames.take(4).all { it.lift.value == 1f })
+
+        wall.step(found(6))
+        assertTrue("found after, they arrive", wall.decoded() > 0)
+        assertEquals((1L..6L).toList() + List(2) { null }, wall.ids())
+    }
+
+    /** Composed before its titles are read, the wall waits for them, then shows them at once, without a step's wait. */
+    @Test
+    fun aWallWaitsForItsTitlesToBeReadThenShowsThem() {
+        val wall = FirstWallState()
+        var titles by mutableStateOf<List<FirstTitle>?>(null)
+        compose.setTvContent { FirstWall(titles, titles?.size ?: 0, state = wall) }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(FirstScanDefaults.STEP_MS * 2)
+        assertEquals("unread, nothing taken", List(FRAMES) { null }, wall.ids())
+
+        titles = (1..3).map { title(it, poster = false) }
+        compose.waitForIdle()
+        assertEquals("read, at once", listOf(1L, 2L, 3L) + List(5) { null }, wall.ids())
+        assertTrue(wall.frames.take(3).all { it.lift.value == 1f })
+    }
+
+    @Test
+    fun itFillsFirstFoundFirstABatchAStep() {
+        val wall = FirstWallState()
+        wall.step(found(3))
+        assertEquals(listOf(1L, 2L, 3L) + List(5) { null }, wall.ids())
+        wall.step(found(5))
+        assertEquals((1L..5L).toList() + List(3) { null }, wall.ids())
+    }
+
+    @Test
+    fun theStepThatFillsTheLastFramesRenewsNone() = runTest {
+        val wall = FirstWallState()
+        wall.step(found(6))
+        wall.step(found(11))
+        assertEquals((1L..8L).toList(), wall.ids())
+        assertEquals(List(FRAMES) { null }, wall.coming)
+        wall.decoded()
+        assertTrue("the next step takes the latest", wall.due(found(11)))
+    }
+
+    /** Full, each title it takes comes into the frame of the oldest: the ninth into the first, the eleventh into the third. */
+    @Test
+    fun fullItRenewsTheOldestFrameRoundAfterRound() = runTest {
+        val wall = FirstWallState()
+        wall.step(found(FRAMES))
+        wall.decoded()
+        (9..11).forEach { n ->
+            wall.step(found(n))
+            wall.decoded()
+        }
+        assertEquals(listOf(9L, 10L, 11L, 4L, 5L, 6L, 7L, 8L), wall.ids())
+        (12..16).forEach { n ->
+            wall.step(found(n))
+            wall.decoded()
+        }
+        assertEquals("a whole round, then the first frame again", (9L..16L).toList(), wall.ids())
+        wall.step(found(17))
+        assertEquals(17L, wall.coming.first()?.id)
+    }
+
+    /** A step takes the latest title found: those found between two steps do not pass on the wall. */
+    @Test
+    fun aStepTakesTheLatestTitleFound() = runTest {
+        val wall = FirstWallState()
+        wall.step(found(FRAMES))
+        wall.decoded()
+        wall.step(found(12))
+        assertEquals(listOf(12L) + List(FRAMES - 1) { null }, wall.coming.map { it?.id })
+    }
+
+    /**
+     * No renewal begins while a title on the wall waits for its picture, those that filled its last frames as the one
+     * coming into a frame, nor takes a title already on the wall.
+     */
+    @Test
+    fun noStepBeginsWhileATitleWaitsForItsPicture() = runTest {
+        val wall = FirstWallState()
+        wall.step(found(6))
+        wall.decoded()
+        wall.step(found(9))
+        assertEquals((1L..8L).toList(), wall.ids())
+        assertFalse("the last frames wait for their pictures", wall.due(found(9)))
+        wall.step(found(9))
+        assertEquals(List(FRAMES) { null }, wall.coming)
+        wall.decoded()
+        wall.step(found(9))
+        assertFalse("waiting for its picture", wall.due(found(10)))
+        wall.step(found(10))
+        assertEquals(listOf(9L) + List(FRAMES - 1) { null }, wall.coming.map { it?.id })
+        wall.decoded()
+        assertFalse("on the wall already", wall.due(found(9)))
+        assertTrue(wall.due(found(10)))
+    }
+
+    /** A frame keeps its poster whole until the one coming is decoded at its size, then the ground lifts off the new one. */
+    @Test
+    fun aFrameKeepsItsPosterUntilTheOneComingIsDecoded() {
+        val held = CompletableDeferred<Unit>()
+        val server = pictureServer { data, _ -> if ("first-9?" in data.toString()) held.await() }
+        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(server) }.build())
+        val wall = FirstWallState()
+        var titles by mutableStateOf(found(FRAMES))
+        compose.setTvContent { FirstWall(titles, titles.size, state = wall) }
+        compose.waitUntil(TIMEOUT_MS) { wall.frames.all { it.lift.value == 1f } }
+
+        titles = found(9)
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(FirstScanDefaults.STEP_MS + FRAME_MS)
+        compose.waitForIdle()
+        assertEquals("coming, unseen", 9L, wall.coming.first()?.id)
+        assertEquals("the oldest stays", 1L, wall.shown.first()?.id)
+        assertEquals("whole", 1f, wall.frames.first().lift.value)
+
+        held.complete(Unit)
+        compose.waitUntil(TIMEOUT_MS) { wall.shown.first()?.id == 9L }
+        assertNull(wall.coming.first())
+        compose.waitUntil(TIMEOUT_MS) { wall.frames.first().lift.value == 1f }
+    }
+
+    /** A title without a poster comes in as its one-sheet, never leaving its frame empty. */
+    @Test
+    fun aTitleWithoutPosterComesAsItsOneSheet() {
+        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
+        val wall = FirstWallState()
+        var titles by mutableStateOf(found(FRAMES))
+        compose.setTvContent { FirstWall(titles, titles.size, state = wall) }
+        compose.waitUntil(TIMEOUT_MS) { wall.frames.all { it.lift.value == 1f } }
+        titles = found(9, latest = title(9, poster = false))
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(FirstScanDefaults.STEP_MS + FRAME_MS)
+        compose.waitUntil(TIMEOUT_MS) { wall.shown.first()?.id == 9L }
+    }
+
+    /** The wall reads as how many titles were found, its thousands grouped, never as its posters. */
+    @Test
+    fun itReadsAsHowManyTitlesWereFound() {
+        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
+        compose.setTvContent { FirstWall(found(FRAMES), found = THOUSANDS) }
+        compose.waitForIdle()
+        val read = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ContentDescription)).fetchSemanticsNodes()
+            .flatMap { it.config[SemanticsProperties.ContentDescription] }
+        val tree = compose.onRoot(useUnmergedTree = true).printToString()
+        assertEquals("read as the count alone, its posters never:\n$tree", listOf("${formatCount(THOUSANDS.toLong())}${NBSP}titles"), read)
+    }
+
+    private companion object {
+        const val FRAMES = FirstScanDefaults.FRAMES
+        const val YEAR = 2000
+        const val THOUSANDS = 1_240
+        const val FRAME_MS = 16L
+        const val FRAME_NANOS = 16_000_000L
+        const val TIMEOUT_MS = 5_000L
+    }
+}

@@ -62,6 +62,16 @@ class LocalLibrary(
     /** The [limit] posters last added to the whole library. */
     fun latestPosters(limit: Int): Flow<List<ImageRef>> = dao.observeAllPosters(limit).map(::posters)
 
+    /**
+     * Home's first scan: the [limit] films and shows first found, then the latest, first found first, those without a
+     * poster too ([FirstTitleDao.observeFirstTitles]), at the settings' pace ([PANE_PACE_MS]); read only while it holds
+     * home or shows.
+     */
+    fun firstTitles(limit: Int): Flow<List<FirstTitleRow>> = dao.observeFirstTitles(limit).paced()
+
+    /** How many titles home's first scan has found, a film's copies once ([FirstTitleDao.observeFirstTitleCount]), at the same pace. */
+    val firstTitleCount: Flow<Int> = dao.observeFirstTitleCount().paced()
+
     suspend fun hasFolders(): Boolean = dao.sources().isNotEmpty()
 
     /** Whether there is a folder at least, followed; true once they cannot be read, so that home says why. */

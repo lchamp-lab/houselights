@@ -41,8 +41,9 @@ import org.robolectric.annotation.Config
 
 /**
  * DESIGN.md, Messages: a version found opens its sheet on home once, in its « available » state, never over another
- * sheet, under the launch screen, behind the player, over a first scan, over an update under way, for a failure or with
- * the check off; once the app is back from an update, home's head says it for 2.5 s, once.
+ * sheet, under the launch screen, behind the player, over a first scan or the grid while the first pass goes on, over an
+ * update under way, for a failure or with the check off; once the app is back from an update, home's head says it for
+ * 2.5 s, once.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr-$TV")
@@ -155,6 +156,18 @@ class HomeUpdateTest {
     @Test
     fun itNeverOpensOverAFirstScan() {
         home = HomeState(content = HomeContent.FirstScan)
+        val controls = show(MutableStateFlow(updates()))
+        compose.onNodeWithText(title).assertDoesNotExist()
+        assertFalse(controls.shown)
+        home = fullHome()
+        settle()
+        compose.onNodeWithText(title).assertExists()
+    }
+
+    /** Over home's grid while the library's first pass goes on, after « Aller à l'accueil »: it waits for the pass's end. */
+    @Test
+    fun itWaitsForTheFirstPassToEndOverTheGrid() {
+        home = fullHome().copy(firstPass = true)
         val controls = show(MutableStateFlow(updates()))
         compose.onNodeWithText(title).assertDoesNotExist()
         assertFalse(controls.shown)

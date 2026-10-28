@@ -134,6 +134,8 @@ fun CatalogScreen(modifier: Modifier = Modifier) {
             catalogFocus()
             // The three gestures of the small surfaces, side by side, before the components that use them.
             catalogGestures()
+            // Home's first scan: the folder's block with the counter, the wall of the titles found.
+            catalogFirstScan()
             catalogIcons()
 
             catalogControls()

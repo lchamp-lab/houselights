@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
@@ -35,6 +36,12 @@ data class ScanState(
     val processed: Int = 0,
     val total: Int = 0,
     val current: String? = null,
+    /**
+     * The videos the listing of the folder under way has found so far, counted as the pass counts titles where their
+     * paths tell ([VideoCount]): written at most once a second ([LibraryScanner.LISTED_EVERY_MS]), none in the
+     * listing's first, so a folder read at once says no count; 0 before. Screens say it until the files are counted.
+     */
+    val listed: Int = 0,
     /** Last error per source id, kept after the scan ends. */
     val errors: Map<Long, ScanError> = emptyMap(),
     /** Why the last scan stopped querying TMDB; kept until TMDB is queried again. */
@@ -45,6 +52,13 @@ data class ScanState(
      * follow it closer meanwhile.
      */
     val homeFilling: Boolean = false,
+    /**
+     * Whether the pass under way began on a library holding no title, the library's very first scan: kept until the pass
+     * ends, where [homeFilling] goes once home's rows are full.
+     */
+    val firstPass: Boolean = false,
+    /** Whether the pass under way has read every folder's files: what is left of it (titles asked again, credits) goes on. */
+    val finishing: Boolean = false,
 )
 
 /** No video while [count] subfolders were denied: a permissions problem, so nothing is removed. */
@@ -72,7 +86,16 @@ class LibraryScanner(
     private val elapsed: () -> Long = SystemClock::elapsedRealtime,
     /** Foreground state; in the background the scan waits, as another app may be playing from the NAS. */
     private val started: Flow<Boolean> = flowOf(true),
+    /**
+     * Whether Android's screensaver shows over the app, begun while it was on screen: the scan goes on under it as on
+     * screen, no player reading the NAS meanwhile, so a first scan of hours does not stop at the first one. One begun
+     * over another app is not the app's: that app may play from the NAS again once woken.
+     */
+    private val dreaming: Flow<Boolean> = flowOf(false),
 ) {
+    /** What the scan goes on for, playback aside: the app on screen, or Android's screensaver over it ([dreaming]). */
+    private val present: Flow<Boolean> = combine(started, dreaming) { onScreen, dream -> onScreen || dream }
+
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
 
@@ -298,7 +321,7 @@ class LibraryScanner(
         try {
             val sources = dao.sources()
             val first = !dao.anyItem()
-            _state.update { it.copy(homeFilling = first) }
+            _state.update { it.copy(homeFilling = first, firstPass = first, finishing = false) }
             val reached = mutableSetOf<Long>()
             for (source in sources) {
                 reached += source.id
@@ -310,6 +333,8 @@ class LibraryScanner(
                 // Out of space, every other source would fail the same way, file after file.
                 if (error?.kind == ScanErrorKind.STORAGE_FULL) break
             }
+            // Every folder's files read: what is left (titles asked again, credits, cleanup) goes on behind.
+            _state.update { it.copy(finishing = true) }
             // Sources the pass did not reach keep their last error.
             errors += before.filterKeys { id -> id !in reached && sources.any { it.id == id } }
             // Titles to identify are asked again while TMDB answers, as titles waiting for it are, and episodes placed.
@@ -472,8 +497,8 @@ class LibraryScanner(
     private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean, shows: ShowsTmdb, askUnmatched: Boolean): Boolean {
         val tmdb = shows.pass
         waitForThePlayer()
-        _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null) }
-        val found = browsers(source).list(source)
+        _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null, listed = 0) }
+        val found = browsers(source).list(source, listedPace())
         val listed = dao.knownFiles(source.id)
         checkListed(found, listed)
         // A disc's streams form one title and extras none; rows of non-titles are handled as missing files.
@@ -524,6 +549,21 @@ class LibraryScanner(
         val changed = missing.changed || written > 0
         if (changed) tellProgress()
         return changed
+    }
+
+    /**
+     * Tells screens how many videos a folder's listing found so far ([ScanState.listed]), at most once a
+     * [LISTED_EVERY_MS], its start counting as one: a word that changes, never figures scrolling.
+     */
+    private fun listedPace(): (Int) -> Unit {
+        var toldAt = elapsed()
+        return { count ->
+            val now = elapsed()
+            if (now - toldAt >= LISTED_EVERY_MS) {
+                toldAt = now
+                _state.update { it.copy(listed = count) }
+            }
+        }
     }
 
     /**
@@ -778,14 +818,14 @@ class LibraryScanner(
         ScanErrors.classify(e).kind == ScanErrorKind.STORAGE_FULL || artwork.spaceLeft() < NEARLY_FULL_BYTES
 
     /**
-     * Waits during playback (bounded, in case the player never reports its end), then while in the background.
-     * NAS sessions are closed first, as a wait can last hours.
+     * Waits during playback (bounded, in case the player never reports its end), then while in the background, unless
+     * Android's screensaver shows ([present]). NAS sessions are closed first, as a wait can last hours.
      */
     private suspend fun waitForThePlayer() {
-        if (!playing.value && started.first()) return
+        if (!playing.value && present.first()) return
         closeIdle()
         withTimeoutOrNull(MAX_PAUSE_MS) { playing.first { !it } }
-        started.first { it }
+        present.first { it }
     }
 
     private suspend fun settleMissing(
@@ -830,6 +870,9 @@ class LibraryScanner(
 
         /** Files between two change notifications. */
         private const val TELL_EVERY = 5
+
+        /** The least time between two counts of a folder's listing told ([ScanState.listed]). */
+        internal const val LISTED_EVERY_MS = 1_000L
 
         /** Stand-in for matchedAt in [shown]: only whether a title was matched matters. */
         private const val MATCHED = 0L

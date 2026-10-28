@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.Definition
@@ -52,6 +53,15 @@ fun formatCount(count: Long): String =
     java.text.NumberFormat.getIntegerInstance(java.util.Locale.getDefault()).format(count).replace(NARROW_NBSP, NBSP)
 
 private const val NARROW_NBSP = '\u202F'
+
+/** A scan's count in the Counter's notation, its thousands grouped ([formatCount]): "1 204 / 3 871". */
+@Composable
+fun scanCount(processed: Int, total: Int): String =
+    stringResource(R.string.scan_progress, formatCount(processed.toLong()), formatCount(total.toLong()))
+
+/** How many films and shows, its thousands grouped ([formatCount]): "1 240 titres". */
+@Composable
+fun titleCount(count: Int): String = pluralStringResource(R.plurals.title_count, count, formatCount(count.toLong()))
 
 /** "1 214 h": total whole hours; under an hour, its minutes ([formatDuration]). */
 fun formatHours(context: Context, ms: Long): String {
