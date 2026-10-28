@@ -3,10 +3,11 @@
 # scripts/preview.sh installs. Branches are merged locally and only main is pushed, so CI sees a branch
 # once it is on main: run this on the branch first.
 # Usage: scripts/check.sh [--heap SIZE] [--workers N] [--in-process] [other Gradle arguments…]
-#   --heap SIZE    Gradle's maximum heap, 3g for CI's (default: gradle.properties's)
+#   --heap SIZE    Gradle's maximum heap (default: gradle.properties's)
 #   --workers N    at most N tasks at a time (default: one per core)
 #   --in-process   compiles Kotlin inside Gradle's JVM, not in a daemon of its own: one JVM less
-# CI's settings, for a machine short of memory: scripts/check.sh --heap 3g --workers 2 --in-process --no-daemon
+# For a machine short of memory: scripts/check.sh --heap 3g --workers 2 --in-process --no-daemon
+# The unit tests run in one JVM; -Phouselights.testForks=3 -Phouselights.testHeap=1536m runs them in three, as CI does.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
