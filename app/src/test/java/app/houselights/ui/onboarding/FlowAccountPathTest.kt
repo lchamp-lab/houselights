@@ -17,6 +17,7 @@ import app.houselights.ui.onboarding.FlowKeys.FIELD_USER
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.util.wholePath
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -156,6 +157,28 @@ class FlowAccountPathTest : FlowHarness() {
         back()
         assertEquals(FlowStep.WHERE, flow.step)
         flow.chooseUsed(flow.used.single())
+        until { flow.step == FlowStep.SHARES }
+        assertTrue("signed in with the password kept", flow.signedIn && flow.accountKept)
+    }
+
+    /**
+     * The protocol asked, the account kept not opened for now: Back goes to the protocols, and SMB chosen again once the
+     * Keystore answers reads the password kept again and signs in with it.
+     */
+    @Test
+    fun aPasswordKeptButNotReadForNowIsReadAgainFromTheProtocols() {
+        keystoreDown = true
+        val flow = flow(sealedBefore(smbFilms))
+        flow.chooseFound(ds920)
+        until { flow.step == FlowStep.PROTOCOLS }
+        flow.chooseProtocol(Protocol.SMB)
+        until { flow.step == FlowStep.ACCOUNT }
+        assertEquals(FieldError(FIELD_PASSWORD, FlowMessage.PasswordUnread), flow.fieldError)
+
+        keystoreDown = false
+        back()
+        assertEquals(FlowStep.PROTOCOLS, flow.step)
+        flow.chooseProtocol(Protocol.SMB)
         until { flow.step == FlowStep.SHARES }
         assertTrue("signed in with the password kept", flow.signedIn && flow.accountKept)
     }
@@ -438,5 +461,40 @@ class FlowAccountPathTest : FlowHarness() {
         again.back {}
         until { again.path.isEmpty() && again.step == FlowStep.BROWSE && again.level?.folders?.contains("Films2") == true }
         assertNull(again.message)
+    }
+
+    /**
+     * SMB after a stopped process, the account kept whose password the Keystore does not open for now: the account step
+     * again, its user filled, the sentence under the password, never step 5 whose rows could only fail on it; Back, then
+     * OK on the NAS once the Keystore answers, signs in with the password kept.
+     */
+    @Test
+    fun anSmbFlowFoundAgainWithThePasswordKeptNotReadForNowSaysItUnderIt() {
+        val saved = SavedStateHandle()
+        val kept = flow(smbFilms, saved = saved)
+        ok()
+        until { kept.step == FlowStep.SHARES }
+        kept.openShare(FlowShare("video"))
+        until { kept.step == FlowStep.BROWSE }
+        // The next launch: the Keystore down, the password kept is not opened.
+        runBlocking {
+            val folder = db.dao().sources().single()
+            db.dao().updateSource(folder.copy(password = sealedForTheNextLaunch(smbFilms).password))
+        }
+        keystoreDown = true
+
+        val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { again.ready }
+        assertEquals(FlowStep.ACCOUNT, again.step)
+        assertEquals(FieldError(FIELD_PASSWORD, FlowMessage.PasswordUnread), again.fieldError)
+        assertEquals(FIELD_PASSWORD, again.aim?.key)
+        assertEquals(USER to "", again.user to again.password)
+
+        keystoreDown = false
+        again.back {}
+        assertEquals(FlowStep.WHERE, again.step)
+        again.chooseUsed(again.used.single())
+        until { again.step == FlowStep.SHARES }
+        assertTrue("signed in with the password kept", again.signedIn && again.accountKept)
     }
 }

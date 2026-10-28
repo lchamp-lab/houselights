@@ -152,20 +152,34 @@ class FolderFlow(
         }
     }
 
-    /** Back after a stopped process: the step left, but the account step again when it needs a password typed. */
+    /**
+     * Back after a stopped process: the step left, but the account step again when it needs a password typed, or when
+     * the password kept is one the Keystore did not open for now ([accountAgain]).
+     */
     private suspend fun restore() {
         val at = host ?: return go(FlowStep.WHERE, startKey())
         folders = suspendRunCatching { library.foldersOn(at) }.getOrDefault(emptyList())
         if (protocol == Protocol.SMB && accountKept) keptPassword = folders.smbAccess()?.password
-        val typedAccount = protocol == Protocol.SMB && !guest && keptPassword == null
-        if (typedAccount && step in AFTER_ACCOUNT) {
-            accountKept = false
-            signedIn = false
-            return go(FlowStep.ACCOUNT, if (user.isBlank()) FIELD_USER else FIELD_PASSWORD)
-        }
+        if (step in AFTER_ACCOUNT && accountAgain()) return
         if (step == FlowStep.BROWSE || step == FlowStep.KIND) levels[path] = level ?: return go(FlowStep.WHERE, startKey())
         view++
         aim(entryKey())
+    }
+
+    /**
+     * Whether the account step opens again after a stopped process, and opens it: for an SMB account whose password was
+     * typed, never kept, or was kept but not opened for now by the Keystore, said under it as [open] says it, never left
+     * to the rows, whose every OK could only fail on it.
+     */
+    private fun accountAgain(): Boolean {
+        val unread = keptPassword?.unopened != null
+        if (protocol != Protocol.SMB || guest || (keptPassword != null && !unread)) return false
+        accountKept = false
+        signedIn = false
+        keptPassword = null
+        go(FlowStep.ACCOUNT, if (user.isBlank()) FIELD_USER else FIELD_PASSWORD)
+        if (unread) fieldError = FieldError(FIELD_PASSWORD, FlowMessage.PasswordUnread)
+        return true
     }
 
     // « Choisir un dossier partagé », over the form of « Modifier le dossier » ------------------------------------------
@@ -462,7 +476,7 @@ class FolderFlow(
             exports.onFailure { typeInstead() }
             return
         }
-        val kept = folders.smbAccess() ?: return go(FlowStep.ACCOUNT, FIELD_USER)
+        val kept = keptAccount(at) ?: return go(FlowStep.ACCOUNT, FIELD_USER)
         user = kept.username
         guest = kept.username.isBlank()
         keptPassword = kept.password
@@ -482,7 +496,7 @@ class FolderFlow(
             }
             failure == FlowFailure.PASSWORD_UNREAD -> {
                 // Its password not opened for now, the NAS never asked: the account step, its user filled, to type it,
-                // the one kept left as it is; Back, then OK on the NAS, tries it again.
+                // the one kept left as it is; Back, then OK on the NAS or on SMB, reads it again and tries it (keptAccount).
                 keptPassword = null
                 go(FlowStep.ACCOUNT, FIELD_PASSWORD)
                 fieldError = FieldError(FIELD_PASSWORD, FlowMessage.PasswordUnread)
@@ -493,6 +507,18 @@ class FolderFlow(
                 typeInstead()
             }
         }
+    }
+
+    /**
+     * The account the NAS's [folders] sign in with over SMB, null for none; its password not opened for now by the
+     * Keystore, the folders are read from [at]'s again first, so that SMB chosen again from the protocols asks the
+     * Keystore again, as OK on the NAS does ([begin]), never only the answer it gave before.
+     */
+    private suspend fun keptAccount(at: String): SourceEntity? {
+        if (folders.smbAccess()?.password?.unopened != null) {
+            folders = suspendRunCatching { library.foldersOn(at) }.getOrDefault(folders).filter { it.id != editing }
+        }
+        return folders.smbAccess()
     }
 
     /** Whether [export]'s clients leave this player out, as far as they can be read ([exportAccess]). */

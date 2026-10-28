@@ -168,6 +168,14 @@ open class FlowHarness {
     protected fun sealedBefore(folder: SourceEntity): SourceEntity =
         folder.copy(password = Secret("", unopened = secretsOf { key }.seal(folder.password.value)))
 
+    /**
+     * [folder] with its password as the next launch reads it: sealed under the key's next version, which this launch
+     * never loaded, so that it is not opened while [keystoreDown] even once this launch opened what it sealed itself, as
+     * the library's Secrets keeps a key it opened with until it fails, as one launch does.
+     */
+    protected fun sealedForTheNextLaunch(folder: SourceEntity): SourceEntity =
+        folder.copy(password = Secret("", unopened = secretsOf(1, 2) { key }.seal(folder.password.value)))
+
     protected val ds920 = FoundNas("DS920", DS920, setOf(Protocol.SMB, Protocol.NFS))
 }
 
