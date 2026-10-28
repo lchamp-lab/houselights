@@ -206,6 +206,16 @@
     <string name="play_failed_no_player">Zidoo-Player nicht installiert</string>
     <string name="play_failed_credentials">Zidoo-Player erforderlich</string>
     <string name="play_failed_player_changed">Zidoo-Player geändert</string>
+    <string name="trust_player">Dem neuen Player vertrauen</string>
+    <string name="trust_player_sheet_desc">Houselights kann nicht prüfen, ob diese Version von Zidoo stammt. Vertrauen Sie ihm nur, wenn Sie den Zidoo oder seinen Player am %1$s aktualisiert haben: Bis zu seinem nächsten Update erhält er bei jeder Wiedergabe die Passwörter Ihrer Ordner. Andernfalls deinstallieren Sie die Updates des Players.</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights kann nicht prüfen, ob diese Version von Zidoo stammt. Vertrauen Sie ihm nur, wenn Sie den Zidoo oder seinen Player am %1$s aktualisiert haben: Bis zu seinem nächsten Update erhält er bei jeder Wiedergabe die Passwörter Ihrer Ordner und den Zugang zu Jellyfin. Andernfalls deinstallieren Sie die Updates des Players.</string>
+    <string name="trust_player_sheet_desc_app">Das ist nicht mehr der Player, der Ihre Passwörter erhalten hat. Vertrauen Sie ihm nur, wenn Sie ihn am %1$s selbst installiert haben: Er erhält bei jeder Wiedergabe die Passwörter Ihrer Ordner. Andernfalls installieren Sie den mit dem Zidoo gelieferten Player neu.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">Das ist nicht mehr der Player, der Ihre Passwörter erhalten hat. Vertrauen Sie ihm nur, wenn Sie ihn am %1$s selbst installiert haben: Er erhält bei jeder Wiedergabe die Passwörter Ihrer Ordner und den Zugang zu Jellyfin. Andernfalls installieren Sie den mit dem Zidoo gelieferten Player neu.</string>
+    <string name="trust_player_other_signature">Andere Signatur</string>
+    <string name="trust_player_no">Ihm nicht vertrauen</string>
+    <string name="trust_player_no_desc">Er erhält kein Passwort</string>
+    <string name="trust_player_yes">Diesem Player vertrauen</string>
+    <string name="trust_player_yes_desc">Er erhält Ihre Passwörter</string>
 
     <!-- Local folders -->
     <string name="add_folder">Ordner hinzufügen</string>

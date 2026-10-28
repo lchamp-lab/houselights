@@ -212,6 +212,16 @@
     <string name="play_failed_no_player">Lettore Zidoo non installato</string>
     <string name="play_failed_credentials">Lettore Zidoo necessario</string>
     <string name="play_failed_player_changed">Lettore Zidoo cambiato</string>
+    <string name="trust_player">Fidati del nuovo lettore</string>
+    <string name="trust_player_sheet_desc">Houselights non può verificare che questa versione provenga da Zidoo. Fidati solo se hai aggiornato lo Zidoo o il suo lettore in data %1$s: fino al suo prossimo aggiornamento, riceverà a ogni riproduzione le password delle tue cartelle. Altrimenti, disinstalla gli aggiornamenti del lettore.</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights non può verificare che questa versione provenga da Zidoo. Fidati solo se hai aggiornato lo Zidoo o il suo lettore in data %1$s: fino al suo prossimo aggiornamento, riceverà a ogni riproduzione le password delle tue cartelle e l’accesso a Jellyfin. Altrimenti, disinstalla gli aggiornamenti del lettore.</string>
+    <string name="trust_player_sheet_desc_app">Non è più il lettore che ha ricevuto le tue password. Fidati solo se lo hai installato tu in data %1$s: riceverà a ogni riproduzione le password delle tue cartelle. Altrimenti, reinstalla il lettore fornito con lo Zidoo.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">Non è più il lettore che ha ricevuto le tue password. Fidati solo se lo hai installato tu in data %1$s: riceverà a ogni riproduzione le password delle tue cartelle e l’accesso a Jellyfin. Altrimenti, reinstalla il lettore fornito con lo Zidoo.</string>
+    <string name="trust_player_other_signature">Altra firma</string>
+    <string name="trust_player_no">Non fidarti</string>
+    <string name="trust_player_no_desc">Non riceverà alcuna password</string>
+    <string name="trust_player_yes">Fidati di questo lettore</string>
+    <string name="trust_player_yes_desc">Riceverà le tue password</string>
 
     <!-- Local folders -->
     <string name="add_folder">Aggiungi una cartella</string>

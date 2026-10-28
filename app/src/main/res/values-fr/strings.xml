@@ -209,6 +209,16 @@
     <string name="play_failed_no_player">Lecteur Zidoo non installé</string>
     <string name="play_failed_credentials">Lecteur Zidoo requis</string>
     <string name="play_failed_player_changed">Lecteur Zidoo changé</string>
+    <string name="trust_player">Faire confiance au nouveau lecteur</string>
+    <string name="trust_player_sheet_desc">Houselights ne peut pas vérifier que cette version vient de Zidoo. Faites-lui confiance seulement si vous avez mis à jour la Zidoo ou son lecteur le %1$s : jusqu’à sa prochaine mise à jour, il recevra à chaque lecture les mots de passe de vos dossiers. Sinon, désinstallez les mises à jour du lecteur.</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights ne peut pas vérifier que cette version vient de Zidoo. Faites-lui confiance seulement si vous avez mis à jour la Zidoo ou son lecteur le %1$s : jusqu’à sa prochaine mise à jour, il recevra à chaque lecture les mots de passe de vos dossiers et l’accès à Jellyfin. Sinon, désinstallez les mises à jour du lecteur.</string>
+    <string name="trust_player_sheet_desc_app">Ce n’est plus le lecteur qui a reçu vos mots de passe. Faites-lui confiance seulement si vous l’avez installé vous-même le %1$s : il recevra à chaque lecture les mots de passe de vos dossiers. Sinon, réinstallez le lecteur fourni avec la Zidoo.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">Ce n’est plus le lecteur qui a reçu vos mots de passe. Faites-lui confiance seulement si vous l’avez installé vous-même le %1$s : il recevra à chaque lecture les mots de passe de vos dossiers et l’accès à Jellyfin. Sinon, réinstallez le lecteur fourni avec la Zidoo.</string>
+    <string name="trust_player_other_signature">Autre signature</string>
+    <string name="trust_player_no">Ne pas lui faire confiance</string>
+    <string name="trust_player_no_desc">Il ne recevra aucun mot de passe</string>
+    <string name="trust_player_yes">Faire confiance à ce lecteur</string>
+    <string name="trust_player_yes_desc">Il recevra vos mots de passe</string>
 
     <string name="add_folder">Ajouter un dossier</string>
     <string name="edit_folder">Modifier le dossier</string>

@@ -206,6 +206,16 @@
     <string name="play_failed_no_player">Zidoo-speler niet geïnstalleerd</string>
     <string name="play_failed_credentials">Zidoo-speler vereist</string>
     <string name="play_failed_player_changed">Zidoo-speler gewijzigd</string>
+    <string name="trust_player">De nieuwe speler vertrouwen</string>
+    <string name="trust_player_sheet_desc">Houselights kan niet controleren of deze versie van Zidoo komt. Vertrouw hem alleen als u de Zidoo of de speler op %1$s hebt bijgewerkt: tot de volgende update krijgt hij bij elke weergave de wachtwoorden van uw mappen. Verwijder anders de updates van de speler.</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights kan niet controleren of deze versie van Zidoo komt. Vertrouw hem alleen als u de Zidoo of de speler op %1$s hebt bijgewerkt: tot de volgende update krijgt hij bij elke weergave de wachtwoorden van uw mappen en de toegang tot Jellyfin. Verwijder anders de updates van de speler.</string>
+    <string name="trust_player_sheet_desc_app">Dit is niet meer de speler die uw wachtwoorden kreeg. Vertrouw hem alleen als u hem op %1$s zelf hebt geïnstalleerd: hij krijgt bij elke weergave de wachtwoorden van uw mappen. Installeer anders de speler die bij de Zidoo hoorde opnieuw.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">Dit is niet meer de speler die uw wachtwoorden kreeg. Vertrouw hem alleen als u hem op %1$s zelf hebt geïnstalleerd: hij krijgt bij elke weergave de wachtwoorden van uw mappen en de toegang tot Jellyfin. Installeer anders de speler die bij de Zidoo hoorde opnieuw.</string>
+    <string name="trust_player_other_signature">Andere handtekening</string>
+    <string name="trust_player_no">Niet vertrouwen</string>
+    <string name="trust_player_no_desc">Hij krijgt geen enkel wachtwoord</string>
+    <string name="trust_player_yes">Deze speler vertrouwen</string>
+    <string name="trust_player_yes_desc">Hij krijgt uw wachtwoorden</string>
 
     <!-- Local folders -->
     <string name="add_folder">Map toevoegen</string>

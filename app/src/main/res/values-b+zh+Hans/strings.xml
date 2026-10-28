@@ -200,6 +200,16 @@
     <string name="play_failed_no_player">未安装 Zidoo 播放器</string>
     <string name="play_failed_credentials">需要 Zidoo 播放器</string>
     <string name="play_failed_player_changed">Zidoo 播放器已更改</string>
+    <string name="trust_player">信任新播放器</string>
+    <string name="trust_player_sheet_desc">Houselights 无法确认此版本来自 Zidoo。只有当您在 %1$s 更新了 Zidoo 或其播放器时才信任它：在下次更新之前，它每次播放都会收到您文件夹的密码。否则，请卸载播放器的更新。</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights 无法确认此版本来自 Zidoo。只有当您在 %1$s 更新了 Zidoo 或其播放器时才信任它：在下次更新之前，它每次播放都会收到您文件夹的密码和 Jellyfin 的访问权限。否则，请卸载播放器的更新。</string>
+    <string name="trust_player_sheet_desc_app">这已不是收到您密码的那个播放器。只有当您在 %1$s 亲自安装了它时才信任它：它每次播放都会收到您文件夹的密码。否则，请重新安装 Zidoo 自带的播放器。</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">这已不是收到您密码的那个播放器。只有当您在 %1$s 亲自安装了它时才信任它：它每次播放都会收到您文件夹的密码和 Jellyfin 的访问权限。否则，请重新安装 Zidoo 自带的播放器。</string>
+    <string name="trust_player_other_signature">其他签名</string>
+    <string name="trust_player_no">不信任</string>
+    <string name="trust_player_no_desc">它不会收到任何密码</string>
+    <string name="trust_player_yes">信任此播放器</string>
+    <string name="trust_player_yes_desc">它会收到您的密码</string>
 
     <!-- Local folders -->
     <string name="add_folder">添加文件夹</string>

@@ -212,6 +212,16 @@
     <string name="play_failed_no_player">Reproductor Zidoo no instalado</string>
     <string name="play_failed_credentials">Reproductor Zidoo necesario</string>
     <string name="play_failed_player_changed">Reproductor Zidoo cambiado</string>
+    <string name="trust_player">Confiar en el nuevo reproductor</string>
+    <string name="trust_player_sheet_desc">Houselights no puede comprobar que esta versión venga de Zidoo. Confíe en él solo si actualizó el Zidoo o su reproductor el %1$s: hasta su próxima actualización, recibirá en cada reproducción las contraseñas de sus carpetas. De lo contrario, desinstale las actualizaciones del reproductor.</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights no puede comprobar que esta versión venga de Zidoo. Confíe en él solo si actualizó el Zidoo o su reproductor el %1$s: hasta su próxima actualización, recibirá en cada reproducción las contraseñas de sus carpetas y el acceso a Jellyfin. De lo contrario, desinstale las actualizaciones del reproductor.</string>
+    <string name="trust_player_sheet_desc_app">Ya no es el reproductor que recibió sus contraseñas. Confíe en él solo si lo instaló usted mismo el %1$s: recibirá en cada reproducción las contraseñas de sus carpetas. De lo contrario, reinstale el reproductor que venía con el Zidoo.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">Ya no es el reproductor que recibió sus contraseñas. Confíe en él solo si lo instaló usted mismo el %1$s: recibirá en cada reproducción las contraseñas de sus carpetas y el acceso a Jellyfin. De lo contrario, reinstale el reproductor que venía con el Zidoo.</string>
+    <string name="trust_player_other_signature">Otra firma</string>
+    <string name="trust_player_no">No confiar en él</string>
+    <string name="trust_player_no_desc">No recibirá ninguna contraseña</string>
+    <string name="trust_player_yes">Confiar en este reproductor</string>
+    <string name="trust_player_yes_desc">Recibirá sus contraseñas</string>
 
     <!-- Local folders -->
     <string name="add_folder">Añadir carpeta</string>

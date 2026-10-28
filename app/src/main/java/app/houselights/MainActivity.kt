@@ -106,7 +106,10 @@ import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.onboarding.WelcomeScreen
 import app.houselights.ui.person.PersonScreen
 import app.houselights.ui.search.SearchScreen
+import app.houselights.ui.settings.PlayerTrustSheet
 import app.houselights.ui.settings.SettingsScreen
+import app.houselights.ui.settings.TrustAsked
+import app.houselights.ui.settings.ZidooTrust
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.PlayOrigin
@@ -208,7 +211,9 @@ class MainActivity : ComponentActivity() {
             val settings = container.settings.state.collectAsStateWithLifecycle()
             HouselightsTheme(textStep = settings.value.textSize.step) {
                 val nav = rememberNavController()
-                val fixError = remember(nav) { nav::fixError }
+                // « Faire confiance au nouveau lecteur » opens its sheet over the screen that says the failure (#58).
+                val trust = remember { TrustAsked(ZidooTrust(this@MainActivity)) }
+                val fixError = remember(nav, trust) { trust.fixing(nav::fixError) }
                 val relay = remember { BackdropRelay() }
                 // One cue for the whole app; its steps (room, scrims, black) are in HouseLightCue.
                 val lights = animateFloatAsState(
@@ -229,6 +234,7 @@ class MainActivity : ComponentActivity() {
                         LeavingBackdrop(relay)
                         ProvideLibraryPlace(container.libraryPlace) { AppNavigation(nav, settings, onPlay = ::play) }
                         HouseLights()
+                        PlayerTrustSheet(trust, jellyfin = settings.value.source is SourceConfig.Jellyfin, onTrust = {})
                     }
                 }
             }
@@ -802,7 +808,8 @@ internal fun Lifecycle.onScreen(): Boolean = currentState.isAtLeast(Lifecycle.St
 private fun NavHostController.fixError(action: ErrorAction) = when (action) {
     ErrorAction.RECONNECT -> navigate(Route.JellyfinLogin())
     ErrorAction.ADD_TMDB_KEY, ErrorAction.EDIT_TMDB_KEY -> navigate(Route.Settings)
-    ErrorAction.RETRY -> Unit
+    // The trust sheet opens over the screen ([TrustAsked.fixing]).
+    ErrorAction.RETRY, ErrorAction.TRUST_PLAYER -> Unit
 }
 
 /** Returning to the app scans for new files unless a scan ended this recently. */

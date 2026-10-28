@@ -32,9 +32,15 @@ enum class ErrorAction(@StringRes val label: Int) {
     /** Settings, where a TMDB key is added or changed. */
     ADD_TMDB_KEY(R.string.error_action_add_tmdb_key),
     EDIT_TMDB_KEY(R.string.error_action_edit_tmdb_key),
+
+    /** The Zidoo player changed (#58): its sheet names it and asks, the answer that changes nothing first; trusts nothing. */
+    TRUST_PLAYER(R.string.trust_player),
 }
 
-/** Leads where an error is fixed, for every action but [ErrorAction.RETRY]; provided with the navigation. */
+/**
+ * Leads where an error is fixed, for every action but [ErrorAction.RETRY]; provided with the navigation, the trust sheet
+ * opening over the screen that says the failure.
+ */
 val LocalErrorFix = staticCompositionLocalOf<(ErrorAction) -> Unit> { {} }
 
 /** A screen's error in actionable words: what happened ([title]), what to check ([message]), a fix ([action]). */

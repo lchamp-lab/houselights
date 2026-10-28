@@ -200,6 +200,16 @@
     <string name="play_failed_no_player">Zidooプレーヤーがありません</string>
     <string name="play_failed_credentials">Zidooプレーヤーが必要です</string>
     <string name="play_failed_player_changed">Zidooプレーヤーが変わりました</string>
+    <string name="trust_player">新しいプレーヤーを信頼</string>
+    <string name="trust_player_sheet_desc">Houselightsは、このバージョンがZidooのものか確認できません。%1$sにZidooまたはそのプレーヤーを更新した場合にのみ信頼してください。次の更新まで、再生のたびにフォルダのパスワードを受け取ります。そうでない場合は、プレーヤーの更新をアンインストールしてください。</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselightsは、このバージョンがZidooのものか確認できません。%1$sにZidooまたはそのプレーヤーを更新した場合にのみ信頼してください。次の更新まで、再生のたびにフォルダのパスワードとJellyfinへのアクセスを受け取ります。そうでない場合は、プレーヤーの更新をアンインストールしてください。</string>
+    <string name="trust_player_sheet_desc_app">これはパスワードを受け取ったプレーヤーではありません。%1$sにご自身でインストールした場合にのみ信頼してください。再生のたびにフォルダのパスワードを受け取ります。そうでない場合は、Zidoo付属のプレーヤーを再インストールしてください。</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">これはパスワードを受け取ったプレーヤーではありません。%1$sにご自身でインストールした場合にのみ信頼してください。再生のたびにフォルダのパスワードとJellyfinへのアクセスを受け取ります。そうでない場合は、Zidoo付属のプレーヤーを再インストールしてください。</string>
+    <string name="trust_player_other_signature">別の署名</string>
+    <string name="trust_player_no">信頼しない</string>
+    <string name="trust_player_no_desc">パスワードは渡されません</string>
+    <string name="trust_player_yes">このプレーヤーを信頼</string>
+    <string name="trust_player_yes_desc">パスワードが渡されます</string>
 
     <!-- Local folders -->
     <string name="add_folder">フォルダを追加</string>
