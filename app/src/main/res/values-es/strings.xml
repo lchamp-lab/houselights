@@ -238,6 +238,7 @@
     <string name="field_share">Carpeta compartida</string>
     <string name="field_path">Subcarpeta</string>
     <string name="field_optional">%1$s (opcional)</string>
+    <string name="field_clear">Borrar %1$s</string>
     <string name="field_user">Usuario</string>
     <string name="field_password">Contraseña</string>
     <string name="placeholder_host">Ej.: 192.168.1.10</string>

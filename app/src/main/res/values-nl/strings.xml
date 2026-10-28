@@ -232,6 +232,7 @@
     <string name="field_share">Gedeelde map</string>
     <string name="field_path">Submap</string>
     <string name="field_optional">%1$s (optioneel)</string>
+    <string name="field_clear">%1$s wissen</string>
     <string name="field_user">Gebruiker</string>
     <string name="field_password">Wachtwoord</string>
     <string name="placeholder_host">Bijv. 192.168.1.10</string>

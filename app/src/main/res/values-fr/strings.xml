@@ -234,6 +234,7 @@
     <string name="field_share">Dossier partagé</string>
     <string name="field_path">Sous-dossier</string>
     <string name="field_optional">%1$s (facultatif)</string>
+    <string name="field_clear">Effacer %1$s</string>
     <string name="field_user">Utilisateur</string>
     <string name="field_password">Mot de passe</string>
     <string name="placeholder_host">Ex. : 192.168.1.10</string>

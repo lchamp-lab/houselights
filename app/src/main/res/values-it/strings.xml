@@ -238,6 +238,7 @@
     <string name="field_share">Cartella condivisa</string>
     <string name="field_path">Sottocartella</string>
     <string name="field_optional">%1$s (facoltativo)</string>
+    <string name="field_clear">Cancella %1$s</string>
     <string name="field_user">Utente</string>
     <string name="field_password">Password</string>
     <string name="placeholder_host">Es. 192.168.1.10</string>

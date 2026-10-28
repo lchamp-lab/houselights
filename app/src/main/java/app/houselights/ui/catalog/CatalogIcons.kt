@@ -53,7 +53,7 @@ private fun IconSheet() {
         HlIcons.Folder, HlIcons.Server, HlIcons.SignOut, HlIcons.Display, HlIcons.Playback, HlIcons.Play, HlIcons.Versions,
         HlIcons.Captions, HlIcons.Sound, HlIcons.Sort, HlIcons.Filter, HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers,
         HlIcons.Edit, HlIcons.Search, HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Erase,
-        HlIcons.Settings, HlIcons.Next, HlIcons.Sparkles, HlIcons.Film, HlIcons.Tv, HlIcons.Layers, HlIcons.Library,
+        HlIcons.Clear, HlIcons.Settings, HlIcons.Next, HlIcons.Sparkles, HlIcons.Film, HlIcons.Tv, HlIcons.Layers, HlIcons.Library,
         HlIcons.Add, HlIcons.Remove, HlIcons.Refresh, HlIcons.Test, HlIcons.Lock, HlIcons.LockOpen, HlIcons.Heart, HlIcons.HeartFilled,
         HlIcons.Star, HlIcons.Attention, HlIcons.History, HlIcons.Menu,
     )

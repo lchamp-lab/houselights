@@ -232,6 +232,7 @@
     <string name="field_share">Freigegebener Ordner</string>
     <string name="field_path">Unterordner</string>
     <string name="field_optional">%1$s (optional)</string>
+    <string name="field_clear">%1$s löschen</string>
     <string name="field_user">Benutzer</string>
     <string name="field_password">Passwort</string>
     <string name="placeholder_host">z. B. 192.168.1.10</string>

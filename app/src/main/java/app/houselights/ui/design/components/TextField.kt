@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.text.BasicTextField
@@ -22,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -54,7 +57,10 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -63,22 +69,32 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
+import androidx.tv.material3.Icon
+import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlColors
+import app.houselights.ui.design.HlControl
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlType
 import app.houselights.ui.design.emberLight
 import java.text.BreakIterator
 
 /**
  * A text field for the remote, [HlSize.field] tall: a glass plate edged by a hairline, the keyboard on OK ([KeyHint]);
  * focus rings it in white, and while typing the ring is the ember light and the cursor raspberry, which the remote's
- * Left and Right move, leaving the field only from the text's start or end. Its [label] in white over it, followed by
- * "(optional)" in grey when [optional], is always read out, even when [showLabel] is false. Below, [error] or else
- * [supporting]; [placeholder] is an example ("Ex. : 192.168.1.10").
+ * Left and Right move, leaving the field only from the text's start or end. While it holds text and it or its cross has
+ * focus, a cross at its end empties it (#78, [ClearTile]): Right at rest reaches it, as Right from the text's end while
+ * typing does; OK on it empties the field and brings focus back to it, at rest, the keyboard hidden. Focused at rest,
+ * "OK saisir" shows only where it leaves the text whole before the cross: the text comes first. Its [label] in white over
+ * it, followed by "(optional)" in grey when [optional], is always read out, even when [showLabel] is false, and names
+ * its cross ("Effacer Année"). Below, [error] or else [supporting]; [placeholder] is an example ("Ex. : 192.168.1.10").
  */
 @Composable
 fun HlTextField(
@@ -105,6 +121,9 @@ fun HlTextField(
             Spacer(Modifier.height(HlSpace.s))
         }
         FieldBox(
+            label,
+            named,
+            error,
             value,
             onValueChange,
             placeholder,
@@ -115,47 +134,38 @@ fun HlTextField(
             ),
             password = password,
             onImeAction = onImeAction,
-            modifier = Modifier.semantics {
-                contentDescription = named
-                if (error != null) error(error)
-            },
         )
         FieldMessage(error, supporting)
     }
 }
 
-/** On TV the keyboard opens only on OK, so the field is a focusable box that hands focus to the text on OK. */
+/**
+ * On TV the keyboard opens only on OK, so the field is a focusable box, read out as [named] with its [error], that hands
+ * focus to the text on OK. Its cross ([FieldCross]), named for [label], lies inside the box's frame, where Compose's
+ * search for the next focus would not look: the box names it as its Right.
+ */
 @Composable
 private fun FieldBox(
+    label: String,
+    named: String,
+    error: String?,
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
     keyboardOptions: KeyboardOptions,
     password: Boolean,
     onImeAction: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    var editing by remember { mutableStateOf(false) }
-    var boxFocused by remember { mutableStateOf(false) }
-    var fieldFocused by remember { mutableStateOf(false) }
-    val boxFocus = remember { FocusRequester() }
-    val fieldFocus = remember { FocusRequester() }
-    // The room « OK saisir » takes at the field's end, which the example leaves it, never running under it.
-    var hintWidth by remember { mutableIntStateOf(0) }
-    val hinted = boxFocused && !editing
+    val state = remember { FieldState(value) }
+    val crossed = state.crossed(value)
+    // The field's width once laid out, which the text, « OK saisir » and the cross share.
+    var width by remember { mutableIntStateOf(0) }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    // Every start of typing, and text the field did not type while typing, puts the cursor after the text, where erase
-    // reaches all of it; then Left and Right move it, and OK types where they left it. Not a selection, which TV
-    // keyboards' erase skips. At rest it is at the start, which a one-line field scrolls to, focused or not.
     val latest by rememberUpdatedState(value)
-    var typed by remember { mutableStateOf(atEnd(value)) }
     // The last text told to the owner: the keyboard may send several edits between two compositions.
     var told by remember(value) { mutableStateOf(value) }
-
-    // While typing, [text] with the cursor the keyboard or the arrows left, or after it when it came from elsewhere.
-    fun typing(text: String) = if (typed.text == text) typed else atEnd(text)
-    val shown = if (editing) typing(value) else TextFieldValue(value)
+    val shown = if (state.editing) state.typing(value) else TextFieldValue(value)
     val shape = HlShapes.field
     val c = Hl.colors
 
@@ -166,75 +176,250 @@ private fun FieldBox(
     val oneLine = remember(textStyle, density) {
         with(density) { measurer.measure("Ag", textStyle.copy(lineHeight = TextUnit.Unspecified)).size.height.toDp() }
     }
+    val hint = rememberHint(value, password, textStyle, atRest = state.atRest, crossed = crossed, width = width)
 
-    LaunchedEffect(editing) {
-        if (editing) {
-            fieldFocus.requestFocus()
+    LaunchedEffect(state.editing) {
+        if (state.editing) {
+            state.textFocus.requestFocus()
             keyboard?.show()
         }
     }
 
-    Box(
-        modifier
-            .fillMaxWidth()
-            .heightIn(min = HlSize.field)
-            .focusRequester(boxFocus)
-            .onFocusChanged { boxFocused = it.isFocused }
-            .openOnOk(waiting = !editing) {
-                typed = atEnd(latest)
-                editing = true
-            }
-            .focusable()
-            .clip(shape)
-            .background(c.glass)
-            .border(fieldEdge(editing, boxFocused), shape)
-            .padding(horizontal = HlSpace.m, vertical = HlSpace.s),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        BasicTextField(
-            value = shown,
-            onValueChange = { next ->
-                typed = next
-                if (next.text != told) {
-                    told = next.text
-                    onValueChange(next.text)
+    Box(Modifier.fillMaxWidth().onSizeChanged { width = it.width }) {
+        Box(
+            Modifier
+                .semantics {
+                    contentDescription = named
+                    if (error != null) error(error)
                 }
-            },
-            singleLine = true,
-            textStyle = textStyle,
-            cursorBrush = SolidColor(if (editing) c.emberTo else Color.Transparent),
-            visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
-            keyboardOptions = keyboardOptions,
-            keyboardActions = KeyboardActions(onAny = {
-                boxFocus.requestFocus()
-                editing = false
-                if (keyboardOptions.imeAction == ImeAction.Next) focusManager.moveFocus(FocusDirection.Next)
-                onImeAction()
-            }),
-            modifier = Modifier
                 .fillMaxWidth()
-                .height(oneLine)
-                .focusRequester(fieldFocus)
-                .focusProperties { canFocus = editing }
-                // Read as each arrow comes, so presses quicker than frames each count.
-                .arrowsWhileTyping(editing, field = { typing(latest) }, moveTo = { typed = it }) { direction ->
-                    boxFocus.requestFocus()
-                    editing = false
-                    focusManager.moveFocus(direction)
-                }
-                .onFocusChanged {
-                    val wasFocused = fieldFocused
-                    fieldFocused = it.isFocused
-                    if (wasFocused && !it.isFocused) editing = false
+                .heightIn(min = HlSize.field)
+                .focusRequester(state.boxFocus)
+                .focusProperties { if (crossed) right = state.crossFocus }
+                .onFocusChanged { state.boxFocused = it.isFocused }
+                .openOnOk(waiting = !state.editing) { state.startTyping(latest) }
+                .focusable()
+                .clip(shape)
+                .background(c.glass)
+                .border(fieldEdge(state.editing, state.boxFocused), shape)
+                // The text, its example and « OK saisir » end before the cross.
+                .padding(start = HlSpace.m, top = HlSpace.s, end = endRoom(crossed), bottom = HlSpace.s),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            BasicTextField(
+                value = shown,
+                onValueChange = { next -> told = state.type(next, told, onValueChange) },
+                singleLine = true,
+                textStyle = textStyle,
+                cursorBrush = SolidColor(if (state.editing) c.emberTo else Color.Transparent),
+                visualTransformation = if (password) PasswordVisualTransformation(PASSWORD_DOT) else VisualTransformation.None,
+                keyboardOptions = keyboardOptions,
+                keyboardActions = imeActions(state, keyboardOptions.imeAction, crossed, focusManager, onImeAction),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(oneLine)
+                    .focusRequester(state.textFocus)
+                    .focusProperties { canFocus = state.editing }
+                    // Read as each arrow comes, so presses quicker than frames each count.
+                    .arrowsWhileTyping(state.editing, field = { state.typing(latest) }, moveTo = { state.typed = it }) { direction ->
+                        state.stopTyping()
+                        focusManager.moveFocus(direction)
+                    }
+                    .onFocusChanged { state.textFocused(it.isFocused) },
+                decorationBox = { inner ->
+                    Box {
+                        Placeholder(placeholder, shown = value.isEmpty(), hint = hint)
+                        inner()
+                    }
                 },
-            decorationBox = { inner ->
-                Box {
-                    Placeholder(placeholder, shown = value.isEmpty(), hint = hintWidth.takeIf { hinted })
-                    inner()
-                }
-            },
+            )
+            EndHint(shown = hint != null)
+        }
+        FieldCross(crossed, label, state, focusManager) {
+            // Emptied as erasing it all would: the owner hears it and nothing else runs.
+            told = ""
+            onValueChange("")
+            state.cleared()
+        }
+    }
+}
+
+/**
+ * Where a field stands: typing or not ([editing]), which of its box, its text and its cross has focus, and the text with
+ * the cursor as typed ([typed]). Every start of typing, and text the field did not type while typing, puts the cursor
+ * after the text, where erase reaches all of it; then Left and Right move it, and OK types where they left it. Not a
+ * selection, which TV keyboards' erase skips. At rest it is at the start, which a one-line field scrolls to, focused or
+ * not.
+ */
+@Stable
+private class FieldState(value: String) {
+    var editing by mutableStateOf(false)
+    var boxFocused by mutableStateOf(false)
+    var crossFocused by mutableStateOf(false)
+    var typed by mutableStateOf(atEnd(value))
+    val boxFocus = FocusRequester()
+    val textFocus = FocusRequester()
+    val crossFocus = FocusRequester()
+    private var textHadFocus = false
+
+    /** Focused at rest, neither typing nor on its cross: where « OK saisir » may show. */
+    val atRest: Boolean get() = boxFocused && !editing
+
+    /** The cross shows while the field holds [value] and it, its text or the cross has focus: a form at rest stays bare. */
+    fun crossed(value: String): Boolean = value.isNotEmpty() && (boxFocused || editing || crossFocused)
+
+    /** While typing, [text] with the cursor the keyboard or the arrows left, or after it when it came from elsewhere. */
+    fun typing(text: String): TextFieldValue = if (typed.text == text) typed else atEnd(text)
+
+    /** OK on the field: typing starts after its [text] as it is now. */
+    fun startTyping(text: String) {
+        typed = atEnd(text)
+        editing = true
+    }
+
+    /** Typing ends, focus back on the box, at rest. */
+    fun stopTyping() {
+        boxFocus.requestFocus()
+        editing = false
+    }
+
+    /** The text has focus, or not ([focused]): losing it ends typing. */
+    fun textFocused(focused: Boolean) {
+        if (textHadFocus && !focused) editing = false
+        textHadFocus = focused
+    }
+
+    /** [next] typed: [tell] hears its text unless it is the one [told] last; the text told now. */
+    fun type(next: TextFieldValue, told: String, tell: (String) -> Unit): String {
+        typed = next
+        if (next.text != told) tell(next.text)
+        return next.text
+    }
+
+    /** Emptied by its cross: focus back on the field, at rest, the keyboard hidden, so that OK opens it. */
+    fun cleared() {
+        typed = atEnd("")
+        stopTyping()
+    }
+}
+
+/** The room at a field's end: the cross's while it shows ([crossed]), else the field's own margin. */
+private fun endRoom(crossed: Boolean): Dp = if (crossed) CROSS_ROOM else HlSpace.m
+
+/**
+ * The room « OK saisir » takes (px) while it shows: focused [atRest], and only where it leaves [value], as [password]
+ * draws it in [style], whole before the end ([endRoom]) of the field [width] px wide; null where it gives way, the text
+ * coming first, the white ring saying the focus and OK opening the keyboard as ever.
+ */
+@Composable
+private fun rememberHint(value: String, password: Boolean, style: TextStyle, atRest: Boolean, crossed: Boolean, width: Int): Int? {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val hint = rememberHintWidth(measurer)
+    val text = remember(value, password, style, density) {
+        if (value.isEmpty()) 0 else measurer.measure(if (password) masked(value) else value, style).size.width
+    }
+    val room = with(density) { width - HlSpace.m.roundToPx() - endRoom(crossed).roundToPx() }
+    return hint.takeIf { atRest && (width == 0 || text + hint <= room) }
+}
+
+/**
+ * The keyboard's action key: typing ends on the field, Next going on to the next field, from the cross while it shows
+ * ([crossed]), which follows the field in focus order; then [onImeAction].
+ */
+private fun imeActions(
+    state: FieldState,
+    action: ImeAction,
+    crossed: Boolean,
+    focusManager: FocusManager,
+    onImeAction: () -> Unit,
+): KeyboardActions = KeyboardActions(onAny = {
+    val next = action == ImeAction.Next
+    state.stopTyping()
+    if (next && crossed) state.crossFocus.requestFocus()
+    if (next) focusManager.moveFocus(FocusDirection.Next)
+    onImeAction()
+})
+
+/**
+ * The field's cross while [shown] ([ClearTile]), named for its [label], at its end: Left comes back to the field, Up and
+ * Down leave as from it, Right goes on; OK empties it ([onClear]).
+ */
+@Composable
+private fun BoxScope.FieldCross(shown: Boolean, label: String, state: FieldState, focusManager: FocusManager, onClear: () -> Unit) {
+    if (!shown) return
+    ClearTile(
+        stringResource(R.string.field_clear, label),
+        onClick = onClear,
+        modifier = Modifier
+            .align(Alignment.CenterEnd)
+            .padding(end = HlSpace.s)
+            .focusRequester(state.crossFocus)
+            .focusProperties { left = state.boxFocus }
+            .leavesAsItsField(state.boxFocus, state.crossFocus, focusManager::moveFocus)
+            .onFocusChanged { state.crossFocused = it.isFocused },
+    )
+}
+
+/**
+ * Up and Down from a field's cross leave as from the field itself, the box [field], whose frame it lies in; with nothing
+ * that way, focus stays on the [cross].
+ */
+private fun Modifier.leavesAsItsField(field: FocusRequester, cross: FocusRequester, moveFocus: (FocusDirection) -> Boolean): Modifier =
+    onPreviewKeyEvent { event ->
+        val direction = arrow(event.key)?.takeIf { it == FocusDirection.Up || it == FocusDirection.Down }
+        if (direction == null || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+        field.requestFocus()
+        if (!moveFocus(direction)) cross.requestFocus()
+        true
+    }
+
+/**
+ * The cross that empties a field, a header's tile ([HlSize.tileCompact], its glyph [HlSize.icon]) inside it, read as a
+ * button named [label] (« Effacer Année »): at rest its glyph grey on the field's glass, with focus the tile white, as
+ * every tile.
+ */
+@Composable
+private fun ClearTile(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    HlFocusSurface(
+        onClick = onClick,
+        look = FocusStyle.fill(rest = Color.Transparent, restInk = Hl.colors.contentSecondary),
+        shape = HlShapes.control,
+        modifier = modifier.size(HlSize.tileCompact),
+    ) {
+        Icon(
+            HlIcons.Clear,
+            contentDescription = label,
+            tint = LocalContentColor.current,
+            modifier = Modifier.size(HlSize.icon).align(Alignment.Center),
         )
-        EndHint(hinted) { hintWidth = it }
+    }
+}
+
+/** Room the cross takes at a field's end: a gap, its tile, a gap to the field's edge. */
+private val CROSS_ROOM = HlSpace.s + HlSize.tileCompact + HlSpace.s
+
+/** What a password field draws for each character, measured for the room the text takes. */
+private const val PASSWORD_DOT = '\u2022'
+
+/** [value] as a password field draws it. */
+private fun masked(value: String) = PASSWORD_DOT.toString().repeat(value.length)
+
+/**
+ * The room « OK saisir » takes at a field's end, as [EndHint] lays it out: a gap, the key as a badge, a gap, the word
+ * (px).
+ */
+@Composable
+private fun rememberHintWidth(measurer: TextMeasurer): Int {
+    val t = Hl.type
+    val density = LocalDensity.current
+    val ok = stringResource(R.string.key_ok)
+    val word = stringResource(R.string.key_hint_type)
+    return remember(ok, word, t, density) {
+        with(density) {
+            val badge = measurer.measure(ok, t.badge).size.width + HlControl.badgePaddingH.roundToPx() * 2
+            HlSpace.s.roundToPx() + badge + HlSpace.xs.roundToPx() + measurer.measure(word, t.meta).size.width
+        }
     }
 }
 
@@ -348,15 +533,17 @@ private fun Placeholder(text: String, shown: Boolean, hint: Int?) {
     }
 }
 
-/** « OK saisir » over the text's end, while [shown], on the field's surface, never taller than it; its width to [onWidth]. */
+/**
+ * « OK saisir » at the text's end, while [shown], on the field's surface, never taller than it, as wide as
+ * [rememberHintWidth] says.
+ */
 @Composable
-private fun BoxScope.EndHint(shown: Boolean, onWidth: (Int) -> Unit) {
+private fun BoxScope.EndHint(shown: Boolean) {
     if (!shown) return
     Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
         KeyHint(
             Modifier
                 .wrapContentHeight(unbounded = true)
-                .onSizeChanged { onWidth(it.width) }
                 .background(Hl.colors.glass)
                 .padding(start = HlSpace.s),
         )
@@ -390,16 +577,19 @@ private fun ColumnScope.FieldMessage(error: String?, supporting: String?) {
 internal fun FieldName(label: String, named: String, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val t = Hl.type
-    val text = remember(label, named, c, t) {
-        val at = named.indexOf(label)
-        buildAnnotatedString {
-            append(named)
-            if (at >= 0 && named.length > label.length) {
-                val remark = t.meta.toSpanStyle().copy(color = c.contentSecondary)
-                if (at > 0) addStyle(remark, 0, at)
-                if (at + label.length < named.length) addStyle(remark, at + label.length, named.length)
-            }
+    val text = remember(label, named, c, t) { fieldNameText(label, named, c, t) }
+    Text(text, style = t.group, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
+}
+
+/** [named] as [FieldName] sets it, in `group`: [label] in white, what it adds in grey `meta`. */
+private fun fieldNameText(label: String, named: String, c: HlColors, t: HlType): AnnotatedString {
+    val at = named.indexOf(label)
+    return buildAnnotatedString {
+        append(named)
+        if (at >= 0 && named.length > label.length) {
+            val remark = t.meta.toSpanStyle().copy(color = c.contentSecondary)
+            if (at > 0) addStyle(remark, 0, at)
+            if (at + label.length < named.length) addStyle(remark, at + label.length, named.length)
         }
     }
-    Text(text, style = t.group, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
 }

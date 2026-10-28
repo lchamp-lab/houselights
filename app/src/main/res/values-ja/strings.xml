@@ -226,6 +226,7 @@
     <string name="field_share">共有フォルダ</string>
     <string name="field_path">サブフォルダ</string>
     <string name="field_optional">%1$s（任意）</string>
+    <string name="field_clear">%1$sを消去</string>
     <string name="field_user">ユーザー名</string>
     <string name="field_password">パスワード</string>
     <string name="placeholder_host">例：192.168.1.10</string>

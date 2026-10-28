@@ -226,6 +226,7 @@
     <string name="field_share">공유 폴더</string>
     <string name="field_path">하위 폴더</string>
     <string name="field_optional">%1$s(선택 사항)</string>
+    <string name="field_clear">%1$s 지우기</string>
     <string name="field_user">사용자 이름</string>
     <string name="field_password">비밀번호</string>
     <string name="placeholder_host">예: 192.168.1.10</string>
