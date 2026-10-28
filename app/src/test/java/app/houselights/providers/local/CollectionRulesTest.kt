@@ -61,6 +61,34 @@ class CollectionRulesTest {
         assertEquals("Saga", CollectionRules.shownName("Saga", known = true))
     }
 
+    /** TMDB names a saga in the language it is read in, with its own word for one: a saga it knows shows without it. */
+    @Test
+    fun aSagaShowsWithoutTmdbsWordInEachLanguage() {
+        mapOf(
+            "Dune Filmreihe" to "Dune",
+            "John Wick Filmreihe" to "John Wick",
+            "Dune - Colección" to "Dune",
+            "Dune - Collezione" to "Dune",
+            "Dune - Coleção" to "Dune",
+            "Duna: Coleção" to "Duna",
+            "John Wick: Coleção" to "John Wick",
+            "Dune Collectie" to "Dune",
+            "Diuna – Kolekcja" to "Diuna",
+            "John Wick - Kolekcja" to "John Wick",
+            "DUNE／デューン 砂の惑星 シリーズ" to "DUNE／デューン 砂の惑星",
+            "ジョン・ウィック シリーズ" to "ジョン・ウィック",
+            "듄 시리즈" to "듄",
+            "沙丘（系列）" to "沙丘",
+            "疾速追杀（系列）" to "疾速追杀",
+        ).forEach { (tmdb, shown) -> assertEquals(tmdb, shown, CollectionRules.shownName(tmdb, known = true)) }
+        // A set of the user's own keeps its words, whatever its language.
+        assertEquals("Meine Filmreihe", CollectionRules.shownName("Meine Filmreihe", known = false))
+        assertEquals("沙丘（系列）", CollectionRules.shownName("沙丘（系列）", known = false))
+        // Glued to the name, or alone, the word stays.
+        assertEquals("ガンダムシリーズ", CollectionRules.shownName("ガンダムシリーズ", known = true))
+        assertEquals("시리즈", CollectionRules.shownName("시리즈", known = true))
+    }
+
     @Test
     fun onlyReleasedFilmsCount() {
         val dates = listOf("1986-05-16", "2022-05-24", "", null, "2031-01-01")

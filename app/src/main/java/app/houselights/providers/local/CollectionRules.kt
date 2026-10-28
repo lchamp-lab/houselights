@@ -32,12 +32,13 @@ object CollectionRules {
 
     /**
      * Display name without the saga suffix: TMDB's French "Top Gun - Saga" shows as "Top Gun", and a saga [known] to
-     * TMDB without its English "Collection" too ("Dune Collection" shows as "Dune"); a set TMDB does not know, an NFO's
-     * own ("The Criterion Collection"), keeps the word as written.
+     * TMDB without the word TMDB ends its name with in the language it was read in too ("Dune Collection", "Dune
+     * Filmreihe", "Dune - Colección", "沙丘（系列）" show as "Dune", "沙丘"); a set TMDB does not know, an NFO's own
+     * ("The Criterion Collection"), keeps the word as written.
      */
     fun shownName(name: String, known: Boolean): String {
         val shown = name.replace(SAGA_SUFFIX, "")
-        return (if (known) shown.replace(COLLECTION_SUFFIX, "") else shown).ifBlank { name }
+        return (if (known) shown.replace(COLLECTION_SUFFIX, "").replace(SERIES_SUFFIX, "") else shown).ifBlank { name }
     }
 
     /** TMDB parts as rows, deduplicated, in release order with undated (announced) films last. */
@@ -67,7 +68,17 @@ object CollectionRules {
     private fun whole(name: String): String = Normalizer.normalize(name, Normalizer.Form.NFC).trim().lowercase().replace(SPACES, " ")
 
     private val SAGA_SUFFIX = Regex("""\s*[-–]\s*[Ss]aga\s*$""")
-    private val COLLECTION_SUFFIX = Regex("""\s*[-–]?\s+[Cc]ollection\s*$""")
+
+    /**
+     * TMDB's word for a saga at its name's end, after a space, a dash or a colon, in the app's languages: English
+     * « Collection », German « Filmreihe », Spanish « Colección », Italian « Collezione », Portuguese « Coleção » (« Duna:
+     * Coleção » in Brazil's), Dutch « Collectie », Polish « Kolekcja ».
+     */
+    private val COLLECTION_SUFFIX =
+        Regex("""\s*[-–:]?\s+(?:[Cc]ollection|[Ff]ilmreihe|[Cc]olección|[Cc]ollezione|[Cc]oleção|[Cc]ollectie|[Kk]olekcja)\s*$""")
+
+    /** Japanese « シリーズ » and Korean « 시리즈 » after a space, Chinese « （系列） »: « 듄 시리즈 », « 沙丘（系列） ». */
+    private val SERIES_SUFFIX = Regex("""[\s\u3000]+(?:シリーズ|시리즈)\s*$|\s*[（(]系列[）)]\s*$""")
     private val MARKS = Regex("\\p{M}")
     private val NON_WORD = Regex("[^a-z0-9]+")
     private val SPACES = Regex("\\s+")
