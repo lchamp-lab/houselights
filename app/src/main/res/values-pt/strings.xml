@@ -160,7 +160,7 @@
     <string name="label_certification">Classificação</string>
     <string name="label_rating">Nota</string>
     <string name="label_year">Ano</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">Ex.: 1999</string>
     <string name="label_genres">Gêneros</string>
     <string name="label_directors">Direção</string>
     <string name="label_studios">Estúdios</string>

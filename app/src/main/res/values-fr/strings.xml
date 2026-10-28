@@ -156,7 +156,7 @@
     <string name="label_certification">Classification</string>
     <string name="label_rating">Note</string>
     <string name="label_year">Année</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">Ex. : 1999</string>
     <string name="label_genres">Genres</string>
     <string name="label_directors">Réalisation</string>
     <string name="label_studios">Studios</string>

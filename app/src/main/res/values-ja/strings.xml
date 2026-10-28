@@ -149,7 +149,7 @@
     <string name="label_certification">年齢区分</string>
     <string name="label_rating">評価</string>
     <string name="label_year">公開年</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">例：1999</string>
     <string name="label_genres">ジャンル</string>
     <string name="label_directors">監督</string>
     <string name="label_studios">スタジオ</string>

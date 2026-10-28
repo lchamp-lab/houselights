@@ -423,6 +423,29 @@ private fun rememberHintWidth(measurer: TextMeasurer): Int {
     }
 }
 
+/**
+ * The width a short field needs at the text size in use (« Taille du texte »), never under [least]: its whole name over
+ * it, [label] as [optional] names it (« Année (facultatif) »), and, focused at rest, the widest of [samples] typed,
+ * « OK saisir » and its cross inside it (Identify's year).
+ */
+@Composable
+fun rememberFieldWidth(label: String, samples: List<String>, least: Dp, optional: Boolean = false): Dp {
+    val named = if (optional) stringResource(R.string.field_optional, label) else label
+    val measurer = rememberTextMeasurer()
+    val hint = rememberHintWidth(measurer)
+    val density = LocalDensity.current
+    val c = Hl.colors
+    val t = Hl.type
+    return remember(label, named, samples, least, hint, c, t, density) {
+        with(density) {
+            val name = measurer.measure(fieldNameText(label, named, c, t), t.group).size.width
+            val typed = samples.maxOfOrNull { measurer.measure(it, t.body).size.width } ?: 0
+            val inside = HlSpace.m.roundToPx() + typed + hint + CROSS_ROOM.roundToPx()
+            maxOf(least, maxOf(name, inside).toDp())
+        }
+    }
+}
+
 /** [text] with the cursor after it. */
 private fun atEnd(text: String) = TextFieldValue(text, TextRange(text.length))
 

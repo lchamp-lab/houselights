@@ -164,7 +164,7 @@
     <string name="label_certification">Kategoria wiekowa</string>
     <string name="label_rating">Ocena</string>
     <string name="label_year">Rok</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">np. 1999</string>
     <string name="label_genres">Gatunki</string>
     <string name="label_directors">Reżyseria</string>
     <string name="label_studios">Studia</string>

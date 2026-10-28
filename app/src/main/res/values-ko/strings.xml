@@ -149,7 +149,7 @@
     <string name="label_certification">관람 등급</string>
     <string name="label_rating">평점</string>
     <string name="label_year">연도</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">예: 1999</string>
     <string name="label_genres">장르</string>
     <string name="label_directors">감독</string>
     <string name="label_studios">스튜디오</string>

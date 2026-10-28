@@ -149,7 +149,7 @@
     <string name="label_certification">分級</string>
     <string name="label_rating">評分</string>
     <string name="label_year">年份</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">例如：1999</string>
     <string name="label_genres">類型</string>
     <string name="label_directors">導演</string>
     <string name="label_studios">製片公司</string>

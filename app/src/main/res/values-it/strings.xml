@@ -159,7 +159,7 @@
     <string name="label_certification">Classificazione</string>
     <string name="label_rating">Voto</string>
     <string name="label_year">Anno</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">Es. 1999</string>
     <string name="label_genres">Generi</string>
     <string name="label_directors">Regia</string>
     <string name="label_studios">Produzione</string>
