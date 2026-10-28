@@ -795,6 +795,8 @@
     <string name="trakt_connected">Verbunden</string>
     <string name="trakt_paused">Pausiert</string>
     <string name="trakt_paused_desc">Trakt folgt Ihren Ordnern; es läuft weiter, sobald Sie zu ihnen zurückkehren.</string>
+    <string name="trakt_unread">Vorerst nicht gelesen</string>
+    <string name="trakt_unread_desc">Ihre Trakt-Verbindung bleibt auf diesem Player erhalten, konnte aber vorerst nicht erneut gelesen werden. Versuchen Sie es gleich noch einmal, oder trennen Sie Ihr Konto, wenn Sie möchten.</string>
     <string name="trakt_connect">Konto verbinden</string>
     <string name="trakt_connect_desc">Mit einem Code auf Ihrem Telefon oder PC</string>
     <string name="trakt_disconnect">Konto trennen</string>

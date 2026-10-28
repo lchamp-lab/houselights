@@ -78,14 +78,22 @@ class TraktPaneTest {
     val compose = createAndroidComposeRule<ComponentActivity>()
 
     private var session by mutableStateOf<TraktSession?>(null)
+
+    /** The session is kept but the Keystore did not open it at this launch: [session] is null meanwhile. */
+    private var unread by mutableStateOf(false)
     private val lea = TraktSession("a1", "r1", expiresAt = 1_700_000_000, username = "lea")
-    private var link = FakeTraktLink(onApproved = { session = lea }).apply { onSignOut = { session = null } }
+    private var link = FakeTraktLink(onApproved = { session = lea }).apply {
+        onSignOut = {
+            session = null
+            unread = false
+        }
+    }
     private val sync = FakeTraktSync()
 
     private fun show(folders: Boolean = true) {
         val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
         compose.setTvContent {
-            HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session, folders) } }
+            HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session, folders, unread) } }
         }
     }
 
@@ -499,6 +507,46 @@ class TraktPaneTest {
     }
 
     /**
+     * With the folders, a session the Keystore did not open at this launch is kept, not disconnected: said so beside the
+     * title with what to do, no « Non connecté », nothing to connect over it nor to sync, the one row disconnecting it;
+     * read again, it is connected, the row focused all along.
+     */
+    @Test
+    fun aSessionNotOpenedWithTheFoldersIsKeptNotDisconnected() {
+        unread = true
+        show()
+        compose.onNodeWithText("Non relu pour l’instant").assertExists()
+        compose.onNodeWithText(UNREAD).assertExists()
+        compose.onNodeWithText("Non connecté").assertDoesNotExist()
+        compose.onNodeWithText(DESCRIPTION).assertDoesNotExist()
+        compose.onNodeWithText(CONNECT).assertDoesNotExist()
+        compose.onNodeWithText(SYNC).assertDoesNotExist()
+        compose.onAllNodes(hasClickAction()).assertCountEquals(1)
+        compose.onNodeWithText(DISCONNECT).requestFocus()
+
+        // Réessayer at the pane's head read it.
+        unread = false
+        session = lea
+        compose.onNodeWithText("Connecté").assertExists()
+        compose.onNodeWithText("lea").assertExists()
+        compose.onNodeWithText(DISCONNECT).assertIsFocused()
+        compose.onNodeWithText("Non relu pour l’instant").assertDoesNotExist()
+    }
+
+    /** Disconnected while not read, it is forgotten here: not connected, as any account disconnected, focus kept on its row. */
+    @Test
+    fun aSessionNotOpenedDisconnectedSaysNotConnectedAsEver() {
+        unread = true
+        show()
+        ok(DISCONNECT)
+        assertEquals(1, link.signedOut)
+        compose.onNodeWithText("Non connecté").assertExists()
+        compose.onNodeWithText(DESCRIPTION).assertExists()
+        compose.onNodeWithText(CONNECT).assertIsFocused()
+        compose.onNodeWithText(UNREAD).assertDoesNotExist()
+    }
+
+    /**
      * Paused, a name Trakt could not say is not asked, so no token is renewed: the plate reads its last sync alone, and
      * the name is read back with the folders.
      */
@@ -583,6 +631,8 @@ class TraktPaneTest {
             "Votre compte Trakt garde ce que vous regardez$NB: les films et les épisodes vus, et où vous en êtes. " +
                 "Sur cet appareil comme ailleurs."
         const val PAUSED = "Trakt suit vos dossiers$NB; il reprend quand vous y revenez."
+        const val UNREAD = "Votre connexion à Trakt est conservée sur ce lecteur, mais n’a pas pu être relue pour l’instant. " +
+            "Réessayez dans un moment, ou déconnectez votre compte si vous le souhaitez."
         const val SKIPPED_DESC = "Trakt les envoie sous une forme que l’app ne sait pas lire"
         const val FIX = "Pour régler"
         const val MOVIES_HELD = "Tant que l’historique des films ne se lit pas en entier, Houselights n’envoie pas à Trakt les films vus " +

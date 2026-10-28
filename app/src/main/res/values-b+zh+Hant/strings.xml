@@ -770,6 +770,8 @@
     <string name="trakt_connected">已連線</string>
     <string name="trakt_paused">已暫停</string>
     <string name="trakt_paused_desc">Trakt 跟隨您的資料夾；回到資料夾後即恢復。</string>
+    <string name="trakt_unread">暫時無法讀取</string>
+    <string name="trakt_unread_desc">您的 Trakt 連結仍儲存在本播放器上，但暫時無法重新讀取。請稍後再試；如有需要，也可以中斷您的帳戶連結。</string>
     <string name="trakt_connect">連結您的帳戶</string>
     <string name="trakt_connect_desc">在手機或電腦上輸入一組代碼即可</string>
     <string name="trakt_disconnect">中斷您的帳戶連結</string>

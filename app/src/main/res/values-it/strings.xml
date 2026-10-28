@@ -822,6 +822,8 @@
     <string name="trakt_connected">Connesso</string>
     <string name="trakt_paused">In pausa</string>
     <string name="trakt_paused_desc">Trakt segue le cartelle; riprende quando si torna a usarle.</string>
+    <string name="trakt_unread">Non letto per ora</string>
+    <string name="trakt_unread_desc">Il collegamento a Trakt resta salvato su questo lettore, ma per ora non è stato possibile rileggerlo. Riprovare tra poco o scollegare l’account, se lo si desidera.</string>
     <string name="trakt_connect">Collega l’account</string>
     <string name="trakt_connect_desc">Con un codice da inserire sul telefono o sul computer</string>
     <string name="trakt_disconnect">Scollega l’account</string>

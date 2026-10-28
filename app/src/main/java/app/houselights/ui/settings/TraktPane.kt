@@ -53,15 +53,19 @@ import kotlinx.coroutines.flow.StateFlow
  * Trakt, for the folders, as a state said beside its title: not connected, what it keeps and the row that connects;
  * connecting, its code in the pane, Back cancelling; connected, the account and its last sync, then the rows that sync,
  * open what a sync left out, and disconnect. Under another source than the [folders], paused: the account kept, and
- * the row that disconnects it. A build without Trakt's keys says so and offers nothing.
+ * the row that disconnects it. With the folders, a session kept that the Keystore did not open at this launch
+ * ([unread]) is neither connected nor not: kept, not read for now, and the row that disconnects it, nothing to connect
+ * over it. A build without Trakt's keys says so and offers nothing.
  */
-internal fun LazyListScope.traktPane(vm: TraktViewModel, session: TraktSession?, folders: Boolean = true) {
-    item { Trakt(vm, session, folders) }
+internal fun LazyListScope.traktPane(vm: TraktViewModel, session: TraktSession?, folders: Boolean = true, unread: Boolean = false) {
+    item { Trakt(vm, session, folders, unread) }
 }
 
 @Composable
-private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) {
+private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean, unread: Boolean) {
     val live = session?.takeUnless { it.ended }
+    // Kept, but not opened at this launch: Réessayer at the pane's head reads it again.
+    val kept = unread && session == null
     val focus = rememberCodeFocus(vm.connecting)
     BackHandler(enabled = vm.connecting) { vm.cancel() }
     ReadMissingName(live, folders, onRead = vm::readName)
@@ -80,6 +84,12 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) 
                 val sync by vm.syncState.collectAsStateWithLifecycle()
                 Account(live.username, sync)
             }
+            kept -> PaneHead(
+                title,
+                aside = stringResource(R.string.trakt_unread),
+                state = StatusState.Pending,
+                read = stringResource(R.string.trakt_unread_desc),
+            )
             else -> {
                 PaneHead(title, aside = signedOut, state = StatusState.Off, read = stringResource(R.string.trakt_desc))
                 if (session?.ended == true) {
@@ -92,8 +102,9 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) 
         if (vm.available && (!vm.connecting || focus.asked)) {
             Spacer(Modifier.height(HlSpace.l))
             TraktRows(
-                connected = live != null || !folders,
-                syncs = folders,
+                // A session kept but not read is disconnected as one connected, never connected over.
+                connected = live != null || !folders || kept,
+                syncs = folders && live != null,
                 note = vm.note,
                 disconnecting = vm.disconnecting,
                 syncState = vm.syncState,
@@ -231,9 +242,10 @@ private fun Account(name: String?, sync: TraktSyncState) {
 }
 
 /**
- * Sync ([onSync]) and what the last sync left out when it did ([syncState]), while Trakt [syncs], then connect or
- * disconnect, which says so while [disconnecting]: one row whose words follow the account, so focus stays on it as the
- * account comes and goes. A failure ([note]) is said under its row ([RowFailureNote]).
+ * Sync ([onSync]) and what the last sync left out when it did ([syncState]), while Trakt [syncs] (connected, its session
+ * read, with the folders), then connect or disconnect, which says so while [disconnecting]: one row whose words follow
+ * the account, so focus stays on it as the account comes and goes. A failure ([note]) is said under its row
+ * ([RowFailureNote]).
  */
 @Composable
 private fun TraktRows(

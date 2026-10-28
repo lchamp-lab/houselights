@@ -842,6 +842,8 @@
     <string name="trakt_connected">Połączono</string>
     <string name="trakt_paused">Wstrzymano</string>
     <string name="trakt_paused_desc">Trakt działa z folderami; wznowi działanie po powrocie do nich.</string>
+    <string name="trakt_unread">Na razie nieodczytane</string>
+    <string name="trakt_unread_desc">Połączenie z Trakt jest zachowane na tym odtwarzaczu, ale na razie nie udało się go ponownie odczytać. Spróbuj jeszcze raz za chwilę lub odłącz konto, jeśli chcesz.</string>
     <string name="trakt_connect">Połącz konto</string>
     <string name="trakt_connect_desc">Za pomocą kodu wpisanego w telefonie lub komputerze</string>
     <string name="trakt_disconnect">Odłącz konto</string>

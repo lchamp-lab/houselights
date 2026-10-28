@@ -817,6 +817,8 @@
     <string name="trakt_connected">Connected</string>
     <string name="trakt_paused">Paused</string>
     <string name="trakt_paused_desc">Trakt follows your folders; it resumes when you return to them.</string>
+    <string name="trakt_unread">Not read for now</string>
+    <string name="trakt_unread_desc">Your Trakt connection is kept on this player, but could not be read for now. Try again in a moment, or disconnect your account if you wish.</string>
     <string name="trakt_connect">Connect your account</string>
     <string name="trakt_connect_desc">With a code entered on your phone or computer</string>
     <string name="trakt_disconnect">Disconnect your account</string>

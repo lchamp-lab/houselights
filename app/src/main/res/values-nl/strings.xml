@@ -794,6 +794,8 @@
     <string name="trakt_connected">Verbonden</string>
     <string name="trakt_paused">Gepauzeerd</string>
     <string name="trakt_paused_desc">Trakt volgt uw mappen; het gaat verder zodra u ernaar terugkeert.</string>
+    <string name="trakt_unread">Voorlopig niet gelezen</string>
+    <string name="trakt_unread_desc">Uw Trakt-verbinding blijft bewaard op deze speler, maar kon voorlopig niet opnieuw worden gelezen. Probeer het zo nog eens, of koppel uw account los als u dat wilt.</string>
     <string name="trakt_connect">Uw account verbinden</string>
     <string name="trakt_connect_desc">Met een code die u op uw telefoon of computer invoert</string>
     <string name="trakt_disconnect">Uw account loskoppelen</string>

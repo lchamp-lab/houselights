@@ -767,6 +767,8 @@
     <string name="trakt_connected">接続済み</string>
     <string name="trakt_paused">一時停止中</string>
     <string name="trakt_paused_desc">Traktはフォルダと連動します。フォルダに戻ると再開します。</string>
+    <string name="trakt_unread">現在読み取れません</string>
+    <string name="trakt_unread_desc">Traktの接続はこのプレーヤーに保持されていますが、今は読み込み直せませんでした。しばらくしてからもう一度お試しいただくか、必要に応じてアカウントの接続を解除してください。</string>
     <string name="trakt_connect">アカウントを接続</string>
     <string name="trakt_connect_desc">スマートフォンかパソコンでコードを入力します</string>
     <string name="trakt_disconnect">アカウントの接続を解除</string>

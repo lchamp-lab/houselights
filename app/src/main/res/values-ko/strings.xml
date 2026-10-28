@@ -767,6 +767,8 @@
     <string name="trakt_connected">연결됨</string>
     <string name="trakt_paused">일시 중지됨</string>
     <string name="trakt_paused_desc">Trakt는 폴더와 연동됩니다. 폴더로 돌아오면 재개됩니다.</string>
+    <string name="trakt_unread">지금은 읽을 수 없음</string>
+    <string name="trakt_unread_desc">Trakt 연결은 이 플레이어에 그대로 보관되어 있지만 지금은 다시 읽을 수 없습니다. 잠시 후 다시 시도하거나, 원하면 계정 연결을 해제하세요.</string>
     <string name="trakt_connect">계정 연결</string>
     <string name="trakt_connect_desc">휴대폰이나 컴퓨터에서 코드를 입력합니다</string>
     <string name="trakt_disconnect">계정 연결 해제</string>
