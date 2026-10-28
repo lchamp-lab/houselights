@@ -298,6 +298,7 @@
     <string name="error_smb_denied">‘%1$s’ 계정에는 ‘%2$s’에 대한 접근 권한이 없습니다. NAS에서 읽기 권한을 주거나 다른 계정을 사용하세요.</string>
     <string name="error_guest_refused">이 NAS는 게스트를 허용하지 않습니다. 계정을 입력하세요.</string>
     <string name="error_scan_other">폴더를 읽을 수 없습니다. 다시 시도하거나 NAS의 공유 폴더를 확인하세요.</string>
+    <string name="error_scan_password_unread">이 폴더에 저장된 비밀번호를 지금은 읽을 수 없습니다. 비밀번호는 그대로 보관되며 다음 스캔 때 다시 시도합니다.</string>
     <string name="error_folder_empty">NAS의 폴더가 비어 있는 것 같습니다. 아무것도 제거하지 않았습니다. 디스크가 마운트되어 있는지 확인하고, 정말 비어 있다면 폴더를 제거하세요.</string>
     <string name="error_storage_full">이 기기에 남은 공간이 없어 스캔이 중단되었습니다. 설정의 ‘저장 공간’에서 공간을 확보하세요.</string>
     <string name="add">추가</string>

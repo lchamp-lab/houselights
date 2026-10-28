@@ -314,6 +314,7 @@
     <string name="error_smb_denied">A conta “%1$s” não tem acesso a “%2$s”. Dê a ela permissão de leitura no NAS, ou troque de conta.</string>
     <string name="error_guest_refused">Este NAS não aceita convidados: digite uma conta.</string>
     <string name="error_scan_other">Não foi possível ler a pasta. Tente de novo, ou verifique o compartilhamento no NAS.</string>
+    <string name="error_scan_password_unread">Não foi possível ler a senha salva desta pasta por enquanto: ela continua guardada e será tentada de novo na próxima análise.</string>
     <string name="error_folder_empty">A pasta parece vazia no NAS: nada foi removido. Verifique se o disco dela está montado; se estiver vazia de vez, remova-a.</string>
     <string name="error_storage_full">Este dispositivo está sem espaço livre: a análise parou. Libere espaço em Configurações, Armazenamento.</string>
     <string name="add">Adicionar</string>

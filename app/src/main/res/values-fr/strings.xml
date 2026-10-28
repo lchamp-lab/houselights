@@ -308,6 +308,7 @@
     <string name="error_smb_denied">Le compte « %1$s » n’a pas accès à « %2$s ». Donnez-lui le droit de lecture sur le NAS, ou changez de compte.</string>
     <string name="error_guest_refused">Ce NAS n’accepte pas les invités : saisissez un compte.</string>
     <string name="error_scan_other">Le dossier n’a pas pu être lu. Réessayez, ou vérifiez le partage sur le NAS.</string>
+    <string name="error_scan_password_unread">Le mot de passe enregistré de ce dossier n’a pas pu être lu pour l’instant : il est conservé, et sera essayé de nouveau à la prochaine analyse.</string>
     <string name="error_folder_empty">Le dossier semble vide sur le NAS : rien n’a été retiré. Vérifiez que son disque est monté ; s’il est vide pour de bon, retirez-le.</string>
     <string name="error_storage_full">L’appareil n’a plus d’espace libre : l’analyse s’est arrêtée. Libérez-en dans Réglages, Stockage.</string>
     <string name="add">Ajouter</string>

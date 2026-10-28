@@ -305,6 +305,7 @@
     <string name="error_smb_denied">Het account “%1$s” heeft geen toegang tot “%2$s”. Geef het leesrechten op de NAS, of gebruik een ander account.</string>
     <string name="error_guest_refused">Deze NAS accepteert geen gasten: voer een account in.</string>
     <string name="error_scan_other">De map kon niet worden gelezen. Probeer het opnieuw, of controleer de share op de NAS.</string>
+    <string name="error_scan_password_unread">Het opgeslagen wachtwoord van deze map kon voorlopig niet worden gelezen: het blijft bewaard en wordt bij de volgende scan opnieuw geprobeerd.</string>
     <string name="error_folder_empty">De map lijkt leeg op de NAS: er is niets verwijderd. Controleer of de schijf gekoppeld is; is de map definitief leeg, verwijder hem dan.</string>
     <string name="error_storage_full">Dit apparaat heeft geen ruimte meer: de scan is gestopt. Maak ruimte vrij in Instellingen, Opslag.</string>
     <string name="add">Toevoegen</string>

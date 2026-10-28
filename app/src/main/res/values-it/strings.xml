@@ -313,6 +313,7 @@
     <string name="error_smb_denied">L’account «%1$s» non ha accesso a «%2$s». Concedergli la lettura sul NAS, o cambiare account.</string>
     <string name="error_guest_refused">Questo NAS non accetta ospiti: inserire un account.</string>
     <string name="error_scan_other">Impossibile leggere la cartella. Riprovare, o verificare la condivisione sul NAS.</string>
+    <string name="error_scan_password_unread">Per ora non è stato possibile leggere la password salvata di questa cartella: resta conservata e verrà riprovata alla prossima scansione.</string>
     <string name="error_folder_empty">La cartella sembra vuota sul NAS: non è stato rimosso nulla. Verificare che il disco sia montato; se è vuota definitivamente, rimuoverla.</string>
     <string name="error_storage_full">Spazio esaurito su questo dispositivo: la scansione si è interrotta. Liberarne un po’ in Impostazioni, Archiviazione.</string>
     <string name="add">Aggiungi</string>

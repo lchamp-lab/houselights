@@ -1,9 +1,11 @@
 package app.houselights.providers.local
 
+import app.houselights.core.SecretUnreadException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -13,7 +15,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
 
-/** A pass closes its NAS connections when it ends or waits, and reports a fully refused folder as refused. */
+/**
+ * A pass closes its NAS connections when it ends or waits, reports a fully refused folder as refused, and a password not
+ * read for now as such.
+ */
 @RunWith(RobolectricTestRunner::class)
 class ScanNasTest {
     @get:Rule
@@ -93,6 +98,26 @@ class ScanNasTest {
         assertEquals(ScanErrorKind.ACCESS_DENIED, bench.error(films))
         assertEquals(listOf("Arrival (2016)/Arrival (2016).mkv", "Dune (2021)/Dune (2021).mkv"), filePaths())
         assertTrue(bench.item(films, "Dune (2021)/Dune (2021).mkv").favorite)
+    }
+
+    /**
+     * The folder's password kept, which the Keystore did not open for now, stops its listing before the NAS is asked (as
+     * the browsers do, [Secret.forSignIn]): said as such, never as a folder that could not be read, its titles kept; the
+     * next scan reads it again.
+     */
+    @Test
+    fun aFolderWhosePasswordIsNotReadForNowSaysSoAndKeepsItsTitles() = runTest {
+        nas.put("Dune (2021).mkv")
+        bench.scan()
+
+        nas.listFailure = SecretUnreadException()
+        bench.scan()
+        assertEquals(ScanErrorKind.PASSWORD_UNREAD, bench.error(films))
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+
+        nas.listFailure = null
+        bench.scan()
+        assertNull(bench.error(films))
     }
 
     @Test

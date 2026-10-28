@@ -59,7 +59,8 @@ class FailuresTest {
             NotFoundException("Heat") to Told(UiError.GONE, UiError.GONE, ScanErrorKind.OTHER),
             TmdbNotFoundException() to Told(UiError.TMDB_NOT_FOUND, UiError.TMDB_NOT_FOUND, ScanErrorKind.OTHER),
             SecretsUnavailableException(ProviderException("Keystore")) to Told(UiError.KEYSTORE, UiError.KEYSTORE, ScanErrorKind.OTHER),
-            SecretUnreadException() to Told(UiError.SECRETS_UNREAD, UiError.SECRETS_UNREAD, ScanErrorKind.OTHER),
+            // A folder's password not opened for now: kept, and read again at the next scan, never a folder unread.
+            SecretUnreadException() to Told(UiError.SECRETS_UNREAD, UiError.SECRETS_UNREAD, ScanErrorKind.PASSWORD_UNREAD),
             EmptyFolderException() to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.EMPTY),
             UnreadableFolderException(3) to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),
             IllegalStateException("This source cannot be edited") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.OTHER),

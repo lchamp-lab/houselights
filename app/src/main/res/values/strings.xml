@@ -324,6 +324,7 @@
     <string name="error_smb_denied">The account “%1$s” cannot read “%2$s”. Give it read access on the NAS, or use another account.</string>
     <string name="error_guest_refused">This NAS does not accept guests: enter an account.</string>
     <string name="error_scan_other">The folder could not be read. Try again, or check the share on the NAS.</string>
+    <string name="error_scan_password_unread">This folder’s saved password could not be read for now: it is kept, and will be tried again at the next scan.</string>
     <string name="error_folder_empty">The folder looks empty on the NAS: nothing was removed. Check that its disk is mounted; if it is empty for good, remove it.</string>
     <string name="error_storage_full">This device has no space left: the scan stopped. Free some in Settings, Storage.</string>
     <string name="add">Add</string>

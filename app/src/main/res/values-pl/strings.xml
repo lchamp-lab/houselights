@@ -319,6 +319,7 @@
     <string name="error_smb_denied">Konto „%1$s” nie ma dostępu do „%2$s”. Nadaj mu prawo odczytu na serwerze NAS albo zmień konto.</string>
     <string name="error_guest_refused">Ten serwer NAS nie przyjmuje gości: wpisz konto.</string>
     <string name="error_scan_other">Nie udało się odczytać folderu. Spróbuj ponownie lub sprawdź udział na serwerze NAS.</string>
+    <string name="error_scan_password_unread">Na razie nie udało się odczytać zapisanego hasła tego folderu: jest zachowane i zostanie użyte ponownie przy następnym skanowaniu.</string>
     <string name="error_folder_empty">Folder na serwerze NAS wygląda na pusty: niczego nie usunięto. Sprawdź, czy jego dysk jest zamontowany; jeśli folder jest pusty na stałe, usuń go.</string>
     <string name="error_storage_full">Na tym urządzeniu brakuje miejsca: skanowanie zostało przerwane. Zwolnij miejsce w Ustawieniach, w sekcji Pamięć.</string>
     <string name="add">Dodaj</string>

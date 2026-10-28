@@ -298,6 +298,7 @@
     <string name="error_smb_denied">帳號「%1$s」無權存取「%2$s」。請在 NAS 上授予其讀取權限，或更換帳號。</string>
     <string name="error_guest_refused">此 NAS 不接受訪客：請輸入帳號。</string>
     <string name="error_scan_other">無法讀取此資料夾。請重試，或檢查 NAS 上的共用資料夾。</string>
+    <string name="error_scan_password_unread">暫時無法讀取此資料夾已儲存的密碼：密碼仍會保留，下次掃描時將再次嘗試。</string>
     <string name="error_folder_empty">此資料夾在 NAS 上似乎是空的：未移除任何內容。請檢查其所在磁碟是否已掛載；如果它將一直是空的，請將其移除。</string>
     <string name="error_storage_full">本裝置已無剩餘空間：掃描已停止。請在設定的「儲存空間」中釋放空間。</string>
     <string name="add">加入</string>

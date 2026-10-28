@@ -298,6 +298,7 @@
     <string name="error_smb_denied">アカウント「%1$s」には「%2$s」へのアクセス権がありません。NASで読み取り権限を与えるか、別のアカウントを使ってください。</string>
     <string name="error_guest_refused">このNASはゲストを受け付けません。アカウントを入力してください。</string>
     <string name="error_scan_other">フォルダを読み取れませんでした。もう一度お試しいただくか、NASの共有フォルダを確認してください。</string>
+    <string name="error_scan_password_unread">このフォルダに保存されたパスワードを今は読み取れませんでした。パスワードは保持されており、次回のスキャンで再度試します。</string>
     <string name="error_folder_empty">NAS上のフォルダが空のようです。何も削除されていません。ディスクがマウントされているか確認し、本当に空であればフォルダを削除してください。</string>
     <string name="error_storage_full">このデバイスの空き容量がないため、スキャンを中止しました。設定の「ストレージ」で空き容量を確保してください。</string>
     <string name="add">追加</string>
