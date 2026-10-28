@@ -173,7 +173,9 @@ class FolderFlow(
      */
     private fun accountAgain(): Boolean {
         val unread = keptPassword?.unopened != null
-        if (protocol != Protocol.SMB || guest || (keptPassword != null && !unread)) return false
+        // A password typed was never kept; one kept but not opened cannot be tried.
+        val toType = keptPassword == null || unread
+        if (protocol != Protocol.SMB || guest || !toType) return false
         accountKept = false
         signedIn = false
         keptPassword = null
