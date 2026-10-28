@@ -47,6 +47,14 @@
     <string name="use_suggestion">Użyj %s</string>
     <string name="use_suggestion_name">Użyj „%s”</string>
     <string name="suggested_by_nas">Zaproponowane przez NAS</string>
+    <string name="pick_share">Wybierz udostępniony folder</string>
+    <plurals name="pick_share_desc">
+        <item quantity="one">Spośród %d udostępnianych przez NAS</item>
+        <item quantity="few">Spośród %d udostępnianych przez NAS</item>
+        <item quantity="many">Spośród %d udostępnianych przez NAS</item>
+        <item quantity="other">Spośród %d udostępnianych przez NAS</item>
+    </plurals>
+    <string name="only_share">Jedyny folder udostępniany przez NAS</string>
     <string name="flow_browse_desc">Otwórz folder z filmami lub serialami, a potem go wybierz.</string>
     <string name="flow_edit_desc">Wybierz folder, w którym są teraz filmy z „%s”: tytuły, historia oglądania i dokonane wybory zostają zachowane.</string>
     <string name="choose_folder">Wybierz ten folder</string>

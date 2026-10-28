@@ -44,6 +44,11 @@
     <string name="use_suggestion">%s 사용</string>
     <string name="use_suggestion_name">‘%s’ 사용</string>
     <string name="suggested_by_nas">NAS가 제안함</string>
+    <string name="pick_share">공유 폴더 선택</string>
+    <plurals name="pick_share_desc">
+        <item quantity="other">NAS가 공유하는 %d개 중에서</item>
+    </plurals>
+    <string name="only_share">NAS의 유일한 공유 폴더</string>
     <string name="flow_browse_desc">영화나 TV 프로그램 폴더를 연 다음 선택하세요.</string>
     <string name="flow_edit_desc">이제 ‘%s’의 동영상이 있는 폴더를 선택하세요. 작품과 시청 기록, 선택한 항목은 그대로 유지됩니다.</string>
     <string name="choose_folder">이 폴더 선택</string>

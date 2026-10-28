@@ -7,6 +7,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -25,6 +27,7 @@ import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.PublicSystemInfo
 import app.houselights.providers.jellyfin.ServerCheck
 import app.houselights.providers.local.ArtworkCache
+import app.houselights.providers.local.ExportedFolder
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
@@ -37,6 +40,7 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SourceSwitcher
+import app.houselights.testing.mountFailure
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSize
@@ -46,6 +50,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
 import app.houselights.ui.util.wholePath
+import com.emc.ecs.nfsclient.mount.MountStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,7 +77,8 @@ import java.io.IOException
 /**
  * The forms on the TV canvas, in French and German (DESIGN.md, Secondary screens): a folder's and Jellyfin's, two
  * servers found, hold whole in the safe area with their actions' focus, their fields [HlSize.field] tall, the form
- * from the top of the safe area beside its column.
+ * from the top of the safe area beside its column; a folder's line to choose among the NAS's shared folders whole at
+ * every text size.
  */
 @RunWith(RobolectricTestRunner::class)
 // Real fonts, so lines break as on the device.
@@ -199,6 +205,61 @@ class FormLayoutTest {
         val help = compose.activity.getString(R.string.smb_hint)
         assertFalse("$help cut", cut(help))
         assertTrue(compose.onNodeWithText(help).getUnclippedBoundsInRoot().bottom <= SCREEN_H - HlSpace.safeV)
+    }
+
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun theLineToChooseASharedFolderHolds() = aSharedFolderToChooseHolds(1f)
+
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun theLineToChooseASharedFolderHoldsAtTheLargestText() = aSharedFolderToChooseHolds(LARGEST_TEXT)
+
+    /**
+     * « Modifier le dossier » after Tester, the NAS lacking /share/Multimedia and nothing near it (#59): the message under
+     * « Chemin de montage » whole, and « Choisir un dossier partagé », « Parmi les 3 que partage le NAS » on its plate
+     * under the actions, whole and focused, the form scrolled to show it inside the safe area.
+     */
+    private fun aSharedFolderToChooseHolds(scale: Float) {
+        val id = runBlocking {
+            db.dao().insertSource(
+                SourceEntity(
+                    name = "Films",
+                    kind = SourceKind.MOVIES,
+                    protocol = Protocol.NFS,
+                    host = "192.168.1.20",
+                    share = "share/Multimedia",
+                    path = "Films",
+                    username = "",
+                    password = Secret(""),
+                ),
+            )
+        }
+        val exports = listOf("/volume1/video", "/volume1/musique", "/volume1/photo").map { ExportedFolder(it, emptyList()) }
+        val vm = AddFolderViewModel(
+            library(),
+            id,
+            scope,
+            probe = { throw mountFailure(MountStatus.MNT3ERR_ACCES) },
+            playerAddress = { "192.168.1.42" },
+            exports = { exports },
+        )
+        compose.setTvContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, scale)) { AddFolderForm(vm, FolderField.FIRST) {} }
+        }
+        compose.waitUntil { vm.ready }
+        vm.test()
+        compose.waitUntil(FLOW_WAIT_MS) { vm.shared != null }
+        compose.waitForIdle()
+        fun text(id: Int) = compose.activity.getString(id)
+        val line = text(R.string.pick_share)
+        val count = compose.activity.resources.getQuantityString(R.plurals.pick_share_desc, 3, 3)
+        val message = compose.activity.getString(R.string.error_export_not_found, wholePath("/share/Multimedia"))
+        listOf(line, count, message).forEach { assertFalse("$it cut at $scale", cut(it)) }
+        compose.onNode(isFocused() and hasText(line, substring = true)).assertExists()
+        val row = compose.onNodeWithText(count, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertTrue("the line inside the safe area at $scale: $row", row.bottom <= SCREEN_H - HlSpace.safeV)
     }
 
     /** [help], when shown, ends inside the safe area, whole; left out, it is not placed at all. */
