@@ -45,9 +45,10 @@ class ScanBench(
 
     private val artwork = ArtworkCache(artworkDir) { freeSpace }
 
-    /** Whether a film is playing and whether the app is on screen: what a scan waits for. */
+    /** Whether a film is playing, whether the app is on screen and whether Android's screensaver shows: what a scan waits for. */
     val playing = MutableStateFlow(false)
     val started = MutableStateFlow(true)
+    val dreaming = MutableStateFlow(false)
 
     /** Times the scanner closed its NAS connections, and what runs when it does. */
     val closed = AtomicInteger()
@@ -68,6 +69,7 @@ class ScanBench(
         clock = { now },
         interactiveTmdb = { tmdb.client().takeIf { withTmdb } },
         started = started,
+        dreaming = dreaming,
     )
 
     fun close() = db.close()

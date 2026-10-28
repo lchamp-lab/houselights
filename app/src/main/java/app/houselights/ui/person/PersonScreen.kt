@@ -23,11 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.houselights.R
 import app.houselights.core.Job
 import app.houselights.core.MediaItem
 import app.houselights.core.Person
@@ -62,6 +60,7 @@ import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.jobName
 import app.houselights.ui.util.rememberSettled
+import app.houselights.ui.util.titleCount
 import app.houselights.ui.util.toPx
 import app.houselights.ui.util.valueOrNull
 
@@ -172,7 +171,7 @@ private fun PersonHead(page: PersonPage, modifier: Modifier = Modifier) {
             ScreenTitle(person.name)
             Spacer(Modifier.height(HlSpace.xs))
             val count = page.titles.size
-            FactRow(personJobs(page).map { jobName(it) } + pluralStringResource(R.plurals.title_count, count, count))
+            FactRow(personJobs(page).map { jobName(it) } + titleCount(count))
         }
     }
 }

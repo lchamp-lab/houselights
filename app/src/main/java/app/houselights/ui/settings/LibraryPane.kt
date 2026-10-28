@@ -69,8 +69,10 @@ import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatCount
+import app.houselights.ui.util.scanCount
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
+import app.houselights.ui.util.titleCount
 import app.houselights.ui.util.titleText
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.launch
@@ -145,7 +147,7 @@ private fun librarySummary(): String? {
     if (folders.isEmpty()) return null
     return stringResource(
         R.string.library_in_folders,
-        pluralStringResource(R.plurals.title_count, titles, titles),
+        titleCount(titles),
         pluralStringResource(R.plurals.folder_count, folders.size, folders.size),
     )
 }
@@ -486,7 +488,7 @@ private fun folderFacts(counts: FolderCounts?): List<String?> {
     }
     val ultraHd = counts?.ultraHd ?: 0
     return listOf(
-        pluralStringResource(R.plurals.title_count, titles, titles),
+        titleCount(titles),
         if (ultraHd > 0) pluralStringResource(R.plurals.uhd_count, ultraHd, ultraHd) else null,
     )
 }
@@ -515,7 +517,7 @@ private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows, onOpenToIden
             stringResource(R.string.scan_now),
             description = stringResource(R.string.scan_now_desc),
             // The counter's notation, as on the scanning folder's showcase.
-            value = if (scan.running) stringResource(R.string.scan_progress, scan.processed, scan.total) else null,
+            value = if (scan.running) scanCount(scan.processed, scan.total) else null,
             valueStyle = Hl.type.jaquette,
             onClick = { vm.library.scan() },
         )
@@ -896,7 +898,7 @@ private fun serverName(server: SourceConfig.Jellyfin): String = server.serverNam
 private fun sourceFacts(server: SourceConfig.Jellyfin?, titles: Int): List<String?> = if (server != null) {
     listOf(serverName(server), stringResource(R.string.source_jellyfin).takeIf { server.serverName != null }, server.userName)
 } else {
-    listOf(stringResource(R.string.source_local), pluralStringResource(R.plurals.title_count, titles, titles))
+    listOf(stringResource(R.string.source_local), titleCount(titles))
 }
 
 /** The folders option's line: the folders added, or the first one to add. */

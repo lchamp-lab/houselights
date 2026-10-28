@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home's first scan (« Premier scan »): the folder read, the videos its listing found, the way to home meanwhile,
+     what a first Back says while the library's first pass runs. -->
+<resources>
+    <string name="first_scan_listing">Reading the folder…</string>
+    <string name="first_scan_reading">Scanning the folder…</string>
+    <plurals name="first_scan_found">
+        <item quantity="one">%s video found…</item>
+        <item quantity="other">%s videos found…</item>
+    </plurals>
+    <string name="first_scan_home">Go to Home</string>
+    <string name="first_scan_home_goes_on">The scan continues in the background</string>
+    <string name="first_scan_back_waits">Press Back again to quit: the scan will resume when you come back</string>
+</resources>

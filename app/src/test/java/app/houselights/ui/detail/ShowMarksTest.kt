@@ -117,7 +117,7 @@ class ShowMarksTest {
     }
 
     @Test
-    fun okMarksTheSeasonShownAndMenuOpensTheTilesOptions() {
+    fun okMarksTheSeasonShowAndMenuOpensTheTilesOptions() {
         showPage()
         tile(R.string.mark_season_watched).assert(longClickNamed(text(R.string.more_options))).requestFocus()
         compose.press(Key.DirectionCenter)

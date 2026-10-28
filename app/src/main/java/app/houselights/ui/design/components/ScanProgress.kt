@@ -8,17 +8,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Text
-import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.util.scanCount
 
 /**
  * A running scan: the ember line, the count in tabular figures ("3 / 9"), then the file being read in `meta`, on the
@@ -52,7 +51,7 @@ fun ScanProgress(
             ProgressLine(fraction.coerceAtLeast(PROGRESS_SLIVER), Modifier.width(lineWidth), focused = focused)
             if (total > 0) {
                 Spacer(Modifier.width(HlSpace.s))
-                Text(stringResource(R.string.scan_progress, processed, total), style = Hl.type.meta, color = ink, maxLines = 1)
+                Text(scanCount(processed, total), style = Hl.type.meta, color = ink, maxLines = 1)
             }
             if (label == null) {
                 Spacer(Modifier.width(HlSpace.m))

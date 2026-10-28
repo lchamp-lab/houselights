@@ -32,7 +32,7 @@
     <string name="empty_collections">아직 시리즈가 없습니다</string>
     <string name="empty_server">서버에 이 계정으로 볼 수 있는 영화나 TV 프로그램이 없습니다.</string>
     <plurals name="title_count">
-        <item quantity="other">%d편</item>
+        <item quantity="other">%s편</item>
     </plurals>
     <string name="home_empty_title">아직 영화가 없습니다</string>
     <string name="home_empty_local">영화가 있는 폴더를 추가하세요.</string>

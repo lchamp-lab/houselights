@@ -202,7 +202,7 @@ class DetailViewModelTest {
 
     /** The watched tile marks the season shown, its episodes from their start, the show counting it: at once, then as saved. */
     @Test
-    fun theTileMarksTheSeasonShownThenTheWholeShow() = runTest {
+    fun theTileMarksTheSeasonShowThenTheWholeShow() = runTest {
         countedShow()
         val vm = detail("show")
         advanceUntilIdle()
@@ -365,7 +365,7 @@ class DetailViewModelTest {
 
     /** One season has no track: the watched tile marks the show. */
     @Test
-    fun aShowOfOneSeasonHasNoSeasonShown() = runTest {
+    fun aShowOfOneSeasonHasNoSeasonShow() = runTest {
         provider.seasons = mapOf("show" to listOf(season("s1", 1, "show")))
         val vm = detail("show")
         advanceUntilIdle()

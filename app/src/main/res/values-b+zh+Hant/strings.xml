@@ -32,7 +32,7 @@
     <string name="empty_collections">尚無系列</string>
     <string name="empty_server">伺服器未向此帳號提供任何電影或影集。</string>
     <plurals name="title_count">
-        <item quantity="other">%d 部作品</item>
+        <item quantity="other">%s 部作品</item>
     </plurals>
     <string name="home_empty_title">尚無電影</string>
     <string name="home_empty_local">加入存放電影的資料夾。</string>

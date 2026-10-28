@@ -49,7 +49,11 @@ class RemoteWalkTest {
     /** The source's unreadable paths, kept from one walk to the next as the app keeps them. */
     private val unreadable = RepeatedFailures("RemoteBrowser")
 
-    private fun listing(isFatal: (Throwable) -> Boolean = ScanErrors::isUnreachable) = walk(folder(""), unreadable, isFatal)
+    /** Each count the walk told, in order. */
+    private val counted = mutableListOf<Int>()
+
+    private fun listing(isFatal: (Throwable) -> Boolean = ScanErrors::isUnreachable) =
+        walk(folder(""), unreadable, found = { counted += it }, isFatal = isFatal)
 
     /** What nfs-client throws for a READDIR the NAS refuses. */
     private fun refused() = NfsException(NfsStatus.NFS3ERR_ACCES, "readdir error code: NfsStatus:13")
@@ -111,6 +115,28 @@ class RemoteWalkTest {
         assertEquals(listOf("Heat (1995).mkv"), listing.videos.map { it.relativePath })
         assertEquals(listOf("Dune (2021)/Dune (2021).nfo"), listing.sidecars.map { it.relativePath })
         assertEquals(listOf("Dune (2021)/Dune (2021).mkv", "Arrival (2016)", "Blade Runner (1982).mkv"), listing.unreadable)
+    }
+
+    /**
+     * The walk counts its videos as it finds them, as a scan counts titles where their paths tell: a disc's streams once,
+     * an extra named as such never, nor a sample, an NFO or a poster; an extras folder, which only the whole listing
+     * tells, still counts.
+     */
+    @Test
+    fun aWalkCountsItsVideosAsAScanCountsTitles() {
+        tree[""] = listOf("Dune (2021)/", "Heat (1995)/", "Ran (1985)/", "Arrival (2016).mkv", "Arrival (2016)-trailer.mkv", "poster.jpg")
+        tree["Dune (2021)"] = listOf("Dune (2021).mkv", "Dune (2021)-featurette.mkv", "Dune (2021)-sample.mkv", "movie.nfo", "Featurettes/")
+        tree["Dune (2021)/Featurettes"] = listOf("Making of.mkv")
+        tree["Heat (1995)"] = listOf("BDMV/")
+        tree["Heat (1995)/BDMV"] = listOf("STREAM/")
+        tree["Heat (1995)/BDMV/STREAM"] = listOf("00000.m2ts", "00001.m2ts", "00002.m2ts")
+        tree["Ran (1985)"] = listOf("VIDEO_TS/")
+        tree["Ran (1985)/VIDEO_TS"] = listOf("VTS_01_1.VOB", "VTS_01_2.VOB")
+
+        val listing = listing()
+
+        assertEquals("Dune, its extras folder's video, Heat's Blu-ray, Ran's DVD, Arrival", listOf(1, 2, 3, 4, 5), counted)
+        assertEquals("every video listed all the same, the sample aside", 10, listing.videos.size)
     }
 
     @Test

@@ -44,6 +44,7 @@ import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatDimensions
+import app.houselights.ui.util.scanCount
 
 /** The three small-surface gestures (case back, intertitle, counter), side by side, then at screen widths. */
 internal fun LazyListScope.catalogGestures() {
@@ -146,7 +147,7 @@ private fun ErrorSpecimen(error: UiError, retrying: Boolean = false) =
 
 @Composable
 private fun ColumnScope.Counters() {
-    Specimen("first scan, on home: what is read, a line a reading column long, the file") {
+    Specimen("under its label: what is read, a line a reading column long, the file under it") {
         ScanProgress(
             41,
             120,
@@ -164,7 +165,7 @@ private fun ColumnScope.Counters() {
     Specimen("the row that starts a scan: the same count", Modifier.width(HlLayout.readableNarrow)) {
         HlSettingRow(
             stringResource(R.string.scan_now),
-            value = stringResource(R.string.scan_progress, 3, 9),
+            value = scanCount(3, 9),
             valueLit = true,
             onClick = {},
         )

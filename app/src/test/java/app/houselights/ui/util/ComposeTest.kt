@@ -23,7 +23,7 @@ class ComposeTest {
 
     /** After process death, versions restart at 0 and the restored screen loads anew: no second load. */
     @Test
-    fun aVersionShownInAnotherProcessNeverReloads() {
+    fun aVersionShowInAnotherProcessNeverReloads() {
         val shown = shownAt(version = 7, settled = 7, process = 1)
         assertFalse(isBehind(shown, current = 0, process = 2))
     }
