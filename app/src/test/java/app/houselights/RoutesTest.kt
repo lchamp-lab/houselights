@@ -5,13 +5,18 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.Quality
 import app.houselights.core.WatchStatus
+import app.houselights.providers.local.ExportedFolder
 import app.houselights.ui.home.WatchRow
 import app.houselights.ui.onboarding.LoginFill
+import app.houselights.ui.onboarding.SharePick
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** A wall's route carries its library, sagas and starting filter; « À regarder »'s, its row; the sign-in's, how its form starts. */
+/**
+ * A wall's route carries its library, sagas and starting filter; « À regarder »'s, its row; the sign-in's, how its form
+ * starts; the guided flow's step 4 over a folder's form, the shared folders it shows.
+ */
 class RoutesTest {
     private val films = Library("movies", LibraryKind.MOVIES, null)
 
@@ -67,6 +72,28 @@ class RoutesTest {
     fun theWatchPageOpensOnTheRowItsDoorNamed() {
         WatchRow.entries.forEach { assertEquals(it, Route.Watch.of(it).watchRow) }
         assertEquals(WatchRow.CONTINUE, Route.Watch("GONE").watchRow)
+    }
+
+    /**
+     * « Choisir un dossier partagé » (#59): the route over the form carries the folders the form's test read, each with
+     * its clients, and the NFS account typed; any other folder screen carries none.
+     */
+    @Test
+    fun theStepOverTheFormCarriesWhatItShows() {
+        val pick = SharePick(
+            7,
+            "192.168.1.20",
+            listOf(
+                ExportedFolder("/volume1/video", listOf("192.168.1.0/24", "nas.home")),
+                ExportedFolder("/volume1/photo", listOf("192.168.1.10")),
+                ExportedFolder("/volume1/musique", emptyList()),
+            ),
+            uid = "1026",
+            gid = "100",
+        )
+        assertEquals(pick, Route.AddFolder.picking(pick).sharePick)
+        assertNull(Route.AddFolder(7).sharePick)
+        assertNull(Route.AddFolder(7, onDisk = true).sharePick)
     }
 
     /** The sign-in's route says how its form starts: the current server, nothing, or a server whose token was refused. */

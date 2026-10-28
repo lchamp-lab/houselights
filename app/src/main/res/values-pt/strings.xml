@@ -160,7 +160,7 @@
     <string name="label_certification">Classificação</string>
     <string name="label_rating">Nota</string>
     <string name="label_year">Ano</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">Ex.: 1999</string>
     <string name="label_genres">Gêneros</string>
     <string name="label_directors">Direção</string>
     <string name="label_studios">Estúdios</string>
@@ -239,6 +239,7 @@
     <string name="field_share">Pasta compartilhada</string>
     <string name="field_path">Subpasta</string>
     <string name="field_optional">%1$s (opcional)</string>
+    <string name="field_clear">Apagar %1$s</string>
     <string name="field_user">Usuário</string>
     <string name="field_password">Senha</string>
     <string name="placeholder_host">Ex.: 192.168.1.10</string>
@@ -289,7 +290,7 @@
     </plurals>
     <string name="folder_content">%1$s e %2$s</string>
     <string name="error_share_not_found">%1$s não tem a pasta compartilhada “%2$s”. Verifique o nome na interface do NAS.</string>
-    <string name="error_export_not_found">O NAS não compartilha %s via NFS. Em um Synology, o caminho de montagem começa com /volume1/.</string>
+    <string name="error_export_not_found">O NAS não compartilha %s via NFS. Em um Synology, o caminho de montagem começa com /&#8288;volume1/&#8288;.</string>
     <string name="error_subfolder_not_found">%1$s responde, mas “%2$s” não está lá. Verifique o nome, incluindo maiúsculas.</string>
     <string name="error_subfolder_not_found_share">“%1$s” responde, mas “%2$s” não está lá. Verifique o nome, incluindo maiúsculas.</string>
     <string name="error_nfs_refused">O NAS recusa este player. Autorize %1$s em %2$s, em somente leitura e, em um Synology, as portas não privilegiadas.</string>

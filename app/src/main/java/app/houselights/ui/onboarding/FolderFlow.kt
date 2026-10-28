@@ -3,6 +3,9 @@ package app.houselights.ui.onboarding
 import android.content.Context
 import android.util.Log
 import androidx.annotation.StringRes
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
@@ -60,6 +63,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -69,8 +73,10 @@ import kotlinx.coroutines.withContext
  * content, each picked from a list, typing only as the list's last row. Waiting happens on the row pressed ([pressed]):
  * listing is the test, and the next step shows once its list has come, focus placed once ([aim]). What was chosen and
  * typed, the password aside, and the lists shown are kept in [saved] across a stopped process. With [editing], it is
- * « Modifier le dossier » on that folder of the player's disks, opened at step 5 where the folder is ([edit]).
+ * « Modifier le dossier » on that folder of the player's disks, opened at step 5 where the folder is ([edit]); with
+ * [pick], step 4 alone over the form of « Modifier le dossier », to choose among the folders its NAS shares ([openPick]).
  */
+@Suppress("LargeClass") // Every step of the flow, as its state is one (FlowState): one split out would reach into the others'.
 class FolderFlow(
     private val network: FlowNetwork,
     private val library: LocalLibrary,
@@ -82,8 +88,19 @@ class FolderFlow(
     //noinspection VisibleForTests
     saved: SavedStateHandle = SavedStateHandle(),
     editing: Long? = null,
+    /**
+     * « Choisir un dossier partagé » from the form of « Modifier le dossier » (#59): step 4 on the folders its test read,
+     * the one chosen handed back ([picked]) rather than opened.
+     */
+    private val pick: SharePick? = null,
 ) : FlowState(saved, editing) {
-    constructor(app: AppContainer, context: Context, saved: SavedStateHandle, editing: Long? = null) : this(
+    constructor(
+        app: AppContainer,
+        context: Context,
+        saved: SavedStateHandle,
+        editing: Long? = null,
+        pick: SharePick? = null,
+    ) : this(
         network = AppFlowNetwork(app, context),
         library = app.library,
         background = app.scope,
@@ -96,6 +113,7 @@ class FolderFlow(
         },
         saved = saved,
         editing = editing,
+        pick = pick,
     )
 
     /**
@@ -108,8 +126,16 @@ class FolderFlow(
     private var job: Job? = null
     private var discovery: Job? = null
 
+    /** The shared folder chosen at step 4 for the form ([pick]), which tests it; null until one is. */
+    var picked by mutableStateOf<String?>(null)
+        private set
+
+    /** Step 4 is open to choose a shared folder for the form of « Modifier le dossier » ([pick]). */
+    val picking: Boolean get() = pick != null
+
     init {
         viewModelScope.launch {
+            pick?.let { return@launch openPick(it) }
             editing?.let { return@launch edit(it) }
             used = suspendRunCatching { library.usedNas() }
                 .onFailure { Log.w(TAG, "Reading the NAS used failed", it) }
@@ -140,6 +166,34 @@ class FolderFlow(
         if (step == FlowStep.BROWSE || step == FlowStep.KIND) levels[path] = level ?: return go(FlowStep.WHERE, startKey())
         view++
         aim(entryKey())
+    }
+
+    // « Choisir un dossier partagé », over the form of « Modifier le dossier » ------------------------------------------
+
+    /**
+     * Step 4 at once on [chosen]'s NAS, as a stopped process finds it again: the folders its test read, each marked
+     * « Non autorisé » by its clients and this player's address, the library's other folders on that NAS saying how each
+     * stands to them, the folder edited apart, its kind and the NFS account typed in the panel, « En ligne »; no new
+     * question to the NAS but its name, said as it announces itself.
+     */
+    private suspend fun openPick(chosen: SharePick) {
+        player = withContext(Dispatchers.IO) { suspendRunCatching { network.player() }.getOrNull() }
+        edited = suspendRunCatching { library.folder(chosen.folder) }
+            .onFailure { Log.w(TAG, "Reading folder ${chosen.folder} failed", it) }
+            .getOrNull()
+        begin(FlowNas(chosen.host), typedAddress = false)
+        folders = folders.filter { it.id != chosen.folder }
+        protocolName = Protocol.NFS.name
+        uid = chosen.uid
+        gid = chosen.gid
+        reached = true
+        showShares(chosen.exports.map { FlowShare(it.path, refused = refuses(it)) })
+        ready = true
+        discovery = viewModelScope.launch {
+            suspendRunCatching {
+                network.discover().filter { it.address == chosen.host && it.name.isNotBlank() }.collect { announcedName = it.name }
+            }.onFailure { Log.w(TAG, "Finding the name of ${chosen.host} failed", it) }
+        }
     }
 
     // « Modifier le dossier » on a folder of this player's disks ----------------------------------------------------
@@ -480,18 +534,31 @@ class FolderFlow(
         go(FlowStep.TYPE_PATH, FIELD_PATH)
     }
 
-    /** Focus on the shares: the share of the last folder added from this NAS, else the first one still open to add. */
+    /**
+     * Focus on the shares: the share of the last folder added from this NAS, else the first one still open to add; for the
+     * form ([pick]), the share of the folder edited as it was last saved, if listed.
+     */
     private fun sharesFocus(): String {
         val listed = shares
         val open = listed.filter { standingOf(it) !is Standing.Added }
-        val last = folders.firstOrNull { it.protocol == protocol }
+        val last = if (pick != null) edited else folders.firstOrNull { it.protocol == protocol }
         val focused = last?.let { folder -> open.firstOrNull { sameShare(it.path, folder.share) } }
             ?: open.firstOrNull()
             ?: listed.firstOrNull()
         return focused?.let { shareKey(it) } ?: TYPE_PATH
     }
 
-    fun openShare(opened: FlowShare) = press(shareKey(opened), R.string.opening) {
+    /** OK on a shared folder: its root, step 5; for the form ([pick]), chosen, for the form to test, nothing opened. */
+    fun openShare(opened: FlowShare) {
+        if (pick != null) {
+            // Once: a second OK as the step goes chooses nothing more.
+            if (picked == null) picked = opened.path
+            return
+        }
+        openShared(opened)
+    }
+
+    private fun openShared(opened: FlowShare) = press(shareKey(opened), R.string.opening) {
         trying = opened.path
         val root = network.level(place(opened), "")
         sharePath = opened.path
@@ -751,8 +818,8 @@ class FolderFlow(
             FlowStep.ADDRESS -> go(FlowStep.WHERE, TYPE_ADDRESS)
             FlowStep.PROTOCOLS -> nasStep(at)
             FlowStep.ACCOUNT -> beforeAccount(at)
-            FlowStep.SHARES -> beforeShares(at)
-            FlowStep.TYPE_PATH -> if (noList) beforeShares(at) else go(FlowStep.SHARES, TYPE_PATH)
+            FlowStep.SHARES -> beforeShares(at, leave)
+            FlowStep.TYPE_PATH -> if (noList) beforeShares(at, leave) else go(FlowStep.SHARES, TYPE_PATH)
             FlowStep.NFS_ACCOUNT -> {
                 identityBack()
                 go(if (noList) FlowStep.TYPE_PATH else FlowStep.SHARES, NFS_ACCOUNT)
@@ -775,7 +842,9 @@ class FolderFlow(
     /** The step the NAS was chosen in: its row, or the address typed. */
     private fun nasStep(at: String) = if (typedNas) go(FlowStep.ADDRESS, FIELD_HOST) else go(FlowStep.WHERE, nasKey(at))
 
-    private fun beforeShares(at: String) = when {
+    /** Back from the shared folders: the step before; over the form ([pick]), the only step, back to the form ([leave]). */
+    private fun beforeShares(at: String, leave: () -> Unit) = when {
+        pick != null -> leave()
         protocol == Protocol.SMB && !accountKept -> go(FlowStep.ACCOUNT, accountFocus())
         askedProtocol -> go(FlowStep.PROTOCOLS, protocolKey(protocol ?: Protocol.SMB))
         else -> nasStep(at)
@@ -853,10 +922,14 @@ class FolderFlow(
         /** The steps that read the NAS with the account: after a stopped process, they need its password again. */
         private val AFTER_ACCOUNT = setOf(FlowStep.SHARES, FlowStep.TYPE_PATH, FlowStep.BROWSE, FlowStep.KIND)
 
-        /** The flow for « Ajouter un dossier », or with [editing] « Modifier le dossier » on that folder of the player's disks. */
-        fun factory(app: AppContainer, context: Context, editing: Long? = null): ViewModelProvider.Factory = viewModelFactory {
-            initializer { FolderFlow(app, context.applicationContext, createSavedStateHandle(), editing) }
-        }
+        /**
+         * The flow for « Ajouter un dossier », or with [editing] « Modifier le dossier » on that folder of the player's
+         * disks, or with [pick] its step 4 over the form of « Modifier le dossier ».
+         */
+        fun factory(app: AppContainer, context: Context, editing: Long? = null, pick: SharePick? = null): ViewModelProvider.Factory =
+            viewModelFactory {
+                initializer { FolderFlow(app, context.applicationContext, createSavedStateHandle(), editing, pick) }
+            }
     }
 }
 

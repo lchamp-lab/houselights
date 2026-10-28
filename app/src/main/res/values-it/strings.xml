@@ -159,7 +159,7 @@
     <string name="label_certification">Classificazione</string>
     <string name="label_rating">Voto</string>
     <string name="label_year">Anno</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">Es. 1999</string>
     <string name="label_genres">Generi</string>
     <string name="label_directors">Regia</string>
     <string name="label_studios">Produzione</string>
@@ -238,6 +238,7 @@
     <string name="field_share">Cartella condivisa</string>
     <string name="field_path">Sottocartella</string>
     <string name="field_optional">%1$s (facoltativo)</string>
+    <string name="field_clear">Cancella %1$s</string>
     <string name="field_user">Utente</string>
     <string name="field_password">Password</string>
     <string name="placeholder_host">Es. 192.168.1.10</string>
@@ -288,7 +289,7 @@
     </plurals>
     <string name="folder_content">%1$s e %2$s</string>
     <string name="error_share_not_found">%1$s non ha una cartella condivisa «%2$s». Verificarne il nome nell’interfaccia del NAS.</string>
-    <string name="error_export_not_found" tools:ignore="Typos">Il NAS non condivide %s via NFS. Su un Synology, il percorso di montaggio inizia con /volume1/.</string>
+    <string name="error_export_not_found" tools:ignore="Typos">Il NAS non condivide %s via NFS. Su un Synology, il percorso di montaggio inizia con /&#8288;volume1/&#8288;.</string>
     <string name="error_subfolder_not_found">%1$s risponde, ma «%2$s» non c’è. Verificarne il nome, maiuscole comprese.</string>
     <string name="error_subfolder_not_found_share">«%1$s» risponde, ma «%2$s» non c’è. Verificarne il nome, maiuscole comprese.</string>
     <string name="error_nfs_refused">Il NAS rifiuta questo lettore. Autorizzare %1$s su %2$s, in sola lettura e, su un Synology, le porte non privilegiate.</string>

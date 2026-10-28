@@ -154,7 +154,7 @@
     <string name="label_certification">Leeftijd</string>
     <string name="label_rating">Beoordeling</string>
     <string name="label_year">Jaar</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">Bijv. 1999</string>
     <string name="label_genres">Genres</string>
     <string name="label_directors">Regie</string>
     <string name="label_studios">Studio’s</string>
@@ -232,6 +232,7 @@
     <string name="field_share">Gedeelde map</string>
     <string name="field_path">Submap</string>
     <string name="field_optional">%1$s (optioneel)</string>
+    <string name="field_clear">%1$s wissen</string>
     <string name="field_user">Gebruiker</string>
     <string name="field_password">Wachtwoord</string>
     <string name="placeholder_host">Bijv. 192.168.1.10</string>
@@ -280,7 +281,7 @@
     </plurals>
     <string name="folder_content">%1$s en %2$s</string>
     <string name="error_share_not_found">%1$s heeft geen gedeelde map “%2$s”. Controleer de naam in de interface van de NAS.</string>
-    <string name="error_export_not_found" tools:ignore="Typos">De NAS deelt %s niet via NFS. Op een Synology begint het koppelpad met /volume1/.</string>
+    <string name="error_export_not_found" tools:ignore="Typos">De NAS deelt %s niet via NFS. Op een Synology begint het koppelpad met /&#8288;volume1/&#8288;.</string>
     <string name="error_subfolder_not_found">%1$s antwoordt, maar “%2$s” staat er niet in. Controleer de naam, hoofdletters inbegrepen.</string>
     <string name="error_subfolder_not_found_share">“%1$s” antwoordt, maar “%2$s” staat er niet in. Controleer de naam, hoofdletters inbegrepen.</string>
     <string name="error_nfs_refused">De NAS weigert deze speler. Sta %1$s toe op %2$s, alleen-lezen, en op een Synology niet-geprivilegieerde poorten.</string>

@@ -154,7 +154,7 @@
     <string name="label_certification">Altersfreigabe</string>
     <string name="label_rating">Bewertung</string>
     <string name="label_year">Jahr</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">z. B. 1999</string>
     <string name="label_genres">Genres</string>
     <string name="label_directors">Regie</string>
     <string name="label_studios">Studios</string>
@@ -232,6 +232,7 @@
     <string name="field_share">Freigegebener Ordner</string>
     <string name="field_path">Unterordner</string>
     <string name="field_optional">%1$s (optional)</string>
+    <string name="field_clear">%1$s löschen</string>
     <string name="field_user">Benutzer</string>
     <string name="field_password">Passwort</string>
     <string name="placeholder_host">z. B. 192.168.1.10</string>
@@ -281,7 +282,7 @@
     </plurals>
     <string name="folder_content">%1$s und %2$s</string>
     <string name="error_share_not_found">%1$s hat keinen freigegebenen Ordner „%2$s“. Prüfen Sie den Namen in der Oberfläche des NAS.</string>
-    <string name="error_export_not_found" tools:ignore="Typos">Das NAS gibt %s nicht per NFS frei. Auf einem Synology beginnt der Mount-Pfad mit /volume1/.</string>
+    <string name="error_export_not_found" tools:ignore="Typos">Das NAS gibt %s nicht per NFS frei. Auf einem Synology beginnt der Mount-Pfad mit /&#8288;volume1/&#8288;.</string>
     <string name="error_subfolder_not_found">%1$s antwortet, aber „%2$s“ ist dort nicht. Prüfen Sie den Namen, auch die Groß- und Kleinschreibung.</string>
     <string name="error_subfolder_not_found_share">„%1$s“ antwortet, aber „%2$s“ ist dort nicht. Prüfen Sie den Namen, auch die Groß- und Kleinschreibung.</string>
     <string name="error_nfs_refused">Das NAS lehnt diesen Player ab. Erlauben Sie %1$s auf %2$s den Lesezugriff, auf einem Synology auch von nicht privilegierten Ports.</string>

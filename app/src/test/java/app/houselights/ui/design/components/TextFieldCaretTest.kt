@@ -11,7 +11,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -28,6 +27,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.TestKeyboard
 import app.houselights.ui.testing.holdOnRemote
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressOnPluggedKeyboard
@@ -57,20 +57,7 @@ class TextFieldCaretTest {
 
     private var value by mutableStateOf("media")
     private val share = FocusRequester()
-    private val keyboard = Keyboard()
-
-    /** The keyboard as the field and Compose's text field ask it to show; Back hides it without telling them. */
-    private class Keyboard : SoftwareKeyboardController {
-        var shown = false
-
-        override fun show() {
-            shown = true
-        }
-
-        override fun hide() {
-            shown = false
-        }
-    }
+    private val keyboard = TestKeyboard()
 
     /**
      * The field "Share" holding [value], its owner keeping [keep] of a change; [below], a second field under it;
@@ -225,8 +212,9 @@ class TextFieldCaretTest {
         text().assertIsNotFocused()
     }
 
+    /** At the end, Right ends typing on the field's cross, at its end (#78); Right from the cross goes on to the field beside. */
     @Test
-    fun rightAtTheEndLeavesForTheFieldBeside() {
+    fun rightAtTheEndLeavesForItsCrossThenTheFieldBeside() {
         show(beside = true)
         startTyping()
         compose.pressOnRemote(Key.DirectionLeft, 2)
@@ -235,8 +223,10 @@ class TextFieldCaretTest {
         compose.holdOnRemote(Key.DirectionRight, repeats = 4)
         assertTypingAt(5)
         compose.pressOnRemote(Key.DirectionRight)
-        compose.onNodeWithContentDescription("Folder").assertIsFocused()
+        compose.onNodeWithContentDescription("Clear Share").assertIsFocused()
         text().assertIsNotFocused()
+        compose.pressOnRemote(Key.DirectionRight)
+        compose.onNodeWithContentDescription("Folder").assertIsFocused()
     }
 
     /** On the player the keyboard shown takes the arrows: Back hid it, and OK shows it again where the cursor is. */

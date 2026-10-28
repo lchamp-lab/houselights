@@ -14,8 +14,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -64,36 +67,51 @@ private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
 
 /**
  * « Modifier le dossier »: edits folder [folderId] except its kind (its titles stay); [onDone] once saved. A folder is
- * added through « Ajouter un dossier »'s steps ([AddFolderFlowScreen]).
+ * added through « Ajouter un dossier »'s steps ([AddFolderFlowScreen]). « Choisir un dossier partagé » opens their step
+ * 4 over the form ([onPickShare]), which hands back the shared folder [picked] there, then forgets it ([onPickRead]).
  */
 @Composable
 fun AddFolderScreen(
     folderId: Long,
     onDone: () -> Unit,
     focusOn: FolderField = FolderField.FIRST,
+    picked: String? = null,
+    onPickShare: (SharePick) -> Unit = {},
+    onPickRead: () -> Unit = {},
     vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(appContainer(), LocalContext.current, folderId)),
 ) {
-    AddFolderForm(vm, focusOn, roomPosters(), onDone)
+    AddFolderForm(vm, focusOn, roomPosters(), SharePicking(picked, onPickShare, onPickRead), onDone)
 }
+
+/**
+ * The form's way to the guided flow's step 4 and back (#59): [onPickShare] opens it on the folders the NAS shares; the
+ * one [picked] there comes back, read once ([onRead]).
+ */
+@Immutable
+internal class SharePicking(val picked: String? = null, val onPickShare: (SharePick) -> Unit = {}, val onRead: () -> Unit = {})
 
 /**
  * The form of [vm], focus starting on [focusOn], with the folder's connection status beside it, on [room]'s posters.
  * A failure is said once, with its mark, under the field to change ([spotOf]), which takes focus, the form scrolling to
  * show it whole; one no field can fix is the panel's result, focus left on the button pressed. What the NAS proposes
- * for a path it lacks takes focus under the actions. « Terminé » on the last field does what the first button does;
- * Back first brings focus back to « Protocole » at the form's top, then leaves.
+ * for a path it lacks takes focus under the actions, as « Choisir un dossier partagé » does in its place, which opens
+ * the guided flow's step 4 ([picking]). « Terminé » on the last field does what the first button does; Back first brings
+ * focus back to « Protocole » at the form's top, then leaves.
  */
 @Composable
 internal fun AddFolderForm(
     vm: AddFolderViewModel,
     focusOn: FolderField,
     room: List<ImageRef> = emptyList(),
+    picking: SharePicking = SharePicking(),
     onDone: () -> Unit,
 ) {
     val focus = remember { FormFocus() }
     val scroll = rememberScrollState()
-    // Wait until an edited folder is read, so its fields are laid out (the password only for SMB).
-    LaunchedEffect(vm.ready) { if (vm.ready) focus.request(focusOn, vm.form.user) }
+    // Wait until an edited folder is read, so its fields are laid out (the password only for SMB); back from the flow's
+    // step 4, focus goes where coming back sends it ([BackFromPick]).
+    LaunchedEffect(vm.ready) { if (vm.ready && !vm.away) focus.request(focusOn, vm.form.user) }
+    BackFromPick(vm.ready, away = vm::away, picking, focus) { picked -> if (picked != null) vm.pick(picked) else vm.pickLeft() }
     val identity = identityText(vm.form).takeIf { vm.form.protocol == Protocol.NFS }
     val faults = faultsOf(vm)
     // Which button started the running check.
@@ -102,7 +120,7 @@ internal fun AddFolderForm(
         adding = true
         vm.submit(onDone)
     }
-    FocusOnFault(vm.answers, vm.check, vm.suggestion, vm.form, focus)
+    FocusOnFault(vm.answers, vm.check, offered = vm.suggestion != null || vm.shared != null, vm.form, focus)
     val first = backToFirst(vm, focus, scroll)
 
     HlFormScaffold(
@@ -144,6 +162,8 @@ internal fun AddFolderForm(
                 vm.useSuggestion()
             }
         }
+        // Nothing near the export typed, the NAS's list read: its folders to choose from in the flow's step 4 (#59).
+        vm.shared?.let { exports -> PickShare(exports.size, focus.suggestion) { vm.openPick()?.let(picking.onPickShare) } }
         // Under the actions, so the form above stays whole on screen; SMB says who reads by its account.
         if (vm.form.protocol == Protocol.NFS) {
             NfsIdentity(
@@ -175,21 +195,54 @@ private fun faultsOf(vm: AddFolderViewModel): Faults {
 
 /**
  * After each answer to a press ([answers], the last one [check]), focus goes to the field of [form] its message is under,
- * once laid out with it, or to what the NAS proposes instead ([suggestion]); a read refused to the NFS account, to its
- * row, unfolded. One said in the panel leaves focus on the button pressed.
+ * once laid out with it, or to the row the plate under the actions [offered] instead (what the NAS proposes, or
+ * « Choisir un dossier partagé »); a read refused to the NFS account, to its row, unfolded. One said in the panel leaves
+ * focus on the button pressed. Each answer sends focus once: the form shown again, back from the flow's step 4, leaves
+ * it to [BackFromPick]. The last answer sent for is kept across a stopped process, as [answers] is
+ * ([AddFolderViewModel.answers]), so the first answer after it still sends focus.
  */
 @Composable
-private fun FocusOnFault(answers: Int, check: FolderCheck?, suggestion: FolderSuggestion?, form: FolderForm, focus: FormFocus) {
+private fun FocusOnFault(answers: Int, check: FolderCheck?, offered: Boolean, form: FolderForm, focus: FormFocus) {
+    var sent by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(answers) {
-        if (answers == 0) return@LaunchedEffect
+        if (answers == 0 || answers == sent) return@LaunchedEffect
+        sent = answers
         val refused = (check as? FolderCheck.Failed)?.trouble is FolderTrouble.ReadRefused
         val target = when {
             refused -> focus.identity
-            suggestion != null -> focus.suggestion
+            offered -> focus.suggestion
             else -> spotOf(check, form)?.let(focus::of)
         }
         withFrameNanos { }
         target?.tryRequestFocus()
+    }
+}
+
+/**
+ * Back from the guided flow's step 4 over the form, [away] till then ([AddFolderViewModel.away]), as the form, [ready],
+ * is composed again: the shared folder [picking] hands back goes to [onBack], to be written in « Chemin de montage » and
+ * tested from Tester, which takes focus as the test runs; with none, [onBack] has null and focus returns to « Choisir un
+ * dossier partagé », the form as it was. The form leaving for the step, still drawn as it goes, is not coming back:
+ * [away] is read, never waited on.
+ */
+@Composable
+private fun BackFromPick(ready: Boolean, away: () -> Boolean, picking: SharePicking, focus: FormFocus, onBack: (picked: String?) -> Unit) {
+    val picked = picking.picked
+    val isAway by rememberUpdatedState(away)
+    val back by rememberUpdatedState(onBack)
+    val read by rememberUpdatedState(picking.onRead)
+    LaunchedEffect(ready, picked) {
+        if (!ready || !isAway()) return@LaunchedEffect
+        // Laid out first, as the form comes back.
+        withFrameNanos { }
+        if (picked != null) {
+            focus.test.tryRequestFocus()
+            back(picked)
+            read()
+        } else {
+            back(null)
+            focus.suggestion.tryRequestFocus()
+        }
     }
 }
 
@@ -528,8 +581,25 @@ private fun Suggestion(proposed: FolderSuggestion, focus: FocusRequester, onUse:
         HlSettingRow(
             title,
             Modifier.focusRequester(focus).revealOnFocus(),
-            description = stringResource(R.string.suggested_by_nas),
+            description = stringResource(if (proposed.only) R.string.only_share else R.string.suggested_by_nas),
             onClick = onUse,
+        )
+    }
+}
+
+/**
+ * « Choisir un dossier partagé », « Parmi les 3 que partage le NAS » ([count] of them, « Non autorisé » included): on the
+ * plate under the actions, in a proposal's place and with its focus ([focus]), no icon, as it has none; OK opens the
+ * guided flow's step 4 on them ([onPick]).
+ */
+@Composable
+private fun PickShare(count: Int, focus: FocusRequester, onPick: () -> Unit) {
+    HlSettingGroup(null) {
+        HlSettingRow(
+            stringResource(R.string.pick_share),
+            Modifier.focusRequester(focus).revealOnFocus(),
+            description = pluralStringResource(R.plurals.pick_share_desc, count, count),
+            onClick = onPick,
         )
     }
 }

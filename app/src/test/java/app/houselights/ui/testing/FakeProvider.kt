@@ -61,6 +61,9 @@ class FakeProvider : MediaProvider {
     var nfo: NfoDocument? = null
     var identity: Identity? = null
     var results = listOf<MatchCandidate>()
+
+    /** The year each search asked for, in order; null for every year. */
+    val searchedYears = mutableListOf<Int?>()
     var choices: ArtworkChoices? = null
 
     /** The orders a show's episodes can follow, by show; none for the others. */
@@ -211,6 +214,7 @@ class FakeProvider : MediaProvider {
 
         override suspend fun search(item: MediaItem, query: String, year: Int?): List<MatchCandidate> {
             call("search $query")
+            searchedYears += year
             return results
         }
 

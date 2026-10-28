@@ -47,6 +47,13 @@
     <string name="use_suggestion">Usar %s</string>
     <string name="use_suggestion_name">Usar «%s»</string>
     <string name="suggested_by_nas">Propuesto por el NAS</string>
+    <string name="pick_share">Elegir una carpeta compartida</string>
+    <plurals name="pick_share_desc">
+        <item quantity="one">Entre las %d que comparte el NAS</item>
+        <item quantity="many">Entre las %d que comparte el NAS</item>
+        <item quantity="other">Entre las %d que comparte el NAS</item>
+    </plurals>
+    <string name="only_share">La única carpeta compartida del NAS</string>
     <string name="flow_browse_desc">Abra la carpeta de sus películas o de sus series y luego elíjala.</string>
     <string name="flow_edit_desc">Elija la carpeta donde están ahora los vídeos de «%s»: se conservan sus títulos, lo que ha visto y sus elecciones.</string>
     <string name="choose_folder">Elegir esta carpeta</string>
