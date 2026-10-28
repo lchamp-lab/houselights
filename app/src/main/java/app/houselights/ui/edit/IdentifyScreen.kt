@@ -59,6 +59,7 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.calmAfter
 import app.houselights.ui.util.retainedError
+import app.houselights.ui.util.titleText
 
 /**
  * Matching a title with the right TMDB entry, when automatic matching got it wrong or left it to identify, its
@@ -253,7 +254,7 @@ private fun Results(
         failure != null -> HlErrorState(failure, onRetry, retrying = retrying)
         state.identifying -> HlStatus(StatusState.Pending, stringResource(R.string.identifying))
         state.searching -> HlStatus(StatusState.Pending, stringResource(R.string.searching))
-        error != null -> HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
+        error != null -> HlStatus(StatusState.Attention, error.titleText(), detail = stringResource(error.message))
     }
     when {
         results == null -> Unit

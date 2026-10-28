@@ -122,6 +122,7 @@ import app.houselights.ui.edit.doubtText
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.LocalErrorFix
+import app.houselights.ui.util.LocalLibraryPlace
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.PlayOrigin
@@ -139,6 +140,7 @@ import app.houselights.ui.util.run
 import app.houselights.ui.util.screenHeight
 import app.houselights.ui.util.skeletonDelayPassed
 import app.houselights.ui.util.timeLeft
+import app.houselights.ui.util.titleAt
 import app.houselights.ui.util.versionName
 
 @Composable
@@ -886,7 +888,7 @@ internal fun RowScope.ActionFailure(
     }
     val failure = problem?.let { R.string.play_failed to it }
         ?: actionError?.let { R.string.action_not_saved to it }
-        ?: nextUpError?.let { it.title to it }
+        ?: nextUpError?.let { it.titleAt(LocalLibraryPlace.current) to it }
     when {
         failure != null -> {
             val (title, error) = failure
@@ -948,7 +950,7 @@ private fun RowScope.PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: Fo
         )
         return
     }
-    // A film in several copies plays the one chosen, from where that copy was left.
+    // A film in several copies plays the one chosen, from where that copy was left; a server keeps one place for the film.
     val copy = actions.copy
     val target = (if (series) nextUp else copy?.item ?: item.takeIf { it.isPlayable }) ?: return
     val resume = target.user.positionMs > 0

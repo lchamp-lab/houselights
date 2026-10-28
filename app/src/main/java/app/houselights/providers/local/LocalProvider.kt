@@ -414,7 +414,9 @@ class LocalProvider(
 
         /** Home's rows: Continue, then each library's latest titles. */
         private const val IN_PROGRESS = 20
-        private const val LATEST = 24
+
+        /** Home's row of latest films, or of latest shows, holds this many: the library's first scan fills it closer. */
+        internal const val LATEST = 24
 
         /** A decade's years, from its first, as the filter by decade lists them. */
         private const val DECADE_YEARS = 10

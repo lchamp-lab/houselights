@@ -110,7 +110,10 @@ data class ProviderCapabilities(
     val sagaParts: Boolean = false,
     /** A film's copies are grouped into one title ([Catalog.versions]). */
     val versions: Boolean = false,
-    /** The copy chosen for a film is remembered ([Catalog.chooseVersion]); else the best plays. */
+    /**
+     * The copy chosen for a film is remembered ([Catalog.chooseVersion]): by the library, or for a server, which keeps
+     * none, by the app while it runs; else the copies only read.
+     */
     val versionChoice: Boolean = false,
     /** The library numbers include disk space, runtime and formats ([LibraryNumbers]); else title counts only. */
     val formatNumbers: Boolean = false,

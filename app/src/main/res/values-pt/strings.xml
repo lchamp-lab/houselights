@@ -569,6 +569,7 @@
     <string name="error_offline_title">Biblioteca inacessível</string>
     <string name="error_offline_nas_title">NAS inacessível</string>
     <string name="error_offline_server_title">Servidor inacessível</string>
+    <string name="error_disk_absent_title">Disco não encontrado</string>
     <string name="error_offline">O servidor ou o NAS não responde. Verifique se está ligado e tente de novo.</string>
     <string name="error_certificate_title">Certificado recusado</string>
     <string name="error_certificate">O certificado de segurança foi recusado. Renove o certificado do servidor ou verifique a data e a hora do dispositivo e tente de novo.</string>

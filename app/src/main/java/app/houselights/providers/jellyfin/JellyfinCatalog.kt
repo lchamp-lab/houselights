@@ -105,11 +105,15 @@ internal class JellyfinCatalog(
         return Saga(collection, films.map { SagaPart(it, it.title, it.year, overview = it.overview, backdrop = it.backdrop) })
     }
 
-    /** One version per media source; the first is what the server plays, the best is ranked as for local films. */
+    /**
+     * One version per media source, the one chosen ([chooseVersion]) else the first, which the server plays, marked as
+     * the copy Lire plays; the best is ranked as for local films.
+     */
     override suspend fun versions(item: MediaItem): List<Version> {
         if (item.kind != MediaKind.MOVIE) return emptyList()
         val full = api.item(item.id, userId)
         val sources = full.mediaSources.takeIf { it.size > 1 } ?: return emptyList()
+        val played = with(provider) { full.playedSource() }
         return withContext(mapping) {
             val title = mapper.toMedia(full)
             val copies = sources.map { source -> source to JellyfinMapper.mediaInfo(full, source) }
@@ -126,8 +130,7 @@ internal class JellyfinCatalog(
                     media = media,
                     sizeBytes = source.size,
                     runtimeMs = media?.durationMs,
-                    // The server stores no choice: playback uses the first source.
-                    chosen = i == 0,
+                    chosen = source === played,
                     best = i == best,
                     key = source.id.orEmpty(),
                 )
@@ -135,8 +138,12 @@ internal class JellyfinCatalog(
         }
     }
 
-    /** No-op: the server cannot store a version choice ([ProviderCapabilities.versionChoice]). */
-    override suspend fun chooseVersion(item: MediaItem, version: Version?) = Unit
+    /**
+     * Makes [version]'s media source the copy [item] plays; null, the server's first again. The server cannot store it:
+     * the app keeps it while it runs ([JellyfinProvider.chooseSource]).
+     */
+    override suspend fun chooseVersion(item: MediaItem, version: Version?) =
+        provider.chooseSource(item.id, version?.key?.takeIf { it.isNotEmpty() })
 
     /** Server-side counts plus 4K films; size and runtime are unknown. */
     override suspend fun numbers(): LibraryNumbers = coroutineScope {

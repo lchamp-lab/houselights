@@ -17,7 +17,10 @@ inline fun <T> suspendRunCatching(block: () -> T): Result<T> = try {
 }
 
 /** At most one value per [periodMs]: the first one at once, then the latest of each period. */
-fun <T> Flow<T>.throttleLatest(periodMs: Long): Flow<T> = conflate().transform {
+fun <T> Flow<T>.throttleLatest(periodMs: Long): Flow<T> = throttleLatest { periodMs }
+
+/** At most one value per period: the first one at once, then the latest of each period, read from [periodMs] as each goes. */
+fun <T> Flow<T>.throttleLatest(periodMs: () -> Long): Flow<T> = conflate().transform {
     emit(it)
-    delay(periodMs)
+    delay(periodMs())
 }

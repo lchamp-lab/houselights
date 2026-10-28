@@ -50,7 +50,7 @@ class FileUriTest {
             LocalProvider.fileUri(films, "Heat.mkv", File("/mnt/media_rw/1234-ABCD")),
         )
         val absent = assertThrows(DiskAbsentException::class.java) { LocalProvider.fileUri(films, "Heat.mkv") }
-        assertEquals(UiError.OFFLINE, absent.toUiError())
+        assertEquals(UiError.DISK_ABSENT, absent.toUiError())
     }
 
     /** A password the Keystore did not open for now is never handed to the player empty; a guest needs none. */

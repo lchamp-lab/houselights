@@ -534,9 +534,10 @@
     <string name="identify_kept">このままにしています</string>
     <string name="identify_suggestions">候補</string>
     <string name="identify_skip">スキップ</string>
-    <string name="error_offline_title">ライブラリに接続できません</string>
-    <string name="error_offline_nas_title">NASに接続できません</string>
-    <string name="error_offline_server_title">サーバーに接続できません</string>
+    <string name="error_offline_title">ライブラリに接続不可</string>
+    <string name="error_offline_nas_title">NASに接続不可</string>
+    <string name="error_offline_server_title">サーバーに接続不可</string>
+    <string name="error_disk_absent_title">ディスク未検出</string>
     <string name="error_offline">サーバーまたはNASが応答しません。電源が入っているか確認して、もう一度お試しください。</string>
     <string name="error_certificate_title">証明書が拒否されました</string>
     <string name="error_certificate">セキュリティ証明書が拒否されました。サーバーの証明書を更新するか、このデバイスの日付と時刻を確認して、もう一度お試しください。</string>

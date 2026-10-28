@@ -566,9 +566,10 @@
     <string name="identify_kept">Lasciato così</string>
     <string name="identify_suggestions">Suggerimenti</string>
     <string name="identify_skip">Salta</string>
-    <string name="error_offline_title">Libreria non raggiungibile</string>
-    <string name="error_offline_nas_title">NAS non raggiungibile</string>
-    <string name="error_offline_server_title">Server non raggiungibile</string>
+    <string name="error_offline_title">Libreria irraggiungibile</string>
+    <string name="error_offline_nas_title">NAS irraggiungibile</string>
+    <string name="error_offline_server_title">Server irraggiungibile</string>
+    <string name="error_disk_absent_title">Disco non trovato</string>
     <string name="error_offline">Il server o il NAS non risponde. Verificare che sia acceso, poi riprovare.</string>
     <string name="error_certificate_title">Certificato rifiutato</string>
     <string name="error_certificate">Il certificato di sicurezza viene rifiutato. Rinnovare il certificato del server o verificare la data e l’ora del dispositivo, poi riprovare.</string>

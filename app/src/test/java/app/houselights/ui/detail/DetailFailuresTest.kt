@@ -30,7 +30,9 @@ import app.houselights.ui.testing.season
 import app.houselights.ui.testing.series
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.LibraryPlace
 import app.houselights.ui.util.LocalErrorFix
+import app.houselights.ui.util.LocalLibraryPlace
 import app.houselights.ui.util.PlayOrigin
 import app.houselights.ui.util.PlaybackOutcome
 import app.houselights.ui.util.PlaybackProblem
@@ -79,13 +81,16 @@ class DetailFailuresTest {
     /** Each fix an error's button led to. */
     private val fixed = mutableListOf<ErrorAction>()
 
+    /** Where the library lies, as the app provides it from its source; not known unless a test says. */
+    private var place: LibraryPlace? = null
+
     @After
     fun stop() = work.cancel()
 
     private fun page(id: String): DetailViewModel {
         val vm = DetailViewModel(id, { provider }, FakeEvents(), work, tracksOf = { null })
         compose.setTvContent {
-            CompositionLocalProvider(LocalErrorFix provides { fixed += it }) {
+            CompositionLocalProvider(LocalErrorFix provides { fixed += it }, LocalLibraryPlace provides place) {
                 DetailPage(
                     vm,
                     playback,
@@ -190,6 +195,28 @@ class DetailFailuresTest {
         button(R.string.play).assertIsFocused()
         compose.press(Key.DirectionDown, times = 2)
         compose.onNode(hasText("s1e1") and hasClickAction()).assertIsFocused()
+    }
+
+    /**
+     * A server's title names the server out of reach wherever its page says it: what Lire starts, at the row's end, and
+     * the seasons failing once the title shows, under it.
+     */
+    @Test
+    fun aServerOutOfReachIsTheServerOnItsTitlesPage() {
+        place = LibraryPlace.SERVER
+        bothFail(IOException("Server away"))
+        said(R.string.error_offline_server_title).assertIsDisplayed()
+        assertEquals(0, times(R.string.error_offline_title))
+
+        // Lire read again alone: the seasons' failure goes under the title, its Réessayer a press below.
+        provider.fail = { if (it == "seasons show") IOException("Server away") else null }
+        compose.press(Key.DirectionCenter)
+        compose.waitForIdle()
+        button(R.string.play).assertIsFocused()
+        assertEquals(1, times(R.string.error_offline_server_title))
+        assertEquals(0, times(R.string.error_offline_title))
+        compose.press(Key.DirectionDown)
+        button(R.string.retry).assertIsFocused()
     }
 
     /** What Lire starts unread: Réessayer on its button, why at the row's end; read, the same button plays it. */

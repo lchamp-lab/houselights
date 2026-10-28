@@ -59,8 +59,10 @@ import app.houselights.ui.home.HomeLaunch
 import app.houselights.ui.home.LibraryRows
 import app.houselights.ui.home.UnseenPick
 import app.houselights.ui.library.LibraryAhead
+import app.houselights.ui.util.LibraryPlace
 import app.houselights.ui.util.PlaybackOutcome
 import app.houselights.ui.util.RoomPosters
+import app.houselights.ui.util.libraryPlaces
 import app.houselights.update.ApkDownload
 import app.houselights.update.GithubReleases
 import app.houselights.update.PackageArchive
@@ -309,6 +311,10 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** Whether the folders hold one at least ([LocalLibrary.anyFolder]); null until read. */
     val hasFolders: StateFlow<Boolean?> = library.anyFolder.stateIn(scope, SharingStarted.Eagerly, null)
 
+    /** Where the library in use lies, which names it out of reach on the screens ([libraryPlaces]); null until read. */
+    val libraryPlace: StateFlow<LibraryPlace?> =
+        libraryPlaces(settings.state.map { it.source }, library.folders).stateIn(scope, SharingStarted.WhileSubscribed(), null)
+
     /** Prefetches home's first rows and pictures while the launch screen holds. */
     val homeLaunch = HomeLaunch(
         launch,
@@ -319,7 +325,12 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         pick = unseenPick,
     )
 
-    private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed), scanner.progress)
+    private val changes = LibraryChanges(
+        scope,
+        listOf(player.playbackEnded, scanner.changed),
+        scanner.progress,
+        homeFilling = { scanner.state.value.homeFilling },
+    )
 
     /** The app's own updates from its releases on GitHub, in the project's release alone (README, Install). */
     val updates: Updater = GithubReleases().let { releases ->

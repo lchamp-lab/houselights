@@ -111,6 +111,7 @@ import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.PlayOrigin
 import app.houselights.ui.util.PlaybackProblem
+import app.houselights.ui.util.ProvideLibraryPlace
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.launchAction
@@ -226,7 +227,7 @@ class MainActivity : ComponentActivity() {
                     // The window background is already the room (@color/room): no second black under every screen.
                     Box(Modifier.fillMaxSize()) {
                         LeavingBackdrop(relay)
-                        AppNavigation(nav, settings, onPlay = ::play)
+                        ProvideLibraryPlace(container.libraryPlace) { AppNavigation(nav, settings, onPlay = ::play) }
                         HouseLights()
                     }
                 }

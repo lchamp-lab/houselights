@@ -550,9 +550,10 @@
     <string name="identify_kept">Zo gelaten</string>
     <string name="identify_suggestions">Suggesties</string>
     <string name="identify_skip">Overslaan</string>
-    <string name="error_offline_title">Bibliotheek onbereikbaar</string>
+    <string name="error_offline_title">Bibliotheek offline</string>
     <string name="error_offline_nas_title">NAS onbereikbaar</string>
     <string name="error_offline_server_title">Server onbereikbaar</string>
+    <string name="error_disk_absent_title">Schijf niet gevonden</string>
     <string name="error_offline">De server of de NAS reageert niet. Controleer of die aan staat en probeer het opnieuw.</string>
     <string name="error_certificate_title">Certificaat geweigerd</string>
     <string name="error_certificate">Het beveiligingscertificaat wordt geweigerd. Vernieuw het certificaat van de server of controleer de datum en tijd van het apparaat en probeer het opnieuw.</string>

@@ -538,6 +538,7 @@
     <string name="error_offline_title">無法存取媒體庫</string>
     <string name="error_offline_nas_title">無法存取 NAS</string>
     <string name="error_offline_server_title">無法存取伺服器</string>
+    <string name="error_disk_absent_title">找不到磁碟</string>
     <string name="error_offline">伺服器或 NAS 沒有回應。請檢查其是否已開機，然後重試。</string>
     <string name="error_certificate_title">憑證遭到拒絕</string>
     <string name="error_certificate">安全憑證遭到拒絕。請更新伺服器的憑證，或檢查此裝置的日期和時間，然後重試。</string>

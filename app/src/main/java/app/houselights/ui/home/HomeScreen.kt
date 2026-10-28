@@ -90,7 +90,9 @@ import app.houselights.ui.settings.UpdateUi
 import app.houselights.ui.settings.relativeTime
 import app.houselights.ui.settings.updateSaid
 import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.LibraryPlace
 import app.houselights.ui.util.LocalErrorFix
+import app.houselights.ui.util.LocalLibraryPlace
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
@@ -100,6 +102,7 @@ import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.run
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.timeLeft
+import app.houselights.ui.util.titleAt
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -332,27 +335,22 @@ private fun Grid(
         },
         heights = heights,
         modifier = Modifier.padding(horizontal = HlSpace.safeH),
-    ) { modifier -> CaseOf(plan.case, actions, onOptions, playProblem?.let { CaseFailure(it, state.status?.source) }, modifier) }
+    ) { modifier -> CaseOf(plan.case, actions, onOptions, playProblem?.let { CaseFailure(it, LocalLibraryPlace.current) }, modifier) }
 }
 
-/** Why the case did not play, and the [source] it played from (null unknown), to name what is out of reach. */
-private class CaseFailure(val error: UiError, val source: StatusSource?)
+/** Why the case did not play, and where the library it played from lies ([place], null unknown), to name what is out of reach. */
+private class CaseFailure(val error: UiError, val place: LibraryPlace?)
 
 /**
- * Why a play failed, in a word on the case's line: the error's title; the player's errors, whose title is the
- * failure itself, what is wrong with it; the library out of reach, by its source.
+ * Why a play failed, in a word on the case's line: the error's title, the library out of reach by where it lies
+ * ([titleAt]); the player's errors, whose title is the failure itself, what is wrong with it.
  */
 @StringRes
 private fun CaseFailure.reason(): Int = when (error) {
     UiError.NO_PLAYER -> R.string.play_failed_no_player
     UiError.CREDENTIALS -> R.string.play_failed_credentials
     UiError.PLAYER_CHANGED -> R.string.play_failed_player_changed
-    UiError.OFFLINE -> when (source) {
-        is StatusSource.Server -> R.string.error_offline_server_title
-        is StatusSource.Folders -> R.string.error_offline_nas_title
-        null -> error.title
-    }
-    else -> error.title
+    else -> error.titleAt(place)
 }
 
 /**

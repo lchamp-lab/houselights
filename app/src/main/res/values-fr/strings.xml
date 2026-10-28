@@ -562,6 +562,7 @@
     <string name="error_offline_title">Bibliothèque injoignable</string>
     <string name="error_offline_nas_title">NAS injoignable</string>
     <string name="error_offline_server_title">Serveur injoignable</string>
+    <string name="error_disk_absent_title">Disque introuvable</string>
     <string name="error_offline">Le serveur ou le NAS ne répond pas. Vérifiez qu’il est allumé, puis réessayez.</string>
     <string name="error_certificate_title">Certificat refusé</string>
     <string name="error_certificate">Le certificat de sécurité est refusé. Renouvelez le certificat du serveur, ou vérifiez la date et l’heure de l’appareil, puis réessayez.</string>

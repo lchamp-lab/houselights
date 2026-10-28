@@ -551,9 +551,10 @@
     <string name="identify_kept">Unverändert gelassen</string>
     <string name="identify_suggestions">Vorschläge</string>
     <string name="identify_skip">Überspringen</string>
-    <string name="error_offline_title">Bibliothek nicht erreichbar</string>
+    <string name="error_offline_title">Bibliothek unerreichbar</string>
     <string name="error_offline_nas_title">NAS nicht erreichbar</string>
     <string name="error_offline_server_title">Server nicht erreichbar</string>
+    <string name="error_disk_absent_title">Laufwerk fehlt</string>
     <string name="error_offline">Der Server oder das NAS antwortet nicht. Prüfen Sie, ob das Gerät eingeschaltet ist, und versuchen Sie es erneut.</string>
     <string name="error_certificate_title">Zertifikat abgelehnt</string>
     <string name="error_certificate">Das Sicherheitszertifikat wird abgelehnt. Erneuern Sie das Zertifikat des Servers oder prüfen Sie Datum und Uhrzeit des Geräts und versuchen Sie es erneut.</string>

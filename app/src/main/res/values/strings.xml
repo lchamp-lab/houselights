@@ -571,6 +571,7 @@
     <string name="error_offline_title">Library unreachable</string>
     <string name="error_offline_nas_title">NAS unreachable</string>
     <string name="error_offline_server_title">Server unreachable</string>
+    <string name="error_disk_absent_title">Disk not found</string>
     <string name="error_offline">The server or the NAS doesn’t answer. Check that it is on, then try again.</string>
     <string name="error_certificate_title">Certificate refused</string>
     <string name="error_certificate">The security certificate is refused. Renew the server’s certificate, or check this device’s date and time, then try again.</string>

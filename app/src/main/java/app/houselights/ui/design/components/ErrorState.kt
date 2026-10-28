@@ -8,10 +8,12 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.titleText
 
 /**
- * An [error] in place of the content that failed to load, as an attention [HlEmptyState]: retry runs
- * [onRetry] (busy while [retrying]); other actions open where the problem is fixed ([LocalErrorFix]).
+ * An [error] in place of the content that failed to load, as an attention [HlEmptyState], titled as the screens say it
+ * ([titleText]): retry runs [onRetry] (busy while [retrying]); other actions open where the problem is fixed
+ * ([LocalErrorFix]).
  */
 @Composable
 fun HlErrorState(
@@ -24,7 +26,7 @@ fun HlErrorState(
     val action = error.action
     val fix = LocalErrorFix.current
     HlEmptyState(
-        stringResource(error.title),
+        error.titleText(),
         modifier,
         message = stringResource(error.message),
         attention = true,

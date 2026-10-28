@@ -14,8 +14,9 @@ import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.StatusState
 
 /**
- * A part that could not load (episodes, a wall's next page): why, and the fixing action, none when nothing
- * fixes it. While [retrying], its button stays busy and focused; [actionModifier] is that button's modifier.
+ * A part that could not load (episodes, a wall's next page): why, titled as the screens say it ([titleText]), and the
+ * fixing action, none when nothing fixes it. While [retrying], its button stays busy and focused; [actionModifier] is
+ * that button's modifier.
  */
 @Composable
 fun PartFailed(
@@ -27,7 +28,7 @@ fun PartFailed(
 ) {
     val fix = LocalErrorFix.current
     Column(modifier) {
-        HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
+        HlStatus(StatusState.Attention, error.titleText(), detail = stringResource(error.message))
         val fixedBy = error.action ?: return@Column
         Spacer(Modifier.height(HlSpace.s))
         HlButton(
