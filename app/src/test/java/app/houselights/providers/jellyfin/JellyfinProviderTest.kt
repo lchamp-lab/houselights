@@ -326,6 +326,39 @@ class JellyfinProviderTest {
         assertTrue("ProductionYear" in fields)
     }
 
+    /**
+     * A box set Jellyfin's TMDb provider made or filled carries TMDB's id, and shows without TMDB's « Collection »; one
+     * made by hand keeps its name. A wall holding box sets, and search, ask for their ids; a page asks for none.
+     */
+    @Test
+    fun aBoxSetTmdbKnowsShowsWithoutItsWord() = runTest {
+        val sets = """{"Items":[
+            {"Id":"b1","Name":"John Wick Collection","Type":"BoxSet","ProviderIds":{"Tmdb":"404609"}},
+            {"Id":"b2","Name":"The Criterion Collection","Type":"BoxSet","ProviderIds":{}}
+        ],"TotalRecordCount":2}"""
+        val server = FakeServer { request ->
+            when (request.url.encodedPath) {
+                "/Items/b1" -> Answer(200, """{"Id":"b1","Name":"John Wick Collection","Type":"BoxSet","ProviderIds":{"Tmdb":"404609"}}""")
+                else -> Answer(200, sets)
+            }
+        }
+        val provider = provider(server)
+        val shown = listOf("John Wick", "The Criterion Collection")
+        val wall = provider.libraryPage(Library("lib3", LibraryKind.COLLECTIONS, "Sagas"), SortOption.TITLE, LibraryFilter(), 0, 120)
+        assertEquals(shown, wall.items.map { it.title })
+        assertTrue("the wall asks for their ids", "ProviderIds" in server.requests.last().url.queryParameter("fields").orEmpty().split(','))
+        val films = Library("lib1", LibraryKind.MOVIES, "Films")
+        provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 120, grouped = true)
+        assertTrue(
+            "so does a films' wall grouped",
+            "ProviderIds" in server.requests.last().url.queryParameter("fields").orEmpty().split(','),
+        )
+        provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 120)
+        assertFalse("not a films' wall alone", "ProviderIds" in server.requests.last().url.queryParameter("fields").orEmpty().split(','))
+        assertEquals(shown, checkNotNull(provider.catalog).search("wick", 10).sagas.map { it.title })
+        assertEquals("John Wick", provider.item("b1").title)
+    }
+
     /** The films and their sagas: the server gives a collection's films as the collection; else every film. */
     @Test
     fun theServerGroupsACollectionsFilmsOnlyWhenAsked() = runTest {

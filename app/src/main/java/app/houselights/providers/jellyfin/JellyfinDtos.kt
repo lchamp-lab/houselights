@@ -81,6 +81,8 @@ data class BaseItem(
     @SerialName("ChildCount") val childCount: Int? = null,
     @SerialName("RecursiveItemCount") val recursiveItemCount: Int? = null,
     @SerialName("IsFolder") val isFolder: Boolean = false,
+    /** The ids other databases know it by ("Tmdb", "Imdb"): a box set TMDB's provider made or filled has TMDB's. */
+    @SerialName("ProviderIds") val providerIds: Map<String, String?> = emptyMap(),
 )
 
 @Serializable
