@@ -63,8 +63,9 @@ class LocalLibrary(
     fun latestPosters(limit: Int): Flow<List<ImageRef>> = dao.observeAllPosters(limit).map(::posters)
 
     /**
-     * Home's first scan: the [limit] films and shows first added, then the latest, first added first, those without a
-     * poster too ([FirstTitleDao.observeFirstTitles]), at the settings' pace ([PANE_PACE_MS]); read while it shows only.
+     * Home's first scan: the [limit] films and shows first found, then the latest, first found first, those without a
+     * poster too ([FirstTitleDao.observeFirstTitles]), at the settings' pace ([PANE_PACE_MS]); read only while it holds
+     * home or shows.
      */
     fun firstTitles(limit: Int): Flow<List<FirstTitleRow>> = dao.observeFirstTitles(limit).paced()
 

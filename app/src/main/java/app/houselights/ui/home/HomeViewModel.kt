@@ -41,6 +41,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -149,7 +151,7 @@ data class HomeStatus(
  * Home's rows from the current source's [provider], and what Home shows without them. Only the first scan and the
  * settings door read [scan] progress, so a file scanned changes [state] only when it changes what Home shows. Over the
  * library's first pass, the first scan holds home and home reads nothing behind it, then reads once at the cut
- * ([FirstScanHold]); what the first scan shows ([firstScan]) is read only while it shows.
+ * ([FirstScanHold]); what the first scan shows ([firstScan]) is read only while it holds home or shows.
  */
 class HomeViewModel(
     private val provider: () -> MediaProvider,
@@ -248,7 +250,8 @@ class HomeViewModel(
 
     /**
      * What the first scan shows beside its progress: the folder the pass reads, the titles found as its wall takes them
-     * (the first [FirstScanDefaults.FRAMES], then the latest) and how many; read only while it shows, kept meanwhile.
+     * (the first [FirstScanDefaults.FRAMES], then the latest) and how many; read while it holds home, from Réglages too,
+     * so its wall comes back with the titles found meanwhile at once, else only while it shows, kept meanwhile.
      */
     val firstScan: StateFlow<FirstScanShows> = combine(
         firstTitles(FirstScanDefaults.FRAMES),
@@ -260,6 +263,10 @@ class HomeViewModel(
 
     init {
         if (hold.value == FirstScanHold.NONE) load()
+        // While the first scan holds home its titles are read, from Réglages too: its wall comes back with them at once.
+        viewModelScope.launch {
+            hold.map { it == FirstScanHold.PASS }.distinctUntilChanged().collectLatest { holding -> if (holding) firstScan.collect() }
+        }
         viewModelScope.launch {
             combine(scan, this@HomeViewModel.left.left, ::holds).distinctUntilChanged().collect { holding ->
                 when {

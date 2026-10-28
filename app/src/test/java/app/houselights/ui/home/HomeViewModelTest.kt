@@ -28,6 +28,7 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.testing.series
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
@@ -619,14 +620,16 @@ class HomeViewModelTest {
 
     /**
      * The first scan shows the folder the pass reads, the first while it reaches none, and the titles found with their
-     * posters as the library gives them and their count, read only while it shows.
+     * posters as the library gives them and their count, read as soon as it holds home and while it does, nothing
+     * showing it yet or Réglages over it, so its wall comes back with them; no longer once it gave way with nothing
+     * showing it.
      */
     @Test
     fun theFirstScanShowsTheFolderReadAndTheTitlesFound() = runTest {
         folders.value = listOf(folder(1), folder(2))
         val found = listOf(FirstTitleRow(1, "Dune", 2021, "/dune.jpg"), FirstTitleRow(2, "Heat", 1995, null))
         val asked = mutableListOf<Int>()
-        var reads = 0
+        var reading = 0
         scan.value = firstPass().copy(sourceId = null)
         val vm = HomeViewModel(
             { provider },
@@ -637,28 +640,31 @@ class HomeViewModelTest {
             firstTitles = { limit ->
                 asked += limit
                 flow {
-                    reads++
-                    emit(found)
+                    reading++
+                    try {
+                        emit(found)
+                        awaitCancellation()
+                    } finally {
+                        reading--
+                    }
                 }
             },
             firstTitleCount = flowOf(214),
         )
-        backgroundScope.launch { vm.state.collect {} }
-        advanceUntilIdle()
-        assertEquals("read only while it shows", 0, reads)
-
-        // Subscribed at once, as the first scan does once it shows: a collector in the background runs only beside other work.
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.firstScan.collect {} }
         advanceUntilIdle()
         assertEquals(listOf(FirstScanDefaults.FRAMES), asked)
-        assertEquals("read once it shows", 1, reads)
+        assertEquals("read as it holds home, nothing showing it", 1, reading)
         val shows = vm.firstScan.value
         assertEquals("the first while the pass reaches none", 1L, shows.folder?.id)
-        assertEquals(listOf("Dune", "Heat"), shows.titles.map { it.title })
-        assertEquals(listOf(LocalProvider.image("/dune.jpg", ImageType.POSTER), null), shows.titles.map { it.poster })
+        assertEquals(listOf("Dune", "Heat"), shows.titles.orEmpty().map { it.title })
+        assertEquals(listOf(LocalProvider.image("/dune.jpg", ImageType.POSTER), null), shows.titles.orEmpty().map { it.poster })
         assertEquals(214, shows.found)
         scan.value = scan.value.copy(sourceId = 2)
         advanceUntilIdle()
         assertEquals(2L, vm.firstScan.value.folder?.id)
+
+        scan.value = ScanState()
+        advanceUntilIdle()
+        assertEquals("no longer read once it gave way, nothing showing it", 0, reading)
     }
 }

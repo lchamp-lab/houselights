@@ -478,7 +478,7 @@ its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a f
 |---|---|
 | `HlMotion` curves | three of the system's own: `focusPull` ("mise au point", 0.20 0.75 0.25 1) for what arrives, `fallBack` ("retombée", 0.45 0 0.55 1) for what leaves or crosses, `lightsOut` (ease-out) for lights going out. No Material curve, no curve drawn elsewhere, no animation on a default spring or a cross-fading container; every tween names its easing (`MotionGuardTest`) |
 | `HlMotion` durations | `FOCUS_IN` 220 and `FOCUS_OUT` 260 ms (a frame, a glow, a recede), `PLATE_IN` 120 and `PLATE_OUT` 180 (a plate's white), `TINT` 480 (a backdrop's fade, linear, once settled; a poster arriving on the first scan's wall); `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (`rememberSettled`); `SKELETON_DELAY` 400 ms; `HOLD` 400 ms, the longest anything waits for a picture; `WALL_DRIFT` 140 s, one loop of the welcome wall; `ENTER_SCALE`, which a menu grows from |
-| A poster arriving (`FirstWall`) | the one motion that answers a scan rather than the viewer, as a new field of the settings' room comes in: once its picture is decoded at its size (or its one-sheet ready), the frame's opaque ground (`groundFill`) lifts off it over `TINT`, linear, read while drawing, without a layer nor the loader's fade (`ArtworkImage`'s `onShow`); a batch together, each when its picture is ready, never staggered. Renewing a frame is the same arrival: the poster it showed stays whole until the one coming is decoded, then is cut under the ground, never two posters one in the other; at most one a step (`FirstScanDefaults.STEP_MS` 2 s). Filling, the step that fills the last frames renews none; the titles there when the wall comes back (from Réglages, its state kept with home) show at once |
+| A poster arriving (`FirstWall`) | the one motion that answers a scan rather than the viewer, as a new field of the settings' room comes in: once its picture is decoded at its size (or its one-sheet ready), the frame's opaque ground (`groundFill`) lifts off it over `TINT`, linear, read while drawing, without a layer nor the loader's fade (`ArtworkImage`'s `onShow`); a batch together, each when its picture is ready, never staggered. Renewing a frame is the same arrival: the poster it showed stays whole until the one coming is decoded, then is cut under the ground, never two posters one in the other; at most one a step (`FirstScanDefaults.STEP_MS` 2 s). Filling, the step that fills the last frames renews none, and no renewal begins until every title on the wall has its picture; a renewed frame's ground lifts plain, an empty frame's rule fading with the ground of its first arrival alone. The titles there as the wall comes, once read (back from Réglages, its state kept with home, or with a new home), show at once |
 | `LocalHouseLights`, `HouseLightCue`, `LaunchCue`, `LocalLaunchScreen` | house-light level (read while drawing, each layer redrawn only during its own step: `rememberCueStep`), the playback and launch cues, the launch screen until the first screen is drawn whole |
 
 ### Icons (`Icons.kt`)
@@ -1141,10 +1141,11 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
   counts and posters follow it every 2 s at most (`LocalLibrary`).
 - **Nothing is read behind home's first scan.** For hours, its pass's progress reads no row, door or cut poster: home
   reads once, at the cut, then follows the pass as above, every 3 s while its row fills, then every 20 s. The first
-  scan reads its titles and their count every 2 s at most, while it shows alone (`LocalLibrary.firstTitles`,
-  `firstTitleCount`); its eight posters are decoded at their size (224 × 336, 2.4 MB), then one more at most every
-  2 s once full, the poster it replaces let go once the new one shows: nine at most, nothing in a layer at rest, no
-  backdrop (`HomeViewModelTest`, `FirstWallTest`).
+  scan reads its titles and their count every 2 s at most, only while it holds home, Réglages over it included so its
+  wall comes back with them, or shows (`LocalLibrary.firstTitles`, `firstTitleCount`), first found first as the scan
+  made them; its eight posters are decoded at their size (224 × 336, 2.4 MB), then one more at most every 2 s once
+  full, the poster it replaces let go once the new one shows: nine at most, nothing in a layer at rest, no backdrop
+  (`HomeViewModelTest`, `FirstWallTest`).
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
   `dumpsys gfxinfo <package> framestats` and `setprop debug.hwui.overdraw show`. See CONTRIBUTING.md.
 

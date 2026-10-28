@@ -38,6 +38,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.util.titleCount
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -47,10 +48,11 @@ import kotlin.math.roundToInt
 data class FirstTitle(val id: Long, val title: String, val year: Int?, val poster: ImageRef?)
 
 /**
- * What home's first scan's wall shows, frame by frame ([FirstWall]). The titles found fill its frames first found
- * first, a batch a step ([step]); full, it renews in place, one frame a step: the latest title found comes into the
- * oldest frame, round after round, what the frame shows staying whole until the picture coming is decoded, and no step
- * begins while one waits for its picture. Nothing ever slides. Kept where the wall should be found again as it was.
+ * What home's first scan's wall shows, frame by frame ([FirstWall]). The titles there as the wall comes show at once
+ * ([come]); those found after fill its frames first found first, a batch a step ([step]); full, it renews in place, one
+ * frame a step once every title on it has its picture: the latest title found comes into the oldest frame, round after
+ * round, what the frame shows staying whole until the picture coming is decoded. Nothing ever slides. Kept where the
+ * wall should be found again as it was.
  */
 @Stable
 class FirstWallState {
@@ -59,41 +61,54 @@ class FirstWallState {
     /** The frame the next renewal takes: the oldest. */
     private var oldest = 0
 
-    /** Whether a step was taken: the titles there for the first show at once, the wall coming back with them. */
-    private var stepped = false
-
     /** The titles the frames show, in their order, null for a frame still empty. */
     val shown: List<FirstTitle?> get() = frames.map { it.shows }
 
     /** The title coming into each frame, its picture still loading unseen, null for none. */
     val coming: List<FirstTitle?> get() = frames.map { it.coming }
 
+    /** Whether a title on the wall waits for its picture: one coming into its frame, or one filling it not arrived yet. */
+    private val waits: Boolean get() = frames.any { it.waits }
+
     private fun onWall(title: FirstTitle) = frames.any { it.holds(title) }
 
-    /** Whether a step would change the wall for [titles]: a free frame to fill, or a latest title to renew it with. */
+    /**
+     * Whether a step would change the wall for [titles]: a free frame to fill, or, every title on it arrived, a latest
+     * title to renew it with.
+     */
     internal fun due(titles: List<FirstTitle>): Boolean = if (frames.any { it.free }) {
         titles.any { !onWall(it) }
     } else {
-        frames.all { it.coming == null } && titles.lastOrNull()?.let { !onWall(it) } == true
+        !waits && titles.lastOrNull()?.let { !onWall(it) } == true
+    }
+
+    /**
+     * The wall comes, back from Réglages or with a new home, [titles] read: they take its free frames first found first
+     * and show at once, as does what waits there for its picture; it renews none.
+     */
+    internal fun come(titles: List<FirstTitle>) {
+        frames.forEach { it.comeBack() }
+        fill(titles, atOnce = true)
     }
 
     /**
      * One step for [titles], first found first and the latest last: the free frames take the next titles not on the
-     * wall, every one at once, and renew none; full, with nothing coming, the latest title, when not on the wall, comes
-     * into the oldest frame, those found between two steps never passing on it.
+     * wall, every one arriving, and renew none; full, once every title on it has its picture, the latest title, when not
+     * on the wall, comes into the oldest frame, those found between two steps never passing on it.
      */
     internal fun step(titles: List<FirstTitle>) {
-        val atOnce = !stepped
-        stepped = true
-        val free = frames.filter { it.free }
-        if (free.isNotEmpty()) {
-            free.zip(titles.filterNot(::onWall)).forEach { (frame, title) -> frame.fill(title, atOnce) }
-        } else if (frames.all { it.coming == null }) {
+        if (frames.any { it.free }) {
+            fill(titles, atOnce = false)
+        } else if (!waits) {
             titles.lastOrNull()?.takeUnless(::onWall)?.let { latest ->
                 frames[oldest].renew(latest)
                 oldest = (oldest + 1) % frames.size
             }
         }
+    }
+
+    private fun fill(titles: List<FirstTitle>, atOnce: Boolean) {
+        frames.filter { it.free }.zip(titles.filterNot(::onWall)).forEach { (frame, title) -> frame.fill(title, atOnce) }
     }
 }
 
@@ -104,7 +119,7 @@ fun rememberFirstWallState(): FirstWallState = remember { FirstWallState() }
 /**
  * One frame of the first scan's wall: the title it [shows] and the one [coming] into it, its picture loading unseen;
  * how far its opaque ground has lifted off what it shows ([lift]: 0 covered, as an empty frame, 1 whole), read while
- * drawing.
+ * drawing; once [renewed], its ground lifts plain, without the empty frame's rule.
  */
 @Stable
 internal class WallFrame {
@@ -112,22 +127,37 @@ internal class WallFrame {
         private set
     var coming: FirstTitle? by mutableStateOf(null)
         private set
+    var renewed: Boolean by mutableStateOf(false)
+        private set
     val lift = Animatable(0f)
 
-    /** What it shows was there for the wall's first step: shown at once, without an arrival. */
+    /** What it shows waits for its picture, its ground still over it. */
+    private var awaited by mutableStateOf(false)
+
+    /** The title waiting for its picture was there as the wall came: shown at once, without an arrival. */
     private var atOnce = false
 
     val free: Boolean get() = shows == null && coming == null
+
+    /** Whether a title in it waits for its picture: one coming, or the one it shows not arrived yet. */
+    val waits: Boolean get() = coming != null || awaited
 
     fun holds(title: FirstTitle): Boolean = shows?.id == title.id || coming?.id == title.id
 
     fun fill(title: FirstTitle, atOnce: Boolean) {
         shows = title
+        awaited = true
         this.atOnce = atOnce
     }
 
     fun renew(title: FirstTitle) {
         coming = title
+        atOnce = false
+    }
+
+    /** The wall comes: what waits here for its picture shows at once. */
+    fun comeBack() {
+        if (waits) atOnce = true
     }
 
     /**
@@ -137,13 +167,14 @@ internal class WallFrame {
     suspend fun ready(title: FirstTitle) {
         if (coming?.id == title.id) {
             lift.snapTo(0f)
+            renewed = true
             shows = title
             coming = null
-            atOnce = false
-            lift.animateTo(1f, ARRIVAL)
-        } else if (shows?.id == title.id) {
-            if (atOnce) lift.snapTo(1f) else lift.animateTo(1f, ARRIVAL)
+        } else if (shows?.id != title.id || lift.value == 1f || lift.isRunning) {
+            return
         }
+        awaited = false
+        if (atOnce) lift.snapTo(1f) else lift.animateTo(1f, ARRIVAL)
     }
 }
 
@@ -152,21 +183,21 @@ private val ARRIVAL = tween<Float>(HlMotion.TINT, easing = LinearEasing)
 
 /**
  * Home's first scan's wall (DESIGN.md, Layout): the titles found so far, [titles] (first found first, the latest
- * last), in two whole lines of [FirstScanDefaults.COLUMNS] posters of [HlSize.wallPoster], each decoded at its size,
- * or a one-sheet where there is none. A poster arrives once its picture is decoded, its frame's opaque ground lifting
- * off it over `TINT`, linear, read while drawing, without a layer nor the loader's fade; full, the wall renews in place
- * ([FirstWallState]), a step at most every [FirstScanDefaults.STEP_MS]. Not focusable; read as how many titles were
- * [found], an arrival never said.
+ * last; null until read), in two whole lines of [FirstScanDefaults.COLUMNS] posters of [HlSize.wallPoster], each
+ * decoded at its size, or a one-sheet where there is none. The titles there once read as the wall comes show at once;
+ * a poster found after arrives once its picture is decoded, its frame's opaque ground lifting off it over `TINT`,
+ * linear, read while drawing, without a layer nor the loader's fade; full, the wall renews in place ([FirstWallState]),
+ * a step at most every [FirstScanDefaults.STEP_MS]. Not focusable; read as how many titles were [found], an arrival
+ * never said.
  */
 @Composable
-fun FirstWall(titles: List<FirstTitle>, found: Int, modifier: Modifier = Modifier, state: FirstWallState = rememberFirstWallState()) {
+fun FirstWall(titles: List<FirstTitle>?, found: Int, modifier: Modifier = Modifier, state: FirstWallState = rememberFirstWallState()) {
     val given by rememberUpdatedState(titles)
     LaunchedEffect(state) {
-        state.step(given)
+        state.come(snapshotFlow { given }.filterNotNull().first())
         while (true) {
             delay(FirstScanDefaults.STEP_MS)
-            snapshotFlow { state.due(given) }.first { it }
-            state.step(given)
+            state.step(snapshotFlow { given?.takeIf(state::due) }.filterNotNull().first())
         }
     }
     val readAs = titleCount(found)
@@ -199,7 +230,7 @@ private fun WallFrameView(frame: WallFrame, modifier: Modifier = Modifier) {
                 val over = 1f - frame.lift.value
                 if (over > 0f) {
                     drawRect(ground, alpha = over)
-                    emptyFrameRule(rule, alpha = over)
+                    if (!frame.renewed) emptyFrameRule(rule, alpha = over)
                 }
             }
             .artworkEdge(shape, c),

@@ -36,9 +36,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * DESIGN.md, Layout: home's first scan's wall fills first found first, a batch a step; full, it renews in place, one
- * frame a step, the latest title found into the oldest frame, the poster it showed kept whole until the one coming is
- * decoded; it reads as how many titles were found.
+ * DESIGN.md, Layout: home's first scan's wall shows at once the titles there as it comes, once read, then fills first
+ * found first, a batch a step; full, it renews in place, one frame a step once every title on it has its picture, the
+ * latest title found into the oldest frame, the poster it showed kept whole until the one coming is decoded; it reads
+ * as how many titles were found.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -60,19 +61,59 @@ class FirstWallTest {
 
     private fun FirstWallState.ids() = shown.map { it?.id }
 
-    /** The frames' titles coming into them, decoded: each takes its frame, the animation run through at once. */
-    private suspend fun FirstWallState.decoded() = withContext(Frames) {
-        frames.forEach { frame -> frame.coming?.let { frame.ready(it) } }
+    /**
+     * The pictures of the frames' titles decoded, those coming and those filling them: each arrives, its animation run
+     * through at once; how many frames that took, none for titles shown at once.
+     */
+    private suspend fun FirstWallState.decoded(): Long = withContext(Frames) {
+        val before = Frames.drawn
+        frames.forEach { frame -> (frame.coming ?: frame.shows)?.let { frame.ready(it) } }
+        Frames.drawn - before
     }
 
-    /** A frame clock that runs an animation through at once, frame after frame, outside a composition. */
+    /** A frame clock that runs an animation through at once, frame after frame, outside a composition, counting them. */
     private object Frames : MonotonicFrameClock {
-        private var now = 0L
+        var drawn = 0L
+            private set
 
         override suspend fun <R> withFrameNanos(onFrame: (frameTimeNanos: Long) -> R): R {
-            now += FRAME_NANOS
-            return onFrame(now)
+            drawn++
+            return onFrame(drawn * FRAME_NANOS)
         }
+    }
+
+    /**
+     * The titles there as the wall comes (a new home, or back from Réglages), once read, take its free frames first found
+     * first and show at once, as does what waited there for its picture; those found after arrive.
+     */
+    @Test
+    fun theTitlesThereAsTheWallComesShowAtOnce() = runTest {
+        val wall = FirstWallState()
+        wall.step(found(2))
+        wall.come(found(4))
+        assertEquals((1L..4L).toList() + List(4) { null }, wall.ids())
+        assertEquals("at once, what waited included", 0L, wall.decoded())
+        assertTrue(wall.frames.take(4).all { it.lift.value == 1f })
+
+        wall.step(found(6))
+        assertTrue("found after, they arrive", wall.decoded() > 0)
+        assertEquals((1L..6L).toList() + List(2) { null }, wall.ids())
+    }
+
+    /** Composed before its titles are read, the wall waits for them, then shows them at once, without a step's wait. */
+    @Test
+    fun aWallWaitsForItsTitlesToBeReadThenShowsThem() {
+        val wall = FirstWallState()
+        var titles by mutableStateOf<List<FirstTitle>?>(null)
+        compose.setTvContent { FirstWall(titles, titles?.size ?: 0, state = wall) }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(FirstScanDefaults.STEP_MS * 2)
+        assertEquals("unread, nothing taken", List(FRAMES) { null }, wall.ids())
+
+        titles = (1..3).map { title(it, poster = false) }
+        compose.waitForIdle()
+        assertEquals("read, at once", listOf(1L, 2L, 3L) + List(5) { null }, wall.ids())
+        assertTrue(wall.frames.take(3).all { it.lift.value == 1f })
     }
 
     @Test
@@ -85,12 +126,13 @@ class FirstWallTest {
     }
 
     @Test
-    fun theStepThatFillsTheLastFramesRenewsNone() {
+    fun theStepThatFillsTheLastFramesRenewsNone() = runTest {
         val wall = FirstWallState()
         wall.step(found(6))
         wall.step(found(11))
         assertEquals((1L..8L).toList(), wall.ids())
         assertEquals(List(FRAMES) { null }, wall.coming)
+        wall.decoded()
         assertTrue("the next step takes the latest", wall.due(found(11)))
     }
 
@@ -99,6 +141,7 @@ class FirstWallTest {
     fun fullItRenewsTheOldestFrameRoundAfterRound() = runTest {
         val wall = FirstWallState()
         wall.step(found(FRAMES))
+        wall.decoded()
         (9..11).forEach { n ->
             wall.step(found(n))
             wall.decoded()
@@ -115,18 +158,29 @@ class FirstWallTest {
 
     /** A step takes the latest title found: those found between two steps do not pass on the wall. */
     @Test
-    fun aStepTakesTheLatestTitleFound() {
+    fun aStepTakesTheLatestTitleFound() = runTest {
         val wall = FirstWallState()
         wall.step(found(FRAMES))
+        wall.decoded()
         wall.step(found(12))
         assertEquals(listOf(12L) + List(FRAMES - 1) { null }, wall.coming.map { it?.id })
     }
 
-    /** No step begins while the title coming waits for its picture, nor takes a title already on the wall. */
+    /**
+     * No renewal begins while a title on the wall waits for its picture, those that filled its last frames as the one
+     * coming into a frame, nor takes a title already on the wall.
+     */
     @Test
     fun noStepBeginsWhileATitleWaitsForItsPicture() = runTest {
         val wall = FirstWallState()
-        wall.step(found(FRAMES))
+        wall.step(found(6))
+        wall.decoded()
+        wall.step(found(9))
+        assertEquals((1L..8L).toList(), wall.ids())
+        assertFalse("the last frames wait for their pictures", wall.due(found(9)))
+        wall.step(found(9))
+        assertEquals(List(FRAMES) { null }, wall.coming)
+        wall.decoded()
         wall.step(found(9))
         assertFalse("waiting for its picture", wall.due(found(10)))
         wall.step(found(10))

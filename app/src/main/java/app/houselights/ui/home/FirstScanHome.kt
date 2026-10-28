@@ -47,11 +47,11 @@ import kotlinx.coroutines.launch
 
 /**
  * What home's first scan shows beside its progress ([HomeViewModel.firstScan]): the [folder] read (the first while the
- * pass reaches none), the titles found so far as its wall takes them (the first found, then the latest) and how many
- * were [found].
+ * pass reaches none), the titles found so far as its wall takes them (the first found, then the latest; null until
+ * read, the wall waiting for them to show those there at once) and how many were [found].
  */
 @Immutable
-data class FirstScanShows(val folder: Folder? = null, val titles: List<FirstTitle> = emptyList(), val found: Int = 0)
+data class FirstScanShows(val folder: Folder? = null, val titles: List<FirstTitle>? = null, val found: Int = 0)
 
 /** A film or show of the library as the first scan's wall shows it, its poster as the library gives pictures. */
 internal fun firstTitleOf(row: FirstTitleRow) =
@@ -103,7 +103,7 @@ internal fun FirstScan(
         Spacer(Modifier.weight(1f))
         Column(Modifier.width(FirstScanDefaults.wall).fillMaxHeight()) {
             Spacer(Modifier.weight(1f))
-            if (firstPass && found.titles.isNotEmpty()) {
+            if (firstPass && !found.titles.isNullOrEmpty()) {
                 GoHomeButton(onGoHome, Modifier.focusKey(GO_HOME, memory), focusFree = focusFree)
                 Spacer(Modifier.height(FirstScanDefaults.buttonGap))
             }

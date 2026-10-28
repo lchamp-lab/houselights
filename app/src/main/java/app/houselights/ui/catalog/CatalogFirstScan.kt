@@ -117,12 +117,13 @@ private fun Filling(modifier: Modifier = Modifier) {
     var round by remember { mutableIntStateOf(0) }
     var found by remember { mutableIntStateOf(0) }
     LaunchedEffect(round) {
-        found = 0
         while (found < FirstScanDefaults.FRAMES) {
             delay(LIVE_MS)
             found++
         }
         delay(LIVE_MS * 3)
+        // A new wall from none found, so it fills again rather than coming with them all.
+        found = 0
         round++
     }
     key(round) { FirstWall(all.take(found), found, modifier) }
