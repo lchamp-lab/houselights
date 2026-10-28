@@ -58,21 +58,19 @@ import kotlinx.coroutines.flow.StateFlow
  * over it. A build without Trakt's keys says so and offers nothing.
  */
 internal fun LazyListScope.traktPane(vm: TraktViewModel, session: TraktSession?, folders: Boolean = true, unread: Boolean = false) {
-    item { Trakt(vm, session, folders, unread) }
+    // Kept, but not opened at this launch: Réessayer at the pane's head reads it again.
+    item { Trakt(vm, session, folders, kept = unread && session == null) }
 }
 
 @Composable
-private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean, unread: Boolean) {
+private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean, kept: Boolean) {
     val live = session?.takeUnless { it.ended }
-    // Kept, but not opened at this launch: Réessayer at the pane's head reads it again.
-    val kept = unread && session == null
     val focus = rememberCodeFocus(vm.connecting)
     BackHandler(enabled = vm.connecting) { vm.cancel() }
     ReadMissingName(live, folders, onRead = vm::readName)
 
     Column(Modifier.revealOnFocus()) {
         val title = stringResource(R.string.section_trakt)
-        val signedOut = stringResource(R.string.trakt_signed_out)
         when {
             !vm.available -> PaneHead(title, aside = stringResource(R.string.trakt_no_keys), state = StatusState.Off)
             // The code until the row has taken its focus back: focus never leaves the pane.
@@ -90,13 +88,7 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean, 
                 state = StatusState.Pending,
                 read = stringResource(R.string.trakt_unread_desc),
             )
-            else -> {
-                PaneHead(title, aside = signedOut, state = StatusState.Off, read = stringResource(R.string.trakt_desc))
-                if (session?.ended == true) {
-                    AttentionNote(stringResource(R.string.trakt_ended))
-                    Spacer(Modifier.height(HlSpace.l))
-                }
-            }
+            else -> SignedOut(title, ended = session?.ended == true)
         }
         // The rows, but while the code waits; the row asking for it keeps focus until the code has it.
         if (vm.available && (!vm.connecting || focus.asked)) {
@@ -129,6 +121,16 @@ private fun ReadMissingName(live: TraktSession?, folders: Boolean, onRead: () ->
     val nameless = folders && live != null && live.username == null
     val currentOnRead by rememberUpdatedState(onRead)
     LaunchedEffect(nameless) { if (nameless) currentOnRead() }
+}
+
+/** Not connected: what Trakt keeps, said in its place, and above the rows a note once Trakt [ended] the connection. */
+@Composable
+private fun ColumnScope.SignedOut(title: String, ended: Boolean) {
+    PaneHead(title, aside = stringResource(R.string.trakt_signed_out), state = StatusState.Off, read = stringResource(R.string.trakt_desc))
+    if (ended) {
+        AttentionNote(stringResource(R.string.trakt_ended))
+        Spacer(Modifier.height(HlSpace.l))
+    }
 }
 
 /**

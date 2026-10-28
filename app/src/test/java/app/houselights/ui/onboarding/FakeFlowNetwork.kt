@@ -150,7 +150,7 @@ class FakeFlowNetwork : FlowNetwork {
         val nfs = source.protocol == Protocol.NFS
         val smb = source.protocol == Protocol.SMB
         val guest = source.username.isBlank()
-        val signedIn = smb && !guest && source.username == USER && source.password.forSignIn() == PASSWORD
+        val signedIn = source.username == USER && source.password.forSignIn() == PASSWORD
         return when {
             nfs && source.share == "volume1/photo" -> mountFailure(MountStatus.MNT3ERR_ACCES)
             nfs && source.uid != null && rootOnly.any { at.startsWith(it) } -> IOException("NFS3ERR_ACCES")

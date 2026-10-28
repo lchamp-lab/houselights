@@ -325,14 +325,17 @@ internal fun FlowFailure.words(): RowFailure = when (this) {
 internal fun Asking.refusal(failure: FlowFailure, name: String, where: String): FlowMessage = when (failure) {
     FlowFailure.SILENT -> FlowMessage.Silent(host)
     FlowFailure.MOUNT_REFUSED -> FlowMessage.NotAllowed(player, where)
-    FlowFailure.READ_REFUSED -> when {
-        nfs && uid != null -> FlowMessage.AccountRefused(uid, where)
-        nfs -> FlowMessage.RootRefused(where)
-        guest -> FlowMessage.GuestShare(name)
-        else -> FlowMessage.Denied(user, name)
-    }
+    FlowFailure.READ_REFUSED -> readRefusal(name, where)
     FlowFailure.LOGIN_REFUSED -> if (guest) FlowMessage.GuestRefused else FlowMessage.LoginRefused
     FlowFailure.PASSWORD_UNREAD -> FlowMessage.PasswordUnread
     FlowFailure.MISSING -> if (nfs) FlowMessage.NoExport(where) else FlowMessage.NoShare(host, name)
     FlowFailure.OTHER -> FlowMessage.Other
+}
+
+/** A read refused on [name], at [where]: to the user « Compte NFS » presents or to root over NFS, to a guest or the account over SMB. */
+private fun Asking.readRefusal(name: String, where: String): FlowMessage = when {
+    nfs && uid != null -> FlowMessage.AccountRefused(uid, where)
+    nfs -> FlowMessage.RootRefused(where)
+    guest -> FlowMessage.GuestShare(name)
+    else -> FlowMessage.Denied(user, name)
 }
