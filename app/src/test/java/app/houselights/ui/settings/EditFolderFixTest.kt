@@ -18,7 +18,8 @@ class EditFolderFixTest {
 
     @Test
     fun editingWaitsItsTurnForWhatItCannotMend() {
-        listOf(ScanErrorKind.ACCESS_DENIED, ScanErrorKind.EMPTY, ScanErrorKind.OTHER).forEach { kind ->
+        // A password not read for now is read again by the next scan, which comes first.
+        listOf(ScanErrorKind.ACCESS_DENIED, ScanErrorKind.EMPTY, ScanErrorKind.PASSWORD_UNREAD, ScanErrorKind.OTHER).forEach { kind ->
             assertNull(kind.name, editFixes(ScanError(kind)))
         }
         assertNull(editFixes(null))

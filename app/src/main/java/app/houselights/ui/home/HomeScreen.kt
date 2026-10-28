@@ -665,9 +665,13 @@ private fun stateFacts(status: HomeStatus, progress: Pair<Int, Int>?): List<Stat
         }
         is StatusSource.Server -> StateFact(label, from.name ?: stringResource(R.string.source_jellyfin))
     }
-    val trakt = status.trakt?.let { on ->
-        val said = stringResource(if (on) R.string.trakt_connected else R.string.trakt_signed_out)
-        StateFact(stringResource(R.string.home_state_trakt), said, done = on, rank = 1)
+    val trakt = status.trakt?.let { fact ->
+        val said = when (fact) {
+            TraktFact.CONNECTED -> R.string.trakt_connected
+            TraktFact.SIGNED_OUT -> R.string.trakt_signed_out
+            TraktFact.UNREAD -> R.string.trakt_unread
+        }
+        StateFact(stringResource(R.string.home_state_trakt), stringResource(said), done = fact == TraktFact.CONNECTED, rank = 1)
     }
     val scan = progress?.let { (done, total) ->
         StateFact(

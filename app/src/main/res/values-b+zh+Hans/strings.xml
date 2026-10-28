@@ -269,6 +269,7 @@
     <string name="error_nas_unreachable">%s 无响应。请检查 NAS 是否已开机并连接到网络。</string>
     <string name="error_access_denied">NAS 拒绝访问。如使用 NFS，请在共享文件夹上允许本设备的 IP 地址；如使用 SMB，请检查该账号的权限。</string>
     <string name="error_login_failed">NAS 拒绝了此用户名或密码。</string>
+    <string name="error_password_unread">暂时无法读取已保存的密码：密码仍会保留。请重新输入，或稍后再试。</string>
     <string name="error_not_found">NAS 上不存在此共享文件夹或文件夹。请检查拼写。</string>
     <string name="error_host_missing">请输入 NAS 地址。</string>
     <string name="error_export_missing">请输入装载路径，例如 /volume1/video。</string>
@@ -298,6 +299,7 @@
     <string name="error_smb_denied">账号“%1$s”无权访问“%2$s”。请在 NAS 上授予其读取权限，或更换账号。</string>
     <string name="error_guest_refused">此 NAS 不接受访客：请输入账号。</string>
     <string name="error_scan_other">无法读取此文件夹。请重试，或检查 NAS 上的共享文件夹。</string>
+    <string name="error_scan_password_unread">暂时无法读取此文件夹已保存的密码：密码仍会保留，下次扫描时将再次尝试。</string>
     <string name="error_folder_empty">此文件夹在 NAS 上似乎是空的：未移除任何内容。请检查其所在磁盘是否已挂载；如果它将一直为空，请将其移除。</string>
     <string name="error_storage_full">本设备已没有剩余空间：扫描已停止。请在设置的“存储空间”中释放空间。</string>
     <string name="add">添加</string>
@@ -665,6 +667,7 @@
     <string name="journal_empty">Android 没有保留应用的任何行。</string>
     <string name="journal_trakt_on">Trakt 已连接</string>
     <string name="journal_trakt_off">Trakt 未连接</string>
+    <string name="journal_trakt_unread">Trakt 暂时无法读取</string>
     <string name="file_access">文件访问</string>
     <string name="network_path_desc">播放器直接从 NAS 读取文件</string>
     <string name="http_stream_desc">播放器读取服务器的串流</string>
@@ -768,6 +771,8 @@
     <string name="trakt_connected">已连接</string>
     <string name="trakt_paused">已暂停</string>
     <string name="trakt_paused_desc">Trakt 跟随您的文件夹；回到文件夹后即恢复。</string>
+    <string name="trakt_unread">暂时无法读取</string>
+    <string name="trakt_unread_desc">您的 Trakt 连接仍保存在本播放器上，但暂时无法重新读取。请稍后再试；如有需要，也可以断开您的账户。</string>
     <string name="trakt_connect">连接您的账户</string>
     <string name="trakt_connect_desc">在手机或电脑上输入一个代码即可</string>
     <string name="trakt_disconnect">断开您的账户</string>

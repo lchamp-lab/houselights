@@ -53,14 +53,17 @@ import kotlinx.coroutines.flow.StateFlow
  * Trakt, for the folders, as a state said beside its title: not connected, what it keeps and the row that connects;
  * connecting, its code in the pane, Back cancelling; connected, the account and its last sync, then the rows that sync,
  * open what a sync left out, and disconnect. Under another source than the [folders], paused: the account kept, and
- * the row that disconnects it. A build without Trakt's keys says so and offers nothing.
+ * the row that disconnects it. With the folders, a session kept that the Keystore did not open at this launch
+ * ([unread]) is neither connected nor not: kept, not read for now, and the row that disconnects it, nothing to connect
+ * over it. A build without Trakt's keys says so and offers nothing.
  */
-internal fun LazyListScope.traktPane(vm: TraktViewModel, session: TraktSession?, folders: Boolean = true) {
-    item { Trakt(vm, session, folders) }
+internal fun LazyListScope.traktPane(vm: TraktViewModel, session: TraktSession?, folders: Boolean = true, unread: Boolean = false) {
+    // Kept, but not opened at this launch: Réessayer at the pane's head reads it again.
+    item { Trakt(vm, session, folders, kept = unread && session == null) }
 }
 
 @Composable
-private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) {
+private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean, kept: Boolean) {
     val live = session?.takeUnless { it.ended }
     val focus = rememberCodeFocus(vm.connecting)
     BackHandler(enabled = vm.connecting) { vm.cancel() }
@@ -68,7 +71,6 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) 
 
     Column(Modifier.revealOnFocus()) {
         val title = stringResource(R.string.section_trakt)
-        val signedOut = stringResource(R.string.trakt_signed_out)
         when {
             !vm.available -> PaneHead(title, aside = stringResource(R.string.trakt_no_keys), state = StatusState.Off)
             // The code until the row has taken its focus back: focus never leaves the pane.
@@ -80,20 +82,21 @@ private fun Trakt(vm: TraktViewModel, session: TraktSession?, folders: Boolean) 
                 val sync by vm.syncState.collectAsStateWithLifecycle()
                 Account(live.username, sync)
             }
-            else -> {
-                PaneHead(title, aside = signedOut, state = StatusState.Off, read = stringResource(R.string.trakt_desc))
-                if (session?.ended == true) {
-                    AttentionNote(stringResource(R.string.trakt_ended))
-                    Spacer(Modifier.height(HlSpace.l))
-                }
-            }
+            kept -> PaneHead(
+                title,
+                aside = stringResource(R.string.trakt_unread),
+                state = StatusState.Pending,
+                read = stringResource(R.string.trakt_unread_desc),
+            )
+            else -> SignedOut(title, ended = session?.ended == true)
         }
         // The rows, but while the code waits; the row asking for it keeps focus until the code has it.
         if (vm.available && (!vm.connecting || focus.asked)) {
             Spacer(Modifier.height(HlSpace.l))
             TraktRows(
-                connected = live != null || !folders,
-                syncs = folders,
+                // A session kept but not read is disconnected as one connected, never connected over.
+                connected = live != null || !folders || kept,
+                syncs = folders && live != null,
                 note = vm.note,
                 disconnecting = vm.disconnecting,
                 syncState = vm.syncState,
@@ -118,6 +121,16 @@ private fun ReadMissingName(live: TraktSession?, folders: Boolean, onRead: () ->
     val nameless = folders && live != null && live.username == null
     val currentOnRead by rememberUpdatedState(onRead)
     LaunchedEffect(nameless) { if (nameless) currentOnRead() }
+}
+
+/** Not connected: what Trakt keeps, said in its place, and above the rows a note once Trakt [ended] the connection. */
+@Composable
+private fun ColumnScope.SignedOut(title: String, ended: Boolean) {
+    PaneHead(title, aside = stringResource(R.string.trakt_signed_out), state = StatusState.Off, read = stringResource(R.string.trakt_desc))
+    if (ended) {
+        AttentionNote(stringResource(R.string.trakt_ended))
+        Spacer(Modifier.height(HlSpace.l))
+    }
 }
 
 /**
@@ -231,9 +244,10 @@ private fun Account(name: String?, sync: TraktSyncState) {
 }
 
 /**
- * Sync ([onSync]) and what the last sync left out when it did ([syncState]), while Trakt [syncs], then connect or
- * disconnect, which says so while [disconnecting]: one row whose words follow the account, so focus stays on it as the
- * account comes and goes. A failure ([note]) is said under its row ([RowFailureNote]).
+ * Sync ([onSync]) and what the last sync left out when it did ([syncState]), while Trakt [syncs] (connected, its session
+ * read, with the folders), then connect or disconnect, which says so while [disconnecting]: one row whose words follow
+ * the account, so focus stays on it as the account comes and goes. A failure ([note]) is said under its row
+ * ([RowFailureNote]).
  */
 @Composable
 private fun TraktRows(

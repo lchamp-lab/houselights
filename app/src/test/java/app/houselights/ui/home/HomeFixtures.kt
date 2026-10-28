@@ -51,5 +51,5 @@ internal fun fullHome(
         shelves = listOf(Shelf(films, 412, emptyList()), Shelf(shows, 38, emptyList(), newEpisodes = 3)),
         sagas = Shelf(sagaLibrary, 24, emptyList()),
     ),
-    status: HomeStatus = HomeStatus(StatusSource.Folders(listOf("nas"), 1), trakt = true, scannedAt = 0L),
+    status: HomeStatus = HomeStatus(StatusSource.Folders(listOf("nas"), 1), trakt = TraktFact.CONNECTED, scannedAt = 0L),
 ) = HomeState(listOf(films, shows, sagaLibrary), HomeContent.Rows(sections), doors, status)

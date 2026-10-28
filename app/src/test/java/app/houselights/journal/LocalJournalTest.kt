@@ -6,6 +6,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.TraktSession
 import app.houselights.providers.local.Protocol
 import app.houselights.settings.AppSettings
+import app.houselights.settings.SecretSetting
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -101,6 +102,15 @@ class LocalJournalTest {
         val head = head(open(journal(settings = AppSettings(loaded = true, source = jellyfin))))
         assertTrue(head, head.contains(" · Jellyfin · Trakt non connecté · "))
         assertFalse(head, head.contains("t0k3n"))
+    }
+
+    /** A Trakt session kept that the Keystore did not open at this launch is said so, never as not connected. */
+    @Test
+    fun theLineToPasteSaysTraktNotReadForNowNotNotConnected() {
+        val unread = AppSettings(loaded = true, source = SourceConfig.Local, unreadSecrets = setOf(SecretSetting.TRAKT))
+        val head = head(open(journal(settings = unread)))
+        assertTrue(head, head.contains(" · Mes fichiers (NFS) · Trakt non relu pour l’instant · "))
+        assertFalse(head, head.contains("non connecté"))
     }
 
     @Test

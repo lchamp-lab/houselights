@@ -230,6 +230,12 @@ sealed interface FolderTrouble {
 
     data object LoginFailed : FolderTrouble
 
+    /**
+     * SMB: the password kept, its field left empty, which the device's Keystore did not open for now: never tried, the
+     * NAS not asked; typed again, or tested again once the Keystore answers.
+     */
+    data object PasswordUnread : FolderTrouble
+
     data object Other : FolderTrouble
 }
 
@@ -243,6 +249,8 @@ internal fun troubleOf(error: ScanError, source: SourceEntity, player: String?):
     return when (error.kind) {
         ScanErrorKind.UNREACHABLE -> FolderTrouble.Unreachable
         ScanErrorKind.LOGIN_FAILED -> if (guest) FolderTrouble.GuestRefused else FolderTrouble.LoginFailed
+        // Never a refusal: the NAS was not asked.
+        ScanErrorKind.PASSWORD_UNREAD -> FolderTrouble.PasswordUnread
         ScanErrorKind.ACCESS_DENIED -> if (guest) FolderTrouble.GuestRefused else refusalOf(error.place, source, player)
         ScanErrorKind.NOT_FOUND -> missingOf(error.place, source)
         else -> FolderTrouble.Other
@@ -308,7 +316,7 @@ private fun spotOf(trouble: FolderTrouble, form: FolderForm): FaultSpot = when (
     is FolderTrouble.ShareMissing, is FolderTrouble.ExportMissing, FolderTrouble.Missing -> FaultSpot.SHARE
     is FolderTrouble.SubfolderMissing -> lastPathField(form)
     is FolderTrouble.AccountDenied, FolderTrouble.GuestRefused -> FaultSpot.USER
-    FolderTrouble.LoginFailed -> FaultSpot.PASSWORD
+    FolderTrouble.LoginFailed, FolderTrouble.PasswordUnread -> FaultSpot.PASSWORD
     is FolderTrouble.PlayerRefused, is FolderTrouble.ReadRefused, FolderTrouble.Other -> FaultSpot.PANEL
 }
 
@@ -584,6 +592,20 @@ class AddFolderViewModel(
     /** The described folder; an edited one keeps its id, kind and, if the field is empty, its password. */
     private fun source(): SourceEntity = editing?.let(form::toSource) ?: form.toSource()
 
+    /**
+     * [source] with the edited folder's password read from the library again when the Keystore did not open it
+     * ([Secret.unopened]), [editing] taking what is read: trying again, as the form says to, asks the Keystore again,
+     * never only the answer the form opened with; still not opened, it is said again.
+     */
+    private suspend fun passwordReadAgain(source: SourceEntity): SourceEntity {
+        if (source.password.unopened == null) return source
+        val again = suspendRunCatching { library.folder(folderId) }
+            .onFailure { Log.w(TAG, "Reading folder $folderId again failed", it) }
+            .getOrNull() ?: return source
+        editing = again
+        return source.copy(password = again.password)
+    }
+
     /** Says [answer] to a press: in [check], counted in [answers]. */
     private fun say(answer: FolderCheck) {
         check = answer
@@ -706,7 +728,8 @@ class AddFolderViewModel(
         listed = null
         try {
             // The browser signs in on its own for a test, so the form's own credentials are what is tested.
-            val answer = suspendRunCatching { probe(source) }
+            val tried = passwordReadAgain(source)
+            val answer = suspendRunCatching { probe(tried) }
             answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
             // Checked again once the answer is read: telling an export missing asks the NAS for its exports meanwhile.
             val said = if (form.testsAs(typed)) answer.fold(::found) { e -> failed(e, source) } else null

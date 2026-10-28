@@ -269,6 +269,7 @@
     <string name="error_nas_unreachable">%s에서 응답이 없습니다. NAS가 켜져 있고 네트워크에 연결되어 있는지 확인하세요.</string>
     <string name="error_access_denied">NAS가 접근을 거부했습니다. NFS는 공유 폴더에서 이 기기의 IP 주소를 허용하고, SMB는 계정 권한을 확인하세요.</string>
     <string name="error_login_failed">NAS가 사용자 이름 또는 비밀번호를 거부했습니다.</string>
+    <string name="error_password_unread">저장된 비밀번호를 지금은 읽을 수 없습니다. 비밀번호는 그대로 보관됩니다. 다시 입력하거나 잠시 후 다시 시도하세요.</string>
     <string name="error_not_found">이 공유 폴더 또는 폴더가 NAS에 없습니다. 철자를 확인하세요.</string>
     <string name="error_host_missing">NAS 주소를 입력하세요.</string>
     <string name="error_export_missing">마운트 경로를 입력하세요(예: /volume1/video).</string>
@@ -298,6 +299,7 @@
     <string name="error_smb_denied">‘%1$s’ 계정에는 ‘%2$s’에 대한 접근 권한이 없습니다. NAS에서 읽기 권한을 주거나 다른 계정을 사용하세요.</string>
     <string name="error_guest_refused">이 NAS는 게스트를 허용하지 않습니다. 계정을 입력하세요.</string>
     <string name="error_scan_other">폴더를 읽을 수 없습니다. 다시 시도하거나 NAS의 공유 폴더를 확인하세요.</string>
+    <string name="error_scan_password_unread">이 폴더에 저장된 비밀번호를 지금은 읽을 수 없습니다. 비밀번호는 그대로 보관되며 다음 스캔 때 다시 시도합니다.</string>
     <string name="error_folder_empty">NAS의 폴더가 비어 있는 것 같습니다. 아무것도 제거하지 않았습니다. 디스크가 마운트되어 있는지 확인하고, 정말 비어 있다면 폴더를 제거하세요.</string>
     <string name="error_storage_full">이 기기에 남은 공간이 없어 스캔이 중단되었습니다. 설정의 ‘저장 공간’에서 공간을 확보하세요.</string>
     <string name="add">추가</string>
@@ -663,6 +665,7 @@
     <string name="journal_empty">Android에 남은 앱 기록이 없습니다.</string>
     <string name="journal_trakt_on">Trakt 연결됨</string>
     <string name="journal_trakt_off">Trakt 연결 안 됨</string>
+    <string name="journal_trakt_unread">Trakt 지금은 읽을 수 없음</string>
     <string name="file_access">파일 접근</string>
     <string name="network_path_desc">NAS에서 직접 읽습니다</string>
     <string name="http_stream_desc">서버의 스트림을 읽습니다</string>
@@ -765,6 +768,8 @@
     <string name="trakt_connected">연결됨</string>
     <string name="trakt_paused">일시 중지됨</string>
     <string name="trakt_paused_desc">Trakt는 폴더와 연동됩니다. 폴더로 돌아오면 재개됩니다.</string>
+    <string name="trakt_unread">지금은 읽을 수 없음</string>
+    <string name="trakt_unread_desc">Trakt 연결은 이 플레이어에 그대로 보관되어 있지만 지금은 다시 읽을 수 없습니다. 잠시 후 다시 시도하거나, 원하면 계정 연결을 해제하세요.</string>
     <string name="trakt_connect">계정 연결</string>
     <string name="trakt_connect_desc">휴대폰이나 컴퓨터에서 코드를 입력합니다</string>
     <string name="trakt_disconnect">계정 연결 해제</string>

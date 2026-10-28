@@ -73,8 +73,11 @@ class FakeKeystore(val record: KeyRecord = TestKeyRecord(), val listing: Boolean
     }
 }
 
-/** Secrets whose every key version is [key]'s answer, loaded or made alike; its failure fails both. */
-fun secretsOf(key: (Int) -> SecretKey): Secrets = Secrets(
+/**
+ * Secrets whose every key version is [key]'s answer, loaded or made alike; its failure fails both. The versions [made]
+ * are recorded as this install's, so that it seals with the newest of them.
+ */
+fun secretsOf(vararg made: Int, key: (Int) -> SecretKey): Secrets = Secrets(
     object : Keyring {
         override fun listed(): Set<Int> = emptySet()
 
@@ -84,7 +87,7 @@ fun secretsOf(key: (Int) -> SecretKey): Secrets = Secrets(
 
         override fun create(version: Int): SecretKey = key(version)
     },
-    TestKeyRecord(),
+    TestKeyRecord(*made),
 )
 
 /** Secrets sealed with a key of the test's own ([testKey]). */

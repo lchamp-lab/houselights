@@ -282,6 +282,7 @@
     <string name="error_nas_unreachable">%s non risponde. Verificare che il NAS sia acceso e connesso alla rete.</string>
     <string name="error_access_denied">Il NAS ha negato l’accesso. Per NFS, autorizzare l’indirizzo IP di questo dispositivo sulla condivisione; per SMB, verificare i permessi dell’account.</string>
     <string name="error_login_failed">Il NAS ha rifiutato nome utente o password.</string>
+    <string name="error_password_unread">Per ora non è stato possibile leggere la password salvata: resta conservata. Inserirla di nuovo o riprovare tra poco.</string>
     <string name="error_not_found">Questa condivisione o cartella non esiste sul NAS. Verificarne la grafia.</string>
     <string name="error_host_missing">Inserire l’indirizzo del NAS.</string>
     <string name="error_export_missing" tools:ignore="Typos">Inserire il percorso di montaggio, ad esempio /volume1/video.</string>
@@ -313,6 +314,7 @@
     <string name="error_smb_denied">L’account «%1$s» non ha accesso a «%2$s». Concedergli la lettura sul NAS, o cambiare account.</string>
     <string name="error_guest_refused">Questo NAS non accetta ospiti: inserire un account.</string>
     <string name="error_scan_other">Impossibile leggere la cartella. Riprovare, o verificare la condivisione sul NAS.</string>
+    <string name="error_scan_password_unread">Per ora non è stato possibile leggere la password salvata di questa cartella: resta conservata e verrà riprovata alla prossima scansione.</string>
     <string name="error_folder_empty">La cartella sembra vuota sul NAS: non è stato rimosso nulla. Verificare che il disco sia montato; se è vuota definitivamente, rimuoverla.</string>
     <string name="error_storage_full">Spazio esaurito su questo dispositivo: la scansione si è interrotta. Liberarne un po’ in Impostazioni, Archiviazione.</string>
     <string name="add">Aggiungi</string>
@@ -696,6 +698,7 @@
     <string name="journal_empty">Android non ha conservato nessuna riga dell’app.</string>
     <string name="journal_trakt_on">Trakt connesso</string>
     <string name="journal_trakt_off">Trakt non connesso</string>
+    <string name="journal_trakt_unread">Trakt non letto per ora</string>
     <string name="file_access">Accesso ai file</string>
     <string name="network_path_desc">Il lettore legge direttamente dal NAS</string>
     <string name="http_stream_desc">Il lettore legge il flusso del server</string>
@@ -820,6 +823,8 @@
     <string name="trakt_connected">Connesso</string>
     <string name="trakt_paused">In pausa</string>
     <string name="trakt_paused_desc">Trakt segue le cartelle; riprende quando si torna a usarle.</string>
+    <string name="trakt_unread">Non letto per ora</string>
+    <string name="trakt_unread_desc">Il collegamento a Trakt resta salvato su questo lettore, ma per ora non è stato possibile rileggerlo. Riprovare tra poco o scollegare l’account, se lo si desidera.</string>
     <string name="trakt_connect">Collega l’account</string>
     <string name="trakt_connect_desc">Con un codice da inserire sul telefono o sul computer</string>
     <string name="trakt_disconnect">Scollega l’account</string>

@@ -276,6 +276,7 @@
     <string name="error_nas_unreachable">%s antwortet nicht. Prüfen Sie, ob das NAS eingeschaltet und mit dem Netzwerk verbunden ist.</string>
     <string name="error_access_denied">Das NAS hat den Zugriff verweigert. Erlauben Sie bei NFS die IP-Adresse dieses Geräts für die Freigabe; prüfen Sie bei SMB die Rechte des Kontos.</string>
     <string name="error_login_failed">Das NAS hat Benutzername oder Passwort abgelehnt.</string>
+    <string name="error_password_unread">Das gespeicherte Passwort konnte vorerst nicht gelesen werden: Es bleibt erhalten. Geben Sie es erneut ein, oder versuchen Sie es gleich noch einmal.</string>
     <string name="error_not_found">Diese Freigabe oder dieser Ordner existiert nicht auf dem NAS. Prüfen Sie die Schreibweise.</string>
     <string name="error_host_missing">Geben Sie die Adresse des NAS ein.</string>
     <string name="error_export_missing" tools:ignore="Typos">Geben Sie den Mount-Pfad ein, zum Beispiel /volume1/video.</string>
@@ -306,6 +307,7 @@
     <string name="error_smb_denied">Das Konto „%1$s“ hat keinen Zugriff auf „%2$s“. Geben Sie ihm auf dem NAS Leserechte oder wechseln Sie das Konto.</string>
     <string name="error_guest_refused">Dieses NAS lässt keine Gäste zu: Geben Sie ein Konto ein.</string>
     <string name="error_scan_other">Der Ordner konnte nicht gelesen werden. Versuchen Sie es erneut, oder prüfen Sie die Freigabe auf dem NAS.</string>
+    <string name="error_scan_password_unread">Das gespeicherte Passwort dieses Ordners konnte vorerst nicht gelesen werden: Es bleibt erhalten und wird beim nächsten Scan erneut versucht.</string>
     <string name="error_folder_empty">Der Ordner scheint auf dem NAS leer zu sein: Nichts wurde entfernt. Prüfen Sie, ob seine Festplatte eingebunden ist; ist er dauerhaft leer, entfernen Sie ihn.</string>
     <string name="error_storage_full">Auf diesem Gerät ist kein Platz mehr frei: Der Scan wurde angehalten. Schaffen Sie Platz unter Einstellungen, Speicher.</string>
     <string name="add">Hinzufügen</string>
@@ -681,6 +683,7 @@
     <string name="journal_empty">Android hat keine Zeile der App behalten.</string>
     <string name="journal_trakt_on">Trakt verbunden</string>
     <string name="journal_trakt_off">Trakt nicht verbunden</string>
+    <string name="journal_trakt_unread">Trakt vorerst nicht gelesen</string>
     <string name="file_access">Dateizugriff</string>
     <string name="network_path_desc">Der Player liest direkt vom NAS</string>
     <string name="http_stream_desc">Der Player liest den Server-Stream</string>
@@ -793,6 +796,8 @@
     <string name="trakt_connected">Verbunden</string>
     <string name="trakt_paused">Pausiert</string>
     <string name="trakt_paused_desc">Trakt folgt Ihren Ordnern; es läuft weiter, sobald Sie zu ihnen zurückkehren.</string>
+    <string name="trakt_unread">Vorerst nicht gelesen</string>
+    <string name="trakt_unread_desc">Ihre Trakt-Verbindung bleibt auf diesem Player erhalten, konnte aber vorerst nicht erneut gelesen werden. Versuchen Sie es gleich noch einmal, oder trennen Sie Ihr Konto, wenn Sie möchten.</string>
     <string name="trakt_connect">Konto verbinden</string>
     <string name="trakt_connect_desc">Mit einem Code auf Ihrem Telefon oder PC</string>
     <string name="trakt_disconnect">Konto trennen</string>

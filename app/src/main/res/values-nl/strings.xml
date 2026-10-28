@@ -275,6 +275,7 @@
     <string name="error_nas_unreachable">%s reageert niet. Controleer of de NAS aan staat en met het netwerk is verbonden.</string>
     <string name="error_access_denied">De NAS heeft de toegang geweigerd. Sta voor NFS het IP-adres van dit apparaat toe op de share; controleer voor SMB de rechten van het account.</string>
     <string name="error_login_failed">De NAS heeft de gebruikersnaam of het wachtwoord geweigerd.</string>
+    <string name="error_password_unread">Het opgeslagen wachtwoord kon voorlopig niet worden gelezen: het blijft bewaard. Voer het opnieuw in, of probeer het zo nog eens.</string>
     <string name="error_not_found">Deze share of map bestaat niet op de NAS. Controleer de spelling.</string>
     <string name="error_host_missing">Voer het adres van de NAS in.</string>
     <string name="error_export_missing" tools:ignore="Typos">Voer het koppelpad in, bijvoorbeeld /volume1/video.</string>
@@ -305,6 +306,7 @@
     <string name="error_smb_denied">Het account “%1$s” heeft geen toegang tot “%2$s”. Geef het leesrechten op de NAS, of gebruik een ander account.</string>
     <string name="error_guest_refused">Deze NAS accepteert geen gasten: voer een account in.</string>
     <string name="error_scan_other">De map kon niet worden gelezen. Probeer het opnieuw, of controleer de share op de NAS.</string>
+    <string name="error_scan_password_unread">Het opgeslagen wachtwoord van deze map kon voorlopig niet worden gelezen: het blijft bewaard en wordt bij de volgende scan opnieuw geprobeerd.</string>
     <string name="error_folder_empty">De map lijkt leeg op de NAS: er is niets verwijderd. Controleer of de schijf gekoppeld is; is de map definitief leeg, verwijder hem dan.</string>
     <string name="error_storage_full">Dit apparaat heeft geen ruimte meer: de scan is gestopt. Maak ruimte vrij in Instellingen, Opslag.</string>
     <string name="add">Toevoegen</string>
@@ -680,6 +682,7 @@
     <string name="journal_empty">Android heeft geen regel van de app bewaard.</string>
     <string name="journal_trakt_on">Trakt verbonden</string>
     <string name="journal_trakt_off">Trakt niet verbonden</string>
+    <string name="journal_trakt_unread">Trakt voorlopig niet gelezen</string>
     <string name="file_access">Bestandstoegang</string>
     <string name="network_path_desc">De speler leest direct van de NAS</string>
     <string name="http_stream_desc">De speler leest de stream van de server</string>
@@ -792,6 +795,8 @@
     <string name="trakt_connected">Verbonden</string>
     <string name="trakt_paused">Gepauzeerd</string>
     <string name="trakt_paused_desc">Trakt volgt uw mappen; het gaat verder zodra u ernaar terugkeert.</string>
+    <string name="trakt_unread">Voorlopig niet gelezen</string>
+    <string name="trakt_unread_desc">Uw Trakt-verbinding blijft bewaard op deze speler, maar kon voorlopig niet opnieuw worden gelezen. Probeer het zo nog eens, of koppel uw account los als u dat wilt.</string>
     <string name="trakt_connect">Uw account verbinden</string>
     <string name="trakt_connect_desc">Met een code die u op uw telefoon of computer invoert</string>
     <string name="trakt_disconnect">Uw account loskoppelen</string>

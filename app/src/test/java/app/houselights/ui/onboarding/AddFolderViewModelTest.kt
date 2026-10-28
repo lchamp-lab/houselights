@@ -24,6 +24,7 @@ import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.testing.folderNames
 import app.houselights.testing.secretsOf
+import app.houselights.testing.testKey
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.afterProcessDeath
@@ -75,10 +76,17 @@ class AddFolderViewModelTest {
     /** What the form asked of the network and of the settings, in order. */
     private val calls = mutableListOf<String>()
 
+    /** The device's Keystore fails while set, as a restarting keystore daemon does: what a past launch sealed is not opened. */
+    @Volatile
+    private var keystoreDown = false
+
+    private val key = testKey()
+
     @Before
     fun open() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        db = testDatabase { onCallingThread() }
+        val keystore = secretsOf { if (keystoreDown) throw ProviderException("Keystore operation failed") else key }
+        db = testDatabase(keystore) { onCallingThread() }
         dao = db.dao()
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after a save never runs: it would go to the network.
@@ -97,7 +105,7 @@ class AddFolderViewModelTest {
         db.close()
     }
 
-    private suspend fun smbFolder(): Long = dao.insertSource(
+    private suspend fun smbFolder(password: Secret = Secret("stored")): Long = dao.insertSource(
         SourceEntity(
             name = "films",
             kind = SourceKind.MOVIES,
@@ -106,7 +114,7 @@ class AddFolderViewModelTest {
             share = "media",
             path = "films",
             username = "kodi",
-            password = Secret("stored"),
+            password = password,
         ),
     )
 
@@ -660,6 +668,41 @@ class AddFolderViewModelTest {
         } finally {
             broken.close()
         }
+    }
+
+    /**
+     * The password kept, not opened for now by the Keystore: Save says so and saves nothing; once the Keystore answers,
+     * Save again, the form still open, reads it again, signs in with it and saves what was changed, the password kept.
+     */
+    @Test
+    fun aPasswordNotReadForNowIsReadAgainToSave() = runTest {
+        keystoreDown = true
+        // As a past launch sealed it, under the same key: never opened by this one.
+        val id = smbFolder(Secret("", unopened = secretsOf { key }.seal("stored")))
+        val signedIn = mutableListOf<String>()
+        val vm = form(
+            id,
+            probe = { folder ->
+                // As the browsers sign in: a password not opened throws, the NAS never asked.
+                signedIn += folder.password.forSignIn()
+                FOUND
+            },
+        )
+        advanceUntilIdle()
+        vm.edit { copy(path = "films2") }
+        vm.submit { fail("saved with its password not read") }
+        advanceUntilIdle()
+        assertEquals(FolderTrouble.PasswordUnread, (vm.check as? FolderCheck.Failed)?.trouble)
+
+        keystoreDown = false
+        network.complete(Unit)
+        var done = false
+        vm.submit { done = true }
+        advanceUntilIdle()
+        assertTrue(done)
+        assertEquals(listOf("stored"), signedIn)
+        val saved = dao.source(id)!!
+        assertEquals("films2" to "stored", saved.path to saved.password.value)
     }
 
     private companion object {

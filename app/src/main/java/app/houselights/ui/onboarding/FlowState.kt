@@ -377,9 +377,10 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
     private fun addressRefused(failure: FlowFailure) =
         said(FieldError(FIELD_HOST, if (failure == FlowFailure.SILENT) FlowMessage.Silent(host.orEmpty()) else FlowMessage.Other))
 
-    /** The account step's failure: the account under its field, else in the panel. */
+    /** The account step's failure: the account under its field, a password kept but not read for now under it too, else in the panel. */
     private fun accountRefused(key: String, failure: FlowFailure) = when (failure) {
         FlowFailure.LOGIN_REFUSED -> said(FieldError(if (guest) FIELD_USER else FIELD_PASSWORD, refusal()))
+        FlowFailure.PASSWORD_UNREAD -> said(FieldError(FIELD_PASSWORD, FlowMessage.PasswordUnread))
         FlowFailure.SILENT -> panel(key, FlowMessage.Silent(host.orEmpty()))
         else -> panel(key, FlowMessage.Other)
     }

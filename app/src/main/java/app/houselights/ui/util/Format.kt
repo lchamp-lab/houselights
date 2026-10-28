@@ -157,6 +157,7 @@ fun scanErrorText(context: Context, error: ScanError, host: String): String = wh
     ScanErrorKind.UNREACHABLE -> context.getString(R.string.error_nas_unreachable, host)
     ScanErrorKind.ACCESS_DENIED -> context.getString(R.string.error_access_denied)
     ScanErrorKind.LOGIN_FAILED -> context.getString(R.string.error_login_failed)
+    ScanErrorKind.PASSWORD_UNREAD -> context.getString(R.string.error_scan_password_unread)
     ScanErrorKind.NOT_FOUND -> context.getString(R.string.error_not_found)
     ScanErrorKind.EMPTY -> context.getString(R.string.error_folder_empty)
     ScanErrorKind.STORAGE_FULL -> context.getString(R.string.error_storage_full)

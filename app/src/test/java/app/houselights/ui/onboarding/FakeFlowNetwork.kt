@@ -125,7 +125,8 @@ class FakeFlowNetwork : FlowNetwork {
         if (source.host != DS920) throw IOException("timed out")
         val guest = source.username.isBlank()
         if (guest && !guests) throw IOException("STATUS_LOGON_FAILURE")
-        if (!guest && (source.username != USER || source.password.value != PASSWORD)) throw IOException("STATUS_LOGON_FAILURE")
+        // A password not opened for now throws as the player's SMB client does, before it signs in.
+        if (!guest && (source.username != USER || source.password.forSignIn() != PASSWORD)) throw IOException("STATUS_LOGON_FAILURE")
         return listOf(SharedFolder("home"), SharedFolder("music"), SharedFolder("photo", "Photos de famille"), SharedFolder("video"))
     }
 
@@ -149,7 +150,7 @@ class FakeFlowNetwork : FlowNetwork {
         val nfs = source.protocol == Protocol.NFS
         val smb = source.protocol == Protocol.SMB
         val guest = source.username.isBlank()
-        val signedIn = source.username == USER && source.password.value == PASSWORD
+        val signedIn = source.username == USER && source.password.forSignIn() == PASSWORD
         return when {
             nfs && source.share == "volume1/photo" -> mountFailure(MountStatus.MNT3ERR_ACCES)
             nfs && source.uid != null && rootOnly.any { at.startsWith(it) } -> IOException("NFS3ERR_ACCES")

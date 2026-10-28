@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
+import app.houselights.core.SecretUnreadException
 import app.houselights.providers.jellyfin.AuthRequest
 import app.houselights.providers.jellyfin.AuthResult
 import app.houselights.providers.jellyfin.DiscoveredServer
@@ -191,6 +192,32 @@ class FormLayoutTest {
         }
         val message = compose.onNodeWithText(refused).getUnclippedBoundsInRoot()
         assertTrue("the refusal in view: $message", message.bottom <= SCREEN_H - HlSpace.safeV)
+        helpWholeOrAbsent(text(R.string.smb_hint))
+    }
+
+    /**
+     * « Modifier le dossier » at the largest text, its password kept but not read for now: the sentence saying so under
+     * « Mot de passe », whole and in view, and the column beside it, the connection untested, never cut.
+     */
+    @Test
+    @Config(qualifiers = "fr-$TV")
+    fun aPasswordKeptButNotReadAtTheLargestTextCutsNothing() {
+        val vm = series { throw SecretUnreadException() }
+        compose.setTvContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, LARGEST_TEXT)) {
+                AddFolderForm(vm, FolderField.FIRST) {}
+            }
+        }
+        compose.waitUntil { vm.ready }
+        vm.test()
+        compose.waitUntil { vm.check != null }
+        compose.waitForIdle()
+        fun text(id: Int) = compose.activity.getString(id)
+        val unread = text(R.string.error_password_unread)
+        listOf(text(R.string.connection_untested), "/video/Séries", unread).forEach { assertFalse("$it cut", cut(it)) }
+        val message = compose.onNodeWithText(unread).getUnclippedBoundsInRoot()
+        assertTrue("the sentence in view: $message", message.bottom <= SCREEN_H - HlSpace.safeV)
         helpWholeOrAbsent(text(R.string.smb_hint))
     }
 

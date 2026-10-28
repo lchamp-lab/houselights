@@ -11,6 +11,12 @@ enum class ScanErrorKind {
     UNREACHABLE,
     ACCESS_DENIED,
     LOGIN_FAILED,
+
+    /**
+     * The folder's saved password, which the device's Keystore did not open for now: kept, never tried empty, the NAS not
+     * asked; it is read again at the next scan.
+     */
+    PASSWORD_UNREAD,
     NOT_FOUND,
 
     /** No video listed while the library has some from it; nothing was removed. */
@@ -50,6 +56,7 @@ object ScanErrors {
     private fun FailureKind.scanErrorKind(): ScanErrorKind = when (this) {
         FailureKind.UNREACHABLE -> ScanErrorKind.UNREACHABLE
         FailureKind.LOGIN_FAILED -> ScanErrorKind.LOGIN_FAILED
+        FailureKind.SECRET_UNREAD -> ScanErrorKind.PASSWORD_UNREAD
         FailureKind.ACCESS_DENIED -> ScanErrorKind.ACCESS_DENIED
         FailureKind.MISSING -> ScanErrorKind.NOT_FOUND
         FailureKind.STORAGE_FULL -> ScanErrorKind.STORAGE_FULL

@@ -883,6 +883,7 @@ private fun flowText(message: FlowMessage): String = when (message) {
     is FlowMessage.Silent -> stringResource(R.string.error_nas_unreachable, message.host)
     FlowMessage.LoginRefused -> stringResource(R.string.error_login_failed)
     FlowMessage.GuestRefused -> stringResource(R.string.error_guest_refused)
+    FlowMessage.PasswordUnread -> stringResource(R.string.error_password_unread)
     is FlowMessage.NoShare -> stringResource(R.string.error_share_not_found, message.host, message.share)
     is FlowMessage.NoExport -> stringResource(R.string.error_export_not_found, wholePath(message.typed))
     is FlowMessage.NoFolder -> if (message.smb) {

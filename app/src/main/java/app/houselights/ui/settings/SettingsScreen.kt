@@ -326,7 +326,7 @@ private fun PaneContent(
             Pane.Library -> libraryPane(s, onFolderForm, sources, rows, added)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
             Pane.Playback -> playbackPane(s, server = vm.capabilities.pathMapping, tracks = vm.asksTracks)
-            Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders) }
+            Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders, unread = SecretSetting.TRAKT in s.unreadSecrets) }
             Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
             Pane.About -> aboutPane(onOpenCatalog, rows, updates, jellyfin = s.source is SourceConfig.Jellyfin)

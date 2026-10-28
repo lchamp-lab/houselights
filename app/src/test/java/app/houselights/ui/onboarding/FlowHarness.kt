@@ -21,6 +21,8 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
+import app.houselights.testing.secretsOf
+import app.houselights.testing.testKey
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.DS920
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.PASSWORD
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.USER
@@ -35,6 +37,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Rule
 import org.robolectric.Shadows.shadowOf
+import java.security.ProviderException
 
 /**
  * « Ajouter un dossier » drawn over the board's network (FakeFlowNetwork) and driven from the remote: the flow over a
@@ -47,7 +50,15 @@ open class FlowHarness {
 
     protected val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    protected val db: LibraryDatabase by lazy { testDatabase { onCallingThread() } }
+    /** The device's Keystore fails while set, as a restarting keystore daemon does: what a past launch sealed is not opened. */
+    @Volatile
+    protected var keystoreDown = false
+
+    private val key = testKey()
+
+    protected val db: LibraryDatabase by lazy {
+        testDatabase(secretsOf { if (keystoreDown) throw ProviderException("Keystore operation failed") else key }) { onCallingThread() }
+    }
 
     protected val context: Context get() = ApplicationProvider.getApplicationContext()
 
@@ -149,6 +160,21 @@ open class FlowHarness {
     /** Films over SMB with the account kept. */
     protected val smbFilms =
         films.copy(protocol = Protocol.SMB, share = "video", username = USER, password = Secret(PASSWORD), uid = null, gid = null)
+
+    /**
+     * [folder] with its password as a past launch sealed it, under the same key: read from the Keystore, never from what
+     * this launch opened, so that it is not opened while [keystoreDown].
+     */
+    protected fun sealedBefore(folder: SourceEntity): SourceEntity =
+        folder.copy(password = Secret("", unopened = secretsOf { key }.seal(folder.password.value)))
+
+    /**
+     * [folder] with its password as the next launch reads it: sealed under the key's next version, which this launch
+     * never loaded, so that it is not opened while [keystoreDown] even once this launch opened what it sealed itself, as
+     * the library's Secrets keeps a key it opened with until it fails, as one launch does.
+     */
+    protected fun sealedForTheNextLaunch(folder: SourceEntity): SourceEntity =
+        folder.copy(password = Secret("", unopened = secretsOf(1, 2) { key }.seal(folder.password.value)))
 
     protected val ds920 = FoundNas("DS920", DS920, setOf(Protocol.SMB, Protocol.NFS))
 }

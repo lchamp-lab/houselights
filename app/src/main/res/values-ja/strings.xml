@@ -269,6 +269,7 @@
     <string name="error_nas_unreachable">%sから応答がありません。NASの電源が入っていて、ネットワークに接続されているか確認してください。</string>
     <string name="error_access_denied">NASがアクセスを拒否しました。NFSの場合は共有フォルダでこのデバイスのIPアドレスを許可し、SMBの場合はアカウントの権限を確認してください。</string>
     <string name="error_login_failed">NASがユーザー名またはパスワードを拒否しました。</string>
+    <string name="error_password_unread">保存されたパスワードを今は読み取れませんでした。パスワードは保持されています。もう一度入力するか、しばらくしてからもう一度お試しください。</string>
     <string name="error_not_found">この共有フォルダまたはフォルダはNAS上に存在しません。スペルを確認してください。</string>
     <string name="error_host_missing">NASのアドレスを入力してください。</string>
     <string name="error_export_missing">マウントパスを入力してください（例：/volume1/video）。</string>
@@ -298,6 +299,7 @@
     <string name="error_smb_denied">アカウント「%1$s」には「%2$s」へのアクセス権がありません。NASで読み取り権限を与えるか、別のアカウントを使ってください。</string>
     <string name="error_guest_refused">このNASはゲストを受け付けません。アカウントを入力してください。</string>
     <string name="error_scan_other">フォルダを読み取れませんでした。もう一度お試しいただくか、NASの共有フォルダを確認してください。</string>
+    <string name="error_scan_password_unread">このフォルダに保存されたパスワードを今は読み取れませんでした。パスワードは保持されており、次回のスキャンで再度試します。</string>
     <string name="error_folder_empty">NAS上のフォルダが空のようです。何も削除されていません。ディスクがマウントされているか確認し、本当に空であればフォルダを削除してください。</string>
     <string name="error_storage_full">このデバイスの空き容量がないため、スキャンを中止しました。設定の「ストレージ」で空き容量を確保してください。</string>
     <string name="add">追加</string>
@@ -663,6 +665,7 @@
     <string name="journal_empty">Androidにアプリの行が残っていません。</string>
     <string name="journal_trakt_on">Trakt接続済み</string>
     <string name="journal_trakt_off">Trakt未接続</string>
+    <string name="journal_trakt_unread">Trakt現在読み取れません</string>
     <string name="file_access">ファイルへのアクセス</string>
     <string name="network_path_desc">NASから直接読み込みます</string>
     <string name="http_stream_desc">サーバーのストリームを再生</string>
@@ -765,6 +768,8 @@
     <string name="trakt_connected">接続済み</string>
     <string name="trakt_paused">一時停止中</string>
     <string name="trakt_paused_desc">Traktはフォルダと連動します。フォルダに戻ると再開します。</string>
+    <string name="trakt_unread">現在読み取れません</string>
+    <string name="trakt_unread_desc">Traktの接続はこのプレーヤーに保持されていますが、今は読み込み直せませんでした。しばらくしてからもう一度お試しいただくか、必要に応じてアカウントの接続を解除してください。</string>
     <string name="trakt_connect">アカウントを接続</string>
     <string name="trakt_connect_desc">スマートフォンかパソコンでコードを入力します</string>
     <string name="trakt_disconnect">アカウントの接続を解除</string>
