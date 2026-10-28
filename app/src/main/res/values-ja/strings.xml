@@ -149,7 +149,7 @@
     <string name="label_certification">年齢区分</string>
     <string name="label_rating">評価</string>
     <string name="label_year">公開年</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">例：1999</string>
     <string name="label_genres">ジャンル</string>
     <string name="label_directors">監督</string>
     <string name="label_studios">スタジオ</string>
@@ -240,6 +240,7 @@
     <string name="field_share">共有フォルダ</string>
     <string name="field_path">サブフォルダ</string>
     <string name="field_optional">%1$s（任意）</string>
+    <string name="field_clear">%1$sを消去</string>
     <string name="field_user">ユーザー名</string>
     <string name="field_password">パスワード</string>
     <string name="placeholder_host">例：192.168.1.10</string>
@@ -287,7 +288,7 @@
     </plurals>
     <string name="folder_content">%1$s、%2$s</string>
     <string name="error_share_not_found">%1$sに共有フォルダ「%2$s」がありません。NASの管理画面で名前を確認してください。</string>
-    <string name="error_export_not_found">NASは%sをNFSで共有していません。Synologyのマウントパスは/volume1/から始まります。</string>
+    <string name="error_export_not_found">NASは%sをNFSで共有していません。Synologyのマウントパスは/&#8288;volume1/&#8288;から始まります。</string>
     <string name="error_subfolder_not_found">%1$sは応答していますが、「%2$s」が見つかりません。大文字と小文字も含めて名前を確認してください。</string>
     <string name="error_subfolder_not_found_share">「%1$s」は応答していますが、「%2$s」が見つかりません。大文字と小文字も含めて名前を確認してください。</string>
     <string name="error_nfs_refused">NASがこのプレーヤーを拒否しました。%2$sで%1$sに読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>

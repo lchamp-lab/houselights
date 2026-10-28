@@ -55,6 +55,7 @@ import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.components.rememberFieldWidth
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.calmAfter
@@ -200,6 +201,9 @@ private fun ColumnScope.Aside(
     }
 }
 
+/** Every year as wide as four of one digit, the widest of which sets the year field's measure. */
+private val YEARS = ('0'..'9').map { it.toString().repeat(IdentifyViewModel.YEAR_DIGITS) }
+
 /** The title and year to search for, and Rechercher. */
 @Composable
 private fun SearchFields(
@@ -218,15 +222,19 @@ private fun SearchFields(
             imeAction = ImeAction.Search,
             onImeAction = onSearch,
         )
+        // Empty, it searches every year, as « (facultatif) » says; as wide as its whole name, or as a year, « OK saisir »
+        // and its cross, at the text size in use, the title taking the rest.
+        val year = stringResource(R.string.label_year)
         HlTextField(
-            label = stringResource(R.string.label_year),
+            label = year,
             value = state.year,
             onValueChange = onYearChange,
-            modifier = Modifier.width(HlLayout.fieldShort),
+            modifier = Modifier.width(rememberFieldWidth(year, YEARS, least = HlLayout.fieldShort, optional = true)),
             placeholder = stringResource(R.string.placeholder_year),
             keyboardType = KeyboardType.Number,
             imeAction = ImeAction.Search,
             onImeAction = onSearch,
+            optional = true,
         )
     }
     HlButton(stringResource(R.string.search), onClick = onSearch, icon = HlIcons.Search)

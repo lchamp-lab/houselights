@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.FailurePlace
 import app.houselights.providers.local.ArtworkCache
+import app.houselights.providers.local.ExportedFolder
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDao
@@ -120,7 +121,7 @@ class FolderAnswerTest {
             FolderLevel(folderNames(12), videos = 3)
         },
         player: String? = null,
-        exports: suspend (host: String) -> List<String>? = { null },
+        exports: suspend (host: String) -> List<ExportedFolder>? = { null },
         nearby: suspend (SourceEntity, FolderTrouble) -> FolderSuggestion? = { _, _ -> null },
     ): AddFolderViewModel {
         val id = dao.insertSource(EDITED)
@@ -319,7 +320,7 @@ class FolderAnswerTest {
         val vm = form(
             probe = { throw mountFailure(MountStatus.MNT3ERR_ACCES) },
             player = "192.168.1.42",
-            exports = { listOf("/volume1/video", "/volume1/media") },
+            exports = { listOf("/volume1/video", "/volume1/media").map { path -> ExportedFolder(path, emptyList()) } },
         )
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/media", path = "") }
@@ -379,7 +380,7 @@ class FolderAnswerTest {
      */
     @Test
     fun aRefusalToFieldsChangedWhileTheExportsAreListedIsNotSaid() = runTest {
-        val listed = CompletableDeferred<List<String>?>()
+        val listed = CompletableDeferred<List<ExportedFolder>?>()
         val vm = form(probe = { throw mountFailure(MountStatus.MNT3ERR_ACCES) }, player = "192.168.1.42", exports = { listed.await() })
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.20", share = "/media", path = "") }
@@ -387,7 +388,7 @@ class FolderAnswerTest {
         advanceUntilIdle()
         assertTrue("the exports still asked", vm.testing)
         vm.edit { copy(share = "/volume1/media") }
-        listed.complete(listOf("/volume1/video", "/volume1/media"))
+        listed.complete(listOf("/volume1/video", "/volume1/media").map { ExportedFolder(it, emptyList()) })
         advanceUntilIdle()
         assertFalse(vm.testing)
         assertNull("another export, not tested yet", vm.check)

@@ -19,6 +19,7 @@ import app.houselights.AppContainer
 import app.houselights.R
 import app.houselights.core.FailurePlace
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.ExportedFolder
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.FolderSave
 import app.houselights.providers.local.LocalLibrary
@@ -354,8 +355,8 @@ class AddFolderViewModel(
     private val saved: SavedStateHandle = SavedStateHandle(),
     /** This player's address on the network ([app.houselights.journal.HomeAddress]), which NFS rules allow; null when unknown. */
     private val playerAddress: suspend () -> String? = { null },
-    /** The paths an NFS server at a host exports (MOUNT's EXPORT); null when it does not say. */
-    private val exports: suspend (host: String) -> List<String>? = { null },
+    /** What an NFS server at a host exports, each with the clients it allows (MOUNT's EXPORT); null when it does not say. */
+    private val exports: suspend (host: String) -> List<ExportedFolder>? = { null },
     /** What the NAS has that a folder's path it lacks ([FolderTrouble]) may mean ([suggestionFor]); null when nothing is near. */
     private val nearby: suspend (SourceEntity, FolderTrouble) -> FolderSuggestion? = { _, _ -> null },
 ) : ViewModel() {
@@ -366,7 +367,7 @@ class AddFolderViewModel(
         probe = { app.remoteBrowsers.of(it).test(it) },
         saved = saved,
         playerAddress = app::playerAddress,
-        exports = { host -> app.remoteBrowsers.exports(host).map { it.path } },
+        exports = { host -> app.remoteBrowsers.exports(host) },
         nearby = { source, trouble -> suggestionFor(source, trouble, AppFlowNetwork(app, context)) },
     )
 
@@ -380,9 +381,10 @@ class AddFolderViewModel(
 
     /**
      * How many answers a press got ([check]), so the same failure said again sends focus back to its field; a change
-     * that only clears the last answer does not count.
+     * that only clears the last answer does not count. Kept across a stopped process, as the form keeps the last answer
+     * it sent focus for: counted again from 0, the answer reaching that count would send none.
      */
-    var answers by mutableIntStateOf(0)
+    var answers by mutableIntStateOf(saved.get<Int>(ANSWERS) ?: 0)
         private set
 
     /** This player's address on the network, which the NAS must allow over NFS; null until read, or when unknown. */
@@ -391,6 +393,24 @@ class AddFolderViewModel(
 
     /** What the NAS proposes for the path the last test found it lacks (« Utiliser /volume1/media »); null when nothing. */
     var suggestion by mutableStateOf<FolderSuggestion?>(null)
+        private set
+
+    /**
+     * The folders the NAS shares, two or more, as the last test read them when it found the path's export missing and
+     * nothing near it (#59): « Choisir un dossier partagé » opens the guided flow's step 4 on them ([openPick]). Null
+     * otherwise, and never with a [suggestion]; kept across a stopped process with the failure it follows.
+     */
+    var shared by mutableStateOf<List<ExportedFolder>?>(null)
+        private set
+
+    /** The exports the running test read to tell a mount refused ([unexported]); null when it did not. */
+    private var listed: List<ExportedFolder>? = null
+
+    /**
+     * The flow's step 4 is open over the form to choose a shared folder ([openPick]): back, the form tests the one chosen
+     * ([pick]), else focus returns to « Choisir un dossier partagé » ([pickLeft]). Kept across a stopped process.
+     */
+    var away by mutableStateOf(saved.get<Boolean>(AWAY) ?: false)
         private set
 
     var testing by mutableStateOf(false)
@@ -457,6 +477,7 @@ class AddFolderViewModel(
                     editing = folder
                     form = kept ?: FolderForm.of(folder)
                     keepsPassword = folder.password.value.isNotEmpty() || folder.password.unopened != null
+                    if (kept != null) restoreShared()
                 } else {
                     gone = true
                 }
@@ -490,7 +511,63 @@ class AddFolderViewModel(
         if (!form.testsAs(before)) {
             check = null
             suggestion = null
+            keepShared(null)
         }
+    }
+
+    /**
+     * « Choisir un dossier partagé »: what the flow's step 4 opens on, the folders [shared] as read from the NAS the form
+     * names, with its NFS account; the form is [away] until it is back. Null when there is no list to choose from.
+     */
+    fun openPick(): SharePick? {
+        val exports = shared ?: return null
+        markAway(true)
+        return SharePick(folderId, source().host, exports, form.uid, form.gid)
+    }
+
+    /** A shared folder chosen in the flow's step 4: written in « Chemin de montage », the subfolder kept, then tested. */
+    fun pick(export: String) {
+        markAway(false)
+        edit { copy(share = "/" + export.trim('/')) }
+        test()
+    }
+
+    /** Back from the flow's step 4 with nothing chosen: the form as it was, the failure and its line in place. */
+    fun pickLeft() = markAway(false)
+
+    private fun markAway(on: Boolean) {
+        away = on
+        saved[AWAY] = on
+    }
+
+    /**
+     * Sets [shared] to [exports], kept with the failure [failed] they follow ([check]) across a stopped process, so the
+     * form comes back from the flow's step 4 as it was; null forgets both.
+     */
+    private fun keepShared(exports: List<ExportedFolder>?, failed: FolderCheck.Failed? = null) {
+        shared = exports
+        val missing = failed?.trouble as? FolderTrouble.ExportMissing
+        if (exports == null || failed == null || missing == null) {
+            SHARED_KEYS.forEach { saved.remove<Any>(it) }
+            return
+        }
+        saved[SHARED_PATHS] = ArrayList(exports.map { it.path })
+        saved[SHARED_CLIENTS] = ArrayList(clientsOf(exports))
+        saved[SHARED_MISSING] = missing.export
+        saved[SHARED_KIND] = failed.error.kind.name
+        saved[SHARED_PLACE] = failed.error.place?.name
+        saved[SHARED_HOST] = failed.host
+    }
+
+    /** The failure and the folders to choose from as a stopped process left them over the form it kept. */
+    private fun restoreShared() {
+        val paths = saved.get<List<String>>(SHARED_PATHS) ?: return
+        val clients = saved.get<List<String>>(SHARED_CLIENTS).orEmpty()
+        val missing = saved.get<String>(SHARED_MISSING) ?: return
+        val kind = ScanErrorKind.entries.find { it.name == saved.get<String>(SHARED_KIND) } ?: return
+        val place = FailurePlace.entries.find { it.name == saved.get<String>(SHARED_PLACE) }
+        check = FolderCheck.Failed(ScanError(kind, place), saved.get<String>(SHARED_HOST).orEmpty(), FolderTrouble.ExportMissing(missing))
+        shared = exportsOf(paths, clients)
     }
 
     /** « Utiliser /volume1/media »: what the NAS proposes written in the path's fields, then tested again. */
@@ -511,6 +588,7 @@ class AddFolderViewModel(
     private fun say(answer: FolderCheck) {
         check = answer
         answers++
+        saved[ANSWERS] = answers
     }
 
     /** The folder to test, or null when the form lacks something, which [check] then reports. */
@@ -624,17 +702,23 @@ class AddFolderViewModel(
         testing = true
         check = null
         suggestion = null
+        keepShared(null)
+        listed = null
         try {
             // The browser signs in on its own for a test, so the form's own credentials are what is tested.
             val answer = suspendRunCatching { probe(source) }
             answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
             // Checked again once the answer is read: telling an export missing asks the NAS for its exports meanwhile.
             val said = if (form.testsAs(typed)) answer.fold(::found) { e -> failed(e, source) } else null
-            val proposed = (said as? FolderCheck.Failed)?.let { proposedFor(source, it.trouble) }
+            val failure = said as? FolderCheck.Failed
+            val proposed = failure?.let { proposedFor(source, it.trouble) }
+            // Nothing near an export the NAS lacks: its one shared folder proposed, or its list to choose from.
+            val sharing = if (failure?.trouble is FolderTrouble.ExportMissing && proposed == null) sharedBy(source) else null
             if (said == null || !form.testsAs(typed)) return false
             form = form.asRead()
             saved.keep(form)
-            suggestion = proposed
+            suggestion = proposed ?: sharing?.singleOrNull()?.let { only -> onlyShare(only, source) }
+            keepShared(sharing?.takeIf { it.size > 1 }, failure)
             say(said)
             // A read refused to the account presented: the NFS account is to change, its row opened.
             if ((said as? FolderCheck.Failed)?.trouble is FolderTrouble.ReadRefused) showIdentity(true)
@@ -643,6 +727,21 @@ class AddFolderViewModel(
             testing = false
         }
     }
+
+    /**
+     * The folders [source]'s NFS server shares, as this test read them to tell a mount refused, else asked now; null when
+     * it does not say, or lists none.
+     */
+    private suspend fun sharedBy(source: SourceEntity): List<ExportedFolder>? {
+        val read = listed ?: suspendRunCatching { exports(source.host) }
+            .onFailure { Log.w(TAG, "Listing the exports of ${source.host} failed", it) }
+            .getOrNull()
+        return read?.takeIf { it.isNotEmpty() }
+    }
+
+    /** « Utiliser /volume1/video », the [only] folder the NAS shares, [source]'s subfolder kept inside it. */
+    private fun onlyShare(only: ExportedFolder, source: SourceEntity) =
+        FolderSuggestion(only.path.trim('/'), source.path.trim('/'), only = true)
 
     /** What the NAS proposes for [source]'s path, which [trouble] says it lacks; null when nothing is near, or it does not say. */
     private suspend fun proposedFor(source: SourceEntity, trouble: FolderTrouble): FolderSuggestion? =
@@ -669,12 +768,13 @@ class AddFolderViewModel(
 
     /** Whether the NFS server at [source]'s host lists its exports and none holds [source]'s export; false when it does not say. */
     private suspend fun unexported(source: SourceEntity): Boolean {
-        val listed = suspendRunCatching { exports(source.host) }
+        val read = suspendRunCatching { exports(source.host) }
             .onFailure { Log.w(TAG, "Listing the exports of ${source.host} failed", it) }
             .getOrNull()
-        if (listed.isNullOrEmpty()) return false
+        listed = read
+        if (read.isNullOrEmpty()) return false
         val export = exportOf(source)
-        return listed.map { "/" + it.trim('/') }.none { it == "/" || export == it || export.startsWith("$it/") }
+        return read.map { "/" + it.path.trim('/') }.none { it == "/" || export == it || export.startsWith("$it/") }
     }
 
     companion object {
@@ -695,6 +795,17 @@ private const val USER = "user"
 private const val UID = "uid"
 private const val GID = "gid"
 private const val IDENTITY_OPEN = "identityOpen"
+private const val AWAY = "away"
+private const val ANSWERS = "answers"
+private const val SHARED_PATHS = "sharedPaths"
+private const val SHARED_CLIENTS = "sharedClients"
+private const val SHARED_MISSING = "sharedMissing"
+private const val SHARED_KIND = "sharedKind"
+private const val SHARED_PLACE = "sharedPlace"
+private const val SHARED_HOST = "sharedHost"
+
+/** What [AddFolderViewModel.shared] keeps across a stopped process. */
+private val SHARED_KEYS = listOf(SHARED_PATHS, SHARED_CLIENTS, SHARED_MISSING, SHARED_KIND, SHARED_PLACE, SHARED_HOST)
 
 /** Keeps the form as plain values across a killed process; never the password, as saved state is written in clear. */
 private fun SavedStateHandle.keep(form: FolderForm) {

@@ -164,7 +164,7 @@
     <string name="label_certification">Kategoria wiekowa</string>
     <string name="label_rating">Ocena</string>
     <string name="label_year">Rok</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">np. 1999</string>
     <string name="label_genres">Gatunki</string>
     <string name="label_directors">Reżyseria</string>
     <string name="label_studios">Studia</string>
@@ -258,6 +258,7 @@
     <string name="field_share">Folder udostępniony</string>
     <string name="field_path">Podfolder</string>
     <string name="field_optional">%1$s (opcjonalnie)</string>
+    <string name="field_clear">Wyczyść %1$s</string>
     <string name="field_user">Użytkownik</string>
     <string name="field_password">Hasło</string>
     <string name="placeholder_host">np. 192.168.1.10</string>
@@ -308,7 +309,7 @@
     </plurals>
     <string name="folder_content">%1$s i %2$s</string>
     <string name="error_share_not_found">%1$s nie ma udostępnionego folderu „%2$s”. Sprawdź jego nazwę w interfejsie serwera NAS.</string>
-    <string name="error_export_not_found">Serwer NAS nie udostępnia %s przez NFS. Na Synology ścieżka montowania zaczyna się od /volume1/.</string>
+    <string name="error_export_not_found">Serwer NAS nie udostępnia %s przez NFS. Na Synology ścieżka montowania zaczyna się od /&#8288;volume1/&#8288;.</string>
     <string name="error_subfolder_not_found">%1$s odpowiada, ale nie ma tam „%2$s”. Sprawdź nazwę, także wielkość liter.</string>
     <string name="error_subfolder_not_found_share">„%1$s” odpowiada, ale nie ma tam „%2$s”. Sprawdź nazwę, także wielkość liter.</string>
     <string name="error_nfs_refused">Serwer NAS odrzuca ten odtwarzacz. Zezwól adresowi %1$s na odczyt %2$s, a na Synology także na porty nieuprzywilejowane.</string>
