@@ -150,6 +150,40 @@ class DetailFailuresTest {
         said(R.string.no_player).assertIsDisplayed()
     }
 
+    /**
+     * The player changed (#58): « Faire confiance au nouveau lecteur » takes Lire's place, focus staying on it, Depuis le
+     * début gone with it, why at the row's end; OK clears the failure and opens the trust sheet, trusting nothing and
+     * playing nothing, Reprendre back and focused.
+     */
+    @Test
+    fun aChangedPlayerPutsWhatFixesItInLiresPlace() {
+        provider.items["m1"] = film("m1", "Heat").copy(user = UserState(positionMs = 600_000))
+        page("m1")
+        button(R.string.resume).assertIsFocused()
+        playback.reportProblem(PlaybackProblem(UiError.PLAYER_CHANGED, PlayOrigin(PAGE)))
+        compose.waitForIdle()
+        button(R.string.trust_player).assertIsFocused()
+        assertEquals(0, buttons(R.string.resume))
+        compose.onNode(hasContentDescription(text(R.string.from_start))).assertDoesNotExist()
+        said(R.string.player_changed).assertExists()
+
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf(ErrorAction.TRUST_PLAYER), fixed)
+        assertEquals("nothing played", emptyList<Pair<String, PlayOrigin>>(), asked)
+        said(R.string.player_changed).assertDoesNotExist()
+        button(R.string.resume).assertIsFocused()
+        compose.onNode(hasContentDescription(text(R.string.from_start))).assertExists()
+    }
+
+    /** An episode played from its row, its failure said under the row: Lire takes the remedy too, the player being at fault. */
+    @Test
+    fun aChangedPlayerFromAnEpisodePutsTheRemedyInLiresPlaceToo() {
+        page("show")
+        playback.reportProblem(PlaybackProblem(UiError.PLAYER_REPLACED, PlayOrigin(PAGE, "s1e1")))
+        compose.waitForIdle()
+        button(R.string.trust_player).assertIsFocused()
+    }
+
     /** Asked from another screen (home, another title), a problem never shows here. */
     @Test
     fun aPlayAskedElsewhereIsNotSaidHere() {

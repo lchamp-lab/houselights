@@ -196,11 +196,15 @@
     <string name="play_with">다음 앱으로 재생</string>
     <string name="no_player">Zidoo 플레이어가 설치되어 있지 않습니다.</string>
     <string name="player_credentials">이 폴더에는 비밀번호가 필요합니다. Zidoo 플레이어에서만 재생할 수 있습니다.</string>
-    <string name="player_changed">Zidoo 플레이어가 변경되어, Houselights는 이 플레이어에 비밀번호도 서버 접근 권한도 더 이상 맡기지 않습니다. Zidoo에 기본 탑재된 플레이어를 다시 설치하거나, 새 플레이어를 신뢰하려면 Houselights 데이터를 삭제하세요.</string>
+    <string name="player_changed">Zidoo 플레이어가 변경되어, Houselights는 이 플레이어에 비밀번호도 서버 접근 권한도 더 이상 맡기지 않습니다. Zidoo나 그 플레이어를 업데이트했다면 신뢰하고, 그렇지 않다면 플레이어의 업데이트를 제거하세요.</string>
+    <string name="player_changed_app">Zidoo 플레이어가 변경되어, Houselights는 이 플레이어에 비밀번호도 서버 접근 권한도 더 이상 맡기지 않습니다. 직접 설치했다면 신뢰하고, 그렇지 않다면 Zidoo에 기본 탑재된 플레이어를 다시 설치하세요.</string>
     <string name="play_failed_no_player">Zidoo 플레이어 미설치</string>
     <string name="play_failed_credentials">Zidoo 플레이어 필요</string>
     <string name="play_failed_player_changed">Zidoo 플레이어 변경됨</string>
     <string name="trust_player">새 플레이어 신뢰하기</string>
+    <string name="trust_player_short">신뢰하기</string>
+    <string name="trust_player_desc">%1$s, %2$s 업데이트</string>
+    <string name="trust_player_desc_app">%1$s, %2$s 설치</string>
     <string name="trust_player_sheet_desc">Houselights는 이 버전이 Zidoo에서 온 것인지 확인할 수 없습니다. %1$s에 Zidoo나 그 플레이어를 직접 업데이트했을 때만 신뢰하세요. 다음 업데이트 전까지 재생할 때마다 폴더 비밀번호를 받게 됩니다. 그렇지 않다면 플레이어의 업데이트를 제거하세요.</string>
     <string name="trust_player_sheet_desc_jellyfin">Houselights는 이 버전이 Zidoo에서 온 것인지 확인할 수 없습니다. %1$s에 Zidoo나 그 플레이어를 직접 업데이트했을 때만 신뢰하세요. 다음 업데이트 전까지 재생할 때마다 폴더 비밀번호와 Jellyfin 접근 권한을 받게 됩니다. 그렇지 않다면 플레이어의 업데이트를 제거하세요.</string>
     <string name="trust_player_sheet_desc_app">비밀번호를 받았던 플레이어가 아닙니다. %1$s에 직접 설치했을 때만 신뢰하세요. 재생할 때마다 폴더 비밀번호를 받게 됩니다. 그렇지 않다면 Zidoo에 기본 탑재된 플레이어를 다시 설치하세요.</string>

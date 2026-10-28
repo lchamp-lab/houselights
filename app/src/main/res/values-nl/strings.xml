@@ -202,11 +202,15 @@
     <string name="play_with">Afspelen met</string>
     <string name="no_player">De Zidoo-speler is niet geïnstalleerd.</string>
     <string name="player_credentials">Deze map vraagt een wachtwoord: alleen de Zidoo-speler kan eruit afspelen.</string>
-    <string name="player_changed">De Zidoo-speler is gewijzigd en Houselights vertrouwt hem uw wachtwoorden en uw servertoegang niet meer toe. Installeer de speler die bij de Zidoo hoorde opnieuw, of wis de gegevens van Houselights om de nieuwe te vertrouwen.</string>
+    <string name="player_changed">De Zidoo-speler is gewijzigd en Houselights vertrouwt hem uw wachtwoorden en uw servertoegang niet meer toe. Vertrouw hem als u de Zidoo of de speler hebt bijgewerkt, verwijder anders de updates van de speler.</string>
+    <string name="player_changed_app">De Zidoo-speler is gewijzigd en Houselights vertrouwt hem uw wachtwoorden en uw servertoegang niet meer toe. Vertrouw hem als u hem zelf hebt geïnstalleerd, installeer anders de speler die bij de Zidoo hoorde opnieuw.</string>
     <string name="play_failed_no_player">Zidoo-speler niet geïnstalleerd</string>
     <string name="play_failed_credentials">Zidoo-speler vereist</string>
     <string name="play_failed_player_changed">Zidoo-speler gewijzigd</string>
     <string name="trust_player">De nieuwe speler vertrouwen</string>
+    <string name="trust_player_short">Vertrouwen</string>
+    <string name="trust_player_desc">%1$s, bijgewerkt op %2$s</string>
+    <string name="trust_player_desc_app">%1$s, geïnstalleerd op %2$s</string>
     <string name="trust_player_sheet_desc">Houselights kan niet controleren of deze versie van Zidoo komt. Vertrouw hem alleen als u de Zidoo of de speler op %1$s hebt bijgewerkt: tot de volgende update krijgt hij bij elke weergave de wachtwoorden van uw mappen. Verwijder anders de updates van de speler.</string>
     <string name="trust_player_sheet_desc_jellyfin">Houselights kan niet controleren of deze versie van Zidoo komt. Vertrouw hem alleen als u de Zidoo of de speler op %1$s hebt bijgewerkt: tot de volgende update krijgt hij bij elke weergave de wachtwoorden van uw mappen en de toegang tot Jellyfin. Verwijder anders de updates van de speler.</string>
     <string name="trust_player_sheet_desc_app">Dit is niet meer de speler die uw wachtwoorden kreeg. Vertrouw hem alleen als u hem op %1$s zelf hebt geïnstalleerd: hij krijgt bij elke weergave de wachtwoorden van uw mappen. Installeer anders de speler die bij de Zidoo hoorde opnieuw.</string>

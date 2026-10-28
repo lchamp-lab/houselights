@@ -329,7 +329,7 @@ private fun PaneContent(
             Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders) }
             Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
-            Pane.About -> aboutPane(onOpenCatalog, rows, updates)
+            Pane.About -> aboutPane(onOpenCatalog, rows, updates, jellyfin = s.source is SourceConfig.Jellyfin)
         }
     }
 }

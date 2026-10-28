@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -185,6 +186,7 @@ class HomePlayFailureTest {
             UiError.NO_PLAYER to R.string.play_failed_no_player,
             UiError.CREDENTIALS to R.string.play_failed_credentials,
             UiError.PLAYER_CHANGED to R.string.play_failed_player_changed,
+            UiError.PLAYER_REPLACED to R.string.play_failed_player_changed,
             UiError.CERTIFICATE to R.string.error_certificate_title,
             UiError.DENIED to R.string.error_denied_title,
             UiError.GONE to R.string.error_gone_title,
@@ -233,10 +235,73 @@ class HomePlayFailureTest {
     /** Nothing a new try fixes: the case's own plate, the reason saying why. */
     @Test
     fun withoutAFixThePlateStaysTheCasesOwn() {
-        open(failed = UiError.PLAYER_CHANGED)
+        open(failed = UiError.CREDENTIALS)
         case.assert(hasText(text(R.string.resume))).assert(!hasText(text(R.string.retry)))
         compose.press(Key.DirectionCenter)
         assertEquals(listOf("clear", "play heat true"), did)
+    }
+
+    /**
+     * The player changed (#58): the plate does what fixes it in two words, « Faire confiance », the line above saying the
+     * player changed; OK clears the failure and opens the trust sheet, trusting nothing, nothing played.
+     */
+    @Test
+    fun aChangedPlayersPlateAsksWhetherToTrustIt() {
+        listOf(UiError.PLAYER_CHANGED, UiError.PLAYER_REPLACED).forEach { error ->
+            did.clear()
+            problem = error
+            if (error == UiError.PLAYER_CHANGED) open(failed = error) else compose.waitForIdle()
+            said(text(R.string.play_failed_player_changed)).assertIsDisplayed()
+            case.assert(hasText(text(R.string.trust_player_short))).assert(!hasText(text(R.string.resume)))
+            compose.press(Key.DirectionCenter)
+            assertEquals("$error", listOf("clear", "fix ${ErrorAction.TRUST_PLAYER}"), did)
+        }
+    }
+
+    /** Its options say the whole sentence, then the page and « Faire confiance au nouveau lecteur », never from the start. */
+    @Test
+    fun theOptionsOfAChangedPlayerOfferToTrustIt() {
+        open(failed = UiError.PLAYER_CHANGED)
+        compose.holdOk()
+        compose.onNodeWithText(text(R.string.player_changed)).assertExists()
+        compose.onNodeWithText(text(R.string.home_open_title)).assertExists()
+        compose.onNodeWithText(text(R.string.play_from_start)).assertDoesNotExist()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
+        compose.onNodeWithText(text(R.string.trust_player)).assertIsFocused()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.waitForIdle()
+        assertEquals(listOf("clear", "fix ${ErrorAction.TRUST_PLAYER}"), did)
+    }
+
+    /** An app in the player's place says its own sentence there. */
+    @Test
+    fun theOptionsOfAPlayerReplacedSayItsOwnSentence() {
+        open(failed = UiError.PLAYER_REPLACED)
+        compose.holdOk()
+        compose.onNodeWithText(text(R.string.player_changed_app)).assertExists()
+        compose.onNodeWithText(text(R.string.player_changed)).assertDoesNotExist()
+    }
+
+    /** « Faire confiance » is whole on the case in each of the app's languages at the largest text size. */
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun theTrustPlateIsWholeInEveryLanguage() {
+        val device = Locale.getDefault()
+        fontScale = LARGEST_TEXT
+        open(failed = UiError.PLAYER_CHANGED)
+        val cut = try {
+            InterfaceLanguage.LANGUAGES.mapNotNull { tag ->
+                Locale.setDefault(Locale.forLanguageTag(tag))
+                compose.runOnIdle { language = tag }
+                compose.waitForIdle()
+                val plate = spoken(tag, R.string.trust_player_short)
+                val layout = layoutOf(said(plate))
+                "$tag: «$plate»".takeIf { layout.hasVisualOverflow || layout.lineCount > 1 }
+            }
+        } finally {
+            Locale.setDefault(device)
+        }
+        assertEquals("Cut at $LARGEST_TEXT", emptyList<String>(), cut)
     }
 
     /** OK held opens the options with the failure first, the message kept: only a click dismisses it. */
@@ -320,7 +385,7 @@ class HomePlayFailureTest {
     private fun reasonIdOf(error: UiError): Int = when (error) {
         UiError.NO_PLAYER -> R.string.play_failed_no_player
         UiError.CREDENTIALS -> R.string.play_failed_credentials
-        UiError.PLAYER_CHANGED -> R.string.play_failed_player_changed
+        UiError.PLAYER_CHANGED, UiError.PLAYER_REPLACED -> R.string.play_failed_player_changed
         UiError.OFFLINE -> R.string.error_offline_nas_title
         else -> error.title
     }

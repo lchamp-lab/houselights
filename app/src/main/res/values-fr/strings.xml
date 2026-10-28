@@ -205,11 +205,15 @@
     <string name="play_with">Lire avec</string>
     <string name="no_player">Le lecteur Zidoo n’est pas installé.</string>
     <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire.</string>
-    <string name="player_changed">Le lecteur Zidoo a changé : Houselights ne lui confie plus vos mots de passe ni vos accès. Réinstallez le lecteur d’origine de la Zidoo, ou effacez les données de Houselights pour faire confiance au nouveau.</string>
+    <string name="player_changed">Le lecteur Zidoo a changé : Houselights ne lui confie plus vos mots de passe ni vos accès. Faites-lui confiance si vous avez mis à jour la Zidoo ou son lecteur, sinon désinstallez les mises à jour du lecteur.</string>
+    <string name="player_changed_app">Le lecteur Zidoo a changé : Houselights ne lui confie plus vos mots de passe ni vos accès. Faites-lui confiance si vous l’avez installé vous-même, sinon réinstallez le lecteur fourni avec la Zidoo.</string>
     <string name="play_failed_no_player">Lecteur Zidoo non installé</string>
     <string name="play_failed_credentials">Lecteur Zidoo requis</string>
     <string name="play_failed_player_changed">Lecteur Zidoo changé</string>
     <string name="trust_player">Faire confiance au nouveau lecteur</string>
+    <string name="trust_player_short">Faire confiance</string>
+    <string name="trust_player_desc">%1$s, mis à jour le %2$s</string>
+    <string name="trust_player_desc_app">%1$s, installé le %2$s</string>
     <string name="trust_player_sheet_desc">Houselights ne peut pas vérifier que cette version vient de Zidoo. Faites-lui confiance seulement si vous avez mis à jour la Zidoo ou son lecteur le %1$s : jusqu’à sa prochaine mise à jour, il recevra à chaque lecture les mots de passe de vos dossiers. Sinon, désinstallez les mises à jour du lecteur.</string>
     <string name="trust_player_sheet_desc_jellyfin">Houselights ne peut pas vérifier que cette version vient de Zidoo. Faites-lui confiance seulement si vous avez mis à jour la Zidoo ou son lecteur le %1$s : jusqu’à sa prochaine mise à jour, il recevra à chaque lecture les mots de passe de vos dossiers et l’accès à Jellyfin. Sinon, désinstallez les mises à jour du lecteur.</string>
     <string name="trust_player_sheet_desc_app">Ce n’est plus le lecteur qui a reçu vos mots de passe. Faites-lui confiance seulement si vous l’avez installé vous-même le %1$s : il recevra à chaque lecture les mots de passe de vos dossiers. Sinon, réinstallez le lecteur fourni avec la Zidoo.</string>

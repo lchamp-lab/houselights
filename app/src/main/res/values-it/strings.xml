@@ -208,11 +208,15 @@
     <string name="play_with">Riproduci con</string>
     <string name="no_player">Il lettore Zidoo non è installato.</string>
     <string name="player_credentials">Questa cartella richiede una password: solo il lettore Zidoo può riprodurla.</string>
-    <string name="player_changed">Il lettore Zidoo è cambiato e Houselights non gli affida più né le password né l’accesso al server. Reinstallare il lettore fornito con lo Zidoo, o cancellare i dati di Houselights perché si fidi di quello nuovo.</string>
+    <string name="player_changed">Il lettore Zidoo è cambiato e Houselights non gli affida più né le password né l’accesso al server. Fidati se hai aggiornato lo Zidoo o il suo lettore, altrimenti disinstalla gli aggiornamenti del lettore.</string>
+    <string name="player_changed_app">Il lettore Zidoo è cambiato e Houselights non gli affida più né le password né l’accesso al server. Fidati se lo hai installato tu, altrimenti reinstalla il lettore fornito con lo Zidoo.</string>
     <string name="play_failed_no_player">Lettore Zidoo non installato</string>
     <string name="play_failed_credentials">Lettore Zidoo necessario</string>
     <string name="play_failed_player_changed">Lettore Zidoo cambiato</string>
     <string name="trust_player">Fidati del nuovo lettore</string>
+    <string name="trust_player_short">Fidati</string>
+    <string name="trust_player_desc">%1$s, aggiornato in data %2$s</string>
+    <string name="trust_player_desc_app">%1$s, installato in data %2$s</string>
     <string name="trust_player_sheet_desc">Houselights non può verificare che questa versione provenga da Zidoo. Fidati solo se hai aggiornato lo Zidoo o il suo lettore in data %1$s: fino al suo prossimo aggiornamento, riceverà a ogni riproduzione le password delle tue cartelle. Altrimenti, disinstalla gli aggiornamenti del lettore.</string>
     <string name="trust_player_sheet_desc_jellyfin">Houselights non può verificare che questa versione provenga da Zidoo. Fidati solo se hai aggiornato lo Zidoo o il suo lettore in data %1$s: fino al suo prossimo aggiornamento, riceverà a ogni riproduzione le password delle tue cartelle e l’accesso a Jellyfin. Altrimenti, disinstalla gli aggiornamenti del lettore.</string>
     <string name="trust_player_sheet_desc_app">Non è più il lettore che ha ricevuto le tue password. Fidati solo se lo hai installato tu in data %1$s: riceverà a ogni riproduzione le password delle tue cartelle. Altrimenti, reinstalla il lettore fornito con lo Zidoo.</string>

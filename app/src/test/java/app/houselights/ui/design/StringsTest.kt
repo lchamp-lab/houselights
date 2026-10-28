@@ -80,13 +80,18 @@ class StringsTest {
         }
     }
 
-    /** A changed player gets no token either: the message names both, in English and in French. */
+    /**
+     * A changed player gets no token either: the message names both, in English and in French, the firmware's player
+     * updated (player_changed) as an app in its place (player_changed_app); neither says to clear the app's data (#58).
+     */
     @Test
     fun aChangedPlayerIsToldItGetsNeitherPasswordsNorAccess() {
-        val french = string(french, "player_changed")
-        val english = string(english, "player_changed")
-        assertTrue(french, "vos mots de passe ni vos accès" in french)
-        assertTrue(english, "your passwords or your server access" in english)
+        listOf("player_changed", "player_changed_app").forEach { name ->
+            val french = string(french, name)
+            val english = string(english, name)
+            assertTrue(french, "vos mots de passe ni vos accès" in french && "données" !in french)
+            assertTrue(english, "your passwords or your server access" in english && "data" !in english)
+        }
     }
 
     private fun string(file: File, name: String) =

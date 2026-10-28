@@ -196,11 +196,15 @@
     <string name="play_with">播放方式</string>
     <string name="no_player">未安裝 Zidoo 播放器。</string>
     <string name="player_credentials">此資料夾需要密碼：只有 Zidoo 播放器可以播放。</string>
-    <string name="player_changed">Zidoo 播放器已變更，Houselights 不再將您的密碼或伺服器存取權交給它。請重新安裝 Zidoo 內建的播放器，或清除 Houselights 的資料以信任新的播放器。</string>
+    <string name="player_changed">Zidoo 播放器已變更，Houselights 不再將您的密碼或伺服器存取權交給它。如果您更新了 Zidoo 或其播放器，請信任它；否則，請解除安裝播放器的更新。</string>
+    <string name="player_changed_app">Zidoo 播放器已變更，Houselights 不再將您的密碼或伺服器存取權交給它。如果是您親自安裝的，請信任它；否則，請重新安裝 Zidoo 內建的播放器。</string>
     <string name="play_failed_no_player">未安裝 Zidoo 播放器</string>
     <string name="play_failed_credentials">需要 Zidoo 播放器</string>
     <string name="play_failed_player_changed">Zidoo 播放器已變更</string>
     <string name="trust_player">信任新播放器</string>
+    <string name="trust_player_short">信任</string>
+    <string name="trust_player_desc">%1$s，更新於 %2$s</string>
+    <string name="trust_player_desc_app">%1$s，安裝於 %2$s</string>
     <string name="trust_player_sheet_desc">Houselights 無法確認此版本來自 Zidoo。只有當您在 %1$s 更新了 Zidoo 或其播放器時才信任它：在下次更新之前，它每次播放都會收到您資料夾的密碼。否則，請解除安裝播放器的更新。</string>
     <string name="trust_player_sheet_desc_jellyfin">Houselights 無法確認此版本來自 Zidoo。只有當您在 %1$s 更新了 Zidoo 或其播放器時才信任它：在下次更新之前，它每次播放都會收到您資料夾的密碼和 Jellyfin 的存取權。否則，請解除安裝播放器的更新。</string>
     <string name="trust_player_sheet_desc_app">這已不是收到您密碼的那個播放器。只有當您在 %1$s 親自安裝了它時才信任它：它每次播放都會收到您資料夾的密碼。否則，請重新安裝 Zidoo 內建的播放器。</string>

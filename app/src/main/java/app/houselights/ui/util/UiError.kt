@@ -87,8 +87,17 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** The file needs credentials, and only the Zidoo player may receive them. */
     CREDENTIALS(R.string.play_failed, R.string.player_credentials, null),
 
-    /** The installed Zidoo player is not the one trusted with passwords. */
-    PLAYER_CHANGED(R.string.play_failed, R.string.player_changed, null),
+    /**
+     * The firmware's Zidoo player updated since passwords went to it, on a test-keys firmware: trusting it again fixes it
+     * (#58), else uninstalling its updates.
+     */
+    PLAYER_CHANGED(R.string.play_failed, R.string.player_changed, ErrorAction.TRUST_PLAYER),
+
+    /**
+     * An app in the place of the Zidoo player passwords went to, another one or the same signed otherwise: trusting it
+     * fixes it, if the user installed it, else reinstalling the player that came with the Zidoo.
+     */
+    PLAYER_REPLACED(R.string.play_failed, R.string.player_changed_app, ErrorAction.TRUST_PLAYER),
 
     /** The device's Keystore refused to seal a password or a token: nothing was written. */
     KEYSTORE(R.string.error_keystore_title, R.string.error_keystore, ErrorAction.RETRY),

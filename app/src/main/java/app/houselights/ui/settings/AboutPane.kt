@@ -5,15 +5,19 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -21,6 +25,7 @@ import androidx.tv.material3.Text
 import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.player.DeviceIdentity
+import app.houselights.player.PlayerFacts
 import app.houselights.player.PlayerStatus
 import app.houselights.player.ZidooPlayer
 import app.houselights.player.ZidooPlayer.Decision
@@ -43,9 +48,10 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.FACT_GAP
 
-internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows, updates: UpdateUi? = null) {
+/** About; [jellyfin] while Jellyfin is the source, which the trust sheet names (#58). */
+internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows, updates: UpdateUi? = null, jellyfin: Boolean = false) {
     item { AboutBrand() }
-    item { AboutStatus() }
+    item { AboutStatus(jellyfin) }
     // Only in a build that updates itself (the project's release): the others never check.
     if (updates != null) item { UpdatesGroup(updates, rows) }
     item { AboutCredits() }
@@ -92,15 +98,54 @@ private fun AboutBrand() {
     }
 }
 
-/** What the app relies on on this device, each with its state, checked each time it comes into view. */
+/**
+ * What the app relies on on this device, each with its state, checked each time it comes into view; while the player
+ * is changed, the row that asks whether to trust it ([TrustRow]). Trusted, the row leaves with what it said, focus going
+ * on to the pane's next row first, and the player reads Détecté.
+ */
 @Composable
-private fun AboutStatus(vm: AboutViewModel = aboutViewModel()) {
+private fun AboutStatus(jellyfin: Boolean, vm: AboutViewModel = aboutViewModel()) {
     val device = remember { DeviceIdentity.current().name }
     DisposableEffect(vm) {
         vm.check()
         onDispose { vm.forget() }
     }
-    HlGroup(stringResource(R.string.about_status)) { DeviceFacts(device, vm.player, vm.api) }
+    val context = LocalContext.current
+    val asked = remember { TrustAsked(ZidooTrust(context)) }
+    val focus = LocalFocusManager.current
+    Column {
+        HlGroup(stringResource(R.string.about_status)) { DeviceFacts(device, vm.player, vm.api) }
+        TrustRow(vm.player, onClick = asked::ask)
+        PlayerTrustSheet(asked, jellyfin) {
+            focus.moveFocus(FocusDirection.Down)
+            vm.readPlayer()
+        }
+    }
+}
+
+/**
+ * While playback refuses the [player] as changed, « Faire confiance au nouveau lecteur » on its own plate under the
+ * state, its name, version and the day of its update under it: the pane's first row, so its first focus. OK opens the
+ * trust sheet ([onClick]) and trusts nothing. Never for another refusal: trusting would make nothing safe there.
+ */
+@Composable
+internal fun TrustRow(player: PlayerStatus, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val changed = (player as? PlayerStatus.Unrecognized)?.takeIf { it.reason == Decision.CHANGED } ?: return
+    HlSettingGroup(null, modifier.padding(top = HlSpace.m).revealOnFocus()) {
+        HlSettingRow(stringResource(R.string.trust_player), description = trustDescription(changed.facts), onClick = onClick)
+    }
+}
+
+/**
+ * « Lecteur vidéo 6.4.42, mis à jour le 12 octobre 2026 », « installé le » for an app in the player's place; its
+ * package where it names itself in no other way.
+ */
+@Composable
+@ReadOnlyComposable
+private fun trustDescription(facts: PlayerFacts?): String? {
+    if (facts == null) return null
+    val name = listOfNotNull(facts.label, facts.version).joinToString(" ").ifEmpty { facts.packageName }
+    return stringResource(if (facts.system) R.string.trust_player_desc else R.string.trust_player_desc_app, name, dateOf(facts.updatedAt))
 }
 
 /** About's view model, asking this player what playback asks it. */

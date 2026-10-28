@@ -9,8 +9,10 @@ import app.houselights.player.PlayerStatus
 import app.houselights.ui.util.LatestJob
 
 /** Device status for About: the [player] playback uses, and whether the control API answers ([api], null meanwhile). */
-internal class AboutViewModel(playerStatus: () -> PlayerStatus, private val apiAnswers: suspend () -> Boolean) : ViewModel() {
-    val player: PlayerStatus = playerStatus()
+internal class AboutViewModel(private val playerStatus: () -> PlayerStatus, private val apiAnswers: suspend () -> Boolean) : ViewModel() {
+    /** The player as playback decides, asked once, and again once the user trusted it ([readPlayer]). */
+    var player: PlayerStatus by mutableStateOf(playerStatus())
+        private set
 
     var api by mutableStateOf<Boolean?>(null)
         private set
@@ -21,6 +23,11 @@ internal class AboutViewModel(playerStatus: () -> PlayerStatus, private val apiA
     fun check() {
         api = null
         asking.launch { api = apiAnswers() }
+    }
+
+    /** Asks again what playback decides of the player, once the user trusted it: About then says Détecté. */
+    fun readPlayer() {
+        player = playerStatus()
     }
 
     /** Cancels a pending check and clears [api], so the next [check] starts over. */
