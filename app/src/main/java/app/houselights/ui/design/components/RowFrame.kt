@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -13,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -39,13 +41,17 @@ import kotlinx.coroutines.launch
 /** The row of framed cards a surface is in ([MediaRow]), which draws their frame; null elsewhere. */
 internal val LocalRowFrame = staticCompositionLocalOf<RowFrame?> { null }
 
-/** The one frame of a row over [list]'s cards; the row draws it with [RowFrame.drawn]. */
+/** The one frame of a row over [list]'s cards; the row draws it with [RowFrame.drawn]. It goes out under a sheet. */
 @Composable
 internal fun rememberRowFrame(list: LazyListState): RowFrame {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val white = Hl.colors.focus
-    return remember(list, scope, density, white) { RowFrame(list, scope, density, white) }
+    val frame = remember(list, scope, density, white) { RowFrame(list, scope, density, white) }
+    // Under an open sheet the screen shows no focus, as its surfaces do (HlFocusSurface); a row in a sheet keeps it.
+    val inSheet = LocalInSheet.current
+    LaunchedEffect(frame, inSheet) { snapshotFlow { !inSheet && OpenSheets.count > 0 }.collect(frame::underSheet) }
+    return frame
 }
 
 /**
@@ -87,8 +93,8 @@ private class Shift(at: FrameBox, card: FrameBox) {
 /**
  * One frame for a row of framed cards (DESIGN.md, Focus): it travels from the card left to the card reached in
  * the focus pull, following the row's scroll, and goes out in place in the fall back when focus leaves the row
- * ([rowFocused]). While an arrow is held, it jumps. All of it is read while drawing: the row's draw alone follows
- * it, nothing recomposes.
+ * ([rowFocused]) or a sheet opens over it ([underSheet]), lighting again on the card reached as the sheet goes. While
+ * an arrow is held, it jumps. All of it is read while drawing: the row's draw alone follows it, nothing recomposes.
  */
 @Stable
 internal class RowFrame(
@@ -108,6 +114,12 @@ internal class RowFrame(
     private var from by mutableStateOf<(() -> FrameBox?)?>(null)
     private var travel by mutableFloatStateOf(1f)
     private var light by mutableFloatStateOf(0f)
+
+    /** Focus is in the row, on the card [reached]. */
+    private var held = false
+
+    /** A sheet is open over the row ([OpenSheets]): the screen under it shows no focus. */
+    private var covered = false
 
     private var lit = false
     private var travelling: Job? = null
@@ -140,7 +152,15 @@ internal class RowFrame(
 
     /** Focus left the row ([focused] false): the frame goes out where it stands. */
     internal fun rowFocused(focused: Boolean) {
-        if (!focused && lit) turn(on = false)
+        if (focused) return
+        held = false
+        follow()
+    }
+
+    /** A sheet opened over the row ([open]): the frame goes out where it stands, and lights again as the sheet goes. */
+    internal fun underSheet(open: Boolean) {
+        covered = open
+        follow()
     }
 
     /** Where the frame is drawn now, in the root's coordinates. */
@@ -160,7 +180,14 @@ internal class RowFrame(
                 animate(0f, 1f, animationSpec = tween(HlMotion.FOCUS_IN, easing = HlMotion.focusPull)) { value, _ -> travel = value }
             }
         }
-        if (!lit) turn(on = true)
+        held = true
+        follow()
+    }
+
+    /** Lit while focus is in the row, no sheet over it. */
+    private fun follow() {
+        val on = held && !covered
+        if (on != lit) turn(on)
     }
 
     /** Where a frame leaving [left] sets out: from it, or from where it was on its way, held to it. */
