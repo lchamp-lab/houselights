@@ -326,7 +326,12 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         pick = unseenPick,
     )
 
-    private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed), scanner.progress)
+    private val changes = LibraryChanges(
+        scope,
+        listOf(player.playbackEnded, scanner.changed),
+        scanner.progress,
+        firstScan = { scanner.state.value.firstScan },
+    )
 
     /** The app's own updates from its releases on GitHub, in the project's release alone (README, Install). */
     val updates: Updater = GithubReleases().let { releases ->

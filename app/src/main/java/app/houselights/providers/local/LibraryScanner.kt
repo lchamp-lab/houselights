@@ -39,6 +39,8 @@ data class ScanState(
     val errors: Map<Long, ScanError> = emptyMap(),
     /** Why the last scan stopped querying TMDB; kept until TMDB is queried again. */
     val tmdbIssue: FailureKind? = null,
+    /** Whether the pass under way began on a library holding no title: its very first scan, which screens follow closer. */
+    val firstScan: Boolean = false,
 )
 
 /** No video while [count] subfolders were denied: a permissions problem, so nothing is removed. */
@@ -291,6 +293,8 @@ class LibraryScanner(
         val askUnmatched = askUnmatched(down, asked)
         try {
             val sources = dao.sources()
+            val first = !dao.anyItem()
+            _state.update { it.copy(firstScan = first) }
             val reached = mutableSetOf<Long>()
             for (source in sources) {
                 reached += source.id

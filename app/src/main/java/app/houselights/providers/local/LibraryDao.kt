@@ -326,6 +326,10 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("SELECT COUNT(*) FROM items WHERE kind = :kind")
     suspend fun count(kind: ItemKind): Int
 
+    /** Whether the library holds anything: a pass that begins on none is its very first scan ([ScanState.firstScan]). */
+    @Query("SELECT EXISTS(SELECT 1 FROM items)")
+    suspend fun anyItem(): Boolean
+
     /** Episodes added since [since], not watched, found after their folder's first scan, as a title counts as new. */
     @Query(
         "SELECT COUNT(*) FROM items WHERE kind = 'EPISODE' AND played = 0 AND addedAt >= :since " +

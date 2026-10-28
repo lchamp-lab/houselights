@@ -1,11 +1,15 @@
 package app.houselights.providers.local
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -54,6 +58,31 @@ class LibraryScannerTest {
         val told = bench.toldDuring { bench.scan() }
         assertTrue("progress told", told.progress > 0)
         assertEquals("the change told once", 1, told.changes)
+    }
+
+    /**
+     * A pass that begins on an empty library is its very first scan, which screens follow closer while it writes; the next
+     * one, over the titles it found, is not, nor is any once it ends.
+     */
+    @Test
+    fun aPassOnAnEmptyLibraryIsItsFirstScan() = runTest {
+        repeat(12) { nas.put("Film $it (2001).mkv") }
+        assertEquals(listOf(true), firstScanAsItWrites())
+        assertFalse("over", bench.scanner.state.value.firstScan)
+
+        repeat(12) { nas.put("Film ${it + 12} (2002).mkv") }
+        assertEquals(listOf(false), firstScanAsItWrites())
+    }
+
+    /** Whether the pass is the library's first, as each of its progress says it, once each. */
+    private suspend fun firstScanAsItWrites(): List<Boolean> {
+        val seen = mutableSetOf<Boolean>()
+        coroutineScope {
+            val watch = launch(Dispatchers.Unconfined) { bench.scanner.progress.collect { seen += bench.scanner.state.value.firstScan } }
+            bench.scan()
+            watch.cancel()
+        }
+        return seen.toList()
     }
 
     @Test

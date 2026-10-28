@@ -1087,7 +1087,8 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
   on screen keeps the posters it draws, which it holds anyway.
 - **Light nothing that focus only crosses** (`Scrub`), and nothing moves for ever but the welcome wall.
 - **A scan reloads screens every 20 s at most** (`LibraryChanges`), its first titles and its end at once, as any
-  other change: a title's page reads its title again and reloads only if it changed, a wall reloads its titles, its
+  other change, and the library's very first, begun on no title (`firstScan`), every 3 s, home growing as titles are
+  found while it has nothing of its own to show: a title's page reads its title again and reloads only if it changed, a wall reloads its titles, its
   filters and sagas waiting for the end, as home's library rows do (`settledVersion`). The settings' counts and
   posters follow it every 2 s at most (`LocalLibrary`).
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
