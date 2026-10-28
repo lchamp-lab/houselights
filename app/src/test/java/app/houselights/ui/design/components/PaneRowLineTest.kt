@@ -181,10 +181,7 @@ class PaneRowLineTest {
         ) + UpdateFailure.entries.map { line(it.title, value = failed) }
     }
 
-    /**
-     * A sheet's rows: a folder's, the source's, Modifier's, the choices', the answers for titles not found and for the new
-     * player, its answers' names too.
-     */
+    /** A sheet's rows: a folder's, the source's, Modifier's, the choices', then the answers' ([answerLines]). */
     private fun sheetLines(w: Words): List<Line> = with(w) {
         listOf(
             line(R.string.identify_menu_desc, Beside.Icon),
@@ -234,7 +231,12 @@ class PaneRowLineTest {
             line(R.string.update_check_never_desc, Beside.Check),
             line(R.string.update_stable_desc, Beside.Check),
             line(R.string.update_beta_desc, Beside.Check),
-        ) + orderLines(w) + listOf(
+        ) + orderLines(w) + answerLines(w)
+    }
+
+    /** The answers for titles not found and the row of their folder's sheet, then the new player's, their names too. */
+    private fun answerLines(w: Words): List<Line> = with(w) {
+        listOf(
             // Titles not found: their answers, and the row of their folder's sheet.
             line(R.string.held_keep_desc),
             line(R.string.held_keep_desc_one),

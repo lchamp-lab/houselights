@@ -213,7 +213,6 @@ class MainActivity : ComponentActivity() {
                 val nav = rememberNavController()
                 // « Faire confiance au nouveau lecteur » opens its sheet over the screen that says the failure (#58).
                 val trust = remember { TrustAsked(ZidooTrust(this@MainActivity)) }
-                val fixError = remember(nav, trust) { trust.fixing(nav::fixError) }
                 val relay = remember { BackdropRelay() }
                 // One cue for the whole app; its steps (room, scrims, black) are in HouseLightCue.
                 val lights = animateFloatAsState(
@@ -224,7 +223,7 @@ class MainActivity : ComponentActivity() {
                 SideEffect { lightsLevel = lights }
                 CompositionLocalProvider(
                     LocalHouseLights provides { lights.value },
-                    LocalErrorFix provides fixError,
+                    LocalErrorFix provides remember(nav, trust) { trust.fixing(nav::fixError) },
                     LocalLaunchScreen provides launchScreen,
                     LocalBackdropRelay provides relay,
                     LocalCutPosters provides container.cutPosters,
@@ -234,7 +233,7 @@ class MainActivity : ComponentActivity() {
                         LeavingBackdrop(relay)
                         ProvideLibraryPlace(container.libraryPlace) { AppNavigation(nav, settings, onPlay = ::play) }
                         HouseLights()
-                        PlayerTrustSheet(trust, jellyfin = settings.value.source is SourceConfig.Jellyfin, onTrust = {})
+                        PlayerTrustSheet(trust, jellyfin = settings.value.source is SourceConfig.Jellyfin)
                     }
                 }
             }

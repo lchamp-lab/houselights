@@ -55,13 +55,10 @@ class PlayerTrustSheetTest {
 
     private var jellyfin by mutableStateOf(false)
 
-    /** How many times the sheet said it trusted, once gone. */
-    private var trusts = 0
-
     private fun show(player: FakeTrust): TrustAsked {
         val asked = TrustAsked(player)
         asked.ask()
-        compose.setTvContent { PlayerTrustSheet(asked, jellyfin) { trusts++ } }
+        compose.setTvContent { PlayerTrustSheet(asked, jellyfin) }
         compose.waitForIdle()
         return asked
     }
@@ -98,7 +95,6 @@ class PlayerTrustSheetTest {
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         assertNull(asked.facts)
         assertEquals(emptyList<PlayerFacts>(), player.trusted)
-        assertEquals(0, trusts)
     }
 
     @Test
@@ -111,7 +107,6 @@ class PlayerTrustSheetTest {
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         assertEquals(listOf(UPDATED), player.trusted)
         assertNull("the sheet is gone", asked.facts)
-        assertEquals(1, trusts)
     }
 
     /** As `UpdateSheet`'s row: OK right after focus arrives, a Down and an OK given in one go, does nothing. */

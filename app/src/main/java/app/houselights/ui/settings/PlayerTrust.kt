@@ -99,12 +99,13 @@ class TrustAsked(private val player: PlayerTrust) {
  * then what trusting it means, the day Android installed it in the sentence, where it never drops, and what it would
  * receive, Jellyfin's access only while Jellyfin is the source ([jellyfin]), the one case its token goes to the player;
  * then the two answers on one plate, « Ne pas lui faire confiance » first and focused, as nothing changes with it,
- * « Faire confiance à ce lecteur » a Down then an OK away, calm as focus arrives on it ([calmOnArrival]), [onTrust] once
- * it trusted and the sheet is gone. Never ember: nothing is erased, and the trust ends by itself with the player's next
- * update. A player changed again meanwhile is named anew, the safe answer focused again. Back closes it unanswered.
+ * « Faire confiance à ce lecteur » a Down then an OK away, calm as focus arrives on it ([calmOnArrival]), the sheet
+ * leaving once it trusted. Never ember: nothing is erased, and the trust ends by itself with the player's next update.
+ * A player changed again meanwhile is named anew, the safe answer focused again. Back closes it unanswered. What opened
+ * it learns it closed, trusted or not, by [TrustAsked.facts] going back to null.
  */
 @Composable
-internal fun PlayerTrustSheet(asked: TrustAsked, jellyfin: Boolean, onTrust: () -> Unit) {
+internal fun PlayerTrustSheet(asked: TrustAsked, jellyfin: Boolean) {
     val facts = asked.facts ?: return
     val safe = remember { FocusRequester() }
     var named by remember { mutableStateOf(facts) }
@@ -134,7 +135,7 @@ internal fun PlayerTrustSheet(asked: TrustAsked, jellyfin: Boolean, onTrust: () 
                 stringResource(R.string.trust_player_yes),
                 Modifier.calmOnArrival(),
                 description = stringResource(R.string.trust_player_yes_desc),
-                onClick = { if (asked.trust()) sheet.dismiss(onTrust) },
+                onClick = { if (asked.trust()) sheet.dismiss() },
             )
         }
     }
@@ -174,24 +175,12 @@ private fun Modifier.calmOnArrival(): Modifier {
         calm.on = false
     }
     return onFocusChanged { state ->
-        if (state.isFocused == calm.focused) return@onFocusChanged
-        calm.focused = state.isFocused
-        calm.down = false
-        if (state.isFocused) {
-            calm.on = true
-            arrivals++
-        }
+        if (calm.focus(state.isFocused)) arrivals++
     }.onPreviewKeyEvent { event ->
-        if (event.key !in OK_KEYS) return@onPreviewKeyEvent false
-        when (event.type) {
-            KeyEventType.KeyDown -> when {
-                calm.on || calm.swallowed -> true.also { calm.swallowed = true }
-                else -> false.also { if (event.nativeKeyEvent.repeatCount == 0) calm.down = true }
-            }
-            KeyEventType.KeyUp -> (calm.swallowed || !calm.down).also {
-                calm.swallowed = false
-                calm.down = false
-            }
+        when {
+            event.key !in OK_KEYS -> false
+            event.type == KeyEventType.KeyDown -> calm.pressed(event.nativeKeyEvent.repeatCount)
+            event.type == KeyEventType.KeyUp -> calm.released()
             else -> false
         }
     }
@@ -202,10 +191,35 @@ private fun Modifier.calmOnArrival(): Modifier {
  * release with it; [down], OK went down here. Read by key events, never drawn.
  */
 private class ArrivalCalm {
-    var focused = false
     var on = false
-    var swallowed = false
-    var down = false
+    private var focused = false
+    private var swallowed = false
+    private var down = false
+
+    /** Focus come to the answer or gone ([now]); true when it just arrived, calm from then. */
+    fun focus(now: Boolean): Boolean {
+        if (now == focused) return false
+        focused = now
+        down = false
+        if (now) on = true
+        return now
+    }
+
+    /** OK going down here, its [repeat] count: taken, doing nothing, while calm and through a press it took. */
+    fun pressed(repeat: Int): Boolean {
+        if (on || swallowed) {
+            swallowed = true
+            return true
+        }
+        if (repeat == 0) down = true
+        return false
+    }
+
+    /** OK let go here: taken, doing nothing, when its press was taken or went down elsewhere. */
+    fun released(): Boolean = (swallowed || !down).also {
+        swallowed = false
+        down = false
+    }
 }
 
 private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

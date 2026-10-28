@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +49,8 @@ import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.FACT_GAP
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 
 /** About; [jellyfin] while Jellyfin is the source, which the trust sheet names (#58). */
 internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows, updates: UpdateUi? = null, jellyfin: Boolean = false) {
@@ -100,27 +104,42 @@ private fun AboutBrand() {
 
 /**
  * What the app relies on on this device, each with its state, checked each time it comes into view; while the player
- * is changed, the row that asks whether to trust it ([TrustRow]). Trusted, the row leaves with what it said, focus going
- * on to the pane's next row first, and the player reads Détecté.
+ * is changed, the row that asks whether to trust it ([TrustRow]) and its sheet ([asked]). The player is read again each
+ * time the sheet closes, and when the row finds nothing to ask, its updates uninstalled meanwhile: no longer changed,
+ * trusted or not, the row leaves with what it said, focus going on to the pane's next row first, and the player reads
+ * Détecté.
  */
 @Composable
-private fun AboutStatus(jellyfin: Boolean, vm: AboutViewModel = aboutViewModel()) {
+internal fun AboutStatus(jellyfin: Boolean, vm: AboutViewModel = aboutViewModel(), asked: TrustAsked = rememberTrustAsked()) {
     val device = remember { DeviceIdentity.current().name }
     DisposableEffect(vm) {
         vm.check()
         onDispose { vm.forget() }
     }
-    val context = LocalContext.current
-    val asked = remember { TrustAsked(ZidooTrust(context)) }
     val focus = LocalFocusManager.current
+    // Read before the row leaves, which it does at the next frame: focus moves on while it is still there.
+    val reread: () -> Unit = { if (vm.readPlayer()) focus.moveFocus(FocusDirection.Down) }
+    LaunchedEffect(asked, vm) {
+        snapshotFlow { asked.facts == null }.drop(1).filter { it }.collect { reread() }
+    }
     Column {
         HlGroup(stringResource(R.string.about_status)) { DeviceFacts(device, vm.player, vm.api) }
-        TrustRow(vm.player, onClick = asked::ask)
-        PlayerTrustSheet(asked, jellyfin) {
-            focus.moveFocus(FocusDirection.Down)
-            vm.readPlayer()
-        }
+        TrustRow(
+            vm.player,
+            onClick = {
+                asked.ask()
+                if (asked.facts == null) reread()
+            },
+        )
+        PlayerTrustSheet(asked, jellyfin)
     }
+}
+
+/** The trust sheet's state for this device's player ([ZidooTrust]). */
+@Composable
+private fun rememberTrustAsked(): TrustAsked {
+    val context = LocalContext.current
+    return remember { TrustAsked(ZidooTrust(context)) }
 }
 
 /**

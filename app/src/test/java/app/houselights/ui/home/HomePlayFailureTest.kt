@@ -243,7 +243,8 @@ class HomePlayFailureTest {
 
     /**
      * The player changed (#58): the plate does what fixes it in two words, « Faire confiance », the line above saying the
-     * player changed; OK clears the failure and opens the trust sheet, trusting nothing, nothing played.
+     * player changed; OK clears the failure and opens the trust sheet, trusting nothing, nothing played; cleared, the
+     * plate says Reprendre again, focus still on it, as the sheet finds it once closed.
      */
     @Test
     fun aChangedPlayersPlateAsksWhetherToTrustIt() {
@@ -255,6 +256,12 @@ class HomePlayFailureTest {
             case.assert(hasText(text(R.string.trust_player_short))).assert(!hasText(text(R.string.resume)))
             compose.press(Key.DirectionCenter)
             assertEquals("$error", listOf("clear", "fix ${ErrorAction.TRUST_PLAYER}"), did)
+
+            // The failure cleared, as the view model does on the clear.
+            problem = null
+            compose.waitForIdle()
+            case.assert(hasText(text(R.string.resume))).assertIsFocused()
+            said(text(R.string.play_failed_player_changed)).assertDoesNotExist()
         }
     }
 

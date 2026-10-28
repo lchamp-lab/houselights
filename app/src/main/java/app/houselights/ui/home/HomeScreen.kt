@@ -379,8 +379,7 @@ private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit
     val fix = LocalErrorFix.current
     ResumeCase(
         case.item,
-        // The whole « Faire confiance au nouveau lecteur » does not hold on the plate: two words, the line above saying why.
-        stringResource(if (fixedBy == ErrorAction.TRUST_PLAYER) R.string.trust_player_short else fixedBy?.label ?: action),
+        stringResource(plateWords(fixedBy, action)),
         onClick = {
             actions.onClearProblem()
             if (fixedBy != null) fixedBy.run(own, fix) else own()
@@ -400,6 +399,15 @@ private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit
             }
         },
     )
+}
+
+/** The case's plate: what fixes its failure ([fixedBy]), else its own [action]. */
+@StringRes
+private fun plateWords(fixedBy: ErrorAction?, @StringRes action: Int): Int = when (fixedBy) {
+    null -> action
+    // The whole « Faire confiance au nouveau lecteur » does not hold on the plate: two words, the line above saying why.
+    ErrorAction.TRUST_PLAYER -> R.string.trust_player_short
+    else -> fixedBy.label
 }
 
 /**
