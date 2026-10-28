@@ -2,7 +2,9 @@ package app.houselights.ui.design.components
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.VoletDefaults
+import app.houselights.ui.design.alphaAt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -81,6 +83,31 @@ class VoletPlanTest {
         assertEquals(VoletDefaults.narrowest, VoletPlan.of(EIGHT_FILMS, WIDTH, 40.dp).closed)
     }
 
+    /**
+     * A number's floor over its band melts back onto the top veil over `VoletDefaults.melt` under it, never in a few dp
+     * (DESIGN.md, Veils: no veil draws a line); a band the veil already covers leaves it as it is.
+     */
+    @Test
+    fun aNumbersFloorMeltsBackOntoTheTopVeil() {
+        val melt = VoletDefaults.melt.value
+        listOf(56f, 64f, 88f).forEach { band ->
+            listOf(0.3f, 0.6f, 0.9f).forEach { floor ->
+                val veil = HlScrim.TOP.raisedOver(band / SCREEN, floor, melt / SCREEN)
+                fun at(dp: Float) = veil.alphaAt(dp / SCREEN)
+                (0..band.toInt()).forEach { assertTrue("$floor over the band of $band at $it", at(it.toFloat()) >= floor - 0.001f) }
+                (0..SCREEN.toInt()).filter { it >= band + melt }.forEach {
+                    assertEquals("on the top veil again at $it", HlScrim.TOP.alphaAt(it / SCREEN), at(it.toFloat()), 0.005f)
+                }
+                // Never faster than the floor gone in half the melt.
+                (band.toInt() until (band + melt).toInt()).forEach {
+                    val fall = at(it.toFloat()) - at(it + 1f)
+                    assertTrue("$floor under $band falls $fall at $it", fall <= floor / (melt / 2) + 0.001f)
+                }
+            }
+        }
+        assertEquals("a floor the veil holds", HlScrim.TOP, HlScrim.TOP.raisedOver(56f / SCREEN, 0.2f, melt / SCREEN))
+    }
+
     private fun plan(films: Int) = VoletPlan.of(films + 1, WIDTH, HEIGHT)
 
     private fun closed(films: Int): Dp = plan(films).closed
@@ -92,5 +119,8 @@ class VoletPlanTest {
 
         /** Mission : Impossible: eight films and the saga's panel. */
         const val EIGHT_FILMS = 9
+
+        /** The screen's height, which the top veil is drawn against (dp). */
+        const val SCREEN = HlScrim.SCREEN_HEIGHT
     }
 }

@@ -703,25 +703,33 @@ private fun VoletNumber(number: Int, style: TextStyle, color: Color, opened: () 
 
 /**
  * The top of a film's panel in its picture's [dark], as a hero's top veil ([HlScrim.TOP]), raised to the [floor] its
- * number needs over its [band] (px from the top), so the number reads on any poster.
+ * number needs over its [band] (px from the top), so the number reads on any poster, then melting back onto the top
+ * veil over [VoletDefaults.melt] under the band: no veil draws a line.
  */
 @Composable
 private fun TopMelt(dark: Color, floor: Float, band: Float) {
     Spacer(
         Modifier.fillMaxSize().drawWithCache {
             val screen = HlScrim.SCREEN_HEIGHT.dp.toPx()
-            val stops = HlScrim.TOP.raisedOver(band / screen, floor)
+            val stops = HlScrim.TOP.raisedOver(band / screen, floor, VoletDefaults.melt.toPx() / screen)
             val brush = Brush.verticalGradient(*stops.colorStops(dark), startY = 0f, endY = screen)
             onDrawBehind { drawRect(brush) }
         },
     )
 }
 
-/** This veil kept at [floor] at least down to [until], as a band of a backdrop's left veil is ([HlScrim.FLOOR_QUANTILE]). */
-private fun List<VeilStop>.raisedOver(until: Float, floor: Float): List<VeilStop> {
-    if (floor <= 0f || until <= first().at) return this
-    val edge = VeilStop(until, maxOf(alphaAt(until), floor))
-    return filter { it.at < until }.map { VeilStop(it.at, maxOf(it.alpha, floor)) } + edge + filter { it.at > until }
+/**
+ * This veil kept at [floor] at least down to [until], as a band of a backdrop's left veil is ([HlScrim.FLOOR_QUANTILE]),
+ * then back on its own curve [ease] under it, its stops in between giving way: the floor melts out, never ending on an
+ * edge.
+ */
+internal fun List<VeilStop>.raisedOver(until: Float, floor: Float, ease: Float): List<VeilStop> {
+    if (floor <= alphaAt(until) || until <= first().at) return this
+    val back = until + ease
+    return filter { it.at < until }.map { VeilStop(it.at, maxOf(it.alpha, floor)) } +
+        VeilStop(until, floor) +
+        VeilStop(back, alphaAt(back)) +
+        filter { it.at > back }
 }
 
 /**
