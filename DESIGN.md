@@ -655,9 +655,9 @@ when its ink turns.
 
 **The frame that travels.** In a `MediaRow`, cards leave their frame to the row (`RowFrame`): one frame travels
 from the card left to the card reached in the focus pull, following the row's scroll, goes out in place in the
-fall back when focus leaves the row, and jumps while an arrow is held. It is read while drawing; nothing
-recomposes (`RowFrameTest`). **A row holds framed cards only**: a control there would show focus twice
-(`FocusStyleGuardTest`). A wall's cards keep their own frame.
+fall back when focus leaves the row or a sheet opens over it, lighting again on its card as the sheet goes, and
+jumps while an arrow is held. It is read while drawing; nothing recomposes (`RowFrameTest`). **A row holds framed
+cards only**: a control there would show focus twice (`FocusStyleGuardTest`). A wall's cards keep their own frame.
 
 **Above its neighbours.** The focused picture draws on top, so its glow lies over its neighbours, the one it left
 above the rest until its light is out, read while placing; a card whose picture is not its root raises its whole
@@ -698,7 +698,7 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   their foot by as much; rows of cards keep `HlFocus.room` above and below for the frame, the glow passing it as
   far as a row draws. Where content fades at an edge, focus stays clear of the fade.
 - **Under a sheet, focus is out.** While a sheet is open (`OpenSheets`), the screen under it shows no focus: what
-  opened it keeps focus, unlit, and lights again as the sheet goes.
+  opened it keeps focus, unlit, a row's card without its row's frame, and lights again as the sheet goes.
 - **The queue** (« À identifier »): Identifier opens on a title's suggestions, under « Suggestions », the best focused, TMDB
   asked nothing; a search replaces them. OK on one identifies the title and opens the next in the list's order, its best
   suggestion focused; « Passer », first in the aside, nearest the results (Left from one), opens it unchanged, as
@@ -1122,7 +1122,7 @@ rest.
 | `ShapesTest` | radii by hierarchy and in dp, nested corners parallel, a sheet square against the edge; nothing round but dots |
 | `ContrastTest`, `ScrimTest` | every pair drawn, on what it sits on; forbidden pairs stay below; veil floors, plate floors and smoothness |
 | `AmbientTest`, `DiffuseTest`, `PosterFieldTest`, `RoomPostersTest`, `BackdropTest`, `BackdropFadeTest`, `BackdropRelayTest` | a picture's light; the field's cap, ramp and dither; posters laid side by side into a field, the last at once, the next over it; the room's posters read once a visit; decoded sizes; one fade at a time; the relay across cuts |
-| `RowFrameTest`, `CardRaiseTest`, `OkPressTest`, `RecedeTest`, `ScrubTest` | the frame that travels, without recomposing; the focused card on top; OK on its release; siblings stepping back in steps; an arrow held |
+| `RowFrameTest`, `CardRaiseTest`, `OkPressTest`, `RecedeTest`, `ScrubTest` | the frame that travels, without recomposing, out under a sheet; the focused card on top; OK on its release; siblings stepping back in steps; an arrow held |
 | `FocusReachTest`, `HomeLayoutTest`, `DoorGridTest`, `DetailLayoutTest`, `WelcomeLayoutTest`, `FormLayoutTest`, `SettingRowTest`, `PaneRowLineTest`, `PaneHeadTest`, `SheetRhythmTest`, `DeviceCodeTest`, `VoletPlanTest`, `VoletsLayoutTest`, `SagaWordsTest` | the frame inside the room kept for it and inside the safe area, a row's glow drawn whole past it, a wall's faded where its grid cuts it; home's grid and its doors' parts, a page's first view, the welcome screen and the forms; setting rows' heights; a pane's or a sheet's row described on one line; a pane's title and About's lockup on the screen title's baseline at every text size; a sheet's lines on the board's; a code never cut; a saga's panels' widths, numbers and years, their frames in the safe area at every text size, and its page's words whole in every language at 1.3 |
 | `TypeScaleTest`, `TypeRolesTest`, `SpacingGridTest`, `LayoutTokensTest`, `GroundTest`, `TextRoomTest` | type scale (sizes, lines, a floor a voice, tv-material's roles), the components' roles on it, 4 dp grid, screen grid read by screens (not the catalogue), grounds, text room at every text size |
 | `TextScaleTest`, `TextSizeLayoutTest`, `TextSizeRowTest` | « Taille du texte »: the system's size times the step, within 0.75 and 1.3, Grande on Android's curve; home, a title's page and the settings cutting nothing at 0.75 that 1.3 or 1 does not; its row and sheet, kept in the settings |

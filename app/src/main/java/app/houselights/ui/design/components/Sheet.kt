@@ -149,7 +149,7 @@ private fun arriving(shown: Boolean, inMs: Int, outMs: Int): FiniteAnimationSpec
 /** Keys go nowhere while a sheet or a menu leaves. */
 internal fun Modifier.stillWhileLeaving(motion: SheetMotion): Modifier = onPreviewKeyEvent { motion.leaving }
 
-/** How many sheets are open: under one, the screen shows no focus ([HlFocusSurface]). */
+/** How many sheets are open: under one, the screen shows no focus ([HlFocusSurface], a row's frame [RowFrame]). */
 internal object OpenSheets {
     var count by mutableIntStateOf(0)
 }

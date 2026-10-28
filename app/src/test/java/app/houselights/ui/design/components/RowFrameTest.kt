@@ -12,6 +12,9 @@ import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.compose.runtime.InternalComposeApi
 import androidx.compose.runtime.RecomposeScope
 import androidx.compose.runtime.currentComposer
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.tooling.CompositionObserver
 import androidx.compose.runtime.tooling.ObservableComposition
 import androidx.compose.runtime.tooling.setObserver
@@ -21,6 +24,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import app.houselights.ui.design.HlFocus
@@ -30,6 +34,7 @@ import app.houselights.ui.design.Scrub
 import app.houselights.ui.design.ScrubTracker
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -74,7 +79,10 @@ class RowFrameTest {
         override fun onScopeDisposed(scope: RecomposeScope) = Unit
     }
 
-    /** Rows of eight posters named by [rows], focus on the first poster of the first. */
+    /** A sheet over the rows, which OK on a card opens. */
+    private var sheetOpen by mutableStateOf(false)
+
+    /** Rows of eight posters named by [rows], focus on the first poster of the first; OK on one opens a sheet. */
     @OptIn(InternalComposeApi::class)
     private fun show(vararg rows: String) {
         compose.setTvContent {
@@ -92,13 +100,14 @@ class RowFrameTest {
                             @SuppressLint("RememberInComposition") // The test's own map keeps it across compositions.
                             val requester = requesters.getOrPut(card) { FocusRequester() }
                             ArtworkSurface(
-                                onClick = {},
+                                onClick = { sheetOpen = true },
                                 modifier = Modifier.focusRequester(requester).testTag(card).width(HlSize.poster).aspectRatio(2f / 3f),
                             ) {}
                         }
                     }
                 }
             }
+            if (sheetOpen) HlSideSheet("Options", onDismiss = { sheetOpen = false }) {}
         }
         focusOn("${rows.first()}0")
     }
@@ -182,6 +191,23 @@ class RowFrameTest {
         compose.mainClock.advanceTimeBy(HlMotion.FOCUS_IN.toLong())
         assertEquals(1f, checkNotNull(frames["a"]).shown, 0f)
         assertEquals(centre("a2").x, frame("a").center.x, 0.5f)
+    }
+
+    /** DESIGN.md, Focus: under a sheet, focus is out. The card that opened it keeps focus, unframed, then lights again. */
+    @Test
+    fun theFrameGoesOutUnderASheetAndLightsAgainAsItGoes() {
+        show("a")
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionCenter)
+        compose.onNodeWithTag("a1").assertIsFocused()
+        assertEquals("no frame under the sheet", 0f, checkNotNull(frames["a"]).shown, 0f)
+
+        compose.pressInSheet(KeyEvent.KEYCODE_BACK)
+        assertFalse(sheetOpen)
+        compose.onNodeWithTag("a1").assertIsFocused()
+        assertEquals(1f, checkNotNull(frames["a"]).shown, 0f)
+        assertEquals("on the card that opened it", centre("a1").x, frame().center.x, 0.5f)
+        assertEquals(frameWidth, frame().width, 0.5f)
     }
 
     @Test
