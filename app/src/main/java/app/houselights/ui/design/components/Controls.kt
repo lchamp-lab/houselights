@@ -51,6 +51,7 @@ import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.InspectorInfo
@@ -93,6 +94,7 @@ import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.emberLit
 import app.houselights.ui.design.plate
 import app.houselights.ui.design.plateEdge
+import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.screenWidthPx
 import kotlin.math.roundToInt
 
@@ -236,6 +238,8 @@ private fun BoxScope.ButtonRow(words: ButtonWords, reserved: Dp, primary: Boolea
 /**
  * A button's detail: on the main action, a duration in the technical voice and its black ink; on a plate,
  * a value, quiet, lit in ember when it names a state (a disabled button keeps it quiet: no ember on a well).
+ * Facts [FACT_GAP] apart (a film, then its time left) drop whole from the end where the button has less room than
+ * they need, as a line of facts does; the first alone ends in an ellipsis.
  */
 @Composable
 private fun ButtonDetail(text: String, primary: Boolean, lit: Boolean, enabled: Boolean, detailLit: Boolean) {
@@ -248,7 +252,24 @@ private fun ButtonDetail(text: String, primary: Boolean, lit: Boolean, enabled: 
         else -> t.entry
     }
     val color = if (primary) Color.Unspecified else FocusStyle.quietInk(lit && enabled, enabled, lit = false)
-    Text(text, style = style, color = color, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+    val facts = remember(text) { text.split(FACT_GAP) }
+    if (facts.size == 1) {
+        Text(text, style = style, color = color, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+    } else {
+        OneLine {
+            facts.forEachIndexed { i, fact ->
+                Text(
+                    if (i == 0) fact else FACT_GAP + fact,
+                    style = style,
+                    color = color,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (i == 0) Modifier else Modifier.layoutId(Continued),
+                )
+            }
+        }
+    }
 }
 
 /**

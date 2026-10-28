@@ -1,5 +1,7 @@
 package app.houselights.ui.detail
 
+import android.content.res.Configuration
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -7,6 +9,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.unit.dp
 import app.houselights.core.ImageRef
@@ -30,6 +35,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.io.IOException
 import java.time.LocalDate
+import java.util.Locale
 
 // Dune as the boards show it: the first film watched, the second half seen, the third announced, the library lacking it.
 
@@ -121,11 +127,14 @@ internal fun duneSource(first: MediaItem = dune, second: MediaItem = duneTwo): S
 
 /**
  * A page of [source] on the TV canvas, kept by a saveable state holder as the app's navigation keeps it: [shown] false
- * leaves it for another screen, true comes back to it; its text at [step].
+ * leaves it for another screen, true comes back to it; its text at [step], in [language] once set.
  */
 internal class SagaPage(private val compose: ComposeContentTestRule, private val source: MediaProvider, private val work: CoroutineScope) {
     var shown by mutableStateOf(true)
     var step by mutableFloatStateOf(1f)
+
+    /** The language the page speaks, as the app wraps its screens in the one chosen (a BCP 47 tag); null, the device's. */
+    var language by mutableStateOf<String?>(null)
     val opened = mutableListOf<String>()
     val played = mutableListOf<String>()
 
@@ -140,22 +149,24 @@ internal class SagaPage(private val compose: ComposeContentTestRule, private val
     fun open(id: String) {
         vm = DetailViewModel(id, { source }, FakeEvents(), work)
         compose.setContent {
-            CompositionLocalProvider(LocalCutPosters provides remember { CutPosterCache() }) {
-                HouselightsTheme(step) {
-                    labelRoom = HlIconButtonDefaults.labelRoom
-                    val pages = rememberSaveableStateHolder()
-                    if (shown) {
-                        pages.SaveableStateProvider(id) {
-                            DetailPage(
-                                vm,
-                                PlaybackOutcome(MutableSharedFlow()),
-                                screen = "page",
-                                onPlay = { title, resume, _ -> played += "${title.id} $resume" },
-                                onOpenItem = { opened += it },
-                                onEditArtwork = { _, _ -> },
-                                onIdentify = {},
-                                onOpenPerson = {},
-                            )
+            Speaking(language) {
+                CompositionLocalProvider(LocalCutPosters provides remember { CutPosterCache() }) {
+                    HouselightsTheme(step) {
+                        labelRoom = HlIconButtonDefaults.labelRoom
+                        val pages = rememberSaveableStateHolder()
+                        if (shown) {
+                            pages.SaveableStateProvider(id) {
+                                DetailPage(
+                                    vm,
+                                    PlaybackOutcome(MutableSharedFlow()),
+                                    screen = "page",
+                                    onPlay = { title, resume, _ -> played += "${title.id} $resume" },
+                                    onOpenItem = { opened += it },
+                                    onEditArtwork = { _, _ -> },
+                                    onIdentify = {},
+                                    onOpenPerson = {},
+                                )
+                            }
                         }
                     }
                 }
@@ -163,6 +174,23 @@ internal class SagaPage(private val compose: ComposeContentTestRule, private val
         }
         compose.waitForIdle()
     }
+}
+
+/** [content] speaking [tag] as the app's screens do once it is chosen (`InterfaceLanguage.wrap`): its words, plurals and dates. */
+@Composable
+internal fun Speaking(tag: String?, content: @Composable () -> Unit) {
+    if (tag == null) return content()
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val local = remember(tag, context, configuration) {
+        context.createConfigurationContext(Configuration(configuration).apply { setLocale(Locale.forLanguageTag(tag)) })
+    }
+    CompositionLocalProvider(
+        LocalContext provides local,
+        LocalConfiguration provides local.resources.configuration,
+        LocalResources provides local.resources,
+        content = content,
+    )
 }
 
 /** Dune's polyptych on the canvas, the saga's panel and three films', at the default text size. */

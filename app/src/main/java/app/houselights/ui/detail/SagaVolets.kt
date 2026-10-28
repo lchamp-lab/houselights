@@ -1,6 +1,7 @@
 package app.houselights.ui.detail
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -131,8 +132,6 @@ internal fun SagaVolets(
         Int,
     ) -> Unit = { at -> openPanel(parts.getOrNull(at - 1), links, onSaga = { sagaShown = cut }, onPart = { partShown = it }) }
     val films = stringResource(R.string.library_movies)
-    val facts = sagaFacts(tally)
-    val progress = sagaProgress(tally)
     AmbientBackdrop(roomOf(item, parts, shown ?: open), BackdropStyle.Diffuse, modifier.okClears(links.onClearProblem)) {
         Column(
             Modifier
@@ -161,21 +160,27 @@ internal fun SagaVolets(
                 enter = (parts.indexOf(tally.nextPart) + 1).takeIf { it > 0 },
                 downTo = if (state.nextUp != null) memory.requester(PLAY) else actionRow,
                 keyed = { at -> parts.getOrNull(at - 1)?.item?.let { Modifier.focusKey(voletKey(it), memory) } ?: Modifier },
-            ) { at ->
-                val part = parts.getOrNull(at - 1)
-                if (part == null) {
-                    SagaVoletWords(item.title, item.logo, facts, progress, item.overview, onCut = { cut = it })
-                } else {
-                    val year = part.year?.toString()?.takeIf { part.released }
-                    VoletWords(part.title, part.item?.logo, part.item, year, partState(part, tally), part.overview)
-                }
-            }
+            ) { at -> PanelWords(item, parts.getOrNull(at - 1), tally, onCut = { cut = it }) }
             Spacer(Modifier.height(HlSpace.l))
             Predella(item, state, memory, problem, links, Modifier.padding(horizontal = HlSpace.safeH).focusRequester(actionRow))
         }
         // Over the page, in its light.
         if (sagaShown) SynopsisSheet(item, onDismiss = { sagaShown = false })
         PartSynopsis(partShown, onDismiss = { partShown = null })
+    }
+}
+
+/**
+ * What an open panel says: the saga's own ([part] null) its name, facts, progress and overview, [onCut] told whether
+ * they cut it; a film's its title, its facts with its state last, its overview.
+ */
+@Composable
+internal fun PanelWords(item: MediaItem, part: SagaPart?, tally: SagaTally, onCut: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    if (part == null) {
+        SagaVoletWords(item.title, item.logo, sagaFacts(tally), sagaProgress(tally), item.overview, onCut = onCut, modifier = modifier)
+    } else {
+        val year = part.year?.toString()?.takeIf { part.released }
+        VoletWords(part.title, part.item?.logo, part.item, year, partState(part, tally), part.overview, modifier)
     }
 }
 
@@ -294,36 +299,17 @@ private fun Predella(
     modifier: Modifier = Modifier,
 ) {
     val target = state.nextUp
-    val resume = target != null && target.user.positionMs > 0
     val marks = state.capabilities?.markPlayed == true
     val fixedBy = state.error?.action
-    // Right from the last action would reach a panel above it.
-    val last = Modifier.focusProperties { right = FocusRequester.Cancel }
+    val failing = problem != null || state.actionError != null || state.error != null
     OnArtwork {
         HlActionRow(modifier.okClears(links.onClearActionError)) {
-            if (target != null) {
-                HlButton(
-                    stringResource(if (resume) R.string.resume else R.string.play),
-                    onClick = { links.onPlay(target, resume) },
-                    modifier = Modifier.focusKey(PLAY, memory).then(if (resume || marks || fixedBy != null) Modifier else last),
-                    icon = HlIcons.Play,
-                    detail = listOfNotNull(target.title, timeLeft(target).takeIf { resume }).joinToString(FACT_GAP),
-                    emphasis = Emphasis.Primary,
-                )
-                if (resume) {
-                    HlIconButton(
-                        HlIcons.Restart,
-                        stringResource(R.string.from_start),
-                        onClick = { links.onPlay(target, false) },
-                        modifier = Modifier.focusKey(RESTART, memory).then(if (marks || fixedBy != null) Modifier else last),
-                    )
-                }
-            }
+            if (target != null) PlayActions(target, failing, ends = !marks && fixedBy == null, memory, links)
             if (marks) {
                 SagaWatchedTile(
                     item,
                     links.onTogglePlayed,
-                    Modifier.focusKey(WATCHED, memory).then(if (fixedBy != null) Modifier else last),
+                    Modifier.focusKey(WATCHED, memory).then(if (fixedBy != null) Modifier else LAST),
                 )
             }
             if (fixedBy != null) {
@@ -332,11 +318,40 @@ private fun Predella(
                     memory.focus(PLAY)
                     links.onRetry()
                 }
-                Retry(fixedBy, state.retrying, retry, Modifier.focusKey(RETRY, memory).then(last))
+                Retry(fixedBy, state.retrying, retry, Modifier.focusKey(RETRY, memory).then(LAST))
             }
             // What failed to play or to save, else why the saga could not be read again.
             ActionFailure(problem, state.actionError, nextUpError = state.error)
         }
+    }
+}
+
+/**
+ * Lire, or Reprendre once [target] is started, named with its time left, then Depuis le début: the row's last actions
+ * when nothing [ends] after them. Lire takes what the tiles leave, a long film's time left going whole before a tile
+ * gives way; beside what is [failing], as wide as it is, what failed taking the rest.
+ */
+@Composable
+private fun RowScope.PlayActions(target: MediaItem, failing: Boolean, ends: Boolean, memory: FocusMemory, links: SagaLinks) {
+    val resume = target.user.positionMs > 0
+    HlButton(
+        stringResource(if (resume) R.string.resume else R.string.play),
+        onClick = { links.onPlay(target, resume) },
+        modifier = Modifier
+            .focusKey(PLAY, memory)
+            .then(if (failing) Modifier else Modifier.weight(1f, fill = false))
+            .then(if (ends && !resume) LAST else Modifier),
+        icon = HlIcons.Play,
+        detail = listOfNotNull(target.title, timeLeft(target).takeIf { resume }).joinToString(FACT_GAP),
+        emphasis = Emphasis.Primary,
+    )
+    if (resume) {
+        HlIconButton(
+            HlIcons.Restart,
+            stringResource(R.string.from_start),
+            onClick = { links.onPlay(target, false) },
+            modifier = Modifier.focusKey(RESTART, memory).then(if (ends) LAST else Modifier),
+        )
     }
 }
 
@@ -433,6 +448,9 @@ private fun voletKey(film: MediaItem) = FocusKey.within(FocusKey.row(FILMS), Foc
 
 /** Réessayer, once the saga could not be read again. */
 private val RETRY = FocusKey.action("retry-saga")
+
+/** The predella's last action: Right from it would reach a panel above it. */
+private val LAST = Modifier.focusProperties { right = FocusRequester.Cancel }
 private const val FILMS = "films"
 private const val SAGA_VOLET = "saga"
 private const val MINUTE_MS = 60_000L
