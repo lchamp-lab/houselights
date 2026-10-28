@@ -39,7 +39,13 @@ internal suspend fun PlaybackManager.handOff(
     }.onFailure { e ->
         // Refused before any session was made: nothing to forget.
         if (e is PlaybackManager.CredentialsNotShared) {
-            failed(if (e.playerChanged) UiError.PLAYER_CHANGED else UiError.CREDENTIALS)
+            failed(
+                when {
+                    !e.playerChanged -> UiError.CREDENTIALS
+                    e.replaced -> UiError.PLAYER_REPLACED
+                    else -> UiError.PLAYER_CHANGED
+                },
+            )
             return false
         }
         onLaunchFailed()

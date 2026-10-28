@@ -214,10 +214,24 @@
     <string name="play_with">Odtwórz za pomocą</string>
     <string name="no_player">Odtwarzacz Zidoo nie jest zainstalowany.</string>
     <string name="player_credentials">Ten folder wymaga hasła: może go odtworzyć tylko odtwarzacz Zidoo.</string>
-    <string name="player_changed">Odtwarzacz Zidoo się zmienił, więc Houselights nie powierza mu już haseł ani dostępu do serwera. Zainstaluj ponownie odtwarzacz dostarczony z urządzeniem Zidoo albo wyczyść dane aplikacji Houselights, aby zaufać nowemu.</string>
+    <string name="player_changed">Odtwarzacz Zidoo się zmienił, więc Houselights nie powierza mu już haseł ani dostępu do serwera. Zaufaj mu, jeśli urządzenie Zidoo lub jego odtwarzacz zaktualizowano za Twoją zgodą; w przeciwnym razie odinstaluj aktualizacje odtwarzacza.</string>
+    <string name="player_changed_app">Odtwarzacz Zidoo się zmienił, więc Houselights nie powierza mu już haseł ani dostępu do serwera. Zaufaj mu, jeśli zainstalowano go na Twoje polecenie; w przeciwnym razie zainstaluj ponownie odtwarzacz dostarczony z urządzeniem Zidoo.</string>
     <string name="play_failed_no_player">Brak odtwarzacza Zidoo</string>
     <string name="play_failed_credentials">Wymagany odtwarzacz Zidoo</string>
     <string name="play_failed_player_changed">Zmieniony odtwarzacz Zidoo</string>
+    <string name="trust_player">Zaufaj nowemu odtwarzaczowi</string>
+    <string name="trust_player_short">Zaufaj</string>
+    <string name="trust_player_desc">%1$s, zaktualizowany %2$s</string>
+    <string name="trust_player_desc_app">%1$s, zainstalowany %2$s</string>
+    <string name="trust_player_sheet_desc">Houselights nie może sprawdzić, czy ta wersja pochodzi od Zidoo. Zaufaj mu tylko, jeśli urządzenie Zidoo lub jego odtwarzacz zaktualizowano %1$s za Twoją zgodą: do następnej aktualizacji będzie przy każdym odtwarzaniu otrzymywać hasła do Twoich folderów. W przeciwnym razie odinstaluj aktualizacje odtwarzacza.</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights nie może sprawdzić, czy ta wersja pochodzi od Zidoo. Zaufaj mu tylko, jeśli urządzenie Zidoo lub jego odtwarzacz zaktualizowano %1$s za Twoją zgodą: do następnej aktualizacji będzie przy każdym odtwarzaniu otrzymywać hasła do Twoich folderów i dostęp do Jellyfin. W przeciwnym razie odinstaluj aktualizacje odtwarzacza.</string>
+    <string name="trust_player_sheet_desc_app">To już nie jest odtwarzacz, który otrzymał Twoje hasła. Zaufaj mu tylko, jeśli zainstalowano go %1$s na Twoje polecenie: będzie przy każdym odtwarzaniu otrzymywać hasła do Twoich folderów. W przeciwnym razie zainstaluj ponownie odtwarzacz dostarczony z urządzeniem Zidoo.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">To już nie jest odtwarzacz, który otrzymał Twoje hasła. Zaufaj mu tylko, jeśli zainstalowano go %1$s na Twoje polecenie: będzie przy każdym odtwarzaniu otrzymywać hasła do Twoich folderów i dostęp do Jellyfin. W przeciwnym razie zainstaluj ponownie odtwarzacz dostarczony z urządzeniem Zidoo.</string>
+    <string name="trust_player_other_signature">Inny podpis</string>
+    <string name="trust_player_no">Nie ufaj mu</string>
+    <string name="trust_player_no_desc">Nie otrzyma żadnego hasła</string>
+    <string name="trust_player_yes">Zaufaj temu odtwarzaczowi</string>
+    <string name="trust_player_yes_desc">Otrzyma Twoje hasła</string>
 
     <!-- Local folders -->
     <string name="add_folder">Dodaj folder</string>

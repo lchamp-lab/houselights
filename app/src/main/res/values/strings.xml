@@ -216,10 +216,25 @@
     <string name="play_with">Play with</string>
     <string name="no_player">The Zidoo player isn’t installed.</string>
     <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
-    <string name="player_changed">The Zidoo player has changed, and Houselights no longer trusts it with your passwords or your server access. Reinstall the player that came with the Zidoo, or clear Houselights’ data to trust the new one.</string>
+    <string name="player_changed">The Zidoo player has changed: Houselights no longer trusts it with your passwords or your server access. Trust it if you updated the Zidoo or its player, otherwise uninstall the player’s updates.</string>
+    <string name="player_changed_app">The Zidoo player has changed: Houselights no longer trusts it with your passwords or your server access. Trust it if you installed it yourself, otherwise reinstall the player that came with the Zidoo.</string>
     <string name="play_failed_no_player">Zidoo player not installed</string>
     <string name="play_failed_credentials">Zidoo player required</string>
     <string name="play_failed_player_changed">Zidoo player changed</string>
+    <!-- Trusting the new player (#58): the sheet that asks, the answer that changes nothing first. -->
+    <string name="trust_player">Trust the new player</string>
+    <string name="trust_player_short">Trust it</string>
+    <string name="trust_player_desc">%1$s, updated on %2$s</string>
+    <string name="trust_player_desc_app">%1$s, installed on %2$s</string>
+    <string name="trust_player_sheet_desc">Houselights cannot check that this version comes from Zidoo. Trust it only if you updated the Zidoo or its player on %1$s: until its next update, it will receive your folders’ passwords at every playback. Otherwise, uninstall the player’s updates.</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights cannot check that this version comes from Zidoo. Trust it only if you updated the Zidoo or its player on %1$s: until its next update, it will receive your folders’ passwords and your access to Jellyfin at every playback. Otherwise, uninstall the player’s updates.</string>
+    <string name="trust_player_sheet_desc_app">This is no longer the player your passwords went to. Trust it only if you installed it yourself on %1$s: it will receive your folders’ passwords at every playback. Otherwise, reinstall the player that came with the Zidoo.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">This is no longer the player your passwords went to. Trust it only if you installed it yourself on %1$s: it will receive your folders’ passwords and your access to Jellyfin at every playback. Otherwise, reinstall the player that came with the Zidoo.</string>
+    <string name="trust_player_other_signature">Another signature</string>
+    <string name="trust_player_no">Do not trust it</string>
+    <string name="trust_player_no_desc">It will receive no password</string>
+    <string name="trust_player_yes">Trust this player</string>
+    <string name="trust_player_yes_desc">It will receive your passwords</string>
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>

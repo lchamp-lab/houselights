@@ -208,10 +208,24 @@
     <string name="play_with">Reproducir con</string>
     <string name="no_player">El reproductor Zidoo no está instalado.</string>
     <string name="player_credentials">Esta carpeta necesita una contraseña: solo el reproductor Zidoo puede reproducirla.</string>
-    <string name="player_changed">El reproductor Zidoo ha cambiado, y Houselights ya no le confía sus contraseñas ni el acceso a su servidor. Reinstale el reproductor que venía con el Zidoo, o borre los datos de Houselights para confiar en el nuevo.</string>
+    <string name="player_changed">El reproductor Zidoo ha cambiado, y Houselights ya no le confía sus contraseñas ni el acceso a su servidor. Confíe en él si actualizó el Zidoo o su reproductor; si no, desinstale las actualizaciones del reproductor.</string>
+    <string name="player_changed_app">El reproductor Zidoo ha cambiado, y Houselights ya no le confía sus contraseñas ni el acceso a su servidor. Confíe en él si lo instaló usted mismo; si no, reinstale el reproductor que venía con el Zidoo.</string>
     <string name="play_failed_no_player">Reproductor Zidoo no instalado</string>
     <string name="play_failed_credentials">Reproductor Zidoo necesario</string>
     <string name="play_failed_player_changed">Reproductor Zidoo cambiado</string>
+    <string name="trust_player">Confiar en el nuevo reproductor</string>
+    <string name="trust_player_short">Confiar</string>
+    <string name="trust_player_desc">%1$s, actualizado el %2$s</string>
+    <string name="trust_player_desc_app">%1$s, instalado el %2$s</string>
+    <string name="trust_player_sheet_desc">Houselights no puede comprobar que esta versión venga de Zidoo. Confíe en él solo si actualizó el Zidoo o su reproductor el %1$s: hasta su próxima actualización, recibirá en cada reproducción las contraseñas de sus carpetas. De lo contrario, desinstale las actualizaciones del reproductor.</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights no puede comprobar que esta versión venga de Zidoo. Confíe en él solo si actualizó el Zidoo o su reproductor el %1$s: hasta su próxima actualización, recibirá en cada reproducción las contraseñas de sus carpetas y el acceso a Jellyfin. De lo contrario, desinstale las actualizaciones del reproductor.</string>
+    <string name="trust_player_sheet_desc_app">Ya no es el reproductor que recibió sus contraseñas. Confíe en él solo si lo instaló usted mismo el %1$s: recibirá en cada reproducción las contraseñas de sus carpetas. De lo contrario, reinstale el reproductor que venía con el Zidoo.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">Ya no es el reproductor que recibió sus contraseñas. Confíe en él solo si lo instaló usted mismo el %1$s: recibirá en cada reproducción las contraseñas de sus carpetas y el acceso a Jellyfin. De lo contrario, reinstale el reproductor que venía con el Zidoo.</string>
+    <string name="trust_player_other_signature">Otra firma</string>
+    <string name="trust_player_no">No confiar en él</string>
+    <string name="trust_player_no_desc">No recibirá ninguna contraseña</string>
+    <string name="trust_player_yes">Confiar en este reproductor</string>
+    <string name="trust_player_yes_desc">Recibirá sus contraseñas</string>
 
     <!-- Local folders -->
     <string name="add_folder">Añadir carpeta</string>

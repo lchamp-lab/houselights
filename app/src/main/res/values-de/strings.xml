@@ -202,10 +202,24 @@
     <string name="play_with">Abspielen mit</string>
     <string name="no_player">Der Zidoo-Player ist nicht installiert.</string>
     <string name="player_credentials">Dieser Ordner braucht ein Passwort: Nur der Zidoo-Player kann ihn abspielen.</string>
-    <string name="player_changed">Der Zidoo-Player wurde verändert, und Houselights vertraut ihm weder Ihre Passwörter noch Ihren Serverzugang mehr an. Installieren Sie den mit dem Zidoo gelieferten Player neu, oder löschen Sie die Daten von Houselights, um dem neuen zu vertrauen.</string>
+    <string name="player_changed">Der Zidoo-Player wurde verändert, und Houselights vertraut ihm weder Ihre Passwörter noch Ihren Serverzugang mehr an. Vertrauen Sie ihm, wenn Sie den Zidoo oder seinen Player aktualisiert haben, andernfalls deinstallieren Sie die Updates des Players.</string>
+    <string name="player_changed_app">Der Zidoo-Player wurde verändert, und Houselights vertraut ihm weder Ihre Passwörter noch Ihren Serverzugang mehr an. Vertrauen Sie ihm, wenn Sie ihn selbst installiert haben, andernfalls installieren Sie den mit dem Zidoo gelieferten Player neu.</string>
     <string name="play_failed_no_player">Zidoo-Player nicht installiert</string>
     <string name="play_failed_credentials">Zidoo-Player erforderlich</string>
     <string name="play_failed_player_changed">Zidoo-Player geändert</string>
+    <string name="trust_player">Dem neuen Player vertrauen</string>
+    <string name="trust_player_short">Vertrauen</string>
+    <string name="trust_player_desc">%1$s, aktualisiert am %2$s</string>
+    <string name="trust_player_desc_app">%1$s, installiert am %2$s</string>
+    <string name="trust_player_sheet_desc">Houselights kann nicht prüfen, ob diese Version von Zidoo stammt. Vertrauen Sie ihm nur, wenn Sie den Zidoo oder seinen Player am %1$s aktualisiert haben: Bis zu seinem nächsten Update erhält er bei jeder Wiedergabe die Passwörter Ihrer Ordner. Andernfalls deinstallieren Sie die Updates des Players.</string>
+    <string name="trust_player_sheet_desc_jellyfin">Houselights kann nicht prüfen, ob diese Version von Zidoo stammt. Vertrauen Sie ihm nur, wenn Sie den Zidoo oder seinen Player am %1$s aktualisiert haben: Bis zu seinem nächsten Update erhält er bei jeder Wiedergabe die Passwörter Ihrer Ordner und den Zugang zu Jellyfin. Andernfalls deinstallieren Sie die Updates des Players.</string>
+    <string name="trust_player_sheet_desc_app">Das ist nicht mehr der Player, der Ihre Passwörter erhalten hat. Vertrauen Sie ihm nur, wenn Sie ihn am %1$s selbst installiert haben: Er erhält bei jeder Wiedergabe die Passwörter Ihrer Ordner. Andernfalls installieren Sie den mit dem Zidoo gelieferten Player neu.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">Das ist nicht mehr der Player, der Ihre Passwörter erhalten hat. Vertrauen Sie ihm nur, wenn Sie ihn am %1$s selbst installiert haben: Er erhält bei jeder Wiedergabe die Passwörter Ihrer Ordner und den Zugang zu Jellyfin. Andernfalls installieren Sie den mit dem Zidoo gelieferten Player neu.</string>
+    <string name="trust_player_other_signature">Andere Signatur</string>
+    <string name="trust_player_no">Ihm nicht vertrauen</string>
+    <string name="trust_player_no_desc">Er erhält kein Passwort</string>
+    <string name="trust_player_yes">Diesem Player vertrauen</string>
+    <string name="trust_player_yes_desc">Er erhält Ihre Passwörter</string>
 
     <!-- Local folders -->
     <string name="add_folder">Ordner hinzufügen</string>

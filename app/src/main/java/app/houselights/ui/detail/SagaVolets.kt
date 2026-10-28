@@ -131,6 +131,10 @@ internal fun SagaVolets(
     }
     // Réessayer gone with the failure it said while it had focus: focus goes to Lire.
     FocusOnPlayAfter(swap = state.error != null, held = RETRY, memory, actionRow)
+    // The player changed (#58): what fixes it and Lire swap places, focus following.
+    val trustHold = remember { RemedyHold() }
+    val trusting = trustHold.shows(trustsPlayer(problem))
+    FocusOnPlayAfter(swap = trusting, held = PLAY, memory, actionRow)
     val onOpen: (
         Int,
     ) -> Unit = { at -> openPanel(parts.getOrNull(at - 1), links, onSaga = { sagaShown = cut }, onPart = { partShown = it }) }
@@ -166,7 +170,15 @@ internal fun SagaVolets(
                 keyed = { at -> parts.getOrNull(at - 1)?.item?.let { Modifier.focusKey(voletKey(it), memory) } ?: Modifier },
             ) { at -> PanelWords(item, parts.getOrNull(at - 1), tally, onCut = { cut = it }) }
             Spacer(Modifier.height(HlSpace.l))
-            Predella(item, state, memory, problem, links, Modifier.padding(horizontal = HlSpace.safeH).focusRequester(actionRow))
+            Predella(
+                item,
+                state,
+                memory,
+                problem,
+                links,
+                trust = trustHold.takeIf { trusting },
+                modifier = Modifier.padding(horizontal = HlSpace.safeH).focusRequester(actionRow),
+            )
         }
         // Over the page, in its light.
         if (sagaShown) SynopsisSheet(item, onDismiss = { sagaShown = false })
@@ -311,7 +323,8 @@ private fun partState(part: SagaPart, tally: SagaTally): VoletState? {
 /**
  * The predella, under the panels: Lire or Reprendre the film the saga plays next, named with its time left, whatever
  * panel is open; from its start once started; the saga marked watched or not; once the saga could not be read again,
- * what fixes it (Réessayer), and what failed at its end. Nothing past its last action.
+ * what fixes it (Réessayer), and what failed at its end. Nothing past its last action. The player changed ([trust]),
+ * « Faire confiance au nouveau lecteur » takes Lire's place, Depuis le début gone with it.
  */
 @Composable
 private fun Predella(
@@ -320,6 +333,7 @@ private fun Predella(
     memory: FocusMemory,
     problem: UiError?,
     links: SagaLinks,
+    trust: RemedyHold?,
     modifier: Modifier = Modifier,
 ) {
     val target = state.nextUp
@@ -328,7 +342,7 @@ private fun Predella(
     val failing = problem != null || state.actionError != null || state.error != null
     OnArtwork {
         HlActionRow(modifier.okClears(links.onClearActionError)) {
-            if (target != null) PlayActions(target, failing, ends = !marks && fixedBy == null, memory, links)
+            if (target != null) PlayActions(target, failing, ends = !marks && fixedBy == null, memory, links, trust)
             if (marks) {
                 SagaWatchedTile(
                     item,
@@ -353,10 +367,23 @@ private fun Predella(
 /**
  * Lire, or Reprendre once [target] is started, named with its time left, then Depuis le début: the row's last actions
  * when nothing [ends] after them. Lire takes what the tiles leave, a long film's time left going whole before a tile
- * gives way; beside what is [failing], as wide as it is, what failed taking the rest.
+ * gives way; beside what is [failing], as wide as it is, what failed taking the rest. The player changed ([trust]),
+ * what fixes it alone in their place.
  */
 @Composable
-private fun RowScope.PlayActions(target: MediaItem, failing: Boolean, ends: Boolean, memory: FocusMemory, links: SagaLinks) {
+private fun RowScope.PlayActions(
+    target: MediaItem,
+    failing: Boolean,
+    ends: Boolean,
+    memory: FocusMemory,
+    links: SagaLinks,
+    trust: RemedyHold?,
+) {
+    if (trust != null) {
+        // The player changed (#58): what fixes it in Lire's place, keyed as Lire; Depuis le début would start it too.
+        TrustPlayerButton(trust, Modifier.focusKey(PLAY, memory).then(if (ends) LAST else Modifier))
+        return
+    }
     val resume = target.user.positionMs > 0
     HlButton(
         stringResource(if (resume) R.string.resume else R.string.play),
