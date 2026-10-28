@@ -131,9 +131,11 @@ class PlaybackManager(
      * the trusted player has changed. A player found under another name gets a stream only if it handles
      * its address ([ZidooPlayer.opens]).
      *
-     * Not guarded against: a non-system player installed under a Zidoo package name before the first
-     * password (trusted on first use), a system app update signed with the firmware's AOSP test keys, and
-     * anyone reading the device log over adb, where Android logs the URI it starts.
+     * On a test-keys firmware, the firmware's player once updated is pinned with its build at its first password, and
+     * any later update is a change until the user trusts it ([ZidooPlayer.trust]). Not guarded against: a player
+     * installed before the first password, under a Zidoo package name or as an update of the system's (trusted on
+     * first use: there is nothing to compare), and anyone reading the device log over adb, where Android logs the URI
+     * it starts.
      */
     fun intentFor(plan: PlaybackPlan.Launch, tracks: TrackPlan? = null): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")

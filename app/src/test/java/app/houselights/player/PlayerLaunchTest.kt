@@ -12,6 +12,7 @@ import app.houselights.core.SubtitleMode
 import app.houselights.core.SubtitleTrack
 import app.houselights.core.TrackPlan
 import app.houselights.core.TrackPreferences
+import app.houselights.player.FakeApps.AppBuild
 import app.houselights.player.FakeApps.Companion.FIRMWARE_SCHEMES
 import app.houselights.player.FakeApps.Companion.GALLERY
 import app.houselights.player.FakeApps.Companion.MOVIE_ACTIVITY
@@ -214,6 +215,50 @@ class PlayerLaunchTest {
         assertEquals(ZIDOO_PLAYER_ACTIVITY, manager.intentFor(plan(NFS)).component?.className)
         // Nor does a token go through a chooser: the app that replaced the player would be listed, perhaps alone.
         assertTrue("said as such", assertThrows(CredentialsNotShared::class.java) { manager.intentFor(plan(TOKEN)) }.playerChanged)
+    }
+
+    /**
+     * On the Z1000 Pro (test-keys), its player updated over the firmware's: the first password goes to it, then once
+     * updated again it gets neither a password nor the token, a plain file still playing there, until the user trusts it.
+     */
+    @Test
+    fun anUpdatedPlayerGetsCredentialsAgainOnlyOnceTrusted() = runTest {
+        fun player(build: AppBuild) = apps.reinstall(
+            GALLERY,
+            MOVIE_ACTIVITY,
+            system = true,
+            certificate = ZIDOO_KEY,
+            schemes = emptyList(),
+            updated = true,
+            build = build,
+        )
+        player(AppBuild(code = 6441, at = 1_789_000_000_000))
+        val manager = manager(Z1000_PRO_BUILD)
+        assertEquals("trusted at its first password", SMB, manager.intentFor(plan(SMB)).dataString)
+        manager.onPlayerLaunched()
+
+        player(AppBuild(code = 6442, at = 1_791_800_000_000))
+        assertTrue("said as such", assertThrows(CredentialsNotShared::class.java) { manager.intentFor(plan(SMB)) }.playerChanged)
+        assertTrue(assertThrows(CredentialsNotShared::class.java) { manager.intentFor(plan(TOKEN)) }.playerChanged)
+        assertEquals(MOVIE_ACTIVITY, manager.intentFor(plan(NFS)).component?.className)
+
+        val players = ZidooPlayer(context) { Z1000_PRO_BUILD }
+        assertTrue(players.trust(checkNotNull(players.facts(players.choose()))))
+        assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+        assertEquals(TOKEN, manager.intentFor(plan(TOKEN)).dataString)
+    }
+
+    /** The firmware's player never updated keeps every film and every secret, as on 0.3; and on release keys, updated too. */
+    @Test
+    fun aSystemPlayerNeverUpdatedGetsTheCredentialsAsBefore() = runTest {
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, certificate = ZIDOO_KEY, schemes = emptyList())
+        val manager = manager(Z1000_PRO_BUILD)
+        assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+        manager.onPlayerLaunched()
+        assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+
+        apps.reinstall(GALLERY, MOVIE_ACTIVITY, system = true, certificate = ZIDOO_KEY, schemes = emptyList(), updated = true)
+        assertEquals("release keys: the firmware's still", SMB, manager(ZIDOO_BUILD).intentFor(plan(SMB)).dataString)
     }
 
     /** Remembered only once started: an impostor that failed to start must not become the trusted player. */

@@ -6,9 +6,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import app.houselights.core.SigningCertificates
@@ -51,12 +53,31 @@ data class DeviceIdentity(
     }
 }
 
+/**
+ * A player playback refuses as changed, as the trust sheet and About name it ([ZidooPlayer.facts]): its [label] and
+ * [version] as the app itself declares them, so an update may claim any, and the day Android last installed it
+ * ([updatedAt], ms since the epoch), which no update chooses; whether it is the firmware's own player updated ([system],
+ * on a test-keys build) rather than an app installed in its place, and one signed otherwise under the package passwords
+ * last went to ([otherSignature]). Then what trusting it pins: its [certificate]'s SHA-256 and, for the firmware's
+ * player updated, its [build] (versionCode@lastUpdateTime). An unknown label or version is null.
+ */
+data class PlayerFacts(
+    val packageName: String,
+    val label: String?,
+    val version: String?,
+    val updatedAt: Long,
+    val system: Boolean,
+    val otherSignature: Boolean,
+    val certificate: String,
+    val build: String?,
+)
+
 /** What About shows of the player, from the decision playback takes ([ZidooPlayer.choose]). */
 sealed interface PlayerStatus {
     data class Detected(val packageName: String) : PlayerStatus
 
-    /** Found, but no password goes to it, for [reason]. */
-    data class Unrecognized(val packageName: String, val reason: ZidooPlayer.Decision) : PlayerStatus
+    /** Found, but no password goes to it, for [reason]; one [ZidooPlayer.Decision.CHANGED] with what names it ([facts]). */
+    data class Unrecognized(val packageName: String, val reason: ZidooPlayer.Decision, val facts: PlayerFacts? = null) : PlayerStatus
 
     data object NotDetected : PlayerStatus
 }
@@ -72,15 +93,22 @@ class ZidooPlayer(
 ) {
     private val packages: PackageManager get() = context.packageManager
 
-    /** The player a secret last went to ([remember]): its package and certificate. */
+    /**
+     * The player a secret last went to ([remember]), or the user trusted ([trust]): its package, its certificate, and its
+     * build where it is pinned with it ([KEY_BUILD]).
+     */
     private val trusted = context.getSharedPreferences("player", Context.MODE_PRIVATE)
 
-    /** An app that opens a video; [streams] when it opens shares or streams, not only files (a poster wall). */
+    /**
+     * An app that opens a video; [streams] when it opens shares or streams, not only files (a poster wall); [updated], a
+     * system app an update was installed over ([ApplicationInfo.FLAG_UPDATED_SYSTEM_APP]).
+     */
     data class Candidate(
         val component: ComponentName,
         val system: Boolean,
         val signedLikeFirmware: Boolean = false,
         val streams: Boolean = true,
+        val updated: Boolean = false,
     )
 
     data class Device(val identity: DeviceIdentity, val zidooApps: List<String>) {
@@ -88,13 +116,18 @@ class ZidooPlayer(
         val zidoo: Boolean get() = identity.namesZidoo || zidooApps.isNotEmpty()
     }
 
-    /** What [choose] found: the [player] among [candidates], its [certificate]'s SHA-256, and the [decision]. */
+    /**
+     * What [choose] found: the [player] among [candidates], its [certificate]'s SHA-256, the [decision], and the
+     * player's [build] (versionCode@lastUpdateTime) where it is pinned with it: the firmware's player updated, on a
+     * test-keys build ([pinsBuild]); else null.
+     */
     data class Choice(
         val player: Candidate?,
         val candidates: List<Candidate>,
         val device: Device,
         val certificate: String?,
         val decision: Decision,
+        val build: String? = null,
     )
 
     /** Whether a password may go to the player found, and why. */
@@ -104,19 +137,28 @@ class ZidooPlayer(
         /** Not a Zidoo: no password ever leaves the app. */
         NOT_A_ZIDOO(false),
 
-        /** A system app, which only an update signed with its key replaces: public on a test-keys build. */
+        /**
+         * A system app, which only an update signed with its key replaces; on a test-keys build, whose keys anyone has,
+         * one never updated alone: an update installed over it goes through the pin, its build with it (#58).
+         */
         FIRMWARE(true),
 
         /** An ordinary app signed with a Zidoo system app's certificate. */
         SIGNED_LIKE_FIRMWARE(true),
 
-        /** Neither, but the player a password last went to, unchanged since. */
+        /**
+         * Neither, but the player a password last went to, or the user trusted, unchanged since: its package and
+         * certificate, and the firmware's player updated its build too.
+         */
         REMEMBERED(true),
 
-        /** Neither, and no password has gone to any player yet: trusted on first use ([remember]). */
+        /** Neither, and no password has gone to any player yet: trusted on first use ([remember]), with nothing to compare. */
         FIRST_USE(true),
 
-        /** Neither, and not the remembered player: another app, or the same with another certificate. */
+        /**
+         * Neither, and not the remembered player: another app, the same with another certificate, or the firmware's
+         * player updated since it was pinned; trusted again only by the user ([trust]).
+         */
         CHANGED(false),
 
         /** Its certificate cannot be read, so a change would go unnoticed. */
@@ -133,8 +175,69 @@ class ZidooPlayer(
         val defaults = if (device.zidoo) defaults() else emptySet()
         val candidates = found.distinctBy { it.component }.sortedWith(preferred(defaults))
         val player = candidates.firstOrNull(::remembered) ?: candidates.firstOrNull()
-        val certificate = player?.let { certificate(it.component.packageName) }
-        return Choice(player, candidates, device, certificate, decide(player, device, certificate))
+        val info = player?.let { signed(it.component.packageName) }
+        val certificate = certificateOf(info)
+        val build = if (player != null && info != null && pinsBuild(player, device)) buildOf(info) else null
+        adoptBuild(player, certificate, build)
+        return Choice(player, candidates, device, certificate, decide(player, device, certificate, build), build)
+    }
+
+    /**
+     * Whether [player] is pinned with its build: the firmware's player updated on a test-keys build, whose keys anyone
+     * has, so that anyone may sign an update Android installs over it (#58).
+     */
+    private fun pinsBuild(player: Candidate, device: Device) = player.system && player.updated && device.identity.testKeys
+
+    /**
+     * A pin 0.3 took, which has no build ([KEY_BUILD] absent), takes [player]'s build once, unasked, when it is the same
+     * package and certificate: 0.3 trusted every system player of the firmware, updated or not. From then on a pin
+     * without a build is a player never updated, whose first update is a change ([Decision.CHANGED]).
+     */
+    private fun adoptBuild(player: Candidate?, certificate: String?, build: String?) {
+        val pkg = player?.component?.packageName ?: return
+        if (certificate == null || trusted.contains(KEY_BUILD) || trusted.getString(KEY_PACKAGE, null) != pkg) return
+        if (trusted.getString(KEY_CERTIFICATE, null) != certificate) return
+        trusted.edit { putString(KEY_BUILD, build.orEmpty()) }
+        Log.i(TAG, "The player 0.3 trusted, $pkg, keeps its build: ${build ?: "none, never updated"}")
+    }
+
+    /**
+     * « Faire confiance à ce lecteur »: pins the player the trust sheet named ([seen]), its package, certificate and
+     * build, if it is still the one playback refuses as changed; false, nothing pinned, when it changed meanwhile.
+     * Logged as a warning, without secrets; only the app's own sheet asks it, no intent reaches it.
+     */
+    fun trust(seen: PlayerFacts): Boolean {
+        val choice = choose()
+        val pkg = choice.player?.component?.packageName
+        val certificate = choice.certificate
+        if (choice.decision != Decision.CHANGED || pkg != seen.packageName || certificate != seen.certificate) return false
+        if (choice.build != seen.build) return false
+        trusted.edit { putString(KEY_PACKAGE, pkg).putString(KEY_CERTIFICATE, certificate).putString(KEY_BUILD, choice.build.orEmpty()) }
+        Log.w(TAG, "Trusted by the user: $pkg, certificate SHA-256 $certificate, build ${choice.build}")
+        return true
+    }
+
+    /**
+     * What the trust sheet names of [choice]'s player while playback refuses it as changed: its name and version as it
+     * declares them, the day Android last installed it, whether it is the firmware's player updated or signed otherwise
+     * than the one passwords last went to; null for any other decision, or a player Android no longer gives.
+     */
+    fun facts(choice: Choice): PlayerFacts? {
+        val player = choice.player?.takeIf { choice.decision == Decision.CHANGED } ?: return null
+        val certificate = choice.certificate ?: return null
+        val pkg = player.component.packageName
+        val info = signed(pkg) ?: return null
+        val label = info.applicationInfo?.loadLabel(packages)?.toString()?.trim()
+        return PlayerFacts(
+            packageName = pkg,
+            label = label?.takeIf { it.isNotEmpty() && it != pkg },
+            version = info.versionName?.trim()?.takeIf { it.isNotEmpty() },
+            updatedAt = info.lastUpdateTime,
+            system = player.system,
+            otherSignature = trusted.getString(KEY_PACKAGE, null) == pkg && trusted.getString(KEY_CERTIFICATE, null) != certificate,
+            certificate = certificate,
+            build = choice.build,
+        )
     }
 
     /** [candidate] is the remembered player, same certificate: an impostor under its name does not come first. */
@@ -155,47 +258,54 @@ class ZidooPlayer(
     fun status(): PlayerStatus {
         val choice = choose()
         val pkg = choice.player?.component?.packageName ?: return PlayerStatus.NotDetected
-        return if (choice.decision.trusted) PlayerStatus.Detected(pkg) else PlayerStatus.Unrecognized(pkg, choice.decision)
+        return if (choice.decision.trusted) PlayerStatus.Detected(pkg) else PlayerStatus.Unrecognized(pkg, choice.decision, facts(choice))
     }
 
     /**
      * Remembers [choice]'s player once it started with a password, so no other app or certificate gets one
-     * after it; the firmware player too, so a later replacement is not a first use.
+     * after it; the firmware player too, so a later replacement is not a first use, and its first update on a
+     * test-keys build is a change: pinned without a build, it is a player never updated.
      */
     fun remember(choice: Choice) {
         val pkg = choice.player?.component?.packageName ?: return
         val certificate = choice.certificate ?: return
         if (!choice.decision.trusted) return
-        if (trusted.getString(KEY_PACKAGE, null) == pkg && trusted.getString(KEY_CERTIFICATE, null) == certificate) return
-        trusted.edit { putString(KEY_PACKAGE, pkg).putString(KEY_CERTIFICATE, certificate) }
+        val build = choice.build.orEmpty()
+        val same = trusted.getString(KEY_PACKAGE, null) == pkg && trusted.getString(KEY_CERTIFICATE, null) == certificate &&
+            trusted.getString(KEY_BUILD, null) == build
+        if (same) return
+        trusted.edit { putString(KEY_PACKAGE, pkg).putString(KEY_CERTIFICATE, certificate).putString(KEY_BUILD, build) }
     }
 
     /** [choice] in one log line, without secrets: decision and why, player, certificate, candidates, build. */
     fun describe(choice: Choice): String {
         val candidates = choice.candidates.joinToString("; ") {
             val kind = when {
+                it.system && it.updated -> "system, updated"
                 it.system -> "system"
                 it.signedLikeFirmware -> "ordinary, signed like the firmware"
                 else -> "ordinary"
             }
             "${it.component.flattenToShortString()} $kind, installed by ${installer(it.component.packageName)}"
         }
+        val build = choice.build?.let { ", build $it" }.orEmpty()
         return "${choice.decision}: ${why(choice)}; player ${choice.player?.component?.flattenToShortString()}, " +
-            "certificate SHA-256 ${choice.certificate}; candidates [$candidates]; ${choice.device.identity}; " +
+            "certificate SHA-256 ${choice.certificate}$build; candidates [$candidates]; ${choice.device.identity}; " +
             "system apps of Zidoo's ${choice.device.zidooApps}"
     }
 
     private fun why(choice: Choice): String = when (choice.decision) {
         Decision.NO_PLAYER -> if (choice.device.zidoo) "no app of the firmware's opens a video" else "not a Zidoo, nor $KNOWN_PACKAGE"
         Decision.NOT_A_ZIDOO -> "no field of the build names Zidoo, and no system app of Zidoo's is seen"
-        Decision.FIRMWARE -> "a system app"
+        Decision.FIRMWARE -> "a system app" + if (choice.device.identity.testKeys) ", never updated" else ""
         Decision.SIGNED_LIKE_FIRMWARE -> "signed like a system app of Zidoo's"
-        Decision.REMEMBERED -> "the player a secret last went to, with the same certificate"
+        Decision.REMEMBERED ->
+            "the player a secret last went to, with the same certificate" + if (choice.build != null) " and build" else ""
         Decision.FIRST_USE ->
             "no secret went to a player yet" +
                 if (choice.device.identity.testKeys) "; test-keys: a certificate shared with the firmware proves nothing" else ""
         Decision.CHANGED -> "a secret last went to ${trusted.getString(KEY_PACKAGE, null)}, " +
-            "certificate SHA-256 ${trusted.getString(KEY_CERTIFICATE, null)}"
+            "certificate SHA-256 ${trusted.getString(KEY_CERTIFICATE, null)}, build ${trusted.getString(KEY_BUILD, null)}"
         Decision.NO_CERTIFICATE -> "its certificate cannot be read"
     }
 
@@ -214,18 +324,24 @@ class ZidooPlayer(
         null
     }
 
-    private fun decide(player: Candidate?, device: Device, certificate: String?): Decision = when {
+    private fun decide(player: Candidate?, device: Device, certificate: String?, build: String?): Decision = when {
         player == null -> Decision.NO_PLAYER
         !device.zidoo -> Decision.NOT_A_ZIDOO
-        player.system -> Decision.FIRMWARE
+        player.system && !pinsBuild(player, device) -> Decision.FIRMWARE
         player.signedLikeFirmware -> Decision.SIGNED_LIKE_FIRMWARE
         certificate == null -> Decision.NO_CERTIFICATE
-        else -> when (trusted.getString(KEY_PACKAGE, null)) {
-            null -> Decision.FIRST_USE
-            player.component.packageName ->
-                if (trusted.getString(KEY_CERTIFICATE, null) == certificate) Decision.REMEMBERED else Decision.CHANGED
-            else -> Decision.CHANGED
-        }
+        else -> pinned(player.component.packageName, certificate, build)
+    }
+
+    /**
+     * [pkg] against the pin: none, a first use; the same package and certificate, and the same [build] for the firmware's
+     * player updated (a pin without one, of a player never updated, is not), remembered; anything else, changed.
+     */
+    private fun pinned(pkg: String, certificate: String, build: String?): Decision {
+        val pin = trusted.getString(KEY_PACKAGE, null) ?: return Decision.FIRST_USE
+        val same = pin == pkg && trusted.getString(KEY_CERTIFICATE, null) == certificate &&
+            (build == null || trusted.getString(KEY_BUILD, null) == build)
+        return if (same) Decision.REMEMBERED else Decision.CHANGED
     }
 
     /** [pkg] shares a Zidoo system app's certificate; never on a test-keys build (Z1000 Pro): its keys are public. */
@@ -233,14 +349,20 @@ class ZidooPlayer(
         !device.identity.testKeys && device.zidooApps.any { packages.checkSignatures(pkg, it) == PackageManager.SIGNATURE_MATCH }
 
     /** SHA-256 of [pkg]'s signing certificates in hex, as apksigner prints it; null when unreadable. */
-    private fun certificate(pkg: String): String? {
-        val signing = try {
-            packages.getPackageInfo(pkg, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo
-        } catch (_: PackageManager.NameNotFoundException) {
-            null
-        }
-        return SigningCertificates.sha256(signing?.apkContentsSigners).takeIf { it.isNotEmpty() }?.joinToString(",")
+    private fun certificate(pkg: String): String? = certificateOf(signed(pkg))
+
+    /** [pkg] as Android gives it, with its signing certificates; null when it is not installed. */
+    private fun signed(pkg: String): PackageInfo? = try {
+        packages.getPackageInfo(pkg, PackageManager.GET_SIGNING_CERTIFICATES)
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
     }
+
+    private fun certificateOf(info: PackageInfo?): String? =
+        SigningCertificates.sha256(info?.signingInfo?.apkContentsSigners).takeIf { it.isNotEmpty() }?.joinToString(",")
+
+    /** The build an update installed: its versionCode, and when Android installed it, which an update cannot choose. */
+    private fun buildOf(info: PackageInfo): String = "${info.longVersionCode}@${info.lastUpdateTime}"
 
     // From Android 11, only the apps visible to this one (see <queries> in the manifest): never every app.
     @SuppressLint("QueryPermissionsNeeded")
@@ -311,12 +433,19 @@ class ZidooPlayer(
 
     private fun candidate(info: ActivityInfo, device: Device): Candidate {
         val system = info.applicationInfo.isSystem()
-        return Candidate(info.component(), system, signedLikeFirmware = !system && signedLikeFirmware(info.packageName, device))
+        return Candidate(
+            info.component(),
+            system,
+            signedLikeFirmware = !system && signedLikeFirmware(info.packageName, device),
+            updated = system && info.applicationInfo.isUpdated(),
+        )
     }
 
     private fun ActivityInfo.component() = ComponentName(packageName, name)
 
     private fun ApplicationInfo?.isSystem() = this != null && flags and ApplicationInfo.FLAG_SYSTEM != 0
+
+    private fun ApplicationInfo?.isUpdated() = this != null && flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0
 
     private fun String.isOurs() = this == OWN_PACKAGE || startsWith("$OWN_PACKAGE.")
 
@@ -331,6 +460,13 @@ class ZidooPlayer(
 
         private const val KEY_PACKAGE = "trusted_package"
         private const val KEY_CERTIFICATE = "trusted_certificate"
+
+        /**
+         * The pinned player's build, versionCode@lastUpdateTime, for the firmware's player updated on a test-keys build;
+         * empty for any other player, or one never updated; absent from a pin 0.3 took ([adoptBuild]).
+         */
+        private const val KEY_BUILD = "trusted_build"
+        private const val TAG = "ZidooPlayer"
 
         /** This app's package, also the prefix of its debug and bench builds'. */
         private const val OWN_PACKAGE = "app.houselights"
