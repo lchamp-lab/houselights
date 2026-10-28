@@ -197,21 +197,33 @@ internal fun VoletNumbers.style(): TextStyle = when (this) {
     VoletNumbers.Headline -> Hl.type.headline
 }
 
-/** Which panel is open and which is closing, and how far ([t]): read while placing, never recomposing. */
+/**
+ * Which panel is open, how open each other was as the move to it began, and how far the move has gone ([t]): read while
+ * placing, never recomposing. A move cut short goes on from where every panel stood, as a row's frame does.
+ */
 @Stable
 private class VoletMotion(initial: Int) {
     var open by mutableIntStateOf(initial)
-    var from by mutableIntStateOf(-1)
     val t = Animatable(1f)
 
-    /** How far a long saga's polyptych is scrolled, kept from one placing to the next (px). */
+    /** How open the panels still opening or closing were as the move began, by index: none but those. */
+    private var starts by mutableStateOf<Map<Int, Float>>(emptyMap())
+
+    /** How far a long saga's polyptych was scrolled as the move began, and how far it is (px). */
+    var scrollFrom = 0f
     var scroll = 0f
 
-    /** How open panel [i] is: 1 open, 0 closed. */
-    fun openness(i: Int): Float = when (i) {
-        open -> t.value
-        from -> 1f - t.value
-        else -> 0f
+    /** How open panel [i] is: 1 open, 0 closed, the one reached opening from where it stood, the others closing. */
+    fun openness(i: Int): Float {
+        val start = starts[i] ?: 0f
+        return if (i == open) start + (1f - start) * t.value else start * (1f - t.value)
+    }
+
+    /** A move to panel [to]: each panel goes on from how open it is, the scroll from where it is. */
+    fun moveTo(to: Int) {
+        starts = (starts.keys + open).associateWith(::openness).filterValues { it > 0f }
+        scrollFrom = scroll
+        open = to
     }
 }
 
@@ -342,8 +354,7 @@ private fun rememberVoletMotion(open: Int): VoletMotion {
     }
     LaunchedEffect(open) {
         if (open == motion.open) return@LaunchedEffect
-        motion.from = motion.open
-        motion.open = open
+        motion.moveTo(open)
         // Held, or set to jump (« greffe 3 »): both widths at once, the picture and the words once settled.
         if (!laid || Scrub.active || VoletDefaults.opensAtOnce) {
             motion.t.snapTo(1f)
@@ -357,7 +368,8 @@ private fun rememberVoletMotion(open: Int): VoletMotion {
 
 /**
  * The panels as wide as [motion] has them open, read while placing: the opening relays them out, it never recomposes
- * them. A long saga scrolls panel by panel, the open one kept [KEPT_CLOSED] closed panels from either end.
+ * them. A long saga scrolls panel by panel, the open one kept [KEPT_CLOSED] closed panels from either end, the scroll
+ * moving with the widths.
  */
 private fun voletsPolicy(plan: VoletPlan, motion: VoletMotion) = MeasurePolicy { measurables, constraints ->
     val height = constraints.maxHeight
@@ -368,9 +380,12 @@ private fun voletsPolicy(plan: VoletPlan, motion: VoletMotion) = MeasurePolicy {
     val room = constraints.maxWidth.toFloat()
     val total = widths.sum() + gap * (measurables.size - 1).coerceAtLeast(0)
     motion.scroll = if (total > room + 1f) {
+        // Where the move ends: the panel reached open, those before it closed.
         val left = (closed + gap) * motion.open
         val margin = (closed + gap) * KEPT_CLOSED
-        motion.scroll.coerceIn(minOf(left + wide - (room - margin), left - margin), left - margin).coerceIn(0f, total - room)
+        val from = motion.scrollFrom
+        val to = from.coerceIn(minOf(left + wide - (room - margin), left - margin), left - margin).coerceIn(0f, total - room)
+        from + (to - from) * motion.t.value
     } else {
         0f
     }
