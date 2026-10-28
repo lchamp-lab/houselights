@@ -274,7 +274,7 @@
     </plurals>
     <string name="folder_content">%1$s、%2$s</string>
     <string name="error_share_not_found">%1$sに共有フォルダ「%2$s」がありません。NASの管理画面で名前を確認してください。</string>
-    <string name="error_export_not_found">NASは%sをNFSで共有していません。Synologyのマウントパスは/volume1/から始まります。</string>
+    <string name="error_export_not_found">NASは%sをNFSで共有していません。Synologyのマウントパスは/&#8288;volume1/&#8288;から始まります。</string>
     <string name="error_subfolder_not_found">%1$sは応答していますが、「%2$s」が見つかりません。大文字と小文字も含めて名前を確認してください。</string>
     <string name="error_subfolder_not_found_share">「%1$s」は応答していますが、「%2$s」が見つかりません。大文字と小文字も含めて名前を確認してください。</string>
     <string name="error_nfs_refused">NASがこのプレーヤーを拒否しました。%2$sで%1$sに読み取り専用のアクセスを許可し、Synologyでは非特権ポートも許可してください。</string>

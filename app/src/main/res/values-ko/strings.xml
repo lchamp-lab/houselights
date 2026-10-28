@@ -274,7 +274,7 @@
     </plurals>
     <string name="folder_content">%1$s, %2$s</string>
     <string name="error_share_not_found">%1$s에 ‘%2$s’ 공유 폴더가 없습니다. NAS 관리 화면에서 이름을 확인하세요.</string>
-    <string name="error_export_not_found">NAS가 %s 경로를 NFS로 공유하지 않습니다. Synology의 마운트 경로는 /volume1/로 시작합니다.</string>
+    <string name="error_export_not_found">NAS가 %s 경로를 NFS로 공유하지 않습니다. Synology의 마운트 경로는 /&#8288;volume1/&#8288;로 시작합니다.</string>
     <string name="error_subfolder_not_found">%1$s은(는) 응답하지만 ‘%2$s’ 폴더가 없습니다. 대소문자까지 이름을 확인하세요.</string>
     <string name="error_subfolder_not_found_share">‘%1$s’은(는) 응답하지만 ‘%2$s’ 폴더가 없습니다. 대소문자까지 이름을 확인하세요.</string>
     <string name="error_nfs_refused">NAS가 이 플레이어를 거부합니다. %2$s에서 %1$s에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>

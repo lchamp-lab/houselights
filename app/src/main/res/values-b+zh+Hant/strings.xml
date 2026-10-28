@@ -274,7 +274,7 @@
     </plurals>
     <string name="folder_content">%1$s、%2$s</string>
     <string name="error_share_not_found">%1$s 上沒有名為「%2$s」的共用資料夾。請在 NAS 的管理介面中核對名稱。</string>
-    <string name="error_export_not_found">NAS 未透過 NFS 共用 %s。在 Synology 上，掛載路徑以 /volume1/ 開頭。</string>
+    <string name="error_export_not_found">NAS 未透過 NFS 共用 %s。在 Synology 上，掛載路徑以 /&#8288;volume1/&#8288; 開頭。</string>
     <string name="error_subfolder_not_found">%1$s 有回應，但其中沒有「%2$s」。請核對名稱，包括大小寫。</string>
     <string name="error_subfolder_not_found_share">「%1$s」有回應，但其中沒有「%2$s」。請核對名稱，包括大小寫。</string>
     <string name="error_nfs_refused">NAS 拒絕了此播放器。請在 %2$s 上以唯讀方式允許 %1$s，在 Synology 上還需允許非特權連接埠。</string>

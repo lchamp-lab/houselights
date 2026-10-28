@@ -299,7 +299,7 @@
     </plurals>
     <string name="folder_content">%1$s and %2$s</string>
     <string name="error_share_not_found">%1$s has no shared folder “%2$s”. Check its name in the NAS’s interface.</string>
-    <string name="error_export_not_found" tools:ignore="Typos">The NAS does not share %s over NFS. On a Synology, the mount path starts with /volume1/.</string>
+    <string name="error_export_not_found" tools:ignore="Typos">The NAS does not share %s over NFS. On a Synology, the mount path starts with /&#8288;volume1/&#8288;.</string>
     <string name="error_subfolder_not_found">%1$s answers, but “%2$s” is not in it. Check its name, capitals included.</string>
     <string name="error_subfolder_not_found_share">“%1$s” answers, but “%2$s” is not in it. Check its name, capitals included.</string>
     <string name="error_nfs_refused">The NAS refuses this player. Allow %1$s on %2$s, read-only, and on a Synology non-privileged ports.</string>

@@ -289,7 +289,7 @@
     </plurals>
     <string name="folder_content">%1$s y %2$s</string>
     <string name="error_share_not_found">%1$s no tiene ninguna carpeta compartida «%2$s». Compruebe su nombre en la interfaz del NAS.</string>
-    <string name="error_export_not_found" tools:ignore="Typos">El NAS no comparte %s por NFS. En un Synology, la ruta de montaje empieza por /volume1/.</string>
+    <string name="error_export_not_found" tools:ignore="Typos">El NAS no comparte %s por NFS. En un Synology, la ruta de montaje empieza por /&#8288;volume1/&#8288;.</string>
     <string name="error_subfolder_not_found">%1$s responde, pero «%2$s» no está. Compruebe su nombre, mayúsculas incluidas.</string>
     <string name="error_subfolder_not_found_share">«%1$s» responde, pero «%2$s» no está. Compruebe su nombre, mayúsculas incluidas.</string>
     <string name="error_nfs_refused">El NAS rechaza este reproductor. Autorice %1$s en %2$s, en solo lectura y, en un Synology, los puertos no privilegiados.</string>

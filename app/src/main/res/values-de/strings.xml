@@ -282,7 +282,7 @@
     </plurals>
     <string name="folder_content">%1$s und %2$s</string>
     <string name="error_share_not_found">%1$s hat keinen freigegebenen Ordner „%2$s“. Prüfen Sie den Namen in der Oberfläche des NAS.</string>
-    <string name="error_export_not_found" tools:ignore="Typos">Das NAS gibt %s nicht per NFS frei. Auf einem Synology beginnt der Mount-Pfad mit /volume1/.</string>
+    <string name="error_export_not_found" tools:ignore="Typos">Das NAS gibt %s nicht per NFS frei. Auf einem Synology beginnt der Mount-Pfad mit /&#8288;volume1/&#8288;.</string>
     <string name="error_subfolder_not_found">%1$s antwortet, aber „%2$s“ ist dort nicht. Prüfen Sie den Namen, auch die Groß- und Kleinschreibung.</string>
     <string name="error_subfolder_not_found_share">„%1$s“ antwortet, aber „%2$s“ ist dort nicht. Prüfen Sie den Namen, auch die Groß- und Kleinschreibung.</string>
     <string name="error_nfs_refused">Das NAS lehnt diesen Player ab. Erlauben Sie %1$s auf %2$s den Lesezugriff, auf einem Synology auch von nicht privilegierten Ports.</string>
