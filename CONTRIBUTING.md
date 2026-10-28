@@ -51,6 +51,10 @@ its reason, or where it never fits, with its reason too.
 
 - Without a signing key, the release is signed with the debug key for the check.
 - On a machine short of memory: `scripts/check.sh --heap 3g --workers 2 --in-process --no-daemon`.
+- CI runs these tasks in four parts side by side, each on a runner of its own: the unit tests, Lint, detekt and the
+  release build with the baseline profile's journeys. Its `check` passes once all four have, the check a merge to main
+  waits for. The unit tests run there in three JVMs (`-Phouselights.testForks=3 -Phouselights.testHeap=1536m`), and in
+  one unless asked: a test never counts on a port, a file or a JVM's state that another class's may hold.
 - `detekt` reads sources only; `detektDebug` and `detektDebugUnitTest` add type-aware rules (dispatchers,
   `!!`, unsafe casts).
 - detekt keeps no baseline: a finding is fixed, else its rule is set aside where it stands, `@Suppress` with its
