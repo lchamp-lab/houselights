@@ -1,12 +1,19 @@
 package app.houselights.ui.detail
 
-import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ComposeTimeoutException
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.test.core.app.ApplicationProvider
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import app.houselights.R
 import app.houselights.ui.design.HlMotion
-import app.houselights.ui.design.components.SAMPLE_PX
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
@@ -20,6 +27,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -27,12 +35,12 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import java.util.Collections
 
 /**
  * DESIGN.md, Saga page: the room is the open panel's diffuse light once focus settled, the house lights down on a film
- * the library lacks; focus going down to Lire changes nothing in it, and Back brings the saga's light back. Read from
- * the pictures the room asks for, at its field's sample width, every picture served and none kept in memory.
+ * the library lacks; focus going down to Lire changes nothing in it, and Back brings the saga's light back; back from a
+ * film's page, its panel shows its picture whole at once. Read from the screen as drawn, each picture in its own colour,
+ * served at once and none kept in memory.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -44,18 +52,17 @@ class SagaRoomTest {
     @get:Rule
     val settle = SettleMainLooper()
 
-    private val context = ApplicationProvider.getApplicationContext<Context>()
     private val work = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val asked = Collections.synchronizedList(mutableListOf<String>())
 
     @Before
     fun serve() {
-        val server = pictureServer(OPAQUE) { data, _ -> asked += "$data" }
+        // The app's window is the room's black (its theme's windowBackground) under every screen.
+        compose.runOnUiThread { compose.activity.window.setBackgroundDrawableResource(R.color.room) }
         Coil.setImageLoader(
-            ImageLoader.Builder(context)
+            ImageLoader.Builder(compose.activity)
                 .dispatcher(Dispatchers.Unconfined)
                 .memoryCachePolicy(CachePolicy.DISABLED)
-                .components { add(server) }
+                .components { add(pictureServer(fillOf = ::colourOf)) }
                 .build(),
         )
     }
@@ -66,50 +73,125 @@ class SagaRoomTest {
         Coil.reset()
     }
 
-    /** The pictures the room asked for since last read, by name: only it asks for a picture at its field's width. */
-    private fun room(): List<String> = synchronized(asked) {
-        val names = asked.filter { it.endsWith("?w=$SAMPLE_PX") }.map { it.removePrefix("test://").substringBefore('?') }
-        asked.clear()
-        names.distinct()
+    /** The saga's picture blue, Deuxième partie's backdrop orange, every other picture green. */
+    private fun colourOf(data: Any): Int = when ("$data".removePrefix("test://").substringBefore('?')) {
+        "dune-saga" -> BLUE
+        "dune2-backdrop" -> ORANGE
+        else -> GREEN
     }
 
-    /** Focus moved, then left to settle, the room's picture asked. */
+    /** The colour drawn at [x], [y] on the canvas, the screen drawn whole. */
+    private fun at(x: Dp, y: Dp): Int = compose.runOnUiThread {
+        val window = compose.activity.window.decorView
+        val screen = Bitmap.createBitmap(window.width, window.height, Bitmap.Config.ARGB_8888).also { window.draw(Canvas(it)) }
+        val density = compose.activity.resources.displayMetrics.density
+        screen.getPixel((x.value * density).toInt(), (y.value * density).toInt())
+    }
+
+    /** The room in the safe area's side margin, halfway down, beside the panels. */
+    private fun room(): Int = at(HlSpace.safeH / 2, ROOM_Y)
+
+    private fun Int.isBlack() = Color.red(this) <= DARK && Color.green(this) <= DARK && Color.blue(this) <= DARK
+
+    private fun Int.isBlue() = Color.blue(this) > Color.red(this) + DARK && Color.blue(this) > Color.green(this)
+
+    private fun Int.isOrange() = Color.red(this) > Color.blue(this) + DARK && Color.red(this) > Color.green(this)
+
+    private fun Int.hex() = "#%08X".format(this)
+
+    /** Focus moved, then left to settle, the room's fade over. */
     private fun press(key: Key) {
         compose.press(key)
-        compose.mainClock.advanceTimeBy(HlMotion.SETTLE + HlMotion.HOLD)
+        rest()
+    }
+
+    private fun rest() {
+        compose.mainClock.advanceTimeBy(HlMotion.SETTLE + HlMotion.HOLD + HlMotion.TINT * 2L)
         compose.waitForIdle()
+    }
+
+    /** The room in [light] once it has come, a picture's being read away from the main thread first. */
+    private fun assertLit(what: String, light: Int.() -> Boolean) {
+        val lit = try {
+            compose.waitUntil(LIGHT_MS) { room().light() }
+            true
+        } catch (_: ComposeTimeoutException) {
+            false
+        }
+        assertTrue("$what: ${room().hex()}", lit)
     }
 
     @Test
     fun theRoomFollowsTheOpenPanelDarkOnAFilmTheLibraryLacks() {
         SagaPage(compose, duneSource(), work).open(duneSaga.id)
-        assertEquals("on arrival, the saga's", listOf("dune-saga"), room())
+        rest()
+        assertLit("on arrival, the saga's") { isBlue() }
         press(Key.DirectionUp)
-        assertEquals("on the film Lire plays", listOf("dune2-backdrop"), room())
+        assertLit("on the film Lire plays") { isOrange() }
         press(Key.DirectionDown)
-        assertEquals("focus gone down to Lire", emptyList<String>(), room())
+        assertTrue("focus gone down to Lire, its light kept: ${room().hex()}", room().isOrange())
         press(Key.DirectionUp)
         press(Key.DirectionRight)
-        assertEquals("a film the library lacks: none, the house lights down", emptyList<String>(), room())
+        assertTrue("a film the library lacks: the house lights down, ${room().hex()}", room().isBlack())
         press(Key.DirectionDown)
-        assertEquals("down to Lire, still none", emptyList<String>(), room())
+        assertTrue("down to Lire, still down: ${room().hex()}", room().isBlack())
     }
 
     @Test
     fun backBringsTheSagasLightBack() {
         SagaPage(compose, duneSource(), work).open(duneSaga.id)
         press(Key.DirectionUp)
-        room()
         press(Key.DirectionRight)
-        assertEquals(emptyList<String>(), room())
+        assertTrue(room().hex(), room().isBlack())
         compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.mainClock.advanceTimeBy(HlMotion.SETTLE + HlMotion.HOLD)
+        // Back is taken, then the room left to settle.
         compose.waitForIdle()
-        assertEquals("the saga's panel open again", listOf("dune-saga"), room())
+        rest()
+        assertLit("the saga's panel open again") { isBlue() }
+    }
+
+    /** Back from a film's page, its panel shows its backdrop whole from its first frames, nothing rising. */
+    @Test
+    fun backFromAFilmsPageItsPictureIsWholeAtOnce() {
+        val page = SagaPage(compose, duneSource(), work).also { it.open(duneSaga.id) }
+        press(Key.DirectionUp)
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf(duneTwo.id), page.opened)
+        compose.runOnIdle { page.shown = false }
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { page.shown = true }
+        val second = hasContentDescription(compose.activity.getString(R.string.saga_card_name, duneTwo.title, 2) + ", 2024")
+        var frames = 0
+        while (compose.onAllNodes(second).fetchSemanticsNodes().isEmpty()) {
+            check(frames++ < FRAMES) { "Not drawn after $FRAMES frames" }
+            compose.mainClock.advanceTimeByFrame()
+        }
+        repeat(CUT_FRAMES) { compose.mainClock.advanceTimeByFrame() }
+        val panel = compose.onNode(second).getUnclippedBoundsInRoot()
+        val picture = at((panel.left + panel.right) / 2, panel.top + PICTURE_Y)
+        assertTrue("its backdrop whole, never its poster under it: ${picture.hex()}", picture.isOrange())
     }
 
     private companion object {
-        /** Every picture an opaque orange, so a room has a light to take. */
-        const val OPAQUE = 0xFFE07020.toInt()
+        const val BLUE = 0xFF2050E0.toInt()
+        const val ORANGE = 0xFFE07020.toInt()
+        const val GREEN = 0xFF20C040.toInt()
+
+        /** A channel at most this bright is the black room; a colour at least this much brighter in it leads. */
+        const val DARK = 4
+
+        /** Halfway down the canvas, under the top veil and over the bottom one. */
+        val ROOM_Y = 270.dp
+
+        /** In an open panel's picture, under its top melt and over its words'. */
+        val PICTURE_Y = 140.dp
+
+        /** How long a room's light may take to come, its picture read on another thread. */
+        const val LIGHT_MS = 5_000L
+
+        /** Frames watched coming back, and those its picture may take once it is drawn: well under its rise's. */
+        const val FRAMES = 20
+        const val CUT_FRAMES = 3
     }
 }

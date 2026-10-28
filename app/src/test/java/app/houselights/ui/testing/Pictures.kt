@@ -13,13 +13,18 @@ import coil.size.pxOrElse
  * ([OPEN_PX] a side where the size is open), in [fill] (clear by default), once [answer] has returned for its
  * address and size.
  */
-fun pictureServer(fill: Int = 0, answer: suspend (data: Any, size: Size) -> Unit = { _, _ -> }) = Fetcher.Factory<Any> { data, options, _ ->
-    Fetcher {
-        answer(data, options.size)
-        val (width, height) = options.size.let { it.width.pxOrElse { OPEN_PX } to it.height.pxOrElse { OPEN_PX } }
-        val picture = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply { eraseColor(fill) }
-        DrawableResult(BitmapDrawable(options.context.resources, picture), isSampled = false, dataSource = DataSource.NETWORK)
+fun pictureServer(fill: Int = 0, answer: suspend (data: Any, size: Size) -> Unit = { _, _ -> }) =
+    pictureServer(fillOf = { fill }, answer = answer)
+
+/** As [pictureServer], each picture in its own colour: [fillOf] its address. */
+fun pictureServer(fillOf: (data: Any) -> Int, answer: suspend (data: Any, size: Size) -> Unit = { _, _ -> }) =
+    Fetcher.Factory<Any> { data, options, _ ->
+        Fetcher {
+            answer(data, options.size)
+            val (width, height) = options.size.let { it.width.pxOrElse { OPEN_PX } to it.height.pxOrElse { OPEN_PX } }
+            val picture = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply { eraseColor(fillOf(data)) }
+            DrawableResult(BitmapDrawable(options.context.resources, picture), isSampled = false, dataSource = DataSource.NETWORK)
+        }
     }
-}
 
 private const val OPEN_PX = 4

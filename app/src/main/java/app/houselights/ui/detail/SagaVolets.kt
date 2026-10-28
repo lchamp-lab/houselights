@@ -117,7 +117,8 @@ internal fun SagaVolets(
     var opened by rememberSaveable { mutableStateOf<String?>(null) }
     var focused by remember { mutableStateOf<Int?>(null) }
     val open = volets.indexOfFirst { it.key == opened }.coerceAtLeast(0)
-    val shown by rememberSettled { open }
+    // Settled on it from the first frame: back from a film's page, its panel is whole at once.
+    val shown by rememberSettled(initial = open) { open }
     var cut by remember { mutableStateOf(false) }
     var sagaShown by remember { mutableStateOf(false) }
     var partShown by remember { mutableStateOf<SagaPart?>(null) }

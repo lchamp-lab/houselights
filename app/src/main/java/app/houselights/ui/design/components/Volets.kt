@@ -455,11 +455,15 @@ private fun darkOf(grey: Boolean, leads: Boolean, poster: PictureRead?, backdrop
     else -> poster?.deep
 }
 
-/** A backdrop coming [up] over its poster, linear over TINT; leaving, it falls back over FOCUS_OUT, or goes at once when it jumps. */
+/**
+ * A backdrop coming [up] over its poster, linear over TINT, or in one [cut]; leaving, it falls back over FOCUS_OUT, or
+ * goes at once when it jumps.
+ */
 @Composable
-private fun rememberRise(up: Boolean): State<Float> = animateFloatAsState(
+private fun rememberRise(up: Boolean, cut: Boolean): State<Float> = animateFloatAsState(
     if (up) 1f else 0f,
     when {
+        up && cut -> snap()
         up -> tween(HlMotion.TINT, easing = LinearEasing)
         VoletDefaults.opensAtOnce || Scrub.active -> snap()
         else -> tween(HlMotion.FOCUS_OUT, easing = HlMotion.fallBack)
@@ -524,12 +528,15 @@ private fun Volet(
     val backdrop = part.backdrop?.url(frame.backdropPx.width)
     val wait = rememberVoletWait(backdrop, settled)
     val wide = wait.shows(settled, pictureless = backdrop == null)
-    // A picture's own dark, read once each.
-    val posterRead by rememberPictureRead(poster)
-    val backdropRead by rememberPictureRead(backdrop.takeIf { settled || saga })
+    // A picture's own dark, read once each from its sample.
+    val posterRead by rememberPictureRead(part.poster.takeUnless { saga })
+    val backdropRead by rememberPictureRead(part.backdrop.takeIf { settled || saga })
     val dark = darkOf(part.grey, wide || saga, posterRead, backdropRead) ?: c.ambientDeep
+    // Settled from its first frame (back from its page), its picture comes in one cut, as the screen does; then it rises.
+    var cuts by remember { mutableStateOf(settled) }
+    LaunchedEffect(settled) { if (!settled) cuts = false }
     // The backdrop comes up over the poster once settled and drawn; the saga's spine keeps it.
-    val up = rememberRise(saga || settled && wait.pictured)
+    val up = rememberRise(saga || settled && wait.pictured, cut = cuts)
     val ink = if (part.grey) c.contentSecondary else c.content
     val floor = rememberNumberFloor(plan, frame, type, opens, ink, dark, part.grey, posterRead, backdropRead)
     var wordsTop by remember { mutableFloatStateOf(Float.NaN) }

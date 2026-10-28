@@ -191,10 +191,14 @@ internal fun rememberGlowTone(url: String?, active: Boolean): State<Color?> {
 @Immutable
 internal class PictureRead(val deep: Color, val sample: ArtworkSample)
 
-/** The picture at [url] read once ([PictureRead]) and kept, so a saga's panel opening again has it at once: null until read. */
+/**
+ * [image] read once ([PictureRead]) from its sample's own small file, never the picture shown, which it would fetch and
+ * decode again beside it, and kept, so a saga's panel opening again has it at once: null until read.
+ */
 @Composable
-internal fun rememberPictureRead(url: String?): State<PictureRead?> {
+internal fun rememberPictureRead(image: ImageRef?): State<PictureRead?> {
     val context = LocalContext.current
+    val url = image?.url(SAMPLE_PX)
     val read = remember(url) { mutableStateOf(url?.let { synchronized(pictureReads) { pictureReads[it] } }) }
     LaunchedEffect(url) {
         if (url == null || read.value != null) return@LaunchedEffect
