@@ -286,7 +286,10 @@ class AddFolderSharesTest {
         assertEquals(EXPORTS, vm.shared)
     }
 
-    /** A process stopped while the step is open: the form comes back with its failure, its line and its way back. */
+    /**
+     * A process stopped while the step is open: the form comes back with its failure, its line and its way back, its
+     * answers counted on from where they were, as the form's focus follows them ([FolderFaultTest]).
+     */
     @Test
     fun theFailureAndItsSharedFoldersOutliveAStoppedProcess() = runTest {
         val id = qnapFolder()
@@ -303,6 +306,10 @@ class AddFolderSharesTest {
         assertEquals(EXPORTS, after.shared)
         assertTrue(after.away)
         assertEquals(SharePick(id, DS920, EXPORTS), after.openPick())
+        assertEquals(before.answers, after.answers)
+        after.pick("/volume1/video")
+        advanceUntilIdle()
+        assertEquals(before.answers + 1, after.answers)
     }
 
     private companion object {

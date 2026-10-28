@@ -198,7 +198,8 @@ private fun faultsOf(vm: AddFolderViewModel): Faults {
  * once laid out with it, or to the row the plate under the actions [offered] instead (what the NAS proposes, or
  * « Choisir un dossier partagé »); a read refused to the NFS account, to its row, unfolded. One said in the panel leaves
  * focus on the button pressed. Each answer sends focus once: the form shown again, back from the flow's step 4, leaves
- * it to [BackFromPick].
+ * it to [BackFromPick]. The last answer sent for is kept across a stopped process, as [answers] is
+ * ([AddFolderViewModel.answers]), so the first answer after it still sends focus.
  */
 @Composable
 private fun FocusOnFault(answers: Int, check: FolderCheck?, offered: Boolean, form: FolderForm, focus: FormFocus) {

@@ -381,9 +381,10 @@ class AddFolderViewModel(
 
     /**
      * How many answers a press got ([check]), so the same failure said again sends focus back to its field; a change
-     * that only clears the last answer does not count.
+     * that only clears the last answer does not count. Kept across a stopped process, as the form keeps the last answer
+     * it sent focus for: counted again from 0, the answer reaching that count would send none.
      */
-    var answers by mutableIntStateOf(0)
+    var answers by mutableIntStateOf(saved.get<Int>(ANSWERS) ?: 0)
         private set
 
     /** This player's address on the network, which the NAS must allow over NFS; null until read, or when unknown. */
@@ -587,6 +588,7 @@ class AddFolderViewModel(
     private fun say(answer: FolderCheck) {
         check = answer
         answers++
+        saved[ANSWERS] = answers
     }
 
     /** The folder to test, or null when the form lacks something, which [check] then reports. */
@@ -794,6 +796,7 @@ private const val UID = "uid"
 private const val GID = "gid"
 private const val IDENTITY_OPEN = "identityOpen"
 private const val AWAY = "away"
+private const val ANSWERS = "answers"
 private const val SHARED_PATHS = "sharedPaths"
 private const val SHARED_CLIENTS = "sharedClients"
 private const val SHARED_MISSING = "sharedMissing"
