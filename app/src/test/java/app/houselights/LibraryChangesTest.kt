@@ -65,14 +65,14 @@ class LibraryChangesTest {
     }
 
     /**
-     * The library's very first scan, begun on no title, shows its progress as often as any change, home growing as
-     * titles are found; the next pass, over the titles it found, goes back to the longer period.
+     * The library's very first scan, begun on no title, shows its progress as often as any change while it fills home,
+     * home growing as titles are found; the next pass, over the titles it found, goes back to the longer period.
      */
     @Test
     fun aFirstScanShowsItsProgressAsOftenAsAnyChange() = runTest {
         val progress = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
-        var first = true
-        val changes = LibraryChanges(backgroundScope, listOf(emptyFlow()), progress, periodMs = 3_000, progressMs = 20_000) { first }
+        var filling = true
+        val changes = LibraryChanges(backgroundScope, listOf(emptyFlow()), progress, periodMs = 3_000, progressMs = 20_000) { filling }
         runCurrent()
         val moves = movesOf(changes)
         backgroundScope.launch { every(200, 50, progress) }
@@ -81,11 +81,29 @@ class LibraryChangesTest {
 
         // The first scan over, a later pass writing for a minute.
         advanceTimeBy(5_000)
-        first = false
+        filling = false
         moves.clear()
         backgroundScope.launch { every(200, 300, progress) }
         advanceTimeBy(60_000)
         assertEquals(listOf(15_000L, 35_000L, 55_000L), moves)
+    }
+
+    /**
+     * Home's row full, the rest of the library's very first scan shows its progress as any pass does: once more after
+     * the shorter period, then every longer one.
+     */
+    @Test
+    fun aFirstScanShowsItsProgressAsAnyPassOnceHomeIsFull() = runTest {
+        val progress = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
+        var filling = true
+        val changes = LibraryChanges(backgroundScope, listOf(emptyFlow()), progress, periodMs = 3_000, progressMs = 20_000) { filling }
+        runCurrent()
+        val moves = movesOf(changes)
+        backgroundScope.launch { every(200, 300, progress) }
+        advanceTimeBy(10_000)
+        filling = false
+        advanceTimeBy(50_000)
+        assertEquals(listOf(0L, 3_000L, 6_000L, 9_000L, 12_000L, 32_000L, 52_000L), moves)
     }
 
     /** A pass's end shows at once, and with it the titles its progress had left waiting: no reload after it. */

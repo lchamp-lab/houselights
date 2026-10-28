@@ -39,8 +39,12 @@ data class ScanState(
     val errors: Map<Long, ScanError> = emptyMap(),
     /** Why the last scan stopped querying TMDB; kept until TMDB is queried again. */
     val tmdbIssue: FailureKind? = null,
-    /** Whether the pass under way began on a library holding no title: its very first scan, which screens follow closer. */
-    val firstScan: Boolean = false,
+    /**
+     * Whether home is still filling with the library's very first titles: the pass under way began on a library
+     * holding none, and home's row of latest films or of latest shows is not full yet ([LocalProvider.LATEST]); screens
+     * follow it closer meanwhile.
+     */
+    val homeFilling: Boolean = false,
 )
 
 /** No video while [count] subfolders were denied: a permissions problem, so nothing is removed. */
@@ -294,7 +298,7 @@ class LibraryScanner(
         try {
             val sources = dao.sources()
             val first = !dao.anyItem()
-            _state.update { it.copy(firstScan = first) }
+            _state.update { it.copy(homeFilling = first) }
             val reached = mutableSetOf<Long>()
             for (source in sources) {
                 reached += source.id
@@ -518,7 +522,7 @@ class LibraryScanner(
         dao.markScanned(source.id, clock())
         // Renames and part changes count even without a re-read, as screens show file names and parts.
         val changed = missing.changed || written > 0
-        if (changed) _progress.emit(Unit)
+        if (changed) tellProgress()
         return changed
     }
 
@@ -538,6 +542,19 @@ class LibraryScanner(
         val apart = MissingFiles.split(listed, all)
         return if (apart.isEmpty()) all else Stacks.of(kind, videos, apart)
     }
+
+    /**
+     * Tells screens of the titles a pass wrote so far ([progress]), once home's row of latest films or of latest shows
+     * is full no longer as closely as while it filled ([ScanState.homeFilling]).
+     */
+    private suspend fun tellProgress() {
+        if (_state.value.homeFilling && homeFilled()) _state.update { it.copy(homeFilling = false) }
+        _progress.emit(Unit)
+    }
+
+    /** Whether home's row of latest films or of latest shows holds all it shows ([LocalProvider.LATEST]). */
+    private suspend fun homeFilled(): Boolean =
+        dao.count(ItemKind.MOVIE) >= LocalProvider.LATEST || dao.count(ItemKind.SERIES) >= LocalProvider.LATEST
 
     /** Whether a folder of the pass under way stopped after writing titles, which its end then tells screens of. */
     private var stoppedAfterWriting = false
@@ -574,7 +591,7 @@ class LibraryScanner(
                 }
                 if (index % TELL_EVERY == TELL_EVERY - 1 && written > told) {
                     told = written
-                    _progress.emit(Unit)
+                    tellProgress()
                 }
             }
         } finally {

@@ -326,7 +326,7 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
     @Query("SELECT COUNT(*) FROM items WHERE kind = :kind")
     suspend fun count(kind: ItemKind): Int
 
-    /** Whether the library holds anything: a pass that begins on none is its very first scan ([ScanState.firstScan]). */
+    /** Whether the library holds anything: a pass that begins on none is its very first scan ([ScanState.homeFilling]). */
     @Query("SELECT EXISTS(SELECT 1 FROM items)")
     suspend fun anyItem(): Boolean
 

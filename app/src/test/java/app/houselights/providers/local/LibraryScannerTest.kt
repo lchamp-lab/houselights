@@ -61,28 +61,49 @@ class LibraryScannerTest {
     }
 
     /**
-     * A pass that begins on an empty library is its very first scan, which screens follow closer while it writes; the next
-     * one, over the titles it found, is not, nor is any once it ends.
+     * A pass that begins on an empty library is its very first scan, which screens follow closer while it fills home's
+     * rows; the next one, over the titles it found, is not, nor is any once it ends.
      */
     @Test
     fun aPassOnAnEmptyLibraryIsItsFirstScan() = runTest {
         repeat(12) { nas.put("Film $it (2001).mkv") }
-        assertEquals(listOf(true), firstScanAsItWrites())
-        assertFalse("over", bench.scanner.state.value.firstScan)
+        assertEquals(listOf(true), homeFillingAsItWrites().map { it.filling }.distinct())
+        assertFalse("over", bench.scanner.state.value.homeFilling)
 
         repeat(12) { nas.put("Film ${it + 12} (2002).mkv") }
-        assertEquals(listOf(false), firstScanAsItWrites())
+        assertEquals(listOf(false), homeFillingAsItWrites().map { it.filling }.distinct())
     }
 
-    /** Whether the pass is the library's first, as each of its progress says it, once each. */
-    private suspend fun firstScanAsItWrites(): List<Boolean> {
-        val seen = mutableSetOf<Boolean>()
+    /**
+     * The very first scan is followed closer only while home's row of latest films fills: once it holds all it shows,
+     * the rest of the pass is told of as any other pass is, the wall then past its first titles.
+     */
+    @Test
+    fun theFirstScanIsFollowedCloserOnlyWhileHomesRowFills() = runTest {
+        repeat(40) { nas.put("Film $it (2001).mkv") }
+        val told = homeFillingAsItWrites()
+        assertEquals("closer, then as any pass", listOf(true, false), told.map { it.filling }.distinct())
+        assertTrue("closer while the row fills: $told", told.filter { it.filling }.all { it.films < LocalProvider.LATEST })
+        assertTrue("as any pass once it is full: $told", told.filterNot { it.filling }.all { it.films >= LocalProvider.LATEST })
+    }
+
+    /** What a pass told screens at one of its progress: whether home was still filling, and how many films it had read. */
+    private data class Told(val filling: Boolean, val films: Int)
+
+    /** What each progress of a pass told ([Told]), in order, each read as it is told, a film a file. */
+    private suspend fun homeFillingAsItWrites(): List<Told> {
+        val told = mutableListOf<Told>()
         coroutineScope {
-            val watch = launch(Dispatchers.Unconfined) { bench.scanner.progress.collect { seen += bench.scanner.state.value.firstScan } }
+            val watch = launch(Dispatchers.Unconfined) {
+                bench.scanner.progress.collect {
+                    val state = bench.scanner.state.value
+                    told += Told(state.homeFilling, state.processed + 1)
+                }
+            }
             bench.scan()
             watch.cancel()
         }
-        return seen.toList()
+        return told
     }
 
     @Test

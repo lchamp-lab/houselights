@@ -329,7 +329,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         scope,
         listOf(player.playbackEnded, scanner.changed),
         scanner.progress,
-        firstScan = { scanner.state.value.firstScan },
+        homeFilling = { scanner.state.value.homeFilling },
     )
 
     /** The app's own updates from its releases on GitHub, in the project's release alone (README, Install). */

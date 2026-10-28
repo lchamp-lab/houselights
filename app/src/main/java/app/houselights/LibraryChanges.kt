@@ -17,8 +17,9 @@ import kotlinx.coroutines.launch
 /**
  * The library version screens observe ([app.houselights.core.LibraryEvents.libraryVersion]), moved on by
  * [sources] and in-app edits ([userChanged]) at most once every [periodMs], an isolated change at once, and by a
- * running pass's [progress] at most once every [progressMs], but every [periodMs] during the library's very first scan
- * ([firstScan]): home has nothing of its own to show yet, and grows as the titles are found.
+ * running pass's [progress] at most once every [progressMs], but every [periodMs] while the library's very first scan
+ * fills home ([homeFilling]), until its row of latest films or of latest shows is full: home grows as the titles are
+ * found, and every screen with it, a wall then holding less than a page.
  */
 class LibraryChanges(
     scope: CoroutineScope,
@@ -26,8 +27,8 @@ class LibraryChanges(
     progress: Flow<Unit> = emptyFlow(),
     periodMs: Long = LIBRARY_CHANGE_MS,
     progressMs: Long = SCAN_PROGRESS_MS,
-    /** Whether the pass under way began on a library holding no title ([app.houselights.providers.local.ScanState.firstScan]). */
-    firstScan: () -> Boolean = { false },
+    /** Whether the library's very first scan is still filling home ([app.houselights.providers.local.ScanState.homeFilling]). */
+    homeFilling: () -> Boolean = { false },
 ) {
     private val _version = MutableStateFlow(0L)
     val version: StateFlow<Long> = _version
@@ -49,7 +50,7 @@ class LibraryChanges(
             val changes = merge(*sources.toTypedArray(), userChanges).onEach { _settled.update { s -> s + 1 } }
             // Progress waiting while the version moved is shown already: any reload since read it.
             val ticks = progress.map { _version.value }
-                .throttleLatest { if (firstScan()) periodMs else progressMs }
+                .throttleLatest { if (homeFilling()) periodMs else progressMs }
                 .filter { it == _version.value }
                 .map { }
             merge(changes, ticks)
@@ -62,7 +63,7 @@ class LibraryChanges(
         /** Changes refresh screens at most this often. */
         const val LIBRARY_CHANGE_MS = 3_000L
 
-        /** A running pass's progress refreshes screens at most this often, but for the library's first; its end, at once. */
+        /** A running pass's progress refreshes screens at most this often, but while the first fills home; its end, at once. */
         const val SCAN_PROGRESS_MS = 20_000L
     }
 }
