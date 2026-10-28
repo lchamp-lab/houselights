@@ -1,6 +1,7 @@
 package app.houselights.ui.home
 
 import android.content.Context
+import android.content.res.Configuration
 import android.view.KeyEvent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -9,8 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.AccessibilityAction
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
@@ -22,13 +23,17 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
+import app.houselights.settings.InterfaceLanguage
+import app.houselights.ui.detail.Speaking
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.holdOk
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.LibraryPlace
 import app.houselights.ui.util.LocalErrorFix
+import app.houselights.ui.util.LocalLibraryPlace
 import app.houselights.ui.util.UiError
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -36,6 +41,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import java.util.Locale
 
 /**
  * A play asked from home's case that fails is said in place of its facts, in a word, its plate following what fixes
@@ -61,14 +68,23 @@ class HomePlayFailureTest {
     private var problem by mutableStateOf<UiError?>(null)
     private var fontScale by mutableFloatStateOf(1f)
 
+    /** Where the library lies, as the app provides it from its source: home's folders on a NAS. */
+    private var place by mutableStateOf<LibraryPlace?>(LibraryPlace.NAS)
+
+    /** The language home speaks, null the device's. */
+    private var language by mutableStateOf<String?>(null)
+
     private fun open(home: HomeState = fullHome(), failed: UiError? = null) {
         problem = failed
         compose.setTvContent {
             val density = LocalDensity.current
-            CompositionLocalProvider(
-                LocalDensity provides Density(density.density, fontScale),
-                LocalErrorFix provides { did += "fix $it" },
-            ) { HomeGrid(home, actions, playProblem = problem) }
+            Speaking(language) {
+                CompositionLocalProvider(
+                    LocalDensity provides Density(density.density, fontScale),
+                    LocalErrorFix provides { did += "fix $it" },
+                    LocalLibraryPlace provides place,
+                ) { HomeGrid(home, actions, playProblem = problem) }
+            }
         }
         compose.waitForIdle()
     }
@@ -96,8 +112,69 @@ class HomePlayFailureTest {
 
     @Test
     fun aServerOutOfReachIsTheServer() {
+        place = LibraryPlace.SERVER
         open(fullHome(status = HomeStatus(StatusSource.Server("Salon"))), UiError.OFFLINE)
         said(text(R.string.error_offline_server_title)).assertIsDisplayed()
+    }
+
+    /** A disk of the player's own unplugged is its disk not found, wherever the rest of the library lies. */
+    @Test
+    fun aDiskUnpluggedIsTheDisk() {
+        open(failed = UiError.DISK_ABSENT)
+        said(text(R.string.error_disk_absent_title)).assertIsDisplayed()
+        said(text(R.string.error_offline_nas_title)).assertDoesNotExist()
+    }
+
+    /** Folders on the player's own disks alone are no NAS: the library out of reach is said as such. */
+    @Test
+    fun foldersOnThePlayersDisksAloneAreNoNas() {
+        place = null
+        open(failed = UiError.OFFLINE)
+        said(text(R.string.error_offline_title)).assertIsDisplayed()
+        said(text(R.string.error_offline_nas_title)).assertDoesNotExist()
+    }
+
+    /**
+     * Where the library lies is said whole on the case's line in each of the app's languages at the largest text size:
+     * the NAS, the server and a disk not found, never ending in an ellipsis.
+     */
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun whereTheLibraryLiesIsWholeInEveryLanguage() {
+        val device = Locale.getDefault()
+        fontScale = LARGEST_TEXT
+        open(failed = UiError.OFFLINE)
+        val cases =
+            listOf(LibraryPlace.NAS to UiError.OFFLINE, LibraryPlace.SERVER to UiError.OFFLINE, LibraryPlace.NAS to UiError.DISK_ABSENT)
+        val cut = try {
+            InterfaceLanguage.LANGUAGES.flatMap { tag ->
+                Locale.setDefault(Locale.forLanguageTag(tag))
+                cases.mapNotNull { (at, error) ->
+                    compose.runOnIdle {
+                        language = tag
+                        place = at
+                        problem = error
+                    }
+                    compose.waitForIdle()
+                    val reason = spoken(tag, if (error == UiError.OFFLINE) at.title else error.title)
+                    val layout = layoutOf(said(reason))
+                    "$tag: «$reason»".takeIf { layout.hasVisualOverflow || (0 until layout.lineCount).any(layout::isLineEllipsized) }
+                }
+            }
+        } finally {
+            Locale.setDefault(device)
+        }
+        assertEquals("Cut at $LARGEST_TEXT", emptyList<String>(), cut)
+    }
+
+    /** The case's word for the library out of reach at this place. */
+    private val LibraryPlace.title
+        get() = if (this == LibraryPlace.NAS) R.string.error_offline_nas_title else R.string.error_offline_server_title
+
+    /** [id] as home says it in [tag]. */
+    private fun spoken(tag: String, id: Int): String {
+        val speaking = Configuration(context.resources.configuration).apply { setLocale(Locale.forLanguageTag(tag)) }
+        return context.createConfigurationContext(speaking).getString(id)
     }
 
     @Test
@@ -215,7 +292,7 @@ class HomePlayFailureTest {
             compose.waitForIdle()
             assertEquals("the logo, for $error", logo, logoTop(), HALF_PX)
             val reason = said(reasonOf(error))
-            assertEquals("lines of $error's reason", 1, lineCount(reason.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult]))
+            assertEquals("lines of $error's reason", 1, layoutOf(reason).lineCount)
         }
     }
 
@@ -236,20 +313,22 @@ class HomePlayFailureTest {
     private fun logoTop(): Float =
         compose.onAllNodesWithText("Heat", useUnmergedTree = true).fetchSemanticsNodes().maxOf { it.boundsInRoot.top }
 
-    private fun reasonOf(error: UiError): String = text(
-        when (error) {
-            UiError.NO_PLAYER -> R.string.play_failed_no_player
-            UiError.CREDENTIALS -> R.string.play_failed_credentials
-            UiError.PLAYER_CHANGED -> R.string.play_failed_player_changed
-            UiError.OFFLINE -> R.string.error_offline_nas_title
-            else -> error.title
-        },
-    )
+    private fun reasonOf(error: UiError): String = text(reasonIdOf(error))
 
-    private fun lineCount(action: AccessibilityAction<(MutableList<TextLayoutResult>) -> Boolean>): Int {
+    /** The case's reason for [error], the library out of reach on a NAS. */
+    private fun reasonIdOf(error: UiError): Int = when (error) {
+        UiError.NO_PLAYER -> R.string.play_failed_no_player
+        UiError.CREDENTIALS -> R.string.play_failed_credentials
+        UiError.PLAYER_CHANGED -> R.string.play_failed_player_changed
+        UiError.OFFLINE -> R.string.error_offline_nas_title
+        else -> error.title
+    }
+
+    /** How the text [node] says is laid out. */
+    private fun layoutOf(node: SemanticsNodeInteraction): TextLayoutResult {
         val layouts = mutableListOf<TextLayoutResult>()
-        action.action?.invoke(layouts)
-        return layouts.single().lineCount
+        node.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+        return layouts.single()
     }
 
     private companion object {

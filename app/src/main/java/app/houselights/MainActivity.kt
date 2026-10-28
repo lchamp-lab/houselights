@@ -108,7 +108,9 @@ import app.houselights.ui.person.PersonScreen
 import app.houselights.ui.search.SearchScreen
 import app.houselights.ui.settings.SettingsScreen
 import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.LibraryPlace
 import app.houselights.ui.util.LocalErrorFix
+import app.houselights.ui.util.LocalLibraryPlace
 import app.houselights.ui.util.PlayOrigin
 import app.houselights.ui.util.PlaybackProblem
 import app.houselights.ui.util.UiError
@@ -120,6 +122,7 @@ import app.houselights.ui.util.toWriteError
 import coil.imageLoader
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -226,7 +229,7 @@ class MainActivity : ComponentActivity() {
                     // The window background is already the room (@color/room): no second black under every screen.
                     Box(Modifier.fillMaxSize()) {
                         LeavingBackdrop(relay)
-                        AppNavigation(nav, settings, onPlay = ::play)
+                        WithLibraryPlace(container.libraryPlace) { AppNavigation(nav, settings, onPlay = ::play) }
                         HouseLights()
                     }
                 }
@@ -705,6 +708,13 @@ internal fun NavController.queueTo(next: String?) {
 
 /** The title the queue reached, which the list's focus goes to once back ([Route.ToIdentify]'s saved state). */
 internal const val QUEUE_AT = "queueAt"
+
+/** [content] told where the library lies ([LocalLibraryPlace]), which names it out of reach wherever an error is said. */
+@Composable
+private fun WithLibraryPlace(place: StateFlow<LibraryPlace?>, content: @Composable () -> Unit) {
+    val at by place.collectAsStateWithLifecycle()
+    CompositionLocalProvider(LocalLibraryPlace provides at, content = content)
+}
 
 /** [content], a screen that shows the source, composed only while there is one ([source]): it would read it at once. */
 @Composable

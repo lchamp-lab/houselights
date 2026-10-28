@@ -67,8 +67,9 @@ Compose:
     active: true
     # The design system hands down the theme and what a surface lies in, as MaterialTheme does (DESIGN.md): colours and
     # type, the ground and the film's light, the house lights and the backdrop, focus groups, rows, cards and plates,
-    # the sheet or header a control is in. Beside them, the launch screen, an error's fix, and the view model Settings'
-    # panes share. A new one is added here with its reason.
+    # the sheet or header a control is in. Beside them, the launch screen, an error's fix and where the library lies,
+    # which names it out of reach on every screen an error is said (« NAS injoignable », « Serveur injoignable »), and
+    # the view model Settings' panes share. A new one is added here with its reason.
     allowedCompositionLocals:
       - LocalHlColors
       - LocalHlType
@@ -89,6 +90,7 @@ Compose:
       - LocalInHeader
       - LocalLaunchScreen
       - LocalErrorFix
+      - LocalLibraryPlace
       - LocalSettingsViewModel
   CompositionLocalNaming:
     active: true

@@ -1,10 +1,19 @@
 package app.houselights.ui.util
 
 import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.res.stringResource
 import app.houselights.R
+import app.houselights.core.DiskAbsentException
 import app.houselights.core.FailureKind
+import app.houselights.core.SourceConfig
+import app.houselights.core.causeChain
 import app.houselights.core.failureKind
+import app.houselights.providers.local.Folder
+import app.houselights.providers.local.Protocol
 
 /** What fixes an error, named on its button. Screens try again themselves; the others lead elsewhere. */
 enum class ErrorAction(@StringRes val label: Int) {
@@ -23,8 +32,11 @@ val LocalErrorFix = staticCompositionLocalOf<(ErrorAction) -> Unit> { {} }
 
 /** A screen's error in actionable words: what happened ([title]), what to check ([message]), a fix ([action]). */
 enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val action: ErrorAction?) {
-    /** The library's server or NAS does not answer. */
+    /** The library's server or NAS does not answer: titled by where the library lies ([titleAt]). */
     OFFLINE(R.string.error_offline_title, R.string.error_offline, ErrorAction.RETRY),
+
+    /** A disk of the player's own is no longer plugged in, or not where it was read ([DiskAbsentException]). */
+    DISK_ABSENT(R.string.error_disk_absent_title, R.string.disk_absent_usb, ErrorAction.RETRY),
 
     /** TLS refused the server's or TMDB's certificate: expired, or the device's clock is wrong. */
     CERTIFICATE(R.string.error_certificate_title, R.string.error_certificate, ErrorAction.RETRY),
@@ -81,8 +93,11 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     FAILED(R.string.error_failed_title, R.string.error_failed, ErrorAction.RETRY),
 }
 
-/** The [UiError] a failure shows as, by its [failureKind]; callers log the failure themselves. */
-fun Throwable.toUiError(): UiError = failureKind().toUiError()
+/**
+ * The [UiError] a failure shows as, by its [failureKind], a disk of the player's own unplugged said as such rather than
+ * as a NAS out of reach, as scans count it; callers log the failure themselves.
+ */
+fun Throwable.toUiError(): UiError = if (causeChain().any { it is DiskAbsentException }) UiError.DISK_ABSENT else failureKind().toUiError()
 
 fun FailureKind.toUiError(): UiError = when (this) {
     FailureKind.UNREACHABLE, FailureKind.IO -> UiError.OFFLINE
@@ -102,3 +117,36 @@ fun FailureKind.toUiError(): UiError = when (this) {
     FailureKind.SERVER_FAILED, FailureKind.UNEXPECTED_ANSWER, FailureKind.OTHER,
     -> UiError.FAILED
 }
+
+/** Where the library in use lies, which names it once out of reach ([UiError.OFFLINE]): a NAS, or a media server. */
+enum class LibraryPlace { NAS, SERVER }
+
+/**
+ * Where the library of [source] lies, the folders' ([folders]) on a NAS when one of them is: null without a source, or
+ * for folders on the player's own disks alone, which never say a NAS (a disk unplugged is [UiError.DISK_ABSENT]).
+ */
+fun libraryPlaceOf(source: SourceConfig?, folders: List<Folder>): LibraryPlace? = when (source) {
+    is SourceConfig.Jellyfin -> LibraryPlace.SERVER
+    SourceConfig.Local -> LibraryPlace.NAS.takeIf { folders.any { folder -> folder.protocol != Protocol.LOCAL } }
+    null -> null
+}
+
+/** Where the library in use lies ([libraryPlaceOf]), provided with the navigation; null where it is not known. */
+val LocalLibraryPlace = compositionLocalOf<LibraryPlace?> { null }
+
+/**
+ * This error's title, the library out of reach ([UiError.OFFLINE]) named by where it lies ([place]): « NAS
+ * injoignable », « Serveur injoignable », else « Bibliothèque injoignable »; every other error its own.
+ */
+@StringRes
+fun UiError.titleAt(place: LibraryPlace?): Int = when {
+    this != UiError.OFFLINE -> title
+    place == LibraryPlace.NAS -> R.string.error_offline_nas_title
+    place == LibraryPlace.SERVER -> R.string.error_offline_server_title
+    else -> title
+}
+
+/** This error's title as the screens say it, the library out of reach named by where it lies ([LocalLibraryPlace]). */
+@Composable
+@ReadOnlyComposable
+fun UiError.titleText(): String = stringResource(titleAt(LocalLibraryPlace.current))

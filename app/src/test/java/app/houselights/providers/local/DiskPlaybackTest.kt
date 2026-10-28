@@ -68,7 +68,7 @@ class DiskPlaybackTest {
 
         disks.unplug(USB_DISK)
         val absent = assertThrows(DiskAbsentException::class.java) { runBlocking { uri(heat) } }
-        assertEquals("said as a NAS out of reach", UiError.OFFLINE, absent.toUiError())
+        assertEquals("said as its disk not found", UiError.DISK_ABSENT, absent.toUiError())
     }
 
     /**

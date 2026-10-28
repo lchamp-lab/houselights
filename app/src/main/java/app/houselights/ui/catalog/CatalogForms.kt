@@ -475,7 +475,7 @@ private fun FormPanelButtons() {
         }
         Specimen("disabled: a faint well, focus outlines it", Modifier.weight(1f), gap = HlSpace.xs) {
             HlPanelButton({}, Modifier.fillMaxWidth(), enabled = false) {
-                FormChoice("Grenier", stringResource(R.string.error_offline_title), enabled = false)
+                FormChoice("Grenier", stringResource(R.string.error_offline_server_title), enabled = false)
             }
         }
     }

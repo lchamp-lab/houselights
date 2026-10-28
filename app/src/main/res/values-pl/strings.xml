@@ -583,6 +583,7 @@
     <string name="error_offline_title">Biblioteka niedostępna</string>
     <string name="error_offline_nas_title">NAS niedostępny</string>
     <string name="error_offline_server_title">Serwer niedostępny</string>
+    <string name="error_disk_absent_title">Nie znaleziono dysku</string>
     <string name="error_offline">Serwer lub NAS nie odpowiada. Sprawdź, czy jest włączony, i spróbuj ponownie.</string>
     <string name="error_certificate_title">Certyfikat odrzucony</string>
     <string name="error_certificate">Certyfikat bezpieczeństwa został odrzucony. Odnów certyfikat serwera lub sprawdź datę i godzinę na urządzeniu, a potem spróbuj ponownie.</string>

@@ -71,6 +71,7 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
+import app.houselights.ui.util.titleText
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.launch
 import java.text.Collator
@@ -464,7 +465,7 @@ private fun FolderShowcase(
             // On the facts' one line: the folder's sheet says it in full.
             notRemoved != null -> ({ AttentionNote(notRemoved, maxLines = 1) })
             // An answer for its titles held that did not save: they stay as they were.
-            heldError != null -> ({ AttentionNote(stringResource(heldError.title), maxLines = 1) })
+            heldError != null -> ({ AttentionNote(heldError.titleText(), maxLines = 1) })
             failed != null -> ({ AttentionNote(failed, maxLines = 1) })
             else -> null
         },

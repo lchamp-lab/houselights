@@ -537,6 +537,7 @@
     <string name="error_offline_title">라이브러리에 연결할 수 없음</string>
     <string name="error_offline_nas_title">NAS에 연결할 수 없음</string>
     <string name="error_offline_server_title">서버에 연결할 수 없음</string>
+    <string name="error_disk_absent_title">디스크를 찾을 수 없음</string>
     <string name="error_offline">서버 또는 NAS가 응답하지 않습니다. 켜져 있는지 확인한 후 다시 시도하세요.</string>
     <string name="error_certificate_title">인증서 거부됨</string>
     <string name="error_certificate">보안 인증서가 거부되었습니다. 서버의 인증서를 갱신하거나 이 기기의 날짜와 시간을 확인한 후 다시 시도하세요.</string>

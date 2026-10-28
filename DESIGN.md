@@ -811,7 +811,7 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 | `SpecTable` | several of a kind a pane states, as a table in `meta` on a plate, the one in use by its white dot (see *Gestures*) |
 | `TechSpecs`, `TechSheet` | the technical sheet in a side sheet, its file's container and size among its facts ("MKV, 23,4 Go"), read as a case's back, block by block, each a `ReadingPlate` named in `group`: Image, its formats as marks in `spec` (Ultra HD, Dolby Vision, HEVC), what measures each under it in secondary `meta`; Son and Sous-titres, a track a line, its format in `spec` in a column as wide as the block's widest, 188 to 280 (`TechSpecsDefaults`), before its language in white, the file's default after the white dot, a state, then what measures it; Fichier as `PlateFact`s, its name whole under them. A value speaks in the voice of its kind (`TechValue`). A block taller than the sheet is scrolled through before focus leaves it. Its content is decided in `TechSheet`, pure and tested; only a title with a file has its tile |
 | `HlSideSheet`, `SheetScope`, `SheetConfirm` | side sheets (see *Sheets*): glass, its free corners `sheet`, a hairline on the screen's side, `wide` to read; it comes 24 dp in as it lights (`FOCUS_IN`, `PLATE_IN`), read while drawing |
-| `HlEmptyState`, `HlErrorState` | the intertitle of an empty or failed screen, its action a plate (ember is for Lire and Reprendre), focused as it appears (`EmptyStateFocusTest`). A `UiError` brings its own title, message and action (`ErrorAction`) |
+| `HlEmptyState`, `HlErrorState` | the intertitle of an empty or failed screen, its action a plate (ember is for Lire and Reprendre), focused as it appears (`EmptyStateFocusTest`). A `UiError` brings its own title, message and action (`ErrorAction`), the library out of reach titled by where it lies (`LocalLibraryPlace`): "NAS injoignable", "Serveur injoignable", a disk of the player's own unplugged "Disque introuvable" |
 | `ScanProgress` | a running scan: what is read, the ember line and its count, the current file |
 
 ## Cards
@@ -945,10 +945,11 @@ back is said there the same way, once (`updateSaid`): "Houselights 0.4.1 install
 so where play was asked (`PlayOrigin`): at the end of a page's actions, under the episode row for an episode, until an
 OK there, another play or another screen (`PlaybackOutcome`). On home's case it takes the facts' place, the logo never
 moving: "Lecture impossible" and the reason on a line each (`HlStatus` `Attention`, `maxLines` 1, else an ellipsis), the
-error's title in a word, the player's own ("Lecteur Zidoo non installé", "requis", "changé"), the source out of reach by
-its name ("NAS injoignable", "Serveur injoignable"); its plate does what fixes it, as `PartFailed`'s button (Réessayer
-and its arrow plays it again, Se reconnecter), else stays its own. A click dismisses it, a held OK keeps it for the
-options: the whole sentence first, then only what may work (`HomePlayFailureTest`).
+error's title in a word, the player's own ("Lecteur Zidoo non installé", "requis", "changé"), the library out of reach by
+where it lies ("NAS injoignable", "Serveur injoignable", a disk of the player's own unplugged "Disque introuvable"), as
+every screen titles it (`titleText`); its plate does what fixes it, as `PartFailed`'s button (Réessayer and its arrow
+plays it again, Se reconnecter), else stays its own. A click dismisses it, a held OK keeps it for the options: the whole
+sentence first, then only what may work (`HomePlayFailureTest`).
 
 A title to identify says so at the end of its page's actions while nothing failed there: "À identifier" by the ring
 (`HlStatus` `Off`), why under it in grey ("Plusieurs titres possibles", "Introuvable sur TMDB"), never in ember: a state,

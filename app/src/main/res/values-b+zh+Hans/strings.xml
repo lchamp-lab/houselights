@@ -538,6 +538,7 @@
     <string name="error_offline_title">无法访问媒体库</string>
     <string name="error_offline_nas_title">无法访问 NAS</string>
     <string name="error_offline_server_title">无法访问服务器</string>
+    <string name="error_disk_absent_title">找不到磁盘</string>
     <string name="error_offline">服务器或 NAS 无响应。请检查其是否已开机，然后重试。</string>
     <string name="error_certificate_title">证书被拒绝</string>
     <string name="error_certificate">安全证书被拒绝。请更新服务器的证书，或检查此设备的日期和时间，然后重试。</string>

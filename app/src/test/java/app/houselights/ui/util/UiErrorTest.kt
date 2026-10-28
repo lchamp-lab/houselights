@@ -1,10 +1,19 @@
 package app.houselights.ui.util
 
+import app.houselights.R
+import app.houselights.core.DiskAbsentException
 import app.houselights.core.FailureKind
+import app.houselights.core.SourceConfig
 import app.houselights.core.TmdbCertificateException
+import app.houselights.core.failureKind
+import app.houselights.providers.local.Folder
+import app.houselights.providers.local.Protocol
+import app.houselights.providers.local.SourceKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.io.IOException
+import java.nio.file.NoSuchFileException
 import java.security.cert.CertificateExpiredException
 import javax.net.ssl.SSLHandshakeException
 
@@ -13,6 +22,8 @@ class UiErrorTest {
     @Test
     fun eachErrorOffersWhatFixesIt() {
         assertEquals(ErrorAction.RETRY, UiError.OFFLINE.action)
+        // The disk plugged back in, trying again plays it.
+        assertEquals(ErrorAction.RETRY, UiError.DISK_ABSENT.action)
         assertEquals(ErrorAction.RETRY, UiError.TMDB_OFFLINE.action)
         assertEquals(ErrorAction.RETRY, UiError.FAILED.action)
         assertEquals(ErrorAction.RECONNECT, UiError.DENIED.action)
@@ -33,5 +44,42 @@ class UiErrorTest {
         val handshake = SSLHandshakeException("Chain validation failed").apply { initCause(CertificateExpiredException("expired")) }
         assertEquals(UiError.CERTIFICATE, handshake.toUiError())
         assertEquals(UiError.CERTIFICATE, TmdbCertificateException(handshake).toUiError())
+    }
+
+    /**
+     * The library out of reach is titled by where it lies, « NAS injoignable » for folders on a NAS, « Serveur
+     * injoignable » for a server, « Bibliothèque injoignable » where that is not known; every other error by its own.
+     */
+    @Test
+    fun theLibraryOutOfReachIsTitledByWhereItLies() {
+        assertEquals(R.string.error_offline_nas_title, UiError.OFFLINE.titleAt(LibraryPlace.NAS))
+        assertEquals(R.string.error_offline_server_title, UiError.OFFLINE.titleAt(LibraryPlace.SERVER))
+        assertEquals(R.string.error_offline_title, UiError.OFFLINE.titleAt(null))
+        (UiError.entries - UiError.OFFLINE).forEach { error ->
+            (LibraryPlace.entries + null).forEach { place -> assertEquals("$error at $place", error.title, error.titleAt(place)) }
+        }
+    }
+
+    /** A server's library lies on the server, the folders' on a NAS when one of them is, never on the player's disks alone. */
+    @Test
+    fun theLibraryLiesWhereItsSourceIs() {
+        fun folder(protocol: Protocol) = Folder(1, "Films", SourceKind.MOVIES, protocol, "nas", "nas/films", lastScanAt = 0)
+        val server = SourceConfig.Jellyfin("https://nas:8920", "Salon", "u1", null, "not a secret")
+        assertEquals(LibraryPlace.SERVER, libraryPlaceOf(server, emptyList()))
+        assertEquals(LibraryPlace.NAS, libraryPlaceOf(SourceConfig.Local, listOf(folder(Protocol.SMB))))
+        assertEquals(LibraryPlace.NAS, libraryPlaceOf(SourceConfig.Local, listOf(folder(Protocol.NFS))))
+        assertEquals(LibraryPlace.NAS, libraryPlaceOf(SourceConfig.Local, listOf(folder(Protocol.LOCAL), folder(Protocol.NFS))))
+        assertNull("the player's disks alone are no NAS", libraryPlaceOf(SourceConfig.Local, listOf(folder(Protocol.LOCAL))))
+        assertNull(libraryPlaceOf(SourceConfig.Local, emptyList()))
+        assertNull(libraryPlaceOf(null, listOf(folder(Protocol.SMB))))
+    }
+
+    /** A disk of the player's own unplugged is said as such on a screen, « Disque introuvable », out of reach as a NAS for a scan. */
+    @Test
+    fun aDiskUnpluggedIsSaidAsItsDisk() {
+        val absent = IOException("Reading Heat.mkv", DiskAbsentException("1234-ABCD", NoSuchFileException("/storage/1234-ABCD/Heat.mkv")))
+        assertEquals(UiError.DISK_ABSENT, absent.toUiError())
+        assertEquals(R.string.error_disk_absent_title, absent.toUiError().titleAt(LibraryPlace.NAS))
+        assertEquals(FailureKind.UNREACHABLE, absent.failureKind())
     }
 }

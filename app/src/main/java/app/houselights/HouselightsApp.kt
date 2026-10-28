@@ -59,8 +59,10 @@ import app.houselights.ui.home.HomeLaunch
 import app.houselights.ui.home.LibraryRows
 import app.houselights.ui.home.UnseenPick
 import app.houselights.ui.library.LibraryAhead
+import app.houselights.ui.util.LibraryPlace
 import app.houselights.ui.util.PlaybackOutcome
 import app.houselights.ui.util.RoomPosters
+import app.houselights.ui.util.libraryPlaceOf
 import app.houselights.update.ApkDownload
 import app.houselights.update.GithubReleases
 import app.houselights.update.PackageArchive
@@ -308,6 +310,11 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 
     /** Whether the folders hold one at least ([LocalLibrary.anyFolder]); null until read. */
     val hasFolders: StateFlow<Boolean?> = library.anyFolder.stateIn(scope, SharingStarted.Eagerly, null)
+
+    /** Where the library in use lies, which names it out of reach on the screens ([libraryPlaceOf]); null until read. */
+    val libraryPlace: StateFlow<LibraryPlace?> =
+        combine(settings.state, library.folders) { state, folders -> libraryPlaceOf(state.source, folders) }
+            .stateIn(scope, SharingStarted.WhileSubscribed(), null)
 
     /** Prefetches home's first rows and pictures while the launch screen holds. */
     val homeLaunch = HomeLaunch(

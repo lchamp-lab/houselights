@@ -144,16 +144,17 @@ class FailuresTest {
     }
 
     /**
-     * The player's own disks fail as a NAS does: unplugged, out of reach, whatever its files then answer; a folder gone,
-     * not found; one Android refuses the app (no storage permission), refused.
+     * The player's own disks fail as a NAS does: unplugged, out of reach, whatever its files then answer, a screen saying
+     * its disk not found rather than a NAS out of reach; a folder gone, not found; one Android refuses the app (no storage
+     * permission), refused.
      */
     @Test
     fun aDiskOfThePlayersOwnFailsAsANas() = check(
         mapOf(
             DiskAbsentException("1234-ABCD", NoSuchFileException("/storage/1234-ABCD/Films")) to
-                Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
+                Told(UiError.DISK_ABSENT, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
             DiskAbsentException("1234-ABCD", AccessDeniedException("/storage/1234-ABCD/Films")) to
-                Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
+                Told(UiError.DISK_ABSENT, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
             NoSuchFileException("/storage/emulated/0/Films") to Told(UiError.FAILED, UiError.NOT_SAVED, ScanErrorKind.NOT_FOUND),
             AccessDeniedException("/storage/emulated/0/Films") to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),
         ),

@@ -79,7 +79,7 @@ private fun SideBySide() {
         }
         Specimen("intertitle: a short rule, ember for attention, one action", Modifier.weight(1f)) {
             Intertitle(
-                stringResource(R.string.error_offline_title),
+                stringResource(R.string.error_offline_nas_title),
                 message = "192.168.1.20 ne répond pas. Vérifiez que le NAS est allumé.",
                 attention = true,
             ) { HlButton(stringResource(R.string.retry), {}) }
