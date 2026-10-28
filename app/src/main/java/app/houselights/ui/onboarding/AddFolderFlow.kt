@@ -89,16 +89,19 @@ import app.houselights.ui.util.wholePath
  * from its first step leaves it ([onLeave]); [onDone] once the folder is added. A disk of this player chosen asks
  * Android to read it first ([rememberDiskAsk]). With [editing], « Modifier le dossier » on that folder of the player's
  * disks, from its disk's folders; Back from the disk's root leaves it, saying the folder edited once the library gave it.
+ * With [pick], its step 4 over the form of « Modifier le dossier », the shared folder chosen handed to [onPick].
  */
 @Composable
 fun AddFolderFlowScreen(
     onLeave: (edited: Long?) -> Unit,
     onDone: (FlowDone) -> Unit,
     editing: Long? = null,
-    flow: FolderFlow = viewModel(factory = FolderFlow.factory(appContainer(), LocalContext.current, editing)),
+    pick: SharePick? = null,
+    onPick: (String) -> Unit = {},
+    flow: FolderFlow = viewModel(factory = FolderFlow.factory(appContainer(), LocalContext.current, editing, pick)),
 ) {
     val app = appContainer()
-    AddFolderFlow(flow, roomPosters(), onLeave, onDone, rememberDiskAsk(app.diskPermission))
+    AddFolderFlow(flow, roomPosters(), onLeave, onDone, rememberDiskAsk(app.diskPermission), onPick)
 }
 
 /**
@@ -106,6 +109,7 @@ fun AddFolderFlowScreen(
  * right, in a lazy list that composes only the rows shown; focus where the flow aims it, a row brought into view first.
  * Back goes up a level or a step, first to the list's start when it is scrolled, and leaves ([onLeave]) with the folder
  * edited, when the library gave it (its sheet opens again), else null. [askDisk] asks Android to read this player's disks.
+ * Over the form of « Modifier le dossier » ([FolderFlow.picking]), the shared folder chosen goes to [onPick].
  */
 @Composable
 internal fun AddFolderFlow(
@@ -114,8 +118,12 @@ internal fun AddFolderFlow(
     onLeave: (edited: Long?) -> Unit = {},
     onDone: (FlowDone) -> Unit = {},
     askDisk: DiskAsk = DiskAsk.NONE,
+    onPick: (String) -> Unit = {},
 ) {
     val focus = remember { FlowFocus() }
+    val picked = flow.picked
+    val currentOnPick by rememberUpdatedState(onPick)
+    LaunchedEffect(picked) { picked?.let { currentOnPick(it) } }
     // Each step and level starts at its top.
     val list = remember(flow.view) { LazyListState() }
     val parts = if (flow.ready) stepParts(flow, focus, onDone, askDisk) else emptyList()
@@ -143,7 +151,7 @@ internal fun AddFolderFlow(
         focus[flow.startKey()].tryRequestFocus()
     }
     HlFormScaffold(
-        title = stringResource(if (flow.editing != null) R.string.edit_folder else R.string.add_folder),
+        title = stringResource(if (flow.editing != null || flow.picking) R.string.edit_folder else R.string.add_folder),
         description = stepSentence(flow),
         aside = { FlowStatus(flow) },
         list = list,
@@ -249,11 +257,15 @@ private fun diskName(nas: FlowNas?): String = when {
     else -> nas.name ?: stringResource(R.string.disk_usb)
 }
 
-/** The connection's state and its words: under way, not saved, silent, reached, or not tried yet. */
+/**
+ * The connection's state and its words: under way, not saved, silent, reached, or not tried yet; over the form of
+ * « Modifier le dossier » ([FolderFlow.picking]), « En ligne »: the NAS gave its list, though the form's mount failed.
+ */
 private fun connectionOf(flow: FolderFlow): Pair<StatusState, Int> {
     val pressed = flow.pressed
     return when {
         pressed != null && !pressed.writes -> StatusState.Pending to R.string.connection_testing
+        flow.picking -> StatusState.Done to R.string.online
         flow.notSaved != null -> StatusState.Off to R.string.folder_not_saved_state
         flow.silent -> StatusState.Off to R.string.connection_failed
         flow.reached -> StatusState.Done to R.string.connection_ok
@@ -615,6 +627,8 @@ private fun shareParts(flow: FolderFlow, focus: FlowFocus): List<FlowPart> {
             HlSettingGroup(null) { shares.forEach { share -> key(share.path) { ShareRow(flow, focus, share) } } }
         }
     }
+    // Over the form of « Modifier le dossier », which has the path and the NFS account already: the shared folders alone.
+    if (flow.picking) return parts
     parts += FlowPart("typing", setOf(TYPE_PATH, CHANGE_ACCOUNT, NFS_ACCOUNT)) {
         HlSettingGroup(null) {
             FlowRow(

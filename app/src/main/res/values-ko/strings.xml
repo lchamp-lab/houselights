@@ -149,7 +149,7 @@
     <string name="label_certification">관람 등급</string>
     <string name="label_rating">평점</string>
     <string name="label_year">연도</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">예: 1999</string>
     <string name="label_genres">장르</string>
     <string name="label_directors">감독</string>
     <string name="label_studios">스튜디오</string>
@@ -226,6 +226,7 @@
     <string name="field_share">공유 폴더</string>
     <string name="field_path">하위 폴더</string>
     <string name="field_optional">%1$s(선택 사항)</string>
+    <string name="field_clear">%1$s 지우기</string>
     <string name="field_user">사용자 이름</string>
     <string name="field_password">비밀번호</string>
     <string name="placeholder_host">예: 192.168.1.10</string>
@@ -273,7 +274,7 @@
     </plurals>
     <string name="folder_content">%1$s, %2$s</string>
     <string name="error_share_not_found">%1$s에 ‘%2$s’ 공유 폴더가 없습니다. NAS 관리 화면에서 이름을 확인하세요.</string>
-    <string name="error_export_not_found">NAS가 %s 경로를 NFS로 공유하지 않습니다. Synology의 마운트 경로는 /volume1/로 시작합니다.</string>
+    <string name="error_export_not_found">NAS가 %s 경로를 NFS로 공유하지 않습니다. Synology의 마운트 경로는 /&#8288;volume1/&#8288;로 시작합니다.</string>
     <string name="error_subfolder_not_found">%1$s은(는) 응답하지만 ‘%2$s’ 폴더가 없습니다. 대소문자까지 이름을 확인하세요.</string>
     <string name="error_subfolder_not_found_share">‘%1$s’은(는) 응답하지만 ‘%2$s’ 폴더가 없습니다. 대소문자까지 이름을 확인하세요.</string>
     <string name="error_nfs_refused">NAS가 이 플레이어를 거부합니다. %2$s에서 %1$s에 읽기 전용 접근을 허용하고, Synology에서는 비특권 포트도 허용하세요.</string>

@@ -149,7 +149,7 @@
     <string name="label_certification">分級</string>
     <string name="label_rating">評分</string>
     <string name="label_year">年份</string>
-    <string name="placeholder_year">2025</string>
+    <string name="placeholder_year">例如：1999</string>
     <string name="label_genres">類型</string>
     <string name="label_directors">導演</string>
     <string name="label_studios">製片公司</string>
@@ -226,6 +226,7 @@
     <string name="field_share">共用資料夾</string>
     <string name="field_path">子資料夾</string>
     <string name="field_optional">%1$s（選填）</string>
+    <string name="field_clear">清除%1$s</string>
     <string name="field_user">使用者名稱</string>
     <string name="field_password">密碼</string>
     <string name="placeholder_host">例如：192.168.1.10</string>
@@ -273,7 +274,7 @@
     </plurals>
     <string name="folder_content">%1$s、%2$s</string>
     <string name="error_share_not_found">%1$s 上沒有名為「%2$s」的共用資料夾。請在 NAS 的管理介面中核對名稱。</string>
-    <string name="error_export_not_found">NAS 未透過 NFS 共用 %s。在 Synology 上，掛載路徑以 /volume1/ 開頭。</string>
+    <string name="error_export_not_found">NAS 未透過 NFS 共用 %s。在 Synology 上，掛載路徑以 /&#8288;volume1/&#8288; 開頭。</string>
     <string name="error_subfolder_not_found">%1$s 有回應，但其中沒有「%2$s」。請核對名稱，包括大小寫。</string>
     <string name="error_subfolder_not_found_share">「%1$s」有回應，但其中沒有「%2$s」。請核對名稱，包括大小寫。</string>
     <string name="error_nfs_refused">NAS 拒絕了此播放器。請在 %2$s 上以唯讀方式允許 %1$s，在 Synology 上還需允許非特權連接埠。</string>

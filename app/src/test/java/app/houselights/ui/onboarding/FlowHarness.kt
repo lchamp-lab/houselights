@@ -39,7 +39,7 @@ import org.robolectric.Shadows.shadowOf
 /**
  * « Ajouter un dossier » drawn over the board's network (FakeFlowNetwork) and driven from the remote: the flow over a
  * library, the remote's keys, and what each test waits for. [AddFolderFlowTest], [FlowAccountPathTest],
- * [DiskFolderEditTest].
+ * [DiskFolderEditTest], [FolderPickTest].
  */
 open class FlowHarness {
     @get:Rule
@@ -62,6 +62,9 @@ open class FlowHarness {
     /** The folder edited Back left with, whose sheet opens again; null for an add, or a folder the flow could not open. */
     protected var leftWith: Long? = null
 
+    /** The shared folder chosen at step 4 over the form of « Modifier le dossier » ([FolderFlow.picking]); null before. */
+    protected var picked: String? = null
+
     protected lateinit var library: LocalLibrary
 
     @After
@@ -75,7 +78,7 @@ open class FlowHarness {
     /**
      * The flow over a library holding [folders], drawn and settled; [saved] as a stopped process left it, [useFolders]
      * making the folders the source, [askDisk] asking Android to read the player's disks; with [editing], « Modifier le
-     * dossier » on that folder.
+     * dossier » on that folder; with [pick], step 4 over its form, the folder chosen in [picked].
      */
     protected fun flow(
         vararg folders: SourceEntity,
@@ -83,22 +86,30 @@ open class FlowHarness {
         useFolders: suspend () -> Boolean = { false },
         askDisk: DiskAsk = DiskAsk.NONE,
         editing: Long? = null,
+        pick: SharePick? = null,
     ): FolderFlow {
+        stock(*folders)
+        val flow = FolderFlow(network, library, scope, useFolders = useFolders, saved = saved, editing = editing, pick = pick)
+        val leave: (Long?) -> Unit = {
+            left = true
+            leftWith = it
+        }
+        compose.setTvContent {
+            AddFolderFlow(flow, onLeave = leave, onDone = { done = it }, askDisk = askDisk, onPick = { picked = it })
+        }
+        until { flow.ready }
+        compose.waitForIdle()
+        return flow
+    }
+
+    /** The [library] holding [folders], whose scans never run. */
+    protected fun stock(vararg folders: SourceEntity) {
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after an add never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
         val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         runBlocking { folders.forEach { db.dao().insertSource(it) } }
         library = LocalLibrary(context, db.dao(), scanner, artwork) {}
-        val flow = FolderFlow(network, library, scope, useFolders = useFolders, saved = saved, editing = editing)
-        val leave: (Long?) -> Unit = {
-            left = true
-            leftWith = it
-        }
-        compose.setTvContent { AddFolderFlow(flow, onLeave = leave, onDone = { done = it }, askDisk = askDisk) }
-        until { flow.ready }
-        compose.waitForIdle()
-        return flow
     }
 
     /**

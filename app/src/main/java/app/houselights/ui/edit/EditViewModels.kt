@@ -279,7 +279,9 @@ class IdentifyViewModel(
     companion object {
         private const val QUERY = "query"
         private const val YEAR = "year"
-        private const val YEAR_DIGITS = 4
+
+        /** A year typed keeps its digits, four at most. */
+        internal const val YEAR_DIGITS = 4
 
         fun factory(app: AppContainer, itemId: String, queue: Boolean = false): ViewModelProvider.Factory = viewModelFactory {
             initializer { IdentifyViewModel(itemId, app::provider, app.scope, createSavedStateHandle(), queue) }

@@ -7,6 +7,9 @@ import app.houselights.core.Quality
 import app.houselights.ui.home.WatchRow
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.onboarding.LoginFill
+import app.houselights.ui.onboarding.SharePick
+import app.houselights.ui.onboarding.clientsOf
+import app.houselights.ui.onboarding.exportsOf
 import kotlinx.serialization.Serializable
 
 /** Type-safe navigation routes: each screen and its arguments, checked at compile time. */
@@ -35,10 +38,43 @@ object Route {
 
     /**
      * Adds a folder, or edits the folder [folderId] in place, focus starting on [focus]; a folder of the player's disks
-     * ([onDisk]) is edited through « Ajouter un dossier »'s steps, on its disk.
+     * ([onDisk]) is edited through « Ajouter un dossier »'s steps, on its disk. With [pick], their step 4 over the form of
+     * [folderId], on the folders its test read from the NAS ([sharePick]): [exports] at [host], each with its [clients],
+     * and the NFS account typed ([uid], [gid]).
      */
     @Serializable
-    data class AddFolder(val folderId: Long? = null, val focus: FolderField = FolderField.FIRST, val onDisk: Boolean = false)
+    data class AddFolder(
+        val folderId: Long? = null,
+        val focus: FolderField = FolderField.FIRST,
+        val onDisk: Boolean = false,
+        val pick: Boolean = false,
+        val host: String = "",
+        val exports: List<String> = emptyList(),
+        /** Each export's clients as its NAS lists them, a space apart ([clientsOf]). */
+        val clients: List<String> = emptyList(),
+        val uid: String = "",
+        val gid: String = "",
+    ) {
+        /** The step 4 to open over the form, with what it shows; null for any other folder screen. */
+        val sharePick: SharePick?
+            get() {
+                val folder = folderId?.takeIf { pick } ?: return null
+                return SharePick(folder, host, exportsOf(exports, clients), uid, gid)
+            }
+
+        companion object {
+            /** « Choisir un dossier partagé » on the form of [pick]'s folder. */
+            fun picking(pick: SharePick) = AddFolder(
+                folderId = pick.folder,
+                pick = true,
+                host = pick.host,
+                exports = pick.exports.map { it.path },
+                clients = clientsOf(pick.exports),
+                uid = pick.uid,
+                gid = pick.gid,
+            )
+        }
+    }
 
     @Serializable
     data object Home

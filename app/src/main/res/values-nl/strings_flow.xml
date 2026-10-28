@@ -45,6 +45,12 @@
     <string name="use_suggestion">%s gebruiken</string>
     <string name="use_suggestion_name">“%s” gebruiken</string>
     <string name="suggested_by_nas">Voorgesteld door de NAS</string>
+    <string name="pick_share">Gedeelde map kiezen</string>
+    <plurals name="pick_share_desc">
+        <item quantity="one">Uit de %d die de NAS deelt</item>
+        <item quantity="other">Uit de %d die de NAS deelt</item>
+    </plurals>
+    <string name="only_share">De enige gedeelde map van de NAS</string>
     <string name="flow_browse_desc">Open de map van uw films of series en kies die dan.</string>
     <string name="flow_edit_desc">Kies de map waarin de video’s van “%s” nu staan: de titels, wat u hebt bekeken en uw keuzes blijven behouden.</string>
     <string name="choose_folder">Deze map kiezen</string>

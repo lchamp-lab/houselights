@@ -44,6 +44,11 @@
     <string name="use_suggestion">使用 %s</string>
     <string name="use_suggestion_name">使用“%s”</string>
     <string name="suggested_by_nas">NAS 推荐</string>
+    <string name="pick_share">选择共享文件夹</string>
+    <plurals name="pick_share_desc">
+        <item quantity="other">从 NAS 共享的 %d 个文件夹中选择</item>
+    </plurals>
+    <string name="only_share">NAS 唯一的共享文件夹</string>
     <string name="flow_browse_desc">请打开存放电影或剧集的文件夹，然后选择它。</string>
     <string name="flow_edit_desc">请选择现在存放“%s”视频的文件夹。其中的作品、观看记录和您的选择都会保留。</string>
     <string name="choose_folder">选择此文件夹</string>

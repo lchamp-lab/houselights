@@ -1,6 +1,7 @@
 package app.houselights.ui
 
 import android.content.Context
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -10,15 +11,24 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasRequestFocusAction
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -26,6 +36,9 @@ import app.houselights.R
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
 import app.houselights.core.HdrFormat
+import app.houselights.core.Identity
+import app.houselights.core.MatchCandidate
+import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -44,6 +57,7 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
+import app.houselights.settings.InterfaceLanguage
 import app.houselights.testing.folderNames
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouselightsTheme
@@ -56,6 +70,9 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.detail.DetailPage
 import app.houselights.ui.detail.DetailViewModel
+import app.houselights.ui.detail.Speaking
+import app.houselights.ui.edit.IdentifyPage
+import app.houselights.ui.edit.IdentifyViewModel
 import app.houselights.ui.home.HomeGrid
 import app.houselights.ui.home.fullHome
 import app.houselights.ui.onboarding.AddFolderForm
@@ -72,6 +89,7 @@ import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.cutTexts
+import app.houselights.ui.testing.film
 import app.houselights.ui.util.PlaybackOutcome
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -90,6 +108,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.util.Locale
 
 /**
  * DESIGN.md, One canvas: at the ends of the text sizes the app lays out at, home, a title's page, the settings and a
@@ -186,6 +205,61 @@ class TextSizeLayoutTest {
         } finally {
             db.close()
         }
+    }
+
+    /**
+     * Identifier's year at the largest text size in each of the twelve languages (#78): its whole name over it,
+     * « Année (facultatif) », and, focused at rest, the folder's year, « OK saisir » and its cross inside it, the year
+     * whole before « OK saisir », « OK saisir » whole before the cross.
+     */
+    @Test
+    fun identifysYearHoldsInEveryLanguage() {
+        val provider = FakeProvider().apply {
+            items["m1"] = film("m1", "Nouveautés")
+            identity = Identity(
+                "Le Grand Bleu.mkv", "Nouveautés", 2025, current = null, manual = false, canSearch = true,
+                doubt = MatchDoubt.UNSURE, suggestions = listOf(MatchCandidate("175", "Le Grand Bleu", null, 1988, null, null)),
+            )
+        }
+        val vm = IdentifyViewModel("m1", { provider }, work)
+        var language by mutableStateOf(InterfaceLanguage.LANGUAGES.first())
+        system = TEXT_SCALE_MAX
+        show { Speaking(language) { IdentifyPage(vm, onDone = {}) } }
+        val wrong = InterfaceLanguage.LANGUAGES.flatMap { tag ->
+            compose.runOnIdle { language = tag }
+            compose.waitForIdle()
+            yearHolds(tag)
+        }
+        assertTrue("At $TEXT_SCALE_MAX:\n" + wrong.joinToString("\n"), wrong.isEmpty())
+    }
+
+    /** Where Identifier's year, in [tag], is cut or covered. */
+    private fun yearHolds(tag: String): List<String> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val res = context.createConfigurationContext(
+            Configuration(context.resources.configuration).apply { setLocale(Locale.forLanguageTag(tag)) },
+        ).resources
+        val named = res.getString(R.string.field_optional, res.getString(R.string.label_year))
+        val inField = hasAnyAncestor(hasContentDescription(named))
+        compose.onNode(hasContentDescription(named) and hasRequestFocusAction()).requestFocus()
+        compose.waitForIdle()
+        val wrong = mutableListOf<String>()
+        val hint = res.getString(R.string.key_hint_type)
+        compose.cutTexts().filter { it == named || it == hint }.forEach { wrong += "$tag: «$it» cut" }
+        val ok = compose.onAllNodes(hasText(res.getString(R.string.key_ok)) and inField).fetchSemanticsNodes()
+        if (ok.isEmpty()) return wrong + "$tag: no «$hint» in the year"
+        val text = compose.onNode(hasSetTextAction() and inField)
+        val layouts = mutableListOf<TextLayoutResult>()
+        text.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+        val year = text.getUnclippedBoundsInRoot().left.value + layouts.first().getLineRight(0)
+        val badge = ok.single().boundsInRoot
+        val cross = compose.onNode(hasContentDescription(res.getString(R.string.field_clear, res.getString(R.string.label_year))))
+            .getUnclippedBoundsInRoot()
+        val field = compose.onNode(hasContentDescription(named) and hasRequestFocusAction()).getUnclippedBoundsInRoot()
+        if (year > badge.left) wrong += "$tag: the year ends at $year, under «$hint» from ${badge.left}"
+        if (badge.right > cross.left.value) wrong += "$tag: «$hint» ends at ${badge.right}, under the cross from ${cross.left}"
+        if (cross.right > field.right) wrong += "$tag: the cross ends at ${cross.right}, past the field at ${field.right}"
+        return wrong
     }
 
     @Test

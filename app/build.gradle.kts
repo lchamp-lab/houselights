@@ -280,6 +280,19 @@ tasks.withType<Test>().configureEach {
     outputs.doNotCacheIf("The servers' tests read servers outside the build") { servers.get() == "1" }
 }
 
+// The unit tests run in one JVM, on Gradle's 512 MB, unless -Phouselights.testForks=N runs them in N JVMs side by side,
+// each taking whole test classes as it frees up, and -Phouselights.testHeap gives each another heap: CI runs them in 3 of
+// 1536m, on its runner's four processors and 16 GB. The tests' servers listen on a port the system chooses, or on another
+// when theirs is taken (the journal's 8642), and their files are temporary: no JVM holds what another needs.
+val testForks: Int = providers.gradleProperty("houselights.testForks").orNull
+    ?.let { requireNotNull(it.toIntOrNull()?.takeIf { n -> n > 0 }) { "-Phouselights.testForks must be above 0, not \"$it\"" } }
+    ?: 1
+val testHeap: String? = providers.gradleProperty("houselights.testHeap").orNull
+tasks.withType<Test>().configureEach {
+    maxParallelForks = testForks
+    testHeap?.let { maxHeapSize = it }
+}
+
 room {
     schemaDirectory("$projectDir/schemas")
 }

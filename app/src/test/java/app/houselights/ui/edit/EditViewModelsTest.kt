@@ -56,6 +56,22 @@ class EditViewModelsTest {
         assertEquals(listOf(heat), vm.state.value.results)
     }
 
+    /** The year is optional (#78): left empty, a search asks for every year; typed, for that one. */
+    @Test
+    fun anEmptyYearSearchesEveryYear() = runTest {
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
+        advanceUntilIdle()
+        provider.searchedYears.clear()
+
+        vm.setYear("")
+        vm.search()
+        advanceUntilIdle()
+        vm.setYear("1995")
+        vm.search()
+        advanceUntilIdle()
+        assertEquals(listOf(null, 1995), provider.searchedYears)
+    }
+
     @Test
     fun withoutAKeyThereIsNothingToSearch() = runTest {
         provider.identity = provider.identity!!.copy(canSearch = false)
