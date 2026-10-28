@@ -760,14 +760,14 @@
     </plurals>
     <string name="mark_saga_watched">Segna la saga come vista</string>
     <string name="mark_saga_unwatched">Segna la saga come non vista</string>
-    <string name="saga_release_on">Uscita il %s</string>
+    <string name="saga_release_on">Data di uscita: %s</string>
     <string name="saga_announced">Annunciato</string>
     <!-- I pannelli di una saga, come li legge uno screen reader: prima il titolo -->
     <string name="saga_card_name">%1$s, film %2$d</string>
     <string name="saga_volet_saga">%s, saga</string>
     <string name="saga_card_next">a seguire</string>
     <string name="saga_card_absent">assente dalla libreria</string>
-    <string name="saga_card_release">uscita il %s</string>
+    <string name="saga_card_release">data di uscita: %s</string>
     <string name="saga_card_announced">annunciato</string>
 
     <!-- Versions and editions -->

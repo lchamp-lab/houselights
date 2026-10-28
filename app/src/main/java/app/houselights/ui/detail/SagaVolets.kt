@@ -432,14 +432,14 @@ private fun releaseWords(part: SagaPart): String =
 @ReadOnlyComposable
 private fun longDate(date: LocalDate): String = longDate(date, LocalConfiguration.current.locales[0])
 
-/** [date] in full in [locale]'s words: in French, « 15 décembre 2026 », « 1er mai 2027 », unbroken. */
+/**
+ * [date] in full in [locale]'s words, unbroken where the day comes first and the first of the month is said as such:
+ * French « 15 décembre 2026 », « 1er mai 2027 », Italian « 1º dicembre 2026 »; elsewhere the language's long date.
+ */
 internal fun longDate(date: LocalDate, locale: Locale): String {
-    if (locale.language != Locale.FRENCH.language) {
-        return DateTimeFormatter.ofLocalizedDate(
-            FormatStyle.LONG,
-        ).withLocale(locale).format(date)
-    }
-    val day = if (date.dayOfMonth == 1) FIRST_FR else "${date.dayOfMonth}"
+    val first = FIRSTS[locale.language]
+        ?: return DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(locale).format(date)
+    val day = if (date.dayOfMonth == 1) first else "${date.dayOfMonth}"
     return listOf(day, DateTimeFormatter.ofPattern(MONTH, locale).format(date), "${date.year}").joinToString("$NBSP")
 }
 
@@ -456,4 +456,6 @@ private const val SAGA_VOLET = "saga"
 private const val MINUTE_MS = 60_000L
 private const val PERCENT = 100
 private const val MONTH = "MMMM"
-private const val FIRST_FR = "1er"
+
+/** The first of the month where a language writes it as an ordinal, before its month: French's « 1er », Italian's « 1º ». */
+private val FIRSTS = mapOf(Locale.FRENCH.language to "1er", Locale.ITALIAN.language to "1º")
