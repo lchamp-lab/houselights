@@ -622,7 +622,7 @@ class HomeViewModelTest {
      * The first scan shows the folder the pass reads, the first while it reaches none, and the titles found with their
      * posters as the library gives them and their count, read as soon as it holds home and while it does, nothing
      * showing it yet or Réglages over it, so its wall comes back with them; no longer once it gave way with nothing
-     * showing it.
+     * showing it, and forgotten then, so another first pass's wall waits for its own titles.
      */
     @Test
     fun theFirstScanShowsTheFolderReadAndTheTitlesFound() = runTest {
@@ -666,5 +666,11 @@ class HomeViewModelTest {
         scan.value = ScanState()
         advanceUntilIdle()
         assertEquals("no longer read once it gave way, nothing showing it", 0, reading)
+        assertNull("forgotten with it, unread again", vm.firstScan.value.titles)
+
+        scan.value = firstPass()
+        advanceUntilIdle()
+        assertEquals("read again for another first pass", 1, reading)
+        assertEquals(listOf("Dune", "Heat"), vm.firstScan.value.titles.orEmpty().map { it.title })
     }
 }

@@ -251,7 +251,8 @@ class HomeViewModel(
     /**
      * What the first scan shows beside its progress: the folder the pass reads, the titles found as its wall takes them
      * (the first [FirstScanDefaults.FRAMES], then the latest) and how many; read while it holds home, from Réglages too,
-     * so its wall comes back with the titles found meanwhile at once, else only while it shows, kept meanwhile.
+     * so its wall comes back with the titles found meanwhile at once, else only while it shows. Forgotten once nothing
+     * reads it, unread again: another first pass's wall waits for its own titles, never showing the last pass's at once.
      */
     val firstScan: StateFlow<FirstScanShows> = combine(
         firstTitles(FirstScanDefaults.FRAMES),
@@ -259,7 +260,7 @@ class HomeViewModel(
         combine(scan.map { it.sourceId }.distinctUntilChanged(), folderList, ::folderRead),
     ) { rows, count, folder -> FirstScanShows(folder, rows.map(::firstTitleOf), count) }
         .catch { e -> Log.w(TAG, "Reading the first scan's titles failed", e) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), FirstScanShows())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS, replayExpirationMillis = 0), FirstScanShows())
 
     init {
         if (hold.value == FirstScanHold.NONE) load()
