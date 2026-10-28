@@ -47,7 +47,7 @@ jobs:
           languages: java-kotlin
           build-mode: manual
 
-      # Kotlin compiled inside Gradle's JVM, where CodeQL's tracer sees it, as CI runs it; nothing taken from a cache.
+      # Kotlin compiled inside Gradle's JVM, where CodeQL's tracer sees it; nothing taken from a cache.
       - name: Compile
         run: >-
           ./gradlew --no-daemon --no-build-cache --max-workers=2

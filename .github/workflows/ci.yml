@@ -1,10 +1,12 @@
-# Checks every push and pull request: unit tests, Android Lint, detekt (with and without the compiler's
-# types), a minified release build, signed with the runner's debug key and never published, and the baseline
-# profile's journeys compiled, every compilation and Lint failing on a warning.
+# Checks every push and pull request in four parts side by side, each on a runner of its own: the unit tests, Android
+# Lint, detekt (with and without the compiler's types), and a minified release build, signed with the runner's debug key
+# and never published, with the baseline profile's journeys compiled; every compilation and Lint failing on a warning.
+# « check » passes once all four have: the check a merge to main waits for (the repository's ruleset on main).
 # TMDB_API_KEY is optional (a repository secret): without it the app builds and users enter their own key.
 # TRAKT_CLIENT_ID is optional too, and TRAKT_CLIENT_SECRET only for a Trakt app that has one: without them,
-# the app builds and says it has no Trakt. A pull request from a fork gets no secret, and needs none.
-# Beside it, « servers » runs the app's tests against real servers in Docker (tools/test-servers).
+# the app builds and says it has no Trakt. Only the unit tests and the release build, whose code is built with them,
+# get them. A pull request from a fork gets no secret, and needs none.
+# Beside them, « servers » runs the app's tests against real servers in Docker (tools/test-servers).
 name: CI
 
 on:
@@ -20,9 +22,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  # The same checks as scripts/check.sh, in four parts: each compiles what it checks, so that none waits for another.
+  parts:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 25
+    strategy:
+      # Each part runs to its end: a failure in one never hides another's.
+      fail-fast: false
+      matrix:
+        include:
+          - name: unit tests
+            id: tests
+            # In three JVMs side by side, each with a heap of 1.5 GB (app/build.gradle.kts, houselights.testForks).
+            gradle: testDebugUnitTest -Phouselights.testForks=3 -Phouselights.testHeap=1536m
+            secrets: true
+            robolectric: true
+          - name: lint
+            id: lint
+            gradle: lintDebug
+          - name: detekt
+            id: detekt
+            gradle: detekt detektDebug detektDebugUnitTest
+          - name: release build
+            id: release
+            gradle: assembleRelease :baselineprofile:compileNonMinifiedReleaseKotlin
+            secrets: true
     steps:
       # Actions are pinned to a commit, which cannot move under the build.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,44 +68,67 @@ jobs:
       # resolver of its own, into ~/.m2, which setup-gradle does not cache. Keyed by Robolectric's
       # version and the Android version the tests ask for.
       - name: Robolectric's key
+        if: matrix.robolectric
         id: robolectric
         run: |
           version="$(sed -n 's/^robolectric = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
           sdk="$(sed -n 's/^sdk=//p' app/src/test/resources/robolectric.properties)"
           echo "key=robolectric-$version-sdk$sdk" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - if: matrix.robolectric
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.m2/repository/org/robolectric
           key: ${{ steps.robolectric.outputs.key }}
 
-      # The same checks as scripts/check.sh. A hosted runner has 16 GB: a 3 GB heap and the Kotlin compiler
-      # inside Gradle fit with room to spare. 2 GB, enough until Compose 1.11 and KSP2, ran out compiling the debug
-      # and release builds side by side.
-      - name: Tests, lint, detekt, release build
+      # What the runner has, which the settings below count on: four processors and 16 GB for a public repository's.
+      - name: The runner
+        run: |
+          echo "$(nproc) processors: $(sed -n 's/^model name[[:space:]]*: //p' /proc/cpuinfo | sort -u)"
+          free -m
+
+      # A worker per processor and a 6 GB heap; the Kotlin compiler in a daemon of its own, of 3 GB, where on the same
+      # processors it compiled the debug build a little faster than inside Gradle's JVM, and the unit tests' classes,
+      # compiled after it, in half the time. With the unit tests' three JVMs of 1.5 GB, all within the runner's 16 GB.
+      - name: ${{ matrix.name }}
         env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
-          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+          TMDB_API_KEY: ${{ matrix.secrets && secrets.TMDB_API_KEY || '' }}
+          TRAKT_CLIENT_ID: ${{ matrix.secrets && secrets.TRAKT_CLIENT_ID || '' }}
+          TRAKT_CLIENT_SECRET: ${{ matrix.secrets && secrets.TRAKT_CLIENT_SECRET || '' }}
         run: >-
-          ./gradlew --no-daemon --max-workers=2
-          -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
-          -Pkotlin.compiler.execution.strategy=in-process
+          ./gradlew --no-daemon --max-workers="$(nproc)"
+          -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
+          -Pkotlin.compiler.execution.strategy=daemon
+          -Pkotlin.daemon.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g"
           -Phouselights.debugSignedRelease=true
-          testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest assembleRelease
-          :baselineprofile:compileNonMinifiedReleaseKotlin
+          ${{ matrix.gradle }}
 
       - name: Reports
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: reports
+          name: reports-${{ matrix.id }}
           path: app/build/reports/
+
+  # The check a merge to main waits for, under the name it has always had: it passes once every part has, and fails
+  # once one has failed, timed out or was cancelled (a job skipped would count as passed).
+  check:
+    needs: parts
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every part passed
+        env:
+          PARTS: ${{ needs.parts.result }}
+        run: |
+          echo "Unit tests, lint, detekt and the release build: $PARTS"
+          [ "$PARTS" = success ]
 
   # The app against real servers (tools/test-servers/README.md): a Samba NAS, an unfs3 NAS, the same one sending its
   # replies in fragments (on 127.0.0.2) and a Jellyfin server in Docker, on sample files made here, every port on this
-  # machine's loopback alone; then their tests (app.houselights.servers), which « check » skips. Beside « check », so it
-  # never makes it longer, and with no secret.
+  # machine's loopback alone; then their tests (app.houselights.servers), which the unit tests skip. Beside the parts, so
+  # it never makes CI longer, and with no secret.
   servers:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -96,7 +144,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2, MIT; v6 caches through a proprietary component
 
-      # The same Android for Robolectric as « check », from the same cache.
+      # The same Android for Robolectric as the unit tests, from the same cache.
       - name: Robolectric's key
         id: robolectric
         run: |

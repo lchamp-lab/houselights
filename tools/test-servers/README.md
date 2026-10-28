@@ -89,7 +89,7 @@ folder settings word it) and Jellyfin's client and provider (sign-in, its librar
 a show's seasons, a token signed out). The NFS tests run on both NFS servers, `NfsFragmentsServerTest` adding on
 `nfs-fragments` the reads whose replies come in fragments: 256 KB at once, an NFO over 64 KB. They need every server
 up, both profiles' too (Start). They are skipped unless `HOUSELIGHTS_TEST_SERVERS=1`, so `scripts/check.sh` and CI's
-`check` job skip them; CI's `servers` job starts the servers and runs them alone. With the variable set, Gradle runs
+unit tests skip them; CI's `servers` job starts the servers and runs them alone. With the variable set, Gradle runs
 them each time, never taking an earlier run, skipped or against other servers, as up to date:
 
 ```sh
