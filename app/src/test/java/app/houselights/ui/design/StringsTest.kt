@@ -89,6 +89,18 @@ class StringsTest {
         assertTrue(english, "your passwords or your server access" in english)
     }
 
+    /**
+     * The Synology path the message about an export the NAS lacks writes in its sentence never breaks at a line's end,
+     * as [app.houselights.ui.util.wholePath] keeps the path it is given: a word joiner (U+2060) after each slash.
+     */
+    @Test
+    fun theExportMessagesOwnPathIsNeverBroken() {
+        (listOf(english) + translations).forEach { folder ->
+            val text = string(folder, "error_export_not_found")
+            assertTrue("${folder.name}: $text", text.contains('/') && Regex("/(?!\u2060)").find(text) == null)
+        }
+    }
+
     private fun string(file: File, name: String) =
         resources(file).single { it.tagName == "string" && it.getAttribute("name") == name }.textContent
 

@@ -103,6 +103,7 @@ import app.houselights.ui.onboarding.AddFolderScreen
 import app.houselights.ui.onboarding.FlowDone
 import app.houselights.ui.onboarding.JellyfinLoginScreen
 import app.houselights.ui.onboarding.LoginFill
+import app.houselights.ui.onboarding.SharePick
 import app.houselights.ui.onboarding.WelcomeScreen
 import app.houselights.ui.person.PersonScreen
 import app.houselights.ui.search.SearchScreen
@@ -452,19 +453,32 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
         composable<Route.AddFolder> { entry ->
             val route = entry.toRoute<Route.AddFolder>()
             val folderId = route.folderId
-            if (folderId == null || route.onDisk) {
+            val pick = route.sharePick
+            when {
+                // « Choisir un dossier partagé »: the steps' step 4 over the form, which the folder chosen goes back to
+                // (#59); Back returns to the form, nothing chosen.
+                pick != null -> AddFolderFlowScreen(onLeave = { nav.leaveSharePick() }, onDone = {}, pick = pick, onPick = nav::sharePicked)
                 // « Ajouter un dossier », its steps; Back from the first leaves it where it was opened. A folder of the
                 // player's disks is edited through them, Back from its disk's root returning to its sheet.
-                AddFolderFlowScreen(
+                folderId == null || route.onDisk -> AddFolderFlowScreen(
                     onLeave = { edited -> nav.leaveFolderSteps(edited) },
                     onDone = { done -> nav.folderStepsDone(done, ::goHome) },
                     editing = folderId,
                 )
-            } else {
-                AddFolderScreen(folderId, focusOn = route.focus, onDone = {
-                    // A folder edited: back to settings, else (opened from home's problem) home.
-                    if (!nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
-                })
+                else -> {
+                    val picked by entry.savedStateHandle.getStateFlow<String?>(PICKED_SHARE, null).collectAsStateWithLifecycle()
+                    AddFolderScreen(
+                        folderId,
+                        focusOn = route.focus,
+                        onDone = {
+                            // A folder edited: back to settings, else (opened from home's problem) home.
+                            if (!nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
+                        },
+                        picked = picked,
+                        onPickShare = nav::openSharePick,
+                        onPickRead = { entry.savedStateHandle[PICKED_SHARE] = null },
+                    )
+                }
             }
         }
         composable<Route.Home> { entry ->
@@ -637,6 +651,33 @@ private fun NavController.folderStepsDone(done: FlowDone, goHome: () -> Unit) {
 
 /** The folder « Ajouter un dossier » just added or edited, handed to Settings beneath it so that its showcase takes focus. */
 private const val ADDED_FOLDER = "addedFolder"
+
+/** « Choisir un dossier partagé » on the form of « Modifier le dossier » ([pick]): the steps' step 4 over it, once. */
+internal fun NavController.openSharePick(pick: SharePick) {
+    if (!pickOnTop()) navigate(Route.AddFolder.picking(pick))
+}
+
+/**
+ * The shared folder [path] chosen at the steps' step 4 over the form ([openSharePick]): handed to the form beneath it
+ * ([PICKED_SHARE]), which tests it, and the step left; once, a second OK as it goes choosing nothing more.
+ */
+internal fun NavController.sharePicked(path: String) {
+    if (!pickOnTop()) return
+    previousBackStackEntry?.savedStateHandle?.set(PICKED_SHARE, path)
+    popBackStack()
+}
+
+/** Back from the steps' step 4 over the form ([openSharePick]): the form as it was, nothing chosen; once. */
+internal fun NavController.leaveSharePick() {
+    if (pickOnTop()) popBackStack()
+}
+
+/** Whether the steps' step 4 over the form is the screen on top. */
+private fun NavController.pickOnTop(): Boolean =
+    currentBackStackEntry?.takeIf { it.destination.hasRoute<Route.AddFolder>() }?.toRoute<Route.AddFolder>()?.pick == true
+
+/** The shared folder chosen at the steps' step 4, handed to the form of « Modifier le dossier » beneath it. */
+internal const val PICKED_SHARE = "pickedShare"
 
 /** The folder whose edit through the flow's steps was left by Back, handed to Settings so that its sheet opens again. */
 private const val FOLDER_SHEET = "folderSheet"

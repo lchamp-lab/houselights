@@ -3,10 +3,12 @@ package app.houselights.ui.edit
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import app.houselights.core.Identity
@@ -19,6 +21,7 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.film
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressOnRemote
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.LibraryPlace
 import app.houselights.ui.util.LocalLibraryPlace
@@ -190,6 +193,28 @@ class IdentifyScreenTest {
         compose.press(Key.DirectionCenter)
         assertEquals(listOf<String?>("m2"), next)
         assertTrue(provider.calls.none { it.startsWith("identify") })
+    }
+
+    /**
+     * « Année (facultatif) », its example an example, « Ex. : 1999 » (#78): the folder's year, emptied by its cross from
+     * the remote, leaves the field focused at rest, and Rechercher then asks for every year.
+     */
+    @Test
+    fun theYearIsOptionalAndItsCrossEmptiesItForEveryYear() {
+        show(identity(MatchDoubt.UNSURE, suggestions = listOf(dune, lynch)))
+        val year = compose.onNodeWithContentDescription("Year (optional)")
+        year.requestFocus()
+        compose.pressOnRemote(Key.DirectionRight)
+        compose.onNodeWithContentDescription("Clear Year").assertIsFocused()
+
+        compose.pressOnRemote(Key.DirectionCenter)
+        year.assertIsFocused()
+        compose.onNodeWithText("e.g. 1999").assertExists()
+        assertTrue("emptying searches nothing", provider.searchedYears.isEmpty())
+        button("Search").requestFocus()
+        compose.mainClock.advanceTimeBy(HlMotion.SETTLE)
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf<Int?>(null), provider.searchedYears)
     }
 
     /** From a title's page there is no queue to pass through. */

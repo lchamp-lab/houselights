@@ -166,6 +166,9 @@ object HlIcons {
         "m18 9-6 6",
     )
 
+    /** Empty a field at once: a cross (`x`), where [Erase] takes the last letter. */
+    val Clear = icon("Clear", "M18 6 6 18", "m6 6 12 12")
+
     /** Settings: three faders, each at its own level (`sliders-horizontal`). */
     val Settings = icon(
         "Settings",

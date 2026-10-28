@@ -13,12 +13,14 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.requestFocus
+import androidx.lifecycle.SavedStateHandle
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
@@ -36,8 +38,10 @@ import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.testing.folderNames
 import app.houselights.testing.mountFailure
+import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.UiError
@@ -96,14 +100,30 @@ class FolderFaultTest {
         nearby: suspend (SourceEntity, FolderTrouble) -> FolderSuggestion? = { _, _ -> null },
         onDone: () -> Unit = {},
     ): AddFolderViewModel {
+        val vm = model(stored(folder), player, probe, nearby)
+        compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) { onDone() } }
+        compose.waitForIdle()
+        return vm
+    }
+
+    /** [folder] in the library: its id. */
+    private fun stored(folder: SourceEntity): Long = runBlocking { db.dao().insertSource(folder) }
+
+    /** The form's model for folder [id], as [form] has it, keeping what it keeps in [saved]. */
+    private fun model(
+        id: Long,
+        player: String? = null,
+        probe: suspend (SourceEntity) -> FolderLevel = { FolderLevel(folderNames(12), videos = 3) },
+        nearby: suspend (SourceEntity, FolderTrouble) -> FolderSuggestion? = { _, _ -> null },
+        saved: SavedStateHandle = SavedStateHandle(),
+    ): AddFolderViewModel {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after a save never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
         val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
-        val id = runBlocking { db.dao().insertSource(folder) }
-        val vm = AddFolderViewModel(
+        return AddFolderViewModel(
             library,
             id,
             scope,
@@ -111,12 +131,10 @@ class FolderFaultTest {
                 tested += "${tried.share} ${tried.path}"
                 probe(tried)
             },
+            saved = saved,
             playerAddress = { player },
             nearby = nearby,
         )
-        compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) { onDone() } }
-        compose.waitForIdle()
-        return vm
     }
 
     private val films = SourceEntity(
@@ -176,6 +194,37 @@ class FolderFaultTest {
         saysUnder("Subfolder (optional)", message).assertIsFocused()
         compose.onAllNodesWithText(message).assertCountEquals(1)
         compose.onNodeWithText("Cannot connect").assertExists()
+    }
+
+    /**
+     * A process stopped on the form after a failure: the first failure said once it is back still sends focus under it,
+     * the form's count of answers kept as the last one focus went for is.
+     */
+    @Test
+    fun aFailureAfterAStoppedProcessStillTakesFocus() {
+        val id = stored(films)
+        val missing: suspend (SourceEntity) -> FolderLevel = { throw FileNotFoundException("lookup /volume1/video/Films") }
+        val saved = SavedStateHandle()
+        var vm = model(id, probe = missing, saved = saved)
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent { HouselightsTheme { AddFolderForm(vm, FolderField.FIRST) {} } }
+        compose.waitUntil { vm.ready }
+        vm.test()
+        compose.waitUntil(WAIT_MS) { vm.check != null }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription(SUBFOLDER).assertIsFocused()
+
+        // A new process: a new model from what the old one kept, the form from what it kept.
+        vm = model(id, probe = missing, saved = saved.afterProcessDeath())
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitUntil { vm.ready }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("NAS address").requestFocus()
+        compose.waitForIdle()
+        vm.test()
+        compose.waitUntil(WAIT_MS) { vm.check != null }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription(SUBFOLDER).assertIsFocused()
     }
 
     /**
@@ -310,5 +359,7 @@ class FolderFaultTest {
     private companion object {
         /** Testing reads the library first, from another thread. */
         const val WAIT_MS = 5_000L
+
+        const val SUBFOLDER = "Subfolder (optional)"
     }
 }
