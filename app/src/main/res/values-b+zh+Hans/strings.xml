@@ -269,6 +269,7 @@
     <string name="error_nas_unreachable">%s 无响应。请检查 NAS 是否已开机并连接到网络。</string>
     <string name="error_access_denied">NAS 拒绝访问。如使用 NFS，请在共享文件夹上允许本设备的 IP 地址；如使用 SMB，请检查该账号的权限。</string>
     <string name="error_login_failed">NAS 拒绝了此用户名或密码。</string>
+    <string name="error_password_unread">暂时无法读取已保存的密码：密码仍会保留。请重新输入，或稍后再试。</string>
     <string name="error_not_found">NAS 上不存在此共享文件夹或文件夹。请检查拼写。</string>
     <string name="error_host_missing">请输入 NAS 地址。</string>
     <string name="error_export_missing">请输入装载路径，例如 /volume1/video。</string>

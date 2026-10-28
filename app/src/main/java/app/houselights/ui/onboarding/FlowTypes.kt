@@ -109,6 +109,12 @@ sealed interface FlowMessage {
 
     data object GuestRefused : FlowMessage
 
+    /**
+     * The password of the account kept, which the device's Keystore did not open for now: kept, never tried, the NAS not
+     * asked, so never a refusal; typed again, or tried again once the Keystore answers.
+     */
+    data object PasswordUnread : FlowMessage
+
     /** NFS: the NAS refuses this player ([player], its address, null when unknown) on [export]. */
     data class NotAllowed(val player: String?, val export: String) : FlowMessage
 
@@ -158,18 +164,22 @@ data class FieldError(val field: String, val message: FlowMessage)
 /** How the flow ended: the folder [folderId] was added or edited, and [switched] whether the source became the folders. */
 data class FlowDone(val switched: Boolean, val folderId: Long?)
 
-/** What failed, as the flow tells it apart ([flowFailure]). */
-enum class FlowFailure { SILENT, LOGIN_REFUSED, MOUNT_REFUSED, READ_REFUSED, MISSING, OTHER }
+/** What failed, as the flow tells it apart ([flowFailure]); [PASSWORD_UNREAD], the account's password kept but not read for now. */
+enum class FlowFailure { SILENT, LOGIN_REFUSED, PASSWORD_UNREAD, MOUNT_REFUSED, READ_REFUSED, MISSING, OTHER }
 
 /** A failure the flow tells itself, before asking the network more: the NAS answered on no port. */
 class FlowRefusal(val failure: FlowFailure) : Exception(failure.name)
 
-/** What failed, from its cause chain: a refused mount (MNT3ERR_ACCES) told from a refused read (NFS3ERR_ACCES). */
+/**
+ * What failed, from its cause chain: a refused mount (MNT3ERR_ACCES) told from a refused read (NFS3ERR_ACCES), a password
+ * the NAS refused from one the Keystore did not open for now, which the NAS was never asked.
+ */
 fun Throwable.flowFailure(): FlowFailure {
     if (this is FlowRefusal) return failure
     return when (failureKind()) {
         FailureKind.UNREACHABLE -> FlowFailure.SILENT
-        FailureKind.LOGIN_FAILED, FailureKind.SECRET_UNREAD -> FlowFailure.LOGIN_REFUSED
+        FailureKind.LOGIN_FAILED -> FlowFailure.LOGIN_REFUSED
+        FailureKind.SECRET_UNREAD -> FlowFailure.PASSWORD_UNREAD
         FailureKind.ACCESS_DENIED -> if (isMountRefused()) FlowFailure.MOUNT_REFUSED else FlowFailure.READ_REFUSED
         FailureKind.MISSING -> FlowFailure.MISSING
         else -> FlowFailure.OTHER
@@ -305,7 +315,7 @@ internal fun FlowFailure.words(): RowFailure = when (this) {
     FlowFailure.SILENT -> RowFailure.SILENT
     FlowFailure.MOUNT_REFUSED -> RowFailure.NOT_ALLOWED
     FlowFailure.READ_REFUSED, FlowFailure.LOGIN_REFUSED -> RowFailure.REFUSED
-    FlowFailure.MISSING, FlowFailure.OTHER -> RowFailure.FAILED
+    FlowFailure.PASSWORD_UNREAD, FlowFailure.MISSING, FlowFailure.OTHER -> RowFailure.FAILED
 }
 
 /**
@@ -322,6 +332,7 @@ internal fun Asking.refusal(failure: FlowFailure, name: String, where: String): 
         else -> FlowMessage.Denied(user, name)
     }
     FlowFailure.LOGIN_REFUSED -> if (guest) FlowMessage.GuestRefused else FlowMessage.LoginRefused
+    FlowFailure.PASSWORD_UNREAD -> FlowMessage.PasswordUnread
     FlowFailure.MISSING -> if (nfs) FlowMessage.NoExport(where) else FlowMessage.NoShare(host, name)
     FlowFailure.OTHER -> FlowMessage.Other
 }

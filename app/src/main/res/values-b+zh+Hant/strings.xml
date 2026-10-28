@@ -269,6 +269,7 @@
     <string name="error_nas_unreachable">%s 沒有回應。請檢查 NAS 是否已開機並連上網路。</string>
     <string name="error_access_denied">NAS 拒絕存取。如使用 NFS，請在共用資料夾上允許本裝置的 IP 位址；如使用 SMB，請檢查該帳號的權限。</string>
     <string name="error_login_failed">NAS 拒絕了此使用者名稱或密碼。</string>
+    <string name="error_password_unread">暫時無法讀取已儲存的密碼：密碼仍會保留。請重新輸入，或稍後再試。</string>
     <string name="error_not_found">NAS 上不存在此共用資料夾或資料夾。請檢查拼字。</string>
     <string name="error_host_missing">請輸入 NAS 位址。</string>
     <string name="error_export_missing">請輸入掛載路徑，例如 /volume1/video。</string>

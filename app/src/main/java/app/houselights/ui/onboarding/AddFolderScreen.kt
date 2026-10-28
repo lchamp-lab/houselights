@@ -677,6 +677,7 @@ private fun troubleText(trouble: FolderTrouble, host: String): String = when (tr
     is FolderTrouble.AccountDenied -> stringResource(R.string.error_smb_denied, trouble.user, trouble.share)
     FolderTrouble.GuestRefused -> stringResource(R.string.error_guest_refused)
     FolderTrouble.LoginFailed -> stringResource(R.string.error_login_failed)
+    FolderTrouble.PasswordUnread -> stringResource(R.string.error_password_unread)
     FolderTrouble.Other -> stringResource(R.string.error_scan_other)
 }
 
@@ -712,12 +713,14 @@ private fun pathExample(kind: SourceKind): Int =
 
 /**
  * The folder's connection status and its text; an edited folder may be [gone]. A failure is said by the ring and its
- * words, its mark being its message's, beside its cause.
+ * words, its mark being its message's, beside its cause; a password kept but not read for now, the NAS not asked, leaves
+ * the connection untested.
  */
 internal fun connectionState(check: FolderCheck?, testing: Boolean, gone: Boolean): Pair<StatusState, Int> = when {
     gone -> StatusState.Off to R.string.folder_gone_state
     testing -> StatusState.Pending to R.string.connection_testing
     check is FolderCheck.Reachable -> StatusState.Done to R.string.connection_ok
+    check is FolderCheck.Failed && check.trouble == FolderTrouble.PasswordUnread -> StatusState.Off to R.string.connection_untested
     check is FolderCheck.Failed -> StatusState.Off to R.string.connection_failed
     check is FolderCheck.Overlaps -> StatusState.Off to if (check.same) R.string.folder_overlaps_state else R.string.folder_nested_state
     check is FolderCheck.Empty -> StatusState.Off to R.string.folder_empty_state

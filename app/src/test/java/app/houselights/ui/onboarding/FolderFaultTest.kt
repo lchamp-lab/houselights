@@ -22,6 +22,7 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.requestFocus
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.SecretUnreadException
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FolderLevel
@@ -270,6 +271,24 @@ class FolderFaultTest {
         compose.onNodeWithText(help).assertExists()
     }
 
+    /**
+     * SMB's password kept, its field left empty, which the device's Keystore did not open for now: said kept under it,
+     * which takes focus, never refused; the panel says the connection untested, as the NAS was not asked.
+     */
+    @Test
+    fun aPasswordKeptButNotReadForNowIsSaidUnderItNotRefused() {
+        val vm = form(series, probe = { throw SecretUnreadException() })
+        vm.test()
+        compose.waitUntil { vm.check != null }
+        compose.waitForIdle()
+        saysUnder("Password", "The saved password could not be read for now: it is kept. Enter it again, or try again in a moment.")
+            .assertIsFocused()
+        compose.onNodeWithText("Connection not tested").assertExists()
+        compose.onNodeWithText("Cannot connect").assertDoesNotExist()
+        compose.onNodeWithText("The NAS rejected the user name or password.").assertDoesNotExist()
+        compose.onNodeWithText("The folder could not be read", substring = true).assertDoesNotExist()
+    }
+
     /** At rest, the help names this player; a test that answered says what it found, folders and videos apart, and the help goes. */
     @Test
     fun theTestSaysWhatItFoundAndTheHelpGoes() {
@@ -306,6 +325,7 @@ class FolderFaultTest {
     fun everyFailureIsTheStatesRing() {
         val failures = listOf(
             FolderCheck.Failed(ScanError(ScanErrorKind.UNREACHABLE), "192.168.1.20", FolderTrouble.Unreachable),
+            FolderCheck.Failed(ScanError(ScanErrorKind.PASSWORD_UNREAD), "192.168.1.20", FolderTrouble.PasswordUnread),
             FolderCheck.Overlaps(films, same = true),
             FolderCheck.Overlaps(films, same = false, holds = true),
             FolderCheck.Empty,

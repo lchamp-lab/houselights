@@ -275,6 +275,7 @@
     <string name="error_nas_unreachable">%s reageert niet. Controleer of de NAS aan staat en met het netwerk is verbonden.</string>
     <string name="error_access_denied">De NAS heeft de toegang geweigerd. Sta voor NFS het IP-adres van dit apparaat toe op de share; controleer voor SMB de rechten van het account.</string>
     <string name="error_login_failed">De NAS heeft de gebruikersnaam of het wachtwoord geweigerd.</string>
+    <string name="error_password_unread">Het opgeslagen wachtwoord kon voorlopig niet worden gelezen: het blijft bewaard. Voer het opnieuw in, of probeer het zo nog eens.</string>
     <string name="error_not_found">Deze share of map bestaat niet op de NAS. Controleer de spelling.</string>
     <string name="error_host_missing">Voer het adres van de NAS in.</string>
     <string name="error_export_missing" tools:ignore="Typos">Voer het koppelpad in, bijvoorbeeld /volume1/video.</string>

@@ -287,6 +287,7 @@
     <string name="error_nas_unreachable">%s nie odpowiada. Sprawdź, czy serwer NAS jest włączony i podłączony do sieci.</string>
     <string name="error_access_denied">Serwer NAS odmówił dostępu. Dla NFS zezwól na adres IP tego urządzenia w udziale; dla SMB sprawdź uprawnienia konta.</string>
     <string name="error_login_failed">Serwer NAS odrzucił nazwę użytkownika lub hasło.</string>
+    <string name="error_password_unread">Na razie nie udało się odczytać zapisanego hasła: jest zachowane. Wpisz je ponownie lub spróbuj jeszcze raz za chwilę.</string>
     <string name="error_not_found">Ten udział lub folder nie istnieje na serwerze NAS. Sprawdź pisownię.</string>
     <string name="error_host_missing">Wpisz adres serwera NAS.</string>
     <string name="error_export_missing">Wpisz ścieżkę montowania, na przykład /volume1/video.</string>

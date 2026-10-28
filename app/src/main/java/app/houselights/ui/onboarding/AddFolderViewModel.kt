@@ -230,6 +230,12 @@ sealed interface FolderTrouble {
 
     data object LoginFailed : FolderTrouble
 
+    /**
+     * SMB: the password kept, its field left empty, which the device's Keystore did not open for now: never tried, the
+     * NAS not asked; typed again, or tested again once the Keystore answers.
+     */
+    data object PasswordUnread : FolderTrouble
+
     data object Other : FolderTrouble
 }
 
@@ -243,6 +249,8 @@ internal fun troubleOf(error: ScanError, source: SourceEntity, player: String?):
     return when (error.kind) {
         ScanErrorKind.UNREACHABLE -> FolderTrouble.Unreachable
         ScanErrorKind.LOGIN_FAILED -> if (guest) FolderTrouble.GuestRefused else FolderTrouble.LoginFailed
+        // Never a refusal: the NAS was not asked.
+        ScanErrorKind.PASSWORD_UNREAD -> FolderTrouble.PasswordUnread
         ScanErrorKind.ACCESS_DENIED -> if (guest) FolderTrouble.GuestRefused else refusalOf(error.place, source, player)
         ScanErrorKind.NOT_FOUND -> missingOf(error.place, source)
         else -> FolderTrouble.Other
@@ -308,7 +316,7 @@ private fun spotOf(trouble: FolderTrouble, form: FolderForm): FaultSpot = when (
     is FolderTrouble.ShareMissing, is FolderTrouble.ExportMissing, FolderTrouble.Missing -> FaultSpot.SHARE
     is FolderTrouble.SubfolderMissing -> lastPathField(form)
     is FolderTrouble.AccountDenied, FolderTrouble.GuestRefused -> FaultSpot.USER
-    FolderTrouble.LoginFailed -> FaultSpot.PASSWORD
+    FolderTrouble.LoginFailed, FolderTrouble.PasswordUnread -> FaultSpot.PASSWORD
     is FolderTrouble.PlayerRefused, is FolderTrouble.ReadRefused, FolderTrouble.Other -> FaultSpot.PANEL
 }
 

@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.lifecycle.SavedStateHandle
 import app.houselights.R
 import app.houselights.providers.local.Protocol
+import app.houselights.providers.local.Secret
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.DS920
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.PASSWORD
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.USER
@@ -131,6 +132,44 @@ class FlowAccountPathTest : FlowHarness() {
         focusIsOn("video")
         assertEquals("", flow.password)
         assertEquals(listOf("shares $USER"), network.asked.filter { it.startsWith("shares") })
+    }
+
+    /**
+     * The account kept, its password not opened for now by the device's Keystore: never tried, so never said refused;
+     * the account step, its user filled, says under the password, which takes focus, that it is kept. Back, then OK on
+     * the NAS once the Keystore answers, signs in with the password kept.
+     */
+    @Test
+    fun aPasswordKeptButNotReadForNowIsSaidKeptNotRefused() {
+        keystoreDown = true
+        val flow = flow(sealedBefore(smbFilms))
+        ok()
+        until { flow.step == FlowStep.ACCOUNT }
+        compose.waitForIdle()
+        assertEquals(FieldError(FIELD_PASSWORD, FlowMessage.PasswordUnread), flow.fieldError)
+        compose.onNodeWithText(text(R.string.error_password_unread), useUnmergedTree = true).assertExists()
+        compose.onNodeWithText(text(R.string.error_login_failed), useUnmergedTree = true).assertDoesNotExist()
+        compose.onNode(isFocused() and hasContentDescription(text(R.string.field_password))).assertExists()
+        assertEquals(USER to "", flow.user to flow.password)
+
+        keystoreDown = false
+        back()
+        assertEquals(FlowStep.WHERE, flow.step)
+        flow.chooseUsed(flow.used.single())
+        until { flow.step == FlowStep.SHARES }
+        assertTrue("signed in with the password kept", flow.signedIn && flow.accountKept)
+    }
+
+    /** The account kept, its password read but no longer the NAS's: said refused under it, as ever. */
+    @Test
+    fun aPasswordKeptThatTheNasRefusesIsStillSaidRefused() {
+        val flow = flow(smbFilms.copy(password = Secret("changed since on the NAS")))
+        ok()
+        until { flow.step == FlowStep.ACCOUNT }
+        compose.waitForIdle()
+        assertEquals(FieldError(FIELD_PASSWORD, FlowMessage.LoginRefused), flow.fieldError)
+        compose.onNodeWithText(text(R.string.error_login_failed), useUnmergedTree = true).assertExists()
+        compose.onNodeWithText(text(R.string.error_password_unread), useUnmergedTree = true).assertDoesNotExist()
     }
 
     /**

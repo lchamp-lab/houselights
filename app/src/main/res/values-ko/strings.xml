@@ -269,6 +269,7 @@
     <string name="error_nas_unreachable">%s에서 응답이 없습니다. NAS가 켜져 있고 네트워크에 연결되어 있는지 확인하세요.</string>
     <string name="error_access_denied">NAS가 접근을 거부했습니다. NFS는 공유 폴더에서 이 기기의 IP 주소를 허용하고, SMB는 계정 권한을 확인하세요.</string>
     <string name="error_login_failed">NAS가 사용자 이름 또는 비밀번호를 거부했습니다.</string>
+    <string name="error_password_unread">저장된 비밀번호를 지금은 읽을 수 없습니다. 비밀번호는 그대로 보관됩니다. 다시 입력하거나 잠시 후 다시 시도하세요.</string>
     <string name="error_not_found">이 공유 폴더 또는 폴더가 NAS에 없습니다. 철자를 확인하세요.</string>
     <string name="error_host_missing">NAS 주소를 입력하세요.</string>
     <string name="error_export_missing">마운트 경로를 입력하세요(예: /volume1/video).</string>

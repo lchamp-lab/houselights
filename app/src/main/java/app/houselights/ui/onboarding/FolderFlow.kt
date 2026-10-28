@@ -480,6 +480,13 @@ class FolderFlow(
                 go(FlowStep.ACCOUNT, if (guest) FIELD_USER else FIELD_PASSWORD)
                 fieldError = FieldError(if (guest) FIELD_USER else FIELD_PASSWORD, refusal())
             }
+            failure == FlowFailure.PASSWORD_UNREAD -> {
+                // Its password not opened for now, the NAS never asked: the account step, its user filled, to type it,
+                // the one kept left as it is; Back, then OK on the NAS, tries it again.
+                keptPassword = null
+                go(FlowStep.ACCOUNT, FIELD_PASSWORD)
+                fieldError = FieldError(FIELD_PASSWORD, FlowMessage.PasswordUnread)
+            }
             failure == FlowFailure.SILENT -> throw listed.exceptionOrNull() ?: FlowRefusal(failure)
             else -> {
                 accountKept = true
@@ -503,7 +510,8 @@ class FolderFlow(
                 accountChanged()
                 showShares(listed.getOrThrow().map { FlowShare(it.name, it.remark) })
             }
-            FlowFailure.LOGIN_REFUSED, FlowFailure.SILENT -> throw listed.exceptionOrNull() ?: FlowRefusal(FlowFailure.OTHER)
+            FlowFailure.LOGIN_REFUSED, FlowFailure.PASSWORD_UNREAD, FlowFailure.SILENT ->
+                throw listed.exceptionOrNull() ?: FlowRefusal(FlowFailure.OTHER)
             // Signed in, but no list: its shared folder is typed.
             else -> {
                 signedIn = true

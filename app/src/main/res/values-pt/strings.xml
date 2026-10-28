@@ -283,6 +283,7 @@
     <string name="error_nas_unreachable">%s não responde. Verifique se o NAS está ligado e conectado à rede.</string>
     <string name="error_access_denied">O NAS recusou o acesso. No NFS, autorize o endereço IP deste dispositivo no compartilhamento; no SMB, verifique as permissões da conta.</string>
     <string name="error_login_failed">O NAS recusou o usuário ou a senha.</string>
+    <string name="error_password_unread">Não foi possível ler a senha salva por enquanto: ela continua guardada. Digite-a de novo, ou tente de novo daqui a pouco.</string>
     <string name="error_not_found">Este compartilhamento ou pasta não existe no NAS. Verifique a grafia.</string>
     <string name="error_host_missing">Digite o endereço do NAS.</string>
     <string name="error_export_missing" tools:ignore="Typos">Digite o caminho de montagem, por exemplo /volume1/video.</string>

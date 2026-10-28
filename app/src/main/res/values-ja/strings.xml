@@ -269,6 +269,7 @@
     <string name="error_nas_unreachable">%sから応答がありません。NASの電源が入っていて、ネットワークに接続されているか確認してください。</string>
     <string name="error_access_denied">NASがアクセスを拒否しました。NFSの場合は共有フォルダでこのデバイスのIPアドレスを許可し、SMBの場合はアカウントの権限を確認してください。</string>
     <string name="error_login_failed">NASがユーザー名またはパスワードを拒否しました。</string>
+    <string name="error_password_unread">保存されたパスワードを今は読み取れませんでした。パスワードは保持されています。もう一度入力するか、しばらくしてからもう一度お試しください。</string>
     <string name="error_not_found">この共有フォルダまたはフォルダはNAS上に存在しません。スペルを確認してください。</string>
     <string name="error_host_missing">NASのアドレスを入力してください。</string>
     <string name="error_export_missing">マウントパスを入力してください（例：/volume1/video）。</string>

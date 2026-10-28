@@ -276,6 +276,7 @@
     <string name="error_nas_unreachable">%s antwortet nicht. Prüfen Sie, ob das NAS eingeschaltet und mit dem Netzwerk verbunden ist.</string>
     <string name="error_access_denied">Das NAS hat den Zugriff verweigert. Erlauben Sie bei NFS die IP-Adresse dieses Geräts für die Freigabe; prüfen Sie bei SMB die Rechte des Kontos.</string>
     <string name="error_login_failed">Das NAS hat Benutzername oder Passwort abgelehnt.</string>
+    <string name="error_password_unread">Das gespeicherte Passwort konnte vorerst nicht gelesen werden: Es bleibt erhalten. Geben Sie es erneut ein, oder versuchen Sie es gleich noch einmal.</string>
     <string name="error_not_found">Diese Freigabe oder dieser Ordner existiert nicht auf dem NAS. Prüfen Sie die Schreibweise.</string>
     <string name="error_host_missing">Geben Sie die Adresse des NAS ein.</string>
     <string name="error_export_missing" tools:ignore="Typos">Geben Sie den Mount-Pfad ein, zum Beispiel /volume1/video.</string>
