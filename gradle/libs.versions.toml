@@ -31,10 +31,13 @@ retrofit = "2.12.0"
 coil = "2.7.0"
 smbj = "0.15.0"
 # 1.1.0's RPCRecordDecoder is replaced by the app's, which joins a reply's fragments (app/build.gradle.kts): on an
-# update, check whether it still needs to be, and take the versions nfs-client asks for Netty and SLF4J.
+# update, check whether it still needs to be, and take the version nfs-client asks for Netty.
 nfs-client = "1.1.0"
 netty = "3.10.6.Final"
-slf4j = "1.7.36"
+# The SLF4J the release ships, smbj's: Gradle takes the highest version asked for, smbj's 2.0.18 over nfs-client's
+# 1.7.36, and SLF4J 2 serves the 1.7 API nfs-client logs through, as the CI's servers' tests run it against real NFS
+# servers (.github/workflows/ci.yml): on an smbj update, take the version it asks for.
+slf4j = "2.0.18"
 # Versions of the libraries' dependencies raised for known vulnerabilities (see app/build.gradle.kts).
 bouncycastle = "1.86"
 commons-lang3 = "3.21.0"
