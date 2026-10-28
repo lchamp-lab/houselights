@@ -23,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -67,6 +66,7 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.reported
 import app.houselights.ui.util.retainedError
+import app.houselights.ui.util.titleCount
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -153,7 +153,7 @@ internal fun ToIdentifyPage(vm: ToIdentifyViewModel, onOpen: (String) -> Unit, q
                 contentPadding = PaddingValues(bottom = HlFocus.edge),
                 verticalArrangement = Arrangement.spacedBy(HlSpace.s),
             ) {
-                item(key = COUNT) { SectionHeader(pluralStringResource(R.plurals.title_count, titles.size, titles.size)) }
+                item(key = COUNT) { SectionHeader(titleCount(titles.size)) }
                 // A suggestion chosen from Menu that could not be saved.
                 state.chooseError?.let { error -> item(key = CHOOSE_ERROR) { NotSaved(error) } }
                 itemsIndexed(titles, key = { _, t -> t.item.id }) { i, t ->

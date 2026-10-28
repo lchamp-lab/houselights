@@ -89,7 +89,7 @@ Small surfaces (a settings pane, a message, a running scan) borrow exactly one g
 |---|---|---|
 | **Case back** | what a pane states | A `FactPlate` of `PlateFact`s: each label in secondary `meta` over its value, words in `entry`, a format or a figure in `spec`, its measure after it in `meta`, a state by its dot. Several of a kind in a `SpecTable` on a plate, the one in use by its white dot. Measures (sizes, counts, rates, durations) are tabular. Only what acts is a row. Unknown values are omitted, never shown as zero. No charts. |
 | **Intertitle** | every message | A short rule, one line in `subject`, one line of secondary `body` (`readableNarrow`), at most one action and a quieter one. An ember rule means attention. It replaces the content it concerns, aligned on the screen margin: never centred, never a snackbar, Toast or dialog. `HlEmptyState` on a screen, `SheetConfirm` in a sheet. |
-| **Counter** | progress | The ember line with its count in tabular figures ("3 / 9", `scan_progress`) and the current file, quiet, in `meta` on its line or under a label (`ScanProgress`); before the files are counted, a sliver and no count. On a focused plate, a raspberry line on the plate itself, the part to come pale (`ProgressLine`), so a count at its end reads as a whole gauge's. On a row (`HlSettingRow`'s `progress`), the count follows its line: an update downloading, "2,1 Mo / 6,4 Mo", each figure with its unit. Durations read "2 h 02", time left "Il reste 20 min"; a timecode only names a frame. |
+| **Counter** | progress | The ember line with its count in tabular figures ("3 / 9", "1 204 / 3 871": `scanCount`, its figures' thousands grouped as every count's, `formatCount`) and the current file, quiet, in `meta` on its line or under a label (`ScanProgress`); before the files are counted, a sliver and no count. On a focused plate, a raspberry line on the plate itself, the part to come pale (`ProgressLine`), so a count at its end reads as a whole gauge's. On a row (`HlSettingRow`'s `progress`), the count follows its line: an update downloading, "2,1 Mo / 6,4 Mo", each figure with its unit. Durations read "2 h 02", time left "Il reste 20 min"; a timecode only names a frame. |
 
 The library in numbers follows the case back: its figures on a plate (`FactPlate`), each in `spec` over what it
 counts in secondary `meta`, then a group of rows per kind, each row opening what it counts.
@@ -402,7 +402,7 @@ the keyboard's letters are `lead` (18), a step over the names.
 
 | Style | Size / line | Voice, weight | Role |
 |---|---|---|---|
-| `titleSignature` | 72 / 72 | poster, Bold | a short title without logo on one line, measured against the logo's box (440), under the standard text size as at it; else `display` on two even lines (`TitleArt(measured = true)`); a saga's panels' numbers to three films |
+| `titleSignature` | 72 / 72 | poster, Bold | a short title without logo on one line, measured against the logo's box (440), under the standard text size as at it; else `display` on two even lines (`TitleArt(measured = true)`); a saga's panels' numbers to three films; the folder home's first scan reads (`FolderBlock`) |
 | `display` | 48 / 56 | poster, Bold | a title's page without logo: two lines fill the logo's box (112); a saga's panels' numbers for four and five films |
 | `codeSignature` | 48 / 56 | poster, Bold, +0.06 em | a code to type elsewhere (`DeviceCodePlate`): `display`'s letters set apart |
 | `headline` | 36 / 40 | poster, Bold | screen and task titles (`ScreenTitle`, `TaskTitle`); a hero's title without logo, the case's, a saga's open film's; a saga's panels' numbers from six films |
@@ -426,6 +426,10 @@ the keyboard's letters are `lead` (18), a step over the names.
 The lines that set a frame keep it (`meta` 20, `cardName` 24, `rowTitle` 28, `body` 24, `entry` 20): home's grid,
 its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a field 60) do not move with the scale.
 
+- **A folder's name is a title style doing a name's job** on home's first scan (`FolderBlock`), where *subject* names a
+  folder elsewhere: the folder just chosen set as a film's opening title, to its measure in its column
+  (`FirstScanDefaults.column` 344), `titleSignature` on one line, else `display` on two balanced lines, white and never
+  ember, a folder read not being where you are. It keeps the name the folder was given, in every language.
 - **A saga's panels' numbers are title styles doing a figure's job**, one size a polyptych, chosen by the width of its
   closed panels (`VoletDefaults.numberLarge` 120, `numberMedium` 64): `titleSignature` to three films, `display` for
   four and five, `headline` from six (`VoletNumbers`). They are set as the styles are, their proportional figures
@@ -466,7 +470,7 @@ its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a f
 | `HlShapes` | radius follows hierarchy: `thumb` 4 (images up to 48 dp), `badge` 4, `mark` 6, `control` 10 (buttons, tiles, a track's plate, menu options), `field` 10, `row` 12, `artwork` 12, `wide` 14, `panel` 16 (menus, plates, showcases), `sheet` 24 (a side sheet's free corners, square against the edge). Every radius is in dp, never a pill or a disc; only dots are round, through a local `CircleShape` (`ShapesTest`). Nested shapes keep parallel corners: **outer radius = inner radius + gap** (a menu: 10 + `HlMenuDefaults.inset` 6; a group's rows: 12 + `HlInset.group` 4; a mark in a wide image's corner: 6 + 8; a focus frame: the picture's + 3) |
 | `HlSize` | artwork (`poster` 120 × 180 in a row, `wallPoster` 112 × 168 on a wall, `landscape` 240 × 135, `episode` 264, `portrait` 96 at 3:4, `PORTRAIT_RATIO`; posters at 2:3, `POSTER_RATIO`), `control` 48 on a page and `controlCompact` 44 in a screen's header, `tile` 48 and `tileCompact` 40, `segment` 40, icons (`icon` 20 beside words, `tileIcon` 22 on a tile, `largeIcon` 24, `inlineIcon` 16 in a line of facts), `mark` 22, the Menu key `menuKeyWidth` × `menuKeyHeight` 24 × 22 (its frame `keyEdge` 1.5, its lines `keyGlyph` 18), dots (`dot` 8, its ring `dotRing` 1.75, `newDot` 10 ringed `newDotRing` 2.5, `newsDot` 7 before a row's new titles and `doorDot` 8 before a door's, `wordDot` 7), setting rows `row` 60 in a pane as in a sheet, a text field and the search query `field` as tall, the settings' places `navRow` 56, a backdrop at its use 16:9 (`PREVIEW_RATIO`), a `showcase` 416, a gallery's wide images `galleryWide` 244 (a logo's box at `LOGO_BOX_RATIO`), meter 10 (`meterLarge` 14 when a pane states it, its parts' `swatch` 10), progress lines (`progressPoster` 4, `progressWide` 5, `progress` 3 beside text, `heroProgress` 220 × 4), `intertitleRule` 24 × 2, the lockup's capitals (`wordmark` 30, `wordmarkHero` 26) |
 | `HlLayout` | the screen grid, read by screens, the catalogue not counted (`LayoutTokensTest`): reading widths (640, 520), the hero band of « À regarder » and a person's page (148), `WALL_COLUMNS` (seven posters across the safe area, `wallGutter` apart), `detailGap`, `detailHeroMin`, a table's value column (`specFormat`), a reading sheet's definition labels (`readingLabel` 180), a saga's polyptych inside the safe area by a frame's reach (`voletSide` 53.5, `voletTop` 33.5) |
-| `…Defaults` | internal component parts: `TwoPaneDefaults` (the side column 256, leaving the settings' pane 560; `sideWide` 344, leaving a form 472), `HeroDefaults` (a hero's title 380 × 56), `HomeGridDefaults` (home's grid: its head, case, rows and band, the doors' parts), `HlSideSheetDefaults` (520, an NFO's `wideWidth` 736), `HlSettingRowDefaults` (value 360, room above and below 6), `ShowcaseDefaults` (its words' inset, where its name sets), `HlIconButtonDefaults` (label 280 at the default text size, grown with it, edge 24, a hint's or the Menu key's line `hintRoom` 20), `HlMenuDefaults` (320, inset 6), `TechSpecsDefaults` (a track's format, its block's widest between 188 and 280), `QrCodeDefaults` (module 6.5, `moduleCompact` 5 beside words or over notes, whole pixels at 1080p and 4K), `DeviceCodeDefaults` (a code's plate inset 28), `PaneDefaults` (a plate's label column 172, a table's names 120), `BackdropDefaults`, `VoletDefaults` (a saga's panels: `open` 428, a hero's title box and a card's inset each side; `gap` 8; `narrowest` 45, eight films and the saga's own in the safe area; the numbers `numberTop` 16 under the edge, by width from `numberLarge` 120 and `numberMedium` 64; the open words' `melt` 64, over which the numbers' floor melts back too; `yearsApart` 4, under which every closed panel's year goes; `opensAtOnce`, false) |
+| `…Defaults` | internal component parts: `TwoPaneDefaults` (the side column 256, leaving the settings' pane 560; `sideWide` 344, leaving a form 472), `HeroDefaults` (a hero's title 380 × 56), `HomeGridDefaults` (home's grid: its head, case, rows and band, the doors' parts), `HlSideSheetDefaults` (520, an NFO's `wideWidth` 736), `HlSettingRowDefaults` (value 360, room above and below 6), `ShowcaseDefaults` (its words' inset, where its name sets), `HlIconButtonDefaults` (label 280 at the default text size, grown with it, edge 24, a hint's or the Menu key's line `hintRoom` 20), `HlMenuDefaults` (320, inset 6), `TechSpecsDefaults` (a track's format, its block's widest between 188 and 280), `QrCodeDefaults` (module 6.5, `moduleCompact` 5 beside words or over notes, whole pixels at 1080p and 4K), `DeviceCodeDefaults` (a code's plate inset 28), `PaneDefaults` (a plate's label column 172, a table's names 120), `BackdropDefaults`, `FirstScanDefaults` (home's first scan: the wall's `COLUMNS` 4 and `FRAMES` 8, `gap` 8, `wall` 472, the folder's block's `column` 344 and `line` 220, `buttonGap` 16 over the wall, a step every `STEP_MS`), `VoletDefaults` (a saga's panels: `open` 428, a hero's title box and a card's inset each side; `gap` 8; `narrowest` 45, eight films and the saga's own in the safe area; the numbers `numberTop` 16 under the edge, by width from `numberLarge` 120 and `numberMedium` 64; the open words' `melt` 64, over which the numbers' floor melts back too; `yearsApart` 4, under which every closed panel's year goes; `opensAtOnce`, false) |
 | `HlControl` | padding of buttons, track words and badges; icon-to-text gap 8 |
 | `HlFocus` | the `frame` 2.5, `frameGap` 3 off the edge: their `reach` 5.5, whatever the size, held by a row's `room` 12, which the glow passes as far as a row draws (30), and a wall's `wallRoom` 24, where the grid cuts the glow once faded; siblings stepping back (`SIBLING_BRIGHTNESS` 0.64, `SIBLING_SATURATION` 0.65, `RECEDE_STEPS` 3); `glow` 28; `edge` 28 |
 
@@ -475,7 +479,8 @@ its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a f
 | Token | Content |
 |---|---|
 | `HlMotion` curves | three of the system's own: `focusPull` ("mise au point", 0.20 0.75 0.25 1) for what arrives, `fallBack` ("retombée", 0.45 0 0.55 1) for what leaves or crosses, `lightsOut` (ease-out) for lights going out. No Material curve, no curve drawn elsewhere, no animation on a default spring or a cross-fading container; every tween names its easing (`MotionGuardTest`) |
-| `HlMotion` durations | `FOCUS_IN` 220 and `FOCUS_OUT` 260 ms (a frame, a glow, a recede), `PLATE_IN` 120 and `PLATE_OUT` 180 (a plate's white), `TINT` 480 (a backdrop's fade, linear, once settled); `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (`rememberSettled`); `SKELETON_DELAY` 400 ms; `HOLD` 400 ms, the longest anything waits for a picture; `WALL_DRIFT` 140 s, one loop of the welcome wall; `ENTER_SCALE`, which a menu grows from |
+| `HlMotion` durations | `FOCUS_IN` 220 and `FOCUS_OUT` 260 ms (a frame, a glow, a recede), `PLATE_IN` 120 and `PLATE_OUT` 180 (a plate's white), `TINT` 480 (a backdrop's fade, linear, once settled; a poster arriving on the first scan's wall); `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (`rememberSettled`); `SKELETON_DELAY` 400 ms; `HOLD` 400 ms, the longest anything waits for a picture; `WALL_DRIFT` 140 s, one loop of the welcome wall; `ENTER_SCALE`, which a menu grows from |
+| A poster arriving (`FirstWall`) | the one motion that answers a scan rather than the viewer, as a new field of the settings' room comes in: once its picture is decoded at its size (or its one-sheet ready), the frame's opaque ground (`groundFill`) lifts off it over `TINT`, linear, read while drawing, without a layer nor the loader's fade (`ArtworkImage`'s `onShow`); a batch together, each when its picture is ready, never staggered. Renewing a frame is the same arrival: the poster it showed stays whole until the one coming is decoded, then is cut under the ground, never two posters one in the other; at most one a step (`FirstScanDefaults.STEP_MS` 2 s). Filling, the step that fills the last frames renews none, and no renewal begins until every title on the wall has its picture; a renewed frame's ground lifts plain, an empty frame's rule and edge fading with the ground of its first arrival alone. The titles there as the wall comes, once read (back from Réglages, its state kept with home, or with a new home), show at once |
 | `LocalHouseLights`, `HouseLightCue`, `LaunchCue`, `LocalLaunchScreen` | house-light level (read while drawing, each layer redrawn only during its own step: `rememberCueStep`), the playback and launch cues, the launch screen until the first screen is drawn whole |
 
 ### Icons (`Icons.kt`)
@@ -558,6 +563,25 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   name leaves it no room; a name too long for its icon goes without it, a door of one part keeping them 6 apart
   (`bandGapNarrow`). Framed with focus, nothing grows
   (`HomeLayoutTest`, `HomePlanTest`).
+- **Home's first scan** (`FirstScan`, `FirstScanDefaults`) holds home for the whole pass begun on an empty library
+  (`ScanState.firstPass`, kept to the pass's end, where `homeFilling` goes once home's row is full), and wherever no
+  row shows while a scan runs. Under the head, on the margin, the folder's block (`FolderBlock`, its column 344, see
+  *Components*) stands on the safe area's foot, TMDB's trouble over it (`AttentionNote` in `meta`, `xl` over the
+  block) with « Modifier la clé » `m` under it for a refused key alone, so nothing in the block moves as they come,
+  the column keeping `l` under the head. At the safe area's end, on the same foot, the wall of the titles found
+  (`FirstWall`: two whole lines of four `wallPoster`, 168 to 512, every frame inside the safe area). From the first
+  title, while the first pass runs, « Aller à l'accueil » stands over the wall from the head's foot, aligned on its
+  first frame, 16 over its posters (`GoHomeButton`, `buttonGap`), « L'analyse continue en arrière-plan » under it on
+  one line, the 78 they take at 1.3 within the 100 the head leaves; the settings tile's label falls under it, at the
+  head's end, to their right without touching them. The screen gives way by itself once every folder's files are read
+  (`ScanState.finishing`), or on « Aller à l'accueil », in one cut once home's one read has its shelves
+  (`shelvesRead`), focus placed once on the case; until then nothing moves, the button keeping its white plate, no
+  wheel nor word more, a second OK changing nothing. The choice is kept with the pass while the app runs
+  (`FirstScanLeft`), not in the screen's state, which Back clears as it quits: leaving and coming back lands on the
+  grid, the scan having waited; it is forgotten at the pass's end. Without a title by then, « Aucun film pour
+  l'instant » or « L'analyse n'a pas abouti », as before. At 1.0 and 1.3, in every language, TMDB's three notes,
+  « Modifier la clé » and a long name on two lines hold in the column, its lines whole, and the button and its line
+  over the wall (`FirstScanLayoutTest`, `HomeViewModelTest`).
 - **« À regarder »** (`WatchScreen`): home's rows under their title (`ScreenTitle`), the hero band (`HlLayout.hero`,
   148: logo, one line of facts, two lines of overview or progress), then the rows, `HlSpace.l` apart; opened on the
   row of the door that opens it, Back home to that door (`WatchPageTest`, `PagesNavigationTest`). It reads home's
@@ -699,6 +723,13 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   Without a grid (a message), the settings tile stands at the end of home's head. A note standing there (titles of a
   folder not found on the NAS, `HeadNote`) never takes focus: Up from the grid's first row reaches its button, and
   once it goes with its note while it has focus, focus goes back to the case (`HomeHeldTest`).
+- **Home's first scan** has three stops at most: the settings tile, « Aller à l'accueil », and « Modifier la clé » for
+  a refused key. Nothing takes focus as it comes; the button takes it as it comes only while nothing the viewer placed
+  with an arrow or OK has it, never from the tile or the key, nor coming back from Réglages, where focus is back on
+  the tile; a window made as the pass runs focuses the tile on its own as it is first laid out, which is not the
+  viewer's, and the button takes it. Down from the tile goes to the button, Up from it back to the tile, Left from it
+  to « Modifier la clé », Up or Right from that back to the button; the wall and the block are read, never chosen. At
+  the cut focus is placed once on the case (`FirstScanFocusTest`).
 - **Disabled controls** keep focus, ringed, never filled. What is only read (a technical sheet's block, an NFO)
   is not disabled: it takes the ring and OK does nothing.
 - **Nothing grows.** Focus reaches `HlFocus.reach` past what it frames, whatever its size: the room a
@@ -738,15 +769,18 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
    `MediaRowFocusTest`). Never `focusRestorer` (it crashes in Compose 1.7 when the list changes) nor a manual
    restore that cancels the move (`FocusStyleGuardTest`).
 
-**Back** goes in two steps (`BackToStart`): deep in a screen, it first returns focus to where the screen
-starts, then leaves. Home's grid has no depth: from any door, a first Back says "Appuyez encore sur Retour pour
-quitter" at the end of its head (`HomeHead`'s `status`), and a second one within 2.5 s (`QUIT_WINDOW_MS`) quits;
-the line goes when that time is out or as soon as focus moves to another door. Under the launch screen nothing has
-been seen yet: the first Back quits (`QuitAgainTest`). A page goes back to the screen that opened it: home, on the
-door it came from, or the person's page or the library in numbers that opened a wall (`PagesNavigationTest`); OK
-pressed twice before a page shows opens it once (`homeActions`). « À regarder » goes at once; a wall, from past its
-first line, first returns to its first poster. Sheets and menus handle their own Back; during the house-light cue,
-Back cancels it.
+**Back** goes in two steps (`BackToStart`): deep in a screen, it first returns focus to where the screen starts,
+then leaves. Home's grid has no depth: from any door, a first Back says "Appuyez encore sur Retour pour quitter" at
+the end of its head (`HomeHead`'s `status`), and a second one within 2.5 s (`QUIT_WINDOW_MS`) quits; the line goes
+when that time is out or as soon as focus moves to another door. While the library's first pass runs, on its first
+scan as on the grid after it, the line says "Appuyez encore sur Retour pour quitter : l’analyse reprendra quand vous
+reviendrez", the scan waiting while the app is away; it takes what the lockup and the tile leave, on two lines at
+the largest text, over the head's band and clear of « Aller à l'accueil » (`FirstScanLayoutTest`). Under the launch
+screen nothing has been seen yet: the first Back quits (`QuitAgainTest`). A page goes back to the screen that opened
+it: home, on the door it came from, or the person's page or the library in numbers that opened a wall
+(`PagesNavigationTest`); OK pressed twice before a page shows opens it once (`homeActions`). « À regarder » goes at
+once; a wall, from past its first line, first returns to its first poster. Sheets and menus handle their own Back;
+during the house-light cue, Back cancels it.
 
 **Menu** (or the Zidoo remote's Pop Menu, sent as F12) opens the options of what has focus, on its way up
 (`menuForLongClick`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
@@ -771,7 +805,7 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 |---|---|
 | `Backdrop` (`Hero`, `Full`, `Quiet`, `Diffuse`) | full-screen artwork under its veils (see *Veils*); a wall's is its diffuse field. Each picture is decoded off screen, then drawn with its veils into one cached layer; one fade at a time, two layers at most (`FadeBetween`, `BackdropFadeTest`). Handed across cuts (`BackdropRelay`), the handed-on picture waiting up to `HOLD` for the arriving one; a screen without backdrop lets it go out over `SLOW` (`LeavingBackdrop`). Only the first picture, in memory under the launch screen, shows at once (`showsAtOnce`). Steps back (`recede`) when focus is lower on the page, to the veil text needs over the whole picture, at least `VEIL` (`ArtworkSample.floorAcross`) |
 | `AmbientBackdrop` | a screen on its picture, its light provided as `LocalAmbient` (see *Colour*) |
-| `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment (see *Cards*); every picture is requested at its laid-out size, a wall's poster at its cell's (`requestedPoster`). Names under a card in `cardName`; a wide card's facts follow its name when both fit, else go under it. A person in two titles or more opens their page (`PersonScreen`); a person of a single title does nothing |
+| `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment (see *Cards*); every picture is requested at its laid-out size, a wall's poster at its cell's (`requestedPoster`); one told once it shows (`onShow`) comes without the loader's fade, its caller bringing it in. Names under a card in `cardName`; a wide card's facts follow its name when both fit, else go under it. A person in two titles or more opens their page (`PersonScreen`); a person of a single title does nothing |
 | `AbsentCard` | a saga's films the library lacks or not out yet, in release order: TMDB's poster in grey (see *Veils*), else a faint plate with a short rule, the title in `cardTitle` and the year in `badge`, both tertiary, what it is with focus ("Absent de votre bibliothèque", "Sortie le 15 décembre 2026"); framed without a glow, stepping back further than its siblings; OK opens its synopsis, else does nothing; read as its title, its year and what it is |
 | `Volets`, `VoletPlan`, `VoletWords`, `SagaVoletWords`, `VerticalName` | a saga's polyptych (see *Layout*): the panels side by side, the one open the one last focused, opening with focus; their widths, numbers' size and years by `VoletPlan`, pure; the open film's words and the saga's; the spine's name upright |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: logo or condensed title, facts, credits. Logos are normalised to the same optical weight (`EvenLogo`, `SURFACE` 0.35) and requested as shown (`titleArtRequest`), never enlarged past their file's pixels but above 1080p to the size they have there (`LogoSizeTest`). Without a logo, a title's page sets its name within the logo's box (440 × 112): in `titleSignature` on one line where it fits, else in `display` on one line or two even ones (`TitleArtTest`). A name waits for its picture (`WithItsPicture`, `HOLD` at most) |
@@ -787,6 +821,7 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `HeroSkeleton`, `ProgressLine` | the welcome wall (nine tilted columns at `HlScrim.WALL`, drifting over `WALL_DRIFT`) and its black veil; the playback cue's black; placeholders shaped like what is coming (after `SKELETON_DELAY`, `skeletonDelayPassed`; never a shimmer); progress lines in the ember light, stretched over the part seen: burning at a picture's foot (`HlSize.progressPoster`, `HlSize.progressWide`) on a black track, beside text, in a hero and on home's case on `FILL_STRONG`; on a focused plate, solid raspberry on the plate (`focused`) |
 | `HomeHead`, `HeadNote`, `DoorGrid`, `ResumeCase`, `HomeDoor`, `DoorStill`, `DoorPosters`, `DoorFigures`, `DoorSagas`, `DoorWall`, `DoorFacts` | home's grid (see *Layout*): its head and a note standing at its end, the grid that lays and links its doors, the case, a door and the pictures it holds: a still with its logo, a band of posters, a count cut in posters (`CutPosters`), two sagas stacked, a wall of posters out, the app's state (`StateFact`) |
 | `PosterStrip` | a folder's latest posters in fixed slots, empty frames for the free ones; without posters, its name set like a one-sheet |
+| `FirstWall`, `FirstTitle`, `FirstWallState`, `FolderBlock`, `GoHomeButton` | home's first scan: the titles found on two whole lines of four `wallPoster` frames, empty frames first, first found first, a poster or a one-sheet (`FallbackArtwork` on the ground's step), each arriving as *Motion* says; full, renewed in place, the latest title found coming into the oldest frame at each step, round after round, none while one waits for its picture; not focusable, read as how many titles were found ("1 240 titres", `titleCount`). The folder's block: « Lecture du dossier… » then « Analyse du dossier… » in `lead`, the name to its measure (see *Type*), where it is and its printed protocol, the Counter at `heroProgress`, the file under it, or while the folder is listed the videos found so far in its place (« 1 240 vidéos trouvées… »), each line keeping its room. « Aller à l'accueil », a secondary button, with « L'analyse continue en arrière-plan » under it in `meta`, read out as one, taking focus as it comes only while nothing has it |
 | `Showcase` | a library folder in its posters' light (see *Secondary screens*): its name in `subject` beside its printed protocol, its facts, the first in white, and its state by its light (`stateLight`): the white dot ("Analysé il y a 3 heures"), the ring while titles of it are held ("12 introuvables", in its last scan's place, answered or not); or what is happening to it (`status`); framed with focus, without a glow |
 | `GalleryTile` | one of a title's images to change, at its shape of use, a logo fitted on a neutral step; its name under it in `cardName`, white with focus; framed and glowing in the film's light |
 | `PosterField` | the room of the settings and their forms, under them: a library's posters as a wall's field (see *Veils*), its light theirs (`LocalAmbient`) |
@@ -1055,9 +1090,10 @@ its count and its queue until a file is back
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is
-drawn and in front, never over another sheet, a first scan or an update under way, behind the player, under the launch
-screen, for a failure or with the check off: « Plus tard », Back, or the version acted on from About wait for a newer
-one, never a reminder, no mark on a door; About's row states it meanwhile (`HomeUpdateTest`).
+drawn and in front, never over another sheet, a first scan, the grid while the library's first pass goes on, or an
+update under way, behind the player, under the launch screen, for a failure or with the check off: « Plus tard »,
+Back, or the version acted on from About wait for a newer one, never a reminder, no mark on a door; About's row states
+it meanwhile (`HomeUpdateTest`).
 
 ## Writing
 
@@ -1143,6 +1179,13 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
   holding less than a page: a title's page reads its title again and reloads only if it changed, a wall reloads its
   titles, its filters and sagas waiting for the end, as home's library rows do (`settledVersion`). The settings'
   counts and posters follow it every 2 s at most (`LocalLibrary`).
+- **Nothing is read behind home's first scan.** For hours, its pass's progress reads no row, door or cut poster: home
+  reads once, at the cut, then follows the pass as above, every 3 s while its row fills, then every 20 s. The first
+  scan reads its titles and their count every 2 s at most, only while it holds home, Réglages over it included so its
+  wall comes back with them, or shows (`LocalLibrary.firstTitles`, `firstTitleCount`), first found first as the scan
+  made them; its eight posters are decoded at their size (224 × 336, 2.4 MB), then one more at most every 2 s once
+  full, the poster it replaces let go once the new one shows: nine at most, nothing in a layer at rest, no backdrop
+  (`HomeViewModelTest`, `FirstWallTest`).
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
   `dumpsys gfxinfo <package> framestats` and `setprop debug.hwui.overdraw show`. See CONTRIBUTING.md.
 
@@ -1208,6 +1251,7 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogContrast` | each ink on what it sits on, over the lightest picture, with its ratio |
 | `CatalogFocus` | every shape with its radii; the frame (poster, wide image, portrait, absent card, panel, the action to play) and the fill and ring, live |
 | `CatalogGestures` | case back, intertitle and counter side by side, then intertitles, error states, counters, case backs, empty frames and poster strips |
+| `CatalogFirstScan` | home's first scan: the folder listed with its wall empty, with its count, its files counted and the wall filling with « Aller à l'accueil », in one-sheets, TMDB refusing the key with its note and « Modifier la clé » over the block; then live, the wall filling and renewing in place |
 | `CatalogIcons` | every glyph on the room and on focus; done and your choice; ember for states only; the Menu key, alone and after a name |
 | `CatalogControls` | buttons in their states, a place's title and a task's, tiles, controls on a picture's plates, and the seasons |
 | `CatalogSecondary` | the settings' room of posters with its places, a group, a plate of facts and states; a pane's heads, the lockup, printed pairs, definitions, a meter that states, a code to type; showcases in their row; a gallery whose images step back; a plate in a film's light and the sheets that hold them, a reading plate, one wide to read, an NFO's |

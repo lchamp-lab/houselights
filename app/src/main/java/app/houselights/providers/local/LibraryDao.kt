@@ -125,11 +125,11 @@ data class PlacedFile(val id: Long, val filePath: String?)
 
 /**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
- * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao] or
- * [IgnoredFileDao].
+ * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao],
+ * [IgnoredFileDao] or [FirstTitleDao].
  */
 @Dao
-interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao, EpisodeOrderDao, IgnoredFileDao {
+interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao, EpisodeOrderDao, IgnoredFileDao, FirstTitleDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 

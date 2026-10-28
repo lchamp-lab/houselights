@@ -34,9 +34,9 @@
     <string name="empty_collections">Aún no hay sagas</string>
     <string name="empty_server">El servidor no ofrece ninguna película ni serie a esta cuenta.</string>
     <plurals name="title_count">
-        <item quantity="one">%d título</item>
-        <item quantity="many">%d títulos</item>
-        <item quantity="other">%d títulos</item>
+        <item quantity="one">%s título</item>
+        <item quantity="many">%s títulos</item>
+        <item quantity="other">%s títulos</item>
     </plurals>
     <string name="home_empty_title">Aún no hay películas</string>
     <string name="home_empty_local">Añada la carpeta que las contiene.</string>

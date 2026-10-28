@@ -30,7 +30,11 @@ data class FolderLevel(
 
 /** Lists and reads a network source, whatever the protocol; [RemoteBrowsers] holds the app's instances. */
 interface RemoteBrowser {
-    suspend fun list(source: SourceEntity): Listing
+    /**
+     * The videos and sidecars of [source]'s folder; [found] is told how many videos the walk has found so far as each
+     * comes, counted as a scan counts titles where their paths tell ([VideoCount]), so screens say it while it lists.
+     */
+    suspend fun list(source: SourceEntity, found: (Int) -> Unit = {}): Listing
 
     /**
      * What the source's folder holds at its first level, its subfolders and its videos ([FolderLevel]), signed in or
@@ -98,13 +102,13 @@ internal interface RemoteEntry {
 }
 
 /**
- * Videos and sidecars under [root], at most [RemoteBrowser.MAX_DEPTH] levels deep. Unreadable subfolders
- * (lost+found, another user's) and entries that fail (a file Radarr replaced mid-listing) are skipped and recorded
- * in [Listing.unreadable], and logged in [failures]. A failure on [root], or one [isFatal] accepts (NAS gone,
- * connection broken), throws.
+ * Videos and sidecars under [root], at most [RemoteBrowser.MAX_DEPTH] levels deep, [found] told how many videos so far
+ * as each comes ([VideoCount]). Unreadable subfolders (lost+found, another user's) and entries that fail (a file Radarr
+ * replaced mid-listing) are skipped and recorded in [Listing.unreadable], and logged in [failures]. A failure on
+ * [root], or one [isFatal] accepts (NAS gone, connection broken), throws.
  */
-internal fun walk(root: RemoteFolder, failures: RepeatedFailures, isFatal: (Throwable) -> Boolean): Listing =
-    Walk(isFatal, failures).run {
+internal fun walk(root: RemoteFolder, failures: RepeatedFailures, found: (Int) -> Unit = {}, isFatal: (Throwable) -> Boolean): Listing =
+    Walk(isFatal, failures, VideoCount(found)).run {
         try {
             visit(root, "", 0)
         } finally {
@@ -122,7 +126,25 @@ internal class UnreadablePaths {
 
 private const val WALK_TAG = "RemoteBrowser"
 
-private class Walk(private val isFatal: (Throwable) -> Boolean, private val failures: RepeatedFailures) {
+/**
+ * How many titles the videos a listing finds make so far, as a scan counts them where their paths tell
+ * ([ScanTitles.titles]): a disc's streams once ([FilenameParser.discOf]), an extra named as such never
+ * ([ScanTitles.isExtraName]); [found] is told each new count. What the whole listing alone tells (an extras folder, a
+ * film's parts) still counts, so the files to read may be fewer.
+ */
+internal class VideoCount(private val found: (Int) -> Unit) {
+    private val discs = HashSet<String>()
+    private var count = 0
+
+    /** A video at [path], from the folder listed. */
+    fun take(path: String) {
+        val disc = FilenameParser.discOf(path)
+        val title = if (disc != null) discs.add(disc.root) else !ScanTitles.isExtraName(path.substringAfterLast('/'))
+        if (title) found(++count)
+    }
+}
+
+private class Walk(private val isFatal: (Throwable) -> Boolean, private val failures: RepeatedFailures, private val count: VideoCount) {
     val videos = mutableListOf<RemoteFile>()
     val sidecars = mutableListOf<RemoteFile>()
     val unreadable = mutableListOf<String>()
@@ -154,7 +176,10 @@ private class Walk(private val isFatal: (Throwable) -> Boolean, private val fail
     private fun take(entry: RemoteEntry, path: String): RemoteFolder? {
         entry.folder()?.let { return it }
         when {
-            RemoteBrowser.isWanted(entry.name) -> videos += RemoteFile(path, entry.size(), entry.lastModified())
+            RemoteBrowser.isWanted(entry.name) -> {
+                videos += RemoteFile(path, entry.size(), entry.lastModified())
+                count.take(path)
+            }
             RemoteBrowser.isSidecar(entry.name) -> sidecars += RemoteFile(path, entry.size(), entry.lastModified())
         }
         return null

@@ -7,15 +7,19 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
 import app.houselights.core.UserState
+import app.houselights.providers.local.FirstTitleRow
 import app.houselights.providers.local.Folder
 import app.houselights.providers.local.HeldRow
 import app.houselights.providers.local.ItemKind
+import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
+import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.toFolder
 import app.houselights.settings.AppSettings
+import app.houselights.ui.design.FirstScanDefaults
 import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
@@ -24,11 +28,13 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.testing.series
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -498,5 +504,173 @@ class HomeViewModelTest {
         settings.value = AppSettings(loaded = true, source = SourceConfig.Jellyfin("http://nas:8096", "Maison", "u1", "viewer", "token"))
         advanceUntilIdle()
         assertNull("a server's home says nothing of the folders", vm.state.value.held)
+    }
+
+    /** The library's first pass on folder 1, its files counted, a file read of 412; [finishing] once every folder's are. */
+    private fun firstPass(finishing: Boolean = false) =
+        ScanState(running = true, sourceId = 1, processed = 1, total = 412, homeFilling = true, firstPass = true, finishing = finishing)
+
+    /** Home as the screen holds it, « Aller à l'accueil » kept by [left], as the app keeps it with the scan. */
+    private fun TestScope.home(left: FirstScanLeft): HomeViewModel =
+        HomeViewModel({ provider }, scan, folders.filterNotNull(), settings, scanAll = {}, left = left).also { vm ->
+            backgroundScope.launch { vm.state.collect {} }
+        }
+
+    /** Home's rows as a first pass leaves them once titles are found: the latest films, whose door reads its shelf. */
+    private fun titlesFound() {
+        provider.home = listOf(HomeSection(SectionType.LATEST, listOf(film("m1")), landscape = false, libraryId = "films"))
+        provider.walls = mapOf("films" to (1..20).map { film("f$it") })
+    }
+
+    /**
+     * Over the library's first pass, the first scan holds home until every folder's files are read, though home's row
+     * fills meanwhile: home reads nothing behind it, its rows, doors and posters asked nothing as the library changes,
+     * then reads once and cuts to the grid with its shelves; it then follows the scan again.
+     */
+    @Test
+    fun theFirstScanHoldsHomeForTheWholePassReadingNothingBehindIt() = runTest {
+        titlesFound()
+        scan.value = firstPass()
+        val vm = home()
+        advanceUntilIdle()
+        assertEquals(HomeContent.FirstScan, vm.content())
+        assertTrue("the first pass runs", vm.state.value.firstPass)
+
+        scan.value = scan.value.copy(processed = 300, homeFilling = false)
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals("home's row full, the pass goes on", HomeContent.FirstScan, vm.content())
+        assertEquals("nothing read behind it", emptyList<String>(), provider.calls)
+
+        val shelves = provider.gate("page 0 12")
+        scan.value = scan.value.copy(processed = 412, finishing = true)
+        advanceUntilIdle()
+        assertEquals("until the shelves are read", HomeContent.FirstScan, vm.content())
+        shelves.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(HomeContent.Rows(provider.home), vm.content())
+        assertEquals(true, vm.state.value.doors?.shelvesRead)
+        assertEquals("read once, at the cut", listOf("libraries", "home"), provider.rowCalls)
+
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals("after the cut, home follows the scan", listOf("libraries", "home", "libraries", "home"), provider.rowCalls)
+    }
+
+    /**
+     * « Aller à l'accueil » cuts to the grid once home's one read has its shelves, the scan going on; meanwhile the first
+     * scan stays and a second press asks nothing more.
+     */
+    @Test
+    fun goingHomeCutsOnceItsShelvesAreReadASecondPressAskingNothing() = runTest {
+        titlesFound()
+        scan.value = firstPass()
+        val vm = home()
+        advanceUntilIdle()
+        val shelves = provider.gate("page 0 12")
+        vm.goHome()
+        advanceUntilIdle()
+        assertEquals(HomeContent.FirstScan, vm.content())
+        vm.goHome()
+        advanceUntilIdle()
+        shelves.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(HomeContent.Rows(provider.home), vm.content())
+        assertEquals("one read", listOf("libraries", "home"), provider.rowCalls)
+        assertTrue("the scan goes on", vm.state.value.firstPass)
+    }
+
+    /**
+     * « Aller à l'accueil » is kept with the pass while the app runs, not with the screen: quitting and coming back, home
+     * shows its grid; once the pass ends it is forgotten, and another first pass holds home again.
+     */
+    @Test
+    fun goingHomeIsKeptAfterLeavingUntilThePassEnds() = runTest {
+        val left = FirstScanLeft(backgroundScope, scan)
+        titlesFound()
+        scan.value = firstPass()
+        val first = home(left)
+        advanceUntilIdle()
+        first.goHome()
+        advanceUntilIdle()
+        assertEquals(HomeContent.Rows(provider.home), first.content())
+
+        // Back twice quits; the app, back, makes a new home, the scan having waited.
+        val again = home(left)
+        advanceUntilIdle()
+        assertEquals("the grid, not the first scan again", HomeContent.Rows(provider.home), again.content())
+
+        scan.value = ScanState()
+        advanceUntilIdle()
+        assertFalse("forgotten with the pass", left.left.value)
+        scan.value = firstPass()
+        advanceUntilIdle()
+        assertEquals(HomeContent.FirstScan, again.content())
+    }
+
+    /** A pass found past its files when home comes shows the grid at once: the first scan only holds the files' reading. */
+    @Test
+    fun aPassPastItsFilesShowsTheGrid() = runTest {
+        titlesFound()
+        scan.value = firstPass(finishing = true)
+        val vm = home()
+        advanceUntilIdle()
+        assertEquals(HomeContent.Rows(provider.home), vm.content())
+    }
+
+    /**
+     * The first scan shows the folder the pass reads, the first while it reaches none, and the titles found with their
+     * posters as the library gives them and their count, read as soon as it holds home and while it does, nothing
+     * showing it yet or Réglages over it, so its wall comes back with them; no longer once it gave way with nothing
+     * showing it, and forgotten then, so another first pass's wall waits for its own titles.
+     */
+    @Test
+    fun theFirstScanShowsTheFolderReadAndTheTitlesFound() = runTest {
+        folders.value = listOf(folder(1), folder(2))
+        val found = listOf(FirstTitleRow(1, "Dune", 2021, "/dune.jpg"), FirstTitleRow(2, "Heat", 1995, null))
+        val asked = mutableListOf<Int>()
+        var reading = 0
+        scan.value = firstPass().copy(sourceId = null)
+        val vm = HomeViewModel(
+            { provider },
+            scan,
+            folders.filterNotNull(),
+            settings,
+            scanAll = {},
+            firstTitles = { limit ->
+                asked += limit
+                flow {
+                    reading++
+                    try {
+                        emit(found)
+                        awaitCancellation()
+                    } finally {
+                        reading--
+                    }
+                }
+            },
+            firstTitleCount = flowOf(214),
+        )
+        advanceUntilIdle()
+        assertEquals(listOf(FirstScanDefaults.FRAMES), asked)
+        assertEquals("read as it holds home, nothing showing it", 1, reading)
+        val shows = vm.firstScan.value
+        assertEquals("the first while the pass reaches none", 1L, shows.folder?.id)
+        assertEquals(listOf("Dune", "Heat"), shows.titles.orEmpty().map { it.title })
+        assertEquals(listOf(LocalProvider.image("/dune.jpg", ImageType.POSTER), null), shows.titles.orEmpty().map { it.poster })
+        assertEquals(214, shows.found)
+        scan.value = scan.value.copy(sourceId = 2)
+        advanceUntilIdle()
+        assertEquals(2L, vm.firstScan.value.folder?.id)
+
+        scan.value = ScanState()
+        advanceUntilIdle()
+        assertEquals("no longer read once it gave way, nothing showing it", 0, reading)
+        assertNull("forgotten with it, unread again", vm.firstScan.value.titles)
+
+        scan.value = firstPass()
+        advanceUntilIdle()
+        assertEquals("read again for another first pass", 1, reading)
+        assertEquals(listOf("Dune", "Heat"), vm.firstScan.value.titles.orEmpty().map { it.title })
     }
 }

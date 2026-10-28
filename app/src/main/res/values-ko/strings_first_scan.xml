@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home's first scan (« Premier scan »): the folder read, the videos its listing found, the way to home meanwhile,
+     what a first Back says while the library's first pass runs. -->
+<resources>
+    <string name="first_scan_listing">폴더를 읽는 중…</string>
+    <string name="first_scan_reading">폴더를 스캔하는 중…</string>
+    <plurals name="first_scan_found">
+        <item quantity="other">동영상 %s개를 찾았습니다…</item>
+    </plurals>
+    <string name="first_scan_home">홈으로 이동</string>
+    <string name="first_scan_home_goes_on">스캔은 백그라운드에서 계속됩니다</string>
+    <string name="first_scan_back_waits">뒤로 버튼을 한 번 더 누르면 종료됩니다. 다시 돌아오면 스캔이 재개됩니다</string>
+</resources>
