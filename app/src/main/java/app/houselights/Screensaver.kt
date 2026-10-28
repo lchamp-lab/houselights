@@ -24,7 +24,7 @@ internal fun screensaverShows(context: Context): StateFlow<Boolean> {
         addAction(Intent.ACTION_DREAMING_STARTED)
         addAction(Intent.ACTION_DREAMING_STOPPED)
     }
-    // Sent by the system alone, which a receiver no other app may reach still hears.
-    ContextCompat.registerReceiver(context, receiver, dreams, ContextCompat.RECEIVER_NOT_EXPORTED)
+    // Protected broadcasts, which the system alone may send: exported, the receiver needs no permission of its own.
+    ContextCompat.registerReceiver(context, receiver, dreams, ContextCompat.RECEIVER_EXPORTED)
     return shows
 }

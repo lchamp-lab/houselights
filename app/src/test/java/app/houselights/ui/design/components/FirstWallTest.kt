@@ -5,10 +5,11 @@ import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.printToString
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.FirstScanDefaults
@@ -178,8 +179,11 @@ class FirstWallTest {
     fun itReadsAsHowManyTitlesWereFound() {
         Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
         compose.setTvContent { FirstWall(found(FRAMES), found = THOUSANDS) }
-        compose.onNodeWithContentDescription("${formatCount(THOUSANDS.toLong())} titles").assertExists()
-        compose.onAllNodesWithContentDescription("Film 1", useUnmergedTree = true).assertCountEquals(0)
+        compose.waitForIdle()
+        val read = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ContentDescription)).fetchSemanticsNodes()
+            .flatMap { it.config[SemanticsProperties.ContentDescription] }
+        val tree = compose.onRoot(useUnmergedTree = true).printToString()
+        assertEquals("read as the count alone, its posters never:\n$tree", listOf("${formatCount(THOUSANDS.toLong())} titles"), read)
     }
 
     private companion object {

@@ -64,7 +64,7 @@ class LocalLibrary(
 
     /**
      * Home's first scan: the [limit] films and shows first added, then the latest, first added first, those without a
-     * poster too ([LibraryDao.observeFirstTitles]), at the settings' pace ([PANE_PACE_MS]); read while it shows only.
+     * poster too ([FirstTitleDao.observeFirstTitles]), at the settings' pace ([PANE_PACE_MS]); read while it shows only.
      */
     fun firstTitles(limit: Int): Flow<List<FirstTitleRow>> = dao.observeFirstTitles(limit).paced()
 
