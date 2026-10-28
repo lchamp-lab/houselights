@@ -4,9 +4,9 @@
     <string name="first_scan_listing">Lectura de la carpeta…</string>
     <string name="first_scan_reading">Análisis de la carpeta…</string>
     <plurals name="first_scan_found">
-        <item quantity="one">%s vídeo encontrado…</item>
-        <item quantity="many">%s vídeos encontrados…</item>
-        <item quantity="other">%s vídeos encontrados…</item>
+        <item quantity="one">%s vídeo encontrado…</item>
+        <item quantity="many">%s vídeos encontrados…</item>
+        <item quantity="other">%s vídeos encontrados…</item>
     </plurals>
     <string name="first_scan_home">Ir al inicio</string>
     <string name="first_scan_home_goes_on">El análisis continúa en segundo plano</string>

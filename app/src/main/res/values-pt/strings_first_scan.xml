@@ -4,9 +4,9 @@
     <string name="first_scan_listing">Lendo a pasta…</string>
     <string name="first_scan_reading">Analisando a pasta…</string>
     <plurals name="first_scan_found">
-        <item quantity="one">%s vídeo encontrado…</item>
-        <item quantity="many">%s vídeos encontrados…</item>
-        <item quantity="other">%s vídeos encontrados…</item>
+        <item quantity="one">%s vídeo encontrado…</item>
+        <item quantity="many">%s vídeos encontrados…</item>
+        <item quantity="other">%s vídeos encontrados…</item>
     </plurals>
     <string name="first_scan_home">Ir para o início</string>
     <string name="first_scan_home_goes_on">A análise continua em segundo plano</string>

@@ -16,6 +16,7 @@ import app.houselights.ui.design.FirstScanDefaults
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatCount
 import coil.Coil
 import coil.ImageLoader
@@ -183,7 +184,7 @@ class FirstWallTest {
         val read = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ContentDescription)).fetchSemanticsNodes()
             .flatMap { it.config[SemanticsProperties.ContentDescription] }
         val tree = compose.onRoot(useUnmergedTree = true).printToString()
-        assertEquals("read as the count alone, its posters never:\n$tree", listOf("${formatCount(THOUSANDS.toLong())} titles"), read)
+        assertEquals("read as the count alone, its posters never:\n$tree", listOf("${formatCount(THOUSANDS.toLong())}${NBSP}titles"), read)
     }
 
     private companion object {

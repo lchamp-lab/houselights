@@ -4,10 +4,10 @@
     <string name="first_scan_listing">Odczyt folderu…</string>
     <string name="first_scan_reading">Skanowanie folderu…</string>
     <plurals name="first_scan_found">
-        <item quantity="one">Znaleziono %s plik wideo…</item>
-        <item quantity="few">Znaleziono %s pliki wideo…</item>
-        <item quantity="many">Znaleziono %s plików wideo…</item>
-        <item quantity="other">Znaleziono %s pliku wideo…</item>
+        <item quantity="one">Znaleziono %s plik wideo…</item>
+        <item quantity="few">Znaleziono %s pliki wideo…</item>
+        <item quantity="many">Znaleziono %s plików wideo…</item>
+        <item quantity="other">Znaleziono %s pliku wideo…</item>
     </plurals>
     <string name="first_scan_home">Przejdź do ekranu głównego</string>
     <string name="first_scan_home_goes_on">Skanowanie trwa w tle</string>

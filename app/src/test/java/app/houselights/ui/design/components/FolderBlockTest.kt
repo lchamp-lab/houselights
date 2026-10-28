@@ -40,9 +40,9 @@ class FolderBlockTest {
         text("NFS").assertExists()
         text("found…", substring = true).assertDoesNotExist()
         listed = 1
-        text("1 video found…").assertExists()
+        text("1${NBSP}video found…").assertExists()
         listed = THOUSANDS
-        text("${formatCount(THOUSANDS.toLong())} videos found…").assertExists()
+        text("${formatCount(THOUSANDS.toLong())}${NBSP}videos found…").assertExists()
     }
 
     /** Once the files are counted: the count after the line, its thousands grouped, the file read under it. */
