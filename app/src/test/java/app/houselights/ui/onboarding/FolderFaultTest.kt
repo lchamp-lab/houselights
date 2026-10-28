@@ -39,6 +39,8 @@ import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.testing.folderNames
 import app.houselights.testing.mountFailure
+import app.houselights.testing.secretsOf
+import app.houselights.testing.testKey
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.testing.TV
@@ -65,6 +67,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.security.ProviderException
 
 /**
  * A folder's form says each failure once, under the field to change, which takes focus, the panel's state saying it by
@@ -79,7 +82,15 @@ class FolderFaultTest {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val db: LibraryDatabase by lazy { testDatabase { onCallingThread() } }
+    /** The device's Keystore fails while set, as a restarting keystore daemon does: what a past launch sealed is not opened. */
+    @Volatile
+    private var keystoreDown = false
+
+    private val key = testKey()
+
+    private val db: LibraryDatabase by lazy {
+        testDatabase(secretsOf { if (keystoreDown) throw ProviderException("Keystore operation failed") else key }) { onCallingThread() }
+    }
 
     /** What the form asked of the NAS. */
     private val tested = mutableListOf<String>()
@@ -159,6 +170,10 @@ class FolderFaultTest {
         username = "houselights",
         password = Secret("stored"),
     )
+
+    /** [folder] with its password as a past launch sealed it under the same key, so that it is not opened while [keystoreDown]. */
+    private fun sealedBefore(folder: SourceEntity): SourceEntity =
+        folder.copy(password = Secret("", unopened = secretsOf { key }.seal(folder.password.value)))
 
     private fun saysUnder(field: String, message: String) = compose.onNodeWithContentDescription(field)
         .assert(SemanticsMatcher.expectValue(SemanticsProperties.Error, message))
@@ -281,12 +296,42 @@ class FolderFaultTest {
         vm.test()
         compose.waitUntil { vm.check != null }
         compose.waitForIdle()
-        saysUnder("Password", "The saved password could not be read for now: it is kept. Enter it again, or try again in a moment.")
-            .assertIsFocused()
+        saysUnder("Password", UNREAD).assertIsFocused()
         compose.onNodeWithText("Connection not tested").assertExists()
         compose.onNodeWithText("Cannot connect").assertDoesNotExist()
         compose.onNodeWithText("The NAS rejected the user name or password.").assertDoesNotExist()
         compose.onNodeWithText("The folder could not be read", substring = true).assertDoesNotExist()
+    }
+
+    /**
+     * The password kept, not opened for now, then the Keystore answering again: Test, as the sentence says to try again,
+     * reads it again and signs in with it, the sentence gone, without the form being opened again.
+     */
+    @Test
+    fun aPasswordNotReadForNowIsReadAgainWhenTriedAgain() {
+        keystoreDown = true
+        val signedIn = mutableListOf<String>()
+        val vm = form(
+            sealedBefore(series),
+            probe = { tried ->
+                // As the browsers sign in: a password not opened throws, the NAS never asked.
+                signedIn += tried.password.forSignIn()
+                FolderLevel(folderNames(12), videos = 3)
+            },
+        )
+        compose.waitUntil(WAIT_MS) { vm.ready }
+        vm.test()
+        compose.waitUntil(WAIT_MS) { vm.check != null }
+        compose.waitForIdle()
+        saysUnder("Password", UNREAD)
+
+        keystoreDown = false
+        vm.test()
+        compose.waitUntil(WAIT_MS) { vm.check is FolderCheck.Reachable }
+        compose.waitForIdle()
+        compose.onNodeWithText("Connected").assertExists()
+        compose.onNodeWithContentDescription("Password").assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Error))
+        assertEquals(listOf("stored"), signedIn)
     }
 
     /** At rest, the help names this player; a test that answered says what it found, folders and videos apart, and the help goes. */
@@ -381,5 +426,7 @@ class FolderFaultTest {
         const val WAIT_MS = 5_000L
 
         const val SUBFOLDER = "Subfolder (optional)"
+
+        const val UNREAD = "The saved password could not be read for now: it is kept. Enter it again, or try again in a moment."
     }
 }
