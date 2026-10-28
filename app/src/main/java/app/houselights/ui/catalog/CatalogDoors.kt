@@ -112,7 +112,7 @@ private fun FailedCases() {
             FailedCase(R.string.error_denied_title, stringResource(R.string.error_action_reconnect), icon = null)
         }
         Specimen("Its own plate: nothing a try fixes", width = HomeGridDefaults.case) {
-            FailedCase(R.string.play_failed_player_changed, stringResource(R.string.resume), HlIcons.Play)
+            FailedCase(R.string.play_failed_credentials, stringResource(R.string.resume), HlIcons.Play)
         }
     }
 }

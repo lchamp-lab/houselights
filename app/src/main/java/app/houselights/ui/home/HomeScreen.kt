@@ -349,7 +349,7 @@ private class CaseFailure(val error: UiError, val place: LibraryPlace?)
 private fun CaseFailure.reason(): Int = when (error) {
     UiError.NO_PLAYER -> R.string.play_failed_no_player
     UiError.CREDENTIALS -> R.string.play_failed_credentials
-    UiError.PLAYER_CHANGED -> R.string.play_failed_player_changed
+    UiError.PLAYER_CHANGED, UiError.PLAYER_REPLACED -> R.string.play_failed_player_changed
     else -> error.titleAt(place)
 }
 
@@ -379,7 +379,7 @@ private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit
     val fix = LocalErrorFix.current
     ResumeCase(
         case.item,
-        stringResource(fixedBy?.label ?: action),
+        stringResource(plateWords(fixedBy, action)),
         onClick = {
             actions.onClearProblem()
             if (fixedBy != null) fixedBy.run(own, fix) else own()
@@ -399,6 +399,15 @@ private fun CaseOf(case: CaseShows?, actions: HomeActions, onOptions: () -> Unit
             }
         },
     )
+}
+
+/** The case's plate: what fixes its failure ([fixedBy]), else its own [action]. */
+@StringRes
+private fun plateWords(fixedBy: ErrorAction?, @StringRes action: Int): Int = when (fixedBy) {
+    null -> action
+    // The whole « Faire confiance au nouveau lecteur » does not hold on the plate: two words, the line above saying why.
+    ErrorAction.TRUST_PLAYER -> R.string.trust_player_short
+    else -> fixedBy.label
 }
 
 /**
@@ -641,7 +650,8 @@ private fun LibrariesSheet(plan: HomePlan, sagas: Library?, actions: HomeActions
 
 /**
  * The case's options: its title's page, and, once started, playing it from the start. After a failed play ([problem]),
- * said first in full, only what may still work: from the start when a new try may, signing in again when refused.
+ * said first in full, only what may still work: from the start when a new try may, signing in again when refused,
+ * trusting the new player when it changed, which clears the failure as the case's plate does, then asks.
  */
 @Composable
 private fun CaseOptions(case: CaseShows, actions: HomeActions, problem: UiError?, onDismiss: () -> Unit) {
@@ -671,6 +681,18 @@ private fun CaseOptions(case: CaseShows, actions: HomeActions, problem: UiError?
                     stringResource(fixedBy.label),
                     icon = HlIcons.Server,
                     onClick = { sheet.dismiss { fix(fixedBy) } },
+                )
+            }
+            if (fixedBy == ErrorAction.TRUST_PLAYER) {
+                HlSettingRow(
+                    stringResource(fixedBy.label),
+                    icon = HlIcons.Playback,
+                    onClick = {
+                        sheet.dismiss {
+                            actions.onClearProblem()
+                            fix(fixedBy)
+                        }
+                    },
                 )
             }
             if (item.user.positionMs > 0 && (problem == null || fixedBy == ErrorAction.RETRY)) {

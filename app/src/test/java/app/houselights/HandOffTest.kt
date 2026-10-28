@@ -8,10 +8,16 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackPlan
 import app.houselights.player.DeviceIdentity
 import app.houselights.player.FakeApps
+import app.houselights.player.FakeApps.AppBuild
 import app.houselights.player.FakeApps.Companion.GALLERY
 import app.houselights.player.FakeApps.Companion.MOVIE_ACTIVITY
 import app.houselights.player.FakeApps.Companion.OTHER_BUILD
+import app.houselights.player.FakeApps.Companion.OTHER_KEY
+import app.houselights.player.FakeApps.Companion.Z1000_PRO_BUILD
 import app.houselights.player.FakeApps.Companion.ZIDOO_BUILD
+import app.houselights.player.FakeApps.Companion.ZIDOO_KEY
+import app.houselights.player.FakeApps.Companion.ZIDOO_PLAYER
+import app.houselights.player.FakeApps.Companion.ZIDOO_PLAYER_ACTIVITY
 import app.houselights.player.PlaybackManager
 import app.houselights.player.PlayerAnswer
 import app.houselights.player.ZidooPlayer
@@ -74,6 +80,34 @@ class HandOffTest {
         assertEquals(listOf(UiError.CREDENTIALS), said)
         assertEquals(0, freed)
         assertTrue(started.isEmpty())
+    }
+
+    /**
+     * A player that changed is said by what fixes it (#58): the firmware's player updated again, on a test-keys build, as
+     * changed; an app in the place of the one passwords went to as replaced, with its own sentence.
+     */
+    @Test
+    fun aChangedPlayerIsSaidByWhatChangedIt() = runTest {
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, certificate = ZIDOO_KEY, schemes = emptyList(), updated = true)
+        val manager = manager(Z1000_PRO_BUILD)
+        manager.hand(SMB)
+        assertTrue("trusted at its first password", said.isEmpty())
+        apps.reinstall(
+            GALLERY,
+            MOVIE_ACTIVITY,
+            system = true,
+            certificate = ZIDOO_KEY,
+            schemes = emptyList(),
+            updated = true,
+            build = LATER,
+        )
+        manager.hand(SMB)
+        assertEquals(listOf(UiError.PLAYER_CHANGED), said)
+
+        apps.uninstall(GALLERY)
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
+        manager.hand(SMB)
+        assertEquals(listOf(UiError.PLAYER_CHANGED, UiError.PLAYER_REPLACED), said)
     }
 
     @Test
@@ -143,5 +177,8 @@ class HandOffTest {
     private companion object {
         const val NFS = "nfs://nas/films/Heat.mkv"
         const val SMB = "smb://zidoo:secret@nas/films/Heat.mkv"
+
+        /** The player updated again, as Android gives it. */
+        val LATER = AppBuild(code = 2, at = 1_791_800_000_000)
     }
 }

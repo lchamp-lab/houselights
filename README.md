@@ -268,9 +268,20 @@ adb shell appops set app.houselights MANAGE_EXTERNAL_STORAGE allow            # 
   URI and Android logs started intents (readable over adb): use a **dedicated read-only NAS account**.
   Credentials only go to the Zidoo's player: a system app or one signed like the firmware's apps; failing
   those, the app under a Zidoo name that first received them, remembered by its certificate. Any other app,
-  or that one signed by someone else, receives none. On a firmware signed with Android's public test keys
-  (the Z1000 Pro's), anyone can sign an update of the system player that Android installs over it, and it
-  would receive them too: install the player's updates from Zidoo alone.
+  or that one signed by someone else, receives none until you trust it.
+- **The player's pin.** On a firmware signed with Android's public test keys (the Z1000 Pro's), anyone can sign an
+  update of the system player that Android installs over it. There, the system player once updated is remembered at
+  the first playback that gives it a password, by its certificate and its exact build (its version code and the time
+  Android installed it), and any later update makes it **changed**: it gets neither the SMB passwords nor the Jellyfin
+  token until you trust it, from where the failure shows ("Trust the new player"). That sheet names the player, its
+  version and the day Android installed the update, and puts "Do not trust it" first; trust only an update you made,
+  or accepted from Zidoo, that day, else uninstall the player's updates. A system player never updated, and any
+  firmware with keys of its own, are trusted as before; an app installed in the player's place, signed by someone
+  else, is offered the same sheet ("Another signature"). Coming from 0.3, which remembered the player without its
+  build, the player takes its current build once, unasked, if it is the same package and certificate: 0.3 trusted it
+  already; from then on, its next update makes it changed. What a fresh install cannot know: the player found at its
+  first password is trusted, there being nothing to compare it with, an update installed before then included; and
+  the name and version the sheet shows are the update's own claims, the date alone being Android's.
 - NFS sends no password: the NAS trusts the player's address and the user it claims, root (uid 0, gid 0)
   unless the folder's "NFS account" names another user and group. Any app on the player can claim root
   too: on an export that does not squash root (Synology's "No mapping"), the export is open with root's rights.

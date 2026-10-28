@@ -209,10 +209,24 @@
     <string name="play_with">Reproduzir com</string>
     <string name="no_player">O player Zidoo não está instalado.</string>
     <string name="player_credentials">Esta pasta exige senha: só o player Zidoo pode reproduzi-la.</string>
-    <string name="player_changed">O player Zidoo mudou, e o Houselights não lhe confia mais suas senhas nem seu acesso ao servidor. Reinstale o player que veio com o Zidoo, ou apague os dados do Houselights para confiar no novo.</string>
+    <string name="player_changed">O player Zidoo mudou, e o Houselights não lhe confia mais suas senhas nem seu acesso ao servidor. Confie nele se você atualizou o Zidoo ou o player dele; caso contrário, desinstale as atualizações do player.</string>
+    <string name="player_changed_app">O player Zidoo mudou, e o Houselights não lhe confia mais suas senhas nem seu acesso ao servidor. Confie nele se você mesmo o instalou; caso contrário, reinstale o player que veio com o Zidoo.</string>
     <string name="play_failed_no_player">Player Zidoo não instalado</string>
     <string name="play_failed_credentials">Player Zidoo necessário</string>
     <string name="play_failed_player_changed">Player Zidoo alterado</string>
+    <string name="trust_player">Confiar no novo player</string>
+    <string name="trust_player_short">Confiar</string>
+    <string name="trust_player_desc">%1$s, atualizado em %2$s</string>
+    <string name="trust_player_desc_app">%1$s, instalado em %2$s</string>
+    <string name="trust_player_sheet_desc">O Houselights não pode verificar se esta versão vem da Zidoo. Confie nele somente se você atualizou o Zidoo ou o player dele em %1$s: até a próxima atualização, ele receberá a cada reprodução as senhas das suas pastas. Caso contrário, desinstale as atualizações do player.</string>
+    <string name="trust_player_sheet_desc_jellyfin">O Houselights não pode verificar se esta versão vem da Zidoo. Confie nele somente se você atualizou o Zidoo ou o player dele em %1$s: até a próxima atualização, ele receberá a cada reprodução as senhas das suas pastas e o acesso ao Jellyfin. Caso contrário, desinstale as atualizações do player.</string>
+    <string name="trust_player_sheet_desc_app">Este não é mais o player que recebeu suas senhas. Confie nele somente se você mesmo o instalou em %1$s: ele receberá a cada reprodução as senhas das suas pastas. Caso contrário, reinstale o player que veio com o Zidoo.</string>
+    <string name="trust_player_sheet_desc_app_jellyfin">Este não é mais o player que recebeu suas senhas. Confie nele somente se você mesmo o instalou em %1$s: ele receberá a cada reprodução as senhas das suas pastas e o acesso ao Jellyfin. Caso contrário, reinstale o player que veio com o Zidoo.</string>
+    <string name="trust_player_other_signature">Outra assinatura</string>
+    <string name="trust_player_no">Não confiar nele</string>
+    <string name="trust_player_no_desc">Ele não receberá nenhuma senha</string>
+    <string name="trust_player_yes">Confiar neste player</string>
+    <string name="trust_player_yes_desc">Ele receberá suas senhas</string>
 
     <!-- Local folders -->
     <string name="add_folder">Adicionar pasta</string>

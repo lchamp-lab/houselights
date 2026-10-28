@@ -40,6 +40,10 @@ class UiErrorTest {
         assertNull(UiError.GONE.action)
         // TMDB will not know the id the next time either: another result, or another search.
         assertNull(UiError.TMDB_NOT_FOUND.action)
+        // The player changed (#58): its sheet asks whether to trust it, the updated firmware's player or an app in its place.
+        assertEquals(ErrorAction.TRUST_PLAYER, UiError.PLAYER_CHANGED.action)
+        assertEquals(ErrorAction.TRUST_PLAYER, UiError.PLAYER_REPLACED.action)
+        assertNull("only the Zidoo player may have it", UiError.CREDENTIALS.action)
     }
 
     /** A refused certificate is said as one, never as a server or TMDB out of reach. */

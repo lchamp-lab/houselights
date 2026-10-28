@@ -248,6 +248,9 @@ internal fun DetailPage(
     var showMarks by remember { mutableStateOf(false) }
     // Its Identifier button and « À identifier » come and go together.
     val identifiable = state.canEdit && item.matchDoubt != null && !item.held
+    // The player changed (#58), the play asked from the page or one of its episodes: it is the player, not the title.
+    val trustHold = remember { RemedyHold() }
+    val trusting = trustHold.shows(trustsPlayer(asked?.error))
     val actions = DetailActions(
         onPlay = { title, resume -> onPlay(title, resume, PlayOrigin(screen)) },
         onTogglePlayed = vm::togglePlayed,
@@ -274,10 +277,13 @@ internal fun DetailPage(
         onIdentify = { onIdentify(item.id) }.takeIf { identifiable },
         // A title held while its file is missing: out of the library alone, nothing deleted on the NAS.
         onRemove = vm::removeHeld.takeIf { item.held },
+        trustPlayer = trustHold.takeIf { trusting },
     )
     // Réessayer gone with the failure it said, or Lire and the Réessayer in its place swapped: focus goes to Lire.
     FocusOnPlayAfter(swap = state.error != null, held = RETRY_PAGE, memory, actionRow)
     FocusOnPlayAfter(swap = state.nextUpError != null, held = PLAY, memory, actionRow)
+    // The player changed (#58), from Lire or an episode: what fixes it and Lire swap places, focus following.
+    FocusOnPlayAfter(swap = trusting, held = PLAY, memory, actionRow)
     // Identified or held meanwhile, Identifier leaves the row with the state it said: focus goes to Lire.
     FocusOnPlayAfter(swap = identifiable, held = IDENTIFY, memory, actionRow)
 
@@ -686,6 +692,11 @@ private data class DetailActions(
     val onIdentify: (() -> Unit)? = null,
     /** Removes the title held while its file is missing from the library alone; null hides the tile. */
     val onRemove: (() -> Unit)? = null,
+    /**
+     * The player changed (#58): « Faire confiance au nouveau lecteur » in Lire's place, Depuis le début gone, held from
+     * the OK pressed on it until its click ([RemedyHold]); null otherwise.
+     */
+    val trustPlayer: RemedyHold? = null,
 )
 
 @Composable
@@ -930,7 +941,8 @@ private fun HeldState(since: Long?, modifier: Modifier = Modifier) {
 /**
  * Lire or Reprendre (one button, so focus stays put), then start-over; a series or saga plays its next title. A series
  * whose next episode could not be read has what fixes it in Lire's place, as `PartFailed` does (Réessayer, Se
- * reconnecter; nothing when nothing does), keyed as Lire, why said at the row's end.
+ * reconnecter; nothing when nothing does), keyed as Lire, why said at the row's end; so does a player that changed
+ * (« Faire confiance au nouveau lecteur »), Depuis le début gone with Lire: it would start the same player.
  */
 @Composable
 private fun RowScope.PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, actions: DetailActions) {
@@ -948,6 +960,11 @@ private fun RowScope.PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: Fo
             busy = actions.retrying && fixedBy == ErrorAction.RETRY,
             busyLabel = stringResource(R.string.retrying),
         )
+        return
+    }
+    val trust = actions.trustPlayer
+    if (trust != null) {
+        TrustPlayerButton(trust, Modifier.focusKey(PLAY, memory))
         return
     }
     // A film in several copies plays the one chosen, from where that copy was left; a server keeps one place for the film.

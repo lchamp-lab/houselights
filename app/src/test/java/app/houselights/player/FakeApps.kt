@@ -23,9 +23,9 @@ internal class FakeApps(private val context: Context) {
     }
 
     /**
-     * Installs [pkg], a [system] app or not, signed with [certificate], by [installer]; with [activity],
-     * which answers a video by its type ([byType]) and at an address of each of [schemes], and which
-     * other apps may start ([exported]) unless they lack [permission].
+     * Installs [pkg], a [system] app or not, an update of one ([updated]: its [build] as Android gives it), signed with
+     * [certificate], by [installer]; with [activity], which answers a video by its type ([byType]) and at an address of
+     * each of [schemes], and which other apps may start ([exported]) unless they lack [permission].
      */
     fun install(
         pkg: String,
@@ -37,6 +37,8 @@ internal class FakeApps(private val context: Context) {
         installer: String? = null,
         exported: Boolean = true,
         permission: String? = null,
+        updated: Boolean = false,
+        build: AppBuild = AppBuild(),
     ): ComponentName? {
         val signatures = certificate?.let { arrayOf(Signature(it.toByteArray())) }
         pm.installPackage(
@@ -45,7 +47,12 @@ internal class FakeApps(private val context: Context) {
                 applicationInfo = ApplicationInfo().apply {
                     packageName = pkg
                     flags = if (system) ApplicationInfo.FLAG_SYSTEM else 0
+                    if (updated) flags = flags or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP
+                    nonLocalizedLabel = build.label
                 }
+                longVersionCode = build.code
+                versionName = build.name
+                lastUpdateTime = build.at
                 // Its signing info alone, as the app reads it, which Robolectric's checkSignatures compares from
                 // Android 9 on rather than the signatures deprecated then.
                 signingInfo = signatures?.let(::signingInfo)
@@ -64,6 +71,23 @@ internal class FakeApps(private val context: Context) {
         if (byType) pm.addIntentFilterForActivity(component, video())
         if (schemes.isNotEmpty()) pm.addIntentFilterForActivity(component, video(*schemes.toTypedArray()))
         return component
+    }
+
+    /**
+     * [pkg] replaced by another install of it, its [activity] answering at [schemes] as before: an update, or another app
+     * under its name, as Android lists it once installed.
+     */
+    fun reinstall(
+        pkg: String,
+        activity: String,
+        system: Boolean = false,
+        certificate: String? = null,
+        schemes: List<String> = SHARES,
+        updated: Boolean = false,
+        build: AppBuild = AppBuild(),
+    ): ComponentName? {
+        uninstall(pkg)
+        return install(pkg, activity, system, certificate, schemes = schemes, updated = updated, build = build)
     }
 
     fun uninstall(pkg: String) {
@@ -86,6 +110,12 @@ internal class FakeApps(private val context: Context) {
 
     private fun signingInfo(signatures: Array<Signature>): SigningInfo =
         Shadow.newInstanceOf(SigningInfo::class.java).also { Shadow.extract<ShadowSigningInfo>(it).setSignatures(signatures) }
+
+    /**
+     * An app's build as Android gives it: its versionCode ([code]) and versionName ([name]) as the app declares them, its
+     * [label], and when Android installed it ([at], ms since the epoch).
+     */
+    data class AppBuild(val code: Long = 1, val name: String? = null, val label: String? = null, val at: Long = 0)
 
     companion object {
         const val GALLERY = "com.android.gallery3d"

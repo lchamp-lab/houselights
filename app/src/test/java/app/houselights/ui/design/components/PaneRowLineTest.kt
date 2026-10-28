@@ -53,8 +53,18 @@ class PaneRowLineTest {
     /** What a row lays beside its words, as its pane or sheet does. */
     private enum class Beside { None, Icon, Check }
 
-    /** A row's description [text], what it is ([name]), beside what, and the [value] it shows, a figure in [jaquette]. */
-    private class Line(val text: String, val name: String, val beside: Beside, val value: String? = null, val jaquette: Boolean = false)
+    /**
+     * A row's description [text], what it is ([name]), beside what, and the [value] it shows, a figure in [jaquette]; its
+     * name instead with [title], for a row whose name says what it does (an answer).
+     */
+    private class Line(
+        val text: String,
+        val name: String,
+        val beside: Beside,
+        val value: String? = null,
+        val jaquette: Boolean = false,
+        val title: Boolean = false,
+    )
 
     private fun assertOneLine(scale: Float) {
         RuntimeEnvironment.setFontScale(scale)
@@ -73,7 +83,8 @@ class PaneRowLineTest {
         compose.setTvContent {
             val measurer = rememberTextMeasurer()
             (panes + sheets + forms).forEach {
-                widths[it.text] = measurer.measure(it.text, Hl.type.meta, softWrap = false, maxLines = 1).size.width
+                val style = if (it.title) Hl.type.entry else Hl.type.meta
+                widths[it.text] = measurer.measure(it.text, style, softWrap = false, maxLines = 1).size.width
             }
             HlTwoPane(side = {}) { Column { HlSettingGroup(null) { panes.forEach { Row(it) } } } }
             // A form's rows, beside its column.
@@ -170,7 +181,7 @@ class PaneRowLineTest {
         ) + UpdateFailure.entries.map { line(it.title, value = failed) }
     }
 
-    /** A sheet's rows: a folder's, the source's, Modifier's, the choices', the answers for titles not found. */
+    /** A sheet's rows: a folder's, the source's, Modifier's, the choices', then the answers' ([answerLines]). */
     private fun sheetLines(w: Words): List<Line> = with(w) {
         listOf(
             line(R.string.identify_menu_desc, Beside.Icon),
@@ -220,13 +231,23 @@ class PaneRowLineTest {
             line(R.string.update_check_never_desc, Beside.Check),
             line(R.string.update_stable_desc, Beside.Check),
             line(R.string.update_beta_desc, Beside.Check),
-        ) + orderLines(w) + listOf(
+        ) + orderLines(w) + answerLines(w)
+    }
+
+    /** The answers for titles not found and the row of their folder's sheet, then the new player's, their names too. */
+    private fun answerLines(w: Words): List<Line> = with(w) {
+        listOf(
             // Titles not found: their answers, and the row of their folder's sheet.
             line(R.string.held_keep_desc),
             line(R.string.held_keep_desc_one),
             line(R.string.held_remove_desc),
             line(R.string.held_row_desc),
             line(R.string.held_row_desc_one),
+            // The new player's (#58): « Ne pas lui faire confiance », then « Faire confiance à ce lecteur ».
+            line(R.string.trust_player_no_desc),
+            line(R.string.trust_player_yes_desc),
+            Line(local.getString(R.string.trust_player_no), "$tag: trust_player_no", Beside.None, title = true),
+            Line(local.getString(R.string.trust_player_yes), "$tag: trust_player_yes", Beside.None, title = true),
         )
     }
 
@@ -296,8 +317,8 @@ class PaneRowLineTest {
     @Composable
     private fun Row(line: Line) {
         HlSettingRow(
-            "Row",
-            description = line.text,
+            if (line.title) line.text else "Row",
+            description = line.text.takeUnless { line.title },
             value = line.value,
             valueStyle = if (line.jaquette) Hl.type.jaquette else Hl.type.meta,
             icon = HlIcons.Folder.takeIf { line.beside == Beside.Icon },

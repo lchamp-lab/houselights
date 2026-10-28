@@ -32,9 +32,15 @@ enum class ErrorAction(@StringRes val label: Int) {
     /** Settings, where a TMDB key is added or changed. */
     ADD_TMDB_KEY(R.string.error_action_add_tmdb_key),
     EDIT_TMDB_KEY(R.string.error_action_edit_tmdb_key),
+
+    /** The Zidoo player changed (#58): its sheet names it and asks, the answer that changes nothing first; trusts nothing. */
+    TRUST_PLAYER(R.string.trust_player),
 }
 
-/** Leads where an error is fixed, for every action but [ErrorAction.RETRY]; provided with the navigation. */
+/**
+ * Leads where an error is fixed, for every action but [ErrorAction.RETRY]; provided with the navigation, the trust sheet
+ * opening over the screen that says the failure.
+ */
 val LocalErrorFix = staticCompositionLocalOf<(ErrorAction) -> Unit> { {} }
 
 /** A screen's error in actionable words: what happened ([title]), what to check ([message]), a fix ([action]). */
@@ -81,8 +87,17 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** The file needs credentials, and only the Zidoo player may receive them. */
     CREDENTIALS(R.string.play_failed, R.string.player_credentials, null),
 
-    /** The installed Zidoo player is not the one trusted with passwords. */
-    PLAYER_CHANGED(R.string.play_failed, R.string.player_changed, null),
+    /**
+     * The firmware's Zidoo player updated since passwords went to it, on a test-keys firmware: trusting it again fixes it
+     * (#58), else uninstalling its updates.
+     */
+    PLAYER_CHANGED(R.string.play_failed, R.string.player_changed, ErrorAction.TRUST_PLAYER),
+
+    /**
+     * An app in the place of the Zidoo player passwords went to, another one or the same signed otherwise: trusting it
+     * fixes it, if the user installed it, else reinstalling the player that came with the Zidoo.
+     */
+    PLAYER_REPLACED(R.string.play_failed, R.string.player_changed_app, ErrorAction.TRUST_PLAYER),
 
     /** The device's Keystore refused to seal a password or a token: nothing was written. */
     KEYSTORE(R.string.error_keystore_title, R.string.error_keystore, ErrorAction.RETRY),

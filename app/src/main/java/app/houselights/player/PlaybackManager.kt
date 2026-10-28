@@ -131,9 +131,11 @@ class PlaybackManager(
      * the trusted player has changed. A player found under another name gets a stream only if it handles
      * its address ([ZidooPlayer.opens]).
      *
-     * Not guarded against: a non-system player installed under a Zidoo package name before the first
-     * password (trusted on first use), a system app update signed with the firmware's AOSP test keys, and
-     * anyone reading the device log over adb, where Android logs the URI it starts.
+     * On a test-keys firmware, the firmware's player once updated is pinned with its build at its first password, and
+     * any later update is a change until the user trusts it ([ZidooPlayer.trust]). Not guarded against: a player
+     * installed before the first password, under a Zidoo package name or as an update of the system's (trusted on
+     * first use: there is nothing to compare), and anyone reading the device log over adb, where Android logs the URI
+     * it starts.
      */
     fun intentFor(plan: PlaybackPlan.Launch, tracks: TrackPlan? = null): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
@@ -151,7 +153,8 @@ class PlaybackManager(
         val numbered = tracks?.takeIf { ZidooPlayer.takesTracks(player?.component) }
         val intent = when {
             player != null && (!secret || choice.decision.trusted) -> playerIntent(player.component, plan, numbered)
-            Redact.hasUserInfo(plan.uri) || secret && changed -> throw CredentialsNotShared(playerChanged = changed)
+            Redact.hasUserInfo(plan.uri) || secret && changed ->
+                throw CredentialsNotShared(playerChanged = changed, replaced = changed && choice.player?.system == false)
             else -> anyPlayerIntent(plan, chooser = secret)
         }
         val trusting = choice.takeIf { secret && intent.component != null }
@@ -507,8 +510,12 @@ class PlaybackManager(
     /** One line for the reports that failed after the one logged, once they work again or the title ends. */
     private fun Session.toldFailedReports() = failedReports.summarize { "Reports of $key: $it more failed" }
 
-    /** The file needs credentials only the trusted Zidoo player may receive; [playerChanged] if it changed. */
-    class CredentialsNotShared(val playerChanged: Boolean = false) : Exception("Credentials are only given to the Zidoo player")
+    /**
+     * The file needs credentials only the trusted Zidoo player may receive; [playerChanged] if it changed, [replaced] when
+     * an app took its place rather than the firmware's player updated.
+     */
+    class CredentialsNotShared(val playerChanged: Boolean = false, val replaced: Boolean = false) :
+        Exception("Credentials are only given to the Zidoo player")
 
     companion object {
         private const val TAG = "Playback"
