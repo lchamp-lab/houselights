@@ -25,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -182,8 +185,9 @@ internal fun HomeGrid(
     val scanning = content is HomeContent.FirstScan
     // The first scan and the grid after it are two arrivals: focus goes back where it was on each, the grid's on the case.
     key(scanning) { RestoreFocus(memory, fallback = plan?.start?.let { memory.requester(it) }, ready = focusReady(plan, state)) }
-    // Whether anything on home has focus, read as « Aller à l'accueil » comes.
+    // Whether anything on home has focus, read as « Aller à l'accueil » comes, and whether the viewer placed it there.
     val focused = remember { mutableStateOf(false) }
+    val placed = rememberSaveable { mutableStateOf(false) }
     val listing = rememberSaveable { mutableStateOf(false) }
     val options = rememberSaveable { mutableStateOf(false) }
     val heldOpen = rememberSaveable { mutableStateOf(false) }
@@ -199,6 +203,7 @@ internal fun HomeGrid(
     Column(
         Modifier
             .fillMaxSize()
+            .onViewerKeys { placed.value = true }
             .onFocusChanged { focused.value = it.hasFocus }
             .houseLit(LocalHouseLights.current)
             .drawnWhole(whole),
@@ -224,7 +229,7 @@ internal fun HomeGrid(
                 memory,
                 state.firstPass,
                 actions.onGoHome,
-                focusFree = { focusFree(focused.value, memory) },
+                focusFree = { focusFree(focused.value, placed.value, memory) },
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             )
             content is HomeContent.Message -> NoRows(content, actions, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
@@ -238,8 +243,8 @@ internal fun HomeGrid(
     UpdateOnHome(updates, drawn = whole, grid = settledGrid(plan, state))
 }
 
-/** What home's first scan shows while it has nothing to read from. */
-private val NOTHING_FOUND: StateFlow<FirstScanShows> = MutableStateFlow(FirstScanShows())
+/** What home's first scan shows while it has nothing to read from: no title found. */
+private val NOTHING_FOUND: StateFlow<FirstScanShows> = MutableStateFlow(FirstScanShows(titles = emptyList()))
 
 /**
  * Whether home's first focus may be placed: on its first scan at once, focus going back where it was; on the grid once
@@ -250,8 +255,24 @@ private fun focusReady(plan: HomePlan?, state: HomeState): Boolean = when {
     else -> plan != null && (plan.case != null || state.doors != null)
 }
 
-/** Whether « Aller à l'accueil » may take focus as it comes: nothing has it, nor is it coming back to where it was. */
-private fun focusFree(focused: Boolean, memory: FocusMemory): Boolean = !focused && !memory.arriving
+/**
+ * Whether « Aller à l'accueil » may take focus as it comes: nothing has it that the viewer [placed] there with an arrow
+ * or OK, a new window's own first focus not being theirs, nor is focus coming back to where it was.
+ */
+private fun focusFree(focused: Boolean, placed: Boolean, memory: FocusMemory): Boolean = !(focused && placed) && !memory.arriving
+
+/**
+ * Tells [onPress] of an arrow or OK on home, the keys that place focus, consuming none; an arrow that brings focus in
+ * from nothing is seen as it is let go, on what it focused.
+ */
+private fun Modifier.onViewerKeys(onPress: () -> Unit): Modifier = onPreviewKeyEvent { event ->
+    if (event.key in PLACING_KEYS) onPress()
+    false
+}
+
+/** The remote's keys that place focus: the arrows and OK. */
+private val PLACING_KEYS =
+    setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight, Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
 
 /** Whether a first Back says the scan will resume: on the first scan, and on the grid while the library's first pass runs. */
 private val HomeState.scanWaits: Boolean get() = content is HomeContent.FirstScan || firstPass

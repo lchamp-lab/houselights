@@ -36,10 +36,10 @@ import org.robolectric.annotation.Config
 
 /**
  * DESIGN.md, Focus: home's first scan has three stops at most, the settings tile, « Aller à l'accueil » and « Modifier
- * la clé » for a refused key. Nothing takes focus as it comes; the button takes it as it comes only while nothing has
- * it, never from the tile or the key, nor coming back from Réglages, where focus is back on the tile. Down from the
- * tile goes to the button, Up back, Left to the key, Up or Right from it back; at the cut, focus is placed once on the
- * case.
+ * la clé » for a refused key. Nothing takes focus as it comes; the button takes it as it comes only while nothing the
+ * viewer placed has it, a new window's own first focus not being theirs, never from the tile or the key, nor coming
+ * back from Réglages, where focus is back on the tile. Down from the tile goes to the button, Up back, Left to the key,
+ * Up or Right from it back; at the cut, focus is placed once on the case.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -97,10 +97,22 @@ class FirstScanFocusTest {
         assertEquals(listOf("home"), did)
     }
 
+    /** On a window made as the pass runs, the tile it focuses on its own as it is first laid out is not the viewer's. */
+    @Test
+    fun aNewWindowsOwnFocusGivesWayToTheButton() {
+        open()
+        tile.requestFocus()
+        found(1)
+        button.assertIsFocused()
+        tile.assertIsNotFocused()
+    }
+
+    /** The viewer on the tile, a key pressed there, keeps it as the button comes. */
     @Test
     fun theButtonLeavesFocusOnTheTile() {
         open()
         tile.requestFocus()
+        compose.press(Key.DirectionRight)
         found(3)
         tile.assertIsFocused()
         button.assertIsNotFocused()
@@ -113,6 +125,7 @@ class FirstScanFocusTest {
         open()
         key.assertIsNotFocused()
         key.requestFocus()
+        compose.press(Key.DirectionLeft)
         found(3)
         key.assertIsFocused()
         button.assertIsNotFocused()

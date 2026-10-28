@@ -722,11 +722,12 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   folder not found on the NAS, `HeadNote`) never takes focus: Up from the grid's first row reaches its button, and
   once it goes with its note while it has focus, focus goes back to the case (`HomeHeldTest`).
 - **Home's first scan** has three stops at most: the settings tile, « Aller à l'accueil », and « Modifier la clé » for
-  a refused key. Nothing takes focus as it comes; the button takes it as it comes only while nothing has it, never
-  from the tile or the key, nor coming back from Réglages, where focus is back on the tile. Down from the tile goes to
-  the button, Up from it back to the tile, Left from it to « Modifier la clé », Up or Right from that back to the
-  button; the wall and the block are read, never chosen. At the cut focus is placed once on the case
-  (`FirstScanFocusTest`).
+  a refused key. Nothing takes focus as it comes; the button takes it as it comes only while nothing the viewer placed
+  with an arrow or OK has it, never from the tile or the key, nor coming back from Réglages, where focus is back on
+  the tile; a window made as the pass runs focuses the tile on its own as it is first laid out, which is not the
+  viewer's, and the button takes it. Down from the tile goes to the button, Up from it back to the tile, Left from it
+  to « Modifier la clé », Up or Right from that back to the button; the wall and the block are read, never chosen. At
+  the cut focus is placed once on the case (`FirstScanFocusTest`).
 - **Disabled controls** keep focus, ringed, never filled. What is only read (a technical sheet's block, an NFO)
   is not disabled: it takes the ring and OK does nothing.
 - **Nothing grows.** Focus reaches `HlFocus.reach` past what it frames, whatever its size: the room a
