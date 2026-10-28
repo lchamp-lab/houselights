@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Home's first scan (« Premier scan »): the folder read, the videos its listing found, the way to home meanwhile. -->
+<!-- Home's first scan (« Premier scan »): the folder read, the videos its listing found, the way to home meanwhile,
+     what a first Back says while the library's first pass runs. -->
 <resources>
     <string name="first_scan_listing">Lecture du dossier…</string>
     <string name="first_scan_reading">Analyse du dossier…</string>
@@ -10,4 +11,5 @@
     </plurals>
     <string name="first_scan_home">Aller à l’accueil</string>
     <string name="first_scan_home_goes_on">L’analyse continue en arrière-plan</string>
+    <string name="first_scan_back_waits">Appuyez encore sur Retour pour quitter : l’analyse reprendra quand vous reviendrez</string>
 </resources>

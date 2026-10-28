@@ -68,6 +68,9 @@ class LocalLibrary(
      */
     fun firstTitles(limit: Int): Flow<List<FirstTitleRow>> = dao.observeFirstTitles(limit).paced()
 
+    /** How many titles home's first scan has found, a film's copies once ([FirstTitleDao.observeFirstTitleCount]), at the same pace. */
+    val firstTitleCount: Flow<Int> = dao.observeFirstTitleCount().paced()
+
     suspend fun hasFolders(): Boolean = dao.sources().isNotEmpty()
 
     /** Whether there is a folder at least, followed; true once they cannot be read, so that home says why. */

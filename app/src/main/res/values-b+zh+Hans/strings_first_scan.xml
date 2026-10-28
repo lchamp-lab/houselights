@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Home's first scan (« Premier scan »): the folder read, the videos its listing found, the way to home meanwhile. -->
+<!-- Home's first scan (« Premier scan »): the folder read, the videos its listing found, the way to home meanwhile,
+     what a first Back says while the library's first pass runs. -->
 <resources>
     <string name="first_scan_listing">正在读取文件夹…</string>
     <string name="first_scan_reading">正在扫描文件夹…</string>
@@ -8,4 +9,5 @@
     </plurals>
     <string name="first_scan_home">前往主页</string>
     <string name="first_scan_home_goes_on">扫描会在后台继续</string>
+    <string name="first_scan_back_waits">再按一次返回键退出：回来后扫描将继续</string>
 </resources>

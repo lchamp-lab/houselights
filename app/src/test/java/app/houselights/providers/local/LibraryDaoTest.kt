@@ -278,7 +278,8 @@ class LibraryDaoTest {
 
     /**
      * Home's first scan shows the films and shows first added, then the latest, first added first: a film's copies
-     * once, never a season or an episode, a title without a poster too, the poster its user chose first.
+     * once, never a season or an episode, a title without a poster too, the poster its user chose first; it counts
+     * them so.
      */
     @Test
     fun theFirstTitlesAreTheFirstAddedThenTheLatest() = runTest {
@@ -300,6 +301,7 @@ class LibraryDaoTest {
             dao.observeFirstTitles(3).first(),
         )
         assertEquals("the latest once among the first", listOf(show, dune, heat) + later, dao.observeFirstTitles(20).first().map { it.id })
+        assertEquals("the titles found, read as the wall says them", 9, dao.observeFirstTitleCount().first())
     }
 
     private suspend fun added(title: String, at: Long, kind: ItemKind = ItemKind.MOVIE, poster: String? = null): Long =

@@ -15,11 +15,14 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.browsable
 import app.houselights.core.sagas
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.FirstTitleRow
 import app.houselights.providers.local.Folder
 import app.houselights.providers.local.HeldRow
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.settings.AppSettings
+import app.houselights.ui.design.FirstScanDefaults
+import app.houselights.ui.design.components.FirstWallState
 import app.houselights.ui.settings.HeldTitles
 import app.houselights.ui.settings.heldByFolder
 import app.houselights.ui.util.LatestJob
@@ -39,10 +42,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 /** What Home shows under its head: the grid of its [Rows], or a [Message] saying why there is none. */
@@ -55,7 +62,11 @@ sealed interface HomeContent {
     /** The rows home's grid is made of (« À regarder » shows them). */
     data class Rows(val sections: List<HomeSection>) : HomeContent
 
-    /** No rows yet and a scan running: its counter, with rows filling in as titles are found. */
+    /**
+     * Home's first scan, its own screen under the head: for the whole pass begun on an empty library until its files are
+     * read or « Aller à l'accueil » is chosen, then until home's one read has its shelves; else while no row shows and a
+     * scan runs.
+     */
     data object FirstScan : Message
 
     /** The source could not be read; while [retrying], the intertitle stays with its button busy. */
@@ -84,6 +95,11 @@ data class HomeState(
      * home's head until the user answers or the files are back.
      */
     val held: HeldTitles? = null,
+    /**
+     * Whether the library's first pass runs ([ScanState.firstPass]), on its first scan or on home's grid after it: a
+     * first Back says the scan will resume, and a version found waits for the pass's end.
+     */
+    val firstPass: Boolean = false,
 ) {
     /** Every library but the sagas ([sagas]), each with its own wall. */
     val browsable: List<Library> get() = libraries.browsable()
@@ -130,8 +146,10 @@ data class HomeStatus(
 )
 
 /**
- * Home's rows from the current source's [provider], and what Home shows without them. Only the first scan's counter
- * and the settings door read [scan] progress, so a file scanned changes [state] only when it changes what Home shows.
+ * Home's rows from the current source's [provider], and what Home shows without them. Only the first scan and the
+ * settings door read [scan] progress, so a file scanned changes [state] only when it changes what Home shows. Over the
+ * library's first pass, the first scan holds home and home reads nothing behind it, then reads once at the cut
+ * ([FirstScanHold]); what the first scan shows ([firstScan]) is read only while it shows.
  */
 class HomeViewModel(
     private val provider: () -> MediaProvider,
@@ -157,15 +175,32 @@ class HomeViewModel(
     private val keep: suspend (folder: Long, shown: List<Long>) -> Unit = { _, _ -> },
     /** « Retirer » for titles held ([app.houselights.providers.local.LocalLibrary.removeHeld]). */
     private val remove: suspend (List<Long>) -> Unit = {},
+    /**
+     * The films and shows first found, then the latest ([app.houselights.providers.local.LocalLibrary.firstTitles]),
+     * and how many there are ([app.houselights.providers.local.LocalLibrary.firstTitleCount]): read while the first scan shows.
+     */
+    firstTitles: (limit: Int) -> Flow<List<FirstTitleRow>> = { flowOf(emptyList()) },
+    firstTitleCount: Flow<Int> = flowOf(0),
+    /** « Aller à l'accueil » chosen during the first pass, kept while the app runs ([FirstScanLeft]); home's own by default. */
+    left: FirstScanLeft? = null,
     /** Where an answer runs, outliving home; its own scope by default. */
     work: CoroutineScope? = null,
 ) : ViewModel() {
     private val work = work ?: viewModelScope
+    private val left = left ?: FirstScanLeft(viewModelScope, scan)
 
     /** The library version home and « À regarder » last showed: one change reloads them once. */
     val libraryShown = LibraryShown()
 
     private val load = MutableStateFlow(HomeLoad())
+
+    /** How the first scan holds home: over a first pass found under way, home reads nothing until its cut. */
+    private val hold = MutableStateFlow(if (holds(scan.value, this.left.left.value)) FirstScanHold.PASS else FirstScanHold.NONE)
+
+    /** The first scan's wall, kept with home so it is found again as it was after Réglages; new for each first pass. */
+    var wall = FirstWallState()
+        private set
+
     private val loads = LatestJob(viewModelScope)
     private val draws = LatestJob(viewModelScope)
     private val doorReads = LatestJob(viewModelScope)
@@ -186,23 +221,75 @@ class HomeViewModel(
         emit(null)
     }
 
-    val state: StateFlow<HomeState> = combine(load, scan, folderList, settings, heldNote) { loaded, progress, list, current, note ->
+    val state: StateFlow<HomeState> = combine(
+        combine(load, hold, ::Pair),
+        scan,
+        folderList,
+        settings,
+        heldNote,
+    ) { (loaded, holding), progress, list, current, note ->
         val local = current.source == SourceConfig.Local
         HomeState(
             loaded.libraries,
-            homeContent(loaded, progress, list, local = local),
+            shownContent(holding, loaded, progress, list, local = local),
             loaded.doors,
             homeStatus(current, list, progress, traktAvailable),
             held = note.takeIf { local },
+            firstPass = progress.firstPass,
         )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(STOP_AFTER_MS),
-        HomeState(content = homeContent(load.value, scan.value, folders = null, local = settings.value.source == SourceConfig.Local)),
+        HomeState(
+            content = shownContent(hold.value, load.value, scan.value, folders = null, local = settings.value.source == SourceConfig.Local),
+            firstPass = scan.value.firstPass,
+        ),
     )
 
+    /**
+     * What the first scan shows beside its progress: the folder the pass reads, the titles found as its wall takes them
+     * (the first [FirstScanDefaults.FRAMES], then the latest) and how many; read only while it shows, kept meanwhile.
+     */
+    val firstScan: StateFlow<FirstScanShows> = combine(
+        firstTitles(FirstScanDefaults.FRAMES),
+        firstTitleCount,
+        combine(scan.map { it.sourceId }.distinctUntilChanged(), folderList, ::folderRead),
+    ) { rows, count, folder -> FirstScanShows(folder, rows.map(::firstTitleOf), count) }
+        .catch { e -> Log.w(TAG, "Reading the first scan's titles failed", e) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), FirstScanShows())
+
     init {
+        if (hold.value == FirstScanHold.NONE) load()
+        viewModelScope.launch {
+            combine(scan, this@HomeViewModel.left.left, ::holds).distinctUntilChanged().collect { holding ->
+                when {
+                    holding -> holdForThePass()
+                    hold.value == FirstScanHold.PASS -> cut()
+                }
+            }
+        }
+    }
+
+    /** A first pass under way: the first scan holds home, on a wall of its own. */
+    private fun holdForThePass() {
+        if (hold.value == FirstScanHold.PASS) return
+        wall = FirstWallState()
+        hold.value = FirstScanHold.PASS
+    }
+
+    /**
+     * The pass's files read, « Aller à l'accueil » chosen, or the pass ended: home reads once, the first scan staying until
+     * this read has its shelves, so the grid comes in one cut, focus placed once on its case.
+     */
+    private fun cut() {
+        hold.value = FirstScanHold.CUT
+        // What was read before the pass says nothing of the grid to come.
+        load.update { it.copy(loading = true, error = null, doors = null) }
         load()
+        viewModelScope.launch {
+            load.first { !it.loading && (it.error != null || it.doors?.shelvesRead == true) }
+            hold.compareAndSet(FirstScanHold.CUT, FirstScanHold.NONE)
+        }
     }
 
     fun load() {
@@ -253,8 +340,18 @@ class HomeViewModel(
         null
     }
 
-    /** Reloads after a library change; the library's rows are drawn again unless a scan's progress alone moved it. */
-    fun onLibraryChanged() = load()
+    /**
+     * Reloads after a library change, the library's rows drawn again unless a scan's progress alone moved it; never behind
+     * the first scan, which reads at its cut.
+     */
+    fun onLibraryChanged() {
+        if (hold.value == FirstScanHold.NONE) load()
+    }
+
+    /** « Aller à l'accueil » on the first scan: home cuts to its grid once read, the scan going on; again, nothing more. */
+    fun goHome() {
+        if (hold.value == FirstScanHold.PASS) left.leave()
+    }
 
     /** Loads the library's rows, below Home's own, once the launch screen has closed; a failure leaves them out. */
     private fun drawLibraryRows() {
@@ -298,12 +395,33 @@ class HomeViewModel(
                     held = app.library.held,
                     keep = app.library::keepHeld,
                     remove = app.library::removeHeld,
+                    firstTitles = app.library::firstTitles,
+                    firstTitleCount = app.library.firstTitleCount,
+                    left = app.firstScanLeft,
                     work = app.scope,
                 )
             }
         }
     }
 }
+
+/**
+ * How the first scan holds home over the library's first pass (DESIGN.md, Layout): not at all ([NONE]); while the pass
+ * reads its files and « Aller à l'accueil » is not chosen ([PASS]), home reading nothing behind it; then until home's
+ * one read has its shelves ([CUT]).
+ */
+private enum class FirstScanHold { NONE, PASS, CUT }
+
+/** Whether the first scan holds home for [scan]: the first pass reads its files, « Aller à l'accueil » not chosen ([left]). */
+private fun holds(scan: ScanState, left: Boolean) = scan.firstPass && !scan.finishing && !left
+
+/** The folder a pass reads ([ScanState.sourceId]) among [folders], the first while it reaches none; null until they are read. */
+private fun folderRead(id: Long?, folders: List<Folder>?): Folder? =
+    folders?.let { list -> list.firstOrNull { it.id == id } ?: list.firstOrNull() }
+
+/** What home shows: its first scan while it [holds][FirstScanHold] home, else [homeContent]. */
+private fun shownContent(hold: FirstScanHold, load: HomeLoad, scan: ScanState, folders: List<Folder>?, local: Boolean): HomeContent =
+    if (hold == FirstScanHold.NONE) homeContent(load, scan, folders, local) else HomeContent.FirstScan
 
 /**
  * What Home shows, from [load], [scan], [folders] (null until read) and whether the source is [local]. Shown rows

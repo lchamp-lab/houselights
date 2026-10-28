@@ -147,7 +147,7 @@ private fun ErrorSpecimen(error: UiError, retrying: Boolean = false) =
 
 @Composable
 private fun ColumnScope.Counters() {
-    Specimen("first scan, on home: what is read, a line a reading column long, the file") {
+    Specimen("under its label: what is read, a line a reading column long, the file under it") {
         ScanProgress(
             41,
             120,

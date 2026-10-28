@@ -467,7 +467,7 @@ its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a f
 |---|---|
 | `HlMotion` curves | three of the system's own: `focusPull` ("mise au point", 0.20 0.75 0.25 1) for what arrives, `fallBack` ("retombée", 0.45 0 0.55 1) for what leaves or crosses, `lightsOut` (ease-out) for lights going out. No Material curve, no curve drawn elsewhere, no animation on a default spring or a cross-fading container; every tween names its easing (`MotionGuardTest`) |
 | `HlMotion` durations | `FOCUS_IN` 220 and `FOCUS_OUT` 260 ms (a frame, a glow, a recede), `PLATE_IN` 120 and `PLATE_OUT` 180 (a plate's white), `TINT` 480 (a backdrop's fade, linear, once settled; a poster arriving on the first scan's wall); `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (`rememberSettled`); `SKELETON_DELAY` 400 ms; `HOLD` 400 ms, the longest anything waits for a picture; `WALL_DRIFT` 140 s, one loop of the welcome wall; `ENTER_SCALE`, which a menu grows from |
-| A poster arriving (`FirstWall`) | the one motion that answers a scan rather than the viewer, as a new field of the settings' room comes in: once its picture is decoded at its size (or its one-sheet ready), the frame's opaque ground (`groundFill`) lifts off it over `TINT`, linear, read while drawing, without a layer nor the loader's fade (`ArtworkImage`'s `onShow`); a batch together, each when its picture is ready, never staggered. Renewing a frame is the same arrival: the poster it showed stays whole until the one coming is decoded, then is cut under the ground, never two posters one in the other; at most one a step (`FirstScanDefaults.STEP_MS` 2 s) |
+| A poster arriving (`FirstWall`) | the one motion that answers a scan rather than the viewer, as a new field of the settings' room comes in: once its picture is decoded at its size (or its one-sheet ready), the frame's opaque ground (`groundFill`) lifts off it over `TINT`, linear, read while drawing, without a layer nor the loader's fade (`ArtworkImage`'s `onShow`); a batch together, each when its picture is ready, never staggered. Renewing a frame is the same arrival: the poster it showed stays whole until the one coming is decoded, then is cut under the ground, never two posters one in the other; at most one a step (`FirstScanDefaults.STEP_MS` 2 s). Filling, the step that fills the last frames renews none; the titles there when the wall comes back (from Réglages, its state kept with home) show at once |
 | `LocalHouseLights`, `HouseLightCue`, `LaunchCue`, `LocalLaunchScreen` | house-light level (read while drawing, each layer redrawn only during its own step: `rememberCueStep`), the playback and launch cues, the launch screen until the first screen is drawn whole |
 
 ### Icons (`Icons.kt`)
@@ -549,6 +549,25 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   name leaves it no room; a name too long for its icon goes without it, a door of one part keeping them 6 apart
   (`bandGapNarrow`). Framed with focus, nothing grows
   (`HomeLayoutTest`, `HomePlanTest`).
+- **Home's first scan** (`FirstScan`, `FirstScanDefaults`) holds home for the whole pass begun on an empty library
+  (`ScanState.firstPass`, kept to the pass's end, where `homeFilling` goes once home's row is full), and wherever no
+  row shows while a scan runs. Under the head, on the margin, the folder's block (`FolderBlock`, its column 344, see
+  *Components*) stands on the safe area's foot, TMDB's trouble over it (`AttentionNote` in `meta`, `xl` over the
+  block) with « Modifier la clé » `m` under it for a refused key alone, so nothing in the block moves as they come,
+  the column keeping `l` under the head. At the safe area's end, on the same foot, the wall of the titles found
+  (`FirstWall`: two whole lines of four `wallPoster`, 168 to 512, every frame inside the safe area). From the first
+  title, while the first pass runs, « Aller à l'accueil » stands over the wall from the head's foot, aligned on its
+  first frame, 16 over its posters (`GoHomeButton`, `buttonGap`), « L'analyse continue en arrière-plan » under it on
+  one line, the 78 they take at 1.3 within the 100 the head leaves; the settings tile's label falls under it, at the
+  head's end, to their right without touching them. The screen gives way by itself once every folder's files are read
+  (`ScanState.finishing`), or on « Aller à l'accueil », in one cut once home's one read has its shelves
+  (`shelvesRead`), focus placed once on the case; until then nothing moves, the button keeping its white plate, no
+  wheel nor word more, a second OK changing nothing. The choice is kept with the pass while the app runs
+  (`FirstScanLeft`), not in the screen's state, which Back clears as it quits: leaving and coming back lands on the
+  grid, the scan having waited; it is forgotten at the pass's end. Without a title by then, « Aucun film pour
+  l'instant » or « L'analyse n'a pas abouti », as before. At 1.0 and 1.3, in every language, TMDB's three notes,
+  « Modifier la clé » and a long name on two lines hold in the column, its lines whole, and the button and its line
+  over the wall (`FirstScanLayoutTest`, `HomeViewModelTest`).
 - **« À regarder »** (`WatchScreen`): home's rows under their title (`ScreenTitle`), the hero band (`HlLayout.hero`,
   148: logo, one line of facts, two lines of overview or progress), then the rows, `HlSpace.l` apart; opened on the
   row of the door that opens it, Back home to that door (`WatchPageTest`, `PagesNavigationTest`). It reads home's
@@ -690,6 +709,12 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   Without a grid (a message), the settings tile stands at the end of home's head. A note standing there (titles of a
   folder not found on the NAS, `HeadNote`) never takes focus: Up from the grid's first row reaches its button, and
   once it goes with its note while it has focus, focus goes back to the case (`HomeHeldTest`).
+- **Home's first scan** has three stops at most: the settings tile, « Aller à l'accueil », and « Modifier la clé » for
+  a refused key. Nothing takes focus as it comes; the button takes it as it comes only while nothing has it, never
+  from the tile or the key, nor coming back from Réglages, where focus is back on the tile. Down from the tile goes to
+  the button, Up from it back to the tile, Left from it to « Modifier la clé », Up or Right from that back to the
+  button; the wall and the block are read, never chosen. At the cut focus is placed once on the case
+  (`FirstScanFocusTest`).
 - **Disabled controls** keep focus, ringed, never filled. What is only read (a technical sheet's block, an NFO)
   is not disabled: it takes the ring and OK does nothing.
 - **Nothing grows.** Focus reaches `HlFocus.reach` past what it frames, whatever its size: the room a
@@ -729,15 +754,18 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
    `MediaRowFocusTest`). Never `focusRestorer` (it crashes in Compose 1.7 when the list changes) nor a manual
    restore that cancels the move (`FocusStyleGuardTest`).
 
-**Back** goes in two steps (`BackToStart`): deep in a screen, it first returns focus to where the screen
-starts, then leaves. Home's grid has no depth: from any door, a first Back says "Appuyez encore sur Retour pour
-quitter" at the end of its head (`HomeHead`'s `status`), and a second one within 2.5 s (`QUIT_WINDOW_MS`) quits;
-the line goes when that time is out or as soon as focus moves to another door. Under the launch screen nothing has
-been seen yet: the first Back quits (`QuitAgainTest`). A page goes back to the screen that opened it: home, on the
-door it came from, or the person's page or the library in numbers that opened a wall (`PagesNavigationTest`); OK
-pressed twice before a page shows opens it once (`homeActions`). « À regarder » goes at once; a wall, from past its
-first line, first returns to its first poster. Sheets and menus handle their own Back; during the house-light cue,
-Back cancels it.
+**Back** goes in two steps (`BackToStart`): deep in a screen, it first returns focus to where the screen starts,
+then leaves. Home's grid has no depth: from any door, a first Back says "Appuyez encore sur Retour pour quitter" at
+the end of its head (`HomeHead`'s `status`), and a second one within 2.5 s (`QUIT_WINDOW_MS`) quits; the line goes
+when that time is out or as soon as focus moves to another door. While the library's first pass runs, on its first
+scan as on the grid after it, the line says "Appuyez encore sur Retour pour quitter : l’analyse reprendra quand vous
+reviendrez", the scan waiting while the app is away; it takes what the lockup and the tile leave, on two lines at
+the largest text, over the head's band and clear of « Aller à l'accueil » (`FirstScanLayoutTest`). Under the launch
+screen nothing has been seen yet: the first Back quits (`QuitAgainTest`). A page goes back to the screen that opened
+it: home, on the door it came from, or the person's page or the library in numbers that opened a wall
+(`PagesNavigationTest`); OK pressed twice before a page shows opens it once (`homeActions`). « À regarder » goes at
+once; a wall, from past its first line, first returns to its first poster. Sheets and menus handle their own Back;
+during the house-light cue, Back cancels it.
 
 **Menu** (or the Zidoo remote's Pop Menu, sent as F12) opens the options of what has focus, on its way up
 (`menuForLongClick`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
@@ -1010,9 +1038,10 @@ its count and its queue until a file is back
 
 The app asks nothing for itself: supporting the project is one row in About, with no reminder, badge or
 prompt. A version found is offered once by its sheet on home (`UpdateOnHome`), in its "available" state, once home is
-drawn and in front, never over another sheet, a first scan or an update under way, behind the player, under the launch
-screen, for a failure or with the check off: « Plus tard », Back, or the version acted on from About wait for a newer
-one, never a reminder, no mark on a door; About's row states it meanwhile (`HomeUpdateTest`).
+drawn and in front, never over another sheet, a first scan, the grid while the library's first pass goes on, or an
+update under way, behind the player, under the launch screen, for a failure or with the check off: « Plus tard »,
+Back, or the version acted on from About wait for a newer one, never a reminder, no mark on a door; About's row states
+it meanwhile (`HomeUpdateTest`).
 
 ## Writing
 
@@ -1098,6 +1127,12 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
   holding less than a page: a title's page reads its title again and reloads only if it changed, a wall reloads its
   titles, its filters and sagas waiting for the end, as home's library rows do (`settledVersion`). The settings'
   counts and posters follow it every 2 s at most (`LocalLibrary`).
+- **Nothing is read behind home's first scan.** For hours, its pass's progress reads no row, door or cut poster: home
+  reads once, at the cut, then follows the pass as above, every 3 s while its row fills, then every 20 s. The first
+  scan reads its titles and their count every 2 s at most, while it shows alone (`LocalLibrary.firstTitles`,
+  `firstTitleCount`); its eight posters are decoded at their size (224 × 336, 2.4 MB), then one more at most every
+  2 s once full, the poster it replaces let go once the new one shows: nine at most, nothing in a layer at rest, no
+  backdrop (`HomeViewModelTest`, `FirstWallTest`).
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
   `dumpsys gfxinfo <package> framestats` and `setprop debug.hwui.overdraw show`. See CONTRIBUTING.md.
 
@@ -1163,7 +1198,7 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogContrast` | each ink on what it sits on, over the lightest picture, with its ratio |
 | `CatalogFocus` | every shape with its radii; the frame (poster, wide image, portrait, absent card, panel, the action to play) and the fill and ring, live |
 | `CatalogGestures` | case back, intertitle and counter side by side, then intertitles, error states, counters, case backs, empty frames and poster strips |
-| `CatalogFirstScan` | home's first scan: the folder listed with its wall empty, with its count, its files counted and the wall filling with « Aller à l'accueil », in one-sheets; then live, the wall filling and renewing in place |
+| `CatalogFirstScan` | home's first scan: the folder listed with its wall empty, with its count, its files counted and the wall filling with « Aller à l'accueil », in one-sheets, TMDB refusing the key with its note and « Modifier la clé » over the block; then live, the wall filling and renewing in place |
 | `CatalogIcons` | every glyph on the room and on focus; done and your choice; ember for states only; the Menu key, alone and after a name |
 | `CatalogControls` | buttons in their states, a place's title and a task's, tiles, controls on a picture's plates, and the seasons |
 | `CatalogSecondary` | the settings' room of posters with its places, a group, a plate of facts and states; a pane's heads, the lockup, printed pairs, definitions, a meter that states, a code to type; showcases in their row; a gallery whose images step back; a plate in a film's light and the sheets that hold them, a reading plate, one wide to read, an NFO's |

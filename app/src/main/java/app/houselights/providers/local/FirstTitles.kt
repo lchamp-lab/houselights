@@ -22,4 +22,8 @@ interface FirstTitleDao {
             ") ORDER BY addedAt, id",
     )
     fun observeFirstTitles(limit: Int): Flow<List<FirstTitleRow>>
+
+    /** How many films and shows the library holds, a film's copies once: the titles home's first scan has found. */
+    @Query("SELECT COUNT(*) FROM items WHERE $FIRST_TITLES")
+    fun observeFirstTitleCount(): Flow<Int>
 }

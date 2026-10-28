@@ -5,16 +5,15 @@ import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -25,6 +24,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -43,14 +43,11 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
-import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.design.RestoreFocus
-import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.DoorCell
 import app.houselights.ui.design.components.DoorFacts
 import app.houselights.ui.design.components.DoorFigures
@@ -61,8 +58,8 @@ import app.houselights.ui.design.components.DoorProgress
 import app.houselights.ui.design.components.DoorSagas
 import app.houselights.ui.design.components.DoorStill
 import app.houselights.ui.design.components.DoorWall
+import app.houselights.ui.design.components.FirstWallState
 import app.houselights.ui.design.components.HeadNote
-import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlIconButton
@@ -73,12 +70,12 @@ import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HomeDoor
 import app.houselights.ui.design.components.HomeHead
 import app.houselights.ui.design.components.ResumeCase
-import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.StateFact
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.gridHeights
 import app.houselights.ui.design.components.rememberCutPosters
 import app.houselights.ui.design.components.rememberFigureSize
+import app.houselights.ui.design.components.rememberFirstWallState
 import app.houselights.ui.design.drawnWhole
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.houseLit
@@ -105,7 +102,7 @@ import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.titleAt
 import app.houselights.ui.util.titleCount
-import app.houselights.ui.util.toUiError
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -133,6 +130,8 @@ data class HomeActions(
     val onKeepHeld: (HeldTitles) -> Unit = {},
     /** « Retirer » for a folder's titles held while their files are missing. */
     val onRemoveHeld: (HeldTitles) -> Unit = {},
+    /** « Aller à l'accueil » on the first scan: home cuts to its grid once read, the scan going on. */
+    val onGoHome: () -> Unit = {},
 )
 
 /** Home; [playProblem] says why a play asked from it did not start. */
@@ -153,13 +152,15 @@ fun HomeScreen(
         onRescan = vm::rescan,
         onKeepHeld = vm::keepHeld,
         onRemoveHeld = vm::removeHeld,
+        onGoHome = vm::goHome,
     )
-    HomeGrid(state, vm.scan, answers, playProblem, updates)
+    HomeGrid(state, vm.scan, answers, playProblem, updates, vm.firstScan, vm.wall)
 }
 
 /**
- * Home for [state] (DESIGN.md, Layout): the lockup, then the grid of the case and its doors, or what says why there is
- * none. Focus comes back to the door left; Back says once that a second one quits. Why the case did not play
+ * Home for [state] (DESIGN.md, Layout): the lockup, then the grid of the case and its doors, its first scan (what it
+ * shows, [firstScan], on its [wall]), or what says why there is none. Focus comes back to the door left; Back says once
+ * that a second one quits, and that the scan will resume while the library's first pass runs. Why the case did not play
  * ([playProblem]) is said in place of its facts until a click on it, and first in its options. A version found by the
  * app's [updates] opens its sheet once over the grid, and the update that brought the app back is said once at its head.
  */
@@ -170,15 +171,19 @@ internal fun HomeGrid(
     actions: HomeActions,
     playProblem: UiError? = null,
     updates: UpdateUi? = null,
+    firstScan: StateFlow<FirstScanShows> = NOTHING_FOUND,
+    wall: FirstWallState = rememberFirstWallState(),
 ) {
     val content = state.content
     val memory = rememberFocusMemory()
     // The line saying a second Back quits goes as soon as focus moves to another door.
     val quitting = quitOnSecondBack(atStart = true) { memory.last }
     val plan = rememberPlan(state, canSearch = actions.onOpenSearch != null)
-    // A first focus waits for the case: with nothing in progress, it proposes a title as soon as one is read.
-    val ready = plan != null && (plan.case != null || state.doors != null)
-    RestoreFocus(memory, fallback = plan?.start?.let { memory.requester(it) }, ready = ready)
+    val scanning = content is HomeContent.FirstScan
+    // The first scan and the grid after it are two arrivals: focus goes back where it was on each, the grid's on the case.
+    key(scanning) { RestoreFocus(memory, fallback = plan?.start?.let { memory.requester(it) }, ready = focusReady(plan, state)) }
+    // Whether anything on home has focus, read as « Aller à l'accueil » comes.
+    val focused = remember { mutableStateOf(false) }
     val listing = rememberSaveable { mutableStateOf(false) }
     val options = rememberSaveable { mutableStateOf(false) }
     val heldOpen = rememberSaveable { mutableStateOf(false) }
@@ -191,9 +196,15 @@ internal fun HomeGrid(
     FocusAfterNote(gone = held == null, memory, plan?.start)
     // Whole for the launch screen once the grid shows with its doors read, or a message.
     val whole = content !is HomeContent.Loading && (plan == null || state.doors?.shelvesRead == true)
-    Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current).drawnWhole(whole)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .onFocusChanged { focused.value = it.hasFocus }
+            .houseLit(LocalHouseLights.current)
+            .drawnWhole(whole),
+    ) {
         val end = headEnd(content, held, memory, actions) { heldOpen.value = true }
-        val (status, light) = passing(quitting, updates)
+        val (status, light) = passing(quitting, updates, scanWaits = state.scanWaits)
         HomeHead(status, statusState = light, end = end)
         when {
             plan != null -> Grid(
@@ -206,7 +217,17 @@ internal fun HomeGrid(
                 onList = { listing.value = true },
                 onOptions = { options.value = true },
             )
-            content is HomeContent.Message -> NoRows(content, scan, actions, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
+            scanning -> FirstScan(
+                scan,
+                firstScan,
+                wall,
+                memory,
+                state.firstPass,
+                actions.onGoHome,
+                focusFree = { focusFree(focused.value, memory) },
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            )
+            content is HomeContent.Message -> NoRows(content, actions, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
             else -> Unit
         }
     }
@@ -214,17 +235,40 @@ internal fun HomeGrid(
     if (options.value && case != null) CaseOptions(case, actions, playProblem) { options.value = false }
     HeldSheetOf(heldOpen.value, held, actions) { heldOpen.value = false }
     // A version found: its sheet, opened by the app once home's grid is drawn and no sheet lies over it, once per version.
-    UpdateOnHome(updates, drawn = whole, grid = plan != null)
+    UpdateOnHome(updates, drawn = whole, grid = settledGrid(plan, state))
 }
 
+/** What home's first scan shows while it has nothing to read from. */
+private val NOTHING_FOUND: StateFlow<FirstScanShows> = MutableStateFlow(FirstScanShows())
+
 /**
- * What home's head says in passing, by its light: that a second Back quits, while [quitting]; else, once, the update that
- * brought the app back ([updateSaid]); else nothing.
+ * Whether home's first focus may be placed: on its first scan at once, focus going back where it was; on the grid once
+ * it has its case, which, with nothing in progress, proposes a title as soon as one is read.
+ */
+private fun focusReady(plan: HomePlan?, state: HomeState): Boolean = when {
+    state.content is HomeContent.FirstScan -> true
+    else -> plan != null && (plan.case != null || state.doors != null)
+}
+
+/** Whether « Aller à l'accueil » may take focus as it comes: nothing has it, nor is it coming back to where it was. */
+private fun focusFree(focused: Boolean, memory: FocusMemory): Boolean = !focused && !memory.arriving
+
+/** Whether a first Back says the scan will resume: on the first scan, and on the grid while the library's first pass runs. */
+private val HomeState.scanWaits: Boolean get() = content is HomeContent.FirstScan || firstPass
+
+/** Home's grid once the library's first pass is over, when a version found may open its sheet over it. */
+private fun settledGrid(plan: HomePlan?, state: HomeState): Boolean = plan != null && !state.firstPass
+
+/**
+ * What home's head says in passing, by its light: that a second Back quits, while [quitting], and that the scan will
+ * resume on the viewer's return while it [scanWaits] for it; else, once, the update that brought the app back
+ * ([updateSaid]); else nothing.
  */
 @Composable
-private fun passing(quitting: Boolean, updates: UpdateUi?): Pair<String?, StatusState> {
+private fun passing(quitting: Boolean, updates: UpdateUi?, scanWaits: Boolean): Pair<String?, StatusState> {
     val said = updateSaid(updates)
     return when {
+        quitting && scanWaits -> stringResource(R.string.first_scan_back_waits) to StatusState.Pending
         quitting -> stringResource(R.string.back_again_to_quit) to StatusState.Pending
         said != null -> said
         else -> null to StatusState.Pending
@@ -243,7 +287,14 @@ private fun headEnd(
     openHeld: () -> Unit,
 ): (@Composable () -> Unit)? = when {
     content is HomeContent.Message -> {
-        { HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = actions.onOpenSettings) }
+        {
+            HlIconButton(
+                HlIcons.Settings,
+                stringResource(R.string.nav_settings),
+                onClick = actions.onOpenSettings,
+                modifier = Modifier.focusKey(SETTINGS_TILE, memory),
+            )
+        }
     }
     held != null -> {
         {
@@ -730,45 +781,11 @@ private fun quitOnSecondBack(atStart: Boolean, where: () -> Any?): Boolean {
     return armed
 }
 
-/** The first scan's counter; only it reads [progress]. */
+/** No rows and nothing loading: a failure, a scan that failed, or a library still empty; the first scan has its own screen. */
 @Composable
-private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier = Modifier) {
-    val scan by progress.collectAsStateWithLifecycle()
-    val tmdbIssue = scan.tmdbIssue?.toUiError()
-    Column(modifier) {
-        ScanProgress(
-            scan.processed,
-            scan.total,
-            label = stringResource(R.string.home_scanning),
-            current = scan.current,
-            lineWidth = HlLayout.readableNarrow,
-        )
-        if (tmdbIssue != null) {
-            Spacer(Modifier.height(HlSpace.m))
-            AttentionNote(stringResource(noteOf(tmdbIssue)), Modifier.widthIn(max = HlLayout.readableNarrow), style = Hl.type.meta)
-        }
-        scanNoteAction(tmdbIssue)?.let { action ->
-            val fix = LocalErrorFix.current
-            Spacer(Modifier.height(HlSpace.m))
-            HlButton(stringResource(action.label), onClick = { fix(action) })
-        }
-    }
-}
-
-private fun noteOf(issue: UiError): Int = when (issue) {
-    UiError.TMDB_KEY_REFUSED -> R.string.home_scan_tmdb_refused
-    UiError.CERTIFICATE -> R.string.home_scan_tmdb_certificate
-    else -> R.string.home_scan_tmdb_offline
-}
-
-/** The counter's fix for [issue]: edit a refused TMDB key. */
-internal fun scanNoteAction(issue: UiError?): ErrorAction? = issue?.action?.takeIf { it == ErrorAction.EDIT_TMDB_KEY }
-
-/** No rows and nothing loading: the first scan, a failure, a scan that failed, or a library still empty. */
-@Composable
-private fun NoRows(content: HomeContent.Message, progress: StateFlow<ScanState>, actions: HomeActions, modifier: Modifier = Modifier) {
+private fun NoRows(content: HomeContent.Message, actions: HomeActions, modifier: Modifier = Modifier) {
     when (content) {
-        HomeContent.FirstScan -> FirstScan(progress, modifier)
+        HomeContent.FirstScan -> Unit
         is HomeContent.Failed -> HlErrorState(content.error, actions.onReload, modifier, content.retrying)
         HomeContent.ReadingFolders -> Unit
         is HomeContent.ScanFailed -> ScanFailed(content.folder, content.error, actions, modifier)

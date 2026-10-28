@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,13 +16,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.FirstScanDefaults
+import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.FirstTitle
 import app.houselights.ui.design.components.FirstWall
 import app.houselights.ui.design.components.FolderBlock
 import app.houselights.ui.design.components.GoHomeButton
+import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.util.ErrorAction
 import kotlinx.coroutines.delay
 
 // Home's first scan on the app's own pictures: the banner as a poster, every third title without one.
@@ -48,6 +54,10 @@ internal fun LazyListScope.catalogFirstScan() {
                 val named = samples().take(FULL).map { title -> title.copy(poster = title.poster.takeIf { title.id == 1L }) }
                 Scene(processed = FULL, titles = named)
             }
+            Specimen("TMDB refusing the key: its note and « Modifier la clé » over the block, which stays on the foot") {
+                val named = samples().take(FILLING).map { title -> title.copy(poster = null) }
+                Scene(processed = FILLING, titles = named, button = true, refused = true)
+            }
         }
     }
     item {
@@ -58,19 +68,37 @@ internal fun LazyListScope.catalogFirstScan() {
     }
 }
 
-/** The first scan as home lays it out: the folder's block on the margin, the wall at the safe area's end, both on its foot. */
+/**
+ * The first scan as home lays it out: the folder's block on the margin, TMDB's note over it when the key is [refused],
+ * the wall at the safe area's end, both on its foot.
+ */
 @Composable
-private fun Scene(titles: List<FirstTitle>, modifier: Modifier = Modifier, processed: Int = 0, listed: Int = 0, button: Boolean = false) {
+private fun Scene(
+    titles: List<FirstTitle>,
+    modifier: Modifier = Modifier,
+    processed: Int = 0,
+    listed: Int = 0,
+    button: Boolean = false,
+    refused: Boolean = false,
+) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-        FolderBlock(
-            "Films",
-            "DS920",
-            processed = processed,
-            total = if (processed > 0) TOTAL else 0,
-            protocol = "NFS",
-            current = "Bugonia (2025).mkv".takeIf { processed > 0 },
-            listed = listed,
-        )
+        Column {
+            if (refused) {
+                AttentionNote(stringResource(R.string.home_scan_tmdb_refused), Modifier.width(FirstScanDefaults.column))
+                Spacer(Modifier.height(HlSpace.m))
+                HlButton(stringResource(ErrorAction.EDIT_TMDB_KEY.label), onClick = {})
+                Spacer(Modifier.height(HlSpace.xl))
+            }
+            FolderBlock(
+                "Films",
+                "DS920",
+                processed = processed,
+                total = if (processed > 0) TOTAL else 0,
+                protocol = "NFS",
+                current = "Bugonia (2025).mkv".takeIf { processed > 0 },
+                listed = listed,
+            )
+        }
         Spacer(Modifier.weight(1f))
         Column {
             if (button) {

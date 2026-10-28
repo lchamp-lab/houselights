@@ -55,6 +55,7 @@ import app.houselights.settings.TraktFollow
 import app.houselights.ui.design.components.AwaitAhead
 import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.design.components.FIELD_POSTERS
+import app.houselights.ui.home.FirstScanLeft
 import app.houselights.ui.home.HomeLaunch
 import app.houselights.ui.home.LibraryRows
 import app.houselights.ui.home.UnseenPick
@@ -302,6 +303,9 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         dreaming = screensaverShows(app),
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
+
+    /** « Aller à l'accueil » chosen on home's first scan, kept with the first pass while the app runs. */
+    val firstScanLeft = FirstScanLeft(scope, scanner.state)
 
     /** This player's address on the home network ([HomeAddress]), the one a NAS's NFS rules allow; null without one. */
     suspend fun playerAddress(): String? = withContext(Dispatchers.IO) { HomeAddress.find(app)?.hostAddress }
