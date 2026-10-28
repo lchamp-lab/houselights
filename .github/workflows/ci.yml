@@ -87,8 +87,9 @@ jobs:
           echo "$(nproc) processors: $(sed -n 's/^model name[[:space:]]*: //p' /proc/cpuinfo | sort -u)"
           free -m
 
-      # A worker per processor and a 6 GB heap, the Kotlin compiler inside Gradle's JVM: with the unit tests' three JVMs
-      # of 1.5 GB, within the runner's 16 GB.
+      # A worker per processor and a 6 GB heap; the Kotlin compiler in a daemon of its own, of 3 GB, where on the same
+      # processors it compiled the debug build a little faster than inside Gradle's JVM, and the unit tests' classes,
+      # compiled after it, in half the time. With the unit tests' three JVMs of 1.5 GB, all within the runner's 16 GB.
       - name: ${{ matrix.name }}
         env:
           TMDB_API_KEY: ${{ matrix.secrets && secrets.TMDB_API_KEY || '' }}
@@ -97,7 +98,8 @@ jobs:
         run: >-
           ./gradlew --no-daemon --max-workers="$(nproc)"
           -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
-          -Pkotlin.compiler.execution.strategy=in-process
+          -Pkotlin.compiler.execution.strategy=daemon
+          -Pkotlin.daemon.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=1g"
           -Phouselights.debugSignedRelease=true
           ${{ matrix.gradle }}
 
