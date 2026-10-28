@@ -682,6 +682,7 @@
     <string name="journal_empty">Android heeft geen regel van de app bewaard.</string>
     <string name="journal_trakt_on">Trakt verbonden</string>
     <string name="journal_trakt_off">Trakt niet verbonden</string>
+    <string name="journal_trakt_unread">Trakt voorlopig niet gelezen</string>
     <string name="file_access">Bestandstoegang</string>
     <string name="network_path_desc">De speler leest direct van de NAS</string>
     <string name="http_stream_desc">De speler leest de stream van de server</string>

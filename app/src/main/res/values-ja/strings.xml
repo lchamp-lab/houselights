@@ -665,6 +665,7 @@
     <string name="journal_empty">Androidにアプリの行が残っていません。</string>
     <string name="journal_trakt_on">Trakt接続済み</string>
     <string name="journal_trakt_off">Trakt未接続</string>
+    <string name="journal_trakt_unread">Trakt現在読み取れません</string>
     <string name="file_access">ファイルへのアクセス</string>
     <string name="network_path_desc">NASから直接読み込みます</string>
     <string name="http_stream_desc">サーバーのストリームを再生</string>

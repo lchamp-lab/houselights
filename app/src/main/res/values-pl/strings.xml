@@ -712,6 +712,7 @@
     <string name="journal_empty">Android nie zachował żadnego wiersza aplikacji.</string>
     <string name="journal_trakt_on">Trakt połączony</string>
     <string name="journal_trakt_off">Trakt niepołączony</string>
+    <string name="journal_trakt_unread">Trakt na razie nieodczytany</string>
     <string name="file_access">Dostęp do plików</string>
     <string name="network_path_desc">Odtwarzacz czyta pliki prosto z NAS</string>
     <string name="http_stream_desc">Odtwarzacz czyta strumień z serwera</string>

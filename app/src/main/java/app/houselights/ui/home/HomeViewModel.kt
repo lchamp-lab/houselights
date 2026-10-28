@@ -21,6 +21,7 @@ import app.houselights.providers.local.HeldRow
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.settings.AppSettings
+import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.FirstScanDefaults
 import app.houselights.ui.design.components.FirstWallState
 import app.houselights.ui.settings.HeldTitles
@@ -134,14 +135,17 @@ sealed interface StatusSource {
     data class Server(val name: String?) : StatusSource
 }
 
+/** Trakt as home's settings door states it: connected, not connected, or its session kept but not opened at this launch. */
+enum class TraktFact { CONNECTED, SIGNED_OUT, UNREAD }
+
 /**
- * The app's state as home's settings door states it: the [source], whether a Trakt account follows it ([trakt], null
- * where Trakt does not follow this source), when the folders were last scanned ([scannedAt], 0 never, null on a
- * server), whether a scan runs ([scanning]; the door alone reads its progress) and what TMDB did to the last ([tmdb]).
+ * The app's state as home's settings door states it: the [source], how a Trakt account follows it ([trakt], null where
+ * Trakt does not follow this source), when the folders were last scanned ([scannedAt], 0 never, null on a server),
+ * whether a scan runs ([scanning]; the door alone reads its progress) and what TMDB did to the last ([tmdb]).
  */
 data class HomeStatus(
     val source: StatusSource,
-    val trakt: Boolean? = null,
+    val trakt: TraktFact? = null,
     val scannedAt: Long? = null,
     val scanning: Boolean = false,
     val tmdb: UiError? = null,
@@ -457,13 +461,23 @@ internal fun homeStatus(settings: AppSettings, folders: List<Folder>?, scan: Sca
         null -> null
         SourceConfig.Local -> HomeStatus(
             StatusSource.Folders(folders.orEmpty().map { it.host }.distinct(), folders.orEmpty().size),
-            trakt = (settings.trakt?.ended == false).takeIf { traktAvailable },
+            trakt = traktFact(settings).takeIf { traktAvailable },
             scannedAt = folders?.maxOfOrNull { it.lastScanAt } ?: 0L,
             scanning = scan.running,
             tmdb = scan.tmdbIssue?.toUiError(),
         )
         is SourceConfig.Jellyfin -> HomeStatus(StatusSource.Server(source.serverName))
     }
+
+/**
+ * Trakt as [settings] hold it: a session kept that the Keystore did not open at this launch is neither connected nor
+ * not, as Réglages › Trakt says it.
+ */
+private fun traktFact(settings: AppSettings): TraktFact = when {
+    settings.trakt?.ended == false -> TraktFact.CONNECTED
+    SecretSetting.TRAKT in settings.unreadSecrets -> TraktFact.UNREAD
+    else -> TraktFact.SIGNED_OUT
+}
 
 /** The first existing folder whose last scan failed, and why. */
 internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<Folder>): Pair<Folder, ScanError>? =

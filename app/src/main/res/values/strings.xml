@@ -703,6 +703,7 @@
     <string name="journal_empty">Android kept no line from the app.</string>
     <string name="journal_trakt_on">Trakt connected</string>
     <string name="journal_trakt_off">Trakt not connected</string>
+    <string name="journal_trakt_unread">Trakt not read for now</string>
     <string name="file_access">File access</string>
     <string name="network_path_desc">The player reads straight from the NAS</string>
     <string name="http_stream_desc">The player reads the server’s stream</string>

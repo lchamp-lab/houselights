@@ -667,6 +667,7 @@
     <string name="journal_empty">Android 沒有保留應用程式的任何行。</string>
     <string name="journal_trakt_on">Trakt 已連線</string>
     <string name="journal_trakt_off">Trakt 未連線</string>
+    <string name="journal_trakt_unread">Trakt 暫時無法讀取</string>
     <string name="file_access">檔案存取</string>
     <string name="network_path_desc">播放器直接從 NAS 讀取檔案</string>
     <string name="http_stream_desc">播放器讀取伺服器的串流</string>

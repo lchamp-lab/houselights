@@ -665,6 +665,7 @@
     <string name="journal_empty">Android에 남은 앱 기록이 없습니다.</string>
     <string name="journal_trakt_on">Trakt 연결됨</string>
     <string name="journal_trakt_off">Trakt 연결 안 됨</string>
+    <string name="journal_trakt_unread">Trakt 지금은 읽을 수 없음</string>
     <string name="file_access">파일 접근</string>
     <string name="network_path_desc">NAS에서 직접 읽습니다</string>
     <string name="http_stream_desc">서버의 스트림을 읽습니다</string>

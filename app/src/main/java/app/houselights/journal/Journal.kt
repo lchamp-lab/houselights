@@ -10,6 +10,7 @@ import app.houselights.player.DeviceIdentity
 import app.houselights.player.ZidooStatus
 import app.houselights.providers.local.Protocol
 import app.houselights.settings.AppSettings
+import app.houselights.settings.SecretSetting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -83,7 +84,14 @@ class LocalJournal(
             is SourceConfig.Jellyfin -> JELLYFIN
             null -> null
         }
-        val trakt = context.getString(if (settings.trakt != null) R.string.journal_trakt_on else R.string.journal_trakt_off)
+        // A session kept that the Keystore did not open at this launch is no session gone.
+        val trakt = context.getString(
+            when {
+                settings.trakt != null -> R.string.journal_trakt_on
+                SecretSetting.TRAKT in settings.unreadSecrets -> R.string.journal_trakt_unread
+                else -> R.string.journal_trakt_off
+            },
+        )
         return listOfNotNull("Houselights ${BuildConfig.VERSION_NAME}", device.name + firmware?.let { " ($it)" }.orEmpty(), source, trakt)
     }
 

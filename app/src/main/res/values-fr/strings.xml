@@ -691,6 +691,7 @@
     <string name="journal_empty">Android n’a gardé aucune ligne de l’app.</string>
     <string name="journal_trakt_on">Trakt connecté</string>
     <string name="journal_trakt_off">Trakt non connecté</string>
+    <string name="journal_trakt_unread">Trakt non relu pour l’instant</string>
     <string name="file_access">Accès aux fichiers</string>
     <string name="network_path_desc">Le lecteur lit directement le NAS</string>
     <string name="http_stream_desc">Le lecteur lit le flux du serveur</string>
