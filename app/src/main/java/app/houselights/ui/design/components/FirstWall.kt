@@ -24,7 +24,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.IntSize
@@ -213,24 +218,37 @@ fun FirstWall(titles: List<FirstTitle>?, found: Int, modifier: Modifier = Modifi
     }
 }
 
-/** One frame: what it shows, and what comes into it unseen under it until its picture is decoded; its ground over them. */
+/**
+ * One frame: what it shows, and what comes into it unseen under it until its picture is decoded; its ground over them,
+ * with an empty frame's rule and edge until its first arrival lifts them with it, a renewal's ground plain.
+ */
 @Composable
 private fun WallFrameView(frame: WallFrame, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val shape = HlShapes.artwork
     val ground = groundFill(HlAlpha.FILL)
     val rule = c.contentDecorative
+    val edge = c.content.copy(alpha = HlAlpha.EDGE_ARTWORK)
     val scope = rememberCoroutineScope()
     Box(
         modifier
             .size(HlSize.wallPoster, HlSize.wallPoster / HlSize.POSTER_RATIO)
             .clip(shape)
-            .drawWithContent {
-                drawContent()
-                val over = 1f - frame.lift.value
-                if (over > 0f) {
-                    drawRect(ground, alpha = over)
-                    if (!frame.renewed) emptyFrameRule(rule, alpha = over)
+            .drawWithCache {
+                // The picture's edge, under the ground, drawn over it too while the frame is empty, inside as a border is.
+                val stroke = Stroke(HlSize.hairline.toPx())
+                val inset = stroke.width / 2
+                val outline = shape.createOutline(Size(size.width - stroke.width, size.height - stroke.width), layoutDirection, this)
+                onDrawWithContent {
+                    drawContent()
+                    val over = 1f - frame.lift.value
+                    if (over > 0f) {
+                        drawRect(ground, alpha = over)
+                        if (!frame.renewed) {
+                            emptyFrameRule(rule, alpha = over)
+                            translate(inset, inset) { drawOutline(outline, edge, alpha = over, style = stroke) }
+                        }
+                    }
                 }
             }
             .artworkEdge(shape, c),
