@@ -1,10 +1,12 @@
 package app.houselights.providers.jellyfin
 
+import app.houselights.core.Languages
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.PathMapping
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
@@ -17,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okio.Buffer
 import org.junit.Assert.assertEquals
@@ -204,9 +207,78 @@ class JellyfinProviderTest {
     }
 
     /** The item a report is about, from its JSON body. */
-    private fun Request.itemId(): String? {
+    private fun Request.itemId(): String? = reported("ItemId")
+
+    /** The copy a report is about, from its JSON body. */
+    private fun Request.mediaSourceId(): String? = reported("MediaSourceId")
+
+    private fun Request.reported(field: String): String? {
         val text = Buffer().also { body?.writeTo(it) }.readUtf8()
-        return Regex(""""ItemId"\s*:\s*"([^"]+)"""").find(text)?.groupValues?.get(1)
+        return Regex(""""$field"\s*:\s*"([^"]+)"""").find(text)?.groupValues?.get(1)
+    }
+
+    /** Heat in two copies, [sources] of them as the server lists them: its first, then a director's cut in 4K. */
+    private fun heatInCopies(vararg sources: String = arrayOf(HEAT_1080P, HEAT_DC_2160P)) =
+        """{"Id":"f1","Name":"Heat","Type":"Movie","MediaSources":[${sources.joinToString(",")}]}"""
+
+    /** A server holding [heat] (its copies), answering every report. */
+    private fun copiesServer(heat: () -> String = { heatInCopies() }) =
+        FakeServer { request -> if (request.url.encodedPath == "/Items/f1") Answer(200, heat()) else Answer(204) }
+
+    private val stream = PlaybackOptions(emptyList(), forceHttp = true)
+
+    private suspend fun JellyfinProvider.plan(options: PlaybackOptions = stream) =
+        playback(film, resume = false, options) as PlaybackPlan.Launch
+
+    private val PlaybackPlan.Launch.streamedSource get() = uri.toHttpUrl().queryParameter("mediaSourceId")
+
+    /**
+     * A film in two copies plays the server's first until another is chosen in the Versions sheet, then that one: its
+     * stream, its file through a path mapping, its tracks, its reports and its resume key; none chosen again, the first.
+     */
+    @Test
+    fun aFilmPlaysTheCopyChosenInTheVersionsSheet() = runTest {
+        val server = copiesServer()
+        val jellyfin = provider(server)
+        assertTrue("the sheet offers the choice", jellyfin.capabilities.versionChoice)
+        val first = jellyfin.plan()
+        assertEquals("s1", first.streamedSource)
+        assertEquals("f1|s1", first.resumeKey)
+
+        val versions = jellyfin.catalog.versions(film)
+        assertEquals("the server's first, until one is chosen", listOf(true, false), versions.map { it.chosen })
+        jellyfin.catalog.chooseVersion(film, versions.last())
+        assertEquals(listOf(false, true), jellyfin.catalog.versions(film).map { it.chosen })
+
+        val chosen = jellyfin.plan()
+        assertEquals("s2", chosen.streamedSource)
+        assertTrue(chosen.uri, chosen.uri.toHttpUrl().encodedPath.endsWith("/Videos/f1/stream.mp4"))
+        assertEquals("f1|s2", chosen.resumeKey)
+        assertEquals("its own tracks", listOf("fr"), chosen.media?.audio?.map { Languages.code(it.language) })
+        assertEquals("the page's tracks are the copy's", chosen.tracks, jellyfin.playedTracks(film, stream))
+        val mapped = PlaybackOptions(listOf(PathMapping("/films", "smb://nas/films")), forceHttp = false)
+        assertEquals("smb://nas/films/Heat.DC.2160p.mp4", jellyfin.plan(mapped).uri)
+
+        checkNotNull(chosen.reporter).started(0)
+        // Recovered from its resume key, as after the app stopped while the film played.
+        checkNotNull(jellyfin.reporter(checkNotNull(chosen.resumeKey))).stopped(60_000, null)
+        val reports = server.requests.filter { it.url.encodedPath.startsWith("/Sessions/Playing") }
+        assertEquals(listOf("s2", "s2"), reports.map { it.mediaSourceId() })
+
+        jellyfin.catalog.chooseVersion(film, null)
+        assertEquals("s1", jellyfin.plan().streamedSource)
+        assertEquals(listOf(true, false), jellyfin.catalog.versions(film).map { it.chosen })
+    }
+
+    /** The copy chosen gone from the server, the film plays the server's first again. */
+    @Test
+    fun aCopyChosenThatTheServerNoLongerHasGivesWayToTheFirst() = runTest {
+        var heat = heatInCopies()
+        val jellyfin = provider(copiesServer { heat })
+        jellyfin.catalog.chooseVersion(film, jellyfin.catalog.versions(film).last())
+        heat = heatInCopies(HEAT_1080P, """{"Id":"s3","Name":"Heat - Remaster","Path":"/films/Heat.Remaster.mkv","Container":"mkv"}""")
+        assertEquals("s1", jellyfin.plan().streamedSource)
+        assertEquals(listOf(true, false), jellyfin.catalog.versions(film).map { it.chosen })
     }
 
     @Test
@@ -396,5 +468,12 @@ class JellyfinProviderTest {
     @Test
     fun anEmptyServerIsNotAFailure() = runTest {
         assertEquals(emptyList<Any>(), provider(homeServer(rest = "{}")).home())
+    }
+
+    private companion object {
+        const val HEAT_1080P = """{"Id":"s1","Name":"Heat - 1080p","Path":"/films/Heat.1080p.mkv","Size":10,""" +
+            """"Container":"mkv","VideoType":"VideoFile","MediaStreams":[{"Type":"Audio","Codec":"ac3","Language":"eng","Index":1}]}"""
+        const val HEAT_DC_2160P = """{"Id":"s2","Name":"Heat - Director's Cut 2160p","Path":"/films/Heat.DC.2160p.mp4","Size":60,""" +
+            """"Container":"mp4","VideoType":"VideoFile","MediaStreams":[{"Type":"Audio","Codec":"eac3","Language":"fre","Index":1}]}"""
     }
 }

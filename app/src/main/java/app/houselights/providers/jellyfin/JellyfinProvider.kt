@@ -41,6 +41,7 @@ import java.net.ConnectException
 import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
@@ -63,8 +64,19 @@ class JellyfinProvider(
 
     override val capabilities = ProviderCapabilities(
         markPlayed = true, favorites = true, similar = true, pathMapping = true, people = true, crew = true, versions = true,
-        personFilter = true, search = true,
+        versionChoice = true, personFilter = true, search = true,
     )
+
+    /**
+     * The copy (media source) chosen for a film in the Versions sheet ([JellyfinCatalog.chooseVersion]), by film: the
+     * server keeps no such choice, so the app keeps it while it runs; a film without one plays the server's first.
+     */
+    private val chosenSources = ConcurrentHashMap<String, String>()
+
+    /** Makes [sourceId] the copy [itemId] plays; null, the server's first again. */
+    internal fun chooseSource(itemId: String, sourceId: String?) {
+        if (sourceId == null) chosenSources.remove(itemId) else chosenSources[itemId] = sourceId
+    }
 
     override val catalog: Catalog by lazy { JellyfinCatalog(api, mapper, userId, this, mapping) }
 
@@ -243,16 +255,19 @@ class JellyfinProvider(
     override suspend fun playedTracks(item: MediaItem, options: PlaybackOptions): PlayedTracks {
         val read = lastItem.get()?.takeIf { it.item.id == item.id && now() - it.at < ITEM_REUSE_MS }?.item
         val full = read ?: api.item(item.id, userId)
-        val source = full.firstSource()
+        val source = full.playedSource()
         val disc = isDisc(source, container(full, source))
         return PlayedTracks(JellyfinMapper.mediaInfo(full, source).takeUnless { disc }, tracksKey(full))
     }
 
-    /** Plays the item's first media source, the one the server plays. */
+    /**
+     * Plays the item's copy chosen in the Versions sheet, else its first media source, the one the server plays: its
+     * file or stream, its reports and its resume key all name that source.
+     */
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
         // List entries lack MediaSources: reload the full item.
         val full = api.item(item.id, userId)
-        val source = full.firstSource()
+        val source = full.playedSource()
         val container = container(full, source)
         val networkUri = if (options.forceHttp) null else PathResolver.resolve(source?.path ?: full.path, options.pathMappings)
         val uri = networkUri ?: client.streamUrl(full.id, source?.id, container)
@@ -274,7 +289,9 @@ class JellyfinProvider(
         )
     }
 
-    private fun BaseItem.firstSource(): MediaSource? = mediaSources.firstOrNull()
+    /** The copy this item plays: the one chosen ([chooseSource]) while the server still has it, else its first. */
+    internal fun BaseItem.playedSource(): MediaSource? =
+        chosenSources[id]?.let { chosen -> mediaSources.firstOrNull { it.id == chosen } } ?: mediaSources.firstOrNull()
 
     private fun container(full: BaseItem, source: MediaSource?) = (source?.container ?: full.container)?.substringBefore(',')
 
