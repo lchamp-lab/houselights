@@ -39,9 +39,9 @@ sealed interface Opened {
  *
  * A failing Keystore never takes the app down: [read] says the secret is unavailable for now, and [seal] retries
  * once, then seals with a new key version, throwing [SecretsUnavailableException] only if that fails too. A key is
- * never deleted, nor made again once made ([KeyRecord]) or while the Keystore holds it: on Android 9 a restarting
- * keystore daemon gives no key, UnrecoverableKeyException or a bare InvalidKeyException, and replacing the key would
- * lose every secret it sealed.
+ * never deleted, nor made again once made ([KeyRecord], which [recordKeys] fills at each launch) or while the Keystore
+ * holds it: on Android 9 a restarting keystore daemon gives no key, UnrecoverableKeyException or a bare
+ * InvalidKeyException, and replacing the key would lose every secret it sealed.
  */
 class Secrets(private val keyring: Keyring, private val record: KeyRecord) {
     /** The sealing version, resolved on first success: a lazy would cache a failing Keystore's first answer. */
@@ -149,6 +149,16 @@ class Secrets(private val keyring: Keyring, private val record: KeyRecord) {
 
     /** Sealed by any version of the key ("sealed1:", "sealed2:"…), not plain text. */
     fun isSealed(stored: String): Boolean = versionOf(stored) != null
+
+    /**
+     * Records as made every key version the Keystore lists and every one [stored] was sealed with, opening nothing.
+     * Run at each launch before a store seals anything, so that a version an earlier version made, and nothing has
+     * opened since, is never made again while the Keystore reads empty for a moment.
+     */
+    fun recordKeys(stored: Iterable<String>) {
+        keystore { keyring.listed() }.getOrNull()?.forEach(record::add)
+        stored.forEach { versionOf(it)?.let(record::add) }
+    }
 
     companion object {
         /** The first key version; its alias has no number. */

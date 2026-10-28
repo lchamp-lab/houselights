@@ -112,8 +112,11 @@ private fun needsSealing(key: Preferences.Key<String>, plain: String): Boolean =
 
 /** Seals plain-text secrets; if the Keystore cannot seal, they stay plain and are sealed at a later launch. */
 internal class SealSecrets(private val secrets: Secrets) : DataMigration<Preferences> {
-    override suspend fun shouldMigrate(currentData: Preferences) =
-        SECRET_KEYS.any { key -> currentData[key]?.let { !secrets.isSealed(it) && needsSealing(key, it) } == true }
+    /** Asked at each launch before the settings are read or written: the key versions they hold are recorded first. */
+    override suspend fun shouldMigrate(currentData: Preferences): Boolean {
+        secrets.recordKeys(SECRET_KEYS.mapNotNull { currentData[it] })
+        return SECRET_KEYS.any { key -> currentData[key]?.let { !secrets.isSealed(it) && needsSealing(key, it) } == true }
+    }
 
     override suspend fun migrate(currentData: Preferences): Preferences = currentData.toMutablePreferences().apply {
         for (key in SECRET_KEYS) {

@@ -515,13 +515,16 @@ abstract class LibraryDatabase : RoomDatabase() {
                 .build()
 
         /**
-         * Seals passwords left plain by v6 → v7 when the Keystore failed, as scans never rewrite them. Runs at each
-         * launch; failures are logged and retried at the next one.
+         * Records the key versions the passwords were sealed with ([Secrets.recordKeys]), then seals those left plain
+         * by v6 → v7 when the Keystore failed, as scans never rewrite them. Runs at each launch; failures are logged
+         * and retried at the next one.
          */
         suspend fun sealPlainPasswords(dao: SourceDao, secrets: Secrets) {
             suspendRunCatching {
                 withContext(Dispatchers.IO) {
-                    val plain = dao.storedPasswords().filterNot { secrets.isSealed(it.password) }
+                    val passwords = dao.storedPasswords()
+                    secrets.recordKeys(passwords.map { it.password })
+                    val plain = passwords.filterNot { secrets.isSealed(it.password) }
                     for (stored in plain) dao.sealPassword(stored.id, stored.password, secrets.seal(stored.password))
                     plain.size
                 }

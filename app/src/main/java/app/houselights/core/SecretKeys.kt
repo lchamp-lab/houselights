@@ -59,8 +59,9 @@ internal object DeviceKeyring : Keyring {
 }
 
 /**
- * Versions in private preferences, never backed up (backup_rules.xml). The app [updated] over a version from before
- * this record may have made the first key unrecorded: its record starts with it.
+ * Versions in private preferences, never backed up (backup_rules.xml), kept across updates. The app [updated] over a
+ * version from before this record may have made the first key unrecorded: its record starts with it, and each launch
+ * records the versions the stored secrets name ([Secrets.recordKeys]), again at the next if they could not be written.
  */
 internal class SavedKeyRecord(private val prefs: SharedPreferences, private val updated: () -> Boolean) : KeyRecord {
     @Synchronized
