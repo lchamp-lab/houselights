@@ -647,9 +647,11 @@ class HomeViewModelTest {
         advanceUntilIdle()
         assertEquals("read only while it shows", 0, reads)
 
-        backgroundScope.launch { vm.firstScan.collect {} }
+        // Subscribed at once, as the first scan does once it shows: a collector in the background runs only beside other work.
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.firstScan.collect {} }
         advanceUntilIdle()
         assertEquals(listOf(FirstScanDefaults.FRAMES), asked)
+        assertEquals("read once it shows", 1, reads)
         val shows = vm.firstScan.value
         assertEquals("the first while the pass reaches none", 1L, shows.folder?.id)
         assertEquals(listOf("Dune", "Heat"), shows.titles.map { it.title })
