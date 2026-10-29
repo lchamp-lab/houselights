@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import androidx.room.Dao
 import androidx.room.Embedded
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Transaction
@@ -126,19 +125,11 @@ data class PlacedFile(val id: Long, val filePath: String?)
 /**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
  * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao],
- * [IgnoredFileDao], [FirstTitleDao] or [SagaChoiceDao].
+ * [IgnoredFileDao], [FirstTitleDao] or [SagaDao].
  */
 @Dao
 interface LibraryDao :
-    SourceDao,
-    PlaybackStateDao,
-    CreditDao,
-    SearchWordDao,
-    KeptStateDao,
-    EpisodeOrderDao,
-    IgnoredFileDao,
-    FirstTitleDao,
-    SagaChoiceDao {
+    SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao, EpisodeOrderDao, IgnoredFileDao, FirstTitleDao, SagaDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
@@ -981,27 +972,6 @@ interface LibraryDao :
     /** Up to [limit] collections with a TMDB id whose parts ([SagaPartEntity]) were never fetched. */
     @Query("SELECT * FROM collections WHERE tmdbId IS NOT NULL AND fetchedAt IS NULL ORDER BY id LIMIT :limit")
     suspend fun sagasDue(limit: Int): List<CollectionEntity>
-
-    // Saga parts
-
-    @Query("DELETE FROM saga_parts WHERE collectionId = :collectionId")
-    suspend fun deleteSagaParts(collectionId: Long)
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSagaParts(parts: List<SagaPartEntity>)
-
-    @Transaction
-    suspend fun replaceSagaParts(collectionId: Long, parts: List<SagaPartEntity>) {
-        deleteSagaParts(collectionId)
-        insertSagaParts(parts)
-    }
-
-    /** TMDB parts of a saga in release order, each with the library's main row when present. */
-    @Query(
-        "SELECT p.*, (SELECT i.id FROM items i WHERE i.kind = 'MOVIE' AND i.tmdbId = p.tmdbId AND i.versionOf IS NULL " +
-            "ORDER BY i.id LIMIT 1) AS itemId FROM saga_parts p WHERE p.collectionId = :collectionId ORDER BY p.ord",
-    )
-    suspend fun sagaParts(collectionId: Long): List<SagaPartRow>
 
     // Credits, where they reach the titles or the search words (the credits table alone is CreditDao's)
 
