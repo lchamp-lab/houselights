@@ -410,15 +410,15 @@ class HomeViewModel(
 
     /**
      * The rows as they were [before] a change not saved, while they are still those it showed ([after]); else read again,
-     * [undone] in every row holding its title meanwhile, and should the read fail.
+     * the rows shown meanwhile, and should the read fail. Either way, the change is [undone] in every row holding its
+     * title, which [before] may show with another change of it that was not saved either, its own undoing changing
+     * nothing the rows show.
      */
     private fun undo(before: HomeLoad, after: HomeLoad, undone: Undone) {
         if (load.value === after) {
-            load.value = before
+            load.value = before.undone(undone)
         } else {
-            load.update {
-                it.copy(sections = it.sections.showing(undone.id, undone::over), drawn = it.drawn.showing(undone.id, undone::over))
-            }
+            load.update { it.undone(undone) }
             onLibraryChanged()
         }
     }
@@ -562,6 +562,10 @@ private fun List<HomeSection>.showing(id: String, shown: (MediaItem) -> MediaIte
     }
     section.copy(items = items).takeIf { items.isNotEmpty() }
 }
+
+/** [this] with [undone] in every row holding its title, as the source has it. */
+private fun HomeLoad.undone(undone: Undone): HomeLoad =
+    copy(sections = sections.showing(undone.id, undone::over), drawn = drawn.showing(undone.id, undone::over))
 
 /** [this], as a read answered them, showing the changes its cards' options asked that it may not know ([laid]). */
 private fun List<HomeSection>.under(laid: List<Laid>): List<HomeSection> =
