@@ -104,8 +104,13 @@ class GithubReleases(
             if (response.code == NOT_MODIFIED && etag != null) return@use Listing.Unchanged
             if (!response.isSuccessful) throw statusFailure(response, clock())
             val text = response.text(LIST_MAX_BYTES)
-            val array = lenientJson.parseToJsonElement(text) as? JsonArray ?: throw SerializationException("Expected a list of releases")
-            Listing.Fresh(lenientJson.decodeEach(ListedRelease.serializer(), array, "Release"), response.header("ETag"))
+            // Up to a megabyte, each release with its notes: read off the caller's thread, which may be the main one.
+            val releases = withContext(Dispatchers.Default) {
+                val array = lenientJson.parseToJsonElement(text) as? JsonArray
+                    ?: throw SerializationException("Expected a list of releases")
+                lenientJson.decodeEach(ListedRelease.serializer(), array, "Release")
+            }
+            Listing.Fresh(releases, response.header("ETag"))
         }
     }
 
