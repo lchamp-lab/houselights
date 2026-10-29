@@ -9,9 +9,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -170,7 +173,19 @@ class ArtworkScreenTest {
     private fun assertFocusAt(what: String, column: Int, top: Dp) {
         val box = focused()
         assertEquals("$what: its column", columnAt(column).value, box.left.value, HALF)
-        assertEquals("$what: at the top, level with the print", top.value, box.top.value, HALF)
+        assertEquals("$what: at the top, level with the print; ${drawn()}", top.value, box.top.value, HALF)
+    }
+
+    /** Where the choices and the sections' names lie, the one with focus starred: what a failure says. */
+    private fun drawn(): String {
+        val cards = compose.onAllNodes(isFocusable()).fetchSemanticsNodes().map { node ->
+            val star = if (node.config.getOrNull(SemanticsProperties.Focused) == true) "*" else ""
+            "$star${node.positionInRoot.x.toInt()},${node.positionInRoot.y.toInt()}"
+        }
+        val names = SECTIONS.flatMap { name ->
+            compose.onAllNodes(hasText(name), useUnmergedTree = true).fetchSemanticsNodes().map { "$name@${it.positionInRoot.y.toInt()}" }
+        }
+        return "choices $cards, names $names"
     }
 
     @Test
