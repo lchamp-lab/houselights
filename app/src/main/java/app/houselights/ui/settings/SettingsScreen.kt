@@ -306,6 +306,8 @@ private fun PaneContent(
     val counted = if (pane == Pane.Numbers) numbersViewModel() else null
     // The library is counted the first time its pane shows, and its numbers kept while Settings is open.
     LaunchedEffect(counted) { counted?.count() }
+    // The storage is measured each time its pane shows.
+    LaunchedEffect(pane) { if (pane == Pane.Storage) vm.refreshStorage() }
     val trakt = if (pane == Pane.Trakt) traktViewModel() else null
     LazyColumn(
         state = list,

@@ -231,10 +231,6 @@ internal class SettingsViewModel(
         tmdbKey = null
     }
 
-    init {
-        refreshStorage()
-    }
-
     /** Clears [actionError] once it is no longer where focus is (another pane). */
     fun clearActionError() {
         actionError = null
@@ -253,6 +249,7 @@ internal class SettingsViewModel(
         scope.launchAction(TAG, what, onError = failed, errorOf = Throwable::toWriteError, block = block)
     }
 
+    /** Measures the storage used, which walks every picture cached: once its pane shows, never as Settings opens. */
     @OptIn(ExperimentalCoilApi::class)
     fun refreshStorage() {
         viewModelScope.launchAction(TAG, "Reading the storage used") {
