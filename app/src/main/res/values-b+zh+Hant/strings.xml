@@ -507,6 +507,8 @@
     <string name="identify_menu_desc">配對 TMDB 上的其他作品</string>
     <string name="artwork_offline">無法取得線上圖片：請先識別此作品，或檢查網路連線。</string>
     <string name="artwork_saga_films">系列中的影片</string>
+    <string name="artwork_saga_unknown">TMDB 不認識這個由您的 NFO 檔案命名的系列：其圖片來自系列中的影片。</string>
+    <string name="artwork_offline_saga">無法取得線上圖片：請檢查網路連線。</string>
     <string name="artwork_empty">此作品沒有圖片</string>
     <string name="artwork_automatic">自動</string>
     <string name="artwork_no_text">無文字</string>

@@ -23,8 +23,10 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
+import app.houselights.R
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
+import app.houselights.core.ArtworkNote
 import app.houselights.core.ArtworkOption
 import app.houselights.core.ArtworkOrigin
 import app.houselights.core.ImageRef
@@ -343,6 +345,30 @@ class ArtworkScreenTest {
         assertEquals(0, done)
     }
 
+    /** A saga TMDB does not know (#48), named by NFO files, says why as a fact in place of TMDB's sections, its films under it. */
+    @Test
+    fun aSagaTmdbDoesNotKnowSaysWhyInPlaceOfTmdbsSections() = assertSagaSays(ArtworkNote.SAGA_UNKNOWN, R.string.artwork_saga_unknown)
+
+    /** A saga TMDB knows, TMDB out of reach, says the connection alone, in the same place: it is never to identify. */
+    @Test
+    fun aSagaTmdbCannotListSaysTheConnectionInPlaceOfItsSections() = assertSagaSays(ArtworkNote.SAGA, R.string.artwork_offline_saga)
+
+    /** A saga's poster choice, its films alone, says [words] ([note]) under its head, over its films' section. */
+    private fun assertSagaSays(note: ArtworkNote, words: Int) {
+        val films = (1..3).map { n ->
+            ArtworkOption("film-$n", picture("film-$n"), ArtworkOrigin.FILM, film = "Film $n", filmYear = YEAR + n)
+        }
+        provider.choices = ArtworkChoices(films, films.first(), films.first(), onlineAvailable = false, note = note)
+        val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work)
+        compose.setTvContent { ArtworkScreen("m1", ArtworkKind.POSTER, onDone = {}, vm = vm) }
+        compose.waitForIdle()
+        val head = focused()
+        val said = compose.onNode(hasText(compose.activity.getString(words)), useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val section = compose.onNode(hasText(compose.activity.getString(R.string.artwork_saga_films)), useUnmergedTree = true)
+            .getUnclippedBoundsInRoot()
+        assertTrue("under the head ($head), over its films ($section): $said", head.bottom <= said.top && said.bottom <= section.top)
+    }
+
     /** The colour drawn at [x], [y] on the canvas, the screen drawn whole. */
     private fun at(x: Dp, y: Dp): Int = compose.runOnUiThread {
         val window = compose.activity.window.decorView
@@ -359,6 +385,9 @@ class ArtworkScreenTest {
 
     private companion object {
         const val ENGLISH = 20
+
+        /** The year before a saga's first film's. */
+        const val YEAR = 1960
 
         /** English's 20 in lines of six. */
         const val ENGLISH_LINES = 4

@@ -527,6 +527,8 @@
     <string name="identify_menu_desc">Associer à un autre titre TMDB</string>
     <string name="artwork_offline">Les images en ligne ne sont pas disponibles : identifiez d’abord ce titre, ou vérifiez la connexion.</string>
     <string name="artwork_saga_films">Ses films</string>
+    <string name="artwork_saga_unknown">TMDB ne connaît pas cette saga, nommée par vos NFO : ses images sont celles de ses films.</string>
+    <string name="artwork_offline_saga">Les images en ligne ne sont pas disponibles : vérifiez la connexion.</string>
     <string name="artwork_empty">Aucune image pour ce titre</string>
     <string name="artwork_automatic">Automatique</string>
     <string name="artwork_no_text">Sans texte</string>

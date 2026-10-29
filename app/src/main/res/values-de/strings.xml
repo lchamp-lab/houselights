@@ -521,6 +521,8 @@
     <string name="identify_menu_desc">Anderen TMDB-Titel zuordnen</string>
     <string name="artwork_offline">Online-Bilder sind nicht verfügbar: Identifizieren Sie zuerst diesen Titel, oder prüfen Sie die Verbindung.</string>
     <string name="artwork_saga_films">Filme der Reihe</string>
+    <string name="artwork_saga_unknown">TMDB kennt diese Reihe aus Ihren NFO-Dateien nicht: Die Bilder sind die ihrer Filme.</string>
+    <string name="artwork_offline_saga">Online-Bilder sind nicht verfügbar: Prüfen Sie die Verbindung.</string>
     <string name="artwork_empty">Kein Bild für diesen Titel</string>
     <string name="artwork_automatic">Automatisch</string>
     <string name="artwork_no_text">Ohne Text</string>
