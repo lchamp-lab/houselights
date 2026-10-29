@@ -147,7 +147,7 @@ internal class PendingChanges {
             .mapNotNull { facet -> title.lastOrNull { it.facet == facet && !it.failed } }
             .filter { change -> change.savedAfter.let { it == null || read.number <= it } }
             .takeIf { it.isNotEmpty() }
-            ?.let { changes -> Laid(changes, readBefore = changes.all { read.number <= it.madeAfter }) }
+            ?.let { changes -> Laid(changes, read) }
     }
 }
 
@@ -198,11 +198,10 @@ internal class Held(
 }
 
 /**
- * The changes held of a title, to show over a read, its last mark and its last favourite ([changes]): its [item] as one
- * of them shows it, for what it is; on a wall filtered on a status while each [stays]; [readBefore], the read began
- * before they were made, and counts it as it was, even where its answer does not hold it.
+ * The changes held of a title, to show over [read], its last mark and its last favourite ([changes]): its [item] as one
+ * of them shows it, for what it is; on a wall filtered on a status while each [stays].
  */
-internal class Laid(private val changes: List<Held>, val readBefore: Boolean) {
+internal class Laid(private val changes: List<Held>, private val read: Reading) {
     val item: MediaItem get() = changes.last().item
 
     /** [read], the title as the read answered it, with what these changes show of it. */
@@ -210,6 +209,13 @@ internal class Laid(private val changes: List<Held>, val readBefore: Boolean) {
 
     /** Whether a wall filtered on [status] shows the title so changed. */
     fun stays(status: WatchStatus): Boolean = changes.all { it.stays(status) }
+
+    /**
+     * Whether the read began before the changes that take the title off a wall filtered on [status], and so counts it,
+     * even where its answer does not hold it; the other change, which keeps it there, says nothing of its count.
+     */
+    fun readBefore(status: WatchStatus): Boolean =
+        changes.filterNot { it.stays(status) }.let { away -> away.isNotEmpty() && away.all { read.number <= it.madeAfter } }
 }
 
 /**

@@ -573,6 +573,33 @@ class LibraryViewModelTest {
     }
 
     /**
+     * A next page begun after a favourite and before a mark taking the title off Non vus counts it no more, as the wall
+     * no longer holds it: the favourite still saving, made before the page began, says nothing of its count.
+     */
+    @Test
+    fun aNextPageBegunBetweenAFavouriteAndAMarkCountsTheTitleNoMore() = runTest {
+        val vm = LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.UNWATCHED), work = this)
+        advanceUntilIdle()
+        val favouring = provider.gate("favorite m2 true")
+        vm.favorite(vm.state.value.items[1])
+        runCurrent()
+        val next = provider.gate("page 120 120")
+        vm.loadMore()
+        runCurrent()
+        vm.mark(vm.state.value.items[1])
+        advanceUntilIdle()
+        assertEquals(299, vm.state.value.total)
+
+        next.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.items.any { it.id == "m2" })
+        assertEquals(299, vm.state.value.total)
+        favouring.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(299, vm.state.value.total)
+    }
+
+    /**
      * A mark is held over the reads begun while it is saved, the source still holding the title; a read begun after its
      * save lets go of it, and the wall shows what the source then says: the title marked again elsewhere, back.
      */

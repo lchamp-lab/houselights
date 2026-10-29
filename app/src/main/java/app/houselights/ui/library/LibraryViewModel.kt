@@ -348,7 +348,7 @@ class LibraryViewModel(
             val shown = s.items.firstOrNull { it.id == change.item.id }
             when {
                 shown != null -> s.showing(change.over(shown), stays)
-                !whole && change.readBefore && !stays -> s.uncounting(change.item)
+                !whole && change.readBefore(status) -> s.uncounting(change.item)
                 else -> s
             }
         }
