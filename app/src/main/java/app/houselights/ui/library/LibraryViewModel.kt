@@ -166,7 +166,7 @@ class LibraryViewModel(
     /**
      * Marks [item] watched, or not once it is, from its poster's options: shown at once, a title the wall's filter no
      * longer keeps leaving it, the posters after it moving up one place, focus going to the one in its place; then saved.
-     * Not saved, it is back where it was, and said ([notSaved]).
+     * Not saved, it is back where it was as the source has it, and said ([notSaved]).
      */
     fun mark(item: MediaItem) {
         val played = !item.user.played
@@ -182,12 +182,18 @@ class LibraryViewModel(
     /** The watch status the wall is filtered on, as it shows: none on sagas a source cannot filter. */
     private fun shownStatus(): WatchStatus = _state.value.applied(capabilities).status
 
-    /** Shows [item] [changed] at once, in its place while the wall [stays] on it, else gone; then [save]s it, [undo] if not. */
-    private fun change(item: MediaItem, changed: MediaItem, stays: Boolean, save: (undo: () -> Unit) -> Unit) {
+    /**
+     * Shows [item] [changed] at once, in its place while the wall [stays] on it, else gone; then [save]s it, undone if
+     * not, that change alone: another of the title still saving or saved keeps showing.
+     */
+    private fun change(item: MediaItem, changed: MediaItem, stays: Boolean, save: (undo: (Undone) -> Unit) -> Unit) {
         val at = _state.value.items.indexOfFirst { it.id == item.id }
         if (at < 0) return
         _state.update { it.showing(changed, stays) }
-        save { _state.update { it.undone(item, at) } }
+        save { undone ->
+            val status = shownStatus()
+            _state.update { it.undone(undone, at, status) }
+        }
     }
 
     fun setSort(sort: SortOption) {
@@ -339,8 +345,9 @@ class LibraryViewModel(
         val status = applied(capabilities).status
         return changes.pending.over(read).fold(this) { s, change ->
             val stays = change.stays(status)
+            val shown = s.items.firstOrNull { it.id == change.item.id }
             when {
-                s.items.any { it.id == change.item.id } -> s.showing(change.item, stays)
+                shown != null -> s.showing(change.over(shown), stays)
                 !whole && change.readBefore && !stays -> s.uncounting(change.item)
                 else -> s
             }
@@ -380,11 +387,19 @@ private fun LibraryState.showing(changed: MediaItem, stays: Boolean): LibrarySta
 private fun LibraryState.uncounting(item: MediaItem): LibraryState =
     copy(total = (total - 1).coerceAtLeast(0), sagas = sagas?.let { (it - sagaCount(item)).coerceAtLeast(0) })
 
-/** [this] with [item] as it was before a change that was not saved: in its place, else back at [at], counted again. */
-private fun LibraryState.undone(item: MediaItem, at: Int): LibraryState = if (items.any { it.id == item.id }) {
-    copy(items = items.map { if (it.id == item.id) item else it })
-} else {
-    copy(items = items.toMutableList().apply { add(at.coerceAtMost(size), item) }, total = total + 1, sagas = sagas?.plus(sagaCount(item)))
+/**
+ * [this] after a change that was not saved ([undone]): its title in its place as the source has it, else back at [at] and
+ * counted again, as long as the wall filtered on [status] keeps it, another of its changes still saving or saved keeping
+ * it away.
+ */
+private fun LibraryState.undone(undone: Undone, at: Int, status: WatchStatus): LibraryState = when {
+    items.any { it.id == undone.id } -> copy(items = items.map { if (it.id == undone.id) undone.over(it) else it })
+    undone.stays(status) -> copy(
+        items = items.toMutableList().apply { add(at.coerceAtMost(size), undone.item) },
+        total = total + 1,
+        sagas = sagas?.plus(sagaCount(undone.item)),
+    )
+    else -> this
 }
 
 /** How many sagas [item] counts for in a wall's count: one for a saga. */

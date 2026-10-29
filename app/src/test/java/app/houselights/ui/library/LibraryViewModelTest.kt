@@ -602,4 +602,148 @@ class LibraryViewModelTest {
         assertEquals("let go", listOf("m1", "m2", "m3"), vm.state.value.items.map { it.id })
         assertEquals(3, vm.state.value.total)
     }
+
+    /**
+     * A title marked then made a favourite from its poster, neither saved, shows as the source has it, whichever fails
+     * first: the first undone alone while the other is still saving, then both, the count never moved.
+     */
+    @Test
+    fun aMarkThenAFavouriteNotSavedLeaveTheTitleAsTheSourceHasIt() = runTest {
+        provider.fail = { if (it.startsWith("played") || it.startsWith("favorite")) IOException("NAS away") else null }
+        listOf(true, false).forEach { markFailsFirst ->
+            provider.wall = (1..3).map { film("m$it") }
+            val vm = LibraryViewModel({ provider }, library, work = this)
+            advanceUntilIdle()
+            val m2 = vm.state.value.items[1]
+            val marking = provider.gate("played m2 true")
+            val favouring = provider.gate("favorite m2 true")
+            vm.mark(m2)
+            vm.favorite(vm.shown("m2"))
+            runCurrent()
+            assertEquals(m2.markedAs(true).favoredAs(true), vm.shown("m2"))
+
+            (if (markFailsFirst) marking else favouring).complete(Unit)
+            advanceUntilIdle()
+            val other = if (markFailsFirst) m2.favoredAs(true) else m2.markedAs(true)
+            assertEquals("$markFailsFirst: the other still saving shows", other, vm.shown("m2"))
+
+            (if (markFailsFirst) favouring else marking).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", m2, vm.shown("m2"))
+            assertEquals(3, vm.state.value.total)
+            assertEquals(NotSaved("m2", UiError.OFFLINE), vm.notSaved.value)
+        }
+    }
+
+    /**
+     * On a wall filtered on Favoris, a title marked then taken out of them, neither saved, comes back in its place as it
+     * was, counted again, once neither keeps it away: its mark undone first, it stays away while it is taken out.
+     */
+    @Test
+    fun onFavorisAMarkThenAFavouriteNotSavedBringTheTitleBackAsItWas() = runTest {
+        provider.fail = { if (it.startsWith("played") || it.startsWith("favorite")) IOException("NAS away") else null }
+        listOf(true, false).forEach { markFailsFirst ->
+            provider.wall = (1..3).map { film("m$it").copy(user = UserState(favorite = true)) }
+            val vm = LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.FAVORITES), work = this)
+            advanceUntilIdle()
+            val m2 = vm.state.value.items[1]
+            val marking = provider.gate("played m2 true")
+            val unfavouring = provider.gate("favorite m2 false")
+            vm.mark(m2)
+            vm.favorite(vm.shown("m2"))
+            runCurrent()
+            assertEquals(listOf("m1", "m3"), vm.state.value.items.map { it.id })
+            assertEquals(2, vm.state.value.total)
+
+            (if (markFailsFirst) marking else unfavouring).complete(Unit)
+            advanceUntilIdle()
+            if (markFailsFirst) {
+                assertEquals("still taken out", listOf("m1", "m3"), vm.state.value.items.map { it.id })
+                assertEquals(2, vm.state.value.total)
+            } else {
+                assertEquals("back, still marked", m2.markedAs(true), vm.shown("m2"))
+                assertEquals(3, vm.state.value.total)
+            }
+
+            (if (markFailsFirst) unfavouring else marking).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", listOf("m1", "m2", "m3"), vm.state.value.items.map { it.id })
+            assertEquals("$markFailsFirst", m2, vm.shown("m2"))
+            assertEquals("$markFailsFirst", 3, vm.state.value.total)
+        }
+    }
+
+    /**
+     * A title marked then unmarked from its poster, neither saved, is as it was, whichever fails first, its place in it
+     * back: the unmark failing first leaves the mark still saving showing.
+     */
+    @Test
+    fun aMarkThenItsOppositeNotSavedLeaveTheTitleAsItWas() = runTest {
+        provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
+        listOf(true, false).forEach { markFailsFirst ->
+            val started = film("m2").copy(runtimeMs = 6_000_000, user = UserState(positionMs = 60_000))
+            provider.wall = listOf(film("m1"), started, film("m3"))
+            val vm = LibraryViewModel({ provider }, library, work = this)
+            advanceUntilIdle()
+            val marking = provider.gate("played m2 true")
+            val unmarking = provider.gate("played m2 false")
+            vm.mark(vm.shown("m2"))
+            vm.mark(vm.shown("m2"))
+            runCurrent()
+            val unmarked = started.markedAs(true).markedAs(false)
+            assertEquals(unmarked, vm.shown("m2"))
+
+            (if (markFailsFirst) marking else unmarking).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", if (markFailsFirst) unmarked else started.markedAs(true), vm.shown("m2"))
+
+            (if (markFailsFirst) unmarking else marking).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", started, vm.shown("m2"))
+            assertEquals(3, vm.state.value.total)
+        }
+    }
+
+    /**
+     * A mark not saved leaves a favourite asked after it showing, saved before or after the mark fails; on a wall filtered
+     * on Favoris, the title taken out of them stays away, uncounted.
+     */
+    @Test
+    fun aMarkNotSavedLeavesAFavouriteSavedShowing() = runTest {
+        provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
+        listOf(true, false).forEach { markFailsFirst ->
+            provider.wall = (1..3).map { film("m$it") }
+            val all = LibraryViewModel({ provider }, library, work = this)
+            advanceUntilIdle()
+            val m2 = all.state.value.items[1]
+            val marking = provider.gate("played m2 true")
+            val favouring = provider.gate("favorite m2 true")
+            all.mark(m2)
+            all.favorite(all.shown("m2"))
+            runCurrent()
+            (if (markFailsFirst) marking else favouring).complete(Unit)
+            advanceUntilIdle()
+            (if (markFailsFirst) favouring else marking).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", m2.favoredAs(true), all.shown("m2"))
+            assertEquals(NotSaved("m2", UiError.OFFLINE), all.notSaved.value)
+
+            provider.wall = (1..3).map { film("m$it").copy(user = UserState(favorite = true)) }
+            val favorites = LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.FAVORITES), work = this)
+            advanceUntilIdle()
+            val marking2 = provider.gate("played m2 true")
+            val unfavouring = provider.gate("favorite m2 false")
+            favorites.mark(favorites.shown("m2"))
+            favorites.favorite(favorites.shown("m2"))
+            runCurrent()
+            (if (markFailsFirst) marking2 else unfavouring).complete(Unit)
+            advanceUntilIdle()
+            (if (markFailsFirst) unfavouring else marking2).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", listOf("m1", "m3"), favorites.state.value.items.map { it.id })
+            assertEquals("$markFailsFirst", 2, favorites.state.value.total)
+        }
+    }
+
+    private fun LibraryViewModel.shown(id: String) = state.value.items.single { it.id == id }
 }

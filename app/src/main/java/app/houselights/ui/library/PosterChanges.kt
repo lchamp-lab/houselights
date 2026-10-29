@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -22,9 +23,11 @@ import java.util.concurrent.atomic.AtomicInteger
  * What a poster's options change (#47), as the title's page changes it, through the source [source] gives: its mark
  * ([MediaProvider.setPlayed], so Trakt follows it as it does from the page), its favourite ([MediaProvider.setFavorite])
  * and the order of a show's episodes, each saved in [work], which outlives the screen, then told to the other screens
- * ([events]). A change not saved is undone by its screen and said ([notSaved]), logged under [tag]. A mark or a favourite
- * is held ([pending]) from the moment it shows until it is saved and read again: its screen lays it over each of its
- * reads meanwhile, which may answer as the source stood before it.
+ * ([events]). A mark or a favourite is held ([pending]) from the moment it shows until it is saved and read again: a
+ * wall, « À regarder » and a person's page lay it over each of their reads meanwhile, which may answer as the source
+ * stood before it; search lays what its results' options changed over the one read they were changed in alone. Not
+ * saved, a change is undone by its screen, its mark or its favourite alone ([Undone]), and said ([notSaved]), logged
+ * under [tag].
  */
 internal class PosterChanges(
     private val source: () -> MediaProvider?,
@@ -46,16 +49,16 @@ internal class PosterChanges(
     /** Whether [item]'s options offer Modifier: its source keeps its pictures and its match. */
     fun canEdit(item: MediaItem): Boolean = source()?.editor?.canEdit(item) == true
 
-    /** Marks [item] [played], or not; not saved, [undo] puts it back as it was, then it is said. */
-    fun mark(item: MediaItem, played: Boolean, undo: () -> Unit = {}) {
-        val held = pending.hold(item.markedAs(played)) { keepsMarked(it, played) }
-        save(item, "Mark of ${item.id} from its poster", undo, held) { it.setPlayed(item, played) }
+    /** Marks [item], as it shows, [played], or not; not saved, [undo] shows its title as the source has it, then it is said. */
+    fun mark(item: MediaItem, played: Boolean, undo: (Undone) -> Unit = {}) {
+        val held = pending.hold(item, item.markedAs(played), Facet.MARK) { keepsMarked(it, played) }
+        save(item, "Mark of ${item.id} from its poster", held, undo) { it.setPlayed(item, played) }
     }
 
-    /** Makes [item] a [favorite], or not; not saved, [undo] puts it back as it was, then it is said. */
-    fun favorite(item: MediaItem, favorite: Boolean, undo: () -> Unit = {}) {
-        val held = pending.hold(item.favoredAs(favorite)) { keepsFavorite(it, favorite) }
-        save(item, "Favourite of ${item.id} from its poster", undo, held) { it.setFavorite(item, favorite) }
+    /** Makes [item], as it shows, a [favorite], or not; not saved, [undo] shows its title as the source has it, then it is said. */
+    fun favorite(item: MediaItem, favorite: Boolean, undo: (Undone) -> Unit = {}) {
+        val held = pending.hold(item, item.favoredAs(favorite), Facet.FAVORITE) { keepsFavorite(it, favorite) }
+        save(item, "Favourite of ${item.id} from its poster", held, undo) { it.setFavorite(item, favorite) }
     }
 
     /** The orders show [item]'s episodes can follow, as its page reads them; null when there is no choice or no reading. */
@@ -64,12 +67,18 @@ internal class PosterChanges(
 
     /** Places show [item]'s episodes in the order [id], the automatic one when null, as its page's Modifier does. */
     fun chooseEpisodeOrder(item: MediaItem, id: String?) =
-        save(item, "Episode order of ${item.id} from its poster", undo = {}, held = null) { it.editor?.chooseEpisodeOrder(item, id) }
+        save(item, "Episode order of ${item.id} from its poster", held = null) { it.editor?.chooseEpisodeOrder(item, id) }
 
     /** Focus is on [id]'s title: a change not saved on another is no longer said, its line naming it again. */
     fun focusedOn(id: String) = failure.update { it?.takeIf { said -> said.id == id } }
 
-    private fun save(item: MediaItem, what: String, undo: () -> Unit, held: Held?, write: suspend (MediaProvider) -> Unit) {
+    private fun save(
+        item: MediaItem,
+        what: String,
+        held: Held?,
+        undo: (Undone) -> Unit = {},
+        write: suspend (MediaProvider) -> Unit,
+    ) {
         // A change clears what the last one said.
         failure.value = null
         work.launch {
@@ -81,8 +90,7 @@ internal class PosterChanges(
                 }
                 .onFailure { e ->
                     val error = e.reported(tag, what)
-                    held?.let(pending::dropped)
-                    undo()
+                    held?.let { undo(pending.dropped(it)) }
                     failure.value = NotSaved(item.id, error)
                 }
         }
@@ -93,51 +101,158 @@ internal class PosterChanges(
  * The marks and favourites a poster's options asked, each held from the moment it shows until the source is sure to
  * say it, as the title's page holds its change (DetailViewModel's pending): a read begun before it was saved may answer
  * as the source stood before it, a scan's progress or the read a previous change asked, and bring the title back for a
- * moment. Each read begins with [reading] and lays what [over] gives over its answer; a change saved no longer lies over
- * a read begun after its save, which says it, so a change made again elsewhere then shows as the source says it. Not
- * saved, a change is let go at once ([dropped]), its screen undoing it. The last change asked of each title is kept
- * as long as its screen lives, a few titles at most.
+ * moment. Each read begins with [reading] and lays what [over] gives over its answer, each title's last mark and last
+ * favourite not let go; a change saved no longer lies over a read begun after its save, which says it, so a change made
+ * again elsewhere then shows as the source says it. Not saved, a change is let go at once ([dropped]), its screen
+ * undoing it alone. A title's changes asked while one of them is still saving are kept together until one is asked
+ * with none saving, then only the last saved of its mark and of its favourite: a few titles, a few changes each.
  */
 internal class PendingChanges {
     private val begun = AtomicInteger()
-    private val held = MutableStateFlow<Map<String, Held>>(emptyMap())
+    private val bursts = AtomicInteger()
+    private val held = MutableStateFlow<Map<String, List<Held>>>(emptyMap())
 
     /** A read begins, now: its answer is to be laid under what [over] gives it. */
     fun reading(): Reading = Reading(begun.incrementAndGet())
 
-    /** Holds [changed] from now, a wall filtered on a status keeping it as long as [stays] says. */
-    fun hold(changed: MediaItem, stays: (WatchStatus) -> Boolean): Held =
-        Held(changed, stays, madeAfter = begun.get()).also { change -> held.update { it + (changed.id to change) } }
+    /**
+     * Holds [facet] of [changed] from now, shown [before] as it was, a wall filtered on a status keeping it as long as
+     * [stays] says: with the changes of its title still saving, if any, and those asked with them.
+     */
+    fun hold(before: MediaItem, changed: MediaItem, facet: Facet, stays: (WatchStatus) -> Boolean): Held {
+        val made = begun.get()
+        return held.updateAndGet { all ->
+            val title = all[changed.id].orEmpty()
+            val burst = title.firstOrNull { it.saving }?.burst
+            // None saving, a read begun before the last save of each facet may not say it: the rest is let go.
+            val kept = if (burst == null) title.lastSaved() else title
+            all + (changed.id to kept + Held(before, changed, facet, stays, made, burst ?: bursts.incrementAndGet()))
+        }.getValue(changed.id).last()
+    }
 
     /** [change] is saved: a read begun from now says it. */
     fun saved(change: Held) {
         change.savedAfter = begun.get()
     }
 
-    /** [change] was not saved: it lies over no read again. */
-    fun dropped(change: Held) = held.update { if (it[change.item.id] === change) it - change.item.id else it }
+    /** [change] was not saved: it lies over no read again, and its title is to show as [Undone] says. */
+    fun dropped(change: Held): Undone {
+        change.failed = true
+        return Undone(change, held.value[change.item.id].orEmpty().filter { it.burst == change.burst })
+    }
 
-    /** What [read] is to show over its answer: the changes held it may not know, not saved before it began. */
-    fun over(read: Reading): List<Laid> = held.value.values
-        .filter { change -> change.savedAfter.let { it == null || read.number <= it } }
-        .map { change -> Laid(change.item, change.stays, readBefore = read.number <= change.madeAfter) }
+    /** What [read] is to show over its answer: of each title, its last mark and favourite held, not saved before it began. */
+    fun over(read: Reading): List<Laid> = held.value.values.mapNotNull { title ->
+        Facet.entries
+            .mapNotNull { facet -> title.lastOrNull { it.facet == facet && !it.failed } }
+            .filter { change -> change.savedAfter.let { it == null || read.number <= it } }
+            .takeIf { it.isNotEmpty() }
+            ?.let { changes -> Laid(changes, readBefore = changes.all { read.number <= it.madeAfter }) }
+    }
+}
+
+/** What a poster's options change of a title: its mark, or whether it is a favourite. */
+internal enum class Facet {
+    /** Its mark: watched or not, where it was left, what a show or a saga has left to watch. */
+    MARK {
+        override fun copied(from: MediaItem, into: MediaItem): MediaItem = into.copy(
+            user = into.user.copy(played = from.user.played, positionMs = from.user.positionMs, unplayedCount = from.user.unplayedCount),
+        )
+    },
+
+    /** Whether it is a favourite. */
+    FAVORITE {
+        override fun copied(from: MediaItem, into: MediaItem): MediaItem = into.copy(user = into.user.copy(favorite = from.user.favorite))
+    },
+    ;
+
+    /** [into] with this facet as [from] has it, all else as [into] has it. */
+    abstract fun copied(from: MediaItem, into: MediaItem): MediaItem
 }
 
 /** A read of a screen, by the order it began in ([PendingChanges.reading]). */
 @JvmInline
 internal value class Reading(val number: Int)
 
-/** A change held ([PendingChanges.hold]): [item] as it shows, made after [madeAfter] reads began, saved after [savedAfter]. */
-internal class Held(val item: MediaItem, val stays: (WatchStatus) -> Boolean, val madeAfter: Int) {
+/**
+ * A change held ([PendingChanges.hold]): [facet] of [item] as it shows, [before] as it showed, made after [madeAfter]
+ * reads began, in the [burst] of the changes of its title asked while one was saving; saved after [savedAfter], or
+ * [failed].
+ */
+internal class Held(
+    val before: MediaItem,
+    val item: MediaItem,
+    val facet: Facet,
+    val stays: (WatchStatus) -> Boolean,
+    val madeAfter: Int,
+    val burst: Int,
+) {
     @Volatile
     var savedAfter: Int? = null
+
+    @Volatile
+    var failed = false
+
+    /** Neither saved yet nor failed. */
+    val saving: Boolean get() = savedAfter == null && !failed
 }
 
 /**
- * A change held, to show over a read: [item] as it now stands, still on a wall filtered on a status while [stays] says
- * so; [readBefore], the read began before it was made, and counts it as it was, even where its answer does not hold it.
+ * The changes held of a title, to show over a read, its last mark and its last favourite ([changes]): its [item] as one
+ * of them shows it, for what it is; on a wall filtered on a status while each [stays]; [readBefore], the read began
+ * before they were made, and counts it as it was, even where its answer does not hold it.
  */
-internal class Laid(val item: MediaItem, val stays: (WatchStatus) -> Boolean, val readBefore: Boolean)
+internal class Laid(private val changes: List<Held>, val readBefore: Boolean) {
+    val item: MediaItem get() = changes.last().item
+
+    /** [read], the title as the read answered it, with what these changes show of it. */
+    fun over(read: MediaItem): MediaItem = changes.fold(read) { shown, change -> change.facet.copied(change.item, shown) }
+
+    /** Whether a wall filtered on [status] shows the title so changed. */
+    fun stays(status: WatchStatus): Boolean = changes.all { it.stays(status) }
+}
+
+/**
+ * A change not saved ([PendingChanges.dropped]), as its screen undoes it, of the title [id]: its mark or its favourite
+ * back as the source has it, without it nor a change of it asked meanwhile that was not saved either, one asked after
+ * it still saving or saved showing still ([over]); its other changes, of [burst], showing as they stand.
+ */
+internal class Undone(change: Held, burst: List<Held>) {
+    val id: String = change.item.id
+
+    private val facet = change.facet
+
+    /** The title's [facet] as the source has it; null while a change of it asked after this one is saving or saved, and shows. */
+    private val back: MediaItem? = burst.notSaved(facet)
+
+    /** The changes of the title still saving or saved, the last of its mark and of its favourite. */
+    private val kept = Facet.entries.mapNotNull { f -> burst.lastOrNull { it.facet == f && !it.failed } }
+
+    /** The title as it now stands, to show again where this change had taken it away. */
+    val item: MediaItem = Facet.entries.fold(change.before) { shown, f ->
+        (burst.notSaved(f) ?: burst.lastOrNull { it.facet == f && !it.failed }?.item)?.let { f.copied(it, shown) } ?: shown
+    }
+
+    /** [shown], the title as its screen shows it, with this change undone. */
+    fun over(shown: MediaItem): MediaItem = back?.let { facet.copied(it, shown) } ?: shown
+
+    /** Whether a wall filtered on [status] shows the title as it now stands, a change of it still saving or saved keeping it away. */
+    fun stays(status: WatchStatus): Boolean = kept.all { it.stays(status) }
+}
+
+/** Of a title's changes, the last saved of its mark and of its favourite. */
+private fun List<Held>.lastSaved(): List<Held> =
+    Facet.entries.mapNotNull { facet -> lastOrNull { it.facet == facet && it.savedAfter != null } }
+
+/**
+ * [facet] of the title as it stood before the last changes of it, of one burst, that were not saved: the source has
+ * it so, as no change of it since is saving or saved; null when the last is saving or saved, or none was asked.
+ */
+private fun List<Held>.notSaved(facet: Facet): MediaItem? {
+    val asked = filter { it.facet == facet }
+    if (asked.lastOrNull()?.failed != true) return null
+    return asked.takeLastWhile { it.failed }.first().before
+}
 
 /** A change a poster's options asked that was not saved: the title [id] it was about, and why ([error]). */
 data class NotSaved(val id: String, val error: UiError)
