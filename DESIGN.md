@@ -599,6 +599,17 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   `DetailLayoutTest`, `FocusReachTest`).
 - **A wall** keeps `HlFocus.wallRoom` (24, the gap between its lines) above its first line: the grid cuts a
   focused poster's glow there, once faded (`FocusReachTest`).
+- **A filtered wall losing a title**: a title its poster's options mark that the wall's filter (Vus, Non vus, En cours)
+  no longer keeps, or take out of Favoris on a wall filtered on them, leaves at once, not waiting for the wall to read
+  again, the count with it, the posters after it moving up one place with no motion, as a wall read again; focus is on
+  the poster taking its place, set once, else the one before it (see *Focus*); emptied, the wall says « Aucun titre
+  avec ces filtres », « Retirer les filtres » focused. The same after Back from its page. A change not saved is undone:
+  the title back in its place with focus, its title line saying why in place of its facts, « Non enregistré · Serveur
+  injoignable » by the attention mark, while it has focus. Unfiltered, the poster stays, its mark changing, focus
+  where it is; a favourite ends its title line's facts with the filled heart, on a wall and on a person's page that has
+  one (`TitleLine`). In « À regarder » a title leaves its row as it leaves what the row holds, Reprendre at once, À
+  suivre's episode giving its place to the next as the rows read again; on a person's page and in search the title
+  stays, its mark changing, a change not saved said in the hero or under its row (`WallMarkTest`, `WatchPageTest`).
 - **The films wall** shows a saga as one poster in place of its films, from the number of films the Sagas setting
   asks, ranked by them (`SagaWall`), and counts both ("8 titres · 1 saga"). Its filter menu opens on Afficher,
   Films et sagas or Sagas: the sagas alone are titled Sagas on the films' wall, named first on the button
@@ -797,7 +808,13 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   never accepts what came under it unseen (`IdentifyQueueTest`).
 - **Focus is never lost.** When its element disappears, it moves to a neighbour, else to the action that adds
   one ("Ajouter un dossier"): a title identified, to the one taking its place in « À identifier », a row gone from a
-  plate to the plate's first row (`focusGroupKey`).
+  plate to the plate's first row (`focusGroupKey`). A poster leaving a wall with focus (a title its options mark out of
+  a filtered wall, or gone as the wall reads again after Back from its page) leaves it to the poster now in its place,
+  else the one before it, read as the change composes, while the poster leaving still holds it, so focus that left the
+  posters meanwhile stays where it is (`FocusTakesPlace`); one gone while its page showed is found by the one at its
+  place as the wall comes back (`RestoreFocus`'s `inPlace`); the wall emptied, « Retirer les filtres » takes it. In
+  « À regarder » the same, row by row: a card's row emptied goes, focus on the row under it, else the one over it
+  (`WallMarkTest`, `RestoreFocusTest`).
 
 **Coming back** to a screen finds focus on what was left, by identity, not position (`Focus.kt`):
 
@@ -830,12 +847,20 @@ during the house-light cue, Back cancels it.
 (`menuForLongClick`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
 Zidoo's turns a held OK into a click; AVA and Unfolded Circle remotes never repeat). What has options says so while it
 shows focus, with the Menu key (`MenuKey`): the remote's key drawn small, its lines (`HlIcons.Menu`) in secondary ink
-in a frame of tertiary ink, `HlShapes.mark`, `HlSize.menuKeyWidth` × `menuKeyHeight`; under a card at the end of its
-name's line, its room kept so nothing moves; at the end of a result's name (`HlResultItem`, its options through
-`HlPanelButton`), its room kept too; under a tile on its label's second line, in place of a hint; on home's
-case at the end of its action's plate, in the plate's ink. Accessibility services read the long click instead, "Plus
-d’options" (`onLongClickLabel`). Options open in a side sheet about the element, the action wanted most first and
-focused, so Menu then OK does it; an action closes the sheet and focus is back on the element.
+in a frame of tertiary ink, `HlShapes.mark`, `HlSize.menuKeyWidth` × `menuKeyHeight`; on a card, in its picture's
+bottom right corner, white on the marks' dark plate, `HlSpace.xs` from its edges as the state mark is, the state at the
+top and the gesture at the bottom, above its progress line, which stays whole, its size at every text size, laid on
+the picture so nothing moves as it comes (`MenuKeyTest`); at the end of a result's name (`HlResultItem`, its options
+through `HlPanelButton`), its room kept; under a tile on its label's second line, in place of a hint; on home's case
+at the end of its action's plate, in the plate's ink. The key shows on the card with focus alone, never under a sheet,
+and is not read: accessibility services read the long click instead, "Plus d’options" (`onLongClickLabel`). Options
+open in a side sheet about the element, the action wanted most first and focused, so Menu then OK does it; an action
+closes the sheet and focus is back on the element.
+
+**Menu on a poster** (#47) opens what makes sense without opening its page (`PosterOptions`, see *Sheets*): on a
+wall's posters (Films, Séries, Sagas), « À regarder »'s posters and its stills of Reprendre and À suivre, search's
+titles and sagas, and a person's page, wherever the source keeps what is watched; never on home's doors nor its case,
+a saga's panels, or a title page's rows, whose episodes keep their own options (`PosterOptionsTest`).
 
 ## Components
 
@@ -876,7 +901,7 @@ focused, so Menu then OK does it; an action closes the sheet and focus is back o
 
 | Component | Use |
 |---|---|
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton`, `HeaderControls`, `HlActionRow` | actions 48 dp tall, radius 10. The primary one, Lire or Reprendre and nothing else, is the ember light in black ink (`onEmber`), `HlIcons.Play`, a duration in `jaquette`; focus frames it. A detail of several facts (a film, then its time left) drops whole facts from its end where the button is given less room than it needs, the first alone ending in an ellipsis. A secondary one is a plate by its ground (over a picture `plate(light)` edged by `plateEdge`, glass on the room, `FILL` on glass) that focus fills white. `HlIconButton` is a square tile (48, its glyph `HlSize.tileIcon`) showing its label below on focus, on a plate as wide as `tileLabelWidth` allows, at most `HlIconButtonDefaults.labelEdge` from the screen's side, hidden while a sheet is open; `HlActionRow` keeps room for it. In a header (`HeaderControls`): buttons 44, tiles 40, glyphs 20. Toggles name what OK does and show the state with the icon (`lit`: the glyph in ember, raspberry on white; `HlIcons.CheckFilled`). On a show's page with a season track, the watched toggle marks the season shown when it holds episodes ("Marquer la saison comme vue", `shownSeason`); Menu or a long OK opens its options (`ShowMarks`): "Marquer la saison 2 comme vue" or "non vue", then "Marquer toute la série comme vue" or "non vue", each as it stands. The Menu key under its label says so, on a hint's line (`hintRoom`), which a show's `HlActionRow` keeps (`hinted`); a tile without options may say a second line there in tertiary `meta` (`hint`, the tracks tile's), bound as the label. On a show of one season, without a track, the watched toggle marks the show, its one season, and says so ("Marquer la saison comme vue", `soleSeason`), with no options; films and episodes have none on their tile either. `detailLit` lights a chosen value in the detail. Disabled: a faint well (over a picture, its plate), tertiary ink, ringed by focus, OK ignored. `busy`: a pending dot and `busyLabel` ("Connexion…"), OK ignored; a button with a busy label takes from the start the wider of its words at rest and busy (`reserveFor` another busy label it shows in turn: Enregistrer tests, then saves), so neither it nor what stands beside it moves as they change (`ButtonWidthTest`) |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton`, `HeaderControls`, `HlActionRow` | actions 48 dp tall, radius 10. The primary one, Lire or Reprendre and nothing else, is the ember light in black ink (`onEmber`), `HlIcons.Play`, a duration in `jaquette`; focus frames it. A detail of several facts (a film, then its time left) drops whole facts from its end where the button is given less room than it needs, the first alone ending in an ellipsis. A secondary one is a plate by its ground (over a picture `plate(light)` edged by `plateEdge`, glass on the room, `FILL` on glass) that focus fills white. `HlIconButton` is a square tile (48, its glyph `HlSize.tileIcon`) showing its label below on focus, on a plate as wide as `tileLabelWidth` allows, at most `HlIconButtonDefaults.labelEdge` from the screen's side, hidden while a sheet is open; `HlActionRow` keeps room for it. In a header (`HeaderControls`): buttons 44, tiles 40, glyphs 20. Toggles name what OK does and show the state with the icon (`lit`: the glyph in ember, raspberry on white; `HlIcons.CheckFilled`). On a show's page with a season track, the watched toggle marks the season shown when it holds episodes ("Marquer la saison comme vue", `shownSeason`); Menu or a long OK opens its options (`ShowMarks`): "Marquer la saison 2 comme vue" or "non vue", then "Marquer la série comme vue" or "non vue", each as it stands. The Menu key under its label says so, on a hint's line (`hintRoom`), which a show's `HlActionRow` keeps (`hinted`); a tile without options may say a second line there in tertiary `meta` (`hint`, the tracks tile's), bound as the label. On a show of one season, without a track, the watched toggle marks the show, its one season, and says so ("Marquer la saison comme vue", `soleSeason`), with no options; films and episodes have none on their tile either. `detailLit` lights a chosen value in the detail. Disabled: a faint well (over a picture, its plate), tertiary ink, ringed by focus, OK ignored. `busy`: a pending dot and `busyLabel` ("Connexion…"), OK ignored; a button with a busy label takes from the start the wider of its words at rest and busy (`reserveFor` another busy label it shows in turn: Enregistrer tests, then saves), so neither it nor what stands beside it moves as they change (`ButtonWidthTest`) |
 | `HlSegmented` | where you are among a few places, as words in `place`: seasons (`scrollable`, chosen as focus moves with `selectOnFocus`, each with its `SegmentDetail`), NFO views, form choices. The current word is lit in ember (`placeCurrent`), the others grey, on no plate; focus is the white plate, with a raspberry dot (`HlSize.wordDot`) before the current word. Words line up with the start edge and plates hang past it, each word as wide as in bold and set from its start: nothing moves as focus or the choice moves. Focus entering lands on the current option (`enterAt`). Exposed as tabs |
 | `HlTextField` | a glass plate `HlSize.field` tall edged by a hairline (`field`), its name in white over it, ringed white with focus, keyboard on OK, "OK saisir" hint (`KeyHint`); OK starts typing after the text, where the keyboard's erase reaches it all, and at rest the text shows from its start; while typing, the ember ring and a raspberry cursor, which the remote's Left and Right move a character once Back hid the keyboard (shown, it takes the arrows): held they repeat and stop at the text's edge, a press from its start or its end leaving that way, as Up and Down leave at once, and OK shows the keyboard again at the cursor; a keyboard's own Left and Right, the one shown or one plugged in, move it as in any field, Shift selecting, and never leave. Below it in `meta`: `supporting`, or `error` (`AttentionNote`), the field's own failure, which its form says there and brings focus to. Empty and focused, its example ends before "OK saisir", never under it. While it holds text and it or its cross has focus, a cross lies at its end inside its frame (#78, `ClearTile`): a header's tile, `HlSize.tileCompact` with its glyph `HlIcons.Clear` at `HlSize.icon`, `HlSpace.s` in from the edge and centred in the field's height, its glyph grey on the glass at rest, the tile white with focus; the text, its example and "OK saisir" end before it, and no form's width changes; a field without focus has none, so a form at rest stays bare. Right at rest reaches it, as Right from the text's end while typing does, ending typing; Left from it comes back to the field, Right goes on to the next, Up and Down leave as from the field, which names it as its Right (`focusProperties`), Compose's search for the next focus not looking inside a frame; the field beside lands on the field, never on its cross. OK on it empties the field as erasing it all would (`onValueChange("")`), nothing else running, focus back on the field at rest, the keyboard hidden, so that OK opens it; the keyboard's « Suivant » goes on to the next field, never to the cross. A screen reader reads it as a button, "Effacer" and the field's name without its "(facultatif)" (`field_clear`); a password has one too, and emptied says again that the one saved stays. Focused at rest, "OK saisir" shows only where it leaves the text whole before the cross: else it gives way, the white ring saying the focus, so that a path reads whole up to its cross at every text size; a text longer still stops at the cross, shown from its start (`TextFieldClearTest`). A short field takes the width its whole name, or its widest value with "OK saisir" and its cross, needs at the text size in use, never under `HlLayout.fieldShort` (`rememberFieldWidth`: Identifier's « Année (facultatif) », « Ex. : 1999 », an empty year searching every year). Its label is always read out, shown or not (`showLabel`), "(facultatif)" after it when `optional`; `password` hides the value. Placeholders are examples from resources. Saved when left, never while typing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a sectioned menu anchored to its button (sort, filters), on raised glass (`panel`, 320 wide), opening below or above within the safe area and growing from `ENTER_SCALE`; options 44 tall, the chosen one white with its ember check (raspberry on focus's white plate), the others grey; a sort applies once the menu has closed, filters at once with the menu kept open (`closeOnSelect`) |
@@ -922,13 +947,16 @@ year on the year's band; open, its words on their melt (see *Veils*), as the cas
   else the ember dot of a new title (added in the last week, not watched; ringed in black). Progress is the
   ember line burning at the foot, 4 dp on a poster and 5 on a wide image, its light stretched over the part
   seen. Formats are never a card mark.
+- **Two corners**: the state at the top right, the gesture at the bottom right, on the same plate. A card with options
+  shows the Menu key there while it has focus (see *Focus*, Menu), above its progress line; it may cover a corner of
+  what a poster prints at its foot, its title sometimes, only on the card with focus, the line above naming it.
 - **Without artwork** or on failure, the card is set like a one-sheet: a short rule, the name in `cardTitle`,
   the year in `badge` and secondary ink, readable on a wall's field. Pictures without a title (`PosterThumb`, free `PosterStrip` slots) and
   loading cards (`CardSkeleton`) show an empty frame: one step up (`groundStep()`), the artwork edge and a
   short rule in `contentDecorative`. A person without a portrait is the bare frame, the name under it.
 - **Episodes** read as a number in tabular figures, a name, then length and progress. OK plays one; Menu or a long OK
-  opens its options (`EpisodeOptions`), which the Menu key at the end of its name's line says under the card with
-  focus alone: a side sheet titled with its name, "Saison 1 Épisode 2 52 min" under it (the season by its number,
+  opens its options (`EpisodeOptions`), which the Menu key in its still's corner says on the card with focus alone, as
+  on a poster: a side sheet titled with its name, "Saison 1 Épisode 2 52 min" under it (the season by its number,
   in the app's language, specials by the source's name), then "Marquer comme vu" or "Marquer comme non vu", focused;
   "Lire depuis le début" once started; "Audio et sous-titres" where the tracks apply, as the tracks tile, saying what
   Lire plays and opening the show's; last, for an episode held while its file is missing, « Retirer de la
@@ -943,8 +971,8 @@ year on the year's band; open, its words on their melt (see *Veils*), as the cas
   drawn per card.
 
 **Accessibility.** A card is one element: its title, then its state in words (`stateDescription`: "introuvable",
-"6 épisodes non vus", "vu", "nouveau, en cours, 40 %"), a saga's panel after its number and year, then its words. Marks
-are not read.
+"6 épisodes non vus", "vu", "nouveau, en cours, 40 %"), a saga's panel after its number and year, then its words; a
+card with options, its long click too, "Plus d’options". Marks and the Menu key are not read.
 A person who does nothing is read once as "name, role", not as a button. What is chosen says so (`selected`).
 
 ## Sheets
@@ -973,6 +1001,22 @@ motion it came in with. Focus stays inside and returns where it was (`SheetFocus
 - **`SheetConfirm`**: an irreversible action asks in the sheet, as an intertitle in place of the rows: ember
   rule, the question in `subject`, the consequence, then Cancel (focused) and the action, its label in ember.
   Never red. Cancel or Back returns to the row that asked.
+- **A poster's options** (`PosterOptions`, on the episodes' `OptionsSheet`): titled with the title's name, an
+  episode's by its show's, and under it its facts, where it stands, so the gesture reads before OK ("1988   2 h 48   Il
+  reste 1 h 14", "2 saisons   6 épisodes non vus", "2021 – 2024   2 films   1 film vu sur 2"). Its mark first and
+  focused, in its page's words, watched or not as it stands, the check empty or filled: a film's "Marquer comme vu", a
+  show's whole, "Marquer la série comme vue", a saga's with its films, "Marquer la saga comme vue"; then a film's
+  or a show's favourite, "Ajouter aux favoris" or "Retirer des favoris" by the heart, empty or filled; then
+  "Modifier", where the source keeps the title's pictures, the title page's own sheet (`EditMenu`), opened as this one
+  closes, a sheet never opening over another, its images and Identifier opening their screen, Back from it on the
+  poster. A saga's sheet has its mark alone until its own pictures come (`editsFromPoster`), as a Jellyfin box set's
+  keeps. No tracks, no facts of its files, no Lire: OK on the poster opens its page. Each row closes the sheet, then
+  acts; Back does nothing. A mark goes through the source as from the page (`setPlayed`, so Trakt follows), a
+  favourite too (`setFavorite`), shown at once, and comes undone when it was not saved (`PosterChanges`,
+  `TraktSyncTest`). Two departures, said: the sheet is titled with what it concerns, as an episode's, where a side
+  sheet says what it does; and a show or a saga marked unwatched whole asks no question, where an irreversible action
+  asks (`SheetConfirm`), as the page's tile does: a mark is done again in one OK, only Trakt's dates of plays not
+  coming back.
 - **A question of two answers** that is not irreversible (`HeldSheet`) is a sheet of its own: what it is about in its
   head, what the app sees and what each answer is for in `body`, then the answers on one plate above what they concern,
   so they stay in view at the largest text size, the one that changes nothing first and focused, each saying in its line

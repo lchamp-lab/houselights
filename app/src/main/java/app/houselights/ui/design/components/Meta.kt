@@ -20,6 +20,7 @@ import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -59,9 +60,18 @@ fun filmCount(owned: Int, total: Int?): String = if (total != null) {
     pluralStringResource(R.plurals.film_count, owned, owned)
 }
 
-/** A title's facts on one line, [spacing] apart: year, length, rating badge, score, then genres. */
+/**
+ * A title's facts on one line, [spacing] apart: year, length, rating badge, score, the filled heart of a favourite where
+ * [favorite] asks for it (a wall's title line), then genres.
+ */
 @Composable
-fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true, spacing: Dp = HlSpace.fact) {
+fun MetaLine(
+    item: MediaItem,
+    modifier: Modifier = Modifier,
+    showGenres: Boolean = true,
+    spacing: Dp = HlSpace.fact,
+    favorite: Boolean = false,
+) {
     val c = Hl.colors
     val seasons = item.childCount?.takeIf { item.kind == MediaKind.SERIES && it > 0 }
         ?.let { pluralStringResource(R.plurals.season_count, it, it) }
@@ -79,6 +89,7 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
         length?.let { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         item.officialRating?.let { Badge(it) }
         item.communityRating?.let { Score(it) }
+        FavoriteHeart(item, shown = favorite)
         // Genres drop one by one from the last, as billing block names do.
         if (showGenres) {
             item.genres.take(3).forEachIndexed { i, genre ->
@@ -94,6 +105,24 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
         }
     }
 }
+
+/**
+ * A favourite's heart where it is [shown], its page's heart filled, quiet as the score: what a poster's options made a
+ * favourite shows on its wall's title line; nothing for a title that is not one.
+ */
+@Composable
+private fun FavoriteHeart(item: MediaItem, shown: Boolean) {
+    if (!shown || !item.user.favorite) return
+    Icon(
+        HlIcons.HeartFilled,
+        contentDescription = null,
+        tint = Hl.colors.contentSecondary,
+        modifier = Modifier.size(HlSize.inlineIcon).testTag(FAVORITE_HEART),
+    )
+}
+
+/** Finds a favourite's heart in tests: it is read by no one, as the score's star. */
+internal const val FAVORITE_HEART = "favorite-heart"
 
 /** A title's years: a saga's from first to last film, a show's run (open while it continues), else its year. */
 private fun MediaItem.years(): String? = when {
@@ -225,13 +254,23 @@ private const val FRAME_RATE_DIGITS = 3
 fun audioBitrateLabel(kbps: Int): String =
     stringResource(R.string.audio_bitrate, NumberFormat.getIntegerInstance(Locale.getDefault()).format(kbps))
 
-/** A title's name in `rowTitle` and its facts over a wall, on one baseline; the name is ellipsised before facts drop. */
+/**
+ * A title's name in `rowTitle` and its facts over a wall, on one baseline; the name is ellipsised before facts drop. A
+ * favourite ends its facts with the filled heart; a change its poster's options asked that was not saved ([notSaved],
+ * « Non enregistré · Serveur injoignable ») is said in their place, by the attention mark.
+ */
 @Composable
-fun TitleLine(item: MediaItem, modifier: Modifier = Modifier) {
+fun TitleLine(item: MediaItem, modifier: Modifier = Modifier, notSaved: String? = null) {
     Layout(
         contents = listOf(
             { Text(item.title, style = Hl.type.rowTitle, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            { MetaLine(item, showGenres = false) },
+            {
+                if (notSaved != null) {
+                    HlStatus(StatusState.Attention, notSaved, maxLines = 1)
+                } else {
+                    MetaLine(item, showGenres = false, favorite = true)
+                }
+            },
         ),
         modifier = modifier,
     ) { (title, facts), constraints ->

@@ -10,10 +10,12 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.Library
+import app.houselights.core.LibraryEvents
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.Page
 import app.houselights.core.ProviderCapabilities
@@ -25,6 +27,7 @@ import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.reported
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -65,7 +68,8 @@ internal fun filtersApply(view: WallView?, can: ProviderCapabilities): Boolean =
  * A library's wall, page by page. Sort, filter and view are kept in [saved], as Android may kill the app during
  * playback. Opened on part of the library ([opensOn]: a format, a person), it starts filtered by it and shows every
  * film; else a films wall shows each saga of the source's [sagas] as one title, or the sagas alone ([setView]), as
- * long as the source shows sagas.
+ * long as the source shows sagas. A poster's options mark a title or make it a favourite (#47), shown at once, saved in
+ * [work] and told to the other screens ([events]).
  */
 class LibraryViewModel(
     /** The source's provider; null while there is none (its connection could not be read back), and nothing loads. */
@@ -78,6 +82,9 @@ class LibraryViewModel(
     private val ahead: LibraryAhead? = null,
     opensOn: LibraryFilter? = null,
     sagas: Library? = null,
+    events: LibraryEvents? = null,
+    /** Where a poster's change is saved, outliving the wall; its own scope by default. */
+    work: CoroutineScope? = null,
 ) : ViewModel() {
     /** Whether this wall shows the source's sagas among its films: a films wall of the whole library. */
     private val followsSagas = opensOn == null && library.kind == LibraryKind.MOVIES
@@ -146,6 +153,39 @@ class LibraryViewModel(
 
     /** After a failure, loads again from the first page. */
     fun retry() = reset()
+
+    /** What a poster's options change, saved as the title's page saves it (#47). */
+    internal val changes = PosterChanges(provider, events, work ?: viewModelScope, TAG)
+
+    /** The last change a poster's options asked that was not saved, said on its title's line while it has focus. */
+    val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
+
+    /**
+     * Marks [item] watched, or not once it is, from its poster's options: shown at once, a title the wall's filter no
+     * longer keeps leaving it, the posters after it moving up one place, focus going to the one in its place; then saved.
+     * Not saved, it is back where it was, and said ([notSaved]).
+     */
+    fun mark(item: MediaItem) {
+        val played = !item.user.played
+        change(item, item.markedAs(played), keepsMarked(shownStatus(), played)) { undo -> changes.mark(item, played, undo) }
+    }
+
+    /** Makes [item] a favourite, or not once it is, from its poster's options: a wall filtered on Favoris lets go of it. */
+    fun favorite(item: MediaItem) {
+        val favorite = !item.user.favorite
+        change(item, item.favoredAs(favorite), keepsFavorite(shownStatus(), favorite)) { undo -> changes.favorite(item, favorite, undo) }
+    }
+
+    /** The watch status the wall is filtered on, as it shows: none on sagas a source cannot filter. */
+    private fun shownStatus(): WatchStatus = _state.value.applied(capabilities).status
+
+    /** Shows [item] [changed] at once, in its place while the wall [stays] on it, else gone; then [save]s it, [undo] if not. */
+    private fun change(item: MediaItem, changed: MediaItem, stays: Boolean, save: (undo: () -> Unit) -> Unit) {
+        val at = _state.value.items.indexOfFirst { it.id == item.id }
+        if (at < 0) return
+        _state.update { it.showing(changed, stays) }
+        save { _state.update { it.undone(item, at) } }
+    }
 
     fun setSort(sort: SortOption) {
         if (sort == _state.value.sort) return
@@ -290,10 +330,39 @@ class LibraryViewModel(
 
         fun factory(app: AppContainer, library: Library, opensOn: LibraryFilter?, sagas: Library?): ViewModelProvider.Factory =
             viewModelFactory {
-                initializer { LibraryViewModel(app::providerOrNull, library, createSavedStateHandle(), app.libraryAhead, opensOn, sagas) }
+                initializer {
+                    LibraryViewModel(
+                        app::providerOrNull,
+                        library,
+                        createSavedStateHandle(),
+                        app.libraryAhead,
+                        opensOn,
+                        sagas,
+                        events = app,
+                        work = app.scope,
+                    )
+                }
             }
     }
 }
+
+/** [this] showing [changed] at once: in its place while the wall [stays] on it, else gone, the wall's count with it. */
+private fun LibraryState.showing(changed: MediaItem, stays: Boolean): LibraryState = if (stays) {
+    copy(items = items.map { if (it.id == changed.id) changed else it })
+} else {
+    val left = sagas?.let { (it - sagaCount(changed)).coerceAtLeast(0) }
+    copy(items = items.filterNot { it.id == changed.id }, total = (total - 1).coerceAtLeast(0), sagas = left)
+}
+
+/** [this] with [item] as it was before a change that was not saved: in its place, else back at [at], counted again. */
+private fun LibraryState.undone(item: MediaItem, at: Int): LibraryState = if (items.any { it.id == item.id }) {
+    copy(items = items.map { if (it.id == item.id) item else it })
+} else {
+    copy(items = items.toMutableList().apply { add(at.coerceAtMost(size), item) }, total = total + 1, sagas = sagas?.plus(sagaCount(item)))
+}
+
+/** How many sagas [item] counts for in a wall's count: one for a saga. */
+private fun sagaCount(item: MediaItem): Int = if (item.kind == MediaKind.COLLECTION) 1 else 0
 
 /** Whether [library]'s wall shows its films' [sagas] among them: a films wall, of a source with sagas. */
 internal fun groups(library: Library, sagas: Library?): Boolean = sagas != null && library.kind == LibraryKind.MOVIES

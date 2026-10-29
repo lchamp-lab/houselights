@@ -188,10 +188,11 @@ fun ResultsHeading(title: String, count: Int, modifier: Modifier = Modifier) {
 
 /**
  * Under a row of results, the one whose light the page takes ([item], when it is of this row) by its name in
- * `cardName` and its year; the line keeps its room when empty, so nothing moves as focus does.
+ * `cardName` and its year; the line keeps its room when empty, so nothing moves as focus does. A change its poster's
+ * options asked that was not saved ([notSaved]) is said in the year's place, by the attention mark.
  */
 @Composable
-fun ResultName(item: MediaItem?, modifier: Modifier = Modifier) {
+fun ResultName(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? = null) {
     WithItsPicture(item, modifier.fillMaxWidth().height(textRoom(Hl.type.cardName))) { shown ->
         Row {
             Text(
@@ -202,15 +203,21 @@ fun ResultName(item: MediaItem?, modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false).alignByBaseline(),
             )
-            shown.year?.let { year ->
+            val said = notSaved?.takeIf { shown.id == item?.id }
+            if (said != null) {
                 Spacer(Modifier.width(HlSpace.s))
-                Text(
-                    year.toString(),
-                    style = Hl.type.meta,
-                    color = Hl.colors.contentSecondary,
-                    maxLines = 1,
-                    modifier = Modifier.alignByBaseline(),
-                )
+                HlStatus(StatusState.Attention, said, Modifier.alignByBaseline(), maxLines = 1)
+            } else {
+                shown.year?.let { year ->
+                    Spacer(Modifier.width(HlSpace.s))
+                    Text(
+                        year.toString(),
+                        style = Hl.type.meta,
+                        color = Hl.colors.contentSecondary,
+                        maxLines = 1,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                }
             }
         }
     }

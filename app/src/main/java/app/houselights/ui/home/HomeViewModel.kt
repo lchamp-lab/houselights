@@ -9,8 +9,11 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
+import app.houselights.core.LibraryEvents
 import app.houselights.core.LibraryKind
+import app.houselights.core.MediaItem
 import app.houselights.core.MediaProvider
+import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
 import app.houselights.core.browsable
 import app.houselights.core.sagas
@@ -24,6 +27,10 @@ import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.FirstScanDefaults
 import app.houselights.ui.design.components.FirstWallState
+import app.houselights.ui.library.NotSaved
+import app.houselights.ui.library.PosterChanges
+import app.houselights.ui.library.favoredAs
+import app.houselights.ui.library.markedAs
 import app.houselights.ui.settings.HeldTitles
 import app.houselights.ui.settings.heldByFolder
 import app.houselights.ui.util.LatestJob
@@ -191,6 +198,8 @@ class HomeViewModel(
     left: FirstScanLeft? = null,
     /** Where an answer runs, outliving home; its own scope by default. */
     work: CoroutineScope? = null,
+    /** Told of a change a card's options saved in « À regarder », so the other screens show it. */
+    events: LibraryEvents? = null,
 ) : ViewModel() {
     private val work = work ?: viewModelScope
     private val left = left ?: FirstScanLeft(viewModelScope, scan)
@@ -360,6 +369,46 @@ class HomeViewModel(
         if (hold.value == FirstScanHold.NONE) load()
     }
 
+    /** What a card's options change in « À regarder » (#47), saved as the title's page saves it. */
+    internal val changes = PosterChanges(provider, events, this.work, TAG)
+
+    /** The last change a card's options asked that was not saved, said in the hero while its title has focus. */
+    val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
+
+    /** Marks [item] watched, or not once it is, from its card's options in « À regarder », shown at once ([change]). */
+    fun mark(item: MediaItem) {
+        val played = !item.user.played
+        change(item.markedAs(played)) { undo -> changes.mark(item, played, undo) }
+    }
+
+    /** Makes [item] a favourite, or not once it is, from its card's options in « À regarder », shown at once. */
+    fun favorite(item: MediaItem) {
+        val favorite = !item.user.favorite
+        change(item.favoredAs(favorite)) { undo -> changes.favorite(item, favorite, undo) }
+    }
+
+    /**
+     * Shows [changed] at once in every row holding it, Reprendre letting go of a title no longer in progress, a row
+     * emptied going; then [save]s it, the rows read again as the library is told it changed, so that what the source
+     * places anew comes in its place (À suivre's next episode). Not saved, the rows are as they were, or read again when
+     * they changed meanwhile.
+     */
+    private fun change(changed: MediaItem, save: (undo: () -> Unit) -> Unit) {
+        val before = load.value
+        val after = before.copy(sections = before.sections.showing(changed), drawn = before.drawn.showing(changed))
+        load.value = after
+        save { undo(before, after) }
+    }
+
+    /** The rows as they were [before] a change not saved, while they are still those it showed ([after]); else read again. */
+    private fun undo(before: HomeLoad, after: HomeLoad) {
+        if (load.value === after) {
+            load.value = before
+        } else {
+            onLibraryChanged()
+        }
+    }
+
     /** « Aller à l'accueil » on the first scan: home cuts to its grid once read, the scan going on; again, nothing more. */
     fun goHome() {
         if (hold.value == FirstScanHold.PASS) left.leave()
@@ -411,6 +460,7 @@ class HomeViewModel(
                     firstTitleCount = app.library.firstTitleCount,
                     left = app.firstScanLeft,
                     work = app.scope,
+                    events = app,
                 )
             }
         }
@@ -477,6 +527,21 @@ private fun traktFact(settings: AppSettings): TraktFact = when {
     settings.trakt?.ended == false -> TraktFact.CONNECTED
     SecretSetting.TRAKT in settings.unreadSecrets -> TraktFact.UNREAD
     else -> TraktFact.SIGNED_OUT
+}
+
+/**
+ * [this] showing [changed] in every row holding it: Reprendre lets go of a title no longer in progress, and a row it
+ * empties goes; the others keep it in its place, its mark changed.
+ */
+internal fun List<HomeSection>.showing(changed: MediaItem): List<HomeSection> = mapNotNull { section ->
+    if (section.items.none { it.id == changed.id }) return@mapNotNull section
+    val stays = section.type != SectionType.CONTINUE || (changed.user.positionMs > 0 && !changed.user.played)
+    val items = if (stays) {
+        section.items.map { if (it.id == changed.id) changed else it }
+    } else {
+        section.items.filterNot { it.id == changed.id }
+    }
+    section.copy(items = items).takeIf { items.isNotEmpty() }
 }
 
 /** The first existing folder whose last scan failed, and why. */

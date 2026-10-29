@@ -235,7 +235,25 @@ class PaneRowLineTest {
             line(R.string.update_check_never_desc, Beside.Check),
             line(R.string.update_stable_desc, Beside.Check),
             line(R.string.update_beta_desc, Beside.Check),
-        ) + orderLines(w) + answerLines(w)
+        ) + orderLines(w) + answerLines(w) + posterLines(w)
+    }
+
+    /**
+     * A poster's options (#47), each row saying what it does by its name beside its icon: the mark of a film, a whole
+     * show and a saga, watched or not, the favourite added or taken out, and Modifier.
+     */
+    private fun posterLines(w: Words): List<Line> = with(w) {
+        listOf(
+            R.string.mark_watched,
+            R.string.mark_unwatched,
+            R.string.mark_series_watched,
+            R.string.mark_series_unwatched,
+            R.string.mark_saga_watched,
+            R.string.mark_saga_unwatched,
+            R.string.add_favorite,
+            R.string.remove_favorite,
+            R.string.edit,
+        ).map { id -> Line(local.getString(id), "$tag: ${name(id)}", Beside.Icon, title = true) }
     }
 
     /** The answers for titles not found and the row of their folder's sheet, then the new player's, their names too. */

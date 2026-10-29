@@ -1,6 +1,12 @@
 package app.houselights.providers.trakt
 
+import android.os.Looper
+import app.houselights.core.Library
+import app.houselights.core.LibraryFilter
+import app.houselights.core.LibraryKind
 import app.houselights.core.TraktSession
+import app.houselights.core.WatchStatus
+import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.TraktAction
 import app.houselights.providers.local.TraktPendingEntity
 import app.houselights.providers.local.TraktStateEntity
@@ -11,6 +17,7 @@ import app.houselights.providers.trakt.FakeTrakt.Companion.pausedEpisode
 import app.houselights.providers.trakt.FakeTrakt.Companion.pausedMovie
 import app.houselights.providers.trakt.FakeTrakt.Companion.show
 import app.houselights.testing.Answer
+import app.houselights.ui.library.LibraryViewModel
 import app.houselights.ui.testing.waitFor
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -26,6 +33,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import java.time.Instant
 
 /** The sync against a test Trakt and an in-memory library: both sides joined, the latest pause, the queue, the limits. */
@@ -132,6 +140,30 @@ class TraktSyncTest : TraktSyncFixture() {
         val sent = trakt.sent("POST /sync/history").single()
         assertEquals(listOf(7), sent.tmdbs)
         assertEquals(Instant.ofEpochMilli(NOW).toString(), sent.movieDate())
+    }
+
+    /** A film marked from its poster on a wall filtered on Non vus leaves it, and reaches Trakt as a mark from its page does. */
+    @Test
+    fun aMarkFromAWallReachesTrakt() = runTest {
+        val id = film(9)
+        film(10)
+        val sync = connected()
+        val provider = provider(sync)
+        val wall = LibraryViewModel(
+            { provider },
+            Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null),
+            opensOn = LibraryFilter(status = WatchStatus.UNWATCHED),
+            work = backgroundScope,
+        )
+        waitFor("the wall read") {
+            shadowOf(Looper.getMainLooper()).idle()
+            wall.state.value.items.size == 2
+        }
+        wall.mark(wall.state.value.items.single { it.id == id.toString() })
+        assertEquals(1, wall.state.value.items.size)
+        waitFor("the mark sent") { trakt.count("POST /sync/history") == 1 && queue.pending().isEmpty() }
+        assertEquals(listOf(9), trakt.sent("POST /sync/history").single().tmdbs)
+        assertTrue(dao.item(id)!!.played)
     }
 
     @Test

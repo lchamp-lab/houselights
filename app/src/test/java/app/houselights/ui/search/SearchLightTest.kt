@@ -4,6 +4,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
 import app.houselights.core.SearchResults
+import app.houselights.core.UserState
 import app.houselights.ui.testing.film
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -29,5 +30,15 @@ class SearchLightTest {
         assertNull(found.lit(null))
         assertNull("a person", found.lit("p1"))
         assertNull("a title the next query no longer finds", SearchResults(titles = listOf(film("bnd"))).lit("nwh"))
+    }
+
+    /** Its row names the title in its light as the row holds it now, marked from its options before the light settles. */
+    @Test
+    fun aRowNamesItsTitleAsItHoldsItNow() {
+        val marked = film("bnd").copy(user = UserState(played = true))
+        val now = found.titles.map { if (it.id == marked.id) marked else it }
+        assertEquals(marked, now.named(film("bnd")))
+        assertNull("of another row", found.sagas.named(film("bnd")))
+        assertNull(now.named(null))
     }
 }

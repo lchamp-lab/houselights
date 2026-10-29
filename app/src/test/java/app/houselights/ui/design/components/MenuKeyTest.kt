@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -13,15 +16,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.UserState
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
@@ -35,7 +42,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** DESIGN.md, Focus, Menu: what has options shows the Menu key, under a card or a tile, and nothing moves for it. */
+/**
+ * DESIGN.md, Focus, Menu: what has options shows the Menu key, in a card's corner or under a tile, on the one with focus
+ * alone and under no sheet, and nothing moves for it.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 // Real fonts, so a name fills the line it is given.
@@ -61,8 +71,9 @@ class MenuKeyTest {
             .associate { node -> node.config[SemanticsProperties.Text].joinToString() to node.boundsInRoot }
     }
 
+    /** An episode's card: the key in its still's bottom right corner with focus, its caption's words where they were. */
     @Test
-    fun aCardKeepsItsKeysRoomAndShowsItWithFocus() {
+    fun anEpisodesKeyIsInItsCornerWithFocusTheCaptionUnmoved() {
         compose.setTvContent {
             Row {
                 HlButton("Lire", {}, Modifier.focusRequester(first))
@@ -84,12 +95,65 @@ class MenuKeyTest {
         val atRest = caption()
 
         compose.press(Key.DirectionRight)
+        assertInCorner(keys().single(), picture(), line = 0f)
+        assertEquals("the words stay where they were", atRest, caption())
+    }
+
+    /** A poster's key: only on the one with focus, above its progress line once started, never under a sheet. */
+    @Test
+    fun aPostersKeyIsOnTheFocusedOneAloneAboveItsProgressLine() {
+        var sheet by mutableStateOf(false)
+        compose.setTvContent {
+            Row {
+                PosterCard(MediaItem("m1", MediaKind.MOVIE, "Alien"), {}, Modifier.focusRequester(first), onLongClick = {})
+                PosterCard(STARTED, {}, Modifier.testTag(SECOND), onLongClick = {})
+                // A poster without options has none.
+                PosterCard(MediaItem("m3", MediaKind.MOVIE, "Heat"), {}, Modifier.testTag(THIRD))
+            }
+            if (sheet) HlSideSheet("Le Grand Bleu", onDismiss = { sheet = false }) {}
+        }
+        compose.runOnIdle { first.requestFocus() }
+        compose.waitForIdle()
+        assertInCorner(
+            keys().single(),
+            bounds(compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.OnLongClick) and hasText("Alien"))),
+            0f,
+        )
+
+        compose.press(Key.DirectionRight)
+        // Above the line, which stays whole at the poster's foot.
+        assertInCorner(keys().single(), bounds(compose.onNodeWithTag(SECOND)), HlSize.progressPoster.value)
+
+        compose.press(Key.DirectionRight)
+        assertEquals("no options, no key", emptyList<Rect>(), keys())
+        compose.press(Key.DirectionLeft)
+        assertEquals(1, keys().size)
+        sheet = true
+        compose.waitForIdle()
+        assertEquals("under a sheet, focus is out", emptyList<Rect>(), keys())
+    }
+
+    /** At the largest text size the key keeps its size and its place, as the state mark does. */
+    @Test
+    fun theKeyKeepsItsSizeAtTheLargestText() {
+        compose.setTvContent(textStep = LARGEST) {
+            PosterCard(STARTED, {}, Modifier.focusRequester(first).testTag(SECOND), onLongClick = {})
+        }
+        compose.runOnIdle { first.requestFocus() }
+        compose.waitForIdle()
         val key = keys().single()
-        assertEquals("the key ends with the card", picture().right, key.right, 0.5f)
-        // A long name stops short of the key, and the words stay where they were.
-        assertEquals(atRest, caption())
-        val name = atRest.getValue(LONG)
-        assertTrue("$name beside $key", name.right <= key.left && key.top < name.bottom)
+        assertEquals(HlSize.menuKeyWidth.value, key.width, 0.5f)
+        assertEquals(HlSize.menuKeyHeight.value, key.height, 0.5f)
+        assertInCorner(key, bounds(compose.onNodeWithTag(SECOND)), HlSize.progressPoster.value)
+    }
+
+    private fun bounds(node: SemanticsNodeInteraction): Rect = node.fetchSemanticsNode().boundsInRoot
+
+    /** [key] in [card]'s bottom right corner, the state mark's distance from its edges, above a progress line [line] tall. */
+    private fun assertInCorner(key: Rect, card: Rect, line: Float) {
+        val inset = HlSpace.xs.value
+        assertEquals("$key at $card's end", card.right - inset, key.right, 0.5f)
+        assertEquals("$key at $card's foot", card.bottom - inset - line, key.bottom, 0.5f)
     }
 
     /** A tile's options: the key on its label's second line; a tile without has none. */
@@ -157,6 +221,12 @@ class MenuKeyTest {
 
     private companion object {
         const val TILE = "tile"
+        const val SECOND = "second"
+        const val THIRD = "third"
+        const val LARGEST = 1.3f
+
+        /** A film started: its progress line burns at its poster's foot. */
+        val STARTED = MediaItem("m2", MediaKind.MOVIE, "Le Grand Bleu", runtimeMs = 10_080_000, user = UserState(positionMs = 5_640_000))
         const val LONG = "Où l’on comprend enfin pourquoi les hiboux ne sont pas ce qu’ils semblent être"
     }
 }

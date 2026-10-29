@@ -711,6 +711,11 @@
         <item quantity="many">%d episodi non visti</item>
         <item quantity="other">%d episodi non visti</item>
     </plurals>
+    <plurals name="unwatched_episodes">
+        <item quantity="one">%d episodio non visto</item>
+        <item quantity="many">%d episodi non visti</item>
+        <item quantity="other">%d episodi non visti</item>
+    </plurals>
     <plurals name="row_news">
         <item quantity="one">%d nuovo</item>
         <item quantity="many">%d nuovi</item>

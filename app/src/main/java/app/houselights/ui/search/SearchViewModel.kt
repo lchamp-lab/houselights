@@ -8,21 +8,33 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
+import app.houselights.core.LibraryEvents
+import app.houselights.core.MediaItem
 import app.houselights.core.MediaProvider
 import app.houselights.core.SearchResults
+import app.houselights.ui.library.NotSaved
+import app.houselights.ui.library.PosterChanges
+import app.houselights.ui.library.favoredAs
+import app.houselights.ui.library.markedAs
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.loadState
+import app.houselights.ui.util.map
 import app.houselights.ui.util.readingAgain
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 
 /** The search for [query]: its [results], or why it failed, kept while it is retried. */
 data class Found(val query: String, val results: LoadState<SearchResults>)
@@ -30,7 +42,9 @@ data class Found(val query: String, val results: LoadState<SearchResults>)
 /**
  * Library search: [query] updates on each key; [found] follows [WAIT_MS] after the last key, null while the query
  * is empty, a running search being cancelled by the next key; [retry] runs a failed one again. The query is kept
- * in [saved], typed key by key on the remote, in case Android stops the app while a film plays.
+ * in [saved], typed key by key on the remote, in case Android stops the app while a film plays. A result's options mark
+ * a title or a saga, or make a title a favourite (#47), shown at once, saved in [work] and told to the other screens
+ * ([events]).
  */
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
@@ -38,10 +52,19 @@ class SearchViewModel(
     // An empty handle for a test that gives none: the factory hands the real one.
     //noinspection VisibleForTests
     private val saved: SavedStateHandle = SavedStateHandle(),
+    events: LibraryEvents? = null,
+    /** Where a result's change is saved, outliving the search; its own scope by default. */
+    work: CoroutineScope? = null,
 ) : ViewModel() {
     val query: StateFlow<String> = saved.getStateFlow(QUERY, "")
 
     private val retries = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** The results as their options changed them, shown over the read of the search they were changed in. */
+    private val marked = MutableStateFlow(Changed())
+
+    /** The search's last read, as the source answered it, under what its results' options changed. */
+    private var read: Found? = null
 
     val found: StateFlow<Found?> = query
         .debounce(WAIT_MS)
@@ -62,10 +85,40 @@ class SearchViewModel(
                 }
             }
         }
+        .onEach { read = it }
+        .combine(marked) { searched, changes -> searched?.let { changes.over(it) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), null)
 
     private suspend fun search(words: String): Found =
         Found(words, loadState(TAG, "Search") { provider().catalog?.search(words) ?: SearchResults() })
+
+    /** What a result's options change, saved as the title's page saves it. */
+    internal val changes = PosterChanges(provider, events, work ?: viewModelScope, TAG)
+
+    /** The last change a result's options asked that was not saved, said under its row while it has focus. */
+    val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
+
+    /** Marks [item] watched, or not once it is, from its result's options: its mark shows at once, the result staying. */
+    fun mark(item: MediaItem) {
+        val played = !item.user.played
+        change(item.markedAs(played)) { undo -> changes.mark(item, played, undo) }
+    }
+
+    /** Makes [item] a favourite, or not once it is, from its result's options, shown at once. */
+    fun favorite(item: MediaItem) {
+        val favorite = !item.user.favorite
+        change(item.favoredAs(favorite)) { undo -> changes.favorite(item, favorite, undo) }
+    }
+
+    /**
+     * Shows [changed] at once over the results read; then [save]s it, the result as found again if not. Read again, as
+     * when the query is typed anew, the results are what the source says.
+     */
+    private fun change(changed: MediaItem, save: (undo: () -> Unit) -> Unit) {
+        val shown = read ?: return
+        marked.update { it.with(shown, changed) }
+        save { marked.update { it.without(shown, changed.id) } }
+    }
 
     /** Runs the search that failed again, its failure shown meanwhile. */
     fun retry() {
@@ -92,7 +145,28 @@ class SearchViewModel(
         private const val QUERY = "query"
 
         fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { SearchViewModel(app::provider, createSavedStateHandle()) }
+            initializer { SearchViewModel(app::provider, createSavedStateHandle(), events = app, work = app.scope) }
         }
     }
+}
+
+/**
+ * Titles and sagas as their options changed them ([items], by id), over the one read of a search they were changed in
+ * ([read], that very answer): a read after it says what the source holds then. Each is its own, never equal to another,
+ * so that every change shows.
+ */
+private class Changed(val read: Found? = null, val items: Map<String, MediaItem> = emptyMap()) {
+    /** [changed] shown over [read], with those changed before over it. */
+    fun with(read: Found, changed: MediaItem) = Changed(read, (if (read === this.read) items else emptyMap()) + (changed.id to changed))
+
+    /** [id] shown as [read] found it again. */
+    fun without(read: Found, id: String) = if (read === this.read) Changed(read, items - id) else this
+
+    /** [found] with what was changed over it, when it is the read they were changed over. */
+    fun over(found: Found): Found = if (found !== read || items.isEmpty()) found else found.copy(results = found.results.map { shown(it) })
+
+    private fun shown(results: SearchResults) = results.copy(
+        titles = results.titles.map { items[it.id] ?: it },
+        sagas = results.sagas.map { items[it.id] ?: it },
+    )
 }

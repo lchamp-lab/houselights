@@ -717,6 +717,11 @@
         <item quantity="one">%d unwatched episode</item>
         <item quantity="other">%d unwatched episodes</item>
     </plurals>
+    <!-- A show's episodes not watched, in the facts of its poster's options (#47) -->
+    <plurals name="unwatched_episodes">
+        <item quantity="one">%d episode not watched</item>
+        <item quantity="other">%d episodes not watched</item>
+    </plurals>
     <!-- A row's count of titles new to the library, after its title -->
     <plurals name="row_news">
         <item quantity="one">%d new</item>

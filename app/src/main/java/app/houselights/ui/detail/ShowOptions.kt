@@ -137,11 +137,14 @@ private fun episodeNumber(episode: MediaItem): String? {
 }
 
 /** One action of an options sheet: what it does, its icon (what stands), what it says more. */
-private class SheetOption(val title: String, val icon: ImageVector, val description: String? = null, val action: () -> Unit)
+internal class SheetOption(val title: String, val icon: ImageVector, val description: String? = null, val action: () -> Unit)
 
-/** A sheet of [options] about [title], each a row that closes the sheet, then acts; the first one focused. */
+/**
+ * A sheet of [options] about [title], under its [facts], each a row that closes the sheet, then acts; the first one
+ * focused: an episode's, the watched tile's, and a poster's ([app.houselights.ui.library.PosterOptions]).
+ */
 @Composable
-private fun OptionsSheet(title: String, facts: List<String?>, options: List<SheetOption>, onDismiss: () -> Unit) {
+internal fun OptionsSheet(title: String, facts: List<String?>, options: List<SheetOption>, onDismiss: () -> Unit) {
     val first = remember { FocusRequester() }
     HlSideSheet(title, onDismiss, facts = facts, initialFocus = first) { sheet ->
         HlSettingGroup(null) {
