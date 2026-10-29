@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,6 +18,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.isSelected
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
@@ -29,6 +31,7 @@ import app.houselights.core.ImageRef
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
@@ -130,17 +133,19 @@ class ArtworkScreenTest {
         else -> GREEN
     }
 
-    private fun show(kind: ArtworkKind = ArtworkKind.POSTER) {
+    /** The sheet of [kind], in the app, or recreated by [restoration] as an activity is, its view model kept. */
+    private fun show(kind: ArtworkKind = ArtworkKind.POSTER, restoration: StateRestorationTester? = null) {
         val options = listOf(automatic) + if (kind == ArtworkKind.BACKDROP) none + french + english else french + english + none
         provider.choices = ArtworkChoices(options, automatic, inUse, onlineAvailable = true)
         val vm = ArtworkViewModel("m1", kind, { provider }, work)
-        compose.setTvContent {
+        val screen = @Composable {
             if (open) {
                 // Where Back goes once the screen lets it: the title's page in the app.
                 BackHandler { open = false }
                 ArtworkScreen("m1", kind, onDone = { done++ }, vm = vm)
             }
         }
+        if (restoration == null) compose.setTvContent(content = screen) else restoration.setContent { HouselightsTheme(content = screen) }
         compose.waitForIdle()
     }
 
@@ -239,6 +244,26 @@ class ArtworkScreenTest {
         assertEquals(setOf("No text"), held())
         press(Key.DirectionDown)
         assertFocusAt("the last line, come to the top too, nothing under it", 1, top)
+    }
+
+    /**
+     * A sheet recreated part way down, as its activity is when the text size or the language changes, comes back as it
+     * arrives: at its head, focus on the one in use, none of its lines restored without it.
+     */
+    @Test
+    fun aSheetRecreatedComesBackAtItsHeadOnThePictureInUse() {
+        val restoration = StateRestorationTester(compose)
+        show(restoration = restoration)
+        val top = focused().top
+        press(Key.DirectionDown, times = 3)
+        assertEquals(setOf("English"), held())
+
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        rest()
+        compose.onNode(isFocused()).assertIsSelected()
+        assertFocusAt("the one in use, at the head", 1, top)
+        assertEquals("no section's name over the head", emptySet<String>(), held())
     }
 
     @Test

@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -468,7 +468,9 @@ private fun Choices(
     }
     val names = sections.map { sectionName(kind, it.name) }
     val entries = remember(sections, kind, note != null) { sheetItems(sections, kind.columns, note != null) }
-    val state = rememberLazyListState()
+    // Never restored: the sheet comes back as it arrives, at its head, focus on the one in use, where a sheet restored
+    // part way down had that one out of its list and nothing focused.
+    val state = remember { LazyListState() }
     val scope = rememberCoroutineScope()
     val room = with(LocalDensity.current) { HlFocus.wallRoom.toPx() }
     val list = remember { Placed() }
