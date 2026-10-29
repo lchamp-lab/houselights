@@ -3,6 +3,8 @@ package app.houselights.ui.search
 import androidx.lifecycle.SavedStateHandle
 import app.houselights.core.SearchResults
 import app.houselights.ui.library.NotSaved
+import app.houselights.ui.library.favoredAs
+import app.houselights.ui.library.markedAs
 import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
@@ -16,6 +18,7 @@ import app.houselights.ui.util.valueOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -172,6 +175,79 @@ class SearchViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("search AME", "search AMEL", "search AME"), catalog.calls)
         assertFalse(found(vm).single().user.played)
+    }
+
+    /**
+     * Two changes of one result, neither saved, show it as found whichever fails first, the one still saving showing
+     * meanwhile: marked then made a favourite, or marked then unmarked.
+     */
+    @Test
+    fun twoChangesOfAResultNotSavedLeaveItAsFound() = runTest {
+        provider.fail = { if (it.startsWith("played") || it.startsWith("favorite")) IOException("NAS away") else null }
+        listOf(true, false).forEach { markFailsFirst ->
+            val vm = SearchViewModel({ provider }, work = this)
+            val collecting = backgroundScope.launch { vm.found.collect {} }
+            "AME".forEach(vm::type)
+            advanceUntilIdle()
+            val amelie = found(vm).single()
+            val marking = provider.gate("played amelie true")
+            val favouring = provider.gate("favorite amelie true")
+            vm.mark(amelie)
+            runCurrent()
+            vm.favorite(found(vm).single())
+            runCurrent()
+            assertEquals(amelie.markedAs(true).favoredAs(true), found(vm).single())
+            (if (markFailsFirst) marking else favouring).complete(Unit)
+            advanceUntilIdle()
+            val other = if (markFailsFirst) amelie.favoredAs(true) else amelie.markedAs(true)
+            assertEquals("$markFailsFirst: the other still saving shows", other, found(vm).single())
+            (if (markFailsFirst) favouring else marking).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", amelie, found(vm).single())
+            assertEquals(NotSaved("amelie", UiError.OFFLINE), vm.notSaved.value)
+
+            val marking2 = provider.gate("played amelie true")
+            val unmarking = provider.gate("played amelie false")
+            vm.mark(amelie)
+            runCurrent()
+            vm.mark(found(vm).single())
+            runCurrent()
+            assertEquals(amelie.markedAs(true).markedAs(false), found(vm).single())
+            (if (markFailsFirst) marking2 else unmarking).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", !markFailsFirst, found(vm).single().user.played)
+            (if (markFailsFirst) unmarking else marking2).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", amelie, found(vm).single())
+            collecting.cancel()
+        }
+    }
+
+    /** A result's mark not saved leaves a favourite asked after it showing, saved before or after the mark fails. */
+    @Test
+    fun aResultsMarkNotSavedLeavesAFavouriteSavedShowing() = runTest {
+        provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
+        listOf(true, false).forEach { markFailsFirst ->
+            val vm = SearchViewModel({ provider }, work = this)
+            val collecting = backgroundScope.launch { vm.found.collect {} }
+            "AME".forEach(vm::type)
+            advanceUntilIdle()
+            val amelie = found(vm).single()
+            val marking = provider.gate("played amelie true")
+            val favouring = provider.gate("favorite amelie true")
+            vm.mark(amelie)
+            runCurrent()
+            vm.favorite(found(vm).single())
+            runCurrent()
+            assertEquals(amelie.markedAs(true).favoredAs(true), found(vm).single())
+            (if (markFailsFirst) marking else favouring).complete(Unit)
+            advanceUntilIdle()
+            (if (markFailsFirst) favouring else marking).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", amelie.favoredAs(true), found(vm).single())
+            assertEquals(NotSaved("amelie", UiError.OFFLINE), vm.notSaved.value)
+            collecting.cancel()
+        }
     }
 
     private fun found(vm: SearchViewModel) = checkNotNull(vm.found.value?.results?.valueOrNull).titles
