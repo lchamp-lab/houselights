@@ -86,7 +86,9 @@ sealed interface PlayerStatus {
  * Finds the player a film is handed to, and whether a password may go to it ([choose]). The Z1000 Pro
  * plays with [KNOWN_ACTIVITY]; newer firmware may use another, unpublished app, looked for among the
  * firmware's video apps on a Zidoo only. Elsewhere only the known one is taken, never trusted ([Decision]).
- * Each choice asks Android's package manager, a few dozen calls to another process: never on the main thread.
+ * Each choice asks Android's package manager, a few dozen calls to another process: About and the tracks check
+ * ask off the main thread; playback's hand-off ([PlaybackManager.intentFor], the room already dark) and the
+ * trust sheet ([app.houselights.ui.settings.ZidooTrust]), both rare, still ask on it.
  */
 class ZidooPlayer(
     private val context: Context,
