@@ -9,7 +9,9 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -154,15 +156,22 @@ class FocusMemory(initial: String? = null) {
         if (groups[group.key] === group) groups -= group.key
     }
 
-    /** Restores focus once the screen is laid out, in [restoreFocus]'s order; true when something took it. */
-    suspend fun restore(fallback: FocusRequester?, reveal: suspend (key: String) -> Boolean = { false }): Boolean {
+    /**
+     * Restores focus once the screen is laid out, in [restoreFocus]'s order, [inPlace] naming what took the place of an
+     * element gone meanwhile; true when something took it.
+     */
+    suspend fun restore(
+        fallback: FocusRequester?,
+        reveal: suspend (key: String) -> Boolean = { false },
+        inPlace: (key: String) -> String? = { null },
+    ): Boolean {
         withFrameNanos { }
         val revealed: suspend (String) -> Boolean = { key -> reveal(key).also { if (it) withFrameNanos { } } }
         // Keep only the element left in view: one that refused focus must not pull the list away.
         var took: String? = null
         val focusing: (String) -> Boolean = { key -> focus(key).also { if (it) took = key } }
         arrived()
-        val restored = restoreFocus(last, focusing, revealed) { fallback?.tryRequestFocus() == true }
+        val restored = restoreFocus(last, focusing, revealed, inPlace) { fallback?.tryRequestFocus() == true }
         took?.takeIf { it == last }?.let { key -> keepInView(key) }
         return restored
     }
@@ -189,19 +198,22 @@ class FocusMemory(initial: String? = null) {
     }
 }
 
-/** Focus order: [key]'s element, again after [reveal], its groups nearest first, then [fallback]. */
+/**
+ * Focus order: [key]'s element, again after [reveal]; gone, the element [inPlace] says took its place, again after
+ * [reveal]; [key]'s groups nearest first, then [fallback].
+ */
 internal suspend fun restoreFocus(
     key: String?,
     focus: (String) -> Boolean,
     reveal: suspend (String) -> Boolean,
+    inPlace: (String) -> String? = { null },
     fallback: () -> Boolean,
 ): Boolean {
-    if (key != null) {
-        if (focus(key)) return true
-        if (reveal(key) && focus(key)) return true
-        if (FocusKey.groups(key).any(focus)) return true
-    }
-    return fallback()
+    if (key == null) return fallback()
+    suspend fun shown(element: String) = focus(element) || (reveal(element) && focus(element))
+    if (shown(key)) return true
+    if (inPlace(key)?.let { shown(it) } == true) return true
+    return FocusKey.groups(key).any(focus) || fallback()
 }
 
 /** A screen's focus memory, kept while the screen is in the back stack. */
@@ -315,18 +327,22 @@ internal class FocusKeyNode(key: String, private var memory: FocusMemory, handle
 
 /**
  * Restores focus once per arrival, as soon as [ready]: where [memory] says, else on [fallback]. [reveal]
- * scrolls a list to an unshown element and says whether it could. Later reloads never move focus.
+ * scrolls a list to an unshown element and says whether it could; [inPlace] names what took the place of an element
+ * gone while the screen was away (a title marked on its page out of a filtered wall), focused before its group. Later
+ * reloads never move focus.
  */
 @Composable
 fun RestoreFocus(
     memory: FocusMemory,
     fallback: FocusRequester?,
     ready: Boolean = true,
+    inPlace: (key: String) -> String? = { null },
     reveal: suspend (key: String) -> Boolean = { false },
 ) {
     var done by remember { mutableStateOf(false) }
     val currentFallback by rememberUpdatedState(fallback)
     val currentReveal by rememberUpdatedState(reveal)
+    val currentInPlace by rememberUpdatedState(inPlace)
     LaunchedEffect(memory) {
         withFrameNanos { }
         memory.arrived()
@@ -334,9 +350,79 @@ fun RestoreFocus(
     LaunchedEffect(ready) {
         if (ready && !done) {
             done = true
-            memory.restore(currentFallback, currentReveal)
+            memory.restore(currentFallback, currentReveal) { key -> currentInPlace(key) }
         }
     }
+}
+
+/** Focusable elements in order, by their keys ([focusKey]), in the group [group] names ([focusGroupKey]), if any. */
+@Immutable
+data class FocusPlaces(val group: String?, val keys: List<String>)
+
+/**
+ * Focus is never lost to an element leaving [places] (DESIGN.md, Focus), as a title marked out of a filtered wall, or
+ * gone as a reload comes: once the one holding focus is gone, focus goes to the one now at its place in its group, else
+ * its group's last; its group gone, the group after it, else the one before it; else [otherwise] says where. Read as the
+ * change composes, while the element leaving still holds focus, so focus moved elsewhere meanwhile stays there.
+ */
+@Composable
+fun FocusTakesPlace(places: List<FocusPlaces>, memory: FocusMemory, otherwise: suspend () -> Unit = {}) {
+    val laid = remember { LaidPlaces() }
+    val before = laid.places
+    val gone = remember(places) { leaving(before, places, memory::hasFocus) }
+    SideEffect { laid.places = places }
+    val currentOtherwise by rememberUpdatedState(otherwise)
+    LaunchedEffect(gone) {
+        val left = gone ?: return@LaunchedEffect
+        val taken = takesPlace(left, before, places)
+        if (taken == null || !memory.focusLaidOut { taken }) currentOtherwise()
+    }
+}
+
+/**
+ * Focuses what [key] names once it is laid out, a frame at a time, [LAID_OUT_FRAMES] at most, as a list lays out what
+ * it composes: an element come in place of another, or put back; false when it never took focus.
+ */
+suspend fun FocusMemory.focusLaidOut(key: () -> String?): Boolean {
+    repeat(LAID_OUT_FRAMES) {
+        withFrameNanos { }
+        if (key()?.let(this::focus) == true) return true
+    }
+    return false
+}
+
+/** Frames a list takes to lay out what it composes, before an element of it can take focus. */
+private const val LAID_OUT_FRAMES = 3
+
+/** The places last laid out, read as the next ones compose. */
+private class LaidPlaces {
+    var places: List<FocusPlaces> = emptyList()
+}
+
+/** Where focus left from: the [group] and the place in it ([index]) of the element leaving with it ([leaving]). */
+internal data class LeftPlace(val group: Int, val index: Int)
+
+/** The element of [before] gone from [now] that holds focus ([focused]); null when none of them does. */
+internal fun leaving(before: List<FocusPlaces>, now: List<FocusPlaces>, focused: (String) -> Boolean): LeftPlace? {
+    if (before.isEmpty() || before == now) return null
+    val kept = now.flatMapTo(HashSet()) { it.keys }
+    before.forEachIndexed { g, place ->
+        place.keys.forEachIndexed { i, key -> if (key !in kept && focused(key)) return LeftPlace(g, i) }
+    }
+    return null
+}
+
+/**
+ * What takes the place [left] in [before] once [now] shows: the element now at its place in its group, else the group's
+ * last; its group gone or emptied, the group after it, else the one before it (its key, else its first element).
+ */
+internal fun takesPlace(left: LeftPlace, before: List<FocusPlaces>, now: List<FocusPlaces>): String? {
+    val group = before[left.group]
+    val same = now.firstOrNull { it.group == group.group }?.keys.orEmpty()
+    if (same.isNotEmpty()) return same.getOrNull(left.index) ?: same.last()
+    val shown = now.filter { it.keys.isNotEmpty() }.associateBy { it.group }
+    val around = before.drop(left.group + 1) + before.take(left.group).reversed()
+    return around.firstNotNullOfOrNull { shown[it.group] }?.let { it.group ?: it.keys.first() }
 }
 
 /** The group child that last had focus, restored when the remote re-enters the group ([rememberedInGroup]). */
