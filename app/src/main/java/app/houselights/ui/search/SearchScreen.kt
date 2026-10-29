@@ -140,6 +140,12 @@ internal class ResultPosters(val actions: PosterActions?, val onOptions: (MediaI
 internal fun SearchResults.lit(id: String?): MediaItem? = id?.let { (titles + sagas).find { item -> item.id == it } }
 
 /**
+ * The result [lit] names in this row, as the row holds it now, its options having changed it while the light settles;
+ * null when it is in another row, or none.
+ */
+internal fun List<MediaItem>.named(lit: MediaItem?): MediaItem? = lit?.let { shown -> find { it.id == shown.id } }
+
+/**
  * The results in rows, each title and saga row naming the one [shown] under it, a message that nothing matches,
  * or why the search failed. A title's or a saga's options are [posters]'; a change of theirs [notSaved] is said under
  * its row.
@@ -198,7 +204,7 @@ internal fun Results(
                                 )
                             }
                         }
-                        val named = lit?.takeIf { it in results.titles }
+                        val named = results.titles.named(lit)
                         ResultName(named, Modifier.padding(start = HlSpace.safeH), notSaved = notSaved.saidFor(named?.id))
                     }
                 }
@@ -219,7 +225,7 @@ internal fun Results(
                                 )
                             }
                         }
-                        val named = lit?.takeIf { it in results.sagas }
+                        val named = results.sagas.named(lit)
                         ResultName(named, Modifier.padding(start = HlSpace.safeH), notSaved = notSaved.saidFor(named?.id))
                     }
                 }
