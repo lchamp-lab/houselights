@@ -30,6 +30,7 @@ import app.houselights.ui.design.components.FirstWallState
 import app.houselights.ui.library.Laid
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterChanges
+import app.houselights.ui.library.Undone
 import app.houselights.ui.library.favoredAs
 import app.houselights.ui.library.markedAs
 import app.houselights.ui.settings.HeldTitles
@@ -397,20 +398,27 @@ class HomeViewModel(
      * Shows [changed] at once in every row holding it, Reprendre letting go of a title no longer in progress, a row
      * emptied going; then [save]s it, the rows read again as the library is told it changed, so that what the source
      * places anew comes in its place (À suivre's next episode). Not saved, the rows are as they were, or read again when
-     * they changed meanwhile.
+     * they changed meanwhile, that change alone undone in them while they are read: another of the title still saving
+     * or saved keeps showing.
      */
-    private fun change(changed: MediaItem, save: (undo: () -> Unit) -> Unit) {
+    private fun change(changed: MediaItem, save: (undo: (Undone) -> Unit) -> Unit) {
         val before = load.value
         val after = before.copy(sections = before.sections.showing(changed), drawn = before.drawn.showing(changed))
         load.value = after
-        save { undo(before, after) }
+        save { undone -> undo(before, after, undone) }
     }
 
-    /** The rows as they were [before] a change not saved, while they are still those it showed ([after]); else read again. */
-    private fun undo(before: HomeLoad, after: HomeLoad) {
+    /**
+     * The rows as they were [before] a change not saved, while they are still those it showed ([after]); else read again,
+     * the rows shown meanwhile, and should the read fail. Either way, the change is [undone] in every row holding its
+     * title, which [before] may show with another change of it that was not saved either, its own undoing changing
+     * nothing the rows show.
+     */
+    private fun undo(before: HomeLoad, after: HomeLoad, undone: Undone) {
         if (load.value === after) {
-            load.value = before
+            load.value = before.undone(undone)
         } else {
+            load.update { it.undone(undone) }
             onLibraryChanged()
         }
     }
@@ -540,19 +548,28 @@ private fun traktFact(settings: AppSettings): TraktFact = when {
  * [this] showing [changed] in every row holding it: Reprendre lets go of a title no longer in progress, and a row it
  * empties goes; the others keep it in its place, its mark changed.
  */
-internal fun List<HomeSection>.showing(changed: MediaItem): List<HomeSection> = mapNotNull { section ->
-    if (section.items.none { it.id == changed.id }) return@mapNotNull section
+internal fun List<HomeSection>.showing(changed: MediaItem): List<HomeSection> = showing(changed.id) { changed }
+
+/** [this] showing title [id] as [shown] makes it of what each row holds of it, as [showing] a title changed does. */
+private fun List<HomeSection>.showing(id: String, shown: (MediaItem) -> MediaItem): List<HomeSection> = mapNotNull { section ->
+    val held = section.items.firstOrNull { it.id == id } ?: return@mapNotNull section
+    val changed = shown(held)
     val stays = section.type != SectionType.CONTINUE || (changed.user.positionMs > 0 && !changed.user.played)
     val items = if (stays) {
-        section.items.map { if (it.id == changed.id) changed else it }
+        section.items.map { if (it.id == id) changed else it }
     } else {
-        section.items.filterNot { it.id == changed.id }
+        section.items.filterNot { it.id == id }
     }
     section.copy(items = items).takeIf { items.isNotEmpty() }
 }
 
+/** [this] with [undone] in every row holding its title, as the source has it. */
+private fun HomeLoad.undone(undone: Undone): HomeLoad =
+    copy(sections = sections.showing(undone.id, undone::over), drawn = drawn.showing(undone.id, undone::over))
+
 /** [this], as a read answered them, showing the changes its cards' options asked that it may not know ([laid]). */
-private fun List<HomeSection>.under(laid: List<Laid>): List<HomeSection> = laid.fold(this) { rows, change -> rows.showing(change.item) }
+private fun List<HomeSection>.under(laid: List<Laid>): List<HomeSection> =
+    laid.fold(this) { rows, change -> rows.showing(change.item.id, change::over) }
 
 /** The first existing folder whose last scan failed, and why. */
 internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<Folder>): Pair<Folder, ScanError>? =

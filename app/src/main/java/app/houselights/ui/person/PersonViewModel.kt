@@ -13,6 +13,7 @@ import app.houselights.core.PersonPage
 import app.houselights.ui.library.Laid
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterChanges
+import app.houselights.ui.library.Undone
 import app.houselights.ui.library.favoredAs
 import app.houselights.ui.library.markedAs
 import app.houselights.ui.util.LatestJob
@@ -78,19 +79,22 @@ class PersonViewModel(
     /** Marks [item] watched, or not once it is, from its poster's options: its mark shows at once, the title staying. */
     fun mark(item: MediaItem) {
         val played = !item.user.played
-        change(item, item.markedAs(played)) { undo -> changes.mark(item, played, undo) }
+        change(item.markedAs(played)) { undo -> changes.mark(item, played, undo) }
     }
 
     /** Makes [item] a favourite, or not once it is, from its poster's options, shown at once. */
     fun favorite(item: MediaItem) {
         val favorite = !item.user.favorite
-        change(item, item.favoredAs(favorite)) { undo -> changes.favorite(item, favorite, undo) }
+        change(item.favoredAs(favorite)) { undo -> changes.favorite(item, favorite, undo) }
     }
 
-    /** Shows [item] [changed] at once, in its place, as the page filters nothing; then [save]s it, [item] again if not. */
-    private fun change(item: MediaItem, changed: MediaItem, save: (undo: () -> Unit) -> Unit) {
-        _state.update { it.showing(changed) }
-        save { _state.update { it.showing(item) } }
+    /**
+     * Shows [changed] at once, in its title's place, as the page filters nothing; then [save]s it, undone if not, that
+     * change alone: another of the title still saving or saved keeps showing.
+     */
+    private fun change(changed: MediaItem, save: (undo: (Undone) -> Unit) -> Unit) {
+        _state.update { it.showing(changed.id) { changed } }
+        save { undone -> _state.update { it.showing(undone.id, undone::over) } }
     }
 
     companion object {
@@ -102,12 +106,13 @@ class PersonViewModel(
     }
 }
 
-/** The page showing [item] in its title's place, as it now stands. */
-private fun LoadState<PersonPage>.showing(item: MediaItem): LoadState<PersonPage> = map { it.showing(item) }
+/** The page showing title [id] as [shown] makes it of what it shows. */
+private fun LoadState<PersonPage>.showing(id: String, shown: (MediaItem) -> MediaItem): LoadState<PersonPage> =
+    map { it.showing(id, shown) }
 
-/** [this] showing [item] in its title's place. */
-private fun PersonPage.showing(item: MediaItem): PersonPage =
-    copy(titles = titles.map { title -> if (title.item.id == item.id) title.copy(item = item) else title })
+/** [this] showing title [id] in its place as [shown] makes it of what it shows. */
+private fun PersonPage.showing(id: String, shown: (MediaItem) -> MediaItem): PersonPage =
+    copy(titles = titles.map { title -> if (title.item.id == id) title.copy(item = shown(title.item)) else title })
 
 /** [this], as a read answered it, showing the changes its posters' options asked that it may not know ([laid]). */
-private fun PersonPage.under(laid: List<Laid>): PersonPage = laid.fold(this) { page, change -> page.showing(change.item) }
+private fun PersonPage.under(laid: List<Laid>): PersonPage = laid.fold(this) { page, change -> page.showing(change.item.id, change::over) }

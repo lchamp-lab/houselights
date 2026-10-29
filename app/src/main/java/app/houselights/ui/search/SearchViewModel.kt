@@ -14,6 +14,7 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.SearchResults
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterChanges
+import app.houselights.ui.library.Undone
 import app.houselights.ui.library.favoredAs
 import app.houselights.ui.library.markedAs
 import app.houselights.ui.util.LoadState
@@ -111,13 +112,14 @@ class SearchViewModel(
     }
 
     /**
-     * Shows [changed] at once over the results read; then [save]s it, the result as found again if not. Read again, as
-     * when the query is typed anew, the results are what the source says.
+     * Shows [changed] at once over the results read; then [save]s it, undone if not, that change alone: another of the
+     * result still saving or saved keeps showing. Read again, as when the query is typed anew, the results are what the
+     * source says.
      */
-    private fun change(changed: MediaItem, save: (undo: () -> Unit) -> Unit) {
+    private fun change(changed: MediaItem, save: (undo: (Undone) -> Unit) -> Unit) {
         val shown = read ?: return
         marked.update { it.with(shown, changed) }
-        save { marked.update { it.without(shown, changed.id) } }
+        save { undone -> marked.update { it.undone(shown, undone) } }
     }
 
     /** Runs the search that failed again, its failure shown meanwhile. */
@@ -159,8 +161,11 @@ private class Changed(val read: Found? = null, val items: Map<String, MediaItem>
     /** [changed] shown over [read], with those changed before over it. */
     fun with(read: Found, changed: MediaItem) = Changed(read, (if (read === this.read) items else emptyMap()) + (changed.id to changed))
 
-    /** [id] shown as [read] found it again. */
-    fun without(read: Found, id: String) = if (read === this.read) Changed(read, items - id) else this
+    /** [undone]'s result shown over [read] with that change undone, as the source has it. */
+    fun undone(read: Found, undone: Undone): Changed {
+        val shown = items[undone.id]
+        return if (read !== this.read || shown == null) this else Changed(read, items + (undone.id to undone.over(shown)))
+    }
 
     /** [found] with what was changed over it, when it is the read they were changed over. */
     fun over(found: Found): Found = if (found !== read || items.isEmpty()) found else found.copy(results = found.results.map { shown(it) })
