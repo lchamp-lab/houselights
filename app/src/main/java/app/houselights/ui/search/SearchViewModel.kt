@@ -111,8 +111,8 @@ class SearchViewModel(
     }
 
     /**
-     * Shows [changed] at once over the results read; then [save]s it, the result as found again if not. Read again (the
-     * query typed anew, or the screen back after a while away), the results are what the source says.
+     * Shows [changed] at once over the results read; then [save]s it, the result as found again if not. Read again, as
+     * when the query is typed anew, the results are what the source says.
      */
     private fun change(changed: MediaItem, save: (undo: () -> Unit) -> Unit) {
         val shown = read ?: return

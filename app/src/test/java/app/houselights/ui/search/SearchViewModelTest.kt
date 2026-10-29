@@ -152,32 +152,27 @@ class SearchViewModelTest {
     }
 
     /**
-     * Read again, as when its screen comes back after a while away, a search shows what the source says then: what a
-     * result's options changed over the read before is no longer laid over it, the title marked again on its page.
+     * Read again, its query typed anew, a search shows what the source says then: what a result's options changed over
+     * the read before is no longer laid over it, the title marked again on its page meanwhile.
      */
     @Test
     fun aSearchReadAgainShowsWhatTheSourceSaysThen() = runTest {
         val vm = SearchViewModel({ provider }, work = this)
-        val shown = backgroundScope.launch { vm.found.collect {} }
+        backgroundScope.launch { vm.found.collect {} }
         "AME".forEach(vm::type)
         advanceUntilIdle()
         vm.mark(found(vm).single())
         advanceUntilIdle()
         assertTrue(found(vm).single().user.played)
 
-        // Its page, opened from it, marks it unwatched again, the search stopped meanwhile; back, it is read again.
-        shown.cancel()
-        advanceTimeBy(AWAY_MS)
-        backgroundScope.launch { vm.found.collect {} }
+        // Its page marks it unwatched again; a letter typed, then erased, the same query is read again.
+        vm.type('L')
         advanceUntilIdle()
-        assertEquals(listOf("search AME", "search AME"), catalog.calls)
+        vm.delete()
+        advanceUntilIdle()
+        assertEquals(listOf("search AME", "search AMEL", "search AME"), catalog.calls)
         assertFalse(found(vm).single().user.played)
     }
 
     private fun found(vm: SearchViewModel) = checkNotNull(vm.found.value?.results?.valueOrNull).titles
-
-    private companion object {
-        /** Away longer than the search keeps reading for a screen gone. */
-        const val AWAY_MS = 6_000L
-    }
 }
