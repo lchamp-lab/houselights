@@ -86,6 +86,7 @@ sealed interface PlayerStatus {
  * Finds the player a film is handed to, and whether a password may go to it ([choose]). The Z1000 Pro
  * plays with [KNOWN_ACTIVITY]; newer firmware may use another, unpublished app, looked for among the
  * firmware's video apps on a Zidoo only. Elsewhere only the known one is taken, never trusted ([Decision]).
+ * Each choice asks Android's package manager, a few dozen calls to another process: never on the main thread.
  */
 class ZidooPlayer(
     private val context: Context,
@@ -98,6 +99,12 @@ class ZidooPlayer(
      * build where it is pinned with it ([KEY_BUILD]).
      */
     private val trusted = context.getSharedPreferences("player", Context.MODE_PRIVATE)
+
+    /**
+     * Zidoo's system apps, read once: Android lists every app to find them, and only a firmware update, which restarts
+     * the app, changes them. The players are read at each choice.
+     */
+    private val zidooApps: List<String> by lazy { systemZidooApps() }
 
     /**
      * An app that opens a video; [streams] when it opens shares or streams, not only files (a poster wall); [updated], a
@@ -364,15 +371,14 @@ class ZidooPlayer(
     /** The build an update installed: its versionCode, and when Android installed it, which an update cannot choose. */
     private fun buildOf(info: PackageInfo): String = "${info.longVersionCode}@${info.lastUpdateTime}"
 
+    private fun device(): Device = Device(identity(), zidooApps)
+
     // From Android 11, only the apps visible to this one (see <queries> in the manifest): never every app.
     @SuppressLint("QueryPermissionsNeeded")
-    private fun device(): Device {
-        val zidooApps = packages.getInstalledApplications(0)
-            .filter { it.isSystem() && it.packageName.startsWith(ZIDOO_PREFIX) }
-            .map { it.packageName }
-            .sorted()
-        return Device(identity(), zidooApps)
-    }
+    private fun systemZidooApps(): List<String> = packages.getInstalledApplications(0)
+        .filter { it.isSystem() && it.packageName.startsWith(ZIDOO_PREFIX) }
+        .map { it.packageName }
+        .sorted()
 
     private fun known(device: Device): Candidate? {
         val info = packages.resolveActivity(Intent().setComponent(ComponentName(KNOWN_PACKAGE, KNOWN_ACTIVITY)), 0)?.activityInfo

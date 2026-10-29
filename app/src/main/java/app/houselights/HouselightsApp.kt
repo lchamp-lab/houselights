@@ -87,6 +87,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -94,6 +95,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -244,18 +246,29 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         playersOwn = { player.playersOwnTracks(it) },
     )
 
-    /** The Zidoo player takes the tracks asked of it ([ZidooPlayer.takesTracks]); another ignores them. Debug builds show them anywhere. */
-    val asksTracks: Boolean by lazy { BuildConfig.DEBUG || ZidooPlayer.takesTracks(ZidooPlayer(app).choose().player?.component) }
+    /** The player films are handed to, one for the app, so that what it reads of the device once is read once. */
+    val players = ZidooPlayer(app)
+
+    /** Whether the Zidoo player takes the tracks asked of it, asked from the start off the main thread ([asksTracks]). */
+    private val tracksAsked = scope.async(Dispatchers.IO) {
+        BuildConfig.DEBUG || ZidooPlayer.takesTracks(players.choose().player?.component)
+    }
+
+    /**
+     * The Zidoo player takes the tracks asked of it ([ZidooPlayer.takesTracks]); another ignores them. Debug builds show
+     * them anywhere. False until known.
+     */
+    val asksTracks: StateFlow<Boolean> = flow { emit(tracksAsked.await()) }.stateIn(scope, SharingStarted.Eagerly, false)
 
     /** The tracks Lire would ask of the player for [item], from the file it plays (its chosen copy); null when unknown. */
     suspend fun tracksOf(item: MediaItem): TrackPlan? {
-        if (!asksTracks) return null
+        if (!tracksAsked.await()) return null
         val s = settings.state.value
         return provider.playedTracks(item, PlaybackOptions(s.pathMappings, s.forceHttp))?.let { tracks.table(it) }
     }
 
     /** Launches the external player for a title and follows it while it plays. */
-    val player: PlaybackManager = PlaybackManager(app, scope, remember = tracks::remember) { resumeKey ->
+    val player: PlaybackManager = PlaybackManager(app, scope, players = players, remember = tracks::remember) { resumeKey ->
         // After a process restart, the source is known only once the settings are loaded.
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)

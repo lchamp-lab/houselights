@@ -125,7 +125,7 @@ internal class SettingsViewModel(
     /** The language chosen for the interface ([InterfaceLanguage.chosen]); null follows the device. */
     val interfaceLanguage: StateFlow<String?> = MutableStateFlow(null),
     /** A Zidoo player takes the tracks asked of it: the tracks settings apply ([AppContainer.asksTracks]). */
-    val asksTracks: Boolean = false,
+    val asksTracks: StateFlow<Boolean> = MutableStateFlow(false),
     /** How many films and shows are to identify ([LocalLibrary.toIdentifyCount]). */
     toIdentifyCount: Flow<Int> = library.toIdentifyCount,
     /** The videos the shows folders hold that the library leaves out ([LocalLibrary.ignored]). */
