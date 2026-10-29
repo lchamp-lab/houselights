@@ -110,6 +110,33 @@ jobs:
           name: reports-${{ matrix.id }}
           path: app/build/reports/
 
+  # TEMPORARY (reverted before review ends): Room exports schema 22 afresh, and it is diffed with the one committed.
+  schema:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+      - name: Room exports schema 22
+        run: |
+          dir=app/schemas/app.houselights.providers.local.LibraryDatabase
+          mv "$dir/22.json" "$RUNNER_TEMP/22.hand.json"
+          ./gradlew --no-daemon :app:kspDebugKotlin
+          find app -name '*.json' -path '*LibraryDatabase*' -newer "$RUNNER_TEMP/22.hand.json" -print
+          git status --short app/schemas
+          ok=1
+          for f in $(find app -name 22.json -path '*LibraryDatabase*'); do
+            echo "== $f"
+            if diff -u "$RUNNER_TEMP/22.hand.json" "$f"; then echo "SCHEMA 22 IDENTICAL: $f"; else ok=0; fi
+          done
+          test -n "$(find app -name 22.json -path '*LibraryDatabase*')"
+          [ "$ok" = 1 ]
+
   # The check a merge to main waits for, under the name it has always had: it passes once every part has, and fails
   # once one has failed, timed out or was cancelled (a job skipped would count as passed).
   check:
