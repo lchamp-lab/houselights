@@ -21,6 +21,7 @@ import app.houselights.providers.local.toFolder
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.FirstScanDefaults
 import app.houselights.ui.testing.FakeCatalog
+import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
@@ -672,5 +673,40 @@ class HomeViewModelTest {
         advanceUntilIdle()
         assertEquals("read again for another first pass", 1, reading)
         assertEquals(listOf("Dune", "Heat"), vm.firstScan.value.titles.orEmpty().map { it.title })
+    }
+
+    /**
+     * In « À regarder », a read of the rows begun before a title is marked from its card, that lands after its save with
+     * the rows as they stood, never brings it back to Reprendre; a read begun after its save shows the rows as the source
+     * then says them, the title in progress again as it was marked again elsewhere.
+     */
+    @Test
+    fun aReadBegunBeforeAMarkNeverBringsItBackToReprendre() = runTest {
+        val heat = film("heat").copy(user = UserState(positionMs = 60_000))
+        val drive = film("drive").copy(user = UserState(positionMs = 60_000))
+        provider.home = listOf(
+            HomeSection(SectionType.CONTINUE, listOf(heat, drive), landscape = true),
+            HomeSection(SectionType.LATEST, listOf(heat), landscape = false),
+        )
+        val vm = HomeViewModel({ provider }, scan, folders.filterNotNull(), settings, scanAll = {}, work = this, events = FakeEvents())
+        backgroundScope.launch { vm.state.collect {} }
+        advanceUntilIdle()
+        fun row(type: SectionType) = (vm.content() as HomeContent.Rows).sections.single { it.type == type }.items
+
+        val reread = provider.gate("home")
+        vm.onLibraryChanged()
+        runCurrent()
+        vm.mark(heat)
+        advanceUntilIdle()
+        assertTrue("played heat true" in provider.calls)
+
+        reread.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf("drive"), row(SectionType.CONTINUE).map { it.id })
+        assertTrue("marked where it stays", row(SectionType.LATEST).single().user.played)
+
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(listOf("heat", "drive"), row(SectionType.CONTINUE).map { it.id })
     }
 }

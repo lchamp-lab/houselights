@@ -15,6 +15,7 @@ import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.valueOrNull
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -128,6 +129,31 @@ class PersonViewModelTest {
         advanceUntilIdle()
         assertEquals(samourai, titles(vm)[1])
         assertEquals(NotSaved(samourai.id, UiError.OFFLINE), vm.notSaved.value)
+    }
+
+    /**
+     * A read begun before a mark that lands after its save, with the page as it stood, shows the title marked; a read
+     * begun after the save shows it as the source then says, marked again elsewhere.
+     */
+    @Test
+    fun aReadBegunBeforeAMarkShowsItMarkedUntilAReadAfterItsSave() = runTest {
+        val vm = PersonViewModel("tmdb:1", { provider }, events = FakeEvents(), work = this)
+        advanceUntilIdle()
+        val reread = catalog.gate("person tmdb:1")
+        vm.load()
+        runCurrent()
+        val samourai = titles(vm)[1]
+        vm.mark(samourai)
+        advanceUntilIdle()
+        assertTrue("played ${samourai.id} true" in provider.calls)
+
+        reread.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf(false, true, false), titles(vm).map { it.user.played })
+
+        vm.load()
+        advanceUntilIdle()
+        assertEquals(listOf(false, false, false), titles(vm).map { it.user.played })
     }
 
     private fun titles(vm: PersonViewModel) = checkNotNull(vm.state.value.valueOrNull).titles.map { it.item }
