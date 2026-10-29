@@ -269,9 +269,12 @@ class LibraryScanner(
 
     private fun client(): TmdbClient? = tmdb()
 
-    /** TMDB's failure state persists until a retry, an answer for a new file, or a key change ([tmdbKeyChanged]). */
+    /**
+     * TMDB's failure state persists until a retry, an answer for a new file, or a key change ([tmdbKeyChanged]); a pass
+     * that saw TMDB fail, then answer again, ends without it ([TmdbPass.endIssue]).
+     */
     private fun tmdbDownAfter(tmdb: TmdbPass, down: TmdbDown?, askedUnmatched: Boolean): TmdbDown? =
-        tmdb.issue?.let { TmdbDown(it, tmdb.client, elapsed()) } ?: down.takeUnless { askedUnmatched || tmdb.answered }
+        tmdb.endIssue?.let { TmdbDown(it, tmdb.client, elapsed()) } ?: down.takeUnless { askedUnmatched || tmdb.answered }
 
     private class TmdbDown(val cause: Throwable, val client: TmdbClient?, val at: Long)
 

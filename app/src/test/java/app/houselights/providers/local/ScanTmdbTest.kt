@@ -175,6 +175,24 @@ class ScanTmdbTest {
         assertEquals("no longer waits the hour", 1, bench.item(films, "Film 0 (2020).mkv").tmdbId)
     }
 
+    /** One failure in a pass that TMDB then answers to the end: TMDB is back, so nothing is said and nothing waits the hour. */
+    @Test
+    fun aFailureTmdbAnswersAfterIsNotSaidOnceThePassIsOver() = runTest {
+        val films = bench.folder("Films")
+        repeat(3) {
+            described("Film $it (2020)", "Mon film $it")
+            tmdb.movie(it + 1, "Mon film $it", 2020)
+        }
+        tmdb.nextStatuses += 500
+        bench.scan()
+        suspend fun matched() = (0 until 3).map { bench.item(films, "Film $it (2020).mkv").tmdbId != null }
+        assertEquals("the film TMDB failed for is left", 2, matched().count { it })
+        assertNull("TMDB answered after", issue())
+
+        bench.autoScan()
+        assertEquals("asked again within the hour", listOf(true, true, true), matched())
+    }
+
     @Test
     fun aNewKeyIsAskedAtOnceAndWhatTmdbSaidOfTheOldOneIsForgotten() = runTest {
         val films = bench.folder("Films")
