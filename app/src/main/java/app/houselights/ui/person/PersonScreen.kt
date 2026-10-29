@@ -141,9 +141,11 @@ internal fun PersonBands(
         if (index >= 0 && !small) grid.scrollToItem(index)
         index >= 0
     }
-    // A change not saved puts its title back as it was: focus goes back to its poster, the page's posters being all it has.
+    // A change not saved puts its title back as it was: focus goes back to its poster, the page's posters being all it has,
+    // unless the page was left before it was said.
+    val arrivedWith = remember { notSaved }
     LaunchedEffect(notSaved) {
-        val id = notSaved?.id ?: return@LaunchedEffect
+        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
         memory.focusLaidOut { FocusKey.item(id) }
     }
     // A poster's options: Menu or a long OK on it.

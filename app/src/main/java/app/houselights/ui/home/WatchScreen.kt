@@ -135,10 +135,12 @@ internal fun WatchBands(
         sections.map { section -> FocusPlaces(FocusKey.section(section.key), section.items.map { cardKey(section, it) }) }
     }
     FocusTakesPlace(places, memory)
-    // A change not saved puts its title back: focus goes back to its card, the page's cards being all it has.
+    // A change not saved puts its title back: focus goes back to its card, the page's cards being all it has, unless the
+    // page was left before it was said.
     val shownSections by rememberUpdatedState(sections)
+    val arrivedWith = remember { notSaved }
     LaunchedEffect(notSaved) {
-        val id = notSaved?.id ?: return@LaunchedEffect
+        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
         memory.focusLaidOut {
             shownSections.firstNotNullOfOrNull { section -> section.items.find { it.id == id }?.let { cardKey(section, it) } }
         }

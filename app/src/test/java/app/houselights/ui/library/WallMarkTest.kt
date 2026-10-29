@@ -22,6 +22,7 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.UserState
 import app.houselights.core.WatchStatus
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.components.FAVORITE_HEART
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.testing.FakeProvider
@@ -186,6 +187,41 @@ class WallMarkTest {
         said.assertDoesNotExist()
     }
 
+    /** A mark not saved while a page shows over the wall: back on it, focus is where it was left, not on that title. */
+    @Test
+    fun aMarkNotSavedWhileAwayLeavesFocusWhereItWasLeft() {
+        provider.fail = { if (it.startsWith("played")) ConnectException("Server away") else null }
+        val asked = provider.gate("played $DRIVE true")
+        var away by mutableStateOf(false)
+        val vm = LibraryViewModel({ provider }, films, opensOn = LibraryFilter(status = WatchStatus.UNWATCHED), work = work)
+        compose.setTvContent {
+            val screens = rememberSaveableStateHolder()
+            if (away) {
+                HlButton(
+                    "Lire",
+                    onClick = {},
+                )
+            } else {
+                screens.SaveableStateProvider("wall") { Wall(vm, films, "Films", onOpenItem = {}) }
+            }
+        }
+        compose.waitForIdle()
+        compose.press(Key.DirectionRight, times = 2)
+        options()
+        poster(NUIT).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        poster(PARAPLUIES).assertIsFocused()
+
+        away = true
+        compose.waitForIdle()
+        asked.complete(Unit)
+        compose.waitForIdle()
+        away = false
+        compose.waitForIdle()
+        poster(DRIVE).assertExists()
+        poster(PARAPLUIES).assertIsFocused()
+    }
+
     /** Marked on its page, then Back: the wall reads again, focus going to the poster that took its place. */
     @Test
     fun backFromItsPageMarkedFocusesTheOneInItsPlace() {
@@ -257,6 +293,8 @@ class WallMarkTest {
         options(row = 1)
         assertTrue("favorite $ALIEN true" in provider.calls)
         poster(ALIEN).assertIsFocused()
+        // The line names the title with focus once focus settles on it as it now stands.
+        compose.mainClock.advanceTimeBy(HlMotion.SETTLE * 2)
         compose.onAllNodes(hasTestTag(FAVORITE_HEART), useUnmergedTree = true).assertCountEquals(1)
         assertEquals(TITLES.size, compose.onAllNodes(isAPoster()).fetchSemanticsNodes().size)
     }
@@ -266,11 +304,12 @@ class WallMarkTest {
         const val CERCLE = "Le Cercle rouge"
         const val DRIVE = "Drive My Car"
         const val NUIT = "La Nuit américaine"
+        const val PARAPLUIES = "Les Parapluies de Cherbourg"
         const val PLAYTIME = "PlayTime"
         const val SAMOURAI = "Le Samouraï"
         const val HOUR = 3_600_000L
 
         /** The wall's films by title, as it sorts them, the article aside. */
-        val TITLES = listOf(ALIEN, CERCLE, DRIVE, NUIT, "Les Parapluies de Cherbourg", "Paris, Texas", PLAYTIME, SAMOURAI)
+        val TITLES = listOf(ALIEN, CERCLE, DRIVE, NUIT, PARAPLUIES, "Paris, Texas", PLAYTIME, SAMOURAI)
     }
 }

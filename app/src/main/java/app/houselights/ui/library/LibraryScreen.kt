@@ -188,10 +188,12 @@ internal fun Wall(
     var options by remember { mutableStateOf<MediaItem?>(null) }
     val actions = remember(vm, onEditArtwork, onIdentify) { vm.changes.actions(vm::mark, vm::favorite, onEditArtwork, onIdentify) }
     val posters = remember(vm, actions) { WallPosters(actions, onOptions = { options = it }, onFocusTitle = vm.changes::focusedOn) }
-    // A change not saved puts its title back in its place: focus goes back to it, unless it went up to the menus meanwhile.
+    // A change not saved puts its title back in its place: focus goes back to it, unless it went up to the menus meanwhile,
+    // or the wall was left before it was said.
     var inMenus by remember { mutableStateOf(false) }
+    val arrivedWith = remember { notSaved }
     LaunchedEffect(notSaved) {
-        val id = notSaved?.id ?: return@LaunchedEffect
+        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
         if (!inMenus) memory.focusLaidOut { FocusKey.item(id) }
     }
     // The sagas alone are named as such, on the films' wall.
