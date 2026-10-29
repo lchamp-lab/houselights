@@ -19,7 +19,6 @@ import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -92,8 +91,8 @@ class ArtworkLayoutTest {
 
     private data class Shown(val kind: ArtworkKind, val step: Float)
 
-    /** A section's name's room at the text size in use. */
-    private lateinit var nameRoom: Dp
+    /** A section's name's room at the text size in use, once a sheet shows. */
+    private var nameRoom = HlSpace.none
 
     @Before
     fun serve() {

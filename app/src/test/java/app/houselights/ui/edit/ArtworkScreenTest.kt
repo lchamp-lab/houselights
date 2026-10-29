@@ -247,8 +247,8 @@ class ArtworkScreenTest {
         show(ArtworkKind.BACKDROP)
         compose.onNode(isFocused()).assertIsSelected()
         press(Key.DirectionDown)
-        // Those without text first, for a backdrop.
-        val shown = none.first()
+        // Those without text first, for a backdrop, in the column of the one in use.
+        val shown = none[1]
         compose.waitUntil(WAIT_MS) { asked.any { it.startsWith("test://${shown.value}?") && !it.endsWith("w=$BACKDROP_CELL") } }
     }
 
