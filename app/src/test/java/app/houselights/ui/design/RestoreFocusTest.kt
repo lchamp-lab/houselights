@@ -125,6 +125,22 @@ class RestoreFocusTest {
         compose.onNodeWithTag("t5").assertIsFocused()
     }
 
+    /** Titles leaving one after the other from the same place: each time, the one now there takes focus. */
+    @Test
+    fun titlesLeavingOneAfterAnotherFromOnePlaceEachLeaveFocusToTheNext() {
+        var titles by mutableStateOf((1..6).map { "t$it" })
+        compose.setTvContent { Titles(titles) }
+        compose.press(Key.DirectionDown, times = 2)
+        compose.onNodeWithTag("t3").assertIsFocused()
+
+        titles = titles - "t3"
+        compose.onNodeWithTag("t4").assertIsFocused()
+        titles = titles - "t4"
+        compose.onNodeWithTag("t5").assertIsFocused()
+        titles = titles - "t5"
+        compose.onNodeWithTag("t6").assertIsFocused()
+    }
+
     /** A title gone while the screen was away: coming back, focus is on the one now in its place. */
     @Test
     fun aTitleGoneWhileAwayLeavesFocusToTheOneInItsPlace() {
@@ -152,9 +168,9 @@ class RestoreFocusTest {
     fun aRowEmptiedLeavesFocusToTheRowAfterItElseBefore() {
         val before = listOf(FocusPlaces("a", listOf("a1")), FocusPlaces("b", listOf("b1", "b2")), FocusPlaces("c", listOf("c1")))
         val left = leaving(before, before.filter { it.group != "b" }) { it == "b2" }
-        assertEquals(LeftPlace(1, 1), left)
+        assertEquals(LeftPlace(1, 1, "b2"), left)
         assertEquals("c", takesPlace(checkNotNull(left), before, before.filter { it.group != "b" }))
-        assertEquals("the row just over it", "b", takesPlace(LeftPlace(2, 0), before, before.take(2)))
-        assertEquals("b2", takesPlace(LeftPlace(1, 0), before, listOf(before[0], FocusPlaces("b", listOf("b2")), before[2])))
+        assertEquals("the row just over it", "b", takesPlace(LeftPlace(2, 0, "c1"), before, before.take(2)))
+        assertEquals("b2", takesPlace(LeftPlace(1, 0, "b1"), before, listOf(before[0], FocusPlaces("b", listOf("b2")), before[2])))
     }
 }

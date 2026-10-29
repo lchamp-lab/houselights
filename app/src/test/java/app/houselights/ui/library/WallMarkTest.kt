@@ -112,6 +112,20 @@ class WallMarkTest {
         poster(NUIT).assertIsFocused()
     }
 
+    /** The poster that took the place of one marked, marked in turn, leaves focus to the next one taking that place. */
+    @Test
+    fun postersMarkedOneAfterAnotherEachLeaveFocusOnTheOneInTheirPlace() {
+        open()
+        compose.press(Key.DirectionRight, times = 2)
+        options()
+        poster(NUIT).assertIsFocused()
+        options()
+        assertTrue("played $NUIT true" in provider.calls)
+        poster(NUIT).assertDoesNotExist()
+        compose.onNodeWithText(count(6)).assertExists()
+        poster(PARAPLUIES).assertIsFocused()
+    }
+
     /** The last poster marked, focus goes to the one before it. */
     @Test
     fun theLastPosterMarkedLeavesFocusOnTheOneBefore() {

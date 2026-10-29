@@ -399,15 +399,18 @@ private class LaidPlaces {
     var places: List<FocusPlaces> = emptyList()
 }
 
-/** Where focus left from: the [group] and the place in it ([index]) of the element leaving with it ([leaving]). */
-internal data class LeftPlace(val group: Int, val index: Int)
+/**
+ * Where focus left from: the [group] and the place in it ([index]) of the element leaving with it ([leaving]), named by
+ * its [key], so that the next one leaving from the same place, which took focus there, is another leaving.
+ */
+internal data class LeftPlace(val group: Int, val index: Int, val key: String)
 
 /** The element of [before] gone from [now] that holds focus ([focused]); null when none of them does. */
 internal fun leaving(before: List<FocusPlaces>, now: List<FocusPlaces>, focused: (String) -> Boolean): LeftPlace? {
     if (before.isEmpty() || before == now) return null
     val kept = now.flatMapTo(HashSet()) { it.keys }
     before.forEachIndexed { g, place ->
-        place.keys.forEachIndexed { i, key -> if (key !in kept && focused(key)) return LeftPlace(g, i) }
+        place.keys.forEachIndexed { i, key -> if (key !in kept && focused(key)) return LeftPlace(g, i, key) }
     }
     return null
 }
