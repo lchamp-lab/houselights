@@ -59,11 +59,12 @@ internal class PosterActions(
 }
 
 /**
- * Whether Modifier is offered from [item]'s poster, its source keeping its pictures: a film's and a show's. A saga's
- * comes with its own pictures, its page's Modifier (#48): here is where it joins them, its sheet having its mark alone
- * until then, as a Jellyfin box set's keeps, whose source has no editor.
+ * Whether Modifier is offered from [item]'s poster, where its source keeps its pictures ([PosterActions.canEdit]): a
+ * film's, a show's, and a saga's, its poster and its backdrop (#48); a Jellyfin box set's sheet keeps its mark alone,
+ * its source having no editor.
  */
-internal fun editsFromPoster(item: MediaItem): Boolean = item.kind == MediaKind.MOVIE || item.kind == MediaKind.SERIES
+internal fun editsFromPoster(item: MediaItem): Boolean =
+    item.kind == MediaKind.MOVIE || item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION
 
 /** The actions of the posters of a screen whose changes [changes] saves, [onMark] and [onFavorite] showing them at once. */
 internal fun PosterChanges.actions(
@@ -88,9 +89,10 @@ internal fun PosterChanges.actions(
  * A poster's options, which Menu or a long OK opens on [item] (#47): what makes sense without opening its page, in a
  * side sheet titled with its name, its facts saying where it stands (a film started, what is left; a show, its episodes
  * not watched; a saga, its films watched). Its mark first and focused, a show's whole, a saga's with its films, in their
- * page's words, watched or not as it stands; then a film's or a show's favourite; then Modifier, the page's own sheet,
- * opened as this one closes, a sheet never opening over another. Each row closes the sheet, then acts, with no
- * question; Back closes it, doing nothing. No tracks, no facts of its files, no Lire: OK on the poster opens its page.
+ * page's words, watched or not as it stands; then a film's or a show's favourite; then Modifier, the page's own sheet
+ * (a saga's, its poster and its backdrop), opened as this one closes, a sheet never opening over another. Each row
+ * closes the sheet, then acts, with no question; Back closes it, doing nothing. No tracks, no facts of its files, no
+ * Lire: OK on the poster opens its page.
  */
 @Composable
 internal fun PosterOptions(item: MediaItem?, actions: PosterActions, onDismiss: () -> Unit) {
@@ -122,7 +124,8 @@ private enum class EditSheet { NONE, EDIT, ORDER }
 /**
  * Modifier on [item] from its poster, the title page's own sheet ([EditMenu]): its images open their choice, Identifier
  * its search, and for a show TMDB numbers more than one way, Ordre des épisodes, which closes it, then opens the choice;
- * composed anew at each opening, so the orders it says are read for this title, as they stand now.
+ * composed anew at each opening, so the orders it says are read for this title, as they stand now. A saga's has its
+ * poster and its backdrop alone, no Identifier: it is named by its films.
  */
 @Composable
 private fun PosterEdit(item: MediaItem, shown: EditSheet, onShow: (EditSheet) -> Unit, actions: PosterActions) {
@@ -140,7 +143,7 @@ private fun PosterEdit(item: MediaItem, shown: EditSheet, onShow: (EditSheet) ->
             onIdentify = {
                 onShow(EditSheet.NONE)
                 actions.onIdentify(item.id)
-            },
+            }.takeIf { item.kind != MediaKind.COLLECTION },
             episodeOrder = orders?.let { orderInUse(it) },
             onEpisodeOrder = { onShow(EditSheet.ORDER) }.takeIf { orders != null },
         )

@@ -1,6 +1,7 @@
 package app.houselights.ui.edit
 
 import app.houselights.R
+import app.houselights.core.ArtworkNote
 import app.houselights.ui.util.UiError
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -12,5 +13,12 @@ class ArtworkNoteTest {
         assertEquals(R.string.error_certificate, onlineNote(UiError.CERTIFICATE))
         assertEquals(R.string.error_tmdb_key_refused, onlineNote(UiError.TMDB_KEY_REFUSED))
         assertEquals(R.string.artwork_offline, onlineNote(UiError.TMDB_OFFLINE))
+    }
+
+    /** A saga TMDB knows is never to identify: out of reach, its choice says the connection alone; its key, as a film's (#48). */
+    @Test
+    fun aSagaOutOfReachSaysTheConnectionAlone() {
+        assertEquals(R.string.artwork_offline_saga, onlineNote(UiError.TMDB_OFFLINE, ArtworkNote.SAGA))
+        assertEquals(R.string.error_tmdb_key_refused, onlineNote(UiError.TMDB_KEY_REFUSED, ArtworkNote.SAGA))
     }
 }

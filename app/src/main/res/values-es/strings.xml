@@ -534,6 +534,8 @@
     <string name="identify_menu_desc">Asociar con otro título de TMDB</string>
     <string name="artwork_offline">Las imágenes en línea no están disponibles: identifique primero este título o compruebe la conexión.</string>
     <string name="artwork_saga_films">Sus películas</string>
+    <string name="artwork_saga_unknown">TMDB no conoce esta saga, nombrada por sus archivos NFO: sus imágenes son las de sus películas.</string>
+    <string name="artwork_offline_saga">Las imágenes en línea no están disponibles: compruebe la conexión.</string>
     <string name="artwork_empty">No hay imágenes para este título</string>
     <string name="artwork_automatic">Automático</string>
     <string name="artwork_no_text">Sin texto</string>

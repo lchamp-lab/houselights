@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import android.util.Log
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
+import app.houselights.core.ArtworkNote
 import app.houselights.core.ArtworkOption
 import app.houselights.core.ArtworkOrigin
 import app.houselights.core.EpisodeOrderChoices
@@ -38,9 +39,12 @@ class LocalEditor(
     private val tmdb: () -> TmdbClient?,
 ) : MetadataEditor {
 
-    override fun canEdit(item: MediaItem): Boolean = item.kind == MediaKind.MOVIE || item.kind == MediaKind.SERIES
+    /** A film, a show, and a saga (#48), whose poster and backdrop alone are chosen: TMDB gives a collection no logo. */
+    override fun canEdit(item: MediaItem): Boolean =
+        item.kind == MediaKind.MOVIE || item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION
 
     override suspend fun artwork(item: MediaItem, kind: ArtworkKind): ArtworkChoices {
+        sagaKey(item)?.let { return sagaArtwork(it, kind) }
         val e = entity(item)
         val tmdb = client()
         val (online, onlineError) = onlineImages(e, tmdb)
@@ -133,7 +137,88 @@ class LocalEditor(
         )
     }
 
+    /**
+     * A saga's choices of [kind] (#48), its poster or its backdrop: Automatique, today's rule (TMDB's picture of the saga,
+     * else its first film's), and the one in use; then TMDB's pictures of the saga, by language as a film's, the
+     * [PER_LANGUAGE] best of each; then the one each film held shows (its choice, else its own), in release order, named
+     * by its title and year ([ArtworkOrigin.FILM]), a picture two films show once, never cut by the [MAX_OPTIONS] TMDB's
+     * share of which they leave. A saga an NFO's set names and TMDB does not know has its films' alone
+     * ([ArtworkNote.SAGA_UNKNOWN]).
+     */
+    private suspend fun sagaArtwork(key: Long, kind: ArtworkKind): ArtworkChoices {
+        val c = sagaOf(key, kind)
+        val films = dao.collectionFilms(c.id)
+        val automatic = c.automatic(kind, films.firstOrNull())
+        val current = dao.sagaChoice(c.matchKey)?.picture(kind) ?: automatic
+        // The film that first shows each picture, in release order.
+        val byFilm = LinkedHashMap<String, ItemEntity>()
+        films.forEach { film -> film.shownPicture(kind)?.let { byFilm.putIfAbsent(it, film) } }
+        val tmdb = client()
+        val (online, onlineError) = sagaImages(c, tmdb)
+        val images = online.of(kind)
+        val known = images.associateBy { it.filePath }
+        val head = listOfNotNull(automatic)
+        val fromFilms = byFilm.keys.filter { it !in head }
+        val ranked = ranked(images, kind, language = tmdb?.languageCode ?: java.util.Locale.getDefault().language)
+            .map { it.filePath }
+            .filter { it !in head && it !in byFilm }
+            .distinct()
+            .take((MAX_OPTIONS - head.size - fromFilms.size).coerceAtLeast(0))
+        val values = (head + ranked + fromFilms).toMutableList()
+        // A chosen picture missing from the lists stays visible next to the automatic one.
+        if (current != null && current !in values) values.add(head.size, current)
+        val options = values.map { value ->
+            val option = option(value, kind, known[value])
+            val film = byFilm[value] ?: return@map option
+            option.copy(origin = ArtworkOrigin.FILM, film = Typeset.text(film.title), filmYear = film.year)
+        }
+        return ArtworkChoices(
+            options = options,
+            automatic = automatic?.let { a -> options.first { it.value == a } },
+            selected = current?.let { s -> options.first { it.value == s } },
+            onlineAvailable = online != null,
+            onlineError = onlineError,
+            note = if (c.tmdbId == null) ArtworkNote.SAGA_UNKNOWN else ArtworkNote.SAGA,
+        )
+    }
+
+    /** TMDB's pictures of saga [c], or why they are missing: no key, or a TMDB failure (logged); none for one it does not know. */
+    private suspend fun sagaImages(c: CollectionEntity, tmdb: TmdbClient?): Pair<TmdbImageSet?, FailureKind?> {
+        val id = c.tmdbId ?: return null to null
+        if (tmdb == null) return null to FailureKind.NO_TMDB_KEY
+        return suspendRunCatching { tmdb.collectionImages(id) }.fold(
+            onSuccess = { it to null },
+            onFailure = { failure ->
+                Log.w(TAG, "Images of saga ${c.id} (TMDB $id) could not be listed", failure)
+                null to failure.failureKind()
+            },
+        )
+    }
+
+    /**
+     * Keeps saga [key]'s choice of [kind] by its key, never on its row, so scans and the saga leaving with its last film
+     * and coming back keep it; Automatique clears it, and the row goes once both its pictures are automatic.
+     */
+    private suspend fun setSagaArtwork(key: Long, kind: ArtworkKind, option: ArtworkOption) {
+        val c = sagaOf(key, kind)
+        val value = option.value.takeIf { it != c.automatic(kind, dao.collectionFilms(c.id).firstOrNull()) }
+        val was = dao.sagaChoice(c.matchKey) ?: SagaChoiceEntity(c.matchKey)
+        val now = if (kind == ArtworkKind.POSTER) was.copy(userPosterPath = value) else was.copy(userBackdropPath = value)
+        if (now.userPosterPath == null && now.userBackdropPath == null) dao.deleteSagaChoice(c.matchKey) else dao.saveSagaChoice(now)
+        scanner.notifyChanged()
+    }
+
+    /** Saga [key], whose [kind] of picture is chosen: its poster or its backdrop, TMDB giving a collection no logo. */
+    private suspend fun sagaOf(key: Long, kind: ArtworkKind): CollectionEntity {
+        if (kind == ArtworkKind.LOGO) throw NotFoundException("A saga has no logo to choose")
+        return dao.collection(key) ?: throw NotFoundException("Collection $key")
+    }
+
+    /** The saga [item] is, by its row's key; null for a film or a show. */
+    private fun sagaKey(item: MediaItem): Long? = (LocalId.parse(item.id) as? LocalId.Collection)?.key
+
     override suspend fun setArtwork(item: MediaItem, kind: ArtworkKind, option: ArtworkOption) {
+        sagaKey(item)?.let { return setSagaArtwork(it, kind, option) }
         val e = entity(item)
         // Choosing the automatic value clears the user choice.
         val value = option.value.takeIf { it != e.automaticValue(kind) }
@@ -344,6 +429,23 @@ class LocalEditor(
             ArtworkKind.BACKDROP -> backdropPath
             ArtworkKind.LOGO -> logoPath ?: NONE
         }
+
+        /** A film's picture of [kind] as it shows it: the user's choice, else its own. */
+        fun ItemEntity.shownPicture(kind: ArtworkKind): String? = when (kind) {
+            ArtworkKind.POSTER -> LocalProvider.shown(userPosterPath, posterPath)
+            ArtworkKind.BACKDROP -> LocalProvider.shown(userBackdropPath, backdropPath)
+            ArtworkKind.LOGO -> LocalProvider.shown(userLogoPath, logoPath)
+        }
+
+        /**
+         * A saga's Automatique of [kind], its poster or its backdrop, as its walls and its page show it without a choice
+         * ([LocalProvider]): TMDB's picture of it, else its [first] film's.
+         */
+        fun CollectionEntity.automatic(kind: ArtworkKind, first: ItemEntity?): String? =
+            (if (kind == ArtworkKind.POSTER) posterPath else backdropPath) ?: first?.shownPicture(kind)
+
+        /** A saga's poster or backdrop ([kind]) as the user chose it; null for Automatique. */
+        fun SagaChoiceEntity.picture(kind: ArtworkKind): String? = if (kind == ArtworkKind.POSTER) userPosterPath else userBackdropPath
 
         fun ItemEntity.userValue(kind: ArtworkKind): String? = when (kind) {
             ArtworkKind.POSTER -> userPosterPath

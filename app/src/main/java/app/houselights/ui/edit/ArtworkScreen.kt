@@ -53,6 +53,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
+import app.houselights.core.ArtworkNote
 import app.houselights.core.ArtworkOption
 import app.houselights.core.ArtworkOrigin
 import app.houselights.core.MediaItem
@@ -151,7 +152,7 @@ internal fun ArtworkSheet(
     val retry by rememberUpdatedState(onRetry)
     val actions = remember { SheetActions(onFocus = { focused = it }, onChoose = { choose(it) }, onRetry = { retry() }) }
     // Why TMDB's pictures are missing, said in their place.
-    val note = choices?.takeIf { !it.onlineAvailable }?.let { stringResource(onlineNote(onlineError)) }
+    val note = contactNote(choices, onlineError)
     AmbientBackdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full, modifier) {
         if (kind == ArtworkKind.POSTER) {
             PosterSheet(sheet, preview) { SheetBody(sheet, error, note, takesFocus, actions) }
@@ -237,7 +238,7 @@ private fun Print(sheet: Sheet, preview: ArtworkOption?) {
  * comes to the band's top, and the top of the next.
  */
 @Composable
-private fun BandSheet(sheet: Sheet, preview: ArtworkOption?, note: String?, body: @Composable () -> Unit) {
+private fun BandSheet(sheet: Sheet, preview: ArtworkOption?, note: ContactNote?, body: @Composable () -> Unit) {
     val kind = sheet.kind
     val item = sheet.item
     Column(Modifier.fillMaxSize()) {
@@ -278,7 +279,7 @@ private fun HeldName(sheet: Sheet, modifier: Modifier = Modifier) {
  * [note] of TMDB's missing pictures after its head.
  */
 @Composable
-private fun SheetBody(sheet: Sheet, error: UiError?, note: String?, takesFocus: Boolean, actions: SheetActions) {
+private fun SheetBody(sheet: Sheet, error: UiError?, note: ContactNote?, takesFocus: Boolean, actions: SheetActions) {
     val choices = sheet.choices
     val media = sheet.item
     val place = Modifier.padding(top = HlFocus.wallRoom)
@@ -293,18 +294,38 @@ private fun SheetBody(sheet: Sheet, error: UiError?, note: String?, takesFocus: 
 
 /**
  * Why TMDB's images are missing: a key problem (fixed in Settings) or a refused certificate, else identify the title or
- * check the network.
+ * check the network; a saga TMDB knows ([note], #48), the network alone, as it is never to identify.
  */
 @StringRes
-internal fun onlineNote(error: UiError?): Int = when (error) {
+internal fun onlineNote(error: UiError?, note: ArtworkNote? = null): Int = when (error) {
     UiError.NO_TMDB_KEY, UiError.TMDB_KEY_REFUSED, UiError.CERTIFICATE -> error.message
-    else -> R.string.artwork_offline
+    else -> if (note == ArtworkNote.SAGA) R.string.artwork_offline_saga else R.string.artwork_offline
 }
 
-/** Why TMDB's pictures are missing, in their place: a failure, and what fixes it. */
+/** What stands in place of TMDB's pictures: a failure and what fixes it ([attention]), or a fact, nothing having failed. */
+internal class ContactNote(val text: String, val attention: Boolean)
+
+/**
+ * Why [choices] lack TMDB's pictures, if they do: a saga TMDB does not know, named by NFO files, says so as a fact, its
+ * pictures being its films' ([ArtworkNote.SAGA_UNKNOWN]); else what failed ([onlineNote]).
+ */
 @Composable
-private fun Note(note: String, modifier: Modifier = Modifier) {
-    AttentionNote(note, modifier.widthIn(max = HlLayout.readable))
+private fun contactNote(choices: ArtworkChoices?, onlineError: UiError?): ContactNote? = when {
+    choices == null -> null
+    choices.note == ArtworkNote.SAGA_UNKNOWN -> ContactNote(stringResource(R.string.artwork_saga_unknown), attention = false)
+    !choices.onlineAvailable -> ContactNote(stringResource(onlineNote(onlineError, choices.note)), attention = true)
+    else -> null
+}
+
+/** Why TMDB's pictures are missing, in their place: a failure and what fixes it, by the attention mark; a fact, in secondary text. */
+@Composable
+private fun Note(note: ContactNote, modifier: Modifier = Modifier) {
+    val reading = modifier.widthIn(max = HlLayout.readable)
+    if (note.attention) {
+        AttentionNote(note.text, reading)
+    } else {
+        Text(note.text, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = reading)
+    }
 }
 
 /** The title as the detail page will show it with the focused choice: over its backdrop, its logo or its name and facts. */
@@ -451,7 +472,7 @@ private fun Choices(
     sheet: Sheet,
     choices: ArtworkChoices,
     media: MediaItem,
-    note: String?,
+    note: ContactNote?,
     takesFocus: Boolean,
     actions: SheetActions,
 ) {
@@ -507,7 +528,7 @@ private fun Choices(
                                 },
                                 modifier = Modifier.padding(top = gap),
                             )
-                            is SheetItem.Note -> Note(note.orEmpty(), Modifier.padding(top = gap))
+                            is SheetItem.Note -> note?.let { Note(it, Modifier.padding(top = gap)) }
                         }
                     }
                 }

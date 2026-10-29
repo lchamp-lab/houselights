@@ -540,6 +540,10 @@
     <string name="artwork_offline">Online images are unavailable: identify this title first, or check the connection.</string>
     <!-- The choice of a saga's picture: the last section of its contact sheet, the pictures its films show, one a film -->
     <string name="artwork_saga_films">Its films</string>
+    <!-- The choice of a saga's picture, a saga an NFO set names and TMDB does not know: said as a fact where TMDB's sections would be (#48) -->
+    <string name="artwork_saga_unknown">TMDB does not know this saga, named by your NFO files: its pictures are those of its films.</string>
+    <!-- The choice of a saga's picture, TMDB out of reach: where its sections would be (#48) -->
+    <string name="artwork_offline_saga">Online images are unavailable: check the connection.</string>
     <string name="artwork_empty">No image for this title</string>
     <string name="artwork_automatic">Automatic</string>
     <string name="artwork_no_text">No text</string>

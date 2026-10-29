@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.unit.dp
+import app.houselights.core.ArtworkKind
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -138,6 +139,9 @@ internal class SagaPage(private val compose: ComposeContentTestRule, private val
     val opened = mutableListOf<String>()
     val played = mutableListOf<String>()
 
+    /** The pictures whose choice the page opened, by the title's id, as the app's navigation would. */
+    val edited = mutableListOf<Pair<String, ArtworkKind>>()
+
     /** The room a row of tiles keeps under it for a label, at the text size shown. */
     var labelRoom = 0.dp
         private set
@@ -162,7 +166,7 @@ internal class SagaPage(private val compose: ComposeContentTestRule, private val
                                     screen = "page",
                                     onPlay = { title, resume, _ -> played += "${title.id} $resume" },
                                     onOpenItem = { opened += it },
-                                    onEditArtwork = { _, _ -> },
+                                    onEditArtwork = { id, kind -> edited += id to kind },
                                     onIdentify = {},
                                     onOpenPerson = {},
                                 )

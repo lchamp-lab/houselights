@@ -546,6 +546,8 @@
     <string name="identify_menu_desc">Dopasuj do innego tytułu TMDB</string>
     <string name="artwork_offline">Obrazy online są niedostępne: najpierw zidentyfikuj ten tytuł albo sprawdź połączenie.</string>
     <string name="artwork_saga_films">Filmy sagi</string>
+    <string name="artwork_saga_unknown">TMDB nie zna tej sagi, nazwanej w Twoich plikach NFO: jej obrazy to obrazy jej filmów.</string>
+    <string name="artwork_offline_saga">Obrazy online są niedostępne: sprawdź połączenie.</string>
     <string name="artwork_empty">Brak obrazów dla tego tytułu</string>
     <string name="artwork_automatic">Automatycznie</string>
     <string name="artwork_no_text">Bez tekstu</string>

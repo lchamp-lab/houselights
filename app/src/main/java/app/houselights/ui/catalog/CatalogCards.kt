@@ -31,6 +31,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
+import app.houselights.core.ArtworkNote
 import app.houselights.core.ArtworkOption
 import app.houselights.core.ArtworkOrigin
 import app.houselights.core.ImageRef
@@ -88,6 +89,11 @@ internal fun LazyListScope.catalogCards() {
         }
     }
     item { Group("Contact sheet: a logo's, at its place over the title's backdrop, four a line") { ContactSheet(ArtworkKind.LOGO) } }
+    item {
+        Group("Contact sheet: a saga's TMDB does not know, its films' pictures alone after why, said as a fact") {
+            SagaContactSheet()
+        }
+    }
     item {
         Group("Artwork choice and print: nothing under a choice but Automatique and a saga's film; and the selected mark") {
             ChoiceCards()
@@ -381,6 +387,27 @@ private fun ContactSheet(kind: ArtworkKind) {
     CompositionLocalProvider(LocalBackdropRelay provides null) {
         Box(Modifier.requiredWidth(HlLayout.CANVAS_WIDTH.dp).aspectRatio(HlSize.PREVIEW_RATIO)) {
             ArtworkSheet(kind, title, choices, error = null, onlineError = null, onChoose = {}, onRetry = {}, takesFocus = false)
+        }
+    }
+}
+
+/**
+ * A saga's poster's contact sheet (#48), one an NFO's set names and TMDB does not know: Automatique, its first film's,
+ * named after it; why TMDB's sections are missing, a fact; then its films', named by their title and year.
+ */
+@Composable
+private fun SagaContactSheet() {
+    val picture = shippedImage(R.drawable.banner)
+    val choices = remember(picture) {
+        val films = listOf("À bout de souffle" to 1960, "Le Mépris" to 1963, "Pierrot le fou" to 1965).map { (title, year) ->
+            ArtworkOption("film-$year", picture, ArtworkOrigin.FILM, film = title, filmYear = year)
+        }
+        ArtworkChoices(films, films.first(), films.first(), onlineAvailable = false, note = ArtworkNote.SAGA_UNKNOWN)
+    }
+    val saga = remember(picture) { sample("Nouvelle Vague", 1960, kind = MediaKind.COLLECTION).copy(backdrop = picture) }
+    CompositionLocalProvider(LocalBackdropRelay provides null) {
+        Box(Modifier.requiredWidth(HlLayout.CANVAS_WIDTH.dp).aspectRatio(HlSize.PREVIEW_RATIO)) {
+            ArtworkSheet(ArtworkKind.POSTER, saga, choices, null, onlineError = null, onChoose = {}, onRetry = {}, takesFocus = false)
         }
     }
 }

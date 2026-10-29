@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,7 +26,6 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -37,6 +37,7 @@ import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.MenuKey
+import app.houselights.ui.design.components.PlatedMenuKey
 import app.houselights.ui.design.components.Score
 import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.design.components.StatusState
@@ -131,25 +132,21 @@ private fun ColumnScope.Marks() {
 
 /**
  * The key alone, then where it shows: in a card's bottom right corner while it has focus, white on the marks' plate,
- * the state mark's opposite (a poster's, a still's, an episode's).
+ * the state mark's opposite (a poster's, a still's, an episode's); at a saga's predella's end, on the same plate,
+ * centred on its tiles.
  */
 @Composable
 private fun MenuKeys() {
-    val c = Hl.colors
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("the key: tertiary frame, secondary lines") { MenuKey() }
         Specimen("in a card's corner, on the marks' plate", Modifier.width(HlSize.poster)) {
             Box(Modifier.width(HlSize.poster).aspectRatio(HlSize.POSTER_RATIO).clip(HlShapes.artwork).background(groundStepFill())) {
                 CheckMark(Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
-                MenuKey(
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(HlSpace.xs)
-                        .clip(HlShapes.mark)
-                        .background(c.background.copy(alpha = HlAlpha.VEIL)),
-                    ink = c.content,
-                )
+                PlatedMenuKey({ true }, Modifier.align(Alignment.BottomEnd).padding(HlSpace.xs))
             }
+        }
+        Specimen("at a saga's predella's end, centred on its tiles") {
+            Box(Modifier.height(HlSize.tile), contentAlignment = Alignment.Center) { PlatedMenuKey({ true }) }
         }
     }
 }

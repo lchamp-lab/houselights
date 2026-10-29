@@ -125,7 +125,7 @@ private fun FavoriteHeart(item: MediaItem, shown: Boolean) {
 internal const val FAVORITE_HEART = "favorite-heart"
 
 /** A title's years: a saga's from first to last film, a show's run (open while it continues), else its year. */
-private fun MediaItem.years(): String? = when {
+internal fun MediaItem.years(): String? = when {
     kind == MediaKind.COLLECTION && year != null && endYear != null -> "$year – $endYear"
     kind != MediaKind.SERIES -> year?.toString()
     year != null && continuing -> "$year –"

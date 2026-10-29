@@ -516,20 +516,27 @@ fun LandscapeCard(
  */
 @Composable
 private fun BoxScope.CornerKey(focused: () -> Boolean, started: Boolean, line: Dp) {
-    val shown = focused() && OpenSheets.count == 0
+    val bottom = HlSpace.xs + if (started) line else HlSpace.none
+    PlatedMenuKey(focused, Modifier.align(Alignment.BottomEnd).padding(end = HlSpace.xs, bottom = bottom))
+}
+
+/**
+ * The Menu key on the marks' dark plate, white, while [shown] says and no sheet is open, coming and going as a tile's
+ * label: a card's in its corner ([CornerKey]), and a saga's predella's at its end, after its last action (#48).
+ */
+@Composable
+fun PlatedMenuKey(shown: () -> Boolean, modifier: Modifier = Modifier) {
+    val showing = shown() && OpenSheets.count == 0
     val alpha = animateFloatAsState(
-        if (shown) 1f else 0f,
-        if (shown) tween(HlMotion.PLATE_IN, easing = HlMotion.focusPull) else tween(HlMotion.PLATE_OUT, easing = HlMotion.fallBack),
+        if (showing) 1f else 0f,
+        if (showing) tween(HlMotion.PLATE_IN, easing = HlMotion.focusPull) else tween(HlMotion.PLATE_OUT, easing = HlMotion.fallBack),
         label = "menuKey",
     )
     val fading by remember { derivedStateOf { alpha.value > 0f } }
-    if (shown || fading) {
+    if (showing || fading) {
         val c = Hl.colors
-        val bottom = HlSpace.xs + if (started) line else HlSpace.none
         MenuKey(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = HlSpace.xs, bottom = bottom)
+            modifier
                 .graphicsLayer {
                     this.alpha = alpha.value
                     compositingStrategy = CompositingStrategy.ModulateAlpha

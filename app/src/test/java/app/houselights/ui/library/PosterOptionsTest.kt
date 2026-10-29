@@ -55,7 +55,8 @@ import org.robolectric.annotation.Config
 /**
  * DESIGN.md, Sheets: Menu or a long OK on a poster opens its options (#47), pressed as with the remote: titled with the
  * title's name and where it stands, its mark first and focused, so Menu then OK marks it, then a film's or a show's
- * favourite, then Modifier, the title page's own sheet; a saga's and a Jellyfin box set's, the mark alone.
+ * favourite, then Modifier, the title page's own sheet; a saga's, its mark then Modifier, its poster and its backdrop;
+ * a Jellyfin box set's, the mark alone.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -196,9 +197,13 @@ class PosterOptionsTest {
         assertTrue("played severance true" in provider.calls)
     }
 
-    /** A saga is marked with its films, its years, films and progress said; no favourite, and no Modifier yet (#48). */
+    /**
+     * A saga is marked with its films, its years, films and progress said, then changed by Modifier, no favourite (#48):
+     * Modifier opens the sheet of its page, its poster and its backdrop alone, no Logo nor Identifier, each opening its
+     * choice.
+     */
     @Test
-    fun aSagaHasItsMarkAlone() {
+    fun aSagaIsMarkedWithItsFilmsThenModified() {
         val dune = MediaItem(
             "saga:dune",
             MediaKind.COLLECTION,
@@ -214,10 +219,25 @@ class PosterOptionsTest {
         option(R.string.mark_saga_watched).assertIsFocused()
         val watched = plural(R.plurals.saga_watched_of, 1, 1, 2)
         assertHead(R.string.mark_saga_watched, "2021 – 2024", plural(R.plurals.film_count, 2, 2), watched)
+        assertRows(R.string.mark_saga_watched, R.string.edit)
         option(R.string.add_favorite).assertDoesNotExist()
-        option(R.string.edit).assertDoesNotExist()
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         assertTrue("played saga:dune true" in provider.calls)
+
+        compose.pressOnRemote(Key.Menu)
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
+        option(R.string.edit).assertIsFocused()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        option(R.string.mark_saga_watched).assertDoesNotExist()
+        val shown = { image: Int -> compose.onAllNodesWithText(text(image), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        val images = listOf(R.string.artwork_poster, R.string.artwork_backdrop, R.string.artwork_logo)
+        assertEquals("Affiche and Fond d'écran, no Logo", listOf(true, true, false), images.map(shown))
+        option(R.string.identify).assertDoesNotExist()
+        compose.onNode(hasText("2021 – 2024") and hasAnyAncestor(isDialog()), useUnmergedTree = true).assertExists()
+        // Left and Right go from one picture to the other: Fond d'écran, then OK opens its choice.
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_RIGHT)
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        assertEquals(listOf("saga:dune" to ArtworkKind.BACKDROP), edited)
     }
 
     /** A Jellyfin box set, its source keeping no pictures: its mark alone, as a saga's; a film there, no Modifier. */

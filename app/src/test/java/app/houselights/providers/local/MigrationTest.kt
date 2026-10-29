@@ -47,11 +47,14 @@ class MigrationTest {
             .also { opened += name to it }
     }
 
-    /** Folder 1, "Films", as schemas 8 and later hold it. */
-    private fun SupportSQLiteDatabase.filmsFolder() = execSQL(
-        "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-            "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)",
-    )
+    /** Folder 1, "Films", as schemas 8 to 19 hold it, and as [from]'s does; version 20's tables hold no default for heldKept. */
+    private fun SupportSQLiteDatabase.filmsFolder(from: Int = 19) {
+        val (kept, notKept) = if (from >= 20) ", heldKept" to ", 0" else "" to ""
+        execSQL(
+            "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt$kept) " +
+                "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000$notKept)",
+        )
+    }
 
     /** Schemas 1 to 5 predate Room's schema export and were rebuilt (app/schemas); Room checks them on open. */
     @Test
@@ -452,6 +455,38 @@ class MigrationTest {
         }
     }
 
+    /**
+     * Version 22 only adds the table of a saga's pictures as the user chose them, kept by its key: none is chosen yet, the
+     * sagas and their films stay as they were, and a choice is then kept and read back by the saga's key. From 21, and
+     * from 0.2.0's version 15.
+     */
+    @Test
+    fun version22AddsTheSagasChoicesEmptyAndKeepsTheRest() = runTest {
+        for (from in listOf(21, 15)) {
+            // Version 19's tables, made by Room, hold no default for the choice to leave a title as it is.
+            val (noMatch, notLeft) = if (from >= 19) ", userNoMatch" to ", 0" else "" to ""
+            val dao = migrated(from) {
+                filmsFolder(from)
+                execSQL(
+                    "INSERT INTO collections (id, matchKey, tmdbId, name, sortTitle, posterPath, backdropPath) " +
+                        "VALUES (7, '$DUNE_SAGA', 726871, 'Dune - Saga', 'dune - saga', '/saga.jpg', '/saga-wide.jpg')",
+                )
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
+                        "badges, probeVersion, addedAt, positionMs, played, favorite, collectionId$noMatch) " +
+                        "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, '', '', 'Dune (2021).mkv', '', '', 0, 5, 0, 1, 0, 7$notLeft)",
+                )
+            }.dao()
+            val saga = checkNotNull(dao.collection(7))
+            val pictures = Triple(saga.matchKey, saga.posterPath, saga.backdropPath)
+            assertEquals("from $from", Triple(DUNE_SAGA, "/saga.jpg", "/saga-wide.jpg"), pictures)
+            assertEquals("from $from", 7L, checkNotNull(dao.item(1)).collectionId)
+            assertNull("from $from: nothing chosen yet", dao.sagaChoice(DUNE_SAGA))
+            dao.saveSagaChoice(SagaChoiceEntity(DUNE_SAGA, userPosterPath = "/fr-1.jpg"))
+            assertEquals("from $from", listOf(SagaChoiceEntity(DUNE_SAGA, "/fr-1.jpg")), dao.sagaChoices(listOf(DUNE_SAGA, "name:autre")))
+        }
+    }
+
     /** Folder 1, "Séries", as schema [from] holds it, from 8; version 20's tables, made by Room, hold no default for heldKept. */
     private fun SupportSQLiteDatabase.showsFolder(from: Int) {
         val (kept, notKept) = if (from >= 20) ", heldKept" to ", 0" else "" to ""
@@ -563,6 +598,7 @@ class MigrationTest {
     private companion object {
         const val FIREFLY = 1437
         const val ONE_PIECE = 37854
+        const val DUNE_SAGA = "tmdb:726871"
 
         /** A folder's row in schemas 6 and 7, before firstScanAt. */
         const val FOLDER_UP_TO_7 =

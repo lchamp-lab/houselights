@@ -27,6 +27,15 @@ enum class ArtworkOrigin {
     FILM,
 }
 
+/** What a saga's choice says in place of TMDB's pictures when they are missing (#48); a film's and a show's, none. */
+enum class ArtworkNote {
+    /** A saga TMDB knows: only the connection, or the key, keeps its pictures away. */
+    SAGA,
+
+    /** A saga an NFO's set names and TMDB does not know: its pictures are its films', said as a fact. */
+    SAGA_UNKNOWN,
+}
+
 data class ArtworkOption(
     /** What the provider stores when this option is chosen. */
     val value: String,
@@ -52,6 +61,8 @@ data class ArtworkChoices(
     val onlineAvailable: Boolean,
     /** Why online images could not be listed, so the screen can say what fixes it; null if listed or unidentified. */
     val onlineError: FailureKind? = null,
+    /** A saga's: whether TMDB knows it, so the sheet says why its pictures are missing; null for a film or a show. */
+    val note: ArtworkNote? = null,
 )
 
 /** An image database title that a file can be matched with. */
