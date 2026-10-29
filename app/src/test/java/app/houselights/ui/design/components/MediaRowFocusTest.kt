@@ -11,6 +11,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.testing.TV
@@ -58,5 +59,41 @@ class MediaRowFocusTest {
         compose.onNodeWithTag("b4").assertIsFocused()
         compose.press(Key.DirectionUp)
         compose.onNodeWithTag("a2").assertIsFocused()
+    }
+
+    /** A saga's film not in the library ([AbsentCard]) is a card of its row as the others: focus comes back to it. */
+    @Test
+    fun comingBackIntoARowFindsTheAbsentFilmLeft() {
+        val start = FocusRequester()
+        compose.setTvContent {
+            Column {
+                listOf("a", "b").forEach { row ->
+                    MediaRow(header = row) {
+                        items((0 until 8).map { "$row$it" }) { card ->
+                            val first = if (card == "a0") Modifier.focusRequester(start) else Modifier
+                            if (card == "a2") {
+                                AbsentCard(card, null)
+                            } else {
+                                ArtworkSurface(
+                                    onClick = {},
+                                    modifier = first.testTag(card).width(HlSize.poster).aspectRatio(2f / 3f),
+                                ) {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        compose.runOnIdle { start.requestFocus() }
+        compose.press(Key.DirectionRight, times = 2)
+        val absent = compose.onNodeWithContentDescription("a2, Not in your library")
+        absent.assertIsFocused()
+
+        // Down to the row below, along it, then up: the absent film left, not the last card of the library focused there.
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight, times = 2)
+        compose.onNodeWithTag("b4").assertIsFocused()
+        compose.press(Key.DirectionUp)
+        absent.assertIsFocused()
     }
 }

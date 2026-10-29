@@ -692,6 +692,9 @@ fun AbsentCard(
     val step by remember { derivedStateOf { HlFocus.recedeStep(recede.value) } }
     val px = width.toPx()
     val decoded = IntSize(px, (px / HlSize.POSTER_RATIO).roundToInt())
+    // A card of its row as the films there are: focus coming back into the row comes back to it.
+    val group = LocalGroupFocus.current
+    val member = rememberGroupMember(group)
     HlFocusSurface(
         onClick = onClick,
         look = FocusStyle.frame(
@@ -701,6 +704,7 @@ fun AbsentCard(
         ),
         shape = HlShapes.artwork,
         modifier = modifier
+            .rememberedInGroup(group, member)
             .width(width)
             .aspectRatio(HlSize.POSTER_RATIO)
             .clearAndSetSemantics {
