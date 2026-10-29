@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
@@ -40,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.ArtworkKind
 import app.houselights.core.BadgeTokens
 import app.houselights.core.Definition
 import app.houselights.core.FileTypes
@@ -60,6 +62,8 @@ import app.houselights.core.WatchStatus
 import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.FocusPlaces
+import app.houselights.ui.design.FocusTakesPlace
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
@@ -85,6 +89,7 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.focusLaidOut
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
@@ -105,7 +110,10 @@ import java.util.Locale
 /** Placeholder rows while the wall loads: more than the screen shows, like the wall. */
 private const val SKELETON_ROWS = 3
 
-/** A poster wall, filtered by [opensOn] if given (a format, or person [personName]); else films show their [sagas]. */
+/**
+ * A poster wall, filtered by [opensOn] if given (a format, or person [personName]); else films show their [sagas]. A
+ * poster's Modifier opens the choice of its pictures ([onEditArtwork]) and its match ([onIdentify]), as its page does.
+ */
 @Composable
 fun LibraryScreen(
     library: Library,
@@ -114,16 +122,28 @@ fun LibraryScreen(
     opensOn: LibraryFilter? = null,
     personName: String? = null,
     sagas: Library? = null,
+    onEditArtwork: (String, ArtworkKind) -> Unit = { _, _ -> },
+    onIdentify: (String) -> Unit = {},
     vm: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(appContainer(), library, opensOn, sagas)),
 ) {
     ReloadOnLibraryChange { scanOnly -> vm.onLibraryChanged(scanOnly) }
-    // The person the wall was opened for, offered by the filter menu.
-    Wall(vm, library, title, onOpenItem, person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } })
+    Wall(
+        vm,
+        library,
+        title,
+        onOpenItem,
+        // The person the wall was opened for, offered by the filter menu.
+        person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } },
+        onEditArtwork = onEditArtwork,
+        onIdentify = onIdentify,
+    )
 }
 
 /**
  * The wall [vm] reads, [library]'s, named [title], or the sagas alone: a page, its header at the top, the selected
- * title, then two whole lines of posters. Back from past the first line returns to the first poster, then leaves.
+ * title, then two whole lines of posters. Back from past the first line returns to the first poster, then leaves. Menu
+ * or a long OK on a poster opens its options (#47, [PosterOptions]); a title they take out of the wall's filter leaves
+ * it at once, focus going to the poster taking its place, as after Back from its page.
  */
 @Composable
 internal fun Wall(
@@ -132,8 +152,11 @@ internal fun Wall(
     title: String,
     onOpenItem: (MediaItem) -> Unit,
     person: Person? = null,
+    onEditArtwork: (String, ArtworkKind) -> Unit = { _, _ -> },
+    onIdentify: (String) -> Unit = {},
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val notSaved by vm.notSaved.collectAsStateWithLifecycle()
     val can = vm.capabilities
     val choices = remember(vm) { WallChoices(vm::setView, vm::clearFilters, vm::setFilter, vm::setSort) }
     val loads = remember(vm) { WallLoads(vm::retry, vm::loadMore, vm::retryPage) }
@@ -142,15 +165,35 @@ internal fun Wall(
     val shown = rememberSettled { selectedIn(state.items, selectedId.value) }
     // Films and sagas each start at their top.
     val gridState = rememberSaveable(state.view, saver = LazyGridState.Saver) { LazyGridState() }
-    val grid = remember(gridState) { WallGrid(gridState, selectedId) }
-    // Focus returns to the last poster, else the first.
+    // Where the poster last focused stands, kept while a page it opened shows.
+    val place = rememberSaveable { mutableIntStateOf(0) }
+    val grid = remember(gridState) { WallGrid(gridState, selectedId, place) }
+    // Focus returns to the last poster, else the one taking its place (marked on its page), else the first.
     val memory = rememberFocusMemory()
-    RestoreFocus(memory, grid.first, ready = state.items.isNotEmpty()) { key ->
+    RestoreFocus(
+        memory,
+        grid.first,
+        ready = state.items.isNotEmpty(),
+        inPlace = { key -> inPlaceOf(key, state.items, grid.place.intValue)?.let { FocusKey.item(it.id) } },
+    ) { key ->
         val index = FocusKey.itemId(key)?.let { id -> state.items.indexOfFirst { it.id == id } } ?: -1
         if (index >= 0) grid.state.scrollToItem(index)
         index >= 0
     }
+    // A poster leaving with focus, marked from its options or on its page, leaves it to the one taking its place.
+    val places = remember(state.items) { listOf(FocusPlaces(null, state.items.map { FocusKey.item(it.id) })) }
+    FocusTakesPlace(places, memory)
     FocusAfterRetry(state, memory)
+    // A poster's options: Menu or a long OK on it.
+    var options by remember { mutableStateOf<MediaItem?>(null) }
+    val actions = remember(vm, onEditArtwork, onIdentify) { vm.changes.actions(vm::mark, vm::favorite, onEditArtwork, onIdentify) }
+    val posters = remember(vm, actions) { WallPosters(actions, onOptions = { options = it }, onFocusTitle = vm.changes::focusedOn) }
+    // A change not saved puts its title back in its place: focus goes back to it, unless it went up to the menus meanwhile.
+    var inMenus by remember { mutableStateOf(false) }
+    LaunchedEffect(notSaved) {
+        val id = notSaved?.id ?: return@LaunchedEffect
+        if (!inMenus) memory.focusLaidOut { FocusKey.item(id) }
+    }
     // The sagas alone are named as such, on the films' wall.
     val sagasAlone = state.view == WallView.SAGAS
     val kind = if (sagasAlone) LibraryKind.COLLECTIONS else library.kind
@@ -164,10 +207,26 @@ internal fun Wall(
             grid.first.tryRequestFocus()
         }
         Column(Modifier.fillMaxSize()) {
-            WallHeader(state, kind, name, shown, person, can, choices)
-            WallBody(state, kind, grid, memory, shown, can, choices, loads, onOpenItem)
+            WallHeader(state, kind, name, shown, person, can, choices, onFocusChange = { inMenus = it })
+            WallBody(state, kind, grid, memory, shown, can, choices, loads, onOpenItem, posters, notSaved)
         }
+        PosterOptions(options, actions, onDismiss = { options = null })
     }
+}
+
+/**
+ * The posters' options ([actions]), which Menu or a long OK opens ([onOptions]), the Menu key in the focused poster's
+ * corner saying so; a poster taking focus says so ([onFocusTitle]), so a change not saved is said only while its title
+ * has it.
+ */
+@Immutable
+private class WallPosters(val actions: PosterActions, val onOptions: (MediaItem) -> Unit, val onFocusTitle: (String) -> Unit)
+
+/** What took the place of the title [key] names, gone from [items]: the one now at its [place], else the last. */
+private fun inPlaceOf(key: String, items: List<MediaItem>, place: Int): MediaItem? {
+    val id = FocusKey.itemId(key) ?: return null
+    if (items.any { it.id == id }) return null
+    return items.getOrNull(place) ?: items.lastOrNull()
 }
 
 /** What the wall's menus choose: its view, its filters, all of them off, and its sort. */
@@ -183,9 +242,12 @@ private class WallChoices(
 @Immutable
 private class WallLoads(val onRetry: () -> Unit, val onMore: () -> Unit, val onRetryPage: () -> Unit)
 
-/** The grid's state, its first poster's requester, the selected title and the focused poster's index (read by Back). */
+/**
+ * The grid's state, its first poster's requester, the selected title, the focused poster's index (read by Back), and
+ * the [place] of the poster last focused, kept while a page it opened shows.
+ */
 @Stable
-private class WallGrid(val state: LazyGridState, val selectedId: MutableState<String?>) {
+private class WallGrid(val state: LazyGridState, val selectedId: MutableState<String?>, val place: MutableIntState) {
     val first = FocusRequester()
     val focusedIndex = mutableStateOf<Int?>(null)
 }
@@ -220,11 +282,15 @@ private fun WallHeader(
     person: Person?,
     can: ProviderCapabilities,
     choices: WallChoices,
+    onFocusChange: (inMenus: Boolean) -> Unit,
 ) {
     OnArtwork {
         HeaderControls {
             Row(
-                Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)
+                    .onFocusChanged { onFocusChange(it.hasFocus) },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row {
@@ -268,6 +334,8 @@ private fun WallBody(
     choices: WallChoices,
     loads: WallLoads,
     onOpenItem: (MediaItem) -> Unit,
+    posters: WallPosters,
+    notSaved: NotSaved?,
 ) {
     Column {
         // A long name drops its facts first, then ends in an ellipsis.
@@ -277,8 +345,8 @@ private fun WallBody(
                 .height(HlLayout.infoLine),
             contentAlignment = Alignment.CenterStart,
         ) {
-            // Shown with its backdrop, as on Home.
-            WithItsPicture(shown.value) { TitleLine(it) }
+            // Shown with its backdrop, as on Home; a change not saved said in place of its title's facts.
+            WithItsPicture(shown.value) { TitleLine(it, notSaved = notSaved.saidFor(it.id)) }
         }
         // While retrying, the error stays with its button busy.
         val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
@@ -299,7 +367,7 @@ private fun WallBody(
                 message,
                 backHint = true,
             )
-            else -> Posters(state, grid, memory, loads, onOpenItem)
+            else -> Posters(state, grid, memory, loads, onOpenItem, posters)
         }
     }
 }
@@ -312,9 +380,11 @@ private fun Posters(
     memory: FocusMemory,
     loads: WallLoads,
     onOpenItem: (MediaItem) -> Unit,
+    posters: WallPosters,
 ) {
     var gridHasFocus by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val moreOptions = stringResource(R.string.more_options)
     CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
         PosterWallGrid(
             grid.state,
@@ -332,10 +402,14 @@ private fun Posters(
                     onFocus = {
                         grid.selectedId.value = item.id
                         grid.focusedIndex.value = index
+                        grid.place.intValue = index
+                        posters.onFocusTitle(item.id)
                         // The first line sits under the padding: show it all.
                         if (index < HlLayout.WALL_COLUMNS) scope.launch { grid.state.animateScrollToItem(0) }
                         if (index > state.items.size - HlLayout.WALL_COLUMNS * 3) loads.onMore()
                     },
+                    onLongClick = { posters.onOptions(item) }.takeIf { posters.actions.hasOptions(item) },
+                    onLongClickLabel = moreOptions,
                     modifier = Modifier
                         .focusKey(FocusKey.item(item.id), memory)
                         .then(if (index == 0) Modifier.focusRequester(grid.first) else Modifier),

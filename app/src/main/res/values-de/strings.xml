@@ -700,6 +700,10 @@
         <item quantity="one">%d ungesehene Folge</item>
         <item quantity="other">%d ungesehene Folgen</item>
     </plurals>
+    <plurals name="unwatched_episodes">
+        <item quantity="one">%d ungesehene Folge</item>
+        <item quantity="other">%d ungesehene Folgen</item>
+    </plurals>
     <plurals name="row_news">
         <item quantity="one">%d neuer</item>
         <item quantity="other">%d neue</item>

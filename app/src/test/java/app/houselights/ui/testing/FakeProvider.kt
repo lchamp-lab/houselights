@@ -111,9 +111,7 @@ class FakeProvider : MediaProvider {
     ): Page {
         call("page $start $limit")
         pages += Asked(library.id, filter, grouped)
-        // Not seen: as a source filters them, neither watched nor started.
-        val notSeen = { item: MediaItem -> !item.user.played && item.user.positionMs == 0L }
-        val shown = (walls[library.id] ?: wall).filter { filter.status != WatchStatus.UNWATCHED || notSeen(it) }
+        val shown = (walls[library.id] ?: wall).filter { filter.status.holds(it) }
         val sagas = shown.count { it.kind == MediaKind.COLLECTION }.takeIf { grouped && countsSagas }
         return Page(shown.drop(start).take(limit), shown.size, sagas)
     }
@@ -250,6 +248,18 @@ class FakeProvider : MediaProvider {
             call("order ${item.id} $id")
             orders[item.id]?.let { orders = orders + (item.id to it.copy(chosen = id)) }
         }
+    }
+}
+
+/** Whether a wall filtered on [this] shows [item], as a source filters a film: not seen being neither watched nor started. */
+private fun WatchStatus.holds(item: MediaItem): Boolean {
+    val user = item.user
+    return when (this) {
+        WatchStatus.ALL -> true
+        WatchStatus.UNWATCHED -> !user.played && user.positionMs == 0L
+        WatchStatus.IN_PROGRESS -> !user.played && user.positionMs > 0
+        WatchStatus.WATCHED -> user.played
+        WatchStatus.FAVORITES -> user.favorite
     }
 }
 
