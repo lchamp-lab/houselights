@@ -1,6 +1,7 @@
 package app.houselights.ui.edit
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -457,16 +461,17 @@ private fun Choices(
     val entries = remember(sections, kind, note != null) { sheetItems(sections, kind.columns, note != null) }
     val state = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
+    val room = with(LocalDensity.current) { HlFocus.wallRoom.toPx() }
+    val list = remember { Placed() }
     var within by remember { mutableStateOf(false) }
     CompositionLocalProvider(LocalGroupFocused provides within) {
         OwnScroll {
             LazyColumn(
                 state = state,
                 contentPadding = PaddingValues(top = HlFocus.wallRoom),
-                modifier = Modifier.fillMaxSize().onFocusChanged { within = it.hasFocus },
+                modifier = Modifier.fillMaxSize().onPlaced { list.coordinates = it }.onFocusChanged { within = it.hasFocus },
             ) {
-                entries.forEachIndexed { index, entry ->
+                entries.forEach { entry ->
                     item(key = entry.key) {
                         val gap = entry.gap.room
                         when (entry) {
@@ -476,7 +481,7 @@ private fun Choices(
                                 held = { sheet.held.value == entry.section },
                                 modifier = Modifier.padding(top = gap),
                             )
-                            // Its top, past the gap over it, to the list's: under the wall's room, where the print stands.
+                            // Its cards to the wall's room under the list's top, where the print stands, whatever is over them.
                             is SheetItem.Cards -> Line(
                                 line = entry.line,
                                 sheet = sheet,
@@ -485,7 +490,10 @@ private fun Choices(
                                 start = start,
                                 startFocus = startFocus,
                                 actions = actions,
-                                onFocus = { scope.launch { state.animateScrollToItem(index, with(density) { gap.roundToPx() }) } },
+                                onFocus = { cards ->
+                                    val top = list.coordinates?.localPositionOf(cards, Offset.Zero)?.y
+                                    if (top != null) scope.launch { state.animateScrollBy(top - room) }
+                                },
                                 modifier = Modifier.padding(top = gap),
                             )
                             is SheetItem.Note -> Note(note.orEmpty(), Modifier.padding(top = gap))
@@ -511,7 +519,7 @@ private fun SectionHeading(name: String, count: Int, held: () -> Boolean, modifi
  * A line of the sheet, as many choices as [Sheet.kind] holds a line. A choice's words take its column and its gap, or
  * the next column too when the next choice has none or there is none, unless it is the last but one; in the last
  * column, its picture's width. [start] takes focus as the sheet arrives ([startFocus]); focus coming into the line
- * brings it to the top ([onFocus]).
+ * tells where its cards lie ([onFocus]), so the sheet brings them to its top.
  */
 @Composable
 private fun Line(
@@ -522,13 +530,18 @@ private fun Line(
     start: ArtworkOption,
     startFocus: FocusRequester,
     actions: SheetActions,
-    onFocus: () -> Unit,
+    onFocus: (LayoutCoordinates) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val kind = sheet.kind
     val columns = kind.columns
+    // The cards, past the gap over them.
+    val cards = remember { Placed() }
     Row(
-        modifier.keepHorizontalFocus().onFocusChanged { if (it.hasFocus) onFocus() },
+        modifier
+            .onPlaced { cards.coordinates = it }
+            .keepHorizontalFocus()
+            .onFocusChanged { focus -> if (focus.hasFocus) cards.coordinates?.let(onFocus) },
         horizontalArrangement = Arrangement.spacedBy(HlLayout.choiceGutter),
     ) {
         line.options.forEachIndexed { column, option ->
@@ -539,6 +552,11 @@ private fun Line(
             Choice(option, words, sheet, choices, media, actions, focus)
         }
     }
+}
+
+/** Where a layout lies, as last placed: read as focus comes, never drawn from. */
+private class Placed {
+    var coordinates: LayoutCoordinates? = null
 }
 
 /** Whether [option] says what it is under it: Automatique, a saga's film. */
