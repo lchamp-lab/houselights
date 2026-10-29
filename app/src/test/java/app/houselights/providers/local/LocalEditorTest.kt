@@ -2,14 +2,18 @@ package app.houselights.providers.local
 
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ArtworkKind
+import app.houselights.core.ArtworkNote
 import app.houselights.core.ArtworkOrigin
 import app.houselights.core.FailureKind
 import app.houselights.core.MatchCandidate
 import app.houselights.core.MatchDoubt
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.NotFoundException
 import app.houselights.core.TmdbKeyRefusedException
 import app.houselights.core.ToIdentify
+import app.houselights.ui.edit.SectionName
+import app.houselights.ui.edit.choiceSections
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -59,8 +63,42 @@ class LocalEditorTest {
 
     private fun editor(tmdb: TmdbClient? = bench.tmdb.client()) = LocalEditor(bench.dao, bench.scanner) { tmdb }
 
+    /** Dune's saga as TMDB knows it, its poster and backdrop, and its two films the library holds. */
+    private suspend fun duneSaga(): MediaItem {
+        val films = bench.folder("Films")
+        val saga = TmdbCollectionRef(DUNE_SAGA, "Dune - Saga")
+        bench.tmdb.movie(DUNE, "Dune", 2021, collection = saga)
+        bench.tmdb.movie(PART_TWO, "Dune Part Two", 2024, collection = saga)
+        bench.tmdb.collections[DUNE_SAGA] = TmdbCollection(DUNE_SAGA, "Dune - Saga", posterPath = SAGA_POSTER, backdropPath = SAGA_BACKDROP)
+        bench.nas.put("Dune (2021).mkv")
+        bench.nas.put("Dune Part Two (2024).mkv")
+        bench.scan()
+        val key = checkNotNull(bench.item(films, "Dune (2021).mkv").collectionId)
+        return MediaItem(LocalId.ofCollection(key), MediaKind.COLLECTION, "Dune")
+    }
+
+    /** « Nouvelle Vague », a saga two films' NFO files name, which TMDB does not know: its films are, alone. */
+    private suspend fun newWave(): MediaItem {
+        val films = bench.folder("Films")
+        bench.tmdb.movie(BREATHLESS, "Breathless", 1960)
+        bench.tmdb.movie(CONTEMPT, "Contempt", 1963)
+        for (video in listOf("Breathless (1960).mkv", "Contempt (1963).mkv")) {
+            bench.nas.put(video)
+            bench.nas.putText(video.replace(".mkv", ".nfo"), "<movie><set><name>Nouvelle Vague</name></set></movie>")
+        }
+        bench.scan()
+        val key = checkNotNull(bench.item(films, "Breathless (1960).mkv").collectionId)
+        return MediaItem(LocalId.ofCollection(key), MediaKind.COLLECTION, "Nouvelle Vague")
+    }
+
     private companion object {
         const val DUNE = 438631
+        const val PART_TWO = 693134
+        const val DUNE_SAGA = 726871
+        const val SAGA_POSTER = "/dune-saga.jpg"
+        const val SAGA_BACKDROP = "/dune-saga-wide.jpg"
+        const val BREATHLESS = 269
+        const val CONTEMPT = 266
         const val LYNCH = 841
         const val KAAMELOTT = 2167
         const val PILOT = "Kaamelott/Livre 1/Kaamelott - S01E01.mkv"
@@ -126,6 +164,106 @@ class LocalEditorTest {
         val choices = editor(french()).artwork(heat, ArtworkKind.BACKDROP)
         val languages = choices.options.map { it.language }
         assertEquals(List(PER_LANGUAGE) { null } + List(PER_LANGUAGE) { "fr" } + List(20) { "en" }, languages)
+    }
+
+    /**
+     * A saga's posters (#48): Automatique, TMDB's poster of the saga, first; then TMDB's pictures of the saga by language,
+     * the viewer's, English, none; then each film's, in release order, named by its title and year: the contact sheet's
+     * sections, « Ses films » last. A saga's choice is its poster and its backdrop: no logo.
+     */
+    @Test
+    fun aSagasPostersAreAutomatiqueThenTmdbsByLanguageThenOneAFilm() = runTest {
+        val saga = duneSaga()
+        bench.tmdb.imageSets[DUNE_SAGA] = TmdbImageSet(posters = pictures("en").take(2) + pictures("fr").take(3) + pictures(null).take(1))
+        val editor = editor(french())
+        assertTrue(editor.canEdit(saga))
+
+        val choices = editor.artwork(saga, ArtworkKind.POSTER)
+        assertEquals(SAGA_POSTER, choices.automatic?.value)
+        assertEquals("the one in use, nothing chosen", choices.automatic, choices.selected)
+        assertEquals(ArtworkNote.SAGA to true, choices.note to choices.onlineAvailable)
+        val films = choices.options.takeLast(2)
+        assertEquals(listOf("/poster-$DUNE.jpg", "/poster-$PART_TWO.jpg"), films.map { it.value })
+        assertEquals(listOf(ArtworkOrigin.FILM, ArtworkOrigin.FILM), films.map { it.origin })
+        assertEquals(listOf("Dune" to 2021, "Dune Part Two" to 2024), films.map { it.film to it.filmYear })
+        val sections = choiceSections(choices)
+        val languages = listOf("fr", "en", null).map { SectionName.Language(it) }
+        assertEquals(listOf<SectionName>(SectionName.Head) + languages + SectionName.Films, sections.map { it.name })
+        assertEquals(listOf(1, 3, 2, 1, 2), sections.map { it.options.size })
+        val logo = runCatching { editor.artwork(saga, ArtworkKind.LOGO) }.exceptionOrNull()
+        assertTrue("TMDB gives a collection no logo: $logo", logo is NotFoundException)
+    }
+
+    /** A saga's choice keeps « Ses films » whole: TMDB's pictures take what Automatique and its films leave of the 80, 30 a language. */
+    @Test
+    fun aSagasFilmsAreNeverCutTmdbsTakingWhatTheyLeave() = runTest {
+        val saga = duneSaga()
+        bench.tmdb.imageSets[DUNE_SAGA] = TmdbImageSet(posters = pictures(null) + pictures("en") + pictures("fr"))
+
+        val choices = editor(french()).artwork(saga, ArtworkKind.POSTER)
+        assertEquals(80, choices.options.size)
+        val tmdb = choices.options.filter { it.origin == ArtworkOrigin.ONLINE }.drop(1)
+        assertEquals(List(PER_LANGUAGE) { "fr" } + List(PER_LANGUAGE) { "en" } + List(17) { null }, tmdb.map { it.language })
+        assertEquals(listOf("Dune", "Dune Part Two"), choices.options.takeLast(2).map { it.film })
+    }
+
+    /**
+     * A picture chosen for a saga is kept by its key, its poster and its backdrop apart, and is the one in use; Automatique
+     * clears it, and the saga's row of choices goes once both its pictures are automatic.
+     */
+    @Test
+    fun aSagasChoiceIsKeptByItsKeyAutomatiqueClearingIt() = runTest {
+        val saga = duneSaga()
+        bench.tmdb.imageSets[DUNE_SAGA] = TmdbImageSet(posters = pictures("fr").take(2), backdrops = pictures(null).take(2))
+        val editor = editor(french())
+        val key = "tmdb:$DUNE_SAGA"
+
+        val film = editor.artwork(saga, ArtworkKind.POSTER).options.last()
+        editor.setArtwork(saga, ArtworkKind.POSTER, film)
+        val wide = editor.artwork(saga, ArtworkKind.BACKDROP).options.first { it.language == null && it.value != SAGA_BACKDROP }
+        editor.setArtwork(saga, ArtworkKind.BACKDROP, wide)
+        assertEquals(SagaChoiceEntity(key, film.value, wide.value), bench.dao.sagaChoice(key))
+        val chosen = editor.artwork(saga, ArtworkKind.POSTER)
+        assertEquals(film.value to ArtworkOrigin.FILM, chosen.selected?.value to chosen.selected?.origin)
+
+        editor.setArtwork(saga, ArtworkKind.POSTER, checkNotNull(chosen.automatic))
+        assertEquals(SagaChoiceEntity(key, userBackdropPath = wide.value), bench.dao.sagaChoice(key))
+        editor.setArtwork(saga, ArtworkKind.BACKDROP, checkNotNull(editor.artwork(saga, ArtworkKind.BACKDROP).automatic))
+        assertNull(bench.dao.sagaChoice(key))
+    }
+
+    /**
+     * A saga an NFO's set names and TMDB does not know has its films' pictures alone, Automatique its first film's, named by
+     * it, then the others'; nothing asked of TMDB, nothing failed: the choice says why (#48).
+     */
+    @Test
+    fun aSagaTmdbDoesNotKnowHasItsFilmsPicturesAlone() = runTest {
+        val saga = newWave()
+        bench.tmdb.requests.clear()
+
+        val choices = editor().artwork(saga, ArtworkKind.POSTER)
+        assertEquals(ArtworkNote.SAGA_UNKNOWN, choices.note)
+        assertEquals(false to null, choices.onlineAvailable to choices.onlineError)
+        assertEquals(listOf("/poster-$BREATHLESS.jpg", "/poster-$CONTEMPT.jpg"), choices.options.map { it.value })
+        assertEquals(listOf("Breathless" to 1960, "Contempt" to 1963), choices.options.map { it.film to it.filmYear })
+        assertEquals("Automatique, its first film's", choices.options.first(), choices.automatic)
+        assertEquals(listOf(SectionName.Head, SectionName.Films), choiceSections(choices).map { it.name })
+        assertEquals("nothing asked of TMDB", emptyList<String>(), bench.tmdb.requests.toList())
+    }
+
+    /** TMDB out of reach, or no key, a saga's choice keeps Automatique and its films, and says why TMDB's are missing. */
+    @Test
+    fun aSagaTmdbCannotListKeepsItsFilmsAndSaysWhy() = runTest {
+        val saga = duneSaga()
+        bench.tmdb.failingPath = "collection/"
+        val offline = editor().artwork(saga, ArtworkKind.POSTER)
+        assertEquals(ArtworkNote.SAGA to false, offline.note to offline.onlineAvailable)
+        assertTrue(offline.onlineError != null)
+        assertEquals(listOf(SAGA_POSTER, "/poster-$DUNE.jpg", "/poster-$PART_TWO.jpg"), offline.options.map { it.value })
+
+        val keyless = editor(tmdb = null).artwork(saga, ArtworkKind.POSTER)
+        assertEquals(FailureKind.NO_TMDB_KEY, keyless.onlineError)
+        assertEquals(3, keyless.options.size)
     }
 
     /** [PICTURES] of TMDB's pictures in [language] (none: without text), rated from 0 up as they come. */

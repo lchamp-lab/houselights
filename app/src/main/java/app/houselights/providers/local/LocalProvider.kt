@@ -140,7 +140,11 @@ class LocalProvider(
 
     internal suspend fun collectionItems(collections: List<CollectionEntity>): List<MediaItem> {
         val members = membersOf(collections.map { it.id })
-        return withContext(Dispatchers.Default) { collections.map { collectionItem(it, members[it.id].orEmpty()) } }
+        // The pictures chosen for them (#48), a few queries for them all, as their films.
+        val chosen = collections.map { it.matchKey }.chunked(SQL_IN_LIMIT).flatMap { dao.sagaChoices(it) }.associateBy { it.matchKey }
+        return withContext(Dispatchers.Default) {
+            collections.map { collectionItem(it, members[it.id].orEmpty(), chosen[it.matchKey]) }
+        }
     }
 
     /** One query per [SQL_IN_LIMIT] collections rather than one each. */
@@ -209,10 +213,15 @@ class LocalProvider(
 
     private suspend fun mapCollection(c: CollectionEntity, films: List<CollectionMember>? = null): MediaItem {
         val members = films ?: dao.collectionMembers(listOf(c.id))
-        return withContext(Dispatchers.Default) { collectionItem(c, members) }
+        val chosen = dao.sagaChoice(c.matchKey)
+        return withContext(Dispatchers.Default) { collectionItem(c, members, chosen) }
     }
 
-    private fun collectionItem(c: CollectionEntity, members: List<CollectionMember>): MediaItem {
+    /**
+     * Saga [c] as every screen shows it, its walls, search, home's door and its page: its poster and its backdrop as the
+     * user [chosen] them (#48), else TMDB's, else its first film's as that film shows them.
+     */
+    private fun collectionItem(c: CollectionEntity, members: List<CollectionMember>, chosen: SagaChoiceEntity?): MediaItem {
         val years = members.mapNotNull { it.year }
         val first = members.firstOrNull()
         val unplayed = members.count { !it.played }
@@ -227,8 +236,9 @@ class LocalProvider(
             // Genres grouped case-insensitively, as in the genre filter: an NFO's "drame" is TMDB's "Drame".
             genres = members.flatMap { it.genres }.groupBy { it.lowercase(Locale.ROOT) }.values
                 .sortedByDescending { it.size }.take(SAGA_GENRES).map(PipeList::spellingOf),
-            poster = (c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })?.let { image(it, ImageType.POSTER) },
-            backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })
+            poster = (chosen?.userPosterPath ?: c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })
+                ?.let { image(it, ImageType.POSTER) },
+            backdrop = (chosen?.userBackdropPath ?: c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })
                 ?.let { image(it, ImageType.BACKDROP) },
             // As a film's: its latest film added since its folder's first scan, the month a wall sorted by Ajout shows.
             addedAt = members.mapNotNull { it.addedLater }.maxOrNull(),

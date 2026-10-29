@@ -227,6 +227,12 @@ class TmdbClient(
     suspend fun images(tmdbId: Int, show: Boolean): TmdbImageSet =
         call { it.images(kindOf(show), tmdbId, imageLanguages) }
 
+    /**
+     * A saga's (TMDB collection [id]) posters and backdrops in the client's language, English, or without text: TMDB
+     * gives a collection no logo.
+     */
+    suspend fun collectionImages(id: Int): TmdbImageSet = call { it.images("collection", id, imageLanguages) }
+
     /** TMDB ids of the film and show matching an IMDb id. */
     suspend fun findByImdb(imdbId: String): Pair<Int?, Int?> = unlessMissing {
         val r = call { it.find(imdbId) }

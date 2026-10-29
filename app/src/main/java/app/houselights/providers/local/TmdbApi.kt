@@ -42,7 +42,7 @@ interface TmdbApi {
         @Query("external_source") source: String = "imdb_id",
     ): TmdbFindResult
 
-    /** A film's ([kind] "movie") or a show's ("tv") posters, backdrops and logos. */
+    /** A film's ([kind] "movie"), a show's ("tv") or a saga's ("collection") posters, backdrops and logos. */
     @GET("{kind}/{id}/images")
     suspend fun images(
         @Path("kind") kind: String,
