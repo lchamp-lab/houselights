@@ -120,8 +120,8 @@
     <string name="mark_unwatched">Als ungesehen markieren</string>
     <string name="mark_season_watched">Staffel als gesehen markieren</string>
     <string name="mark_season_unwatched">Staffel als ungesehen markieren</string>
-    <string name="mark_series_watched">Ganze Serie als gesehen markieren</string>
-    <string name="mark_series_unwatched">Ganze Serie als ungesehen markieren</string>
+    <string name="mark_series_watched">Serie als gesehen markieren</string>
+    <string name="mark_series_unwatched">Serie als ungesehen markieren</string>
     <string name="mark_season_number_watched">Staffel %d als gesehen markieren</string>
     <string name="mark_season_number_unwatched">Staffel %d als ungesehen markieren</string>
     <string name="more_options">Weitere Optionen</string>
