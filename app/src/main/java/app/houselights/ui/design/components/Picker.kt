@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -166,7 +167,8 @@ fun ArtworkPrint(
             if (selected) SelectedMark(Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         }
         Spacer(Modifier.height(HlSpace.xs))
-        Row(Modifier.fillMaxWidth().height(textRoom(Hl.type.cardName))) {
+        // At least a line's room, kept when empty; a script whose font sets taller (Japanese, Chinese, Korean) takes more.
+        Row(Modifier.fillMaxWidth().heightIn(min = textRoom(Hl.type.cardName))) {
             // The shorter keeps its width: a film's year after its name, a film's name after « Automatique ».
             val nameGivesWay = name.orEmpty().length >= detail.orEmpty().length
             if (name != null) {

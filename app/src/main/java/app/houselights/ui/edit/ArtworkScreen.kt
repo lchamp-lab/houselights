@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -25,6 +26,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -34,6 +36,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -54,7 +57,7 @@ import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.ListScroll
+import app.houselights.ui.design.OwnScroll
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.ArtworkPrint
@@ -77,6 +80,7 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.languageName
 import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.skeletonDelayPassed
+import kotlinx.coroutines.launch
 
 /**
  * Choosing one picture of a title: its contact sheet (« la planche-contact »), the choices in sections, Automatique and
@@ -354,15 +358,65 @@ internal fun choiceSections(choices: ArtworkChoices): List<ChoiceSection> {
 }
 
 /** A line of the sheet: the [index]th of the [section]th section, [options] of it, the [last] of it or not. */
-internal data class SheetLine(val section: Int, val index: Int, val options: List<ArtworkOption>, val last: Boolean) {
-    val key: String get() = "$section-$index"
-}
+internal data class SheetLine(val section: Int, val index: Int, val options: List<ArtworkOption>, val last: Boolean)
 
 /** [sections] in lines of [columns], each section starting a line. */
 internal fun sheetLines(sections: List<ChoiceSection>, columns: Int): List<SheetLine> = sections.flatMapIndexed { s, section ->
     val lines = section.options.chunked(columns)
     lines.mapIndexed { i, options -> SheetLine(s, i, options, last = i == lines.lastIndex) }
 }
+
+/** What the sheet lists, item by item, each [gap] from the one before it. */
+internal sealed interface SheetItem {
+    val gap: SheetGap
+    val key: String
+
+    /** The name of the [section]th section, over its first line. */
+    data class Name(val section: Int, override val gap: SheetGap) : SheetItem {
+        override val key: String get() = "name-$section"
+    }
+
+    /** A [line] of choices. */
+    data class Cards(val line: SheetLine, override val gap: SheetGap) : SheetItem {
+        override val key: String get() = "line-${line.section}-${line.index}"
+    }
+
+    /** Why TMDB's pictures are missing, in their place. */
+    data class Note(override val gap: SheetGap) : SheetItem {
+        override val key: String get() = "note"
+    }
+}
+
+/** The gap over an item: none over the first; a section's name's over its first line, a line's, a block's over a section. */
+internal enum class SheetGap { NONE, NAME, LINE, BLOCK }
+
+/**
+ * [sections] as the sheet lists them in lines of [columns]: a section's name, a block from what comes before it, over
+ * its first line, the head having none; lines a wall's lines apart; with a [note], why TMDB's pictures are missing
+ * after the head, or first without one.
+ */
+internal fun sheetItems(sections: List<ChoiceSection>, columns: Int, note: Boolean): List<SheetItem> {
+    val items = mutableListOf<SheetItem>()
+    val gap = { wanted: SheetGap -> if (items.isEmpty()) SheetGap.NONE else wanted }
+    val head = sections.indexOfFirst { it.name == SectionName.Head }
+    if (note && head < 0) items += SheetItem.Note(SheetGap.NONE)
+    sheetLines(sections, columns).forEach { line ->
+        val named = line.index == 0 && sections[line.section].name != SectionName.Head
+        if (named) items += SheetItem.Name(line.section, gap(SheetGap.BLOCK))
+        items += SheetItem.Cards(line, if (named) SheetGap.NAME else gap(SheetGap.LINE))
+        if (note && line.section == head && line.last) items += SheetItem.Note(SheetGap.LINE)
+    }
+    return items
+}
+
+/** The room a gap keeps. */
+private val SheetGap.room: Dp
+    get() = when (this) {
+        SheetGap.NONE -> HlSpace.none
+        SheetGap.NAME -> HlLayout.choiceNameGap
+        SheetGap.LINE -> HlSpace.l
+        SheetGap.BLOCK -> HlLayout.choiceSectionGap
+    }
 
 /** A section's name: its language (« Français »), « Sans texte » (a logo's, « Toutes langues »), « Ses films ». */
 @Composable
@@ -374,9 +428,10 @@ private fun sectionName(kind: ArtworkKind, name: SectionName): String? = when (n
 }
 
 /**
- * The sheet's lines, the line with focus always at its top under the wall's room for its glow, its section's name held
- * over it; the note of TMDB's missing pictures after the head, in their place; and room under the last line, so it too
- * comes to the top. While a choice has focus, the others step back, as on a wall.
+ * The sheet's items, the line with focus always brought to its top under the wall's room for its glow, its section's
+ * name held over it, whatever is over the line in the list: the sheet scrolls itself there ([OwnScroll]); the note of
+ * TMDB's missing pictures after the head, in their place; and room under the last line, so it too comes to the top.
+ * While a choice has focus, the others step back, as on a wall.
  */
 @Composable
 private fun Choices(
@@ -399,24 +454,43 @@ private fun Choices(
         }
     }
     val names = sections.map { sectionName(kind, it.name) }
-    val lines = remember(sections, kind) { sheetLines(sections, kind.columns) }
-    val noteAfter = sections.indexOfFirst { it.name == SectionName.Head }
+    val entries = remember(sections, kind, note != null) { sheetItems(sections, kind.columns, note != null) }
+    val state = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
     var within by remember { mutableStateOf(false) }
     CompositionLocalProvider(LocalGroupFocused provides within) {
-        ListScroll(top = HlFocus.wallRoom, toTop = true) {
+        OwnScroll {
             LazyColumn(
+                state = state,
                 contentPadding = PaddingValues(top = HlFocus.wallRoom),
-                verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 modifier = Modifier.fillMaxSize().onFocusChanged { within = it.hasFocus },
             ) {
-                if (note != null && noteAfter < 0) item(key = NOTE) { Note(note) }
-                lines.forEach { line ->
-                    item(key = line.key) {
-                        val held = { sheet.held.value == line.section }
-                        val named = names[line.section]
-                        Line(line, named, sections[line.section].options.size, held, sheet, choices, media, start, startFocus, actions)
+                entries.forEachIndexed { index, entry ->
+                    item(key = entry.key) {
+                        val gap = entry.gap.room
+                        when (entry) {
+                            is SheetItem.Name -> SectionHeading(
+                                name = names[entry.section].orEmpty(),
+                                count = sections[entry.section].options.size,
+                                held = { sheet.held.value == entry.section },
+                                modifier = Modifier.padding(top = gap),
+                            )
+                            // Its top, past the gap over it, to the list's: under the wall's room, where the print stands.
+                            is SheetItem.Cards -> Line(
+                                line = entry.line,
+                                sheet = sheet,
+                                choices = choices,
+                                media = media,
+                                start = start,
+                                startFocus = startFocus,
+                                actions = actions,
+                                onFocus = { scope.launch { state.animateScrollToItem(index, with(density) { gap.roundToPx() }) } },
+                                modifier = Modifier.padding(top = gap),
+                            )
+                            is SheetItem.Note -> Note(note.orEmpty(), Modifier.padding(top = gap))
+                        }
                     }
-                    if (note != null && line.section == noteAfter && line.last) item(key = NOTE) { Note(note) }
                 }
                 item(key = RUNOUT) { Spacer(Modifier.fillParentMaxHeight()) }
             }
@@ -425,41 +499,44 @@ private fun Choices(
 }
 
 /**
- * A line of the sheet, as many choices as [Sheet.kind] holds a line, its section's [name] and [count] over its first:
- * hidden while it is the section of the line with focus ([held]), whose name the sheet holds over it, faded across the
- * safe area's margin otherwise. A choice's words take its column and its gap, or the next column too when the next
- * choice has none or there is none, unless it is the last but one; in the last column, its picture's width.
- * [start] takes focus as the sheet arrives ([startFocus]).
+ * A section's [name] and its [count], over its first line: hidden while it is the section of the line with focus
+ * ([held]), whose name the sheet holds over it, faded across the safe area's margin otherwise, never cut by the edge.
+ */
+@Composable
+private fun SectionHeading(name: String, count: Int, held: () -> Boolean, modifier: Modifier = Modifier) {
+    ResultsHeading(name, count, modifier.alpha(if (held()) 0f else 1f).fadeOutsideSafeArea())
+}
+
+/**
+ * A line of the sheet, as many choices as [Sheet.kind] holds a line. A choice's words take its column and its gap, or
+ * the next column too when the next choice has none or there is none, unless it is the last but one; in the last
+ * column, its picture's width. [start] takes focus as the sheet arrives ([startFocus]); focus coming into the line
+ * brings it to the top ([onFocus]).
  */
 @Composable
 private fun Line(
     line: SheetLine,
-    name: String?,
-    count: Int,
-    held: () -> Boolean,
     sheet: Sheet,
     choices: ArtworkChoices,
     media: MediaItem,
     start: ArtworkOption,
     startFocus: FocusRequester,
     actions: SheetActions,
+    onFocus: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val kind = sheet.kind
     val columns = kind.columns
-    val apart = line.section > 0 && line.index == 0
-    Column(Modifier.padding(top = if (apart) HlLayout.choiceSectionApart else HlSpace.none)) {
-        if (line.index == 0 && name != null) {
-            ResultsHeading(name, count, Modifier.alpha(if (held()) 0f else 1f).fadeOutsideSafeArea())
-            Spacer(Modifier.height(HlLayout.choiceNameGap))
-        }
-        Row(Modifier.keepHorizontalFocus(), horizontalArrangement = Arrangement.spacedBy(HlLayout.choiceGutter)) {
-            line.options.forEachIndexed { column, option ->
-                val next = line.options.getOrNull(column + 1)
-                val roomy = column < columns - 2 && (next == null || !choices.hasWords(next))
-                val words = HlLayout.choiceWords(kind.cellWidth, if (roomy) 2 else 1, last = column == columns - 1)
-                val focus = if (option == start) Modifier.focusRequester(startFocus) else Modifier
-                Choice(option, words, sheet, choices, media, actions, focus)
-            }
+    Row(
+        modifier.keepHorizontalFocus().onFocusChanged { if (it.hasFocus) onFocus() },
+        horizontalArrangement = Arrangement.spacedBy(HlLayout.choiceGutter),
+    ) {
+        line.options.forEachIndexed { column, option ->
+            val next = line.options.getOrNull(column + 1)
+            val roomy = column < columns - 2 && (next == null || !choices.hasWords(next))
+            val words = HlLayout.choiceWords(kind.cellWidth, if (roomy) 2 else 1, last = column == columns - 1)
+            val focus = if (option == start) Modifier.focusRequester(startFocus) else Modifier
+            Choice(option, words, sheet, choices, media, actions, focus)
         }
     }
 }
@@ -522,7 +599,6 @@ private fun Skeletons(kind: ArtworkKind, modifier: Modifier = Modifier) {
     }
 }
 
-private const val NOTE = "note"
 private const val RUNOUT = "runout"
 
 private val ArtworkKind.title

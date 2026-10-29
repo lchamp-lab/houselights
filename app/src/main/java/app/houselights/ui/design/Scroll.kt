@@ -128,6 +128,22 @@ fun ListScroll(top: Dp, toTop: Boolean = false, content: @Composable () -> Unit)
     CompositionLocalProvider(LocalBringIntoViewSpec provides rememberListScroll(top, toTop), content = content)
 }
 
+/**
+ * For a list that brings its element with focus where it belongs itself, by its state (the contact sheet, its line with
+ * focus at its top whatever is over it in its item): focus moving in it scrolls nothing of its own.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun OwnScroll(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalBringIntoViewSpec provides StillScroll, content = content)
+}
+
+/** Brings nothing into view: what is asked to be shown is taken as shown. */
+@OptIn(ExperimentalFoundationApi::class)
+private object StillScroll : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
+}
+
 /** Rows keep focus [ROW_MARGIN] from both screen ends, so a row returns to its rest and the next card peeks in. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

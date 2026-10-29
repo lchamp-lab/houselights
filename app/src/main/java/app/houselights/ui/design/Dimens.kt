@@ -239,8 +239,8 @@ object HlLayout {
     /** Between the sheet's columns; its lines [HlSpace.l] apart, as a wall's. */
     val choiceGutter = HlSpace.s
 
-    /** What a section's first line adds to the gap between lines, so sections stand a block apart ([HlSpace.xl]). */
-    val choiceSectionApart = HlSpace.xl - HlSpace.l
+    /** Between a section's name and what comes before it: sections stand a block apart. */
+    val choiceSectionGap = HlSpace.xl
 
     /** Between a section's name and its first line: a search row's, its gap and its row's room. */
     val choiceNameGap = HlSpace.xxs + HlFocus.room

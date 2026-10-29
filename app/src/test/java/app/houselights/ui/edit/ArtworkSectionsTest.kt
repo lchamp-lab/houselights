@@ -106,6 +106,24 @@ class ArtworkSectionsTest {
         assertEquals(listOf(true, false, true, true), lines.map { it.last })
     }
 
+    /** A section's name stands a block from what comes before it, its first line a name's gap under it; the note after the head. */
+    @Test
+    fun aSectionsNameStandsABlockApartItsFirstLineUnderIt() {
+        val items = sheetItems(choiceSections(choices(listOf(automatic) + french + english)), POSTERS, note = true)
+        assertEquals(
+            listOf(
+                "line-0-0" to SheetGap.NONE,
+                "note" to SheetGap.LINE,
+                "name-1" to SheetGap.BLOCK,
+                "line-1-0" to SheetGap.NAME,
+                "line-1-1" to SheetGap.LINE,
+                "name-2" to SheetGap.BLOCK,
+                "line-2-0" to SheetGap.NAME,
+            ),
+            items.map { it.key to it.gap },
+        )
+    }
+
     /** A film's backdrops: without text first, then in the viewer's language and English, Automatique having none. */
     @Test
     fun backdropsStartWithThoseWithoutText() = runTest {
