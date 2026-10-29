@@ -77,14 +77,18 @@ class LocalEditor(
         ArtworkKind.LOGO -> this?.logos
     }.orEmpty()
 
-    /** [images] in the order they are offered: by [language] as [kind] prefers it, then by TMDB's votes. */
+    /**
+     * [images] in the order they are offered: by [language] as [kind] prefers it, then by TMDB's votes, the
+     * [PER_LANGUAGE] best rated of each language, so that one language never fills the [MAX_OPTIONS] of the choice and
+     * each keeps its section on the contact sheet (« la planche-contact »).
+     */
     private fun ranked(images: List<TmdbImage>, kind: ArtworkKind, language: String): List<TmdbImage> {
         // Backdrops work best without text; posters and logos prefer the viewer's language.
         val preference = if (kind == ArtworkKind.BACKDROP) listOf(null, language, "en") else listOf(language, "en", null)
         return images.sortedWith(
             compareBy<TmdbImage> { preference.indexOf(it.iso6391).let { i -> if (i < 0) preference.size else i } }
                 .thenByDescending { it.voteAverage },
-        )
+        ).groupBy { it.iso6391 }.values.flatMap { it.take(PER_LANGUAGE) }
     }
 
     /** The picture of [kind] the title's NFO names, if any. */
@@ -304,6 +308,9 @@ class LocalEditor(
         /** The "no logo" option: the title is typeset instead. */
         const val NONE = ""
         const val MAX_OPTIONS = 80
+
+        /** The pictures of one language offered at most: five lines of posters, six of backdrops on the contact sheet. */
+        const val PER_LANGUAGE = 30
         const val MAX_RESULTS = 20
 
         /** Fewer results than this for a year are completed by a search without it. */

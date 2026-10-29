@@ -33,6 +33,9 @@ class FakeTmdb : Interceptor {
     /** Each episode group whole, by its id ([group]). */
     val groups: MutableMap<String, TmdbEpisodeGroup> = Collections.synchronizedMap(linkedMapOf())
 
+    /** The pictures of the films and shows of those ids, as `{kind}/{id}/images` lists them; none for the others. */
+    val imageSets: MutableMap<Int, TmdbImageSet> = Collections.synchronizedMap(linkedMapOf())
+
     /**
      * TMDB's ranked answer to a search, by its query in lower case: the films or shows of these ids, of the year asked
      * for. A query not here finds the films or shows of that title exactly.
@@ -228,7 +231,7 @@ class FakeTmdb : Interceptor {
             url.queryParameter("language"),
         )
         path.startsWith("find/") -> find(path.substringAfter('/'), url.queryParameter("external_source"))
-        path.endsWith("/images") -> encode(TmdbImageSet.serializer(), TmdbImageSet())
+        path.endsWith("/images") -> encode(TmdbImageSet.serializer(), imagesAt(path))
         path.endsWith("/alternative_titles") -> alternatives(path.split('/'))
         path.startsWith("trending/") -> page(emptyList())
         path.endsWith("/episode_groups") -> path.split('/')[1].toIntOrNull()?.takeIf { it in shows }
@@ -236,6 +239,9 @@ class FakeTmdb : Interceptor {
         path.startsWith("tv/episode_group/") -> groups[path.substringAfterLast('/')]?.let { encode(TmdbEpisodeGroup.serializer(), it) }
         else -> entry(path.split('/'))
     }
+
+    /** The pictures TMDB lists at [path], `{kind}/{id}/images`. */
+    private fun imagesAt(path: String): TmdbImageSet = path.split('/')[1].toIntOrNull()?.let(imageSets::get) ?: TmdbImageSet()
 
     /** The films and shows an IMDb id names, or the shows a TheTVDB id does ([source] "tvdb_id"). */
     private fun find(id: String, source: String?): String = encode(
