@@ -648,7 +648,13 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   - **A film the library lacks** or not out yet keeps TMDB's poster and backdrop in grey (see *Veils*), framed without a
     glow, stepping back further than its siblings; OK opens its synopsis (`SynopsisSheet`), never a way to get it.
   - **The predella**: Lire or Reprendre the film the saga plays next (`nextUpIn`), named with its time left whatever
-    panel is open, Depuis le début once started, « Marquer la saga comme vue », what failed at its end. Lire takes what
+    panel is open, Depuis le début once started, « Marquer la saga comme vue », what failed at its end. No tile after
+    them: Menu on any of them opens the saga's options, the sheet of its poster on a wall (`PosterOptions`, #48), its
+    mark focused, then Modifier, its poster and its backdrop; the Menu key says so at the row's end while focus is in
+    the predella and no sheet is open, on the marks' plate, a row's gap from the last tile and centred on it, never
+    taking focus, measured before Lire as the tiles are (`PlatedMenuKey`). A Jellyfin box set's sheet has its mark
+    alone, the check beside it: no key, Menu still opening it. The panels have no options: focus in them, the key goes
+    and Menu does nothing. Back from a picture's choice, focus is on the action Menu was pressed on (`SagaOptionsTest`). Lire takes what
     the tiles leave, a long film's time left going whole before a tile gives way, and what failed takes what Lire
     leaves; at 1.3 in every language, its words and the panels' hold, the saga's films to come, last of its facts,
     giving way first (`SagaWordsTest`). A box set (a source that lists only the films it holds) has a panel for each
@@ -672,15 +678,16 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     opening their synopsis (`DetailSagaRowTest`).
   - This page bends four rules, each written where it lives: the panel with focus opens wider (see *Focus*), the
     panels carry words (see *Cards*), its numbers are title styles and its spine the one turned text (see *Type*).
-- **The contact sheet** (« la planche-contact », `ArtworkScreen`): where a film's or a show's picture is chosen, its
-  choices in sections (`choiceSections`), shown at once and searched by eye, beside or under the one with focus shown
-  at its use. The head, untitled: Automatique, the one in use beside it, checked in ember and focused on arrival, never
+- **The contact sheet** (« la planche-contact », `ArtworkScreen`): where a film's, a show's or a saga's picture is
+  chosen, its choices in sections (`choiceSections`), shown at once and searched by eye, beside or under the one with
+  focus shown at its use. The head, untitled: Automatique, the one in use beside it, checked in ember and focused on arrival, never
   again in its language's section, then what the title's files give (its NFO's picture, a file beside it, a logo's
   title in type); then a section a language in the order TMDB's are ranked, the viewer's language, English, then
   « Sans texte » for posters (« Toutes langues » for logos, which nearly always carry the title written), « Sans
-  texte » first for backdrops; a saga's films' last, « Ses films », one picture a film named by its title and year
-  (`ArtworkOrigin.FILM`). At most 30 pictures of a language, the best rated, and 80 in all (`LocalEditor`), so every
-  language keeps its section. A section is named even for a single picture, the only place its language is said, in a
+  texte » first for backdrops; a saga's films' last, « Ses films », one picture a film, the one it shows (its choice,
+  else its own), in release order, named by its title and year (`ArtworkOrigin.FILM`). At most 30 pictures of a
+  language, the best rated, and 80 in all (`LocalEditor`), so every language keeps its section; a saga's films are never
+  cut, TMDB's taking what they and Automatique leave. A section is named even for a single picture, the only place its language is said, in a
   search row's style with its count after it (`ResultsHeading`); no total, no sentence under the title. The line with
   focus always comes to the sheet's top, the wall's room over it for its glow, the sheet scrolling itself to it
   (`OwnScroll`) whatever is over it in its list, a section's name (`choiceSectionGap` from what is before it); the
@@ -715,6 +722,17 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   TMDB's notes (no key, the key refused, a certificate, out of reach or the title not identified, `onlineNote`)
   stand in place of its sections, after the head (`AttentionNote`). `ArtworkSectionsTest`, `ArtworkScreenTest`,
   `ArtworkLayoutTest`, `LocalEditorTest`.
+
+  **A saga's** (#48) poster and backdrop are chosen there, from its Modifier: Automatique, today's rule (TMDB's picture
+  of the saga, else its first film's, which the print names after « Automatique »), and the one in use; then TMDB's
+  pictures of the saga (`collection/{id}/images`), a section a language; then « Ses films ». TMDB out of reach, the note
+  says the connection alone (`artwork_offline_saga`), a saga never being to identify; a saga an NFO's set names and
+  TMDB does not know has its films' pictures alone, the note saying why as a fact, in secondary text, without a mark,
+  nothing having failed (`artwork_saga_unknown`). The choice is kept by the saga's key, never on its row, in a table of
+  its own (`SagaChoiceEntity`), so scans keep it, and the saga leaving with its last film and coming back finds it;
+  Automatique clears it. Its walls, home's Sagas door, search, a film's saga and its page, its panel and its room, show
+  it at their next read (`SagaChoiceTest`). A Jellyfin box set has no Modifier: its server's interface changes its
+  pictures.
 - **The welcome screen**: the lockup and tagline in the middle of the left column, notes under them (a connection
   that could not be read back; settings that could not be and were reset, until a source is saved; the last
   choice's failure); the task's title on one line over the two choices, raised on glass, each saying what it is in a
@@ -853,8 +871,9 @@ shows focus, with the Menu key (`MenuKey`): the remote's key drawn small, its li
 in a frame of tertiary ink, `HlShapes.mark`, `HlSize.menuKeyWidth` × `menuKeyHeight`; on a card, in its picture's
 bottom right corner, white on the marks' dark plate, `HlSpace.xs` from its edges as the state mark is, the state at the
 top and the gesture at the bottom, above its progress line, which stays whole, its size at every text size, laid on
-the picture so nothing moves as it comes (`MenuKeyTest`); at the end of a result's name (`HlResultItem`, its options
-through `HlPanelButton`), its room kept; under a tile on its label's second line, in place of a hint; on home's case
+the picture so nothing moves as it comes (`MenuKeyTest`); at a saga's predella's end, on the same plate, centred on
+its tiles a row's gap from the last, never taking focus (`PlatedMenuKey`, see *Layout*); at the end of a result's name
+(`HlResultItem`, its options through `HlPanelButton`), its room kept; under a tile on its label's second line, in place of a hint; on home's case
 at the end of its action's plate, in the plate's ink. The key shows on the card with focus alone, never under a sheet,
 and is not read: accessibility services read the long click instead, "Plus d’options" (`onLongClickLabel`). Options
 open in a side sheet about the element, the action wanted most first and focused, so Menu then OK does it; an action
@@ -862,8 +881,9 @@ closes the sheet and focus is back on the element.
 
 **Menu on a poster** (#47) opens what makes sense without opening its page (`PosterOptions`, see *Sheets*): on a
 wall's posters (Films, Séries, Sagas), « À regarder »'s posters and its stills of Reprendre and À suivre, search's
-titles and sagas, and a person's page, wherever the source keeps what is watched; never on home's doors nor its case,
-a saga's panels, or a title page's rows, whose episodes keep their own options (`PosterOptionsTest`).
+titles and sagas, and a person's page, wherever the source keeps what is watched; on a saga's page, from its predella,
+the sheet of its poster (#48); never on home's doors nor its case, a saga's panels, or a title page's rows, whose
+episodes keep their own options (`PosterOptionsTest`, `SagaOptionsTest`).
 
 ## Components
 
@@ -992,7 +1012,9 @@ motion it came in with. Focus stays inside and returns where it was (`SheetFocus
   row and a note under the last are never left under a fade (`SheetEndsTest`). No hint: Back is the remote's own. Every action row describes itself in one line, so
   rows keep one height (`PaneRowLineTest`, in every language, at the default text size and 1.3), and lies on a plate.
   Modifier shows the images it changes as a gallery (`Gallery`), Identifier on a plate under them, and under it, for a
-  show TMDB numbers more than one way, Ordre des épisodes (`EpisodeOrderSheet`), which closes Modifier first. Its lines fall
+  show TMDB numbers more than one way, Ordre des épisodes (`EpisodeOrderSheet`), which closes Modifier first. A saga's
+  has its poster and its backdrop alone, its years as its facts: no logo, TMDB giving a collection none, and no
+  Identifier, a saga being named by its films (`EditMenuTest`). Its lines fall
   within 3 dp of the board's baselines (`SheetRhythmTest`).
 - **Reading sheets.** The synopsis keeps the standard width (520): its text in `body`, 440 dp, about 60 characters a
   line, under its tagline in `lead`, set `HlSpace.l` + `HlSpace.xxs` from its baseline to the head and the text, its
@@ -1012,8 +1034,8 @@ motion it came in with. Focus stays inside and returns where it was (`SheetFocus
   or a show's favourite, "Ajouter aux favoris" or "Retirer des favoris" by the heart, empty or filled; then
   "Modifier", where the source keeps the title's pictures, the title page's own sheet (`EditMenu`), opened as this one
   closes, a sheet never opening over another, its images and Identifier opening their screen, Back from it on the
-  poster. A saga's sheet has its mark alone until its own pictures come (`editsFromPoster`), as a Jellyfin box set's
-  keeps. No tracks, no facts of its files, no Lire: OK on the poster opens its page. Each row closes the sheet, then
+  poster. A saga's has its mark then Modifier, its poster and its backdrop (`editsFromPoster`), from a wall, search
+  and its page's predella; a Jellyfin box set's, its mark alone, its source keeping no pictures. No tracks, no facts of its files, no Lire: OK on the poster opens its page. Each row closes the sheet, then
   acts; Back does nothing. A mark goes through the source as from the page (`setPlayed`, so Trakt follows), a
   favourite too (`setFavorite`), shown at once, and comes undone when it was not saved (`PosterChanges`,
   `TraktSyncTest`). Two departures, said: the sheet is titled with what it concerns, as an episode's, where a side
@@ -1349,7 +1371,7 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogControls` | buttons in their states, a place's title and a task's, tiles, controls on a picture's plates, and the seasons |
 | `CatalogSecondary` | the settings' room of posters with its places, a group, a plate of facts and states; a pane's heads, the lockup, printed pairs, definitions, a meter that states, a code to type; showcases in their row; a gallery whose images step back; a plate in a film's light and the sheets that hold them, a reading plate, one wide to read, an NFO's |
 | `CatalogForms` | settings in their group and in a sheet, servers found by their connection, text fields, status panels, panel buttons, dividers, menus, choice sheets and settings, scroll areas |
-| `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, their posters in grey or without one, people; progress lines, skeletons, a contact sheet of each form (a poster's beside its print, a backdrop's band behind it, a logo's), its choices and prints in their states, results (with a note, with options), thumbnails |
+| `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, their posters in grey or without one, people; progress lines, skeletons, a contact sheet of each form (a poster's beside its print, a backdrop's band behind it, a logo's) and a saga's TMDB does not know, its films' alone, its choices and prints in their states, results (with a note, with options), thumbnails |
 | `CatalogVolets` | a saga's polyptych on three, five and eight films (four, six and nine panels, their numbers in 72, 48 and 36): the saga's panel open on arrival, closed panels with their marks and years, a film watched, in progress, held, missing in grey with its ring, announced in grey with the quiet dot, a picture failed, the spine once a film opens; focus opens a panel as the one left closes, a held arrow jumps |
 | `CatalogDoors` | home's head, its case resuming and proposing, then after a failed play by each remedy, and each door at its size: a still and its season, a band of posters, counts cut in posters and in ink at one size, sagas, a wall out, the app's state |
 | `CatalogReading` | title art, episode headings, meta and title lines, formats, a row's billing, the billing block, hero info, the technical sheet, search and its keys, the synopsis, versions |
