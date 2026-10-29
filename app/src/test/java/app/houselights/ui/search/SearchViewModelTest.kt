@@ -121,7 +121,7 @@ class SearchViewModelTest {
     @Test
     fun aResultMarkedShowsAtOnceThenIsSavedAndTold() = runTest {
         val events = FakeEvents()
-        val vm = SearchViewModel({ provider }, events = events, work = backgroundScope)
+        val vm = SearchViewModel({ provider }, events = events, work = this)
         backgroundScope.launch { vm.found.collect {} }
         "AME".forEach(vm::type)
         advanceUntilIdle()
@@ -141,7 +141,7 @@ class SearchViewModelTest {
     @Test
     fun aResultsMarkNotSavedIsUndoneAndSaid() = runTest {
         provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
-        val vm = SearchViewModel({ provider }, work = backgroundScope)
+        val vm = SearchViewModel({ provider }, work = this)
         backgroundScope.launch { vm.found.collect {} }
         "AME".forEach(vm::type)
         advanceUntilIdle()

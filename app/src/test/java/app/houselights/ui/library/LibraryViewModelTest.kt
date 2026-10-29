@@ -435,7 +435,7 @@ class LibraryViewModelTest {
                 library,
                 opensOn = LibraryFilter(status = WatchStatus.UNWATCHED),
                 events = events,
-                work = backgroundScope,
+                work = this,
             )
         advanceUntilIdle()
         vm.mark(vm.state.value.items[1])
@@ -459,7 +459,7 @@ class LibraryViewModelTest {
                 library,
                 opensOn = LibraryFilter(status = WatchStatus.UNWATCHED),
                 events = events,
-                work = backgroundScope,
+                work = this,
             )
         advanceUntilIdle()
         val marked = vm.state.value.items[1]
@@ -482,7 +482,7 @@ class LibraryViewModelTest {
     @Test
     fun anUnfilteredWallKeepsItsTitleAFavoritesOneLetsGo() = runTest {
         provider.wall = (1..3).map { film("m$it").copy(user = UserState(favorite = true)) }
-        val all = LibraryViewModel({ provider }, library, work = backgroundScope)
+        val all = LibraryViewModel({ provider }, library, work = this)
         advanceUntilIdle()
         all.mark(all.state.value.items[0])
         all.favorite(all.state.value.items[1])
@@ -491,7 +491,7 @@ class LibraryViewModelTest {
         assertEquals(3, all.state.value.total)
 
         val favorites =
-            LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.FAVORITES), work = backgroundScope)
+            LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.FAVORITES), work = this)
         advanceUntilIdle()
         favorites.mark(favorites.state.value.items[0])
         assertEquals("a mark keeps a favourite", 3, favorites.state.value.items.size)

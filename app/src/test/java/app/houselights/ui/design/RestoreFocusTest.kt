@@ -154,7 +154,7 @@ class RestoreFocusTest {
         val left = leaving(before, before.filter { it.group != "b" }) { it == "b2" }
         assertEquals(LeftPlace(1, 1), left)
         assertEquals("c", takesPlace(checkNotNull(left), before, before.filter { it.group != "b" }))
-        assertEquals("a", takesPlace(LeftPlace(2, 0), before, before.take(2)))
+        assertEquals("the row just over it", "b", takesPlace(LeftPlace(2, 0), before, before.take(2)))
         assertEquals("b2", takesPlace(LeftPlace(1, 0), before, listOf(before[0], FocusPlaces("b", listOf("b2")), before[2])))
     }
 }

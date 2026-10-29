@@ -395,14 +395,14 @@ class HomeViewModel(
      */
     private fun change(changed: MediaItem, save: (undo: () -> Unit) -> Unit) {
         val before = load.value
-        val shown = before.copy(sections = before.sections.showing(changed), drawn = before.drawn.showing(changed))
-        load.value = shown
-        save { undo(before, shown) }
+        val after = before.copy(sections = before.sections.showing(changed), drawn = before.drawn.showing(changed))
+        load.value = after
+        save { undo(before, after) }
     }
 
-    /** The rows as they were [before] a change not saved, while they are still those it showed ([shown]); else read again. */
-    private fun undo(before: HomeLoad, shown: HomeLoad) {
-        if (load.value === shown) {
+    /** The rows as they were [before] a change not saved, while they are still those it showed ([after]); else read again. */
+    private fun undo(before: HomeLoad, after: HomeLoad) {
+        if (load.value === after) {
             load.value = before
         } else {
             onLibraryChanged()

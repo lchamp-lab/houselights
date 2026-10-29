@@ -179,29 +179,37 @@ internal fun sheetTitle(item: MediaItem): String = if (item.kind == MediaKind.EP
  */
 @Composable
 internal fun posterFacts(item: MediaItem): List<String?> = when (item.kind) {
-    MediaKind.SERIES -> {
-        val seasons = item.childCount?.takeIf { it > 0 }
-        val unwatched = item.user.unplayedCount?.takeIf { it > 0 && !item.user.played }
-        listOf(
-            seasons?.let { pluralStringResource(R.plurals.season_count, it, it) },
-            unwatched?.let { pluralStringResource(R.plurals.unwatched_episodes, it, it) },
-        )
-    }
-    MediaKind.COLLECTION -> {
-        val held = item.childCount ?: 0
-        val watched = held - (item.user.unplayedCount ?: held)
-        listOf(
-            item.year?.let { first -> item.endYear?.let { "$first – $it" } ?: "$first" },
-            filmCount(held, item.totalCount),
-            when {
-                held > 0 && watched == held -> pluralStringResource(R.plurals.saga_all_watched, held, held)
-                watched > 0 -> pluralStringResource(R.plurals.saga_watched_of, watched, watched, held)
-                else -> null
-            },
-        )
-    }
+    MediaKind.SERIES -> showFacts(item)
+    MediaKind.COLLECTION -> sagaFacts(item)
     MediaKind.EPISODE -> listOf(item.episodeLabel, item.runtimeMs?.let(::formatDuration), timeLeft(item))
     else -> listOf(item.year?.toString(), item.runtimeMs?.let(::formatDuration), timeLeft(item))
+}
+
+/** A show's seasons and its episodes not watched, none once all are. */
+@Composable
+private fun showFacts(item: MediaItem): List<String?> {
+    val seasons = item.childCount?.takeIf { it > 0 }
+    val unwatched = item.user.unplayedCount?.takeIf { it > 0 && !item.user.played }
+    return listOf(
+        seasons?.let { pluralStringResource(R.plurals.season_count, it, it) },
+        unwatched?.let { pluralStringResource(R.plurals.unwatched_episodes, it, it) },
+    )
+}
+
+/** A saga's years, the films it holds (of those out), and how many of them are watched, none before one is. */
+@Composable
+private fun sagaFacts(item: MediaItem): List<String?> {
+    val held = item.childCount ?: 0
+    val watched = held - (item.user.unplayedCount ?: held)
+    return listOf(
+        item.year?.let { first -> item.endYear?.let { "$first – $it" } ?: "$first" },
+        filmCount(held, item.totalCount),
+        when {
+            held > 0 && watched == held -> pluralStringResource(R.plurals.saga_all_watched, held, held)
+            watched > 0 -> pluralStringResource(R.plurals.saga_watched_of, watched, watched, held)
+            else -> null
+        },
+    )
 }
 
 /** « Non enregistré · Serveur injoignable »: why the change [this] is about was not saved, said for [id] alone. */

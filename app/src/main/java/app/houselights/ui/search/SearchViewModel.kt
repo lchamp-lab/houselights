@@ -81,7 +81,7 @@ class SearchViewModel(
                 }
             }
         }
-        .combine(marked) { found, shown -> found?.let { shown.over(it) } }
+        .combine(marked) { searched, changes -> searched?.let { changes.over(it) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), null)
 
     private suspend fun search(words: String): Found =

@@ -107,7 +107,7 @@ class PersonViewModelTest {
     @Test
     fun aTitleMarkedShowsAtOnceInItsPlaceThenIsSavedAndTold() = runTest {
         val events = FakeEvents()
-        val vm = PersonViewModel("tmdb:1", { provider }, events = events, work = backgroundScope)
+        val vm = PersonViewModel("tmdb:1", { provider }, events = events, work = this)
         advanceUntilIdle()
         val samourai = titles(vm)[1]
         vm.mark(samourai)
@@ -121,7 +121,7 @@ class PersonViewModelTest {
     @Test
     fun aFavouriteNotSavedIsUndoneAndSaid() = runTest {
         provider.fail = { if (it.startsWith("favorite")) IOException("NAS away") else null }
-        val vm = PersonViewModel("tmdb:1", { provider }, work = backgroundScope)
+        val vm = PersonViewModel("tmdb:1", { provider }, work = this)
         advanceUntilIdle()
         val samourai = titles(vm)[1]
         vm.favorite(samourai)

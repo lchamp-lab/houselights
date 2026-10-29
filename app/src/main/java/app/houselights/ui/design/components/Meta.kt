@@ -89,15 +89,7 @@ fun MetaLine(
         length?.let { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         item.officialRating?.let { Badge(it) }
         item.communityRating?.let { Score(it) }
-        // A favourite, its page's heart filled, quiet as the score: what a poster's options made it shows on its wall.
-        if (favorite && item.user.favorite) {
-            Icon(
-                HlIcons.HeartFilled,
-                contentDescription = null,
-                tint = c.contentSecondary,
-                modifier = Modifier.size(HlSize.inlineIcon).testTag(FAVORITE_HEART),
-            )
-        }
+        FavoriteHeart(item, shown = favorite)
         // Genres drop one by one from the last, as billing block names do.
         if (showGenres) {
             item.genres.take(3).forEachIndexed { i, genre ->
@@ -112,6 +104,21 @@ fun MetaLine(
             }
         }
     }
+}
+
+/**
+ * A favourite's heart where it is [shown], its page's heart filled, quiet as the score: what a poster's options made a
+ * favourite shows on its wall's title line; nothing for a title that is not one.
+ */
+@Composable
+private fun FavoriteHeart(item: MediaItem, shown: Boolean) {
+    if (!shown || !item.user.favorite) return
+    Icon(
+        HlIcons.HeartFilled,
+        contentDescription = null,
+        tint = Hl.colors.contentSecondary,
+        modifier = Modifier.size(HlSize.inlineIcon).testTag(FAVORITE_HEART),
+    )
 }
 
 /** Finds a favourite's heart in tests: it is read by no one, as the score's star. */
