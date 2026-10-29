@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ArtworkKind
+import app.houselights.core.ArtworkOrigin
 import app.houselights.core.FailureKind
 import app.houselights.core.MatchCandidate
 import app.houselights.core.MatchDoubt
@@ -22,6 +23,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
+import java.util.Locale
 
 /** The artwork a title can be given: when TMDB cannot list it, the reason shows in the choices and the log. */
 @RunWith(RobolectricTestRunner::class)
@@ -63,6 +65,10 @@ class LocalEditorTest {
         const val KAAMELOTT = 2167
         const val PILOT = "Kaamelott/Livre 1/Kaamelott - S01E01.mkv"
         const val HOUR_MS = 60 * 60_000L
+
+        /** TMDB's pictures of a language in a test, more than the editor offers of one. */
+        const val PICTURES = 40
+        const val PER_LANGUAGE = 30
     }
 
     /** With the key refused, the screen can say the key needs changing, not the connection. */
@@ -89,6 +95,46 @@ class LocalEditorTest {
         assertFalse(choices.onlineAvailable)
         assertEquals(FailureKind.NO_TMDB_KEY, choices.onlineError)
     }
+
+    /**
+     * A film's posters as its contact sheet offers them: after Automatique, the viewer's language, English, then those
+     * without text, each language its 30 best rated, best first, and 80 in all, the last language cut there.
+     */
+    @Test
+    fun postersOfferTheThirtyBestRatedOfEachLanguageEightyInAll() = runTest {
+        bench.tmdb.movie(949, "Heat", 1995)
+        val heat = film("Heat (1995)/Heat.mkv")
+        bench.tmdb.imageSets[949] = TmdbImageSet(posters = pictures(null) + pictures("en") + pictures("fr"))
+
+        val choices = editor(french()).artwork(heat, ArtworkKind.POSTER)
+        assertEquals(80, choices.options.size)
+        assertEquals("Automatique first", "/poster-949.jpg", choices.options.first().value)
+        val offered = choices.options.drop(1)
+        assertEquals(List(PER_LANGUAGE) { "fr" } + List(PER_LANGUAGE) { "en" } + List(19) { null }, offered.map { it.language })
+        val best = (PICTURES - 1 downTo PICTURES - PER_LANGUAGE).map { "/fr-$it.jpg" }
+        assertEquals("the best rated of each, the best first", best, offered.take(PER_LANGUAGE).map { it.value })
+        assertTrue(offered.all { it.origin == ArtworkOrigin.ONLINE })
+    }
+
+    /** Backdrops are offered without text first, then in the viewer's language and English, each its 30 best. */
+    @Test
+    fun backdropsOfferThoseWithoutTextFirst() = runTest {
+        bench.tmdb.movie(949, "Heat", 1995)
+        val heat = film("Heat (1995)/Heat.mkv")
+        bench.tmdb.imageSets[949] = TmdbImageSet(backdrops = pictures("en") + pictures("fr") + pictures(null))
+
+        val choices = editor(french()).artwork(heat, ArtworkKind.BACKDROP)
+        val languages = choices.options.map { it.language }
+        assertEquals(List(PER_LANGUAGE) { null } + List(PER_LANGUAGE) { "fr" } + List(20) { "en" }, languages)
+    }
+
+    /** [PICTURES] of TMDB's pictures in [language] (none: without text), rated from 0 up as they come. */
+    private fun pictures(language: String?) = (0 until PICTURES).map { n ->
+        TmdbImage("/${language ?: "none"}-$n.jpg", language, voteAverage = n / 10.0, width = 2000, height = 3000)
+    }
+
+    /** TMDB as the editor asks it in French: the viewer's language. */
+    private fun french() = TmdbClient("key", transport = bench.tmdb, locale = Locale.FRANCE)
 
     /**
      * The titles to identify, the latest added first, each with why, where it lies (its folder, then its file or its

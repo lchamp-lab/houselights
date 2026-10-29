@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
@@ -24,9 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
+import app.houselights.core.ArtworkOption
+import app.houselights.core.ArtworkOrigin
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
@@ -41,6 +47,7 @@ import app.houselights.ui.design.components.AbsentCard
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.ArtworkImage
+import app.houselights.ui.design.components.ArtworkPrint
 import app.houselights.ui.design.components.ArtworkSurface
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
@@ -55,8 +62,7 @@ import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.ProgressLine
 import app.houselights.ui.design.components.SelectedMark
-import app.houselights.ui.util.FACT_GAP
-import app.houselights.ui.util.formatDimensions
+import app.houselights.ui.edit.ArtworkSheet
 import app.houselights.ui.util.formatDuration
 
 // Images come from app resources, and a failed one from a missing file: nothing needs the network.
@@ -71,11 +77,20 @@ internal fun LazyListScope.catalogCards() {
     item { Group("Person card: one line, two lines, long role, no photo") { CastRow() } }
     item { Group("Progress line: at a poster's and a still's foot, on dark and white; beside text", still = true) { ProgressLines() } }
     item { Group("Card skeleton: the shapes screens ask for", still = true) { Skeletons() } }
-    item { Group("Artwork choice: poster") { ChoiceRow(ArtworkKind.POSTER) } }
-    item { Group("Artwork choice: backdrop") { ChoiceRow(ArtworkKind.BACKDROP) } }
     item {
-        Group("Artwork choice: logo, and the selected mark") {
-            ChoiceRow(ArtworkKind.LOGO)
+        Group("Contact sheet: a poster's, its print beside six a line, the line with focus level with it, its section's name held") {
+            ContactSheet(ArtworkKind.POSTER)
+        }
+    }
+    item {
+        Group("Contact sheet: a backdrop's, full screen behind the band at the screen's foot, five a line") {
+            ContactSheet(ArtworkKind.BACKDROP)
+        }
+    }
+    item { Group("Contact sheet: a logo's, at its place over the title's backdrop, four a line") { ContactSheet(ArtworkKind.LOGO) } }
+    item {
+        Group("Artwork choice and print: nothing under a choice but Automatique and a saga's film; and the selected mark") {
+            ChoiceCards()
             SelectedMarks()
         }
     }
@@ -341,81 +356,98 @@ private fun ProgressLines() {
 private fun Skeletons() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("poster row (home)", width = HlSize.poster) { CardSkeleton(HlSize.poster, HlSize.POSTER_RATIO) }
-        Specimen("poster choice", width = HlLayout.posterChoice) { CardSkeleton(HlLayout.posterChoice, HlSize.POSTER_RATIO) }
-        Specimen("backdrop or logo choice", width = HlLayout.landscapeChoice) {
-            CardSkeleton(HlLayout.landscapeChoice, 16f / 9f)
+        Specimen("poster choice", width = HlLayout.posterChoiceCell) { CardSkeleton(HlLayout.posterChoiceCell, HlSize.POSTER_RATIO) }
+        Specimen("backdrop choice", width = HlLayout.backdropChoiceCell) {
+            CardSkeleton(HlLayout.backdropChoiceCell, HlSize.PREVIEW_RATIO)
         }
+        Specimen("logo choice", width = HlLayout.logoChoiceCell) { CardSkeleton(HlLayout.logoChoiceCell, HlSize.LOGO_BOX_RATIO) }
         Specimen("landscape row: unused", width = HlSize.landscape) { CardSkeleton(HlSize.landscape, 16f / 9f) }
         Specimen("title and facts (detail page)", width = HlSize.landscape) { HeroSkeleton() }
     }
 }
 
-/** An option of a picker, in one state. */
-private class ArtworkChoiceSample(
-    val state: String,
-    val image: ImageRef?,
-    val chosen: Boolean,
-    val title: String,
-    val caption: String?,
-    val placeholder: String? = null,
-)
-
-/** The options of one artwork picker as its screen lays them out, after its loading placeholder. */
+/**
+ * A title's contact sheet of [kind] as its screen lays it out, across the screen's whole width, the catalogue's margins
+ * included: Automatique and the one chosen, then three languages, one picture failing; focus stays where it is as it
+ * comes.
+ */
 @Composable
-private fun ChoiceRow(kind: ArtworkKind) {
+private fun ContactSheet(kind: ArtworkKind) {
     val picture = shippedImage(if (kind == ArtworkKind.LOGO) R.drawable.ic_launcher_foreground else R.drawable.banner)
-    val automatic = stringResource(R.string.artwork_automatic)
-    val localFile = stringResource(R.string.artwork_local_file)
-    val inType = stringResource(R.string.artwork_title_in_type)
-    val options = when (kind) {
-        ArtworkKind.POSTER -> listOf(
-            ArtworkChoiceSample("chosen", picture, true, automatic, "Français$FACT_GAP${formatDimensions(2000, 3000)}"),
-            ArtworkChoiceSample("rest", picture, false, "Anglais", formatDimensions(2000, 3000)),
-            ArtworkChoiceSample("image failed: set in type", brokenImage, false, localFile, null),
-        )
-        ArtworkKind.BACKDROP -> listOf(
-            ArtworkChoiceSample("chosen", picture, true, stringResource(R.string.artwork_no_text), formatDimensions(3840, 2160)),
-            ArtworkChoiceSample("rest", picture, false, stringResource(R.string.artwork_from_nfo), null),
-            ArtworkChoiceSample("image failed: set in type", brokenImage, false, localFile, null),
-        )
-        ArtworkKind.LOGO -> listOf(
-            ArtworkChoiceSample(
-                "chosen",
-                picture,
-                true,
-                automatic,
-                stringResource(R.string.artwork_any_language) + FACT_GAP + formatDimensions(800, 310),
-            ),
-            ArtworkChoiceSample("rest", picture, false, "Français", formatDimensions(800, 310)),
-            ArtworkChoiceSample("title in type", null, false, inType, null, placeholder = "Le Samouraï"),
-            ArtworkChoiceSample(
-                "title in type, chosen, long",
-                null,
-                true,
-                inType,
-                null,
-                placeholder = "Les Aventures extraordinaires d’Adèle Blanc-Sec",
-            ),
-            ArtworkChoiceSample("image failed: set in type", brokenImage, false, "Anglais", null),
-        )
+    val backdrop = shippedImage(R.drawable.banner)
+    val choices = remember(kind, picture) { sheetSample(kind, picture) }
+    val title = remember(backdrop) { sample("Le Samouraï", 1967).copy(backdrop = backdrop) }
+    // Isolated: no relay hands its picture to the catalogue's other backdrops.
+    CompositionLocalProvider(LocalBackdropRelay provides null) {
+        Box(Modifier.requiredWidth(HlLayout.CANVAS_WIDTH.dp).aspectRatio(HlSize.PREVIEW_RATIO)) {
+            ArtworkSheet(kind, title, choices, error = null, onlineError = null, onChoose = {}, onRetry = {}, takesFocus = false)
+        }
     }
-    val width = if (kind == ArtworkKind.POSTER) HlLayout.posterChoice else HlLayout.landscapeChoice
-    val ratio = if (kind == ArtworkKind.POSTER) HlSize.POSTER_RATIO else 16f / 9f
-    MediaRow(header = null) {
-        item { Specimen("loading", width = width) { CardSkeleton(width, ratio) } }
-        items(options) { option ->
-            Specimen(option.state, width = width) {
-                ArtworkChoiceCard(
-                    image = option.image,
-                    selected = option.chosen,
-                    title = option.title,
-                    caption = option.caption,
-                    onClick = {},
-                    width = width,
-                    aspectRatio = ratio,
-                    fit = kind == ArtworkKind.LOGO,
-                    placeholder = option.placeholder,
-                )
+}
+
+/** A title's choices of [kind] in [picture]: Automatique, the one chosen, then by language as TMDB's are ranked. */
+private fun sheetSample(kind: ArtworkKind, picture: ImageRef): ArtworkChoices {
+    fun online(n: Int, language: String?) =
+        ArtworkOption("$kind-$language-$n", if (n == FAILING) brokenImage else picture, ArtworkOrigin.ONLINE, language)
+    val automatic = ArtworkOption("$kind-automatic", picture, ArtworkOrigin.ONLINE, "fr")
+    // A logo's head has the title set in type too.
+    val head = listOfNotNull(automatic, ArtworkOption("", null, ArtworkOrigin.NONE).takeIf { kind == ArtworkKind.LOGO })
+    val languages = if (kind == ArtworkKind.BACKDROP) listOf(null, "fr", "en") else listOf("fr", "en", null)
+    val options = head + languages.zip(SAMPLE_COUNTS).flatMap { (language, count) -> (0 until count).map { online(it, language) } }
+    return ArtworkChoices(options, automatic, selected = online(0, languages.first()), onlineAvailable = true)
+}
+
+/** The pictures of each language of [sheetSample]; the fifth of each fails. */
+private val SAMPLE_COUNTS = listOf(9, 14, 3)
+private const val FAILING = 4
+
+/**
+ * The parts of a contact sheet: the print, with its words or none, then choices at rest, in use, failed, and the only
+ * words under one, « Automatique » across the next column and a saga's film and its year; a backdrop, a logo fitted
+ * in its box and a title set in type in a logo's.
+ */
+@Composable
+private fun ChoiceCards() {
+    val picture = shippedImage(R.drawable.banner)
+    val logo = shippedImage(R.drawable.ic_launcher_foreground)
+    val automatic = stringResource(R.string.artwork_automatic)
+    val cell = HlLayout.posterChoiceCell
+    val poster = HlSize.POSTER_RATIO
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
+        Specimen("print: the one in use, Automatique", width = HlLayout.choicePrint) {
+            ArtworkPrint(picture, true, HlLayout.choicePrint, poster, name = automatic, detail = null)
+        }
+        Specimen("print: a saga's film, its year after it; failed", width = HlLayout.choicePrint) {
+            ArtworkPrint(brokenImage, false, HlLayout.choicePrint, poster, name = "Le Cercle rouge", detail = "1970")
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
+                Specimen("Automatique, its words under the next column; the one chosen") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlLayout.choiceGutter)) {
+                        val across = HlLayout.choiceWords(cell, 2, last = false)
+                        ArtworkChoiceCard(picture, false, automatic, {}, cell, poster, name = automatic, captionWidth = across)
+                        ArtworkChoiceCard(picture, true, "Français", {}, cell, poster)
+                    }
+                }
+                Specimen("rest", width = cell) { ArtworkChoiceCard(picture, false, "Anglais", {}, cell, poster) }
+                Specimen("failed", width = cell) { ArtworkChoiceCard(brokenImage, false, "Anglais", {}, cell, poster) }
+                Specimen("a saga's film") {
+                    val words = HlLayout.choiceWords(cell, 2, last = false)
+                    val film = "Le Cercle rouge"
+                    ArtworkChoiceCard(picture, false, film, {}, cell, poster, name = film, detail = "1970", captionWidth = words)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
+                val wide = HlLayout.backdropChoiceCell
+                Specimen("backdrop", width = wide) { ArtworkChoiceCard(picture, false, "Sans texte", {}, wide, HlSize.PREVIEW_RATIO) }
+                val box = HlLayout.logoChoiceCell
+                Specimen("logo, fitted", width = box) {
+                    ArtworkChoiceCard(logo, true, "Français", {}, box, HlSize.LOGO_BOX_RATIO, fit = true)
+                }
+                Specimen("title in type", width = box) {
+                    val inType = stringResource(R.string.artwork_title_in_type)
+                    ArtworkChoiceCard(null, false, inType, {}, box, HlSize.LOGO_BOX_RATIO, fit = true, placeholder = "Le Samouraï")
+                }
             }
         }
     }

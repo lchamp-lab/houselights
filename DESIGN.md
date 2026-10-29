@@ -470,7 +470,7 @@ its doors' band, a hero's facts and the fixed heights (a row 60, a place 56, a f
 | `HlInset` | container padding: `tight` 8 (results holding a thumbnail), `card` 24, `sheet` 32; `group` 4 (a group's plate around its rows), `plate` 24 (a plate of facts, top and foot), `reading` 20 (a reading plate's sides, a status panel's top) |
 | `HlShapes` | radius follows hierarchy: `thumb` 4 (images up to 48 dp), `badge` 4, `mark` 6, `control` 10 (buttons, tiles, a track's plate, menu options), `field` 10, `row` 12, `artwork` 12, `wide` 14, `panel` 16 (menus, plates, showcases), `sheet` 24 (a side sheet's free corners, square against the edge). Every radius is in dp, never a pill or a disc; only dots are round, through a local `CircleShape` (`ShapesTest`). Nested shapes keep parallel corners: **outer radius = inner radius + gap** (a menu: 10 + `HlMenuDefaults.inset` 6; a group's rows: 12 + `HlInset.group` 4; a mark in a wide image's corner: 6 + 8; a focus frame: the picture's + 3) |
 | `HlSize` | artwork (`poster` 120 × 180 in a row, `wallPoster` 112 × 168 on a wall, `landscape` 240 × 135, `episode` 264, `portrait` 96 at 3:4, `PORTRAIT_RATIO`; posters at 2:3, `POSTER_RATIO`), `control` 48 on a page and `controlCompact` 44 in a screen's header, `tile` 48 and `tileCompact` 40, `segment` 40, icons (`icon` 20 beside words, `tileIcon` 22 on a tile, `largeIcon` 24, `inlineIcon` 16 in a line of facts), `mark` 22, the Menu key `menuKeyWidth` × `menuKeyHeight` 24 × 22 (its frame `keyEdge` 1.5, its lines `keyGlyph` 18), dots (`dot` 8, its ring `dotRing` 1.75, `newDot` 10 ringed `newDotRing` 2.5, `newsDot` 7 before a row's new titles and `doorDot` 8 before a door's, `wordDot` 7), setting rows `row` 60 in a pane as in a sheet, a text field and the search query `field` as tall, the settings' places `navRow` 56, a backdrop at its use 16:9 (`PREVIEW_RATIO`), a `showcase` 416, a gallery's wide images `galleryWide` 244 (a logo's box at `LOGO_BOX_RATIO`), meter 10 (`meterLarge` 14 when a pane states it, its parts' `swatch` 10), progress lines (`progressPoster` 4, `progressWide` 5, `progress` 3 beside text, `heroProgress` 220 × 4), `intertitleRule` 24 × 2, the lockup's capitals (`wordmark` 30, `wordmarkHero` 26) |
-| `HlLayout` | the screen grid, read by screens, the catalogue not counted (`LayoutTokensTest`): reading widths (640, 520), the hero band of « À regarder » and a person's page (148), `WALL_COLUMNS` (seven posters across the safe area, `wallGutter` apart), `detailGap`, `detailHeroMin`, a table's value column (`specFormat`), a reading sheet's definition labels (`readingLabel` 180), a saga's polyptych inside the safe area by a frame's reach (`voletSide` 53.5, `voletTop` 33.5) |
+| `HlLayout` | the screen grid, read by screens, the catalogue not counted (`LayoutTokensTest`): reading widths (640, 520), the hero band of « À regarder » and a person's page (148), `WALL_COLUMNS` (seven posters across the safe area, `wallGutter` apart), `detailGap`, `detailHeroMin`, a table's value column (`specFormat`), a reading sheet's definition labels (`readingLabel` 180), a saga's polyptych inside the safe area by a frame's reach (`voletSide` 53.5, `voletTop` 33.5), Modifier's poster tile (`posterChoice` 180), the contact sheet's (`POSTER_CHOICES` 6 of `posterChoiceCell` 88, `BACKDROP_CHOICES` 5 of `backdropChoiceCell` 160, `LOGO_CHOICES` 4 of `logoChoiceCell` 204, `choiceGutter` 12, `choiceSectionGap` 32, `choiceNameGap` 16, `choiceNameDrop` 8, `choiceWords`, the print `choicePrint` 240 and `choicePrintGap` 32, the band `choiceBand`) |
 | `…Defaults` | internal component parts: `TwoPaneDefaults` (the side column 256, leaving the settings' pane 560; `sideWide` 344, leaving a form 472), `HeroDefaults` (a hero's title 380 × 56), `HomeGridDefaults` (home's grid: its head, case, rows and band, the doors' parts), `HlSideSheetDefaults` (520, an NFO's `wideWidth` 736), `HlSettingRowDefaults` (value 360, room above and below 6), `ShowcaseDefaults` (its words' inset, where its name sets), `HlIconButtonDefaults` (label 280 at the default text size, grown with it, edge 24, a hint's or the Menu key's line `hintRoom` 20), `HlMenuDefaults` (320, inset 6), `TechSpecsDefaults` (a track's format, its block's widest between 188 and 280), `QrCodeDefaults` (module 6.5, `moduleCompact` 5 beside words or over notes, whole pixels at 1080p and 4K), `DeviceCodeDefaults` (a code's plate inset 28), `PaneDefaults` (a plate's label column 172, a table's names 120), `BackdropDefaults`, `FirstScanDefaults` (home's first scan: the wall's `COLUMNS` 4 and `FRAMES` 8, `gap` 8, `wall` 472, the folder's block's `column` 344 and `line` 220, `buttonGap` 16 over the wall, a step every `STEP_MS`), `VoletDefaults` (a saga's panels: `open` 428, a hero's title box and a card's inset each side; `gap` 8; `narrowest` 45, eight films and the saga's own in the safe area; the numbers `numberTop` 16 under the edge, by width from `numberLarge` 120 and `numberMedium` 64; the open words' `melt` 64, over which the numbers' floor melts back too; `yearsApart` 4, under which every closed panel's year goes; `opensAtOnce`, false) |
 | `HlControl` | padding of buttons, track words and badges; icon-to-text gap 8 |
 | `HlFocus` | the `frame` 2.5, `frameGap` 3 off the edge: their `reach` 5.5, whatever the size, held by a row's `room` 12, which the glow passes as far as a row draws (30), and a wall's `wallRoom` 24, where the grid cuts the glow once faded; siblings stepping back (`SIBLING_BRIGHTNESS` 0.64, `SIBLING_SATURATION` 0.65, `RECEDE_STEPS` 3); `glow` 28; `edge` 28 |
@@ -499,11 +499,11 @@ Material icon is drawn, imported or declared as a dependency (`DesignTokenGuardT
 
 | Token | Content |
 |---|---|
-| `rememberListScroll`, `ListScroll`, `RowScroll` | lists scroll only as needed (`EdgeScroll`) and keep focus `HlFocus.edge` from their ends; a list under a header brings rows back to its top (`ListScroll(top)`); rows keep focus 80 dp from the sides |
+| `rememberListScroll`, `ListScroll`, `RowScroll`, `OwnScroll` | lists scroll only as needed (`EdgeScroll`) and keep focus `HlFocus.edge` from their ends; a list under a header brings rows back to its top (`ListScroll(top)`); rows keep focus 80 dp from the sides; a list that brings its element with focus where it belongs by its own state (the contact sheet) scrolls nothing of its own as focus moves |
 | `rememberRowState` | a row resting at its start stays there when titles arrive in front of it |
 | `scrollEdges(state, color)` | scrolling content fades into its opaque surface over `HlSpace.fadeEdge` where there is more; never on poster rows |
 | `fadeIntoField(state, start, end)` | a form on a field of posters fades itself into the field over `HlSpace.fadeEdge` where there is more, a fade into black not showing over plates as dark: offscreen only while it fades, its layer reaching `start` and `end` past its sides so hanging plates and focus frames are not cut |
-| `revealOnFocus()`, `revealOnOpen(opens)`, `keepVerticalFocus()` | a group comes fully into view when focused, a block when it unfolds under its row; up and down never leave a column |
+| `revealOnFocus()`, `revealOnOpen(opens)`, `keepVerticalFocus()`, `keepHorizontalFocus()` | a group comes fully into view when focused, a block when it unfolds under its row; up and down never leave a column, left and right never a contact sheet's line |
 | `scrollsAsBlock()`, `ListScroll(top, toTop = true)` | a block (a row with its header, a hero with its actions) scrolls as one; pages turn by whole blocks |
 | `fadeOutsideSafeArea()` | text fades out across the safe-area margin as it scrolls (layer alpha, no offscreen buffer) |
 
@@ -672,6 +672,49 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     opening their synopsis (`DetailSagaRowTest`).
   - This page bends four rules, each written where it lives: the panel with focus opens wider (see *Focus*), the
     panels carry words (see *Cards*), its numbers are title styles and its spine the one turned text (see *Type*).
+- **The contact sheet** (« la planche-contact », `ArtworkScreen`): where a film's or a show's picture is chosen, its
+  choices in sections (`choiceSections`), shown at once and searched by eye, beside or under the one with focus shown
+  at its use. The head, untitled: Automatique, the one in use beside it, checked in ember and focused on arrival, never
+  again in its language's section, then what the title's files give (its NFO's picture, a file beside it, a logo's
+  title in type); then a section a language in the order TMDB's are ranked, the viewer's language, English, then
+  « Sans texte » for posters (« Toutes langues » for logos, which nearly always carry the title written), « Sans
+  texte » first for backdrops; a saga's films' last, « Ses films », one picture a film named by its title and year
+  (`ArtworkOrigin.FILM`). At most 30 pictures of a language, the best rated, and 80 in all (`LocalEditor`), so every
+  language keeps its section. A section is named even for a single picture, the only place its language is said, in a
+  search row's style with its count after it (`ResultsHeading`); no total, no sentence under the title. The line with
+  focus always comes to the sheet's top, the wall's room over it for its glow, the sheet scrolling itself to it
+  (`OwnScroll`) whatever is over it in its list, a section's name (`choiceSectionGap` from what is before it); the
+  lines passed leaving cut clean under its section's name, held over it with its count (`choiceNameDrop`), so every
+  line says its language, the head's none; a section coming under it has its name over its first line, faded across
+  the margin rather than cut; the last line comes to the top too, nothing under it. Up and Down go from line to line
+  and section to section, in the column they are in, Left and Right along a line, never into the next
+  (`keepHorizontalFocus`); OK chooses, saves and returns to the title; Back leaves without choosing. Nothing is
+  written under a choice but « Automatique », which runs under the next column when that one has no words
+  (`choiceWords`, on one line at 1.3 in the twelve languages), and a saga's film's name and year; the choices recede
+  as a wall's do, nothing grows, no blur, no glass, no shadow. Every measure is named in `HlLayout`, on the 4 dp grid.
+  - **A poster** stands beside the sheet: under the task's title (`TaskTitle`) and the title's name (`meta`, two lines
+    at most), the print (`ArtworkPrint`, `choicePrint` 240 × 360, nearly three choices tall), to the safe area's
+    foot over its words; `choicePrintGap` 32 from it the sheet, six posters a line (`POSTER_CHOICES`,
+    `posterChoiceCell` 88 × 132, `choiceGutter` 12 apart, lines 24 apart, sections 32), the last column 4 short of
+    the safe area's end; its line with focus level with the print's top, its section's name on the line of the
+    title's name. The print follows the focus once settled (`rememberSettled`), never focused itself: the picture it
+    showed stays whole, its check and its words with it, until the next is decoded, then is cut; its ember check when
+    it shows the one in use, and its one line, kept when empty: « Automatique » (and the film whose picture it is), a
+    saga's film and its year. At a larger text size it gives up the height the head's words take. The room is the
+    title's backdrop, quiet.
+  - **A backdrop** lies behind: the one with focus fills the screen under a title's page's veils (`Full`), the title's
+    logo and facts set over it as its page sets them, under the task's title alone; the sheet is a band at the
+    screen's foot (`choiceBand`: the held name, the wall's room, a line and its words inside the safe area, the top
+    of the next, 214 at the standard text size, 230 at 1.3), five backdrops a line (`BACKDROP_CHOICES`,
+    `backdropChoiceCell` 160 × 90). **A logo** shows at its place over the title's backdrop, the same band, four a
+    line in a logo's box (`LOGO_CHOICES`, `logoChoiceCell` 204, `LOGO_BOX_RATIO`). One left edge: the title, the
+    preview, the section's name and the first choice start at the safe area's, the first frame reaching into the
+    margin as on a wall. The preview stays whole above the band; with TMDB's pictures missing, its note stands under
+    it, over the band, which shows one line.
+
+  TMDB's notes (no key, the key refused, a certificate, out of reach or the title not identified, `onlineNote`)
+  stand in place of its sections, after the head (`AttentionNote`). `ArtworkSectionsTest`, `ArtworkScreenTest`,
+  `ArtworkLayoutTest`, `LocalEditorTest`.
 - **The welcome screen**: the lockup and tagline in the middle of the left column, notes under them (a connection
   that could not be read back; settings that could not be and were reset, until a source is saved; the last
   choice's failure); the task's title on one line over the two choices, raised on glass, each saying what it is in a
@@ -854,7 +897,8 @@ a saga's panels, or a title page's rows, whose episodes keep their own options (
 | `Showcase` | a library folder in its posters' light (see *Secondary screens*): its name in `subject` beside its printed protocol, its facts, the first in white, and its state by its light (`stateLight`): the white dot ("Analysé il y a 3 heures"), the ring while titles of it are held ("12 introuvables", in its last scan's place, answered or not); or what is happening to it (`status`); framed with focus, without a glow |
 | `GalleryTile` | one of a title's images to change, at its shape of use, a logo fitted on a neutral step; its name under it in `cardName`, white with focus; framed and glowing in the film's light |
 | `PosterField` | the room of the settings and their forms, under them: a library's posters as a wall's field (see *Veils*), its light theirs (`LocalAmbient`) |
-| `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose, at its shape of use, its name in `meta`; the one in use carries the ember check |
+| `ArtworkChoiceCard`, `SelectedMark` | one picture of the contact sheet to choose, at its shape of use, a logo fitted in its box on the ground's step, a failed one set in type; the one in use carries the ember check. Nothing under it, its section saying its language, but a `name` in `cardName` and its `detail` in secondary `meta` (« Automatique », a saga's film and its year), as wide as its column and its gap, or two when the next has none (`captionWidth`), faded across the safe area's margin |
+| `ArtworkPrint` | the contact sheet's print (« l'épreuve »): the choice with focus shown large beside it, at most its width at its shape and as tall as its column leaves it, never focused, decoded at its width; the picture it showed kept whole, its check and its words with it, until the next is decoded, then cut, nothing fading or growing; the ember check for the one in use; one line under it, kept when empty, its name in `cardName` and its detail in secondary `meta` on its baseline, the longer giving way |
 
 ### Controls
 
@@ -1305,7 +1349,7 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogControls` | buttons in their states, a place's title and a task's, tiles, controls on a picture's plates, and the seasons |
 | `CatalogSecondary` | the settings' room of posters with its places, a group, a plate of facts and states; a pane's heads, the lockup, printed pairs, definitions, a meter that states, a code to type; showcases in their row; a gallery whose images step back; a plate in a film's light and the sheets that hold them, a reading plate, one wide to read, an NFO's |
 | `CatalogForms` | settings in their group and in a sheet, servers found by their connection, text fields, status panels, panel buttons, dividers, menus, choice sheets and settings, scroll areas |
-| `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, their posters in grey or without one, people; progress lines, skeletons, artwork choices, results (with a note, with options), thumbnails |
+| `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, their posters in grey or without one, people; progress lines, skeletons, a contact sheet of each form (a poster's beside its print, a backdrop's band behind it, a logo's), its choices and prints in their states, results (with a note, with options), thumbnails |
 | `CatalogVolets` | a saga's polyptych on three, five and eight films (four, six and nine panels, their numbers in 72, 48 and 36): the saga's panel open on arrival, closed panels with their marks and years, a film watched, in progress, held, missing in grey with its ring, announced in grey with the quiet dot, a picture failed, the spine once a film opens; focus opens a panel as the one left closes, a held arrow jumps |
 | `CatalogDoors` | home's head, its case resuming and proposing, then after a failed play by each remedy, and each door at its size: a still and its season, a band of posters, counts cut in posters and in ink at one size, sagas, a wall out, the app's state |
 | `CatalogReading` | title art, episode headings, meta and title lines, formats, a row's billing, the billing block, hero info, the technical sheet, search and its keys, the synopsis, versions |

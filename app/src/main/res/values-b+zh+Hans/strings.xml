@@ -505,11 +505,8 @@
     <string name="artwork_logo">标志</string>
     <string name="identify">识别</string>
     <string name="identify_menu_desc">匹配 TMDB 上的其他作品</string>
-    <plurals name="image_count">
-        <item quantity="other">%d 张图片</item>
-    </plurals>
-    <string name="artwork_hint">之后的扫描会保留您的选择。选择“自动”则由 Houselights 决定。</string>
     <string name="artwork_offline">无法获取在线图片：请先识别此作品，或检查网络连接。</string>
+    <string name="artwork_saga_films">系列中的影片</string>
     <string name="artwork_empty">此作品没有图片</string>
     <string name="artwork_automatic">自动</string>
     <string name="artwork_no_text">无文字</string>

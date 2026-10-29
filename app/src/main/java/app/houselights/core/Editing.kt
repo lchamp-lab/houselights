@@ -19,6 +19,12 @@ enum class ArtworkOrigin {
 
     /** No image: the title is set in type instead (logos only). */
     NONE,
+
+    /**
+     * The picture one of a saga's films shows ([ArtworkOption.film]): a saga's choices only, the last section of its
+     * contact sheet (« Ses films »), each named under it by its film's title and year.
+     */
+    FILM,
 }
 
 data class ArtworkOption(
@@ -30,6 +36,9 @@ data class ArtworkOption(
     val language: String? = null,
     val width: Int = 0,
     val height: Int = 0,
+    /** The film of the saga whose picture this is ([ArtworkOrigin.FILM]), by its title and its year. */
+    val film: String? = null,
+    val filmYear: Int? = null,
 )
 
 data class ArtworkChoices(

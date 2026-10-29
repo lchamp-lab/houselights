@@ -66,6 +66,9 @@ class FakeProvider : MediaProvider {
     val searchedYears = mutableListOf<Int?>()
     var choices: ArtworkChoices? = null
 
+    /** The picture last chosen, once it is saved. */
+    var chosen: ArtworkOption? = null
+
     /** The orders a show's episodes can follow, by show; none for the others. */
     var orders = mapOf<String, EpisodeOrderChoices>()
 
@@ -203,6 +206,7 @@ class FakeProvider : MediaProvider {
 
         override suspend fun setArtwork(item: MediaItem, kind: ArtworkKind, option: ArtworkOption) {
             call("setArtwork ${item.id} $kind")
+            chosen = option
         }
 
         override suspend fun identity(item: MediaItem): Identity {

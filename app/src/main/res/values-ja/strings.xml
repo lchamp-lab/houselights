@@ -504,11 +504,8 @@
     <string name="artwork_logo">ロゴ</string>
     <string name="identify">作品を特定</string>
     <string name="identify_menu_desc">TMDBの別の作品を選ぶ</string>
-    <plurals name="image_count">
-        <item quantity="other">画像%d枚</item>
-    </plurals>
-    <string name="artwork_hint">選択内容は以降のスキャンでも保持されます。「自動」にするとHouselightsが選択します。</string>
     <string name="artwork_offline">オンライン画像を利用できません。先にこの作品を特定するか、接続を確認してください。</string>
+    <string name="artwork_saga_films">シリーズの作品</string>
     <string name="artwork_empty">この作品の画像はありません</string>
     <string name="artwork_automatic">自動</string>
     <string name="artwork_no_text">文字なし</string>
