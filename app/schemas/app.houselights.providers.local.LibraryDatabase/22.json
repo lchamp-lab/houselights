@@ -83,20 +83,17 @@
           {
             "fieldPath": "refreshIn",
             "columnName": "refreshIn",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "uid",
             "columnName": "uid",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "gid",
             "columnName": "gid",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "heldKept",
@@ -110,9 +107,7 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "items",
@@ -139,26 +134,22 @@
           {
             "fieldPath": "parentId",
             "columnName": "parentId",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "seriesId",
             "columnName": "seriesId",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "matchKey",
             "columnName": "matchKey",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "tmdbId",
             "columnName": "tmdbId",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "title",
@@ -175,32 +166,27 @@
           {
             "fieldPath": "originalTitle",
             "columnName": "originalTitle",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "overview",
             "columnName": "overview",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "tagline",
             "columnName": "tagline",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "year",
             "columnName": "year",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "endYear",
             "columnName": "endYear",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "continuing",
@@ -211,20 +197,17 @@
           {
             "fieldPath": "runtimeMin",
             "columnName": "runtimeMin",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "certification",
             "columnName": "certification",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "rating",
             "columnName": "rating",
-            "affinity": "REAL",
-            "notNull": false
+            "affinity": "REAL"
           },
           {
             "fieldPath": "genres",
@@ -241,74 +224,62 @@
           {
             "fieldPath": "posterPath",
             "columnName": "posterPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "backdropPath",
             "columnName": "backdropPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "logoPath",
             "columnName": "logoPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "stillPath",
             "columnName": "stillPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "seasonNumber",
             "columnName": "seasonNumber",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "episodeNumber",
             "columnName": "episodeNumber",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "lastEpisodeNumber",
             "columnName": "lastEpisodeNumber",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "absoluteNumber",
             "columnName": "absoluteNumber",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "tmdbSeason",
             "columnName": "tmdbSeason",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "tmdbEpisode",
             "columnName": "tmdbEpisode",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "tmdbLastEpisode",
             "columnName": "tmdbLastEpisode",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "filePath",
             "columnName": "filePath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "parts",
@@ -319,14 +290,12 @@
           {
             "fieldPath": "fileSize",
             "columnName": "fileSize",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "missingSince",
             "columnName": "missingSince",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "badges",
@@ -337,8 +306,7 @@
           {
             "fieldPath": "mediaInfo",
             "columnName": "mediaInfo",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "probeVersion",
@@ -349,56 +317,47 @@
           {
             "fieldPath": "fileDurationMs",
             "columnName": "fileDurationMs",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "nfoPath",
             "columnName": "nfoPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "nfo",
             "columnName": "nfo",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "sidecarKey",
             "columnName": "sidecarKey",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userTmdbId",
             "columnName": "userTmdbId",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "userPosterPath",
             "columnName": "userPosterPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userBackdropPath",
             "columnName": "userBackdropPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userLogoPath",
             "columnName": "userLogoPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "collectionId",
             "columnName": "collectionId",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "addedAt",
@@ -409,8 +368,7 @@
           {
             "fieldPath": "matchedAt",
             "columnName": "matchedAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "positionMs",
@@ -421,8 +379,7 @@
           {
             "fieldPath": "durationMs",
             "columnName": "durationMs",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "played",
@@ -439,50 +396,42 @@
           {
             "fieldPath": "lastPlayedAt",
             "columnName": "lastPlayedAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "edition",
             "columnName": "edition",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "versionOf",
             "columnName": "versionOf",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "versionChoice",
             "columnName": "versionChoice",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "votes",
             "columnName": "votes",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "creditsAt",
             "columnName": "creditsAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "matchState",
             "columnName": "matchState",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "hintKey",
             "columnName": "hintKey",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userNoMatch",
@@ -493,20 +442,17 @@
           {
             "fieldPath": "episodeOrder",
             "columnName": "episodeOrder",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userEpisodeOrder",
             "columnName": "userEpisodeOrder",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "reorderedAt",
             "columnName": "reorderedAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -620,8 +566,7 @@
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_items_matchState` ON `${TABLE_NAME}` (`matchState`)"
           }
-        ],
-        "foreignKeys": []
+        ]
       },
       {
         "tableName": "credits",
@@ -666,14 +611,12 @@
           {
             "fieldPath": "character",
             "columnName": "character",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "profilePath",
             "columnName": "profilePath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -714,8 +657,7 @@
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_credits_foldedName` ON `${TABLE_NAME}` (`foldedName`)"
           }
-        ],
-        "foreignKeys": []
+        ]
       },
       {
         "tableName": "collections",
@@ -736,8 +678,7 @@
           {
             "fieldPath": "tmdbId",
             "columnName": "tmdbId",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "name",
@@ -754,32 +695,27 @@
           {
             "fieldPath": "overview",
             "columnName": "overview",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "posterPath",
             "columnName": "posterPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "backdropPath",
             "columnName": "backdropPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "partCount",
             "columnName": "partCount",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "fetchedAt",
             "columnName": "fetchedAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -798,8 +734,7 @@
             "orders": [],
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_collections_matchKey` ON `${TABLE_NAME}` (`matchKey`)"
           }
-        ],
-        "foreignKeys": []
+        ]
       },
       {
         "tableName": "saga_parts",
@@ -832,26 +767,22 @@
           {
             "fieldPath": "releaseDate",
             "columnName": "releaseDate",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "overview",
             "columnName": "overview",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "posterPath",
             "columnName": "posterPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "backdropPath",
             "columnName": "backdropPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -871,8 +802,7 @@
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_saga_parts_tmdbId` ON `${TABLE_NAME}` (`tmdbId`)"
           }
-        ],
-        "foreignKeys": []
+        ]
       },
       {
         "tableName": "search_words",
@@ -916,8 +846,7 @@
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_search_words_kind_ref` ON `${TABLE_NAME}` (`kind`, `ref`)"
           }
-        ],
-        "foreignKeys": []
+        ]
       },
       {
         "tableName": "trakt_pending",
@@ -944,8 +873,7 @@
           {
             "fieldPath": "progress",
             "columnName": "progress",
-            "affinity": "REAL",
-            "notNull": false
+            "affinity": "REAL"
           },
           {
             "fieldPath": "seq",
@@ -963,8 +891,7 @@
           {
             "fieldPath": "sentAt",
             "columnName": "sentAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -972,9 +899,7 @@
           "columnNames": [
             "title"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "trakt_state",
@@ -989,8 +914,7 @@
           {
             "fieldPath": "syncedAt",
             "columnName": "syncedAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "watched",
@@ -1007,14 +931,12 @@
           {
             "fieldPath": "error",
             "columnName": "error",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "activities",
             "columnName": "activities",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -1022,9 +944,7 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "track_choices",
@@ -1039,14 +959,12 @@
           {
             "fieldPath": "audio",
             "columnName": "audio",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "subtitles",
             "columnName": "subtitles",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "at",
@@ -1060,9 +978,7 @@
           "columnNames": [
             "title"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "kept_states",
@@ -1089,14 +1005,12 @@
           {
             "fieldPath": "tmdbId",
             "columnName": "tmdbId",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "showTmdbId",
             "columnName": "showTmdbId",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "sourceId",
@@ -1107,26 +1021,22 @@
           {
             "fieldPath": "folder",
             "columnName": "folder",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "seasonNumber",
             "columnName": "seasonNumber",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "episodeNumber",
             "columnName": "episodeNumber",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "lastEpisodeNumber",
             "columnName": "lastEpisodeNumber",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "played",
@@ -1143,14 +1053,12 @@
           {
             "fieldPath": "durationMs",
             "columnName": "durationMs",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "lastPlayedAt",
             "columnName": "lastPlayedAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "favorite",
@@ -1161,26 +1069,22 @@
           {
             "fieldPath": "userTmdbId",
             "columnName": "userTmdbId",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "userPosterPath",
             "columnName": "userPosterPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userBackdropPath",
             "columnName": "userBackdropPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userLogoPath",
             "columnName": "userLogoPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "addedAt",
@@ -1191,32 +1095,27 @@
           {
             "fieldPath": "audio",
             "columnName": "audio",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "subtitles",
             "columnName": "subtitles",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "tracksAt",
             "columnName": "tracksAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "span",
             "columnName": "span",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userEpisodeOrder",
             "columnName": "userEpisodeOrder",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userNoMatch",
@@ -1259,8 +1158,7 @@
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_kept_states_showTmdbId` ON `${TABLE_NAME}` (`showTmdbId`)"
           }
-        ],
-        "foreignKeys": []
+        ]
       },
       {
         "tableName": "suggestions",
@@ -1293,26 +1191,22 @@
           {
             "fieldPath": "originalTitle",
             "columnName": "originalTitle",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "year",
             "columnName": "year",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "overview",
             "columnName": "overview",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "posterPath",
             "columnName": "posterPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "score",
@@ -1327,9 +1221,7 @@
             "itemId",
             "rank"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "episode_orders",
@@ -1374,20 +1266,17 @@
           {
             "fieldPath": "places",
             "columnName": "places",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "fetchedAt",
             "columnName": "fetchedAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "groupsAt",
             "columnName": "groupsAt",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -1396,9 +1285,7 @@
             "showTmdbId",
             "orderId"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "ignored_files",
@@ -1429,9 +1316,7 @@
             "sourceId",
             "filePath"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "saga_choices",
@@ -1446,14 +1331,12 @@
           {
             "fieldPath": "userPosterPath",
             "columnName": "userPosterPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "userBackdropPath",
             "columnName": "userBackdropPath",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -1461,12 +1344,9 @@
           "columnNames": [
             "matchKey"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       }
     ],
-    "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
       "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a4d6ccf0b6179414c519da13f655cbff')"
