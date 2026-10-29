@@ -2,10 +2,12 @@ package app.houselights.ui.catalog
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +25,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -37,6 +40,7 @@ import app.houselights.ui.design.components.MenuKey
 import app.houselights.ui.design.components.Score
 import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.groundStepFill
 
 /** Every glyph of the app; the marks that say done and your choice; what ember never says. */
 internal fun LazyListScope.catalogIcons() {
@@ -125,16 +129,26 @@ private fun ColumnScope.Marks() {
     }
 }
 
-/** The key alone, then where it shows: after an episode's name under its card, on a tile's label. */
+/**
+ * The key alone, then where it shows: in a card's bottom right corner while it has focus, white on the marks' plate,
+ * the state mark's opposite (a poster's, a still's, an episode's).
+ */
 @Composable
 private fun MenuKeys() {
     val c = Hl.colors
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("the key: tertiary frame, secondary lines") { MenuKey() }
-        Specimen("at the end of a name's line", Modifier.width(HlSize.episode)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Puzzle", style = Hl.type.cardName, color = c.content, modifier = Modifier.weight(1f))
-                MenuKey()
+        Specimen("in a card's corner, on the marks' plate", Modifier.width(HlSize.poster)) {
+            Box(Modifier.width(HlSize.poster).aspectRatio(HlSize.POSTER_RATIO).clip(HlShapes.artwork).background(groundStepFill())) {
+                CheckMark(Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
+                MenuKey(
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(HlSpace.xs)
+                        .clip(HlShapes.mark)
+                        .background(c.background.copy(alpha = HlAlpha.VEIL)),
+                    ink = c.content,
+                )
             }
         }
     }

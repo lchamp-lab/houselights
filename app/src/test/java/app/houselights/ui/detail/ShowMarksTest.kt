@@ -263,14 +263,14 @@ class ShowMarksTest {
         compose.onNodeWithText(text(R.string.tracks_for_show)).assertExists()
     }
 
-    /** The Menu key shows under the card with focus alone, and not under a sheet, where focus is out. */
+    /** The Menu key shows in the corner of the card with focus alone, as on a poster, and not under a sheet, where focus is out. */
     @Test
-    fun theMenuKeyShowsUnderTheFocusedCardOnly() {
+    fun theMenuKeyShowsInTheFocusedCardsCornerOnly() {
         showPage()
         downToTheEpisodes()
-        assertKeyUnder("s1e1")
+        assertKeyIn("s1e1")
         compose.press(Key.DirectionRight)
-        assertKeyUnder("s1e2")
+        assertKeyIn("s1e2")
 
         compose.press(Key.Menu)
         assertEquals(emptyList<Rect>(), keysBelow(episodeCard("s1e2").fetchSemanticsNode().boundsInRoot.top))
@@ -282,13 +282,14 @@ class ShowMarksTest {
             .map { it.boundsInRoot }
             .filter { it.top >= top }
 
-    /** One key in the episode row, under [id]'s card and within its width. */
-    private fun assertKeyUnder(id: String) {
+    /** One key in the episode row, in the bottom right corner of [id]'s still. */
+    private fun assertKeyIn(id: String) {
         val card = episodeCard(id).fetchSemanticsNode().boundsInRoot
         val keys = keysBelow(card.top)
         assertEquals("$keys", 1, keys.size)
         val key = keys.single()
-        assertTrue("$key under $card", key.top >= card.bottom && key.left >= card.left && key.right <= card.right + 0.5f)
+        assertTrue("$key in $card's bottom right quarter", key.left >= card.center.x && key.top >= card.center.y)
+        assertTrue("$key within $card", key.right <= card.right && key.bottom <= card.bottom)
     }
 
     @Test
