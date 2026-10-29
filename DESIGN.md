@@ -1275,7 +1275,10 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
   paths and strokes are cached.
 - **No layer more.** A plate's light is drawn in its content's clip layer; nothing at rest takes a
   `graphicsLayer` it does not animate; no full-screen layer is added; glows are non-overlapping rings
-  (`drawGlow`); a transparent rectangle is not drawn, nor a plate under what covers it (a showcase's posters).
+  (`drawGlow`); a transparent rectangle is not drawn, nor a plate under what covers it (a showcase's posters, a saga's
+  panels), nor a veil past where it clears (`inkedBand`); a saga's panel draws its dark only while no picture covers it
+  whole, and its poster only while its backdrop does not, a picture covering once it has no see-through part and its
+  loader's fade has run (`voletCover`, `onWhole`; `VoletGroundTest`, `ArtworkWholeTest`).
 - **Two backdrop layers at most.** A backdrop is one cached layer, recorded again only when its picture
   changes or the house lights move; one fade at a time (`FadeBetween`).
 - **A wall's field in one fill.** 64 × 36, enlarged, veiled and dithered by one paint (`DiffusePaint`); a wall

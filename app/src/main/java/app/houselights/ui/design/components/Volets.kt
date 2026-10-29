@@ -48,6 +48,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.Brush
@@ -104,6 +105,8 @@ import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.textRoom
 import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.delay
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 // A saga's page as a polyptych (« Les volets »): a tall panel a film beside the saga's own, the one with focus open.
@@ -427,10 +430,14 @@ private fun rememberVoletFrame(height: Dp): VoletFrame {
     }
 }
 
-/** An open panel's wait for its backdrop: [pictured] once it is there to draw, [waited] once [HlMotion.HOLD] is over. */
+/**
+ * An open panel's wait for its backdrop: [pictured] once it is there to draw, [whole] once it is and has no see-through
+ * part, [waited] once [HlMotion.HOLD] is over.
+ */
 @Stable
 private class VoletWait {
     var pictured by mutableStateOf(false)
+    var whole by mutableStateOf(false)
     var waited by mutableStateOf(false)
 
     /** Whether the words show: [settled], and with their picture, the wait over, or [pictureless]. */
@@ -554,6 +561,8 @@ private fun Volet(
         acts = part.acts,
         light = if (part.grey) null else backdrop ?: poster,
         glows = !part.grey,
+        // Its ground covers it whole, its dark or a picture over it: no plate under them.
+        covered = GroundCovers,
     ) {
         VoletPictures(dark, poster, backdrop, part.grey, frame, shows = saga || settled, up, wait)
         if (!saga) TopMelt(dark, floor, type.band)
@@ -574,7 +583,9 @@ private fun Volet(
 /**
  * A panel's ground: its [dark], its [poster] at its natural size cut by the panel, and its [backdrop] while it [shows]
  * or fades ([up]), loaded while it settles and drawn as it rises, [wait] told once it is there; leaving, it is no
- * longer drawn. A [grey] film's pictures without colour, stepping back further than their siblings.
+ * longer drawn. A [grey] film's pictures without colour, stepping back further than their siblings. What a picture
+ * covers whole is not drawn under it ([voletCover]), read while drawing: the dark under its poster or its backdrop
+ * risen, the poster under that backdrop.
  */
 @Composable
 private fun BoxScope.VoletPictures(
@@ -591,24 +602,66 @@ private fun BoxScope.VoletPictures(
     val step by remember(recede) { derivedStateOf { HlFocus.recedeStep(recede()) } }
     // Composed while it shows or fades: recomposed only as it starts or ends.
     val drawn by remember(up) { derivedStateOf { up.value > 0f } }
-    Box(Modifier.matchParentSize().background(dark))
+    var posterWhole by remember(poster) { mutableStateOf(false) }
+    val cover = { width: Float ->
+        voletCover(
+            width,
+            poster = frame.posterPx.width.takeIf { posterWhole },
+            backdrop = frame.backdropPx.width.takeIf { wait.whole && up.value >= 1f },
+        )
+    }
+    Box(Modifier.matchParentSize().drawBehind { if (cover(size.width) == VoletCover.None) drawRect(dark) })
     if (poster != null) {
-        Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
+        // Under its backdrop once whole itself: its loader's fade has run.
+        Box(
+            Modifier.matchParentSize().drawWithContent { if (!posterWhole || cover(size.width) != VoletCover.Backdrop) drawContent() },
+            contentAlignment = Alignment.Center,
+        ) {
             ArtworkImage(
                 poster,
                 null,
                 Modifier.requiredSize(frame.poster.width, frame.poster.height),
                 size = frame.posterPx,
                 filter = if (grey) absentFilters[step] else null,
+                onWhole = { posterWhole = true },
             )
         }
     }
     if (backdrop != null && (shows || drawn)) {
-        DisposableEffect(backdrop) { onDispose { wait.pictured = false } }
+        DisposableEffect(backdrop) {
+            onDispose {
+                wait.pictured = false
+                wait.whole = false
+            }
+        }
         Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
-            VoletPicture(backdrop, frame.backdrop, frame.backdropPx, grey, alpha = { up.value }, onLoad = { wait.pictured = true })
+            VoletPicture(
+                backdrop,
+                frame.backdrop,
+                frame.backdropPx,
+                grey,
+                alpha = { up.value },
+                onLoad = { opaque ->
+                    wait.pictured = true
+                    wait.whole = opaque
+                },
+            )
         }
     }
+}
+
+/** What covers a panel whole, so that nothing under it is drawn: nothing (its dark shows), its poster or its backdrop. */
+internal enum class VoletCover { None, Poster, Backdrop }
+
+/**
+ * What covers a panel [width] px wide whole: its backdrop, [backdrop] px wide once risen whole with no see-through part
+ * (else null), else its poster, [poster] px wide once drawn whole with none, its loader's fade over (else null); each as
+ * wide as the panel at least. Opening wider than its poster, a panel shows its dark at its sides again.
+ */
+internal fun voletCover(width: Float, poster: Int?, backdrop: Int?): VoletCover = when {
+    backdrop != null && width <= backdrop -> VoletCover.Backdrop
+    poster != null && width <= poster -> VoletCover.Poster
+    else -> VoletCover.None
 }
 
 /**
@@ -663,7 +716,7 @@ private fun VoletFoot(part: VoletPart, plan: VoletPlan, modifier: Modifier = Mod
 /**
  * An open panel's backdrop at its natural size, [size] ([px]), drawn with its [alpha] read while drawing: it fades in
  * and out without a layer, and at rest takes none. Its filter steps back with its siblings, a [grey] one without colour;
- * [onLoad] is told once it is there to draw.
+ * [onLoad] is told once it is there to draw, and whether it has no see-through part.
  */
 @Composable
 private fun VoletPicture(
@@ -672,14 +725,14 @@ private fun VoletPicture(
     px: IntSize,
     grey: Boolean,
     alpha: () -> Float,
-    onLoad: () -> Unit,
+    onLoad: (opaque: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     // The panel fades it in itself: no crossfade of the loader's under it.
     val request = remember(url, px, context) { artworkRequest(context, url, px.width, px.height).newBuilder().crossfade(false).build() }
     val loaded by rememberUpdatedState(onLoad)
-    val painter = rememberAsyncImagePainter(request, onSuccess = { loaded() })
+    val painter = rememberAsyncImagePainter(request, onSuccess = { loaded(it.result.isOpaque()) })
     val recede = LocalArtworkRecede.current
     Spacer(
         modifier.requiredSize(size.width, size.height).drawBehind {
@@ -739,7 +792,7 @@ private fun TopMelt(dark: Color, floor: Float, band: Float) {
             val screen = HlScrim.SCREEN_HEIGHT.dp.toPx()
             val stops = HlScrim.TOP.raisedOver(band / screen, floor, VoletDefaults.melt.toPx() / screen)
             val brush = Brush.verticalGradient(*stops.colorStops(dark), startY = 0f, endY = screen)
-            onDrawBehind { drawRect(brush) }
+            onDrawBehind { drawVeil(brush, stops, 0f, screen) }
         },
     )
 }
@@ -777,7 +830,7 @@ private fun FootMelt(dark: Color, yearRise: Float) {
                 VeilStop(1f, HlScrim.VOLET_YEAR_FLOOR),
             )
             val brush = Brush.verticalGradient(*stops.colorStops(dark), startY = 0f, endY = size.height)
-            onDrawBehind { drawRect(brush) }
+            onDrawBehind { drawVeil(brush, stops, 0f, size.height) }
         },
     )
 }
@@ -795,9 +848,31 @@ private fun WordsMelt(dark: Color, top: () -> Float) {
             val span = melt * 2f / (MELT_END - MELT_START)
             val from = at - melt - MELT_START * span
             val brush = Brush.verticalGradient(*HlScrim.CASE_FOOT.colorStops(dark), startY = from, endY = from + span)
-            onDrawBehind { drawRect(brush) }
+            onDrawBehind { drawVeil(brush, HlScrim.CASE_FOOT, from, from + span) }
         },
     )
+}
+
+/**
+ * [brush], the veil [stops] drawn from [startY] to [endY] (px), over the band it is not clear in alone: a transparent
+ * rectangle costs the player's GPU a pass all the same (DESIGN.md, Performance). The same pixels, whole ones.
+ */
+private fun DrawScope.drawVeil(brush: Brush, stops: List<VeilStop>, startY: Float, endY: Float) {
+    val band = stops.inkedBand(startY, endY)
+    val top = floor(band.start).coerceIn(0f, size.height)
+    val bottom = ceil(band.endInclusive).coerceIn(top, size.height)
+    if (bottom > top) drawRect(brush, Offset(0f, top), Size(size.width, bottom - top))
+}
+
+/**
+ * Where a veil drawn from [startY] to [endY] (px) is not clear: from its first stop when that one is clear, down to its
+ * last when that one is, its gradient holding its end stops' colours past them; unbounded on a side whose stop is not.
+ */
+internal fun List<VeilStop>.inkedBand(startY: Float, endY: Float): ClosedFloatingPointRange<Float> {
+    val span = endY - startY
+    val from = if (first().alpha <= 0f) startY + first().at * span else Float.NEGATIVE_INFINITY
+    val to = if (last().alpha <= 0f) startY + last().at * span else Float.POSITIVE_INFINITY
+    return from..to
 }
 
 /** A closed panel's sign: a card's check, its held ring or new dot; a film missing by the ring, one announced by the quiet dot. */
@@ -950,6 +1025,9 @@ fun SagaVoletWords(
         }
     }
 }
+
+/** A panel's ground, its dark or a picture over it, covers it whole: it takes no plate (DESIGN.md, Performance). */
+private val GroundCovers: () -> Float = { Float.POSITIVE_INFINITY }
 
 /** Closed panels kept between the open one and either end of a long saga's polyptych as it scrolls. */
 private const val KEPT_CLOSED = 2

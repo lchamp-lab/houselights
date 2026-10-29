@@ -75,8 +75,8 @@ import kotlinx.coroutines.launch
  * nothing. It is one element to accessibility services, a [role] with its clicks, the long one named by
  * [onLongClickLabel]. [content], clipped to [shape], is told when it is [lit]: when its ink is focus's. Framed in
  * a [row], it leaves its frame to the row ([RowFrame]). What its content covers from the top ([covered], in px,
- * read while drawing) takes no plate under it. A picture made of several ([glowTones], left to right) glows in
- * their tones across it rather than in [glow]'s one.
+ * read while drawing) takes no plate under it, content covering its whole height none at all. A picture made of
+ * several ([glowTones], left to right) glows in their tones across it rather than in [glow]'s one.
  */
 @Composable
 internal fun HlFocusSurface(
@@ -240,9 +240,9 @@ private fun FocusLook.ink(enabled: Boolean, lit: Boolean): Color = when {
 }
 
 /**
- * The plate under the content, below what the content [covered], then the content, its edge and, given when it
- * cannot act, the [disabledRing] of focus. The white of focus lies over the plate at the light's strength, as a
- * light would, never blending through the colours between.
+ * The plate under the content, below what the content [covered] (none when it covers it whole), then the content,
+ * its edge and, given when it cannot act, the [disabledRing] of focus. The white of focus lies over the plate at the
+ * light's strength, as a light would, never blending through the colours between.
  */
 private fun CacheDrawScope.drawPlate(
     look: FocusLook,
@@ -261,7 +261,11 @@ private fun CacheDrawScope.drawPlate(
         val rest = if (enabled) look.rest.fill() else look.disabled.fill()
         val white = if (fills) on else 0f
         val top = covered?.invoke() ?: 0f
-        if (top > 0f) clipRect(top = top) { fillPlate(area, rest, look, white) } else fillPlate(area, rest, look, white)
+        when {
+            top >= size.height -> Unit
+            top > 0f -> clipRect(top = top) { fillPlate(area, rest, look, white) }
+            else -> fillPlate(area, rest, look, white)
+        }
         drawContent()
         edge?.draw(this, 1f)
         if (on > 0f) ring?.draw(this, on)
