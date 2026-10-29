@@ -47,11 +47,14 @@ class MigrationTest {
             .also { opened += name to it }
     }
 
-    /** Folder 1, "Films", as schemas 8 and later hold it. */
-    private fun SupportSQLiteDatabase.filmsFolder() = execSQL(
-        "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-            "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)",
-    )
+    /** Folder 1, "Films", as schemas 8 to 19 hold it, and as [from]'s does; version 20's tables hold no default for heldKept. */
+    private fun SupportSQLiteDatabase.filmsFolder(from: Int = 19) {
+        val (kept, notKept) = if (from >= 20) ", heldKept" to ", 0" else "" to ""
+        execSQL(
+            "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt$kept) " +
+                "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000$notKept)",
+        )
+    }
 
     /** Schemas 1 to 5 predate Room's schema export and were rebuilt (app/schemas); Room checks them on open. */
     @Test
@@ -463,7 +466,7 @@ class MigrationTest {
             // Version 19's tables, made by Room, hold no default for the choice to leave a title as it is.
             val (noMatch, notLeft) = if (from >= 19) ", userNoMatch" to ", 0" else "" to ""
             val dao = migrated(from) {
-                filmsFolder()
+                filmsFolder(from)
                 execSQL(
                     "INSERT INTO collections (id, matchKey, tmdbId, name, sortTitle, posterPath, backdropPath) " +
                         "VALUES (7, '$DUNE_SAGA', 726871, 'Dune - Saga', 'dune - saga', '/saga.jpg', '/saga-wide.jpg')",
