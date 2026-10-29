@@ -522,4 +522,50 @@ class AddFolderFlowTest : FlowHarness() {
         until { flow.step == FlowStep.BROWSE }
         assertEquals(Volume.INTERNAL, flow.nas?.host)
     }
+
+    /**
+     * « Saisir une adresse » while a NAS signs in stops it, as OK on another row does: its answer, coming after, neither
+     * takes the flow to its shared folders nor says a failure under the address.
+     */
+    @Test
+    fun typingAnAddressStopsTheNasUnderWay() {
+        val flow = flow(films)
+        val exports = network.hold("exports")
+        ok()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.signing_in), useUnmergedTree = true).assertExists()
+        flow.typeAddress()
+        compose.waitForIdle()
+        assertNull(flow.pressed)
+        exports.complete(Unit)
+        // What was under way had its chance to go on: it did not.
+        shadowOf(Looper.getMainLooper()).idle()
+        compose.waitForIdle()
+        assertEquals(FlowStep.ADDRESS, flow.step)
+        assertNull(flow.fieldError)
+        assertNull(flow.message)
+    }
+
+    /** « Saisir un chemin » while a shared folder opens stops it: the flow stays on the path, which nothing comes to fill. */
+    @Test
+    fun typingAPathStopsTheSharedFolderOpening() {
+        val flow = flow(films)
+        network.announce(ds920)
+        compose.waitForIdle()
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        compose.waitForIdle()
+        val level = network.hold("level")
+        ok()
+        compose.waitForIdle()
+        assertTrue(flow.pressed != null)
+        flow.typePath()
+        compose.waitForIdle()
+        assertNull(flow.pressed)
+        level.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+        compose.waitForIdle()
+        assertEquals(FlowStep.TYPE_PATH, flow.step)
+        assertNull(flow.fieldError)
+    }
 }

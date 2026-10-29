@@ -334,7 +334,10 @@ class FolderFlow(
         connect(FlowNas(found.address, found.name.takeIf { it.isNotBlank() }), typed = null, viaUsed = false, known = found.protocols)
     }
 
-    fun typeAddress() = go(FlowStep.ADDRESS, FIELD_HOST)
+    fun typeAddress() {
+        stop()
+        go(FlowStep.ADDRESS, FIELD_HOST)
+    }
 
     /**
      * OK on disk [id] of this player (its volume's), [name]d as its row names it: opened at its root, as a shared folder
@@ -392,6 +395,8 @@ class FolderFlow(
             FIELD_UID -> if (FolderForm.isId(typed)) uid = typed else return
             FIELD_GID -> if (FolderForm.isId(typed)) gid = typed else return
         }
+        // What OK started went with what was typed before: a password corrected while signing in signs in again.
+        stop()
         if (fieldError?.field == field) fieldError = null
     }
 
@@ -551,6 +556,7 @@ class FolderFlow(
 
     /** « Changer de compte »: the account step, the account the shared folders were listed with kept until another signs in. */
     fun changeAccount() {
+        stop()
         keepAccount()
         go(FlowStep.ACCOUNT, FIELD_USER)
     }
@@ -607,6 +613,7 @@ class FolderFlow(
         opened?.let { place(it, at).standing(folders) } ?: Standing.Apart
 
     fun openNfsAccount() {
+        stop()
         keepIdentity()
         go(FlowStep.NFS_ACCOUNT, FIELD_UID)
     }
@@ -628,7 +635,10 @@ class FolderFlow(
         if (noList) go(FlowStep.TYPE_PATH, FIELD_PATH) else go(FlowStep.SHARES, tried?.let { shareKey(it) } ?: NFS_ACCOUNT)
     }
 
-    fun typePath() = go(FlowStep.TYPE_PATH, FIELD_PATH)
+    fun typePath() {
+        stop()
+        go(FlowStep.TYPE_PATH, FIELD_PATH)
+    }
 
     /**
      * « Continuer » on a path typed whole: the app splits it into its shared folder and the folder inside ([TypedPaths]),
@@ -749,7 +759,12 @@ class FolderFlow(
      * ([write]), a disk's root [named] as its row names it, then [onDone].
      */
     fun chooseFolder(named: String = "", onDone: (FlowDone) -> Unit = {}) {
-        val kind = edited?.kind ?: return go(FlowStep.KIND, kindKey(suggestedKind()))
+        val kind = edited?.kind
+        if (kind == null) {
+            // A folder still opening is not the one chosen: its step would come back over this one.
+            stop()
+            return go(FlowStep.KIND, kindKey(suggestedKind()))
+        }
         write(CHOOSE, kind, named, onDone)
     }
 
@@ -948,6 +963,17 @@ class FolderFlow(
                 if (pressed === mine) pressed = null
             }
         }
+    }
+
+    /**
+     * Stops what OK started and is under way, as OK on another row does ([press]), for a step or a field the flow goes
+     * to without OK on a row: once it ended, it would take the flow back to its own step, or say its failure under
+     * another's field. Never a write.
+     */
+    private fun stop() {
+        if (pressed?.writes == true) return
+        job?.cancel()
+        pressed = null
     }
 
     /** Says [e] of [key] where it belongs ([refused]), a disk's sentence naming Android's settings once only they grant it. */
