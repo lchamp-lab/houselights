@@ -179,7 +179,12 @@ class TraktSyncTest : TraktSyncFixture() {
         provider.mark(id, played = true)
         provider.mark(id, played = false)
         waitFor("the marks waiting") { sync.state.value.error == TraktSyncError.OFFLINE && queue.pending().size == 1 }
-        advanceUntilIdle()
+        // Each mark began a send, one after the other, each reading the queue as it then stood: the first one failing says
+        // offline while the next may still be on its way to Trakt with a mark since replaced, which would reach it once
+        // back. A check asked now waits behind them all, failing too, so none is left once Trakt is back.
+        sync.scanned(changedLibrary = false)
+        waitFor("every send begun offline ended") { !sync.state.value.running }
+        assertEquals(TraktSyncError.OFFLINE, sync.state.value.error)
         assertEquals(listOf(TraktAction.UNWATCHED), queue.pending().map { it.action })
 
         trakt.offline = false
