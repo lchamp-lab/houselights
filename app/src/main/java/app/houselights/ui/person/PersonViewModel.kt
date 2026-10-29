@@ -10,6 +10,7 @@ import app.houselights.core.LibraryEvents
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaProvider
 import app.houselights.core.PersonPage
+import app.houselights.ui.library.Laid
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterChanges
 import app.houselights.ui.library.favoredAs
@@ -43,6 +44,15 @@ class PersonViewModel(
     /** One load at a time: a new one cancels the previous. */
     private val loads = LatestJob(viewModelScope)
 
+    /**
+     * What a poster's options change, saved as the title's page saves it, held over every read of the page until it is
+     * read again ([PendingChanges][app.houselights.ui.library.PendingChanges]).
+     */
+    internal val changes = PosterChanges(provider, events, work ?: viewModelScope, TAG)
+
+    /** The last change a poster's options asked that was not saved, said on its title's line while it has focus. */
+    val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
+
     init {
         load()
     }
@@ -50,24 +60,20 @@ class PersonViewModel(
     /** Loads the page: at start, after a failure, or after the library changes; a page shown stays if it fails. */
     fun load() {
         _state.update { it.readingAgain() }
+        val reading = changes.pending.reading()
         loads.launch {
             val read = loadState(TAG, "Person $personId") { provider().catalog?.person(personId) }
             _state.update { shown ->
                 when (read) {
-                    // Null when none of their titles remain in the library.
-                    is LoadState.Ready -> read.value?.let { LoadState.Ready(it) } ?: LoadState.Failed(UiError.PERSON_GONE)
+                    // Null when none of their titles remain in the library; what its posters changed shows over it.
+                    is LoadState.Ready -> read.value?.let { LoadState.Ready(it.under(changes.pending.over(reading))) }
+                        ?: LoadState.Failed(UiError.PERSON_GONE)
                     is LoadState.Failed -> shown.after(read)
                     LoadState.Loading -> shown
                 }
             }
         }
     }
-
-    /** What a poster's options change, saved as the title's page saves it. */
-    internal val changes = PosterChanges(provider, events, work ?: viewModelScope, TAG)
-
-    /** The last change a poster's options asked that was not saved, said on its title's line while it has focus. */
-    val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
 
     /** Marks [item] watched, or not once it is, from its poster's options: its mark shows at once, the title staying. */
     fun mark(item: MediaItem) {
@@ -97,6 +103,11 @@ class PersonViewModel(
 }
 
 /** The page showing [item] in its title's place, as it now stands. */
-private fun LoadState<PersonPage>.showing(item: MediaItem): LoadState<PersonPage> = map { page ->
-    page.copy(titles = page.titles.map { title -> if (title.item.id == item.id) title.copy(item = item) else title })
-}
+private fun LoadState<PersonPage>.showing(item: MediaItem): LoadState<PersonPage> = map { it.showing(item) }
+
+/** [this] showing [item] in its title's place. */
+private fun PersonPage.showing(item: MediaItem): PersonPage =
+    copy(titles = titles.map { title -> if (title.item.id == item.id) title.copy(item = item) else title })
+
+/** [this], as a read answered it, showing the changes its posters' options asked that it may not know ([laid]). */
+private fun PersonPage.under(laid: List<Laid>): PersonPage = laid.fold(this) { page, change -> page.showing(change.item) }

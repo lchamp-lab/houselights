@@ -20,6 +20,7 @@ import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -520,5 +521,85 @@ class LibraryViewModelTest {
         started.mark(started.state.value.items.single())
         assertEquals(emptyList<MediaItem>(), started.state.value.items)
         assertEquals(0, started.state.value.total)
+    }
+
+    /**
+     * A reload begun before a change from a poster that lands after its save, with the source's list of before, never
+     * brings the title back on a wall its filter no longer keeps it on, nor its count: Non vus, Vus, En cours, Favoris.
+     */
+    @Test
+    fun aReloadBegunBeforeAChangeNeverBringsItsTitleBack() = runTest {
+        mapOf(
+            WatchStatus.UNWATCHED to UserState(),
+            WatchStatus.WATCHED to UserState(played = true),
+            WatchStatus.IN_PROGRESS to UserState(positionMs = 60_000),
+            WatchStatus.FAVORITES to UserState(favorite = true),
+        ).forEach { (status, user) ->
+            val source = FakeProvider().apply { wall = (1..3).map { film("m$it").copy(user = user) } }
+            val vm = LibraryViewModel({ source }, library, opensOn = LibraryFilter(status = status), events = FakeEvents(), work = this)
+            advanceUntilIdle()
+            val reload = source.gate("page 0 120")
+            vm.onLibraryChanged(scanOnly = true)
+            runCurrent()
+            val m2 = vm.state.value.items[1]
+            if (status == WatchStatus.FAVORITES) vm.favorite(m2) else vm.mark(m2)
+            advanceUntilIdle()
+            assertTrue("$status: saved", source.calls.any { it.startsWith("played m2") || it.startsWith("favorite m2") })
+
+            reload.complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$status", listOf("m1", "m3"), vm.state.value.items.map { it.id })
+            assertEquals("$status", 2, vm.state.value.total)
+        }
+    }
+
+    /** A next page begun before a mark that lands after its save counts the title no more, as the wall no longer holds it. */
+    @Test
+    fun aNextPageBegunBeforeAMarkCountsItNoMore() = runTest {
+        val vm = LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.UNWATCHED), work = this)
+        advanceUntilIdle()
+        val next = provider.gate("page 120 120")
+        vm.loadMore()
+        runCurrent()
+        vm.mark(vm.state.value.items[1])
+        advanceUntilIdle()
+        assertEquals(299, vm.state.value.total)
+
+        next.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(239, vm.state.value.items.size)
+        assertFalse(vm.state.value.items.any { it.id == "m2" })
+        assertEquals(299, vm.state.value.total)
+    }
+
+    /**
+     * A mark is held over the reads begun while it is saved, the source still holding the title; a read begun after its
+     * save lets go of it, and the wall shows what the source then says: the title marked again elsewhere, back.
+     */
+    @Test
+    fun aChangeHeldLetsGoOnceAReadAfterItsSaveAgrees() = runTest {
+        provider.wall = (1..3).map { film("m$it") }
+        val vm = LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.UNWATCHED), work = this)
+        advanceUntilIdle()
+        val saving = provider.gate("played m2 true")
+        vm.mark(vm.state.value.items[1])
+        runCurrent()
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals("held while it is saved", listOf("m1", "m3"), vm.state.value.items.map { it.id })
+        assertEquals(2, vm.state.value.total)
+
+        saving.complete(Unit)
+        advanceUntilIdle()
+        provider.wall = listOf(film("m1"), film("m3"))
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals("as the source says it", listOf("m1", "m3"), vm.state.value.items.map { it.id })
+
+        provider.wall = (1..3).map { film("m$it") }
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals("let go", listOf("m1", "m2", "m3"), vm.state.value.items.map { it.id })
+        assertEquals(3, vm.state.value.total)
     }
 }

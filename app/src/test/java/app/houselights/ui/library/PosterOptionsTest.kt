@@ -8,8 +8,10 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -118,6 +120,22 @@ class PosterOptionsTest {
         assertEquals("in the order ${rows.map(::text)}", tops.sorted(), tops)
     }
 
+    /**
+     * The open sheet's head says [facts] under its title, in this order, over its rows from [first]: in the sheet itself,
+     * never the wall's title line, which says the focused poster's facts too.
+     */
+    private fun assertHead(first: Int, vararg facts: String) {
+        val rows = option(first).fetchSemanticsNode().boundsInRoot.top
+        val starts = facts.map { fact ->
+            val said = compose.onNode(hasText(fact) and hasAnyAncestor(isDialog()), useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot
+            assertTrue("$fact over the sheet's rows", said.bottom <= rows)
+            said.left
+        }
+        assertEquals("in the order ${facts.toList()}", starts.sorted(), starts)
+    }
+
     /** Menu then OK marks a film: its options open on marking it, then the favourite and Modifier, and close on its poster. */
     @Test
     fun menuThenOkMarksAFilmAndFocusStaysOnItsPoster() {
@@ -173,7 +191,7 @@ class PosterOptionsTest {
         compose.pressOnRemote(Key.Menu)
         option(R.string.mark_series_watched).assertIsFocused()
         assertRows(R.string.mark_series_watched, R.string.add_favorite, R.string.edit)
-        compose.onAllNodesWithText(plural(R.plurals.unwatched_episodes, 6, 6)).assertCountEquals(1)
+        assertHead(R.string.mark_series_watched, plural(R.plurals.season_count, 2, 2), plural(R.plurals.unwatched_episodes, 6, 6))
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         assertTrue("played severance true" in provider.calls)
     }
@@ -194,7 +212,8 @@ class PosterOptionsTest {
         open()
         compose.pressOnRemote(Key.Menu)
         option(R.string.mark_saga_watched).assertIsFocused()
-        compose.onAllNodesWithText(plural(R.plurals.saga_watched_of, 1, 1, 2)).assertCountEquals(1)
+        val watched = plural(R.plurals.saga_watched_of, 1, 1, 2)
+        assertHead(R.string.mark_saga_watched, "2021 – 2024", plural(R.plurals.film_count, 2, 2), watched)
         option(R.string.add_favorite).assertDoesNotExist()
         option(R.string.edit).assertDoesNotExist()
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)

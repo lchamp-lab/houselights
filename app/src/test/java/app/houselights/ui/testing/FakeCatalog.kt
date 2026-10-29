@@ -11,8 +11,9 @@ import app.houselights.core.PersonPage
 import app.houselights.core.Saga
 import app.houselights.core.SearchResults
 import app.houselights.core.Version
+import kotlinx.coroutines.CompletableDeferred
 
-/** A catalog whose answers each test sets: calls go to [calls], those [fail] picks throw. */
+/** A catalog whose answers each test sets: calls go to [calls], those [fail] picks throw, a person's page held by [gate]. */
 class FakeCatalog : Catalog {
     /** Person pages, by person id. */
     var pages = mapOf<String, PersonPage>()
@@ -33,6 +34,10 @@ class FakeCatalog : Catalog {
 
     val calls = mutableListOf<String>()
     var fail: (call: String) -> Throwable? = { null }
+    private val gates = mutableMapOf<String, CompletableDeferred<Unit>>()
+
+    /** Holds [call], answered as the catalog stood when asked, until the gate returned is completed. */
+    fun gate(call: String) = CompletableDeferred<Unit>().also { gates[call] = it }
 
     private fun call(name: String) {
         calls += name
@@ -41,7 +46,10 @@ class FakeCatalog : Catalog {
 
     override suspend fun credits(item: MediaItem): Credits = Credits().also { call("credits ${item.id}") }
 
-    override suspend fun person(id: String): PersonPage? = pages[id].also { call("person $id") }
+    override suspend fun person(id: String): PersonPage? = pages[id].also {
+        call("person $id")
+        gates["person $id"]?.await()
+    }
 
     override suspend fun people(job: Job, kind: MediaKind?, minTitles: Int, limit: Int): List<Person> =
         directors.take(limit).also { call("people $job") }

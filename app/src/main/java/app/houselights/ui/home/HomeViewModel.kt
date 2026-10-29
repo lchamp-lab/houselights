@@ -27,6 +27,7 @@ import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.FirstScanDefaults
 import app.houselights.ui.design.components.FirstWallState
+import app.houselights.ui.library.Laid
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterChanges
 import app.houselights.ui.library.favoredAs
@@ -221,6 +222,15 @@ class HomeViewModel(
     private val doorReads = LatestJob(viewModelScope)
 
     /**
+     * What a card's options change in « À regarder » (#47), saved as the title's page saves it, held over every read
+     * of the rows until they are read again ([PendingChanges][app.houselights.ui.library.PendingChanges]).
+     */
+    internal val changes = PosterChanges(provider, events, this.work, TAG)
+
+    /** The last change a card's options asked that was not saved, said in the hero while its title has focus. */
+    val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
+
+    /**
      * Null until first read, and when they cannot be read: never taken for none. On return, the last list stays until
      * the database re-reads it, so Home never blanks.
      */
@@ -316,14 +326,16 @@ class HomeViewModel(
     fun load() {
         // A retry with nothing shown keeps the error, busy; shown rows or first-scan progress stay while reloading.
         if (load.value.sections.isEmpty() && load.value.error != null) load.update { it.copy(loading = true) }
+        val read = changes.pending.reading()
         loads.launch {
             suspendRunCatching {
                 launched() ?: provider().let { source -> HomeRows(source.libraries(), source.home()) }
             }.onSuccess { rows ->
+                val sections = rows.sections.under(changes.pending.over(read))
                 load.update { last ->
-                    HomeLoad(false, null, rows.libraries, rows.sections, drawn = last.drawn, doors = rows.doors ?: last.doors)
+                    HomeLoad(false, null, rows.libraries, sections, drawn = last.drawn, doors = rows.doors ?: last.doors)
                 }
-                shown(rows.sections)
+                shown(sections)
                 if (rows.doors == null) doorReads.launch { loadDoors(rows) }
                 drawLibraryRows()
             }.onFailure { e ->
@@ -369,12 +381,6 @@ class HomeViewModel(
         if (hold.value == FirstScanHold.NONE) load()
     }
 
-    /** What a card's options change in « À regarder » (#47), saved as the title's page saves it. */
-    internal val changes = PosterChanges(provider, events, this.work, TAG)
-
-    /** The last change a card's options asked that was not saved, said in the hero while its title has focus. */
-    val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
-
     /** Marks [item] watched, or not once it is, from its card's options in « À regarder », shown at once ([change]). */
     fun mark(item: MediaItem) {
         val played = !item.user.played
@@ -417,10 +423,11 @@ class HomeViewModel(
     /** Loads the library's rows, below Home's own, once the launch screen has closed; a failure leaves them out. */
     private fun drawLibraryRows() {
         val rows = libraryRows ?: return
+        val read = changes.pending.reading()
         draws.launch {
             afterLaunch()
             suspendRunCatching { rows.today() }
-                .onSuccess { drawn -> load.update { it.copy(drawn = drawn) } }
+                .onSuccess { drawn -> load.update { it.copy(drawn = drawn.under(changes.pending.over(read))) } }
                 .onFailure { Log.w(TAG, "Library rows", it) }
         }
     }
@@ -543,6 +550,9 @@ internal fun List<HomeSection>.showing(changed: MediaItem): List<HomeSection> = 
     }
     section.copy(items = items).takeIf { items.isNotEmpty() }
 }
+
+/** [this], as a read answered them, showing the changes its cards' options asked that it may not know ([laid]). */
+private fun List<HomeSection>.under(laid: List<Laid>): List<HomeSection> = laid.fold(this) { rows, change -> rows.showing(change.item) }
 
 /** The first existing folder whose last scan failed, and why. */
 internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<Folder>): Pair<Folder, ScanError>? =

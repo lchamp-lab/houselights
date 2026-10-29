@@ -116,6 +116,15 @@ class LibraryViewModel(
     /** Reads whether the source still shows sagas before reloading; a new read cancels the previous. */
     private val sagaReads = LatestJob(viewModelScope)
 
+    /**
+     * What a poster's options change, saved as the title's page saves it (#47), held over every read until
+     * it is read again ([PendingChanges]).
+     */
+    internal val changes = PosterChanges(provider, events, work ?: viewModelScope, TAG)
+
+    /** The last change a poster's options asked that was not saved, said on its title's line while it has focus. */
+    val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
+
     init {
         reset()
         loadFacets()
@@ -153,12 +162,6 @@ class LibraryViewModel(
 
     /** After a failure, loads again from the first page. */
     fun retry() = reset()
-
-    /** What a poster's options change, saved as the title's page saves it (#47). */
-    internal val changes = PosterChanges(provider, events, work ?: viewModelScope, TAG)
-
-    /** The last change a poster's options asked that was not saved, said on its title's line while it has focus. */
-    val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
 
     /**
      * Marks [item] watched, or not once it is, from its poster's options: shown at once, a title the wall's filter no
@@ -253,6 +256,7 @@ class LibraryViewModel(
     /** Reloads what is shown in one request, in place, so the grid keeps its position and focused poster. */
     private fun refresh() {
         val s = _state.value
+        val read = changes.pending.reading()
         pages.launch {
             suspendRunCatching {
                 source().page(s, start = 0, limit = maxOf(s.items.size, PAGE))
@@ -267,7 +271,7 @@ class LibraryViewModel(
                         error = null,
                         pageError = null,
                         pageRetrying = false,
-                    )
+                    ).under(read, whole = true)
                 }
             }.onFailure { e ->
                 // Keep what is shown; clear any busy state this reload superseded; report only if nothing shows.
@@ -294,6 +298,7 @@ class LibraryViewModel(
     private fun nextPage() {
         val s = _state.value
         if (pages.isActive || (s.items.isNotEmpty() && s.items.size >= s.total)) return
+        val read = changes.pending.reading()
         pages.launch {
             suspendRunCatching {
                 val first = if (s.items.isEmpty()) asked(s).let { ahead?.take(it.library, s.sort, it.filter, it.grouped) } else null
@@ -308,7 +313,7 @@ class LibraryViewModel(
                         loading = false,
                         pageError = null,
                         pageRetrying = false,
-                    )
+                    ).under(read, whole = false)
                 }
             }.onFailure { e ->
                 val error = e.reported(TAG, "Library page")
@@ -320,6 +325,24 @@ class LibraryViewModel(
                         it.copy(loading = false, pageError = error, pageRetrying = false)
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * [this], as [read] answered it, under the changes a poster's options asked that it may not know: a title it holds
+     * shows as changed, gone when the wall's filter no longer keeps it, the count with it. Reading the [whole] wall
+     * shown, it holds every title the change could be about, and one it does not hold the source no longer counts;
+     * reading a page past them, it counted one it began before, which the count lets go.
+     */
+    private fun LibraryState.under(read: Reading, whole: Boolean): LibraryState {
+        val status = applied(capabilities).status
+        return changes.pending.over(read).fold(this) { s, change ->
+            val stays = change.stays(status)
+            when {
+                s.items.any { it.id == change.item.id } -> s.showing(change.item, stays)
+                !whole && change.readBefore && !stays -> s.uncounting(change.item)
+                else -> s
             }
         }
     }
@@ -350,9 +373,12 @@ class LibraryViewModel(
 private fun LibraryState.showing(changed: MediaItem, stays: Boolean): LibraryState = if (stays) {
     copy(items = items.map { if (it.id == changed.id) changed else it })
 } else {
-    val left = sagas?.let { (it - sagaCount(changed)).coerceAtLeast(0) }
-    copy(items = items.filterNot { it.id == changed.id }, total = (total - 1).coerceAtLeast(0), sagas = left)
+    copy(items = items.filterNot { it.id == changed.id }).uncounting(changed)
 }
+
+/** [this] counting [item] no more, as the wall no longer keeps it: one title less, one saga less for a saga. */
+private fun LibraryState.uncounting(item: MediaItem): LibraryState =
+    copy(total = (total - 1).coerceAtLeast(0), sagas = sagas?.let { (it - sagaCount(item)).coerceAtLeast(0) })
 
 /** [this] with [item] as it was before a change that was not saved: in its place, else back at [at], counted again. */
 private fun LibraryState.undone(item: MediaItem, at: Int): LibraryState = if (items.any { it.id == item.id }) {
