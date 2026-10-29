@@ -1,5 +1,7 @@
 package app.houselights.ui.detail
 
+import android.view.KeyEvent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -15,10 +17,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -35,6 +40,7 @@ import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.OnArtwork
@@ -44,6 +50,7 @@ import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
+import app.houselights.ui.design.components.PlatedMenuKey
 import app.houselights.ui.design.components.SagaVoletWords
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.SynopsisSheet
@@ -79,7 +86,9 @@ import kotlin.math.roundToInt
 
 /**
  * What the saga's page does: play a film ([onPlay], from where it was left or from its start), mark it, open a film,
- * read the saga again once that failed ([onRetry]).
+ * read the saga again once that failed ([onRetry]); open the saga's options by Menu on its predella ([onOptions], null
+ * when it has none), the sheet of its poster on a wall (#48), the Menu key saying so at the predella's end when
+ * [optionsSaid]: when they hold more than its check does, so not for a Jellyfin box set, whose one row is that check.
  */
 @Immutable
 internal class SagaLinks(
@@ -89,6 +98,8 @@ internal class SagaLinks(
     val onRetry: () -> Unit,
     val onClearProblem: () -> Unit,
     val onClearActionError: () -> Unit,
+    val onOptions: (() -> Unit)? = null,
+    val optionsSaid: Boolean = false,
 )
 
 /**
@@ -98,7 +109,8 @@ internal class SagaLinks(
  * saga's on arrival, a film's once it took focus, kept as focus goes down to the predella (« greffe 1 ») and laid out
  * open from the first frame back from its page. Up from the predella enters on the panel left, the first time on the
  * film Lire plays; Down from a panel goes to Lire; Back opens the saga's panel again, focus on Lire, then leaves. OK
- * opens a film held, the synopsis of one the library lacks, and the saga's own once cut.
+ * opens a film held, the synopsis of one the library lacks, and the saga's own once cut. Menu on the predella opens
+ * the saga's options, never on a panel; [sheets] are its sheets, over the page in its light.
  */
 @Composable
 internal fun SagaVolets(
@@ -109,6 +121,7 @@ internal fun SagaVolets(
     problem: UiError?,
     links: SagaLinks,
     modifier: Modifier = Modifier,
+    sheets: @Composable () -> Unit = {},
 ) {
     val parts = remember(state.saga, state.collectionFilms) { partsOf(state) }
     val tally = remember(parts, state.nextUp) { SagaTally(parts, state.nextUp) }
@@ -183,6 +196,7 @@ internal fun SagaVolets(
         // Over the page, in its light.
         if (sagaShown) SynopsisSheet(item, onDismiss = { sagaShown = false })
         PartSynopsis(partShown, onDismiss = { partShown = null })
+        sheets()
     }
 }
 
@@ -323,8 +337,10 @@ private fun partState(part: SagaPart, tally: SagaTally): VoletState? {
 /**
  * The predella, under the panels: Lire or Reprendre the film the saga plays next, named with its time left, whatever
  * panel is open; from its start once started; the saga marked watched or not; once the saga could not be read again,
- * what fixes it (Réessayer), and what failed at its end. Nothing past its last action. The player changed ([trust]),
- * « Faire confiance au nouveau lecteur » takes Lire's place, Depuis le début gone with it.
+ * what fixes it (Réessayer), and what failed at its end. Nothing past its last action but the Menu key, while focus is
+ * in the predella and the saga's options hold more than its check ([SagaLinks.optionsSaid]): Menu on any of its actions
+ * opens them ([SagaLinks.onOptions]), the key never taking focus. The player changed ([trust]), « Faire confiance au
+ * nouveau lecteur » takes Lire's place, Depuis le début gone with it.
  */
 @Composable
 private fun Predella(
@@ -340,8 +356,15 @@ private fun Predella(
     val marks = state.capabilities?.markPlayed == true
     val fixedBy = state.error?.action
     val failing = problem != null || state.actionError != null || state.error != null
+    val options = links.onOptions
+    var within by remember { mutableStateOf(false) }
     OnArtwork {
-        HlActionRow(modifier.okClears(links.onClearActionError)) {
+        HlActionRow(
+            modifier
+                .okClears(links.onClearActionError)
+                .onFocusChanged { within = it.hasFocus }
+                .menuOpens(options),
+        ) {
             if (target != null) PlayActions(target, failing, ends = !marks && fixedBy == null, memory, links, trust)
             if (marks) {
                 SagaWatchedTile(
@@ -358,11 +381,39 @@ private fun Predella(
                 }
                 Retry(fixedBy, state.retrying, retry, Modifier.focusKey(RETRY, memory).then(LAST))
             }
+            // At the row's gap from its last action, centred on its tiles, measured before Lire, whose name gives way first.
+            if (options != null && links.optionsSaid) {
+                Box(Modifier.height(HlSize.tile), contentAlignment = Alignment.Center) { PlatedMenuKey({ within }) }
+            }
             // What failed to play or to save, else why the saga could not be read again.
             ActionFailure(problem, state.actionError, nextUpError = state.error)
         }
     }
 }
+
+/**
+ * Menu, or the Zidoo remote's Pop Menu (F12), on what has focus within: [open] on its way up, if it went down here, as
+ * an element's options open (`menuForLongClick`); without [open], it goes on.
+ */
+@Composable
+private fun Modifier.menuOpens(open: (() -> Unit)?): Modifier {
+    var down by remember { mutableStateOf(false) }
+    return onFocusChanged { if (!it.hasFocus) down = false }.onKeyEvent { event ->
+        val native = event.nativeKeyEvent
+        if (open == null || native.keyCode !in MENU_KEYS) return@onKeyEvent false
+        when (native.action) {
+            KeyEvent.ACTION_DOWN -> if (native.repeatCount == 0) down = true
+            KeyEvent.ACTION_UP -> if (down) {
+                down = false
+                open()
+            }
+        }
+        true
+    }
+}
+
+/** Menu, and the Zidoo remote's Pop Menu, which its firmware sends as F12. */
+private val MENU_KEYS = setOf(KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_F12)
 
 /**
  * Lire, or Reprendre once [target] is started, named with its time left, then Depuis le début: the row's last actions

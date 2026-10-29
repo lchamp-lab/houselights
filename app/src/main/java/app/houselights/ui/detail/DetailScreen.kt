@@ -119,6 +119,9 @@ import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.edit.doubtText
+import app.houselights.ui.library.PosterActions
+import app.houselights.ui.library.PosterOptions
+import app.houselights.ui.library.PosterRow
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.LocalErrorFix
@@ -210,6 +213,17 @@ internal fun DetailPage(
 
     // A saga is a polyptych, a tall panel a film beside its own (« Les volets »), on a page of its own that never scrolls.
     if (item.kind == MediaKind.COLLECTION) {
+        // Menu on its predella (#48): the sheet of its poster on a wall, the saga marked with its films, then Modifier
+        // where its source keeps its pictures; a Jellyfin box set's, its mark alone, said by no key.
+        var options by remember { mutableStateOf(false) }
+        val sheet = PosterActions(
+            onMark = { _: MediaItem -> vm.togglePlayed() }.takeIf { state.capabilities?.markPlayed == true },
+            onFavorite = null,
+            canEdit = { state.canEdit },
+            onEditArtwork = onEditArtwork,
+            onIdentify = onIdentify,
+        )
+        val rows = sheet.rows(item)
         val links = SagaLinks(
             onPlay = { title, resume -> onPlay(title, resume, PlayOrigin(screen)) },
             onTogglePlayed = vm::togglePlayed,
@@ -217,8 +231,12 @@ internal fun DetailPage(
             onRetry = vm::retry,
             onClearProblem = playback::clearProblem,
             onClearActionError = vm::clearActionError,
+            onOptions = { options = true }.takeIf { rows.isNotEmpty() },
+            optionsSaid = PosterRow.EDIT in rows,
         )
-        SagaVolets(item, state, memory, actionRow, problem, links)
+        SagaVolets(item, state, memory, actionRow, problem, links) {
+            PosterOptions(item.takeIf { options }, sheet, onDismiss = { options = false })
+        }
         return
     }
 
