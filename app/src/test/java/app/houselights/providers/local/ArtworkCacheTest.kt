@@ -90,6 +90,24 @@ class ArtworkCacheTest {
         assertTrue(copied.orEmpty(), copied?.let { File(it.removePrefix("file://")).isFile } == true)
     }
 
+    /**
+     * Android keeps a twentieth of a small volume for itself, 500 MiB at most, and says storage is low below it: nothing is
+     * copied into it, nor into the cache's own margin above it, TMDB showing the picture.
+     */
+    @Test
+    fun theSystemsReserveIsLeftFree() = runBlocking {
+        val volume = 8_000_000_000L
+        var free = volume / 20 + ArtworkCache.MIN_FREE_BYTES
+        val cache = ArtworkCache(temp.newFolder(), totalSpace = { volume }) { free }
+        val nas = FakeRemoteBrowser().apply { put("Dune (2021)-poster.jpg", size = 100, bytes = ByteArray(100)) }
+        val poster = RemoteFile("Dune (2021)-poster.jpg", 100)
+        assertNull("400 MB kept for Android, 200 MiB for the cache", cache.copy(source, poster, nas))
+
+        free += 100
+        assertTrue(cache.copy(source, poster, nas).isCachedArtwork())
+        assertEquals("a large volume keeps 500 MiB", 500L shl 20, ArtworkCache.systemReserve(64_000_000_000L))
+    }
+
     /** Same size, new date: copied again under a new name, so the screens' image caches never show the old one. */
     @Test
     fun aPictureRewrittenWithTheSameSizeIsCopiedAgain() = runBlocking {
