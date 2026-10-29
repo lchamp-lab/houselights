@@ -239,7 +239,8 @@ private class VoletMotion(initial: Int) {
  * closed, wordless, receding while one has focus. A move opens the panel reached as the one left closes over
  * [HlMotion.FOCUS_IN], the total kept; a held arrow, or [VoletDefaults.opensAtOnce], jumps. Focus enters on [enter]
  * the first time (the film Lire plays), then on the panel it left; Up goes to [upTo] (else nowhere), Down to [downTo];
- * [onFocus] says which has focus, null when none; OK does [onOpen]. [keyed] keys a panel's focus.
+ * [onFocus] says which has focus, null when none; OK does [onOpen]. [keyed] keys a panel's focus. Past eight films, the
+ * panels far from the view keep their dark, their posters asked for as they come near ([PosterWindow]).
  */
 @Composable
 fun Volets(
@@ -263,13 +264,15 @@ fun Volets(
         var within by remember { mutableStateOf(false) }
         val motion = rememberVoletMotion(open)
         val policy = remember(plan, motion) { voletsPolicy(plan, motion) }
+        val posters = rememberPosters(plan, maxWidth, open)
         CompositionLocalProvider(LocalGroupFocused provides within, LocalGroupFocus provides group) {
             Layout(
                 content = {
                     parts.forEachIndexed { i, part ->
                         key(part.key) {
                             Volet(
-                                part,
+                                // Past the posters asked for, a long saga's panel keeps its dark.
+                                if (i in posters) part else part.copy(poster = null),
                                 plan,
                                 type,
                                 opens = i == open,
@@ -390,7 +393,7 @@ private fun voletsPolicy(plan: VoletPlan, motion: VoletMotion) = MeasurePolicy {
         val left = (closed + gap) * motion.open
         val margin = (closed + gap) * KEPT_CLOSED
         val from = motion.scrollFrom
-        val to = from.coerceIn(minOf(left + wide - (room - margin), left - margin), left - margin).coerceIn(0f, total - room)
+        val to = keptInView(from, left, wide, margin, room).coerceIn(0f, total - room)
         from + (to - from) * motion.t.value
     } else {
         0f
@@ -407,6 +410,61 @@ private fun voletsPolicy(plan: VoletPlan, motion: VoletMotion) = MeasurePolicy {
             x += widths[i] + gap
         }
     }
+}
+
+/**
+ * Where a long saga's polyptych scrolls to from [from] as a panel opens, [left] from its start and [wide]: no further
+ * than keeps [margin] between that panel and either end of the [room]. In px or dp alike.
+ */
+internal fun keptInView(from: Float, left: Float, wide: Float, margin: Float, room: Float): Float =
+    from.coerceIn(minOf(left + wide - (room - margin), left - margin), left - margin)
+
+/**
+ * The panels a long saga asks its posters for (#55): those in view once its polyptych has scrolled to the panel open,
+ * as [voletsPolicy] scrolls it, those it passes by on its way from the view it leaves, and [POSTERS_AHEAD] more on
+ * either side, so that a poster is there before its panel comes into view; a poster asked stays asked while its panel
+ * is within [POSTERS_KEPT] of them. A saga in view whole asks them all. In dp, the polyptych [room] wide.
+ */
+internal class PosterWindow(private val plan: VoletPlan, private val room: Float) {
+    private val step = (plan.closed + plan.gap).value
+    private var scroll = 0f
+    private var open = -1
+    private var view: IntRange? = null
+    private var asked = IntRange.EMPTY
+
+    /** The panels whose posters are asked for, panel [to] open; asked again for the same panel, the same. */
+    fun moveTo(to: Int): IntRange {
+        val all = 0 until plan.count
+        if (!plan.scrolls) return all
+        if (to == open) return asked
+        open = to
+        val wide = plan.open.value
+        val total = wide + step * (plan.count - 1)
+        scroll = keptInView(scroll, step * to, wide, step * KEPT_CLOSED, room).coerceIn(0f, total - room)
+        val shown = all.filter { inView(it, to) }
+        val now = (shown.firstOrNull() ?: to)..(shown.lastOrNull() ?: to)
+        // The view it leaves, the one it reaches, and what it passes by between them, whatever the jump.
+        val passed = view?.let { minOf(it.first, now.first)..maxOf(it.last, now.last) } ?: now
+        view = now
+        val near = (passed.first - POSTERS_AHEAD).coerceAtLeast(0)..(passed.last + POSTERS_AHEAD).coerceAtMost(plan.count - 1)
+        val kept = maxOf(asked.first, passed.first - POSTERS_KEPT)..minOf(asked.last, passed.last + POSTERS_KEPT)
+        asked = if (asked.isEmpty() || kept.isEmpty()) near else minOf(near.first, kept.first)..maxOf(near.last, kept.last)
+        return asked
+    }
+
+    /** Whether panel [i] shows in the room, panel [at] open and the others closed. */
+    private fun inView(i: Int, at: Int): Boolean {
+        val x = step * i + (if (i > at) (plan.open - plan.closed).value else 0f) - scroll
+        val width = if (i == at) plan.open.value else plan.closed.value
+        return x < room && x + width > 0f
+    }
+}
+
+/** The panels of [plan] whose posters are asked for, panel [open] open, in a polyptych [room] wide ([PosterWindow]). */
+@Composable
+private fun rememberPosters(plan: VoletPlan, room: Dp, open: Int): IntRange {
+    val window = remember(plan, room) { PosterWindow(plan, room.value) }
+    return remember(window, open) { window.moveTo(open) }
 }
 
 /** A panel's pictures at the panel's height: its poster at 2:3 and its backdrop at 16:9, in dp and as asked for (px). */
@@ -1031,6 +1089,12 @@ private val GroundCovers: () -> Float = { Float.POSITIVE_INFINITY }
 
 /** Closed panels kept between the open one and either end of a long saga's polyptych as it scrolls. */
 private const val KEPT_CLOSED = 2
+
+/** Panels past a long saga's view asked for their posters on either side, a few steps before they come into it. */
+private const val POSTERS_AHEAD = 4
+
+/** Panels past a long saga's view whose posters, once asked for, stay asked: going back, they are there. */
+private const val POSTERS_KEPT = 8
 
 /** Overview lines in an open panel, as in a hero. */
 private const val OVERVIEW_LINES = 2
