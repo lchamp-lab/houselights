@@ -13,6 +13,7 @@ import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
+import app.houselights.core.WatchStatus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -418,6 +419,41 @@ class LocalCatalogTest {
         LocalReporter(dao, second).stopped(positionMs = 6_000_000, durationMs = 6_500_000)
         assertTrue(checkNotNull(dao.item(first)).played)
         assertEquals(1_000_000L, checkNotNull(dao.item(first)).positionMs)
+    }
+
+    /**
+     * A film in several copies is started where the copy Lire plays was left: its walls, their filters and its saga read
+     * that copy, which holds the resume point, not the copy found first, which holds the film; each copy keeps its own.
+     */
+    @Test
+    fun aFilmInCopiesIsStartedAsTheCopyLirePlays() = runTest {
+        val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:8091", tmdbId = 8091, name = "Alien", sortTitle = "alien"))
+        film("Alien", 1979, tmdbId = 348, collectionId = saga, played = true)
+        // Found first, the 1080p copy holds the film; the 4K one, better, is the one Lire plays.
+        val first = film("Aliens", 1986, tmdbId = 679, collectionId = saga, badges = listOf("1080p"), runtimeMin = 137)
+        val best = film("Aliens", 1986, tmdbId = 679, path = "Aliens 2160p.mkv", collectionId = saga, badges = listOf("4K"))
+        dao.groupVersions()
+        LocalReporter(dao, best).progress(positionMs = 2_400_000, durationMs = 9_240_000, paused = false)
+
+        val aliens = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 10).items.single { it.title == "Aliens" }
+        assertEquals(2_400_000L, aliens.user.positionMs)
+        assertEquals(9_240_000L, aliens.runtimeMs)
+        suspend fun titles(status: WatchStatus, grouped: Boolean = false) =
+            provider.libraryPage(films, SortOption.TITLE, LibraryFilter(status = status), 0, 10, grouped).items.map { it.title }
+        assertEquals(listOf("Aliens"), titles(WatchStatus.IN_PROGRESS))
+        assertEquals(emptyList<String>(), titles(WatchStatus.UNWATCHED))
+        assertEquals(listOf("Alien"), titles(WatchStatus.WATCHED))
+        assertEquals(1, titles(WatchStatus.IN_PROGRESS, grouped = true).size)
+
+        // Its saga resumes it, Reprendre in Lire's place.
+        val next = provider.nextUp(provider.item(LocalId.ofCollection(saga)))
+        assertEquals(first.toString(), next?.id)
+        assertEquals(2_400_000L, next?.user?.positionMs)
+
+        val versions = catalog.versions(aliens).associateBy { it.key }
+        assertEquals(0L, versions.getValue(first.toString()).item.user.positionMs)
+        assertEquals(137 * 60_000L, versions.getValue(first.toString()).runtimeMs)
+        assertEquals(2_400_000L, versions.getValue(best.toString()).item.user.positionMs)
     }
 
     // --- Filters and numbers ---
