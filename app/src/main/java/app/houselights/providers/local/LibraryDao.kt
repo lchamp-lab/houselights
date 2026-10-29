@@ -835,7 +835,10 @@ interface LibraryDao :
             // Chosen for a title whose files left, which takes them again once back.
             "UNION SELECT userPosterPath FROM kept_states WHERE userPosterPath LIKE 'file:%' " +
             "UNION SELECT userBackdropPath FROM kept_states WHERE userBackdropPath LIKE 'file:%' " +
-            "UNION SELECT userLogoPath FROM kept_states WHERE userLogoPath LIKE 'file:%'",
+            "UNION SELECT userLogoPath FROM kept_states WHERE userLogoPath LIKE 'file:%' " +
+            // Chosen for a saga from its films' (#48), kept by its key whatever becomes of the film that showed it.
+            "UNION SELECT userPosterPath FROM saga_choices WHERE userPosterPath LIKE 'file:%' " +
+            "UNION SELECT userBackdropPath FROM saga_choices WHERE userBackdropPath LIKE 'file:%'",
     )
     suspend fun cachedArtworkPaths(): List<String>
 

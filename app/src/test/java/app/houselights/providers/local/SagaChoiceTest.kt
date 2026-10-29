@@ -17,12 +17,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.File
 
 /**
  * A saga's poster and backdrop as the user chose them (#48): every screen that shows the saga shows them, its walls,
@@ -126,6 +128,26 @@ class SagaChoiceTest {
         assertEquals("/poster-$PART_TWO.jpg", editor.artwork(back, ArtworkKind.POSTER).selected?.value)
     }
 
+    /**
+     * A saga's poster chosen from « Ses films », a film's own picture cached from the NAS (a poster beside its file), is
+     * kept as the saga's once that film's poster has gone from the NAS and the library no longer holds it for the film:
+     * the scan's sweep of cached pictures spares it, as it spares a title's whose files left.
+     */
+    @Test
+    fun aFilmsCachedPictureChosenForTheSagaOutlivesTheFilmLettingItGo() = runTest {
+        bench.nas.putImage(SECOND_POSTER)
+        bench.scan(refreshMetadata = true)
+        val cached = checkNotNull(bench.item(films, SECOND).posterPath)
+        assertTrue("cached from the NAS: $cached", cached.isCachedArtwork())
+        choose(poster = cached, backdrop = "/wide-1.jpg")
+
+        bench.nas.remove(SECOND_POSTER)
+        bench.scan()
+        assertNotEquals("the film no longer shows it", cached, bench.item(films, SECOND).posterPath)
+        assertEquals(poster(cached), pages.item(saga().id).poster)
+        assertTrue("still on the device", File(cached.removePrefix("file://")).isFile)
+    }
+
     private companion object {
         const val DUNE = 438631
         const val PART_TWO = 693134
@@ -134,5 +156,6 @@ class SagaChoiceTest {
         const val KEY = "tmdb:$DUNE_SAGA"
         const val FIRST = "Dune (2021).mkv"
         const val SECOND = "Dune Part Two (2024).mkv"
+        const val SECOND_POSTER = "Dune Part Two (2024)-poster.jpg"
     }
 }
