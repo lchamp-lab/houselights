@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.ArtworkKind
 import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
@@ -22,29 +23,33 @@ import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.PreviewShape
+import app.houselights.ui.design.components.years
 
 /**
  * A title's edit side sheet: its poster, backdrop and logo as a gallery, each image at its shape of use, then its
  * match on a plate and, under it, for a show TMDB numbers more than one way, the order its episodes follow
  * ([episodeOrder], the one in use, as [orderInUse] says it): [onEpisodeOrder] closes this sheet, then opens the choice,
- * as a sheet never opens over another. Choosing an image opens its screen directly.
+ * as a sheet never opens over another. Choosing an image opens its screen directly. A saga's (#48) has its poster and its
+ * backdrop alone, TMDB giving a collection no logo, its facts its years, and no match ([onIdentify] null): it is named by
+ * its films, whose match changes it.
  */
 @Composable
 fun EditMenu(
     item: MediaItem,
     onDismiss: () -> Unit,
     onArtwork: (ArtworkKind) -> Unit,
-    onIdentify: () -> Unit,
+    onIdentify: (() -> Unit)?,
     modifier: Modifier = Modifier,
     episodeOrder: String? = null,
     onEpisodeOrder: (() -> Unit)? = null,
 ) {
     val first = remember { FocusRequester() }
+    val saga = item.kind == MediaKind.COLLECTION
     HlSideSheet(
         title = stringResource(R.string.edit),
         onDismiss = onDismiss,
         modifier = modifier,
-        facts = listOf(item.title, item.year?.toString()),
+        facts = listOf(item.title, if (saga) item.years() else item.year?.toString()),
         initialFocus = first,
     ) { sheet ->
         // Its names a group's room (HlSpace.l) above the plate under it.
@@ -65,32 +70,38 @@ fun EditMenu(
                     onClick = { onArtwork(ArtworkKind.BACKDROP) },
                     width = HlSize.galleryWide,
                 )
-                GalleryTile(
-                    item.logo,
-                    PreviewShape.Logo,
-                    stringResource(R.string.artwork_logo),
-                    onClick = { onArtwork(ArtworkKind.LOGO) },
-                    width = HlSize.galleryWide,
-                )
+                if (!saga) {
+                    GalleryTile(
+                        item.logo,
+                        PreviewShape.Logo,
+                        stringResource(R.string.artwork_logo),
+                        onClick = { onArtwork(ArtworkKind.LOGO) },
+                        width = HlSize.galleryWide,
+                    )
+                }
             }
         }
-        HlSettingGroup(null) {
-            HlSettingRow(
-                stringResource(R.string.identify),
-                // A title to identify, or left as it is, has no match to change: it is to be found.
-                description = stringResource(
-                    if (item.matchDoubt != null || item.keptUnidentified) R.string.identify_menu_desc_none else R.string.identify_menu_desc,
-                ),
-                icon = HlIcons.Search,
-                onClick = onIdentify,
-            )
-            if (onEpisodeOrder != null) {
-                HlSettingRow(
-                    stringResource(R.string.episode_order),
-                    description = episodeOrder,
-                    icon = HlIcons.Sort,
-                    onClick = { sheet.dismiss(onEpisodeOrder) },
-                )
+        // A saga's has no match to change, nor any order: nothing under its pictures.
+        if (onIdentify != null || onEpisodeOrder != null) {
+            HlSettingGroup(null) {
+                if (onIdentify != null) {
+                    // A title to identify, or left as it is, has no match to change: it is to be found.
+                    val toFind = item.matchDoubt != null || item.keptUnidentified
+                    HlSettingRow(
+                        stringResource(R.string.identify),
+                        description = stringResource(if (toFind) R.string.identify_menu_desc_none else R.string.identify_menu_desc),
+                        icon = HlIcons.Search,
+                        onClick = onIdentify,
+                    )
+                }
+                if (onEpisodeOrder != null) {
+                    HlSettingRow(
+                        stringResource(R.string.episode_order),
+                        description = episodeOrder,
+                        icon = HlIcons.Sort,
+                        onClick = { sheet.dismiss(onEpisodeOrder) },
+                    )
+                }
             }
         }
     }
