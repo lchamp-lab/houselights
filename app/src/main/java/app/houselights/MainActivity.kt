@@ -512,7 +512,12 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
         }
         composable<Route.Search> {
             WithSource(source) {
-                SearchScreen(onOpenItem = { found -> openItem(found.id) }, onOpenPerson = { id -> nav.navigate(Route.Person(id)) })
+                SearchScreen(
+                    onOpenItem = { found -> openItem(found.id) },
+                    onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
+                    onEditArtwork = nav::openArtwork,
+                    onIdentify = nav::openIdentify,
+                )
             }
         }
         composable<Route.Library> { entry ->
@@ -563,7 +568,14 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
             }
         }
         composable<Route.Person> { entry ->
-            WithSource(source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
+            WithSource(source) {
+                PersonScreen(
+                    entry.toRoute<Route.Person>().id,
+                    onOpenItem = { openItem(it.id) },
+                    onEditArtwork = nav::openArtwork,
+                    onIdentify = nav::openIdentify,
+                )
+            }
         }
         composable<Route.Settings> { entry ->
             // A folder « Ajouter un dossier » added or edited from here: its showcase takes focus, its sheet too once its
@@ -607,7 +619,7 @@ private fun WatchPage(
     vm: HomeViewModel = viewModel(remember(entry) { nav.watchOwner(entry) }, factory = HomeViewModel.factory(appContainer())),
 ) {
     val row = entry.toRoute<Route.Watch>().watchRow
-    WatchScreen(vm, row, onOpenItem)
+    WatchScreen(vm, row, onOpenItem, onEditArtwork = nav::openArtwork, onIdentify = nav::openIdentify)
 }
 
 /** The choice of title [id]'s picture of [kind], from its page's Modifier or its poster's. */

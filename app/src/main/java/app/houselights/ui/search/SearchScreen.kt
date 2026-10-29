@@ -14,16 +14,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
+import app.houselights.core.ArtworkKind
 import app.houselights.core.MediaItem
 import app.houselights.core.SearchResults
 import app.houselights.core.hasPage
@@ -51,6 +54,11 @@ import app.houselights.ui.design.components.SearchQuery
 import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.library.NotSaved
+import app.houselights.ui.library.PosterActions
+import app.houselights.ui.library.PosterOptions
+import app.houselights.ui.library.actions
+import app.houselights.ui.library.saidFor
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.rememberSettled
@@ -60,13 +68,16 @@ import app.houselights.ui.util.valueOrNull
  * Library search, a place lying in the light of the result in focus as a wall does (`Diffuse`): its title, then
  * the query and an on-screen keyboard (not the system's) on the left, the results in rows on the right (titles,
  * sagas, people). Each typed word matches the start of a word, ignoring accents ("amel" finds Amélie). Returning
- * from a result refocuses it.
+ * from a result refocuses it. Menu or a long OK on a title or a saga opens its options (#47, [PosterOptions]), whose
+ * Modifier opens the choice of its pictures ([onEditArtwork]) and its match ([onIdentify]), as its page does.
  */
 @Composable
 fun SearchScreen(
     onOpenItem: (MediaItem) -> Unit,
     onOpenPerson: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onEditArtwork: (String, ArtworkKind) -> Unit = { _, _ -> },
+    onIdentify: (String) -> Unit = {},
     vm: SearchViewModel = viewModel(factory = SearchViewModel.factory(appContainer())),
 ) {
     val query by vm.query.collectAsStateWithLifecycle()
@@ -78,6 +89,11 @@ fun SearchScreen(
     // The title or saga last in focus lends the page its light while it is among the results; a person keeps it.
     val focusedId = remember { mutableStateOf<String?>(null) }
     val shown = rememberSettled { found.value?.results?.valueOrNull?.lit(focusedId.value) }
+    val notSaved by vm.notSaved.collectAsStateWithLifecycle()
+    // A result's options: Menu or a long OK on it.
+    var options by remember { mutableStateOf<MediaItem?>(null) }
+    val actions = remember(vm, onEditArtwork, onIdentify) { vm.changes.actions(vm::mark, vm::favorite, onEditArtwork, onIdentify) }
+    val posters = remember(actions) { ResultPosters(actions) { options = it } }
     DetailAhead(shown.value)
     AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse, modifier) {
         Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV)) {
@@ -92,10 +108,32 @@ fun SearchScreen(
                         LetterGrid(vm::type, vm::space, vm::delete, first = firstKey)
                     }
                 }
-                Results(found, shown, { focusedId.value = it }, memory, onOpenItem, onOpenPerson, vm::retry, Modifier.weight(1f))
+                Results(
+                    found,
+                    shown,
+                    { id ->
+                        focusedId.value = id
+                        vm.changes.focusedOn(id)
+                    },
+                    memory,
+                    onOpenItem,
+                    onOpenPerson,
+                    vm::retry,
+                    Modifier.weight(1f),
+                    posters = posters,
+                    notSaved = notSaved,
+                )
             }
         }
+        PosterOptions(options, actions, onDismiss = { options = null })
     }
+}
+
+/** What a title's or a saga's result opens with Menu or a long OK: its options ([actions], none without), by [onOptions]. */
+@Immutable
+internal class ResultPosters(val actions: PosterActions?, val onOptions: (MediaItem) -> Unit = {}) {
+    /** Opens [item]'s options; null for a result without, which shows no key. */
+    fun opens(item: MediaItem): (() -> Unit)? = { onOptions(item) }.takeIf { actions?.hasOptions(item) == true }
 }
 
 /** The title or saga [id] names among these results, if any. */
@@ -103,7 +141,8 @@ internal fun SearchResults.lit(id: String?): MediaItem? = id?.let { (titles + sa
 
 /**
  * The results in rows, each title and saga row naming the one [shown] under it, a message that nothing matches,
- * or why the search failed.
+ * or why the search failed. A title's or a saga's options are [posters]'; a change of theirs [notSaved] is said under
+ * its row.
  */
 @Composable
 internal fun Results(
@@ -115,8 +154,11 @@ internal fun Results(
     onOpenPerson: (String) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    posters: ResultPosters = ResultPosters(null),
+    notSaved: NotSaved? = null,
 ) {
     val now = found.value ?: return
+    val moreOptions = stringResource(R.string.more_options)
     val failed = now.results as? LoadState.Failed
     if (failed != null) {
         // The keys keep focus; Retry lies to their right.
@@ -151,10 +193,13 @@ internal fun Results(
                                     onClick = { onOpenItem(title) },
                                     modifier = memory.result(TITLES, title.id),
                                     onFocus = { onItemFocus(title.id) },
+                                    onLongClick = posters.opens(title),
+                                    onLongClickLabel = moreOptions,
                                 )
                             }
                         }
-                        ResultName(lit?.takeIf { it in results.titles }, Modifier.padding(start = HlSpace.safeH))
+                        val named = lit?.takeIf { it in results.titles }
+                        ResultName(named, Modifier.padding(start = HlSpace.safeH), notSaved = notSaved.saidFor(named?.id))
                     }
                 }
             }
@@ -169,10 +214,13 @@ internal fun Results(
                                     onClick = { onOpenItem(saga) },
                                     modifier = memory.result(SAGAS, saga.id),
                                     onFocus = { onItemFocus(saga.id) },
+                                    onLongClick = posters.opens(saga),
+                                    onLongClickLabel = moreOptions,
                                 )
                             }
                         }
-                        ResultName(lit?.takeIf { it in results.sagas }, Modifier.padding(start = HlSpace.safeH))
+                        val named = lit?.takeIf { it in results.sagas }
+                        ResultName(named, Modifier.padding(start = HlSpace.safeH), notSaved = notSaved.saidFor(named?.id))
                     }
                 }
             }

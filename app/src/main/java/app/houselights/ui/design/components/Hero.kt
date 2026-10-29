@@ -42,10 +42,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The focused title atop « À regarder » and a person's page: logo or name, a line of facts (an episode's number and
- * name), then progress and time left or two lines of overview; changes with its picture ([WithItsPicture]).
+ * name), then progress and time left or two lines of overview; changes with its picture ([WithItsPicture]). A change
+ * its card's options asked that was not saved ([notSaved]) is said in the facts' place, by the attention mark.
  */
 @Composable
-fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier) {
+fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? = null) {
     // The hero keeps its height, so nothing re-measures as the title changes.
     WithItsPicture(item, modifier) { shown ->
         Column(Modifier.widthIn(max = HlLayout.readableNarrow), verticalArrangement = Arrangement.Bottom) {
@@ -59,10 +60,10 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier) {
                 maxLines = 1,
             )
             Spacer(Modifier.height(HlSpace.s))
-            if (episode) {
-                EpisodeHeading(shown.episodeLabel, shown.title, style = Hl.type.entry)
-            } else {
-                MetaLine(shown, showGenres = false)
+            when {
+                notSaved != null && shown.id == item?.id -> HlStatus(StatusState.Attention, notSaved, maxLines = 1)
+                episode -> EpisodeHeading(shown.episodeLabel, shown.title, style = Hl.type.entry)
+                else -> MetaLine(shown, showGenres = false)
             }
             Spacer(Modifier.height(HlSpace.s))
             if (shown.progress > 0f) {

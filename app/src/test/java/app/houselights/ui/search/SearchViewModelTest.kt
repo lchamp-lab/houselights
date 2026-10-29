@@ -2,7 +2,9 @@ package app.houselights.ui.search
 
 import androidx.lifecycle.SavedStateHandle
 import app.houselights.core.SearchResults
+import app.houselights.ui.library.NotSaved
 import app.houselights.ui.testing.FakeCatalog
+import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
@@ -16,11 +18,14 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
 import java.net.ConnectException
 
 /** A search: what is typed shows at once, what it finds comes `WAIT_MS` after the last key, once. */
@@ -111,4 +116,40 @@ class SearchViewModelTest {
         advanceUntilIdle()
         assertEquals("amelie", after.found.value?.results?.valueOrNull?.titles?.single()?.id)
     }
+
+    /** A title marked from its result shows so at once, the result staying; then it is saved, as from its page, and told. */
+    @Test
+    fun aResultMarkedShowsAtOnceThenIsSavedAndTold() = runTest {
+        val events = FakeEvents()
+        val vm = SearchViewModel({ provider }, events = events, work = backgroundScope)
+        backgroundScope.launch { vm.found.collect {} }
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+        vm.mark(found(vm).single())
+        advanceUntilIdle()
+        assertTrue(found(vm).single().user.played)
+        assertTrue("played amelie true" in provider.calls)
+        assertEquals(1L, events.libraryVersion.value)
+
+        vm.favorite(found(vm).single())
+        advanceUntilIdle()
+        assertTrue(found(vm).single().user.favorite)
+        assertTrue("favorite amelie true" in provider.calls)
+    }
+
+    /** A mark not saved comes undone, the result as found, and why is said for it; another search shows what it finds. */
+    @Test
+    fun aResultsMarkNotSavedIsUndoneAndSaid() = runTest {
+        provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
+        val vm = SearchViewModel({ provider }, work = backgroundScope)
+        backgroundScope.launch { vm.found.collect {} }
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+        vm.mark(found(vm).single())
+        advanceUntilIdle()
+        assertFalse(found(vm).single().user.played)
+        assertEquals(NotSaved("amelie", UiError.OFFLINE), vm.notSaved.value)
+    }
+
+    private fun found(vm: SearchViewModel) = checkNotNull(vm.found.value?.results?.valueOrNull).titles
 }
