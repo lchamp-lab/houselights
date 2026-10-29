@@ -419,18 +419,6 @@ data class SuggestionEntity(
     val score: Double,
 )
 
-/**
- * A saga's poster and backdrop as the user chose them (#48), kept by its key ([CollectionEntity.matchKey]), never on its
- * row: the row goes with its last film and comes back under the same key, its choice with it. Scans never write it; a
- * picture back to Automatique is null, and the row goes once both are.
- */
-@Entity(tableName = "saga_choices")
-data class SagaChoiceEntity(
-    @PrimaryKey val matchKey: String,
-    val userPosterPath: String? = null,
-    val userBackdropPath: String? = null,
-)
-
 /** A saga, from the NFO's set or TMDB's "belongs to collection"; deleted once no film is left. */
 @Entity(tableName = "collections", indices = [Index(value = ["matchKey"], unique = true)])
 data class CollectionEntity(

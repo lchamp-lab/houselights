@@ -126,10 +126,19 @@ data class PlacedFile(val id: Long, val filePath: String?)
 /**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
  * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao],
- * [IgnoredFileDao] or [FirstTitleDao].
+ * [IgnoredFileDao], [FirstTitleDao] or [SagaChoiceDao].
  */
 @Dao
-interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao, EpisodeOrderDao, IgnoredFileDao, FirstTitleDao {
+interface LibraryDao :
+    SourceDao,
+    PlaybackStateDao,
+    CreditDao,
+    SearchWordDao,
+    KeptStateDao,
+    EpisodeOrderDao,
+    IgnoredFileDao,
+    FirstTitleDao,
+    SagaChoiceDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
@@ -898,19 +907,6 @@ interface LibraryDao : SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, Ke
 
     @Query("SELECT * FROM collections WHERE id = :id")
     suspend fun collection(id: Long): CollectionEntity?
-
-    /** The pictures chosen for the sagas of [keys] ([SagaChoiceEntity]), at most [SQL_IN_LIMIT] keys. */
-    @Query("SELECT * FROM saga_choices WHERE matchKey IN (:keys)")
-    suspend fun sagaChoices(keys: List<String>): List<SagaChoiceEntity>
-
-    @Query("SELECT * FROM saga_choices WHERE matchKey = :key")
-    suspend fun sagaChoice(key: String): SagaChoiceEntity?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun saveSagaChoice(choice: SagaChoiceEntity)
-
-    @Query("DELETE FROM saga_choices WHERE matchKey = :key")
-    suspend fun deleteSagaChoice(key: String)
 
     @Insert
     suspend fun insertCollectionRow(collection: CollectionEntity): Long
