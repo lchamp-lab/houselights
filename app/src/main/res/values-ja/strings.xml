@@ -679,6 +679,9 @@
     <plurals name="card_unwatched">
         <item quantity="other">未視聴%d話</item>
     </plurals>
+    <plurals name="unwatched_episodes">
+        <item quantity="other">未視聴%d話</item>
+    </plurals>
     <plurals name="row_news">
         <item quantity="other">新着%d件</item>
     </plurals>

@@ -14,18 +14,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.houselights.R
+import app.houselights.core.ArtworkKind
 import app.houselights.core.Job
 import app.houselights.core.MediaItem
 import app.houselights.core.Person
@@ -52,9 +58,15 @@ import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.components.artworkEdge
 import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.focusLaidOut
 import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.textRoom
+import app.houselights.ui.library.NotSaved
+import app.houselights.ui.library.PosterActions
+import app.houselights.ui.library.PosterOptions
+import app.houselights.ui.library.actions
+import app.houselights.ui.library.saidFor
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
@@ -66,17 +78,24 @@ import app.houselights.ui.util.valueOrNull
 
 /**
  * A person's page: portrait, name, jobs and title count ("Réalisation  Interprétation  7 titres"), then their
- * titles by year as posters; with at most two lines of them, a hero and one row as on Home.
+ * titles by year as posters; with at most two lines of them, a hero and one row as on Home. A poster's Modifier opens
+ * the choice of its pictures ([onEditArtwork]) and its match ([onIdentify]), as its page does.
  */
 @Composable
 fun PersonScreen(
     personId: String,
     onOpenItem: (MediaItem) -> Unit,
     modifier: Modifier = Modifier,
+    onEditArtwork: (String, ArtworkKind) -> Unit = { _, _ -> },
+    onIdentify: (String) -> Unit = {},
     vm: PersonViewModel = viewModel(key = "person-$personId", factory = PersonViewModel.factory(appContainer(), personId)),
 ) {
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
+    val notSaved by vm.notSaved.collectAsStateWithLifecycle()
+    val posters = remember(vm, onEditArtwork, onIdentify) {
+        PersonPosters(vm.changes.actions(vm::mark, vm::favorite, onEditArtwork, onIdentify), vm.changes::focusedOn)
+    }
     val page = state.valueOrNull
     if (page == null) {
         // While retrying, the error stays on screen with its button busy.
@@ -88,12 +107,26 @@ fun PersonScreen(
         }
         return
     }
-    PersonBands(page, onOpenItem, modifier)
+    PersonBands(page, onOpenItem, modifier, posters, notSaved)
 }
 
-/** Lays out [page]: its head, then its titles as a wall, or as one row when they are few ([smallPage]). */
+/** What a person's posters do beyond opening their title: their options ([actions], none without), a poster focused. */
+@Immutable
+internal class PersonPosters(val actions: PosterActions?, val onFocusTitle: (String) -> Unit = {})
+
+/**
+ * Lays out [page]: its head, then its titles as a wall, or as one row when they are few ([smallPage]). Menu or a long
+ * OK on a poster opens its options (#47, [PosterOptions]), which [posters] do; a change [notSaved] is said on the line
+ * naming its title, its poster focused again.
+ */
 @Composable
-internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit, modifier: Modifier = Modifier) {
+internal fun PersonBands(
+    page: PersonPage,
+    onOpenItem: (MediaItem) -> Unit,
+    modifier: Modifier = Modifier,
+    posters: PersonPosters = PersonPosters(null),
+    notSaved: NotSaved? = null,
+) {
     val titles = remember(page) { page.titles.map { it.item } }
     val small = smallPage(titles.size)
     // The selected title survives navigation, defaulting to the first; it shows once focus settles.
@@ -108,6 +141,22 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit, modi
         if (index >= 0 && !small) grid.scrollToItem(index)
         index >= 0
     }
+    // A change not saved puts its title back as it was: focus goes back to its poster, the page's posters being all it has,
+    // unless the page was left before it was said.
+    val arrivedWith = remember { notSaved }
+    LaunchedEffect(notSaved) {
+        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
+        memory.focusLaidOut { FocusKey.item(id) }
+    }
+    // A poster's options: Menu or a long OK on it.
+    var options by remember { mutableStateOf<MediaItem?>(null) }
+    val moreOptions = stringResource(R.string.more_options)
+    val opens = { item: MediaItem -> { options = item }.takeIf { posters.actions?.hasOptions(item) == true } }
+    val focus = { item: MediaItem ->
+        selectedId.value = item.id
+        posters.onFocusTitle(item.id)
+    }
+    val said = notSaved.saidFor(shown?.id)
     DetailAhead(shown)
     AmbientBackdrop(shown?.backdrop, if (small) BackdropStyle.Hero else BackdropStyle.Quiet, modifier) {
         Column(Modifier.fillMaxSize()) {
@@ -118,7 +167,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit, modi
             if (small) {
                 Spacer(Modifier.height(HlSpace.l))
                 // A fixed height that fits the text at the viewer's text size, whatever has focus.
-                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH).height(textRoom(HlLayout.hero)))
+                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH).height(textRoom(HlLayout.hero)), notSaved = said)
                 Spacer(Modifier.height(HlSpace.l))
                 MediaRow(header = null) {
                     items(titles.size, key = { titles[it].id }) { i ->
@@ -127,7 +176,9 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit, modi
                             item,
                             onClick = { onOpenItem(item) },
                             modifier = card(i, item),
-                            onFocus = { selectedId.value = item.id },
+                            onFocus = { focus(item) },
+                            onLongClick = opens(item),
+                            onLongClickLabel = moreOptions,
                         )
                     }
                 }
@@ -137,7 +188,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit, modi
                     Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m).height(HlLayout.infoLine),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    WithItsPicture(shown) { TitleLine(it) }
+                    WithItsPicture(shown) { TitleLine(it, notSaved = notSaved.saidFor(it.id)) }
                 }
                 PosterWallGrid(grid) {
                     itemsIndexed(titles, key = { _, title -> title.id }) { i, item ->
@@ -146,12 +197,15 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit, modi
                             onClick = { onOpenItem(item) },
                             modifier = card(i, item),
                             width = null,
-                            onFocus = { selectedId.value = item.id },
+                            onFocus = { focus(item) },
+                            onLongClick = opens(item),
+                            onLongClickLabel = moreOptions,
                         )
                     }
                 }
             }
         }
+        posters.actions?.let { actions -> PosterOptions(options, actions, onDismiss = { options = null }) }
     }
 }
 

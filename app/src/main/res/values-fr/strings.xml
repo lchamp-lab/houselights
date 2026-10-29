@@ -121,8 +121,8 @@
     <string name="mark_unwatched">Marquer comme non vu</string>
     <string name="mark_season_watched">Marquer la saison comme vue</string>
     <string name="mark_season_unwatched">Marquer la saison comme non vue</string>
-    <string name="mark_series_watched">Marquer toute la série comme vue</string>
-    <string name="mark_series_unwatched">Marquer toute la série comme non vue</string>
+    <string name="mark_series_watched">Marquer la série comme vue</string>
+    <string name="mark_series_unwatched">Marquer la série comme non vue</string>
     <string name="mark_season_number_watched">Marquer la saison %d comme vue</string>
     <string name="mark_season_number_unwatched">Marquer la saison %d comme non vue</string>
     <string name="more_options">Plus d’options</string>
@@ -706,6 +706,11 @@
     <string name="card_new">nouveau</string>
     <string name="card_in_progress">en cours, %d %%</string>
     <plurals name="card_unwatched">
+        <item quantity="one">%d épisode non vu</item>
+        <item quantity="other">%d épisodes non vus</item>
+        <item quantity="many">%d épisodes non vus</item>
+    </plurals>
+    <plurals name="unwatched_episodes">
         <item quantity="one">%d épisode non vu</item>
         <item quantity="other">%d épisodes non vus</item>
         <item quantity="many">%d épisodes non vus</item>

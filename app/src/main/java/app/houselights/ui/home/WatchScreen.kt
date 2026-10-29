@@ -13,9 +13,12 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -23,11 +26,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.R
+import app.houselights.core.ArtworkKind
 import app.houselights.core.HomeSection
 import app.houselights.core.MediaItem
 import app.houselights.core.SectionType
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.FocusPlaces
+import app.houselights.ui.design.FocusTakesPlace
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
@@ -48,10 +54,16 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.wearsNewDot
 import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.focusLaidOut
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.rememberRowState
 import app.houselights.ui.design.textRoom
+import app.houselights.ui.library.NotSaved
+import app.houselights.ui.library.PosterActions
+import app.houselights.ui.library.PosterOptions
+import app.houselights.ui.library.actions
+import app.houselights.ui.library.saidFor
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.sectionTitle
@@ -60,19 +72,45 @@ import app.houselights.ui.util.timeLeft
 
 /**
  * « À regarder »: home's rows (Reprendre, À suivre, the latest titles, the library's own rows) under the title in
- * focus, read by home's [vm]; it opens on [row], and Back goes home, to the door it came from.
+ * focus, read by home's [vm]; it opens on [row], and Back goes home, to the door it came from. A card's Modifier opens
+ * the choice of its pictures ([onEditArtwork]) and its match ([onIdentify]), as its page does.
  */
 @Composable
-fun WatchScreen(vm: HomeViewModel, row: WatchRow, onOpenItem: (MediaItem) -> Unit) {
+fun WatchScreen(
+    vm: HomeViewModel,
+    row: WatchRow,
+    onOpenItem: (MediaItem) -> Unit,
+    onEditArtwork: (String, ArtworkKind) -> Unit = { _, _ -> },
+    onIdentify: (String) -> Unit = {},
+) {
     // A title watched from here comes back with its progress, as home's rows did.
     ReloadOnLibraryChange(vm.libraryShown) { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
-    WatchBands(state, row, onOpenItem)
+    val notSaved by vm.notSaved.collectAsStateWithLifecycle()
+    val cards = remember(vm, onEditArtwork, onIdentify) {
+        WatchCards(vm.changes.actions(vm::mark, vm::favorite, onEditArtwork, onIdentify), vm.changes::focusedOn)
+    }
+    WatchBands(state, row, onOpenItem, cards, notSaved)
 }
 
-/** The page's title, the hero on the title in focus, then [state]'s rows, the first focus on [row]'s first card. */
+/** What « À regarder »'s cards do beyond opening their title: their options ([actions], none without), a card focused. */
+@Immutable
+internal class WatchCards(val actions: PosterActions?, val onFocusTitle: (String) -> Unit = {})
+
+/**
+ * The page's title, the hero on the title in focus, then [state]'s rows, the first focus on [row]'s first card. Menu
+ * or a long OK on a card opens its options (#47, [PosterOptions]), which [cards] do: a title they take out of its row
+ * leaves it, focus going to the card taking its place, a row emptied going, focus on the one under it, else over it; a
+ * change [notSaved] is said in the hero, its card focused again.
+ */
 @Composable
-internal fun WatchBands(state: HomeState, row: WatchRow, onOpenItem: (MediaItem) -> Unit) {
+internal fun WatchBands(
+    state: HomeState,
+    row: WatchRow,
+    onOpenItem: (MediaItem) -> Unit,
+    cards: WatchCards = WatchCards(null),
+    notSaved: NotSaved? = null,
+) {
     val sections = (state.content as? HomeContent.Rows)?.sections.orEmpty()
     // The last selected title stays shown and survives navigation; default: the first of the row opened.
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -92,20 +130,54 @@ internal fun WatchBands(state: HomeState, row: WatchRow, onOpenItem: (MediaItem)
         if (index != null) rows.scrollToItem(index)
         index != null
     }
+    // A card leaving with focus leaves it to the one taking its place in its row; its row gone, to the row under it.
+    val places = remember(sections) {
+        sections.map { section -> FocusPlaces(FocusKey.section(section.key), section.items.map { cardKey(section, it) }) }
+    }
+    FocusTakesPlace(places, memory)
+    // A change not saved puts its title back: focus goes back to its card, the page's cards being all it has, unless the
+    // page was left before it was said.
+    val shownSections by rememberUpdatedState(sections)
+    val arrivedWith = remember { notSaved }
+    LaunchedEffect(notSaved) {
+        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
+        memory.focusLaidOut {
+            shownSections.firstNotNullOfOrNull { section -> section.items.find { it.id == id }?.let { cardKey(section, it) } }
+        }
+    }
+    // A card's options: Menu or a long OK on it.
+    var options by remember { mutableStateOf<MediaItem?>(null) }
+    val onOptions = remember { { item: MediaItem -> options = item } }
     // Prepares the settled title's detail page, so OK opens it complete.
     DetailAhead(shown)
     AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero, ready = state.content !is HomeContent.Loading) {
         Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
             ScreenTitle(stringResource(R.string.watch_title), Modifier.padding(start = HlSpace.safeH, top = HlSpace.safeV))
             // A fixed height fitting the text at the viewer's text size, whatever has focus.
-            HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero)))
+            HeroInfo(
+                shown,
+                Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero)),
+                notSaved = notSaved.saidFor(shown?.id),
+            )
             Spacer(Modifier.height(HlSpace.l))
             if (sections.isEmpty()) {
                 SkeletonRows()
             } else {
-                Sections(sections, memory, rows, onOpenItem, onFocus = { item -> selectedId = item.id })
+                Sections(
+                    sections,
+                    memory,
+                    rows,
+                    onOpenItem,
+                    onFocus = { item ->
+                        selectedId = item.id
+                        cards.onFocusTitle(item.id)
+                    },
+                    cards = cards,
+                    onOptions = onOptions,
+                )
             }
         }
+        cards.actions?.let { actions -> PosterOptions(options, actions, onDismiss = { options = null }) }
     }
 }
 
@@ -116,7 +188,10 @@ private fun Sections(
     rows: LazyListState,
     onOpen: (MediaItem) -> Unit,
     onFocus: (item: MediaItem) -> Unit,
+    cards: WatchCards,
+    onOptions: (MediaItem) -> Unit,
 ) {
+    val moreOptions = stringResource(R.string.more_options)
     // A row that must scroll comes to the list's top, where the first rests; the one above leaves whole.
     ListScroll(top = HlSpace.none, toTop = true) {
         LazyColumn(
@@ -140,6 +215,7 @@ private fun Sections(
                         items(section.items, key = { it.id }) { item ->
                             val mod = Modifier.focusKey(cardKey(section, item), memory)
                             val focus = { onFocus(item) }
+                            val open = { onOptions(item) }.takeIf { cards.actions?.hasOptions(item) == true }
                             if (section.landscape) {
                                 // Named under the picture, as an episode is: a still does not say which film it is.
                                 LandscapeCard(
@@ -149,9 +225,18 @@ private fun Sections(
                                     title = item.seriesTitle ?: item.title,
                                     facts = listOf(item.episodeLabel, timeLeft(item)),
                                     onFocus = focus,
+                                    onLongClick = open,
+                                    onLongClickLabel = moreOptions,
                                 )
                             } else {
-                                PosterCard(item, onClick = { onOpen(item) }, modifier = mod, onFocus = focus)
+                                PosterCard(
+                                    item,
+                                    onClick = { onOpen(item) },
+                                    modifier = mod,
+                                    onFocus = focus,
+                                    onLongClick = open,
+                                    onLongClickLabel = moreOptions,
+                                )
                             }
                         }
                     }

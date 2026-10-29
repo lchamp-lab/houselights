@@ -9,7 +9,9 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
+import app.houselights.core.UserState
 import app.houselights.core.WatchStatus
+import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.FakeProvider.Asked
 import app.houselights.ui.testing.MainDispatcherRule
@@ -420,5 +422,103 @@ class LibraryViewModelTest {
         older.complete(Unit)
         advanceUntilIdle()
         assertEquals(listOf("Drame"), vm.state.value.facets.genres)
+    }
+
+    /** A title marked from its poster leaves a wall filtered on Non vus at once, the count with it; then it is saved and told. */
+    @Test
+    fun aTitleMarkedLeavesAnUnwatchedWallAtOnceThenIsSavedAndTold() = runTest {
+        val events = FakeEvents()
+        provider.wall = (1..3).map { film("m$it") }
+        val vm =
+            LibraryViewModel(
+                { provider },
+                library,
+                opensOn = LibraryFilter(status = WatchStatus.UNWATCHED),
+                events = events,
+                work = this,
+            )
+        advanceUntilIdle()
+        vm.mark(vm.state.value.items[1])
+        assertEquals(listOf("m1", "m3"), vm.state.value.items.map { it.id })
+        assertEquals(2, vm.state.value.total)
+        advanceUntilIdle()
+        assertTrue("played m2 true" in provider.calls)
+        assertEquals("the other screens told", 1L, events.libraryVersion.value)
+        assertNull(vm.notSaved.value)
+    }
+
+    /** A mark not saved comes undone: the title back in its place, counted again, and why it was not saved said for it. */
+    @Test
+    fun aMarkNotSavedIsUndoneInItsPlaceAndSaid() = runTest {
+        val events = FakeEvents()
+        provider.wall = (1..3).map { film("m$it") }
+        provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
+        val vm =
+            LibraryViewModel(
+                { provider },
+                library,
+                opensOn = LibraryFilter(status = WatchStatus.UNWATCHED),
+                events = events,
+                work = this,
+            )
+        advanceUntilIdle()
+        val marked = vm.state.value.items[1]
+        vm.mark(marked)
+        advanceUntilIdle()
+        assertEquals(listOf("m1", "m2", "m3"), vm.state.value.items.map { it.id })
+        assertEquals(marked, vm.state.value.items[1])
+        assertEquals(3, vm.state.value.total)
+        assertEquals(NotSaved("m2", UiError.OFFLINE), vm.notSaved.value)
+        assertEquals("nothing told", 0L, events.libraryVersion.value)
+
+        // Said while its title has focus, gone once another has it.
+        vm.changes.focusedOn("m2")
+        assertEquals("m2", vm.notSaved.value?.id)
+        vm.changes.focusedOn("m3")
+        assertNull(vm.notSaved.value)
+    }
+
+    /** Unfiltered, a title marked or made a favourite keeps its place, its mark changed; on Favoris, one taken out leaves. */
+    @Test
+    fun anUnfilteredWallKeepsItsTitleAFavoritesOneLetsGo() = runTest {
+        provider.wall = (1..3).map { film("m$it").copy(user = UserState(favorite = true)) }
+        val all = LibraryViewModel({ provider }, library, work = this)
+        advanceUntilIdle()
+        all.mark(all.state.value.items[0])
+        all.favorite(all.state.value.items[1])
+        assertEquals(listOf(true, false, false), all.state.value.items.map { it.user.played })
+        assertEquals(listOf(true, false, true), all.state.value.items.map { it.user.favorite })
+        assertEquals(3, all.state.value.total)
+
+        val favorites =
+            LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.FAVORITES), work = this)
+        advanceUntilIdle()
+        favorites.mark(favorites.state.value.items[0])
+        assertEquals("a mark keeps a favourite", 3, favorites.state.value.items.size)
+        favorites.favorite(favorites.state.value.items[0])
+        assertEquals(listOf("m2", "m3"), favorites.state.value.items.map { it.id })
+        advanceUntilIdle()
+        assertTrue("favorite m1 false" in provider.calls)
+    }
+
+    /** On a wall filtered on Vus or En cours, a title marked leaves; a saga leaving takes one saga off the count. */
+    @Test
+    fun watchedAndInProgressWallsLetGoOfWhatTheyNoLongerHold() = runTest {
+        val dune = MediaItem("saga:dune", MediaKind.COLLECTION, "Dune", childCount = 2, user = UserState(played = true, unplayedCount = 0))
+        provider.wall = listOf(dune, film("m1").copy(user = UserState(played = true)))
+        val watched = LibraryViewModel({ provider }, library, sagas = sagas)
+        watched.setFilter(LibraryFilter(status = WatchStatus.WATCHED))
+        advanceUntilIdle()
+        assertEquals(1, watched.state.value.sagas)
+        watched.mark(dune)
+        assertEquals(listOf("m1"), watched.state.value.items.map { it.id })
+        assertEquals(0, watched.state.value.sagas)
+
+        provider.wall = listOf(film("m2").copy(runtimeMs = 6_000_000, user = UserState(positionMs = 60_000)))
+        val started = LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.IN_PROGRESS))
+        advanceUntilIdle()
+        started.mark(started.state.value.items.single())
+        assertEquals(emptyList<MediaItem>(), started.state.value.items)
+        assertEquals(0, started.state.value.total)
     }
 }

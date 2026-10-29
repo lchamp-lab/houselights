@@ -56,6 +56,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import app.houselights.core.ArtworkKind
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.MediaItem
@@ -511,7 +512,12 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
         }
         composable<Route.Search> {
             WithSource(source) {
-                SearchScreen(onOpenItem = { found -> openItem(found.id) }, onOpenPerson = { id -> nav.navigate(Route.Person(id)) })
+                SearchScreen(
+                    onOpenItem = { found -> openItem(found.id) },
+                    onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
+                    onEditArtwork = nav::openArtwork,
+                    onIdentify = nav::openIdentify,
+                )
             }
         }
         composable<Route.Library> { entry ->
@@ -524,6 +530,8 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     opensOn = route.filter,
                     personName = route.personName,
                     sagas = route.sagasLibrary,
+                    onEditArtwork = nav::openArtwork,
+                    onIdentify = nav::openIdentify,
                 )
             }
         }
@@ -534,8 +542,8 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
                     screen = entry.id,
                     onPlay = onPlay,
                     onOpenItem = ::openItem,
-                    onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
-                    onIdentify = { nav.navigate(Route.Identify(it)) },
+                    onEditArtwork = nav::openArtwork,
+                    onIdentify = nav::openIdentify,
                     onOpenPerson = { nav.navigate(Route.Person(it)) },
                     // A copy of the film left under another row: its page in this one's place.
                     onLeave = { stays ->
@@ -560,7 +568,14 @@ private fun AppNavigation(nav: NavHostController, read: State<AppSettings>, onPl
             }
         }
         composable<Route.Person> { entry ->
-            WithSource(source) { PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
+            WithSource(source) {
+                PersonScreen(
+                    entry.toRoute<Route.Person>().id,
+                    onOpenItem = { openItem(it.id) },
+                    onEditArtwork = nav::openArtwork,
+                    onIdentify = nav::openIdentify,
+                )
+            }
         }
         composable<Route.Settings> { entry ->
             // A folder « Ajouter un dossier » added or edited from here: its showcase takes focus, its sheet too once its
@@ -604,8 +619,14 @@ private fun WatchPage(
     vm: HomeViewModel = viewModel(remember(entry) { nav.watchOwner(entry) }, factory = HomeViewModel.factory(appContainer())),
 ) {
     val row = entry.toRoute<Route.Watch>().watchRow
-    WatchScreen(vm, row, onOpenItem)
+    WatchScreen(vm, row, onOpenItem, onEditArtwork = nav::openArtwork, onIdentify = nav::openIdentify)
 }
+
+/** The choice of title [id]'s picture of [kind], from its page's Modifier or its poster's. */
+private fun NavController.openArtwork(id: String, kind: ArtworkKind) = navigate(Route.Artwork(id, kind))
+
+/** The search title [id] is identified by, from its page's Modifier or its poster's. */
+private fun NavController.openIdentify(id: String) = navigate(Route.Identify(id))
 
 /** Whose state « À regarder » at [entry] shares: home's beneath it, so it shows the rows home read, read once; else its own. */
 internal fun NavController.watchOwner(entry: NavBackStackEntry): NavBackStackEntry = homeEntry() ?: entry

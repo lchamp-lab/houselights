@@ -74,7 +74,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.tv.material3.Icon
@@ -417,7 +416,11 @@ internal fun artworkRequest(context: Context, url: String, widthPx: Int, heightP
 internal fun cardsInView(card: Dp, spacing: Dp): Int =
     ceil((HlLayout.CANVAS_WIDTH - HlSpace.safeH.value) / (card + spacing).value).toInt()
 
-/** 2:3 poster. With [width] null it fills the grid cell. */
+/**
+ * 2:3 poster. With [width] null it fills the grid cell. Menu or a long OK opens its options ([onLongClick], named by
+ * [onLongClickLabel]), which the Menu key says in its bottom right corner while it shows focus ([CornerKey]), its state
+ * mark keeping the top one.
+ */
 @Composable
 fun PosterCard(
     item: MediaItem,
@@ -425,29 +428,39 @@ fun PosterCard(
     modifier: Modifier = Modifier,
     width: Dp? = HlSize.poster,
     onFocus: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
     val px = posterPx(width)
     val poster = item.poster?.url(px)
     // Decoded at its width, as the preloads ask for it ([posterRequest]).
     val decoded = IntSize(px, (px / HlSize.POSTER_RATIO).roundToInt())
+    val focused = remember { mutableStateOf(false) }
+    val keyed = onLongClick != null
     ArtworkSurface(
         onClick,
-        sized.aspectRatio(HlSize.POSTER_RATIO),
+        sized
+            .aspectRatio(HlSize.POSTER_RATIO)
+            .then(if (keyed) Modifier.onFocusChanged { focused.value = it.isFocused } else Modifier),
         onFocus = onFocus,
         stateDescription = cardState(item),
         light = poster,
+        onLongClick = onLongClick,
+        onLongClickLabel = onLongClickLabel,
     ) {
         ArtworkImage(poster, item.title, Modifier.fillMaxSize(), size = decoded) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressPoster)
+        if (keyed) CornerKey({ focused.value }, started = item.progress > 0f, line = HlSize.progressPoster)
     }
 }
 
 /**
  * 16:9 still with an optional caption: an episode [number] and the [title], then [facts], beside or under it.
- * Menu or a long OK opens its options ([onLongClick], named by [onLongClickLabel]), which the Menu key says at the
- * end of its caption's first line while it shows focus.
+ * Menu or a long OK opens its options ([onLongClick], named by [onLongClickLabel]), which the Menu key says in the
+ * still's bottom right corner while it shows focus, as on a poster ([CornerKey]): an episode's, « À regarder »'s, a
+ * saga's in search.
  */
 @Composable
 fun LandscapeCard(
@@ -484,25 +497,25 @@ fun LandscapeCard(
             }
             StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
             ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressWide)
+            if (keyed) CornerKey({ focused.value }, started = item.progress > 0f, line = HlSize.progressWide)
         }
         val said = facts.any { !it.isNullOrBlank() }
         if (title != null || said) {
             Spacer(Modifier.height(HlSpace.s))
             // The caption fades out before the screen edge; the picture above may extend past it.
-            CardCaption(
-                title,
-                number,
-                facts.takeIf { said },
-                Modifier.fadeOutsideSafeArea(),
-                key = if (keyed) ({ CardKey { focused.value } }) else null,
-            )
+            CardCaption(title, number, facts.takeIf { said }, Modifier.fadeOutsideSafeArea())
         }
     }
 }
 
-/** The Menu key while its card shows focus ([focused], not under a sheet), coming and going as a tile's label. */
+/**
+ * The Menu key in a card's bottom right corner while it shows focus ([focused], not under a sheet), coming and going as
+ * a tile's label: white on the marks' dark plate, the state mark's opposite, as far from the edges ([HlSpace.xs]), and
+ * above the progress line, [line] tall, once the card is [started], so the line stays whole. It is laid on the picture,
+ * keeping no room, and its size at every text size, as the marks do.
+ */
 @Composable
-private fun CardKey(focused: () -> Boolean) {
+private fun BoxScope.CornerKey(focused: () -> Boolean, started: Boolean, line: Dp) {
     val shown = focused() && OpenSheets.count == 0
     val alpha = animateFloatAsState(
         if (shown) 1f else 0f,
@@ -511,11 +524,19 @@ private fun CardKey(focused: () -> Boolean) {
     )
     val fading by remember { derivedStateOf { alpha.value > 0f } }
     if (shown || fading) {
+        val c = Hl.colors
+        val bottom = HlSpace.xs + if (started) line else HlSpace.none
         MenuKey(
-            Modifier.graphicsLayer {
-                this.alpha = alpha.value
-                compositingStrategy = CompositingStrategy.ModulateAlpha
-            },
+            Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = HlSpace.xs, bottom = bottom)
+                .graphicsLayer {
+                    this.alpha = alpha.value
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
+                }
+                .clip(HlShapes.mark)
+                .background(c.background.copy(alpha = HlAlpha.VEIL)),
+            ink = c.content,
         )
     }
 }
@@ -539,28 +560,17 @@ private fun CardName(name: String, number: String?) {
     }
 }
 
-/**
- * A card's [name] after its [number], then its [facts] on the same baseline when both fit whole, else under it. A
- * [key] sits at the end of the first line, centred on it, its room kept whether it shows or not, so nothing moves.
- */
+/** A card's [name] after its [number], then its [facts] on the same baseline when both fit whole, else under it. */
 @Composable
-private fun CardCaption(
-    name: String?,
-    number: String?,
-    facts: List<String?>?,
-    modifier: Modifier = Modifier,
-    key: (@Composable () -> Unit)? = null,
-) {
+private fun CardCaption(name: String?, number: String?, facts: List<String?>?, modifier: Modifier = Modifier) {
     Layout(
         contents = listOf(
             { if (name != null) CardName(name, number) },
             { if (facts != null) FactRow(facts, style = Hl.type.meta) },
-            { key?.invoke() },
         ),
         modifier = modifier,
-    ) { (names, factLines, keys), constraints ->
-        val keyRoom = if (key != null) (HlSize.menuKeyWidth + HlSpace.s).roundToPx() else 0
-        val loose = constraints.copy(minWidth = 0, minHeight = 0, maxWidth = (constraints.maxWidth - keyRoom).coerceAtLeast(0))
+    ) { (names, factLines), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val gap = HlSpace.s.roundToPx()
         val nameWants = names.widest(loose.maxHeight)
         val factsWant = factLines.widest(loose.maxHeight)
@@ -573,16 +583,11 @@ private fun CardCaption(
         // Beside, the two lines share a baseline; under, the facts start below the name.
         val nameY = if (beside) (factLine.base - nameLine.base).coerceAtLeast(0) else 0
         val factY = if (beside) (nameLine.base - factLine.base).coerceAtLeast(0) else nameLine.tall + HlSpace.xxs.roundToPx()
-        // A card's caption is as wide as the card: the key ends with it.
-        val width = if (key != null) constraints.maxWidth else maxOf(nameLine.wide, factX + factLine.wide)
-        // The key, as tall as a line or nearly, never makes the caption taller as it comes.
+        val width = maxOf(nameLine.wide, factX + factLine.wide)
         val height = maxOf(nameY + nameLine.tall, factY + factLine.tall)
-        val keyLine = keys.firstOrNull()?.measure(Constraints())
-        val (firstY, firstTall) = if (nameLine != null) nameY to nameLine.tall else factY to factLine.tall
         layout(width.coerceIn(constraints.minWidth, constraints.maxWidth), height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
             nameLine?.placeRelative(0, nameY)
             factLine?.placeRelative(factX, factY)
-            keyLine?.placeRelative(width - keyLine.width, firstY + (firstTall - keyLine.height) / 2)
         }
     }
 }
