@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
@@ -59,8 +60,11 @@ class SearchViewModel(
 
     private val retries = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
-    /** The results as their options changed them, shown over what the search found for the query they were changed in. */
+    /** The results as their options changed them, shown over the read of the search they were changed in. */
     private val marked = MutableStateFlow(Changed())
+
+    /** The search's last read, as the source answered it, under what its results' options changed. */
+    private var read: Found? = null
 
     val found: StateFlow<Found?> = query
         .debounce(WAIT_MS)
@@ -81,6 +85,7 @@ class SearchViewModel(
                 }
             }
         }
+        .onEach { read = it }
         .combine(marked) { searched, changes -> searched?.let { changes.over(it) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), null)
 
@@ -105,11 +110,14 @@ class SearchViewModel(
         change(item.favoredAs(favorite)) { undo -> changes.favorite(item, favorite, undo) }
     }
 
-    /** Shows [changed] at once over the results of the query shown; then [save]s it, the result as found again if not. */
+    /**
+     * Shows [changed] at once over the results read; then [save]s it, the result as found again if not. Read again (the
+     * query typed anew, or the screen back after a while away), the results are what the source says.
+     */
     private fun change(changed: MediaItem, save: (undo: () -> Unit) -> Unit) {
-        val query = found.value?.query ?: return
-        marked.update { it.with(query, changed) }
-        save { marked.update { it.without(query, changed.id) } }
+        val shown = read ?: return
+        marked.update { it.with(shown, changed) }
+        save { marked.update { it.without(shown, changed.id) } }
     }
 
     /** Runs the search that failed again, its failure shown meanwhile. */
@@ -142,18 +150,20 @@ class SearchViewModel(
     }
 }
 
-/** Titles and sagas as their options changed them ([items], by id), over the results of [query] alone. */
-private data class Changed(val query: String? = null, val items: Map<String, MediaItem> = emptyMap()) {
-    /** [changed] shown over [query]'s results, with those changed before in it. */
-    fun with(query: String, changed: MediaItem) = Changed(query, (if (query == this.query) items else emptyMap()) + (changed.id to changed))
+/**
+ * Titles and sagas as their options changed them ([items], by id), over the one read of a search they were changed in
+ * ([read], that very answer): a read after it says what the source holds then. Each is its own, never equal to another,
+ * so that every change shows.
+ */
+private class Changed(val read: Found? = null, val items: Map<String, MediaItem> = emptyMap()) {
+    /** [changed] shown over [read], with those changed before over it. */
+    fun with(read: Found, changed: MediaItem) = Changed(read, (if (read === this.read) items else emptyMap()) + (changed.id to changed))
 
-    /** [id] shown as found again in [query]'s results. */
-    fun without(query: String, id: String) = if (query == this.query) copy(items = items - id) else this
+    /** [id] shown as [read] found it again. */
+    fun without(read: Found, id: String) = if (read === this.read) Changed(read, items - id) else this
 
-    /** [found] with what was changed in it. */
-    fun over(
-        found: Found,
-    ): Found = if (found.query != query || items.isEmpty()) found else found.copy(results = found.results.map { shown(it) })
+    /** [found] with what was changed over it, when it is the read they were changed over. */
+    fun over(found: Found): Found = if (found !== read || items.isEmpty()) found else found.copy(results = found.results.map { shown(it) })
 
     private fun shown(results: SearchResults) = results.copy(
         titles = results.titles.map { items[it.id] ?: it },
