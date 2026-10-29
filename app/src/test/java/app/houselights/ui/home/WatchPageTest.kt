@@ -154,16 +154,19 @@ class WatchPageTest {
         focusIsOn("MobLand")
     }
 
-    /** A change not saved is said in the hero, in place of its facts, its card focused again. */
+    /** A change not saved is said in the hero, in place of its facts, its card focused again, focus having moved on. */
     @Test
     fun aChangeNotSavedIsSaidInTheHero() {
         withOptions(WatchRow.LATEST)
         compose.press(Key.DirectionRight)
         focusIsOn("Film2")
+        // Focus moves on while the source answers.
+        compose.press(Key.DirectionRight)
+        focusIsOn("Film3")
         notSaved = NotSaved("film2", UiError.OFFLINE)
         compose.waitForIdle()
-        compose.onNode(hasText(context.getString(R.string.action_not_saved), substring = true)).assertExists()
         focusIsOn("Film2")
+        compose.onNode(hasText(context.getString(R.string.action_not_saved), substring = true)).assertExists()
     }
 
     /** Without the source keeping what is watched, a card has no options. */
