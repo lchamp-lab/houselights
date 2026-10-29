@@ -600,6 +600,30 @@ class LibraryViewModelTest {
     }
 
     /**
+     * A saga unmarked from its poster, read again by a scan's progress while it is saved, a film added to it meanwhile,
+     * shows none of its films watched, where it kept the count of films left it was unmarked with: 1 of 3 watched.
+     */
+    @Test
+    fun aSagaUnmarkedLaidOverAReadCountsTheFilmsTheReadHolds() = runTest {
+        val dune = MediaItem("saga:dune", MediaKind.COLLECTION, "Dune", childCount = 2, user = UserState(played = true, unplayedCount = 0))
+        provider.wall = listOf(film("m1"), dune, film("m3"))
+        val vm = LibraryViewModel({ provider }, library, work = this)
+        advanceUntilIdle()
+        val saving = provider.gate("played saga:dune false")
+        vm.mark(vm.shown("saga:dune"))
+        runCurrent()
+        assertEquals(UserState(played = false, unplayedCount = 2), vm.shown("saga:dune").user)
+
+        provider.wall = listOf(film("m1"), dune.copy(childCount = 3, user = UserState(played = false, unplayedCount = 1)), film("m3"))
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals(3, vm.shown("saga:dune").childCount)
+        assertEquals(UserState(played = false, unplayedCount = 3), vm.shown("saga:dune").user)
+        saving.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    /**
      * A mark is held over the reads begun while it is saved, the source still holding the title; a read begun after its
      * save lets go of it, and the wall shows what the source then says: the title marked again elsewhere, back.
      */

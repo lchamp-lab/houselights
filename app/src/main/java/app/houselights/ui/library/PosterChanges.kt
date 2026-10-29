@@ -158,16 +158,26 @@ internal enum class Facet {
         override fun copied(from: MediaItem, into: MediaItem): MediaItem = into.copy(
             user = into.user.copy(played = from.user.played, positionMs = from.user.positionMs, unplayedCount = from.user.unplayedCount),
         )
+
+        override fun laid(changed: MediaItem, read: MediaItem): MediaItem = read.markedAs(changed.user.played)
     },
 
     /** Whether it is a favourite. */
     FAVORITE {
         override fun copied(from: MediaItem, into: MediaItem): MediaItem = into.copy(user = into.user.copy(favorite = from.user.favorite))
+
+        override fun laid(changed: MediaItem, read: MediaItem): MediaItem = read.favoredAs(changed.user.favorite)
     },
     ;
 
     /** [into] with this facet as [from] has it, all else as [into] has it. */
     abstract fun copied(from: MediaItem, into: MediaItem): MediaItem
+
+    /**
+     * [read], a title as a read answered it, with this facet changed as [changed] shows it: a mark made anew of it, so
+     * that what a show or a saga has left to watch follows what the read counts of it, a film a scan added to a saga.
+     */
+    abstract fun laid(changed: MediaItem, read: MediaItem): MediaItem
 }
 
 /** A read of a screen, by the order it began in ([PendingChanges.reading]). */
@@ -205,7 +215,7 @@ internal class Laid(private val changes: List<Held>, private val read: Reading) 
     val item: MediaItem get() = changes.last().item
 
     /** [read], the title as the read answered it, with what these changes show of it. */
-    fun over(read: MediaItem): MediaItem = changes.fold(read) { shown, change -> change.facet.copied(change.item, shown) }
+    fun over(read: MediaItem): MediaItem = changes.fold(read) { shown, change -> change.facet.laid(change.item, shown) }
 
     /** Whether a wall filtered on [status] shows the title so changed. */
     fun stays(status: WatchStatus): Boolean = changes.all { it.stays(status) }
