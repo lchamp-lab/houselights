@@ -229,6 +229,27 @@ class ArtworkScreenTest {
         assertFocusAt("Automatique, along its line", 0, top)
     }
 
+    /**
+     * Left and Right go along a line and stop at its ends, never into the line under a short one, whose choices stand
+     * further across: the head's two, French's last two over English's six.
+     */
+    @Test
+    fun leftAndRightGoAlongALineNeverIntoTheNext() {
+        show()
+        val top = focused().top
+        press(Key.DirectionRight)
+        assertFocusAt("the one in use, the head's last", 1, top)
+        compose.onNode(isFocused()).assertIsSelected()
+        press(Key.DirectionDown, times = 2)
+        assertFocusAt("French's last line, its second", 1, top)
+        press(Key.DirectionRight)
+        assertFocusAt("still French's last", 1, top)
+        assertEquals(setOf("French"), held())
+        press(Key.DirectionLeft, times = 2)
+        assertFocusAt("its first, where the line starts", 0, top)
+        assertEquals(setOf("French"), held())
+    }
+
     @Test
     fun theSectionsNameIsHeldDownToTheLastLineOfALongSection() {
         show()
