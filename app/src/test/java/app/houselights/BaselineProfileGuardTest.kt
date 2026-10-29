@@ -6,11 +6,13 @@ import java.io.File
 
 /**
  * Fails when the baseline profile no longer matches the code: it names a file's class (`…Kt`) whose file is gone, or
- * lacks home's entry points. Regenerated as CONTRIBUTING.md says (Baseline profile).
+ * lacks home's entry points; or when its run leaves out a journey, a saga's page's among them. Regenerated as
+ * CONTRIBUTING.md says (Baseline profile).
  */
 class BaselineProfileGuardTest {
     private val profile = File("src/main/generated/baselineProfiles/baseline-prof.txt")
     private val sources = File("src/main/java")
+    private val journeys = File("../baselineprofile/src/main/java/app/houselights/baselineprofile")
 
     private val lines by lazy {
         assertTrue("${profile.path} not found from ${File(".").absolutePath}", profile.isFile)
@@ -33,9 +35,22 @@ class BaselineProfileGuardTest {
         assertTrue("The baseline profile lacks home's entry points:\n" + missing.joinToString("\n", transform = named), missing.isEmpty())
     }
 
+    /** The profile is generated through every journey the benchmarks know, a saga's page's (« Les volets ») among them. */
+    @Test
+    fun itsRunTakesEveryJourney() {
+        val declared = JOURNEY.findAll(File(journeys, "Journeys.kt").readText()).map { it.groupValues[1] }.toSortedSet()
+        assertTrue("No journey opens a saga's page: $declared", "browseSaga" in declared)
+        val run = File(journeys, "BaselineProfileGenerator.kt").readText().substringAfter("fun journeys()").substringBefore("@Test")
+        val left = declared.filterNot { Regex("""\b$it\(\)""").containsMatchIn(run) }
+        assertTrue("Journeys the baseline profile's run leaves out:\n" + left.joinToString("\n"), left.isEmpty())
+    }
+
     private companion object {
         /** A file's class, its lambdas and its composable singletons: the file's directory, then its name. */
         val FILE_CLASS = Regex("""L(app/houselights/(?:\w+/)*)(?:ComposableSingletons\$)?(\w+)Kt[;$]""")
+
+        /** A journey, as Journeys.kt declares it. */
+        val JOURNEY = Regex("""internal fun MacrobenchmarkScope\.(browse\w+)\(""")
 
         /** Home's grid, its doors' layout and a door: what every start runs first. */
         val ENTRY_POINTS = listOf(
