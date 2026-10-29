@@ -215,6 +215,33 @@ class LibraryViewModelTest {
         assertEquals(filter, after.state.value.filter)
     }
 
+    /**
+     * Android killed the app with 300 titles shown: the wall comes back with as many, read in one page, so that focus
+     * finds the title it left; sorted anew, it starts again from its first page.
+     */
+    @Test
+    fun aWallBroughtBackReadsAsFarAsItWasLeft() = runTest {
+        val saved = SavedStateHandle()
+        val before = LibraryViewModel({ provider }, library, saved)
+        advanceUntilIdle()
+        repeat(2) {
+            before.loadMore()
+            advanceUntilIdle()
+        }
+        assertEquals(300, before.state.value.items.size)
+
+        provider.calls.clear()
+        val after = LibraryViewModel({ provider }, library, saved.afterProcessDeath())
+        advanceUntilIdle()
+        assertEquals(300, after.state.value.items.size)
+        assertEquals(listOf("page 0 300"), provider.calls.filter { it.startsWith("page") })
+
+        provider.calls.clear()
+        after.setSort(SortOption.ADDED)
+        advanceUntilIdle()
+        assertEquals(listOf("page 0 120"), provider.calls.filter { it.startsWith("page") })
+    }
+
     /** Opened from the library in numbers on Dolby Vision films: the wall and its first page start filtered. */
     @Test
     fun aWallOpenedOnPartOfTheLibraryStartsFilteredByIt() = runTest {

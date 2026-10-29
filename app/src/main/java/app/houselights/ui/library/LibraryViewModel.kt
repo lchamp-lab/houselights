@@ -103,6 +103,12 @@ class LibraryViewModel(
     )
     val state: StateFlow<LibraryState> = _state
 
+    /**
+     * How many titles the wall showed when Android stopped the app ([saved]): its first page reads as many, so that focus
+     * finds the title it left, past the first page; null once read.
+     */
+    private var shownBefore: Int? = saved[SHOWN]
+
     /** What the source can filter by: the filter menu offers nothing else; nothing without a source. */
     val capabilities: ProviderCapabilities get() = provider()?.capabilities ?: ProviderCapabilities.NONE
 
@@ -255,6 +261,7 @@ class LibraryViewModel(
 
     private fun reset() {
         pages.cancel()
+        saved.remove<Int>(SHOWN)
         _state.update {
             it.copy(
                 items = emptyList(),
@@ -290,6 +297,7 @@ class LibraryViewModel(
                         pageRetrying = false,
                     ).under(read, whole = true)
                 }
+                saved[SHOWN] = _state.value.items.size
             }.onFailure { e ->
                 // Keep what is shown; clear any busy state this reload superseded; report only if nothing shows.
                 val error = e.reported(TAG, "Library refresh")
@@ -316,10 +324,14 @@ class LibraryViewModel(
         val s = _state.value
         if (pages.isActive || (s.items.isNotEmpty() && s.items.size >= s.total)) return
         val read = changes.pending.reading()
+        // Brought back after Android stopped the app, the wall reads at once as far as it showed, in one page.
+        val limit = shownBefore?.takeIf { s.items.isEmpty() && it > PAGE } ?: PAGE
+        shownBefore = null
         pages.launch {
             suspendRunCatching {
-                val first = if (s.items.isEmpty()) asked(s).let { ahead?.take(it.library, s.sort, it.filter, it.grouped) } else null
-                first ?: source().page(s, start = s.items.size, limit = PAGE)
+                val prefetched = s.items.isEmpty() && limit == PAGE
+                val first = if (prefetched) asked(s).let { ahead?.take(it.library, s.sort, it.filter, it.grouped) } else null
+                first ?: source().page(s, start = s.items.size, limit = limit)
             }.onSuccess { page ->
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update {
@@ -332,6 +344,7 @@ class LibraryViewModel(
                         pageRetrying = false,
                     ).under(read, whole = false)
                 }
+                saved[SHOWN] = _state.value.items.size
             }.onFailure { e ->
                 val error = e.reported(TAG, "Library page")
                 // With nothing shown, the wall explains the failure; past the first page, its foot does.
@@ -431,6 +444,9 @@ private const val PICTURE = "picture"
 private const val SOUND = "sound"
 private const val FILE_TYPE = "fileType"
 private const val PERSON = "person"
+
+/** How many titles the wall shows, read again at once after a stopped process. */
+private const val SHOWN = "shown"
 
 /** The kept sort, by name; an unknown name falls back to the default. */
 private fun SavedStateHandle.sort(): SortOption =
