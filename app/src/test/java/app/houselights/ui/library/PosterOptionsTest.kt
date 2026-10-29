@@ -12,10 +12,14 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.ArtworkKind
+import app.houselights.core.EpisodeOrderChoices
+import app.houselights.core.EpisodeOrderKind
+import app.houselights.core.EpisodeOrderOption
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
@@ -240,6 +244,37 @@ class PosterOptionsTest {
         assertEquals(listOf("grand-bleu"), identified)
     }
 
+    /** Modifier reads a show's orders at each opening: the one chosen from it is the one it says in use the next time. */
+    @Test
+    fun modifierSaysTheOrderChosenFromItTheNextTime() {
+        provider.wall = listOf(MediaItem(SHOW, MediaKind.SERIES, "Firefly", childCount = 1))
+        provider.orders = mapOf(SHOW to FIREFLY)
+        open()
+        edit()
+        compose.onNodeWithText(line(text(R.string.episode_order_auto), text(R.string.episode_order_aired))).assertExists()
+        compose.onNode(hasText(text(R.string.episode_order)) and hasClickAction()).requestFocus()
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        // Automatique focused, then TMDB's seasons, then DVD.
+        repeat(2) { compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN) }
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        assertTrue("order $SHOW $DVD" in provider.calls)
+
+        edit()
+        compose.onNodeWithText(line(text(R.string.episode_order_dvd), "DVD Order")).assertExists()
+        assertEquals(2, provider.calls.count { it == "orders $SHOW" })
+    }
+
+    /** Menu on the poster with focus, then Modifier, its third row: the title page's own sheet. */
+    private fun edit() {
+        compose.pressOnRemote(Key.Menu)
+        repeat(2) { compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN) }
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.waitForIdle()
+    }
+
+    /** A row's line of [parts], as every setting row joins them. */
+    private fun line(vararg parts: String) = parts.joinToString(" · ")
+
     /** A source that keeps nothing watched nor any favourite, and no pictures, has no options to offer. */
     @Test
     fun aSourceThatKeepsNothingOffersNoOptions() {
@@ -257,6 +292,19 @@ class PosterOptionsTest {
 
     private companion object {
         const val MINUTE = 60_000L
+        const val SHOW = "firefly"
+        const val DVD = "dvd"
+
+        /** A show TMDB numbers three ways, its episodes placed automatically. */
+        val FIREFLY = EpisodeOrderChoices(
+            options = listOf(
+                EpisodeOrderOption("aired", EpisodeOrderKind.AIRED, episodes = 14, seasons = 1),
+                EpisodeOrderOption(DVD, EpisodeOrderKind.DVD, "DVD Order", episodes = 14),
+                EpisodeOrderOption("air", EpisodeOrderKind.ORIGINAL_AIR_DATE, "Original Air Date", episodes = 14),
+            ),
+            chosen = null,
+            automatic = EpisodeOrderOption("aired", EpisodeOrderKind.AIRED, episodes = 14, seasons = 1),
+        )
 
         /** A poster, the one thing with a long click: a sheet's rows have none. */
         val hasLongClick = SemanticsMatcher.keyIsDefined(SemanticsActions.OnLongClick)

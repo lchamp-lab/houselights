@@ -3,6 +3,8 @@ package app.houselights.ui.library
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -95,6 +97,8 @@ internal fun PosterOptions(item: MediaItem?, actions: PosterActions, onDismiss: 
     // The title Modifier was opened on, kept while its sheets show, and which of them does.
     var edited by remember { mutableStateOf<MediaItem?>(null) }
     var shown by remember { mutableStateOf(EditSheet.NONE) }
+    // Each opening of Modifier is its own, reading its title's orders anew: one chosen from here changed them.
+    var openings by remember { mutableIntStateOf(0) }
     if (item != null) {
         val rows = actions.rows(item).map { row ->
             when (row) {
@@ -102,13 +106,14 @@ internal fun PosterOptions(item: MediaItem?, actions: PosterActions, onDismiss: 
                 PosterRow.FAVORITE -> favoriteRow(item, actions)
                 PosterRow.EDIT -> SheetOption(stringResource(R.string.edit), HlIcons.Edit) {
                     edited = item
+                    openings++
                     shown = EditSheet.EDIT
                 }
             }
         }
         OptionsSheet(sheetTitle(item), posterFacts(item), rows, onDismiss)
     }
-    edited?.let { title -> PosterEdit(title, shown, onShow = { shown = it }, actions = actions) }
+    edited?.let { title -> key(openings) { PosterEdit(title, shown, onShow = { shown = it }, actions = actions) } }
 }
 
 /** Which of Modifier's sheets shows: none, Modifier, or the order of a show's episodes it opens. */
@@ -116,7 +121,8 @@ private enum class EditSheet { NONE, EDIT, ORDER }
 
 /**
  * Modifier on [item] from its poster, the title page's own sheet ([EditMenu]): its images open their choice, Identifier
- * its search, and for a show TMDB numbers more than one way, Ordre des épisodes, which closes it, then opens the choice.
+ * its search, and for a show TMDB numbers more than one way, Ordre des épisodes, which closes it, then opens the choice;
+ * composed anew at each opening, so the orders it says are read for this title, as they stand now.
  */
 @Composable
 private fun PosterEdit(item: MediaItem, shown: EditSheet, onShow: (EditSheet) -> Unit, actions: PosterActions) {
