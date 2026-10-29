@@ -46,6 +46,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -62,8 +63,8 @@ import kotlin.math.abs
  * DESIGN.md, Layout: the contact sheet through the remote. Focus comes on the picture in use, beside Automatique; Up
  * and Down go from line to line and section to section, the line with focus always at the top, its section's name held
  * over it down to a long section's last line; the print and the backdrop behind follow focus once it settles, the
- * print keeping the picture it showed until the next is ready; OK chooses, saves and returns; Back leaves without
- * choosing. Read from the screen as drawn, each picture in its own colour.
+ * print keeping the picture it showed, and its words, until the next is ready; OK chooses, saves and returns; Back
+ * leaves without choosing. Read from the screen as drawn, each picture in its own colour.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -252,10 +253,17 @@ class ArtworkScreenTest {
         press(Key.DirectionLeft)
         assertTrue("then Automatique, once focus settled", "test://auto?w=240" in asked)
         assertTrue("the one it showed kept whole until Automatique is ready: ${inside(print).hex()}", inside(print).isBlue())
+        assertFalse("its words kept with it: no « Automatique » under the one in use", printSaysAutomatique())
 
         hold.complete(Unit)
         compose.waitUntil(WAIT_MS) { inside(print).isOrange() }
+        compose.waitUntil(WAIT_MS) { printSaysAutomatique() }
     }
+
+    /** Whether « Automatique » is written under the print, along its left edge, the safe area's. */
+    private fun printSaysAutomatique(): Boolean = compose.onAllNodes(hasText("Automatic"), useUnmergedTree = true)
+        .fetchSemanticsNodes()
+        .any { abs(it.positionInRoot.x - HlSpace.safeH.value) <= HALF }
 
     @Test
     fun aBackdropFillsTheScreenOnceFocusSettles() {

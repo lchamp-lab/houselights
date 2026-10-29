@@ -696,9 +696,10 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     `posterChoiceCell` 88 × 132, `choiceGutter` 12 apart, lines 24 apart, sections 32), the last column 4 short of
     the safe area's end; its line with focus level with the print's top, its section's name on the line of the
     title's name. The print follows the focus once settled (`rememberSettled`), never focused itself: the picture it
-    showed stays whole until the next is decoded, then is cut; its ember check when it shows the one in use, and its
-    one line, kept when empty: « Automatique » (and the film whose picture it is), a saga's film and its year. At a
-    larger text size it gives up the height the head's words take. The room is the title's backdrop, quiet.
+    showed stays whole, its check and its words with it, until the next is decoded, then is cut; its ember check when
+    it shows the one in use, and its one line, kept when empty: « Automatique » (and the film whose picture it is), a
+    saga's film and its year. At a larger text size it gives up the height the head's words take. The room is the
+    title's backdrop, quiet.
   - **A backdrop** lies behind: the one with focus fills the screen under a title's page's veils (`Full`), the title's
     logo and facts set over it as its page sets them, under the task's title alone; the sheet is a band at the
     screen's foot (`choiceBand`: the held name, the wall's room, a line and its words inside the safe area, the top
@@ -895,7 +896,7 @@ a saga's panels, or a title page's rows, whose episodes keep their own options (
 | `GalleryTile` | one of a title's images to change, at its shape of use, a logo fitted on a neutral step; its name under it in `cardName`, white with focus; framed and glowing in the film's light |
 | `PosterField` | the room of the settings and their forms, under them: a library's posters as a wall's field (see *Veils*), its light theirs (`LocalAmbient`) |
 | `ArtworkChoiceCard`, `SelectedMark` | one picture of the contact sheet to choose, at its shape of use, a logo fitted in its box on the ground's step, a failed one set in type; the one in use carries the ember check. Nothing under it, its section saying its language, but a `name` in `cardName` and its `detail` in secondary `meta` (« Automatique », a saga's film and its year), as wide as its column and its gap, or two when the next has none (`captionWidth`), faded across the safe area's margin |
-| `ArtworkPrint` | the contact sheet's print (« l'épreuve »): the choice with focus shown large beside it, at most its width at its shape and as tall as its column leaves it, never focused, decoded at its width; the picture it showed kept whole until the next is decoded, then cut, nothing fading or growing; the ember check for the one in use; one line under it, kept when empty, its name in `cardName` and its detail in secondary `meta` on its baseline, the longer giving way |
+| `ArtworkPrint` | the contact sheet's print (« l'épreuve »): the choice with focus shown large beside it, at most its width at its shape and as tall as its column leaves it, never focused, decoded at its width; the picture it showed kept whole, its check and its words with it, until the next is decoded, then cut, nothing fading or growing; the ember check for the one in use; one line under it, kept when empty, its name in `cardName` and its detail in secondary `meta` on its baseline, the longer giving way |
 
 ### Controls
 

@@ -134,7 +134,8 @@ private val LogoInset = PaddingValues(horizontal = HlSpace.m, vertical = HlSpace
  * nothing fades, nothing grows. The choice in use carries [SelectedMark], as its card does. Under it one line, its room
  * kept when empty so nothing moves as focus does, as a result's under its row ([ResultName]): its [name] in `cardName`,
  * then its [detail] in secondary `meta` on its baseline (« Automatique » and the film whose picture it is, a saga's
- * film and its year), the longer of the two giving way.
+ * film and its year), the longer of the two giving way. The check and the words are those of the picture shown, cut in
+ * with it: the picture kept under the next one keeps its own until that one is decoded.
  */
 @Composable
 fun ArtworkPrint(
@@ -149,8 +150,10 @@ fun ArtworkPrint(
     val px = width.toPx()
     val decoded = IntSize(px, (px / aspectRatio).roundToInt())
     val url = image?.url(px)
-    // The picture last shown, under the next one until that one is decoded.
-    var shown by remember { mutableStateOf<String?>(null) }
+    val face = PrintFace(url, selected, name, detail)
+    // The picture last shown, with its check and its words, under the next one until that one is decoded.
+    var shown by remember { mutableStateOf<PrintFace?>(null) }
+    val drawn = shown?.takeIf { url != null && it.url != url } ?: face
     Column(modifier.width(width)) {
         Box(
             Modifier
@@ -160,38 +163,52 @@ fun ArtworkPrint(
                 .background(groundStepFill())
                 .artworkEdge(HlShapes.artwork, Hl.colors),
         ) {
-            val layers = if (url == null) emptyList() else listOfNotNull(shown?.takeIf { it != url }, url)
+            val layers = if (url == null) emptyList() else listOfNotNull(shown?.url?.takeIf { it != url }, url)
             layers.forEach { layer ->
-                key(layer) { ArtworkImage(layer, null, Modifier.fillMaxSize(), size = decoded, onShow = { shown = layer }) }
+                key(layer) {
+                    ArtworkImage(layer, null, Modifier.fillMaxSize(), size = decoded, onShow = { if (layer == url) shown = face })
+                }
             }
-            if (selected) SelectedMark(Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
+            if (drawn.selected) SelectedMark(Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         }
         Spacer(Modifier.height(HlSpace.xs))
-        // At least a line's room, kept when empty; a script whose font sets taller (Japanese, Chinese, Korean) takes more.
-        Row(Modifier.fillMaxWidth().heightIn(min = textRoom(Hl.type.cardName))) {
-            // The shorter keeps its width: a film's year after its name, a film's name after « Automatique ».
-            val nameGivesWay = name.orEmpty().length >= detail.orEmpty().length
-            if (name != null) {
-                Text(
-                    name,
-                    style = Hl.type.cardName,
-                    color = Hl.colors.content,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.alignByBaseline().then(if (nameGivesWay) Modifier.weight(1f, fill = false) else Modifier),
-                )
-            }
-            if (detail != null) {
-                if (name != null) Spacer(Modifier.width(HlSpace.s))
-                Text(
-                    detail,
-                    style = Hl.type.meta,
-                    color = Hl.colors.contentSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.alignByBaseline().then(if (nameGivesWay) Modifier else Modifier.weight(1f, fill = false)),
-                )
-            }
+        PrintWords(drawn.name, drawn.detail)
+    }
+}
+
+/** What the print shows: its picture's address, its check, and its words. */
+private data class PrintFace(val url: String?, val selected: Boolean, val name: String?, val detail: String?)
+
+/**
+ * The print's line of words: its [name] in `cardName`, then its [detail] in secondary `meta` on its baseline, the
+ * longer giving way; at least a line's room, kept when empty, a script whose font sets taller (Japanese, Chinese,
+ * Korean) taking more.
+ */
+@Composable
+private fun PrintWords(name: String?, detail: String?) {
+    Row(Modifier.fillMaxWidth().heightIn(min = textRoom(Hl.type.cardName))) {
+        // The shorter keeps its width: a film's year after its name, a film's name after « Automatique ».
+        val nameGivesWay = name.orEmpty().length >= detail.orEmpty().length
+        if (name != null) {
+            Text(
+                name,
+                style = Hl.type.cardName,
+                color = Hl.colors.content,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.alignByBaseline().then(if (nameGivesWay) Modifier.weight(1f, fill = false) else Modifier),
+            )
+        }
+        if (detail != null) {
+            if (name != null) Spacer(Modifier.width(HlSpace.s))
+            Text(
+                detail,
+                style = Hl.type.meta,
+                color = Hl.colors.contentSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.alignByBaseline().then(if (nameGivesWay) Modifier else Modifier.weight(1f, fill = false)),
+            )
         }
     }
 }
