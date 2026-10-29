@@ -360,7 +360,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
             UpdateParts(
                 releases,
                 ReleaseChoice(releases::downloads, BuildConfig.RELEASE_CERT_SHA256, Build.VERSION.SDK_INT),
-                ApkDownload(app.cacheDir.resolve("updates"), releases.http),
+                ApkDownload(app.cacheDir.resolve("updates"), releases::http),
                 UpdateVerifier(PackageArchive(app.packageManager), BuildConfig.RELEASE_CERT_SHA256),
                 SessionInstaller(app, InstallResultReceiver::class.java),
             ),
@@ -474,6 +474,8 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         scope.launch { scanner.passEnded.collect(traktSync::scanned) }
         // In the project's release alone: says what the last update did, then checks once a day while the app is on screen.
         scope.launch { updates.run() }
+        // The HTTP client sets up TLS as it is built, tens of milliseconds: built now off the main thread, before a request.
+        scope.launch(Dispatchers.IO) { Http.client }
     }
 }
 

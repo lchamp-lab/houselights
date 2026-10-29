@@ -75,21 +75,24 @@ class TooLargeException(max: Long) : IOException("Answer over $max bytes")
  */
 class GithubReleases(
     val repo: String = BuildConfig.UPDATE_REPO,
-    base: OkHttpClient = Http.client,
+    /** The client [http] derives from; null for the app's ([Http.client]), not built before the first request. */
+    base: OkHttpClient? = null,
     private val api: HttpUrl = API.toHttpUrl(),
     private val clock: () -> Long = System::currentTimeMillis,
     /** Tests only: a local server speaks plain HTTP. */
     plainHttp: Boolean = false,
 ) : ReleaseSource {
-    val http: OkHttpClient = base.newBuilder()
-        .connectTimeout(CONNECT_S, TimeUnit.SECONDS)
-        // Also the download's stall timeout: a body that stops for this long fails, however long it is.
-        .readTimeout(READ_S, TimeUnit.SECONDS)
-        // A redirect from HTTPS to plain HTTP is refused; one to GitHub's download hosts is followed.
-        .followSslRedirects(false)
-        .apply { interceptors().add(0, headers()) }
-        .addNetworkInterceptor(GithubHops(plainHttp))
-        .build()
+    val http: OkHttpClient by lazy {
+        (base ?: Http.client).newBuilder()
+            .connectTimeout(CONNECT_S, TimeUnit.SECONDS)
+            // Also the download's stall timeout: a body that stops for this long fails, however long it is.
+            .readTimeout(READ_S, TimeUnit.SECONDS)
+            // A redirect from HTTPS to plain HTTP is refused; one to GitHub's download hosts is followed.
+            .followSslRedirects(false)
+            .apply { interceptors().add(0, headers()) }
+            .addNetworkInterceptor(GithubHops(plainHttp))
+            .build()
+    }
 
     /** Where the files of a release are served: what a manifest's and an APK's addresses must start with. */
     fun downloads(tag: String): String = "https://github.com/$repo/releases/download/$tag/"

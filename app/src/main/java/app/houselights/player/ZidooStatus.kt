@@ -65,10 +65,13 @@ enum class TrackKind { AUDIO, SUBTITLE }
 object ZidooStatus {
     private const val BASE = "http://127.0.0.1:9529"
 
-    private val http = Http.client.newBuilder()
-        .connectTimeout(2, TimeUnit.SECONDS)
-        .readTimeout(2, TimeUnit.SECONDS)
-        .build()
+    /** Built at the first request, so that the app's client is not built as the app starts. */
+    private val http by lazy {
+        Http.client.newBuilder()
+            .connectTimeout(2, TimeUnit.SECONDS)
+            .readTimeout(2, TimeUnit.SECONDS)
+            .build()
+    }
 
     /** What the player plays now; [PlayerAnswer.NoAnswer] when its API is out of reach. */
     suspend fun playStatus(): PlayerAnswer = withContext(Dispatchers.IO) {
