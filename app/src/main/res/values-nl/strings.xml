@@ -518,12 +518,8 @@
     <string name="artwork_logo">Logo</string>
     <string name="identify">Identificeren</string>
     <string name="identify_menu_desc">Andere TMDB-titel kiezen</string>
-    <plurals name="image_count">
-        <item quantity="one">%d afbeelding</item>
-        <item quantity="other">%d afbeeldingen</item>
-    </plurals>
-    <string name="artwork_hint">Uw keuze blijft behouden bij latere scans. “Automatisch” laat Houselights kiezen.</string>
     <string name="artwork_offline">Online afbeeldingen zijn niet beschikbaar: identificeer deze titel eerst, of controleer de verbinding.</string>
+    <string name="artwork_saga_films">Films van de saga</string>
     <string name="artwork_empty">Geen afbeelding voor deze titel</string>
     <string name="artwork_automatic">Automatisch</string>
     <string name="artwork_no_text">Zonder tekst</string>

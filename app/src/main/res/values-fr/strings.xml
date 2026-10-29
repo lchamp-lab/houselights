@@ -525,13 +525,8 @@
     <string name="artwork_logo">Logo</string>
     <string name="identify">Identifier</string>
     <string name="identify_menu_desc">Associer à un autre titre TMDB</string>
-    <plurals name="image_count">
-        <item quantity="one">%d image</item>
-        <item quantity="other">%d images</item>
-        <item quantity="many">%d images</item>
-    </plurals>
-    <string name="artwork_hint">Votre choix est conservé lors des analyses. « Automatique » laisse Houselights choisir.</string>
     <string name="artwork_offline">Les images en ligne ne sont pas disponibles : identifiez d’abord ce titre, ou vérifiez la connexion.</string>
+    <string name="artwork_saga_films">Ses films</string>
     <string name="artwork_empty">Aucune image pour ce titre</string>
     <string name="artwork_automatic">Automatique</string>
     <string name="artwork_no_text">Sans texte</string>

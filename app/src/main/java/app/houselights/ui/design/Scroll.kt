@@ -390,6 +390,18 @@ fun Modifier.keepVerticalFocus(): Modifier = this
     }
     .focusGroup()
 
+/**
+ * Keeps left and right inside this line instead of jumping to a line under it, whose cards stand further across than
+ * a short line's last; up and down still leave it, for the column nearest.
+ */
+fun Modifier.keepHorizontalFocus(): Modifier = this
+    .focusProperties {
+        onExit = {
+            if (requestedFocusDirection == FocusDirection.Left || requestedFocusDirection == FocusDirection.Right) cancelFocusChange()
+        }
+    }
+    .focusGroup()
+
 /** Scrolls as one block: whatever inside asks to be shown, the list brings in the whole block, header included. */
 fun Modifier.scrollsAsBlock(): Modifier = this then BlockElement
 

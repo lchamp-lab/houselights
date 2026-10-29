@@ -537,12 +537,9 @@
     <string name="artwork_logo">Logo</string>
     <string name="identify">Identify</string>
     <string name="identify_menu_desc">Match with another TMDB title</string>
-    <plurals name="image_count">
-        <item quantity="one">%d image</item>
-        <item quantity="other">%d images</item>
-    </plurals>
-    <string name="artwork_hint">Your choice is kept by later scans. “Automatic” lets Houselights choose.</string>
     <string name="artwork_offline">Online images are unavailable: identify this title first, or check the connection.</string>
+    <!-- The choice of a saga's picture: the last section of its contact sheet, the pictures its films show, one a film -->
+    <string name="artwork_saga_films">Its films</string>
     <string name="artwork_empty">No image for this title</string>
     <string name="artwork_automatic">Automatic</string>
     <string name="artwork_no_text">No text</string>

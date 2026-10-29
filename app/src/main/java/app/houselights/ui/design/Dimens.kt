@@ -218,9 +218,67 @@ object HlLayout {
     const val WALL_COLUMNS = 7
     /** Between a wall's columns: [WALL_COLUMNS] posters of [HlSize.wallPoster] across the safe area. */
     val wallGutter = (CANVAS_WIDTH.dp - HlSpace.safeH * 2 - HlSize.wallPoster * WALL_COLUMNS) / (WALL_COLUMNS - 1)
-    /** Artwork picker choices; a poster, being its own preview, takes a preview's room (180 × 270). */
+    /** A poster at a gallery's size (180 × 270): Modifier's tile. */
     val posterChoice = 180.dp
-    val landscapeChoice = 240.dp
+
+    /**
+     * The contact sheet where a picture is chosen (« la planche-contact »), its choices by the picture's shape, the wider
+     * the fewer a line: [POSTER_CHOICES] posters of [posterChoiceCell] (88 × 132) beside the print ([choicePrint]), the
+     * last column 4 short of the safe area's end; across the band at the screen's foot, [BACKDROP_CHOICES] backdrops of
+     * [backdropChoiceCell] (160 × 90) and [LOGO_CHOICES] logos [logoChoiceCell] wide in a logo's box (204 × 71,
+     * [HlSize.LOGO_BOX_RATIO]), a line starting at the safe area's start, its first frame reaching into the margin as on
+     * a wall.
+     */
+    const val POSTER_CHOICES = 6
+    const val BACKDROP_CHOICES = 5
+    const val LOGO_CHOICES = 4
+    val posterChoiceCell = 88.dp
+    val backdropChoiceCell = 160.dp
+    val logoChoiceCell = 204.dp
+
+    /** Between the sheet's columns; its lines [HlSpace.l] apart, as a wall's. */
+    val choiceGutter = HlSpace.s
+
+    /** What a section's first line adds to the gap between lines, so sections stand a block apart ([HlSpace.xl]). */
+    val choiceSectionApart = HlSpace.xl - HlSpace.l
+
+    /** Between a section's name and its first line: a search row's, its gap and its row's room. */
+    val choiceNameGap = HlSpace.xxs + HlFocus.room
+
+    /**
+     * The name of the section of the line with focus, held over it as the sheet scrolls under it: laid out over the
+     * wall's room the line keeps above it, drawn into it as far as puts it [choiceNameGap] from the line.
+     */
+    val choiceNameDrop = HlFocus.wallRoom - choiceNameGap
+
+    /**
+     * The words under a choice (« Automatique », a saga's film), wider than their picture as a person's name is wider
+     * than their portrait: as wide as a [cell] and its gap, or as [across] of them when the next column has none; in the
+     * line's [last] column, as wide as its picture, so they stop inside the safe area.
+     */
+    fun choiceWords(cell: Dp, across: Int, last: Boolean): Dp = if (last) cell else (cell + choiceGutter) * across
+
+    /**
+     * The print (« l'épreuve »): the poster with focus at its largest, 240 × 360, nearly three choices tall, beside the
+     * sheet [choicePrintGap] away, its words' line under it; at a larger text size it gives up the height the head's
+     * words take, never with focus.
+     */
+    val choicePrint = 240.dp
+    val choicePrintGap = HlSpace.xl
+
+    /**
+     * The band a backdrop's or a logo's sheet takes at the screen's foot, under the title previewed in the light of the
+     * choice with focus, at the viewer's text size: the held name of the section of the line with focus, the wall's room,
+     * that line, a [cell] tall, its words (« Automatique », and a saga's film's year with [film]) inside the safe area,
+     * then the gap to the next line and its top ([HlSpace.m]), cut by the screen's edge: 214 for a film's backdrops at
+     * the default text size.
+     */
+    @Composable
+    @ReadOnlyComposable
+    fun choiceBand(cell: Dp, film: Boolean): Dp {
+        val words = HlSpace.xs + textRoom(Hl.type.cardName) + if (film) textRoom(Hl.type.meta) else HlSpace.none
+        return textRoom(Hl.type.rowTitle) + HlFocus.wallRoom + cell + words + HlSpace.l + HlSpace.m
+    }
     /** The two columns of the welcome screen: the choices' holds its title on one line in French. */
     val welcomeTagline = 380.dp
     val welcomeChoices = 456.dp
