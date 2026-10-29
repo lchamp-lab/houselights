@@ -370,10 +370,19 @@ internal fun sheetLines(sections: List<ChoiceSection>, columns: Int): List<Sheet
     lines.mapIndexed { i, options -> SheetLine(s, i, options, last = i == lines.lastIndex) }
 }
 
-/** What the sheet lists, item by item, each [gap] from the one before it. */
+/**
+ * What the sheet lists, item by item, each [gap] from the one before it; a list's place is lent only to an item of the
+ * same [type], laid out as it is, so none keeps the gap of the one it took the place of.
+ */
 internal sealed interface SheetItem {
     val gap: SheetGap
     val key: String
+    val type: String
+        get() = when (this) {
+            is Name -> "name-$gap"
+            is Cards -> "cards-$gap"
+            is Note -> "note-$gap"
+        }
 
     /** The name of the [section]th section, over its first line. */
     data class Name(val section: Int, override val gap: SheetGap) : SheetItem {
@@ -472,7 +481,7 @@ private fun Choices(
                 modifier = Modifier.fillMaxSize().onPlaced { list.coordinates = it }.onFocusChanged { within = it.hasFocus },
             ) {
                 entries.forEach { entry ->
-                    item(key = entry.key) {
+                    item(key = entry.key, contentType = entry.type) {
                         val gap = entry.gap.room
                         when (entry) {
                             is SheetItem.Name -> SectionHeading(
@@ -500,7 +509,7 @@ private fun Choices(
                         }
                     }
                 }
-                item(key = RUNOUT) { Spacer(Modifier.fillParentMaxHeight()) }
+                item(key = RUNOUT, contentType = RUNOUT) { Spacer(Modifier.fillParentMaxHeight()) }
             }
         }
     }
