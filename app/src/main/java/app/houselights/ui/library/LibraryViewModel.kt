@@ -56,6 +56,8 @@ data class LibraryState(
     /** Why the next page could not load, shown at the wall's foot; no page loads by itself until [pageRetrying]. */
     val pageError: UiError? = null,
     val pageRetrying: Boolean = false,
+    /** How many times the wall started over from its first page ([LibraryViewModel.retry], a sort, a filter, a view). */
+    val generation: Int = 0,
 ) {
     /** The filters the wall shows: none on sagas a source cannot filter ([filtersApply]). */
     fun applied(can: ProviderCapabilities): LibraryFilter = if (filtersApply(view, can)) filter else LibraryFilter()
@@ -254,7 +256,16 @@ class LibraryViewModel(
     private fun reset() {
         pages.cancel()
         _state.update {
-            it.copy(items = emptyList(), total = 0, sagas = null, loading = true, error = null, pageError = null, pageRetrying = false)
+            it.copy(
+                items = emptyList(),
+                total = 0,
+                sagas = null,
+                loading = true,
+                error = null,
+                pageError = null,
+                pageRetrying = false,
+                generation = it.generation + 1,
+            )
         }
         loadMore()
     }
