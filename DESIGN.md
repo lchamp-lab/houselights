@@ -732,9 +732,12 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   TMDB does not know has its films' pictures alone, the note saying why as a fact, in secondary text, without a mark,
   nothing having failed (`artwork_saga_unknown`). The choice is kept by the saga's key, never on its row, in a table of
   its own (`SagaChoiceEntity`), so scans keep it, and the saga leaving with its last film and coming back finds it;
-  Automatique clears it. Its walls, home's Sagas door, search, a film's saga and its page, its panel and its room, show
-  it at their next read (`SagaChoiceTest`). A Jellyfin box set has no Modifier: its server's interface changes its
-  pictures.
+  Automatique clears it. A saga known by its films' NFO set alone (`name:`) that TMDB names later, a key added, a scan
+  or an identification, takes its choice to its TMDB id's key in the transaction that moves each film, unless TMDB's
+  saga has one of its own; two such sagas joining one, the one of the most films; the name's row goes with its last
+  film (`SagaChoiceCarry`, `SagaChoiceKeyTest`). Its walls, home's Sagas door, search, a film's saga and its page, its
+  panel and its room, show it at their next read (`SagaChoiceTest`). A Jellyfin box set has no Modifier: its server's
+  interface changes its pictures.
 - **The welcome screen**: the lockup and tagline in the middle of the left column, notes under them (a connection
   that could not be read back; settings that could not be and were reset, until a source is saved; the last
   choice's failure); the task's title on one line over the two choices, raised on glass, each saying what it is in a

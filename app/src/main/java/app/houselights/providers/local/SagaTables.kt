@@ -43,6 +43,13 @@ interface SagaDao {
     )
     suspend fun sagaParts(collectionId: Long): List<SagaPartRow>
 
+    /**
+     * The rows saga [collectionId] holds, its films and their copies: with none, the cleanup deletes it
+     * ([LibraryDao.deleteEmptyCollections]).
+     */
+    @Query("SELECT COUNT(*) FROM items WHERE collectionId = :collectionId")
+    suspend fun sagaItemCount(collectionId: Long): Int
+
     /** The pictures chosen for the sagas of [keys], at most [SQL_IN_LIMIT] keys. */
     @Query("SELECT * FROM saga_choices WHERE matchKey IN (:keys)")
     suspend fun sagaChoices(keys: List<String>): List<SagaChoiceEntity>

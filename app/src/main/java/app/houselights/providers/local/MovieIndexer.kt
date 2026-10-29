@@ -11,7 +11,13 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
     /** Collections already fetched from TMDB during the current pass. */
     private val refreshedCollections = mutableSetOf<Long>()
 
-    fun startPass() = refreshedCollections.clear()
+    /** A saga's choice, from its name's key to its TMDB id's as its films join TMDB's saga. */
+    private val sagaChoices = SagaChoiceCarry(dao)
+
+    fun startPass() {
+        refreshedCollections.clear()
+        sagaChoices.startPass()
+    }
 
     suspend fun process(pass: ScanPass, file: RemoteFile, existing: ItemEntity?) {
         val source = pass.source
@@ -320,7 +326,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
     /**
      * Saves details ([MetadataMerge]), edition, collection and credits ([CreditRules]) at once: a film matched without
-     * its credits would never be read again for them; nor one named since [was], its TMDB id then, without what was kept.
+     * its credits would never be read again for them; nor one named since [was], its TMDB id then, without what was kept;
+     * nor a saga it joins from one known by its name without the choice made there ([SagaChoiceCarry]).
      */
     @Suppress("LongParameterList") // One per source of details, and the TMDB id the film had.
     private suspend fun saveMovie(
@@ -349,6 +356,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             .lookedUp(base, fetched.lookup)
             .withNfoStreams(nfoInfo) // Stream details do not depend on the match.
         dao.saveScanned(item)
+        // Its saga known by its name until now, TMDB's takes the choice made under the name, as the film its kept state.
+        sagaChoices.moved(left = base.collectionId, joined = collectionId)
         dao.offer(item, fetched.lookup)
         giveBack(item, was, fetched)
         // Complete when TMDB answered or the film has no TMDB id, so the backfill skips it.
