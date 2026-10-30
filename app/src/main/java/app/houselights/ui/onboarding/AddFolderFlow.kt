@@ -454,16 +454,7 @@ private fun editedParts(flow: FolderFlow, focus: FlowFocus, askDisk: DiskAsk): L
  */
 private fun lostPart(flow: FolderFlow, lost: EditLost) = FlowPart("lost", emptySet()) {
     when (lost) {
-        // The library is read from the player's storage, as the settings are.
-        EditLost.UNREAD -> HlEmptyState(
-            stringResource(R.string.folder_unread),
-            message = stringResource(R.string.error_settings),
-            attention = true,
-            action = stringResource(R.string.retry),
-            actionIcon = HlIcons.Refresh,
-            onAction = flow::readAgain,
-            busy = stringResource(R.string.retrying).takeIf { flow.rereading },
-        )
+        EditLost.UNREAD -> UnreadFolder(flow.rereading, flow::readAgain)
         EditLost.GONE -> HlEmptyState(
             stringResource(R.string.folder_gone_state),
             message = stringResource(R.string.folder_gone),
@@ -829,7 +820,7 @@ private fun chooseText(standing: Standing, level: FolderLevel): Pair<String, Boo
     standing is Standing.Inside -> stringResource(R.string.folder_inside_added, capitalised(standing.folder.name)) to false
     level.isEmpty -> stringResource(R.string.folder_empty_short) to false
     holdsBoth(level.folders) -> stringResource(R.string.folder_holds_both) to true
-    else -> contentText(level) to true
+    else -> folderContentText(level.folders.size, level.videos) to true
 }
 
 /** « Contient « Films », déjà dans la bibliothèque », or how many folders of the library the level holds. */
@@ -838,19 +829,6 @@ private fun holdsAddedText(names: List<String>): String = if (names.size == 1) {
     stringResource(R.string.folder_holds_added, capitalised(names.single()))
 } else {
     pluralStringResource(R.plurals.share_holds_many, names.size, names.size)
-}
-
-/** A level's own content: « 38 dossiers et 2 vidéos », « 412 dossiers », « 3 vidéos ». */
-@Composable
-private fun contentText(level: FolderLevel): String {
-    val count = level.folders.size
-    val folders = pluralStringResource(R.plurals.folder_count, count, count)
-    val videos = pluralStringResource(R.plurals.video_count, level.videos, level.videos)
-    return when {
-        count > 0 && level.videos > 0 -> stringResource(R.string.folder_content, folders, videos)
-        count > 0 -> folders
-        else -> videos
-    }
 }
 
 // Step 6 · what it holds -------------------------------------------------------------------------------------------
@@ -888,17 +866,13 @@ private fun fieldError(flow: FolderFlow, field: String): String? =
 /** A failure's sentence, its paths kept whole ([wholePath]). */
 @Composable
 private fun flowText(message: FlowMessage): String = when (message) {
-    is FlowMessage.Silent -> stringResource(R.string.error_nas_unreachable, message.host)
+    is FlowMessage.Silent -> unreachableText(message.host)
     FlowMessage.LoginRefused -> stringResource(R.string.error_login_failed)
     FlowMessage.GuestRefused -> stringResource(R.string.error_guest_refused)
     FlowMessage.PasswordUnread -> stringResource(R.string.error_password_unread)
-    is FlowMessage.NoShare -> stringResource(R.string.error_share_not_found, message.host, message.share)
-    is FlowMessage.NoExport -> stringResource(R.string.error_export_not_found, wholePath(message.typed))
-    is FlowMessage.NoFolder -> if (message.smb) {
-        stringResource(R.string.error_subfolder_not_found_share, message.at, message.name)
-    } else {
-        stringResource(R.string.error_subfolder_not_found, wholePath(message.at), message.name)
-    }
+    is FlowMessage.NoShare -> shareMissingText(message.host, message.share)
+    is FlowMessage.NoExport -> exportMissingText(message.typed)
+    is FlowMessage.NoFolder -> subfolderMissingText(message.at, message.name, nfs = !message.smb)
     is FlowMessage.Overlaps -> stringResource(overlapWords(message.standing), message.existing)
     is FlowMessage.Missing -> stringResource(message.words)
     FlowMessage.Gone -> stringResource(R.string.folder_gone)
@@ -918,14 +892,10 @@ private fun overlapWords(standing: Standing): Int = when (standing) {
  */
 @Composable
 private fun refusalText(message: FlowMessage): String = when (message) {
-    is FlowMessage.NotAllowed -> if (message.player != null) {
-        stringResource(R.string.error_nfs_refused, message.player, wholePath(message.export))
-    } else {
-        stringResource(R.string.error_nfs_refused_no_address, wholePath(message.export))
-    }
-    is FlowMessage.RootRefused -> stringResource(R.string.error_nfs_root_refused, wholePath(message.path))
-    is FlowMessage.AccountRefused -> stringResource(R.string.error_nfs_account_refused, message.uid, wholePath(message.path))
-    is FlowMessage.Denied -> stringResource(R.string.error_smb_denied, message.user, message.share)
+    is FlowMessage.NotAllowed -> playerRefusedText(message.player, message.export)
+    is FlowMessage.RootRefused -> readRefusedText(message.path, uid = null)
+    is FlowMessage.AccountRefused -> readRefusedText(message.path, message.uid)
+    is FlowMessage.Denied -> accountDeniedText(message.user, message.share)
     is FlowMessage.GuestShare -> stringResource(R.string.error_smb_guest_share, message.share)
     is FlowMessage.DiskRefused -> stringResource(if (message.settings) R.string.disk_access_settings else R.string.disk_access_refused)
     is FlowMessage.DiskAbsent -> diskAbsent(message.disk)
