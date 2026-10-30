@@ -479,6 +479,39 @@ class LocalCatalogTest {
         assertEquals(next.toString(), provider.nextUp(provider.item(LocalId.ofCollection(saga)))?.id)
     }
 
+    /**
+     * Reprendre shows a film in several copies once, as its walls show it: its main row, started where the copy Lire
+     * plays was left, in the place of its copy played last; not at all while that copy is not started, nor once a copy
+     * is watched, as the En cours filter leaves it out.
+     */
+    @Test
+    fun reprendreShowsAFilmInCopiesOnceAsItsWallsDo() = runTest {
+        // Both copies of Heat started, the 1080p one last; Lire plays the 4K one, better.
+        val heat = film("Heat", 1995, tmdbId = 949, badges = listOf("1080p"), positionMs = 600_000, lastPlayedAt = 300)
+        film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), positionMs = 2_400_000, lastPlayedAt = 200)
+        // Ronin's 1080p copy alone started, while Lire plays its 4K one from the start.
+        film("Ronin", 1998, tmdbId = 8195, badges = listOf("1080p"), positionMs = 900_000, lastPlayedAt = 400)
+        film("Ronin", 1998, tmdbId = 8195, path = "Ronin.2160p.mkv", badges = listOf("4K"))
+        // Collateral watched in 1080p, then its 4K copy, added after, started.
+        film("Collateral", 2004, tmdbId = 1538, badges = listOf("1080p"), played = true, lastPlayedAt = 50)
+        film("Collateral", 2004, tmdbId = 1538, path = "Collateral.2160p.mkv", badges = listOf("4K"), positionMs = 1_200_000)
+        film("Thief", 1981, positionMs = 60_000, lastPlayedAt = 100)
+        dao.groupVersions()
+
+        val resumed = provider.home().single { it.type == SectionType.CONTINUE }.items
+        assertEquals(listOf("Heat", "Thief"), resumed.map { it.title })
+        assertEquals(heat.toString(), resumed.first().id)
+        assertEquals(2_400_000L, resumed.first().user.positionMs)
+        val inProgress = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(status = WatchStatus.IN_PROGRESS), 0, 10).items
+        assertEquals(inProgress.map { it.id }.toSet(), resumed.map { it.id }.toSet())
+
+        // Reprendre resumes the copy Lire plays where it was left.
+        val options = PlaybackOptions(emptyList(), forceHttp = false)
+        val plan = provider.playback(resumed.first(), resume = true, options) as PlaybackPlan.Launch
+        assertTrue(plan.uri.endsWith("Heat.2160p.mkv"))
+        assertEquals(2_400_000L, plan.startMs)
+    }
+
     // --- Filters and numbers ---
 
     @Test
