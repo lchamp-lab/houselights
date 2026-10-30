@@ -754,18 +754,19 @@ private fun Hero(
                 Spacer(Modifier.height(HlSpace.s))
                 FormatLines(item, plays = plays)
             }
-            // The tagline introduces the overview, quieter than the title above it.
+            // The tagline opens the overview in white, the overview reads in grey under it.
             item.tagline?.let {
                 Spacer(Modifier.height(HlSpace.l))
-                Text(it, style = Hl.type.lead, color = Hl.colors.contentSecondary)
+                Text(it, style = Hl.type.lead, color = Hl.colors.content)
             }
             if (!item.overview.isNullOrBlank()) {
-                Spacer(Modifier.height(if (item.tagline != null) HlSpace.xs else HlSpace.l))
+                Spacer(Modifier.height(if (item.tagline != null) HlSpace.s else HlSpace.l))
                 // Opens in full beside the page when cut; Down goes to the first action, mirroring Up.
                 HeadOverview(item.overview, onOpen = actions.onShowSynopsis, Modifier.focusProperties { down = actionRow })
             }
+            // The billing block apart, at the foot as on a poster.
             if (item.directors.isNotEmpty() || item.cast.isNotEmpty()) {
-                Spacer(Modifier.height(HlSpace.m))
+                Spacer(Modifier.height(HlSpace.l))
                 BillingBlock(item.directors, item.cast.map { it.name })
             }
         }
