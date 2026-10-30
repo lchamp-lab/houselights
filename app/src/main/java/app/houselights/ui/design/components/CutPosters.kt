@@ -239,12 +239,20 @@ private suspend fun loadCutPosters(context: Context, items: List<MediaItem>, px:
  */
 internal fun doorTint(posters: List<Bitmap>): Bitmap? {
     if (posters.isEmpty()) return null
-    val points = posters.map { poster ->
-        val argb = IntArray(poster.width * poster.height)
-        poster.getPixels(argb, 0, poster.width, 0, 0, poster.width, poster.height)
-        Points(argb, poster.width, poster.height)
-    }
-    return Bitmap.createBitmap(averagedStrip(points, TINT_W, TINT_H), TINT_W, TINT_H, Bitmap.Config.ARGB_8888)
+    return Bitmap.createBitmap(averagedStrip(posters.map(::tintPoints), TINT_W, TINT_H), TINT_W, TINT_H, Bitmap.Config.ARGB_8888)
+}
+
+/**
+ * [poster]'s points as its tint reads them: from a copy [TINT_SHRINK] times smaller, filtered, as the tint keeps a few
+ * dozen points of it; a whole poster's pixels are never copied.
+ */
+internal fun tintPoints(poster: Bitmap): Points {
+    val small = poster.scale((poster.width / TINT_SHRINK).coerceAtLeast(1), (poster.height / TINT_SHRINK).coerceAtLeast(1))
+    val argb = IntArray(small.width * small.height)
+    small.getPixels(argb, 0, small.width, 0, 0, small.width, small.height)
+    // The copy alone: the poster itself is the loader's, and the door's.
+    if (small !== poster) small.recycle()
+    return Points(argb, small.width, small.height)
 }
 
 /** [posters] side by side across [width] × [height], each point the mean of what it covers, a poster cropped about its top fifth. */
@@ -292,6 +300,9 @@ private fun meanOf(poster: Points, x0: Int, x1: Int, y0: Int, y1: Int): Int {
 
 private const val TINT_W = 24
 private const val TINT_H = 9
+
+/** How much smaller than a poster the copy its tint is read from: 60 × 90 points of a 480 × 720 poster. */
+private const val TINT_SHRINK = 8
 private const val TINT_TOP = 0.15f
 private const val RED = 16
 private const val GREEN = 8

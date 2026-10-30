@@ -545,11 +545,11 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     reloaded, its posters stay until the new ones are cut, each scaled to its line once, off the main thread
     (`CutPoster.scaledTo`);
     one size for every door's count (`figureSignature`, `rememberFigureSize`), the largest that keeps 14 across and
-    13 down for the longest, four digits included. Under it the posters' tint (`doorTint`: averaged to 24 × 9,
-    enlarged with bilinear filtering), dark at rest (`DOOR_TINT`), whole with focus, the door glowing across their
-    tones (`glowTones`). The band says what is new: "4 nouveaux" by the ember dot (`HlSize.doorDot`) for films, "3
-    épisodes nouveaux" for shows; the door is read name first ("Films, 412 titres, 4 nouveaux"). The sagas are no
-    library of this row.
+    13 down for the longest, four digits included. Under it the posters' tint (`doorTint`: averaged to 24 × 9
+    from copies an eighth of their size, `tintPoints`, enlarged with bilinear filtering), dark at rest (`DOOR_TINT`),
+    whole with focus, the door glowing across their tones (`glowTones`). The band says what is new: "4 nouveaux" by
+    the ember dot (`HlSize.doorDot`) for films, "3 épisodes nouveaux" for shows; the door is read name first
+    ("Films, 412 titres, 4 nouveaux"). The sagas are no library of this row.
   - **The tools**: Sagas, two sagas' posters stacked (`DoorSagas`) and their count, opening the films' wall on the
     sagas alone (`Route.Library`'s `view`); without sagas, or with Sagas set to Masquées, Rechercher takes their
     place. Rechercher: a wall of small posters, out, that fills the door (`DoorWall`, `wallThumbs`): posters shown
