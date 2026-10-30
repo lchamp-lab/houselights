@@ -278,6 +278,15 @@ tasks.withType<Test>().configureEach {
     )
     outputs.upToDateWhen { servers.get() != "1" }
     outputs.doNotCacheIf("The servers' tests read servers outside the build") { servers.get() == "1" }
+    // The README's captures (app.houselights.readme) run with HOUSELIGHTS_README alone, the folder they write to, and
+    // each time it is set: what TMDB answers is no input of theirs.
+    val readme = providers.environmentVariable("HOUSELIGHTS_README").orElse("")
+    inputs.property("readme", readme)
+    outputs.upToDateWhen { readme.get().isEmpty() }
+    outputs.doNotCacheIf("The README's captures read TMDB") { readme.get().isNotEmpty() }
+    // TMDB's pictures at the TV's size and 1920 × 1080 frames: room for them, on a runner that has it. Without it, they
+    // are left out of the run rather than skipped in it: Robolectric would first fetch the Android they are shot on.
+    if (readme.get().isNotEmpty()) maxHeapSize = "3g" else filter.excludeTestsMatching("app.houselights.readme.*")
 }
 
 // The unit tests run in one JVM, on Gradle's 512 MB, unless -Phouselights.testForks=N runs them in N JVMs side by side,

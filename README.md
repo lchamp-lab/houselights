@@ -22,7 +22,12 @@
   <a href="https://ko-fi.com/lchamp_lab">Support</a>
 </p>
 
-![Home: a grid of doors, a film not seen yet in the case beside the latest titles, the films and shows counted in their posters, the sagas, search and settings](docs/images/home.jpg)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.webp">
+    <img src="docs/images/hero.webp" width="100%" alt="Houselights' home on a TV on the wall of a dark room lit by its picture: the case resumes Dune: Part Two, 1 h 14 left, beside the next episode of Severance and the five titles new this week, the 20 films and 6 shows counted in their posters, the sagas, search, and the settings saying the library's source, Trakt connected and the last scan">
+  </picture>
+</p>
 
 > **Beta.** Made for Zidoo players (Android 9 with Zidoo's launcher), tested on a Z1000 Pro: reports from other
 > models are welcome in the [issues](https://github.com/lchamp-lab/houselights/issues). Not affiliated with Zidoo,
@@ -35,6 +40,11 @@ lus par le **lecteur natif Zidoo** (HDR10, HDR10+, Dolby Vision, passthrough aud
 gratuite, l’application est entièrement en français. [Installer](#install)
 
 ## Features
+
+<p align="center">
+  <img src="docs/images/tour.webp" width="100%" alt="Animation: the lights come up on home; focus goes to the titles new this week and To watch opens; focus runs from Spider-Man: Brand New Day, The Odyssey and Project Hail Mary to Avatar: Fire and Ash, the backdrop and the poster's glow following; OK opens the film's page, Dolby Vision, HDR10+ and Dolby TrueHD Atmos 7.1 on its case back, and Play dims the room before the Zidoo player starts">
+  <br><sub>From home to the film: focus lights each title, and Play dims the room before the Zidoo player takes over.</sub>
+</p>
 
 - **The Zidoo player plays.** Files open directly in it (`smb://`, `nfs://`, a path on the player's own disks, or
   HTTP), with everything it supports. Progress is read from the player while it plays, so resume points stay in sync.
@@ -185,20 +195,27 @@ My files reads a title from its folder's and file's names, as Plex, Jellyfin, Ko
 
 ## Screenshots
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/film.jpg" alt="A film's page"><br><sub>A film's page: its video and audio on the case back, read from the file itself.</sub></td>
-    <td width="50%"><img src="docs/images/show.jpg" alt="A show's episodes and cast"><br><sub>A show's episodes and cast.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/saga.jpg" alt="A saga's page"><br><sub>A saga: the films you own among its films, resumed where you left off.</sub></td>
-    <td width="50%"><img src="docs/images/library.jpg" alt="The Movies wall"><br><sub>The Movies wall, a saga among the films, lit by the focused poster.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/images/watch.jpg" alt="To watch"><br><sub>To watch, one door from home: its rows under the title in focus.</sub></td>
-    <td width="50%"><img src="docs/images/settings.jpg" alt="Settings, Display"><br><sub>Settings > Display: the interface's language and the text size.</sub></td>
-  </tr>
-</table>
+<p align="center">
+  <img src="docs/images/film.webp" width="100%" alt="Avatar: Fire and Ash's page: its logo over its backdrop, 2025, 3 h 17, PG-13, 7.6; Ultra HD, Dolby Vision, HDR10+, HEVC, 23.976 fps and Dolby TrueHD Atmos 7.1, 5,318 kbps, read from the file; its tagline, overview and credits, and Play, 3 h 17, in focus">
+  <br><sub><b>A film's page</b>, its picture and sound read from the file itself</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/show.webp" width="49%" alt="Severance's page: its logo over its picture, 2022 –, 2 seasons, TV-MA, 8.4, its tagline, overview and cast, Play S2 E5 in focus, and its seasons under it, season 1 watched and 4 of season 2's 10 episodes">
+  <img src="docs/images/saga.webp" width="49%" alt="The Dune Collection's page: 2021 – 2024, 2 films, 8.0, Science Fiction and Adventure, its overview, and Resume Dune: Part Two, 1 h 14 left, in focus, over a desert at sunset">
+  <br><sub><b>A show</b>, on its next episode · <b>A saga</b>, resumed where you left off</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/library.webp" width="100%" alt="The Movies wall: 18 titles and a saga, sorted by title, the Dune Collection among the films, Avatar: Fire and Ash in focus and its colours lighting the wall, films watched checked and new ones dotted">
+  <br><sub><b>The Movies wall</b>, lit by the poster in focus</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/watch.webp" width="49%" alt="To watch: Project Hail Mary's logo, 2026, 2 h 36, PG-13, 8.6 and overview over its backdrop, above the recently added movies, 4 new, Project Hail Mary in focus between The Odyssey and Avatar: Fire and Ash">
+  <img src="docs/images/settings.webp" width="49%" alt="Settings, Playback: the tracks the Zidoo player plays for all films and shows, the audio in English when the film has that track, the subtitles Automatic, in full when the audio is not in English, in focus, and their language English">
+  <br><sub><b>To watch</b>, one door from home · <b>Settings › Playback</b>: the audio and subtitles asked of the player</sub>
+</p>
 
 ## Install
 
@@ -388,4 +405,5 @@ any later version ([LICENSE](LICENSE), `GPL-3.0-or-later`).
   (https://github.com/EMCECS/nfs-client-java, Dell Inc.), changed to join an NFS reply's fragments, under the Apache
   License 2.0 ([third_party/nfs-client/LICENSE](third_party/nfs-client/LICENSE)).
 - This product uses the TMDB API but is not endorsed or certified by TMDB. The TMDB logo is a trademark of
-  TMDB, shown under its attribution guidelines, and is not covered by the GPL.
+  TMDB, shown under its attribution guidelines, and is not covered by the GPL. The screenshots show the films' and
+  shows' texts and pictures as TMDB gives them; they belong to their owners and are not covered by the GPL either.
