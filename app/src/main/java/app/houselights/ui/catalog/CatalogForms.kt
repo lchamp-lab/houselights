@@ -26,7 +26,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.tv.material3.Text
 import app.houselights.R
-import app.houselights.core.LibraryKind
+import app.houselights.core.FileTypes
+import app.houselights.core.LibraryFacets
+import app.houselights.core.LibraryFilter
+import app.houselights.core.Person
+import app.houselights.core.ProviderCapabilities
+import app.houselights.core.Quality
+import app.houselights.core.SortOption
+import app.houselights.core.WatchStatus
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
@@ -57,7 +64,9 @@ import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
-import app.houselights.ui.util.libraryName
+import app.houselights.ui.library.FilterButton
+import app.houselights.ui.library.SortButton
+import app.houselights.ui.library.WallView
 
 /** Forms, menus, choice sheets and long text; HlTwoPane and HlFormScaffold fill the screen (see setup). */
 internal fun LazyListScope.catalogForms() {
@@ -530,95 +539,53 @@ private fun FormMenus() {
             color = Hl.colors.contentTertiary,
             modifier = Modifier.weight(1f),
         )
-        Specimen("filters, none active", gap = HlSpace.xs) { FormFilterMenu(FormFilters()) }
-        Specimen("filters, two active", gap = HlSpace.xs) { FormFilterMenu(FormFilters(status = 1, genre = "Drame")) }
-        Specimen("the sagas alone, one filter", gap = HlSpace.xs) { FormFilterMenu(FormFilters(sagas = true, status = 1)) }
+        Specimen("filters, none active", gap = HlSpace.xs) { FormFilterMenu(LibraryFilter()) }
+        Specimen("filters, two active", gap = HlSpace.xs) {
+            FormFilterMenu(LibraryFilter(status = WatchStatus.UNWATCHED, genre = "Drame"))
+        }
+        Specimen("the sagas alone, one filter", gap = HlSpace.xs) {
+            FormFilterMenu(LibraryFilter(status = WatchStatus.UNWATCHED), WallView.SAGAS)
+        }
         Specimen("sort", gap = HlSpace.xs) { FormSortMenu() }
+        Specimen("a film's parts, none chosen", gap = HlSpace.xs) { FormPartsMenu() }
     }
 }
 
 @Composable
 private fun FormSortMenu() {
-    var sort by remember { mutableIntStateOf(1) }
+    var sort by remember { mutableStateOf(SortOption.ADDED) }
+    SortButton(sort, onSort = { sort = it })
+}
+
+/** A film in three parts, as its page offers them: their count unlit, the menu opening on the first. */
+@Composable
+private fun FormPartsMenu() {
+    val labels = List(FORM_PARTS) { stringResource(R.string.part_of, it + 1, FORM_PARTS) }
     HlMenuButton(
-        text = stringResource(R.string.sort),
-        icon = HlIcons.Sort,
-        detail = formSorts()[sort],
-        sections = listOf(MenuSection(null, formSortOrders().mapIndexed { i, label -> MenuOption(label, sort == i) { sort = i } })),
+        text = stringResource(R.string.parts),
+        icon = HlIcons.Playback,
+        sections = listOf(MenuSection(null, labels.map { MenuOption(it, selected = false) {} })),
+        detail = FORM_PARTS.toString(),
     )
 }
 
-/** The films wall's filters, as its filter menu combines them, and whether it shows the [sagas] alone. */
-private data class FormFilters(
-    val sagas: Boolean = false,
-    val status: Int = 0,
-    val genre: String? = null,
-    val decade: Int? = null,
-    val quality: String? = null,
-) {
-    val active: Int get() = listOf(status != 0, genre != null, decade != null, quality != null).count { it }
-}
-
+/** A films wall with sagas of « Mes fichiers », its filters starting as [initial] and showing [initialView]. */
 @Composable
-private fun FormFilterMenu(initial: FormFilters) {
-    var f by remember { mutableStateOf(initial) }
-    val statuses = formStatuses()
-    val decades = FORM_DECADES.associateWith { stringResource(R.string.decade, it) }
-    val sagasName = libraryName(LibraryKind.COLLECTIONS)
-    val sections = buildList {
-        add(
-            MenuSection(
-                stringResource(R.string.filter_show),
-                listOf(
-                    MenuOption(stringResource(R.string.show_grouped), !f.sagas) { f = f.copy(sagas = false) },
-                    MenuOption(sagasName, f.sagas) { f = f.copy(sagas = true) },
-                ),
-            ),
-        )
-        add(
-            MenuSection(
-                stringResource(R.string.filter_status),
-                statuses.mapIndexed { i, label -> MenuOption(label, f.status == i) { f = f.copy(status = i) } },
-            ),
-        )
-        add(
-            MenuSection(
-                stringResource(R.string.filter_genre),
-                listOf(MenuOption(stringResource(R.string.all_genres), f.genre == null) { f = f.copy(genre = null) }) +
-                    FORM_GENRES.map { g -> MenuOption(g, f.genre == g) { f = f.copy(genre = g) } },
-            ),
-        )
-        add(
-            MenuSection(
-                stringResource(R.string.filter_decade),
-                listOf(MenuOption(stringResource(R.string.all_decades), f.decade == null) { f = f.copy(decade = null) }) +
-                    decades.map { (d, label) -> MenuOption(label, f.decade == d) { f = f.copy(decade = d) } },
-            ),
-        )
-        add(
-            MenuSection(
-                stringResource(R.string.filter_quality),
-                listOf(MenuOption(stringResource(R.string.all_qualities), f.quality == null) { f = f.copy(quality = null) }) +
-                    FORM_QUALITIES.map { q -> MenuOption(q, f.quality == q) { f = f.copy(quality = q) } },
-            ),
-        )
-        val reset = MenuOption(stringResource(R.string.reset_filters), false) { f = FormFilters() }
-        if (f.active > 0 || f.sagas) add(MenuSection(null, listOf(reset)))
-    }
-    // The button names the sagas shown alone, then the active filter, or how many are combined.
-    val filters = when (f.active) {
-        0 -> null
-        1 -> statuses[f.status].takeIf { f.status != 0 } ?: f.genre ?: f.decade?.let(decades::getValue) ?: f.quality
-        else -> pluralStringResource(R.plurals.filter_count, f.active, f.active)
-    }
-    val detail = listOfNotNull(sagasName.takeIf { f.sagas }, filters).joinToString(" · ").ifEmpty { null }
-    HlMenuButton(
-        text = stringResource(R.string.filter),
-        icon = HlIcons.Filter,
-        sections = sections,
-        detail = detail,
-        detailLit = detail != null,
-        closeOnSelect = false,
+private fun FormFilterMenu(initial: LibraryFilter, initialView: WallView = WallView.FILMS_AND_SAGAS) {
+    var filter by remember { mutableStateOf(initial) }
+    var view by remember { mutableStateOf(initialView) }
+    FilterButton(
+        filter,
+        FORM_FACETS,
+        FORM_CAPABILITIES,
+        FORM_PERSON,
+        view,
+        onView = { view = it },
+        onClear = {
+            filter = LibraryFilter()
+            view = WallView.FILMS_AND_SAGAS
+        },
+        onChange = { filter = it },
     )
 }
 
@@ -696,27 +663,6 @@ private fun FormReading(paragraphs: List<String>) {
     }
 }
 
-/** The library's sorts, as its sort button names the one in use. */
-@Composable
-private fun formSorts() =
-    listOf(R.string.sort_title, R.string.sort_added, R.string.sort_year, R.string.sort_rating).map { stringResource(it) }
-
-/** The library's sorts, as its sort menu offers them. */
-@Composable
-private fun formSortOrders() =
-    listOf(R.string.sort_title_order, R.string.sort_added_order, R.string.sort_year_order, R.string.sort_rating_order)
-        .map { stringResource(it) }
-
-/** The library's statuses, as its filter menu offers them. */
-@Composable
-private fun formStatuses() = listOf(
-    R.string.show_all,
-    R.string.filter_unwatched,
-    R.string.status_in_progress,
-    R.string.status_watched,
-    R.string.section_favorites,
-).map { stringResource(it) }
-
 /** TMDB's genres, and Jellyfin's longest ones. */
 private val FORM_GENRES = listOf(
     "Action", "Action & Aventure", "Animation", "Aventure", "Comédie", "Crime", "Documentaire", "Drame",
@@ -724,9 +670,33 @@ private val FORM_GENRES = listOf(
     "Romance", "Science-Fiction", "Science-Fiction & Fantastique", "Téléfilm", "Thriller", "Western",
 )
 
+private const val FORM_PARTS = 3
+
 private val FORM_DECADES = listOf(1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020)
 
-private val FORM_QUALITIES = listOf("Ultra HD", "HDR", "Dolby Vision")
+/** What a films wall of « Mes fichiers » offers to filter by: its genres, decades, pictures, sounds and files. */
+private val FORM_FACETS = LibraryFacets(
+    genres = FORM_GENRES,
+    decades = FORM_DECADES,
+    qualities = Quality.entries,
+    pictures = listOf("4K", "1080p", "720p", "Dolby Vision", "HDR10+", "HDR10"),
+    sounds = listOf("TrueHD Atmos", "DTS-HD MA", "E-AC3", "AC3"),
+    fileTypes = listOf("mkv", FileTypes.BLU_RAY, "iso", "mp4"),
+)
+
+/** A source that filters by format, by person and its sagas through their films, as « Mes fichiers » does. */
+private val FORM_CAPABILITIES = ProviderCapabilities(
+    markPlayed = true,
+    favorites = true,
+    similar = false,
+    pathMapping = false,
+    formatFilters = true,
+    personFilter = true,
+    sagaFilters = true,
+)
+
+/** The person a wall opened from their page is filtered by. */
+private val FORM_PERSON = Person("Denis Villeneuve", null, null, id = "catalog-villeneuve")
 
 /** The choices of the collections setting, in the words of the setting itself. */
 @Composable

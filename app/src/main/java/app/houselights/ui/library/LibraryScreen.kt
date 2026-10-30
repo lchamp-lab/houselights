@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -465,20 +466,26 @@ private fun SkeletonWall() {
 
 /** The header's menus: filters, with first what a films wall with sagas shows, then sort. */
 @Composable
-private fun WallMenus(kind: LibraryKind, state: LibraryState, can: ProviderCapabilities, person: Person?, choices: WallChoices) {
+private fun RowScope.WallMenus(kind: LibraryKind, state: LibraryState, can: ProviderCapabilities, person: Person?, choices: WallChoices) {
     // A sagas library has no filters of its own; the sagas a films wall shows alone are filtered through its films.
     if (kind != LibraryKind.COLLECTIONS || state.view != null) {
         FilterButton(state.filter, state.facets, can, person, state.view, choices.onView, choices.onClearFilters, choices.onFilter)
     }
     Spacer(Modifier.width(HlSpace.s))
-    // "Trier" plus the current sort, a choice: "Titre" alone would read as a title.
+    SortButton(state.sort, choices.onSort)
+}
+
+/** Sort menu: « Trier » and the [sort] in use, lit, as a choice: « Titre » alone would read as a title. */
+@Composable
+internal fun SortButton(sort: SortOption, onSort: (SortOption) -> Unit, modifier: Modifier = Modifier) {
     HlMenuButton(
         text = stringResource(R.string.sort),
         icon = HlIcons.Sort,
-        detail = sortLabel(state.sort),
+        modifier = modifier,
+        detail = sortLabel(sort),
         detailLit = true,
         sections = listOf(
-            MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), state.sort == it) { choices.onSort(it) } }),
+            MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), sort == it) { onSort(it) } }),
         ),
     )
 }
