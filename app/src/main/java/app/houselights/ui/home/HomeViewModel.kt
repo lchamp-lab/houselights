@@ -233,6 +233,12 @@ class HomeViewModel(
     val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
 
     /**
+     * Reprendre before the first change of a title's burst ([Undone.burstId]) that held the title, kept from its first
+     * change undone until the last: one undone after rows the burst had already taken the title out of puts it back there.
+     */
+    private val resumedBefore = mutableMapOf<Int, Resumed>()
+
+    /**
      * Null until first read, and when they cannot be read: never taken for none. On return, the last list stays until
      * the database re-reads it, so Home never blanks.
      */
@@ -411,16 +417,20 @@ class HomeViewModel(
 
     /**
      * The rows as they were [before] a change not saved, while they are still those it showed ([after]); else read again,
-     * the rows shown meanwhile, and should the read fail, the title back in Reprendre at its place there [before], as the
-     * source has it in progress, where another change had already taken it away. Either way, the change is [undone] in
-     * every row holding its title, which [before] may show with another change of it that was not saved either, its own
-     * undoing changing nothing the rows show.
+     * the rows shown meanwhile, and should the read fail. Either way, the change is [undone] in every row holding its
+     * title, which [before] may show with another change of it that was not saved either, its own undoing changing
+     * nothing the rows show; and the title, in progress again as the source has it, is back in Reprendre at its place
+     * there before the first change of its burst ([resumedBefore]), where another change had already taken it away.
      */
     private fun undo(before: HomeLoad, after: HomeLoad, undone: Undone) {
+        val resumed = before.sections.resumed(undone.id)
+            ?.also { if (!undone.settled) resumedBefore.getOrPut(undone.burstId) { it } }
+            ?: resumedBefore[undone.burstId]
+        if (undone.settled) resumedBefore.remove(undone.burstId)
         if (load.value === after) {
-            load.value = before.undone(undone)
+            load.value = before.undone(undone).resuming(undone, resumed)
         } else {
-            load.update { now -> now.undone(undone).let { it.copy(sections = it.sections.resuming(undone, before.sections)) } }
+            load.update { now -> now.undone(undone).resuming(undone, resumed) }
             onLibraryChanged()
         }
     }
@@ -572,23 +582,34 @@ private val MediaItem.resumes: Boolean get() = user.positionMs > 0 && !user.play
 private fun HomeLoad.undone(undone: Undone): HomeLoad =
     copy(sections = sections.showing(undone.id, undone::over), drawn = drawn.showing(undone.id, undone::over))
 
+/** Reprendre as rows showed it ([row]), the [place]th of them, holding a title at [at]. */
+private class Resumed(val row: HomeSection, val place: Int, val at: Int)
+
+/** Reprendre among [this] with title [id] in it, where it is; null when the rows have no Reprendre, or it lacks the title. */
+private fun List<HomeSection>.resumed(id: String): Resumed? {
+    val place = indexOfFirst { it.type == SectionType.CONTINUE }
+    val row = getOrNull(place) ?: return null
+    val at = row.items.indexOfFirst { it.id == id }
+    return if (at < 0) null else Resumed(row, place, at)
+}
+
+/** [this] with [undone]'s title back in Reprendre where it [was] ([List.resuming]). */
+private fun HomeLoad.resuming(undone: Undone, was: Resumed?): HomeLoad = copy(sections = sections.resuming(undone, was))
+
 /**
- * [this] with [undone]'s title back in Reprendre at its place in [before], when that row held it and no longer does,
- * and the title as it now stands ([Undone.item]) is in progress: the row comes back for it when it had gone.
+ * [this] with [undone]'s title back in Reprendre at its place there before it changed ([was]), when the row no longer
+ * holds it and the title as it now stands ([Undone.item]) is in progress: the row comes back for it when it had gone.
  */
-private fun List<HomeSection>.resuming(undone: Undone, before: List<HomeSection>): List<HomeSection> {
-    val was = before.indexOfFirst { it.type == SectionType.CONTINUE }
-    val row = before.getOrNull(was)
+private fun List<HomeSection>.resuming(undone: Undone, was: Resumed?): List<HomeSection> {
     // As Reprendre showed it, with what each of its changes now shows.
-    val at = row?.items.orEmpty().indexOfFirst { it.id == undone.id }
-    val title = row?.items?.getOrNull(at)?.let { held -> Facet.entries.fold(held) { shown, facet -> facet.copied(undone.item, shown) } }
+    val title = was?.row?.items?.get(was.at)?.let { held -> Facet.entries.fold(held) { shown, facet -> facet.copied(undone.item, shown) } }
     val now = indexOfFirst { it.type == SectionType.CONTINUE }
     val resume = getOrNull(now)
     return when {
-        row == null || title == null || !title.resumes -> this
-        resume == null -> inserting(row.copy(items = listOf(title)), was)
+        was == null || title == null || !title.resumes -> this
+        resume == null -> inserting(was.row.copy(items = listOf(title)), was.place)
         resume.items.any { it.id == undone.id } -> this
-        else -> toMutableList().apply { set(now, resume.copy(items = resume.items.inserting(title, at))) }
+        else -> toMutableList().apply { set(now, resume.copy(items = resume.items.inserting(title, was.at))) }
     }
 }
 

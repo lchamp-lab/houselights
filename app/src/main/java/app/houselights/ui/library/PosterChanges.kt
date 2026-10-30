@@ -235,6 +235,12 @@ internal class Laid(private val changes: List<Held>, private val read: Reading) 
 internal class Undone(change: Held, burst: List<Held>) {
     val id: String = change.item.id
 
+    /** The burst of the title's changes this one was asked in ([Held.burst]). */
+    val burstId: Int = change.burst
+
+    /** Whether no change of the burst is saving any more: this one is the last of it to be undone. */
+    val settled: Boolean = burst.none { it.saving }
+
     private val facet = change.facet
 
     /** The title's [facet] as the source has it; null while a change of it asked after this one is saving or saved, and shows. */
