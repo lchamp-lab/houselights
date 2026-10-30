@@ -19,14 +19,17 @@ import kotlinx.coroutines.delay
 /**
  * Tells [onWhole] once the picture [url] that came covers what it lies on: with no see-through part, at once from
  * memory, else once the loader's fade has run ([fadeMillis]), counted from the frame after it came, the first it is
- * drawn in. Never for a picture with see-through parts. What it returns is told what came.
+ * drawn in. Never for a picture with see-through parts, and once for each that came. What it returns is told what
+ * came.
  */
 @Composable
 internal fun rememberWhole(url: String, onWhole: () -> Unit): (SuccessResult) -> Unit {
     val told by rememberUpdatedState(onWhole)
     var came by remember(url) { mutableStateOf<SuccessResult?>(null) }
-    LaunchedEffect(came) {
-        val result = came?.takeIf { it.isOpaque() } ?: return@LaunchedEffect
+    // Keyed on what came, as it came: a picture from memory, there before the effect first runs, is told once.
+    val result = came
+    LaunchedEffect(result) {
+        if (result == null || !result.isOpaque()) return@LaunchedEffect
         val fade = result.fadeMillis()
         if (fade > 0L) {
             withFrameNanos {}
@@ -34,7 +37,7 @@ internal fun rememberWhole(url: String, onWhole: () -> Unit): (SuccessResult) ->
         }
         told()
     }
-    return remember(url) { { result: SuccessResult -> came = result } }
+    return remember(url) { { success: SuccessResult -> came = success } }
 }
 
 /** Whether a picture has no see-through part (a JPEG's): drawn whole, it covers what it lies on. */

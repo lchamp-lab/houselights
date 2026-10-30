@@ -177,7 +177,7 @@ class ArtworkWholeTest {
         const val FADE_MS = 300
         const val FRAME_MS = 16L
         const val TWO_FRAMES_MS = 32L
-        const val FRAMES_PAST = 4
+        const val FRAMES_PAST = 6
         const val MAX_FRAMES = 60
         const val TIMEOUT_MS = 5_000L
     }
