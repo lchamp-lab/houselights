@@ -105,6 +105,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val tmdb: Boolean,
         /** The NFO names another title or set than before. */
         val newIds: Boolean,
+        /** The NFO names, by its TMDB id, another film than the one matched: set aside until TMDB answers ([fetch]). */
+        val renamed: Boolean,
         val sidecarsRemoved: Boolean,
         /** Something to write: details, artwork, or a refresh deferred to a later pass. */
         val write: Boolean,
@@ -120,8 +122,16 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val tmdb = open && (item.matchedAt == null || pass.refreshMetadata || newIds || undecided(item, nfo) || removed || hinted)
         // A refresh TMDB cannot serve now is kept by leaving the film unmatched (see saveMovie).
         val refreshLeft = pass.refreshMetadata && !open && item.matchedAt != null
-        return Asked(tmdb, newIds, removed, write = nfo != null || tmdb || refreshLeft || removed || local.hasArt)
+        val write = nfo != null || tmdb || refreshLeft || removed || local.hasArt
+        return Asked(tmdb, newIds, renamed(pass, item, nfo, newIds), removed, write)
     }
+
+    /**
+     * Whether [nfo], read anew ([newIds]) or awaiting TMDB since, names another film than the one [item] was matched with:
+     * it waits for TMDB's answer ([fetch]), the film left unmatched for it; without a TMDB key, the NFO alone names it.
+     */
+    private fun renamed(pass: ScanPass, item: ItemEntity, nfo: NfoInfo?, newIds: Boolean): Boolean =
+        pass.tmdb.client != null && (newIds || item.matchedAt == null) && MetadataMerge.namesAnother(nfo, item)
 
     private val VideoSidecars.hasArt: Boolean get() = poster != null || fanart != null || logo != null
 
@@ -298,23 +308,29 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val lookup: (suspend (TmdbClient) -> Looked<TmdbMovie>)? = if (asked.tmdb) { client -> lookupMovie(client, query) } else null
         // No TMDB request and unchanged NFO ids: keep the collection; a film without one gets it from its NFO.
         val keepCollection = lookup == null && !asked.newIds && item.collectionId != null
-        return fetch(pass.tmdb, item.userTmdbId, query, pass.refreshMetadata, keepCollection = keepCollection, lookup = lookup)
+        return fetch(pass.tmdb, item.userTmdbId, query, pass.refreshMetadata, keepCollection, asked.renamed, lookup)
     }
 
-    /** Runs [lookup] (skipped when null), then fetches collection details if needed, unless [keepCollection]. */
+    /**
+     * Runs [lookup] (skipped when null), then fetches collection details if needed, unless [keepCollection]. An NFO
+     * [renamed] to another film is set aside while TMDB does not answer: merged, its id would stand on the details,
+     * saga and credits of the film it was taken for, which only TMDB's answer clears ([cleared]).
+     */
     private suspend fun fetch(
         tmdb: TmdbPass,
         userTmdbId: Int?,
         query: Query,
         refresh: Boolean,
         keepCollection: Boolean = false,
+        renamed: Boolean = false,
         lookup: (suspend (TmdbClient) -> Looked<TmdbMovie>)?,
     ): Fetched {
         val answer = lookup?.let { tmdb.ask(it) }
         val movie = answer?.value?.value
         val nfoInfo = query.nfo
-        // For a user match with no TMDB answer, an IMDb-only NFO is set aside until TMDB can confirm it.
-        val untold = userTmdbId != null && movie == null && nfoInfo?.tmdbId == null && nfoInfo?.imdbId != null
+        // For a user match with no TMDB answer, an IMDb-only NFO is set aside until TMDB can confirm it; so is one renamed.
+        val untold = userTmdbId != null && movie == null && nfoInfo?.tmdbId == null && nfoInfo?.imdbId != null ||
+            renamed && answer !is TmdbAnswer.Given
         // The film the user or the name chose: an NFO naming another describes another film. Until TMDB answers, the
         // name's TMDB id stands, unless a lookup refused it.
         val chosen = userTmdbId ?: if (answer is TmdbAnswer.Given) answer.value?.byName else query.named
