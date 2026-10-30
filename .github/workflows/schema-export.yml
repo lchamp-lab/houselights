@@ -1,0 +1,38 @@
+# TEMPORARY, to be reverted: Room exports schema 23 afresh, it is diffed with the one committed and kept as an artifact.
+name: Schema export
+
+on:
+  push:
+    branches: [fix/040-audit-scan-queries]
+
+permissions:
+  contents: read
+
+jobs:
+  schema:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+      - name: Room exports schema 23
+        run: |
+          dir=app/schemas/app.houselights.providers.local.LibraryDatabase
+          mv "$dir/23.json" "$RUNNER_TEMP/23.hand.json"
+          ./gradlew --no-daemon :app:kspDebugKotlin
+          mkdir -p "$RUNNER_TEMP/exported"
+          for f in $(find app -name 23.json -path '*LibraryDatabase*'); do
+            echo "== $f"
+            cp "$f" "$RUNNER_TEMP/exported/23.json"
+            diff -u "$RUNNER_TEMP/23.hand.json" "$f" || true
+          done
+          test -f "$RUNNER_TEMP/exported/23.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: schema-23
+          path: ${{ runner.temp }}/exported/23.json
