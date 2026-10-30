@@ -485,7 +485,10 @@ class DetailViewModel(
         }
     }
 
-    /** Makes [version] the copy Lire plays (null leaves it to the source) and rereads the copies; failures show by the actions. */
+    /**
+     * Makes [version] the copy Lire plays (null leaves it to the source), then rereads the copies and the film, which reads
+     * as the copy it now plays (Lire or Reprendre, its place and length); failures show by the actions.
+     */
     fun chooseVersion(version: Version?) {
         val item = _state.value.takeIf { it.canChooseVersion }?.item ?: return
         _state.update { it.copy(actionError = null) }
@@ -493,9 +496,11 @@ class DetailViewModel(
             suspendRunCatching {
                 val source = provider()
                 source.catalog?.chooseVersion(item, version)
-                versionsOf(source, item)
-            }.onSuccess { versions ->
-                _state.update { it.copy(versions = versions) }
+                // Optional: without it, the page keeps the film as it read it.
+                val film = suspendRunCatching { source.item(item.id) }.onFailure { Log.w(TAG, "Film of $itemId", it) }.getOrNull()
+                film to versionsOf(source, item)
+            }.onSuccess { (film, versions) ->
+                _state.update { s -> s.copy(item = film?.takeIf { it.id == s.item?.id } ?: s.item, versions = versions) }
                 loadTracks()
             }
                 .onFailure { e -> _state.update { it.copy(actionError = e.reported(TAG, "Version of $itemId")) } }
