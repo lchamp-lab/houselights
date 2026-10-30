@@ -55,7 +55,7 @@ internal class LocalBrowser(
 
     /**
      * Where Android has the disk now, as the form's test: the add-folder flow opens a disk at its root, Android's own
-     * folders left out there ([VOLUME_SYSTEM]), and a link back up the walk left out as an entry that cannot be read.
+     * folders left out there ([VOLUME_SYSTEM]), and a link back up the walk left out as one leading nowhere.
      */
     override suspend fun folders(source: SourceEntity, path: String): FolderLevel = withContext(Dispatchers.IO) {
         mounts.remove(key(source))
