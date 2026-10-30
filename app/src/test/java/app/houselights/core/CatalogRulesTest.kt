@@ -28,4 +28,18 @@ class CatalogRulesTest {
         assertNull(Editions.find("Imaxx 1080p"))
         assertNull(Editions.find("1080p x265"))
     }
+
+    /**
+     * Titles sort « Œuvre » with « oeuvre »; a copy's edition is stored, so it drops accents alone and keeps ligatures as
+     * written: « Restøred » is no edition it knows.
+     */
+    @Test
+    fun anEditionDropsAccentsAndKeepsLigatures() {
+        assertEquals(SortKeys.fold("Œuvre"), SortKeys.fold("oeuvre"))
+        assertEquals("œuvre integrale", SortKeys.foldAccents("Œuvre intégrale"))
+        assertEquals("Œuvre intégrale", Editions.of("Œuvre intégrale"))
+        assertEquals(Editions.UNCUT, Editions.find("Œuvre.Version.Intégrale.1080p"))
+        assertEquals(Editions.SPECIAL, Editions.of("Édition spéciale"))
+        assertEquals("Restøred", Editions.of("Restøred"))
+    }
 }

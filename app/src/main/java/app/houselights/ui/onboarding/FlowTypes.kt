@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import app.houselights.AppContainer
 import app.houselights.R
 import app.houselights.core.FailureKind
+import app.houselights.core.SortKeys
 import app.houselights.core.failureKind
 import app.houselights.core.isMountRefused
 import app.houselights.journal.HomeAddress
@@ -23,8 +24,6 @@ import app.houselights.providers.local.UsedNas
 import app.houselights.providers.local.Volume
 import kotlinx.coroutines.flow.Flow
 import java.net.Inet4Address
-import java.text.Normalizer
-import java.util.Locale
 
 /** A step of « Ajouter un dossier » (DESIGN.md, Secondary screens), kept by its name across a stopped process. */
 enum class FlowStep {
@@ -246,7 +245,7 @@ internal fun holdsBoth(names: List<String>): Boolean {
  * case and accents aside; null for any other.
  */
 internal fun kindNamed(name: String): SourceKind? {
-    val plain = Normalizer.normalize(name, Normalizer.Form.NFD).replace(MARKS, "").lowercase(Locale.ROOT)
+    val plain = SortKeys.fold(name)
     return when {
         MOVIE_NAMES.any { plain.startsWith(it) } -> SourceKind.MOVIES
         SHOW_NAMES.any { plain.startsWith(it) } -> SourceKind.SHOWS
@@ -254,7 +253,6 @@ internal fun kindNamed(name: String): SourceKind? {
     }
 }
 
-private val MARKS = Regex("\\p{M}+")
 private val MOVIE_NAMES = listOf("films", "film", "movies")
 private val SHOW_NAMES = listOf("series", "serie", "tv", "shows")
 

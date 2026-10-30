@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.SortKeys
 import java.text.Normalizer
 import java.time.LocalDate
 
@@ -58,9 +59,12 @@ object CollectionRules {
                 )
             }
 
+    /**
+     * [name]'s significant words, accents dropped and ligatures kept ([SortKeys.foldAccents]): they make the key stored
+     * as [CollectionEntity.matchKey], and [sameName] decides whether it is TMDB's, so neither may move without a migration.
+     */
     private fun words(name: String): List<String> =
-        Normalizer.normalize(name.lowercase(), Normalizer.Form.NFD)
-            .replace(MARKS, "")
+        SortKeys.foldAccents(name)
             .split(NON_WORD)
             .filter { it.isNotEmpty() && it !in GENERIC }
 
@@ -79,7 +83,6 @@ object CollectionRules {
 
     /** Japanese « シリーズ » and Korean « 시리즈 » after a space, Chinese « （系列） »: « 듄 시리즈 », « 沙丘（系列） ». */
     private val SERIES_SUFFIX = Regex("""[\s\u3000]+(?:シリーズ|시리즈)\s*$|\s*[（(]系列[）)]\s*$""")
-    private val MARKS = Regex("\\p{M}")
     private val NON_WORD = Regex("[^a-z0-9]+")
     private val SPACES = Regex("\\s+")
 }

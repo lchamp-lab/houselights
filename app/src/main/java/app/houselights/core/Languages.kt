@@ -1,6 +1,5 @@
 package app.houselights.core
 
-import java.text.Normalizer
 import java.util.Locale
 
 /** Language codes as files, NFOs and servers write them (ISO 639-1, 639-2/T or /B, with a region or not). */
@@ -17,13 +16,10 @@ object Languages {
      * "Film.pt-BR.srt", "Film.french.srt"), as a two-letter code; null when that word is no language.
      */
     fun named(name: String?): String? {
-        val words = name?.let { WORD.findAll(it).map { word -> fold(word.value) }.toList() } ?: return null
+        val words = name?.let { WORD.findAll(it).map { word -> SortKeys.fold(word.value) }.toList() } ?: return null
         val last = words.dropLastWhile { it in NOT_A_LANGUAGE }.lastOrNull() ?: return null
         return code(last)?.takeIf { it in ISO } ?: NAMES[last]
     }
-
-    /** Lower case, without accents: "Français" is "francais". */
-    private fun fold(word: String) = Normalizer.normalize(word, Normalizer.Form.NFD).replace(MARKS, "").lowercase(Locale.ROOT)
 
     private val ISO: Set<String> by lazy { Locale.getISOLanguages().toSet() }
 
@@ -36,7 +32,7 @@ object Languages {
     private val NAMES: Map<String, String> by lazy {
         ISO.flatMap { code ->
             val language = Locale.forLanguageTag(code)
-            listOf(Locale.ENGLISH, Locale.FRENCH, language).map { fold(language.getDisplayLanguage(it)) to code }
+            listOf(Locale.ENGLISH, Locale.FRENCH, language).map { SortKeys.fold(language.getDisplayLanguage(it)) to code }
         }.filter { (name, code) -> name != code && name.all(Char::isLetter) }.distinctBy { it.first }.toMap()
     }
 
@@ -49,7 +45,6 @@ object Languages {
 
     /** A word, with its region if it has one ("pt-BR"). */
     private val WORD = Regex("""\p{L}+(?:[-_]\p{L}{2}(?!\p{L}))?""")
-    private val MARKS = Regex("""\p{M}+""")
 
     /** What a subtitle file's name ends with besides its language: its kind, its format, the player's own words. */
     private val NOT_A_LANGUAGE = setOf(

@@ -20,6 +20,23 @@ class CollectionRulesTest {
         assertFalse(CollectionRules.sameName("Collection", "Saga"))
     }
 
+    /** The key is stored (matchKey): ligatures stay out of its words, as they always have, accents go. */
+    @Test
+    fun aStoredKeyNeverMoves() {
+        mapOf(
+            "Œuvres de Tati" to "name:uvres de tati",
+            "Æon Flux Collection" to "name:on flux",
+            "Die Straße" to "name:die stra e",
+            "Ørnen" to "name:rnen",
+            "Władca Pierścieni" to "name:w adca pierscieni",
+            "Đorđe" to "name:or e",
+            "Óðinn" to "name:o inn",
+            "Þór" to "name:or",
+            "Évil Dead Collection" to "name:evil dead",
+        ).forEach { (name, key) -> assertEquals(name, key, CollectionRules.key(null, name)) }
+        assertFalse("TMDB's name decides the key too", CollectionRules.sameName("Œuvres de Tati", "Oeuvres de Tati Collection"))
+    }
+
     /** A Japanese or Russian NFO set takes TMDB's collection when TMDB gives it the same name, as the key does. */
     @Test
     fun namesThatLeaveNoWordMatchWhole() {

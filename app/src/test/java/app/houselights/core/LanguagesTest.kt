@@ -3,6 +3,7 @@ package app.houselights.core
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.util.Locale
 
 /** A language has one code whatever its source: a file, an NFO or a server. */
 class LanguagesTest {
@@ -33,6 +34,23 @@ class LanguagesTest {
         assertEquals("fr", Languages.named("French(FR [PGS]) PGS"))
         listOf("Film (2020).srt", "Désactivé", "Spider-Man.srt", "Film.VO.srt", "Film VOSTFR", "", null)
             .forEach { assertNull(it, Languages.named(it)) }
+    }
+
+    /** A file's word is folded as titles are: « Føroyskt » and « foroyskt » alike. */
+    @Test
+    fun aLanguageNameReadsLigaturesAsTheyAreSpelledOut() {
+        listOf("Film.føroyskt.srt", "Film.Føroyskt.srt", "Film.foroyskt.srt").forEach { assertEquals(it, "fo", Languages.named(it)) }
+    }
+
+    /** Spelling ligatures out merges no two languages' names: each name folds with the same languages as before. */
+    @Test
+    fun spellingLigaturesOutMergesNoLanguages() {
+        val names = Locale.getISOLanguages().flatMap { code ->
+            val language = Locale.forLanguageTag(code)
+            listOf(Locale.ENGLISH, Locale.FRENCH, language).map { language.getDisplayLanguage(it) to code }
+        }
+        fun languagesBy(fold: (String) -> String) = names.groupBy({ fold(it.first) }, { it.second }).values.map { it.toSet() }.toSet()
+        assertEquals(languagesBy(SortKeys::foldAccents), languagesBy(SortKeys::fold))
     }
 
     @Test
