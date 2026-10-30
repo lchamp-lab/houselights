@@ -196,8 +196,8 @@ private fun FieldBox(
                 .heightIn(min = HlSize.field)
                 .focusRequester(state.boxFocus)
                 .focusProperties { if (crossed) right = state.crossFocus }
-                .onFocusChanged { state.boxFocused = it.isFocused }
-                .openOnOk(waiting = !state.editing) { state.startTyping(latest) }
+                .onFocusChanged { state.boxFocusChanged(it.isFocused) }
+                .openOnOk(state) { state.startTyping(latest) }
                 .focusable()
                 .clip(shape)
                 .background(c.glass)
@@ -262,6 +262,9 @@ private class FieldState(value: String) {
     val crossFocus = FocusRequester()
     private var textHadFocus = false
 
+    /** OK went down on the box at rest, and is not let go yet: only its release opens the keyboard. */
+    var okDown = false
+
     /** Focused at rest, neither typing nor on its cross: where « OK saisir » may show. */
     val atRest: Boolean get() = boxFocused && !editing
 
@@ -270,6 +273,12 @@ private class FieldState(value: String) {
 
     /** While typing, [text] with the cursor the keyboard or the arrows left, or after it when it came from elsewhere. */
     fun typing(text: String): TextFieldValue = if (typed.text == text) typed else atEnd(text)
+
+    /** The box has focus, or not ([focused]): losing it forgets an OK pressed on it. */
+    fun boxFocusChanged(focused: Boolean) {
+        boxFocused = focused
+        if (!focused) okDown = false
+    }
 
     /** OK on the field: typing starts after its [text] as it is now. */
     fun startTyping(text: String) {
@@ -515,11 +524,20 @@ private fun stepped(field: TextFieldValue, forward: Boolean): TextFieldValue? {
 /** [text]'s characters as a reader counts them: an accent typed apart or an emoji is one. */
 private fun characters(text: String): BreakIterator = BreakIterator.getCharacterInstance().apply { setText(text) }
 
-/** OK starts typing on key release, so the keyboard does not receive it. */
-private fun Modifier.openOnOk(waiting: Boolean, open: () -> Unit): Modifier = onKeyEvent { event ->
+/**
+ * OK starts typing on key release, so the keyboard does not receive it, and only the release of a press the field got
+ * at rest: Enter on a keyboard ends typing as it goes down, focus back on the field before it is let go.
+ */
+private fun Modifier.openOnOk(state: FieldState, open: () -> Unit): Modifier = onKeyEvent { event ->
     val ok = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
-    if (waiting && ok) {
-        if (event.type == KeyEventType.KeyUp) open()
+    if (!state.editing && ok) {
+        when (event.type) {
+            KeyEventType.KeyDown -> state.okDown = true
+            KeyEventType.KeyUp -> if (state.okDown) {
+                state.okDown = false
+                open()
+            }
+        }
         true
     } else {
         false

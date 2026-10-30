@@ -33,12 +33,14 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.TestKeyboard
+import app.houselights.ui.testing.pressOnPluggedKeyboard
 import app.houselights.ui.testing.pressOnRemote
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
@@ -193,6 +195,38 @@ class TextFieldClearTest {
 
         text("Share").performImeAction()
         field("Folder").assertIsFocused()
+    }
+
+    /**
+     * Enter on a keyboard plugged in ends typing on a Done field as it goes down, focus back on the field: its release,
+     * whose press the field never got at rest, leaves it at rest, where it opened the keyboard again.
+     */
+    @Test
+    fun enterOnAKeyboardEndsTypingOnADoneFieldWithoutOpeningItAgain() {
+        var done = 0
+        show {
+            HlTextField(
+                "Share",
+                share,
+                { share = it },
+                Modifier.focusRequester(shareFocus),
+                imeAction = ImeAction.Done,
+                onImeAction = { done++ },
+            )
+        }
+        focus(shareFocus)
+        compose.pressOnRemote(Key.DirectionCenter)
+        text("Share").assertIsFocused()
+
+        compose.pressOnPluggedKeyboard(Key.Enter)
+        assertEquals(1, done)
+        field("Share").assertIsFocused()
+        text("Share").assertIsNotFocused()
+
+        // OK still opens it, its press seen at rest.
+        compose.pressOnRemote(Key.DirectionCenter)
+        text("Share").assertIsFocused()
+        assertEquals(1, done)
     }
 
     /**
