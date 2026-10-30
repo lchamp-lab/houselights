@@ -273,6 +273,7 @@
     <string name="error_login_failed">NAS 拒絕了此使用者名稱或密碼。</string>
     <string name="error_password_unread">暫時無法讀取已儲存的密碼：密碼仍會保留。請重新輸入，或稍後再試。</string>
     <string name="error_not_found">NAS 上不存在此共用資料夾或資料夾。請檢查拼字。</string>
+    <string name="error_folder_gone">此資料夾已不在 NAS 上：它可能已被移動或刪除。</string>
     <string name="error_host_missing">請輸入 NAS 位址。</string>
     <string name="error_export_missing">請輸入掛載路徑，例如 /volume1/video。</string>
     <string name="error_share_missing">請輸入共用資料夾的名稱，例如 video。</string>
@@ -911,7 +912,7 @@
     <string name="update_incompatible_message">Android 表示此版本不適用於此播放器。</string>
     <string name="update_install_failed_title">安裝失敗</string>
     <string name="update_install_failed_message">Android 沒有安裝更新。請重試；記錄中有更多資訊。</string>
-    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <!-- Titles not found (#70): many files of a folder, or the folder itself, gone at once while the NAS answers, held until the user answers or they are back. -->
     <plurals name="held_titles">
         <item quantity="other">找不到 %d 部作品</item>
     </plurals>
@@ -919,8 +920,8 @@
         <item quantity="other">在 NAS 上找不到「%2$s」中的 %1$d 部作品</item>
     </plurals>
     <string name="held_see">查看</string>
-    <string name="held_text">資料夾「%s」仍有回應，但 Houselights 已找不到這些作品。如果您刪除或移動了它們，請將其移除。如果 NAS 的某顆硬碟已中斷連線，請保留它們並重新接上硬碟：它們會原樣回來。</string>
-    <string name="held_text_one">資料夾「%s」仍有回應，但 Houselights 已找不到此作品。如果您刪除或移動了它，請將其移除。如果 NAS 的某顆硬碟已中斷連線，請保留它並重新接上硬碟：它會原樣回來。</string>
+    <string name="held_text">NAS 仍有回應，但 Houselights 已在資料夾「%s」中找不到這些作品。如果您刪除或移動了它們，請將其移除。如果 NAS 的某顆硬碟已中斷連線，請保留它們並重新接上硬碟：它們會原樣回來。</string>
+    <string name="held_text_one">NAS 仍有回應，但 Houselights 已在資料夾「%s」中找不到此作品。如果您刪除或移動了它，請將其移除。如果 NAS 的某顆硬碟已中斷連線，請保留它並重新接上硬碟：它會原樣回來。</string>
     <string name="held_keep">保留</string>
     <string name="held_keep_desc">保留它們，等待檔案回來</string>
     <string name="held_keep_desc_one">保留它，等待檔案回來</string>

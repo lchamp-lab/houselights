@@ -864,7 +864,7 @@ private fun ScanFailed(folder: Folder, error: ScanError, actions: HomeActions, m
     HlEmptyState(
         stringResource(R.string.home_scan_failed),
         modifier,
-        message = scanErrorText(error, folder.host),
+        message = scanErrorText(error, folder),
         attention = true,
         action = stringResource(R.string.retry),
         actionIcon = HlIcons.Refresh,

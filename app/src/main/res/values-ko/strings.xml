@@ -273,6 +273,7 @@
     <string name="error_login_failed">NAS가 사용자 이름 또는 비밀번호를 거부했습니다.</string>
     <string name="error_password_unread">저장된 비밀번호를 지금은 읽을 수 없습니다. 비밀번호는 그대로 보관됩니다. 다시 입력하거나 잠시 후 다시 시도하세요.</string>
     <string name="error_not_found">이 공유 폴더 또는 폴더가 NAS에 없습니다. 철자를 확인하세요.</string>
+    <string name="error_folder_gone">이 폴더는 더 이상 NAS에 없습니다. 옮겨졌거나 삭제되었을 수 있습니다.</string>
     <string name="error_host_missing">NAS 주소를 입력하세요.</string>
     <string name="error_export_missing">마운트 경로를 입력하세요(예: /volume1/video).</string>
     <string name="error_share_missing">공유 폴더 이름을 입력하세요(예: video).</string>
@@ -908,7 +909,7 @@
     <string name="update_incompatible_message">Android에 따르면 이 버전은 이 플레이어에 맞지 않습니다.</string>
     <string name="update_install_failed_title">설치 실패</string>
     <string name="update_install_failed_message">Android에서 업데이트를 설치하지 않았습니다. 다시 시도하세요. 자세한 내용은 로그에 있습니다.</string>
-    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <!-- Titles not found (#70): many files of a folder, or the folder itself, gone at once while the NAS answers, held until the user answers or they are back. -->
     <plurals name="held_titles">
         <item quantity="other">찾을 수 없는 작품 %d편</item>
     </plurals>
@@ -916,8 +917,8 @@
         <item quantity="other">NAS에서 ‘%2$s’ 작품 %1$d편을 찾을 수 없습니다</item>
     </plurals>
     <string name="held_see">보기</string>
-    <string name="held_text">‘%s’ 폴더는 응답하지만 Houselights가 이 작품들을 더 이상 찾을 수 없습니다. 삭제하거나 옮겼다면 제거하세요. NAS의 디스크가 분리되었다면 유지한 뒤 디스크를 다시 연결하세요. 그대로 돌아옵니다.</string>
-    <string name="held_text_one">‘%s’ 폴더는 응답하지만 Houselights가 이 작품을 더 이상 찾을 수 없습니다. 삭제하거나 옮겼다면 제거하세요. NAS의 디스크가 분리되었다면 유지한 뒤 디스크를 다시 연결하세요. 그대로 돌아옵니다.</string>
+    <string name="held_text">NAS는 응답하지만 Houselights가 ‘%s’ 폴더에서 이 작품들을 더 이상 찾을 수 없습니다. 삭제하거나 옮겼다면 제거하세요. NAS의 디스크가 분리되었다면 유지한 뒤 디스크를 다시 연결하세요. 그대로 돌아옵니다.</string>
+    <string name="held_text_one">NAS는 응답하지만 Houselights가 ‘%s’ 폴더에서 이 작품을 더 이상 찾을 수 없습니다. 삭제하거나 옮겼다면 제거하세요. NAS의 디스크가 분리되었다면 유지한 뒤 디스크를 다시 연결하세요. 그대로 돌아옵니다.</string>
     <string name="held_keep">유지</string>
     <string name="held_keep_desc">파일이 돌아올 때까지 남겨 둡니다</string>
     <string name="held_keep_desc_one">파일이 돌아올 때까지 남겨 둡니다</string>

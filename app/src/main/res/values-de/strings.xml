@@ -280,6 +280,7 @@
     <string name="error_login_failed">Das NAS hat Benutzername oder Passwort abgelehnt.</string>
     <string name="error_password_unread">Das gespeicherte Passwort konnte vorerst nicht gelesen werden: Es bleibt erhalten. Geben Sie es erneut ein, oder versuchen Sie es gleich noch einmal.</string>
     <string name="error_not_found">Diese Freigabe oder dieser Ordner existiert nicht auf dem NAS. Prüfen Sie die Schreibweise.</string>
+    <string name="error_folder_gone">Dieser Ordner ist nicht mehr auf dem NAS: Er wurde vielleicht verschoben oder gelöscht.</string>
     <string name="error_host_missing">Geben Sie die Adresse des NAS ein.</string>
     <string name="error_export_missing" tools:ignore="Typos">Geben Sie den Mount-Pfad ein, zum Beispiel /volume1/video.</string>
     <string name="error_share_missing">Geben Sie den Namen des freigegebenen Ordners ein, zum Beispiel video.</string>
@@ -939,7 +940,7 @@
     <string name="update_incompatible_message">Laut Android passt diese Version nicht zu diesem Player.</string>
     <string name="update_install_failed_title">Installation fehlgeschlagen</string>
     <string name="update_install_failed_message">Android hat das Update nicht installiert. Versuchen Sie es erneut; das Protokoll sagt mehr.</string>
-    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <!-- Titles not found (#70): many files of a folder, or the folder itself, gone at once while the NAS answers, held until the user answers or they are back. -->
     <plurals name="held_titles">
         <item quantity="one">%d Titel nicht gefunden</item>
         <item quantity="other">%d Titel nicht gefunden</item>
@@ -949,8 +950,8 @@
         <item quantity="other">%1$d Titel aus „%2$s“ auf dem NAS nicht gefunden</item>
     </plurals>
     <string name="held_see">Ansehen</string>
-    <string name="held_text">Houselights findet diese Titel in „%s“ nicht mehr, obwohl der Ordner antwortet. Wenn Sie sie gelöscht oder verschoben haben, entfernen Sie sie. Wenn eine Festplatte des NAS abgesteckt ist, behalten Sie sie und schließen Sie die Festplatte wieder an: Die Titel kehren unverändert zurück.</string>
-    <string name="held_text_one">Houselights findet diesen Titel in „%s“ nicht mehr, obwohl der Ordner antwortet. Wenn Sie ihn gelöscht oder verschoben haben, entfernen Sie ihn. Wenn eine Festplatte des NAS abgesteckt ist, behalten Sie ihn und schließen Sie die Festplatte wieder an: Der Titel kehrt unverändert zurück.</string>
+    <string name="held_text">Houselights findet diese Titel in „%s“ nicht mehr, obwohl das NAS antwortet. Wenn Sie sie gelöscht oder verschoben haben, entfernen Sie sie. Wenn eine Festplatte des NAS abgesteckt ist, behalten Sie sie und schließen Sie die Festplatte wieder an: Die Titel kehren unverändert zurück.</string>
+    <string name="held_text_one">Houselights findet diesen Titel in „%s“ nicht mehr, obwohl das NAS antwortet. Wenn Sie ihn gelöscht oder verschoben haben, entfernen Sie ihn. Wenn eine Festplatte des NAS abgesteckt ist, behalten Sie ihn und schließen Sie die Festplatte wieder an: Der Titel kehrt unverändert zurück.</string>
     <string name="held_keep">Behalten</string>
     <string name="held_keep_desc">Sie bleiben und warten auf ihre Dateien</string>
     <string name="held_keep_desc_one">Er bleibt und wartet auf seine Datei</string>

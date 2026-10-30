@@ -455,7 +455,7 @@ private fun FolderShowcase(
     val posters by remember(source.id) { library.latestPosters(source, SHOWCASE_SLOTS) }.collectAsStateWithLifecycle(emptyList())
     val kind = sourceKindName(source.kind)
     val notRemoved = removeError?.let { stringResource(R.string.folder_not_removed, stringResource(it.message)) }
-    val failed = error?.let { scanErrorText(it, source.host) }
+    val failed = error?.let { scanErrorText(it, source) }
     val removingText = stringResource(R.string.folder_removing, sourceName(source))
     Showcase(
         name = sourceName(source),
