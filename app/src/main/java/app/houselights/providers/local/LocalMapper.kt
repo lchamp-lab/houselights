@@ -50,17 +50,10 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
 
     suspend fun map(e: ItemEntity): MediaItem = mapAll(listOf(e)).single()
 
-    /** Fills [playedCopies] for the films among [entities]: one query per list, then each film in several copies. */
+    /** Fills [playedCopies] for the films among [entities]: one query per list ([playedCopiesOf]). */
     private suspend fun readPlayedCopies(entities: List<ItemEntity>) {
         val films = entities.filter { it.kind == ItemKind.MOVIE && it.versionOf == null }.map { it.id }.filter(filmsRead::add)
-        for (chunk in films.chunked(SQL_IN_LIMIT)) {
-            // Read whole, as Lire ranks them.
-            for (title in dao.titlesInCopies(chunk)) {
-                val copies = dao.copies(title)
-                val played = VersionRank.played(copies) ?: continue
-                playedCopies[title] = watchedAsAny(copies.first { it.id == played }, copies)
-            }
-        }
+        playedCopies += playedCopiesOf(dao, films)
     }
 
     /** When [e] was added after its source's first scan; null for titles that scan found. */
@@ -217,6 +210,21 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         ?.let { LocalProvider.image(it, type) }
 
     companion object {
+        /**
+         * The copy Lire plays ([VersionRank.played]) of each film among main rows [titles] in several copies, watched as
+         * any copy is ([watchedAsAny]): their copies read whole, as Lire ranks them, in one query per [SQL_IN_LIMIT]
+         * films, then ranked off the main thread, as ranking decodes their media info.
+         */
+        suspend fun playedCopiesOf(dao: LibraryDao, titles: List<Long>): Map<Long, ItemEntity> {
+            val rows = titles.chunked(SQL_IN_LIMIT).flatMap { dao.copiesOf(it) }
+            if (rows.isEmpty()) return emptyMap()
+            return withContext(Dispatchers.Default) {
+                rows.groupBy { it.versionOf ?: it.id }.mapNotNull { (title, copies) ->
+                    VersionRank.played(copies)?.let { played -> title to watchedAsAny(copies.first { it.id == played }, copies) }
+                }.toMap()
+            }
+        }
+
         /** [copy], one of a film's [copies], watched as any of them is ([playedCopies]). */
         fun watchedAsAny(copy: ItemEntity, copies: List<ItemEntity>): ItemEntity =
             if (!copy.played && copies.any { it.played }) copy.copy(played = true) else copy

@@ -139,10 +139,7 @@ class LocalProvider(
      */
     private suspend fun playedCopies(status: WatchStatus): Map<Long, ItemEntity> {
         if (status == WatchStatus.ALL || status == WatchStatus.FAVORITES) return emptyMap()
-        return dao.copiesApart().mapNotNull { title ->
-            val copies = dao.copies(title)
-            VersionRank.played(copies)?.let { played -> title to LocalMapper.watchedAsAny(copies.first { it.id == played }, copies) }
-        }.toMap()
+        return LocalMapper.playedCopiesOf(dao, dao.copiesApart())
     }
 
     /** A page of [wall]: its rows in order, then their films and sagas, a few queries for the whole page. */
