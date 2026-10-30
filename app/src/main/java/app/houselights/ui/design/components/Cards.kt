@@ -71,9 +71,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.focused
 import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.onLongClick
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -272,55 +269,6 @@ fun ArtworkSurface(
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }, LocalGround provides Ground.Artwork) { content() }
     }
 }
-
-/**
- * [cardReading], the same modifier from one composition to the next while what it reads is: the card's surface then
- * skips composing again as focus comes into its row or leaves it.
- */
-@Composable
-internal fun rememberCardReading(
-    readAs: String?,
-    stateDescription: String?,
-    focused: Boolean,
-    onClick: (() -> Unit)?,
-    onLongClick: (() -> Unit)?,
-    longClickLabel: String?,
-): Modifier = remember(readAs, stateDescription, focused, onClick, onLongClick, longClickLabel) {
-    cardReading(readAs, stateDescription, focused, onClick, onLongClick, longClickLabel)
-}
-
-/** Clearing semantics for [readAs] drops the clicks, so focus is restated and [onClick] and [onLongClick] re-added. */
-@Suppress("LongParameterList") // What is restated, and its clicks.
-private fun cardReading(
-    readAs: String?,
-    stateDescription: String?,
-    focused: Boolean,
-    onClick: (() -> Unit)?,
-    onLongClick: (() -> Unit)?,
-    longClickLabel: String?,
-): Modifier =
-    if (readAs != null) {
-        Modifier.clearAndSetSemantics {
-            contentDescription = readAs
-            // What it is, after its name: a saga's panel, « vu », « à suivre ».
-            stateDescription?.let { this.stateDescription = it }
-            this.focused = focused
-            onClick?.let { act ->
-                onClick {
-                    act()
-                    true
-                }
-            }
-            onLongClick?.let { act ->
-                onLongClick(label = longClickLabel) {
-                    act()
-                    true
-                }
-            }
-        }
-    } else {
-        Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
-    }
 
 /** How far a card's artwork recedes: 0 in front, 1 behind the focused card. */
 val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
