@@ -5,6 +5,7 @@ import app.houselights.core.Codecs
 import app.houselights.core.Definition
 import app.houselights.core.Editions
 import app.houselights.core.HdrFormat
+import java.text.Normalizer
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 
@@ -55,7 +56,11 @@ data class ShowPath(val title: String, val year: Int?, val dir: String, val epis
  */
 data class DiscPath(val root: String, val index: String)
 
-/** Extracts titles, years and episode numbers from file and folder names. */
+/**
+ * Extracts titles, years and episode numbers from file and folder names, read composed ([nfc]): a name copied from a Mac,
+ * its accents apart (NFD), reads as the same name written on the NAS. Paths it gives back stay as listed, the bytes SMB
+ * and NFS name the files by.
+ */
 @Suppress("TooManyFunctions") // All name-parsing rules live in one place.
 object FilenameParser {
     val VIDEO_EXTENSIONS = setOf(
@@ -209,7 +214,7 @@ object FilenameParser {
     private const val ROMAN_TEN = 10
 
     fun parseMovie(fileName: String): ParsedMovie {
-        val base = normalizeSeparators(dropBrackets(stripExtension(fileName)))
+        val base = normalizeSeparators(dropBrackets(stripExtension(nfc(fileName))))
         val year = yearIn(base)
         val title = beforeTags(if (year != null) base.substring(0, year.range.first) else base)
         return ParsedMovie(clean(title).ifBlank { clean(base) }, year?.value?.toInt())
@@ -239,7 +244,7 @@ object FilenameParser {
      */
     fun edition(relativePath: String): String? {
         val path = discOf(relativePath)?.root?.ifEmpty { null } ?: relativePath
-        val name = stripExtension(path.substringAfterLast('/'))
+        val name = stripExtension(nfc(path.substringAfterLast('/')))
         PLEX_EDITION.find(name)?.let { return Editions.of(it.groupValues[1]) }
         BRACKETED.findAll(name).firstNotNullOfOrNull { Editions.find(it.groupValues[1]) }?.let { return it }
         val base = normalizeSeparators(dropBrackets(name))
@@ -315,7 +320,7 @@ object FilenameParser {
     private class Found(val episode: ParsedEpisode, val folder: Int?, val year: Int?)
 
     private fun episodeIn(fileName: String, folders: List<String>, all: Boolean = true): Found? {
-        val base = normalizeSeparators(dropBrackets(stripExtension(fileName)))
+        val base = normalizeSeparators(dropBrackets(stripExtension(nfc(fileName))))
         val numbers = numbers(base, folders.lastOrNull()?.let(::seasonFromFolder), all) ?: return null
         val (folder, show) = showIn(folders, parseMovie(numbers.before))
         val episode = ParsedEpisode(show?.title, numbers.season, numbers.episode, numbers.last, numbers.numbering)
@@ -385,7 +390,10 @@ object FilenameParser {
     /** Compares ignoring case and punctuation: "Marvel's Agents of S.H.I.E.L.D." equals "Marvels.Agents.of.SHIELD". */
     private fun sameShow(a: String, b: String) = letters(a) == letters(b)
 
-    private fun letters(s: String) = s.lowercase().filter(Char::isLetterOrDigit)
+    private fun letters(s: String) = nfc(s).lowercase().filter(Char::isLetterOrDigit)
+
+    /** [name] composed (NFC): "é" one character, as Sonarr writes it, not "e" and its accent, as a Mac copies it. */
+    private fun nfc(name: String): String = Normalizer.normalize(name, Normalizer.Form.NFC)
 
     private class Numbers(
         val season: Int,
@@ -517,7 +525,7 @@ object FilenameParser {
 
     /** Groups a show's episodes, with the folder's year when given ("doctor who|2005"), so remakes stay apart. */
     fun showKey(title: String, year: Int? = null): String =
-        title.lowercase().replace(NOT_LETTERS, " ").trim().let { if (year == null) it else "$it$YEAR_MARK$year" }
+        nfc(title).lowercase().replace(NOT_LETTERS, " ").trim().let { if (year == null) it else "$it$YEAR_MARK$year" }
 
     private val NOT_LETTERS = Regex("""[^\p{L}\p{N}]+""")
 
