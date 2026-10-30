@@ -61,6 +61,7 @@ import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.Showcase
 import app.houselights.ui.design.components.ShowcaseRow
+import app.houselights.ui.design.components.ShowcaseSpace
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
@@ -138,13 +139,13 @@ internal fun LazyListScope.libraryPane(
     }
 }
 
-/** "12 titres dans 2 dossiers", beside the pane's title; null without folders. */
+/** "12 titres dans 2 dossiers", beside the pane's title; null without folders, or while they and their titles are read. */
 @Composable
 private fun librarySummary(): String? {
-    val library = settingsViewModel().library
-    val folders by library.folders.collectAsStateWithLifecycle(emptyList())
-    val titles by library.titleCount.collectAsStateWithLifecycle(0)
-    if (folders.isEmpty()) return null
+    val vm = settingsViewModel()
+    val folders = vm.folders.collectAsStateWithLifecycle().value
+    val titles = vm.titleCount.collectAsStateWithLifecycle().value
+    if (folders.isNullOrEmpty() || titles == null) return null
     return stringResource(
         R.string.library_in_folders,
         titleCount(titles),
@@ -178,7 +179,9 @@ private fun FocusOnAdded(added: NewFolder, sources: List<Folder>, row: LazyListS
  * One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. The last
  * one removed gives way to the kept server, its home then shown ([onSourceResume]), else to the welcome screen. A folder just
  * [added] takes focus on its showcase as soon as it shows, its scan running there, the row scrolled to it; one whose
- * edit was left, its sheet opening again, focus on « Modifier le dossier ».
+ * edit was left, its sheet opening again, focus on « Modifier le dossier ». Until the folders, what they hold and their
+ * titles held are read, the row keeps its room ([ShowcaseSpace]): what is under it never moves as they come, and no
+ * folder says « 0 titre » before it is counted.
  */
 @Composable
 private fun Showcases(
@@ -188,14 +191,16 @@ private fun Showcases(
     added: NewFolder? = null,
 ) {
     val vm = settingsViewModel()
-    val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
+    // Each null until read, read once while Settings is open.
+    val read = vm.folders.collectAsStateWithLifecycle().value
+    val sources = read.orEmpty()
     val kept = vm.settings.collectAsStateWithLifecycle().value.keptServer
     val scan by vm.library.scan.collectAsStateWithLifecycle()
     // Collected once for all showcases: each scan write re-runs it.
-    val counts by vm.library.folderCounts.collectAsStateWithLifecycle(emptyMap())
+    val counts = vm.folderCounts.collectAsStateWithLifecycle().value
     // Titles held while their files are missing, answered for or not: counted on their folder, its sheet opening theirs.
-    val heldRows by vm.library.held.collectAsStateWithLifecycle(emptyList())
-    val held = remember(heldRows, sources) { heldByFolder(heldRows, sources).associateBy { it.folder.id } }
+    val heldRows = vm.held.collectAsStateWithLifecycle().value
+    val held = remember(heldRows, sources) { heldByFolder(heldRows.orEmpty(), sources).associateBy { it.folder.id } }
     var actionsFor by remember { mutableStateOf<Folder?>(null) }
     // The sheet opened again as its edit was left: focus on « Modifier le dossier », as Back brings focus to the row chosen.
     var backFromEdit by remember { mutableStateOf(false) }
@@ -217,12 +222,14 @@ private fun Showcases(
             backFromEdit = true
         }
     }
-    if (sources.isNotEmpty()) {
+    if (!allRead(read, counts, heldRows)) {
+        ShowcaseSpace()
+    } else if (sources.isNotEmpty()) {
         ShowcaseRow(state = row) {
             items(sources, key = { it.id }) { source ->
                 FolderShowcase(
                     source,
-                    counts = counts[source.id],
+                    counts = counts?.get(source.id),
                     held = held[source.id]?.rows?.size ?: 0,
                     scan = scan.takeIf { it.running && it.sourceId == source.id },
                     error = scan.errors[source.id],
@@ -264,6 +271,9 @@ private fun Showcases(
     }
     HeldSheetFor(heldFor, held, vm.heldAnswers) { heldFor = null }
 }
+
+/** Whether each of [parts] is read: none of them null. */
+private fun allRead(vararg parts: Any?): Boolean = parts.none { it == null }
 
 /**
  * The sheet of the titles held in folder [folder] (none while null), « Retirer » there at any time, its [answers]
@@ -678,8 +688,8 @@ private fun metadataLanguageName(tag: String, locale: Locale = Locale.forLanguag
 private fun SourceRow(doors: SourceDoors, modifier: Modifier = Modifier) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    val folders by vm.library.folders.collectAsStateWithLifecycle(emptyList())
-    val titles by vm.library.titleCount.collectAsStateWithLifecycle(0)
+    val folders = vm.folders.collectAsStateWithLifecycle().value.orEmpty()
+    val titles = vm.titleCount.collectAsStateWithLifecycle().value ?: 0
     // Switching failed (storage), or the kept server could not be resumed or forgotten: shown here, where focus returns.
     val failure = rowFailure(vm.errorOf(SettingAction.SOURCE)) ?: rowFailure(vm.errorOf(SettingAction.KEPT_SERVER), notDone = true)
     SourceSetting(
