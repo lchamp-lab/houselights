@@ -41,7 +41,8 @@ internal class TmdbPass(
     var answered = false
         private set
 
-    /** Consecutive failures. */
+    /** Consecutive failures: those since TMDB last answered. */
+    @Volatile
     private var failures = 0
 
     /** Set when the key is refused or after [MAX_FAILURES] consecutive failures. */
@@ -50,6 +51,12 @@ internal class TmdbPass(
 
     /** True while there is a client and the pass has not stopped. */
     val open: Boolean get() = client != null && !stopped
+
+    /**
+     * [issue] when the pass ends on it: stopped, or TMDB not answering since its last failure. Null once TMDB answered
+     * after it, back: what a moment out of reach left unanswered is asked again by the next pass.
+     */
+    val endIssue: Throwable? get() = issue?.takeIf { stopped || failures > 0 }
 
     suspend fun <T : Any> ask(question: suspend (TmdbClient) -> T?): TmdbAnswer<T> {
         val tmdb = client?.takeIf { !stopped } ?: return TmdbAnswer.Unanswered

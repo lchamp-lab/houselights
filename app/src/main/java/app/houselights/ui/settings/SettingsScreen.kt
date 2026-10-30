@@ -263,6 +263,24 @@ private fun LazyListScope.secretNote(pane: Pane, s: AppSettings, folders: Boolea
 
 private const val LOST_SECRET = "lost-secret"
 
+/** Whether [pane] shows a note at its head ([secretNote]): a secret lost, or not opened for now. */
+private fun notedAtHead(pane: Pane, s: AppSettings, folders: Boolean): Boolean =
+    unreadSecretIn(pane, s.unreadSecrets, folders) || lostSecretNote(pane, s.lostSecrets, folders) != null
+
+/**
+ * Brings into sight a note coming at the head of a pane ([noted]) while its [list] is at its top: the list keeps its
+ * place by the key of its first row, so that row would stay at the top and the note come above it, out of sight, and,
+ * taking no focus, never shown. Read in composition, before the list measures, and asked by index there; whether the
+ * list is at its top changes only as it leaves it or comes back.
+ */
+@Composable
+internal fun NoteInSight(list: LazyListState, noted: Boolean) {
+    // The last value seen, kept without a state: writing it never composes again.
+    val was = remember(list) { booleanArrayOf(noted) }
+    if (noted && !was[0] && !list.canScrollBackward) list.requestScrollToItem(0)
+    was[0] = noted
+}
+
 private fun paneKey(pane: Pane) = FocusKey.pane(pane.name)
 
 /**
@@ -309,6 +327,8 @@ private fun PaneContent(
     // The storage is measured each time its pane shows.
     LaunchedEffect(pane) { if (pane == Pane.Storage) vm.refreshStorage() }
     val trakt = if (pane == Pane.Trakt) traktViewModel() else null
+    val folders = s.source == SourceConfig.Local
+    NoteInSight(list, noted = notedAtHead(pane, s, folders))
     LazyColumn(
         state = list,
         modifier = Modifier
@@ -324,7 +344,6 @@ private fun PaneContent(
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         // A lost or unread secret shows at the pane's head; a failed change shows on its own row, where focus is.
-        val folders = s.source == SourceConfig.Local
         secretNote(pane, s, folders)
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, sources, rows, added)

@@ -37,6 +37,7 @@ import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.Typeset
 import app.houselights.core.UserState
+import app.houselights.core.WatchStatus
 import app.houselights.core.escapeUriPath
 import app.houselights.core.launch
 import app.houselights.core.nextIn
@@ -102,12 +103,18 @@ class LocalProvider(
         val min = collectionMinFilms()
         if (library.id == COLLECTIONS) {
             // Hidden by the setting, there are no sagas to show alone.
-            return if (min > 0) sagaPage(SagaWall(min, filter, films = false), sort, start, limit) else Page(emptyList(), 0, 0)
+            return if (min > 0) {
+                sagaPage(SagaWall(min, filter, films = false, playedCopies(filter.status)), sort, start, limit)
+            } else {
+                Page(emptyList(), 0, 0)
+            }
         }
-        if (grouped && library.id == MOVIES && min > 0) return sagaPage(SagaWall(min, filter, films = true), sort, start, limit)
+        if (grouped && library.id == MOVIES && min > 0) {
+            return sagaPage(SagaWall(min, filter, films = true, playedCopies(filter.status)), sort, start, limit)
+        }
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows have no technical badges of their own: file filters match their episodes, as in libraryFacets.
-        val filtered = LocalFilters.where(kind, filter)
+        val filtered = LocalFilters.where(kind, filter, if (kind == ItemKind.MOVIE) playedCopies(filter.status) else emptyMap())
         val where = filtered.sql
         val args = filtered.args
         val order = when (sort) {
@@ -123,6 +130,16 @@ class LocalProvider(
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = LocalMapper(dao, context)
         return Page(mapper.mapAll(items), total)
+    }
+
+    /**
+     * The copy Lire plays of each film whose copies are not all watched, nor all started, as its main row is, watched as
+     * any copy is ([LocalMapper.watchedAsAny]), for a wall filtered by [status] ([LocalFilters.where]); none for the other
+     * filters.
+     */
+    private suspend fun playedCopies(status: WatchStatus): Map<Long, ItemEntity> {
+        if (status == WatchStatus.ALL || status == WatchStatus.FAVORITES) return emptyMap()
+        return LocalMapper.playedCopiesOf(dao, dao.copiesApart())
     }
 
     /** A page of [wall]: its rows in order, then their films and sagas, a few queries for the whole page. */

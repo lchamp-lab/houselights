@@ -215,6 +215,79 @@ class LibraryViewModelTest {
         assertEquals(filter, after.state.value.filter)
     }
 
+    /**
+     * Android killed the app with 300 titles shown: the wall comes back with as many, read in one page, so that focus
+     * finds the title it left; sorted anew, it starts again from its first page.
+     */
+    @Test
+    fun aWallBroughtBackReadsAsFarAsItWasLeft() = runTest {
+        val saved = SavedStateHandle()
+        val before = LibraryViewModel({ provider }, library, saved)
+        advanceUntilIdle()
+        repeat(2) {
+            before.loadMore()
+            advanceUntilIdle()
+        }
+        assertEquals(300, before.state.value.items.size)
+
+        provider.calls.clear()
+        val after = LibraryViewModel({ provider }, library, saved.afterProcessDeath())
+        advanceUntilIdle()
+        assertEquals(300, after.state.value.items.size)
+        assertEquals(listOf("page 0 300"), provider.calls.filter { it.startsWith("page") })
+
+        provider.calls.clear()
+        after.setSort(SortOption.ADDED)
+        advanceUntilIdle()
+        assertEquals(listOf("page 0 120"), provider.calls.filter { it.startsWith("page") })
+    }
+
+    /**
+     * Brought back with 300 titles shown, the wall reads as many though its first read does not end: cut by a scan's
+     * progress, failed then retried, or cut by Android stopping the app again.
+     */
+    @Test
+    fun aWallBroughtBackReadsAsFarAsItWasLeftThoughItsFirstReadDoesNotEnd() = runTest {
+        val saved = SavedStateHandle()
+        val before = LibraryViewModel({ provider }, library, saved)
+        advanceUntilIdle()
+        repeat(2) {
+            before.loadMore()
+            advanceUntilIdle()
+        }
+        fun pages() = provider.calls.filter { it.startsWith("page") }
+
+        // A scan's progress reloads the wall while its first page is read.
+        val first = provider.gate("page 0 300")
+        provider.calls.clear()
+        val cut = LibraryViewModel({ provider }, library, saved.afterProcessDeath())
+        advanceUntilIdle()
+        cut.onLibraryChanged(scanOnly = true)
+        first.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("page 0 300", pages().last())
+        assertEquals(300, cut.state.value.items.size)
+
+        // Its first page fails, then Réessayer, after Android stopped the app once more while it was read.
+        provider.gates.clear()
+        provider.fail = { if (it.startsWith("page")) IOException("NAS away") else null }
+        val failing = saved.afterProcessDeath()
+        val failed = LibraryViewModel({ provider }, library, failing)
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, failed.state.value.error)
+        provider.fail = { null }
+        provider.calls.clear()
+        val again = LibraryViewModel({ provider }, library, failing.afterProcessDeath())
+        advanceUntilIdle()
+        assertEquals(listOf("page 0 300"), pages())
+        assertEquals(300, again.state.value.items.size)
+        provider.calls.clear()
+        failed.retry()
+        advanceUntilIdle()
+        assertEquals(listOf("page 0 300"), pages())
+        assertEquals(300, failed.state.value.items.size)
+    }
+
     /** Opened from the library in numbers on Dolby Vision films: the wall and its first page start filtered. */
     @Test
     fun aWallOpenedOnPartOfTheLibraryStartsFilteredByIt() = runTest {

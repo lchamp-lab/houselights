@@ -7,9 +7,14 @@ import app.houselights.core.SortOption
 /**
  * SQL for a wall of sagas: the sagas of at least [min] films, of which one passes [filter], and with [films] the
  * films that are in none of them. A saga ranks by its films: its latest added, its latest year, their mean rating;
- * by title, by its own name.
+ * by title, by its own name. [playedCopies] as [LocalFilters.where] reads them.
  */
-internal class SagaWall(private val min: Int, private val filter: LibraryFilter, private val films: Boolean) {
+internal class SagaWall(
+    private val min: Int,
+    private val filter: LibraryFilter,
+    private val films: Boolean,
+    private val playedCopies: Map<Long, ItemEntity> = emptyMap(),
+) {
     /** [limit] rows from [start] in [sort] order; ties sort films first, then by id, so pages never overlap or skip. */
     fun page(sort: SortOption, start: Int, limit: Int): SimpleSQLiteQuery {
         val order = when (sort) {
@@ -25,7 +30,7 @@ internal class SagaWall(private val min: Int, private val filter: LibraryFilter,
     fun count(): SimpleSQLiteQuery = query("SELECT COUNT(*) AS total, COALESCE(SUM(saga), 0) AS sagas FROM", "")
 
     private fun query(select: String, tail: String): SimpleSQLiteQuery {
-        val passing = LocalFilters.where(ItemKind.MOVIE, filter)
+        val passing = LocalFilters.where(ItemKind.MOVIE, filter, playedCopies)
         val alone = "SELECT 0 AS saga, id, sortTitle, addedAt AS added, year, rating FROM items " +
             "WHERE ${passing.sql} AND (collectionId IS NULL OR collectionId NOT IN (SELECT id FROM sagas))"
         val shown = "SELECT 1 AS saga, c.id AS id, c.sortTitle AS sortTitle, s.added AS added, s.year AS year, s.rating AS rating " +

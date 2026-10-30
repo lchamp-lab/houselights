@@ -55,7 +55,7 @@ import kotlin.math.roundToInt
  * own output (Zidoo), the pane says so and hides the system's stand-in modes.
  */
 internal fun LazyListScope.displayPane(s: AppSettings, rows: PaneRows) {
-    item {
+    item(key = "display") {
         val control = outputControl()
         val sentence = if (control == OutputControl.Player) R.string.display_desc_player else R.string.display_desc_system
         Section(stringResource(R.string.section_display), sentence = stringResource(sentence)) {

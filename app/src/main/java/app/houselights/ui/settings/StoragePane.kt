@@ -40,10 +40,10 @@ import app.houselights.ui.util.formatBytes
 import kotlinx.coroutines.launch
 
 internal fun LazyListScope.storagePane(storage: StorageStats?) {
-    item {
+    item(key = "storage") {
         Section(stringResource(R.string.section_storage), sentence = stringResource(R.string.storage_desc)) { StorageSummary(storage) }
     }
-    item { StorageActions(storage) }
+    item(key = "storage-actions") { StorageActions(storage) }
 }
 
 /**

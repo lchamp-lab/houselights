@@ -93,17 +93,17 @@ internal fun LazyListScope.libraryPane(
 ) {
     when (val source = s.source) {
         SourceConfig.Local -> {
-            item {
+            item(key = "library-folders") {
                 Section(stringResource(R.string.section_source), aside = librarySummary()) {
                     Showcases(rows, onEdit = onFolderForm, onSourceResume = sources.resumed, added = added)
                 }
             }
-            item { LibraryActions({ onFolderForm(null, FolderField.FIRST, false) }, rows, sources.toIdentify) }
-            item { FilmData() }
-            item { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(sources, rows.focus(SOURCE)) } }
+            item(key = "library-actions") { LibraryActions({ onFolderForm(null, FolderField.FIRST, false) }, rows, sources.toIdentify) }
+            item(key = "library-film-data") { FilmData() }
+            item(key = "library-source") { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(sources, rows.focus(SOURCE)) } }
         }
         is SourceConfig.Jellyfin -> {
-            item {
+            item(key = "library-server") {
                 Section(stringResource(R.string.section_source)) {
                     // States, not settings: a case's back, the address under its facts.
                     val encrypted = JellyfinClient.isEncrypted(source.serverUrl)
@@ -121,7 +121,7 @@ internal fun LazyListScope.libraryPane(
                     }
                 }
             }
-            item {
+            item(key = "library-source") {
                 HlSettingGroup(null, Modifier.revealOnFocus()) {
                     // A password changed or a device revoked: the sign-in opens filled in, on the password.
                     HlSettingRow(

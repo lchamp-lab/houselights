@@ -22,14 +22,17 @@ data class CacheUsage(val files: Int, val bytes: Long)
 /** Caches NAS artwork in app storage for Coil, read in blocks and downscaled to [MAX_WIDTH] × [MAX_HEIGHT]. */
 class ArtworkCache(
     private val dir: File,
+    /** The size of the volume that holds the cache, of which Android keeps a share for itself ([systemReserve]). */
+    private val totalSpace: () -> Long = { volumeOf(dir)?.totalSpace ?: 0 },
     /** Usable bytes on the volume that holds the cache. */
     // What is free now, not what clearing other apps' caches would give.
     //noinspection UsableSpace
-    private val freeSpace: () -> Long = { generateSequence(dir) { it.parentFile }.firstOrNull { it.exists() }?.usableSpace ?: 0 },
+    private val freeSpace: () -> Long = { volumeOf(dir)?.usableSpace ?: 0 },
 ) {
     /**
      * "file://…" path of the cached copy ([version]); null when it cannot be copied, so TMDB is used. An unreachable
-     * NAS or full device throws, stopping the scan; below [MIN_FREE_BYTES] free, nothing is copied.
+     * NAS or full device throws, stopping the scan; nothing is copied into what Android keeps for itself
+     * ([systemReserve]) and [MIN_FREE_BYTES] above it.
      */
     suspend fun copy(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser): String? {
         val ext = file.relativePath.substringAfterLast('.', "jpg").lowercase().let { if (it == "tbn") "jpg" else it }
@@ -38,7 +41,7 @@ class ArtworkCache(
         val target = File(dir, "${source.id}/${hash(version(file))}.$ext")
         val uri = "file://${target.absolutePath}"
         if (target.exists()) return uri
-        if (freeSpace() < file.size + MIN_FREE_BYTES) {
+        if (freeSpace() < file.size + systemReserve(totalSpace()) + MIN_FREE_BYTES) {
             Log.w(TAG, "Not copying ${file.relativePath}: the device is nearly full")
             return null
         }
@@ -171,8 +174,21 @@ class ArtworkCache(
 
         private const val JPEG_QUALITY = 90
 
-        /** Free space kept when caching, for the database to grow and for the system. */
+        /** Free space kept when caching, above the system's reserve ([systemReserve]), for the database to grow. */
         const val MIN_FREE_BYTES = 200L shl 20
+
+        /** Android 9's low storage threshold: a twentieth of the volume (5 %), 500 MiB at most. */
+        private const val LOW_STORAGE_SHARE = 20
+        private const val LOW_STORAGE_MAX_BYTES = 500L shl 20
+
+        /**
+         * What Android keeps free for itself on a volume of [totalBytes]: below it, it says storage is low and refuses to
+         * install an app, an update of this one included.
+         */
+        internal fun systemReserve(totalBytes: Long): Long = minOf(totalBytes / LOW_STORAGE_SHARE, LOW_STORAGE_MAX_BYTES)
+
+        /** [dir], else its nearest folder there: one not there yet has no space at all, as far as [File] goes. */
+        private fun volumeOf(dir: File): File? = generateSequence(dir) { it.parentFile }.firstOrNull { it.exists() }
 
         /** A cached file's name: the first 24 hex digits of its source's SHA-1, 96 bits. */
         private const val HASH_DIGITS = 24

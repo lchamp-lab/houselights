@@ -163,8 +163,9 @@ internal fun Wall(
     // Shown once focus settles, read outside composition: a step loads no image and recomposes nothing.
     val selectedId = rememberSaveable { mutableStateOf<String?>(null) }
     val shown = rememberSettled { selectedIn(state.items, selectedId.value) }
-    // Films and sagas each start at their top.
-    val gridState = rememberSaveable(state.view, saver = LazyGridState.Saver) { LazyGridState() }
+    // Films and sagas each start at their top, as does a wall started over (a sort, a filter): kept, its grid would open
+    // where its first poster went in the titles read anew.
+    val gridState = rememberSaveable(state.view, state.generation, saver = LazyGridState.Saver) { LazyGridState() }
     // Where the poster last focused stands, kept while a page it opened shows.
     val place = rememberSaveable { mutableIntStateOf(0) }
     val grid = remember(gridState) { WallGrid(gridState, selectedId, place) }

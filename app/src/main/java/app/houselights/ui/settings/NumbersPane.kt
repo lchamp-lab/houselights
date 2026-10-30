@@ -121,8 +121,8 @@ internal fun LazyListScope.numbersPane(
     }
     when (state) {
         // Counting is quick: the title shows alone rather than over placeholder figures.
-        LoadState.Loading -> item { Section(stringResource(R.string.numbers_title)) {} }
-        is LoadState.Failed -> item {
+        LoadState.Loading -> item(key = NUMBERS_HEAD) { Section(stringResource(R.string.numbers_title)) {} }
+        is LoadState.Failed -> item(key = NUMBERS_HEAD) {
             Section(stringResource(R.string.numbers_title)) {
                 PartFailed(state.error, state.retrying, onRetry, actionModifier = rows.focus(RETRY))
             }
@@ -130,7 +130,7 @@ internal fun LazyListScope.numbersPane(
         is LoadState.Ready -> {
             val page = numbersPage(state.value)
             // The first group shares the head's item, so scrolling back up shows the figures and title.
-            item {
+            item(key = NUMBERS_HEAD) {
                 Section(stringResource(R.string.numbers_title)) {
                     NumbersHead(page)
                     page.groups.firstOrNull()?.let {
@@ -211,3 +211,6 @@ private const val HEAD_FIGURES = 3
 
 /** Focus key of Réessayer, shown when the library could not be counted. */
 private const val RETRY = "numbers-retry"
+
+/** Key of the pane's head, counting, failed or counted. */
+private const val NUMBERS_HEAD = "numbers-head"
