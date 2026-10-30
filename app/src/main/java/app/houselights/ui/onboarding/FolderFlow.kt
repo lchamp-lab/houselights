@@ -154,14 +154,22 @@ class FolderFlow(
 
     /**
      * Back after a stopped process: the step left, but the account step again when it needs a password typed, or when
-     * the password kept is one the Keystore did not open for now ([accountAgain]).
+     * the password kept is one the Keystore did not open for now ([accountAgain]); at step 5 or 6, the level left read
+     * again from the NAS, else the shared folders' step, as going up from it does.
      */
     private suspend fun restore() {
         val at = host ?: return go(FlowStep.WHERE, startKey())
         folders = suspendRunCatching { library.foldersOn(at) }.getOrDefault(emptyList())
         if (protocol == Protocol.SMB && accountKept) keptPassword = folders.smbAccess()?.password
         if (step in AFTER_ACCOUNT && accountAgain()) return
-        if (step == FlowStep.BROWSE || step == FlowStep.KIND) levels[path] = level ?: return go(FlowStep.WHERE, startKey())
+        if (step == FlowStep.BROWSE || step == FlowStep.KIND) {
+            val opened = share ?: return go(FlowStep.WHERE, startKey())
+            val read = suspendRunCatching { network.level(place(opened), path.joinToString("/")) }
+                .onFailure { Log.w(TAG, "Reading the level left failed", it) }
+                .getOrNull() ?: return beforeBrowse(opened) { go(FlowStep.WHERE, startKey()) }
+            levels[path] = read
+            level = read
+        }
         view++
         aim(entryKey())
     }
@@ -737,8 +745,7 @@ class FolderFlow(
     private fun show(at: List<String>, read: FolderLevel, focusOn: String? = null) {
         levels[at] = read
         pathNames = ArrayList(at)
-        levelFolders = ArrayList(read.folders)
-        levelVideos = read.videos
+        level = read
         go(FlowStep.BROWSE, focusOn ?: browseFocus(at, read))
     }
 

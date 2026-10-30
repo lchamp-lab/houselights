@@ -416,6 +416,37 @@ class FlowAccountPathTest : FlowHarness() {
     }
 
     /**
+     * The level shown, which may hold thousands of folders, is never in what Android keeps: the flow found again reads
+     * it again from the NAS; a level the NAS no longer has, the flow is back at the shared folders.
+     */
+    @Test
+    fun theLevelShownIsReadAgainAfterAStoppedProcess() {
+        val saved = SavedStateHandle()
+        val flow = flow(films, saved = saved)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        flow.openFolder("Films2")
+        until { flow.path == listOf("Films2") }
+        val shown = checkNotNull(flow.level)
+        val kept = saved.keys().map { saved.get<Any>(it) }
+        assertTrue("its folders kept", kept.none { value -> value is List<*> && value.any { it == shown.folders.first() } })
+
+        network.asked.clear()
+        val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { again.ready }
+        assertEquals(FlowStep.BROWSE, again.step)
+        assertEquals(shown, again.level)
+        assertTrue("read again: ${network.asked}", "level volume1/video/Films2" in network.asked)
+
+        network.folders.remove("volume1/video/Films2")
+        val gone = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { gone.ready }
+        assertEquals(FlowStep.SHARES, gone.step)
+    }
+
+    /**
      * SMB after a stopped process: an account typed comes back to its password, never kept, its user filled; the account
      * of the NAS's folders is read from the library again, and the level above opens with it.
      */

@@ -176,11 +176,12 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
     /** The folder shown at [FlowStep.BROWSE], then chosen, under [share]'s root. */
     val path: List<String> get() = pathNames
 
-    protected var levelFolders by saved.kept<List<String>>(KEPT_LEVEL_FOLDERS, arrayListOf())
-    protected var levelVideos by saved.kept(KEPT_LEVEL_VIDEOS, -1)
-
-    /** The level shown at [FlowStep.BROWSE]. */
-    val level: FolderLevel? get() = if (levelVideos < 0) null else FolderLevel(levelFolders, levelVideos)
+    /**
+     * The level shown at [FlowStep.BROWSE]: never in the saved state, which a level of thousands of folders would burst;
+     * a stopped process reads it again from the NAS, as [path] says.
+     */
+    var level by mutableStateOf<FolderLevel?>(null)
+        protected set
 
     /** Levels read since the shared folder opened, so going up shows them at once. */
     protected val levels = mutableMapOf<List<String>, FolderLevel>()
@@ -449,5 +450,3 @@ private const val KEPT_NO_LIST = "flowNoList"
 private const val KEPT_SHARE = "flowShare"
 private const val KEPT_TRYING = "flowTrying"
 private const val KEPT_PATH = "flowPath"
-private const val KEPT_LEVEL_FOLDERS = "flowLevelFolders"
-private const val KEPT_LEVEL_VIDEOS = "flowLevelVideos"
