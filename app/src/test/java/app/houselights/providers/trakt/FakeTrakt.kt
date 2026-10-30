@@ -30,6 +30,10 @@ class FakeTrakt {
     @Volatile
     var offline = false
 
+    /** Every request fails as a connection Android did not open in time: none reaches Trakt. */
+    @Volatile
+    var connectTimingOut = false
+
     private val staged = ConcurrentHashMap<String, ArrayDeque<Answer>>()
 
     /** The requests Trakt received, answered or not; not those the network lost. */
@@ -72,6 +76,7 @@ class FakeTrakt {
 
     private fun answer(request: Request): Answer {
         if (offline) throw UnknownHostException("api.trakt.tv")
+        if (connectTimingOut) throw SocketTimeoutException("failed to connect to api.trakt.tv/172.66.0.1 (port 443) after 10000ms")
         answered += request
         val route = route(request)
         before.remove(route)?.invoke()

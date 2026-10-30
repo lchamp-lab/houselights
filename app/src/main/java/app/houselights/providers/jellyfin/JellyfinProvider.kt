@@ -24,6 +24,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.Typeset
 import app.houselights.core.WatchStatus
 import app.houselights.core.launch
+import app.houselights.core.neverReachedServer
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PathResolver
 import app.houselights.player.Redact
@@ -37,10 +38,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import java.io.IOException
-import java.net.ConnectException
-import java.net.NoRouteToHostException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -373,21 +370,11 @@ class JellyfinProvider(
         block()
         null
     } catch (e: IOException) {
-        if (e.neverReachedTheServer()) e else throw e
+        // Never reached the server: sending it again cannot apply it twice.
+        if (e.neverReachedServer()) e else throw e
     } catch (e: HttpException) {
         if (e.code() >= HTTP_SERVER_ERROR) e else throw e
     }
-
-    /** The request never reached the server, so resending it cannot apply it twice. */
-    private fun IOException.neverReachedTheServer() =
-        this is ConnectException || this is NoRouteToHostException || this is UnknownHostException || isConnectTimeout()
-
-    /**
-     * Connect timeouts only: Android says "failed to connect to … after 10000ms", a JVM "Connect timed out". Read
-     * timeouts are excluded, as the server may have processed the request.
-     */
-    private fun IOException.isConnectTimeout() = this is SocketTimeoutException &&
-        message.orEmpty().let { it.startsWith("failed to connect", ignoreCase = true) || it.equals("connect timed out", ignoreCase = true) }
 
     private fun toMedia(dto: BaseItem): MediaItem = mapper.toMedia(dto)
 
