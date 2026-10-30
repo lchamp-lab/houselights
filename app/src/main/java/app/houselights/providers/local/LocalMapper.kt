@@ -87,10 +87,10 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         }
         // Typeset for display only; sorting uses the raw entity text.
         val title = Typeset.text(titleOf(e))
-        // Null for list rows (CARD_ROW): only the title page shows media info.
-        val media = MediaProbe.decode(e.mediaInfo)
-        // A film in several copies is started, watched and as long as the copy Lire plays: its resume point is that copy's.
+        // A film in several copies is started, watched, as long as and in the formats of the copy Lire plays.
         val playedRow = playedCopies[e.id] ?: e
+        // Null for list rows (CARD_ROW): only the title page shows media info.
+        val media = e.mediaInfo?.let { MediaProbe.decode(playedRow.mediaInfo) }
         val showCounts = counts[e.id]?.takeIf { e.kind == ItemKind.SERIES }
         val unplayed = showCounts?.unplayed
         val seasonCount = showCounts?.seasons
@@ -109,10 +109,10 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             communityRating = e.rating,
             genres = e.genres,
             directors = e.directors.map { Typeset.text(it) },
-            badges = e.badges,
+            badges = playedRow.badges,
             media = media,
             hasNfo = e.nfoPath != null,
-            fileName = e.filePath?.substringAfterLast('/'),
+            fileName = playedRow.filePath?.substringAfterLast('/'),
             parts = partsOf(e, title),
             // Seasons and episodes fall back to their series' artwork.
             poster = artwork(e, show, ItemEntity::userPosterPath, ItemEntity::posterPath, ImageType.POSTER),

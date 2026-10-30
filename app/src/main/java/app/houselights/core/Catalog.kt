@@ -129,7 +129,7 @@ interface Catalog {
     /** [collection]'s whole saga, including films the library lacks when the source knows them. */
     suspend fun saga(collection: MediaItem): Saga?
 
-    /** Every copy of [item]'s film, the chosen one first; empty when there is a single copy. */
+    /** Every copy of [item]'s film, in an order a choice leaves as it is; empty when there is a single copy. */
     suspend fun versions(item: MediaItem): List<Version>
 
     /** Makes [version] the copy "Lire" plays for [item]'s film; null leaves it to the source again. */

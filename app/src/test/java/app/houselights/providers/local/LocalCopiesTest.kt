@@ -1,16 +1,19 @@
 package app.houselights.providers.local
 
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.AudioTrack
 import app.houselights.core.Catalog
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
+import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
+import app.houselights.core.VideoInfo
 import app.houselights.core.WatchStatus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -61,11 +64,13 @@ class LocalCopiesTest {
         lastPlayedAt: Long? = null,
         positionMs: Long = 0,
         runtimeMin: Int? = null,
+        media: MediaInfo? = null,
     ): Long = dao.insert(
         ItemEntity(
             kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = MetadataMerge.sortKey(title), year = year,
             tmdbId = tmdbId, filePath = path, badges = badges, collectionId = collectionId, played = played,
             lastPlayedAt = lastPlayedAt, positionMs = positionMs, runtimeMin = runtimeMin, addedAt = 0, matchedAt = 1,
+            mediaInfo = media?.let(MediaProbe::encode),
         ),
     )
 
@@ -225,9 +230,10 @@ class LocalCopiesTest {
         assertTrue(plan.uri.endsWith("Heat.mkv"))
         assertEquals(2_400_000L, plan.startMs)
         val versions = catalog.versions(item(first))
-        assertEquals(listOf(first, uhd), versions.map { it.key.toLong() })
-        assertEquals(listOf(true, false), versions.map { it.chosen })
-        assertEquals(listOf(false, true), versions.map { it.best })
+        // The best first, as ever: the copy Lire plays is marked, not moved.
+        assertEquals(listOf(uhd, first), versions.map { it.key.toLong() })
+        assertEquals(listOf(false, true), versions.map { it.chosen })
+        assertEquals(listOf(true, false), versions.map { it.best })
     }
 
     /** Of two copies started, the one played last is the film's everywhere, and Lire resumes it where it stopped. */
@@ -300,6 +306,32 @@ class LocalCopiesTest {
         // The 1080p copy kept where it stopped, and resumes there once chosen.
         catalog.chooseVersion(item(first), catalog.versions(item(first)).single { it.key == first.toString() })
         assertEquals(2_400_000L, launch(first).startMs)
+    }
+
+    /**
+     * A film in several copies shows the formats of the copy Lire plays on its page, its picture, sound, badges and file:
+     * the best one, added after, then the one chosen in Versions; its walls read no media info.
+     */
+    @Test
+    fun aFilmInCopiesShowsTheFormatsOfTheCopyLirePlays() = runTest {
+        val hd = MediaInfo(video = VideoInfo("AVC", 1920, 1080), audio = listOf(AudioTrack("DTS-HD MA", 6, "fre")))
+        val uhd = MediaInfo(video = VideoInfo("HEVC", 3840, 2160), audio = listOf(AudioTrack("TrueHD", 8, "eng", atmos = true)))
+        val first = film("Heat", tmdbId = 949, path = "Heat.mkv", badges = listOf("1080p"), media = hd)
+        val best = film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), media = uhd)
+        dao.groupVersions()
+
+        val page = provider.item(first.toString())
+        assertEquals(uhd, page.media)
+        assertEquals(listOf("4K"), page.badges)
+        assertEquals("Heat.2160p.mkv", page.fileName)
+        assertNull(filmsWall().single().media)
+
+        catalog.chooseVersion(item(first), catalog.versions(item(first)).single { it.key == first.toString() })
+        val chosen = provider.item(first.toString())
+        assertEquals(hd, chosen.media)
+        assertEquals(listOf("1080p"), chosen.badges)
+        assertEquals("Heat.mkv", chosen.fileName)
+        assertEquals(best.toString(), catalog.versions(item(first)).single { !it.chosen }.key)
     }
 
     /** With no copy started, the best plays, from its start: a copy played but not started does not count. */

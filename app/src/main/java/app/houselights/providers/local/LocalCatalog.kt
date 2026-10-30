@@ -137,6 +137,7 @@ internal class LocalCatalog(
             val best = VersionRank.best(copies)
             // The copy Lire plays, marked as a choice is: the one chosen, else the one played last of those started, else the best.
             val played = VersionRank.played(copies)
+            // The best first, then as found: a choice moves no copy, so each keeps its number (« Copie 2 »).
             copies.zip(items).map { (copy, mapped) ->
                 val runtime = copy.runtimeMs()
                 Version(
@@ -155,7 +156,7 @@ internal class LocalCatalog(
                     best = copy.id == best,
                     key = copy.id.toString(),
                 )
-            }.sortedWith(compareByDescending<Version> { it.chosen }.thenByDescending { it.best })
+            }.sortedByDescending { it.best }
         }
     }
 
