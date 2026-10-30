@@ -38,6 +38,7 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.util.NBSP
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -177,12 +178,13 @@ class ShowcasesReadTest {
         show()
         slow.folders.complete(Unit)
         // The folders read: the pane's summary says them, beside its title.
-        compose.waitUntil(TIMEOUT_MS) { shown("$TITLES titres dans 1 dossier") }
+        // A count and its word are held together, as French sets them.
+        compose.waitUntil(TIMEOUT_MS) { shown("$TITLES${NBSP}titres dans 1 dossier") }
         compose.waitForIdle()
-        compose.onNodeWithText("0 titre", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("0${NBSP}titre", useUnmergedTree = true).assertDoesNotExist()
         slow.counts.complete(Unit)
-        compose.waitUntil(TIMEOUT_MS) { shown("$TITLES titres") }
-        compose.onNodeWithText("0 titre", useUnmergedTree = true).assertDoesNotExist()
+        compose.waitUntil(TIMEOUT_MS) { shown("$TITLES${NBSP}titres") }
+        compose.onNodeWithText("0${NBSP}titre", useUnmergedTree = true).assertDoesNotExist()
     }
 
     private companion object {
