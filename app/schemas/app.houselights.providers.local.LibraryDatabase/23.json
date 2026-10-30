@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 23,
-    "identityHash": "00000000000000000000000000000000",
+    "identityHash": "534abd4d8aa5be18c86ab208313d82fa",
     "entities": [
       {
         "tableName": "sources",
@@ -1358,7 +1358,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '00000000000000000000000000000000')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '534abd4d8aa5be18c86ab208313d82fa')"
     ]
   }
 }
