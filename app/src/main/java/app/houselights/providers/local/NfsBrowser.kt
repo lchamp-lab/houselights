@@ -42,11 +42,16 @@ internal class NfsBrowser(
 
     private val unreadable = UnreadablePaths()
 
-    /** About a READDIRPLUS a folder: the count moves a folder at a time. */
-    override suspend fun list(source: SourceEntity, pauses: () -> Boolean, found: (Int) -> Unit): Listing = withMount(source) { mounted ->
-        val export = mounted.export
-        val folder = Folders(export).folder(remotePath(source), export.folder(root(source)))
-        walk(folder, unreadable.of(source), found, pauses) { ScanErrors.isUnreachable(it) || isBroken(it) }
+    /**
+     * About a READDIRPLUS a folder: the count moves a folder at a time. On a mount of its own, as a walk of thousands of
+     * folders would otherwise hold the export's kept mount, and the add-folder flow's levels would wait for its end.
+     */
+    override suspend fun list(source: SourceEntity, pauses: () -> Boolean, found: (Int) -> Unit): Listing = withContext(Dispatchers.IO) {
+        mounts.once({ mounted(source) }) { mounted ->
+            val export = mounted.export
+            val folder = Folders(export).folder(remotePath(source), export.folder(root(source)))
+            walk(folder, unreadable.of(source), found, pauses) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        }
     }
 
     /** Uses a fresh mount so the NAS checks access now; links are followed as a scan follows them. */

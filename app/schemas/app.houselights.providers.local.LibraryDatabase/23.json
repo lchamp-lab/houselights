@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 23,
-    "identityHash": "a4d6ccf0b6179414c519da13f655cbff",
+    "identityHash": "534abd4d8aa5be18c86ab208313d82fa",
     "entities": [
       {
         "tableName": "sources",
@@ -565,6 +565,15 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_items_matchState` ON `${TABLE_NAME}` (`matchState`)"
+          },
+          {
+            "name": "index_items_missingSince",
+            "unique": false,
+            "columnNames": [
+              "missingSince"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_items_missingSince` ON `${TABLE_NAME}` (`missingSince`)"
           }
         ]
       },
@@ -1349,7 +1358,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a4d6ccf0b6179414c519da13f655cbff')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '534abd4d8aa5be18c86ab208313d82fa')"
     ]
   }
 }

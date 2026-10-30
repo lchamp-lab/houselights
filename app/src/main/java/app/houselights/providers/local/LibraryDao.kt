@@ -35,11 +35,12 @@ private const val EPISODES_OF_SHOW = "SELECT 1 FROM items e WHERE e.kind = 'EPIS
  * Films and shows to identify: TMDB found nothing for them or hesitated ([MatchState]) and they have no TMDB id, unless
  * the user left them as they are; a film held missing is not ([MissingFiles]) until its file is back, nor a show whose
  * every episode is, which its page says is held ([LocalMapper]), identifying able to wait, though Modifier still opens
- * Identifier on its page ([doubt]).
+ * Identifier on its page ([doubt]). The unary + keeps SQLite, which has no statistics, from reading the titles not held,
+ * nearly the whole library, through the index of held rows rather than the few to identify through matchState's.
  */
 internal const val TO_IDENTIFY =
     "kind IN ('MOVIE', 'SERIES') AND matchState IN ('NOT_FOUND', 'UNSURE') AND tmdbId IS NULL AND userNoMatch = 0 " +
-        "AND missingSince IS NULL AND (kind = 'MOVIE' OR NOT EXISTS ($EPISODES_OF_SHOW) " +
+        "AND +missingSince IS NULL AND (kind = 'MOVIE' OR NOT EXISTS ($EPISODES_OF_SHOW) " +
         "OR EXISTS ($EPISODES_OF_SHOW AND e.missingSince IS NULL))"
 
 /** The keys of the local films' and shows' choices of tracks ([tracksKey]). */
@@ -185,6 +186,13 @@ interface LibraryDao :
     @Query("SELECT sourceId, nfoPath, nfo FROM items WHERE id = :id")
     suspend fun nfoOf(id: Long): ItemNfo?
 
+    @Query("SELECT id, nfo FROM items WHERE id IN (:ids) AND nfo IS NOT NULL")
+    suspend fun nfosBatch(ids: List<Long>): List<RowNfo>
+
+    /** The NFO text of each row of [ids] that has one, by id: a query per [SQL_IN_LIMIT] rows. */
+    suspend fun nfosOf(ids: List<Long>): Map<Long, String> =
+        ids.chunked(SQL_IN_LIMIT).flatMap { nfosBatch(it) }.associate { it.id to it.nfo }
+
     /** A source's file rows without NFO text; used by tests to inspect a scan's result. */
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")
     suspend fun filesOf(sourceId: Long): List<ItemEntity>
@@ -291,7 +299,10 @@ interface LibraryDao :
     )
     suspend fun recentSeries(limit: Int): List<Recent>
 
-    /** Films of the [limit] most recently watched sagas, by saga in release order, with copies' state merged. */
+    /**
+     * Films of the [limit] most recently watched sagas, by saga in release order, with copies' state merged: watched as
+     * any copy is, at the furthest copy's resume point, which [LocalProvider] reads as the copy Lire plays.
+     */
     @Query(
         "SELECT id, collectionId, (played = 1 OR EXISTS (SELECT 1 FROM items c WHERE c.versionOf = items.id AND c.played = 1)) " +
             "AS played, (SELECT MAX(c.positionMs) FROM items c WHERE c.id = items.id OR c.versionOf = items.id) AS positionMs, " +
@@ -502,24 +513,28 @@ interface LibraryDao :
     suspend fun setMissingSince(ids: List<Long>, since: Long?) =
         ids.chunked(SQL_IN_LIMIT).forEach { setMissingSinceBatch(it, since) }
 
-    /** The films and episodes held while their files are missing ([MissingFiles.isDrop]), by folder and title. */
+    /**
+     * The films and episodes held while their files are missing ([MissingFiles.isDrop]), by folder and title. Held rows
+     * are dated, so `missingSince > 0` reads them through their index, where SQLite reads the whole library for an
+     * `IS NOT NULL`; the same in [heldIn] and [heldOf].
+     */
     @Query(
         "SELECT i.id, i.sourceId, i.kind, i.title, i.year, i.filePath, i.missingSince, s.title AS showTitle, i.seasonNumber, " +
             "i.episodeNumber FROM items i LEFT JOIN items s ON s.id = i.seriesId " +
-            "WHERE i.missingSince IS NOT NULL AND i.filePath IS NOT NULL " +
+            "WHERE i.missingSince > 0 AND i.filePath IS NOT NULL " +
             "ORDER BY i.sourceId, COALESCE(s.sortTitle, i.sortTitle), i.seasonNumber, i.episodeNumber, i.id",
     )
     fun observeHeld(): Flow<List<HeldRow>>
 
     /** The rows held in folder [sourceId] ([MissingFiles.isDrop]). */
-    @Query("SELECT id FROM items WHERE sourceId = :sourceId AND missingSince IS NOT NULL")
+    @Query("SELECT id FROM items WHERE sourceId = :sourceId AND missingSince > 0")
     suspend fun heldIn(sourceId: Long): List<Long>
 
     @Query("SELECT id FROM items WHERE missingSince IS NOT NULL AND id IN (:ids)")
     suspend fun heldAmongBatch(ids: List<Long>): List<Long>
 
     /** The rows held of title [id] ([MissingFiles.isDrop]): a film's copies, a show's episodes, or the episode itself. */
-    @Query("SELECT id FROM items WHERE missingSince IS NOT NULL AND ($COPIES OR seriesId = :id)")
+    @Query("SELECT id FROM items WHERE missingSince > 0 AND ($COPIES OR seriesId = :id)")
     suspend fun heldOf(id: Long): List<Long>
 
     /** The rows title [id] stands on: a film's copies ([COPIES]), else the row itself. */
@@ -952,9 +967,14 @@ interface LibraryDao :
     )
     suspend fun collectionFilms(collectionId: Long): List<ItemEntity>
 
-    /** Card columns of the films of [collectionIds], by collection in release order: one query per page. */
+    /**
+     * Card columns of the films of [collectionIds], by collection in release order: one query per page. A film is watched
+     * as soon as any copy is, as on its walls ([LocalMapper.watchedAsAny]) and in [startedSagas].
+     */
     @Query(
-        "SELECT collectionId, year, rating, genres, played, posterPath, userPosterPath, backdropPath, userBackdropPath, " +
+        "SELECT collectionId, year, rating, genres, " +
+            "(played = 1 OR EXISTS (SELECT 1 FROM items c WHERE c.versionOf = items.id AND c.played = 1)) AS played, " +
+            "posterPath, userPosterPath, backdropPath, userBackdropPath, " +
             "CASE WHEN addedAt > (SELECT firstScanAt FROM sources WHERE sources.id = items.sourceId AND firstScanAt > 0) " +
             "THEN addedAt END AS addedLater " +
             "FROM items WHERE kind = 'MOVIE' AND versionOf IS NULL AND collectionId IN (:collectionIds) " +

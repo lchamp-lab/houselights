@@ -73,7 +73,7 @@ internal class KeptConnections<C>(
     private val clock: () -> Long,
     /**
      * Whether [forget] waits for the key's running operation: an SMB sign-off must not cut a read short, while an
-     * NFS mount is just dropped, so a new address is saved without waiting for a listing of the old one.
+     * NFS mount is just dropped, so a new address is saved without waiting for a read of the old one.
      */
     private val closingWaits: Boolean = true,
 ) {

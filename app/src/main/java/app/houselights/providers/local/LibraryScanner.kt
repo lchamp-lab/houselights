@@ -302,11 +302,30 @@ class LibraryScanner(
         if (result.deletedFiles > 0 || orphanCast > 0) {
             Log.i(TAG, "Cleanup: ${result.deletedFiles} images (${result.freedBytes / KIB} KB), $orphanCast cast rows")
         }
+        cleanedAt = elapsed()
         return result
+    }
+
+    /** When the last cleanup ended, on the monotonic [elapsed] clock; null before the first. */
+    @Volatile
+    private var cleanedAt: Long? = null
+
+    /**
+     * Whether a pass ends with a cleanup: once it removed rows or made them parts of a film ([rowsLeft]), or matched
+     * titles anew ([identified]), which leaves artwork, credits and words unused; else once a [CLEANUP_EVERY_MS], as a
+     * pass that only adds or reads again leaves little, and the cleanup reads every reference and every cached image.
+     * Before the first cleanup since the app started, which [cleanedAt] alone remembers, a pass cleans up only when it
+     * [changed] the library: the pass of every cold start, the NAS unchanged, leaves « Identifier », « Garder » or
+     * « Retirer » no cleanup to wait for.
+     */
+    private fun cleanupDue(identified: Boolean, changed: Boolean): Boolean {
+        val last = cleanedAt
+        return rowsLeft || identified || if (last == null) changed else elapsed() - last >= CLEANUP_EVERY_MS
     }
 
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
         stoppedAfterWriting = false
+        rowsLeft = false
         // Under the lock, as an identification reads and fills the indexers' per-pass state.
         lock.withLock {
             movies.startPass()
@@ -342,7 +361,8 @@ class LibraryScanner(
             // Sources the pass did not reach keep their last error.
             errors += before.filterKeys { id -> id !in reached && sources.any { it.id == id } }
             // Titles to identify are asked again while TMDB answers, as titles waiting for it are, and episodes placed.
-            if (askUnmatched) changed = askedAgain(ShowsTmdb(tmdb, seasons, orders), asked) || changed
+            val identified = askUnmatched && askedAgain(ShowsTmdb(tmdb, seasons, orders), asked)
+            changed = identified || changed
             lock.withLock {
                 suspendRunCatching {
                     // Rows added meanwhile under a source removed during the scan.
@@ -351,8 +371,8 @@ class LibraryScanner(
                     dao.moveOrphanShows()
                     dao.deleteEmptyCollections()
                     if (dao.groupVersions() > 0) changed = true
-                    // Artwork only becomes unused when titles change or go.
-                    if (changed) cleanupLocked()
+                    // Artwork, credits and words only become unused when titles go or are matched anew.
+                    if (cleanupDue(identified, changed)) cleanupLocked()
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
             backfill(tmdb, askTmdb = askUnmatched)
@@ -511,6 +531,7 @@ class LibraryScanner(
         val files = stacks.titles
         val sidecars = Sidecars(listing.sidecars, files, stacks)
         val missing = settleMissing(source, listed, listing, stacks)
+        if (missing.removed.isNotEmpty() || missing.absorbed.isNotEmpty()) rowsLeft = true
         // Renamed files moved their rows, and films their parts, so reload the known files.
         val rewritten = missing.relinked.isNotEmpty() || missing.parts.isNotEmpty()
         val known = (if (rewritten) dao.knownFiles(source.id) else listed).associateBy { it.filePath }
@@ -640,6 +661,9 @@ class LibraryScanner(
 
     /** Whether a folder of the pass under way stopped after writing titles, which its end then tells screens of. */
     private var stoppedAfterWriting = false
+
+    /** Whether a folder of the pass under way removed rows, or made them parts of a film: its end cleans up ([cleanupDue]). */
+    private var rowsLeft = false
 
     /**
      * Re-evaluates [due] per file, as TMDB may close meanwhile; returns how many files changed the library. A file
@@ -921,6 +945,9 @@ class LibraryScanner(
 
         /** Stand-in for matchedAt in [shown]: only whether a title was matched matters. */
         private const val MATCHED = 0L
+
+        /** The longest a pass goes without a cleanup when none removed rows nor matched titles anew ([cleanupDue]). */
+        internal const val CLEANUP_EVERY_MS = 24 * 60 * 60_000L
 
         /** Retry delay for unmatched titles while TMDB refuses the key or is unreachable. */
         private const val UNMATCHED_RETRY_MS = 60 * 60_000L

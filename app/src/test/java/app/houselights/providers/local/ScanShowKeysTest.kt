@@ -97,7 +97,7 @@ class ScanShowKeysTest {
 
     /**
      * A show copied from a Mac, its accents apart (NFD), beside the same show Sonarr wrote composed (NFC): two shows while
-     * names were not read composed, keyed "poke mon" and "pokémon". Version 23 has its episodes read again
+     * names were not read composed, keyed "poke mon" and "pokémon". Version 24 has its episodes read again
      * ([LibraryDatabase.readDecomposedAgain]): the next pass makes them one, without being asked to refresh.
      */
     @Test
