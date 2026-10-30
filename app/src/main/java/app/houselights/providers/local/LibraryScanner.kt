@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class ScanState(
@@ -522,7 +523,8 @@ class LibraryScanner(
         val tmdb = shows.pass
         waitForThePlayer()
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null, listed = 0) }
-        val found = listing(source)
+        val found = suspendRunCatching { listing(source) }.onFailure { e -> notListed(source, e) }.getOrThrow()
+        goneOnce -= source.id
         val listed = dao.knownFiles(source.id)
         checkListed(found, listed)
         // A disc's streams form one title and extras none; rows of non-titles are handled as missing files.
@@ -659,7 +661,10 @@ class LibraryScanner(
     private suspend fun homeFilled(): Boolean =
         dao.count(ItemKind.MOVIE) >= LocalProvider.LATEST || dao.count(ItemKind.SERIES) >= LocalProvider.LATEST
 
-    /** Whether a folder of the pass under way stopped after writing titles, which its end then tells screens of. */
+    /**
+     * Whether a folder of the pass under way stopped after writing titles, or holding them ([holdGone]), which its end
+     * then tells screens of.
+     */
     private var stoppedAfterWriting = false
 
     /** Whether a folder of the pass under way removed rows, or made them parts of a film: its end cleans up ([cleanupDue]). */
@@ -903,6 +908,42 @@ class LibraryScanner(
         stacks: Stacks,
     ): MissingFiles.Outcome {
         val missing = MissingFiles.settle(source.kind, known, listing, stacks)
+        write(source, known, missing)
+        return missing
+    }
+
+    /**
+     * After [source]'s listing failed with [e]: a folder its NAS says is gone ([ScanErrors.isFolderGone]) is held from
+     * the second pass in a row that finds it so ([goneOnce]), as a folder renamed and named back, or a NAS that answered
+     * oddly once, asks nothing. A failure of holding is kept with [e], which stays the one the folder shows.
+     */
+    private suspend fun notListed(source: SourceEntity, e: Throwable) {
+        if (!ScanErrors.isFolderGone(source.protocol, e)) {
+            goneOnce -= source.id
+        } else if (goneOnce.add(source.id)) {
+            Log.i(TAG, "${source.name}: the folder is gone from the NAS; its titles are held if it still is at the next pass")
+        } else {
+            suspendRunCatching { holdGone(source) }.onFailure { e.addSuppressed(it) }
+        }
+    }
+
+    /** Folders the last pass that reached them found gone ([notListed]); kept while the app runs. */
+    private val goneOnce: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+
+    /**
+     * Holds the titles of [source], whose folder its NAS says is gone ([ScanErrors.isFolderGone]), as a sudden drop
+     * holds them ([MissingFiles.folderGone]): asked about once, those held already waiting; the pass's end tells screens.
+     */
+    private suspend fun holdGone(source: SourceEntity) {
+        val known = dao.knownFiles(source.id)
+        val missing = MissingFiles.folderGone(known)
+        Log.i(TAG, "${source.name}: the folder is gone from the NAS, ${missing.held.size} held, ${missing.waiting.size} still held")
+        write(source, known, missing)
+        if (missing.changed) stoppedAfterWriting = true
+    }
+
+    /** Writes [missing], decided for [source]'s rows [known], in one transaction. */
+    private suspend fun write(source: SourceEntity, known: List<KnownFile>, missing: MissingFiles.Outcome) {
         lock.withLock {
             dao.inTransaction {
                 dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, clock(), missing.absorbed)
@@ -911,7 +952,6 @@ class LibraryScanner(
                 if (missing.held.isNotEmpty()) dao.setHeldKept(source.id, false)
             }
         }
-        return missing
     }
 
     suspend fun showQuery(series: ItemEntity): ParsedMovie = shows.showQuery(series)

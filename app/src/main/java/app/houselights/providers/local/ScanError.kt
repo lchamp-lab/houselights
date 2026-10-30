@@ -52,6 +52,21 @@ object ScanErrors {
         return ScanError(kind, e.failurePlace().takeIf { placed })
     }
 
+    /**
+     * Whether [e] says a folder of [protocol] is gone while its NAS answers: not found inside a share or an export that
+     * answered ([FailurePlace.FOLDER]), as a folder deleted or moved on the NAS is; its titles are then held as a sudden
+     * drop holds them ([MissingFiles.folderGone]). Not a NAS out of reach, an account or a guest refused, a folder
+     * refused, nor a share or an export missing ([FailurePlace.SHARE]): none says the files left, and a NAS waking up
+     * may answer so. Nor a folder of the player's own disks ([Protocol.LOCAL]), whose failures say no place: a disk not
+     * there, or not readable yet, is out of reach as a NAS asleep ([LocalBrowser]). Over NFS, a folder not found is one
+     * the NAS said it does not have ([lookedUp]).
+     */
+    fun isFolderGone(protocol: Protocol, e: Throwable): Boolean = isFolderGone(protocol, classify(e))
+
+    /** Whether [error], a scan's of a folder of [protocol], says the folder is gone while its NAS answers. */
+    fun isFolderGone(protocol: Protocol, error: ScanError): Boolean =
+        protocol != Protocol.LOCAL && error.kind == ScanErrorKind.NOT_FOUND && error.place == FailurePlace.FOLDER
+
     /** TMDB failures are reported separately ([ScanState.tmdbIssue]); other kinds map to OTHER. */
     private fun FailureKind.scanErrorKind(): ScanErrorKind = when (this) {
         FailureKind.UNREACHABLE -> ScanErrorKind.UNREACHABLE

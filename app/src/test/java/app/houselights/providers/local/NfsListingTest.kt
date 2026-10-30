@@ -2,8 +2,11 @@ package app.houselights.providers.local
 
 import com.emc.ecs.nfsclient.nfs.NfsException
 import com.emc.ecs.nfsclient.nfs.NfsStatus
+import com.emc.ecs.nfsclient.rpc.RpcException
+import com.emc.ecs.nfsclient.rpc.RpcStatus
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,6 +62,7 @@ class NfsListingTest {
         override fun lookup(dir: ByteArray, name: String): NfsEntry {
             val path = String(dir).let { if (it.isEmpty()) name else "$it/$name" }
             asked += "LOOKUP /$path"
+            lookupFailures[path]?.let { throw it }
             if (stale.remove(String(dir))) throw NfsException(NfsStatus.NFS3ERR_STALE, "lookup error code: NfsStatus:70")
             val parent = String(dir)
             if (parent.isNotEmpty() && items[parent]?.isFolder != true) throw NfsException(NfsStatus.NFS3ERR_NOTDIR, "lookup error")
@@ -87,6 +91,9 @@ class NfsListingTest {
     private val items = mutableMapOf<String, Item>()
     private val withheld = mutableSetOf<String>()
     private val refused = mutableMapOf<String, Throwable>()
+
+    /** What a LOOKUP of each path throws instead of its answer. */
+    private val lookupFailures = mutableMapOf<String, Throwable>()
 
     /** Listed, then gone before its lookup. */
     private val gone = mutableSetOf<String>()
@@ -403,6 +410,39 @@ class NfsListingTest {
         library()
         val failure = runCatching { browser(Export()).list(films.copy(path = "Films")) }.exceptionOrNull()
         assertEquals(ScanErrorKind.NOT_FOUND, failure?.let { ScanErrors.classify(it).kind })
+    }
+
+    /** The folder at [path] looked up a name at a time ([lookedUp]), as when Nfs3File found no handle for it. */
+    private fun rootOf(path: String) = runCatching { String(lookedUp(Export(), ByteArray(0), path)) }
+
+    private fun isGone(path: String) = ScanErrors.isFolderGone(Protocol.NFS, checkNotNull(rootOf(path).exceptionOrNull()))
+
+    /**
+     * A folder's root looked up a name at a time, links followed: a name the NAS does not have, or a file where the path
+     * goes on, is a folder gone; a disk spinning up, a folder refused, a fault of the NAS or the NAS silent are not, and
+     * keep what they say.
+     */
+    @Test
+    fun aRootIsGoneOnlyWhenTheNasSaysItIsNotThere() {
+        folder("media")
+        folder("media/Films")
+        file("media/notes.txt", size = 10)
+        link("media/Movies", "Films")
+        assertEquals("media/Films", rootOf("/media/Films").getOrThrow())
+        assertEquals("a link followed", "media/Films", rootOf("/media/Movies").getOrThrow())
+        assertTrue(isGone("/media/Series"))
+        assertTrue("a file where the path goes on", isGone("/media/notes.txt/Films"))
+        listOf(
+            NfsException(NfsStatus.NFS3ERR_JUKEBOX, "lookup error code: NfsStatus:10008") to ScanErrorKind.UNREACHABLE,
+            RpcException(RpcStatus.NETWORK_ERROR, "rpc request timeout on the connection: /192.168.1.20:2049") to
+                ScanErrorKind.UNREACHABLE,
+            NfsException(NfsStatus.NFS3ERR_ACCES, "lookup error code: NfsStatus:13") to ScanErrorKind.ACCESS_DENIED,
+            NfsException(NfsStatus.NFS3ERR_SERVERFAULT, "lookup error code: NfsStatus:10006") to null,
+        ).forEach { (failure, kind) ->
+            lookupFailures["media"] = failure
+            assertFalse("$failure", isGone("/media/Films"))
+            kind?.let { assertEquals("$failure", it, ScanErrors.classify(checkNotNull(rootOf("/media/Films").exceptionOrNull())).kind) }
+        }
     }
 
     /** Films kept elsewhere in the export and linked from the folder, as a debrid or "category" setup leaves them. */

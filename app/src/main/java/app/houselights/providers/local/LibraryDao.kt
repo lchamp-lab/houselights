@@ -502,10 +502,13 @@ interface LibraryDao :
     )
     suspend fun setParts(id: Long, parts: String)
 
-    @Query("UPDATE items SET missingSince = :since WHERE id IN (:ids)")
+    @Query("UPDATE items SET missingSince = CASE WHEN :since IS NULL THEN NULL ELSE COALESCE(missingSince, :since) END WHERE id IN (:ids)")
     suspend fun setMissingSinceBatch(ids: List<Long>, since: Long?)
 
-    /** Sets [since] (first missed, see [MissingFiles]; null once back) on any number of rows, atomically. */
+    /**
+     * Sets [since] (first missed, see [MissingFiles]; null once back) on any number of rows, atomically; rows held
+     * already keep when they were first missed.
+     */
     @Transaction
     suspend fun setMissingSince(ids: List<Long>, since: Long?) =
         ids.chunked(SQL_IN_LIMIT).forEach { setMissingSinceBatch(it, since) }

@@ -267,14 +267,43 @@ internal interface NfsExport {
     fun readlink(link: ByteArray): String
 }
 
+/**
+ * The handle of the folder at [path] from the export root, looked up a name at a time from [root], symbolic links
+ * followed ([NfsLinks]). A name the NAS says it does not have (NFS3ERR_NOENT, which nfs-client throws as
+ * FileNotFoundException), or a file where the path goes on (NFS3ERR_NOTDIR), throws FileNotFoundException: the folder
+ * is not there ([ScanErrors.isFolderGone]). Any other failure (the NAS silent, a disk spinning up, a folder refused)
+ * throws as it came, so that it is never taken for a folder gone.
+ */
+internal fun lookedUp(export: NfsExport, root: ByteArray, path: String): ByteArray {
+    val links = NfsLinks(export) { folder -> lookedUp(export, root, folder) }
+    var folder = ""
+    var handle = root
+    for (name in path.split('/').filter { it.isNotEmpty() }) {
+        val target = links.reached(folder, export.lookupIn(handle, name, path))
+        handle = target.entry.handle ?: throw MalformedAnswerException("LOOKUP of $name answered no handle")
+        folder = target.path
+    }
+    return handle
+}
+
+/** LOOKUP of [name] in [dir] on the way to [path]; a file where a folder was expected (NFS3ERR_NOTDIR) is a name not there. */
+private fun NfsExport.lookupIn(dir: ByteArray, name: String, path: String): NfsEntry = try {
+    lookup(dir, name)
+} catch (e: NfsException) {
+    throw if (e.status?.value == NfsStatus.NFS3ERR_NOTDIR.value) FileNotFoundException(path).apply { initCause(e) } else e
+}
+
 /** nfs-client export; falls back to READDIR with per-entry lookups when READDIRPLUS is unsupported. */
 private class Nfs3Export(private val nfs: Nfs3) : NfsExport {
     /** Cleared once the NAS answers NFS3ERR_NOTSUPP to READDIRPLUS. */
     @Volatile
     private var plus = true
 
-    /** Resolves like Nfs3File: symbolic links followed, FileNotFoundException when missing. */
-    override fun folder(path: String): ByteArray = Nfs3File(nfs, path).followLinks().fileHandle ?: throw FileNotFoundException(path)
+    /**
+     * Resolves like Nfs3File, symbolic links followed. Nfs3File takes any failure of a LOOKUP for a name not there, so
+     * without a handle the path is looked up again a name at a time ([lookedUp]), which tells why.
+     */
+    override fun folder(path: String): ByteArray = Nfs3File(nfs, path).followLinks().fileHandle ?: lookedUp(this, nfs.rootFileHandle, path)
 
     override fun readdirplus(dir: ByteArray, cookie: Long, verifier: Long): NfsPage {
         if (plus) {

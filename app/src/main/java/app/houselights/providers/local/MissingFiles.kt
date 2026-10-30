@@ -8,7 +8,8 @@ package app.houselights.providers.local
  *   info, TMDB details, credits) and given back what the user did;
  * - a NAS can list short without failing (a disk of its pool offline, a volume not mounted yet), which the app cannot
  *   tell from a clean-up: a sudden drop ([isDrop]) removes nothing; its rows are held, still shown, until their files
- *   are back or the user answers ([LibraryScanner.keepHeld], [LibraryScanner.removeHeld]). No clock decides.
+ *   are back or the user answers ([LibraryScanner.keepHeld], [LibraryScanner.removeHeld]). No clock decides;
+ * - a folder its NAS says is gone while it answers (deleted or moved there) is held so too, whole ([folderGone]).
  */
 internal object MissingFiles {
     /** The fewest titles a sudden drop holds, so that a handful deleted never asks. */
@@ -46,7 +47,27 @@ internal object MissingFiles {
                 held.isNotEmpty() || back.isNotEmpty()
     }
 
-    /** Rows under unreadable subfolders (lost+found, another user's) are out of sight, not missing. */
+    /**
+     * The rows [known] of a folder its NAS says is gone ([ScanErrors.isFolderGone]): all held, as a sudden drop holds
+     * them, those an earlier pass held waiting. Listed again, they are back, and those still missing settled anew ([settle]).
+     */
+    fun folderGone(known: Collection<KnownFile>): Outcome {
+        val (waiting, fresh) = known.partition { it.missingSince != null }
+        return Outcome(
+            relinked = emptyList(),
+            back = emptyList(),
+            held = fresh.map { it.id },
+            removed = emptyList(),
+            waiting = waiting.map { it.id },
+        )
+    }
+
+    /**
+     * Rows under unreadable subfolders (lost+found, another user's) are out of sight, not missing. A folder every row of
+     * which is held, as one gone from its NAS is ([folderGone]), that lists again is back: its rows out of sight are
+     * shown unmarked, as before it went, and those still missing are settled as on any pass rather than left waiting, a
+     * few going and many a sudden drop, asked about anew.
+     */
     fun settle(
         kind: SourceKind,
         known: Collection<KnownFile>,
@@ -54,8 +75,10 @@ internal object MissingFiles {
         stacks: Stacks = Stacks.of(kind, listing.videos),
     ): Outcome {
         val hidden = listing.unreadable
-        val seen = if (hidden.isEmpty()) known else known.filterNot { item -> hidden.any { item.filePath.isIn(it) } }
-        return settle(kind, seen, stacks)
+        val (out, seen) = known.partition { item -> hidden.any { item.filePath.isIn(it) } }
+        val returned = known.isNotEmpty() && known.all { it.missingSince != null }
+        val outcome = settle(kind, seen, stacks, anew = returned)
+        return if (returned) outcome.copy(back = outcome.back + out.map { it.id }) else outcome
     }
 
     /**
@@ -72,9 +95,9 @@ internal object MissingFiles {
 
     /**
      * A file that became a later part ([Stacks.titles]) is not missing: its row stands in for the film when the film
-     * has none, else is deleted at once, unless the stack is [split].
+     * has none, else is deleted at once, unless the stack is [split]. Rows held and still missing wait, unless [anew].
      */
-    fun settle(kind: SourceKind, known: Collection<KnownFile>, stacks: Stacks): Outcome {
+    fun settle(kind: SourceKind, known: Collection<KnownFile>, stacks: Stacks, anew: Boolean = false): Outcome {
         val files = stacks.titles
         val present = files.mapTo(HashSet()) { it.relativePath }
         val split = split(known, stacks)
@@ -90,7 +113,7 @@ internal object MissingFiles {
         val relinked = standIns + relinks(kind, missing, added, files, stacks)
         val moved = relinked.mapTo(HashSet()) { it.first.id }
         // The folder's titles: its rows but those now parts of a film.
-        val gone = gone(missing.filter { it.id !in moved }, titles = rest.size)
+        val gone = gone(missing.filter { it.id !in moved }, titles = rest.size, anew)
         val titles = listed.map { it to it.filePath } + relinked.map { (row, file) -> row to file.relativePath }
         return Outcome(
             relinked = relinked.map { (row, file) -> row.id to file },
@@ -109,12 +132,12 @@ internal object MissingFiles {
     private class Gone(val held: List<Long>, val removed: List<Long>, val waiting: List<Long>)
 
     /**
-     * Rows [missing] of a folder of [titles]: held by an earlier drop, they wait; newly missing, they go, unless they are
-     * a sudden drop ([isDrop]), which holds them all. A film whose first part is missing is missing too, its later parts
-     * then waiting with it while it is held ([waitingParts]).
+     * Rows [missing] of a folder of [titles]: held by an earlier drop, they wait, unless settled [anew]; newly missing,
+     * they go, unless they are a sudden drop ([isDrop]), which holds them all. A film whose first part is missing is
+     * missing too, its later parts then waiting with it while it is held ([waitingParts]).
      */
-    private fun gone(missing: List<KnownFile>, titles: Int): Gone {
-        val (waiting, fresh) = missing.partition { it.missingSince != null }
+    private fun gone(missing: List<KnownFile>, titles: Int, anew: Boolean): Gone {
+        val (waiting, fresh) = if (anew) emptyList<KnownFile>() to missing else missing.partition { it.missingSince != null }
         val drop = isDrop(fresh.size, titles)
         val ids = fresh.map { it.id }
         return Gone(held = if (drop) ids else emptyList(), removed = if (drop) emptyList() else ids, waiting = waiting.map { it.id })
