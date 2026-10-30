@@ -1,5 +1,7 @@
 package app.houselights.providers.local
 
+import android.util.Log
+import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -10,8 +12,8 @@ import kotlinx.coroutines.withContext
  * entries appear on TMDB within days of a release and months later for others: daily in a title's first week, then
  * weekly; an hour after the last time on a scan the user asks for; never while TMDB is out of reach. Reads nothing on
  * the NAS: a title is asked by what its row holds (its name, its NFO, its artwork). A title found at last is saved as
- * an identification saves it, a show with its seasons; one still not found keeps all it has but its state, its
- * candidates and when it was asked.
+ * an identification saves it, a show with its seasons, then placed in the order it follows; one still not found keeps all
+ * it has but its state, its candidates and when it was asked.
  */
 internal class Reidentify(
     private val dao: LibraryDao,
@@ -22,6 +24,8 @@ internal class Reidentify(
     /** [LibraryScanner]'s wait while a film plays or the app is in the background; called before each title. */
     private val waitForThePlayer: suspend () -> Unit,
 ) {
+    private val placing = EpisodePlacing(dao, clock)
+
     /** Returns how many titles changed: found, or found otherwise (another state, other candidates). */
     suspend fun run(tmdb: TmdbPass, asked: Boolean): Int {
         val now = clock()
@@ -71,15 +75,30 @@ internal class Reidentify(
                     // Left as it is while TMDB was asked ([LocalEditor.keepUnidentified], at once): what it found is not written.
                     if (dao.item(title.id)?.userNoMatch == false) changed = writes()
                 }
+                if (changed && fresh.kind == ItemKind.SERIES) placed(title.id, tmdb)
             }
             changed
         }
+    }
+
+    /**
+     * A show found at last placed in the order it follows ([EpisodePlacing.reorder]), its tvshow.nfo's or a Kodi link's,
+     * as an identification places it, its episodes saved in TMDB's seasons until then; TMDB not answering, the show is
+     * read again whole at the next pass, which places them.
+     */
+    private suspend fun placed(seriesId: Long, tmdb: TmdbPass) {
+        if (dao.item(seriesId)?.tmdbId == null) return
+        val placed = suspendRunCatching { placing.reorder(seriesId, tmdb) }
+            .onFailure { Log.w(TAG, "Episodes of show $seriesId wait for the next pass to be placed", it) }
+        if (placed.getOrNull() == null) dao.readAgain(seriesId)
     }
 
     private fun stillDue(fresh: ItemEntity, title: ItemEntity) = fresh.tmdbId == null && fresh.userTmdbId == null &&
         !fresh.userNoMatch && fresh.matchedAt == title.matchedAt && fresh.missingSince == null
 
     companion object {
+        private const val TAG = "Reidentify"
+
         /** Films asked again per pass at most, as many shows; shows are counted by their calls too ([SHOW_CALLS_PER_PASS]). */
         const val TITLES_PER_PASS = 40
 
