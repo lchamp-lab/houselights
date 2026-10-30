@@ -249,11 +249,7 @@ private fun Showcases(
         val last = vm.isLast(source, sources)
         SourceActions(
             source,
-            consequence = when {
-                !last -> stringResource(R.string.remove_folder_desc)
-                kept != null -> stringResource(R.string.remove_last_folder_kept_desc, serverName(kept))
-                else -> stringResource(R.string.remove_last_folder_desc)
-            },
+            consequence = removalConsequence(last, kept),
             error = scan.errors[source.id],
             held = held[source.id]?.rows?.size ?: 0,
             onOpenHeldTitles = { heldFor = source.id },
@@ -273,6 +269,14 @@ private fun Showcases(
 
 /** Whether each of [parts] is read: none of them null. */
 private fun allRead(vararg parts: Any?): Boolean = parts.none { it == null }
+
+/** What removing a folder does: the [last] one gives way to the [kept] server, if any, else to the welcome screen. */
+@Composable
+private fun removalConsequence(last: Boolean, kept: SourceConfig.Jellyfin?): String = when {
+    !last -> stringResource(R.string.remove_folder_desc)
+    kept != null -> stringResource(R.string.remove_last_folder_kept_desc, serverName(kept))
+    else -> stringResource(R.string.remove_last_folder_desc)
+}
 
 /**
  * The sheet of the titles held in folder [folder] (none while null), « Retirer » there at any time, its [answers]
