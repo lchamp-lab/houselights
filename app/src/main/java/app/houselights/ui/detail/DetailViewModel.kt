@@ -482,7 +482,7 @@ class DetailViewModel(
         }
     }
 
-    /** Makes [version] the copy Lire plays (null for the best) and rereads the copies; failures show by the actions. */
+    /** Makes [version] the copy Lire plays (null leaves it to the source) and rereads the copies; failures show by the actions. */
     fun chooseVersion(version: Version?) {
         val item = _state.value.takeIf { it.canChooseVersion }?.item ?: return
         _state.update { it.copy(actionError = null) }

@@ -54,19 +54,27 @@ internal object LibraryCount {
     }
 }
 
-/** Ranks a film's copies by definition, dynamic range, sound, then size; the best plays by default. */
+/** Ranks a film's copies by definition, dynamic range, sound, then size; the best plays unless one is chosen or started ([played]). */
 internal object VersionRank {
     class Copy(val badges: List<String>, val media: MediaInfo?, val sizeBytes: Long?)
 
     fun best(copies: List<ItemEntity>): Long =
         copies.maxWith(compareBy(comparator) { Copy(it.badges, MediaProbe.decode(it.mediaInfo), it.fileSize) }).id
 
-    /** The copy Lire plays among a film's [copies]: the one its main row chose, else the best; null for one copy. */
+    /**
+     * The copy Lire plays among a film's [copies], each keeping its own resume point: the one its main row chose in
+     * Versions, the latest choice made on the film; else the one started and not watched that was played last
+     * ([resumed]), so that a film stays where it was left once another copy comes; else the best. Null for one copy.
+     */
     fun played(copies: List<ItemEntity>): Long? {
         if (copies.size < 2) return null
         val choice = copies.firstOrNull { it.versionOf == null }?.versionChoice
-        return copies.firstOrNull { it.id == choice }?.id ?: best(copies)
+        return copies.firstOrNull { it.id == choice }?.id ?: resumed(copies) ?: best(copies)
     }
+
+    /** The copy among [copies] started and not watched that was played last, the one found first on a tie; null for none. */
+    private fun resumed(copies: List<ItemEntity>): Long? = copies.filter { it.positionMs > 0 && !it.played }
+        .maxWithOrNull(compareBy<ItemEntity> { it.lastPlayedAt ?: 0L }.thenByDescending { it.id })?.id
 
     /** The better copy compares greater. */
     val comparator: Comparator<Copy> = Comparator { a, b ->
