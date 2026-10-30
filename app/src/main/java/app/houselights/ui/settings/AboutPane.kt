@@ -18,7 +18,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -29,7 +28,6 @@ import app.houselights.R
 import app.houselights.player.DeviceIdentity
 import app.houselights.player.PlayerFacts
 import app.houselights.player.PlayerStatus
-import app.houselights.player.ZidooPlayer
 import app.houselights.player.ZidooPlayer.Decision
 import app.houselights.player.ZidooStatus
 import app.houselights.ui.design.Hl
@@ -49,8 +47,11 @@ import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.FACT_GAP
+import app.houselights.ui.util.appContainer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.withContext
 
 /** About; [jellyfin] while Jellyfin is the source, which the trust sheet names (#58). */
 internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows, updates: UpdateUi? = null, jellyfin: Boolean = false) {
@@ -118,7 +119,7 @@ internal fun AboutStatus(jellyfin: Boolean, vm: AboutViewModel = aboutViewModel(
     }
     val focus = LocalFocusManager.current
     // Read before the row leaves, which it does at the next frame: focus moves on while it is still there.
-    val reread: () -> Unit = { if (vm.readPlayer()) focus.moveFocus(FocusDirection.Down) }
+    val reread: () -> Unit = { vm.readPlayer { focus.moveFocus(FocusDirection.Down) } }
     LaunchedEffect(asked, vm) {
         snapshotFlow { asked.facts == null }.drop(1).filter { it }.collect { reread() }
     }
@@ -138,8 +139,8 @@ internal fun AboutStatus(jellyfin: Boolean, vm: AboutViewModel = aboutViewModel(
 /** The trust sheet's state for this device's player ([ZidooTrust]). */
 @Composable
 private fun rememberTrustAsked(): TrustAsked {
-    val context = LocalContext.current
-    return remember { TrustAsked(ZidooTrust(context)) }
+    val players = appContainer().players
+    return remember { TrustAsked(ZidooTrust(players)) }
 }
 
 /**
@@ -148,7 +149,7 @@ private fun rememberTrustAsked(): TrustAsked {
  * trust sheet ([onClick]) and trusts nothing. Never for another refusal: trusting would make nothing safe there.
  */
 @Composable
-internal fun TrustRow(player: PlayerStatus, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun TrustRow(player: PlayerStatus?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val changed = (player as? PlayerStatus.Unrecognized)?.takeIf { it.reason == Decision.CHANGED } ?: return
     HlSettingGroup(null, modifier.padding(top = HlSpace.m).revealOnFocus()) {
         HlSettingRow(stringResource(R.string.trust_player), description = trustDescription(changed.facts), onClick = onClick)
@@ -170,26 +171,27 @@ private fun trustDescription(facts: PlayerFacts?): String? {
 /** About's view model, asking this player what playback asks it. */
 @Composable
 private fun aboutViewModel(): AboutViewModel {
-    val context = LocalContext.current.applicationContext
+    val players = appContainer().players
     return viewModel {
         AboutViewModel(
             // The same decision playback makes, so About shows what playback will do on this player.
-            playerStatus = { ZidooPlayer(context).status() },
+            playerStatus = { withContext(Dispatchers.IO) { players.status() } },
             apiAnswers = ZidooStatus::isAvailable,
         )
     }
 }
 
 /**
- * The device's model, its player as playback decides ([PlayerStatus]) and whether its control API answers ([api],
- * null while asked); why a player found is not recognised is said under them.
+ * The device's model, its player as playback decides ([PlayerStatus]) and whether its control API answers ([api]),
+ * each null while asked; why a player found is not recognised is said under them.
  */
 @Composable
-internal fun DeviceFacts(device: String, player: PlayerStatus, api: Boolean?) {
+internal fun DeviceFacts(device: String, player: PlayerStatus?, api: Boolean?) {
     val why = (player as? PlayerStatus.Unrecognized)?.let { stringResource(it.reason.words()) + FACT_GAP + it.packageName }
     FactPlate(note = why) {
         PlateFact(stringResource(R.string.label_device), device, Modifier.weight(1f, fill = false))
         val (words, state) = when (player) {
+            null -> R.string.testing to StatusState.Pending
             is PlayerStatus.Detected -> R.string.detected to StatusState.Done
             // Not a fault on other devices: no player there gets a password.
             is PlayerStatus.Unrecognized ->

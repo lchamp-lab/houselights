@@ -34,7 +34,8 @@ interface Downloads {
  */
 class ApkDownload(
     private val dir: File,
-    private val http: OkHttpClient,
+    /** The client it downloads with ([GithubReleases.http]), asked for at the first download. */
+    private val http: () -> OkHttpClient,
     /** The room left where [dir] is. */
     private val space: (File) -> Long = File::getUsableSpace,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -51,7 +52,7 @@ class ApkDownload(
         if (free < offer.spaceNeeded) fail(UpdateFailure.STORAGE, "$free bytes free, ${offer.spaceNeeded} needed")
         var whole = false
         try {
-            val call = http.newCall(Request.Builder().url(offer.url).build())
+            val call = http().newCall(Request.Builder().url(offer.url).build())
             call.await().use { response -> opened(response, offer).byteStream().use { copy(call, it, part, offer, progress) } }
             whole = withContext(Dispatchers.IO) { part.renameTo(apk) }
             if (!whole) throw IOException("${part.name} could not be renamed")

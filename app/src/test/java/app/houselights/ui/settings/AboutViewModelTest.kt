@@ -25,6 +25,8 @@ class AboutViewModelTest {
             gate.await()
             answers.removeFirst()
         })
+        assertNull("not asked while the view model is made", vm.player)
+        advanceUntilIdle()
         assertEquals(player, vm.player)
 
         vm.check()
@@ -49,6 +51,7 @@ class AboutViewModelTest {
             gate.await()
             true
         })
+        advanceUntilIdle()
         assertEquals(PlayerStatus.NotDetected, vm.player)
         vm.check()
         vm.forget()

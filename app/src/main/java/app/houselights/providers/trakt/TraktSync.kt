@@ -282,8 +282,10 @@ class TraktSync(
         val union = mode == SyncMode.UNION || saved.syncedAt == null
         val whole = WholeHistory(movies = movies.skipped == 0, episodes = shows.skipped == 0)
         if (union && !(whole.movies && whole.episodes)) Log.w(TAG, "Trakt's history read in part: what it seems to lack of it is not sent")
-        val seenThere = movies.entries.watched() + shows.entries.watched()
-        val plan = withContext(Dispatchers.Default) { SyncPlan.of(rows, seenThere, paused.entries, union, played, whole) }
+        val plan = withContext(Dispatchers.Default) {
+            val seenThere = movies.entries.watched() + shows.entries.watched()
+            SyncPlan.of(rows, seenThere, paused.entries, union, played, whole)
+        }
         local.withLock { dao.apply(plan.watched, plan.resumes, plan.titles) }
         if (plan.changes) changed()
         // Never in place of a mark waiting since the queue was sent.
@@ -482,10 +484,10 @@ class TraktSync(
             if (changed < since - CLOCK_SKEW_MS) return false
             val (seen, whole) = if (movie) {
                 val read = movies ?: trakt(WATCHED_MOVIES) { it.watchedMovies() }.also { movies = it }
-                read.entries.watched() to (read.skipped == 0)
+                withContext(Dispatchers.Default) { read.entries.watched() } to (read.skipped == 0)
             } else {
                 val read = shows ?: trakt(WATCHED_SHOWS) { it.watchedShows() }.also { shows = it }
-                read.entries.watched() to (read.skipped == 0)
+                withContext(Dispatchers.Default) { read.entries.watched() } to (read.skipped == 0)
             }
             // Not found in a history read in part, a play sent before may be among what was left out: taken as there,
             // never sent twice. Trakt keeps a play's date to the second.
