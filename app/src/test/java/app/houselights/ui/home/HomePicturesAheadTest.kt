@@ -16,6 +16,7 @@ import app.houselights.ui.design.components.AwaitAhead
 import app.houselights.ui.design.components.CutPosterCache
 import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
+import app.houselights.ui.design.components.doorWidth
 import app.houselights.ui.design.textScaleOf
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
@@ -44,6 +45,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.util.IdentityHashMap
+import kotlin.math.roundToInt
 
 /** What the launch loads ahead is exactly what home's grid asks Coil for, by key and size. */
 @RunWith(RobolectricTestRunner::class)
@@ -180,6 +182,21 @@ class HomePicturesAheadTest {
         assertTheSame(loaded, shown)
         assertTrue("fewer pictures without Rechercher's wall: ${loaded.size} of $searching", loaded.size < searching)
         assertTrue("the sagas' posters", loaded.mapNotNull { it.key?.key }.any { "poster/saga1?" in it })
+    }
+
+    /**
+     * Without Nouveautés, the next episode's door takes the whole row: its still is asked at that width, ahead as on
+     * screen, never at half the row's to be blown up twice over.
+     */
+    @Test
+    fun aStillAloneOnItsRowIsAskedAtTheRowsWidth() {
+        val alone = rows.copy(sections = rows.sections.filter { it.type != SectionType.LATEST })
+        val (loaded, shown) = loadAheadThenShow(alone)
+        assertTheSame(loaded, shown)
+        // On the TV canvas at mdpi, a dp is a pixel.
+        val wide = doorWidth(4).value.roundToInt()
+        val stills = loaded.mapNotNull { it.key?.key }.filter { "backdrop/mobland" in it }
+        assertEquals(listOf("https://img.test/backdrop/mobland?w=$wide"), stills)
     }
 
     /** At the player's density, the case asks for TMDB's largest picture short of the original, ahead as on screen. */

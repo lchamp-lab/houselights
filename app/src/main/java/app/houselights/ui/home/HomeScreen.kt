@@ -404,7 +404,7 @@ private fun Grid(
         rightOfCase = plan.firstLibrary?.key,
         rows = plan.rows.map { row ->
             row.doors.map { (door, span) ->
-                DoorCell(door.key, span) { modifier -> DoorOf(door, state, scan, actions, figure, onList, modifier) }
+                DoorCell(door.key, span) { modifier -> DoorOf(door, span, state, scan, actions, figure, onList, modifier) }
             }
         },
         heights = heights,
@@ -498,10 +498,11 @@ private fun CaseSays(failed: CaseFailure, item: MediaItem) {
     }
 }
 
-/** A door of the grid, drawn for what it shows. */
+/** A door of the grid, [span] parts wide, drawn for what it shows. */
 @Composable
 private fun DoorOf(
     door: Door,
+    span: Int,
     state: HomeState,
     scan: StateFlow<ScanState>,
     actions: HomeActions,
@@ -510,7 +511,7 @@ private fun DoorOf(
     modifier: Modifier = Modifier,
 ) {
     when (door) {
-        is Door.Next, is Door.AlsoResume, is Door.News -> WatchDoor(door, actions, modifier)
+        is Door.Next, is Door.AlsoResume, is Door.News -> WatchDoor(door, span, actions, modifier)
         is Door.Library -> LibraryDoor(door, state, actions, figure, modifier)
         is Door.Libraries -> LibrariesDoor(door, figure, onList, modifier)
         is Door.Sagas, is Door.Search, Door.Settings -> ToolDoor(door, state, scan, actions, modifier)
@@ -518,11 +519,11 @@ private fun DoorOf(
 }
 
 /**
- * A door of what is watched: the next episode, the second title in progress, or the latest titles. The first two
- * are one door, so focus stays on it as it changes from one to the other.
+ * A door of what is watched, [span] parts wide: the next episode, the second title in progress, or the latest titles.
+ * The first two are one door, so focus stays on it as it changes from one to the other.
  */
 @Composable
-private fun WatchDoor(door: Door, actions: HomeActions, modifier: Modifier = Modifier) {
+private fun WatchDoor(door: Door, span: Int, actions: HomeActions, modifier: Modifier = Modifier) {
     if (door is Door.News) {
         HomeDoor(
             stringResource(R.string.home_news),
@@ -543,7 +544,7 @@ private fun WatchDoor(door: Door, actions: HomeActions, modifier: Modifier = Mod
         modifier = modifier,
         note = if (next != null) mark else mark ?: timeLeft(item)?.let { DoorNote.Words(it) },
         progress = if (next != null) next.season?.let { DoorProgress.Episodes(it) } else DoorProgress.Seen(item.progress),
-    ) { DoorStill(item) }
+    ) { DoorStill(item, span) }
 }
 
 /** The libraries past the third, behind one door: their number cut in their posters; OK lists them. */

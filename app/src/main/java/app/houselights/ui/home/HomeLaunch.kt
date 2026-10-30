@@ -183,7 +183,7 @@ internal fun loadFirstPictures(
         launch {
             val doors = rows.doors ?: rows.doorsAhead?.whole?.await() ?: return@launch
             val plan = planOf(rows.copy(doors = doors), search)
-            launch { LoadingAhead.load(loader, plan.doors.filterNot { it.ofRows }.flatMap { it.pictures(ahead) }) }
+            launch { LoadingAhead.load(loader, plan.pictures(ahead) { !it.ofRows }) }
             plan.doors.mapNotNull(::cutIn).forEach { posters -> launch { ahead.cutAhead(posters, cuts) } }
         }
     }
@@ -206,19 +206,23 @@ private fun cutIn(door: Door): List<MediaItem>? = when (door) {
  * loads, part by part.
  */
 internal fun firstPictures(ahead: PicturesAhead, rows: HomeRows, canSearch: Boolean = true): List<ImageRequest> =
-    planOf(rows, canSearch).let { plan -> plan.case?.item?.let(ahead::case).orEmpty() + plan.doors.flatMap { it.pictures(ahead) } }
+    planOf(rows, canSearch).let { plan -> plan.case?.item?.let(ahead::case).orEmpty() + plan.pictures(ahead) { true } }
 
 /** What [plan] shows from the rows alone, before any door is read: the case resuming, the next episode, the latest titles. */
 private fun rowPictures(ahead: PicturesAhead, plan: HomePlan): List<ImageRequest> =
-    (plan.case as? CaseShows.Resume)?.item?.let(ahead::case).orEmpty() + plan.doors.filter { it.ofRows }.flatMap { it.pictures(ahead) }
+    (plan.case as? CaseShows.Resume)?.item?.let(ahead::case).orEmpty() + plan.pictures(ahead) { it.ofRows }
 
 /** Whether the rows alone say what this door shows. */
 private val Door.ofRows: Boolean get() = this is Door.Next || this is Door.AlsoResume || this is Door.News
 
-/** The pictures this door shows, as it requests them. */
-private fun Door.pictures(ahead: PicturesAhead): List<ImageRequest> = when (this) {
-    is Door.Next -> ahead.still(item)
-    is Door.AlsoResume -> ahead.still(item)
+/** The pictures [plan]'s doors that are [of] show, each as it requests them on its parts. */
+private fun HomePlan.pictures(ahead: PicturesAhead, of: (Door) -> Boolean): List<ImageRequest> =
+    rows.flatMap { it.doors }.filter { (door, _) -> of(door) }.flatMap { (door, span) -> door.pictures(ahead, span) }
+
+/** The pictures this door shows on [span] parts, as it requests them. */
+private fun Door.pictures(ahead: PicturesAhead, span: Int): List<ImageRequest> = when (this) {
+    is Door.Next -> ahead.still(item, span)
+    is Door.AlsoResume -> ahead.still(item, span)
     is Door.News -> ahead.strip(posters)
     is Door.Library -> ahead.cut(posters)
     is Door.Libraries -> ahead.cut(posters)
