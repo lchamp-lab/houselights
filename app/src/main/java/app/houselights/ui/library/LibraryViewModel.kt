@@ -125,6 +125,13 @@ class LibraryViewModel(
      */
     private var reaching = 0
 
+    /**
+     * The titles a read of the wall held and kept away, by the place they held, a change of theirs still saving taking
+     * them off its filter: not saved, the change puts each back there on a wall started over since it was made, as it
+     * does at its own place on the wall it was made on. Forgotten as the wall starts over, or the title is back.
+     */
+    private val hidden = mutableMapOf<String, Int>()
+
     /** Loads what the filter menu offers, from the library as it is now; a new load cancels the previous. */
     private val facetLoads = LatestJob(viewModelScope)
 
@@ -200,7 +207,8 @@ class LibraryViewModel(
     /**
      * Shows [item] [changed] at once, in its place while the wall [stays] on it, else gone; then [save]s it, undone if
      * not, that change alone: another of the title still saving or saved keeps showing. The wall started over meanwhile
-     * ([LibraryState.generation]: another filter, sort or view), the title is not put back on a wall that never held it.
+     * ([LibraryState.generation]: another filter, sort or view, a retry), the title is put back only where that wall
+     * read it and kept it away for the change ([hidden]), never on a wall that never held it.
      */
     private fun change(item: MediaItem, changed: MediaItem, stays: Boolean, save: (undo: (Undone) -> Unit) -> Unit) {
         val at = _state.value.items.indexOfFirst { it.id == item.id }
@@ -209,7 +217,9 @@ class LibraryViewModel(
         _state.update { it.showing(changed, stays) }
         save { undone ->
             val status = shownStatus()
-            _state.update { it.undone(undone, at, status, putsBack = it.generation == generation) }
+            val back = if (_state.value.generation == generation) at else hidden[undone.id]
+            _state.update { it.undone(undone, back, status) }
+            if (_state.value.items.any { it.id == undone.id }) hidden.remove(undone.id)
         }
     }
 
@@ -275,6 +285,7 @@ class LibraryViewModel(
     private fun reset(forget: Boolean) {
         pages.cancel()
         reaching = 0
+        hidden.clear()
         if (forget) {
             shownBefore = null
             saved.remove<Int>(SHOWN)
@@ -396,7 +407,10 @@ class LibraryViewModel(
             val stays = change.stays(status)
             val shown = s.items.firstOrNull { it.id == change.item.id }
             when {
-                shown != null -> s.showing(change.over(shown), stays)
+                shown != null -> {
+                    if (!stays) hidden[shown.id] = s.items.indexOf(shown)
+                    s.showing(change.over(shown), stays)
+                }
                 !whole && change.readBefore(status) -> s.uncounting(change.item)
                 else -> s
             }
@@ -439,12 +453,11 @@ private fun LibraryState.uncounting(item: MediaItem): LibraryState =
 /**
  * [this] after a change that was not saved ([undone]): its title in its place as the source has it, else back at [at] and
  * counted again, as long as the wall filtered on [status] keeps it, another of its changes still saving or saved keeping
- * it away, and the wall is the one it was changed on ([putsBack]): one started over since reads the title as its own
- * filter keeps it.
+ * it away; [at] is null on a wall started over since that never held it, which reads the title as its own filter keeps it.
  */
-private fun LibraryState.undone(undone: Undone, at: Int, status: WatchStatus, putsBack: Boolean): LibraryState = when {
+private fun LibraryState.undone(undone: Undone, at: Int?, status: WatchStatus): LibraryState = when {
     items.any { it.id == undone.id } -> copy(items = items.map { if (it.id == undone.id) undone.over(it) else it })
-    putsBack && undone.stays(status) -> copy(
+    at != null && undone.stays(status) -> copy(
         items = items.toMutableList().apply { add(at.coerceAtMost(size), undone.item) },
         total = total + 1,
         sagas = sagas?.plus(sagaCount(undone.item)),
