@@ -222,7 +222,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         for ((id, _) in renamed) {
             val film = dao.item(id)?.takeIf { it.kind == ItemKind.MOVIE } ?: continue
             val edition = editionOf(film, film.nfoInfo())
-            if (edition != film.edition) dao.setEdition(id, edition)
+            if (edition != film.edition) dao.saveScanned(film.copy(edition = edition))
         }
     }
 
