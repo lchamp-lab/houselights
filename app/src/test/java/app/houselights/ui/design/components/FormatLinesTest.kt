@@ -1,5 +1,8 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import app.houselights.core.AudioTrack
@@ -38,6 +41,20 @@ class FormatLinesTest {
         compose.onNodeWithText("Dolby Digital").assertExists()
         compose.onNodeWithText(Locale.FRENCH.getDisplayLanguage(Locale.getDefault()).replaceFirstChar { it.titlecase() }).assertExists()
         compose.onNodeWithText("Dolby Digital Plus Atmos").assertDoesNotExist()
+    }
+
+    /** Without the file's media info, the plate reads the title's badges as they are now: a file relinked, its own. */
+    @Test
+    fun badgesChangedShowTheirFormats() {
+        var item by mutableStateOf(MediaItem(id = "heat", kind = MediaKind.MOVIE, title = "Heat", badges = listOf("1080p", "5.1")))
+        compose.setTvContent { FormatLines(item) }
+        compose.onNodeWithText("Full HD").assertExists()
+
+        item = item.copy(badges = listOf("4K", "7.1"))
+        compose.waitForIdle()
+        compose.onNodeWithText("Ultra HD").assertExists()
+        compose.onNodeWithText("7.1").assertExists()
+        compose.onNodeWithText("Full HD").assertDoesNotExist()
     }
 
     @Test
