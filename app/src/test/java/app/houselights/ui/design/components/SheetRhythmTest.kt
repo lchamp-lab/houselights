@@ -91,7 +91,7 @@ class SheetRhythmTest {
         val film = MediaItem("c1", MediaKind.MOVIE, "Colony", year = 2026)
         compose.setTvContent {
             val read = LoadState.Ready(NfoContent("/films/Colony.nfo", info, emptyList()))
-            NfoSheet(film, NfoState("Colony", read), onRetry = {}, onDismiss = {})
+            NfoSheet(film, NfoState(read), onRetry = {}, onDismiss = {})
         }
         assertAt("the title", 58.7f, at("Fichier NFO"))
         assertAt("what it is", 126f, at("Écrite par votre gestionnaire de médias, elle prime sur TMDB."))

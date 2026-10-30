@@ -30,9 +30,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -69,8 +71,10 @@ class SearchViewModel(
 
     val found: StateFlow<Found?> = query
         .debounce(WAIT_MS)
-        .flatMapLatest<String, Found?> { typed ->
-            val words = typed.trim()
+        // A space typed after a word, or erased at its end, leaves the words as they were: no search again.
+        .map { it.trim() }
+        .distinctUntilChanged()
+        .flatMapLatest<String, Found?> { words ->
             if (words.isEmpty()) {
                 flowOf(null)
             } else {

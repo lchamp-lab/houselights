@@ -314,7 +314,7 @@ private fun SheetOfAnNfo(onDismiss: () -> Unit) {
     )
     val lines = listOf("<movie>", "  <title>Le Samouraï</title>", "  <year>1967</year>", "</movie>")
     val read = LoadState.Ready(NfoContent("/films/Le Samouraï.nfo", info, lines))
-    NfoSheet(film, NfoState(film.title, read), onRetry = {}, onDismiss = onDismiss)
+    NfoSheet(film, NfoState(read), onRetry = {}, onDismiss = onDismiss)
 }
 
 @Composable

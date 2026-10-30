@@ -20,6 +20,8 @@ import app.houselights.core.TrackPreferences
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.CleanupResult
 import app.houselights.providers.local.Folder
+import app.houselights.providers.local.FolderCounts
+import app.houselights.providers.local.HeldRow
 import app.houselights.providers.local.IgnoredFileRow
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.TmdbClient
@@ -162,6 +164,22 @@ internal class SettingsViewModel(
     /** The videos the shows folders hold that the library leaves out, by folder then path; held as [toIdentify] is. */
     val ignored: StateFlow<List<IgnoredFileRow>> =
         ignoredFiles.readOn("the files left out").stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /**
+     * The library's folders; null until read. Read once for the library pane, its showcases, its summary and its
+     * source row, and held as [toIdentify] is, so that the pane coming back shows them at once.
+     */
+    val folders: StateFlow<List<Folder>?> = library.folders.readOn("the folders").stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** How many films and shows the library holds; null until read, held as [folders] are. */
+    val titleCount: StateFlow<Int?> = library.titleCount.readOn("the titles counted").stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** What each folder holds, by its id; null until read, held as [folders] are. */
+    val folderCounts: StateFlow<Map<Long, FolderCounts>?> =
+        library.folderCounts.readOn("the folders' counts").stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** The titles held while their files are missing; null until read, held as [folders] are. */
+    val held: StateFlow<List<HeldRow>?> = library.held.readOn("the titles held").stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** [this], held as it last was once the library cannot read it (closed under the settings, or failing): said, never a crash. */
     private fun <T> Flow<T>.readOn(what: String): Flow<T> = catch { e -> Log.w(TAG, "Reading $what failed", e) }
