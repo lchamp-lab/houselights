@@ -703,6 +703,24 @@ class DetailViewModelTest {
         assertEquals("short", vm.state.value.versions.single { it.chosen }.key)
     }
 
+    /** Another copy chosen, the film reads as that copy: Reprendre where it was left, or Lire from its start (#139). */
+    @Test
+    fun aCopyChosenGivesTheFilmItsPlace() = runTest {
+        fun copy(key: String, best: Boolean) = Version(film(key), null, null, null, null, null, chosen = best, best = best, key = key)
+        provider.items["m1"] = film("m1", "Heat").copy(user = UserState(positionMs = 2_400_000))
+        provider.catalog = FakeCatalog().apply { copies = mapOf("m1" to listOf(copy("hd", best = true), copy("uhd", best = false))) }
+        provider.capabilities = provider.capabilities.copy(versions = true, versionChoice = true)
+        val vm = detail()
+        advanceUntilIdle()
+        assertEquals(2_400_000L, vm.state.value.item?.user?.positionMs)
+        // The source now reads the film as the 4K copy, not started.
+        provider.items["m1"] = film("m1", "Heat")
+        vm.chooseVersion(vm.state.value.versions[1])
+        advanceUntilIdle()
+        assertEquals(0L, vm.state.value.item?.user?.positionMs)
+        assertEquals("uhd", vm.state.value.versions.single { it.chosen }.key)
+    }
+
     /** A server that keeps no choice shows its copies, and is never asked to choose one. */
     @Test
     fun aSourceThatKeepsNoChoiceIsNotAskedToChoose() = runTest {
