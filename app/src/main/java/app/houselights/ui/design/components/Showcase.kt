@@ -144,8 +144,8 @@ const val SHOWCASE_SLOTS = 4
  */
 @Composable
 internal fun ShowcaseSpace(modifier: Modifier = Modifier) {
-    // Laid out as a showcase is, its posters across and its words over their foot, a state on its facts' line; never
-    // placed, so only its height counts.
+    // Laid out as a showcase is, its posters across and its words over their foot, its name beside a printed mark (the
+    // taller of the two holds their line), a state on its facts' line; never placed, so only its height counts.
     Box(
         modifier
             .width(HlSize.showcase)
@@ -166,7 +166,10 @@ internal fun ShowcaseSpace(modifier: Modifier = Modifier) {
                 bottom = ShowcaseDefaults.inset,
             ),
         ) {
-            Text(" ", style = Hl.type.subject, maxLines = 1)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                Text(" ", style = Hl.type.subject, maxLines = 1)
+                Badge(" ")
+            }
             Spacer(Modifier.height(HlSpace.s))
             ShowcaseFacts(emptyList(), state = " ", light = StatusState.Done)
         }
