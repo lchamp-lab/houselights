@@ -105,7 +105,8 @@ class LibraryViewModel(
 
     /**
      * How many titles the wall showed when Android stopped the app ([saved]): its first page reads as many, so that focus
-     * finds the title it left, past the first page; null once read.
+     * finds the title it left, past the first page. Kept until a read of it ends well, through a reload cutting it, a
+     * failure retried, or Android stopping the app again; forgotten once the wall starts over by choice ([reset]).
      */
     private var shownBefore: Int? = saved[SHOWN]
 
@@ -134,7 +135,7 @@ class LibraryViewModel(
     val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
 
     init {
-        reset()
+        reset(forget = false)
         loadFacets()
     }
 
@@ -163,13 +164,13 @@ class LibraryViewModel(
                 // Hidden, the sagas alone are forgotten: shown again, the wall opens on the films and their sagas.
                 if (now == null) saved.remove<String>(VIEW)
                 _state.update { it.copy(view = now?.let { saved.view() }) }
-                reset()
+                reset(forget = true)
             }
         }
     }
 
-    /** After a failure, loads again from the first page. */
-    fun retry() = reset()
+    /** After a failure, loads again from the first page, as far as the wall showed when Android stopped the app. */
+    fun retry() = reset(forget = false)
 
     /**
      * Marks [item] watched, or not once it is, from its poster's options: shown at once, a title the wall's filter no
@@ -208,14 +209,14 @@ class LibraryViewModel(
         if (sort == _state.value.sort) return
         saved[SORT] = sort.name
         _state.update { it.copy(sort = sort) }
-        reset()
+        reset(forget = true)
     }
 
     fun setFilter(filter: LibraryFilter) {
         if (filter == _state.value.filter) return
         saved.keep(filter)
         _state.update { it.copy(filter = filter) }
-        reset()
+        reset(forget = true)
     }
 
     /** Shows the films and their sagas, or the sagas alone, with the same filters; only a wall with sagas has a view. */
@@ -224,7 +225,7 @@ class LibraryViewModel(
         if (shown == null || view == shown) return
         saved[VIEW] = view.name
         _state.update { it.copy(view = view) }
-        reset()
+        reset(forget = true)
     }
 
     /** Back to the whole wall: no filter, and the films with their sagas. */
@@ -235,7 +236,7 @@ class LibraryViewModel(
         saved.keep(LibraryFilter())
         view?.let { saved[VIEW] = it.name }
         _state.update { it.copy(filter = LibraryFilter(), view = view) }
-        reset()
+        reset(forget = true)
     }
 
     /** The library a page of [s] is asked of, its filter, and whether its sagas are grouped. */
@@ -259,9 +260,16 @@ class LibraryViewModel(
         }
     }
 
-    private fun reset() {
+    /**
+     * Starts the wall over from its first page; [forget] when the user asked it, by sort, filter or view, as the titles
+     * it showed before Android stopped the app no longer matter ([shownBefore]).
+     */
+    private fun reset(forget: Boolean) {
         pages.cancel()
-        saved.remove<Int>(SHOWN)
+        if (forget) {
+            shownBefore = null
+            saved.remove<Int>(SHOWN)
+        }
         _state.update {
             it.copy(
                 items = emptyList(),
@@ -281,10 +289,13 @@ class LibraryViewModel(
     private fun refresh() {
         val s = _state.value
         val read = changes.pending.reading()
+        // Still to read, the wall reads as far as it showed when Android stopped the app ([shownBefore]).
+        val limit = maxOf(if (s.items.isEmpty()) shownBefore ?: 0 else s.items.size, PAGE)
         pages.launch {
             suspendRunCatching {
-                source().page(s, start = 0, limit = maxOf(s.items.size, PAGE))
+                source().page(s, start = 0, limit = limit)
             }.onSuccess { page ->
+                shownBefore = null
                 val items = page.items.distinctBy(MediaItem::id)
                 _state.update {
                     it.copy(
@@ -326,13 +337,13 @@ class LibraryViewModel(
         val read = changes.pending.reading()
         // Brought back after Android stopped the app, the wall reads at once as far as it showed, in one page.
         val limit = shownBefore?.takeIf { s.items.isEmpty() && it > PAGE } ?: PAGE
-        shownBefore = null
         pages.launch {
             suspendRunCatching {
                 val prefetched = s.items.isEmpty() && limit == PAGE
                 val first = if (prefetched) asked(s).let { ahead?.take(it.library, s.sort, it.filter, it.grouped) } else null
                 first ?: source().page(s, start = s.items.size, limit = limit)
             }.onSuccess { page ->
+                shownBefore = null
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update {
                     it.copy(
