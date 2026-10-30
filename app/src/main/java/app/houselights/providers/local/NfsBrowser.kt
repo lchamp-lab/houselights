@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import android.os.SystemClock
+import app.houselights.core.MalformedAnswerException
 import com.emc.ecs.nfsclient.nfs.NfsException
 import com.emc.ecs.nfsclient.nfs.NfsGetAttributes
 import com.emc.ecs.nfsclient.nfs.NfsStatus
@@ -135,20 +136,29 @@ internal class NfsBrowser(
         /** Attempts per request in nfs-client. */
         private const val RETRIES = 3
 
+        /** Entries one folder may hold, far past any library's: beyond, the NAS is taken to page in a loop ([entries]). */
+        private const val MAX_ENTRIES = 100_000
+
         private fun export(source: SourceEntity) = "/" + source.share.trim('/')
 
         /** AUTH_SYS as [source] presents itself: its user and group, root (0, 0) unless it has its own. */
         private fun credential(source: SourceEntity) = CredentialUnix(source.uid ?: 0, source.gid ?: 0, null)
 
-        /** All entries of [dir] except "." and "..", paging READDIRPLUS by cookie. */
+        /**
+         * All entries of [dir] except "." and "..", paging READDIRPLUS by cookie. A NAS answering a cookie it gave before,
+         * or more than [MAX_ENTRIES] entries, would page forever: the folder is then unreadable, as a malformed answer.
+         */
         private fun entries(export: NfsExport, dir: ByteArray): List<NfsEntry> {
             val entries = mutableListOf<NfsEntry>()
+            val cookies = HashSet<Long>()
             var page = export.readdirplus(dir, cookie = 0, verifier = 0)
             while (true) {
                 page.entries.filterTo(entries) { it.name != "." && it.name != ".." }
                 if (page.isLast) return entries
                 // Repeating the same cookie would loop forever.
                 check(page.entries.isNotEmpty()) { "READDIRPLUS answered no entry before the end of the folder" }
+                if (!cookies.add(page.cookie)) throw MalformedAnswerException("READDIRPLUS gave cookie ${page.cookie} again")
+                if (entries.size > MAX_ENTRIES) throw MalformedAnswerException("READDIRPLUS went on past $MAX_ENTRIES entries")
                 page = export.readdirplus(dir, page.cookie, page.verifier)
             }
         }
