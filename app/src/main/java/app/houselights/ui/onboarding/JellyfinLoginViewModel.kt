@@ -4,8 +4,10 @@ import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -127,15 +129,21 @@ internal fun prefill(fill: LoginFill, current: SourceConfig?): Pair<String, Stri
     is LoginFill.Server -> fill.address to fill.user.orEmpty()
 }
 
-/** Signs in to a Jellyfin server, which becomes the source once [sources] switches to it. */
+/**
+ * Signs in to a Jellyfin server, which becomes the source once [sources] switches to it. The address and the user typed
+ * are kept in [saved], in case Android stops the app while the password is looked up in another app; never the password.
+ */
 class JellyfinLoginViewModel(
     private val settings: SettingsStore,
     private val sources: SourceSwitcher,
     private val network: JellyfinNetwork = JellyfinNetwork.Lan,
     fill: LoginFill = LoginFill.Current,
+    // An empty handle for a test that gives none: the factory hands the real one.
+    //noinspection VisibleForTests
+    private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
-    var server by Field()
-    var user by Field()
+    var server by Field(KEPT_SERVER)
+    var user by Field(KEPT_USER)
     var password by Field()
     var busy by mutableStateOf(false)
         private set
@@ -165,7 +173,8 @@ class JellyfinLoginViewModel(
     init {
         val known = prefill(fill, settings.state.value.source)
         again = known != null
-        if (known != null) {
+        // What was typed before Android stopped the app comes first.
+        if (known != null && KEPT_SERVER !in saved) {
             server = known.first
             user = known.second
         }
@@ -210,15 +219,19 @@ class JellyfinLoginViewModel(
     val chosen: DiscoveredServer?
         get() = pickedServer ?: discovered.find { addressOf(it).sameServer(server) || it.address.sameServer(server) }
 
-    /** A form field: changing it clears the last attempt's error, which no longer applies. */
-    private inner class Field : ReadWriteProperty<Any?, String> {
-        private var typed by mutableStateOf("")
+    /**
+     * A form field: changing it clears the last attempt's error, which no longer applies. With a [key], what it holds is
+     * kept in [saved] under it, and found there again after a stopped process.
+     */
+    private inner class Field(private val key: String? = null) : ReadWriteProperty<Any?, String> {
+        private var typed by mutableStateOf(key?.let { saved.get<String>(it) }.orEmpty())
 
         override fun getValue(thisRef: Any?, property: KProperty<*>): String = typed
 
         override fun setValue(thisRef: Any?, property: KProperty<*>, value: String) {
             if (value != typed) error = null
             typed = value
+            key?.let { saved[it] = value }
         }
     }
 
@@ -274,8 +287,11 @@ class JellyfinLoginViewModel(
     private fun typed() = listOf(pickedServer ?: server, user, password)
 
     companion object {
+        private const val KEPT_SERVER = "jellyfinServer"
+        private const val KEPT_USER = "jellyfinUser"
+
         fun factory(app: AppContainer, fill: LoginFill): ViewModelProvider.Factory = viewModelFactory {
-            initializer { JellyfinLoginViewModel(app.settings, app.sources, app.jellyfin, fill) }
+            initializer { JellyfinLoginViewModel(app.settings, app.sources, app.jellyfin, fill, createSavedStateHandle()) }
         }
     }
 }

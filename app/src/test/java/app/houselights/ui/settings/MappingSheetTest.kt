@@ -1,7 +1,10 @@
 package app.houselights.ui.settings
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.SaverScope
 import app.houselights.core.PathMapping
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -26,6 +29,20 @@ class MappingSheetTest {
         assertEquals("smb://***@nas/media", shownTo(raw))
         assertEquals(raw, editedMapping(raw, "/media", shownTo(raw)))
         assertEquals("smb://lecteur:p/ss@w0rd@nas/videos", editedMapping(raw, "/media", "smb://***@nas/videos").to)
+    }
+
+    /**
+     * What the sheet holds is kept for a process Android stops while a path is looked up in another app: a path as typed,
+     * or as shown, its mask standing for the password kept; never a password typed, which the field loses.
+     */
+    @Test
+    fun aPathIsKeptForAStoppedProcessWithoutAPasswordTyped() {
+        fun kept(path: String) = with(pathWithoutCredentials) { SaverScope { true }.save(mutableStateOf(path)) }
+        assertEquals("nfs://nas/volume1/films", kept("nfs://nas/volume1/films"))
+        assertEquals(shownTo(was), kept(shownTo(was)))
+        assertEquals("smb://***@nas/movies", kept("smb://***@nas/movies"))
+        assertNull(kept("smb://lecteur:motdepasse@nas/films"))
+        assertNull("typed unescaped", kept("smb://lecteur:p/ss@w0rd@nas/media"))
     }
 
     @Test

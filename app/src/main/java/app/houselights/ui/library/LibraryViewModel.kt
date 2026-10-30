@@ -119,6 +119,19 @@ class LibraryViewModel(
     /** The first page, an in-place reload or the next page: one at a time, a new one cancelling the previous. */
     private val pages = LatestJob(viewModelScope)
 
+    /**
+     * How far the wall asked to read: the titles shown and the next page, from its asking until it comes, so that a
+     * reload in place meanwhile, which cancels it, reads that far; 0 once read, or as the wall starts over.
+     */
+    private var reaching = 0
+
+    /**
+     * The titles a read of the wall held and kept away, by the place they held, a change of theirs still saving taking
+     * them off its filter: not saved, the change puts each back there on a wall started over since it was made, as it
+     * does at its own place on the wall it was made on. Forgotten as the wall starts over, or the title is back.
+     */
+    private val hidden = mutableMapOf<String, Int>()
+
     /** Loads what the filter menu offers, from the library as it is now; a new load cancels the previous. */
     private val facetLoads = LatestJob(viewModelScope)
 
@@ -193,15 +206,20 @@ class LibraryViewModel(
 
     /**
      * Shows [item] [changed] at once, in its place while the wall [stays] on it, else gone; then [save]s it, undone if
-     * not, that change alone: another of the title still saving or saved keeps showing.
+     * not, that change alone: another of the title still saving or saved keeps showing. The wall started over meanwhile
+     * ([LibraryState.generation]: another filter, sort or view, a retry), the title is put back only where that wall
+     * read it and kept it away for the change ([hidden]), never on a wall that never held it.
      */
     private fun change(item: MediaItem, changed: MediaItem, stays: Boolean, save: (undo: (Undone) -> Unit) -> Unit) {
         val at = _state.value.items.indexOfFirst { it.id == item.id }
         if (at < 0) return
+        val generation = _state.value.generation
         _state.update { it.showing(changed, stays) }
         save { undone ->
             val status = shownStatus()
-            _state.update { it.undone(undone, at, status) }
+            val back = if (_state.value.generation == generation) at else hidden[undone.id]
+            _state.update { it.undone(undone, back, status) }
+            if (_state.value.items.any { it.id == undone.id }) hidden.remove(undone.id)
         }
     }
 
@@ -266,6 +284,8 @@ class LibraryViewModel(
      */
     private fun reset(forget: Boolean) {
         pages.cancel()
+        reaching = 0
+        hidden.clear()
         if (forget) {
             shownBefore = null
             saved.remove<Int>(SHOWN)
@@ -289,13 +309,15 @@ class LibraryViewModel(
     private fun refresh() {
         val s = _state.value
         val read = changes.pending.reading()
-        // Still to read, the wall reads as far as it showed when Android stopped the app ([shownBefore]).
-        val limit = maxOf(if (s.items.isEmpty()) shownBefore ?: 0 else s.items.size, PAGE)
+        // Still to read, the wall reads as far as it showed when Android stopped the app ([shownBefore]); with the next
+        // page on its way, which this reload cancels, that page too ([reaching]).
+        val limit = maxOf(if (s.items.isEmpty()) shownBefore ?: 0 else s.items.size, reaching, PAGE)
         pages.launch {
             suspendRunCatching {
                 source().page(s, start = 0, limit = limit)
             }.onSuccess { page ->
                 shownBefore = null
+                reaching = 0
                 val items = page.items.distinctBy(MediaItem::id)
                 _state.update {
                     it.copy(
@@ -337,6 +359,7 @@ class LibraryViewModel(
         val read = changes.pending.reading()
         // Brought back after Android stopped the app, the wall reads at once as far as it showed, in one page.
         val limit = shownBefore?.takeIf { s.items.isEmpty() && it > PAGE } ?: PAGE
+        reaching = s.items.size + limit
         pages.launch {
             suspendRunCatching {
                 val prefetched = s.items.isEmpty() && limit == PAGE
@@ -344,6 +367,7 @@ class LibraryViewModel(
                 first ?: source().page(s, start = s.items.size, limit = limit)
             }.onSuccess { page ->
                 shownBefore = null
+                reaching = 0
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update {
                     it.copy(
@@ -357,6 +381,7 @@ class LibraryViewModel(
                 }
                 saved[SHOWN] = _state.value.items.size
             }.onFailure { e ->
+                reaching = 0
                 val error = e.reported(TAG, "Library page")
                 // With nothing shown, the wall explains the failure; past the first page, its foot does.
                 _state.update {
@@ -382,7 +407,10 @@ class LibraryViewModel(
             val stays = change.stays(status)
             val shown = s.items.firstOrNull { it.id == change.item.id }
             when {
-                shown != null -> s.showing(change.over(shown), stays)
+                shown != null -> {
+                    if (!stays) hidden[shown.id] = s.items.indexOf(shown)
+                    s.showing(change.over(shown), stays)
+                }
                 !whole && change.readBefore(status) -> s.uncounting(change.item)
                 else -> s
             }
@@ -425,11 +453,11 @@ private fun LibraryState.uncounting(item: MediaItem): LibraryState =
 /**
  * [this] after a change that was not saved ([undone]): its title in its place as the source has it, else back at [at] and
  * counted again, as long as the wall filtered on [status] keeps it, another of its changes still saving or saved keeping
- * it away.
+ * it away; [at] is null on a wall started over since that never held it, which reads the title as its own filter keeps it.
  */
-private fun LibraryState.undone(undone: Undone, at: Int, status: WatchStatus): LibraryState = when {
+private fun LibraryState.undone(undone: Undone, at: Int?, status: WatchStatus): LibraryState = when {
     items.any { it.id == undone.id } -> copy(items = items.map { if (it.id == undone.id) undone.over(it) else it })
-    undone.stays(status) -> copy(
+    at != null && undone.stays(status) -> copy(
         items = items.toMutableList().apply { add(at.coerceAtMost(size), undone.item) },
         total = total + 1,
         sagas = sagas?.plus(sagaCount(undone.item)),

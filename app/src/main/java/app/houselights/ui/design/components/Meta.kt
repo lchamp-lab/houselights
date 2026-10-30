@@ -180,7 +180,7 @@ fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = nu
     val language = plays?.let { languageName(it.language) }
     val marks = remember(item.badges) { Formats.fromBadges(item.badges) }
     val frames = video?.frameRate?.let { frameRateLabel(it) }
-    val picture = remember(video, frames) {
+    val picture = remember(video, frames, marks) {
         video?.let { v ->
             // The codec, a detail beside what the picture promises.
             marks(FormatFamily.PICTURE, Formats.picture(v), listOfNotNull(frames)).map { it.copy(detail = it.label == v.codec) }
@@ -188,7 +188,7 @@ fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = nu
             ?: marks.filter { it.family == FormatFamily.PICTURE }
     }
     val rate = best?.bitrateKbps?.let { audioBitrateLabel(it) }
-    val sound = remember(best, rate, language) {
+    val sound = remember(best, rate, language, marks) {
         best?.let { marks(FormatFamily.SOUND, listOf(Formats.soundName(it)), listOfNotNull(it.layout, rate, language)) }
             ?: marks.filter { it.family == FormatFamily.SOUND }
     }

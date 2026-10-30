@@ -1,8 +1,21 @@
 package app.houselights.ui.util
 
 import android.content.Context
+import android.icu.text.DisplayContext
+import android.icu.text.RelativeDateTimeFormatter
+import android.icu.text.RelativeDateTimeFormatter.AbsoluteUnit
+import android.icu.text.RelativeDateTimeFormatter.Direction
+import android.icu.text.RelativeDateTimeFormatter.RelativeUnit
+import android.icu.util.ULocale
+import android.text.format.DateUtils
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -18,6 +31,7 @@ import app.houselights.core.SectionType
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.SourceKind
+import kotlinx.coroutines.delay
 
 /** No-break space: keeps a number with its unit, and French punctuation with its word. */
 const val NBSP = Typography.nbsp
@@ -217,3 +231,76 @@ private const val MINUTE_MS = 60_000L
 @Composable
 fun heldSince(since: Long): String =
     stringResource(R.string.held_since, formatHours((System.currentTimeMillis() - since).coerceAtLeast(MINUTE_MS)))
+
+/**
+ * Now, by the device's [clock], read again every [tickMs] while shown: a time said relative to it moves on with it, on a
+ * screen left open (« Analysé il y a 2 minutes », « Vérifié il y a 2 h »).
+ */
+@Composable
+internal fun rememberNow(tickMs: Long = NOW_TICK_MS, clock: () -> Long = System::currentTimeMillis): Long {
+    var now by remember { mutableLongStateOf(clock()) }
+    val read by rememberUpdatedState(clock)
+    LaunchedEffect(tickMs) {
+        while (true) {
+            delay(tickMs)
+            now = read()
+        }
+    }
+    return now
+}
+
+/** How often [rememberNow] reads the clock again: a time said to the minute is never more than half a minute late. */
+internal const val NOW_TICK_MS = 30_000L
+
+/** How long ago [at] was, relative to [now], which moves on while shown: see the other [relativeTime]. */
+@Composable
+internal fun relativeTime(at: Long, alone: Boolean = false, now: Long = rememberNow()): String =
+    relativeTime(LocalContext.current, at, now, alone)
+
+/** When a folder was last scanned, relative to [now], which moves on while shown: "Analysé il y a 3 minutes", "Jamais analysé". */
+@Composable
+internal fun lastScanned(at: Long, now: Long = rememberNow()): String = lastScanned(LocalContext.current, at, now)
+
+internal fun lastScanned(context: Context, at: Long, now: Long): String =
+    if (at <= 0) context.getString(R.string.never_scanned) else context.getString(R.string.last_scan, relativeTime(context, at, now))
+
+/**
+ * How long ago [at] was, for mid-sentence ("il y a 3 minutes", "hier"), capitalised with [alone], its unit
+ * abbreviated when [short] ("il y a 2 h"). The system's casing is not used: it capitalises wherever the words fall
+ * ("Analyse : Il y a…").
+ */
+internal fun relativeTime(context: Context, at: Long, now: Long, alone: Boolean = false, short: Boolean = false): String {
+    val locale = context.resources.configuration.locales[0]
+    val elapsed = now - at
+    val text = when {
+        at <= 0 -> context.getString(R.string.never)
+        elapsed < DateUtils.MINUTE_IN_MILLIS -> context.getString(R.string.just_now)
+        else -> {
+            val words = RelativeDateTimeFormatter.getInstance(
+                ULocale.forLocale(locale),
+                null,
+                if (short) RelativeDateTimeFormatter.Style.SHORT else RelativeDateTimeFormatter.Style.LONG,
+                DisplayContext.CAPITALIZATION_FOR_MIDDLE_OF_SENTENCE,
+            )
+            val (count, unit) = when {
+                elapsed < DateUtils.HOUR_IN_MILLIS -> elapsed / DateUtils.MINUTE_IN_MILLIS to RelativeUnit.MINUTES
+                elapsed < DateUtils.DAY_IN_MILLIS -> elapsed / DateUtils.HOUR_IN_MILLIS to RelativeUnit.HOURS
+                elapsed < DateUtils.WEEK_IN_MILLIS -> elapsed / DateUtils.DAY_IN_MILLIS to RelativeUnit.DAYS
+                elapsed < MONTH_IN_MILLIS -> elapsed / DateUtils.WEEK_IN_MILLIS to RelativeUnit.WEEKS
+                elapsed < YEAR_IN_MILLIS -> elapsed / MONTH_IN_MILLIS to RelativeUnit.MONTHS
+                else -> elapsed / YEAR_IN_MILLIS to RelativeUnit.YEARS
+            }
+            if (count == 1L && unit == RelativeUnit.DAYS) {
+                words.format(Direction.LAST, AbsoluteUnit.DAY)
+            } else {
+                words.format(count.toDouble(), Direction.LAST, unit)
+            }
+        }
+    }
+    return if (alone) text.replaceFirstChar { it.titlecase(locale) } else text
+}
+
+private const val MONTH_IN_MILLIS = 30 * DateUtils.DAY_IN_MILLIS
+
+/** A year of 365 days: DateUtils.YEAR_IN_MILLIS, deprecated, counts 52 weeks (364 days). */
+private const val YEAR_IN_MILLIS = 365 * DateUtils.DAY_IN_MILLIS

@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -91,8 +94,9 @@ private fun FileAccessGroup(s: AppSettings) {
 @Composable
 private fun PathMappings(unread: Boolean) {
     val vm = settingsViewModel()
-    // The mapping open in the sheet: its line, or -1 for a new one; null with the sheet closed.
-    var editing by remember { mutableStateOf<Int?>(null) }
+    // The mapping open in the sheet: its line, or -1 for a new one; null with the sheet closed. Kept, as what the sheet
+    // holds, in case Android stops the app while a path is looked up in another app.
+    var editing by rememberSaveable { mutableStateOf<Int?>(null) }
     vm.mappings.forEachIndexed { index, m ->
         HlSettingRow(
             m.from,
@@ -110,7 +114,9 @@ private fun PathMappings(unread: Boolean) {
     vm.errorOf(SettingAction.PATH_MAPPINGS)?.let { error ->
         AttentionNote(stringResource(R.string.mappings_not_saved, stringResource(error.message)))
     }
-    editing?.let { index -> MappingSheet(index.takeIf { it != NEW }, onDismiss = { editing = null }) }
+    editing?.takeIf { it == NEW || it in vm.mappings.indices }?.let { index ->
+        MappingSheet(index.takeIf { it != NEW }, onDismiss = { editing = null })
+    }
 }
 
 /**
@@ -121,8 +127,8 @@ private fun PathMappings(unread: Boolean) {
 private fun MappingSheet(index: Int?, onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val was = index?.let { vm.mappings.getOrNull(it) }
-    var from by remember { mutableStateOf(was?.from.orEmpty()) }
-    var to by remember { mutableStateOf(shownTo(was)) }
+    var from by rememberSaveable { mutableStateOf(was?.from.orEmpty()) }
+    var to by rememberSaveable(saver = pathWithoutCredentials) { mutableStateOf(shownTo(was)) }
     var samplePath by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { samplePath = vm.samplePath() }
     val first = remember { FocusRequester() }
@@ -175,6 +181,16 @@ private fun MappingSheet(index: Int?, onDismiss: () -> Unit) {
         }
     }
 }
+
+/**
+ * A network path as Android keeps it for a stopped process: as typed when it holds no credentials, or only their mask,
+ * which stands for those kept ([editedMapping]); else not at all, the field opening again as the sheet did, so that a
+ * password typed is never written there.
+ */
+internal val pathWithoutCredentials: Saver<MutableState<String>, String> = Saver(
+    save = { state -> state.value.takeIf { Redact.uri(it) == it } },
+    restore = { mutableStateOf(it) },
+)
 
 /** [was]'s network path as its sheet shows it: masked like the list's line, no password on the TV. */
 internal fun shownTo(was: PathMapping?): String = was?.to?.let(Redact::uri).orEmpty()

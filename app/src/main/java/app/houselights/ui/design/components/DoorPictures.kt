@@ -50,15 +50,15 @@ internal const val WIDE_W = 16
 internal const val WIDE_H = 9
 
 /**
- * A door's still (the next episode's): its backdrop at the door's width, cropped about its upper middle, black rising
- * under its logo or name at its foot.
+ * A door's still (the next episode's): its backdrop at the width of a door of [span] parts, cropped about its upper
+ * middle, black rising under its logo or name at its foot.
  */
 @Composable
-fun DoorStill(item: MediaItem, modifier: Modifier = Modifier) {
+fun DoorStill(item: MediaItem, span: Int, modifier: Modifier = Modifier) {
     val c = Hl.colors
     val show = item.kind == MediaKind.EPISODE
     Box(modifier.fillMaxSize()) {
-        val width = stillWidth().toPx()
+        val width = doorWidth(span).toPx()
         ArtworkImage(
             item.backdrop?.url(width),
             null,
@@ -78,12 +78,9 @@ fun DoorStill(item: MediaItem, modifier: Modifier = Modifier) {
     }
 }
 
-/** The width a door's still is asked at: half the grid beside the case, as the row of what is watched lays it. */
-private fun stillWidth(): Dp = doorWidth(2)
-
-/** The request [DoorStill] makes for [item], as a preload must make it. */
-internal fun stillDoorRequest(context: Context, item: MediaItem, px: (Dp) -> Int): ImageRequest? {
-    val width = px(stillWidth())
+/** The request [DoorStill] makes for [item] on a door of [span] parts, as a preload must make it. */
+internal fun stillDoorRequest(context: Context, item: MediaItem, span: Int, px: (Dp) -> Int): ImageRequest? {
+    val width = px(doorWidth(span))
     return item.backdrop?.let { doorRequest(context, it.url(width), width, width * WIDE_H / WIDE_W) }
 }
 

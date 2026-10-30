@@ -16,6 +16,8 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.errorOrNull
 import app.houselights.ui.util.valueOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -46,7 +48,7 @@ class SearchViewModelTest {
     @Test
     fun itSearchesOnceTheKeysStop() = runTest {
         val vm = SearchViewModel({ provider })
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach {
             vm.type(it)
             advanceTimeBy(SearchViewModel.WAIT_MS / 2)
@@ -75,7 +77,7 @@ class SearchViewModelTest {
     @Test
     fun nothingTypedFindsNothing() = runTest {
         val vm = SearchViewModel({ provider })
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         vm.type('A')
         vm.delete()
         advanceUntilIdle()
@@ -87,7 +89,7 @@ class SearchViewModelTest {
     fun aSearchThatFailsSaysWhyAndRetryRunsItAgain() = runTest {
         catalog.fail = { ConnectException("Server away") }
         val vm = SearchViewModel({ provider })
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         assertEquals("not that nothing matches", UiError.OFFLINE, vm.found.value?.results?.errorOrNull)
@@ -111,7 +113,7 @@ class SearchViewModelTest {
     @Test
     fun aSpaceAtTheEndRunsNoSearchAgain() = runTest {
         val vm = SearchViewModel({ provider }, work = this)
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         vm.mark(found(vm).single())
@@ -134,7 +136,7 @@ class SearchViewModelTest {
         before.delete()
 
         val after = SearchViewModel({ provider }, saved.afterProcessDeath())
-        backgroundScope.launch { after.found.collect {} }
+        show(after)
         assertEquals("AME", after.query.value)
         advanceUntilIdle()
         assertEquals("amelie", after.found.value?.results?.valueOrNull?.titles?.single()?.id)
@@ -145,7 +147,7 @@ class SearchViewModelTest {
     fun aResultMarkedShowsAtOnceThenIsSavedAndTold() = runTest {
         val events = FakeEvents()
         val vm = SearchViewModel({ provider }, events = events, work = this)
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         vm.mark(found(vm).single())
@@ -165,7 +167,7 @@ class SearchViewModelTest {
     fun aResultsMarkNotSavedIsUndoneAndSaid() = runTest {
         provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
         val vm = SearchViewModel({ provider }, work = this)
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         vm.mark(found(vm).single())
@@ -181,7 +183,7 @@ class SearchViewModelTest {
     @Test
     fun aSearchReadAgainShowsWhatTheSourceSaysThen() = runTest {
         val vm = SearchViewModel({ provider }, work = this)
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         vm.mark(found(vm).single())
@@ -197,6 +199,88 @@ class SearchViewModelTest {
         assertFalse(found(vm).single().user.played)
     }
 
+    /** The library changed, a title marked from its page: the search shown is read again, as the source says it now. */
+    @Test
+    fun aChangeOfTheLibraryReadsTheSearchAgain() = runTest {
+        val vm = SearchViewModel({ provider })
+        show(vm)
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+
+        catalog.found = SearchResults(titles = listOf(film("amelie", "Amélie").markedAs(true)))
+        vm.reload()
+        advanceUntilIdle()
+        assertEquals(listOf("search AME", "search AME"), catalog.calls)
+        assertTrue(found(vm).single().user.played)
+    }
+
+    /** The library changed as the search is first read: it is read again after that read, as the source says it now. */
+    @Test
+    fun aChangeOfTheLibraryAsTheSearchIsFirstReadReadsItAgainAfter() = runTest {
+        val vm = SearchViewModel({ provider })
+        show(vm)
+        val reading = catalog.gate("search AME")
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+
+        catalog.found = SearchResults(titles = listOf(film("amelie", "Amélie").markedAs(true)))
+        vm.reload()
+        reading.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf("search AME", "search AME"), catalog.calls)
+        assertTrue(found(vm).single().user.played)
+    }
+
+    /**
+     * A result's change still saving shows over the search read again meanwhile, the library changed by another of its
+     * changes saved; not saved, it comes undone there, the other showing as the source has it.
+     */
+    @Test
+    fun aChangeStillSavingShowsOverTheSearchReadAgain() = runTest {
+        provider.fail = { if (it.startsWith("favorite")) IOException("NAS away") else null }
+        val vm = SearchViewModel({ provider }, work = this)
+        show(vm)
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+        val amelie = found(vm).single()
+        val marking = provider.gate("played amelie true")
+        val favouring = provider.gate("favorite amelie true")
+        vm.mark(amelie)
+        runCurrent()
+        vm.favorite(found(vm).single())
+        runCurrent()
+        marking.complete(Unit)
+        advanceUntilIdle()
+
+        // The mark saved changed the library: the search is read again, as the source now has it.
+        catalog.found = SearchResults(titles = listOf(amelie.markedAs(true)))
+        vm.reload()
+        advanceUntilIdle()
+        assertEquals(listOf("search AME", "search AME"), catalog.calls)
+        assertEquals("the favourite still saving shows", amelie.markedAs(true).favoredAs(true), found(vm).single())
+
+        favouring.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(amelie.markedAs(true), found(vm).single())
+        assertEquals(NotSaved("amelie", UiError.OFFLINE), vm.notSaved.value)
+    }
+
+    /** Away from the screen a while, nothing changed: the results are kept, never read again on its return. */
+    @Test
+    fun theSearchIsNotReadAgainOnItsReturnWithNothingChanged() = runTest {
+        val vm = SearchViewModel({ provider })
+        val away = show(vm)
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+        away.cancel()
+        advanceTimeBy(AWAY_MS)
+
+        show(vm)
+        advanceUntilIdle()
+        assertEquals(listOf("search AME"), catalog.calls)
+        assertEquals("amelie", found(vm).single().id)
+    }
+
     /**
      * Two changes of one result, neither saved, show it as found whichever fails first, the one still saving showing
      * meanwhile: marked then made a favourite, or marked then unmarked.
@@ -206,7 +290,7 @@ class SearchViewModelTest {
         provider.fail = { if (it.startsWith("played") || it.startsWith("favorite")) IOException("NAS away") else null }
         listOf(true, false).forEach { markFailsFirst ->
             val vm = SearchViewModel({ provider }, work = this)
-            val collecting = backgroundScope.launch { vm.found.collect {} }
+            val collecting = show(vm)
             "AME".forEach(vm::type)
             advanceUntilIdle()
             val amelie = found(vm).single()
@@ -249,7 +333,7 @@ class SearchViewModelTest {
         provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
         listOf(true, false).forEach { markFailsFirst ->
             val vm = SearchViewModel({ provider }, work = this)
-            val collecting = backgroundScope.launch { vm.found.collect {} }
+            val collecting = show(vm)
             "AME".forEach(vm::type)
             advanceUntilIdle()
             val amelie = found(vm).single()
@@ -270,5 +354,17 @@ class SearchViewModelTest {
         }
     }
 
+    /**
+     * The search's screen showing [vm]'s results, as it collects them, from now: its search, kept while the view model
+     * lives, starts as the screen first shows, with nothing else for the test's clock to run before it.
+     */
+    private fun TestScope.show(vm: SearchViewModel) =
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.found.collect {} }
+
     private fun found(vm: SearchViewModel) = checkNotNull(vm.found.value?.results?.valueOrNull).titles
+
+    private companion object {
+        /** Longer than a screen's results were kept after it was left. */
+        const val AWAY_MS = 60_000L
+    }
 }

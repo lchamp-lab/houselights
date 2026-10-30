@@ -5,6 +5,7 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.SortOption
 import app.houselights.core.UserState
 import app.houselights.core.WatchStatus
 import app.houselights.ui.testing.FakeEvents
@@ -408,6 +409,57 @@ class LibraryPosterChangesTest {
             assertEquals("$markFailsFirst", listOf("m1", "m3"), favorites.state.value.items.map { it.id })
             assertEquals("$markFailsFirst", 2, favorites.state.value.total)
         }
+    }
+
+    /**
+     * Marked on Non vus, the wall then switched to Vus before the save fails (#118): the title, still unwatched, is not
+     * put back on Vus, which never held it, nor counted there.
+     */
+    @Test
+    fun aMarkNotSavedAfterTheWallChangedFilterStaysOffTheNewWall() = runTest {
+        provider.wall = listOf(film("m1").copy(user = UserState(played = true)), film("m2"), film("m3"))
+        provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
+        val vm = LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.UNWATCHED), work = this)
+        advanceUntilIdle()
+        val saving = provider.gate("played m2 true")
+        vm.mark(vm.shown("m2"))
+        runCurrent()
+        vm.setFilter(LibraryFilter(status = WatchStatus.WATCHED))
+        advanceUntilIdle()
+        assertEquals(listOf("m1"), vm.state.value.items.map { it.id })
+
+        saving.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf("m1"), vm.state.value.items.map { it.id })
+        assertEquals(1, vm.state.value.total)
+        assertEquals(NotSaved("m2", UiError.OFFLINE), vm.notSaved.value)
+    }
+
+    /**
+     * Marked on Non vus, the wall then sorted anew before the save fails: the title, which the new wall read and kept
+     * away for the mark, is back in the place it read it at, and counted again, with no read of the wall since.
+     */
+    @Test
+    fun aMarkNotSavedAfterTheWallSortedAnewIsBackOnIt() = runTest {
+        provider.wall = listOf(film("m1").copy(user = UserState(played = true)), film("m2"), film("m3"))
+        provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
+        val vm = LibraryViewModel({ provider }, library, opensOn = LibraryFilter(status = WatchStatus.UNWATCHED), work = this)
+        advanceUntilIdle()
+        val saving = provider.gate("played m2 true")
+        vm.mark(vm.shown("m2"))
+        runCurrent()
+        vm.setSort(SortOption.ADDED)
+        advanceUntilIdle()
+        assertEquals("the mark still saving keeps it away", listOf("m3"), vm.state.value.items.map { it.id })
+        assertEquals(1, vm.state.value.total)
+        val reads = provider.calls.count { it.startsWith("page") }
+
+        saving.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf("m2", "m3"), vm.state.value.items.map { it.id })
+        assertEquals(2, vm.state.value.total)
+        assertEquals("no read of the wall", reads, provider.calls.count { it.startsWith("page") })
+        assertEquals(NotSaved("m2", UiError.OFFLINE), vm.notSaved.value)
     }
 
     private fun LibraryViewModel.shown(id: String) = state.value.items.single { it.id == id }

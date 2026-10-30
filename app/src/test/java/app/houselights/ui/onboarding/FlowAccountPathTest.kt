@@ -362,6 +362,28 @@ class FlowAccountPathTest : FlowHarness() {
     }
 
     /**
+     * « Compte NFS » found again after a stopped process: Back with a user erased gives back the pair it was opened
+     * with, never root.
+     */
+    @Test
+    fun backFromTheNfsAccountFoundAgainGivesBackThePairItWasOpenedWith() {
+        val saved = SavedStateHandle()
+        val flow = flow(films, saved = saved)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        flow.openNfsAccount()
+        assertEquals("1026" to "100", flow.uid to flow.gid)
+
+        val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { again.ready }
+        assertEquals(FlowStep.NFS_ACCOUNT, again.step)
+        again.type(FlowKeys.FIELD_UID, "")
+        again.back {}
+        assertEquals(FlowStep.SHARES, again.step)
+        assertEquals("1026" to "100", again.uid to again.gid)
+    }
+
+    /**
      * A folder the NFS user presented may not read: said of that user, « Compte NFS » carrying it over, never of root;
      * root presented, it opens.
      */
@@ -413,6 +435,65 @@ class FlowAccountPathTest : FlowHarness() {
         assertEquals(flow.level, again.level)
         assertEquals("/volume1/video", again.share?.path)
         assertEquals(FlowKeys.CHOOSE, again.aim?.key)
+    }
+
+    /**
+     * The level shown, which may hold thousands of folders, is never in what Android keeps: the flow found again reads
+     * it again from the NAS; a level the NAS no longer has, the flow is back at the shared folders.
+     */
+    @Test
+    fun theLevelShownIsReadAgainAfterAStoppedProcess() {
+        val saved = SavedStateHandle()
+        val flow = flow(films, saved = saved)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        flow.openFolder("Films2")
+        until { flow.path == listOf("Films2") }
+        val shown = checkNotNull(flow.level)
+        val kept = saved.keys().map { saved.get<Any>(it) }
+        assertTrue("its folders kept", kept.none { value -> value is List<*> && value.any { it == shown.folders.first() } })
+
+        network.asked.clear()
+        val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { again.ready }
+        assertEquals(FlowStep.BROWSE, again.step)
+        assertEquals(shown, again.level)
+        assertTrue("read again: ${network.asked}", "level volume1/video/Films2" in network.asked)
+
+        network.folders.remove("volume1/video/Films2")
+        val gone = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { gone.ready }
+        assertEquals(FlowStep.SHARES, gone.step)
+    }
+
+    /**
+     * Back pressed as the flow found again reads the level left: up a level, the flow shows the level above, never the
+     * level left read late in its place.
+     */
+    @Test
+    fun backAsTheLevelLeftIsReadAgainShowsTheLevelAbove() {
+        val saved = SavedStateHandle()
+        val flow = flow(films, saved = saved)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        flow.openFolder("Films2")
+        until { flow.path == listOf("Films2") }
+
+        network.asked.clear()
+        val reading = network.hold("level")
+        val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { "level volume1/video/Films2" in network.asked }
+        again.back {}
+        until { again.path.isEmpty() }
+        reading.complete(Unit)
+        until { again.ready }
+        assertEquals(FlowStep.BROWSE, again.step)
+        assertEquals(emptyList<String>(), again.path)
+        assertEquals(network.folders.getValue("volume1/video"), again.level)
     }
 
     /**

@@ -46,9 +46,9 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
         item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.caseLogoWidth, HomeGridDefaults.caseLogoHeight, density) },
     )
 
-    /** A door's still showing [item] ([DoorStill]): its backdrop at the door's width, and its logo. */
-    fun still(item: MediaItem): List<ImageRequest> = listOfNotNull(
-        stillDoorRequest(context, item) { it.px() },
+    /** A door of [span] parts showing [item]'s still ([DoorStill]): its backdrop at the door's width, and its logo. */
+    fun still(item: MediaItem, span: Int): List<ImageRequest> = listOfNotNull(
+        stillDoorRequest(context, item, span) { it.px() },
         item.logo?.let { titleArtRequest(context, it, HomeGridDefaults.stillLogoWidth, HomeGridDefaults.stillLogoHeight, density) },
     )
 

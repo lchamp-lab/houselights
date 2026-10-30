@@ -149,8 +149,12 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
     val listedUser: String get() = listedWith?.user ?: user
     val listedAsGuest: Boolean get() = listedWith?.guest ?: guest
 
-    /** The user and group « Compte NFS » was opened with, which Back gives back for a pair half typed ([identityBack]). */
-    private var identityBefore: Pair<String, String>? = null
+    /**
+     * The user and group « Compte NFS » was opened with, which Back gives back for a pair half typed ([identityBack]);
+     * kept as [uid] and [gid] are, so that a stopped process gives them back too.
+     */
+    private var uidBefore by saved.kept<String?>(KEPT_UID_BEFORE, null)
+    private var gidBefore by saved.kept<String?>(KEPT_GID_BEFORE, null)
 
     protected var sharePaths by saved.kept<List<String>>(KEPT_SHARE_PATHS, arrayListOf())
     protected var shareRemarks by saved.kept<List<String>>(KEPT_SHARE_REMARKS, arrayListOf())
@@ -176,11 +180,12 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
     /** The folder shown at [FlowStep.BROWSE], then chosen, under [share]'s root. */
     val path: List<String> get() = pathNames
 
-    protected var levelFolders by saved.kept<List<String>>(KEPT_LEVEL_FOLDERS, arrayListOf())
-    protected var levelVideos by saved.kept(KEPT_LEVEL_VIDEOS, -1)
-
-    /** The level shown at [FlowStep.BROWSE]. */
-    val level: FolderLevel? get() = if (levelVideos < 0) null else FolderLevel(levelFolders, levelVideos)
+    /**
+     * The level shown at [FlowStep.BROWSE]: never in the saved state, which a level of thousands of folders would burst;
+     * a stopped process reads it again from the NAS, as [path] says.
+     */
+    var level by mutableStateOf<FolderLevel?>(null)
+        protected set
 
     /** Levels read since the shared folder opened, so going up shows them at once. */
     protected val levels = mutableMapOf<List<String>, FolderLevel>()
@@ -245,7 +250,8 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
     }
 
     protected fun keepIdentity() {
-        identityBefore = uid to gid
+        uidBefore = uid
+        gidBefore = gid
     }
 
     /**
@@ -253,13 +259,14 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
      * presented ([place]), gives back the pair it was opened with, else root. Another pair clears what refused the last.
      */
     protected fun identityBack() {
-        val before = identityBefore ?: ("" to "")
+        val before = uidBefore.orEmpty() to gidBefore.orEmpty()
         if (uid.isEmpty() != gid.isEmpty()) {
             uid = before.first
             gid = before.second
         }
         if ((uid to gid) != before) identityChanged()
-        identityBefore = null
+        uidBefore = null
+        gidBefore = null
     }
 
     /** Another user and group: the shared folders that refused the last may open now. */
@@ -439,6 +446,8 @@ private const val KEPT_TYPED_PATH = "flowTypedPath"
 private const val KEPT_USER = "flowUser"
 private const val KEPT_UID = "flowUid"
 private const val KEPT_GID = "flowGid"
+private const val KEPT_UID_BEFORE = "flowUidBefore"
+private const val KEPT_GID_BEFORE = "flowGidBefore"
 private const val KEPT_GUEST = "flowGuest"
 private const val KEPT_ACCOUNT_KEPT = "flowAccountKept"
 private const val KEPT_SIGNED_IN = "flowSignedIn"
@@ -449,5 +458,3 @@ private const val KEPT_NO_LIST = "flowNoList"
 private const val KEPT_SHARE = "flowShare"
 private const val KEPT_TRYING = "flowTrying"
 private const val KEPT_PATH = "flowPath"
-private const val KEPT_LEVEL_FOLDERS = "flowLevelFolders"
-private const val KEPT_LEVEL_VIDEOS = "flowLevelVideos"

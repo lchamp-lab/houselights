@@ -68,5 +68,8 @@ class FakeCatalog : Catalog {
 
     override suspend fun numbers(): LibraryNumbers = numbers.also { call("numbers") }
 
-    override suspend fun search(query: String, limit: Int): SearchResults = found.also { call("search $query") }
+    override suspend fun search(query: String, limit: Int): SearchResults = found.also {
+        call("search $query")
+        gates["search $query"]?.await()
+    }
 }

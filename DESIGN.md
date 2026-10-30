@@ -606,11 +606,13 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   the poster taking its place, set once, else the one before it (see *Focus*); emptied, the wall says « Aucun titre
   avec ces filtres », « Retirer les filtres » focused. The same after Back from its page. A read under way meanwhile,
   a scan's progress or the one a change before asked, never brings it back nor its count: the change lies over every
-  read until one begun after its save says it, here, in « À regarder » and on a person's page (`PendingChanges`). A
-  change not saved is undone alone, its mark or its favourite (`Undone`): another asked of the title still saving or
-  saved keeps showing, and two not saved, a mark then a favourite or a mark then its opposite, leave it as the source
+  read until one begun after its save says it, here, in « À regarder », on a person's page and in search
+  (`PendingChanges`). A change not saved is undone alone, its mark or its favourite (`Undone`): another asked of the
+  title still saving or saved keeps showing, and two not saved, a mark then a favourite or a mark then its opposite, leave it as the source
   has it. The title is back in its place with focus, its title line saying why in place of its facts,
-  « Non enregistré · Serveur injoignable » by the attention mark, while it has focus. Unfiltered, the poster stays, its mark changing, focus
+  « Non enregistré · Serveur injoignable » by the attention mark, while it has focus; a wall started over meanwhile, on
+  another filter, sort or view, takes it back where it read it and kept it away for the change, and one that never
+  held it, an unwatched film on Vus, never takes it in. Unfiltered, the poster stays, its mark changing, focus
   where it is; a favourite ends its title line's facts with the filled heart, on a wall and on a person's page that has
   one (`TitleLine`). In « À regarder » a title leaves its row as it leaves what the row holds, Reprendre at once, À
   suivre's episode giving its place to the next as the rows read again; on a person's page and in search the title
@@ -836,8 +838,9 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   suggestion focused; « Passer », first in the aside, nearest the results (Left from one), opens it unchanged, as
   « Laisser tel quel » and « Rétablir l’automatique » do once done; after the last, Réglages, never an empty list; Back
   returns to the list, on the title the queue reached, never from title to title. OK does nothing for `HlMotion.SETTLE`
-  once the results come under focus, nor the release of a press given meanwhile (`calmAfter`): a second OK given too soon
-  never accepts what came under it unseen (`IdentifyQueueTest`).
+  once results come under focus, the first ones and each list a search puts in their place, nor the release of a press
+  given meanwhile (`calmAfter`): a second OK given too soon never accepts what came under it unseen (`IdentifyQueueTest`,
+  `IdentifyScreenTest`).
 - **Focus is never lost.** When its element disappears, it moves to a neighbour, else to the action that adds
   one ("Ajouter un dossier"): a title identified, to the one taking its place in « À identifier », a row gone from a
   plate to the plate's first row (`focusGroupKey`). A poster leaving a wall with focus (a title its options mark out of

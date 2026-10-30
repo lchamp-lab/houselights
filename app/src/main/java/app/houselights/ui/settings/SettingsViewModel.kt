@@ -107,9 +107,9 @@ internal enum class SettingAction {
 internal data class ActionError(val action: SettingAction, val error: UiError, val folderId: Long? = null)
 
 /**
- * What Settings shows and changes. A failed change shows in [actionError] on its row until the next one. Folder
- * removal and TMDB key saving run in [work], which outlives the screen. Holds the image loader, not a context,
- * so no screen leaks.
+ * What Settings shows and changes. A failed change shows in [actionError] on its row until the next one, a folder's
+ * until the next one to that folder. Folder removal and TMDB key saving run in [work], which outlives the screen. Holds
+ * the image loader, not a context, so no screen leaks.
  */
 @Suppress("TooManyFunctions") // What Settings changes, a function a setting.
 internal class SettingsViewModel(
@@ -215,7 +215,7 @@ internal class SettingsViewModel(
     fun resumeServer(server: SourceConfig.Jellyfin, onResumed: () -> Unit, onRefused: (SourceConfig.Jellyfin) -> Unit) {
         if (resuming) return
         resuming = true
-        actionError = null
+        clearError()
         val failed = { error: UiError -> actionError = ActionError(SettingAction.KEPT_SERVER, error) }
         viewModelScope.launchAction(TAG, "Resuming the kept server", onError = failed) {
             try {
@@ -249,9 +249,16 @@ internal class SettingsViewModel(
         tmdbKey = null
     }
 
-    /** Clears [actionError] once it is no longer where focus is (another pane). */
-    fun clearActionError() {
-        actionError = null
+    /** Clears [actionError] once it is no longer where focus is (another pane), but a folder's ([clearError]). */
+    fun clearActionError() = clearError()
+
+    /**
+     * Clears [actionError] as a change begins, from folder [folderId]'s showcase or from another row (null), or as focus
+     * leaves for another pane; but a folder's failure, said on its showcase however long it took to come, stays until
+     * the next change to that folder.
+     */
+    private fun clearError(folderId: Long? = null) {
+        actionError = actionError?.takeIf { it.folderId != null && it.folderId != folderId }
     }
 
     /** Runs a change requested from [action]'s row in [scope]; a failure is logged and set in [actionError]. */
@@ -262,7 +269,7 @@ internal class SettingsViewModel(
         folderId: Long? = null,
         block: suspend CoroutineScope.() -> Unit,
     ) {
-        actionError = null
+        clearError(folderId)
         val failed = { error: UiError -> actionError = ActionError(action, error, folderId) }
         scope.launchAction(TAG, what, onError = failed, errorOf = Throwable::toWriteError, block = block)
     }
@@ -384,8 +391,6 @@ internal class SettingsViewModel(
     /** The path mappings as typed, incomplete lines included: they survive pane changes and scrolling. */
     val mappings: List<PathMapping> = _mappings
 
-    private var mappingsEdited = false
-
     /** The stored mappings were not opened when this screen opened: [mappings] takes them in once they are. */
     private var mappingsAwaited = SecretSetting.PATH_MAPPINGS in store.state.value.unreadSecrets
 
@@ -417,38 +422,47 @@ internal class SettingsViewModel(
             incomplete -> _mappings.removeAt(index)
             else -> _mappings[index] = mapping
         }
-        mappingsEdited = true
         saveMappings()
     }
 
     fun removeMapping(index: Int) {
         if (!mappingsReadable()) return
         _mappings.removeAt(index)
-        mappingsEdited = true
         saveMappings()
     }
 
     /** Saves the complete lines as the sheet closes, not while typing, so a half-typed path never plays. */
     private fun saveMappings() {
-        if (!mappingsEdited) return
-        mappingsEdited = false
-        val complete = completeMappings()
+        val complete = _mappings.filter { it.from.isNotBlank() && it.to.isNotBlank() }
         change("Saving the path mappings", SettingAction.PATH_MAPPINGS) { store.setPathMappings(complete) }
     }
 
-    private fun completeMappings() = _mappings.filter { it.from.isNotBlank() && it.to.isNotBlank() }
+    /** The artwork no title uses is being deleted ([cleanup]): another press waits for it to end. */
+    var cleaning = false
+        private set
 
-    override fun onCleared() {
-        // Leaving Settings from inside a field still saves what was typed.
-        if (mappingsEdited) {
-            val complete = completeMappings()
-            work.launchAction(TAG, "Saving the path mappings") { store.setPathMappings(complete) }
+    /** What the last cleanup deleted, said on its row while Settings stays open; null before one ends well. */
+    var cleaned by mutableStateOf<CleanupResult?>(null)
+        private set
+
+    /**
+     * Deletes the artwork no title uses, here, so that its result outlives a change of pane; [actionError] says why it
+     * failed. A press while it runs does nothing: a second cleanup would find nothing left and say so over the first.
+     */
+    fun cleanup() {
+        if (cleaning) return
+        cleaning = true
+        viewModelScope.launch {
+            try {
+                action("Cleaning up the artwork", SettingAction.CLEANUP) { library.cleanup() }?.let { result ->
+                    cleaned = result
+                    refreshStorage()
+                }
+            } finally {
+                cleaning = false
+            }
         }
     }
-
-    /** Deletes the artwork no title uses; null when it fails ([actionError] says why). */
-    suspend fun cleanup(): CleanupResult? =
-        action("Cleaning up the artwork", SettingAction.CLEANUP) { library.cleanup() }?.also { refreshStorage() }
 
     /** Empties the image cache; false when it fails ([actionError] says why). */
     @OptIn(ExperimentalCoilApi::class)
@@ -460,7 +474,7 @@ internal class SettingsViewModel(
 
     /** Runs [block] for a screen that awaits its result; null on failure, which [actionError] reports. */
     private suspend fun <T : Any> action(what: String, action: SettingAction, block: suspend () -> T): T? {
-        actionError = null
+        clearError()
         return suspendRunCatching { block() }
             .onFailure { e ->
                 Log.w(TAG, "$what failed", e)

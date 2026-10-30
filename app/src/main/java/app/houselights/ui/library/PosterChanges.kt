@@ -24,10 +24,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * ([MediaProvider.setPlayed], so Trakt follows it as it does from the page), its favourite ([MediaProvider.setFavorite])
  * and the order of a show's episodes, each saved in [work], which outlives the screen, then told to the other screens
  * ([events]). A mark or a favourite is held ([pending]) from the moment it shows until it is saved and read again: a
- * wall, « À regarder » and a person's page lay it over each of their reads meanwhile, which may answer as the source
- * stood before it; search lays what its results' options changed over the one read they were changed in alone. Not
- * saved, a change is undone by its screen, its mark or its favourite alone ([Undone]), and said ([notSaved]), logged
- * under [tag].
+ * wall, « À regarder », a person's page and search lay it over each of their reads meanwhile, which may answer as the
+ * source stood before it. Not saved, a change is undone by its screen, its mark or its favourite alone ([Undone]), over
+ * what the screen then shows, and said ([notSaved]), logged under [tag].
  */
 internal class PosterChanges(
     private val source: () -> MediaProvider?,
@@ -235,6 +234,12 @@ internal class Laid(private val changes: List<Held>, private val read: Reading) 
  */
 internal class Undone(change: Held, burst: List<Held>) {
     val id: String = change.item.id
+
+    /** The burst of the title's changes this one was asked in ([Held.burst]). */
+    val burstId: Int = change.burst
+
+    /** Whether no change of the burst is saving any more: this one is the last of it to be undone. */
+    val settled: Boolean = burst.none { it.saving }
 
     private val facet = change.facet
 

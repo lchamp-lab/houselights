@@ -82,6 +82,25 @@ class LibraryViewModelTest {
         assertEquals(240, vm.state.value.items.size)
     }
 
+    /**
+     * A scan's progress while the next page loads, its reload cancelling that page: the reload reads it too, so the
+     * wall goes on past it, never stopping at its last row with no foot.
+     */
+    @Test
+    fun aReloadWhileTheNextPageLoadsReadsItToo() = runTest {
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        provider.gate("page 120 120")
+        vm.loadMore()
+        advanceUntilIdle()
+        provider.calls.clear()
+
+        vm.onLibraryChanged(scanOnly = true)
+        advanceUntilIdle()
+        assertEquals(listOf("page 0 240"), provider.calls)
+        assertEquals(240, vm.state.value.items.size)
+    }
+
     /** A scan's progress reloads the titles shown; what the filters offer and the sagas wait for its end. */
     @Test
     fun aScansProgressReloadsOnlyTheTitles() = runTest {

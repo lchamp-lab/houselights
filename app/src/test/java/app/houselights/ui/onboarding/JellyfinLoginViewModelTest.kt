@@ -1,5 +1,6 @@
 package app.houselights.ui.onboarding
 
+import androidx.lifecycle.SavedStateHandle
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.AuthRequest
@@ -14,6 +15,7 @@ import app.houselights.settings.SourceSwitcher
 import app.houselights.testing.http
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
+import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.fullSettings
 import app.houselights.ui.testing.testSettings
 import app.houselights.ui.testing.waitFor
@@ -91,10 +93,11 @@ class JellyfinLoginViewModelTest {
         settings: SettingsStore? = null,
         save: suspend (SourceConfig) -> Unit = { saved += it },
         fill: LoginFill = LoginFill.Current,
+        kept: SavedStateHandle = SavedStateHandle(),
     ): JellyfinLoginViewModel {
         val store = settings ?: testSettings(folder.root, backgroundScope)
         val sources = SourceSwitcher({ store.state.value }, { source, _ -> save(source) }, backgroundScope, signOut = { _, _ -> })
-        return JellyfinLoginViewModel(store, sources, network, fill)
+        return JellyfinLoginViewModel(store, sources, network, fill, kept)
     }
 
     @Test
@@ -276,6 +279,29 @@ class JellyfinLoginViewModelTest {
         assertFalse(vm.again)
         assertEquals("", vm.server)
         assertEquals("", vm.user)
+    }
+
+    /**
+     * The address and the user typed outlive a process Android stops while the password is looked up in another app,
+     * and come before what the form starts with; the password never does.
+     */
+    @Test
+    fun theAddressAndUserTypedOutliveAStoppedProcess() = runTest {
+        // The settings on disk outlive the process: one store for the three forms, as one file holds one at a time.
+        val settings = testSettings(folder.root, backgroundScope)
+        val kept = SavedStateHandle()
+        val typed = login(settings, fill = LoginFill.Blank, kept = kept)
+        typed.server = "192.168.1.20:8096"
+        typed.user = "luc"
+        typed.password = "secret"
+
+        val again = login(settings, fill = LoginFill.Blank, kept = kept.afterProcessDeath())
+        assertEquals("192.168.1.20:8096" to "luc", again.server to again.user)
+        assertEquals("", again.password)
+        assertTrue("no password kept", kept.keys().none { kept.get<Any>(it) == "secret" })
+
+        val known = login(settings, fill = LoginFill.Server("https://nas:8920", "lea"), kept = kept.afterProcessDeath())
+        assertEquals("192.168.1.20:8096" to "luc", known.server to known.user)
     }
 
     @Test

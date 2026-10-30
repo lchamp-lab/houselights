@@ -154,16 +154,44 @@ class FolderFlow(
 
     /**
      * Back after a stopped process: the step left, but the account step again when it needs a password typed, or when
-     * the password kept is one the Keystore did not open for now ([accountAgain]).
+     * the password kept is one the Keystore did not open for now ([accountAgain]); at step 5 or 6, the level left read
+     * again from the NAS, else the shared folders' step, as going up from it does ([levelLeftReadAgain]).
      */
     private suspend fun restore() {
         val at = host ?: return go(FlowStep.WHERE, startKey())
         folders = suspendRunCatching { library.foldersOn(at) }.getOrDefault(emptyList())
         if (protocol == Protocol.SMB && accountKept) keptPassword = folders.smbAccess()?.password
         if (step in AFTER_ACCOUNT && accountAgain()) return
-        if (step == FlowStep.BROWSE || step == FlowStep.KIND) levels[path] = level ?: return go(FlowStep.WHERE, startKey())
+        if ((step == FlowStep.BROWSE || step == FlowStep.KIND) && !levelLeftReadAgain()) return
         view++
         aim(entryKey())
+    }
+
+    /**
+     * The level left at step 5 or 6 read again from the NAS and shown: true when the step left is to be entered as
+     * left; false when it shows another, the shared folders' step for a level the NAS no longer has, or where Back took
+     * the flow meanwhile, up a level or to the step before, the level read shown only where it was left.
+     */
+    private suspend fun levelLeftReadAgain(): Boolean {
+        val opened = share
+        if (opened == null) {
+            go(FlowStep.WHERE, startKey())
+            return false
+        }
+        val left = path.toList()
+        val leftStep = step
+        val read = suspendRunCatching { network.level(place(opened), left.joinToString("/")) }
+            .onFailure { Log.w(TAG, "Reading the level left failed", it) }
+            .getOrNull()
+        if (path != left || (step != FlowStep.BROWSE && step != FlowStep.KIND)) return false
+        if (read == null) {
+            beforeBrowse(opened) { go(FlowStep.WHERE, startKey()) }
+            return false
+        }
+        levels[left] = read
+        level = read
+        // Back from step 6 meanwhile: step 5 shows the level, focus where Back put it.
+        return step == leftStep
     }
 
     /**
@@ -737,8 +765,7 @@ class FolderFlow(
     private fun show(at: List<String>, read: FolderLevel, focusOn: String? = null) {
         levels[at] = read
         pathNames = ArrayList(at)
-        levelFolders = ArrayList(read.folders)
-        levelVideos = read.videos
+        level = read
         go(FlowStep.BROWSE, focusOn ?: browseFocus(at, read))
     }
 

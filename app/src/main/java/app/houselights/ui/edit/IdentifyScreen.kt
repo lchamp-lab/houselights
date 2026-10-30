@@ -108,8 +108,9 @@ internal fun IdentifyPage(vm: IdentifyViewModel, onDone: () -> Unit, queue: Bool
         }
     }
 
-    // The results come under focus: a second OK given too soon, the last screen's, chooses none of them unseen.
-    Box(Modifier.fillMaxSize().calmAfter(state.results != null)) {
+    // The results come under focus, the first ones and each list a search puts in their place: a second OK given too
+    // soon, the last screen's or the search's, chooses none of them unseen.
+    Box(Modifier.fillMaxSize().calmAfter(state.results)) {
         HlFormScaffold(
             title = stringResource(R.string.identify),
             description = stringResource(descriptionOf(state.identity)),

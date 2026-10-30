@@ -263,6 +263,33 @@ class SettingsViewModelTest {
         assertNull(vm.errorOf(SettingAction.CLEANUP))
     }
 
+    /**
+     * A folder's removal failing while another pane shows: back on Bibliothèque, its showcase still says why, until the
+     * next change to that folder; any other failure goes as the pane changes.
+     */
+    @Test
+    fun aFolderRemovalFailingInAnotherPaneIsStillSaidOnItsReturn() = runTest {
+        val store = testSettings(folder.root, backgroundScope)
+        val id = dao.insertSource(nfsFolder("films"))
+        val vm = settings(store, work = backgroundScope)
+        db.openHelper.writableDatabase.execSQL("PRAGMA query_only = ON")
+        vm.removeFolder(dao.source(id)!!.toFolder())
+        // Off to Affichage, back to Bibliothèque, while it fails.
+        vm.clearActionError()
+        waitFor("the folder's removal over") { id !in vm.removing }
+        vm.clearActionError()
+        vm.setUi4k(false)
+        assertEquals(UiError.FAILED, vm.errorOf(SettingAction.REMOVE_FOLDER, id))
+
+        vm.removeFolder(dao.source(id)!!.toFolder())
+        assertNull("the next change to the folder", vm.errorOf(SettingAction.REMOVE_FOLDER, id))
+        waitFor("the folder's removal over") { id !in vm.removing }
+
+        vm.actionFailed(SettingAction.SOURCE, UiError.NOT_SAVED)
+        vm.clearActionError()
+        assertNull(vm.actionError)
+    }
+
     /** A folder removed waits for the file a scan reads in it: leaving the settings meanwhile does not stop it. */
     @Test
     fun aFolderRemovedIsRemovedEvenWhenTheSettingsAreLeft() = runTest {
@@ -388,6 +415,26 @@ class SettingsViewModelTest {
         waitFor("the key's outcome") { vm.tmdbKey?.outcome != null }
         assertEquals(TmdbKeySave.Failed(UiError.KEYSTORE), vm.tmdbKey?.outcome)
         assertFalse(vm.savingTmdbKey)
+    }
+
+    /**
+     * « Nettoyer maintenant » pressed twice before it ends: one cleanup, which says what it deleted, never « Rien à
+     * nettoyer » from a second over it; its result is the settings', so that a change of pane meanwhile keeps it.
+     */
+    @Test
+    fun aCleanupPressedTwiceRunsOnceAndSaysWhatItDeleted() = runTest {
+        val artwork = ApplicationProvider.getApplicationContext<Context>().cacheDir.resolve("artwork/posters")
+        artwork.mkdirs()
+        listOf("dune.jpg", "heat.jpg").forEach { artwork.resolve(it).writeText("poster") }
+        val vm = settings(testSettings(folder.root, backgroundScope), backgroundScope)
+        vm.cleanup()
+        assertTrue(vm.cleaning)
+        vm.cleanup()
+        waitFor("the cleanup done") { !vm.cleaning }
+        assertEquals(2, vm.cleaned?.deletedFiles)
+        assertNull(vm.actionError)
+        waitFor("the storage measured again") { vm.storage.value != null }
+        assertEquals(2, vm.cleaned?.deletedFiles)
     }
 
     /** Coil's cache reads its journal at the first size query, under its cleanup lock: off the main thread. */
