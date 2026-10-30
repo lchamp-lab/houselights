@@ -14,9 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
@@ -30,6 +28,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
+import app.houselights.ui.design.isOk
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.detail.longDate
 import app.houselights.ui.util.ErrorAction
@@ -175,7 +174,7 @@ private fun Modifier.calmOnArrival(): Modifier {
         if (calm.focus(state.isFocused)) arrivals++
     }.onPreviewKeyEvent { event ->
         when {
-            event.key !in OK_KEYS -> false
+            !event.isOk() -> false
             event.type == KeyEventType.KeyDown -> calm.pressed(event.nativeKeyEvent.repeatCount)
             event.type == KeyEventType.KeyUp -> calm.released()
             else -> false
@@ -218,5 +217,3 @@ private class ArrivalCalm {
         down = false
     }
 }
-
-private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

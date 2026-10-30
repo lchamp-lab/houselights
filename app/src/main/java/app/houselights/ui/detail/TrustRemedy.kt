@@ -7,14 +7,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.isOk
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
@@ -52,11 +51,9 @@ internal fun TrustPlayerButton(hold: RemedyHold, modifier: Modifier = Modifier) 
         modifier = modifier
             .onFocusChanged { if (!it.isFocused) hold.pressed = false }
             .onPreviewKeyEvent { event ->
-                val ok = event.type == KeyEventType.KeyDown && event.key in OK_KEYS
+                val ok = event.type == KeyEventType.KeyDown && event.isOk()
                 if (ok && event.nativeKeyEvent.repeatCount == 0) hold.pressed = true
                 false
             },
     )
 }
-
-private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

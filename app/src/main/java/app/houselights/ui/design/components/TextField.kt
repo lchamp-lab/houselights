@@ -84,6 +84,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HlType
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.isOk
 import java.text.BreakIterator
 
 /**
@@ -529,8 +530,7 @@ private fun characters(text: String): BreakIterator = BreakIterator.getCharacter
  * at rest: Enter on a keyboard ends typing as it goes down, focus back on the field before it is let go.
  */
 private fun Modifier.openOnOk(state: FieldState, open: () -> Unit): Modifier = onKeyEvent { event ->
-    val ok = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
-    if (!state.editing && ok) {
+    if (!state.editing && event.isOk()) {
         when (event.type) {
             KeyEventType.KeyDown -> state.okDown = true
             KeyEventType.KeyUp -> if (state.okDown) {

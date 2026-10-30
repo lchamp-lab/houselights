@@ -24,9 +24,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
@@ -50,6 +48,7 @@ import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.OpenSheets
 import app.houselights.ui.design.components.ReadingPlate
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.isOk
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.formatBytes
@@ -402,7 +401,7 @@ private fun Modifier.calmAfterChange(doing: UpdateAction, calmAtFirst: Boolean):
         calm = false
     }
     return onPreviewKeyEvent { event ->
-        if (event.key !in OK_KEYS) return@onPreviewKeyEvent false
+        if (!event.isOk()) return@onPreviewKeyEvent false
         when {
             event.type == KeyEventType.KeyDown && (calm || swallowed) -> {
                 swallowed = true
@@ -530,5 +529,3 @@ private const val SAID_MS = 2_500L
 
 /** How often home looks whether the launch screen has lifted, before it opens a sheet or says a word. */
 private const val LAUNCH_POLL_MS = 100L
-
-private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

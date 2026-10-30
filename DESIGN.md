@@ -880,7 +880,7 @@ once; a wall, from past its first line, first returns to its first poster. Sheet
 during the house-light cue, Back cancels it.
 
 **Menu** (or the Zidoo remote's Pop Menu, sent as F12) opens the options of what has focus, on its way up
-(`menuForLongClick`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
+(`onMenuKey`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
 Zidoo's turns a held OK into a click; AVA and Unfolded Circle remotes never repeat). What has options says so while it
 shows focus, with the Menu key (`MenuKey`): the remote's key drawn small, its lines (`HlIcons.Menu`) in secondary ink
 in a frame of tertiary ink, `HlShapes.mark`, `HlSize.menuKeyWidth` × `menuKeyHeight`; on a card, in its picture's
