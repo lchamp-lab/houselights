@@ -13,6 +13,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.File
 import java.net.ConnectException
 
 /**
@@ -26,6 +27,7 @@ class ScanMissingTest {
     val temp = TemporaryFolder()
 
     private val log = StatementLog()
+    private lateinit var artwork: File
     private lateinit var bench: ScanBench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
@@ -33,7 +35,8 @@ class ScanMissingTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false, onQuery = log)
+        artwork = temp.newFolder("artwork")
+        bench = ScanBench(artwork, tmdbKey = false, onQuery = log)
         films = bench.folder("Films")
     }
 
@@ -58,6 +61,39 @@ class ScanMissingTest {
         dao.filesOf(films.id).filter { it.filePath in paths }.map { it.missingSince }.toSet()
 
     private suspend fun idOf(path: String) = dao.filesOf(films.id).single { it.filePath == path }.id
+
+    /**
+     * A pass that only adds a film leaves the cleanup, which reads every reference and every image cached, to the next one
+     * that removes a title, or to the next day: an image no title holds stays until then. The first pass since the app
+     * started cleans up.
+     */
+    @Test
+    fun aPassCleansUpOnceItRemovesATitleOrADayLater() = runTest {
+        val unused = File(artwork, "${films.id}/unused.jpg")
+        fun leaveAnImage() = unused.apply { checkNotNull(parentFile).mkdirs() }.writeBytes(ByteArray(8))
+        leaveAnImage()
+        filmFolder(2)
+        assertFalse("the first pass cleans up", unused.exists())
+
+        leaveAnImage()
+        nas.put(film(2))
+        bench.scan()
+        assertEquals(3, filePaths().size)
+        assertTrue("a pass that only adds a film leaves it", unused.exists())
+        nas.remove(film(0))
+        bench.scan()
+        assertEquals(2, filePaths().size)
+        assertFalse("a pass that removes one cleans up", unused.exists())
+
+        leaveAnImage()
+        nas.put(film(3))
+        bench.scan()
+        assertTrue(unused.exists())
+        bench.later(LibraryScanner.CLEANUP_EVERY_MS)
+        nas.put(film(4))
+        bench.scan()
+        assertFalse("a pass a day later cleans up", unused.exists())
+    }
 
     @Test
     fun anUnreachableNasRemovesNothing() = runTest {
