@@ -273,6 +273,7 @@
     <string name="error_login_failed">NAS 拒绝了此用户名或密码。</string>
     <string name="error_password_unread">暂时无法读取已保存的密码：密码仍会保留。请重新输入，或稍后再试。</string>
     <string name="error_not_found">NAS 上不存在此共享文件夹或文件夹。请检查拼写。</string>
+    <string name="error_folder_gone">此文件夹已不在 NAS 上：它可能已被移动或删除。</string>
     <string name="error_host_missing">请输入 NAS 地址。</string>
     <string name="error_export_missing">请输入装载路径，例如 /volume1/video。</string>
     <string name="error_share_missing">请输入共享文件夹的名称，例如 video。</string>
@@ -911,7 +912,7 @@
     <string name="update_incompatible_message">Android 表示此版本不适用于此播放器。</string>
     <string name="update_install_failed_title">安装失败</string>
     <string name="update_install_failed_message">Android 没有安装更新。请重试；日志中有更多信息。</string>
-    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <!-- Titles not found (#70): many files of a folder, or the folder itself, gone at once while the NAS answers, held until the user answers or they are back. -->
     <plurals name="held_titles">
         <item quantity="other">找不到 %d 部作品</item>
     </plurals>
@@ -919,8 +920,8 @@
         <item quantity="other">在 NAS 上找不到“%2$s”中的 %1$d 部作品</item>
     </plurals>
     <string name="held_see">查看</string>
-    <string name="held_text">文件夹“%s”仍有响应，但 Houselights 已找不到这些作品。如果您删除或移动了它们，请将其移除。如果 NAS 的某块硬盘已断开，请保留它们并重新接上硬盘：它们会原样回来。</string>
-    <string name="held_text_one">文件夹“%s”仍有响应，但 Houselights 已找不到此作品。如果您删除或移动了它，请将其移除。如果 NAS 的某块硬盘已断开，请保留它并重新接上硬盘：它会原样回来。</string>
+    <string name="held_text">NAS 仍有响应，但 Houselights 已在文件夹“%s”中找不到这些作品。如果您删除或移动了它们，请将其移除。如果 NAS 的某块硬盘已断开，请保留它们并重新接上硬盘：它们会原样回来。</string>
+    <string name="held_text_one">NAS 仍有响应，但 Houselights 已在文件夹“%s”中找不到此作品。如果您删除或移动了它，请将其移除。如果 NAS 的某块硬盘已断开，请保留它并重新接上硬盘：它会原样回来。</string>
     <string name="held_keep">保留</string>
     <string name="held_keep_desc">保留它们，等待文件回来</string>
     <string name="held_keep_desc_one">保留它，等待文件回来</string>

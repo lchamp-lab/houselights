@@ -112,7 +112,8 @@ gratuite, l’application est entièrement en français. [Installer](#install)
     once, Keep (they wait for their files) or Remove (nothing is deleted on the NAS). Meanwhile they stay on the walls
     with a ring on their posters, their page says how long they have been missing and removes one alone (an episode
     from its options), and Play explains rather than trying; Settings > Library counts them on their folder, Remove
-    still there. Files coming back end it without a word.
+    still there. A folder deleted or moved on a NAS that still answers is held so too, all its titles, from the second
+    scan in a row that finds it gone. Files coming back end it without a word.
   - Films of a saga are gathered on the Movies wall under one poster (Filter > Show > Sagas lists the sagas
     alone; Settings > Library > Sagas gathers a saga from two of its films, from one, or never), with a page per
     saga showing the films you own and those you don't.

@@ -273,6 +273,7 @@
     <string name="error_login_failed">NASがユーザー名またはパスワードを拒否しました。</string>
     <string name="error_password_unread">保存されたパスワードを今は読み取れませんでした。パスワードは保持されています。もう一度入力するか、しばらくしてからもう一度お試しください。</string>
     <string name="error_not_found">この共有フォルダまたはフォルダはNAS上に存在しません。スペルを確認してください。</string>
+    <string name="error_folder_gone">このフォルダはNAS上にもうありません。移動または削除された可能性があります。</string>
     <string name="error_host_missing">NASのアドレスを入力してください。</string>
     <string name="error_export_missing">マウントパスを入力してください（例：/volume1/video）。</string>
     <string name="error_share_missing">共有フォルダ名を入力してください（例：video）。</string>
@@ -908,7 +909,7 @@
     <string name="update_incompatible_message">Android によると、このバージョンはこのプレーヤーに対応していません。</string>
     <string name="update_install_failed_title">インストールできませんでした</string>
     <string name="update_install_failed_message">Android はアップデートをインストールしませんでした。もう一度お試しください。詳しくはログに記録されています。</string>
-    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <!-- Titles not found (#70): many files of a folder, or the folder itself, gone at once while the NAS answers, held until the user answers or they are back. -->
     <plurals name="held_titles">
         <item quantity="other">%d作品が見つかりません</item>
     </plurals>
@@ -916,8 +917,8 @@
         <item quantity="other">「%2$s」の%1$d作品がNASで見つかりません</item>
     </plurals>
     <string name="held_see">表示</string>
-    <string name="held_text">フォルダ「%s」は応答していますが、Houselightsはこれらの作品を見つけられません。削除または移動した場合は、ライブラリから削除してください。NASのディスクが外れている場合は、保持してディスクをつなぎ直してください。元どおりに戻ります。</string>
-    <string name="held_text_one">フォルダ「%s」は応答していますが、Houselightsはこの作品を見つけられません。削除または移動した場合は、ライブラリから削除してください。NASのディスクが外れている場合は、保持してディスクをつなぎ直してください。元どおりに戻ります。</string>
+    <string name="held_text">NASは応答していますが、Houselightsはフォルダ「%s」でこれらの作品を見つけられません。削除または移動した場合は、ライブラリから削除してください。NASのディスクが外れている場合は、保持してディスクをつなぎ直してください。元どおりに戻ります。</string>
+    <string name="held_text_one">NASは応答していますが、Houselightsはフォルダ「%s」でこの作品を見つけられません。削除または移動した場合は、ライブラリから削除してください。NASのディスクが外れている場合は、保持してディスクをつなぎ直してください。元どおりに戻ります。</string>
     <string name="held_keep">保持</string>
     <string name="held_keep_desc">ファイルが戻るまで残します</string>
     <string name="held_keep_desc_one">ファイルが戻るまで残します</string>

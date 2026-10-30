@@ -279,6 +279,7 @@
     <string name="error_login_failed">De NAS heeft de gebruikersnaam of het wachtwoord geweigerd.</string>
     <string name="error_password_unread">Het opgeslagen wachtwoord kon voorlopig niet worden gelezen: het blijft bewaard. Voer het opnieuw in, of probeer het zo nog eens.</string>
     <string name="error_not_found">Deze share of map bestaat niet op de NAS. Controleer de spelling.</string>
+    <string name="error_folder_gone">Deze map staat niet meer op de NAS: hij is misschien verplaatst of verwijderd.</string>
     <string name="error_host_missing">Voer het adres van de NAS in.</string>
     <string name="error_export_missing" tools:ignore="Typos">Voer het koppelpad in, bijvoorbeeld /volume1/video.</string>
     <string name="error_share_missing">Voer de naam van de gedeelde map in, bijvoorbeeld video.</string>
@@ -938,7 +939,7 @@
     <string name="update_incompatible_message">Volgens Android past deze versie niet bij deze speler.</string>
     <string name="update_install_failed_title">Installatie mislukt</string>
     <string name="update_install_failed_message">Android heeft de update niet geïnstalleerd. Probeer het opnieuw; het logboek zegt meer.</string>
-    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <!-- Titles not found (#70): many files of a folder, or the folder itself, gone at once while the NAS answers, held until the user answers or they are back. -->
     <plurals name="held_titles">
         <item quantity="one">%d titel niet gevonden</item>
         <item quantity="other">%d titels niet gevonden</item>
@@ -948,8 +949,8 @@
         <item quantity="other">%1$d titels uit “%2$s” niet gevonden op de NAS</item>
     </plurals>
     <string name="held_see">Bekijken</string>
-    <string name="held_text">Houselights vindt deze titels niet meer in “%s”, hoewel de map antwoordt. Hebt u ze verwijderd of verplaatst, verwijder ze dan. Is een schijf van de NAS losgekoppeld, bewaar ze dan en sluit de schijf weer aan: ze komen terug zoals ze waren.</string>
-    <string name="held_text_one">Houselights vindt deze titel niet meer in “%s”, hoewel de map antwoordt. Hebt u hem verwijderd of verplaatst, verwijder hem dan. Is een schijf van de NAS losgekoppeld, bewaar hem dan en sluit de schijf weer aan: hij komt terug zoals hij was.</string>
+    <string name="held_text">Houselights vindt deze titels niet meer in “%s”, hoewel de NAS antwoordt. Hebt u ze verwijderd of verplaatst, verwijder ze dan. Is een schijf van de NAS losgekoppeld, bewaar ze dan en sluit de schijf weer aan: ze komen terug zoals ze waren.</string>
+    <string name="held_text_one">Houselights vindt deze titel niet meer in “%s”, hoewel de NAS antwoordt. Hebt u hem verwijderd of verplaatst, verwijder hem dan. Is een schijf van de NAS losgekoppeld, bewaar hem dan en sluit de schijf weer aan: hij komt terug zoals hij was.</string>
     <string name="held_keep">Bewaren</string>
     <string name="held_keep_desc">Ze blijven en wachten op hun bestanden</string>
     <string name="held_keep_desc_one">Hij blijft en wacht op zijn bestand</string>

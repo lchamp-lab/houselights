@@ -122,6 +122,26 @@ class ScanLocalDiskTest {
     }
 
     /**
+     * The disk plugged in but its folder not there: not found, yet unlike a NAS's folder gone nothing is held nor asked,
+     * nothing removed, as with the disk unplugged; a disk's failures say no place on it.
+     */
+    @Test
+    fun aDisksFolderNotThereHoldsNothing() = runTest {
+        val titles = (1..12).map { "Film $it (20${10 + it})" }
+        titles.forEach(::film)
+        bench.scan()
+
+        val away = File(temp.root, "Films away")
+        check(disk.resolve("Films").renameTo(away)) { "The folder stayed" }
+        bench.scan()
+        bench.scan()
+        assertEquals(ScanErrorKind.NOT_FOUND, bench.error(films))
+        assertEquals(titles.map { "$it/$it.mkv" }.sorted(), paths())
+        assertEquals("none held", emptyList<Long>(), bench.dao.heldIn(films.id))
+        assertEquals("nothing for home to ask about", emptyList<HeldRow>(), bench.dao.observeHeld().first())
+    }
+
+    /**
      * The access withdrawn in Android's settings: the folder is refused, not read, as from Android 11 it would list its
      * folders but none of its files; every title stays, none held, and the folder is read again once it is granted.
      */

@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import android.system.ErrnoException
 import android.system.OsConstants
+import app.houselights.core.DiskAbsentException
 import app.houselights.testing.mountFailure
 import app.houselights.testing.smbStatus
 import com.emc.ecs.nfsclient.mount.MountException
@@ -16,12 +17,16 @@ import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
 import com.hierynomus.smbj.session.SMB2GuestSigningRequiredException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.EOFException
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.SocketException
+import java.nio.file.NoSuchFileException
 
 /**
  * What a folder's scan reports for smbj's and nfs-client's own exceptions and messages, and for storage errors told by
@@ -124,5 +129,35 @@ class ScanErrorsTest {
     fun aShareOrPathNamedMissingInTheMessageIsNotFound() {
         assertEquals(ScanErrorKind.NOT_FOUND, kind(RuntimeException("STATUS_BAD_NETWORK_NAME (0xc00000cc)")))
         assertEquals(ScanErrorKind.NOT_FOUND, kind(IOException("NFS3ERR_NOENT")))
+    }
+
+    /**
+     * A folder gone while its NAS answers, the one failure that holds a folder's titles: not found inside a share or an
+     * export reached, over NFS or SMB. Not a share or an export missing, a folder refused, an account or a guest refused,
+     * a NAS out of reach, nor any failure of the player's own disks.
+     */
+    @Test
+    fun onlyAFolderGoneFromANasThatAnswersHoldsItsTitles() {
+        val gone = FileNotFoundException("/volume1/media/houselights-test/films")
+        assertTrue(ScanErrors.isFolderGone(Protocol.NFS, gone))
+        assertTrue(ScanErrors.isFolderGone(Protocol.SMB, smbStatus(NtStatus.STATUS_OBJECT_NAME_NOT_FOUND)))
+        assertTrue(ScanErrors.isFolderGone(Protocol.SMB, smbStatus(NtStatus.STATUS_OBJECT_PATH_NOT_FOUND)))
+        assertFalse("a disk's folder", ScanErrors.isFolderGone(Protocol.LOCAL, gone))
+        assertFalse(ScanErrors.isFolderGone(Protocol.LOCAL, NoSuchFileException("/storage/1234-ABCD/Films")))
+        assertFalse(ScanErrors.isFolderGone(Protocol.LOCAL, DiskAbsentException("1234-ABCD")))
+        listOf(
+            mountFailure(MountStatus.MNT3ERR_NOENT),
+            mountFailure(MountStatus.MNT3ERR_ACCES),
+            smbStatus(NtStatus.STATUS_BAD_NETWORK_NAME),
+            smbStatus(NtStatus.STATUS_ACCESS_DENIED),
+            smbStatus(NtStatus.STATUS_LOGON_FAILURE),
+            SMB2GuestSigningRequiredException(),
+            NfsException(NfsStatus.NFS3ERR_ACCES, "readdirplus error code: NfsStatus:13"),
+            SocketException("Connection reset"),
+            IOException("rpc error, server: 192.168.1.20, RPC error: rpc request timeout"),
+        ).forEach { e ->
+            assertFalse("$e", ScanErrors.isFolderGone(Protocol.NFS, e))
+            assertFalse("$e", ScanErrors.isFolderGone(Protocol.SMB, e))
+        }
     }
 }

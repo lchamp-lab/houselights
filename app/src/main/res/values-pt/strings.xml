@@ -287,6 +287,7 @@
     <string name="error_login_failed">O NAS recusou o usuário ou a senha.</string>
     <string name="error_password_unread">Não foi possível ler a senha salva por enquanto: ela continua guardada. Digite-a de novo, ou tente de novo daqui a pouco.</string>
     <string name="error_not_found">Este compartilhamento ou pasta não existe no NAS. Verifique a grafia.</string>
+    <string name="error_folder_gone">Esta pasta não está mais no NAS: ela pode ter sido movida ou excluída.</string>
     <string name="error_host_missing">Digite o endereço do NAS.</string>
     <string name="error_export_missing" tools:ignore="Typos">Digite o caminho de montagem, por exemplo /volume1/video.</string>
     <string name="error_share_missing" tools:ignore="Typos">Digite o nome da pasta compartilhada, por exemplo video.</string>
@@ -964,7 +965,7 @@
     <string name="update_incompatible_message">O Android indica que esta versão não serve para este player.</string>
     <string name="update_install_failed_title">Falha na instalação</string>
     <string name="update_install_failed_message">O Android não instalou a atualização. Tente de novo; o registro diz mais.</string>
-    <!-- Titles not found (#70): many files of a folder gone at once while it answers, held until the user answers or they are back. -->
+    <!-- Titles not found (#70): many files of a folder, or the folder itself, gone at once while the NAS answers, held until the user answers or they are back. -->
     <plurals name="held_titles">
         <item quantity="one">%d título não encontrado</item>
         <item quantity="many">%d títulos não encontrados</item>
@@ -976,8 +977,8 @@
         <item quantity="other">%1$d títulos de “%2$s” não encontrados no NAS</item>
     </plurals>
     <string name="held_see">Ver</string>
-    <string name="held_text">O Houselights não encontra mais estes títulos em “%s”, embora a pasta responda. Se você os excluiu ou moveu, remova-os. Se um disco do NAS estiver desconectado, mantenha-os e reconecte o disco: eles voltarão como estavam.</string>
-    <string name="held_text_one">O Houselights não encontra mais este título em “%s”, embora a pasta responda. Se você o excluiu ou moveu, remova-o. Se um disco do NAS estiver desconectado, mantenha-o e reconecte o disco: ele voltará como estava.</string>
+    <string name="held_text">O Houselights não encontra mais estes títulos em “%s”, embora o NAS responda. Se você os excluiu ou moveu, remova-os. Se um disco do NAS estiver desconectado, mantenha-os e reconecte o disco: eles voltarão como estavam.</string>
+    <string name="held_text_one">O Houselights não encontra mais este título em “%s”, embora o NAS responda. Se você o excluiu ou moveu, remova-o. Se um disco do NAS estiver desconectado, mantenha-o e reconecte o disco: ele voltará como estava.</string>
     <string name="held_keep">Manter</string>
     <string name="held_keep_desc">Eles ficam à espera dos arquivos</string>
     <string name="held_keep_desc_one">Ele fica à espera do arquivo</string>

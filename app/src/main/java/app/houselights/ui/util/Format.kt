@@ -28,8 +28,10 @@ import app.houselights.core.Languages
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.SectionType
+import app.houselights.providers.local.Folder
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
+import app.houselights.providers.local.ScanErrors
 import app.houselights.providers.local.SourceKind
 import kotlinx.coroutines.delay
 
@@ -166,20 +168,24 @@ fun sectionTitle(section: HomeSection): String = when (section.type) {
     SectionType.BEST_RATED -> stringResource(R.string.row_best_rated)
 }
 
-/** A scan or connection failure, explained with what to check. */
-fun scanErrorText(context: Context, error: ScanError, host: String): String = when (error.kind) {
-    ScanErrorKind.UNREACHABLE -> context.getString(R.string.error_nas_unreachable, host)
+/**
+ * [folder]'s scan failure, explained with what to check. A folder gone from a NAS that answered
+ * ([ScanErrors.isFolderGone]) was found when it was added, so is gone rather than misspelled, its titles held.
+ */
+fun scanErrorText(context: Context, error: ScanError, folder: Folder): String = when (error.kind) {
+    ScanErrorKind.UNREACHABLE -> context.getString(R.string.error_nas_unreachable, folder.host)
     ScanErrorKind.ACCESS_DENIED -> context.getString(R.string.error_access_denied)
     ScanErrorKind.LOGIN_FAILED -> context.getString(R.string.error_login_failed)
     ScanErrorKind.PASSWORD_UNREAD -> context.getString(R.string.error_scan_password_unread)
-    ScanErrorKind.NOT_FOUND -> context.getString(R.string.error_not_found)
+    ScanErrorKind.NOT_FOUND ->
+        context.getString(if (ScanErrors.isFolderGone(folder.protocol, error)) R.string.error_folder_gone else R.string.error_not_found)
     ScanErrorKind.EMPTY -> context.getString(R.string.error_folder_empty)
     ScanErrorKind.STORAGE_FULL -> context.getString(R.string.error_storage_full)
     ScanErrorKind.OTHER -> context.getString(R.string.error_scan_other)
 }
 
 @Composable
-fun scanErrorText(error: ScanError, host: String): String = scanErrorText(LocalContext.current, error, host)
+fun scanErrorText(error: ScanError, folder: Folder): String = scanErrorText(LocalContext.current, error, folder)
 
 /** "eng", "en-US" or "fre" as a name in the interface language ("Anglais"); an unknown code as is. */
 fun languageName(code: String?): String? {

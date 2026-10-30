@@ -1,5 +1,13 @@
 package app.houselights.providers.local
 
+import app.houselights.testing.mountFailure
+import app.houselights.testing.smbStatus
+import app.houselights.ui.settings.heldByFolder
+import com.emc.ecs.nfsclient.mount.MountStatus
+import com.emc.ecs.nfsclient.nfs.NfsException
+import com.emc.ecs.nfsclient.nfs.NfsStatus
+import com.hierynomus.mserref.NtStatus
+import com.hierynomus.smbj.session.SMB2GuestSigningRequiredException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -14,12 +22,14 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
+import java.io.FileNotFoundException
 import java.net.ConnectException
 
 /**
  * Rows of files a pass did not list: kept whole for a NAS off, an empty listing or a folder out of sight; removed on
  * the pass that misses them, what the user did kept by title; a sudden drop, as when a disk of the NAS's pool is
- * offline, held whatever the time until the files are back or the user answers, keeping them or removing them.
+ * offline, held whatever the time until the files are back or the user answers, keeping them or removing them; so too
+ * a folder gone from a NAS that answers, whole.
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanMissingTest {
@@ -126,6 +136,176 @@ class ScanMissingTest {
 
         assertEquals(ScanErrorKind.UNREACHABLE, bench.error(films))
         assertTrue(dao.filesOf(films.id).single().favorite)
+    }
+
+    /** What home's note and the folder's sheet say of [films]: its titles held, and whether the user kept them. */
+    private suspend fun homeNote() = heldByFolder(dao.observeHeld().first(), listOf(folder().toFolder())).singleOrNull()
+
+    /** The folder deleted or moved on the NAS, which answers: NFS3ERR_NOENT in the export, as nfs-client throws it. */
+    private fun folderGone() {
+        nas.listFailure = FileNotFoundException("lookup /volume1/media/houselights-test/films")
+    }
+
+    /**
+     * The folder gone from a NAS that answers: the first pass asks nothing; the second holds its titles as a sudden drop
+     * holds them, however few, none removed, asked about once; kept, nothing asks again pass after pass; the folder back
+     * where it was, they are as they were. The other folder is left as it is.
+     */
+    @Test
+    fun aFolderGoneFromANasThatAnswersHoldsItsTitles() = runTest {
+        val series = bench.folder("Séries", SourceKind.SHOWS)
+        bench.showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
+        filmFolder(3)
+        val gone = (0 until 3).map(::film)
+        val favourite = idOf(film(0))
+        dao.setFavorite(favourite, true)
+
+        folderGone()
+        bench.scan()
+        assertEquals(ScanErrorKind.NOT_FOUND, bench.error(films))
+        assertNull("asked nothing yet", homeNote())
+        bench.later(PASS)
+        val told = bench.changesDuring { bench.scan() }
+        assertEquals("nothing removed", gone.sorted(), filePaths())
+        assertEquals(setOf(START + PASS), missingSince(gone))
+        assertEquals(3, homeNote()?.rows?.size)
+        assertFalse("asked about", checkNotNull(homeNote()).kept)
+        assertTrue("screens mark them", told > 0)
+        assertEquals("the other folder as it was", emptyList<Long>(), heldIds(series))
+
+        bench.scanner.keepHeld(films.id, heldIds())
+        bench.later(DAY)
+        bench.scan()
+        bench.later(30 * DAY)
+        bench.scan()
+        assertTrue("not asked again", checkNotNull(homeNote()).kept)
+        assertEquals("no clock decides", gone.sorted(), filePaths())
+        assertEquals("held since it went", setOf(START + PASS), missingSince(gone))
+
+        nas.listFailure = null
+        bench.scan()
+        assertNull(bench.error(films))
+        assertNull("nothing held", homeNote())
+        assertEquals(setOf(null), missingSince(gone))
+        assertTrue(checkNotNull(dao.item(favourite)).favorite)
+    }
+
+    /**
+     * Gone at one pass only, as a folder renamed and named back, or between two passes that list it or find the NAS
+     * out of reach: nothing is held, nothing asked.
+     */
+    @Test
+    fun aFolderGoneAtOnePassOnlyHoldsNothing() = runTest {
+        filmFolder(3)
+        listOf<Throwable?>(null, ConnectException("Connection refused")).forEach { between ->
+            folderGone()
+            bench.scan()
+            nas.listFailure = between
+            bench.scan()
+            folderGone()
+            bench.scan()
+            assertNull("$between", homeNote())
+            nas.listFailure = null
+            bench.scan()
+        }
+        assertEquals((0 until 3).map(::film).sorted(), filePaths())
+    }
+
+    /** Over SMB, a folder gone from a share that answers (OBJECT_PATH_NOT_FOUND) is held as over NFS. */
+    @Test
+    fun aFolderGoneFromAnSmbShareHoldsItsTitles() = runTest {
+        val smb = bench.folder("Films 4K", on = nas, stored = nfsFolder("Films 4K").copy(protocol = Protocol.SMB))
+        nas.put("Dune (2021).mkv")
+        bench.scan()
+
+        nas.listFailure = smbStatus(NtStatus.STATUS_OBJECT_PATH_NOT_FOUND)
+        bench.scan()
+        bench.scan()
+        assertEquals(ScanErrorKind.NOT_FOUND, bench.error(smb))
+        assertEquals(1, heldIds(smb).size)
+        assertEquals(listOf("Dune (2021).mkv"), bench.paths(smb))
+    }
+
+    /**
+     * Kept, the folder back with a file fewer: the others are back, the one missing goes as on any pass, never waiting
+     * for a file that left with the folder's move; back with many fewer, they are a sudden drop, asked about anew, still
+     * held since the folder went.
+     */
+    @Test
+    fun aFolderBackWithFewerFilesSettlesThemAsAnyPass() = runTest {
+        filmFolder(22)
+        folderGone()
+        bench.scan()
+        bench.scan()
+        bench.scanner.keepHeld(films.id, heldIds())
+        bench.later(DAY)
+
+        nas.listFailure = null
+        nas.remove(film(0))
+        bench.scan()
+        assertEquals((1 until 22).map(::film).sorted(), filePaths())
+        assertNull("nothing held", homeNote())
+
+        folderGone()
+        bench.scan()
+        bench.scan()
+        bench.scanner.keepHeld(films.id, heldIds())
+        bench.later(DAY)
+        val offline = (1 until 13).map(::film)
+        nas.listFailure = null
+        offline.forEach(nas::remove)
+        bench.scan()
+        assertEquals(21, filePaths().size)
+        assertEquals(offline.sorted(), dao.observeHeld().first().mapNotNull { it.filePath }.sorted())
+        assertFalse("asked about anew", checkNotNull(homeNote()).kept)
+        assertEquals("held since the folder went", setOf(START + DAY), missingSince(offline))
+    }
+
+    /** Back with a subfolder it cannot read: what lies under it is out of sight, shown unmarked as before, not held. */
+    @Test
+    fun aFolderBackWithASubfolderItCannotReadHoldsNothingUnderIt() = runTest {
+        nas.put("Dune (2021)/Dune (2021).mkv")
+        nas.put("Private/Arrival (2016)/Arrival (2016).mkv")
+        bench.scan()
+        folderGone()
+        bench.scan()
+        bench.scan()
+        assertEquals(2, heldIds().size)
+
+        nas.listFailure = null
+        nas.unreadable = listOf("Private")
+        bench.scan()
+        assertEquals(2, filePaths().size)
+        assertEquals(emptyList<Long>(), heldIds())
+        assertNull(homeNote())
+    }
+
+    /**
+     * What does not say the folder left holds nothing and asks nothing, pass after pass: a NAS out of reach or spinning
+     * its disks up, a share or an export missing or refused (a NAS waking up may answer so), an account or a guest
+     * refused, a folder refused.
+     */
+    @Test
+    fun aNasThatDoesNotSayTheFolderLeftHoldsNothing() = runTest {
+        nas.put("Dune (2021).mkv")
+        bench.scan()
+        listOf(
+            ConnectException("Connection refused"),
+            NfsException(NfsStatus.NFS3ERR_JUKEBOX, "lookup error code: NfsStatus:10008"),
+            mountFailure(MountStatus.MNT3ERR_NOENT),
+            mountFailure(MountStatus.MNT3ERR_ACCES),
+            smbStatus(NtStatus.STATUS_BAD_NETWORK_NAME),
+            smbStatus(NtStatus.STATUS_LOGON_FAILURE),
+            SMB2GuestSigningRequiredException(),
+            NfsException(NfsStatus.NFS3ERR_ACCES, "lookup error code: NfsStatus:13"),
+        ).forEach { failure ->
+            nas.listFailure = failure
+            bench.scan()
+            bench.scan()
+            assertEquals("$failure", emptyList<Long>(), heldIds())
+            assertEquals("$failure", listOf("Dune (2021).mkv"), filePaths())
+        }
+        assertNull(homeNote())
     }
 
     @Test
@@ -460,5 +640,8 @@ class ScanMissingTest {
         const val DUNE_TMDB = 438631
         const val START = ScanBench.START
         const val DAY = 24 * 60 * 60_000L
+
+        /** Between two passes while the app is on screen. */
+        const val PASS = 10 * 60_000L
     }
 }

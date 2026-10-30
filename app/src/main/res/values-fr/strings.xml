@@ -281,6 +281,7 @@
     <string name="error_login_failed">Le NAS a refusé l’identifiant ou le mot de passe.</string>
     <string name="error_password_unread">Le mot de passe enregistré n’a pas pu être lu pour l’instant : il est conservé. Saisissez-le de nouveau, ou réessayez dans un moment.</string>
     <string name="error_not_found">Ce partage ou ce dossier n’existe pas sur le NAS. Vérifiez son orthographe.</string>
+    <string name="error_folder_gone">Ce dossier n’est plus sur le NAS : il a peut-être été déplacé ou supprimé.</string>
     <string name="error_host_missing">Indiquez l’adresse du NAS.</string>
     <string name="error_export_missing">Indiquez le chemin de montage, par exemple /volume1/video.</string>
     <string name="error_share_missing">Indiquez le nom du dossier partagé, par exemple video.</string>
@@ -959,7 +960,7 @@
     <string name="update_incompatible_message">Android indique que cette version ne convient pas à ce lecteur.</string>
     <string name="update_install_failed_title">Installation impossible</string>
     <string name="update_install_failed_message">Android n’a pas installé la mise à jour. Réessayez ; le journal en dit plus.</string>
-    <!-- Titres introuvables (#70) : beaucoup de fichiers d’un dossier disparus d’un coup alors qu’il répond, gardés jusqu’à une réponse ou leur retour. -->
+    <!-- Titres introuvables (#70) : beaucoup de fichiers d’un dossier, ou le dossier lui-même, disparus d’un coup alors que le NAS répond, gardés jusqu’à une réponse ou leur retour. -->
     <plurals name="held_titles">
         <item quantity="one">%d titre introuvable</item>
         <item quantity="other">%d titres introuvables</item>
@@ -971,8 +972,8 @@
         <item quantity="many">%1$d titres de « %2$s » introuvables sur le NAS</item>
     </plurals>
     <string name="held_see">Voir</string>
-    <string name="held_text">Houselights ne trouve plus ces titres dans « %s », alors que le dossier répond. Si vous les avez supprimés ou déplacés, retirez-les. Si un disque du NAS est débranché, gardez-les et rebranchez-le : ils reviendront tels quels.</string>
-    <string name="held_text_one">Houselights ne trouve plus ce titre dans « %s », alors que le dossier répond. Si vous l’avez supprimé ou déplacé, retirez-le. Si un disque du NAS est débranché, gardez-le et rebranchez le disque : il reviendra tel quel.</string>
+    <string name="held_text">Houselights ne trouve plus ces titres dans « %s », alors que le NAS répond. Si vous les avez supprimés ou déplacés, retirez-les. Si un disque du NAS est débranché, gardez-les et rebranchez-le : ils reviendront tels quels.</string>
+    <string name="held_text_one">Houselights ne trouve plus ce titre dans « %s », alors que le NAS répond. Si vous l’avez supprimé ou déplacé, retirez-le. Si un disque du NAS est débranché, gardez-le et rebranchez le disque : il reviendra tel quel.</string>
     <string name="held_keep">Garder</string>
     <string name="held_keep_desc">Ils restent en attendant leurs fichiers</string>
     <string name="held_keep_desc_one">Il reste en attendant son fichier</string>
