@@ -7,6 +7,10 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.unit.IntSize
@@ -15,6 +19,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import coil.Coil
+import coil.EventListener
 import coil.ImageLoader
 import coil.decode.DataSource
 import coil.fetch.DrawableResult
@@ -31,6 +36,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.Collections
 
 /**
  * DESIGN.md, Performance: a picture says once it covers what it lies on ([ArtworkImage]'s `onWhole`), a saga's panel
@@ -43,6 +49,15 @@ class ArtworkWholeTest {
     val compose = createComposeRule()
 
     private val context = ApplicationProvider.getApplicationContext<Application>()
+
+    /** Where each picture the loader brought came from, in order. */
+    private val brought: MutableList<DataSource> = Collections.synchronizedList(mutableListOf())
+
+    private val listener = object : EventListener {
+        override fun onSuccess(request: ImageRequest, result: SuccessResult) {
+            brought += result.dataSource
+        }
+    }
 
     @After
     fun forgetTheLoader() = Coil.reset()
@@ -84,6 +99,46 @@ class ArtworkWholeTest {
         assertEquals("a picture with see-through parts", 0, clear)
     }
 
+    /**
+     * Brought in by the loader's fade, as a saga's panel's poster is, a picture is whole only once that fade has run:
+     * `onWhole` waits for it, what lies under it showing through until then; from memory, with no fade, at once.
+     */
+    @Test
+    fun onWholeWaitsForTheLoadersFade() {
+        Coil.setImageLoader(loader())
+        var shows by mutableStateOf(true)
+        var whole = 0
+        compose.mainClock.autoAdvance = false
+        compose.setTvContent {
+            if (shows) ArtworkImage(URL, "Dune", Modifier.size(SIDE.dp), size = SIZE, onWhole = { whole++ })
+        }
+        framesUntil { brought.isNotEmpty() }
+        assertEquals("from the server", DataSource.NETWORK, brought.single())
+        compose.mainClock.advanceTimeBy(FADE_MS - TWO_FRAMES_MS)
+        assertEquals("its fade still running", 0, whole)
+        compose.mainClock.advanceTimeBy(TWO_FRAMES_MS + FRAME_MS * FRAMES_PAST)
+        assertEquals("its fade over", 1, whole)
+
+        shows = false
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        shows = true
+        Snapshot.sendApplyNotifications()
+        framesUntil { brought.size == 2 }
+        assertEquals("from memory", DataSource.MEMORY_CACHE, brought.last())
+        repeat(2) { compose.mainClock.advanceTimeByFrame() }
+        assertEquals("from memory, whole at once", 2, whole)
+    }
+
+    /** Frame by frame until [done], [MAX_FRAMES] at most. */
+    private fun framesUntil(done: () -> Boolean) {
+        var frames = 0
+        while (!done()) {
+            check(frames++ < MAX_FRAMES) { "Not done after $MAX_FRAMES frames" }
+            compose.mainClock.advanceTimeByFrame()
+        }
+    }
+
     private fun picture(opaque: Boolean): BitmapDrawable {
         val bitmap = Bitmap.createBitmap(SIDE, SIDE, if (opaque) Bitmap.Config.RGB_565 else Bitmap.Config.ARGB_8888)
         if (!opaque) bitmap.setHasAlpha(true)
@@ -96,9 +151,14 @@ class ArtworkWholeTest {
         source: DataSource = DataSource.NETWORK,
     ) = SuccessResult(drawable, request, source)
 
-    /** A server whose pictures have no see-through part, but those whose address says they have. */
+    /**
+     * A server whose pictures have no see-through part, but those whose address says they have, faded in as the app's
+     * loader does, its successes told to [listener].
+     */
     private fun loader() = ImageLoader.Builder(context)
         .dispatcher(Dispatchers.Unconfined)
+        .crossfade(FADE_MS)
+        .eventListener(listener)
         .components {
             add(
                 Fetcher.Factory<Any> { data, _, _ ->
@@ -115,6 +175,10 @@ class ArtworkWholeTest {
         val SIZE = IntSize(224, 336)
         const val SIDE = 40
         const val FADE_MS = 300
+        const val FRAME_MS = 16L
+        const val TWO_FRAMES_MS = 32L
+        const val FRAMES_PAST = 4
+        const val MAX_FRAMES = 60
         const val TIMEOUT_MS = 5_000L
     }
 }
