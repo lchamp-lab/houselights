@@ -12,6 +12,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -66,6 +67,23 @@ class LocalLibraryTest {
             firstScanAt = 1_000,
         ),
     )
+
+    /**
+     * A library that can no longer be read (a damaged database, a worn-out storage) ends what screens follow of it, said in
+     * the log, where Réglages › Bibliothèque crashed reading it; none held, so that home goes on without its note.
+     */
+    @Test
+    fun aLibraryThatCannotBeReadEndsWhatScreensFollow() = runTest {
+        val films = checkNotNull(dao.source(folder())).toFolder()
+        // Its tables gone from under it, reading them fails as a damaged database's do.
+        listOf("sources", "items").forEach { db.openHelper.writableDatabase.execSQL("ALTER TABLE $it RENAME TO ${it}_away") }
+        val followed = listOf(
+            library.folders, library.titleCount, library.toIdentifyCount, library.folderCounts, library.ignored,
+            library.latestPosters(films, 3), library.latestPosters(3), library.firstTitles(3), library.firstTitleCount,
+        )
+        followed.forEach { assertEquals(emptyList<Any>(), it.toList()) }
+        assertEquals(listOf(emptyList<HeldRow>()), library.held.toList())
+    }
 
     @Test
     fun anEditedFolderKeepsItsTitlesAndWhatWasDoneWithThem() = runTest {

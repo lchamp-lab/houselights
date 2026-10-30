@@ -95,6 +95,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -454,7 +455,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** The posters the settings and their forms lie on, read once a visit. */
     val roomPosters = RoomPosters(
         source = { settings.state.first { it.loaded || it.readFailed }.source },
-        latest = { library.latestPosters(FIELD_POSTERS).first() },
+        latest = { library.latestPosters(FIELD_POSTERS).firstOrNull().orEmpty() },
         hasFolders = { library.hasFolders() },
         trending = { widthPx -> trendingPosters(widthPx).map { LocalProvider.image(it, TmdbClient.Companion.ImageType.POSTER) } },
     )
