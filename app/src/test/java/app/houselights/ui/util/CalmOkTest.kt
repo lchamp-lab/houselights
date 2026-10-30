@@ -231,6 +231,21 @@ class CalmOkTest {
         assertEquals(emptyList<String>(), passed)
     }
 
+    /** Down then OK in one go, focus back before the release: the first OK given here once settled is OK's. */
+    @Test
+    fun aPressTakenAsFocusArrivedIsForgottenOnceItLeaves() {
+        show(calmAtFirst = false, onArrival = true, focusHere = false)
+        compose.runOnIdle { here.requestFocus() }
+        ok(KeyEvent.ACTION_DOWN)
+        compose.runOnIdle { elsewhere.requestFocus() }
+        ok(KeyEvent.ACTION_UP)
+        settled()
+        compose.runOnIdle { here.requestFocus() }
+        settled()
+        press()
+        assertEquals(listOf("down", "up"), passed)
+    }
+
     @Test
     fun focusArrivingLeavesOkAloneUnlessAsked() {
         show(calmAtFirst = false, focusHere = false)

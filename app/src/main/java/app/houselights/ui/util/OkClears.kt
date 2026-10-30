@@ -75,6 +75,7 @@ private class OkCalm(calmAtFirst: Boolean, trigger: Any?) {
         if (now == focused) return false
         focused = now
         down = false
+        swallowed = false
         if (now) on = true
         return now
     }
