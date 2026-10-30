@@ -134,19 +134,37 @@ class AppLogTest {
 
             override fun read(): Int = start.read().takeIf { it >= 0 } ?: throw IOException("Gone")
         }
-        val lines = runBlocking { AppLog(run = { FakeProcess(broken) }).read() }
+        val lines = runBlocking { AppLog(run = { FakeProcess(broken) }).read().lines }
         assertEquals(listOf("$TIME  4321  4350 I Scan    : Pass done"), lines)
     }
 
     @Test
     fun noLinesWhenLogcatCannotStart() {
-        val lines = runBlocking { AppLog(run = { throw IOException("No logcat") }).read() }
+        val lines = runBlocking { AppLog(run = { throw IOException("No logcat") }).read().lines }
         assertTrue(lines.isEmpty())
+        assertEquals(0, runBlocking { AppLog(run = { throw IOException("No logcat") }).count() })
+    }
+
+    /**
+     * Whether the journal holds almost nothing is counted, its lines not masked: as many as it keeps, the app's alone, as
+     * logcat printed them.
+     */
+    @Test
+    fun theLinesAreCountedWithoutMaskingThem() {
+        val printed = listOf(
+            "--------- beginning of main",
+            "$TIME $me  4321  4350 I Playback: Launch -> smb://zidoo:p4ss@nas/film.mkv",
+            "$TIME $other  4400  4400 I Other   : Started",
+            "$TIME $me  4321  4350 D Jellyfin: GET /Items?api_key=0123abcd",
+        )
+        val log = AppLog(run = { _ -> FakeProcess(printed.joinToString("") { "$it\n" }) })
+        assertEquals(read(printed).size, runBlocking { log.count() })
+        assertEquals(2, runBlocking { log.count() })
     }
 
     /** What the journal keeps of [printed], logcat's lines. */
     private fun read(printed: List<String>) =
-        runBlocking { AppLog(run = { _ -> FakeProcess(printed.joinToString("") { "$it\n" }) }).read() }
+        runBlocking { AppLog(run = { _ -> FakeProcess(printed.joinToString("") { "$it\n" }) }).read().lines }
 
     private companion object {
         const val TIME = "10-23 10:42:11.123"
