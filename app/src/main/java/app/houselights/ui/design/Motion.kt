@@ -1,6 +1,8 @@
 package app.houselights.ui.design
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.tween
 
 /**
  * Durations (ms) and the system's own curves (DESIGN.md, Motion). Two moments are orchestrated: the house
@@ -46,4 +48,11 @@ object HlMotion {
 
     /** Ease-out for lights going out: each [LaunchCue] step, a picture going out on black. */
     val lightsOut = CubicBezierEasing(0f, 0f, 0.2f, 1f)
+
+    /**
+     * Coming [on] over [inMs] in the focus pull, else going over [outMs] in the fall back: focus arriving and leaving
+     * ([FOCUS_IN], [FOCUS_OUT]), a plate's ([PLATE_IN], [PLATE_OUT]).
+     */
+    fun <T> inOut(on: Boolean, inMs: Int = FOCUS_IN, outMs: Int = FOCUS_OUT): TweenSpec<T> =
+        if (on) tween(inMs, easing = focusPull) else tween(outMs, easing = fallBack)
 }

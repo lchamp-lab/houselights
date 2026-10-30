@@ -207,12 +207,7 @@ internal class RowFrame(
             light = target
             return
         }
-        val spec = if (on) {
-            tween<Float>(HlMotion.FOCUS_IN, easing = HlMotion.focusPull)
-        } else {
-            tween(HlMotion.FOCUS_OUT, easing = HlMotion.fallBack)
-        }
-        lighting = scope.launch { animate(light, target, animationSpec = spec) { value, _ -> light = value } }
+        lighting = scope.launch { animate(light, target, animationSpec = HlMotion.inOut(on)) { value, _ -> light = value } }
     }
 
     /** The frame now: on its way from where it set out, or on the card reached. */

@@ -1,7 +1,6 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
@@ -465,7 +464,7 @@ fun HlIconButton(
     val shown = focused && LocalWindowInfo.current.isWindowFocused
     val labelAlpha by animateFloatAsState(
         if (shown) 1f else 0f,
-        if (shown) tween(HlMotion.PLATE_IN, easing = HlMotion.focusPull) else tween(HlMotion.PLATE_OUT, easing = HlMotion.fallBack),
+        HlMotion.inOut(shown, HlMotion.PLATE_IN, HlMotion.PLATE_OUT),
         label = "label",
     )
     val c = Hl.colors

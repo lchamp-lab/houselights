@@ -1,11 +1,9 @@
 package app.houselights.ui.design.components
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -127,10 +125,10 @@ internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
         }
     }
     val transition = rememberTransition(shown, label = "sheet")
-    val travel = transition.animateFloat({ arriving(targetState, HlMotion.FOCUS_IN, HlMotion.FOCUS_OUT) }, label = "sheetTravel") {
+    val travel = transition.animateFloat({ HlMotion.inOut(targetState) }, label = "sheetTravel") {
         if (it) 1f else 0f
     }
-    val opacity = transition.animateFloat({ arriving(targetState, HlMotion.PLATE_IN, HlMotion.PLATE_OUT) }, label = "sheetOpacity") {
+    val opacity = transition.animateFloat({ HlMotion.inOut(targetState, HlMotion.PLATE_IN, HlMotion.PLATE_OUT) }, label = "sheetOpacity") {
         if (it) 1f else 0f
     }
     if (shown.isIdle && !shown.currentState) {
@@ -141,10 +139,6 @@ internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
     }
     return remember { SheetMotion(shown, travel, opacity, sheet) }
 }
-
-/** In over [inMs] in the focus pull when [shown], else out over [outMs] in the fall back. */
-private fun arriving(shown: Boolean, inMs: Int, outMs: Int): FiniteAnimationSpec<Float> =
-    if (shown) tween(inMs, easing = HlMotion.focusPull) else tween(outMs, easing = HlMotion.fallBack)
 
 /** Keys go nowhere while a sheet or a menu leaves. */
 internal fun Modifier.stillWhileLeaving(motion: SheetMotion): Modifier = onPreviewKeyEvent { motion.leaving }

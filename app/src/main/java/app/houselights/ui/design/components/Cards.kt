@@ -2,7 +2,6 @@ package app.houselights.ui.design.components
 
 import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.RememberObserver
+import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -229,20 +230,13 @@ fun ArtworkSurface(
     covered: (() -> Float)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    val receding = LocalGroupFocused.current && !focused
-    val recede = animateFloatAsState(
-        if (receding) 1f else 0f,
-        if (receding) tween(HlMotion.FOCUS_IN, easing = HlMotion.focusPull) else tween(HlMotion.FOCUS_OUT, easing = HlMotion.fallBack),
-        label = "recede",
-    )
+    val card = rememberCardFocus()
+    val focused = card.focused
+    val recede = card.recede
     val c = Hl.colors
     // The card's own tone, sampled once focus rests on it (not while an arrow is held), else the ambient light.
     val own = rememberGlowColor(light, focused && !Scrub.active)
     val ambient = LocalAmbient.current
-    val group = LocalGroupFocus.current
-    val member = rememberGroupMember(group)
     val reading = rememberCardReading(readAs, stateDescription, focused, onClick.takeIf { acts }, onLongClick, onLongClickLabel)
     HlFocusSurface(
         onClick = onClick,
@@ -253,19 +247,43 @@ fun ArtworkSurface(
         ),
         shape = shape,
         modifier = modifier
-            .rememberedInGroup(group, member)
+            .rememberedInGroup(card.group, card.member)
             .then(reading)
             .onFocusChanged { if (it.isFocused) onFocus() },
         onLongClick = onLongClick,
         onLongClickLabel = onLongClickLabel,
         glow = if (glows) ({ if (light != null) own.value else ambient.glow() }) else null,
-        interactionSource = interaction,
+        interactionSource = card.interaction,
         row = LocalRowFrame.current,
         covered = covered,
     ) {
         // Recede is read while drawing, never recomposing the row; content sits on the artwork ground.
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }, LocalGround provides Ground.Artwork) { content() }
     }
+}
+
+/**
+ * A card's focus: its [interaction], whether it is [focused], how far it [recede]s while another card of its row has
+ * focus ([LocalGroupFocused]), and its [member]ship of its row's [group], so focus coming back into the row comes back
+ * to it.
+ */
+private class CardFocus(
+    val interaction: MutableInteractionSource,
+    val focused: Boolean,
+    val recede: State<Float>,
+    val group: GroupFocus?,
+    val member: FocusRequester,
+)
+
+/** The focus of an [ArtworkSurface] or an [AbsentCard]: it recedes in the focus pull, comes back in the fall back. */
+@Composable
+private fun rememberCardFocus(): CardFocus {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val receding = LocalGroupFocused.current && !focused
+    val recede = animateFloatAsState(if (receding) 1f else 0f, HlMotion.inOut(receding), label = "recede")
+    val group = LocalGroupFocus.current
+    return CardFocus(interaction, focused, recede, group, rememberGroupMember(group))
 }
 
 /** How far a card's artwork recedes: 0 in front, 1 behind the focused card. */
@@ -540,7 +558,7 @@ fun PlatedMenuKey(shown: () -> Boolean, modifier: Modifier = Modifier) {
     val showing = shown() && OpenSheets.count == 0
     val alpha = animateFloatAsState(
         if (showing) 1f else 0f,
-        if (showing) tween(HlMotion.PLATE_IN, easing = HlMotion.focusPull) else tween(HlMotion.PLATE_OUT, easing = HlMotion.fallBack),
+        HlMotion.inOut(showing, HlMotion.PLATE_IN, HlMotion.PLATE_OUT),
         label = "menuKey",
     )
     val fading by remember { derivedStateOf { alpha.value > 0f } }
@@ -692,20 +710,12 @@ fun AbsentCard(
     onClick: (() -> Unit)? = null,
 ) {
     val c = Hl.colors
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    val receding = LocalGroupFocused.current && !focused
-    val recede = animateFloatAsState(
-        if (receding) 1f else 0f,
-        if (receding) tween(HlMotion.FOCUS_IN, easing = HlMotion.focusPull) else tween(HlMotion.FOCUS_OUT, easing = HlMotion.fallBack),
-        label = "recede",
-    )
-    val step by remember { derivedStateOf { HlFocus.recedeStep(recede.value) } }
+    // A card of its row as the films there are: focus coming back into the row comes back to it.
+    val card = rememberCardFocus()
+    val focused = card.focused
+    val step by remember { derivedStateOf { HlFocus.recedeStep(card.recede.value) } }
     val px = width.toPx()
     val decoded = IntSize(px, posterDecode(px))
-    // A card of its row as the films there are: focus coming back into the row comes back to it.
-    val group = LocalGroupFocus.current
-    val member = rememberGroupMember(group)
     HlFocusSurface(
         onClick = onClick,
         look = FocusStyle.frame(
@@ -715,7 +725,7 @@ fun AbsentCard(
         ),
         shape = HlShapes.artwork,
         modifier = modifier
-            .rememberedInGroup(group, member)
+            .rememberedInGroup(card.group, card.member)
             .width(width)
             .aspectRatio(HlSize.POSTER_RATIO)
             .clearAndSetSemantics {
@@ -729,7 +739,7 @@ fun AbsentCard(
                 }
             },
         role = null,
-        interactionSource = interaction,
+        interactionSource = card.interaction,
         row = LocalRowFrame.current,
     ) {
         // Artwork carries no text: the poster is the film's, its grey says it is not there.
