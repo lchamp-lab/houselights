@@ -64,6 +64,8 @@ class ArtworkCache(
                     return@suspendRunCatching null
                 }
                 val kept = if (shrink(partial, smaller, size)) smaller else partial
+                // Only the copy that takes the name is forced onto the storage: one downscaled leaves the full one unsynced.
+                if (kept === partial) FileOutputStream(partial, true).use { it.fd.sync() }
                 check(kept.renameTo(target)) { "Could not store ${target.name}" }
                 uri
             }.getOrElse { e ->
@@ -94,7 +96,6 @@ class ArtworkCache(
                 out.write(block)
                 offset += block.size
             }
-            out.fd.sync()
         }
     }
 
