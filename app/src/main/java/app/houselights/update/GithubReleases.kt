@@ -206,4 +206,6 @@ internal suspend fun Call.await(): Response = suspendCancellableCoroutine { cont
 
 private const val MS_PER_S = 1_000L
 private const val MIN_WAIT_MS = 60_000L
-private const val MAX_WAIT_MS = 60 * 60_000L
+
+/** The longest GitHub is waited for: its rate limit resets within the hour. */
+internal const val MAX_WAIT_MS = 60 * 60_000L

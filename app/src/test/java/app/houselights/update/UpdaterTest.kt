@@ -255,6 +255,17 @@ class UpdaterTest {
         assertEquals(2, f.source.lists)
     }
 
+    /** GitHub's wait kept from a clock that ran weeks ahead, set right since: an hour at most, then the checks go on. */
+    @Test
+    fun aWaitKeptFromAClockAheadHoldsAnHourAtMost() = runTest {
+        val f = fixture()
+        f.store.waitUntil(START + 30 * DAY)
+        f.start()
+        assertEquals(START + HOUR, f.updater.state.value.waitUntil)
+        wait(HOUR + MINUTE)
+        assertEquals(1, f.source.lists)
+    }
+
     @Test
     fun aBetaInstalledIsOfferedBetasUntilChosenOtherwise() = runTest {
         val f = fixture()
