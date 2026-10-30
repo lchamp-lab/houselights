@@ -214,7 +214,7 @@ class MainActivity : ComponentActivity() {
             HouselightsTheme(textStep = settings.value.textSize.step) {
                 val nav = rememberNavController()
                 // « Faire confiance au nouveau lecteur » opens its sheet over the screen that says the failure (#58).
-                val trust = remember { TrustAsked(ZidooTrust(this@MainActivity)) }
+                val trust = remember { TrustAsked(ZidooTrust(container.players)) }
                 val relay = remember { BackdropRelay() }
                 // One cue for the whole app; its steps (room, scrims, black) are in HouseLightCue.
                 val lights = animateFloatAsState(

@@ -402,6 +402,7 @@ class SettingsViewModelTest {
         }
         val images = ImageLoader.Builder(ApplicationProvider.getApplicationContext<Context>()).diskCache(cache).build()
         val vm = settings(testSettings(folder.root, backgroundScope), work = backgroundScope, images = images)
+        vm.refreshStorage()
         waitFor("the storage measured") { vm.storage.value != null }
         assertEquals(1_000_000L, vm.storage.value?.imageCacheMax)
         assertTrue("The size was never asked", askedOn.isNotEmpty())

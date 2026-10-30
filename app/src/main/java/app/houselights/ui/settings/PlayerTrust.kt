@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,10 +48,8 @@ interface PlayerTrust {
     fun trust(seen: PlayerFacts): Boolean
 }
 
-/** This device's player, as playback decides ([ZidooPlayer.choose]). */
-class ZidooTrust(context: Context) : PlayerTrust {
-    private val player = ZidooPlayer(context.applicationContext)
-
+/** This device's [player], as playback decides ([ZidooPlayer.choose]). */
+class ZidooTrust(private val player: ZidooPlayer) : PlayerTrust {
     override fun changed(): PlayerFacts? = player.facts(player.choose())
 
     override fun trust(seen: PlayerFacts): Boolean = player.trust(seen)

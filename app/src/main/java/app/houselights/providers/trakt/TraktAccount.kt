@@ -72,7 +72,8 @@ class TraktAccount(
     private val keys: TraktKeys,
     private val session: () -> TraktSession?,
     private val save: suspend (TraktSession?) -> Unit,
-    http: OkHttpClient = Http.client,
+    /** The client its calls derive theirs from; null for the app's ([Http.client]), not built before the first call. */
+    http: OkHttpClient? = null,
     /** Seconds since the epoch, which tokens' lives count in. */
     private val now: () -> Long = { System.currentTimeMillis() / MS_PER_S },
     /** A clock in milliseconds that runs on in sleep, which a code's life counts in. */
@@ -82,7 +83,7 @@ class TraktAccount(
     /** Whether the app is on screen: leaving it, the process may be stopped, and a session held only in memory lost. */
     started: Flow<Boolean> = emptyFlow(),
 ) : TraktLink {
-    private val client by lazy { TraktClient(keys, token = { current()?.accessToken }, base = http) }
+    private val client by lazy { TraktClient(keys, token = { current()?.accessToken }, base = http ?: Http.client) }
 
     /** Every change of the session, one at a time: renewing spends the refresh token. */
     private val lock = Mutex()
