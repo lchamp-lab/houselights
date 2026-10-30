@@ -35,11 +35,12 @@ private const val EPISODES_OF_SHOW = "SELECT 1 FROM items e WHERE e.kind = 'EPIS
  * Films and shows to identify: TMDB found nothing for them or hesitated ([MatchState]) and they have no TMDB id, unless
  * the user left them as they are; a film held missing is not ([MissingFiles]) until its file is back, nor a show whose
  * every episode is, which its page says is held ([LocalMapper]), identifying able to wait, though Modifier still opens
- * Identifier on its page ([doubt]).
+ * Identifier on its page ([doubt]). The unary + keeps SQLite, which has no statistics, from reading the titles not held,
+ * nearly the whole library, through the index of held rows rather than the few to identify through matchState's.
  */
 internal const val TO_IDENTIFY =
     "kind IN ('MOVIE', 'SERIES') AND matchState IN ('NOT_FOUND', 'UNSURE') AND tmdbId IS NULL AND userNoMatch = 0 " +
-        "AND missingSince IS NULL AND (kind = 'MOVIE' OR NOT EXISTS ($EPISODES_OF_SHOW) " +
+        "AND +missingSince IS NULL AND (kind = 'MOVIE' OR NOT EXISTS ($EPISODES_OF_SHOW) " +
         "OR EXISTS ($EPISODES_OF_SHOW AND e.missingSince IS NULL))"
 
 /** The keys of the local films' and shows' choices of tracks ([tracksKey]). */
@@ -499,24 +500,28 @@ interface LibraryDao :
     suspend fun setMissingSince(ids: List<Long>, since: Long?) =
         ids.chunked(SQL_IN_LIMIT).forEach { setMissingSinceBatch(it, since) }
 
-    /** The films and episodes held while their files are missing ([MissingFiles.isDrop]), by folder and title. */
+    /**
+     * The films and episodes held while their files are missing ([MissingFiles.isDrop]), by folder and title. Held rows
+     * are dated, so `missingSince > 0` reads them through their index, where SQLite reads the whole library for an
+     * `IS NOT NULL`; the same in [heldIn] and [heldOf].
+     */
     @Query(
         "SELECT i.id, i.sourceId, i.kind, i.title, i.year, i.filePath, i.missingSince, s.title AS showTitle, i.seasonNumber, " +
             "i.episodeNumber FROM items i LEFT JOIN items s ON s.id = i.seriesId " +
-            "WHERE i.missingSince IS NOT NULL AND i.filePath IS NOT NULL " +
+            "WHERE i.missingSince > 0 AND i.filePath IS NOT NULL " +
             "ORDER BY i.sourceId, COALESCE(s.sortTitle, i.sortTitle), i.seasonNumber, i.episodeNumber, i.id",
     )
     fun observeHeld(): Flow<List<HeldRow>>
 
     /** The rows held in folder [sourceId] ([MissingFiles.isDrop]). */
-    @Query("SELECT id FROM items WHERE sourceId = :sourceId AND missingSince IS NOT NULL")
+    @Query("SELECT id FROM items WHERE sourceId = :sourceId AND missingSince > 0")
     suspend fun heldIn(sourceId: Long): List<Long>
 
     @Query("SELECT id FROM items WHERE missingSince IS NOT NULL AND id IN (:ids)")
     suspend fun heldAmongBatch(ids: List<Long>): List<Long>
 
     /** The rows held of title [id] ([MissingFiles.isDrop]): a film's copies, a show's episodes, or the episode itself. */
-    @Query("SELECT id FROM items WHERE missingSince IS NOT NULL AND ($COPIES OR seriesId = :id)")
+    @Query("SELECT id FROM items WHERE missingSince > 0 AND ($COPIES OR seriesId = :id)")
     suspend fun heldOf(id: Long): List<Long>
 
     /** The rows title [id] stands on: a film's copies ([COPIES]), else the row itself. */

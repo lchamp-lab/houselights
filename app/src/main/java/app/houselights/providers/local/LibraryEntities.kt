@@ -263,7 +263,7 @@ data class CollectionMember(
     indices = [
         Index("parentId"), Index("seriesId"), Index(value = ["sourceId", "filePath"]), Index("matchKey"), Index("collectionId"),
         Index(value = ["kind", "sortTitle"]), Index(value = ["kind", "addedAt"]), Index(value = ["kind", "lastPlayedAt"]),
-        Index(value = ["kind", "tmdbId"]), Index("versionOf"), Index("matchState"),
+        Index(value = ["kind", "tmdbId"]), Index("versionOf"), Index("matchState"), Index("missingSince"),
     ],
 )
 data class ItemEntity(
