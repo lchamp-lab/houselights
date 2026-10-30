@@ -359,8 +359,9 @@ class LocalCatalogTest {
 
         catalog.chooseVersion(item(final), versions.last())
         val chosen = catalog.versions(item(first))
-        assertEquals(first, chosen.first { it.chosen }.key.toLong())
-        assertEquals(final, chosen.first { it.best }.key.toLong())
+        // Chosen, the 1080p copy stays second, and still « Copie 2 ».
+        assertEquals(listOf(final, first), chosen.map { it.key.toLong() })
+        assertEquals(listOf(false, true), chosen.map { it.chosen })
         assertEquals(emptyList<Any>(), catalog.versions(item(dao.latest(ItemKind.MOVIE, 10).first { it.tmdbId == 335984 }.id)))
     }
 

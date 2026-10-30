@@ -230,9 +230,10 @@ class LocalCopiesTest {
         assertTrue(plan.uri.endsWith("Heat.mkv"))
         assertEquals(2_400_000L, plan.startMs)
         val versions = catalog.versions(item(first))
-        assertEquals(listOf(first, uhd), versions.map { it.key.toLong() })
-        assertEquals(listOf(true, false), versions.map { it.chosen })
-        assertEquals(listOf(false, true), versions.map { it.best })
+        // The best first, as ever: the copy Lire plays is marked, not moved.
+        assertEquals(listOf(uhd, first), versions.map { it.key.toLong() })
+        assertEquals(listOf(false, true), versions.map { it.chosen })
+        assertEquals(listOf(true, false), versions.map { it.best })
     }
 
     /** Of two copies started, the one played last is the film's everywhere, and Lire resumes it where it stopped. */
