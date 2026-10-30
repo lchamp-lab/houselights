@@ -528,15 +528,15 @@ interface LibraryDao :
     suspend fun titleAmong(ids: List<Long>): Long?
 
     /**
-     * The films among main rows [ids] in several copies: held, watched and started as the copy Lire plays is
-     * ([LocalMapper]).
+     * The films among main rows [ids] in several copies: held and started as the copy Lire plays is, watched as any copy
+     * is ([LocalMapper]).
      */
     @Query("SELECT DISTINCT versionOf FROM items WHERE versionOf IN (:ids)")
     suspend fun titlesInCopies(ids: List<Long>): List<Long>
 
     /**
      * The films in several copies whose copies are not all watched, nor all started, as their main row is: the walls'
-     * filters read them as the copy Lire plays is ([LocalFilters]).
+     * filters read them as the copy Lire plays is, watched as any copy is ([LocalFilters]).
      */
     @Query(
         "SELECT DISTINCT c.versionOf FROM items c JOIN items t ON t.id = c.versionOf " +

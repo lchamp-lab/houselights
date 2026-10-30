@@ -456,6 +456,29 @@ class LocalCatalogTest {
         assertEquals(2_400_000L, versions.getValue(best.toString()).item.user.positionMs)
     }
 
+    /**
+     * A film watched, then given a better copy, stays watched: the copy Lire plays, added after, is not, but the film is
+     * watched as any copy is, on its walls, their filters and its saga's page, as on its saga's card and in À suivre.
+     */
+    @Test
+    fun aFilmWatchedStaysWatchedOnceABetterCopyComes() = runTest {
+        val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:726871", tmdbId = 726871, name = "Dune", sortTitle = "dune"))
+        film("Dune", 2021, tmdbId = 438631, badges = listOf("1080p"), played = true, collectionId = saga)
+        val next = film("Dune Part Two", 2024, tmdbId = 693134, collectionId = saga)
+        // Added once Dune was watched, the 4K copy comes unwatched, and is the one Lire plays.
+        film("Dune", 2021, tmdbId = 438631, path = "Dune 2160p.mkv", badges = listOf("4K"), collectionId = saga)
+        dao.groupVersions()
+
+        suspend fun page(status: WatchStatus) =
+            provider.libraryPage(films, SortOption.TITLE, LibraryFilter(status = status), 0, 10).items
+        assertTrue(page(WatchStatus.ALL).single { it.title == "Dune" }.user.played)
+        assertEquals(listOf("Dune"), page(WatchStatus.WATCHED).map { it.title })
+        assertEquals(listOf("Dune Part Two"), page(WatchStatus.UNWATCHED).map { it.title })
+
+        // Its saga goes on to the next film, Lire on it.
+        assertEquals(next.toString(), provider.nextUp(provider.item(LocalId.ofCollection(saga)))?.id)
+    }
+
     // --- Filters and numbers ---
 
     @Test

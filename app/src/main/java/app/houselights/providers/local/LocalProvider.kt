@@ -133,14 +133,15 @@ class LocalProvider(
     }
 
     /**
-     * The copy Lire plays of each film whose copies are not all watched, nor all started, as its main row is, for a wall
-     * filtered by [status] ([LocalFilters.where]); none for the other filters.
+     * The copy Lire plays of each film whose copies are not all watched, nor all started, as its main row is, watched as
+     * any copy is ([LocalMapper.watchedAsAny]), for a wall filtered by [status] ([LocalFilters.where]); none for the other
+     * filters.
      */
     private suspend fun playedCopies(status: WatchStatus): Map<Long, ItemEntity> {
         if (status == WatchStatus.ALL || status == WatchStatus.FAVORITES) return emptyMap()
         return dao.copiesApart().mapNotNull { title ->
             val copies = dao.copies(title)
-            VersionRank.played(copies)?.let { played -> title to copies.first { it.id == played } }
+            VersionRank.played(copies)?.let { played -> title to LocalMapper.watchedAsAny(copies.first { it.id == played }, copies) }
         }.toMap()
     }
 

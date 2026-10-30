@@ -26,8 +26,9 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
     private val filmsRead = HashSet<Long>()
 
     /**
-     * Films in several copies, by main row: the copy Lire plays ([VersionRank.played]). Lire plays that copy, so the film
-     * is held, watched, started and as long as it is, where Lire's resume point is.
+     * Films in several copies, by main row: the copy Lire plays ([VersionRank.played]), watched as any copy is. Lire plays
+     * that copy, so the film is held, started and as long as it is, where Lire's resume point is; it is watched once any
+     * copy is, as its saga's films are ([LibraryDao.startedSagas]): a copy added once the film was watched comes unwatched.
      */
     private val playedCopies = mutableMapOf<Long, ItemEntity>()
 
@@ -57,7 +58,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             for (title in dao.titlesInCopies(chunk)) {
                 val copies = dao.copies(title)
                 val played = VersionRank.played(copies) ?: continue
-                playedCopies[title] = copies.first { it.id == played }
+                playedCopies[title] = watchedAsAny(copies.first { it.id == played }, copies)
             }
         }
     }
@@ -214,4 +215,10 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         type: ImageType,
     ) = (LocalProvider.shown(user(e), automatic(e)) ?: show?.let { LocalProvider.shown(user(it), automatic(it)) })
         ?.let { LocalProvider.image(it, type) }
+
+    companion object {
+        /** [copy], one of a film's [copies], watched as any of them is ([playedCopies]). */
+        fun watchedAsAny(copy: ItemEntity, copies: List<ItemEntity>): ItemEntity =
+            if (!copy.played && copies.any { it.played }) copy.copy(played = true) else copy
+    }
 }

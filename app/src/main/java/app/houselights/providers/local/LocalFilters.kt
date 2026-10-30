@@ -10,14 +10,15 @@ import app.houselights.core.WatchStatus
 
 /**
  * SQL for a library wall ([LibraryFilter]), main rows only. File filters match a film when any copy matches, and a
- * show when any episode does. A film in several copies is watched or started as the copy Lire plays is.
+ * show when any episode does. A film in several copies is started as the copy Lire plays is, and watched as any copy is.
  */
 internal object LocalFilters {
     class Where(val sql: String, val args: List<Any>)
 
     /**
-     * [playedCopies]: the copy Lire plays ([VersionRank.played]) of each film whose copies are not all watched, nor all
-     * started, as its main row is ([LibraryDao.copiesApart]); the main row of any other film says how it was watched.
+     * [playedCopies]: the copy Lire plays ([VersionRank.played]), watched as any copy is ([LocalMapper.watchedAsAny]), of
+     * each film whose copies are not all watched, nor all started, as its main row is ([LibraryDao.copiesApart]); the main
+     * row of any other film says how it was watched.
      */
     fun where(kind: ItemKind, filter: LibraryFilter, playedCopies: Map<Long, ItemEntity> = emptyMap()): Where {
         val args = mutableListOf<Any>()
