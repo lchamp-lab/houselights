@@ -13,7 +13,6 @@ import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
-import app.houselights.core.WatchStatus
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -27,7 +26,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.time.LocalDate
 
-/** What the local library offers beyond titles ([LocalCatalog]): people, whole sagas, copies, numbers, search. */
+/**
+ * What the local library offers beyond titles ([LocalCatalog]): people, whole sagas, copies, numbers, search; which copy
+ * a film in several is started, watched and resumed as, in [LocalCopiesTest].
+ */
 @RunWith(RobolectricTestRunner::class)
 class LocalCatalogTest {
     private lateinit var db: LibraryDatabase
@@ -384,34 +386,6 @@ class LocalCatalogTest {
         assertEquals(emptyList<Any>(), catalog.versions(item(uhd)))
     }
 
-    /**
-     * A film in several copies is held as the copy Lire plays is, its card, page and Lire alike: the best unless one is
-     * chosen, another copy's file missing or not; each copy as its own file is.
-     */
-    @Test
-    fun aFilmInCopiesIsHeldAsTheCopyLirePlays() = runTest {
-        val first = film("Heat", 1995, tmdbId = 949, path = "Heat.1080p.mkv", badges = listOf("1080p"))
-        val uhd = film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
-        dao.groupVersions()
-        suspend fun heldSince() = provider.item(first.toString()).missingSince
-        suspend fun wall() = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 10).items.map { it.missingSince }
-
-        dao.setMissingSince(listOf(uhd), 5)
-        assertEquals("the 4K plays, and is missing", 5L, heldSince())
-        assertEquals(listOf<Long?>(5), wall())
-        assertEquals(listOf(5L, null), catalog.versions(item(first)).map { it.item.missingSince })
-
-        catalog.chooseVersion(item(first), catalog.versions(item(first)).single { it.key == first.toString() })
-        assertNull("the 1080p chosen plays, and is there", heldSince())
-        assertEquals(listOf<Long?>(null), wall())
-
-        dao.setMissingSince(listOf(uhd), null)
-        dao.setMissingSince(listOf(first), 7)
-        assertEquals("the copy chosen missing", 7L, heldSince())
-        catalog.chooseVersion(item(first), null)
-        assertNull("the best plays again, and is there", heldSince())
-    }
-
     /** Watched and favourite apply to a film, so to all its copies, whichever is played or marked. */
     @Test
     fun aFilmsCopiesAreWatchedAndFavouredTogether() = runTest {
@@ -430,152 +404,6 @@ class LocalCatalogTest {
         LocalReporter(dao, second).stopped(positionMs = 6_000_000, durationMs = 6_500_000)
         assertTrue(checkNotNull(dao.item(first)).played)
         assertEquals(1_000_000L, checkNotNull(dao.item(first)).positionMs)
-    }
-
-    /**
-     * A film in several copies is started where the copy Lire plays was left: its walls, their filters and its saga read
-     * that copy, which holds the resume point, not the copy found first, which holds the film; each copy keeps its own.
-     */
-    @Test
-    fun aFilmInCopiesIsStartedAsTheCopyLirePlays() = runTest {
-        val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:8091", tmdbId = 8091, name = "Alien", sortTitle = "alien"))
-        film("Alien", 1979, tmdbId = 348, collectionId = saga, played = true)
-        // Found first, the 1080p copy holds the film; the 4K one, better, is the one Lire plays.
-        val first = film("Aliens", 1986, tmdbId = 679, collectionId = saga, badges = listOf("1080p"), runtimeMin = 137)
-        val best = film("Aliens", 1986, tmdbId = 679, path = "Aliens 2160p.mkv", collectionId = saga, badges = listOf("4K"))
-        dao.groupVersions()
-        LocalReporter(dao, best).progress(positionMs = 2_400_000, durationMs = 9_240_000, paused = false)
-
-        val aliens = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 10).items.single { it.title == "Aliens" }
-        assertEquals(2_400_000L, aliens.user.positionMs)
-        assertEquals(9_240_000L, aliens.runtimeMs)
-        suspend fun titles(status: WatchStatus, grouped: Boolean = false) =
-            provider.libraryPage(films, SortOption.TITLE, LibraryFilter(status = status), 0, 10, grouped).items.map { it.title }
-        assertEquals(listOf("Aliens"), titles(WatchStatus.IN_PROGRESS))
-        assertEquals(emptyList<String>(), titles(WatchStatus.UNWATCHED))
-        assertEquals(listOf("Alien"), titles(WatchStatus.WATCHED))
-        assertEquals(1, titles(WatchStatus.IN_PROGRESS, grouped = true).size)
-
-        // Its saga resumes it, Reprendre in Lire's place.
-        val next = provider.nextUp(provider.item(LocalId.ofCollection(saga)))
-        assertEquals(first.toString(), next?.id)
-        assertEquals(2_400_000L, next?.user?.positionMs)
-
-        val versions = catalog.versions(aliens).associateBy { it.key }
-        assertEquals(0L, versions.getValue(first.toString()).item.user.positionMs)
-        assertEquals(137 * 60_000L, versions.getValue(first.toString()).runtimeMs)
-        assertEquals(2_400_000L, versions.getValue(best.toString()).item.user.positionMs)
-    }
-
-    /**
-     * A film watched, then given a better copy, stays watched: the copy Lire plays, added after, is not, but the film is
-     * watched as any copy is, on its walls, their filters and its saga's page, as on its saga's card and in À suivre.
-     */
-    @Test
-    fun aFilmWatchedStaysWatchedOnceABetterCopyComes() = runTest {
-        val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:726871", tmdbId = 726871, name = "Dune", sortTitle = "dune"))
-        film("Dune", 2021, tmdbId = 438631, badges = listOf("1080p"), played = true, collectionId = saga)
-        val next = film("Dune Part Two", 2024, tmdbId = 693134, collectionId = saga)
-        // Added once Dune was watched, the 4K copy comes unwatched, and is the one Lire plays.
-        film("Dune", 2021, tmdbId = 438631, path = "Dune 2160p.mkv", badges = listOf("4K"), collectionId = saga)
-        dao.groupVersions()
-
-        suspend fun page(status: WatchStatus) =
-            provider.libraryPage(films, SortOption.TITLE, LibraryFilter(status = status), 0, 10).items
-        assertTrue(page(WatchStatus.ALL).single { it.title == "Dune" }.user.played)
-        assertEquals(listOf("Dune"), page(WatchStatus.WATCHED).map { it.title })
-        assertEquals(listOf("Dune Part Two"), page(WatchStatus.UNWATCHED).map { it.title })
-
-        // Its saga goes on to the next film, Lire on it.
-        assertEquals(next.toString(), provider.nextUp(provider.item(LocalId.ofCollection(saga)))?.id)
-    }
-
-    /**
-     * Reprendre shows a film in several copies once, as its walls show it: its main row, started where the copy Lire
-     * plays was left, in the place of its copy played last; not at all while that copy is not started, nor once a copy
-     * is watched, as the En cours filter leaves it out.
-     */
-    @Test
-    fun reprendreShowsAFilmInCopiesOnceAsItsWallsDo() = runTest {
-        // Both copies of Heat started, the 1080p one last; Lire plays the 4K one, better.
-        val heat = film("Heat", 1995, tmdbId = 949, badges = listOf("1080p"), positionMs = 600_000, lastPlayedAt = 300)
-        film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), positionMs = 2_400_000, lastPlayedAt = 200)
-        // Ronin's 1080p copy alone started, while Lire plays its 4K one from the start.
-        film("Ronin", 1998, tmdbId = 8195, badges = listOf("1080p"), positionMs = 900_000, lastPlayedAt = 400)
-        film("Ronin", 1998, tmdbId = 8195, path = "Ronin.2160p.mkv", badges = listOf("4K"))
-        // Collateral watched in 1080p, then its 4K copy, added after, started.
-        film("Collateral", 2004, tmdbId = 1538, badges = listOf("1080p"), played = true, lastPlayedAt = 50)
-        film("Collateral", 2004, tmdbId = 1538, path = "Collateral.2160p.mkv", badges = listOf("4K"), positionMs = 1_200_000)
-        film("Thief", 1981, positionMs = 60_000, lastPlayedAt = 100)
-        dao.groupVersions()
-
-        val resumed = provider.home().single { it.type == SectionType.CONTINUE }.items
-        assertEquals(listOf("Heat", "Thief"), resumed.map { it.title })
-        assertEquals(heat.toString(), resumed.first().id)
-        assertEquals(2_400_000L, resumed.first().user.positionMs)
-        val inProgress = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(status = WatchStatus.IN_PROGRESS), 0, 10).items
-        assertEquals(inProgress.map { it.id }.toSet(), resumed.map { it.id }.toSet())
-
-        // Reprendre resumes the copy Lire plays where it was left.
-        val options = PlaybackOptions(emptyList(), forceHttp = false)
-        val plan = provider.playback(resumed.first(), resume = true, options) as PlaybackPlan.Launch
-        assertTrue(plan.uri.endsWith("Heat.2160p.mkv"))
-        assertEquals(2_400_000L, plan.startMs)
-    }
-
-    /**
-     * A saga counts a film watched as soon as any copy is, its card on the sagas wall and on the film's page alike, as
-     * its walls and its page show the film.
-     */
-    @Test
-    fun aSagaCountsAFilmWatchedOnAnyCopy() = runTest {
-        val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:1575", tmdbId = 1575, name = "Rocky", sortTitle = "rocky"))
-        film("Rocky", 1976, tmdbId = 1366, collectionId = saga, played = true)
-        // Rocky II's 4K copy was watched before its 1080p copy, found first, was known as the same film.
-        val second = film("Rocky II", 1979, tmdbId = 1367, badges = listOf("1080p"), collectionId = saga)
-        film("Rocky II", 1979, tmdbId = 1367, path = "Rocky II.2160p.mkv", badges = listOf("4K"), collectionId = saga, played = true)
-        dao.groupVersions()
-
-        val sagas = Library(LocalProvider.COLLECTIONS, LibraryKind.COLLECTIONS, null)
-        val card = provider.libraryPage(sagas, SortOption.TITLE, LibraryFilter(), 0, 10).items.single()
-        assertEquals(0, card.user.unplayedCount)
-        assertTrue(card.user.played)
-        assertEquals(0, provider.collectionOf(provider.item(second.toString()))?.user?.unplayedCount)
-        assertTrue(provider.collectionItems(card).all { it.user.played })
-    }
-
-    /**
-     * À suivre goes on with a saga as its page does: a film whose other copy alone was started, while Lire plays one not
-     * started, is not in progress, as on its walls, so À suivre offers it.
-     */
-    @Test
-    fun upNextOffersAFilmStartedOnACopyLireDoesNotPlay() = runTest {
-        val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:31562", tmdbId = 31562, name = "Bourne", sortTitle = "bourne"))
-        film("The Bourne Identity", 2002, tmdbId = 2501, collectionId = saga, played = true, lastPlayedAt = 100)
-        // Its 1080p copy started, the second film plays in 4K from the start.
-        val second = film(
-            "The Bourne Supremacy",
-            2004,
-            tmdbId = 2502,
-            badges = listOf("1080p"),
-            collectionId = saga,
-            positionMs = 600_000,
-            lastPlayedAt = 200,
-        )
-        film(
-            "The Bourne Supremacy",
-            2004,
-            tmdbId = 2502,
-            path = "The Bourne Supremacy.2160p.mkv",
-            badges = listOf("4K"),
-            collectionId = saga,
-        )
-        dao.groupVersions()
-
-        val home = provider.home()
-        assertEquals(listOf(second.toString()), home.single { it.type == SectionType.NEXT_UP }.items.map { it.id })
-        assertEquals(second.toString(), provider.nextUp(provider.item(LocalId.ofCollection(saga)))?.id)
-        assertTrue(home.none { it.type == SectionType.CONTINUE })
     }
 
     // --- Filters and numbers ---

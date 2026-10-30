@@ -50,6 +50,8 @@ class NfsListingTest {
                 val item = items[child]
                 if (item == null || child in withheld) NfsEntry(name, null, null) else NfsEntry(name, handle(child), attributes(item))
             }
+            // A NAS that ignores the cookie it is given answers the same page, never the last, at every request.
+            if (path in looping) return NfsPage(entries, cookie = 2, verifier = 7, isLast = false)
             val next = cookie + answered.size
             return NfsPage(entries, next, verifier = 7, isLast = next >= all.size)
         }
@@ -88,6 +90,9 @@ class NfsListingTest {
 
     /** Listed, then gone before its lookup. */
     private val gone = mutableSetOf<String>()
+
+    /** Folders whose every answer gives the same cookie, never the last ([Export.readdirplus]). */
+    private val looping = mutableSetOf<String>()
 
     private fun folder(path: String) {
         items[path] = Item(isFolder = true)
@@ -207,6 +212,18 @@ class NfsListingTest {
         val listing = browser(Export()).list(films)
         assertEquals(listOf("Dune (2021)"), listing.unreadable)
         assertEquals(listOf("Arrival (2016)/Arrival (2016).mkv", "Sicario (2015).mp4"), listing.videos.map { it.relativePath })
+    }
+
+    /** A NAS paging a folder in a loop, its cookie coming back: that folder is passed over and named, the rest listed. */
+    @Test
+    fun aFolderWhoseCookieComesBackIsPassedOver() = runTest {
+        library()
+        looping += "Dune (2021)"
+        val export = Export(perAnswer = 2)
+        val listing = browser(export).list(films)
+        assertEquals(listOf("Dune (2021)"), listing.unreadable)
+        assertEquals(listOf("Arrival (2016)/Arrival (2016).mkv", "Sicario (2015).mp4"), listing.videos.map { it.relativePath })
+        assertEquals("asked again once", 2, export.asked.count { it.startsWith("READDIRPLUS /Dune (2021)") })
     }
 
     /**

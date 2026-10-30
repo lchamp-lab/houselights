@@ -236,7 +236,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         // keeps nothing of the one it was taken for.
         val anew = seasons != null && series.tmdbId != null
         val base = if (removed || anew) MetadataMerge.withoutDetails(read, title, year).copy(matchedAt = null) else read
-        val saved = saveShow(base, nfo, tv, art, tmdb.client, now, was, refreshMetadata, seasons)
+        val saved = saveShow(base, nfo, tv, art, tmdb.client, now, was, refreshMetadata, seasons, renamed(pass, series, nfo))
         return settled(pass, saved, named = seasons != null)
     }
 
@@ -419,6 +419,14 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         return taken.copy(matchedAt = null).also { dao.saveScanned(it) }
     }
 
+    /**
+     * Whether [nfo], read anew or awaiting TMDB since, names another show than the one [series] was matched with: it waits
+     * for TMDB's answer ([saveShow]), the show left unmatched for it; without a TMDB key, the NFO alone names it.
+     */
+    private fun renamed(pass: ScanPass, series: ItemEntity, nfo: NfoInfo?): Boolean =
+        pass.tmdb.client != null && nfo != null && MetadataMerge.namesAnother(nfo, series) &&
+            (!sameIds(series.nfoInfo(), nfo) || series.matchedAt == null)
+
     private fun sameIds(known: NfoInfo?, nfo: NfoInfo): Boolean =
         known != null && known.tmdbId == nfo.tmdbId && known.imdbId == nfo.imdbId && known.tvdbId == nfo.tvdbId
 
@@ -493,16 +501,16 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
      * Asks TMDB again for a show to identify ([Reidentify]) by what its rows hold, never reading the NAS; null when TMDB
      * did not answer, for the show or one of its seasons. Its writes, true when the show changed: found at last, it is
      * saved as an identification saves it, every episode with its season's details and what was kept of it; still not
-     * found, only its state, its candidates and when it was asked, its seasons and episodes left as they are.
+     * found, only its state, its candidates and when it was asked, its seasons and episodes left as they are. Its seasons
+     * are asked through [cache], which the placing that follows reads them from ([Reidentify]).
      */
-    suspend fun recheck(series: ItemEntity, tmdb: TmdbPass): (suspend () -> Boolean)? {
+    suspend fun recheck(series: ItemEntity, tmdb: TmdbPass, cache: SeasonCache = SeasonCache(tmdb)): (suspend () -> Boolean)? {
         val (title, year) = showQuery(series)
         val nfo = series.nfoInfo()
         val query = Query(null, namesOf(series), nfo, title, year, known = lent(series))
         val answer = tmdb.ask { lookupShow(it, query) } as? TmdbAnswer.Given ?: return null
         val now = clock()
         val tv = answer.value?.value ?: return { dao.rechecked(series, answer.value?.offered.orEmpty(), now) }
-        val cache = SeasonCache(tmdb)
         val seasons = dao.children(series.id).filter { it.kind == ItemKind.SEASON }.mapNotNull { it.seasonNumber }
             .associateWith { cache.get(tv.id, it) }
         if (seasons.values.any { it !is TmdbAnswer.Given }) return null
@@ -594,7 +602,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     /**
      * Saves details ([MetadataMerge]) and credits ([CreditRules]). Matched only when TMDB answered, so shows saved from
      * sidecars alone, unanswered refreshes and NFOs awaiting confirmation are looked up again later. A show named
-     * since [was], its TMDB id then, takes back what was kept of it and its episodes ([LibraryDao.giveBackShow]).
+     * since [was], its TMDB id then, takes back what was kept of it and its episodes ([LibraryDao.giveBackShow]). An NFO
+     * [renamed] to another show is set aside while TMDB does not answer: merged, its id would stand on the details of the
+     * show it was taken for, and its episodes would never take the new show's seasons ([withSeasons]).
      */
     @Suppress("LongParameterList") // One per source of details, as for films.
     private suspend fun saveShow(
@@ -607,10 +617,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         was: Int?,
         refresh: Boolean = false,
         seasons: Map<Int, TmdbSeason?>? = null,
+        renamed: Boolean = false,
     ): ItemEntity {
         val tv = lookup.value?.value
         val ids = tv?.externalIds
-        val untold = untold(base, tv, nfoInfo)
+        val untold = untold(base, tv, nfoInfo) || renamed && lookup !is TmdbAnswer.Given
         // The show the user or its folder's name chose: an NFO naming another describes another show.
         val chosen = base.userTmdbId ?: lookup.value?.byName
         val nfo = nfoInfo?.takeUnless { untold || MetadataMerge.describesOther(it, chosen, ids?.imdbId, ids?.tvdbId) }

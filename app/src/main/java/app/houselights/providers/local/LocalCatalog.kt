@@ -135,7 +135,8 @@ internal class LocalCatalog(
         val items = LocalMapper(dao, context).mapAll(copies)
         return withContext(Dispatchers.Default) {
             val best = VersionRank.best(copies)
-            val choice = copies.firstOrNull { it.id == titleId }?.versionChoice?.takeIf { id -> copies.any { it.id == id } } ?: best
+            // The copy Lire plays, marked as a choice is: the one chosen, else the one played last of those started, else the best.
+            val played = VersionRank.played(copies)
             copies.zip(items).map { (copy, mapped) ->
                 val runtime = copy.runtimeMs()
                 Version(
@@ -150,7 +151,7 @@ internal class LocalCatalog(
                     media = mapped.media,
                     sizeBytes = mapped.media?.sizeBytes ?: copy.fileSize,
                     runtimeMs = runtime,
-                    chosen = copy.id == choice,
+                    chosen = copy.id == played,
                     best = copy.id == best,
                     key = copy.id.toString(),
                 )

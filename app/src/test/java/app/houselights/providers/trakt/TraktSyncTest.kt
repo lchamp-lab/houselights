@@ -142,6 +142,22 @@ class TraktSyncTest : TraktSyncFixture() {
         assertEquals(Instant.ofEpochMilli(NOW).toString(), sent.movieDate())
     }
 
+    /**
+     * A mark whose connection to Trakt was not opened in time never reached it: it waits as unsent, as one offline does,
+     * never taken for one Trakt may have taken and then found missing from a history read in part.
+     */
+    @Test
+    fun aMarkWhoseConnectionTimedOutWaitsUnsent() = runTest {
+        val id = film(7)
+        val sync = connected()
+        val provider = provider(sync)
+
+        trakt.connectTimingOut = true
+        provider.mark(id, played = true)
+        waitFor("the failure said") { sync.state.value.error == TraktSyncError.OFFLINE }
+        assertEquals(listOf("movie:7" to null), queue.pending().map { it.title to it.sentAt })
+    }
+
     /** A film marked from its poster on a wall filtered on Non vus leaves it, and reaches Trakt as a mark from its page does. */
     @Test
     fun aMarkFromAWallReachesTrakt() = runTest {
@@ -377,6 +393,25 @@ class TraktSyncTest : TraktSyncFixture() {
         assertEquals(60 * MINUTE, dao.item(chosen)!!.positionMs)
         val stop = trakt.sent("POST /scrobble/stop").single()
         assertEquals(35, stop.movieTmdb)
+        assertEquals(50f, stop["progress"]!!.jsonPrimitive.content.toFloat())
+    }
+
+    @Test
+    fun aFilmInSeveralCopiesNoneChosenResumesOnTheCopyStarted() = runTest {
+        // Nothing chosen in Versions: Trakt's pause goes to the copy started, where Lire resumes, not the one found first.
+        val main = film(38)
+        val started = film(38, positionMs = 20 * MINUTE, lastPlayedAt = ms(T1), versionOf = main)
+        trakt.playback = "[${pausedMovie(42, 38, 60f, T2)}]"
+        // Trakt hears where the copy started stopped.
+        val other = film(39)
+        film(39, positionMs = 50 * MINUTE, lastPlayedAt = ms(T1), versionOf = other)
+
+        connected()
+
+        assertEquals(0L, dao.item(main)!!.positionMs)
+        assertEquals(60 * MINUTE, dao.item(started)!!.positionMs)
+        val stop = trakt.sent("POST /scrobble/stop").single()
+        assertEquals(39, stop.movieTmdb)
         assertEquals(50f, stop["progress"]!!.jsonPrimitive.content.toFloat())
     }
 

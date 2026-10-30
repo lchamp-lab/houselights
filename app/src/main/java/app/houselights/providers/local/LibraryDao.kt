@@ -151,7 +151,7 @@ interface LibraryDao :
     @Query("UPDATE items SET favorite = :favorite WHERE $COPIES")
     suspend fun setFavorite(id: Long, favorite: Boolean)
 
-    /** Sets the copy to play on main row [id] ([ItemEntity.versionChoice]); null plays the best copy. */
+    /** Sets the copy to play on main row [id] ([ItemEntity.versionChoice]); null plays the one [VersionRank.played] names. */
     @Query("UPDATE items SET versionChoice = :choice WHERE id = :id")
     suspend fun setVersionChoice(id: Long, choice: Long?)
 
@@ -817,8 +817,8 @@ interface LibraryDao :
     suspend fun setAddedAt(id: Long, at: Long)
 
     /**
-     * Copies favourite, user match, artwork and order of episodes from [fromId] where [toId] lacks them ([ShowIndexer]);
-     * a show left as it is leaves the show taking it over so.
+     * Copies favourite, user match, artwork, order of episodes and choice of tracks from [fromId] where [toId] lacks them
+     * ([ShowIndexer]); a show left as it is leaves the show taking it over so.
      */
     @Transaction
     suspend fun handOver(fromId: Long, toId: Long) {
@@ -835,6 +835,8 @@ interface LibraryDao :
                 userEpisodeOrder = to.userEpisodeOrder ?: from.userEpisodeOrder,
             ),
         )
+        // Its episodes take the show's key ([tracksKey]); the former's choice would go with it ([deleteOrphanTrackChoices]).
+        copyTrackChoice("local:$fromId", "local:$toId")
     }
 
     @Query("UPDATE items SET userPosterPath = :path WHERE id = :id")

@@ -56,10 +56,14 @@ class FakeRemoteBrowser : RemoteBrowser {
 
     fun clear() = files.clear()
 
-    /** Its files, [found] told of its videos as the readers count them ([VideoCount]), in the order they were put. */
-    override suspend fun list(source: SourceEntity, found: (Int) -> Unit): Listing {
+    /**
+     * Its files, [found] told of its videos as the readers count them ([VideoCount]), in the order they were put; stopped
+     * as a walk stops between two folders when [pauses] says so once [onList] ran.
+     */
+    override suspend fun list(source: SourceEntity, pauses: () -> Boolean, found: (Int) -> Unit): Listing {
         listFailure?.let { throw it }
         onList?.invoke()
+        if (pauses()) throw ListingPausedException()
         val all = files.filterKeys { path -> unreadable.none { path.startsWith("$it/") } }
             .map { (path, entry) -> RemoteFile(path, entry.size, entry.lastModified) }
         fun name(file: RemoteFile) = file.relativePath.substringAfterLast('/')

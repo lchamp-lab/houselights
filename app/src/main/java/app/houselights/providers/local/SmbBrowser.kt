@@ -47,10 +47,10 @@ internal class SmbBrowser(
      * its own, signed off once listed: a walk of thousands of folders would otherwise hold the share's kept session, and
      * the add-folder flow's levels and a folder's save ([forget]) on the same share would wait for its end.
      */
-    override suspend fun list(source: SourceEntity, found: (Int) -> Unit): Listing = withContext(Dispatchers.IO) {
+    override suspend fun list(source: SourceEntity, pauses: () -> Boolean, found: (Int) -> Unit): Listing = withContext(Dispatchers.IO) {
         sessions.once({ connect(source) }) { share ->
             val root = folder(share, remotePath(source, separator = '\\'))
-            walk(root, unreadable.of(source), found) { ScanErrors.isUnreachable(it) || isBroken(it) }
+            walk(root, unreadable.of(source), found, pauses) { ScanErrors.isUnreachable(it) || isBroken(it) }
         }
     }
 

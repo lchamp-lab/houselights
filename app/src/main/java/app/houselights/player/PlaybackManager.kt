@@ -487,7 +487,7 @@ class PlaybackManager(
             poll?.cancelAndJoin()
             live?.started?.join()
             // No live session: the app was stopped while the film played.
-            val s = live ?: Session(resumeKey?.let { reporterFor(it) }, savedPosition, key = resumeKey, file = savedFile)
+            val s = live ?: Session(resumeKey?.let { reporterOf(it) }, savedPosition, key = resumeKey, file = savedFile)
             // A position the player returns for another file is not this title's.
             if (returned > 0 && !s.switched && !s.endedElsewhere(played)) s.positionMs = returned.toLong()
             Log.i(TAG, "Playback ended at ${s.positionMs} / ${s.durationMs} ms")
@@ -496,6 +496,14 @@ class PlaybackManager(
             _playbackEnded.emit(Unit)
         }
     }
+
+    /**
+     * The reporter of title [key] for a session the app was stopped through; none when it cannot be had (a source the
+     * Keystore does not open in time): the film still ends, its last position only kept by the server as it was.
+     */
+    private suspend fun reporterOf(key: String): PlaybackReporter? = suspendRunCatching { reporterFor(key) }
+        .onFailure { Log.w(TAG, "No reporter for $key: its final position is not sent", it) }
+        .getOrNull()
 
     /** Reports [s] at [step] (started, progress, stopped); a failure is only logged, whole the first time in a row. */
     private suspend fun report(s: Session, step: String, block: suspend () -> Unit) {

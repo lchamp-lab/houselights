@@ -5,6 +5,8 @@ import app.houselights.providers.local.FakeRemoteBrowser.Companion.T2
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -94,6 +96,34 @@ class ScanSidecarsTest {
         val requests = bench.pass().requests
         assertTrue(requests.toString(), "movie/2" in requests)
         assertEquals(2, bench.item(films, "Disclosure Day.mkv").tmdbId)
+    }
+
+    /**
+     * The NFO rewritten to name another film while TMDB does not answer for it: the film keeps its match, unmatched, until
+     * TMDB describes the new one, rather than take the NFO's id on the details of the film it was taken for.
+     */
+    @Test
+    fun anNfoNamingAnotherFilmWaitsForTmdbsAnswer() = runTest {
+        tmdb.movie(1, "Disclosure", 1994)
+        tmdb.movie(2, "Disclosure Day", 2026)
+        nas.put("Disclosure Day.mkv")
+        nas.putText("Disclosure Day.nfo", "<movie><uniqueid type=\"tmdb\">1</uniqueid></movie>", lastModified = T1)
+        bench.scan()
+        assertEquals("About Disclosure", bench.item(films, "Disclosure Day.mkv").overview)
+
+        nas.putText("Disclosure Day.nfo", "<movie><uniqueid type=\"tmdb\">2</uniqueid></movie>", lastModified = T2)
+        tmdb.failingPath = "movie/2"
+        bench.scan()
+        val waiting = bench.item(films, "Disclosure Day.mkv")
+        assertEquals("the NFO's id waits for TMDB", 1, waiting.tmdbId)
+        assertNull("asked again at the next pass", waiting.matchedAt)
+
+        bench.tmdbBack()
+        bench.scan()
+        val read = bench.item(films, "Disclosure Day.mkv")
+        assertEquals(2, read.tmdbId)
+        assertEquals("About Disclosure Day" to "/poster-2.jpg", read.overview to read.posterPath)
+        assertNotNull(read.matchedAt)
     }
 
     @Test

@@ -167,6 +167,26 @@ class ToIdentifyTest {
         bench.assertQuiet(auto = true)
     }
 
+    /** A show found at last whose tvshow.nfo names its order, the DVD's, is placed in it, as an identification places it. */
+    @Test
+    fun aShowToIdentifyFoundLaterFollowsTheOrderItsNfoNames() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        fun file(n: Int) = "Firefly/Season 1/Firefly - S01E0$n.mkv"
+        (1..3).forEach { bench.showsNas.put(file(it)) }
+        bench.showsNas.putText("Firefly/tvshow.nfo", "<tvshow><title>Firefly</title><displayorder>dvd</displayorder></tvshow>")
+        bench.scan()
+
+        tmdb.show(FIREFLY, "Firefly", 2002)
+        tmdb.season(FIREFLY, 1, episodes = 14)
+        // On DVD, Serenity (TMDB's 11th) first, then The Train Job and Bushwhacked.
+        tmdb.group(FIREFLY, DVD, type = 3, name = "DVD Order", listOf(listOf(1 to 11, 1 to 1, 1 to 2)))
+        bench.later(DAY_MS)
+        bench.autoScan()
+        val show = bench.showOf(shows, file(1))
+        assertEquals(FIREFLY to DVD, show.tmdbId to show.episodeOrder)
+        assertEquals(listOf("Episode 1.11", "Episode 1.1", "Episode 1.2"), (1..3).map { bench.item(shows, file(it)).title })
+    }
+
     /** Still not found, a show keeps all it has: its state, candidates and time asked change, never its episodes. */
     @Test
     fun aRecheckWithoutAMatchChangesOnlyWhatTmdbMadeOfIt() = runTest {
@@ -536,6 +556,8 @@ class ToIdentifyTest {
         const val DUNE = 438631
         const val LYNCH = 841
         const val SEVERANCE = 95396
+        const val FIREFLY = 1437
+        const val DVD = "5b11ba820e0a265847002c6e"
         const val OTHER_SEVERANCE = 1
         const val PILOT = "Severance/Season 1/Severance - S01E01.mkv"
         const val KAAMELOTT = "Kaamelott/Livre 1/Kaamelott - S01E01.mkv"

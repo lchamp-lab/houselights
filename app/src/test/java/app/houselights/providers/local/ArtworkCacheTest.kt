@@ -85,8 +85,9 @@ class ArtworkCacheTest {
     fun theFirstImageIsCopiedThoughTheCacheFolderIsNotThereYet() = runBlocking {
         // A folder that does not exist has no space at all, as far as File.usableSpace goes.
         val cache = ArtworkCache(File(temp.root, "artwork"))
-        val nas = FakeRemoteBrowser().apply { put("Dune (2021)-poster.jpg", size = 100, bytes = ByteArray(100)) }
-        val copied = cache.copy(source, RemoteFile("Dune (2021)-poster.jpg", 100), nas)
+        val bytes = picture(10, 15)
+        val nas = FakeRemoteBrowser().apply { put("Dune (2021)-poster.jpg", size = bytes.size.toLong(), bytes = bytes) }
+        val copied = cache.copy(source, RemoteFile("Dune (2021)-poster.jpg", bytes.size.toLong()), nas)
         assertTrue(copied.orEmpty(), copied?.let { File(it.removePrefix("file://")).isFile } == true)
     }
 
@@ -99,11 +100,12 @@ class ArtworkCacheTest {
         val volume = 8_000_000_000L
         var free = volume / 20 + ArtworkCache.MIN_FREE_BYTES
         val cache = ArtworkCache(temp.newFolder(), totalSpace = { volume }) { free }
-        val nas = FakeRemoteBrowser().apply { put("Dune (2021)-poster.jpg", size = 100, bytes = ByteArray(100)) }
-        val poster = RemoteFile("Dune (2021)-poster.jpg", 100)
+        val bytes = picture(10, 15)
+        val nas = FakeRemoteBrowser().apply { put("Dune (2021)-poster.jpg", size = bytes.size.toLong(), bytes = bytes) }
+        val poster = RemoteFile("Dune (2021)-poster.jpg", bytes.size.toLong())
         assertNull("400 MB kept for Android, 200 MiB for the cache", cache.copy(source, poster, nas))
 
-        free += 100
+        free += bytes.size
         assertTrue(cache.copy(source, poster, nas).isCachedArtwork())
         assertEquals("a large volume keeps 500 MiB", 500L shl 20, ArtworkCache.systemReserve(64_000_000_000L))
     }
@@ -113,8 +115,8 @@ class ArtworkCacheTest {
     fun aPictureRewrittenWithTheSameSizeIsCopiedAgain() = runBlocking {
         val cache = ArtworkCache(temp.newFolder())
         val nas = FakeRemoteBrowser()
-        val before = ByteArray(1_000) { 1 }
-        val after = ByteArray(1_000) { 2 }
+        val before = picture(10, 15).copyOf(1_000)
+        val after = picture(12, 18).copyOf(1_000)
         nas.put("Dune (2021)/poster.jpg", size = 1_000, bytes = before, lastModified = 1_760_000_000_000)
         val first = cache.copy(source, RemoteFile("Dune (2021)/poster.jpg", 1_000, lastModified = 1_760_000_000_000), nas)
         nas.put("Dune (2021)/poster.jpg", size = 1_000, bytes = after, lastModified = 1_760_000_600_000)
@@ -128,17 +130,47 @@ class ArtworkCacheTest {
         val cache = ArtworkCache(temp.newFolder())
         val poster = RemoteFile("Dune (2021)/poster.jpg", 1_000, lastModified = 1_760_000_000_000)
         val nas = FakeRemoteBrowser()
-        nas.put(poster.relativePath, size = poster.size, bytes = ByteArray(1_000), lastModified = poster.lastModified)
+        nas.put(poster.relativePath, size = poster.size, bytes = picture(10, 15).copyOf(1_000), lastModified = poster.lastModified)
         val first = cache.copy(source, poster, nas)
         val read = nas.reads.size
         assertEquals(first, cache.copy(source, poster, nas))
         assertEquals(read, nas.reads.size)
     }
 
+    /**
+     * A poster.jpg that is no picture (a web page saved under its name) is left to TMDB, never copied, and not read again
+     * until it is rewritten.
+     */
+    @Test
+    fun aSidecarThatIsNoPictureLeavesItToTmdb() = runBlocking {
+        val cache = ArtworkCache(temp.newFolder())
+        val page = "<!DOCTYPE html><html><body>Not found</body></html>".toByteArray()
+        val poster = RemoteFile("Dune (2021)/poster.jpg", page.size.toLong(), lastModified = 1_760_000_000_000)
+        val nas = FakeRemoteBrowser().apply {
+            put(
+                poster.relativePath,
+                size = poster.size,
+                bytes = page,
+                lastModified = poster.lastModified,
+            )
+        }
+        assertNull(cache.copy(source, poster, nas))
+        assertFalse("never cached", cache.holds(poster))
+        val read = nas.reads.size
+        assertNull(cache.copy(source, poster, nas))
+        assertEquals("not read again", read, nas.reads.size)
+
+        val rewritten = picture(10, 15)
+        val fixed = RemoteFile(poster.relativePath, rewritten.size.toLong(), lastModified = 1_760_000_600_000)
+        nas.put(fixed.relativePath, size = fixed.size, bytes = rewritten, lastModified = fixed.lastModified)
+        assertTrue(cache.copy(source, fixed, nas).isCachedArtwork())
+    }
+
     /** A fanart of several megabytes is never held whole in memory: it is copied a block at a time to the file. */
     @Test
     fun aLargePictureIsCopiedABlockAtATime() {
-        val bytes = ByteArray(1_000_000) { (it % 251).toByte() }
+        // A picture followed by what its decoders never read.
+        val bytes = picture(16, 9).copyOf(1_000_000)
         val asked = mutableListOf<Int>()
         val nas = FakeRemoteBrowser().apply { onRead = { _, _, length -> asked += length } }
         val copy = copied("Dune (2021)/fanart.jpg", bytes, nas)
