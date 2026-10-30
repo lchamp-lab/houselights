@@ -148,7 +148,7 @@ class LocalEditor(
     private suspend fun sagaArtwork(key: Long, kind: ArtworkKind): ArtworkChoices {
         val c = sagaOf(key, kind)
         val films = dao.collectionFilms(c.id)
-        val automatic = c.automatic(kind, films.firstOrNull())
+        val automatic = SagaPictures.automatic(c, kind, films.firstOrNull())
         val current = dao.sagaChoice(c.matchKey)?.picture(kind) ?: automatic
         // The film that first shows each picture, in release order.
         val byFilm = LinkedHashMap<String, ItemEntity>()
@@ -201,7 +201,7 @@ class LocalEditor(
      */
     private suspend fun setSagaArtwork(key: Long, kind: ArtworkKind, option: ArtworkOption) {
         val c = sagaOf(key, kind)
-        val value = option.value.takeIf { it != c.automatic(kind, dao.collectionFilms(c.id).firstOrNull()) }
+        val value = option.value.takeIf { it != SagaPictures.automatic(c, kind, dao.collectionFilms(c.id).firstOrNull()) }
         val was = dao.sagaChoice(c.matchKey) ?: SagaChoiceEntity(c.matchKey)
         val now = if (kind == ArtworkKind.POSTER) was.copy(userPosterPath = value) else was.copy(userBackdropPath = value)
         if (now.userPosterPath == null && now.userBackdropPath == null) dao.deleteSagaChoice(c.matchKey) else dao.saveSagaChoice(now)
@@ -439,13 +439,6 @@ class LocalEditor(
             ArtworkKind.BACKDROP -> LocalProvider.shown(userBackdropPath, backdropPath)
             ArtworkKind.LOGO -> LocalProvider.shown(userLogoPath, logoPath)
         }
-
-        /**
-         * A saga's Automatique of [kind], its poster or its backdrop, as its walls and its page show it without a choice
-         * ([LocalProvider]): TMDB's picture of it, else its [first] film's.
-         */
-        fun CollectionEntity.automatic(kind: ArtworkKind, first: ItemEntity?): String? =
-            (if (kind == ArtworkKind.POSTER) posterPath else backdropPath) ?: first?.shownPicture(kind)
 
         /** A saga's poster or backdrop ([kind]) as the user chose it; null for Automatique. */
         fun SagaChoiceEntity.picture(kind: ArtworkKind): String? = if (kind == ArtworkKind.POSTER) userPosterPath else userBackdropPath

@@ -949,7 +949,7 @@ interface LibraryDao :
 
     @Query(
         "SELECT $CARD_ROW FROM items WHERE collectionId = :collectionId AND kind = 'MOVIE' AND versionOf IS NULL " +
-            "ORDER BY year IS NULL, year, sortTitle",
+            "ORDER BY year IS NULL, year, sortTitle, id",
     )
     suspend fun collectionFilms(collectionId: Long): List<ItemEntity>
 

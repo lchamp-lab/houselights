@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
+import app.houselights.core.ArtworkKind
 import app.houselights.core.BadgeTokens
 import app.houselights.core.Catalog
 import app.houselights.core.Codecs
@@ -270,9 +271,8 @@ class LocalProvider(
             // Genres grouped case-insensitively, as in the genre filter: an NFO's "drame" is TMDB's "Drame".
             genres = members.flatMap { it.genres }.groupBy { it.lowercase(Locale.ROOT) }.values
                 .sortedByDescending { it.size }.take(SAGA_GENRES).map(PipeList::spellingOf),
-            poster = (chosen?.userPosterPath ?: c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })
-                ?.let { image(it, ImageType.POSTER) },
-            backdrop = (chosen?.userBackdropPath ?: c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })
+            poster = (chosen?.userPosterPath ?: SagaPictures.automatic(c, ArtworkKind.POSTER, first))?.let { image(it, ImageType.POSTER) },
+            backdrop = (chosen?.userBackdropPath ?: SagaPictures.automatic(c, ArtworkKind.BACKDROP, first))
                 ?.let { image(it, ImageType.BACKDROP) },
             // As a film's: its latest film added since its folder's first scan, the month a wall sorted by Ajout shows.
             addedAt = members.mapNotNull { it.addedLater }.maxOrNull(),
