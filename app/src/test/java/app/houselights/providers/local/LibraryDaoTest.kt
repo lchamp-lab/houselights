@@ -405,6 +405,26 @@ class LibraryDaoTest {
         assertEquals(listOf<String?>("S01E01.mkv"), dao.episodePaths(seasoned))
     }
 
+    /** A show's own seasons are read without its groups, as all its orders gave them; none for a show with only groups. */
+    @Test
+    fun aShowsAiredOrderIsReadAlone() = runTest {
+        fun order(show: Int, id: String, rank: Int = 0) =
+            EpisodeOrderEntity(show, id, type = 0, name = "", episodeCount = 12, rank = rank, places = "[]", groupsAt = 7)
+        dao.saveEpisodeOrders(
+            listOf(
+                order(SEVERANCE, "dvd", rank = 1),
+                order(SEVERANCE, EpisodeOrderEntity.AIRED),
+                order(ARCANE, EpisodeOrderEntity.AIRED),
+                order(PLURIBUS, "absolute", rank = 1),
+            ),
+        )
+
+        assertEquals(order(SEVERANCE, EpisodeOrderEntity.AIRED), dao.aired(SEVERANCE))
+        assertEquals(dao.episodeOrders(SEVERANCE).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }, dao.aired(SEVERANCE))
+        assertNull("only groups", dao.aired(PLURIBUS))
+        assertNull("no order", dao.aired(SHOGUN))
+    }
+
     @Test
     fun aRowInsertedAgainFailsRatherThanReplacingIt() = runTest {
         val id = films(1).single()
@@ -423,5 +443,9 @@ class LibraryDaoTest {
         /** When a show's latest episode was found, after every title. */
         const val LATER = 99L
         const val DUNE = 438631
+        const val ARCANE = 94605
+        const val SEVERANCE = 95396
+        const val PLURIBUS = 225171
+        const val SHOGUN = 126308
     }
 }

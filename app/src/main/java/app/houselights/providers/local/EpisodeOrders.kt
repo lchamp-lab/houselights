@@ -56,11 +56,11 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
 
     /** Show [id]'s TMDB seasons, kept, else asked of TMDB and kept; null when TMDB did not answer. */
     private suspend fun aired(id: Int): EpisodeOrder.Aired? {
-        val row = dao.episodeOrders(id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }
+        val row = dao.aired(id)
         OrderPlaces.aired(row?.places)?.let { return EpisodeOrder.Aired(it) }
         val answer = tmdb.ask { it.tvById(id) } as? TmdbAnswer.Given ?: return null
         val seasons = answer.value?.seasons.orEmpty()
-        saveAired(id, seasons, groupsAt = row?.groupsAt)
+        saveAired(id, seasons, kept = row)
         return EpisodeOrder.Aired(OrderPlaces.aired(OrderPlaces.ofAired(seasons)).orEmpty())
     }
 
@@ -74,9 +74,12 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
         return answer.value
     }
 
-    /** Keeps show [id]'s TMDB [seasons], counted now; true when their counts differ from those kept. */
-    suspend fun saveAired(id: Int, seasons: List<TmdbSeasonSummary>, groupsAt: Long?): Boolean =
-        dao.saveAired(id, seasons, clock(), groupsAt)
+    /**
+     * Keeps show [id]'s TMDB [seasons], counted now, over [kept], its row as read ([EpisodeOrderDao.aired]), whose groups'
+     * listing it keeps; true when their counts differ from those kept.
+     */
+    suspend fun saveAired(id: Int, seasons: List<TmdbSeasonSummary>, kept: EpisodeOrderEntity?): Boolean =
+        dao.saveAired(id, seasons, clock(), kept)
 
     /**
      * Keeps show [id]'s TMDB [seasons], counted now, its groups' listing kept; true when an episode they counted before
@@ -85,8 +88,8 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
      * specials.
      */
     suspend fun recount(id: Int, seasons: List<TmdbSeasonSummary>): Boolean {
-        val kept = dao.episodeOrders(id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }
-        saveAired(id, seasons, kept?.groupsAt)
+        val kept = dao.aired(id)
+        saveAired(id, seasons, kept)
         val before = OrderPlaces.aired(kept?.places)?.let { EpisodeOrder.Aired(it).absolute() } ?: return false
         val now = EpisodeOrder.Aired(seasons.map { AiredSeason(it.seasonNumber, it.episodeCount) }).absolute()
         return now.take(before.size) != before
@@ -94,8 +97,7 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
 
     /** Notes show [id]'s counts asked about now, whatever TMDB answered. */
     private suspend fun askedNow(id: Int) {
-        val row = dao.episodeOrders(id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }
-            ?: EpisodeOrderEntity(id, EpisodeOrderEntity.AIRED, type = 0, name = "", episodeCount = 0)
+        val row = dao.aired(id) ?: EpisodeOrderEntity(id, EpisodeOrderEntity.AIRED, type = 0, name = "", episodeCount = 0)
         dao.saveEpisodeOrders(listOf(row.copy(fetchedAt = clock())))
     }
 
@@ -196,7 +198,7 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
         if (dao.item(series.id)?.userEpisodeOrder == choice) dao.setUserEpisodeOrder(series.id, null)
     }
 
-    private suspend fun listedOnce(id: Int) = dao.episodeOrders(id).any { it.orderId == EpisodeOrderEntity.AIRED && it.groupsAt != null }
+    private suspend fun listedOnce(id: Int) = dao.aired(id)?.groupsAt != null
 
     /**
      * The group of [row], kept, else asked of TMDB and kept; given null when TMDB refuses it (no such group, or another
@@ -238,9 +240,17 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
     }
 }
 
-/** Keeps show [id]'s TMDB [seasons], counted [at]; true when their counts differ from those kept before. */
-internal suspend fun LibraryDao.saveAired(id: Int, seasons: List<TmdbSeasonSummary>, at: Long, groupsAt: Long?): Boolean {
-    val before = episodeOrders(id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }
+/**
+ * Keeps show [id]'s TMDB [seasons], counted [at], over [before], its row as read ([EpisodeOrderDao.aired]), with
+ * [groupsAt], its groups' listing, kept by default; true when their counts differ from those kept before.
+ */
+internal suspend fun LibraryDao.saveAired(
+    id: Int,
+    seasons: List<TmdbSeasonSummary>,
+    at: Long,
+    before: EpisodeOrderEntity?,
+    groupsAt: Long? = before?.groupsAt,
+): Boolean {
     val places = OrderPlaces.ofAired(seasons)
     val episodes = seasons.filter { it.seasonNumber > 0 }.sumOf { it.episodeCount }
     val row = EpisodeOrderEntity(
@@ -263,9 +273,9 @@ internal suspend fun LibraryDao.saveAired(id: Int, seasons: List<TmdbSeasonSumma
  * them again when next needed. True when its seasons count otherwise than before.
  */
 internal suspend fun LibraryDao.recount(tv: TmdbTv, refresh: Boolean, at: Long): Boolean {
-    val groupsAt = episodeOrders(tv.id).firstOrNull { it.orderId == EpisodeOrderEntity.AIRED }?.groupsAt
+    val kept = aired(tv.id)
     if (refresh) staleEpisodeGroups(tv.id)
-    return saveAired(tv.id, tv.seasons, at, groupsAt.takeUnless { refresh })
+    return saveAired(tv.id, tv.seasons, at, kept, kept?.groupsAt.takeUnless { refresh })
 }
 
 /** The order a tvshow.nfo names: a TMDB episode group by its link, as Kodi writes it, or by its type, as Jellyfin does. */
