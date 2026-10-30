@@ -42,7 +42,7 @@ import java.util.Locale
 fun NfoSheet(
     item: MediaItem,
     onDismiss: () -> Unit,
-    vm: NfoViewModel = viewModel(key = "nfo-${item.id}", factory = NfoViewModel.factory(appContainer(), item.id)),
+    vm: NfoViewModel = viewModel(key = "nfo-${item.id}", factory = NfoViewModel.factory(appContainer(), item)),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     NfoSheet(item, state, onRetry = vm::load, onDismiss = onDismiss)
