@@ -301,15 +301,14 @@ private fun NavController.openIdentify(id: String) = navigate(Route.Identify(id)
 internal fun NavController.watchOwner(entry: NavBackStackEntry): NavBackStackEntry = homeEntry() ?: entry
 
 /** Home's entry in the back stack, beneath every other screen; null when it is not there. */
-internal fun NavController.homeEntry(): NavBackStackEntry? = try {
-    getBackStackEntry<Route.Home>()
-} catch (_: IllegalArgumentException) {
-    null
-}
+internal fun NavController.homeEntry(): NavBackStackEntry? = entryOrNull<Route.Home>()
 
 /** Settings' entry in the back stack, under « Ajouter un dossier » opened from it; null when it is not there. */
-private fun NavController.settingsEntry(): NavBackStackEntry? = try {
-    getBackStackEntry<Route.Settings>()
+private fun NavController.settingsEntry(): NavBackStackEntry? = entryOrNull<Route.Settings>()
+
+/** The topmost entry of route [T] in the back stack; null when there is none. */
+private inline fun <reified T : Any> NavController.entryOrNull(): NavBackStackEntry? = try {
+    getBackStackEntry<T>()
 } catch (_: IllegalArgumentException) {
     null
 }
@@ -425,11 +424,7 @@ internal fun NavController.openQueue(id: String) {
  * title; after the last, back to the settings rather than to an empty list.
  */
 internal fun NavController.queueTo(next: String?) {
-    val list = try {
-        getBackStackEntry<Route.ToIdentify>()
-    } catch (_: IllegalArgumentException) {
-        null
-    }
+    val list = entryOrNull<Route.ToIdentify>()
     when {
         list == null -> popBackStack()
         next == null -> popBackStack<Route.ToIdentify>(inclusive = true)
