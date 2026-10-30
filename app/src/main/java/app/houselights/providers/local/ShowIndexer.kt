@@ -718,11 +718,24 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         }
     }
 
-    /** Caches answered TMDB seasons per pass; unanswered ones are retried, which the pass's breaker keeps cheap. */
+    /**
+     * Caches answered TMDB seasons per pass; unanswered ones are retried, which the pass's breaker keeps cheap. The
+     * [MAX_SEASONS] used last only, each holding every episode's name and overview: a pass reads a show's episodes one
+     * after the other, and a first scan of hundreds of shows would otherwise hold them all until it ends.
+     */
     class SeasonCache(private val tmdb: TmdbPass) {
-        private val cache = mutableMapOf<Pair<Int, Int>, TmdbAnswer.Given<TmdbSeason>>()
+        private val cache = object : LinkedHashMap<Pair<Int, Int>, TmdbAnswer.Given<TmdbSeason>>(MAX_SEASONS, LOAD_FACTOR, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Pair<Int, Int>, TmdbAnswer.Given<TmdbSeason>>) =
+                size > MAX_SEASONS
+        }
 
         suspend fun get(tvId: Int, season: Int): TmdbAnswer<TmdbSeason> =
             cache[tvId to season] ?: tmdb.ask { it.season(tvId, season) }.also { if (it is TmdbAnswer.Given) cache[tvId to season] = it }
+
+        internal companion object {
+            /** More than the seasons of nearly any show, so that one is never asked twice in a pass. */
+            const val MAX_SEASONS = 64
+            private const val LOAD_FACTOR = 0.75f
+        }
     }
 }
