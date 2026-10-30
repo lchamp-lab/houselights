@@ -465,22 +465,31 @@ class NfsListingTest {
     }
 
     /**
-     * Links neither the app nor the player can follow are named, as folders that could not be read are, rather than
-     * listed as videos of a few bytes: an absolute target resolves on the player, a NAS path means nothing there.
+     * Links leading nowhere are left out, neither listed as videos of a few bytes nor kept out of sight as a folder that
+     * could not be read: what was behind them is missing, as a deleted file is (#52). An absolute target resolves on the
+     * player, where a NAS path means nothing; a target gone (an expired debrid link), out of the export or in a loop.
      */
     @Test
-    fun linksThatCannotBeFollowedArePassedOverAndNamed() = runTest {
+    fun linksLeadingNowhereAreLeftOut() = runTest {
         linkedLibrary()
         link("films/Arrival (2016).mkv", "/volume1/media/storage/arrival.mkv")
         link("films/Sicario (2015).mkv", "../storage/sicario.mkv")
         link("films/Up (2009).mkv", "../../up.mkv")
         link("films/Looper (2012).mkv", "Looper (2012).mkv")
+        link("films/Prey (2022)", "../storage/Prey (2022)/")
         val listing = browser(Export()).list(linked)
         assertEquals(listOf("Dune (2021)/Dune (2021).mkv", "Heat (1995).mkv"), listing.videos.map { it.relativePath })
-        assertEquals(
-            listOf("Arrival (2016).mkv", "Looper (2012).mkv", "Sicario (2015).mkv", "Up (2009).mkv"),
-            listing.unreadable.sorted(),
-        )
+        assertEquals(emptyList<String>(), listing.unreadable)
+    }
+
+    /** A link to a folder the NAS refuses to list keeps its titles out of sight, as that folder unlinked would (#52). */
+    @Test
+    fun aLinkToAFolderRefusedKeepsItUnread() = runTest {
+        linkedLibrary()
+        refused["storage/Dune (2021)"] = NfsException(NfsStatus.NFS3ERR_ACCES, "readdirplus error code: NfsStatus:13")
+        val listing = browser(Export()).list(linked)
+        assertEquals(listOf("Heat (1995).mkv"), listing.videos.map { it.relativePath })
+        assertEquals(listOf("Dune (2021)"), listing.unreadable)
     }
 
     /** A link back up the walk would list the same folders again and again: passed over, the rest listed once. */
@@ -491,7 +500,7 @@ class NfsListingTest {
         link("storage/Dune (2021)/Films", "../../films")
         val listing = browser(Export()).list(linked)
         assertEquals(listOf("Dune (2021)/Dune (2021).mkv", "Heat (1995).mkv"), listing.videos.map { it.relativePath })
-        assertEquals(listOf("All", "Dune (2021)/Films"), listing.unreadable)
+        assertEquals(emptyList<String>(), listing.unreadable)
     }
 
     /** Logged whole the first time, as any path that could not be read, then counted at each listing. */
@@ -504,7 +513,10 @@ class NfsListingTest {
         repeat(2) { nas.list(linked) }
         val told = ShadowLog.getLogsForTag("RemoteBrowser").map { it.msg to (it.throwable != null) }
         assertEquals(
-            listOf("Could not read Arrival (2016).mkv" to true, "Paths unreadable again, each logged before: 1" to false),
+            listOf(
+                "Passed over Arrival (2016).mkv, which leads nowhere" to true,
+                "Paths unreadable again, each logged before: 1" to false,
+            ),
             told,
         )
     }

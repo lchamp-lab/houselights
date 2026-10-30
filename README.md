@@ -84,8 +84,9 @@ gratuite, l’application est entièrement en français. [Installer](#install)
   - Technical details are read from the files and set on a title's page as on a case back: a line for the video
     (resolution, Dolby Vision and HDR, codec, frame rate), one for the audio (format, channels, bitrate, and its
     language when a track is asked for), and every track in its technical sheet.
-  - Over NFS, symbolic links are followed within the export, as the player follows them; an absolute link, which
-    the player cannot follow, is left out and logged.
+  - Over NFS, symbolic links are followed within the export, as the player follows them; a link the player cannot
+    follow (absolute, out of the export, in a loop) or whose target is gone (an expired debrid link) is left out and
+    logged, and the titles that were behind it leave the library as a deleted file does.
   - NFS sends no password: the app presents itself to the NAS as root, unless a folder names the user and group
     (UID and GID) to read it as. The Zidoo player opens videos with its own NFS access ([Security](#security)).
   - A folder edited (Edit folder) is tested before it is saved, in the NAS's own words (mount path, shared folder,

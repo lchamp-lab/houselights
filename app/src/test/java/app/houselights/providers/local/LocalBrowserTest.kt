@@ -134,7 +134,10 @@ class LocalBrowserTest {
         assertArrayEquals(bytes, browser.readPrefix(diskFolder(), "Heat (1995).mkv", 1000))
     }
 
-    /** A link to a folder elsewhere on the disk is followed; one back up the walk, which would list it again, is not. */
+    /**
+     * A link to a folder elsewhere on the disk is followed; one back up the walk, which would list it again, is not, and
+     * leads nowhere: left out, not counted unreadable (#52).
+     */
     @Test
     fun aLinkBackUpTheWalkIsNotFollowed() = runTest {
         disk.put("Films/Dune (2021).mkv")
@@ -144,7 +147,7 @@ class LocalBrowserTest {
 
         val listing = list()
         assertEquals(listOf("Dune (2021).mkv", "More/Heat (1995).mkv"), listing.videos.map { it.relativePath }.sorted())
-        assertEquals(listOf("Again"), listing.unreadable)
+        assertEquals(emptyList<String>(), listing.unreadable)
     }
 
     /** A disk unplugged is out of reach as a NAS asleep: it lists nothing, so no title is missing, and reads nothing. */
