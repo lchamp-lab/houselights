@@ -39,6 +39,16 @@ class NfoParserTest {
         </movie>
     """.trimIndent()
 
+    /** As Kodi reads it: a bare "&" or an HTML entity, against XML's rules, loses neither the NFO's title nor its ids. */
+    @Test
+    fun aBareAmpersandOrAnHtmlEntityKeepsTheNfosIds() {
+        val bare = NfoParser.parse("<movie><title>Tom & Jerry</title><uniqueid type=\"tmdb\">1234</uniqueid></movie>")
+        assertEquals("Tom & Jerry" to 1234, bare?.let { it.title to it.tmdbId })
+        val pasted = "<movie><title>Tom et Jerry</title><plot>Un chat&nbsp;et une souris.</plot>" +
+            "<uniqueid type=\"tmdb\">1234</uniqueid></movie>"
+        assertEquals("Tom et Jerry" to 1234, NfoParser.parse(pasted)?.let { it.title to it.tmdbId })
+    }
+
     @Test
     fun aKodiMoviesFieldsAreRead() {
         val nfo = NfoParser.parse(movie)!!

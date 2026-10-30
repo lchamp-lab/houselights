@@ -1,6 +1,7 @@
 package app.houselights.core
 
 import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
 import java.nio.ByteBuffer
@@ -89,6 +90,9 @@ object NfoParser {
     /** Created lazily, as creation looks up the parser classes; the parsers it creates share no state. */
     private val XML_PARSERS: XmlPullParserFactory by lazy { XmlPullParserFactory.newInstance() }
 
+    /** XmlPullParser's relaxed reading, which Android's parser and kxml2 have: an NFO read as Kodi reads it. */
+    private const val RELAXED = "http://xmlpull.org/v1/doc/features.html#relaxed"
+
     private val ENCODING = Regex("""^\s*<\?xml[^>]*?\bencoding\s*=\s*["']([A-Za-z][\w.:-]*)["']""")
     private val BOMS = listOf(
         byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) to Charsets.UTF_8,
@@ -170,18 +174,35 @@ object NfoParser {
         return if (result.isError) null else String(out.array(), 0, out.position())
     }
 
+    /**
+     * The NFO's XML, read as XML; else, as Kodi reads it, relaxed: a bare "&" ("Tom & Jerry") or an HTML entity
+     * (&nbsp;) kept as text, and what a file cut short says kept once its root was known.
+     */
     private fun parseXml(xml: String): NfoInfo? {
         // Entities are never needed in an NFO, and could expand or reach outside the file.
         if (xml.isBlank() || xml.contains("<!ENTITY", ignoreCase = true)) return null
+        return try {
+            readXml(xml, relaxed = false)
+        } catch (_: XmlPullParserException) {
+            readXml(xml, relaxed = true)
+        }
+    }
+
+    /** [xml]'s root and its own elements, each read whole; [relaxed], what was read before a failure once the root is known. */
+    private fun readXml(xml: String, relaxed: Boolean): NfoInfo? {
         val p = XML_PARSERS.newPullParser()
+        if (relaxed) p.setFeature(RELAXED, true)
         p.setInput(StringReader(xml))
         while (p.eventType != XmlPullParser.START_TAG) {
             if (p.next() == XmlPullParser.END_DOCUMENT) return null
         }
         val read = NfoRead(NfoKind.ofRoot(p.name) ?: return null)
-        // The root's own elements, each read whole.
-        while (p.nextWithin(depth = 1)) {
-            if (p.eventType == XmlPullParser.START_TAG && p.depth == 2) read.element(p)
+        try {
+            while (p.nextWithin(depth = 1)) {
+                if (p.eventType == XmlPullParser.START_TAG && p.depth == 2) read.element(p)
+            }
+        } catch (e: XmlPullParserException) {
+            if (!relaxed) throw e
         }
         return read.info()
     }
