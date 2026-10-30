@@ -633,7 +633,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     `VoletDefaults.narrowest` (45: eight films and the saga's own in view) and their poster whole; past eight films
     they scroll panel by panel, the open one kept two closed panels from either end, the years fading over the safe
     margin, and their posters are asked for in view, along the way a move takes and four panels past them on either
-    side alone, kept while within eight, a far panel keeping its dark (`PosterWindow`, `VoletPostersTest`). A closed
+    side alone, eight on the side a held arrow runs to, and before focus enters, in the view Up enters on and four
+    past it; kept while within eight, a far panel keeping its dark (`PosterWindow`, `VoletPostersTest`). A closed
     panel is its poster at its natural size, cut by its width, never scaled: its number at the top on its axis, its
     mark (a card's check, held ring or new dot; the ring of a film missing, the quiet dot of one to come)
     and its year at its foot, the share seen burning at its very foot; no state word. When two closed panels' years
