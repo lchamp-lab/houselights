@@ -1203,7 +1203,15 @@ several copies is held as the copy Lire plays is. Lire or Reprendre on a title h
 lit: in that place, "Ce titre n’est plus là" and "Rebranchez le disque du NAS ou retirez ce titre." (`UiError.HELD`,
 `PlaybackOutcome.tryPlay`), under the episode row for an episode, on home's case in its facts' room with since when.
 The files back end it all without a word (`HomeHeldTest`, `DetailHeldTest`, `HeldFolderTest`, `HeldCardTest`). A folder
-on the player's own disks is held so too while its disk answers; its disk unplugged, it does not answer, as a NAS
+gone from a NAS that answers (deleted or moved there: not found inside a share or an export that answered, over NFS a
+name the NAS says it does not have) holds all its titles so too from the second pass in a row that finds it so,
+however few, asked about once, nothing leaving without the user; back, what is listed is back, what lies under a
+subfolder it cannot read is shown unmarked, and what is still missing is settled as on any pass, a few leaving, many
+a drop asked about anew. Its showcase says "Ce dossier n’est plus sur le NAS : il a peut-être été déplacé ou
+supprimé.", where a share or an export missing keeps "Vérifiez son orthographe.". A NAS out of reach or waking its
+disks, a share or an export missing, an account, a guest or a folder refused say nothing of the files and hold
+nothing (`ScanMissingTest`, `NfsListingTest`, `ScanErrors.isFolderGone`). A folder on the player's own
+disks is held so too while its disk answers; its disk unplugged, or its folder not on it, it does not answer, as a NAS
 asleep: nothing is held, nothing asked, and its titles stay as they were until the disk is back (`ScanLocalDiskTest`).
 
 A title held that is also to identify, or left as it is, says it is held: its file is not there, and identifying can
