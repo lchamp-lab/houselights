@@ -78,10 +78,10 @@ class LocalProvider(
 
     override suspend fun home(): List<HomeSection> {
         val mapper = LocalMapper(dao, context)
-        val inProgress = dao.inProgress(IN_PROGRESS)
+        val inProgress = resumed(mapper)
         return buildList {
-            if (inProgress.isNotEmpty()) add(HomeSection(SectionType.CONTINUE, mapper.mapAll(inProgress), landscape = true))
-            val next = nextUp(exclude = inProgress.map { it.id }.toSet())
+            if (inProgress.isNotEmpty()) add(HomeSection(SectionType.CONTINUE, inProgress, landscape = true))
+            val next = nextUp(exclude = inProgress.mapNotNull { it.id.toLongOrNull() }.toSet())
             if (next.isNotEmpty()) add(HomeSection(SectionType.NEXT_UP, mapper.mapAll(next), landscape = true))
             for ((kind, library) in listOf(LibraryKind.MOVIES to MOVIES, LibraryKind.SHOWS to SHOWS)) {
                 val items = dao.latest(if (kind == LibraryKind.MOVIES) ItemKind.MOVIE else ItemKind.SERIES, LATEST)
@@ -90,6 +90,23 @@ class LocalProvider(
                 add(HomeSection(SectionType.LATEST, mapped, landscape = false, libraryKind = kind, libraryId = library))
             }
         }
+    }
+
+    /**
+     * Reprendre's cards, the latest played first: one per film, its main row, started as the copy Lire plays is and
+     * watched as any copy is, as on its walls ([LocalMapper]). A film is left out while the copy Lire plays is not
+     * started, or once any copy is watched, as the walls' En cours filter leaves it out; it stands where its copy played
+     * last does.
+     */
+    private suspend fun resumed(mapper: LocalMapper): List<MediaItem> {
+        val rows = dao.inProgress(IN_PROGRESS_READ)
+        if (rows.isEmpty()) return emptyList()
+        val titles = rows.map { it.versionOf ?: it.id }.distinct()
+        val read = rows.associateBy { it.id }
+        val mains = titles.filter { it !in read }.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
+        return mapper.mapAll(titles.mapNotNull { read[it] ?: mains[it] })
+            .filter { !it.user.played && it.user.positionMs > 0 }
+            .take(IN_PROGRESS)
     }
 
     override suspend fun libraryPage(
@@ -417,10 +434,22 @@ class LocalProvider(
         val shows = dao.recentSeries(NEXT_UP_SHOWS)
         val episodes = shows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.episodeStates(it) }.groupBy { it.seriesId }
         val nextEpisodes = shows.mapNotNull { show -> episodes[show.id]?.let(::nextEpisode)?.let { Recent(it.id, show.at) } }
-        val next = (nextEpisodes + nextInSagas(dao.startedSagas(NEXT_UP_SHOWS)))
+        val next = (nextEpisodes + nextInSagas(startedAsPlayed(dao.startedSagas(NEXT_UP_SHOWS))))
             .sortedByDescending { it.at }.map { it.id }.filter { it !in exclude }.distinct().take(NEXT_UP_SHOWS)
         val rows = next.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
         return next.mapNotNull { rows[it] }
+    }
+
+    /**
+     * A saga's [films] started as the copy Lire plays is, as on their walls and the saga's page ([LocalMapper]), where
+     * [LibraryDao.startedSagas] gives the furthest copy's resume point: a film whose other copy alone was started is not.
+     * Read only for the films started and not watched, those of them in several copies.
+     */
+    private suspend fun startedAsPlayed(films: List<SagaFilmState>): List<SagaFilmState> {
+        val started = films.filter { it.positionMs > 0 && !it.played }.map { it.id }
+        if (started.isEmpty()) return films
+        val copies = LocalMapper.playedCopiesOf(dao, started.chunked(SQL_IN_LIMIT).flatMap { dao.titlesInCopies(it) })
+        return films.map { film -> copies[film.id]?.let { film.copy(positionMs = it.positionMs) } ?: film }
     }
 
     /** Regular seasons before specials, so a show starts with S01E01. */
@@ -441,6 +470,9 @@ class LocalProvider(
 
         /** Home's rows: Continue, then each library's latest titles. */
         private const val IN_PROGRESS = 20
+
+        /** Rows Reprendre reads to fill its [IN_PROGRESS] cards, as a film's copies started make one card ([resumed]). */
+        private const val IN_PROGRESS_READ = IN_PROGRESS * 2
 
         /** Home's row of latest films, or of latest shows, holds this many: the library's first scan fills it closer. */
         internal const val LATEST = 24

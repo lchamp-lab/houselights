@@ -62,11 +62,11 @@ class NfsBrowserTest {
         )
         val root = nfsFolder(host = "192.168.1.20", share = "volume1/media", path = "Films")
         val user = root.copy(uid = 1026, gid = 100)
-        listOf(root, user, user.copy(path = "Series"), root).forEach { nfs.list(it) }
+        listOf(root, user, user.copy(path = "Series"), root).forEach { nfs.folders(it) }
         assertEquals(listOf(0 to 0, 1026 to 100), mounts)
 
         nfs.forget(root)
-        listOf(root, user).forEach { nfs.list(it) }
+        listOf(root, user).forEach { nfs.folders(it) }
         assertEquals(listOf(0 to 0, 1026 to 100, 0 to 0, 1026 to 100), mounts)
     }
 
@@ -81,6 +81,39 @@ class NfsBrowserTest {
         override fun read(file: ByteArray, offset: Long, length: Int) = ByteArray(0)
 
         override fun readlink(link: ByteArray): String = throw FileNotFoundException("no link")
+    }
+
+    /**
+     * A scan listing thousands of folders of the export, and the add-folder flow going down a level of it as the same
+     * user: the level does not wait for the listing to end, the listing mounting the export of its own.
+     */
+    @Test
+    fun aLevelWhileAPassListsTheExportWaitsForNoListing() {
+        val listing = CountDownLatch(1)
+        val released = CountDownLatch(1)
+        val held = object : NfsExport by EmptyExport {
+            override fun readdirplus(dir: ByteArray, cookie: Long, verifier: Long): NfsPage {
+                listing.countDown()
+                released.await()
+                return EmptyExport.readdirplus(dir, cookie, verifier)
+            }
+        }
+        val mounted = mutableListOf<NfsExport>()
+        val nfs = NfsBrowser(mount = { _, _, _ -> (if (mounted.isEmpty()) held else EmptyExport).also(mounted::add) }, clock = { 0L })
+        val folder = nfsFolder(host = "192.168.1.20", share = "volume1/media", path = "Films")
+        val pass = thread { runBlocking { nfs.list(folder) } }
+        assertTrue(listing.await(5, TimeUnit.SECONDS))
+
+        var level: FolderLevel? = null
+        val asked = thread { level = runBlocking { nfs.folders(folder) } }
+        asked.join(5_000)
+        val answered = !asked.isAlive
+        released.countDown()
+        pass.join(5_000)
+        asked.join(5_000)
+        assertTrue("a level shown while the pass lists", answered)
+        assertEquals(FolderLevel(emptyList(), videos = 0), level)
+        assertEquals("one mount for the listing, one kept for the levels", 2, mounted.size)
     }
 
     /** NFS has no session to log off: saving a folder never waits for a listing on a NAS that may be retrying. */

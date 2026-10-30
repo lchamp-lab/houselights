@@ -43,6 +43,23 @@ class TmdbPassTest {
         assertEquals("asked twice, then kept", 2, tmdb.requests.size)
     }
 
+    /**
+     * A first scan of hundreds of shows keeps the seasons it read last, not all of them until it ends: the one read longest
+     * ago is asked again, the one read last is not.
+     */
+    @Test
+    fun aPassKeepsTheSeasonsItReadLast() = runTest {
+        val count = ShowIndexer.SeasonCache.MAX_SEASONS + 1
+        repeat(count) { tmdb.season(1_000 + it, 1, episodes = 2) }
+        val seasons = ShowIndexer.SeasonCache(TmdbPass(client))
+        repeat(count) { seasons.get(1_000 + it, 1) }
+
+        assertEquals(2, seasons.get(1_000 + count - 1, 1).value?.episodes?.size)
+        assertEquals("kept", count, tmdb.requests.size)
+        assertEquals(2, seasons.get(1_000, 1).value?.episodes?.size)
+        assertEquals("asked again", count + 1, tmdb.requests.size)
+    }
+
     /** First scan of a large library: one timeout on the third film, and TMDB answers again. */
     @Test
     fun oneTimeoutEarlyInAPassLeavesTheLaterFilmsTheirDetails() = runTest {

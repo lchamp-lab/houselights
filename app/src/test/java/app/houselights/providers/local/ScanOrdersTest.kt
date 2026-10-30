@@ -14,6 +14,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
+import java.util.Collections
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -30,12 +31,19 @@ class ScanOrdersTest {
 
     private lateinit var bench: ScanBench
     private lateinit var shows: SourceEntity
+
+    /** The statements the library runs while [recording], with their values. */
+    private val statements: MutableList<Pair<String, List<Any?>>> = Collections.synchronizedList(mutableListOf())
+
+    @Volatile
+    private var recording = false
+
     private val tmdb get() = bench.tmdb
     private val showsNas get() = bench.showsNas
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"))
+        bench = ScanBench(temp.newFolder("artwork")) { sql, args -> if (recording) statements += sql to args.toList() }
         shows = bench.folder("Séries", SourceKind.SHOWS)
         tmdb.show(FIREFLY, "Firefly", 2002)
         tmdb.season(FIREFLY, 1, episodes = 14)
@@ -159,6 +167,56 @@ class ScanOrdersTest {
         assertEquals(null to null, show().userEpisodeOrder to show().episodeOrder)
         assertEquals(listOf("Episode 1.1", "Episode 1.2", "Episode 1.3"), titles())
         assertTrue(bench.item(shows, file(1)).tmdbEpisode == null)
+    }
+
+    /** What [block] runs, recorded: each statement and its values. */
+    private suspend fun recorded(block: suspend () -> Unit): List<Pair<String, List<Any?>>> {
+        statements.clear()
+        recording = true
+        block()
+        recording = false
+        return statements.toList()
+    }
+
+    /** The ids of the rows written whole, every column, as a scan writes a row it read ([LibraryDao.saveScanned]). */
+    private fun List<Pair<String, List<Any?>>>.writtenWhole(): List<Long> =
+        filter { (sql, _) -> sql.startsWith(UPDATE_ITEMS) && "`kind` = ?" in sql }.mapNotNull { (_, args) -> args.first() as? Long }
+
+    /**
+     * Placed in another order, a show's episodes take their NFOs' titles first, their NFOs read in one query before the
+     * writes, not one an episode in their transaction.
+     */
+    @Test
+    fun aShowPlacedAnewReadsItsEpisodesNfosAtOnceBeforeItsWrites() = runTest {
+        (1..3).forEach { showsNas.putText(file(it).replace(".mkv", ".nfo"), "<episodedetails><title>Firefly $it</title></episodedetails>") }
+        bench.scan()
+
+        val ran = recorded { bench.scanner.chooseOrder(show().id, DVD) }
+
+        assertEquals(listOf("Firefly 1", "Firefly 2", "Firefly 3"), titles())
+        assertEquals(listOf(1 to 11, 1 to 1, 1 to 2), traktNumbers())
+        assertEquals("never one by one", 0, ran.count { (sql, _) -> sql.startsWith("SELECT sourceId, nfoPath, nfo FROM items WHERE id") })
+        assertEquals("all at once", 1, ran.count { (sql, _) -> sql.startsWith("SELECT id, nfo FROM items WHERE id IN") })
+    }
+
+    /**
+     * Named anew, a show's episodes take the new show's details where they stand, each written alone with what it shows,
+     * never read again nor written whole: what was watched stays.
+     */
+    @Test
+    fun aShowNamedAnewWritesWhatItsEpisodesShowAlone() = runTest {
+        bench.scan()
+        val ids = (1..3).map { bench.item(shows, file(it)).id }
+        bench.dao.savePlayback(ids[0], positionMs = 0, durationMs = null, played = true, lastPlayedAt = 5)
+        tmdb.show(OTHER, "Firefly", 2024)
+        tmdb.season(OTHER, 1, episodes = 3)
+
+        val ran = recorded { bench.scanner.identify(show().id, OTHER) }
+
+        assertEquals(listOf("Episode 1.1", "Episode 1.2", "Episode 1.3"), titles())
+        assertEquals(OTHER, show().tmdbId)
+        assertEquals(listOf(true, false, false), (1..3).map { bench.item(shows, file(it)).played })
+        assertEquals("no episode written whole", emptyList<Long>(), ran.writtenWhole().filter { it in ids })
     }
 
     /** A group TMDB gives with another show's episodes, which a Kodi NFO links: refused, asked once, then after a refresh. */
@@ -290,5 +348,8 @@ class ScanOrdersTest {
 
         /** How long a show's groups are listed before they are listed again. */
         const val MONTH_MS = 30 * 24 * 60 * 60_000L
+
+        /** How Room begins an update of rows of items, whole or of some columns. */
+        const val UPDATE_ITEMS = "UPDATE OR ABORT `items`"
     }
 }
