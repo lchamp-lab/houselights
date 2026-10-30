@@ -1,6 +1,7 @@
 package app.houselights.core
 
 import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
 import java.nio.ByteBuffer
@@ -89,6 +90,36 @@ object NfoParser {
     /** Created lazily, as creation looks up the parser classes; the parsers it creates share no state. */
     private val XML_PARSERS: XmlPullParserFactory by lazy { XmlPullParserFactory.newInstance() }
 
+    /** XmlPullParser's relaxed reading, which Android's parser and kxml2 have: an NFO read as Kodi reads it. */
+    private const val RELAXED = "http://xmlpull.org/v1/doc/features.html#relaxed"
+
+    /** HTML 4's Latin-1 entities, from U+00A0 in their characters' order: one name each, its character [FIRST_LATIN_1] onwards. */
+    private const val LATIN_1_ENTITIES = "nbsp iexcl cent pound curren yen brvbar sect uml copy ordf laquo not shy reg macr deg " +
+        "plusmn sup2 sup3 acute micro para middot cedil sup1 ordm raquo frac14 frac12 frac34 iquest Agrave Aacute Acirc Atilde " +
+        "Auml Aring AElig Ccedil Egrave Eacute Ecirc Euml Igrave Iacute Icirc Iuml ETH Ntilde Ograve Oacute Ocirc Otilde Ouml " +
+        "times Oslash Ugrave Uacute Ucirc Uuml Yacute THORN szlig agrave aacute acirc atilde auml aring aelig ccedil egrave " +
+        "eacute ecirc euml igrave iacute icirc iuml eth ntilde ograve oacute ocirc otilde ouml divide oslash ugrave uacute " +
+        "ucirc uuml yacute thorn yuml"
+    private const val FIRST_LATIN_1 = 0xA0
+
+    /** HTML 4's typographic entities and the letters Latin-1 lacks: each name, then its character. */
+    private const val TYPOGRAPHIC_ENTITIES = "OElig Œ oelig œ Scaron Š scaron š Yuml Ÿ fnof ƒ circ ˆ tilde ˜ ndash – mdash — " +
+        "lsquo ‘ rsquo ’ sbquo ‚ ldquo “ rdquo ” bdquo „ dagger † Dagger ‡ bull • hellip … permil ‰ prime ′ Prime ″ " +
+        "lsaquo ‹ rsaquo › euro € trade ™"
+
+    /**
+     * HTML's named entities an NFO carries when its text was pasted from the web ("&nbsp;", "&eacute;", "&rsquo;"), read
+     * as the characters they name, as Kodi shows them, where XML knows only its own five: HTML 4's Latin-1 letters and
+     * signs and its typographic ones. A no-break space, as the others, reads as a space, as titles are searched and sorted
+     * by their words.
+     */
+    private val HTML_ENTITIES: Map<String, String> by lazy {
+        val latin1 = LATIN_1_ENTITIES.split(' ').withIndex().associate { (i, name) -> name to Char(FIRST_LATIN_1 + i).toString() }
+        val typographic = TYPOGRAPHIC_ENTITIES.split(' ').chunked(2).associate { (name, text) -> name to text }
+        val spaces = listOf("nbsp", "ensp", "emsp", "thinsp").associateWith { " " }
+        latin1 + typographic + spaces
+    }
+
     private val ENCODING = Regex("""^\s*<\?xml[^>]*?\bencoding\s*=\s*["']([A-Za-z][\w.:-]*)["']""")
     private val BOMS = listOf(
         byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) to Charsets.UTF_8,
@@ -170,18 +201,38 @@ object NfoParser {
         return if (result.isError) null else String(out.array(), 0, out.position())
     }
 
+    /**
+     * The NFO's XML, read as XML, HTML's named entities (&nbsp;, &eacute;) read as the characters they name
+     * ([HTML_ENTITIES]); else, as Kodi reads it, relaxed: a bare "&" ("Tom & Jerry") kept as text, and what a file cut
+     * short says kept once its root was known.
+     */
     private fun parseXml(xml: String): NfoInfo? {
         // Entities are never needed in an NFO, and could expand or reach outside the file.
         if (xml.isBlank() || xml.contains("<!ENTITY", ignoreCase = true)) return null
+        return try {
+            readXml(xml, relaxed = false)
+        } catch (_: XmlPullParserException) {
+            readXml(xml, relaxed = true)
+        }
+    }
+
+    /** [xml]'s root and its own elements, each read whole; [relaxed], what was read before a failure once the root is known. */
+    private fun readXml(xml: String, relaxed: Boolean): NfoInfo? {
         val p = XML_PARSERS.newPullParser()
+        if (relaxed) p.setFeature(RELAXED, true)
         p.setInput(StringReader(xml))
+        // After the input, as both parsers ask; an entity neither knows is kept as text by Android's, dropped by kxml2.
+        HTML_ENTITIES.forEach { (name, text) -> p.defineEntityReplacementText(name, text) }
         while (p.eventType != XmlPullParser.START_TAG) {
             if (p.next() == XmlPullParser.END_DOCUMENT) return null
         }
         val read = NfoRead(NfoKind.ofRoot(p.name) ?: return null)
-        // The root's own elements, each read whole.
-        while (p.nextWithin(depth = 1)) {
-            if (p.eventType == XmlPullParser.START_TAG && p.depth == 2) read.element(p)
+        try {
+            while (p.nextWithin(depth = 1)) {
+                if (p.eventType == XmlPullParser.START_TAG && p.depth == 2) read.element(p)
+            }
+        } catch (e: XmlPullParserException) {
+            if (!relaxed) throw e
         }
         return read.info()
     }

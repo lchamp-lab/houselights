@@ -95,11 +95,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.Locale
@@ -269,9 +271,10 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 
     /** Launches the external player for a title and follows it while it plays. */
     val player: PlaybackManager = PlaybackManager(app, scope, players = players, remember = tracks::remember) { resumeKey ->
-        // After a process restart, the source is known only once the settings are loaded.
-        settings.state.first { it.loaded }
-        provider.reporter(resumeKey)
+        // After a process restart, the source is known only once the settings are loaded and the Keystore opened its
+        // connection, read again as the app comes back; one it does not open in time leaves the film without a reporter.
+        withTimeoutOrNull(REPORTER_WAIT_MS) { settings.state.first { it.loaded && !it.unreadSource } }
+        providerOrNull()?.reporter(resumeKey)
     }
 
     /** Playback outcomes as screens see them: ended, or why the title did not play. */
@@ -454,7 +457,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** The posters the settings and their forms lie on, read once a visit. */
     val roomPosters = RoomPosters(
         source = { settings.state.first { it.loaded || it.readFailed }.source },
-        latest = { library.latestPosters(FIELD_POSTERS).first() },
+        latest = { library.latestPosters(FIELD_POSTERS).firstOrNull().orEmpty() },
         hasFolders = { library.hasFolders() },
         trending = { widthPx -> trendingPosters(widthPx).map { LocalProvider.image(it, TmdbClient.Companion.ImageType.POSTER) } },
     )
@@ -480,6 +483,12 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 }
 
 private fun metadataLocale(s: AppSettings, device: Locale): Locale = s.metadataLanguage?.let(Locale::forLanguageTag) ?: device
+
+/**
+ * How long the final report of a film the app was stopped through waits for the settings and the Keystore, after the
+ * two seconds the settings wait for it themselves.
+ */
+private const val REPORTER_WAIT_MS = 10_000L
 
 /** Decoded pictures kept in memory: a few backdrops and the posters of several rows. */
 internal const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024

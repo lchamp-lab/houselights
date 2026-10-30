@@ -18,7 +18,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
-/** A title's NFO: read from its source, parsed on the dispatcher the ViewModel is given, the latest load winning. */
+/**
+ * A title's NFO: read from its source for the title its page shows, never read again for it, parsed on the dispatcher the
+ * ViewModel is given, the latest load winning.
+ */
 @RunWith(RobolectricTestRunner::class)
 class NfoViewModelTest {
     @get:Rule
@@ -29,19 +32,20 @@ class NfoViewModelTest {
 
     private val document = NfoDocument("/films/Heat.nfo", "\n<movie>\n  <title>Heat</title>\n</movie>\n")
     private val content = NfoContent("/films/Heat.nfo", document.info, listOf("<movie>", "  <title>Heat</title>", "</movie>"))
+    private val heat = film("m1", "Heat")
     private val provider = FakeProvider().apply {
-        items["m1"] = film("m1", "Heat")
+        items["m1"] = heat
         nfo = document
     }
 
     /** Parsed on the test's own dispatcher: `advanceUntilIdle` waits for it. */
-    private fun viewModel() = NfoViewModel("m1", { provider }, parsing = main.dispatcher)
+    private fun viewModel() = NfoViewModel(heat, { provider }, parsing = main.dispatcher)
 
     @Test
     fun readsTheNfoOfTheTitle() = runTest {
         val vm = viewModel()
         advanceUntilIdle()
-        assertEquals("Heat", vm.state.value.title)
+        assertEquals("its NFO alone, the title as its page has it", listOf("nfo m1"), provider.calls)
         assertEquals(LoadState.Ready(content), vm.state.value.document)
         assertEquals("parsed", "Heat", (vm.state.value.document as LoadState.Ready).value?.info?.title)
     }
@@ -50,7 +54,7 @@ class NfoViewModelTest {
     @Test
     fun theNfoIsParsedAwayFromTheMainThread() = runTest {
         val parsing = TestCoroutineScheduler()
-        val vm = NfoViewModel("m1", { provider }, parsing = StandardTestDispatcher(parsing))
+        val vm = NfoViewModel(heat, { provider }, parsing = StandardTestDispatcher(parsing))
         advanceUntilIdle()
         assertEquals("Parsed on the main thread", LoadState.Loading, vm.state.value.document)
         parsing.advanceUntilIdle()

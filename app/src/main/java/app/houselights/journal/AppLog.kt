@@ -12,16 +12,30 @@ import java.io.IOException
 import java.io.InputStream
 
 /**
+ * Lines of the log each masked as [AppLog] read it ([Redact.text]): what shows them shows them as they are, never
+ * masking them again.
+ */
+class MaskedLines internal constructor(val lines: List<String>)
+
+/**
  * The app's lines of the system log, by its uid, so those of a process that crashed before this one too (Android 9
  * gives an app its own uid's lines alone, without a permission): the last [MAX_LINES] at most, within [MAX_BYTES], in
- * threadtime form, each masked ([Redact.text]).
+ * threadtime form, each masked ([Redact.text]); or only how many there are ([count]), none masked.
  */
 class AppLog(
     /** Starts the command and gives what it prints; logcat's own by default. */
     private val run: (List<String>) -> java.lang.Process = { ProcessBuilder(it).redirectErrorStream(true).start() },
+    /** Masks a line; [Redact.text] by default. */
+    private val mask: (String) -> String = Redact::text,
 ) {
-    /** The lines, oldest first; none when logcat cannot be read. */
-    suspend fun read(): List<String> = coroutineScope {
+    /** The lines, oldest first, masked; none when logcat cannot be read. */
+    suspend fun read(): MaskedLines = MaskedLines(lines(masking = mask))
+
+    /** How many lines [read] would give, counted without masking them; none when logcat cannot be read. */
+    suspend fun count(): Int = lines(masking = null).size
+
+    /** The lines, oldest first, each through [masking] if given; none when logcat cannot be read. */
+    private suspend fun lines(masking: ((String) -> String)?): List<String> = coroutineScope {
         val process = withContext(Dispatchers.IO) {
             try {
                 run(COMMAND)
@@ -36,7 +50,7 @@ class AppLog(
             process.destroy()
         }
         try {
-            withContext(Dispatchers.IO) { keep(process.inputStream, Process.myUid()) }
+            withContext(Dispatchers.IO) { keep(process.inputStream, Process.myUid(), masking) }
         } finally {
             watchdog.cancel()
             process.destroy()
@@ -73,11 +87,11 @@ class AppLog(
         private const val PID_WIDTH = 5
 
         /**
-         * The last lines of [input] of [uid], without their uid, each masked, within [MAX_LINES] and [MAX_BYTES]; what
-         * was read if it breaks off.
+         * The last lines of [input] of [uid], without their uid, each through [masking] if given, within [MAX_LINES]
+         * and [MAX_BYTES]; what was read if it breaks off.
          */
-        private fun keep(input: InputStream, uid: Int): List<String> {
-            val kept = Tail()
+        private fun keep(input: InputStream, uid: Int, masking: ((String) -> String)?): List<String> {
+            val kept = Tail(masking)
             try {
                 input.bufferedReader().useLines { lines -> lines.forEach { line -> threadtime(line, uid)?.let(kept::add) } }
             } catch (e: IOException) {
@@ -95,15 +109,15 @@ class AppLog(
         }
     }
 
-    /** The last lines added, masked, the oldest dropped past [MAX_LINES] or [MAX_BYTES]. */
-    private class Tail {
+    /** The last lines added, each through [masking] if given, the oldest dropped past [MAX_LINES] or [MAX_BYTES]. */
+    private class Tail(private val masking: ((String) -> String)?) {
         val lines = ArrayDeque<String>()
         private var bytes = 0
 
         fun add(line: String) {
-            val masked = Redact.text(line)
-            lines.addLast(masked)
-            bytes += size(masked)
+            val kept = masking?.invoke(line) ?: line
+            lines.addLast(kept)
+            bytes += size(kept)
             while (lines.size > MAX_LINES || bytes > MAX_BYTES) bytes -= size(lines.removeFirst())
         }
 

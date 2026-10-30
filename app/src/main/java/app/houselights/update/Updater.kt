@@ -169,11 +169,14 @@ class Updater(
         } else {
             saved.updated?.takeIf { now - it.at in 0 until DAY_MS }
         }
+        // A wait kept from a clock that ran ahead, set right since, is brought back within the hour, and kept so.
+        val wait = saved.waitUntil?.takeIf { it > now }?.let { minOf(it, now + MAX_WAIT_MS) }
+        if (wait != saved.waitUntil && wait != null) store.waitUntil(wait)
         _state.update {
             it.copy(
                 updated = updated,
                 checkedAt = saved.checkedAt,
-                waitUntil = saved.waitUntil?.takeIf { wait -> wait > now },
+                waitUntil = wait,
                 seenOnHome = saved.offeredOnHome,
             )
         }
@@ -232,7 +235,7 @@ class Updater(
         val s = state.value
         // A check from the future (a player's clock set back) is due now.
         var due = s.checkedAt?.takeIf { it <= now }?.plus(DAY_MS) ?: now
-        s.waitUntil?.let { due = maxOf(due, it) }
+        waitFrom(now)?.let { due = maxOf(due, it) }
         failedAt.removeAll { now - it !in 0 until DAY_MS }
         failedAt.lastOrNull()?.let { due = maxOf(due, it + HOUR_MS) }
         if (failedAt.size >= AUTOMATIC_TRIES) due = maxOf(due, failedAt.first() + DAY_MS)
@@ -248,17 +251,32 @@ class Updater(
     override fun checkNow() {
         if (!state.value.on) return
         allowedMeanwhile()
-        val s = state.value
-        if (s.waitUntil.waits() || asking?.isActive == true) return
-        if (clock() - answeredAt in 0 until SINGLE_FLIGHT_MS && s.failure == null) return
+        if (waits() || asking?.isActive == true) return
+        if (clock() - answeredAt in 0 until SINGLE_FLIGHT_MS && state.value.failure == null) return
         asking = scope.launch { ask(manual = true) }
     }
 
-    private fun Long?.waits() = this != null && this > clock()
+    /** Whether GitHub asked to wait, and the wait is not over ([waitFrom]). */
+    private fun waits(): Boolean {
+        val now = clock()
+        return waitFrom(now)?.let { it > now } == true
+    }
+
+    /**
+     * GitHub's wait as [now] sees it, never past [MAX_WAIT_MS] from it: one from a clock that ran ahead, set right since,
+     * is brought back within the hour, so that it ends rather than hold every check until the clock catches up.
+     */
+    private fun waitFrom(now: Long): Long? {
+        val wait = state.value.waitUntil ?: return null
+        val latest = now + MAX_WAIT_MS
+        if (wait <= latest) return wait
+        _state.update { s -> s.copy(waitUntil = s.waitUntil?.let { minOf(it, latest) }) }
+        return latest
+    }
 
     /** Asks GitHub; a check asked shows that it asks and how it failed, the daily one only logs. */
     private suspend fun ask(manual: Boolean) = checks.withLock {
-        if (state.value.waitUntil.waits()) {
+        if (waits()) {
             if (manual) checkFailed(UpdateFailure.BUSY)
             return@withLock
         }
@@ -299,21 +317,27 @@ class Updater(
         _state.update { it.copy(failure = failure) }
     }
 
-    /** GitHub's list, then the manifests of its newest releases of the channel; the one offered is kept for the next start. */
+    /**
+     * GitHub's list, then the manifests of its newest releases of the channel; the one offered is kept for the next start.
+     * The list is kept at once, for the next check's 304, but checked only once its manifests are read: a manifest failing
+     * is asked again an hour later, as any failure, not a day.
+     */
     private suspend fun look(): Found {
         val saved = store.read()
         val listing = parts.releases.list(saved.etag.takeIf { saved.releases != null })
         val now = clock()
         val listed = when (listing) {
-            is Listing.Fresh -> listing.releases.also { store.answered(now, it, listing.etag) }
-            Listing.Unchanged -> saved.releases.orEmpty().also { store.answered(now) }
+            is Listing.Fresh -> listing.releases.also { store.listed(it, listing.etag) }
+            Listing.Unchanged -> saved.releases.orEmpty().also { store.listed(null) }
         }
-        _state.update { it.copy(checkedAt = now, waitUntil = null) }
+        _state.update { it.copy(waitUntil = null) }
         val read = mutableMapOf<String, String>()
         val found = parts.choice.pick(listed, beta(), app.versionCode()) { candidate ->
             parts.releases.manifest(candidate.manifest.url).also { read[candidate.release.tag] = it }
         }
         if (found is Found.Offer) read[found.offer.tag]?.let { store.manifest(found.offer.tag, it) }
+        store.answered(now)
+        _state.update { it.copy(checkedAt = now) }
         return found
     }
 

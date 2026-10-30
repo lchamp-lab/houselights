@@ -17,6 +17,8 @@ import retrofit2.HttpException
 import java.io.EOFException
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -25,6 +27,7 @@ import java.nio.file.NoSuchFileException
 import java.security.cert.CertPathValidatorException
 import java.security.cert.CertificateException
 import java.util.concurrent.TimeoutException
+import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLPeerUnverifiedException
 
 /**
@@ -211,6 +214,22 @@ private fun missing(chain: List<Throwable>, text: String): Boolean =
         it is FileNotFoundException || it is NoSuchFileException ||
             it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value
     } || MISSING.any { text.contains(it) }
+
+/**
+ * Whether this failure came before its request reached the server: no address, no route, the connection refused or not
+ * made in time (Android's "failed to connect to … after 10000ms", a JVM's "connect timed out"), or TLS not agreed on.
+ * Sending that request again cannot apply it twice; a read timeout may follow a request the server took.
+ */
+fun Throwable.neverReachedServer(): Boolean =
+    this is UnknownHostException || this is ConnectException || this is NoRouteToHostException || this is SSLHandshakeException ||
+        this is SocketTimeoutException && connectTimedOut(message.orEmpty())
+
+private fun connectTimedOut(message: String) =
+    message.startsWith(CONNECT_FAILED, ignoreCase = true) || message.equals(CONNECT_TIMED_OUT, ignoreCase = true)
+
+/** The messages of a connection not made in time, Android's then a JVM's ([neverReachedServer]). */
+private const val CONNECT_FAILED = "failed to connect"
+private const val CONNECT_TIMED_OUT = "connect timed out"
 
 /** Where on the NAS a failure is, when its answer says ([failurePlace]). */
 enum class FailurePlace {

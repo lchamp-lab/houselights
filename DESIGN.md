@@ -61,8 +61,9 @@ Three moments carry the identity:
   each picture preloaded with `PicturesAhead` and `AwaitAhead` as soon as what shows it is read: what the rows show
   at once, the case proposed once drawn, the doors' posters once read, their counts cut ahead into the app's
   `CutPosterCache`). The launch screen leaves after
-  home's first complete frame (`drawnWhole`, `LocalLaunchScreen`), at most 1.5 s after process start, and at
-  once when the app starts elsewhere. `LaunchCue` then plays over `SLOW`: the bars go out widest first, each
+  home's first complete frame (`drawnWhole`, `LocalLaunchScreen`), at most 1.5 s after process start or, when the
+  first window opens later than that (a process a receiver started after an update, a slow cold start), 1.5 s after
+  that window, and at once when the app starts elsewhere. `LaunchCue` then plays over `SLOW`: the bars go out widest first, each
   over `FAST`, the last as the black starts to lift off home over `STANDARD`, every step easing out
   (`lightsOut`); from Android 12 the system draws the mark, which goes out with the last bar. What was
   prepared underneath appears without a fade. A warm start shows at once.
@@ -143,7 +144,7 @@ What is not the picture (settings, sheets, forms, search) keeps one grammar, rea
 | `ResultsHeading`, `ResultName` | a row's title in `rowTitle`, its count in secondary `meta` `HlSpace.s` after it; under it, the result lending the page its light in `cardName`, its year in `meta`, the line kept; rows `HlSpace.xl` apart |
 | `PaneHead`, `PaneLockup` | the title's baseline on `ScreenTitle`'s, read from the headline at the viewer's text size; an aside `HlSpace.fact` after it, a state's dot before its words; a sentence's baseline `HlSpace.xl` under the title's, its box `HlSpace.xxs` under it, a text to read `HlSpace.xxl` under it with `HlSpace.m` kept below; the head ends on the title's baseline, the first block `HlSpace.l` under it. About's lockup at `HlSize.wordmark`, its name's foot on that baseline, its box ending under the mark |
 | `HlGroup` | a group's title as `HlSettingGroup` sets it, over what is not rows: a `FactPlate`, a `DefinitionPlate`, a plate of modes |
-| `ShowcaseRow` | showcases `HlSpace.m` apart in a row running on to the screen's end (`bleed`), the next one cut by it; a focused one kept inside the safe area with its frame (`safeH` and `HlFocus.reach` at the end), clear of the row's start |
+| `ShowcaseRow` | showcases `HlSpace.m` apart in a row running on to the screen's end (`bleed`), the next one cut by it; a focused one kept inside the safe area with its frame (`safeH` and `HlFocus.reach` at the end), clear of the row's start; while its showcases are still to read, a pane keeps their room (`ShowcaseSpace`), so what is under them never moves as they come |
 | `JaquetteLine` | pairs printed on one line (About's version and licence): labels in secondary `meta`, values in `jaquette`, on a `control` plate of the light |
 | `DefinitionPlate`, `PlateDefinition` | definitions `HlSpace.m` apart, labels in secondary `meta` in their column (`PaneDefaults.plateLabel`), a value on their baseline or a logo level with their top, a note under it |
 | `MeterFact` | a meter a pane states is `HlSize.meterLarge` across its plate, its scale beside the total; each part's figure in `spec` under its name and its ink's square (`HlSize.swatch`), an empty part's square its ring and its figure a word |
@@ -545,11 +546,11 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
     reloaded, its posters stay until the new ones are cut, each scaled to its line once, off the main thread
     (`CutPoster.scaledTo`);
     one size for every door's count (`figureSignature`, `rememberFigureSize`), the largest that keeps 14 across and
-    13 down for the longest, four digits included. Under it the posters' tint (`doorTint`: averaged to 24 × 9,
-    enlarged with bilinear filtering), dark at rest (`DOOR_TINT`), whole with focus, the door glowing across their
-    tones (`glowTones`). The band says what is new: "4 nouveaux" by the ember dot (`HlSize.doorDot`) for films, "3
-    épisodes nouveaux" for shows; the door is read name first ("Films, 412 titres, 4 nouveaux"). The sagas are no
-    library of this row.
+    13 down for the longest, four digits included. Under it the posters' tint (`doorTint`: averaged to 24 × 9
+    from copies an eighth of their size, `tintPoints`, enlarged with bilinear filtering), dark at rest (`DOOR_TINT`),
+    whole with focus, the door glowing across their tones (`glowTones`). The band says what is new: "4 nouveaux" by
+    the ember dot (`HlSize.doorDot`) for films, "3 épisodes nouveaux" for shows; the door is read name first
+    ("Films, 412 titres, 4 nouveaux"). The sagas are no library of this row.
   - **The tools**: Sagas, two sagas' posters stacked (`DoorSagas`) and their count, opening the films' wall on the
     sagas alone (`Route.Library`'s `view`); without sagas, or with Sagas set to Masquées, Rechercher takes their
     place. Rechercher: a wall of small posters, out, that fills the door (`DoorWall`, `wallThumbs`): posters shown
@@ -790,7 +791,9 @@ a picture of its own (a person, an artwork choice) glows in the light of the pic
 (`LocalAmbient`). The glow fades over `HlScrim.GLOW_STEPS` rings out to `HlFocus.glow`, the last one clear;
 each lit ring is drawn once at its combined alpha (`drawGlow`). Its siblings step back through their image's
 colour filter in `RECEDE_STEPS` (`SIBLING_BRIGHTNESS`, `SIBLING_SATURATION`), marks and progress with them,
-inside a row or a wall (`RecedeTest`).
+inside a row or a wall (`RecedeTest`); the filter is read while drawing (`RecedingPainter`), so a picture never
+composes again as it steps back, nor its card's surface as focus comes into its row (`rememberCardReading`,
+`ArtworkRecedeTest`).
 
 **An arrow held.** While an arrow is held, or pressed again within 140 ms (`ScrubTracker`), focus runs: what it
 crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 ms after the last arrow (`Scrub`,

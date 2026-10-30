@@ -143,6 +143,15 @@ object MetadataMerge {
     }
 
     /**
+     * True when [nfo] names, by its TMDB id, another title than the one [item] was matched with automatically: a match
+     * corrected in a media manager, which only TMDB's answer describes; a user's match decides alone ([describesOther]).
+     */
+    fun namesAnother(nfo: NfoInfo?, item: ItemEntity): Boolean {
+        val named = nfo?.tmdbId ?: return false
+        return item.userTmdbId == null && item.tmdbId != null && named != item.tmdbId
+    }
+
+    /**
      * What TMDB made of [item], merged ([MatchState]): matched with a TMDB id, TMDB's or its NFO's; else, once TMDB
      * answered [lookup], unsure when it offered candidates ([Looked.offered]), else not found; else as it was.
      */

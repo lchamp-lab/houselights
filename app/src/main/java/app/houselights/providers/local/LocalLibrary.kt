@@ -38,39 +38,47 @@ class LocalLibrary(
     /** Closes sessions and mounts kept open on a source's address; replaceable in tests. */
     private val forget: suspend (SourceEntity) -> Unit,
 ) {
-    val folders: Flow<List<Folder>> = dao.observeSources().map { sources -> sources.map(SourceEntity::toFolder) }
+    val folders: Flow<List<Folder>> = dao.observeSources().map { sources -> sources.map(SourceEntity::toFolder) }.guarded("the folders")
 
-    val titleCount: Flow<Int> = dao.observeAllTitleCount().paced()
+    val titleCount: Flow<Int> = dao.observeAllTitleCount().paced().guarded("the titles' count")
 
     /** How many films and shows are to identify ([TO_IDENTIFY]). */
-    val toIdentifyCount: Flow<Int> = dao.observeToIdentifyCount().paced()
+    val toIdentifyCount: Flow<Int> = dao.observeToIdentifyCount().paced().guarded("the titles to identify")
 
     val scan: StateFlow<ScanState> = scanner.state
 
     /** One query for all sources rather than two each, as Flow queries rerun on every scan write. */
     val folderCounts: Flow<Map<Long, FolderCounts>> =
         dao.observeFolderCounts(Definition.ULTRA_HD.token).paced().map { counts -> counts.associateBy { it.sourceId } }
+            .guarded("the folders' counts")
 
-    /** The films and episodes a sudden drop holds while their files are missing ([MissingFiles.isDrop]), by folder and title. */
-    val held: Flow<List<HeldRow>> = dao.observeHeld().paced()
+    /**
+     * The films and episodes a sudden drop holds while their files are missing ([MissingFiles.isDrop]), by folder and title;
+     * none once they cannot be read, so that home, which waits for them, goes on without its note.
+     */
+    val held: Flow<List<HeldRow>> = dao.observeHeld().paced().catch { e ->
+        Log.w(TAG, "Reading the titles held failed", e)
+        emit(emptyList())
+    }
 
     /** The videos of the shows folders their names place nowhere ([IgnoredFileEntity]), by folder name then path. */
-    val ignored: Flow<List<IgnoredFileRow>> = dao.observeIgnored().paced()
+    val ignored: Flow<List<IgnoredFileRow>> = dao.observeIgnored().paced().guarded("the files left out")
 
-    fun latestPosters(folder: Folder, limit: Int): Flow<List<ImageRef>> = dao.observePosters(folder.id, limit).paced().map(::posters)
+    fun latestPosters(folder: Folder, limit: Int): Flow<List<ImageRef>> =
+        dao.observePosters(folder.id, limit).paced().map(::posters).guarded("a folder's posters")
 
     /** The [limit] posters last added to the whole library. */
-    fun latestPosters(limit: Int): Flow<List<ImageRef>> = dao.observeAllPosters(limit).map(::posters)
+    fun latestPosters(limit: Int): Flow<List<ImageRef>> = dao.observeAllPosters(limit).map(::posters).guarded("the latest posters")
 
     /**
      * Home's first scan: the [limit] films and shows first found, then the latest, first found first, those without a
      * poster too ([FirstTitleDao.observeFirstTitles]), at the settings' pace ([PANE_PACE_MS]); read only while it holds
      * home or shows.
      */
-    fun firstTitles(limit: Int): Flow<List<FirstTitleRow>> = dao.observeFirstTitles(limit).paced()
+    fun firstTitles(limit: Int): Flow<List<FirstTitleRow>> = dao.observeFirstTitles(limit).paced().guarded("the first titles found")
 
     /** How many titles home's first scan has found, a film's copies once ([FirstTitleDao.observeFirstTitleCount]), at the same pace. */
-    val firstTitleCount: Flow<Int> = dao.observeFirstTitleCount().paced()
+    val firstTitleCount: Flow<Int> = dao.observeFirstTitleCount().paced().guarded("the first titles' count")
 
     suspend fun hasFolders(): Boolean = dao.sources().isNotEmpty()
 
@@ -177,6 +185,12 @@ private fun <T> Flow<T>.paced(): Flow<T> = transform {
     emit(it)
     delay(PANE_PACE_MS)
 }.distinctUntilChanged()
+
+/**
+ * [this], a failure to read it (a damaged database, a worn-out storage) logged and ending it, where it would crash the
+ * screen reading it: the screen keeps what it showed.
+ */
+private fun <T> Flow<T>.guarded(what: String): Flow<T> = catch { e -> Log.w(TAG, "Reading $what failed", e) }
 
 /** How often the settings' counts and posters follow a scan. */
 private const val PANE_PACE_MS = 2_000L

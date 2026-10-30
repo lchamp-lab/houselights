@@ -60,7 +60,7 @@ class NfoSheetTest {
     private fun SemanticsNodeInteraction.baseline() = getUnclippedBoundsInRoot().top.value + getAlignmentLinePosition(FirstBaseline).value
 
     private fun open(document: LoadState<NfoContent?>) = compose.setTvContent {
-        NfoSheet(film, NfoState("Colony", document), onRetry = {}, onDismiss = {})
+        NfoSheet(film, NfoState(document), onRetry = {}, onDismiss = {})
     }
 
     @Test

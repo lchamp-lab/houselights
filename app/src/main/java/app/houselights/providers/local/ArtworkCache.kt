@@ -10,6 +10,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 
 /** True for artwork cached from the NAS ("file://..."), as opposed to a TMDB or NFO URL. */
@@ -29,10 +30,14 @@ class ArtworkCache(
     //noinspection UsableSpace
     private val freeSpace: () -> Long = { volumeOf(dir)?.usableSpace ?: 0 },
 ) {
+    /** Files found to be no picture, by [version], in this process: left to TMDB, not copied again until rewritten. */
+    private val notPictures: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     /**
-     * "file://…" path of the cached copy ([version]); null when it cannot be copied, so TMDB is used. An unreachable
-     * NAS or full device throws, stopping the scan; nothing is copied into what Android keeps for itself
-     * ([systemReserve]) and [MIN_FREE_BYTES] above it.
+     * "file://…" path of the cached copy ([version]); null when it cannot be copied, or is no picture the device reads
+     * (a web page saved as poster.jpg), so TMDB is used. An unreachable NAS or full device throws, stopping the scan;
+     * nothing is copied into what Android keeps for itself ([systemReserve]) and [MIN_FREE_BYTES] above it. Each copy is
+     * on the storage before it takes its name, so a power cut never leaves an empty one there.
      */
     suspend fun copy(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser): String? {
         val ext = file.relativePath.substringAfterLast('.', "jpg").lowercase().let { if (it == "tbn") "jpg" else it }
@@ -49,10 +54,18 @@ class ArtworkCache(
         val partial = File(target.parentFile, "${target.name}.part")
         val smaller = File(target.parentFile, "${target.name}.small.part")
         return try {
-            suspendRunCatching {
+            suspendRunCatching<String?> {
                 target.parentFile?.mkdirs()
                 stream(source, file, browser, partial)
-                val kept = if (shrink(partial, smaller)) smaller else partial
+                val size = sizeOf(partial)
+                if (size == null) {
+                    Log.w(TAG, "Not copying ${file.relativePath}: no picture")
+                    notPictures += version(file)
+                    return@suspendRunCatching null
+                }
+                val kept = if (shrink(partial, smaller, size)) smaller else partial
+                // Only the copy that takes the name is forced onto the storage: one downscaled leaves the full one unsynced.
+                if (kept === partial) FileOutputStream(partial, true).use { it.fd.sync() }
                 check(kept.renameTo(target)) { "Could not store ${target.name}" }
                 uri
             }.getOrElse { e ->
@@ -86,17 +99,22 @@ class ArtworkCache(
         }
     }
 
-    /**
-     * Downscales [from] into [to] (PNG with alpha, else JPEG; decoders sniff, so the extension stays). False keeps the
-     * original: it fits, cannot be decoded, or has an EXIF rotation, which Coil applies and re-encoding would lose.
-     */
-    private fun shrink(from: File, to: File): Boolean {
+    /** [file]'s width and height as its header gives them; null when the device reads no picture there. */
+    private fun sizeOf(file: File): Pair<Int, Int>? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(from.path, bounds)
-        val width = bounds.outWidth
-        val height = bounds.outHeight
+        BitmapFactory.decodeFile(file.path, bounds)
+        return (bounds.outWidth to bounds.outHeight).takeIf { (width, height) -> width > 0 && height > 0 }
+    }
+
+    /**
+     * Downscales [from], of [size] ([sizeOf]), into [to] (PNG with alpha, else JPEG; decoders sniff, so the extension
+     * stays). False keeps the original: it fits, cannot be decoded, or has an EXIF rotation, which Coil applies and
+     * re-encoding would lose.
+     */
+    private fun shrink(from: File, to: File, size: Pair<Int, Int>): Boolean {
+        val (width, height) = size
         val scale = minOf(MAX_WIDTH.toFloat() / width, MAX_HEIGHT.toFloat() / height)
-        if (width <= 0 || height <= 0 || scale >= 1f) return false
+        if (scale >= 1f) return false
         if (turned(from)) return false
         val targetWidth = (width * scale).roundToInt().coerceAtLeast(1)
         val targetHeight = (height * scale).roundToInt().coerceAtLeast(1)
@@ -108,7 +126,10 @@ class ArtworkCache(
         if (scaled !== decoded) decoded.recycle()
         try {
             val format = if (scaled.hasAlpha()) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
-            FileOutputStream(to).use { check(scaled.compress(format, JPEG_QUALITY, it)) { "Could not encode ${to.name}" } }
+            FileOutputStream(to).use {
+                check(scaled.compress(format, JPEG_QUALITY, it)) { "Could not encode ${to.name}" }
+                it.fd.sync()
+            }
         } finally {
             scaled.recycle()
         }
@@ -125,8 +146,8 @@ class ArtworkCache(
         return orientation != upright && orientation != android.media.ExifInterface.ORIENTATION_UNDEFINED
     }
 
-    /** Whether [file]'s size can be cached at all; empty or oversized images are left to TMDB. */
-    fun holds(file: RemoteFile): Boolean = file.size in 1..MAX_BYTES.toLong()
+    /** Whether [file] can be cached at all; empty or oversized images are left to TMDB, as is one found to be no picture. */
+    fun holds(file: RemoteFile): Boolean = file.size in 1..MAX_BYTES.toLong() && version(file) !in notPictures
 
     fun spaceLeft(): Long = freeSpace()
 

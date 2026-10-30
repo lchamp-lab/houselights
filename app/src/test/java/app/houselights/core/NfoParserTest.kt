@@ -39,6 +39,23 @@ class NfoParserTest {
         </movie>
     """.trimIndent()
 
+    /**
+     * As Kodi reads it: a bare "&" or an HTML entity, against XML's rules, loses neither the NFO's title nor its ids, and
+     * an HTML entity reads as the character it names, never as its code, on Android's parser as on kxml2.
+     */
+    @Test
+    fun aBareAmpersandOrAnHtmlEntityKeepsTheNfosIds() {
+        val bare = NfoParser.parse("<movie><title>Tom & Jerry</title><uniqueid type=\"tmdb\">1234</uniqueid></movie>")
+        assertEquals("Tom & Jerry" to 1234, bare?.let { it.title to it.tmdbId })
+        val pasted = "<movie><title>Am&eacute;lie</title><plot>Un chat&nbsp;et une souris.</plot>" +
+            "<uniqueid type=\"tmdb\">1234</uniqueid></movie>"
+        val nfo = NfoParser.parse(pasted)
+        assertEquals("Amélie" to 1234, nfo?.let { it.title to it.tmdbId })
+        assertEquals("Un chat et une souris.", nfo?.plot)
+        val both = NfoParser.parse("<movie><title>Tom & Jerry&rsquo;s</title></movie>")
+        assertEquals("Tom & Jerry’s", both?.title)
+    }
+
     @Test
     fun aKodiMoviesFieldsAreRead() {
         val nfo = NfoParser.parse(movie)!!

@@ -67,6 +67,18 @@ class RemoteWalkTest {
     /** What nfs-client throws for a query about a file no longer there (NFS3ERR_NOENT). */
     private fun gone(path: String) = FileNotFoundException("lookup /volume1/media/$path")
 
+    /** Asked to stop between two folders, a walk reads no other folder and gives nothing of what it read. */
+    @Test
+    fun aWalkAskedToPauseStopsBeforeTheNextFolder() {
+        tree[""] = listOf("Arrival (2016)/", "Dune (2021)/", "Heat (1995).mkv")
+        tree["Arrival (2016)"] = listOf("Arrival (2016).mkv")
+        tree["Dune (2021)"] = listOf("Dune (2021).mkv")
+        assertThrows(ListingPausedException::class.java) {
+            walk(folder(""), unreadable, pauses = { "Arrival (2016)" in listed }, isFatal = ScanErrors::isUnreachable)
+        }
+        assertEquals(listOf("", "Arrival (2016)"), listed)
+    }
+
     /** Another user's folder, refused at every pass: logged whole once, then counted in one line per walk. */
     @Test
     fun aFolderRefusedAtEveryWalkIsLoggedWholeOnce() {

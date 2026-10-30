@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import okhttp3.Request
 import okio.Buffer
+import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.Collections
@@ -29,6 +30,10 @@ class FakeTrakt {
     /** Every request fails as without a network. */
     @Volatile
     var offline = false
+
+    /** Every request fails as a connection Android did not open in time: none reaches Trakt. */
+    @Volatile
+    var connectTimingOut = false
 
     private val staged = ConcurrentHashMap<String, ArrayDeque<Answer>>()
 
@@ -71,12 +76,19 @@ class FakeTrakt {
     private fun route(request: Request) = "${request.method} ${request.url.encodedPath}"
 
     private fun answer(request: Request): Answer {
-        if (offline) throw UnknownHostException("api.trakt.tv")
+        unreached()?.let { throw it }
         answered += request
         val route = route(request)
         before.remove(route)?.invoke()
         if (losing.remove(route)) throw SocketTimeoutException("timeout")
         return staged[route]?.let { synchronized(it) { it.removeFirstOrNull() } } ?: byDefault(route)
+    }
+
+    /** Why a request never reaches Trakt: [offline], or its connection timing out ([connectTimingOut]); null when it does. */
+    private fun unreached(): IOException? = when {
+        offline -> UnknownHostException("api.trakt.tv")
+        connectTimingOut -> SocketTimeoutException("failed to connect to api.trakt.tv/172.66.0.1 (port 443) after 10000ms")
+        else -> null
     }
 
     /** What Trakt answers [route] with, but for what a test staged. */

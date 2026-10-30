@@ -33,8 +33,10 @@ interface RemoteBrowser {
     /**
      * The videos and sidecars of [source]'s folder; [found] is told how many videos the walk has found so far as each
      * comes, counted as a scan counts titles where their paths tell ([VideoCount]), so screens say it while it lists.
+     * Between two folders, the walk stops once [pauses] says so (a film started), throwing [ListingPausedException]: its
+     * session or mount is left then, for the caller to wait and list again.
      */
-    suspend fun list(source: SourceEntity, found: (Int) -> Unit = {}): Listing
+    suspend fun list(source: SourceEntity, pauses: () -> Boolean = { false }, found: (Int) -> Unit = {}): Listing
 
     /**
      * What the source's folder holds at its first level, its subfolders and its videos ([FolderLevel]), signed in or
@@ -105,10 +107,17 @@ internal interface RemoteEntry {
  * Videos and sidecars under [root], at most [RemoteBrowser.MAX_DEPTH] levels deep, [found] told how many videos so far
  * as each comes ([VideoCount]). Unreadable subfolders (lost+found, another user's) and entries that fail (a file Radarr
  * replaced mid-listing) are skipped and recorded in [Listing.unreadable], and logged in [failures]. A failure on
- * [root], or one [isFatal] accepts (NAS gone, connection broken), throws.
+ * [root], or one [isFatal] accepts (NAS gone, connection broken), throws, as does [pauses] saying so before a subfolder
+ * is read ([ListingPausedException]).
  */
-internal fun walk(root: RemoteFolder, failures: RepeatedFailures, found: (Int) -> Unit = {}, isFatal: (Throwable) -> Boolean): Listing =
-    Walk(isFatal, failures, VideoCount(found)).run {
+internal fun walk(
+    root: RemoteFolder,
+    failures: RepeatedFailures,
+    found: (Int) -> Unit = {},
+    pauses: () -> Boolean = { false },
+    isFatal: (Throwable) -> Boolean,
+): Listing =
+    Walk(isFatal, pauses, failures, VideoCount(found)).run {
         try {
             visit(root, "", 0)
         } finally {
@@ -125,6 +134,12 @@ internal class UnreadablePaths {
 }
 
 private const val WALK_TAG = "RemoteBrowser"
+
+/**
+ * A listing stopped between two folders, as its caller asked ([RemoteBrowser.list]): what it found is dropped, and the
+ * folder is listed anew once it may, on a session or mount of its own, none kept open through a film.
+ */
+class ListingPausedException : IllegalStateException("Listing stopped between two folders, to begin anew")
 
 /**
  * How many titles the videos a listing finds make so far, as a scan counts them where their paths tell
@@ -144,13 +159,20 @@ internal class VideoCount(private val found: (Int) -> Unit) {
     }
 }
 
-private class Walk(private val isFatal: (Throwable) -> Boolean, private val failures: RepeatedFailures, private val count: VideoCount) {
+private class Walk(
+    private val isFatal: (Throwable) -> Boolean,
+    private val pauses: () -> Boolean,
+    private val failures: RepeatedFailures,
+    private val count: VideoCount,
+) {
     val videos = mutableListOf<RemoteFile>()
     val sidecars = mutableListOf<RemoteFile>()
     val unreadable = mutableListOf<String>()
 
     fun visit(folder: RemoteFolder, relative: String, depth: Int) {
         if (depth > RemoteBrowser.MAX_DEPTH) return
+        // Between two folders: the NAS is left to the player before the next one is read.
+        if (relative.isNotEmpty() && pauses()) throw ListingPausedException()
         val entries = suspendRunCatching { folder.entries() }.getOrElse { e ->
             if (relative.isEmpty()) throw e
             passOver(relative, e)
