@@ -608,7 +608,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   read until one begun after its save says it, here, in « À regarder » and on a person's page (`PendingChanges`). A
   change not saved is undone alone, its mark or its favourite (`Undone`): another asked of the title still saving or
   saved keeps showing, and two not saved, a mark then a favourite or a mark then its opposite, leave it as the source
-  has it. The title is back in its place with focus, its title line saying why in place of its facts,
+  has it. The title is back in its place with focus, on the wall it was changed on (a wall started over meanwhile, on
+  another filter, sort or view, never takes it in), its title line saying why in place of its facts,
   « Non enregistré · Serveur injoignable » by the attention mark, while it has focus. Unfiltered, the poster stays, its mark changing, focus
   where it is; a favourite ends its title line's facts with the filled heart, on a wall and on a person's page that has
   one (`TitleLine`). In « À regarder » a title leaves its row as it leaves what the row holds, Reprendre at once, À

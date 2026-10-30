@@ -199,15 +199,17 @@ class LibraryViewModel(
 
     /**
      * Shows [item] [changed] at once, in its place while the wall [stays] on it, else gone; then [save]s it, undone if
-     * not, that change alone: another of the title still saving or saved keeps showing.
+     * not, that change alone: another of the title still saving or saved keeps showing. The wall started over meanwhile
+     * ([LibraryState.generation]: another filter, sort or view), the title is not put back on a wall that never held it.
      */
     private fun change(item: MediaItem, changed: MediaItem, stays: Boolean, save: (undo: (Undone) -> Unit) -> Unit) {
         val at = _state.value.items.indexOfFirst { it.id == item.id }
         if (at < 0) return
+        val generation = _state.value.generation
         _state.update { it.showing(changed, stays) }
         save { undone ->
             val status = shownStatus()
-            _state.update { it.undone(undone, at, status) }
+            _state.update { it.undone(undone, at, status, putsBack = it.generation == generation) }
         }
     }
 
@@ -437,11 +439,12 @@ private fun LibraryState.uncounting(item: MediaItem): LibraryState =
 /**
  * [this] after a change that was not saved ([undone]): its title in its place as the source has it, else back at [at] and
  * counted again, as long as the wall filtered on [status] keeps it, another of its changes still saving or saved keeping
- * it away.
+ * it away, and the wall is the one it was changed on ([putsBack]): one started over since reads the title as its own
+ * filter keeps it.
  */
-private fun LibraryState.undone(undone: Undone, at: Int, status: WatchStatus): LibraryState = when {
+private fun LibraryState.undone(undone: Undone, at: Int, status: WatchStatus, putsBack: Boolean): LibraryState = when {
     items.any { it.id == undone.id } -> copy(items = items.map { if (it.id == undone.id) undone.over(it) else it })
-    undone.stays(status) -> copy(
+    putsBack && undone.stays(status) -> copy(
         items = items.toMutableList().apply { add(at.coerceAtMost(size), undone.item) },
         total = total + 1,
         sagas = sagas?.plus(sagaCount(undone.item)),
