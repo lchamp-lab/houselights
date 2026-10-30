@@ -16,6 +16,8 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.errorOrNull
 import app.houselights.ui.util.valueOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -46,7 +48,7 @@ class SearchViewModelTest {
     @Test
     fun itSearchesOnceTheKeysStop() = runTest {
         val vm = SearchViewModel({ provider })
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach {
             vm.type(it)
             advanceTimeBy(SearchViewModel.WAIT_MS / 2)
@@ -75,7 +77,7 @@ class SearchViewModelTest {
     @Test
     fun nothingTypedFindsNothing() = runTest {
         val vm = SearchViewModel({ provider })
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         vm.type('A')
         vm.delete()
         advanceUntilIdle()
@@ -87,7 +89,7 @@ class SearchViewModelTest {
     fun aSearchThatFailsSaysWhyAndRetryRunsItAgain() = runTest {
         catalog.fail = { ConnectException("Server away") }
         val vm = SearchViewModel({ provider })
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         assertEquals("not that nothing matches", UiError.OFFLINE, vm.found.value?.results?.errorOrNull)
@@ -111,7 +113,7 @@ class SearchViewModelTest {
     @Test
     fun aSpaceAtTheEndRunsNoSearchAgain() = runTest {
         val vm = SearchViewModel({ provider }, work = this)
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         vm.mark(found(vm).single())
@@ -134,7 +136,7 @@ class SearchViewModelTest {
         before.delete()
 
         val after = SearchViewModel({ provider }, saved.afterProcessDeath())
-        backgroundScope.launch { after.found.collect {} }
+        show(after)
         assertEquals("AME", after.query.value)
         advanceUntilIdle()
         assertEquals("amelie", after.found.value?.results?.valueOrNull?.titles?.single()?.id)
@@ -145,7 +147,7 @@ class SearchViewModelTest {
     fun aResultMarkedShowsAtOnceThenIsSavedAndTold() = runTest {
         val events = FakeEvents()
         val vm = SearchViewModel({ provider }, events = events, work = this)
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         vm.mark(found(vm).single())
@@ -165,7 +167,7 @@ class SearchViewModelTest {
     fun aResultsMarkNotSavedIsUndoneAndSaid() = runTest {
         provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
         val vm = SearchViewModel({ provider }, work = this)
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         vm.mark(found(vm).single())
@@ -181,7 +183,7 @@ class SearchViewModelTest {
     @Test
     fun aSearchReadAgainShowsWhatTheSourceSaysThen() = runTest {
         val vm = SearchViewModel({ provider }, work = this)
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         vm.mark(found(vm).single())
@@ -201,7 +203,7 @@ class SearchViewModelTest {
     @Test
     fun aChangeOfTheLibraryReadsTheSearchAgain() = runTest {
         val vm = SearchViewModel({ provider })
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
 
@@ -216,7 +218,7 @@ class SearchViewModelTest {
     @Test
     fun aChangeOfTheLibraryAsTheSearchIsFirstReadReadsItAgainAfter() = runTest {
         val vm = SearchViewModel({ provider })
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         val reading = catalog.gate("search AME")
         "AME".forEach(vm::type)
         advanceUntilIdle()
@@ -237,7 +239,7 @@ class SearchViewModelTest {
     fun aChangeStillSavingShowsOverTheSearchReadAgain() = runTest {
         provider.fail = { if (it.startsWith("favorite")) IOException("NAS away") else null }
         val vm = SearchViewModel({ provider }, work = this)
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         val amelie = found(vm).single()
@@ -267,13 +269,13 @@ class SearchViewModelTest {
     @Test
     fun theSearchIsNotReadAgainOnItsReturnWithNothingChanged() = runTest {
         val vm = SearchViewModel({ provider })
-        val away = backgroundScope.launch { vm.found.collect {} }
+        val away = show(vm)
         "AME".forEach(vm::type)
         advanceUntilIdle()
         away.cancel()
         advanceTimeBy(AWAY_MS)
 
-        backgroundScope.launch { vm.found.collect {} }
+        show(vm)
         advanceUntilIdle()
         assertEquals(listOf("search AME"), catalog.calls)
         assertEquals("amelie", found(vm).single().id)
@@ -288,7 +290,7 @@ class SearchViewModelTest {
         provider.fail = { if (it.startsWith("played") || it.startsWith("favorite")) IOException("NAS away") else null }
         listOf(true, false).forEach { markFailsFirst ->
             val vm = SearchViewModel({ provider }, work = this)
-            val collecting = backgroundScope.launch { vm.found.collect {} }
+            val collecting = show(vm)
             "AME".forEach(vm::type)
             advanceUntilIdle()
             val amelie = found(vm).single()
@@ -331,7 +333,7 @@ class SearchViewModelTest {
         provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
         listOf(true, false).forEach { markFailsFirst ->
             val vm = SearchViewModel({ provider }, work = this)
-            val collecting = backgroundScope.launch { vm.found.collect {} }
+            val collecting = show(vm)
             "AME".forEach(vm::type)
             advanceUntilIdle()
             val amelie = found(vm).single()
@@ -351,6 +353,13 @@ class SearchViewModelTest {
             collecting.cancel()
         }
     }
+
+    /**
+     * The search's screen showing [vm]'s results, as it collects them, from now: its search, kept while the view model
+     * lives, starts as the screen first shows, with nothing else for the test's clock to run before it.
+     */
+    private fun TestScope.show(vm: SearchViewModel) =
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.found.collect {} }
 
     private fun found(vm: SearchViewModel) = checkNotNull(vm.found.value?.results?.valueOrNull).titles
 
