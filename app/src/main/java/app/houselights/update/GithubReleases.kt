@@ -22,7 +22,6 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** A release as GitHub's API lists it, reduced to what the updater reads (and keeps between checks). */
@@ -188,13 +187,16 @@ private suspend fun Response.text(max: Long): String = withContext(Dispatchers.I
     source.buffer.readUtf8()
 }
 
-/** Runs the call, cancelled with the coroutine; the response is closed if it comes after. */
+/**
+ * Runs the call, cancelled with the coroutine; the response is closed if the coroutine is cancelled before it takes it,
+ * the answer come before or after.
+ */
 internal suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
     continuation.invokeOnCancellation { cancel() }
     enqueue(
         object : Callback {
             override fun onResponse(call: Call, response: Response) {
-                if (continuation.isActive) continuation.resume(response) else response.close()
+                continuation.resume(response) { _, answer, _ -> answer.close() }
             }
 
             override fun onFailure(call: Call, e: IOException) {
