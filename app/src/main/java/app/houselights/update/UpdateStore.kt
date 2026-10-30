@@ -92,14 +92,25 @@ class UpdateStore(private val store: DataStore<Preferences>) {
     /** GitHub answered at [at]: a new list ([releases], its [etag]), or none for the same one (304). */
     suspend fun answered(at: Long, releases: List<ListedRelease>? = null, etag: String? = null) = write {
         it[Keys.checkedAt] = at
-        it.remove(Keys.waitUntil)
+        it.keepListed(releases, etag)
+    }
+
+    /**
+     * GitHub listed its releases: a new list ([releases], its [etag]), or none for the same one (304), kept at once for the
+     * next check's 304; checked only once their manifests are read too ([answered]).
+     */
+    suspend fun listed(releases: List<ListedRelease>?, etag: String? = null) = write { it.keepListed(releases, etag) }
+
+    /** GitHub's wait over, and [releases] kept with their [etag] when a new list came. */
+    private fun MutablePreferences.keepListed(releases: List<ListedRelease>?, etag: String?) {
+        remove(Keys.waitUntil)
         if (releases != null) {
-            it[Keys.releases] = lenientJson.encodeToString(RELEASES, releases)
-            if (etag == null) it.remove(Keys.etag) else it[Keys.etag] = etag
+            this[Keys.releases] = lenientJson.encodeToString(RELEASES, releases)
+            if (etag == null) remove(Keys.etag) else this[Keys.etag] = etag
             // The manifests of releases still listed, read again only when a new one comes.
             val tags = releases.map(ListedRelease::tag).toSet()
-            val kept = it.decoded(Keys.manifests, MANIFESTS).orEmpty().filterKeys(tags::contains)
-            it[Keys.manifests] = lenientJson.encodeToString(MANIFESTS, kept)
+            val kept = decoded(Keys.manifests, MANIFESTS).orEmpty().filterKeys(tags::contains)
+            this[Keys.manifests] = lenientJson.encodeToString(MANIFESTS, kept)
         }
     }
 

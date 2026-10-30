@@ -142,6 +142,22 @@ class TraktSyncTest : TraktSyncFixture() {
         assertEquals(Instant.ofEpochMilli(NOW).toString(), sent.movieDate())
     }
 
+    /**
+     * A mark whose connection to Trakt was not opened in time never reached it: it waits as unsent, as one offline does,
+     * never taken for one Trakt may have taken and then found missing from a history read in part.
+     */
+    @Test
+    fun aMarkWhoseConnectionTimedOutWaitsUnsent() = runTest {
+        val id = film(7)
+        val sync = connected()
+        val provider = provider(sync)
+
+        trakt.connectTimingOut = true
+        provider.mark(id, played = true)
+        waitFor("the failure said") { sync.state.value.error == TraktSyncError.OFFLINE }
+        assertEquals(listOf("movie:7" to null), queue.pending().map { it.title to it.sentAt })
+    }
+
     /** A film marked from its poster on a wall filtered on Non vus leaves it, and reaches Trakt as a mark from its page does. */
     @Test
     fun aMarkFromAWallReachesTrakt() = runTest {

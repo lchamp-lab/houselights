@@ -277,6 +277,49 @@ class LibraryScannerTest {
     }
 
     /**
+     * A film started while a folder lists: the listing stops between two folders, the NAS's sessions closed through the
+     * film, and lists the folder anew once it ends.
+     */
+    @Test
+    fun aListingStopsForAFilmStartedMeanwhileAndBeginsAnewOnceItEnds() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { if (++listed == 1) bench.playing.value = true }
+        bench.scanner.scanAll()
+        bench.playing.subscriptionCount.first { it > 0 }
+        assertEquals("stopped as the film started", 1, listed)
+        assertTrue("its session closed", bench.closed.get() > 0)
+
+        bench.playing.value = false
+        bench.awaitScans()
+        assertEquals("listed anew", 2, listed)
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
+    /**
+     * The app left while a folder lists, another app perhaps playing from the NAS: the listing stops between two folders,
+     * its session closed and nothing read, and lists the folder anew once the app is back.
+     */
+    @Test
+    fun aListingStopsWhenTheAppLeavesAndBeginsAnewOnceItIsBack() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { if (++listed == 1) bench.started.value = false }
+        val waiting = CompletableDeferred<Unit>()
+        bench.onClose = { waiting.complete(Unit) }
+        bench.scanner.scanAll()
+        waiting.await()
+        assertEquals("stopped as the app left", 1, listed)
+        assertEquals("nothing read", emptyList<String>(), nas.reads.toList())
+        assertEquals(emptyList<String>(), filePaths())
+
+        bench.started.value = true
+        bench.awaitScans()
+        assertEquals("listed anew", 2, listed)
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
+    /**
      * Android's screensaver over the app is no other player reading the NAS: a pass waiting for the app to be on screen
      * goes on under it, so a first scan of hours does not stop at the first one.
      */

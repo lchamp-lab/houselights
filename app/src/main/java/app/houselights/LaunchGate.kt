@@ -63,9 +63,15 @@ class LaunchGate(
     /** Opens at once: the app starts on a screen other than home (welcome, unread settings, a restored screen). */
     fun startsElsewhere() = open(Reason.START_SCREEN)
 
-    /** Opens the gate at the cap unless it is already open. */
+    /**
+     * Opens the gate at the cap unless it is already open; called at the first window. A window that opens past the cap
+     * (a process a receiver started after an update, a slow cold start) counts the cap from itself, as home under it was
+     * begun only then.
+     */
     suspend fun openAtCap() {
-        delay((capMs - sinceStart()).coerceAtLeast(0))
+        val windowAt = sinceStart()
+        val deadline = if (windowAt >= capMs) windowAt + capMs else capMs
+        delay((deadline - sinceStart()).coerceAtLeast(0))
         open(Reason.CAP)
     }
 
@@ -93,7 +99,7 @@ class LaunchGate(
     private companion object {
         const val TAG = "Launch"
 
-        /** Longest the launch screen holds, counted from process start. */
+        /** Longest the launch screen holds, counted from process start, or from the first window when it came later. */
         const val CAP_MS = 1_500L
     }
 }

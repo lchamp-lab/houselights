@@ -240,6 +240,19 @@ class ScanRenamesTest {
         assertTrue("screens learn the new name", pass.changes > 0)
     }
 
+    /** Radarr naming the edition in a film's new name: the film shows it, its file not read again. */
+    @Test
+    fun aFileRenamedWithItsEditionShowsItWithoutBeingReadAgain() = runTest {
+        nas.put("Blade Runner (1982).mkv")
+        bench.scan()
+        assertNull(dao.filesOf(films.id).single().edition)
+
+        nas.rename("Blade Runner (1982).mkv", "Blade Runner (1982) {edition-The Final Cut}.mkv")
+        val pass = bench.pass()
+        assertEquals("the same size, the same file", emptyList<String>(), pass.reads)
+        assertEquals("Final Cut", dao.filesOf(films.id).single().edition)
+    }
+
     @Test
     fun aFileReplacedUnderTheSameNameIsReadAgain() = runTest {
         nas.put("Dune (2021).mkv", size = 30_000_000_000)

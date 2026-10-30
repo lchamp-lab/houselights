@@ -8,7 +8,9 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.currentTime
@@ -421,6 +423,33 @@ class PlaybackManagerTest {
         advanceUntilIdle()
         assertEquals(listOf("m1"), reportersAsked)
         assertEquals("stopped 600000 / null", reports.last())
+    }
+
+    /**
+     * A new process whose library source the Keystore does not open in time has no reporter: the film's end is still
+     * told to screens, never an exception in the app's scope.
+     */
+    @Test
+    fun aSessionWithoutItsReporterStillEnds() = runTest {
+        val first = PlaybackManager(
+            context,
+            backgroundScope,
+            status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer },
+            clock = { currentTime },
+        ) { null }
+        first.intentFor(plan())
+        statuses += playing(600_000)
+        first.onPlayerLaunched()
+        advanceTimeBy(4_001)
+
+        val second = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, clock = { currentTime }) {
+            error("No library source configured")
+        }
+        var ended = 0
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { second.playbackEnded.collect { ended++ } }
+        second.onPlayerResult(null)
+        advanceUntilIdle()
+        assertEquals(1, ended)
     }
 
     /** Killed while the player went on to the next episode, the app reads the result against the file it launched. */

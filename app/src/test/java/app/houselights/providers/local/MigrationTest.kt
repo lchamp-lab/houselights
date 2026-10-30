@@ -22,6 +22,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.security.ProviderException
+import java.text.Normalizer
 
 /** Libraries left by earlier versions, opened by this one: what each migration keeps, and what it changes. */
 @RunWith(RobolectricTestRunner::class)
@@ -514,6 +515,29 @@ class MigrationTest {
         assertTrue("$indices", "index_items_missingSince" in indices)
     }
 
+    /**
+     * Version 24 has the episodes whose path was copied from a Mac, its accents apart (NFD), read whole at the next pass,
+     * as names now read composed, and those written composed left as they are, their sidecars' key kept. From 23, and
+     * from 0.2.0's version 15.
+     */
+    @Test
+    fun version24ReadsAgainTheEpisodesNamedDecomposedAndKeepsTheRest() = runTest {
+        val apart = Normalizer.normalize("Pokémon", Normalizer.Form.NFD)
+        for (from in listOf(23, 15)) {
+            val dao = migrated(from) {
+                showsFolder(from)
+                show(1, "Pokémon", nfo = "<tvshow><title>Pokémon</title></tvshow>", from = from)
+                episode(11, show = 1, number = 1, from = from, path = "Pokémon/Season 1/Pokémon - S01E01.mkv")
+                episode(12, show = 1, number = 2, from = from, path = "$apart/Season 1/$apart - S01E02.mkv")
+                episode(13, show = 1, number = 3, from = from, path = "Pokémon/Season 1/Pokémon - S01E03.mkv")
+                execSQL("UPDATE items SET sidecarKey = 'thumb:5:6:Pokémon/Season 1/Pokémon - S01E03.jpg' WHERE id = 13")
+            }.dao()
+            val keys = listOf(11L, 12L, 13L).map { checkNotNull(dao.item(it)).sidecarKey }
+            assertEquals("from $from", listOf(null, "", "thumb:5:6:Pokémon/Season 1/Pokémon - S01E03.jpg"), keys)
+            assertEquals("from $from: its path as listed", "$apart/Season 1/$apart - S01E02.mkv", dao.item(12)?.filePath)
+        }
+    }
+
     /** Folder 1, "Séries", as schema [from] holds it, from 8; version 20's tables, made by Room, hold no default for heldKept. */
     private fun SupportSQLiteDatabase.showsFolder(from: Int) {
         val (kept, notKept) = if (from >= 20) ", heldKept" to ", 0" else "" to ""
@@ -540,14 +564,14 @@ class MigrationTest {
         )
     }
 
-    /** Episode [id] of show [show], S01E[number], watched and matched. */
-    private fun SupportSQLiteDatabase.episode(id: Long, show: Long, number: Int, from: Int) {
+    /** Episode [id] of show [show], S01E[number], watched and matched, at [path]. */
+    private fun SupportSQLiteDatabase.episode(id: Long, show: Long, number: Int, from: Int, path: String = "Show $show/S01E$number.mkv") {
         val (noMatch, notLeft) = if (from >= 19) ", userNoMatch" to ", 0" else "" to ""
         execSQL(
             "INSERT INTO items (id, kind, sourceId, parentId, seriesId, title, sortTitle, continuing, genres, directors, filePath, " +
                 "parts, badges, probeVersion, seasonNumber, episodeNumber, addedAt, matchedAt, positionMs, played, favorite$noMatch) " +
                 "VALUES (?1, 'EPISODE', 1, ?2, ?3, 'Episode', 'e', 0, '', '', ?4, '', '', 0, 1, ?5, 5, 6, 0, 1, 0$notLeft)",
-            arrayOf<Any?>(id, show * 100, show, "Show $show/S01E$number.mkv", number),
+            arrayOf<Any?>(id, show * 100, show, path, number),
         )
     }
 

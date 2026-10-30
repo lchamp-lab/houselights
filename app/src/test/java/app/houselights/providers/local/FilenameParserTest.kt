@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.text.Normalizer
 
 /** What files' and folders' names say: a film's title and year, a show and its episodes, badges, extras and discs. */
 class FilenameParserTest {
@@ -383,6 +384,19 @@ class FilenameParserTest {
         // Named by their folder, as Radarr names it, the file saying no more.
         assertEquals(ParsedMovie("Wonder Woman 1984", 2020), LibraryScanner.parseMovie("Wonder Woman 1984 (2020)/movie.mkv"))
         assertEquals(ParsedMovie("1917", 2019), LibraryScanner.parseMovie("1917 (2019)/1917 (2019) Remux-2160p.mkv"))
+    }
+
+    /**
+     * A name copied from a Mac, its accents apart (NFD), reads as the one Sonarr wrote on the NAS (NFC): the same show,
+     * the same title; the folder it gives back stays as listed.
+     */
+    @Test
+    fun aNameInNfdGivesTheSameShowKeyAsInNfc() {
+        val apart = Normalizer.normalize("Pokémon", Normalizer.Form.NFD)
+        assertEquals("pokémon", FilenameParser.showKey(apart))
+        assertEquals("Pokémon", FilenameParser.parseMovie("$apart (1998).mkv").title)
+        val path = FilenameParser.parseShowPath("$apart/Season 1/$apart.S01E01.mkv")
+        assertEquals("Pokémon" to apart, path?.let { it.title to it.dir })
     }
 
     /** The year of a show is its folder's, else its name's at the source's root; specials are season 0. */

@@ -191,6 +191,32 @@ class ScanShowSidecarsTest {
         assertEquals(LEGENDES to "Le Bureau des Légendes", bureau().let { it.tmdbId to it.title })
     }
 
+    /**
+     * The tvshow.nfo rewritten to name another show while TMDB does not answer for it: the show keeps its match, unmatched,
+     * until TMDB describes the new one, whose seasons its episodes then take.
+     */
+    @Test
+    fun aShowNfoNamingAnotherShowWaitsForTmdbsAnswer() = runTest {
+        tmdb.show(HOMONYM, "Mobland", 2008)
+        tmdb.season(HOMONYM, 1, episodes = 6)
+        nas.putText("Mobland/tvshow.nfo", nfo("MobLand"), lastModified = T1)
+        bench.scan()
+        suspend fun poster() = checkNotNull(bench.dao.season(show().id, 1)).posterPath
+        assertEquals("/season-$MOBLAND-1.jpg", poster())
+
+        nas.putText("Mobland/tvshow.nfo", "<tvshow><uniqueid type=\"tmdb\">$HOMONYM</uniqueid></tvshow>", lastModified = T2)
+        tmdb.failingPath = "tv/"
+        bench.scan()
+        val waiting = show()
+        assertEquals("the NFO's id waits for TMDB", MOBLAND, waiting.tmdbId)
+        assertNull("asked again at the next pass", waiting.matchedAt)
+
+        bench.tmdbBack()
+        bench.scan()
+        assertEquals(HOMONYM, show().tmdbId)
+        assertEquals("its episodes in the new show's seasons", "/season-$HOMONYM-1.jpg", poster())
+    }
+
     /** Rewritten, a season poster is copied again by the next episode read; unchanged, it is not read again. */
     @Test
     fun aSeasonPosterRewrittenIsCopiedAgain() = runTest {

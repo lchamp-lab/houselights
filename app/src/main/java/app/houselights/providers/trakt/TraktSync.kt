@@ -6,6 +6,7 @@ import app.houselights.core.Decoded
 import app.houselights.core.FailureKind
 import app.houselights.core.HttpStatus
 import app.houselights.core.failureKind
+import app.houselights.core.neverReachedServer
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.Marked
 import app.houselights.providers.local.SyncRow
@@ -29,10 +30,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.Headers
 import retrofit2.HttpException
 import java.io.IOException
-import java.net.ConnectException
-import java.net.NoRouteToHostException
-import java.net.UnknownHostException
-import javax.net.ssl.SSLHandshakeException
 
 /** How much a sync does: [CHECK] reads Trakt only if it changed, [PULL] reads it, [UNION] also sends what Trakt lacks. */
 enum class SyncMode { CHECK, PULL, UNION }
@@ -557,7 +554,7 @@ class TraktSync(
         /** A write that never reached Trakt, or that Trakt refused before taking anything. */
         fun unreached(e: Exception): Boolean = when (e) {
             is HttpException -> e.code() in ACCOUNT
-            else -> e is UnknownHostException || e is ConnectException || e is NoRouteToHostException || e is SSLHandshakeException
+            else -> e.neverReachedServer()
         }
 
         fun errorOf(e: Throwable): TraktSyncError {
