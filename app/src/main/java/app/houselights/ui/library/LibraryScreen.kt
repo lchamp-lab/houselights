@@ -89,7 +89,6 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.focusLaidOut
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
@@ -192,11 +191,7 @@ internal fun Wall(
     // A change not saved puts its title back in its place: focus goes back to it, unless it went up to the menus meanwhile,
     // or the wall was left before it was said.
     var inMenus by remember { mutableStateOf(false) }
-    val arrivedWith = remember { notSaved }
-    LaunchedEffect(notSaved) {
-        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
-        if (!inMenus) memory.focusLaidOut { FocusKey.item(id) }
-    }
+    RefocusNotSaved(notSaved, memory, refocuses = { !inMenus })
     // The sagas alone are named as such, on the films' wall.
     val sagasAlone = state.view == WallView.SAGAS
     val kind = if (sagasAlone) LibraryKind.COLLECTIONS else library.kind

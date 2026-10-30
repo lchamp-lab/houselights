@@ -32,8 +32,6 @@ import app.houselights.ui.library.Laid
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterChanges
 import app.houselights.ui.library.Undone
-import app.houselights.ui.library.favoredAs
-import app.houselights.ui.library.markedAs
 import app.houselights.ui.settings.HeldTitles
 import app.houselights.ui.settings.heldByFolder
 import app.houselights.ui.util.LatestJob
@@ -390,16 +388,10 @@ class HomeViewModel(
     }
 
     /** Marks [item] watched, or not once it is, from its card's options in « À regarder », shown at once ([change]). */
-    fun mark(item: MediaItem) {
-        val played = !item.user.played
-        change(item.markedAs(played)) { undo -> changes.mark(item, played, undo) }
-    }
+    fun mark(item: MediaItem) = changes.toggleMark(item) { changed, _, save -> change(changed, save) }
 
     /** Makes [item] a favourite, or not once it is, from its card's options in « À regarder », shown at once. */
-    fun favorite(item: MediaItem) {
-        val favorite = !item.user.favorite
-        change(item.favoredAs(favorite)) { undo -> changes.favorite(item, favorite, undo) }
-    }
+    fun favorite(item: MediaItem) = changes.toggleFavorite(item) { changed, _, save -> change(changed, save) }
 
     /**
      * Shows [changed] at once in every row holding it, Reprendre letting go of a title no longer in progress, a row

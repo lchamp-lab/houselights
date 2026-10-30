@@ -60,6 +60,18 @@ internal class PosterChanges(
         save(item, "Favourite of ${item.id} from its poster", held, undo) { it.setFavorite(item, favorite) }
     }
 
+    /** Marks [item] the other way it stands, watched or not: [shows] shows it so at once, then saves it. */
+    fun toggleMark(item: MediaItem, shows: ShowsChange) {
+        val played = !item.user.played
+        shows.show(item.markedAs(played), { keepsMarked(it, played) }) { undo -> mark(item, played, undo) }
+    }
+
+    /** Makes [item] a favourite, or not once it is: [shows] shows it so at once, then saves it. */
+    fun toggleFavorite(item: MediaItem, shows: ShowsChange) {
+        val favored = !item.user.favorite
+        shows.show(item.favoredAs(favored), { keepsFavorite(it, favored) }) { undo -> favorite(item, favored, undo) }
+    }
+
     /** The orders show [item]'s episodes can follow, as its page reads them; null when there is no choice or no reading. */
     suspend fun episodeOrders(item: MediaItem): EpisodeOrderChoices? =
         suspendRunCatching { source()?.editor?.episodeOrders(item) }.onFailure { Log.w(tag, "Orders of ${item.id}", it) }.getOrNull()
@@ -94,6 +106,14 @@ internal class PosterChanges(
                 }
         }
     }
+}
+
+/**
+ * How a screen shows a change its poster's options asked: [changed] at once, kept by a wall filtered on a status while
+ * [stays] says so; then [save], whose undo it is given, the change not saved.
+ */
+internal fun interface ShowsChange {
+    fun show(changed: MediaItem, stays: (WatchStatus) -> Boolean, save: (undo: (Undone) -> Unit) -> Unit)
 }
 
 /**
