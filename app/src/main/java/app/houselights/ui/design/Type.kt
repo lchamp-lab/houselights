@@ -212,7 +212,7 @@ val HouselightsType = HlType(
     badge = scale(HlFonts.expanded, FontWeight.SemiBold, 12, 16, FIGURES),
 
     titleSignature = scale(HlFonts.condensed, FontWeight.Bold, 72, 72, lineBreak = TITLE),
-    billing = signature(HlFonts.condensed, FontWeight.Medium, 16, 20, CAPITALS_TRACKING, CAPITALS),
+    billing = signature(HlFonts.condensed, FontWeight.SemiBold, 16, 20, CAPITALS_TRACKING, CAPITALS),
     billingJoin = signature(HlFonts.condensed, FontWeight.Normal, 13, 20, BILLING_JOIN_TRACKING),
     codeSignature = signature(HlFonts.condensed, FontWeight.SemiBold, 44, 52, CODE_TRACKING),
     figureSignature = signature(HlFonts.figures, FontWeight.Bold, 120, 88, FIGURE_TRACKING, PROPORTIONAL),
