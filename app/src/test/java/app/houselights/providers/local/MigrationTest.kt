@@ -12,6 +12,7 @@ import app.houselights.core.SubtitleChoice
 import app.houselights.core.TrackChoice
 import app.houselights.testing.secretsOf
 import app.houselights.testing.testSecrets
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -485,6 +486,32 @@ class MigrationTest {
             dao.saveSagaChoice(SagaChoiceEntity(DUNE_SAGA, userPosterPath = "/fr-1.jpg"))
             assertEquals("from $from", listOf(SagaChoiceEntity(DUNE_SAGA, "/fr-1.jpg")), dao.sagaChoices(listOf(DUNE_SAGA, "name:autre")))
         }
+    }
+
+    /**
+     * Version 23 only indexes the rows held while their files are missing: a film held stays held and is read through the
+     * index, and a film TMDB found nothing for stays to identify, the one held aside, as before.
+     */
+    @Test
+    fun version23IndexesTheRowsHeldAndKeepsTheRest() = runTest {
+        val db = migrated(22) {
+            filmsFolder(22)
+            listOf(arrayOf<Any?>(1, "Dune", "Dune (2021).mkv", 5_000), arrayOf<Any?>(2, "Heat", "Heat (1995).mkv", null)).forEach {
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
+                        "badges, probeVersion, addedAt, positionMs, played, favorite, missingSince, matchState, userNoMatch) " +
+                        "VALUES (?1, 'MOVIE', 1, ?2, ?2, 0, '', '', ?3, '', '', 0, 5, 0, 0, 0, ?4, 'NOT_FOUND', 0)",
+                    it,
+                )
+            }
+        }
+        val dao = db.dao()
+        assertEquals(listOf(1L), dao.heldIn(1))
+        assertEquals(listOf(1L), dao.observeHeld().first().map { it.id })
+        assertEquals(1, dao.observeToIdentifyCount().first())
+        val indices = db.openHelper.readableDatabase.query("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'items'")
+            .use { c -> buildList { while (c.moveToNext()) add(c.getString(0)) } }
+        assertTrue("$indices", "index_items_missingSince" in indices)
     }
 
     /** Folder 1, "Séries", as schema [from] holds it, from 8; version 20's tables, made by Room, hold no default for heldKept. */

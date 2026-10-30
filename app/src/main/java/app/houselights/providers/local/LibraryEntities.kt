@@ -204,6 +204,9 @@ data class SeasonCounts(val seasonId: Long, val episodes: Int, val played: Int)
 
 data class ItemNfo(val sourceId: Long, val nfoPath: String?, val nfo: String?)
 
+/** A row's NFO text, read for many rows at once ([LibraryDao.nfosOf]). */
+data class RowNfo(val id: Long, val nfo: String)
+
 data class PlayState(
     /** See [ItemEntity.parts]. */
     val parts: List<String>,
@@ -263,7 +266,7 @@ data class CollectionMember(
     indices = [
         Index("parentId"), Index("seriesId"), Index(value = ["sourceId", "filePath"]), Index("matchKey"), Index("collectionId"),
         Index(value = ["kind", "sortTitle"]), Index(value = ["kind", "addedAt"]), Index(value = ["kind", "lastPlayedAt"]),
-        Index(value = ["kind", "tmdbId"]), Index("versionOf"), Index("matchState"),
+        Index(value = ["kind", "tmdbId"]), Index("versionOf"), Index("matchState"), Index("missingSince"),
     ],
 )
 data class ItemEntity(

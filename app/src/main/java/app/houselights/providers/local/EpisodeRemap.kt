@@ -37,6 +37,9 @@ internal class EpisodeRemap(private val dao: LibraryDao, private val seasons: Sh
         val sources = placements.map { it.second.season }.distinct().associateWith { numbering.order.seasonSource(it) }
         val details = details(series.tmdbId, placements.mapNotNull { it.second.tmdb?.season } + sources.values.mapNotNull { it.tmdbSeason })
             ?: return null
+        // Read before the writes, a query a batch of episodes rather than one an episode in their transaction.
+        val withNfo = placements.mapNotNull { (row, _) -> row.id.takeIf { row.nfoPath != null } }
+        val nfos = dao.nfosOf(withNfo).mapValues { NfoParser.parse(it.value) }
         val now = clock()
         // A season made anew is in the folder of an episode it holds, as a scan makes it.
         val folders = placements.associate { (row, placement) -> placement.season to row.sourceId }
@@ -45,7 +48,7 @@ internal class EpisodeRemap(private val dao: LibraryDao, private val seasons: Sh
                 shownSeason(series, number, folders.getValue(number), source, details, now)
             }
             val places = placements.mapNotNull { (row, placement) ->
-                val place = placed(row, placement, numbering.order, details, seasonIds.getValue(placement.season), now)
+                val place = placed(row, nfos[row.id], placement, numbering.order, details, seasonIds.getValue(placement.season), now)
                 place.takeIf { it.copy(matchedAt = row.matchedAt) != row.place() }
             }
             if (places.isNotEmpty()) dao.placeEpisodes(places)
@@ -85,18 +88,18 @@ internal class EpisodeRemap(private val dao: LibraryDao, private val seasons: Sh
 
     /**
      * [row] at [placement] in [order], in season [seasonId]: showing another TMDB episode, it takes that one's details,
-     * its NFO's first, a thumb of its own kept; still the same, it keeps its own where TMDB gives none.
+     * its [nfo]'s first, a thumb of its own kept; still the same, it keeps its own where TMDB gives none.
      */
-    @Suppress("LongParameterList") // A row, where it goes, in which order and season, with what TMDB says of it.
-    private suspend fun placed(
+    @Suppress("LongParameterList") // A row and its NFO, where it goes, in which order and season, with what TMDB says of it.
+    private fun placed(
         row: ItemEntity,
+        nfo: NfoInfo?,
         placement: Placement,
         order: EpisodeOrder,
         details: Map<Int, TmdbSeason?>,
         seasonId: Long,
         now: Long,
     ): EpisodePlace {
-        val nfo: NfoInfo? = row.nfoPath?.let { dao.nfoOf(row.id)?.nfo }?.let(NfoParser::parse)
         val tmdb = placement.tmdb
         val meta = tmdb?.let { t -> details[t.season]?.episodes?.firstOrNull { it.episodeNumber == t.episode } }
         val shown = if (tmdb == row.tmdbNumber()) row else row.withoutDetails()

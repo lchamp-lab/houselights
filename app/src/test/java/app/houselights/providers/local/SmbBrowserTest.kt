@@ -6,6 +6,7 @@ import com.hierynomus.mserref.NtStatus
 import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -14,7 +15,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import kotlin.concurrent.thread
 
 /** SMB sessions on a NAS held in memory: which are kept, closed and reopened. On Robolectric for SystemClock. */
 @RunWith(RobolectricTestRunner::class)
@@ -22,14 +26,24 @@ class SmbBrowserTest {
     /** Folders of the share by path, "\" separators; a missing folder is refused. */
     private var tree = mapOf("" to listOf(SmbEntry("Dune (2021).mkv", isFolder = false, size = 4)))
 
+    /** Set, the next share signed in to says when it is first listed, then waits for [released] before answering. */
+    private var holdNextListing = false
+    private val listingHeld = CountDownLatch(1)
+    private val released = CountDownLatch(1)
+
     /** A share signed in to, holding [tree], recording what closed it (broken or not), in order. */
     private inner class Share : SmbShare {
         var hungUp = false
         var failure: Throwable? = null
         val closes = mutableListOf<Boolean>()
         val read = mutableListOf<String>()
+        private val held = holdNextListing.also { holdNextListing = false }
 
         override fun list(path: String): List<SmbEntry> {
+            if (held) {
+                listingHeld.countDown()
+                released.await()
+            }
             failure?.let { throw it }
             return tree[path] ?: throw smbStatus(NtStatus.STATUS_ACCESS_DENIED)
         }
@@ -66,29 +80,32 @@ class SmbBrowserTest {
         password = Secret(PASSWORD),
     )
 
+    /** The listing on a session of its own, signed off once listed; the reads that follow on one kept session. */
     @Test
     fun aSessionServesEveryFileOfAPass() = runTest {
         val films = folder()
         browser.list(films)
         browser.readPrefix(films, "Dune (2021).mkv", 16)
-        assertEquals(1, opened.size)
+        browser.readPrefix(films, "Dune (2021)/movie.nfo", 16)
+        assertEquals(2, opened.size)
+        assertEquals(listOf(listOf(false), emptyList()), opened.map { it.closes })
     }
 
     /** Measured on elapsedRealtime: a wall clock set back an hour would keep it an hour longer. */
     @Test
     fun aSessionLeftIdleIsClosedThenOpenedAgain() = runTest {
         val films = folder()
-        browser.list(films)
+        browser.readPrefix(films, "Dune (2021).mkv", 16)
         ShadowSystemClock.advanceBy(Duration.ofMillis(KeptConnections.IDLE_MS))
-        browser.list(films)
+        browser.readPrefix(films, "Dune (2021).mkv", 16)
         assertEquals(2, opened.size)
         assertEquals("signed off, not left to the NAS", listOf(false), opened[0].closes)
     }
 
     @Test
     fun twoSharesOfANasHaveASessionEachClosedWhenThePassEnds() = runTest {
-        browser.list(folder("films"))
-        browser.list(folder("shows"))
+        browser.readPrefix(folder("films"), "Dune (2021).mkv", 16)
+        browser.readPrefix(folder("shows"), "Severance/S01E01.mkv", 16)
         assertEquals(2, opened.size)
         browser.closeIdle()
         assertEquals(listOf(listOf(false), listOf(false)), opened.map { it.closes })
@@ -96,18 +113,18 @@ class SmbBrowserTest {
 
     @Test
     fun aSessionTheNasHungUpIsOpenedAgain() = runTest {
-        browser.list(folder())
+        browser.folders(folder())
         opened.single().hungUp = true
-        browser.list(folder())
+        browser.folders(folder())
         assertEquals(2, opened.size)
     }
 
     /** As smbj 0.14 throws a request answered too late: a connection that stopped answering. */
     @Test
     fun aSessionThatTimesOutIsHungUpAndOpenedAgain() = runTest {
-        browser.list(folder())
+        browser.folders(folder())
         opened.single().failure = SMBRuntimeException(TransportException(TimeoutException("Timeout expired")))
-        browser.list(folder())
+        browser.folders(folder())
         assertEquals("hung up without signing off", listOf(true), opened[0].closes)
         assertEquals(2, opened.size)
     }
@@ -116,7 +133,7 @@ class SmbBrowserTest {
     @Test
     fun aFileRefusedLeavesTheSessionOpen() = runTest {
         val films = folder()
-        browser.list(films)
+        browser.readPrefix(films, "Dune (2021).mkv", 16)
         val share = opened.single()
         share.failure = smbStatus(NtStatus.STATUS_ACCESS_DENIED)
         val refused = runCatching { browser.readPrefix(films, "movie.nfo", 16) }.exceptionOrNull()
@@ -129,9 +146,9 @@ class SmbBrowserTest {
 
     @Test
     fun aSessionTheNasEndedIsOpenedAgain() = runTest {
-        browser.list(folder())
+        browser.folders(folder())
         opened.single().failure = smbStatus(NtStatus.STATUS_NETWORK_SESSION_EXPIRED)
-        browser.list(folder())
+        browser.folders(folder())
         assertEquals(2, opened.size)
         assertEquals(listOf(true), opened[0].closes)
     }
@@ -151,7 +168,7 @@ class SmbBrowserTest {
     @Test
     fun aTestSignsInOfItsOwn() = runTest {
         val films = folder()
-        browser.list(films)
+        browser.readPrefix(films, "Dune (2021).mkv", 16)
         val typed = films.copy(password = Secret("wrong"))
         val refused = runCatching { browser.test(typed) }.exceptionOrNull()
         assertEquals(ScanErrorKind.LOGIN_FAILED, refused?.let { ScanErrors.classify(it).kind })
@@ -160,11 +177,11 @@ class SmbBrowserTest {
         assertEquals(2, opened.size)
         assertEquals("signed off once tested", listOf(false), opened[1].closes)
         assertEquals("the scan's session stays", emptyList<Boolean>(), opened[0].closes)
-        browser.list(films)
+        browser.readPrefix(films, "Dune (2021).mkv", 16)
         assertEquals(2, opened.size)
     }
 
-    /** Another user's folder, or lost+found, in the share: skipped and named, and the session kept. */
+    /** Another user's folder, or lost+found, in the share: skipped and named, and the session signed off, not hung up. */
     @Test
     fun aSubfolderRefusedIsPassedOver() = runTest {
         tree = mapOf(
@@ -175,7 +192,7 @@ class SmbBrowserTest {
         val listing = browser.list(folder())
         assertEquals(listOf("Films/Dune (2021)/Dune (2021).mkv"), listing.videos.map { it.relativePath })
         assertEquals(listOf("Private"), listing.unreadable)
-        assertEquals(emptyList<Boolean>(), opened.single().closes)
+        assertEquals(listOf(false), opened.single().closes)
     }
 
     /** A share's listing counts its videos as it finds them, a folder a request: a disc once, a trailer never. */
@@ -229,7 +246,8 @@ class SmbBrowserTest {
 
     /**
      * The add-folder flow's levels, on the share's kept session (the share list tested the account): subfolders by name,
-     * hidden and system ones left out, its videos counted, a level by its path from the folder however slashed.
+     * hidden and system ones left out, its videos counted, a level by its path from the folder however slashed. A scan's
+     * listing signs in on a session of its own, and leaves the kept one open.
      */
     @Test
     fun aLevelIsListedOnTheSharesKeptSession() = runTest {
@@ -249,8 +267,42 @@ class SmbBrowserTest {
         assertEquals(FolderLevel(listOf("Arrival", "films", "Séries"), videos = 1), browser.folders(films))
         assertEquals(FolderLevel(listOf("Dune (2021)"), videos = 0), browser.folders(films, "/films/4K/"))
         browser.list(films)
-        assertEquals("one session for the levels and the scan", 1, opened.size)
-        assertEquals(emptyList<Boolean>(), opened.single().closes)
+        assertEquals("one session for the levels, one for the listing", 2, opened.size)
+        assertEquals(listOf(emptyList(), listOf(false)), opened.map { it.closes })
+    }
+
+    /**
+     * A scan listing thousands of folders on the share, and the add-folder flow going down a level of it with the same
+     * account, then a folder saved after its address changed: neither waits for the listing to end.
+     */
+    @Test
+    fun aLevelOrASaveWhileAPassListsTheShareWaitsForNoListing() {
+        val films = folder()
+        holdNextListing = true
+        val pass = thread { runBlocking { browser.list(films) } }
+        assertTrue(listingHeld.await(5, TimeUnit.SECONDS))
+
+        var level: FolderLevel? = null
+        val asked = thread {
+            runBlocking {
+                level = browser.folders(films)
+                browser.forget(films)
+            }
+        }
+        asked.join(5_000)
+        val answered = !asked.isAlive
+        released.countDown()
+        pass.join(5_000)
+        asked.join(5_000)
+        assertTrue("a level shown and a folder saved while the pass lists", answered)
+        assertEquals(FolderLevel(emptyList(), videos = 1), level)
+        assertEquals(
+            "the listing signed off, then the level's session as forgotten",
+            listOf(listOf(false), listOf(false)),
+            opened.map {
+                it.closes
+            },
+        )
     }
 
     /** A folder the share does not hold, or the account may not read, fails as the form's test does; the session stays. */
@@ -264,9 +316,9 @@ class SmbBrowserTest {
 
     @Test
     fun forgettingAShareClosesItsSessionsWhoeverSignedIn() = runTest {
-        browser.list(folder("films", user = "kodi"))
-        browser.list(folder("films", user = ""))
-        browser.list(folder("shows", user = "kodi"))
+        browser.folders(folder("films", user = "kodi"))
+        browser.folders(folder("films", user = ""))
+        browser.folders(folder("shows", user = "kodi"))
         browser.forget(folder("films", user = "someone else"))
         assertEquals(listOf(listOf(false), listOf(false), emptyList()), opened.map { it.closes })
     }
@@ -274,10 +326,10 @@ class SmbBrowserTest {
     @Test
     fun theAppsBrowsersCloseWhatAPassKept() = runTest {
         val browsers = RemoteBrowsers(browser, NfsBrowser())
-        browsers.of(folder()).list(folder())
+        browsers.of(folder()).folders(folder())
         browsers.closeIdle()
         assertEquals(listOf(false), opened.single().closes)
-        browsers.of(folder()).list(folder())
+        browsers.of(folder()).folders(folder())
         browsers.forget(folder())
         assertEquals(listOf(false), opened[1].closes)
     }

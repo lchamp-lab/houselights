@@ -192,6 +192,10 @@ internal object MatchScore {
         "seconde" to "2", "deuxieme" to "2", "troisieme" to "3",
     )
 
+    /** Titles whose forms are kept ([forms]): a title's searches, their candidates' titles and their parts. */
+    private const val FORMS_KEPT = 1024
+    private const val LOAD_FACTOR = 0.75f
+
     /** Letters an acronym has ("SVU", "NCIS"): fewer are initials or a word, more a word in capitals. */
     private val ACRONYM_LETTERS = 3..5
 
@@ -208,13 +212,25 @@ internal object MatchScore {
     fun key(title: String): String = forms(title).first().key
 
     /**
+     * The forms of the titles read last ([forms]): a title is compared with every candidate's, each with every reading,
+     * by every verdict of its searches, and its regular expressions and folding would be run again each time.
+     */
+    private val formsRead = object : LinkedHashMap<String, List<Words>>(FORMS_KEPT, LOAD_FACTOR, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Words>>) = size > FORMS_KEPT
+    }
+
+    /** [title]'s forms ([readForms]), read once while it is among the [FORMS_KEPT] titles read last. */
+    private fun forms(title: String): List<Words> =
+        synchronized(formsRead) { formsRead[title] } ?: readForms(title).also { synchronized(formsRead) { formsRead[title] = it } }
+
+    /**
      * [title]'s words in both its forms, an apostrophe read as a space and as nothing ("Marvel's" is "marvel s" and
      * "marvels"): "&" read "and"; folded ([SortKeys.fold]); single letters joined ("S.H.I.E.L.D." is "shield"); one
      * leading article dropped (not "die", "el", "il" nor "de": "Die Hard" is never "Hard"); numbers read as digits,
      * roman ("Rocky II"), in words to twenty ("Ocean's Eleven") or ordinals ("2e partie"); a part's word beside its
      * number dropped ("Part 2" is "2"). Three to five capitals in a title in mixed case are an acronym.
      */
-    private fun forms(title: String): List<Words> {
+    private fun readForms(title: String): List<Words> {
         val text = title.replace("&", " and ")
         val cased = text.any(Char::isLowerCase) && text.any(Char::isUpperCase)
         val forms = listOf(APOSTROPHES.replace(text, " "), APOSTROPHES.replace(text, "")).distinct()
