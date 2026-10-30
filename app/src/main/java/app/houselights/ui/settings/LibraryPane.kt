@@ -77,7 +77,6 @@ import app.houselights.ui.util.titleCount
 import app.houselights.ui.util.titleText
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.launch
-import java.text.Collator
 import java.util.Locale
 
 /**
@@ -644,7 +643,7 @@ private fun MetadataLanguageRow() {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val device by vm.deviceLocale.collectAsStateWithLifecycle()
-    val tags = remember { TmdbClient.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::metadataLanguageName)) }
+    val tags = metadataLanguages.tags
     var choosing by remember { mutableStateOf(false) }
     val failure = rowFailure(vm.errorOf(SettingAction.METADATA_LANGUAGE))
     val title = stringResource(R.string.metadata_language)
@@ -659,11 +658,7 @@ private fun MetadataLanguageRow() {
     if (choosing) {
         // Each language under its own name, then in the app's when that differs.
         val deviceOption = ChoiceOption(stringResource(R.string.device_language), metadataLanguageName(device.toLanguageTag()))
-        val options = listOf(deviceOption) +
-            tags.map { tag ->
-                val own = metadataLanguageName(tag)
-                ChoiceOption(own, metadataLanguageName(tag, Locale.getDefault()).takeUnless { it.equals(own, ignoreCase = true) })
-            }
+        val options = listOf(deviceOption) + metadataLanguages.options(Locale.getDefault())
         HlChoiceSheet(
             title,
             options,
@@ -673,14 +668,6 @@ private fun MetadataLanguageRow() {
             description = stringResource(R.string.metadata_language_sheet),
         )
     }
-}
-
-/** [tag] named in [locale], by default its own ("Deutsch"), with its region where several are offered ("Français (Canada)"). */
-private fun metadataLanguageName(tag: String, locale: Locale = Locale.forLanguageTag(tag)): String {
-    val language = Locale.forLanguageTag(tag)
-    val regions = TmdbClient.LANGUAGES.count { Locale.forLanguageTag(it).language == language.language } > 1
-    val name = if (regions) language.getDisplayName(locale) else language.getDisplayLanguage(locale)
-    return name.replaceFirstChar { it.titlecase(locale) }
 }
 
 /** The Source row as Settings has it, each choice of its sheet carried out. */

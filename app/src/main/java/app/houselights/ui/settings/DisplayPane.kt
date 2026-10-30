@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.icu.util.ULocale
 import android.view.Display
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -44,7 +43,6 @@ import app.houselights.ui.design.textScaleOf
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDimensions
-import java.text.Collator
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -104,7 +102,7 @@ private fun InterfaceResolution(s: AppSettings) {
 private fun InterfaceLanguageRow(modifier: Modifier = Modifier) {
     val vm = settingsViewModel()
     val chosen by vm.interfaceLanguage.collectAsStateWithLifecycle()
-    val tags = remember { InterfaceLanguage.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::interfaceLanguageName)) }
+    val tags = interfaceLanguages.tags
     var choosing by remember { mutableStateOf(false) }
     val failure = rowFailure(vm.errorOf(SettingAction.INTERFACE_LANGUAGE))
     val title = stringResource(R.string.interface_language)
@@ -121,11 +119,7 @@ private fun InterfaceLanguageRow(modifier: Modifier = Modifier) {
     if (choosing) {
         // Each language under its own name, then in the app's when that differs.
         val device = ChoiceOption(stringResource(R.string.device_language), interfaceLanguageName(InterfaceLanguage.deviceLanguage()))
-        val options = listOf(device) +
-            tags.map { tag ->
-                val own = interfaceLanguageName(tag)
-                ChoiceOption(own, interfaceLanguageName(tag, Locale.getDefault()).takeUnless { it.equals(own, ignoreCase = true) })
-            }
+        val options = listOf(device) + interfaceLanguages.options(Locale.getDefault())
         HlChoiceSheet(
             title,
             options,
@@ -183,10 +177,6 @@ private fun TextSizeRow(current: TextSize) {
         )
     }
 }
-
-/** [tag]'s language named in [locale], by default its own ("Deutsch"), as one name where it has two scripts ("简体中文"). */
-private fun interfaceLanguageName(tag: String, locale: Locale = Locale.forLanguageTag(tag)): String =
-    ULocale.forLanguageTag(tag).getDisplayNameWithDialect(ULocale.forLocale(locale)).replaceFirstChar { it.titlecase(locale) }
 
 /**
  * The output and the render size: set by the player, with where to change it; else the system's mode, its
