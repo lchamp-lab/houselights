@@ -141,8 +141,7 @@ private const val KEPT_ROW =
         "i.versionOf, COALESCE(s.userTmdbId, s.tmdbId) AS showIdentity, s.matchKey AS showKey, " +
         "t.audio, t.subtitles, t.at AS tracksAt, i.absoluteNumber, i.userEpisodeOrder, i.userNoMatch FROM items i " +
         "LEFT JOIN items s ON i.kind = 'EPISODE' AND s.id = i.seriesId " +
-        "LEFT JOIN track_choices t ON i.kind IN ('MOVIE', 'SERIES') AND t.title = " +
-        "CASE WHEN i.kind = 'MOVIE' AND i.tmdbId IS NOT NULL THEN 'local:film:' || i.tmdbId ELSE 'local:' || i.id END"
+        "LEFT JOIN track_choices t ON i.kind IN ('MOVIE', 'SERIES') AND t.title = $TRACK_KEY"
 
 /** What the user did to titles whose files left, kept and given back ([KeptStates]; [LibraryDao] extends it). */
 @Suppress("TooManyFunctions") // A list of queries, as LibraryDao is.

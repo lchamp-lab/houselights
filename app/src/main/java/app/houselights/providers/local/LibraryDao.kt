@@ -39,9 +39,7 @@ internal const val TO_IDENTIFY =
         "OR EXISTS ($EPISODES_OF_SHOW AND e.missingSince IS NULL))"
 
 /** The keys of the local films' and shows' choices of tracks ([tracksKey]). */
-private const val TRACK_KEYS =
-    "SELECT CASE WHEN kind = 'MOVIE' AND tmdbId IS NOT NULL THEN 'local:film:' || tmdbId ELSE 'local:' || id END " +
-        "FROM items WHERE kind IN ('MOVIE', 'SERIES')"
+private const val TRACK_KEYS = "SELECT $TRACK_KEY FROM items i WHERE i.kind IN ('MOVIE', 'SERIES')"
 
 /**
  * A film's or an episode's row held while its file is missing ([MissingFiles.isDrop]): its folder, what it is (an episode by

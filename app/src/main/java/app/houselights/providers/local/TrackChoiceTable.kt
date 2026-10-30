@@ -35,6 +35,10 @@ internal fun tracksKey(id: Long, kind: ItemKind, seriesId: Long?, tmdbId: Int?) 
     else -> "local:$id"
 }
 
+/** [tracksKey] in SQL, of a film's or a show's row read as `i` (an episode's is its show's). */
+internal const val TRACK_KEY =
+    "CASE WHEN i.kind = 'MOVIE' AND i.tmdbId IS NOT NULL THEN 'local:film:' || i.tmdbId ELSE 'local:' || i.id END"
+
 @Dao
 interface TrackChoiceDao {
     @Query("SELECT * FROM track_choices WHERE title = :title")
