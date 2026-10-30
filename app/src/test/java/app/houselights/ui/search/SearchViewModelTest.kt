@@ -177,6 +177,37 @@ class SearchViewModelTest {
         assertFalse(found(vm).single().user.played)
     }
 
+    /** The library changed, a title marked from its page: the search shown is read again, as the source says it now. */
+    @Test
+    fun aChangeOfTheLibraryReadsTheSearchAgain() = runTest {
+        val vm = SearchViewModel({ provider })
+        backgroundScope.launch { vm.found.collect {} }
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+
+        catalog.found = SearchResults(titles = listOf(film("amelie", "Amélie").markedAs(true)))
+        vm.reload()
+        advanceUntilIdle()
+        assertEquals(listOf("search AME", "search AME"), catalog.calls)
+        assertTrue(found(vm).single().user.played)
+    }
+
+    /** Away from the screen a while, nothing changed: the results are kept, never read again on its return. */
+    @Test
+    fun theSearchIsNotReadAgainOnItsReturnWithNothingChanged() = runTest {
+        val vm = SearchViewModel({ provider })
+        val away = backgroundScope.launch { vm.found.collect {} }
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+        away.cancel()
+        advanceTimeBy(AWAY_MS)
+
+        backgroundScope.launch { vm.found.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf("search AME"), catalog.calls)
+        assertEquals("amelie", found(vm).single().id)
+    }
+
     /**
      * Two changes of one result, neither saved, show it as found whichever fails first, the one still saving showing
      * meanwhile: marked then made a favourite, or marked then unmarked.
@@ -251,4 +282,9 @@ class SearchViewModelTest {
     }
 
     private fun found(vm: SearchViewModel) = checkNotNull(vm.found.value?.results?.valueOrNull).titles
+
+    private companion object {
+        /** Longer than a screen's results were kept after it was left. */
+        const val AWAY_MS = 60_000L
+    }
 }

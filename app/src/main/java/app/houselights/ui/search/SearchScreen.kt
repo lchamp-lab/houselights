@@ -61,6 +61,7 @@ import app.houselights.ui.library.PosterOptions
 import app.houselights.ui.library.actions
 import app.houselights.ui.library.saidFor
 import app.houselights.ui.util.LoadState
+import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.valueOrNull
@@ -84,6 +85,8 @@ fun SearchScreen(
     val query by vm.query.collectAsStateWithLifecycle()
     // Read only below and while settling, so new results recompose the results, never the keyboard.
     val found = vm.found.collectAsStateWithLifecycle()
+    // A title marked from its page, a scan: the results read again, on their return too.
+    ReloadOnLibraryChange { vm.reload() }
     val firstKey = remember { FocusRequester() }
     val memory = rememberFocusMemory()
     RestoreFocus(memory, firstKey)

@@ -33,6 +33,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -42,7 +44,8 @@ data class Found(val query: String, val results: LoadState<SearchResults>)
 
 /**
  * Library search: [query] updates on each key; [found] follows [WAIT_MS] after the last key, null while the query
- * is empty, a running search being cancelled by the next key; [retry] runs a failed one again. The query is kept
+ * is empty, a running search being cancelled by the next key; [retry] runs a failed one again, [reload] any once the
+ * library changed, the results shown meanwhile. The query is kept
  * in [saved], typed key by key on the remote, in case Android stops the app while a film plays. A result's options mark
  * a title or a saga, or make a title a favourite (#47), shown at once, saved in [work] and told to the other screens
  * ([events]).
@@ -60,6 +63,7 @@ class SearchViewModel(
     val query: StateFlow<String> = saved.getStateFlow(QUERY, "")
 
     private val retries = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val reloads = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     /** The results as their options changed them, shown over the read of the search they were changed in. */
     private val marked = MutableStateFlow(Changed())
@@ -77,9 +81,9 @@ class SearchViewModel(
                 flow {
                     var found = search(words)
                     emit(found)
-                    retries.collect {
-                        if (found.results !is LoadState.Failed) return@collect
-                        emit(found.copy(results = found.results.readingAgain()))
+                    merge(retries.map { true }, reloads.map { false }).collect { retrying ->
+                        if (retrying && found.results !is LoadState.Failed) return@collect
+                        if (retrying) emit(found.copy(results = found.results.readingAgain()))
                         found = search(words)
                         emit(found)
                     }
@@ -88,7 +92,8 @@ class SearchViewModel(
         }
         .onEach { read = it }
         .combine(marked) { searched, changes -> searched?.let { changes.over(it) } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), null)
+        // Kept while the view model lives: the library changing is what reads it again ([reload]).
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
     private suspend fun search(words: String): Found =
         Found(words, loadState(TAG, "Search") { provider().catalog?.search(words) ?: SearchResults() })
@@ -127,6 +132,11 @@ class SearchViewModel(
         retries.tryEmit(Unit)
     }
 
+    /** Runs the search shown again, the library having changed, its results shown until the new ones come. */
+    fun reload() {
+        reloads.tryEmit(Unit)
+    }
+
     fun type(key: Char) = update { it + key }
 
     /** Adds a space, unless the query is empty or already ends with one. */
@@ -142,7 +152,6 @@ class SearchViewModel(
         /** A search starts this long after the last key. */
         const val WAIT_MS = 150L
 
-        private const val STOP_AFTER_MS = 5_000L
         private const val TAG = "Search"
         private const val QUERY = "query"
 
