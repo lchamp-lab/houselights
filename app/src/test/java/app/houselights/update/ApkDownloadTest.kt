@@ -77,7 +77,7 @@ class ApkDownloadTest {
 
     private fun asked() = List(server.requestCount) { server.takeRequest().host }
 
-    private fun download(space: Long = Long.MAX_VALUE) = ApkDownload(dir, github.http, space = { space })
+    private fun download(space: Long = Long.MAX_VALUE) = ApkDownload(dir, github::http, space = { space })
 
     private fun fetch(offer: UpdateOffer = apk(), space: Long = Long.MAX_VALUE, progress: (Long, Long) -> Unit = { _, _ -> }): File =
         runBlocking { download(space).fetch(offer, progress) }
@@ -121,7 +121,7 @@ class ApkDownloadTest {
         assertFalse(GithubHops.allowed("http://github.com/a".toHttpUrl()))
         // The project's own client, which a test cannot serve over HTTPS: a plain HTTP hop never leaves the device.
         serve({ MockResponse().setBody(Buffer().write(bytes)) })
-        val strict = ApkDownload(dir, GithubReleases(REPO, base).http)
+        val strict = ApkDownload(dir, GithubReleases(REPO, base)::http)
         assertThrows(RefusedHopException::class.java) { runBlocking { strict.fetch(apk()) { _, _ -> } } }
         assertEquals(0, server.requestCount)
         assertEquals(emptyList<String>(), left())

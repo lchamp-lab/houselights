@@ -279,12 +279,15 @@ class LocalEditor(
         val shows = rows.filter { it.kind == ItemKind.SERIES }.map { it.id }
         val showFiles = shows.chunked(SQL_IN_LIMIT).flatMap { dao.showFiles(it) }.associate { it.seriesId to it.filePath }
         val offered = rows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.suggestionsOf(it) }.groupBy { it.itemId }
-        return rows.mapNotNull { e ->
-            val doubt = e.doubt() ?: return@mapNotNull null
-            // A film's file, or a show's folder, under the folder's name: "Films/Dune.mkv".
-            val within = if (e.kind == ItemKind.SERIES) showFiles[e.id]?.let(FilenameParser::parseShowPath)?.dir else e.filePath
-            val place = listOfNotNull(folders[e.sourceId], within?.ifEmpty { null }).joinToString("/").ifEmpty { null }
-            ToIdentify(e.listed(doubt), place, doubt, offered[e.id].orEmpty().map { it.toCandidate() })
+        // Each title and suggestion typeset, each show's path parsed: off the main thread, as the catalog's.
+        return withContext(Dispatchers.Default) {
+            rows.mapNotNull { e ->
+                val doubt = e.doubt() ?: return@mapNotNull null
+                // A film's file, or a show's folder, under the folder's name: "Films/Dune.mkv".
+                val within = if (e.kind == ItemKind.SERIES) showFiles[e.id]?.let(FilenameParser::parseShowPath)?.dir else e.filePath
+                val place = listOfNotNull(folders[e.sourceId], within?.ifEmpty { null }).joinToString("/").ifEmpty { null }
+                ToIdentify(e.listed(doubt), place, doubt, offered[e.id].orEmpty().map { it.toCandidate() })
+            }
         }
     }
 

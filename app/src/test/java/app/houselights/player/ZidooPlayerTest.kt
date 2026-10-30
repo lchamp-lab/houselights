@@ -53,6 +53,24 @@ class ZidooPlayerTest {
         assertEquals(listOf("com.zidoo.poster"), device.zidooApps)
     }
 
+    /**
+     * Zidoo's system apps change only with the firmware, which restarts the app: Android is asked for every app once,
+     * the players at each choice.
+     */
+    @Test
+    fun zidoosSystemAppsAreReadOnceAndThePlayersAtEachChoice() {
+        val players = ZidooPlayer(context) { REALTEK_BUILD }
+        assertFalse(players.choose().device.zidoo)
+        apps.install("com.zidoo.poster", system = true)
+        assertFalse("read once", players.choose().device.zidoo)
+        assertTrue("read again by another", ZidooPlayer(context) { REALTEK_BUILD }.choose().device.zidoo)
+
+        val zidoo = ZidooPlayer(context) { ZIDOO_BUILD }
+        assertNull(zidoo.choose().player)
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true)
+        assertEquals(ZIDOO_PLAYER_ACTIVITY, zidoo.choose().playerClass())
+    }
+
     /** A newer firmware: its own player opens videos, at the addresses the app hands over. */
     @Test
     fun onAZidooTheFirmwaresVideoAppIsFound() {

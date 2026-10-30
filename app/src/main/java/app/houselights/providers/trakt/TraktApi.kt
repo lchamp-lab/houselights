@@ -3,6 +3,8 @@ package app.houselights.providers.trakt
 import app.houselights.core.Decoded
 import app.houselights.core.decodeCounted
 import app.houselights.core.serverJson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import retrofit2.Response
 import retrofit2.http.Body
@@ -65,13 +67,26 @@ interface TraktApi {
     suspend fun scrobbleStop(@Body body: ScrobbleRequest)
 }
 
-// An entry this version cannot read is left out and logged, rather than the whole list.
+// An entry this version cannot read is left out and logged, rather than the whole list. A list can hold thousands of
+// entries: they are decoded off the caller's thread, which is the main one for a sync.
 
-suspend fun TraktApi.watchedMovies(): Decoded<WatchedMovie> =
-    serverJson.decodeCounted(WatchedMovie.serializer(), watchedMovieEntries(), "Trakt sync/watched/movies")
+suspend fun TraktApi.watchedMovies(): Decoded<WatchedMovie> {
+    val entries = watchedMovieEntries()
+    return withContext(Dispatchers.Default) {
+        serverJson.decodeCounted(WatchedMovie.serializer(), entries, "Trakt sync/watched/movies")
+    }
+}
 
-suspend fun TraktApi.watchedShows(): Decoded<WatchedShow> =
-    serverJson.decodeCounted(WatchedShow.serializer(), watchedShowEntries(), "Trakt sync/watched/shows")
+suspend fun TraktApi.watchedShows(): Decoded<WatchedShow> {
+    val entries = watchedShowEntries()
+    return withContext(Dispatchers.Default) {
+        serverJson.decodeCounted(WatchedShow.serializer(), entries, "Trakt sync/watched/shows")
+    }
+}
 
-suspend fun TraktApi.playback(): Decoded<PlaybackProgress> =
-    serverJson.decodeCounted(PlaybackProgress.serializer(), playbackEntries(), "Trakt sync/playback")
+suspend fun TraktApi.playback(): Decoded<PlaybackProgress> {
+    val entries = playbackEntries()
+    return withContext(Dispatchers.Default) {
+        serverJson.decodeCounted(PlaybackProgress.serializer(), entries, "Trakt sync/playback")
+    }
+}

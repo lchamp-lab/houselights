@@ -104,7 +104,8 @@ internal fun SettingsScreen(
         toIdentify = onOpenToIdentify,
     )
     val s by vm.settings.collectAsStateWithLifecycle()
-    val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts, vm.asksTracks, s.keepsTrakt)
+    val asksTracks by vm.asksTracks.collectAsStateWithLifecycle()
+    val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts, asksTracks, s.keepsTrakt)
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
     // A failed change is reported in the pane it was made in, not in the next one.
     LaunchedEffect(pane) { vm.clearActionError() }
@@ -301,9 +302,12 @@ private fun PaneContent(
     added: NewFolder? = null,
 ) {
     val vm = settingsViewModel()
+    val asksTracks by vm.asksTracks.collectAsStateWithLifecycle()
     val counted = if (pane == Pane.Numbers) numbersViewModel() else null
     // The library is counted the first time its pane shows, and its numbers kept while Settings is open.
     LaunchedEffect(counted) { counted?.count() }
+    // The storage is measured each time its pane shows.
+    LaunchedEffect(pane) { if (pane == Pane.Storage) vm.refreshStorage() }
     val trakt = if (pane == Pane.Trakt) traktViewModel() else null
     LazyColumn(
         state = list,
@@ -325,7 +329,7 @@ private fun PaneContent(
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, sources, rows, added)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
-            Pane.Playback -> playbackPane(s, server = vm.capabilities.pathMapping, tracks = vm.asksTracks)
+            Pane.Playback -> playbackPane(s, server = vm.capabilities.pathMapping, tracks = asksTracks)
             Pane.Trakt -> trakt?.let { traktPane(it, s.trakt, folders, unread = SecretSetting.TRAKT in s.unreadSecrets) }
             Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
