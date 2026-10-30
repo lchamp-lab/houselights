@@ -231,6 +231,24 @@ class LibraryDaoTest {
         assertEquals("not to identify", emptyList<ItemEntity>(), dao.toIdentify())
     }
 
+    /** Two season packs merging into one show: the tracks chosen for the show left go on, unless the other has its own. */
+    @Test
+    fun aShowTakenOverHandsItsChoiceOfTracksOver() = runTest {
+        val choices = db.trackChoices()
+        val left = dao.insert(row(ItemKind.SERIES, "Vacances S01"))
+        val taking = dao.insert(row(ItemKind.SERIES, "Vacances"))
+        choices.save(TrackChoiceEntity("local:$left", "eng", "fre", at = 5))
+        dao.handOver(left, taking)
+        dao.deleteItems(listOf(left))
+        dao.deleteOrphanTrackChoices()
+        assertEquals("eng" to "fre", choices.choice("local:$taking")?.let { it.audio to it.subtitles })
+
+        val other = dao.insert(row(ItemKind.SERIES, "Vacances S02"))
+        choices.save(TrackChoiceEntity("local:$other", "fre", null, at = 6))
+        dao.handOver(other, taking)
+        assertEquals("its own stays", "eng", choices.choice("local:$taking")?.audio)
+    }
+
     @Test
     fun holdsMoreItemsThanAStatementTakes() = runTest {
         val ids = films(1_500)
