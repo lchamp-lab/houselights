@@ -166,6 +166,32 @@ class IdentifyScreenTest {
         compose.onNodeWithText("Heat").assertExists()
     }
 
+    /**
+     * A search's results coming in the suggestions' place, under focus: an OK given as they come chooses none of them
+     * unseen, as for the first ones; a deliberate OK then chooses the one in focus.
+     */
+    @Test
+    fun okAsASearchsResultsComeChoosesNoneUnseen() {
+        val searching = provider.gate("search Vacances")
+        show(identity(MatchDoubt.UNSURE, suggestions = listOf(dune, lynch)))
+        compose.onNode(hasText("Search") and hasClickAction()).requestFocus()
+        compose.mainClock.advanceTimeBy(HlMotion.SETTLE)
+        compose.press(Key.DirectionCenter)
+        // While it searches, the suggestions stay, focus back on the first of them, long past their own calm.
+        compose.onNode(hasText("2021", substring = true) and hasClickAction()).requestFocus()
+        compose.mainClock.advanceTimeBy(HlMotion.SETTLE)
+
+        searching.complete(Unit)
+        compose.waitForIdle()
+        focusIsOn("Heat")
+        compose.press(Key.DirectionCenter)
+        assertTrue("none chosen unseen", provider.calls.none { it.startsWith("identify") })
+
+        compose.mainClock.advanceTimeBy(HlMotion.SETTLE)
+        compose.press(Key.DirectionCenter)
+        assertTrue("identify m1 949" in provider.calls)
+    }
+
     /** A search that fails says why above the suggestions it leaves, the library out of reach by where it lies. */
     @Test
     fun aSearchFailingSaysTheServerOutOfReach() {
