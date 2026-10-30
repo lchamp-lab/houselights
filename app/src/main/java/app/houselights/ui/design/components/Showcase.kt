@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,7 +27,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorProducer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Text
 import app.houselights.core.ImageRef
@@ -134,6 +137,44 @@ private fun ShowcaseFacts(facts: List<String?>, state: String?, light: StatusSta
 
 /** Posters across a showcase. */
 const val SHOWCASE_SLOTS = 4
+
+/**
+ * The room a [Showcase] takes in its row, nothing drawn there nor read: a pane whose showcases are still to read keeps
+ * their place with it, so what is under them never moves as they come.
+ */
+@Composable
+internal fun ShowcaseSpace(modifier: Modifier = Modifier) {
+    // Laid out as a showcase is, its posters across and its words over their foot, its name beside a printed mark (the
+    // taller of the two holds their line), a state on its facts' line; never placed, so only its height counts.
+    Box(
+        modifier
+            .width(HlSize.showcase)
+            .clearAndSetSemantics {}
+            .layout { measurable, constraints ->
+                val room = measurable.measure(constraints)
+                layout(room.width, room.height) {}
+            },
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSize.hairline)) {
+            repeat(SHOWCASE_SLOTS) { Spacer(Modifier.weight(1f).aspectRatio(HlSize.POSTER_RATIO)) }
+        }
+        Column(
+            Modifier.padding(
+                start = ShowcaseDefaults.inset,
+                end = ShowcaseDefaults.inset,
+                top = ShowcaseDefaults.nameTop,
+                bottom = ShowcaseDefaults.inset,
+            ),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                Text(" ", style = Hl.type.subject, maxLines = 1)
+                Badge(" ")
+            }
+            Spacer(Modifier.height(HlSpace.s))
+            ShowcaseFacts(emptyList(), state = " ", light = StatusState.Done)
+        }
+    }
+}
 
 /**
  * Melts what it draws into its [plate] ([LocalPlate]) at its foot, along a curve of the system ([foot]); the plate

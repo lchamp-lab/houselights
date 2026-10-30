@@ -42,10 +42,16 @@ internal class SmbBrowser(
 
     private val unreadable = UnreadablePaths()
 
-    /** A folder a request, each answer holding its entries' details: the count moves a folder at a time. */
-    override suspend fun list(source: SourceEntity, found: (Int) -> Unit): Listing = withSession(source) { share ->
-        val root = folder(share, remotePath(source, separator = '\\'))
-        walk(root, unreadable.of(source), found) { ScanErrors.isUnreachable(it) || isBroken(it) }
+    /**
+     * A folder a request, each answer holding its entries' details: the count moves a folder at a time. On a session of
+     * its own, signed off once listed: a walk of thousands of folders would otherwise hold the share's kept session, and
+     * the add-folder flow's levels and a folder's save ([forget]) on the same share would wait for its end.
+     */
+    override suspend fun list(source: SourceEntity, found: (Int) -> Unit): Listing = withContext(Dispatchers.IO) {
+        sessions.once({ connect(source) }) { share ->
+            val root = folder(share, remotePath(source, separator = '\\'))
+            walk(root, unreadable.of(source), found) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        }
     }
 
     /** Uses a fresh session with the form's credentials, as a kept session would accept a wrong password. */
@@ -56,7 +62,7 @@ internal class SmbBrowser(
     }
 
     /**
-     * On the share's kept session, as a scan's reads, so that going down a level costs no sign-in: the add-folder flow
+     * On the share's kept session, as a scan's reads (not its listing), so that going down a level costs no sign-in: the add-folder flow
      * tests the account by listing the NAS's shares ([shares]), on a connection of its own, before any level.
      */
     override suspend fun folders(source: SourceEntity, path: String): FolderLevel = withSession(source) { share ->

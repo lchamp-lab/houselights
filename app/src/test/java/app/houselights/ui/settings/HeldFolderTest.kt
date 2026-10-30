@@ -82,6 +82,7 @@ class HeldFolderTest {
     private val room = Executors.newSingleThreadExecutor()
     private lateinit var db: LibraryDatabase
     private lateinit var store: SettingsStore
+    private lateinit var library: LocalLibrary
     private lateinit var vm: SettingsViewModel
     private var films = 0L
 
@@ -116,15 +117,8 @@ class HeldFolderTest {
         val idle = CoroutineScope(Job().apply { cancel() })
         val dao = Answers(db.dao()) { refused }
         val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(context, dao, scanner, artwork) {}
+        library = LocalLibrary(context, dao, scanner, artwork) {}
         store = testSettings(folder.root, files)
-        val factory = viewModelFactory {
-            initializer {
-                val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> })
-                SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = null)
-            }
-        }
-        vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
     }
 
     @After
@@ -158,6 +152,14 @@ class HeldFolderTest {
             store.setSource(SourceConfig.Local, null)
             store.state.first { it.source == SourceConfig.Local }
         }
+        // Settings opened on them: it reads the titles held as it opens, then follows a scan's writes at its pace.
+        val factory = viewModelFactory {
+            initializer {
+                val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> })
+                SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = null)
+            }
+        }
+        vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
         compose.setTvContent {
             CompositionLocalProvider(LocalSettingsViewModel provides vm) {
                 val s by vm.settings.collectAsStateWithLifecycle()

@@ -185,9 +185,12 @@ class DetailViewModel(
                 coroutineScope {
                     val source = provider()
                     val item = source.item(itemId)
-                    val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
+                    // A saga's page shows neither titles like it nor people: neither is asked for, nor waited for.
+                    val collection = item.kind == MediaKind.COLLECTION
+                    val similar = async { if (source.capabilities.similar && !collection) source.similar(item) else emptyList() }
                     // Optional: on failure the page keeps its cast.
                     val credits = async {
+                        if (collection) return@async null
                         suspendRunCatching { source.catalog?.credits(item) }.onFailure { Log.w(TAG, "Credits of $itemId", it) }.getOrNull()
                     }
                     when (item.kind) {

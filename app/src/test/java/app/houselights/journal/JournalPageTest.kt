@@ -72,6 +72,17 @@ class JournalPageTest {
         assertTrue(text, text.contains("${lines.first()}\n"))
     }
 
+    /** Lines the journal masked as it read them ([MaskedLines]) are shown as they are: never masked a second time. */
+    @Test
+    fun linesMaskedAsTheyWereReadAreNotMaskedAgain() {
+        // A line that masking would change again: shown, it says it was not.
+        val masked = MaskedLines(listOf("10-23 10:42:12.000  4321  4350 D Settings: password: hunter2"))
+        val text = JournalPage.text(head, masked)
+        val page = JournalPage.html(head, masked, words, "k7f2.txt", "n0nce")
+        assertTrue(text, text.contains("password: hunter2\n"))
+        assertTrue(page, page.contains("password: hunter2"))
+    }
+
     @Test
     fun itsStyleAndScriptCarryTheNonceAndNothingComesFromElsewhere() {
         val page = page()

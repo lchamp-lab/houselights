@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import androidx.room.withTransaction
+import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Job
 import app.houselights.core.Library
@@ -8,6 +9,8 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
+import app.houselights.core.WatchStatus
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -17,6 +20,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -28,6 +32,9 @@ class LargeLibraryTest {
     private lateinit var provider: LocalProvider
     private val queries = AtomicInteger()
 
+    /** The statements run and their arguments, as Room's query callback tells them, for [planOf]. */
+    private val ran = CopyOnWriteArrayList<Pair<String, List<Any?>>>()
+
     /** Room's query executor, where the invalidation tracker runs after each write: [measure] waits for it. */
     private lateinit var roomWork: ExecutorService
 
@@ -35,7 +42,13 @@ class LargeLibraryTest {
     fun fill() = runBlocking {
         roomWork = Executors.newSingleThreadExecutor()
         db = testDatabase {
-            setQueryCallback({ _, _ -> queries.incrementAndGet() }, Runnable::run)
+            setQueryCallback(
+                { sql, args ->
+                    queries.incrementAndGet()
+                    ran += sql to args.toList()
+                },
+                Runnable::run,
+            )
             setQueryExecutor(roomWork)
             allowMainThreadQueries()
         }
@@ -120,6 +133,42 @@ class LargeLibraryTest {
         val result = block()
         println("$label: ${(System.nanoTime() - start) / 1_000_000} ms, ${queries.get()} queries")
         return result to queries.get()
+    }
+
+    /** The steps SQLite takes, as EXPLAIN QUERY PLAN words them, for the first statement [block] runs whose SQL holds [sql]. */
+    private suspend fun planOf(sql: String, block: suspend () -> Unit): List<String> {
+        roomWork.submit {}.get()
+        ran.clear()
+        block()
+        val (statement, args) = ran.first { sql in it.first }
+        return db.openHelper.readableDatabase.query(SimpleSQLiteQuery("EXPLAIN QUERY PLAN $statement", args.toTypedArray())).use { c ->
+            val detail = c.getColumnIndexOrThrow("detail")
+            buildList { while (c.moveToNext()) add(c.getString(detail)) }
+        }
+    }
+
+    /**
+     * The titles held while their files are missing, which home reads again every two seconds of a scan, are read through
+     * their index rather than the whole library; the films and shows to identify, whose count home follows, never through
+     * it, as those not held are nearly the whole library, and the walls' filters still through their order's index.
+     */
+    @Test
+    fun heldTitlesAreReadThroughTheirIndexAndTheOtherListsKeepTheirs() = runTest {
+        val dao = db.dao()
+        val held = planOf("LEFT JOIN items s") { dao.observeHeld().first() }
+        assertTrue("$held", held.any { "index_items_missingSince" in it } && held.none { it.startsWith("SCAN") })
+        val heldOf = planOf("missingSince") { dao.heldOf(1) }
+        assertTrue("$heldOf", heldOf.none { it.startsWith("SCAN") })
+        val toIdentify = planOf("matchState") { dao.observeToIdentifyCount().first() }
+        assertTrue("$toIdentify", toIdentify.none { "index_items_missingSince" in it || it.startsWith("SCAN") })
+
+        val unwatched = LibraryFilter(status = WatchStatus.UNWATCHED)
+        val filmsWall = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
+        val films = planOf(WALL_ORDER) { provider.libraryPage(filmsWall, SortOption.TITLE, unwatched, 0, PAGE) }
+        assertTrue("$films", films.any { "index_items_kind_sortTitle" in it })
+        val showsWall = Library(LocalProvider.SHOWS, LibraryKind.SHOWS, null)
+        val shows = planOf(WALL_ORDER) { provider.libraryPage(showsWall, SortOption.TITLE, unwatched, 0, PAGE) }
+        assertTrue("$shows", shows.any { "index_items_kind_sortTitle" in it } && shows.any { "index_items_seriesId" in it })
     }
 
     @Test
@@ -237,6 +286,9 @@ class LargeLibraryTest {
         const val EPISODES_PER_SEASON = 10
         const val NFO_BYTES = 20_000
         const val PAGE = 120
+
+        /** A wall's page by title, its count aside. */
+        const val WALL_ORDER = "ORDER BY sortTitle ASC, id"
 
         /** Its rows, their shows' counts, sources' first scans, and once per list of films their copies held (LocalMapper). */
         const val HOME_QUERIES = 11

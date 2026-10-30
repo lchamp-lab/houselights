@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
         KeptStateEntity::class, SuggestionEntity::class, EpisodeOrderEntity::class, IgnoredFileEntity::class,
         SagaChoiceEntity::class,
     ],
-    version = 22,
+    version = 23,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
@@ -357,6 +357,16 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
+         * v22 → v23: an index on when a title's file was first missed ([ItemEntity.missingSince]), so that the titles held
+         * are read through it rather than through the whole library; nothing else changes.
+         */
+        private val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_missingSince` ON `items` (`missingSince`)")
+            }
+        }
+
+        /**
          * Sets [MediaInfo.tracksInOrder] where the probe read the tracks, so that no file is read again for it; decoded
          * in Kotlin as in [MIGRATION_10_11], by batches so a large library's JSON is never held whole.
          */
@@ -520,7 +530,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
             MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20,
-            MIGRATION_20_21, MIGRATION_21_22,
+            MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =

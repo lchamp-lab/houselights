@@ -61,7 +61,8 @@ class LocalJournal(
 
             override suspend fun text() = JournalPage.text(head(facts.await()), log.read())
         }
-        val few = log.read().size < AppLog.FEW_LINES
+        // Counted, not masked: whether there is almost nothing yet.
+        val few = log.count() < AppLog.FEW_LINES
         try {
             JournalServer(address, content).serve { opened(JournalAccess.Open(it, few)) }
         } catch (e: IOException) {

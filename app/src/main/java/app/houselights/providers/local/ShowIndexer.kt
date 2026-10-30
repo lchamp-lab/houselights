@@ -695,34 +695,49 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
     /**
      * After a new match, applies the prefetched season [details], stored NFOs and local thumbs, in TMDB's seasons; an
-     * episode numbered from its show's start is read again at the next pass, to be placed in the new show's.
+     * episode numbered from its show's start is read again at the next pass, to be placed in the new show's. An episode
+     * is written where it stands and what it shows alone ([EpisodePlace]), from its row just read, a season's at once:
+     * none is read again, and nothing the user did to it is written.
      */
     private suspend fun refreshSeasons(series: ItemEntity, details: Map<Int, TmdbSeason?>, now: Long) {
         for (season in dao.children(series.id).filter { it.kind == ItemKind.SEASON }) {
             val meta = season.seasonNumber?.let { details[it] }
             dao.saveScanned(season.withSeasonDetails(meta, now))
-            for (episode in dao.children(season.id)) {
+            val places = dao.children(season.id).map { episode ->
                 if (episode.absoluteNumber != null) {
-                    dao.saveScanned(episode.copy(matchedAt = null))
-                    continue
+                    episode.copy(matchedAt = null).place()
+                } else {
+                    val episodeMeta = meta?.episodes?.firstOrNull { it.episodeNumber == episode.episodeNumber }
+                    val cleared = episode.copy(
+                        title = "", overview = null, stillPath = null, runtimeMin = null, rating = null, year = null, tmdbSeason = null,
+                        tmdbEpisode = null, tmdbLastEpisode = null,
+                    )
+                    val thumb = episode.stillPath?.takeIf { it.isCachedArtwork() }
+                    cleared.withEpisodeDetails(episode.nfoInfo(), episodeMeta, thumb, if (episodeMeta != null) now else null).place()
                 }
-                val nfo = episode.nfoInfo()
-                val episodeMeta = meta?.episodes?.firstOrNull { it.episodeNumber == episode.episodeNumber }
-                val cleared = episode.copy(
-                    title = "", overview = null, stillPath = null, runtimeMin = null, rating = null, year = null, tmdbSeason = null,
-                    tmdbEpisode = null, tmdbLastEpisode = null,
-                )
-                val thumb = episode.stillPath?.takeIf { it.isCachedArtwork() }
-                dao.saveScanned(cleared.withEpisodeDetails(nfo, episodeMeta, thumb, if (episodeMeta != null) now else null))
             }
+            if (places.isNotEmpty()) dao.placeEpisodes(places)
         }
     }
 
-    /** Caches answered TMDB seasons per pass; unanswered ones are retried, which the pass's breaker keeps cheap. */
+    /**
+     * Caches answered TMDB seasons per pass; unanswered ones are retried, which the pass's breaker keeps cheap. The
+     * [MAX_SEASONS] used last only, each holding every episode's name and overview: a pass reads a show's episodes one
+     * after the other, and a first scan of hundreds of shows would otherwise hold them all until it ends.
+     */
     class SeasonCache(private val tmdb: TmdbPass) {
-        private val cache = mutableMapOf<Pair<Int, Int>, TmdbAnswer.Given<TmdbSeason>>()
+        private val cache = object : LinkedHashMap<Pair<Int, Int>, TmdbAnswer.Given<TmdbSeason>>(MAX_SEASONS, LOAD_FACTOR, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Pair<Int, Int>, TmdbAnswer.Given<TmdbSeason>>) =
+                size > MAX_SEASONS
+        }
 
         suspend fun get(tvId: Int, season: Int): TmdbAnswer<TmdbSeason> =
             cache[tvId to season] ?: tmdb.ask { it.season(tvId, season) }.also { if (it is TmdbAnswer.Given) cache[tvId to season] = it }
+
+        internal companion object {
+            /** More than the seasons of nearly any show, so that one is never asked twice in a pass. */
+            const val MAX_SEASONS = 64
+            private const val LOAD_FACTOR = 0.75f
+        }
     }
 }

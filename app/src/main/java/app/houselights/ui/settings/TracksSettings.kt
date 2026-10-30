@@ -14,14 +14,12 @@ import app.houselights.R
 import app.houselights.core.Languages
 import app.houselights.core.SubtitleMode
 import app.houselights.core.TrackPreferences
-import app.houselights.providers.local.TmdbClient
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
-import java.text.Collator
 import java.util.Locale
 
 /** The audio and subtitles asked of the player for every title, each chosen in a side sheet; a title may keep its own. */
@@ -45,23 +43,23 @@ internal fun TracksGroup(tracks: TrackPreferences) {
 private fun AudioRow(tracks: TrackPreferences, app: Locale, onChoose: (String?) -> Unit) {
     var choosing by remember { mutableStateOf(false) }
     val title = stringResource(R.string.audio_language)
-    val ownLanguage = languageName(app.language, app)
+    val ownLanguage = trackLanguageName(app.language, app)
     HlSettingRow(
         title,
         value = when (val audio = tracks.audio) {
             null -> stringResource(R.string.tracks_player)
             TrackPreferences.INTERFACE -> ownLanguage
-            else -> languageName(audio, app)
+            else -> trackLanguageName(audio, app)
         },
         description = stringResource(if (tracks.audio == null) R.string.audio_language_player_desc else R.string.audio_language_desc),
         onClick = { choosing = true },
     )
     if (choosing) {
-        val codes = trackLanguages()
+        val codes = trackLanguages.tags
         val options = listOf(
             ChoiceOption(stringResource(R.string.tracks_player), stringResource(R.string.audio_language_player_desc)),
             ChoiceOption(stringResource(R.string.interface_language), ownLanguage),
-        ) + codes.map { languageOption(it, app) }
+        ) + trackLanguages.options(app)
         HlChoiceSheet(
             title,
             options,
@@ -105,20 +103,20 @@ private fun SubtitlesRow(tracks: TrackPreferences, app: Locale, onChoose: (Subti
 private fun SubtitleLanguageRow(tracks: TrackPreferences, app: Locale, onChoose: (String?) -> Unit) {
     var choosing by remember { mutableStateOf(false) }
     val title = stringResource(R.string.subtitle_language)
-    val ownLanguage = languageName(app.language, app)
+    val ownLanguage = trackLanguageName(app.language, app)
     HlSettingRow(
         title,
-        value = tracks.subtitleLanguage?.let { languageName(it, app) } ?: ownLanguage,
+        value = tracks.subtitleLanguage?.let { trackLanguageName(it, app) } ?: ownLanguage,
         description = stringResource(
             if (tracks.subtitleLanguage == null) R.string.subtitle_language_interface_desc else R.string.subtitle_language_desc,
         ),
         onClick = { choosing = true },
     )
     if (choosing) {
-        val codes = trackLanguages()
+        val codes = trackLanguages.tags
         HlChoiceSheet(
             title,
-            listOf(ChoiceOption(stringResource(R.string.interface_language), ownLanguage)) + codes.map { languageOption(it, app) },
+            listOf(ChoiceOption(stringResource(R.string.interface_language), ownLanguage)) + trackLanguages.options(app),
             selected = tracks.subtitleLanguage?.let { codes.indexOf(Languages.code(it)) + 1 } ?: 0,
             onSelect = { i -> onChoose(codes.getOrNull(i - 1)) },
             onDismiss = { choosing = false },
@@ -143,20 +141,3 @@ private fun modeDescription(mode: SubtitleMode, wanted: String): String = when (
     SubtitleMode.FOREIGN -> stringResource(R.string.subtitles_auto_desc, wanted)
     SubtitleMode.ALWAYS -> stringResource(R.string.subtitles_always_desc, wanted)
 }
-
-/** Languages tracks come in: TMDB's without their regions, Norwegian as files tag it; by their own names. */
-@Composable
-private fun trackLanguages(): List<String> = remember {
-    TmdbClient.LANGUAGES.map { Locale.forLanguageTag(it).language.let { code -> if (code == "nb") "no" else code } }
-        .distinct()
-        .sortedWith(compareBy(Collator.getInstance(Locale.ROOT)) { languageName(it, Locale.forLanguageTag(it)) })
-}
-
-/** [code] under its own name ("Deutsch"), then in the app's when that differs. */
-private fun languageOption(code: String, app: Locale): ChoiceOption {
-    val own = languageName(code, Locale.forLanguageTag(code))
-    return ChoiceOption(own, languageName(code, app).takeUnless { it.equals(own, ignoreCase = true) })
-}
-
-private fun languageName(code: String, locale: Locale): String =
-    Locale.forLanguageTag(code).getDisplayLanguage(locale).replaceFirstChar { it.titlecase(locale) }
