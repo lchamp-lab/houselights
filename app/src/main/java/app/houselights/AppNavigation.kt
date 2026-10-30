@@ -306,6 +306,10 @@ internal fun NavController.homeEntry(): NavBackStackEntry? = entryOrNull<Route.H
 /** Settings' entry in the back stack, under « Ajouter un dossier » opened from it; null when it is not there. */
 private fun NavController.settingsEntry(): NavBackStackEntry? = entryOrNull<Route.Settings>()
 
+/** The route on top of the back stack when it is a [T]; null when another screen, or none, is on top. */
+private inline fun <reified T : Any> NavController.topOrNull(): T? =
+    currentBackStackEntry?.takeIf { it.destination.hasRoute<T>() }?.toRoute<T>()
+
 /** The topmost entry of route [T] in the back stack; null when there is none. */
 private inline fun <reified T : Any> NavController.entryOrNull(): NavBackStackEntry? = try {
     getBackStackEntry<T>()
@@ -367,8 +371,7 @@ internal fun NavController.leaveSharePick() {
 }
 
 /** Whether the steps' step 4 over the form is the screen on top. */
-private fun NavController.pickOnTop(): Boolean =
-    currentBackStackEntry?.takeIf { it.destination.hasRoute<Route.AddFolder>() }?.toRoute<Route.AddFolder>()?.pick == true
+private fun NavController.pickOnTop(): Boolean = topOrNull<Route.AddFolder>()?.pick == true
 
 /** The shared folder chosen at the steps' step 4, handed to the form of « Modifier le dossier » beneath it. */
 internal const val PICKED_SHARE = "pickedShare"
@@ -407,8 +410,7 @@ internal fun NavController.openWall(library: Library, filter: LibraryFilter) = o
 
 /** Opens the wall of [route], unless that very wall is on top; another wall opens over it. */
 private fun NavController.openWall(route: Route.Library) {
-    val top = currentBackStackEntry?.takeIf { it.destination.hasRoute<Route.Library>() }?.toRoute<Route.Library>()
-    if (top != route) navigate(route)
+    if (topOrNull<Route.Library>() != route) navigate(route)
 }
 
 /** Opens the page of [route], one of a kind, unless it is on top. */
