@@ -50,10 +50,13 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
 
     suspend fun map(e: ItemEntity): MediaItem = mapAll(listOf(e)).single()
 
-    /** Fills [playedCopies] for the films among [entities]: one query per list ([playedCopiesOf]). */
+    /**
+     * Fills [playedCopies] for the films among [entities]: one query per list, that reads no more than their ids, then,
+     * for those in several copies, one more ([playedCopiesOf]).
+     */
     private suspend fun readPlayedCopies(entities: List<ItemEntity>) {
         val films = entities.filter { it.kind == ItemKind.MOVIE && it.versionOf == null }.map { it.id }.filter(filmsRead::add)
-        playedCopies += playedCopiesOf(dao, films)
+        playedCopies += playedCopiesOf(dao, films.chunked(SQL_IN_LIMIT).flatMap { dao.titlesInCopies(it) })
     }
 
     /** When [e] was added after its source's first scan; null for titles that scan found. */
@@ -211,8 +214,8 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
 
     companion object {
         /**
-         * The copy Lire plays ([VersionRank.played]) of each film among main rows [titles] in several copies, watched as
-         * any copy is ([watchedAsAny]): their copies read whole, as Lire ranks them, in one query per [SQL_IN_LIMIT]
+         * The copy Lire plays ([VersionRank.played]) of each of the films in several copies [titles], by main row, watched
+         * as any copy is ([watchedAsAny]): their copies read whole, as Lire ranks them, in one query per [SQL_IN_LIMIT]
          * films, then ranked off the main thread, as ranking decodes their media info.
          */
         suspend fun playedCopiesOf(dao: LibraryDao, titles: List<Long>): Map<Long, ItemEntity> {

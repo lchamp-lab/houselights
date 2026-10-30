@@ -528,15 +528,19 @@ interface LibraryDao :
     suspend fun titleAmong(ids: List<Long>): Long?
 
     /**
-     * The copies of each film among main rows [ids] in several copies, their main rows included, without NFO text: held,
-     * started and as long as the copy Lire plays is, watched as any copy is ([LocalMapper.playedCopiesOf]). [ids] is bound
-     * once, so [SQL_IN_LIMIT] of them stay under Android 9's 999 arguments.
+     * The films among main rows [ids] in several copies: held and started as the copy Lire plays is, watched as any copy
+     * is ([LocalMapper.playedCopiesOf]).
      */
-    @Query(
-        "SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' " +
-            "AND COALESCE(versionOf, id) IN (SELECT versionOf FROM items WHERE versionOf IN (:ids)) ORDER BY id",
-    )
-    suspend fun copiesOf(ids: List<Long>): List<ItemEntity>
+    @Query("SELECT DISTINCT versionOf FROM items WHERE versionOf IN (:ids)")
+    suspend fun titlesInCopies(ids: List<Long>): List<Long>
+
+    /**
+     * The copies of the films [titles] ([titlesInCopies]), their main rows included, without NFO text, read whole as Lire
+     * ranks them ([LocalMapper.playedCopiesOf]). [titles] is bound once, so [SQL_IN_LIMIT] of them stay under Android 9's
+     * 999 arguments.
+     */
+    @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND COALESCE(versionOf, id) IN (:titles) ORDER BY id")
+    suspend fun copiesOf(titles: List<Long>): List<ItemEntity>
 
     /**
      * The films in several copies whose copies are not all watched, nor all started, as their main row is: the walls'
