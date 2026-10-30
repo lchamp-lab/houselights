@@ -214,10 +214,12 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
      */
     suspend fun relinked(relinked: List<Pair<Long, RemoteFile>>, known: List<KnownFile>) {
         val before = known.associateBy { it.id }
-        for ((id, file) in relinked) {
-            // An episode, or a film whose new name says the edition its former one did: nothing to read.
-            val was = before[id] ?: continue
-            if (was.seriesId != null || FilenameParser.edition(was.filePath) == FilenameParser.edition(file.relativePath)) continue
+        // An episode, or a film whose new name says the edition its former one did: nothing to read.
+        val renamed = relinked.filter { (id, file) ->
+            val was = before[id]
+            was != null && was.seriesId == null && FilenameParser.edition(was.filePath) != FilenameParser.edition(file.relativePath)
+        }
+        for ((id, _) in renamed) {
             val film = dao.item(id)?.takeIf { it.kind == ItemKind.MOVIE } ?: continue
             val edition = editionOf(film, film.nfoInfo())
             if (edition != film.edition) dao.setEdition(id, edition)
