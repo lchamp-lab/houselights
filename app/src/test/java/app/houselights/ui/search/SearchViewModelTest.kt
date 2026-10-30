@@ -104,6 +104,26 @@ class SearchViewModelTest {
         assertEquals("a search that found is not run again", 2, catalog.calls.size)
     }
 
+    /**
+     * A space typed after a word, or erased at its end, runs no search again: the words are the same, and the result
+     * just marked keeps its mark.
+     */
+    @Test
+    fun aSpaceAtTheEndRunsNoSearchAgain() = runTest {
+        val vm = SearchViewModel({ provider }, work = this)
+        backgroundScope.launch { vm.found.collect {} }
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+        vm.mark(found(vm).single())
+        vm.space()
+        advanceUntilIdle()
+        assertTrue("its mark kept", found(vm).single().user.played)
+        vm.delete()
+        advanceUntilIdle()
+        assertEquals(listOf("search AME"), catalog.calls)
+        assertTrue(found(vm).single().user.played)
+    }
+
     /** Typed key by key on the remote: a film played meanwhile, the process stopped, Back finds the query and its results. */
     @Test
     fun theQueryOutlivesAStoppedProcess() = runTest {
