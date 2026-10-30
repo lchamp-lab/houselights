@@ -825,11 +825,19 @@ private fun browseParts(flow: FolderFlow, focus: FlowFocus, onDone: (FlowDone) -
 @Composable
 private fun chooseText(standing: Standing, level: FolderLevel): Pair<String, Boolean> = when {
     standing is Standing.Added -> stringResource(R.string.folder_overlaps_state) to false
-    standing is Standing.Holds -> stringResource(R.string.folder_holds_added, capitalised(standing.folders.first().name)) to false
+    standing is Standing.Holds -> holdsAddedText(standing.folders.map { it.name }) to false
     standing is Standing.Inside -> stringResource(R.string.folder_inside_added, capitalised(standing.folder.name)) to false
     level.isEmpty -> stringResource(R.string.folder_empty_short) to false
     holdsBoth(level.folders) -> stringResource(R.string.folder_holds_both) to true
     else -> contentText(level) to true
+}
+
+/** « Contient « Films », déjà dans la bibliothèque », or how many folders of the library the level holds. */
+@Composable
+private fun holdsAddedText(names: List<String>): String = if (names.size == 1) {
+    stringResource(R.string.folder_holds_added, capitalised(names.single()))
+} else {
+    pluralStringResource(R.plurals.share_holds_many, names.size, names.size)
 }
 
 /** A level's own content: « 38 dossiers et 2 vidéos », « 412 dossiers », « 3 vidéos ». */
