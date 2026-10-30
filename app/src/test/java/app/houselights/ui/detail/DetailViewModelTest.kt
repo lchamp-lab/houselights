@@ -721,6 +721,32 @@ class DetailViewModelTest {
         assertEquals("first", vm.state.value.versions.single { it.chosen }.key)
     }
 
+    /**
+     * A saga's page shows neither titles like it nor people, and asks for neither, a server's two requests spared; a
+     * film's page still asks for both.
+     */
+    @Test
+    fun aSagaAsksForNoSimilarTitlesNorPeople() = runTest {
+        provider.items["saga"] = MediaItem("saga", MediaKind.COLLECTION, "Alien")
+        provider.capabilities = provider.capabilities.copy(similar = true)
+        val catalog = FakeCatalog()
+        provider.catalog = catalog
+        val asked = mutableListOf<String>()
+        val source = object : MediaProvider by OneSaga(provider, listOf(film("alien"))) {
+            override suspend fun similar(item: MediaItem): List<MediaItem> = emptyList<MediaItem>().also { asked += item.id }
+        }
+        val saga = detail("saga", source)
+        advanceUntilIdle()
+        assertEquals(listOf("alien"), saga.state.value.collectionFilms.map { it.id })
+        assertEquals(emptyList<String>(), asked)
+        assertEquals(emptyList<String>(), catalog.calls.filter { it.startsWith("credits") })
+
+        detail("m1", source)
+        advanceUntilIdle()
+        assertEquals(listOf("m1"), asked)
+        assertEquals(listOf("credits m1"), catalog.calls.filter { it.startsWith("credits") })
+    }
+
     /** A saga's page has it whole when the source knows it: the films the library lacks in their place. */
     @Test
     fun aSagaIsWhole() = runTest {
