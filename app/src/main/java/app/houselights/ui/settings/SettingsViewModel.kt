@@ -428,9 +428,32 @@ internal class SettingsViewModel(
         }
     }
 
-    /** Deletes the artwork no title uses; null when it fails ([actionError] says why). */
-    suspend fun cleanup(): CleanupResult? =
-        action("Cleaning up the artwork", SettingAction.CLEANUP) { library.cleanup() }?.also { refreshStorage() }
+    /** The artwork no title uses is being deleted ([cleanup]): another press waits for it to end. */
+    var cleaning = false
+        private set
+
+    /** What the last cleanup deleted, said on its row while Settings stays open; null before one ends well. */
+    var cleaned by mutableStateOf<CleanupResult?>(null)
+        private set
+
+    /**
+     * Deletes the artwork no title uses, here, so that its result outlives a change of pane; [actionError] says why it
+     * failed. A press while it runs does nothing: a second cleanup would find nothing left and say so over the first.
+     */
+    fun cleanup() {
+        if (cleaning) return
+        cleaning = true
+        viewModelScope.launch {
+            try {
+                action("Cleaning up the artwork", SettingAction.CLEANUP) { library.cleanup() }?.let { result ->
+                    cleaned = result
+                    refreshStorage()
+                }
+            } finally {
+                cleaning = false
+            }
+        }
+    }
 
     /** Empties the image cache; false when it fails ([actionError] says why). */
     @OptIn(ExperimentalCoilApi::class)

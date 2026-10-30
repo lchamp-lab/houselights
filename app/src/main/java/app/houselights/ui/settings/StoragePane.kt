@@ -15,12 +15,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.providers.local.CleanupResult
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.Hl
@@ -119,16 +119,26 @@ private fun StorageParts(st: StorageStats?, dash: String) {
     }
 }
 
+/** What a cleanup did ([result]), in words: the files it deleted and the room they freed, or that there was nothing. */
+@Composable
+private fun cleanedWords(result: CleanupResult): String = if (result.deletedFiles == 0) {
+    stringResource(R.string.cleanup_nothing)
+} else {
+    stringResource(
+        R.string.cleanup_done,
+        pluralStringResource(R.plurals.file_count, result.deletedFiles, result.deletedFiles),
+        formatBytes(result.freedBytes),
+    )
+}
+
 /** The last scan stopped because the device had no space left. */
 internal val ScanState.storageFull: Boolean get() = errors.values.any { it.kind == ScanErrorKind.STORAGE_FULL }
 
 @Composable
 private fun StorageActions(storage: StorageStats?) {
     val vm = settingsViewModel()
-    val context = LocalContext.current
-    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
-    var cleaned by remember { mutableStateOf<String?>(null) }
+    val cleaned = vm.cleaned?.let { cleanedWords(it) }
     var cleared by remember { mutableStateOf(false) }
     // A failed action is reported on its row, where focus is.
     val cleanupFailure = rowFailure(vm.errorOf(SettingAction.CLEANUP), notDone = true)
@@ -139,20 +149,7 @@ private fun StorageActions(storage: StorageStats?) {
             description = stringResource(R.string.cleanup_desc),
             value = cleanupFailure?.value ?: cleaned,
             valueAttention = cleanupFailure != null,
-            onClick = {
-                scope.launch {
-                    val result = vm.cleanup() ?: return@launch
-                    cleaned = if (result.deletedFiles == 0) {
-                        resources.getString(R.string.cleanup_nothing)
-                    } else {
-                        resources.getString(
-                            R.string.cleanup_done,
-                            resources.getQuantityString(R.plurals.file_count, result.deletedFiles, result.deletedFiles),
-                            formatBytes(context, result.freedBytes),
-                        )
-                    }
-                }
-            },
+            onClick = vm::cleanup,
         )
         RowFailureNote(cleanupFailure)
         HlSettingRow(

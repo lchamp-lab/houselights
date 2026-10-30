@@ -390,6 +390,26 @@ class SettingsViewModelTest {
         assertFalse(vm.savingTmdbKey)
     }
 
+    /**
+     * « Nettoyer maintenant » pressed twice before it ends: one cleanup, which says what it deleted, never « Rien à
+     * nettoyer » from a second over it; its result is the settings', so that a change of pane meanwhile keeps it.
+     */
+    @Test
+    fun aCleanupPressedTwiceRunsOnceAndSaysWhatItDeleted() = runTest {
+        val artwork = ApplicationProvider.getApplicationContext<Context>().cacheDir.resolve("artwork/posters")
+        artwork.mkdirs()
+        listOf("dune.jpg", "heat.jpg").forEach { artwork.resolve(it).writeText("poster") }
+        val vm = settings(testSettings(folder.root, backgroundScope), backgroundScope)
+        vm.cleanup()
+        assertTrue(vm.cleaning)
+        vm.cleanup()
+        waitFor("the cleanup done") { !vm.cleaning }
+        assertEquals(2, vm.cleaned?.deletedFiles)
+        assertNull(vm.actionError)
+        waitFor("the storage measured again") { vm.storage.value != null }
+        assertEquals(2, vm.cleaned?.deletedFiles)
+    }
+
     /** Coil's cache reads its journal at the first size query, under its cleanup lock: off the main thread. */
     @OptIn(ExperimentalCoilApi::class)
     @Test
