@@ -198,6 +198,22 @@ class AddFolderFlowTest : FlowHarness() {
         assertEquals(FlowStep.BROWSE, flow.step)
     }
 
+    /** A level holding several folders of the library counts them, on its share's row as on « Choisir ce dossier ». */
+    @Test
+    fun aLevelHoldingSeveralFoldersOfTheLibraryCountsThem() {
+        val flow = flow(films, films.copy(name = "Séries", kind = SourceKind.SHOWS, path = "Séries"))
+        val two = context.resources.getQuantityString(R.plurals.share_holds_many, 2, 2)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        compose.waitForIdle()
+        compose.onNodeWithText("/volume1/video" + FACT_GAP + two, useUnmergedTree = true).assertExists()
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        compose.waitForIdle()
+        compose.onNode(hasText(two)).assertIsNotEnabled()
+        compose.onNode(hasText("Séries") and hasText(text(R.string.folder_overlaps_state))).assertIsNotEnabled()
+    }
+
     /** A level holding Films and Séries is said, still choosable, focus on its first subfolder; a level's content is counted. */
     @Test
     fun aLevelSaysWhatItHolds() {
