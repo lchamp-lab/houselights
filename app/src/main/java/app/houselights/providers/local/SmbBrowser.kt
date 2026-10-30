@@ -43,9 +43,9 @@ internal class SmbBrowser(
     private val unreadable = UnreadablePaths()
 
     /** A folder a request, each answer holding its entries' details: the count moves a folder at a time. */
-    override suspend fun list(source: SourceEntity, found: (Int) -> Unit): Listing = withSession(source) { share ->
+    override suspend fun list(source: SourceEntity, pauses: () -> Boolean, found: (Int) -> Unit): Listing = withSession(source) { share ->
         val root = folder(share, remotePath(source, separator = '\\'))
-        walk(root, unreadable.of(source), found) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        walk(root, unreadable.of(source), found, pauses) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     /** Uses a fresh session with the form's credentials, as a kept session would accept a wrong password. */

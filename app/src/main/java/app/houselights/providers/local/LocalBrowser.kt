@@ -38,12 +38,12 @@ internal class LocalBrowser(
 
     private val unreadable = UnreadablePaths()
 
-    override suspend fun list(source: SourceEntity, found: (Int) -> Unit): Listing = withContext(Dispatchers.IO) {
+    override suspend fun list(source: SourceEntity, pauses: () -> Boolean, found: (Int) -> Unit): Listing = withContext(Dispatchers.IO) {
         val mount = mountOf(source)
         val listing = reading(source, mount) {
             val root = mount.resolve(remotePath(source))
             val folder = Folders(source, mount).folder(root, setOf(root.toRealPath()))
-            walk(folder, unreadable.of(source), found) { ScanErrors.isUnreachable(it) }
+            walk(folder, unreadable.of(source), found, pauses) { ScanErrors.isUnreachable(it) }
         }
         // Unplugged while it listed: a folder it did not reach is not gone.
         absent(source, mount)?.let { throw it }

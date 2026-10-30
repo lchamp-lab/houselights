@@ -501,7 +501,7 @@ class LibraryScanner(
         val tmdb = shows.pass
         waitForThePlayer()
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null, listed = 0) }
-        val found = browsers(source).list(source, listedPace())
+        val found = listing(source)
         val listed = dao.knownFiles(source.id)
         checkListed(found, listed)
         // A disc's streams form one title and extras none; rows of non-titles are handled as missing files.
@@ -552,6 +552,29 @@ class LibraryScanner(
         val changed = missing.changed || written > 0
         if (changed) tellProgress()
         return changed
+    }
+
+    /**
+     * [source]'s videos and sidecars. A film started while they are listed stops the listing between two folders, which
+     * leaves its session or mount, closed as the scan waits ([waitForThePlayer]), and begins anew once the player stops:
+     * no listing reads the NAS through a film's start. The count screens say never goes back meanwhile.
+     */
+    private suspend fun listing(source: SourceEntity): Listing {
+        val pace = listedPace()
+        var most = 0
+        while (true) {
+            try {
+                return browsers(source).list(source, pauses = { playing.value }) { count ->
+                    if (count > most) {
+                        most = count
+                        pace(count)
+                    }
+                }
+            } catch (_: ListingPausedException) {
+                Log.i(TAG, "${source.name}: listed again once the film ends")
+                waitForThePlayer()
+            }
+        }
     }
 
     /**

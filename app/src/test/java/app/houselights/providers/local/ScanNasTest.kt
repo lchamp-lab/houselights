@@ -54,8 +54,9 @@ class ScanNasTest {
     @Test
     fun aScanWaitingForTheFilmHoldsNoSessionOnTheNas() = runTest {
         nas.put("Dune (2021).mkv")
-        // The film starts while the folder is listed: the pass waits before its first file.
-        nas.onList = { bench.playing.value = true }
+        // The film starts while the folder is listed: the listing stops, to begin anew once the film ends.
+        var listed = 0
+        nas.onList = { if (++listed == 1) bench.playing.value = true }
         val closing = CompletableDeferred<Unit>().also { bench.onClose = { it.complete(Unit) } }
         bench.scanner.scanAll()
         closing.await()
