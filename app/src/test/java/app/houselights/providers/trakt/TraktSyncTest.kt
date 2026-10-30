@@ -397,6 +397,25 @@ class TraktSyncTest : TraktSyncFixture() {
     }
 
     @Test
+    fun aFilmInSeveralCopiesNoneChosenResumesOnTheCopyStarted() = runTest {
+        // Nothing chosen in Versions: Trakt's pause goes to the copy started, where Lire resumes, not the one found first.
+        val main = film(38)
+        val started = film(38, positionMs = 20 * MINUTE, lastPlayedAt = ms(T1), versionOf = main)
+        trakt.playback = "[${pausedMovie(42, 38, 60f, T2)}]"
+        // Trakt hears where the copy started stopped.
+        val other = film(39)
+        film(39, positionMs = 50 * MINUTE, lastPlayedAt = ms(T1), versionOf = other)
+
+        connected()
+
+        assertEquals(0L, dao.item(main)!!.positionMs)
+        assertEquals(60 * MINUTE, dao.item(started)!!.positionMs)
+        val stop = trakt.sent("POST /scrobble/stop").single()
+        assertEquals(39, stop.movieTmdb)
+        assertEquals(50f, stop["progress"]!!.jsonPrimitive.content.toFloat())
+    }
+
+    @Test
     fun unmarkingAFilmReachesTraktWhicheverCopyWasWatched() = runTest {
         val main = film(37)
         film(37, played = true, lastPlayedAt = ms(T1), versionOf = main)

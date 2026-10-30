@@ -363,7 +363,7 @@ class LocalProvider(
         return PlayedTracks(firstFileMedia(entity, part).takeUnless { isDisc(file) }, tracksKey(entity))
     }
 
-    /** The row [item] plays and its part: a multi-copy film plays the chosen copy, else the best ([LocalCatalog.versions]). */
+    /** The row [item] plays and its part: a film in several copies plays the copy [VersionRank.played] names, at its own resume point. */
     private suspend fun played(item: MediaItem): Pair<Long, Int?> {
         val key = itemKey(item) ?: throw NotFoundException("Item ${item.id}")
         val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
@@ -442,8 +442,8 @@ class LocalProvider(
 
     /**
      * A saga's [films] started as the copy Lire plays is, as on their walls and the saga's page ([LocalMapper]), where
-     * [LibraryDao.startedSagas] gives the furthest copy's resume point: a film whose other copy alone was started is not.
-     * Read only for the films started and not watched, those of them in several copies.
+     * [LibraryDao.startedSagas] gives the furthest copy's resume point: a film whose copy chosen in Versions is not started
+     * is not, though another copy was. Read only for the films started and not watched, those of them in several copies.
      */
     private suspend fun startedAsPlayed(films: List<SagaFilmState>): List<SagaFilmState> {
         val started = films.filter { it.positionMs > 0 && !it.played }.map { it.id }

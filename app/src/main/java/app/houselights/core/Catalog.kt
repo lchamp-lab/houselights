@@ -60,7 +60,8 @@ data class Saga(val collection: MediaItem, val parts: List<SagaPart>) {
 
 /**
  * One copy of a film ([Catalog.versions]): its edition ([Editions]) or source [label], media, size and length.
- * [chosen] is the copy "Lire" plays: the one picked with [Catalog.chooseVersion], else the [best].
+ * [chosen] is the copy "Lire" plays: the one picked with [Catalog.chooseVersion], else the source's own (a folder's: the
+ * copy started and not watched that was played last, else the [best]).
  */
 data class Version(
     /** This copy as a title, as [Catalog.playback] plays it. */
@@ -131,7 +132,7 @@ interface Catalog {
     /** Every copy of [item]'s film, the chosen one first; empty when there is a single copy. */
     suspend fun versions(item: MediaItem): List<Version>
 
-    /** Makes [version] the copy "Lire" plays for [item]'s film; null restores the best. */
+    /** Makes [version] the copy "Lire" plays for [item]'s film; null leaves it to the source again. */
     suspend fun chooseVersion(item: MediaItem, version: Version?)
 
     /** The library in numbers, computed once, off the main thread. */

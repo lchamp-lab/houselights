@@ -151,7 +151,7 @@ interface LibraryDao :
     @Query("UPDATE items SET favorite = :favorite WHERE $COPIES")
     suspend fun setFavorite(id: Long, favorite: Boolean)
 
-    /** Sets the copy to play on main row [id] ([ItemEntity.versionChoice]); null plays the best copy. */
+    /** Sets the copy to play on main row [id] ([ItemEntity.versionChoice]); null plays the one [VersionRank.played] names. */
     @Query("UPDATE items SET versionChoice = :choice WHERE id = :id")
     suspend fun setVersionChoice(id: Long, choice: Long?)
 
