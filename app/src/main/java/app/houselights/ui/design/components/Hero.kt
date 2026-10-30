@@ -52,7 +52,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? 
         Column(Modifier.widthIn(max = HlLayout.readableNarrow), verticalArrangement = Arrangement.Bottom) {
             val episode = shown.kind == MediaKind.EPISODE
             TitleArt(
-                title = if (episode) shown.seriesTitle ?: shown.title else shown.title,
+                title = shown.headTitle,
                 logo = shown.logo,
                 maxWidth = HeroDefaults.titleWidth,
                 maxHeight = HeroDefaults.titleHeight,

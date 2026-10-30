@@ -671,7 +671,7 @@ private fun TitleTracks(item: MediaItem, plan: TrackPlan?, open: Boolean, onChoo
         return
     }
     val show = item.kind == MediaKind.SERIES || item.kind == MediaKind.EPISODE
-    TracksSheet(item.seriesTitle ?: item.title, plan, show, onChoose = onChoose, onDismiss = onDismiss)
+    TracksSheet(item.headTitle, plan, show, onChoose = onChoose, onDismiss = onDismiss)
 }
 
 /** The page's actions, passed down whole; named fields keep same-typed lambdas apart, and null hides a button. */
@@ -736,7 +736,7 @@ private fun Hero(
         // Reading measure; at the page's end the hero's remnant fades rather than showing a sliver.
         Column(Modifier.widthIn(max = HlLayout.readableNarrow).fadeOutsideSafeArea()) {
             TitleArt(
-                title = if (isEpisode) item.seriesTitle ?: item.title else item.title,
+                title = item.headTitle,
                 logo = item.logo,
                 maxWidth = HlLayout.titleArtWidth,
                 maxHeight = HlLayout.titleArtHeight,

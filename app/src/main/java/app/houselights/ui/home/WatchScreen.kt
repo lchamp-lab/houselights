@@ -222,7 +222,7 @@ private fun Sections(
                                     item,
                                     onClick = { onOpen(item) },
                                     modifier = mod,
-                                    title = item.seriesTitle ?: item.title,
+                                    title = item.headTitle,
                                     facts = listOf(item.episodeLabel, timeLeft(item)),
                                     onFocus = focus,
                                     onLongClick = open,

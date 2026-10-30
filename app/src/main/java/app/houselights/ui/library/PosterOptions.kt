@@ -113,7 +113,7 @@ internal fun PosterOptions(item: MediaItem?, actions: PosterActions, onDismiss: 
                 }
             }
         }
-        OptionsSheet(sheetTitle(item), posterFacts(item), rows, onDismiss)
+        OptionsSheet(item.headTitle, posterFacts(item), rows, onDismiss)
     }
     edited?.let { title -> key(openings) { PosterEdit(title, shown, onShow = { shown = it }, actions = actions) } }
 }
@@ -178,9 +178,6 @@ private fun favoriteRow(item: MediaItem, actions: PosterActions): SheetOption {
         if (favorite) HlIcons.HeartFilled else HlIcons.Heart,
     ) { actions.onFavorite?.invoke(item) }
 }
-
-/** What a poster's sheet is titled with: the title's name, an episode's show's. */
-internal fun sheetTitle(item: MediaItem): String = if (item.kind == MediaKind.EPISODE) item.seriesTitle ?: item.title else item.title
 
 /**
  * Where a title stands, under its name: « 1988   2 h 48   Il reste 1 h 14 », « 2 saisons   6 épisodes non vus »,

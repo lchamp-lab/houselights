@@ -94,9 +94,8 @@ fun ResumeCase(
                     Text(it, style = Hl.type.jaquette, color = c.contentSecondary, maxLines = 1)
                     Spacer(Modifier.height(HlSpace.xs))
                 }
-                val episode = item.kind == MediaKind.EPISODE
                 TitleArt(
-                    title = if (episode) item.seriesTitle ?: item.title else item.title,
+                    title = item.headTitle,
                     logo = item.logo,
                     maxWidth = HomeGridDefaults.caseLogoWidth,
                     maxHeight = HomeGridDefaults.caseLogoHeight,

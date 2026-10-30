@@ -736,7 +736,7 @@ private fun LibrariesSheet(plan: HomePlan, sagas: Library?, actions: HomeActions
 private fun CaseOptions(case: CaseShows, actions: HomeActions, problem: UiError?, onDismiss: () -> Unit) {
     val item = case.item
     val first = remember { FocusRequester() }
-    val title = if (item.kind == MediaKind.EPISODE) item.seriesTitle ?: item.title else item.title
+    val title = item.headTitle
     val fixedBy = problem?.action
     val fix = LocalErrorFix.current
     HlSideSheet(

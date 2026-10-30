@@ -117,6 +117,9 @@ data class MediaItem(
 
     /** Best 16:9 artwork for landscape cards. */
     val landscape: ImageRef? get() = thumb ?: backdrop
+
+    /** The name it is headed with: its own, an episode's show's when known. */
+    val headTitle: String get() = if (kind == MediaKind.EPISODE) seriesTitle ?: title else title
 }
 
 data class Library(val id: String, val kind: LibraryKind, val title: String?)

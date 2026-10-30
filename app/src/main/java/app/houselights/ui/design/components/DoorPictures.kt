@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import app.houselights.core.MediaItem
-import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlScrim
@@ -56,7 +55,6 @@ internal const val WIDE_H = 9
 @Composable
 fun DoorStill(item: MediaItem, span: Int, modifier: Modifier = Modifier) {
     val c = Hl.colors
-    val show = item.kind == MediaKind.EPISODE
     Box(modifier.fillMaxSize()) {
         val width = doorWidth(span).toPx()
         ArtworkImage(
@@ -64,10 +62,10 @@ fun DoorStill(item: MediaItem, span: Int, modifier: Modifier = Modifier) {
             null,
             Modifier.fillMaxSize(),
             size = IntSize(width, width * WIDE_H / WIDE_W),
-        ) { FallbackArtwork(if (show) item.seriesTitle ?: item.title else item.title, null) }
+        ) { FallbackArtwork(item.headTitle, null) }
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(*HlScrim.STILL_FOOT.colorStops(c.background))))
         TitleArt(
-            title = if (show) item.seriesTitle ?: item.title else item.title,
+            title = item.headTitle,
             logo = item.logo,
             maxWidth = HomeGridDefaults.stillLogoWidth,
             maxHeight = HomeGridDefaults.stillLogoHeight,
