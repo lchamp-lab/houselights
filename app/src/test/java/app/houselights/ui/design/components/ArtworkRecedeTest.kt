@@ -39,6 +39,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /**
  * DESIGN.md, Focus: a picture steps back through its filter read while drawing, so it never composes again as it does;
@@ -79,7 +80,9 @@ class ArtworkRecedeTest {
         assertEquals("the picture composed again as it stepped back", 0, composed)
     }
 
+    /** Drawn on a bitmap of its own, which Robolectric's native graphics make. */
     @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun aRecedingPictureIsDrawnThroughItsStepsFilter() {
         val recede = mutableFloatStateOf(0f)
         val picture = Drawn()
