@@ -287,18 +287,20 @@ class JellyfinLoginViewModelTest {
      */
     @Test
     fun theAddressAndUserTypedOutliveAStoppedProcess() = runTest {
+        // The settings on disk outlive the process: one store for the three forms, as one file holds one at a time.
+        val settings = testSettings(folder.root, backgroundScope)
         val kept = SavedStateHandle()
-        val typed = login(fill = LoginFill.Blank, kept = kept)
+        val typed = login(settings, fill = LoginFill.Blank, kept = kept)
         typed.server = "192.168.1.20:8096"
         typed.user = "luc"
         typed.password = "secret"
 
-        val again = login(fill = LoginFill.Blank, kept = kept.afterProcessDeath())
+        val again = login(settings, fill = LoginFill.Blank, kept = kept.afterProcessDeath())
         assertEquals("192.168.1.20:8096" to "luc", again.server to again.user)
         assertEquals("", again.password)
         assertTrue("no password kept", kept.keys().none { kept.get<Any>(it) == "secret" })
 
-        val known = login(fill = LoginFill.Server("https://nas:8920", "lea"), kept = kept.afterProcessDeath())
+        val known = login(settings, fill = LoginFill.Server("https://nas:8920", "lea"), kept = kept.afterProcessDeath())
         assertEquals("192.168.1.20:8096" to "luc", known.server to known.user)
     }
 
