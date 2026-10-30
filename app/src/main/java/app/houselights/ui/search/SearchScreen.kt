@@ -54,6 +54,7 @@ import app.houselights.ui.design.components.SearchQuery
 import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.rememberRowState
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterActions
 import app.houselights.ui.library.PosterOptions
@@ -192,7 +193,12 @@ internal fun Results(
                 item(key = TITLES) {
                     Column {
                         val row = Modifier.focusGroupKey(FocusKey.row(TITLES), memory)
-                        MediaRow(null, row, heading = { ResultsHeading(stringResource(R.string.search_titles), results.titles.size) }) {
+                        MediaRow(
+                            null,
+                            row,
+                            state = rememberRowState(results.titles.map { it.id }),
+                            heading = { ResultsHeading(stringResource(R.string.search_titles), results.titles.size) },
+                        ) {
                             items(results.titles, key = { it.id }) { title ->
                                 PosterCard(
                                     title,
@@ -213,7 +219,12 @@ internal fun Results(
                 item(key = SAGAS) {
                     Column {
                         val row = Modifier.focusGroupKey(FocusKey.row(SAGAS), memory)
-                        MediaRow(null, row, heading = { ResultsHeading(stringResource(R.string.search_sagas), results.sagas.size) }) {
+                        MediaRow(
+                            null,
+                            row,
+                            state = rememberRowState(results.sagas.map { it.id }),
+                            heading = { ResultsHeading(stringResource(R.string.search_sagas), results.sagas.size) },
+                        ) {
                             items(results.sagas, key = { it.id }) { saga ->
                                 LandscapeCard(
                                     saga,
@@ -237,6 +248,7 @@ internal fun Results(
                         null,
                         row,
                         spacing = HlSpace.s,
+                        state = rememberRowState(results.people.map { it.id ?: it.name }),
                         heading = { ResultsHeading(stringResource(R.string.search_people), results.people.size) },
                     ) {
                         items(results.people, key = { it.id ?: it.name }) { person ->
