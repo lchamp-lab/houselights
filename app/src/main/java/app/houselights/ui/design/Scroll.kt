@@ -312,9 +312,10 @@ private class FieldFadeNode(state: ScrollableState) : EdgeFadeNode(state), DrawM
         val layer = layer
         if (layer == null || (top <= 0f && bottom <= 0f)) return drawContent()
 
+        // Density is read out here: inside record, on Android 9's view-backed layers, it refers back to itself.
+        val length = HlSpace.fadeEdge.toPx().coerceAtMost(size.height / 2)
         layer.record {
             this@draw.drawContent()
-            val length = HlSpace.fadeEdge.toPx().coerceAtMost(size.height / 2)
             val edge = Size(size.width, length)
             if (top > 0f) {
                 val erase = Brush.verticalGradient(0f to Color.Black.copy(alpha = top), 1f to Color.Transparent, endY = length)
