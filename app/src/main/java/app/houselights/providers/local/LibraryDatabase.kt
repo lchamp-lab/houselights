@@ -16,6 +16,7 @@ import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.Normalizer
 
 @Database(
     entities = [
@@ -24,7 +25,7 @@ import kotlinx.coroutines.withContext
         KeptStateEntity::class, SuggestionEntity::class, EpisodeOrderEntity::class, IgnoredFileEntity::class,
         SagaChoiceEntity::class,
     ],
-    version = 22,
+    version = 23,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
@@ -357,6 +358,31 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
+         * v22 → v23: the episodes whose path was written decomposed, copied from a Mac (NFD), read again at the next pass
+         * ([readDecomposedAgain]), as names now read composed ([FilenameParser]); only data changes.
+         */
+        private val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) = readDecomposedAgain(db)
+        }
+
+        /**
+         * Episodes whose path is not composed (NFC) read whole at the next pass: their sidecars' key is set to one no
+         * listing gives ([SidecarKey.of] is never empty), so their show is keyed by their name read composed, in place
+         * or joining the show written composed, and its folder's sidecars and ids are read again. Tested in Kotlin, as
+         * SQLite cannot normalize.
+         */
+        internal fun readDecomposedAgain(db: SupportSQLiteDatabase) {
+            val decomposed = db.query("SELECT id, filePath FROM items WHERE kind = 'EPISODE' AND filePath IS NOT NULL").use { rows ->
+                buildList {
+                    while (rows.moveToNext()) {
+                        if (!Normalizer.isNormalized(rows.getString(1), Normalizer.Form.NFC)) add(rows.getLong(0))
+                    }
+                }
+            }
+            for (id in decomposed) db.execSQL("UPDATE items SET sidecarKey = '' WHERE id = ?", arrayOf<Any>(id))
+        }
+
+        /**
          * Sets [MediaInfo.tracksInOrder] where the probe read the tracks, so that no file is read again for it; decoded
          * in Kotlin as in [MIGRATION_10_11], by batches so a large library's JSON is never held whole.
          */
@@ -520,7 +546,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
             MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20,
-            MIGRATION_20_21, MIGRATION_21_22,
+            MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =

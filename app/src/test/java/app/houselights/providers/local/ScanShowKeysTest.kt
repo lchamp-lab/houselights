@@ -12,6 +12,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.text.Normalizer
 
 /** Shows keyed by an earlier rule than their paths give are rekeyed in place, keeping the user's changes. */
 @RunWith(RobolectricTestRunner::class)
@@ -92,6 +93,34 @@ class ScanShowKeysTest {
         assertEquals("Arcane", kept.title)
         assertTrue(kept.favorite)
         assertEquals(POSTER, kept.userPosterPath)
+    }
+
+    /**
+     * A show copied from a Mac, its accents apart (NFD), beside the same show Sonarr wrote composed (NFC): two shows while
+     * names were not read composed, keyed "poke mon" and "pokémon". Version 23 has its episodes read again
+     * ([LibraryDatabase.readDecomposedAgain]): the next pass makes them one, without being asked to refresh.
+     */
+    @Test
+    fun aShowKeyedByItsNameDecomposedJoinsTheShowComposedOnceReadAgain() = runTest {
+        bench.withTmdb = false
+        val apart = Normalizer.normalize("Pokémon", Normalizer.Form.NFD)
+        val copied = "$apart/Season 1/$apart - S01E01.mkv"
+        val written = "Pokémon/Season 2/Pokémon - S02E01.mkv"
+        nas.put(copied)
+        bench.scan()
+        // As the versions before keyed it: its accent apart, a letter of its own.
+        dao.saveScanned(showOf(copied).copy(matchKey = "poke mon"))
+        nas.put(written)
+        bench.scan()
+        assertEquals("two shows, as before", 2, dao.count(ItemKind.SERIES))
+
+        LibraryDatabase.readDecomposedAgain(bench.db.openHelper.writableDatabase)
+        bench.scan()
+        assertEquals(1, dao.count(ItemKind.SERIES))
+        val show = showOf(written)
+        assertEquals(show.id, showOf(copied).id)
+        assertEquals("pokémon", show.matchKey)
+        assertNull("its sidecars' key read anew", bench.item(shows, copied).sidecarKey)
     }
 
     /** Two season packs, two shows under the earlier rule, merge: the emptied one hands its user data over. */
