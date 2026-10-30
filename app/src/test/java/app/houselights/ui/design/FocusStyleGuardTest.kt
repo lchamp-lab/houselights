@@ -157,11 +157,15 @@ class FocusStyleGuardTest {
 
     /**
      * Lines that scale without focus, by file: a menu grows from its button as it opens, whatever has focus, and pictures
-     * are resampled to the size they are shown at (core's Bitmap.scale).
+     * are resampled to the size they are shown at (core's Bitmap.scale), or a poster to the copy its door's tint is read
+     * from.
      */
     private val scales = mapOf(
         "design/components/Menu.kt" to setOf("scaleX = scale", "scaleY = scale"),
-        "design/components/CutPosters.kt" to setOf("bitmap.scale(width, height).also { scaled = it }"),
+        "design/components/CutPosters.kt" to setOf(
+            "bitmap.scale(width, height).also { scaled = it }",
+            "val small = poster.scale((poster.width / TINT_SHRINK).coerceAtLeast(1), (poster.height / TINT_SHRINK).coerceAtLeast(1))",
+        ),
         "design/components/DoorFigures.kt" to setOf("return tint.scale(w, h).also {"),
     )
 
