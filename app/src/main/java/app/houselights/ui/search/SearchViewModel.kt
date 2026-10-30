@@ -16,8 +16,6 @@ import app.houselights.ui.library.Laid
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterChanges
 import app.houselights.ui.library.Undone
-import app.houselights.ui.library.favoredAs
-import app.houselights.ui.library.markedAs
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.loadState
 import app.houselights.ui.util.map
@@ -123,16 +121,10 @@ class SearchViewModel(
     val notSaved: StateFlow<NotSaved?> get() = changes.notSaved
 
     /** Marks [item] watched, or not once it is, from its result's options: its mark shows at once, the result staying. */
-    fun mark(item: MediaItem) {
-        val played = !item.user.played
-        change(item.markedAs(played)) { undo -> changes.mark(item, played, undo) }
-    }
+    fun mark(item: MediaItem) = changes.toggleMark(item) { changed, _, save -> change(changed, save) }
 
     /** Makes [item] a favourite, or not once it is, from its result's options, shown at once. */
-    fun favorite(item: MediaItem) {
-        val favorite = !item.user.favorite
-        change(item.favoredAs(favorite)) { undo -> changes.favorite(item, favorite, undo) }
-    }
+    fun favorite(item: MediaItem) = changes.toggleFavorite(item) { changed, _, save -> change(changed, save) }
 
     /**
      * Shows [changed] at once over the results read; then [save]s it, undone if not, that change alone, over the

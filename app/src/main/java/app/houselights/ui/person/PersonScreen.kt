@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,13 +57,13 @@ import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.components.artworkEdge
 import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.focusLaidOut
 import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterActions
 import app.houselights.ui.library.PosterOptions
+import app.houselights.ui.library.RefocusNotSaved
 import app.houselights.ui.library.actions
 import app.houselights.ui.library.saidFor
 import app.houselights.ui.util.LoadState
@@ -143,11 +142,7 @@ internal fun PersonBands(
     }
     // A change not saved puts its title back as it was: focus goes back to its poster, the page's posters being all it has,
     // unless the page was left before it was said.
-    val arrivedWith = remember { notSaved }
-    LaunchedEffect(notSaved) {
-        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
-        memory.focusLaidOut { FocusKey.item(id) }
-    }
+    RefocusNotSaved(notSaved, memory)
     // A poster's options: Menu or a long OK on it.
     var options by remember { mutableStateOf<MediaItem?>(null) }
     val moreOptions = stringResource(R.string.more_options)

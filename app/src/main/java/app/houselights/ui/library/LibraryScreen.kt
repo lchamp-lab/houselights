@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -89,7 +90,6 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.focusLaidOut
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
@@ -192,11 +192,7 @@ internal fun Wall(
     // A change not saved puts its title back in its place: focus goes back to it, unless it went up to the menus meanwhile,
     // or the wall was left before it was said.
     var inMenus by remember { mutableStateOf(false) }
-    val arrivedWith = remember { notSaved }
-    LaunchedEffect(notSaved) {
-        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
-        if (!inMenus) memory.focusLaidOut { FocusKey.item(id) }
-    }
+    RefocusNotSaved(notSaved, memory, refocuses = { !inMenus })
     // The sagas alone are named as such, on the films' wall.
     val sagasAlone = state.view == WallView.SAGAS
     val kind = if (sagasAlone) LibraryKind.COLLECTIONS else library.kind
@@ -470,20 +466,26 @@ private fun SkeletonWall() {
 
 /** The header's menus: filters, with first what a films wall with sagas shows, then sort. */
 @Composable
-private fun WallMenus(kind: LibraryKind, state: LibraryState, can: ProviderCapabilities, person: Person?, choices: WallChoices) {
+private fun RowScope.WallMenus(kind: LibraryKind, state: LibraryState, can: ProviderCapabilities, person: Person?, choices: WallChoices) {
     // A sagas library has no filters of its own; the sagas a films wall shows alone are filtered through its films.
     if (kind != LibraryKind.COLLECTIONS || state.view != null) {
         FilterButton(state.filter, state.facets, can, person, state.view, choices.onView, choices.onClearFilters, choices.onFilter)
     }
     Spacer(Modifier.width(HlSpace.s))
-    // "Trier" plus the current sort, a choice: "Titre" alone would read as a title.
+    SortButton(state.sort, choices.onSort)
+}
+
+/** Sort menu: « Trier » and the [sort] in use, lit, as a choice: « Titre » alone would read as a title. */
+@Composable
+internal fun SortButton(sort: SortOption, onSort: (SortOption) -> Unit, modifier: Modifier = Modifier) {
     HlMenuButton(
         text = stringResource(R.string.sort),
         icon = HlIcons.Sort,
-        detail = sortLabel(state.sort),
+        modifier = modifier,
+        detail = sortLabel(sort),
         detailLit = true,
         sections = listOf(
-            MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), state.sort == it) { choices.onSort(it) } }),
+            MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), sort == it) { onSort(it) } }),
         ),
     )
 }

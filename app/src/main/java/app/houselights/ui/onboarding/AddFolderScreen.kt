@@ -46,7 +46,6 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingGroup
@@ -264,24 +263,6 @@ private fun backToFirst(vm: AddFolderViewModel, focus: FormFocus, scroll: Scroll
 }
 
 /**
- * In the form's place: none of it is the folder's, and saving it would erase the folder's password; Réessayer reads it
- * again ([onReadAgain]), busy while [rereading].
- */
-@Composable
-private fun UnreadFolder(rereading: Boolean, onReadAgain: () -> Unit) {
-    HlEmptyState(
-        stringResource(R.string.folder_unread),
-        // The library is read from the player's storage, as the settings are.
-        message = stringResource(R.string.error_settings),
-        attention = true,
-        action = stringResource(R.string.retry),
-        actionIcon = HlIcons.Refresh,
-        onAction = onReadAgain,
-        busy = stringResource(R.string.retrying).takeIf { rereading },
-    )
-}
-
-/**
  * The [protocol] over the fields' columns, a little further from them than the fields from each other, [firstModifier]
  * its control's, which focus comes back to; a choice changes the form ([onEdit]). The folder keeps its kind (its titles
  * stay), which the panel beside shows.
@@ -465,7 +446,7 @@ private fun ColumnScope.FolderStatus(form: FolderForm, check: FolderCheck?, stan
     val result = when {
         standing.gone -> stringResource(R.string.folder_gone)
         panel != null -> panel
-        check is FolderCheck.Reachable -> contentText(check)
+        check is FolderCheck.Reachable -> folderContentText(check.folders, check.videos)
         else -> null
     }
     StatusPanel(
@@ -664,45 +645,18 @@ private fun faultText(check: FolderCheck): String? = when (check) {
 /** What [trouble] asks to change, on the NAS at [host], its paths kept whole ([wholePath]) as the flow's. */
 @Composable
 private fun troubleText(trouble: FolderTrouble, host: String): String = when (trouble) {
-    FolderTrouble.Unreachable -> stringResource(R.string.error_nas_unreachable, host)
-    is FolderTrouble.ShareMissing -> stringResource(R.string.error_share_not_found, host, trouble.share)
-    is FolderTrouble.ExportMissing -> stringResource(R.string.error_export_not_found, wholePath(trouble.export))
-    is FolderTrouble.SubfolderMissing -> if (trouble.nfs) {
-        stringResource(R.string.error_subfolder_not_found, wholePath(trouble.within), trouble.name)
-    } else {
-        stringResource(R.string.error_subfolder_not_found_share, trouble.within, trouble.name)
-    }
+    FolderTrouble.Unreachable -> unreachableText(host)
+    is FolderTrouble.ShareMissing -> shareMissingText(host, trouble.share)
+    is FolderTrouble.ExportMissing -> exportMissingText(trouble.export)
+    is FolderTrouble.SubfolderMissing -> subfolderMissingText(trouble.within, trouble.name, trouble.nfs)
     FolderTrouble.Missing -> stringResource(R.string.error_not_found)
-    is FolderTrouble.PlayerRefused, is FolderTrouble.ReadRefused -> refusalText(trouble)
-    is FolderTrouble.AccountDenied -> stringResource(R.string.error_smb_denied, trouble.user, trouble.share)
+    is FolderTrouble.PlayerRefused -> playerRefusedText(trouble.player, trouble.export)
+    is FolderTrouble.ReadRefused -> readRefusedText(trouble.folder, trouble.uid?.toString())
+    is FolderTrouble.AccountDenied -> accountDeniedText(trouble.user, trouble.share)
     FolderTrouble.GuestRefused -> stringResource(R.string.error_guest_refused)
     FolderTrouble.LoginFailed -> stringResource(R.string.error_login_failed)
     FolderTrouble.PasswordUnread -> stringResource(R.string.error_password_unread)
     FolderTrouble.Other -> stringResource(R.string.error_scan_other)
-}
-
-/** An NFS refusal: what to allow, where and to whom ([FolderTrouble.PlayerRefused]), or whose account to change. */
-@Composable
-private fun refusalText(trouble: FolderTrouble): String = when {
-    trouble is FolderTrouble.PlayerRefused && trouble.player != null ->
-        stringResource(R.string.error_nfs_refused, trouble.player, wholePath(trouble.export))
-    trouble is FolderTrouble.PlayerRefused -> stringResource(R.string.error_nfs_refused_no_address, wholePath(trouble.export))
-    trouble is FolderTrouble.ReadRefused && trouble.uid != null ->
-        stringResource(R.string.error_nfs_account_refused, trouble.uid.toString(), wholePath(trouble.folder))
-    trouble is FolderTrouble.ReadRefused -> stringResource(R.string.error_nfs_root_refused, wholePath(trouble.folder))
-    else -> stringResource(R.string.error_scan_other)
-}
-
-/** What a test found at the folder's first level: "412 dossiers et 3 vidéos", "412 dossiers", "3 vidéos". */
-@Composable
-private fun contentText(found: FolderCheck.Reachable): String {
-    val folders = pluralStringResource(R.plurals.folder_count, found.folders, found.folders)
-    val videos = pluralStringResource(R.plurals.video_count, found.videos, found.videos)
-    return when {
-        found.folders > 0 && found.videos > 0 -> stringResource(R.string.folder_content, folders, videos)
-        found.folders > 0 -> folders
-        else -> videos
-    }
 }
 
 private fun shareExample(protocol: Protocol): Int =

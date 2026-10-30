@@ -190,15 +190,13 @@ class LibraryViewModel(
      * longer keeps leaving it, the posters after it moving up one place, focus going to the one in its place; then saved.
      * Not saved, it is back where it was as the source has it, and said ([notSaved]).
      */
-    fun mark(item: MediaItem) {
-        val played = !item.user.played
-        change(item, item.markedAs(played), keepsMarked(shownStatus(), played)) { undo -> changes.mark(item, played, undo) }
+    fun mark(item: MediaItem) = changes.toggleMark(item) { changed, stays, save ->
+        change(item, changed, stays(shownStatus()), save)
     }
 
     /** Makes [item] a favourite, or not once it is, from its poster's options: a wall filtered on Favoris lets go of it. */
-    fun favorite(item: MediaItem) {
-        val favorite = !item.user.favorite
-        change(item, item.favoredAs(favorite), keepsFavorite(shownStatus(), favorite)) { undo -> changes.favorite(item, favorite, undo) }
+    fun favorite(item: MediaItem) = changes.toggleFavorite(item) { changed, stays, save ->
+        change(item, changed, stays(shownStatus()), save)
     }
 
     /** The watch status the wall is filtered on, as it shows: none on sagas a source cannot filter. */

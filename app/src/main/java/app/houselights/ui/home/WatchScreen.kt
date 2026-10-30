@@ -14,11 +14,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -54,7 +52,6 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.wearsNewDot
 import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.focusLaidOut
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.rememberRowState
@@ -62,6 +59,7 @@ import app.houselights.ui.design.textRoom
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterActions
 import app.houselights.ui.library.PosterOptions
+import app.houselights.ui.library.RefocusNotSaved
 import app.houselights.ui.library.actions
 import app.houselights.ui.library.saidFor
 import app.houselights.ui.util.ReloadOnLibraryChange
@@ -137,13 +135,8 @@ internal fun WatchBands(
     FocusTakesPlace(places, memory)
     // A change not saved puts its title back: focus goes back to its card, the page's cards being all it has, unless the
     // page was left before it was said.
-    val shownSections by rememberUpdatedState(sections)
-    val arrivedWith = remember { notSaved }
-    LaunchedEffect(notSaved) {
-        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
-        memory.focusLaidOut {
-            shownSections.firstNotNullOfOrNull { section -> section.items.find { it.id == id }?.let { cardKey(section, it) } }
-        }
+    RefocusNotSaved(notSaved, memory) { id ->
+        sections.firstNotNullOfOrNull { section -> section.items.find { it.id == id }?.let { cardKey(section, it) } }
     }
     // A card's options: Menu or a long OK on it.
     var options by remember { mutableStateOf<MediaItem?>(null) }
@@ -222,7 +215,7 @@ private fun Sections(
                                     item,
                                     onClick = { onOpen(item) },
                                     modifier = mod,
-                                    title = item.seriesTitle ?: item.title,
+                                    title = item.headTitle,
                                     facts = listOf(item.episodeLabel, timeLeft(item)),
                                     onFocus = focus,
                                     onLongClick = open,

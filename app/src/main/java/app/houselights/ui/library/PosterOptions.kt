@@ -2,12 +2,14 @@ package app.houselights.ui.library
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -16,8 +18,11 @@ import app.houselights.core.ArtworkKind
 import app.houselights.core.EpisodeOrderChoices
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.ui.design.FocusKey
+import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.filmCount
+import app.houselights.ui.design.focusLaidOut
 import app.houselights.ui.detail.EpisodeOrderSheet
 import app.houselights.ui.detail.OptionsSheet
 import app.houselights.ui.detail.SheetOption
@@ -113,7 +118,7 @@ internal fun PosterOptions(item: MediaItem?, actions: PosterActions, onDismiss: 
                 }
             }
         }
-        OptionsSheet(sheetTitle(item), posterFacts(item), rows, onDismiss)
+        OptionsSheet(item.headTitle, posterFacts(item), rows, onDismiss)
     }
     edited?.let { title -> key(openings) { PosterEdit(title, shown, onShow = { shown = it }, actions = actions) } }
 }
@@ -179,9 +184,6 @@ private fun favoriteRow(item: MediaItem, actions: PosterActions): SheetOption {
     ) { actions.onFavorite?.invoke(item) }
 }
 
-/** What a poster's sheet is titled with: the title's name, an episode's show's. */
-internal fun sheetTitle(item: MediaItem): String = if (item.kind == MediaKind.EPISODE) item.seriesTitle ?: item.title else item.title
-
 /**
  * Where a title stands, under its name: « 1988   2 h 48   Il reste 1 h 14 », « 2 saisons   6 épisodes non vus »,
  * « 2021 – 2024   2 films   1 film vu sur 2 », « S1 E4   52 min ».
@@ -219,6 +221,26 @@ private fun sagaFacts(item: MediaItem): List<String?> {
             else -> null
         },
     )
+}
+
+/**
+ * A change not saved ([notSaved]) puts its title back: focus goes back to it once laid out, at the key [keyOf] gives
+ * its id, unless [refocuses] says otherwise as it is said, or the screen was left before it was said.
+ */
+@Composable
+internal fun RefocusNotSaved(
+    notSaved: NotSaved?,
+    memory: FocusMemory,
+    refocuses: () -> Boolean = { true },
+    keyOf: (String) -> String? = FocusKey::item,
+) {
+    val currentRefocuses by rememberUpdatedState(refocuses)
+    val currentKeyOf by rememberUpdatedState(keyOf)
+    val arrivedWith = remember { notSaved }
+    LaunchedEffect(notSaved) {
+        val id = notSaved?.takeIf { it !== arrivedWith }?.id ?: return@LaunchedEffect
+        if (currentRefocuses()) memory.focusLaidOut { currentKeyOf(id) }
+    }
 }
 
 /** « Non enregistré · Serveur injoignable »: why the change [this] is about was not saved, said for [id] alone. */
