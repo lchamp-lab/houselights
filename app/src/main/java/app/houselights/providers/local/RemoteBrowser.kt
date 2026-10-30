@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import app.houselights.core.RepeatedFailures
 import app.houselights.core.suspendRunCatching
+import java.io.IOException
 import java.text.Collator
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -84,6 +85,12 @@ interface RemoteBrowser {
     }
 }
 
+/**
+ * An entry that leads nowhere: a symbolic link broken, in a loop or out of the folder's reach. It is no entry: what
+ * was behind it is missing, as a file gone is, never out of sight as an unreadable folder keeps it (#52).
+ */
+internal open class LeadsNowhereException(message: String, cause: Throwable? = null) : IOException(message, cause)
+
 /** A remote folder, protocol-independent. */
 internal fun interface RemoteFolder {
     /** Throws when the folder cannot be read. */
@@ -106,7 +113,8 @@ internal interface RemoteEntry {
 /**
  * Videos and sidecars under [root], at most [RemoteBrowser.MAX_DEPTH] levels deep, [found] told how many videos so far
  * as each comes ([VideoCount]). Unreadable subfolders (lost+found, another user's) and entries that fail (a file Radarr
- * replaced mid-listing) are skipped and recorded in [Listing.unreadable], and logged in [failures]. A failure on
+ * replaced mid-listing) are skipped and recorded in [Listing.unreadable], and logged in [failures]; an entry that leads
+ * nowhere ([LeadsNowhereException]) is logged and left out, what was behind it then missing. A failure on
  * [root], or one [isFatal] accepts (NAS gone, connection broken), throws, as does [pauses] saying so before a subfolder
  * is read ([ListingPausedException]).
  */
@@ -209,6 +217,10 @@ private class Walk(
 
     private fun passOver(path: String, e: Throwable) {
         if (isFatal(e)) throw e
+        if (e is LeadsNowhereException) {
+            failures.failed(path, "Passed over $path, which leads nowhere", e)
+            return
+        }
         failures.failed(path, "Could not read $path", e)
         unreadable += path
     }

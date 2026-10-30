@@ -1,5 +1,7 @@
 package app.houselights.providers.local
 
+import com.emc.ecs.nfsclient.nfs.NfsException
+import com.emc.ecs.nfsclient.nfs.NfsStatus
 import java.io.FileNotFoundException
 import java.io.IOException
 
@@ -7,7 +9,7 @@ import java.io.IOException
  * A symbolic link neither the app nor the player can follow: absolute, leaving the export, or in a loop. Its message
  * names no path, as failures are also told apart by their words; the walk logs the path.
  */
-internal class UnfollowedLinkException(why: String) : IOException("Symbolic link not followed: $why")
+internal class UnfollowedLinkException(why: String) : LeadsNowhereException("Symbolic link not followed: $why")
 
 /** An entry as reached: its path from the export root without links, and its own handle and attributes. */
 internal class NfsTarget(val path: String, val entry: NfsEntry)
@@ -18,11 +20,20 @@ internal class NfsTarget(val path: String, val entry: NfsEntry)
  * [folderAt] gives the handle of a folder by its path from the export root, without links.
  */
 internal class NfsLinks(private val export: NfsExport, private val folderAt: (String) -> ByteArray) {
-    /** [entry] of the folder at [folder], or what it leads to when a link; a broken link throws FileNotFoundException. */
+    /**
+     * [entry] of the folder at [folder], or what it leads to when a link; a link whose target is not there throws
+     * [LeadsNowhereException], as one not followed does. A failure of the NAS or the mount, or a folder refused on the
+     * way, throws as it is: it says nothing about the link.
+     */
     fun reached(folder: String, entry: NfsEntry): NfsTarget =
         if (entry.attributes?.isLink == true) follow(folder, entry) else NfsTarget(joined(folder, entry.name), entry)
 
-    private fun follow(folder: String, link: NfsEntry): NfsTarget = Following(folder, target(link)).target()
+    private fun follow(folder: String, link: NfsEntry): NfsTarget = try {
+        Following(folder, target(link)).target()
+    } catch (e: IOException) {
+        if (!isNotThere(e)) throw e
+        throw LeadsNowhereException("Symbolic link broken: its target is not there", e)
+    }
 
     /** The names [link]'s target goes through, from the link's folder. */
     private fun target(link: NfsEntry): List<String> {
@@ -82,6 +93,12 @@ internal class NfsLinks(private val export: NfsExport, private val folderAt: (St
         const val MAX_LINKS = 8
 
         private val FOLDER = NfsAttributes(isFolder = true, size = 0, lastModified = null)
+
+        /** A name the NAS does not have, or a file where the path goes on: what a broken link meets. */
+        private fun isNotThere(e: IOException) =
+            e is FileNotFoundException || e is NfsException && e.status?.value in NOT_THERE
+
+        private val NOT_THERE = setOf(NfsStatus.NFS3ERR_NOENT.value, NfsStatus.NFS3ERR_NOTDIR.value)
 
         /** [name] in the folder at [folder], from the export root ("" for the root). */
         fun joined(folder: String, name: String) = if (folder.isEmpty()) name else "$folder/$name"
