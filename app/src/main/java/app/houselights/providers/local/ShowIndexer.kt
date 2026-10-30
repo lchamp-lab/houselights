@@ -501,16 +501,16 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
      * Asks TMDB again for a show to identify ([Reidentify]) by what its rows hold, never reading the NAS; null when TMDB
      * did not answer, for the show or one of its seasons. Its writes, true when the show changed: found at last, it is
      * saved as an identification saves it, every episode with its season's details and what was kept of it; still not
-     * found, only its state, its candidates and when it was asked, its seasons and episodes left as they are.
+     * found, only its state, its candidates and when it was asked, its seasons and episodes left as they are. Its seasons
+     * are asked through [cache], which the placing that follows reads them from ([Reidentify]).
      */
-    suspend fun recheck(series: ItemEntity, tmdb: TmdbPass): (suspend () -> Boolean)? {
+    suspend fun recheck(series: ItemEntity, tmdb: TmdbPass, cache: SeasonCache = SeasonCache(tmdb)): (suspend () -> Boolean)? {
         val (title, year) = showQuery(series)
         val nfo = series.nfoInfo()
         val query = Query(null, namesOf(series), nfo, title, year, known = lent(series))
         val answer = tmdb.ask { lookupShow(it, query) } as? TmdbAnswer.Given ?: return null
         val now = clock()
         val tv = answer.value?.value ?: return { dao.rechecked(series, answer.value?.offered.orEmpty(), now) }
-        val cache = SeasonCache(tmdb)
         val seasons = dao.children(series.id).filter { it.kind == ItemKind.SEASON }.mapNotNull { it.seasonNumber }
             .associateWith { cache.get(tv.id, it) }
         if (seasons.values.any { it !is TmdbAnswer.Given }) return null

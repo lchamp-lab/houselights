@@ -64,9 +64,11 @@ internal class Reidentify(
         return lock.withLock {
             // Identified, left as it is, re-read by a scan or gone meanwhile: nothing to ask.
             val fresh = dao.item(title.id)?.takeIf { stillDue(it, title) } ?: return@withLock false
+            // The seasons asked for a show found are those its placing reads: each asked once.
+            val seasons = ShowIndexer.SeasonCache(tmdb)
             val writes = when (fresh.kind) {
                 ItemKind.MOVIE -> movies.recheck(fresh, tmdb)
-                ItemKind.SERIES -> shows.recheck(fresh, tmdb)
+                ItemKind.SERIES -> shows.recheck(fresh, tmdb, seasons)
                 else -> null
             } ?: return@withLock false
             var changed = false
@@ -75,7 +77,7 @@ internal class Reidentify(
                     // Left as it is while TMDB was asked ([LocalEditor.keepUnidentified], at once): what it found is not written.
                     if (dao.item(title.id)?.userNoMatch == false) changed = writes()
                 }
-                if (changed && fresh.kind == ItemKind.SERIES) placed(title.id, tmdb)
+                if (changed && fresh.kind == ItemKind.SERIES) placed(title.id, tmdb, seasons)
             }
             changed
         }
@@ -86,9 +88,9 @@ internal class Reidentify(
      * as an identification places it, its episodes saved in TMDB's seasons until then; TMDB not answering, the show is
      * read again whole at the next pass, which places them.
      */
-    private suspend fun placed(seriesId: Long, tmdb: TmdbPass) {
+    private suspend fun placed(seriesId: Long, tmdb: TmdbPass, seasons: ShowIndexer.SeasonCache) {
         if (dao.item(seriesId)?.tmdbId == null) return
-        val placed = suspendRunCatching { placing.reorder(seriesId, tmdb) }
+        val placed = suspendRunCatching { placing.reorder(seriesId, tmdb, seasons = seasons) }
             .onFailure { Log.w(TAG, "Episodes of show $seriesId wait for the next pass to be placed", it) }
         if (placed.getOrNull() == null) dao.readAgain(seriesId)
     }

@@ -146,9 +146,14 @@ internal class EpisodePlacing(private val dao: LibraryDao, private val clock: ()
      * [choice] ([ItemEntity.userEpisodeOrder], written with the places), else as it stands, as after a new
      * identification. Its writes are first fetched, then run in one transaction; true when anything changed. A TMDB
      * failure throws from a strict pass ([TmdbPass]) before anything is written, as does a chosen group TMDB would not
-     * give ([TmdbNotFoundException]); null when unanswered.
+     * give ([TmdbNotFoundException]); null when unanswered. Seasons already asked this pass are read from [seasons].
      */
-    suspend fun reorder(seriesId: Long, tmdb: TmdbPass, choice: Choice? = null): Boolean? {
+    suspend fun reorder(
+        seriesId: Long,
+        tmdb: TmdbPass,
+        choice: Choice? = null,
+        seasons: ShowIndexer.SeasonCache = ShowIndexer.SeasonCache(tmdb),
+    ): Boolean? {
         val stored = dao.item(seriesId)?.takeIf { it.kind == ItemKind.SERIES } ?: return false
         val series = choice?.let { stored.copy(userEpisodeOrder = it.order) } ?: stored
         val episodes = dao.episodesOfSeries(seriesId)
@@ -159,7 +164,7 @@ internal class EpisodePlacing(private val dao: LibraryDao, private val clock: ()
         if (wanted != null && numbering.order.id != wanted) throw TmdbNotFoundException()
         val anew = numbering.order.id != (series.episodeOrder ?: EpisodeOrderEntity.AIRED)
         val chosen = if (choice != null) suspend { dao.setUserEpisodeOrder(seriesId, choice.order) } else null
-        return placeAnew(series, numbering, episodes, ShowIndexer.SeasonCache(tmdb), reordered = anew, also = chosen)
+        return placeAnew(series, numbering, episodes, seasons, reordered = anew, also = chosen)
     }
 
     /** The user's choice of an order ([ItemEntity.userEpisodeOrder]): [EpisodeOrderEntity.AIRED], a group's id, null for automatic. */
