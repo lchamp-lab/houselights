@@ -484,6 +484,9 @@ interface LibraryDao :
     )
     suspend fun relink(id: Long, filePath: String, fileSize: Long)
 
+    @Query("UPDATE items SET edition = :edition WHERE id = :id")
+    suspend fun setEdition(id: Long, edition: String?)
+
     /** Sets [ItemEntity.parts]; a film gaining parts is rematched, as it was matched by its first part ("Film CD1"). */
     @Query(
         "UPDATE items SET parts = :parts, " +

@@ -207,6 +207,23 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         }
     }
 
+    /**
+     * Films [relinked] to a file renamed or replaced ([MissingFiles]), [known] before, not read again when only the name
+     * changed: the edition the new name says, unless their NFO gives one ([editionOf]), read from their rows, never from
+     * the NAS; only those whose name says another edition than it did are read.
+     */
+    suspend fun relinked(relinked: List<Pair<Long, RemoteFile>>, known: List<KnownFile>) {
+        val before = known.associateBy { it.id }
+        for ((id, file) in relinked) {
+            // An episode, or a film whose new name says the edition its former one did: nothing to read.
+            val was = before[id] ?: continue
+            if (was.seriesId != null || FilenameParser.edition(was.filePath) == FilenameParser.edition(file.relativePath)) continue
+            val film = dao.item(id)?.takeIf { it.kind == ItemKind.MOVIE } ?: continue
+            val edition = editionOf(film, film.nfoInfo())
+            if (edition != film.edition) dao.setEdition(id, edition)
+        }
+    }
+
     /** The path a film's row is named by: its file's, a stack's without its part ([Stacks.filmPath]). */
     private fun ItemEntity.namedPath(): String? = filePath?.let { Stacks.filmPath(it, parts.isNotEmpty()) }
 

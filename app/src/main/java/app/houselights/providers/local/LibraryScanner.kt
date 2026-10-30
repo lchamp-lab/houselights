@@ -864,6 +864,7 @@ class LibraryScanner(
         lock.withLock {
             dao.inTransaction {
                 dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, clock(), missing.absorbed)
+                movies.relinked(missing.relinked, known)
                 // A new drop is asked about, with what an earlier one held and the user kept.
                 if (missing.held.isNotEmpty()) dao.setHeldKept(source.id, false)
             }
