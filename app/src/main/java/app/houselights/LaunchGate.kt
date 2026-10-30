@@ -64,8 +64,9 @@ class LaunchGate(
     fun startsElsewhere() = open(Reason.START_SCREEN)
 
     /**
-     * Opens the gate at the cap unless it is already open; called at the first window. A process started before it, by a
-     * receiver after an update, counts the cap from that window, as home under it was begun only then.
+     * Opens the gate at the cap unless it is already open; called at the first window. A window that opens past the cap
+     * (a process a receiver started after an update, a slow cold start) counts the cap from itself, as home under it was
+     * begun only then.
      */
     suspend fun openAtCap() {
         val windowAt = sinceStart()
