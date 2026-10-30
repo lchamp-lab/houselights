@@ -366,8 +366,6 @@ internal class SettingsViewModel(
     /** The path mappings as typed, incomplete lines included: they survive pane changes and scrolling. */
     val mappings: List<PathMapping> = _mappings
 
-    private var mappingsEdited = false
-
     /** The stored mappings were not opened when this screen opened: [mappings] takes them in once they are. */
     private var mappingsAwaited = SecretSetting.PATH_MAPPINGS in store.state.value.unreadSecrets
 
@@ -399,33 +397,19 @@ internal class SettingsViewModel(
             incomplete -> _mappings.removeAt(index)
             else -> _mappings[index] = mapping
         }
-        mappingsEdited = true
         saveMappings()
     }
 
     fun removeMapping(index: Int) {
         if (!mappingsReadable()) return
         _mappings.removeAt(index)
-        mappingsEdited = true
         saveMappings()
     }
 
     /** Saves the complete lines as the sheet closes, not while typing, so a half-typed path never plays. */
     private fun saveMappings() {
-        if (!mappingsEdited) return
-        mappingsEdited = false
-        val complete = completeMappings()
+        val complete = _mappings.filter { it.from.isNotBlank() && it.to.isNotBlank() }
         change("Saving the path mappings", SettingAction.PATH_MAPPINGS) { store.setPathMappings(complete) }
-    }
-
-    private fun completeMappings() = _mappings.filter { it.from.isNotBlank() && it.to.isNotBlank() }
-
-    override fun onCleared() {
-        // Leaving Settings from inside a field still saves what was typed.
-        if (mappingsEdited) {
-            val complete = completeMappings()
-            work.launchAction(TAG, "Saving the path mappings") { store.setPathMappings(complete) }
-        }
     }
 
     /** The artwork no title uses is being deleted ([cleanup]): another press waits for it to end. */
