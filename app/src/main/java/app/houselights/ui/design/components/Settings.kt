@@ -106,7 +106,7 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
 }
 
 /**
- * One setting, [HlSize.row] tall: its name in `entry` and its [description] in secondary `meta` on one line, its
+ * One setting, at least [HlSize.row] tall: its name in `entry` and its [description] in secondary `meta` on one line, its
  * value on the right, in `meta` or, for a format or a figure, `jaquette` ([valueStyle]); with [onClick] a control,
  * white with focus, else a value it only states. [valueLit] (a user choice) and [valueAttention] set the value in
  * ember; [trailing] replaces the value. Disabled, it sits in a well, in a pane's plate only: sheets omit
@@ -402,6 +402,6 @@ internal fun GroupTitle(title: String) {
         color = Hl.colors.contentSecondary,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.paddingFromBaseline(top = HlSpace.m, bottom = HlSpace.s),
+        modifier = Modifier.paddingFromBaseline(top = HlSpace.s, bottom = HlSpace.s),
     )
 }

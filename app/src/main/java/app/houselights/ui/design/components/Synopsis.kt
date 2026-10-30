@@ -72,7 +72,7 @@ fun HeadOverview(text: String, onOpen: () -> Unit, modifier: Modifier = Modifier
 const val HEAD_OVERVIEW_LINES = 3
 
 /**
- * The whole overview in a side sheet of the standard width, about 60 characters a line: its tagline in `lead` over its
+ * The whole overview in a side sheet of the standard width, about 64 characters a line: its tagline in `lead` over its
  * text in `body`; the text is focused, down and up scroll it [READING_STEP] lines per press.
  */
 @Composable

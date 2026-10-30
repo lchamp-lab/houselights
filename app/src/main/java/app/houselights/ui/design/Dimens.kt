@@ -27,27 +27,27 @@ object HlSpace {
 
 /**
  * Radii follow hierarchy, never a pill or a disc: only dots are round. A nested shape keeps its corners
- * parallel: outer = inner + gap (a menu: 10 + 6 = 16; a focus frame: the picture's + its gap).
+ * parallel: outer = inner + gap (a menu: 6 + 6 = 12; a focus frame: the picture's + its gap).
  */
 object HlShapes {
     /** Images up to 48 dp: thumbnails, row previews. */
-    val thumb = RoundedCornerShape(4.dp)
-    val badge = RoundedCornerShape(4.dp)
+    val thumb = RoundedCornerShape(2.dp)
+    val badge = RoundedCornerShape(2.dp)
     /** A mark over a picture, a tile's label. */
-    val mark = RoundedCornerShape(6.dp)
+    val mark = RoundedCornerShape(3.dp)
     /** Buttons, tiles, a tab's plate, menu options. */
-    val control = RoundedCornerShape(10.dp)
-    val field = RoundedCornerShape(10.dp)
+    val control = RoundedCornerShape(6.dp)
+    val field = RoundedCornerShape(6.dp)
     /** Setting and sheet rows. */
-    val row = RoundedCornerShape(12.dp)
+    val row = RoundedCornerShape(8.dp)
     /** Posters and portraits. */
-    val artwork = RoundedCornerShape(12.dp)
+    val artwork = RoundedCornerShape(8.dp)
     /** Wide images: stills, a backdrop to choose. */
-    val wide = RoundedCornerShape(14.dp)
+    val wide = RoundedCornerShape(11.dp)
     /** Menus, source cards, panels. */
-    val panel = RoundedCornerShape(16.dp)
+    val panel = RoundedCornerShape(12.dp)
     /** A side sheet: its free corners rounded, square against the screen's edge. */
-    val sheet = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp)
+    val sheet = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
 }
 
 /** Inner padding of containers by kind, so the same kind of thing breathes the same everywhere. */
@@ -90,10 +90,10 @@ object HlSize {
     /** Cast member column: the portrait, then a name of at most two lines. */
     val personColumn = 120.dp
     /** A button on a detail page; [controlCompact] in a screen's header. */
-    val control = 48.dp
-    val controlCompact = 44.dp
+    val control = 44.dp
+    val controlCompact = 40.dp
     /** A square icon button; [tileCompact] in a screen's header. */
-    val tile = 48.dp
+    val tile = 44.dp
     val tileCompact = 40.dp
     /** An icon beside words: a place's, the search field's. */
     val icon = 20.dp
@@ -132,11 +132,11 @@ object HlSize {
     /** How far one press of up or down scrolls a long text. */
     val scrollStep = 120.dp
     /** Least height of a setting row, in a pane as in a sheet. */
-    val row = 60.dp
+    val row = 52.dp
     /** Least height of a text field and of the search query: a setting row's. */
     val field = row
     /** A place in the settings' list of places: seven fit the safe area under its title. */
-    val navRow = 56.dp
+    val navRow = 48.dp
     /** A backdrop at its use, a gallery's wide image: 16:9. */
     const val PREVIEW_RATIO = 16f / 9f
     /** Progress shown beside text (time left). */
@@ -169,8 +169,8 @@ object HlSize {
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
     val focusBorder = 2.dp
     val hairline = 1.dp
-    /** The lockup's cap height: at the head of About (420 wide) and over the welcome wall (364 wide, as the name alone was). */
-    val wordmark = 30.dp
+    /** The lockup's cap height: at the head of About, on the screen title's baseline, and over the welcome wall (364 wide). */
+    val wordmark = 26.dp
     val wordmarkHero = 26.dp
 }
 
@@ -188,7 +188,7 @@ object HlLayout {
     val fieldShort = 120.dp
     /** Clear logo or title of a detail page. */
     val titleArtWidth = 440.dp
-    val titleArtHeight = 112.dp
+    val titleArtHeight = 104.dp
     /**
      * The hero band of « À regarder » (and of a person's page), [HlSpace.l] from its title and its rows: logo, facts, two
      * overview lines, [HlSpace.s] apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
@@ -270,7 +270,7 @@ object HlLayout {
      * The band a backdrop's or a logo's sheet takes at the screen's foot, under the title previewed in the light of the
      * choice with focus, at the viewer's text size: the held name of the section of the line with focus, the wall's room,
      * that line, a [cell] tall, its words (« Automatique », and a saga's film's year with [film]) inside the safe area,
-     * then the gap to the next line and its top ([HlSpace.m]), cut by the screen's edge: 214 for a film's backdrops at
+     * then the gap to the next line and its top ([HlSpace.m]), cut by the screen's edge: 210 for a film's backdrops at
      * the default text size.
      */
     @Composable
@@ -433,7 +433,7 @@ internal object VoletDefaults {
     /** A panel's number under its top edge. */
     val numberTop = HlSpace.m
 
-    /** From this closed width the numbers take the signature (72), from [numberMedium] `display` (48), else `headline`. */
+    /** From this closed width the numbers take the signature (72), from [numberMedium] `display` (44), else `headline`. */
     val numberLarge = 120.dp
     val numberMedium = 64.dp
 

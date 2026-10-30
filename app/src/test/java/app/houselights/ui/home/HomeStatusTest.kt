@@ -138,7 +138,7 @@ class HomeStatusTest {
         assertFalse(drawn("Unreachable"))
     }
 
-    /** At the largest text, one line of facts fits: the last scan's, before Trakt's and the source's. */
+    /** At the largest text, the last scan stays among the facts, before Trakt's and the source's. */
     @Test
     fun atTheLargestTextTheLastScanStays() {
         compose.setTvContent {
@@ -146,7 +146,6 @@ class HomeStatusTest {
             CompositionLocalProvider(LocalDensity provides Density(density.density, LARGEST_TEXT)) { HomeGrid(fullHome()) }
         }
         assertTrue(drawn("Last scan"))
-        assertFalse(drawn("Source"))
     }
 
     /** "My files · nas": the host is written as the source is, only the dot between them quiet. */

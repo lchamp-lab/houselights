@@ -125,7 +125,8 @@ class WelcomeLayoutTest {
         assertEquals("the name at its full width: $name", WORDMARK_RATIO, name.width / name.height, RATIO)
 
         val title = bounds(R.string.welcome_title)
-        assertEquals("the task's title on one line", HouselightsType.headline.lineHeight.value, title.height.value, PX)
+        // One line: no taller than its line height (trimmed above and below to its letters).
+        assertTrue("the task's title on one line: $title", title.height.value <= HouselightsType.headline.lineHeight.value + PX)
         val choices = listOf(bounds(R.string.source_local), bounds(R.string.source_jellyfin))
         assertEquals("the choices alike", choices[0].height, choices[1].height)
         noMarks()

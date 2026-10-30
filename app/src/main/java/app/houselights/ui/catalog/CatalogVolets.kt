@@ -32,12 +32,12 @@ internal fun LazyListScope.catalogVolets() {
         }
     }
     item {
-        Group("Volets: five films, numbers in 48; one missing, grey with its ring, two announced with the quiet dot") {
+        Group("Volets: five films, numbers in 44; one missing, grey with its ring, two announced with the quiet dot") {
             Specimen("the saga closes into its spine, its name upright in the numbers' size") { Polyptych(FIVE) }
         }
     }
     item {
-        Group("Volets: eight films at the narrowest, numbers in 36, the spine in rowTitle; a picture failed shows its dark") {
+        Group("Volets: eight films at the narrowest, numbers in 32, the spine in rowTitle; a picture failed shows its dark") {
             Specimen("the years on one line, at least 4 apart; past eight films the panels scroll") { Polyptych(EIGHT) }
         }
     }
@@ -111,8 +111,8 @@ private const val MOVING = -1
 
 private val brokenPicture = ImageRef("catalog-volet-broken") { "file:///nonexistent/volet.jpg" }
 
-/** The polyptych on the canvas: 853 across the safe area less a focused frame's reach, 370.5 above the predella. */
-private const val POLYPTYCH_SHAPE = 853f / 370.5f
+/** The polyptych on the canvas: 853 across the safe area less a focused frame's reach, 374.5 above the predella. */
+private const val POLYPTYCH_SHAPE = 853f / 374.5f
 
 private const val OVERVIEW = "A desert world, a family at war for it, and a son who sees what is to come: two lines at most, " +
     "cut with an ellipsis, OK opening the whole."

@@ -74,7 +74,7 @@ private fun Shapes() {
     }
 }
 
-/** A shape's radii in dp, the free corners first: "10", or "24 / 0" for a sheet against the edge. */
+/** A shape's radii in dp, the free corners first: "6", or "16 / 0" for a sheet against the edge. */
 @Composable
 private fun radii(shape: RoundedCornerShape): String {
     val density = LocalDensity.current

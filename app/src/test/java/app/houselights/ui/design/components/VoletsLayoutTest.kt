@@ -71,7 +71,7 @@ class VoletsLayoutTest {
 
     @Test
     fun theNumbersTakeOneSizeByTheSagasLength() = sizes { step ->
-        listOf(3 to 72f, 4 to 48f, 5 to 48f, 6 to 36f, 8 to 36f, BOND to 36f).forEach { (films, size) ->
+        listOf(3 to 72f, 4 to 44f, 5 to 44f, 6 to 32f, 8 to 32f, BOND to 32f).forEach { (films, size) ->
             show(Case(films, step, open = 0))
             // Compacte sets them smaller, as it does every title; from Standard up they keep their size.
             if (step < 1f) {
