@@ -55,12 +55,12 @@ import kotlinx.coroutines.withContext
 
 /** About; [jellyfin] while Jellyfin is the source, which the trust sheet names (#58). */
 internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows, updates: UpdateUi? = null, jellyfin: Boolean = false) {
-    item { AboutBrand() }
-    item { AboutStatus(jellyfin) }
+    item(key = "about-brand") { AboutBrand() }
+    item(key = "about-status") { AboutStatus(jellyfin) }
     // Only in a build that updates itself (the project's release): the others never check.
-    if (updates != null) item { UpdatesGroup(updates, rows) }
-    item { AboutCredits() }
-    item {
+    if (updates != null) item(key = "about-updates") { UpdatesGroup(updates, rows) }
+    item(key = "about-credits") { AboutCredits() }
+    item(key = "about-rows") {
         HlSettingGroup(null, Modifier.revealOnFocus()) {
             SupportRow()
             JournalRow()

@@ -2,6 +2,7 @@ package app.houselights.ui.library
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -12,6 +13,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
+import app.houselights.core.SortOption
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.requestedPoster
@@ -85,6 +87,22 @@ class WallPageTest {
         assertTrue("a second line under the first", second.top > first.bottom)
         val last = poster(2 * HlLayout.WALL_COLUMNS)
         assertTrue("the second line whole on the screen: ${last.bottom}", last.bottom <= 540.dp)
+    }
+
+    /** Sorted anew from its menus, the wall opens at its top, on its new first poster, not where its first poster went. */
+    @Test
+    fun sortedAnewItOpensAtItsTop() {
+        val vm = LibraryViewModel({ provider }, films)
+        compose.setTvContent { Wall(vm, films, "Films", onOpenItem = {}) }
+        compose.waitForIdle()
+        compose.press(Key.DirectionUp)
+        focusIsOn("Filter")
+
+        // By Ajout, thirty films added since come before the first one by title.
+        provider.wall = (41..70).map { film("m$it", "Film $it") } + provider.wall
+        compose.runOnIdle { vm.setSort(SortOption.ADDED) }
+        compose.waitForIdle()
+        compose.onNode(hasText("Film 41") and hasClickAction()).assertIsDisplayed()
     }
 
     /** A poster fills its cell at the width its picture is decoded and loaded ahead at, a pixel's rounding aside. */

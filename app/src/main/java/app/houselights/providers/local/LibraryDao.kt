@@ -528,14 +528,29 @@ interface LibraryDao :
     suspend fun titleAmong(ids: List<Long>): Long?
 
     /**
-     * The films among main rows [ids] in several copies, one of them at least held ([MissingFiles.isDrop]): held as the
-     * copy Lire plays is ([LocalMapper]).
+     * The films among main rows [ids] in several copies: held and started as the copy Lire plays is, watched as any copy
+     * is ([LocalMapper.playedCopiesOf]).
+     */
+    @Query("SELECT DISTINCT versionOf FROM items WHERE versionOf IN (:ids)")
+    suspend fun titlesInCopies(ids: List<Long>): List<Long>
+
+    /**
+     * The copies of the films [titles] ([titlesInCopies]), their main rows included, without NFO text, read whole as Lire
+     * ranks them ([LocalMapper.playedCopiesOf]). [titles] is bound once, so [SQL_IN_LIMIT] of them stay under Android 9's
+     * 999 arguments.
+     */
+    @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND COALESCE(versionOf, id) IN (:titles) ORDER BY id")
+    suspend fun copiesOf(titles: List<Long>): List<ItemEntity>
+
+    /**
+     * The films in several copies whose copies are not all watched, nor all started, as their main row is: the walls'
+     * filters read them as the copy Lire plays is, watched as any copy is ([LocalFilters]).
      */
     @Query(
         "SELECT DISTINCT c.versionOf FROM items c JOIN items t ON t.id = c.versionOf " +
-            "WHERE c.versionOf IN (:ids) AND (c.missingSince IS NOT NULL OR t.missingSince IS NOT NULL)",
+            "WHERE c.played != t.played OR (c.positionMs > 0) != (t.positionMs > 0)",
     )
-    suspend fun heldAmongCopies(ids: List<Long>): List<Long>
+    suspend fun copiesApart(): List<Long>
 
     /**
      * Removes the rows among [ids] still held while their files are missing ([MissingFiles.isDrop]), as a pass removes

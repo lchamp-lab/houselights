@@ -137,14 +137,19 @@ internal class LocalCatalog(
             val best = VersionRank.best(copies)
             val choice = copies.firstOrNull { it.id == titleId }?.versionChoice?.takeIf { id -> copies.any { it.id == id } } ?: best
             copies.zip(items).map { (copy, mapped) ->
+                val runtime = copy.runtimeMs()
                 Version(
-                    // Each copy held as its own file is, the film as the copy Lire plays ([LocalMapper]).
-                    item = mapped.copy(missingSince = copy.missingSince),
+                    // Each copy held, watched, started and as long as its own file is, the film as the copy Lire plays ([LocalMapper]).
+                    item = mapped.copy(
+                        missingSince = copy.missingSince,
+                        runtimeMs = runtime,
+                        user = mapped.user.copy(played = copy.played, positionMs = copy.positionMs),
+                    ),
                     edition = copy.edition,
                     label = null,
                     media = mapped.media,
                     sizeBytes = mapped.media?.sizeBytes ?: copy.fileSize,
-                    runtimeMs = mapped.runtimeMs,
+                    runtimeMs = runtime,
                     chosen = copy.id == choice,
                     best = copy.id == best,
                     key = copy.id.toString(),

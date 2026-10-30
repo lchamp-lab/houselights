@@ -59,7 +59,7 @@ import kotlinx.coroutines.flow.StateFlow
  */
 internal fun LazyListScope.traktPane(vm: TraktViewModel, session: TraktSession?, folders: Boolean = true, unread: Boolean = false) {
     // Kept, but not opened at this launch: Réessayer at the pane's head reads it again.
-    item { Trakt(vm, session, folders, kept = unread && session == null) }
+    item(key = "trakt") { Trakt(vm, session, folders, kept = unread && session == null) }
 }
 
 @Composable

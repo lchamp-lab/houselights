@@ -38,7 +38,7 @@ import app.houselights.ui.design.revealOnFocus
  * way checked in ember, and the path mappings, a line each.
  */
 internal fun LazyListScope.playbackPane(s: AppSettings, server: Boolean, tracks: Boolean) {
-    item {
+    item(key = "playback") {
         val sentence = when {
             !tracks -> R.string.playback_desc
             server -> R.string.playback_desc_server
@@ -52,7 +52,7 @@ internal fun LazyListScope.playbackPane(s: AppSettings, server: Boolean, tracks:
         }
     }
     if (server) {
-        item {
+        item(key = "playback-mappings") {
             HlSettingGroup(stringResource(R.string.path_mappings), Modifier.revealOnFocus()) {
                 PathMappings(unread = SecretSetting.PATH_MAPPINGS in s.unreadSecrets)
             }
