@@ -12,6 +12,7 @@ import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -555,24 +556,39 @@ class LibraryScanner(
     }
 
     /**
-     * [source]'s videos and sidecars. A film started while they are listed stops the listing between two folders, which
-     * leaves its session or mount, closed as the scan waits ([waitForThePlayer]), and begins anew once the player stops:
-     * no listing reads the NAS through a film's start. The count screens say never goes back meanwhile.
+     * [source]'s videos and sidecars. A film started while they are listed, or the app leaving the screen (another app
+     * may play from the NAS, [present]), stops the listing between two folders, which leaves its session or mount, closed
+     * as the scan waits ([waitForThePlayer]), and begins anew once the player stops and the app is back: no listing reads
+     * the NAS through a film's start. A wait the player outlasted ([MAX_PAUSE_MS]) lets the listing go on through it, as
+     * the files are then read. The count screens say never goes back meanwhile.
      */
-    private suspend fun listing(source: SourceEntity): Listing {
+    private suspend fun listing(source: SourceEntity): Listing = coroutineScope {
+        val away = AtomicBoolean(false)
+        // Unconfined: told as the app leaves, before the walk next asks whether to stop.
+        val watch = launch(Dispatchers.Unconfined) { present.collect { away.set(!it) } }
+        try {
+            listing(source, away::get)
+        } finally {
+            watch.cancel()
+        }
+    }
+
+    /** [listing], [away] saying whether the app left the screen. */
+    private suspend fun listing(source: SourceEntity, away: () -> Boolean): Listing {
         val pace = listedPace()
         var most = 0
+        var waitedOut = false
         while (true) {
             try {
-                return browsers(source).list(source, pauses = { playing.value }) { count ->
+                return browsers(source).list(source, pauses = { (playing.value && !waitedOut) || away() }) { count ->
                     if (count > most) {
                         most = count
                         pace(count)
                     }
                 }
             } catch (_: ListingPausedException) {
-                Log.i(TAG, "${source.name}: listed again once the film ends")
-                waitForThePlayer()
+                Log.i(TAG, "${source.name}: listed again once the film ends and the app is back")
+                waitedOut = !waitForThePlayer()
             }
         }
     }
@@ -845,13 +861,15 @@ class LibraryScanner(
 
     /**
      * Waits during playback (bounded, in case the player never reports its end), then while in the background, unless
-     * Android's screensaver shows ([present]). NAS sessions are closed first, as a wait can last hours.
+     * Android's screensaver shows ([present]). NAS sessions are closed first, as a wait can last hours. False when the
+     * player still played as the bound ran out ([MAX_PAUSE_MS]).
      */
-    private suspend fun waitForThePlayer() {
-        if (!playing.value && present.first()) return
+    private suspend fun waitForThePlayer(): Boolean {
+        if (!playing.value && present.first()) return true
         closeIdle()
-        withTimeoutOrNull(MAX_PAUSE_MS) { playing.first { !it } }
+        val ended = withTimeoutOrNull(MAX_PAUSE_MS) { playing.first { !it } } != null
         present.first { it }
+        return ended
     }
 
     private suspend fun settleMissing(
