@@ -71,13 +71,18 @@ private fun NfoDocument.content() = NfoContent(path, info, nfoLines(text))
  */
 internal fun nfoLines(text: String): List<String> = text.trim().lines().flatMap { it.cutAfterTags(NFO_LINE) }
 
-/** This line in pieces of [max] characters at most, each ending after its last '>' when it holds one. */
+/**
+ * This line in pieces of [max] characters at most, each ending after its last '>' when it holds one, else never
+ * between the two halves of a character: each piece looks for its tag within its own length alone, so a line without
+ * '>' is read once, not again for each piece.
+ */
 private fun String.cutAfterTags(max: Int): List<String> {
     val pieces = mutableListOf<String>()
     var from = 0
     while (length - from > max) {
-        val tag = lastIndexOf('>', from + max - 1)
-        val end = if (tag >= from) tag + 1 else from + max
+        val tag = (from + max - 1 downTo from).firstOrNull { this[it] == '>' }
+        var end = tag?.plus(1) ?: (from + max)
+        if (tag == null && this[end - 1].isHighSurrogate()) end--
         pieces += substring(from, end)
         from = end
     }

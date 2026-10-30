@@ -85,6 +85,24 @@ class NfoViewModelTest {
         assertTrue("each cut after a tag", lines.all { it.endsWith('>') })
     }
 
+    /**
+     * A megabyte without a tag past its first is cut at [NFO_LINE] characters, never between the two halves of an
+     * emoji, the pieces giving back the whole text.
+     */
+    @Test
+    fun aLongLineWithoutTagsIsCutAtTheLimitBetweenCharacters() {
+        val plain = "<plot>" + "a".repeat(MEGABYTE)
+        val plainLines = nfoLines(plain)
+        assertEquals("the whole text", plain, plainLines.joinToString(""))
+        assertTrue("none longer than $NFO_LINE", plainLines.all { it.length <= NFO_LINE })
+
+        val emoji = "<plot>a" + "\uD83C\uDFAC".repeat(EMOJIS)
+        val emojiLines = nfoLines(emoji)
+        assertEquals("the whole text", emoji, emojiLines.joinToString(""))
+        assertTrue("none longer than $NFO_LINE", emojiLines.all { it.length <= NFO_LINE })
+        assertTrue("none ending inside an emoji", emojiLines.none { it.last().isHighSurrogate() })
+    }
+
     @Test
     fun aTitleWithoutAnNfoIsReadyWithNone() = runTest {
         provider.nfo = null
@@ -128,5 +146,11 @@ class NfoViewModelTest {
     private companion object {
         /** Actors enough to write the NFO's one line many times over [NFO_LINE]. */
         const val ACTORS = 1_000
+
+        /** Emojis enough to write a line many times over [NFO_LINE]. */
+        const val EMOJIS = 5_000
+
+        /** The longest NFO read, in characters of one line. */
+        const val MEGABYTE = 1 shl 20
     }
 }
