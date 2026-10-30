@@ -119,6 +119,12 @@ class LibraryViewModel(
     /** The first page, an in-place reload or the next page: one at a time, a new one cancelling the previous. */
     private val pages = LatestJob(viewModelScope)
 
+    /**
+     * How far the wall asked to read: the titles shown and the next page, from its asking until it comes, so that a
+     * reload in place meanwhile, which cancels it, reads that far; 0 once read, or as the wall starts over.
+     */
+    private var reaching = 0
+
     /** Loads what the filter menu offers, from the library as it is now; a new load cancels the previous. */
     private val facetLoads = LatestJob(viewModelScope)
 
@@ -266,6 +272,7 @@ class LibraryViewModel(
      */
     private fun reset(forget: Boolean) {
         pages.cancel()
+        reaching = 0
         if (forget) {
             shownBefore = null
             saved.remove<Int>(SHOWN)
@@ -289,13 +296,15 @@ class LibraryViewModel(
     private fun refresh() {
         val s = _state.value
         val read = changes.pending.reading()
-        // Still to read, the wall reads as far as it showed when Android stopped the app ([shownBefore]).
-        val limit = maxOf(if (s.items.isEmpty()) shownBefore ?: 0 else s.items.size, PAGE)
+        // Still to read, the wall reads as far as it showed when Android stopped the app ([shownBefore]); with the next
+        // page on its way, which this reload cancels, that page too ([reaching]).
+        val limit = maxOf(if (s.items.isEmpty()) shownBefore ?: 0 else s.items.size, reaching, PAGE)
         pages.launch {
             suspendRunCatching {
                 source().page(s, start = 0, limit = limit)
             }.onSuccess { page ->
                 shownBefore = null
+                reaching = 0
                 val items = page.items.distinctBy(MediaItem::id)
                 _state.update {
                     it.copy(
@@ -337,6 +346,7 @@ class LibraryViewModel(
         val read = changes.pending.reading()
         // Brought back after Android stopped the app, the wall reads at once as far as it showed, in one page.
         val limit = shownBefore?.takeIf { s.items.isEmpty() && it > PAGE } ?: PAGE
+        reaching = s.items.size + limit
         pages.launch {
             suspendRunCatching {
                 val prefetched = s.items.isEmpty() && limit == PAGE
@@ -344,6 +354,7 @@ class LibraryViewModel(
                 first ?: source().page(s, start = s.items.size, limit = limit)
             }.onSuccess { page ->
                 shownBefore = null
+                reaching = 0
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update {
                     it.copy(
@@ -357,6 +368,7 @@ class LibraryViewModel(
                 }
                 saved[SHOWN] = _state.value.items.size
             }.onFailure { e ->
+                reaching = 0
                 val error = e.reported(TAG, "Library page")
                 // With nothing shown, the wall explains the failure; past the first page, its foot does.
                 _state.update {
