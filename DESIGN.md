@@ -790,7 +790,9 @@ a picture of its own (a person, an artwork choice) glows in the light of the pic
 (`LocalAmbient`). The glow fades over `HlScrim.GLOW_STEPS` rings out to `HlFocus.glow`, the last one clear;
 each lit ring is drawn once at its combined alpha (`drawGlow`). Its siblings step back through their image's
 colour filter in `RECEDE_STEPS` (`SIBLING_BRIGHTNESS`, `SIBLING_SATURATION`), marks and progress with them,
-inside a row or a wall (`RecedeTest`).
+inside a row or a wall (`RecedeTest`); the filter is read while drawing (`RecedingPainter`), so a picture never
+composes again as it steps back, nor its card's surface as focus comes into its row (`rememberCardReading`,
+`ArtworkRecedeTest`).
 
 **An arrow held.** While an arrow is held, or pressed again within 140 ms (`ScrubTracker`), focus runs: what it
 crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 ms after the last arrow (`Scrub`,

@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -56,6 +57,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.FirstBaseline
@@ -113,7 +115,6 @@ import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.request.ImageRequest
-import coil.request.SuccessResult
 import coil.size.Precision
 import coil.size.Scale
 import kotlin.math.ceil
@@ -247,7 +248,7 @@ fun ArtworkSurface(
     val ambient = LocalAmbient.current
     val group = LocalGroupFocus.current
     val member = rememberGroupMember(group)
-    val reading = cardReading(readAs, stateDescription, focused, onClick.takeIf { acts }, onLongClick, onLongClickLabel)
+    val reading = rememberCardReading(readAs, stateDescription, focused, onClick.takeIf { acts }, onLongClick, onLongClickLabel)
     HlFocusSurface(
         onClick = onClick,
         look = FocusStyle.frame(
@@ -270,6 +271,22 @@ fun ArtworkSurface(
         // Recede is read while drawing, never recomposing the row; content sits on the artwork ground.
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }, LocalGround provides Ground.Artwork) { content() }
     }
+}
+
+/**
+ * [cardReading], the same modifier from one composition to the next while what it reads is: the card's surface then
+ * skips composing again as focus comes into its row or leaves it.
+ */
+@Composable
+internal fun rememberCardReading(
+    readAs: String?,
+    stateDescription: String?,
+    focused: Boolean,
+    onClick: (() -> Unit)?,
+    onLongClick: (() -> Unit)?,
+    longClickLabel: String?,
+): Modifier = remember(readAs, stateDescription, focused, onClick, onLongClick, longClickLabel) {
+    cardReading(readAs, stateDescription, focused, onClick, onLongClick, longClickLabel)
 }
 
 /** Clearing semantics for [readAs] drops the clicks, so focus is restated and [onClick] and [onLongClick] re-added. */
@@ -312,10 +329,11 @@ val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
  * Card artwork; [fallback] replaces it when missing or failing (NAS asleep); without one, the surface shows.
  * [pictureModifier] styles the loaded image only. Decoded at its laid out size, or at [size] (px) when given, as
  * a preload asks for it, cropped about [alignment]. Receding dims and desaturates it through its colour filter, not
- * a layer; a picture that never recedes may take a [filter] of its own. [onShow] is told once it shows, its picture
- * decoded or its fallback in its place: its caller then brings it in itself, without the loader's fade under it, as the
- * first scan's wall does ([FirstWall]). [onWhole] is told once its picture covers what it lies on: decoded with no
- * see-through part, the loader's fade over ([rememberWhole]); what lies under it need not be drawn then.
+ * a layer, read while drawing ([RecedingPainter]): it never composes again as it steps back. A picture that never
+ * recedes may take a [filter] of its own. [onShow] is told once it shows, its picture decoded or its fallback in its
+ * place: its caller then brings it in itself, without the loader's fade under it, as the first scan's wall does
+ * ([FirstWall]). [onWhole] is told once its picture covers what it lies on: decoded with no see-through part, the
+ * loader's fade over ([rememberWhole]); what lies under it need not be drawn then.
  */
 @Composable
 fun ArtworkImage(
@@ -340,34 +358,32 @@ fun ArtworkImage(
         }
         Box(modifier.receding(recede, Hl.colors.background), content = fallback)
     } else {
-        val step by remember(recede) { derivedStateOf { HlFocus.recedeStep(recede()) } }
         val context = LocalContext.current
         val fades = onShow == null
         val model = remember(url, size, context, fades) { artworkModel(context, url, size, fades) }
         val whole = onWhole?.let { rememberWhole(url, it) }
+        val receding = remember(recede) { { state: AsyncImagePainter.State -> state.receding(recede) } }
         AsyncImage(
             model = model,
             contentDescription = description,
-            contentScale = contentScale,
-            alignment = alignment,
-            colorFilter = filter ?: recedeFilters[step],
-            onSuccess = successOf(onShow, whole),
-            onError = { failed = true },
             modifier = modifier.then(pictureModifier),
+            transform = if (filter == null) receding else AsyncImagePainter.DefaultTransform,
+            onState = { state ->
+                when (state) {
+                    is AsyncImagePainter.State.Success -> {
+                        onShow?.invoke()
+                        whole?.invoke(state.result)
+                    }
+                    is AsyncImagePainter.State.Error -> failed = true
+                    else -> Unit
+                }
+            },
+            alignment = alignment,
+            contentScale = contentScale,
+            colorFilter = filter,
         )
     }
 }
-
-/** What a picture's success tells: [onShow] that it shows, [whole] what came; nothing when neither listens. */
-private fun successOf(onShow: (() -> Unit)?, whole: ((SuccessResult) -> Unit)?): ((AsyncImagePainter.State.Success) -> Unit)? =
-    if (onShow == null && whole == null) {
-        null
-    } else {
-        { success ->
-            onShow?.invoke()
-            whole?.invoke(success.result)
-        }
-    }
 
 /**
  * What an [ArtworkImage] asks the loader for: [url], at [size] (px) when given ([artworkRequest]); with the loader's
@@ -402,6 +418,55 @@ private val recedeFilters: List<ColorFilter?> by lazy { (0..HlFocus.RECEDE_STEPS
 
 /** The filter at how far [recede] has gone, read while drawing. */
 internal fun recedeFilterAt(recede: Float): ColorFilter? = recedeFilters[HlFocus.recedeStep(recede)]
+
+/** A picture loaded, drawn as far as its card has stepped back ([recede]) ([RecedingPainter]); any other state as it is. */
+private fun AsyncImagePainter.State.receding(recede: () -> Float): AsyncImagePainter.State =
+    if (this is AsyncImagePainter.State.Success) copy(painter = RecedingPainter(painter, recede)) else this
+
+/**
+ * [painter] drawn through the filter of how far its card has stepped back ([recede], [recedeFilterAt]), read while
+ * drawing, so the picture only draws again as it steps back, at each of its steps; a filter its drawer gives holds
+ * instead, as its alpha applies (the loader's fade). Remembered and forgotten as [painter] would be, an animated
+ * picture running then.
+ */
+internal class RecedingPainter(private val painter: Painter, private val recede: () -> Float) : Painter(), RememberObserver {
+    /** The alpha and the filter its drawer gives. */
+    private var given = 1f
+    private var givenFilter: ColorFilter? = null
+
+    /** Its step back ([HlFocus.recedeStep]): read while drawing, it draws again as it changes, not at each frame. */
+    private val step = derivedStateOf { HlFocus.recedeStep(recede()) }
+
+    override val intrinsicSize: Size get() = painter.intrinsicSize
+
+    override fun applyAlpha(alpha: Float): Boolean {
+        given = alpha
+        return true
+    }
+
+    override fun applyColorFilter(colorFilter: ColorFilter?): Boolean {
+        givenFilter = colorFilter
+        return true
+    }
+
+    override fun DrawScope.onDraw() {
+        val shown = given
+        val through = givenFilter ?: recedeFilters[step.value]
+        with(painter) { draw(size, shown, through) }
+    }
+
+    override fun onRemembered() {
+        (painter as? RememberObserver)?.onRemembered()
+    }
+
+    override fun onForgotten() {
+        (painter as? RememberObserver)?.onForgotten()
+    }
+
+    override fun onAbandoned() {
+        (painter as? RememberObserver)?.onAbandoned()
+    }
+}
 
 /** The faint edge of artwork at rest, so a dark picture keeps its outline on black. */
 internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier = border(artworkEdge(colors), shape)

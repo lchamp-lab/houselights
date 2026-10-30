@@ -3,7 +3,7 @@ package app.houselights.ui.design
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** A receding card dims and desaturates in a few steps, so its image recomposes a few times, not once per frame. */
+/** A receding card dims and desaturates in a few steps, so its image draws again a few times, not once per frame. */
 class RecedeTest {
 
     @Test
