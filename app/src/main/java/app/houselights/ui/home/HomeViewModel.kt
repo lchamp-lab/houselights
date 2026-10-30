@@ -27,6 +27,7 @@ import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.FirstScanDefaults
 import app.houselights.ui.design.components.FirstWallState
+import app.houselights.ui.library.Facet
 import app.houselights.ui.library.Laid
 import app.houselights.ui.library.NotSaved
 import app.houselights.ui.library.PosterChanges
@@ -410,15 +411,16 @@ class HomeViewModel(
 
     /**
      * The rows as they were [before] a change not saved, while they are still those it showed ([after]); else read again,
-     * the rows shown meanwhile, and should the read fail. Either way, the change is [undone] in every row holding its
-     * title, which [before] may show with another change of it that was not saved either, its own undoing changing
-     * nothing the rows show.
+     * the rows shown meanwhile, and should the read fail, the title back in Reprendre at its place there [before], as the
+     * source has it in progress, where another change had already taken it away. Either way, the change is [undone] in
+     * every row holding its title, which [before] may show with another change of it that was not saved either, its own
+     * undoing changing nothing the rows show.
      */
     private fun undo(before: HomeLoad, after: HomeLoad, undone: Undone) {
         if (load.value === after) {
             load.value = before.undone(undone)
         } else {
-            load.update { it.undone(undone) }
+            load.update { now -> now.undone(undone).let { it.copy(sections = it.sections.resuming(undone, before.sections)) } }
             onLibraryChanged()
         }
     }
@@ -554,7 +556,7 @@ internal fun List<HomeSection>.showing(changed: MediaItem): List<HomeSection> = 
 private fun List<HomeSection>.showing(id: String, shown: (MediaItem) -> MediaItem): List<HomeSection> = mapNotNull { section ->
     val held = section.items.firstOrNull { it.id == id } ?: return@mapNotNull section
     val changed = shown(held)
-    val stays = section.type != SectionType.CONTINUE || (changed.user.positionMs > 0 && !changed.user.played)
+    val stays = section.type != SectionType.CONTINUE || changed.resumes
     val items = if (stays) {
         section.items.map { if (it.id == id) changed else it }
     } else {
@@ -563,9 +565,35 @@ private fun List<HomeSection>.showing(id: String, shown: (MediaItem) -> MediaIte
     section.copy(items = items).takeIf { items.isNotEmpty() }
 }
 
+/** Whether Reprendre holds this title: started, not watched. */
+private val MediaItem.resumes: Boolean get() = user.positionMs > 0 && !user.played
+
 /** [this] with [undone] in every row holding its title, as the source has it. */
 private fun HomeLoad.undone(undone: Undone): HomeLoad =
     copy(sections = sections.showing(undone.id, undone::over), drawn = drawn.showing(undone.id, undone::over))
+
+/**
+ * [this] with [undone]'s title back in Reprendre at its place in [before], when that row held it and no longer does,
+ * and the title as it now stands ([Undone.item]) is in progress: the row comes back for it when it had gone.
+ */
+private fun List<HomeSection>.resuming(undone: Undone, before: List<HomeSection>): List<HomeSection> {
+    val was = before.indexOfFirst { it.type == SectionType.CONTINUE }
+    val row = before.getOrNull(was)
+    // As Reprendre showed it, with what each of its changes now shows.
+    val at = row?.items.orEmpty().indexOfFirst { it.id == undone.id }
+    val title = row?.items?.getOrNull(at)?.let { held -> Facet.entries.fold(held) { shown, facet -> facet.copied(undone.item, shown) } }
+    val now = indexOfFirst { it.type == SectionType.CONTINUE }
+    val resume = getOrNull(now)
+    return when {
+        row == null || title == null || !title.resumes -> this
+        resume == null -> inserting(row.copy(items = listOf(title)), was)
+        resume.items.any { it.id == undone.id } -> this
+        else -> toMutableList().apply { set(now, resume.copy(items = resume.items.inserting(title, at))) }
+    }
+}
+
+/** [this] with [item] at [at], or at its end when it is shorter. */
+private fun <T> List<T>.inserting(item: T, at: Int): List<T> = toMutableList().apply { add(at.coerceAtMost(size), item) }
 
 /** [this], as a read answered them, showing the changes its cards' options asked that it may not know ([laid]). */
 private fun List<HomeSection>.under(laid: List<Laid>): List<HomeSection> =

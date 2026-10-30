@@ -715,6 +715,45 @@ class HomeViewModelTest {
     }
 
     /**
+     * In « À regarder », a title of Reprendre marked then made a favourite from Nouveautés, neither saved, the rows not
+     * read again either, offline (#118): it is back in Reprendre at its place, as the source has it, whichever fails
+     * first.
+     */
+    @Test
+    fun aTitleOfReprendreChangedTwiceNotSavedIsBackAtItsPlaceOffline() = runTest {
+        listOf(true, false).forEach { markFailsFirst ->
+            val heat = film("heat").copy(user = UserState(positionMs = 60_000))
+            val drive = film("drive").copy(user = UserState(positionMs = 60_000))
+            provider.home = listOf(
+                HomeSection(SectionType.CONTINUE, listOf(heat, drive), landscape = true),
+                HomeSection(SectionType.LATEST, listOf(heat), landscape = false),
+            )
+            provider.fail = { null }
+            val vm = HomeViewModel({ provider }, scan, folders.filterNotNull(), settings, scanAll = {}, work = this, events = FakeEvents())
+            val collecting = backgroundScope.launch { vm.state.collect {} }
+            advanceUntilIdle()
+            fun row(type: SectionType) = (vm.content() as HomeContent.Rows).sections.single { it.type == type }.items
+
+            provider.fail = { if (it.startsWith("played") || it.startsWith("favorite") || it == "home") IOException("NAS away") else null }
+            val marking = provider.gate("played heat true")
+            val favouring = provider.gate("favorite heat true")
+            vm.mark(row(SectionType.LATEST).single())
+            runCurrent()
+            vm.favorite(row(SectionType.LATEST).single())
+            runCurrent()
+            assertEquals(listOf("drive"), row(SectionType.CONTINUE).map { it.id })
+
+            (if (markFailsFirst) marking else favouring).complete(Unit)
+            advanceUntilIdle()
+            (if (markFailsFirst) favouring else marking).complete(Unit)
+            advanceUntilIdle()
+            assertEquals("$markFailsFirst", listOf(heat, drive), row(SectionType.CONTINUE))
+            assertEquals("$markFailsFirst", heat, row(SectionType.LATEST).single())
+            collecting.cancel()
+        }
+    }
+
+    /**
      * In « À regarder », two changes of one title from its card, neither saved, the rows not read again either, show it
      * as the source has it whichever fails first, the one still saving showing meanwhile: marked then made a favourite,
      * or marked then unmarked; a mark not saved leaves a favourite saved showing.
