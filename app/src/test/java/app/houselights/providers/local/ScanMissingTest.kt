@@ -65,7 +65,7 @@ class ScanMissingTest {
     /**
      * A pass that only adds a film leaves the cleanup, which reads every reference and every image cached, to the next one
      * that removes a title, or to the next day: an image no title holds stays until then. The first pass since the app
-     * started cleans up.
+     * started that changes the library cleans up.
      */
     @Test
     fun aPassCleansUpOnceItRemovesATitleOrADayLater() = runTest {
@@ -93,6 +93,26 @@ class ScanMissingTest {
         nas.put(film(4))
         bench.scan()
         assertFalse("a pass a day later cleans up", unused.exists())
+    }
+
+    /**
+     * The first pass since the app started, the pass of a cold start, cleans up only once it changes the library: one
+     * that finds the library as it was leaves « Identifier », « Garder » or « Retirer » no cleanup to wait for.
+     */
+    @Test
+    fun theFirstPassCleansUpOnlyOnceItChangesTheLibrary() = runTest {
+        val unused = File(artwork, "${films.id}/unused.jpg")
+        unused.apply { checkNotNull(parentFile).mkdirs() }.writeBytes(ByteArray(8))
+        // A folder that lists nothing and held nothing: the pass finds no file, and changes nothing.
+        bench.scan()
+        assertNull(bench.error(films))
+        assertTrue(filePaths().isEmpty())
+        assertTrue("a first pass that changes nothing leaves it", unused.exists())
+
+        nas.put(film(0))
+        bench.scan()
+        assertEquals(1, filePaths().size)
+        assertFalse("the first pass that adds a film cleans up", unused.exists())
     }
 
     @Test

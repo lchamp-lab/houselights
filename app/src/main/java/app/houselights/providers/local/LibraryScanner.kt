@@ -313,10 +313,13 @@ class LibraryScanner(
      * Whether a pass ends with a cleanup: once it removed rows or made them parts of a film ([rowsLeft]), or matched
      * titles anew ([identified]), which leaves artwork, credits and words unused; else once a [CLEANUP_EVERY_MS], as a
      * pass that only adds or reads again leaves little, and the cleanup reads every reference and every cached image.
+     * Before the first cleanup since the app started, which [cleanedAt] alone remembers, a pass cleans up only when it
+     * [changed] the library: the pass of every cold start, the NAS unchanged, leaves « Identifier », « Garder » or
+     * « Retirer » no cleanup to wait for.
      */
-    private fun cleanupDue(identified: Boolean): Boolean {
+    private fun cleanupDue(identified: Boolean, changed: Boolean): Boolean {
         val last = cleanedAt
-        return rowsLeft || identified || last == null || elapsed() - last >= CLEANUP_EVERY_MS
+        return rowsLeft || identified || if (last == null) changed else elapsed() - last >= CLEANUP_EVERY_MS
     }
 
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
@@ -368,7 +371,7 @@ class LibraryScanner(
                     dao.deleteEmptyCollections()
                     if (dao.groupVersions() > 0) changed = true
                     // Artwork, credits and words only become unused when titles go or are matched anew.
-                    if (cleanupDue(identified)) cleanupLocked()
+                    if (cleanupDue(identified, changed)) cleanupLocked()
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
             backfill(tmdb, askTmdb = askUnmatched)
