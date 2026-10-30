@@ -113,6 +113,7 @@ import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.request.ImageRequest
+import coil.request.SuccessResult
 import coil.size.Precision
 import coil.size.Scale
 import kotlin.math.ceil
@@ -213,7 +214,8 @@ private fun RowHeading(notes: RowNotes, modifier: Modifier = Modifier, title: @C
  * ambient light) while its siblings recede; in a [MediaRow], the row draws its frame. Without [glows], framed alone,
  * as [AbsentCard] is: a film the library lacks has no light of its own to give.
  * Read as one element with [stateDescription]; with [readAs], that text then its state, its click only if [acts].
- * A long OK does [onLongClick], named by [onLongClickLabel].
+ * A long OK does [onLongClick], named by [onLongClickLabel]. What its content covers from its top ([covered], px, read
+ * while drawing) takes no plate under it, as on [HlFocusSurface].
  */
 @Composable
 fun ArtworkSurface(
@@ -228,6 +230,7 @@ fun ArtworkSurface(
     glows: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
+    covered: (() -> Float)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -262,6 +265,7 @@ fun ArtworkSurface(
         glow = if (glows) ({ if (light != null) own.value else ambient.glow() }) else null,
         interactionSource = interaction,
         row = LocalRowFrame.current,
+        covered = covered,
     ) {
         // Recede is read while drawing, never recomposing the row; content sits on the artwork ground.
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }, LocalGround provides Ground.Artwork) { content() }
@@ -310,7 +314,8 @@ val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
  * a preload asks for it, cropped about [alignment]. Receding dims and desaturates it through its colour filter, not
  * a layer; a picture that never recedes may take a [filter] of its own. [onShow] is told once it shows, its picture
  * decoded or its fallback in its place: its caller then brings it in itself, without the loader's fade under it, as the
- * first scan's wall does ([FirstWall]).
+ * first scan's wall does ([FirstWall]). [onWhole] is told once its picture covers what it lies on: decoded with no
+ * see-through part, the loader's fade over ([rememberWhole]); what lies under it need not be drawn then.
  */
 @Composable
 fun ArtworkImage(
@@ -323,6 +328,7 @@ fun ArtworkImage(
     alignment: Alignment = Alignment.Center,
     filter: ColorFilter? = null,
     onShow: (() -> Unit)? = null,
+    onWhole: (() -> Unit)? = null,
     fallback: @Composable BoxScope.() -> Unit = {},
 ) {
     var failed by remember(url) { mutableStateOf(false) }
@@ -338,18 +344,30 @@ fun ArtworkImage(
         val context = LocalContext.current
         val fades = onShow == null
         val model = remember(url, size, context, fades) { artworkModel(context, url, size, fades) }
+        val whole = onWhole?.let { rememberWhole(url, it) }
         AsyncImage(
             model = model,
             contentDescription = description,
             contentScale = contentScale,
             alignment = alignment,
             colorFilter = filter ?: recedeFilters[step],
-            onSuccess = onShow?.let { shown -> { _: AsyncImagePainter.State.Success -> shown() } },
+            onSuccess = successOf(onShow, whole),
             onError = { failed = true },
             modifier = modifier.then(pictureModifier),
         )
     }
 }
+
+/** What a picture's success tells: [onShow] that it shows, [whole] what came; nothing when neither listens. */
+private fun successOf(onShow: (() -> Unit)?, whole: ((SuccessResult) -> Unit)?): ((AsyncImagePainter.State.Success) -> Unit)? =
+    if (onShow == null && whole == null) {
+        null
+    } else {
+        { success ->
+            onShow?.invoke()
+            whole?.invoke(success.result)
+        }
+    }
 
 /**
  * What an [ArtworkImage] asks the loader for: [url], at [size] (px) when given ([artworkRequest]); with the loader's
