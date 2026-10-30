@@ -46,7 +46,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /** A title home's first scan found, as its wall shows it: its [poster], else a one-sheet of its [title] and [year]. */
 @Immutable
@@ -270,7 +269,7 @@ private fun FramePicture(title: FirstTitle, seen: Boolean, onShow: () -> Unit, m
         title.poster?.url(px),
         title.title,
         modifier.fillMaxSize().then(unseen),
-        size = IntSize(px, (px / HlSize.POSTER_RATIO).roundToInt()),
+        size = IntSize(px, posterDecode(px)),
         onShow = onShow,
     ) { OneSheet(title) }
 }

@@ -6,7 +6,6 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Shader
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -146,7 +145,7 @@ private fun GlyphCut(glyph: SourceGlyph, posters: CutPosters, lit: Boolean) {
     val tints = remember { ScaledTint() }
     val tint = animateFloatAsState(
         if (lit) 1f else HlAlpha.DOOR_TINT,
-        if (lit) tween(HlMotion.FOCUS_IN, easing = HlMotion.focusPull) else tween(HlMotion.FOCUS_OUT, easing = HlMotion.fallBack),
+        HlMotion.inOut(lit),
         label = "glyphTint",
     )
     val poster = posters.posters.firstOrNull()?.bitmap

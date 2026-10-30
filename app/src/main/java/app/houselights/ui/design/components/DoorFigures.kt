@@ -7,7 +7,6 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Shader
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -69,7 +68,7 @@ fun DoorFigures(count: String, posters: CutPosters, size: TextUnit, lit: Boolean
     val tints = remember { ScaledTint() }
     val tint = animateFloatAsState(
         if (lit) 1f else HlAlpha.DOOR_TINT,
-        if (lit) tween(HlMotion.FOCUS_IN, easing = HlMotion.focusPull) else tween(HlMotion.FOCUS_OUT, easing = HlMotion.fallBack),
+        HlMotion.inOut(lit),
         label = "doorTint",
     )
     Box(

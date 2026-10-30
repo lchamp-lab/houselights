@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import androidx.collection.LruCache
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -194,14 +195,13 @@ internal fun Modifier.meltsInto(plate: ColorProducer, foot: List<VeilStop>): Mod
 
 /** The mask's tint per plate colour, the last few kept: a showcase's glass takes one colour, once. */
 private object PlateTints {
-    private val made = object : LinkedHashMap<Int, ColorFilter>(TINTS, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, ColorFilter>) = size > TINTS
-    }
+    private val made = LruCache<Int, ColorFilter>(TINTS)
 
+    /** The tint of [color], made once: found or made and kept in one step. */
     @Synchronized
     fun of(color: Color): ColorFilter {
         val argb = color.toArgb()
-        return made.getOrPut(argb) { ColorFilter.tint(Color(argb), BlendMode.SrcIn) }
+        return made[argb] ?: ColorFilter.tint(Color(argb), BlendMode.SrcIn).also { made.put(argb, it) }
     }
 }
 

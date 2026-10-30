@@ -57,7 +57,7 @@ class BackdropTest {
     private fun decoded(width: Int, height: Int): Bitmap {
         lateinit var bitmap: Bitmap
         runTest {
-            val result = loader(width, height).execute(backdropRequest(context, "test://backdrop/42", SCREEN_W, SCREEN_H)) as SuccessResult
+            val result = loader(width, height).execute(artworkRequest(context, "test://backdrop/42", SCREEN_W, SCREEN_H)) as SuccessResult
             bitmap = (result.drawable as BitmapDrawable).bitmap
         }
         return bitmap

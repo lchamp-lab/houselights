@@ -5,7 +5,6 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -40,7 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
@@ -84,7 +82,6 @@ import app.houselights.core.MediaItem
 import app.houselights.ui.design.GroupFocus
 import app.houselights.ui.design.HeroDefaults
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
@@ -984,15 +981,7 @@ private fun FootMark(mark: VoletMark) {
 /** A state's light ([StatusLight]) on a mark's dark plate, quiet: tertiary, never ember; it recedes with the picture. */
 @Composable
 private fun LightMark(state: StatusState) {
-    val c = Hl.colors
-    Box(
-        Modifier
-            .size(HlSize.mark)
-            .clip(HlShapes.mark)
-            .background(c.background.copy(alpha = HlAlpha.VEIL))
-            .receding(LocalArtworkRecede.current, c.background),
-        contentAlignment = Alignment.Center,
-    ) { StatusLight(state, ink = c.contentTertiary) }
+    MarkPlate(Modifier.size(HlSize.mark)) { StatusLight(state, ink = Hl.colors.contentTertiary) }
 }
 
 /**

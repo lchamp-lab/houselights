@@ -2,6 +2,7 @@ package app.houselights.ui.design.components
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.collection.LruCache
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -101,16 +102,12 @@ private suspend fun loadPosterField(context: Context, urls: List<String>): MadeF
 
 /** The last fields made, by their posters: the settings and their forms come back to them at once. */
 internal object PosterFields {
-    private val made = object : LinkedHashMap<List<String>, MadeField>(KEPT, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<String>, MadeField>) = size > KEPT
-    }
+    private val made = LruCache<List<String>, MadeField>(KEPT)
 
-    @Synchronized
     fun of(urls: List<String>): MadeField? = made[urls]
 
-    @Synchronized
     fun keep(field: MadeField) {
-        made[field.urls] = field
+        made.put(field.urls, field)
     }
 
     /** The one showing and the one coming in. */

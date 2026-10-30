@@ -2,6 +2,7 @@ package app.houselights.ui.design.components
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.collection.LruCache
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -11,6 +12,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -30,8 +32,6 @@ import coil.imageLoader
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.SuccessResult
-import coil.size.Precision
-import coil.size.Scale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -124,13 +124,6 @@ internal suspend fun prepareBackdrop(context: Context, image: ImageRef, style: B
         }
     }
 
-/**
- * A backdrop request, never decoded larger than its file: a smaller one (1280 px on a 1920 px screen) is
- * upscaled once into the cached layer instead of taking twice the memory.
- */
-internal fun backdropRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
-    ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).precision(Precision.INEXACT).build()
-
 private suspend fun decodeSample(context: Context, image: ImageRef): Bitmap? =
     (context.imageLoader.execute(backdropSampleRequest(context, image)) as? SuccessResult)?.drawable?.toBitmap()
 
@@ -159,9 +152,7 @@ private fun sampleRequest(context: Context, url: String, widthPx: Int, heightPx:
 private const val SAMPLE = "houselights.sample"
 
 /** Glow tones by URL (LRU), so focus returning to a card lights it at once. */
-private val glowTones = object : LinkedHashMap<String, Color>(GLOW_TONES, 0.75f, true) {
-    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Color>) = size > GLOW_TONES
-}
+private val glowTones = LruCache<String, Color>(GLOW_TONES)
 
 private const val GLOW_TONES = 200
 
@@ -174,18 +165,8 @@ fun rememberGlowColor(url: String?, active: Boolean): State<Color> {
 
 /** The tone of [rememberGlowColor] as it is read, without its arrival: null until sampled. */
 @Composable
-internal fun rememberGlowTone(url: String?, active: Boolean): State<Color?> {
-    val context = LocalContext.current
-    val tone = remember(url) { mutableStateOf(url?.let { synchronized(glowTones) { glowTones[it] } }) }
-    LaunchedEffect(url, active) {
-        if (!active || url == null || tone.value != null) return@LaunchedEffect
-        val bitmap = decodeUrl(context, url) ?: return@LaunchedEffect
-        val found = withContext(Dispatchers.Default) { lightOf(paletteOf(bitmap)).glow }
-        synchronized(glowTones) { glowTones[url] = found }
-        tone.value = found
-    }
-    return tone
-}
+internal fun rememberGlowTone(url: String?, active: Boolean): State<Color?> =
+    rememberSampleRead(url, active, glowTones) { lightOf(paletteOf(it)).glow }
 
 /** A picture's own dark ([ImageLight.deep]) and its [sample], read once from its small copy. */
 @Immutable
@@ -196,23 +177,29 @@ internal class PictureRead(val deep: Color, val sample: ArtworkSample)
  * decode again beside it, and kept, so a saga's panel opening again has it at once: null until read.
  */
 @Composable
-internal fun rememberPictureRead(image: ImageRef?): State<PictureRead?> {
-    val context = LocalContext.current
-    val url = image?.url(SAMPLE_PX)
-    val read = remember(url) { mutableStateOf(url?.let { synchronized(pictureReads) { pictureReads[it] } }) }
-    LaunchedEffect(url) {
-        if (url == null || read.value != null) return@LaunchedEffect
-        val bitmap = decodeUrl(context, url) ?: return@LaunchedEffect
-        val found = withContext(Dispatchers.Default) { PictureRead(lightOf(paletteOf(bitmap)).deep, sampleOf(bitmap)) }
-        synchronized(pictureReads) { pictureReads[url] = found }
-        read.value = found
-    }
-    return read
-}
+internal fun rememberPictureRead(image: ImageRef?): State<PictureRead?> =
+    rememberSampleRead(image?.url(SAMPLE_PX), active = true, pictureReads) { PictureRead(lightOf(paletteOf(it)).deep, sampleOf(it)) }
 
 /** Pictures read by URL (LRU): a long saga's posters and the backdrops opened among them. */
-private val pictureReads = object : LinkedHashMap<String, PictureRead>(PICTURE_READS, 0.75f, true) {
-    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, PictureRead>) = size > PICTURE_READS
+private val pictureReads = LruCache<String, PictureRead>(PICTURE_READS)
+
+/**
+ * What [read] finds in the small sample at [url] ([decodeUrl]), off the main thread, kept in [kept] by its URL: there at
+ * once when kept, else read once [active]; null until then.
+ */
+@Composable
+private fun <T : Any> rememberSampleRead(url: String?, active: Boolean, kept: LruCache<String, T>, read: (Bitmap) -> T): State<T?> {
+    val context = LocalContext.current
+    val found = remember(url) { mutableStateOf(url?.let { kept[it] }) }
+    val reading by rememberUpdatedState(read)
+    LaunchedEffect(url, active) {
+        if (!active || url == null || found.value != null) return@LaunchedEffect
+        val bitmap = decodeUrl(context, url) ?: return@LaunchedEffect
+        val made = withContext(Dispatchers.Default) { reading(bitmap) }
+        kept.put(url, made)
+        found.value = made
+    }
+    return found
 }
 
 private const val PICTURE_READS = 40

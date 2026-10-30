@@ -350,7 +350,7 @@ private fun backdropHeight(screenPx: Int) = screenPx * BACKDROP_HEIGHT / BACKDRO
 
 /** The request for [image] in this style on a screen [screenPx] wide: its picture, or its diffuse field. */
 internal fun BackdropStyle.pictureRequest(context: Context, image: ImageRef, screenPx: Int): ImageRequest =
-    if (diffuse) diffuseRequest(context, image) else backdropRequest(context, urlOf(image, screenPx), screenPx, backdropHeight(screenPx))
+    if (diffuse) diffuseRequest(context, image) else artworkRequest(context, urlOf(image, screenPx), screenPx, backdropHeight(screenPx))
 
 /** The requests a [Backdrop] makes on a screen [screenPx] wide: the picture (or its diffuse field), then its sample. */
 internal fun backdropRequests(context: Context, image: ImageRef, style: BackdropStyle, screenPx: Int): List<ImageRequest> =

@@ -212,7 +212,7 @@ private fun caseUrl(item: MediaItem): String? {
 internal fun caseRequest(context: Context, item: MediaItem, px: (Dp) -> Int): ImageRequest? {
     val height = px(caseHeight())
     val url = item.backdrop?.url(caseBackdropWidth(height)) ?: item.poster?.url(px(HomeGridDefaults.case)) ?: return null
-    return doorRequest(context, url, px(HomeGridDefaults.case), height)
+    return artworkRequest(context, url, px(HomeGridDefaults.case), height)
 }
 
 /** The case's backdrop for a case [heightPx] tall: as wide as it is cropped from, short of TMDB's original (1280). */

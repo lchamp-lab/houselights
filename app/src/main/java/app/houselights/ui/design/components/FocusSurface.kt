@@ -3,7 +3,6 @@ package app.houselights.ui.design.components
 import android.view.KeyEvent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -361,11 +360,7 @@ private val FillTiming = Timing(HlMotion.PLATE_IN, HlMotion.PLATE_OUT)
 private suspend fun Animatable<Float, AnimationVector1D>.follow(on: Boolean, timing: Timing, jumps: Boolean) {
     val target = if (on) 1f else 0f
     if (value == target && targetValue == target) return
-    when {
-        jumps -> snapTo(target)
-        on -> animateTo(target, tween(timing.on, easing = HlMotion.focusPull))
-        else -> animateTo(target, tween(timing.off, easing = HlMotion.fallBack))
-    }
+    if (jumps) snapTo(target) else animateTo(target, HlMotion.inOut(on, timing.on, timing.off))
 }
 
 /**
