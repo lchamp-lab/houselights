@@ -47,17 +47,19 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExternalResource
+import org.junit.rules.RuleChain
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.IOException
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Réglages › Bibliothèque: a folder whose titles are held counts them on its showcase, by the ring, in place of its last
@@ -67,8 +69,18 @@ import java.util.concurrent.Executors
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr-$TV")
 class HeldFolderTest {
-    @get:Rule
     val compose = createComposeRule()
+
+    /**
+     * The composition is disposed first, then the library closed ([closeLibrary]): closed under a pane still following
+     * it, a read in flight failed on a closed pool (#133).
+     */
+    @get:Rule
+    val order: RuleChain = RuleChain.outerRule(
+        object : ExternalResource() {
+            override fun after() = closeLibrary()
+        },
+    ).around(compose)
 
     @get:Rule
     val settle = SettleMainLooper()
@@ -121,13 +133,14 @@ class HeldFolderTest {
         store = testSettings(folder.root, files)
     }
 
-    @After
-    fun close() {
+    /** Stops what follows the library, lets Room end the reads it was given, then closes it. */
+    private fun closeLibrary() {
         screens.clear()
         work.cancel()
         files.cancel()
-        db.close()
         room.shutdown()
+        room.awaitTermination(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        db.close()
     }
 
     /** The library pane on Films, twelve of its thirteen titles held. */
