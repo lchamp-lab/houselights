@@ -469,6 +469,34 @@ class FlowAccountPathTest : FlowHarness() {
     }
 
     /**
+     * Back pressed as the flow found again reads the level left: up a level, the flow shows the level above, never the
+     * level left read late in its place.
+     */
+    @Test
+    fun backAsTheLevelLeftIsReadAgainShowsTheLevelAbove() {
+        val saved = SavedStateHandle()
+        val flow = flow(films, saved = saved)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        ok()
+        until { flow.step == FlowStep.BROWSE }
+        flow.openFolder("Films2")
+        until { flow.path == listOf("Films2") }
+
+        network.asked.clear()
+        val reading = network.hold("level")
+        val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { "level volume1/video/Films2" in network.asked }
+        again.back {}
+        until { again.path.isEmpty() }
+        reading.complete(Unit)
+        until { again.ready }
+        assertEquals(FlowStep.BROWSE, again.step)
+        assertEquals(emptyList<String>(), again.path)
+        assertEquals(network.folders.getValue("volume1/video"), again.level)
+    }
+
+    /**
      * SMB after a stopped process: an account typed comes back to its password, never kept, its user filled; the account
      * of the NAS's folders is read from the library again, and the level above opens with it.
      */
