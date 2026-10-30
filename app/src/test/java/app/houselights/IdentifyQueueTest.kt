@@ -12,6 +12,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.requestFocus
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -77,8 +78,11 @@ class IdentifyQueueTest {
 
     private fun best(n: Int) = MatchCandidate("$n", "Best $n", null, 2020 + n, null, null)
 
-    /** Réglages, the list over it, Identifier over the list; every title's suggestions its own best. */
-    private fun app(): NavHostController {
+    /**
+     * Réglages, the list over it, Identifier over the list; every title's suggestions its own best, else, without
+     * [suggested], found by automatic matching's search.
+     */
+    private fun app(suggested: Boolean = true): NavHostController {
         lateinit var nav: NavHostController
         compose.setTvContent {
             nav = rememberNavController()
@@ -105,7 +109,7 @@ class IdentifyQueueTest {
                                 val n = route.id.removePrefix("m").toInt()
                                 source.identity = Identity(
                                     "Film $n.mkv", "Film $n", null, current = null, manual = false, canSearch = true,
-                                    doubt = MatchDoubt.UNSURE, suggestions = listOf(best(n)),
+                                    doubt = MatchDoubt.UNSURE, suggestions = listOf(best(n)).takeIf { suggested }.orEmpty(),
                                 )
                                 IdentifyViewModel(route.id, { source }, work, createSavedStateHandle(), route.queue)
                             }
@@ -135,7 +139,7 @@ class IdentifyQueueTest {
         }
     }
 
-    /** Past the calm a title's suggestions come with (`calmAfter`), as a deliberate press is. */
+    /** Past the calm a title's suggestions come with (`calmOk`), as a deliberate press is. */
     private fun settled() {
         compose.mainClock.advanceTimeBy(HlMotion.SETTLE + FRAME_MS)
         compose.waitForIdle()
@@ -239,6 +243,38 @@ class IdentifyQueueTest {
         compose.mainClock.autoAdvance = true
         compose.waitForIdle()
         assertTrue("identify m2 2" in source.calls)
+    }
+
+    /**
+     * OK going down on « Passer » while the title's search runs, let go once its results land: the press does nothing, the
+     * title still shown; the next, once they settled, goes on.
+     */
+    @Test
+    fun anOkLetGoOnceTheResultsLandDoesNothing() {
+        source.results = listOf(best(1))
+        val found = source.gate("search Film 1")
+        val nav = app(suggested = false)
+        compose.press(Key.DirectionCenter)
+        assertEquals("m1", nav.identifying())
+        settled()
+        compose.onNodeWithText("Skip").requestFocus()
+        focusIsOn("Skip")
+        okOnWindow(KeyEvent.ACTION_DOWN)
+        found.complete(Unit)
+        compose.waitForIdle()
+        compose.onNodeWithText("Best 1").assertExists()
+        okOnWindow(KeyEvent.ACTION_UP)
+        assertEquals("still on the title", "m1", nav.identifying())
+        assertTrue(source.calls.none { it.startsWith("identify") })
+        settled()
+        compose.press(Key.DirectionCenter)
+        assertEquals("m2", nav.identifying())
+    }
+
+    /** Half a press of OK, sent to the window as Android does. */
+    private fun okOnWindow(action: Int) {
+        compose.runOnUiThread { compose.activity.window.decorView.dispatchKeyEvent(KeyEvent(action, KeyEvent.KEYCODE_DPAD_CENTER)) }
+        compose.waitForIdle()
     }
 
     private companion object {

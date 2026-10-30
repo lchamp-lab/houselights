@@ -82,6 +82,7 @@ import app.houselights.ui.design.components.rememberFirstWallState
 import app.houselights.ui.design.drawnWhole
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.houseLit
+import app.houselights.ui.design.isOk
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.settings.HeldSheet
 import app.houselights.ui.settings.HeldTitles
@@ -266,13 +267,12 @@ private fun focusFree(focused: Boolean, placed: Boolean, memory: FocusMemory): B
  * from nothing is seen as it is let go, on what it focused.
  */
 private fun Modifier.onViewerKeys(onPress: () -> Unit): Modifier = onPreviewKeyEvent { event ->
-    if (event.key in PLACING_KEYS) onPress()
+    if (event.isOk() || event.key in ARROWS) onPress()
     false
 }
 
-/** The remote's keys that place focus: the arrows and OK. */
-private val PLACING_KEYS =
-    setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight, Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
+/** The remote's arrows, which with OK place focus. */
+private val ARROWS = setOf(Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft, Key.DirectionRight)
 
 /** Whether a first Back says the scan will resume: on the first scan, and on the grid while the library's first pass runs. */
 private val HomeState.scanWaits: Boolean get() = content is HomeContent.FirstScan || firstPass

@@ -1,6 +1,5 @@
 package app.houselights.ui.detail
 
-import android.view.KeyEvent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
@@ -23,7 +22,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -64,6 +62,7 @@ import app.houselights.ui.design.components.wearsNewDot
 import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.houseLit
+import app.houselights.ui.design.onMenuKey
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.FACT_GAP
@@ -363,7 +362,7 @@ private fun Predella(
             modifier
                 .okClears(links.onClearActionError)
                 .onFocusChanged { within = it.hasFocus }
-                .menuOpens(options),
+                .onMenuKey(options, held = { it.hasFocus }),
         ) {
             if (target != null) PlayActions(target, failing, ends = !marks && fixedBy == null, memory, links, trust)
             if (marks) {
@@ -390,30 +389,6 @@ private fun Predella(
         }
     }
 }
-
-/**
- * Menu, or the Zidoo remote's Pop Menu (F12), on what has focus within: [open] on its way up, if it went down here, as
- * an element's options open (`menuForLongClick`); without [open], it goes on.
- */
-@Composable
-private fun Modifier.menuOpens(open: (() -> Unit)?): Modifier {
-    var down by remember { mutableStateOf(false) }
-    return onFocusChanged { if (!it.hasFocus) down = false }.onKeyEvent { event ->
-        val native = event.nativeKeyEvent
-        if (open == null || native.keyCode !in MENU_KEYS) return@onKeyEvent false
-        when (native.action) {
-            KeyEvent.ACTION_DOWN -> if (native.repeatCount == 0) down = true
-            KeyEvent.ACTION_UP -> if (down) {
-                down = false
-                open()
-            }
-        }
-        true
-    }
-}
-
-/** Menu, and the Zidoo remote's Pop Menu, which its firmware sends as F12. */
-private val MENU_KEYS = setOf(KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_F12)
 
 /**
  * Lire, or Reprendre once [target] is started, named with its time left, then Depuis le début: the row's last actions

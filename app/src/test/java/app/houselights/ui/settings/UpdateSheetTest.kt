@@ -113,6 +113,17 @@ class UpdateSheetTest {
         assertEquals("Nothing downloads", emptyList<String>(), controls.actions)
     }
 
+    /** OK let go on the row without its press, which went down before the sheet or elsewhere: nothing. */
+    @Test
+    fun anOkLetGoWithoutItsPressDoesNothing() {
+        val controls = show(MutableStateFlow(updates()))
+        compose.onNodeWithText("Mettre à jour").assertIsFocused()
+        compose.keyInSheet(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER)
+        assertEquals("Nothing downloads", emptyList<String>(), controls.actions)
+        ok()
+        assertEquals("a press of its own does", listOf("update"), controls.actions)
+    }
+
     /** On home the sheet opens by itself, maybe under an OK meant for home: its first moment, OK does nothing. */
     @Test
     fun onHomeAnOkAsTheSheetOpensDoesNothing() {

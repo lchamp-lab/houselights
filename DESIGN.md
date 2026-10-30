@@ -840,8 +840,8 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   « Laisser tel quel » and « Rétablir l’automatique » do once done; after the last, Réglages, never an empty list; Back
   returns to the list, on the title the queue reached, never from title to title. OK does nothing for `HlMotion.SETTLE`
   once results come under focus, the first ones and each list a search puts in their place, nor the release of a press
-  given meanwhile (`calmAfter`): a second OK given too soon never accepts what came under it unseen (`IdentifyQueueTest`,
-  `IdentifyScreenTest`).
+  given meanwhile or before (`calmOk`): a second OK given too soon never accepts what came under it unseen
+  (`IdentifyQueueTest`, `IdentifyScreenTest`, `CalmOkTest`).
 - **Focus is never lost.** When its element disappears, it moves to a neighbour, else to the action that adds
   one ("Ajouter un dossier"): a title identified, to the one taking its place in « À identifier », a row gone from a
   plate to the plate's first row (`focusGroupKey`). A poster leaving a wall with focus (a title its options mark out of
@@ -880,7 +880,7 @@ once; a wall, from past its first line, first returns to its first poster. Sheet
 during the house-light cue, Back cancels it.
 
 **Menu** (or the Zidoo remote's Pop Menu, sent as F12) opens the options of what has focus, on its way up
-(`menuForLongClick`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
+(`onMenuKey`), as holding OK does (`pressWithOk`): remotes that send no repeats reach them that way (the
 Zidoo's turns a held OK into a click; AVA and Unfolded Circle remotes never repeat). What has options says so while it
 shows focus, with the Menu key (`MenuKey`): the remote's key drawn small, its lines (`HlIcons.Menu`) in secondary ink
 in a frame of tertiary ink, `HlShapes.mark`, `HlSize.menuKeyWidth` × `menuKeyHeight`; on a card, in its picture's
