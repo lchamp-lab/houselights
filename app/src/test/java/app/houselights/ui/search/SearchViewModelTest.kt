@@ -192,6 +192,57 @@ class SearchViewModelTest {
         assertTrue(found(vm).single().user.played)
     }
 
+    /** The library changed as the search is first read: it is read again after that read, as the source says it now. */
+    @Test
+    fun aChangeOfTheLibraryAsTheSearchIsFirstReadReadsItAgainAfter() = runTest {
+        val vm = SearchViewModel({ provider })
+        backgroundScope.launch { vm.found.collect {} }
+        val reading = catalog.gate("search AME")
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+
+        catalog.found = SearchResults(titles = listOf(film("amelie", "Amélie").markedAs(true)))
+        vm.reload()
+        reading.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf("search AME", "search AME"), catalog.calls)
+        assertTrue(found(vm).single().user.played)
+    }
+
+    /**
+     * A result's change still saving shows over the search read again meanwhile, the library changed by another of its
+     * changes saved; not saved, it comes undone there, the other showing as the source has it.
+     */
+    @Test
+    fun aChangeStillSavingShowsOverTheSearchReadAgain() = runTest {
+        provider.fail = { if (it.startsWith("favorite")) IOException("NAS away") else null }
+        val vm = SearchViewModel({ provider }, work = this)
+        backgroundScope.launch { vm.found.collect {} }
+        "AME".forEach(vm::type)
+        advanceUntilIdle()
+        val amelie = found(vm).single()
+        val marking = provider.gate("played amelie true")
+        val favouring = provider.gate("favorite amelie true")
+        vm.mark(amelie)
+        runCurrent()
+        vm.favorite(found(vm).single())
+        runCurrent()
+        marking.complete(Unit)
+        advanceUntilIdle()
+
+        // The mark saved changed the library: the search is read again, as the source now has it.
+        catalog.found = SearchResults(titles = listOf(amelie.markedAs(true)))
+        vm.reload()
+        advanceUntilIdle()
+        assertEquals(listOf("search AME", "search AME"), catalog.calls)
+        assertEquals("the favourite still saving shows", amelie.markedAs(true).favoredAs(true), found(vm).single())
+
+        favouring.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(amelie.markedAs(true), found(vm).single())
+        assertEquals(NotSaved("amelie", UiError.OFFLINE), vm.notSaved.value)
+    }
+
     /** Away from the screen a while, nothing changed: the results are kept, never read again on its return. */
     @Test
     fun theSearchIsNotReadAgainOnItsReturnWithNothingChanged() = runTest {
