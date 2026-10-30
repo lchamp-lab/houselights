@@ -1,5 +1,6 @@
 package app.houselights.update
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -109,10 +110,14 @@ class ApkDownload(
             if (sha256 != offer.sha256) fail(UpdateFailure.CORRUPT, "SHA-256 $sha256, listed ${offer.sha256}")
         }
 
-    /** The next bytes of [input], a connection lost or stalled after [read] bytes being a download cut. */
-    private fun read(input: InputStream, buffer: ByteArray, read: Long): Int = try {
+    /**
+     * The next bytes of [input], a connection lost or stalled after [read] bytes being a download cut; a read that the
+     * download's cancellation stopped, through its call, ends as that cancellation, never as a cut.
+     */
+    private fun CoroutineScope.read(input: InputStream, buffer: ByteArray, read: Long): Int = try {
         input.read(buffer)
     } catch (e: IOException) {
+        ensureActive()
         fail(UpdateFailure.DOWNLOAD_CUT, "Cut after $read bytes", e)
     }
 

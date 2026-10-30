@@ -1,7 +1,10 @@
 package app.houselights.update
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -171,6 +174,22 @@ class ApkDownloadTest {
         assertTrue(left().single().endsWith(".part"))
         job.cancel()
         withTimeout(10_000) { job.join() }
+        assertEquals(emptyList<String>(), left())
+    }
+
+    /** Cancelled while its read waits on a stalled connection, a download ends as cancelled, never as a cut (#133). */
+    @Test
+    fun cancellingAStalledReadIsNoCut() = runBlocking {
+        // The first 16 KiB, then nothing for 3 s: the read waits when the download is cancelled.
+        serve({ MockResponse().setBody(Buffer().write(bytes)).throttleBody(16_384, 3, TimeUnit.SECONDS) })
+        val started = CompletableDeferred<Unit>()
+        val download = CoroutineScope(Dispatchers.Default).async { download().fetch(apk()) { _, _ -> started.complete(Unit) } }
+        val ended = CompletableDeferred<Throwable?>()
+        download.invokeOnCompletion { ended.complete(it) }
+        withTimeout(10_000) { started.await() }
+        download.cancel()
+        val cause = withTimeout(10_000) { ended.await() }
+        assertTrue("ended with $cause", cause is CancellationException)
         assertEquals(emptyList<String>(), left())
     }
 
