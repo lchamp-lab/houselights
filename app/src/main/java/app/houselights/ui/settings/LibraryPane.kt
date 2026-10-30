@@ -69,6 +69,7 @@ import app.houselights.ui.onboarding.LoginFill
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatCount
+import app.houselights.ui.util.lastScanned
 import app.houselights.ui.util.scanCount
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName

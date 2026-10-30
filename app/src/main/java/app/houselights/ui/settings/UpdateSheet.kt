@@ -15,7 +15,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -55,6 +54,8 @@ import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.formatBytes
 import app.houselights.ui.util.formatDuration
+import app.houselights.ui.util.relativeTime
+import app.houselights.ui.util.rememberNow
 import app.houselights.update.UpdateControls
 import app.houselights.update.UpdateFailure
 import app.houselights.update.UpdateOffer
@@ -100,7 +101,7 @@ internal fun UpdatesGroup(ui: UpdateUi, rows: PaneRows) {
     val checkFailure = rowFailure(vm.errorOf(SettingAction.UPDATE_CHECK))
     val channelFailure = rowFailure(vm.errorOf(SettingAction.UPDATE_CHANNEL))
     HlSettingGroup(stringResource(R.string.updates), Modifier.revealOnFocus()) {
-        val (description, value) = rowWords(state, now())
+        val (description, value) = rowWords(state, rememberNow())
         HlSettingRow(
             stringResource(R.string.update_row, state.installed),
             rows.focus(UPDATES_ROW),
@@ -200,19 +201,6 @@ private fun waitWords(s: UpdateState, now: Long): String? = s.waitUntil?.takeIf 
     stringResource(R.string.update_wait, formatDuration(maxOf(it - now, MINUTE_MS)))
 }
 
-/** Now, by the device's clock, again each half minute while shown: « Vérifié il y a 2 h », « Dans 20 min ». */
-@Composable
-private fun now(): Long {
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(TICK_MS)
-            now = System.currentTimeMillis()
-        }
-    }
-    return now
-}
-
 /**
  * The update's sheet, one component wherever it opens: from About, « Mises à jour »; on home, opened by the app once per
  * version, « Une nouvelle version est disponible ». Its head names the version and how it stands, a failure or the
@@ -225,7 +213,7 @@ internal fun UpdateSheet(state: UpdateState, controls: UpdateControls, origin: U
     val action = remember { FocusRequester() }
     val cancelRow = remember { Held() }
     val scroll = rememberScrollState()
-    val now = now()
+    val now = rememberNow()
     DisposableEffect(controls) {
         controls.opened()
         onDispose { controls.closed() }
@@ -536,7 +524,6 @@ private const val RELEASES = "github.com/${BuildConfig.UPDATE_REPO}/releases"
 /** « À jour » only while GitHub answered less than two days ago; then the row says only when it last did. */
 private const val FRESH_MS = 48 * 60 * 60_000L
 private const val MINUTE_MS = 60_000L
-private const val TICK_MS = 30_000L
 
 /** How long home's word stays, as Back's once does. */
 private const val SAID_MS = 2_500L

@@ -1,13 +1,5 @@
 package app.houselights.ui.settings
 
-import android.content.Context
-import android.icu.text.DisplayContext
-import android.icu.text.RelativeDateTimeFormatter
-import android.icu.text.RelativeDateTimeFormatter.AbsoluteUnit
-import android.icu.text.RelativeDateTimeFormatter.Direction
-import android.icu.text.RelativeDateTimeFormatter.RelativeUnit
-import android.icu.util.ULocale
-import android.text.format.DateUtils
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +12,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.ui.design.FocusKey
@@ -93,56 +84,3 @@ internal fun RowFailureNote(failure: RowFailure?) {
     LaunchedEffect(failure.reason) { reveal.bringIntoView() }
     AttentionNote(failure.reason, Modifier.padding(horizontal = HlInset.card, vertical = HlSpace.xs).bringIntoViewRequester(reveal))
 }
-
-/** How long ago [at] was, relative to now: see the other [relativeTime]. */
-@Composable
-internal fun relativeTime(at: Long, alone: Boolean = false): String =
-    relativeTime(LocalContext.current, at, System.currentTimeMillis(), alone)
-
-/** When a folder was last scanned: "Analysé il y a 3 minutes", "Jamais analysé". */
-@Composable
-internal fun lastScanned(at: Long): String = lastScanned(LocalContext.current, at, System.currentTimeMillis())
-
-internal fun lastScanned(context: Context, at: Long, now: Long): String =
-    if (at <= 0) context.getString(R.string.never_scanned) else context.getString(R.string.last_scan, relativeTime(context, at, now))
-
-/**
- * How long ago [at] was, for mid-sentence ("il y a 3 minutes", "hier"), capitalised with [alone], its unit
- * abbreviated when [short] ("il y a 2 h"). The system's casing is not used: it capitalises wherever the words fall
- * ("Analyse : Il y a…").
- */
-internal fun relativeTime(context: Context, at: Long, now: Long, alone: Boolean = false, short: Boolean = false): String {
-    val locale = context.resources.configuration.locales[0]
-    val elapsed = now - at
-    val text = when {
-        at <= 0 -> context.getString(R.string.never)
-        elapsed < DateUtils.MINUTE_IN_MILLIS -> context.getString(R.string.just_now)
-        else -> {
-            val words = RelativeDateTimeFormatter.getInstance(
-                ULocale.forLocale(locale),
-                null,
-                if (short) RelativeDateTimeFormatter.Style.SHORT else RelativeDateTimeFormatter.Style.LONG,
-                DisplayContext.CAPITALIZATION_FOR_MIDDLE_OF_SENTENCE,
-            )
-            val (count, unit) = when {
-                elapsed < DateUtils.HOUR_IN_MILLIS -> elapsed / DateUtils.MINUTE_IN_MILLIS to RelativeUnit.MINUTES
-                elapsed < DateUtils.DAY_IN_MILLIS -> elapsed / DateUtils.HOUR_IN_MILLIS to RelativeUnit.HOURS
-                elapsed < DateUtils.WEEK_IN_MILLIS -> elapsed / DateUtils.DAY_IN_MILLIS to RelativeUnit.DAYS
-                elapsed < MONTH_IN_MILLIS -> elapsed / DateUtils.WEEK_IN_MILLIS to RelativeUnit.WEEKS
-                elapsed < YEAR_IN_MILLIS -> elapsed / MONTH_IN_MILLIS to RelativeUnit.MONTHS
-                else -> elapsed / YEAR_IN_MILLIS to RelativeUnit.YEARS
-            }
-            if (count == 1L && unit == RelativeUnit.DAYS) {
-                words.format(Direction.LAST, AbsoluteUnit.DAY)
-            } else {
-                words.format(count.toDouble(), Direction.LAST, unit)
-            }
-        }
-    }
-    return if (alone) text.replaceFirstChar { it.titlecase(locale) } else text
-}
-
-private const val MONTH_IN_MILLIS = 30 * DateUtils.DAY_IN_MILLIS
-
-/** A year of 365 days: DateUtils.YEAR_IN_MILLIS, deprecated, counts 52 weeks (364 days). */
-private const val YEAR_IN_MILLIS = 365 * DateUtils.DAY_IN_MILLIS

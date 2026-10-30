@@ -1,8 +1,13 @@
-package app.houselights.ui.settings
+package app.houselights.ui.util
 
 import android.content.Context
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
+import androidx.tv.material3.Text
+import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -12,6 +17,9 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr")
 class RelativeTimeTest {
+    @get:Rule
+    val compose = createComposeRule()
+
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val now = 1_800_000_000_000L
     private val minute = 60_000L
@@ -60,6 +68,21 @@ class RelativeTimeTest {
             val words = relativeTime(context, at, now)
             assertEquals(words, words.replaceFirstChar { it.lowercase() })
         }
+    }
+
+    /**
+     * Shown a while on a screen left open, the time said moves on with the clock: « Analysé il y a 1 minute » is
+     * « il y a 2 minutes » a minute on, by the next reading of the clock ([NOW_TICK_MS]).
+     */
+    @Test
+    fun aTimeShownMovesOnWithTheClock() {
+        var clock = now
+        compose.setTvContent { Text(lastScanned(now - minute, rememberNow { clock })) }
+        compose.onNodeWithText(lastScanned(context, now - minute, now)).assertExists()
+
+        clock += minute
+        compose.mainClock.advanceTimeBy(NOW_TICK_MS)
+        compose.onNodeWithText(lastScanned(context, now - minute, now + minute)).assertExists()
     }
 
     /** ICU may set a no-break space between a number and its unit; the words are what is tested. */

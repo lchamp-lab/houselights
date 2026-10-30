@@ -87,7 +87,6 @@ import app.houselights.ui.settings.HeldSheet
 import app.houselights.ui.settings.HeldTitles
 import app.houselights.ui.settings.UpdateOnHome
 import app.houselights.ui.settings.UpdateUi
-import app.houselights.ui.settings.relativeTime
 import app.houselights.ui.settings.updateSaid
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LibraryPlace
@@ -99,6 +98,7 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.libraryName
+import app.houselights.ui.util.relativeTime
 import app.houselights.ui.util.run
 import app.houselights.ui.util.scanCount
 import app.houselights.ui.util.scanErrorText

@@ -13,12 +13,12 @@ import app.houselights.settings.InterfaceLanguage
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.TwoPaneDefaults
-import app.houselights.ui.settings.relativeTime
 import app.houselights.ui.settings.title
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
+import app.houselights.ui.util.relativeTime
 import app.houselights.update.UpdateFailure
 import org.junit.Assert.assertTrue
 import org.junit.Rule
