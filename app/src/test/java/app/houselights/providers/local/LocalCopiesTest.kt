@@ -283,6 +283,9 @@ class LocalCopiesTest {
         val first = film("Heat", tmdbId = 949, badges = listOf("1080p"), positionMs = 2_400_000, lastPlayedAt = 100)
         val uhd = film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
         dao.groupVersions()
+        // Started, the 1080p copy plays where it stopped, though the 4K one is better, until the 4K one is chosen.
+        assertEquals(2_400_000L, launch(first).startMs)
+        assertTrue(launch(first).uri.endsWith("Heat.mkv"))
         catalog.chooseVersion(item(first), catalog.versions(item(first)).single { it.key == uhd.toString() })
 
         assertEquals(emptyList<MediaItem>(), continueRow())
