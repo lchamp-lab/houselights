@@ -60,6 +60,22 @@ internal fun MacrobenchmarkScope.browseSagas() {
     back(2)
 }
 
+/**
+ * A saga's page from the sagas' wall, « Les volets »: up into its panels, along them and back, down to Lire, then the
+ * wall. Where the source has sagas.
+ */
+internal fun MacrobenchmarkScope.browseSaga() {
+    if (!device.hasObject(By.text(appString("library_collections")))) return
+    openWall("library_collections")
+    ok()
+    awaitSaga()
+    up()
+    right(3)
+    left(2)
+    down()
+    back(2)
+}
+
 /** A film's page from « À regarder »: down its rows and along its cast, then back up to its actions and home. */
 internal fun MacrobenchmarkScope.browseDetail() {
     focusTo(appString("home_news"))
@@ -125,6 +141,12 @@ private fun MacrobenchmarkScope.openWall(door: String) {
     focusTo(appString(door))
     ok()
     await(By.textStartsWith(appString("sort")), "the wall \"${appString(door)}\"")
+}
+
+/** Waits for a saga's page: its own panel, read as « Star Wars, saga ». */
+private fun MacrobenchmarkScope.awaitSaga() {
+    val saga = Pattern.quote(appString("saga_volet_saga").substringAfter("%s"))
+    await(By.desc(Pattern.compile(".*$saga")), "a saga's page")
 }
 
 /** Waits for a detail page: its play button, Lire or Reprendre. */

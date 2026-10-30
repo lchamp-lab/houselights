@@ -48,6 +48,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.Brush
@@ -104,6 +105,8 @@ import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.textRoom
 import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.delay
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 // A saga's page as a polyptych (« Les volets »): a tall panel a film beside the saga's own, the one with focus open.
@@ -236,7 +239,9 @@ private class VoletMotion(initial: Int) {
  * closed, wordless, receding while one has focus. A move opens the panel reached as the one left closes over
  * [HlMotion.FOCUS_IN], the total kept; a held arrow, or [VoletDefaults.opensAtOnce], jumps. Focus enters on [enter]
  * the first time (the film Lire plays), then on the panel it left; Up goes to [upTo] (else nowhere), Down to [downTo];
- * [onFocus] says which has focus, null when none; OK does [onOpen]. [keyed] keys a panel's focus.
+ * [onFocus] says which has focus, null when none; OK does [onOpen]. [keyed] keys a panel's focus. Past eight films, the
+ * panels far from the view keep their dark, their posters asked for as they come near, those of the view focus will
+ * enter on before it does ([PosterWindow]).
  */
 @Composable
 fun Volets(
@@ -260,13 +265,16 @@ fun Volets(
         var within by remember { mutableStateOf(false) }
         val motion = rememberVoletMotion(open)
         val policy = remember(plan, motion) { voletsPolicy(plan, motion) }
+        // Before focus enters, the posters of the panels Up will find too.
+        val posters = rememberPosters(plan, maxWidth, open, enter.takeUnless { within })
         CompositionLocalProvider(LocalGroupFocused provides within, LocalGroupFocus provides group) {
             Layout(
                 content = {
                     parts.forEachIndexed { i, part ->
                         key(part.key) {
                             Volet(
-                                part,
+                                // Past the posters asked for, a long saga's panel keeps its dark.
+                                if (i in posters) part else part.copy(poster = null),
                                 plan,
                                 type,
                                 opens = i == open,
@@ -387,7 +395,7 @@ private fun voletsPolicy(plan: VoletPlan, motion: VoletMotion) = MeasurePolicy {
         val left = (closed + gap) * motion.open
         val margin = (closed + gap) * KEPT_CLOSED
         val from = motion.scrollFrom
-        val to = from.coerceIn(minOf(left + wide - (room - margin), left - margin), left - margin).coerceIn(0f, total - room)
+        val to = keptInView(from, left, wide, margin, room).coerceIn(0f, total - room)
         from + (to - from) * motion.t.value
     } else {
         0f
@@ -404,6 +412,94 @@ private fun voletsPolicy(plan: VoletPlan, motion: VoletMotion) = MeasurePolicy {
             x += widths[i] + gap
         }
     }
+}
+
+/**
+ * Where a long saga's polyptych scrolls to from [from] as a panel opens, [left] from its start and [wide]: no further
+ * than keeps [margin] between that panel and either end of the [room]. In px or dp alike.
+ */
+internal fun keptInView(from: Float, left: Float, wide: Float, margin: Float, room: Float): Float =
+    from.coerceIn(minOf(left + wide - (room - margin), left - margin), left - margin)
+
+/**
+ * The panels a long saga asks its posters for (#55): those in view once its polyptych has scrolled to the panel open,
+ * as [voletsPolicy] scrolls it, those it passes by on its way from the view it leaves, and [POSTERS_AHEAD] more on
+ * either side, [POSTERS_KEPT] on the side a held arrow runs to, so that a poster is there before its panel comes into
+ * view; a poster asked stays asked while its panel is within [POSTERS_KEPT] of them. Before focus enters on a panel
+ * other than the one open, the view it will enter on too, and [POSTERS_AHEAD] past it, so that Up finds its posters
+ * there. A saga in view whole asks them all. In dp, the polyptych [room] wide.
+ */
+internal class PosterWindow(private val plan: VoletPlan, private val room: Float) {
+    private val step = (plan.closed + plan.gap).value
+    private val wide = plan.open.value
+    private val total = wide + step * (plan.count - 1)
+    private val all = (0 until plan.count).toSet()
+    private var scroll = 0f
+    private var open = -1
+    private var view: IntRange? = null
+    private var asked = IntRange.EMPTY
+
+    /**
+     * The panels whose posters are asked for, panel [to] open, focus to enter on [enter] (null once within), a held
+     * arrow running focus while [runs]; asked again for the same panel, the same.
+     */
+    fun moveTo(to: Int, enter: Int? = null, runs: Boolean = false): Set<Int> {
+        if (!plan.scrolls) return all
+        if (to != open) go(to, runs)
+        val entering = enter?.takeIf { it != to }?.let { near(viewAt(it), POSTERS_AHEAD, POSTERS_AHEAD) }
+        return if (entering == null) asked.toSet() else asked.toSet() + entering
+    }
+
+    /** The panels in view were panel [at] to open now, the polyptych scrolling from where it is; it stays there. */
+    fun viewAt(at: Int): IntRange {
+        if (!plan.scrolls) return 0 until plan.count
+        val to = scrollTo(at)
+        val shown = (0 until plan.count).filter { inView(it, at, to) }
+        return (shown.firstOrNull() ?: at)..(shown.lastOrNull() ?: at)
+    }
+
+    /** Panel [to] opened, the polyptych scrolled to it; a held arrow that [runs] asks further on the side it goes. */
+    private fun go(to: Int, runs: Boolean) {
+        val heading = if (runs && open >= 0) to.compareTo(open) else 0
+        val now = viewAt(to)
+        scroll = scrollTo(to)
+        open = to
+        // The view it leaves, the one it reaches, and what it passes by between them, whatever the jump.
+        val passed = view?.let { minOf(it.first, now.first)..maxOf(it.last, now.last) } ?: now
+        view = now
+        val near = near(
+            passed,
+            before = if (heading < 0) POSTERS_KEPT else POSTERS_AHEAD,
+            after = if (heading > 0) POSTERS_KEPT else POSTERS_AHEAD,
+        )
+        val kept = maxOf(asked.first, passed.first - POSTERS_KEPT)..minOf(asked.last, passed.last + POSTERS_KEPT)
+        asked = if (asked.isEmpty() || kept.isEmpty()) near else minOf(near.first, kept.first)..maxOf(near.last, kept.last)
+    }
+
+    /** Where the polyptych scrolls to from where it is as panel [at] opens, as [voletsPolicy] scrolls it. */
+    private fun scrollTo(at: Int): Float = keptInView(scroll, step * at, wide, step * KEPT_CLOSED, room).coerceIn(0f, total - room)
+
+    /** [panels] and [before] more before them, [after] more after them, within the polyptych. */
+    private fun near(panels: IntRange, before: Int, after: Int): IntRange =
+        (panels.first - before).coerceAtLeast(0)..(panels.last + after).coerceAtMost(plan.count - 1)
+
+    /** Whether panel [i] shows in the room, panel [at] open and the others closed, the polyptych scrolled [by]. */
+    private fun inView(i: Int, at: Int, by: Float): Boolean {
+        val x = step * i + (if (i > at) (plan.open - plan.closed).value else 0f) - by
+        val width = if (i == at) plan.open.value else plan.closed.value
+        return x < room && x + width > 0f
+    }
+}
+
+/**
+ * The panels of [plan] whose posters are asked for, panel [open] open, in a polyptych [room] wide ([PosterWindow]):
+ * with those of the view focus will enter on, [enter], before it does; further ahead while a held arrow runs focus.
+ */
+@Composable
+private fun rememberPosters(plan: VoletPlan, room: Dp, open: Int, enter: Int?): Set<Int> {
+    val window = remember(plan, room) { PosterWindow(plan, room.value) }
+    val runs = Scrub.active
+    return remember(window, open, enter, runs) { window.moveTo(open, enter, runs) }
 }
 
 /** A panel's pictures at the panel's height: its poster at 2:3 and its backdrop at 16:9, in dp and as asked for (px). */
@@ -427,10 +523,14 @@ private fun rememberVoletFrame(height: Dp): VoletFrame {
     }
 }
 
-/** An open panel's wait for its backdrop: [pictured] once it is there to draw, [waited] once [HlMotion.HOLD] is over. */
+/**
+ * An open panel's wait for its backdrop: [pictured] once it is there to draw, [whole] once it is and has no see-through
+ * part, [waited] once [HlMotion.HOLD] is over.
+ */
 @Stable
 private class VoletWait {
     var pictured by mutableStateOf(false)
+    var whole by mutableStateOf(false)
     var waited by mutableStateOf(false)
 
     /** Whether the words show: [settled], and with their picture, the wait over, or [pictureless]. */
@@ -554,6 +654,8 @@ private fun Volet(
         acts = part.acts,
         light = if (part.grey) null else backdrop ?: poster,
         glows = !part.grey,
+        // Its ground covers it whole, its dark or a picture over it: no plate under them.
+        covered = GroundCovers,
     ) {
         VoletPictures(dark, poster, backdrop, part.grey, frame, shows = saga || settled, up, wait)
         if (!saga) TopMelt(dark, floor, type.band)
@@ -574,7 +676,9 @@ private fun Volet(
 /**
  * A panel's ground: its [dark], its [poster] at its natural size cut by the panel, and its [backdrop] while it [shows]
  * or fades ([up]), loaded while it settles and drawn as it rises, [wait] told once it is there; leaving, it is no
- * longer drawn. A [grey] film's pictures without colour, stepping back further than their siblings.
+ * longer drawn. A [grey] film's pictures without colour, stepping back further than their siblings. What a picture
+ * covers whole is not drawn under it ([voletCover]), read while drawing: the dark under its poster or its backdrop
+ * risen, the poster under that backdrop.
  */
 @Composable
 private fun BoxScope.VoletPictures(
@@ -591,24 +695,66 @@ private fun BoxScope.VoletPictures(
     val step by remember(recede) { derivedStateOf { HlFocus.recedeStep(recede()) } }
     // Composed while it shows or fades: recomposed only as it starts or ends.
     val drawn by remember(up) { derivedStateOf { up.value > 0f } }
-    Box(Modifier.matchParentSize().background(dark))
+    var posterWhole by remember(poster) { mutableStateOf(false) }
+    val cover = { width: Float ->
+        voletCover(
+            width,
+            poster = frame.posterPx.width.takeIf { posterWhole },
+            backdrop = frame.backdropPx.width.takeIf { wait.whole && up.value >= 1f },
+        )
+    }
+    Box(Modifier.matchParentSize().drawBehind { if (cover(size.width) == VoletCover.None) drawRect(dark) })
     if (poster != null) {
-        Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
+        // Under its backdrop once whole itself: its loader's fade has run.
+        Box(
+            Modifier.matchParentSize().drawWithContent { if (!posterWhole || cover(size.width) != VoletCover.Backdrop) drawContent() },
+            contentAlignment = Alignment.Center,
+        ) {
             ArtworkImage(
                 poster,
                 null,
                 Modifier.requiredSize(frame.poster.width, frame.poster.height),
                 size = frame.posterPx,
                 filter = if (grey) absentFilters[step] else null,
+                onWhole = { posterWhole = true },
             )
         }
     }
     if (backdrop != null && (shows || drawn)) {
-        DisposableEffect(backdrop) { onDispose { wait.pictured = false } }
+        DisposableEffect(backdrop) {
+            onDispose {
+                wait.pictured = false
+                wait.whole = false
+            }
+        }
         Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
-            VoletPicture(backdrop, frame.backdrop, frame.backdropPx, grey, alpha = { up.value }, onLoad = { wait.pictured = true })
+            VoletPicture(
+                backdrop,
+                frame.backdrop,
+                frame.backdropPx,
+                grey,
+                alpha = { up.value },
+                onLoad = { opaque ->
+                    wait.pictured = true
+                    wait.whole = opaque
+                },
+            )
         }
     }
+}
+
+/** What covers a panel whole, so that nothing under it is drawn: nothing (its dark shows), its poster or its backdrop. */
+internal enum class VoletCover { None, Poster, Backdrop }
+
+/**
+ * What covers a panel [width] px wide whole: its backdrop, [backdrop] px wide once risen whole with no see-through part
+ * (else null), else its poster, [poster] px wide once drawn whole with none, its loader's fade over (else null); each as
+ * wide as the panel at least. Opening wider than its poster, a panel shows its dark at its sides again.
+ */
+internal fun voletCover(width: Float, poster: Int?, backdrop: Int?): VoletCover = when {
+    backdrop != null && width <= backdrop -> VoletCover.Backdrop
+    poster != null && width <= poster -> VoletCover.Poster
+    else -> VoletCover.None
 }
 
 /**
@@ -663,7 +809,7 @@ private fun VoletFoot(part: VoletPart, plan: VoletPlan, modifier: Modifier = Mod
 /**
  * An open panel's backdrop at its natural size, [size] ([px]), drawn with its [alpha] read while drawing: it fades in
  * and out without a layer, and at rest takes none. Its filter steps back with its siblings, a [grey] one without colour;
- * [onLoad] is told once it is there to draw.
+ * [onLoad] is told once it is there to draw, and whether it has no see-through part.
  */
 @Composable
 private fun VoletPicture(
@@ -672,14 +818,14 @@ private fun VoletPicture(
     px: IntSize,
     grey: Boolean,
     alpha: () -> Float,
-    onLoad: () -> Unit,
+    onLoad: (opaque: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     // The panel fades it in itself: no crossfade of the loader's under it.
     val request = remember(url, px, context) { artworkRequest(context, url, px.width, px.height).newBuilder().crossfade(false).build() }
     val loaded by rememberUpdatedState(onLoad)
-    val painter = rememberAsyncImagePainter(request, onSuccess = { loaded() })
+    val painter = rememberAsyncImagePainter(request, onSuccess = { loaded(it.result.isOpaque()) })
     val recede = LocalArtworkRecede.current
     Spacer(
         modifier.requiredSize(size.width, size.height).drawBehind {
@@ -739,7 +885,7 @@ private fun TopMelt(dark: Color, floor: Float, band: Float) {
             val screen = HlScrim.SCREEN_HEIGHT.dp.toPx()
             val stops = HlScrim.TOP.raisedOver(band / screen, floor, VoletDefaults.melt.toPx() / screen)
             val brush = Brush.verticalGradient(*stops.colorStops(dark), startY = 0f, endY = screen)
-            onDrawBehind { drawRect(brush) }
+            onDrawBehind { drawVeil(brush, stops, 0f, screen) }
         },
     )
 }
@@ -777,7 +923,7 @@ private fun FootMelt(dark: Color, yearRise: Float) {
                 VeilStop(1f, HlScrim.VOLET_YEAR_FLOOR),
             )
             val brush = Brush.verticalGradient(*stops.colorStops(dark), startY = 0f, endY = size.height)
-            onDrawBehind { drawRect(brush) }
+            onDrawBehind { drawVeil(brush, stops, 0f, size.height) }
         },
     )
 }
@@ -795,9 +941,31 @@ private fun WordsMelt(dark: Color, top: () -> Float) {
             val span = melt * 2f / (MELT_END - MELT_START)
             val from = at - melt - MELT_START * span
             val brush = Brush.verticalGradient(*HlScrim.CASE_FOOT.colorStops(dark), startY = from, endY = from + span)
-            onDrawBehind { drawRect(brush) }
+            onDrawBehind { drawVeil(brush, HlScrim.CASE_FOOT, from, from + span) }
         },
     )
+}
+
+/**
+ * [brush], the veil [stops] drawn from [startY] to [endY] (px), over the band it is not clear in alone: a transparent
+ * rectangle costs the player's GPU a pass all the same (DESIGN.md, Performance). The same pixels, whole ones.
+ */
+private fun DrawScope.drawVeil(brush: Brush, stops: List<VeilStop>, startY: Float, endY: Float) {
+    val band = stops.inkedBand(startY, endY)
+    val top = floor(band.start).coerceIn(0f, size.height)
+    val bottom = ceil(band.endInclusive).coerceIn(top, size.height)
+    if (bottom > top) drawRect(brush, Offset(0f, top), Size(size.width, bottom - top))
+}
+
+/**
+ * Where a veil drawn from [startY] to [endY] (px) is not clear: from its first stop when that one is clear, down to its
+ * last when that one is, its gradient holding its end stops' colours past them; unbounded on a side whose stop is not.
+ */
+internal fun List<VeilStop>.inkedBand(startY: Float, endY: Float): ClosedFloatingPointRange<Float> {
+    val span = endY - startY
+    val from = if (first().alpha <= 0f) startY + first().at * span else Float.NEGATIVE_INFINITY
+    val to = if (last().alpha <= 0f) startY + last().at * span else Float.POSITIVE_INFINITY
+    return from..to
 }
 
 /** A closed panel's sign: a card's check, its held ring or new dot; a film missing by the ring, one announced by the quiet dot. */
@@ -951,8 +1119,20 @@ fun SagaVoletWords(
     }
 }
 
+/** A panel's ground, its dark or a picture over it, covers it whole: it takes no plate (DESIGN.md, Performance). */
+private val GroundCovers: () -> Float = { Float.POSITIVE_INFINITY }
+
 /** Closed panels kept between the open one and either end of a long saga's polyptych as it scrolls. */
 private const val KEPT_CLOSED = 2
+
+/** Panels past a long saga's view asked for their posters on either side, a few steps before they come into it. */
+internal const val POSTERS_AHEAD = 4
+
+/**
+ * Panels past a long saga's view whose posters, once asked for, stay asked: going back, they are there. A held arrow
+ * asks for as many ahead on the side it runs to, its steps coming every 50 to 110 ms.
+ */
+internal const val POSTERS_KEPT = 8
 
 /** Overview lines in an open panel, as in a hero. */
 private const val OVERVIEW_LINES = 2
