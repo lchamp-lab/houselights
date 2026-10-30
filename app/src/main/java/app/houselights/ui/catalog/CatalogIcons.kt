@@ -41,6 +41,7 @@ import app.houselights.ui.design.components.PlatedMenuKey
 import app.houselights.ui.design.components.Score
 import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.components.markCorner
 import app.houselights.ui.design.groundStepFill
 
 /** Every glyph of the app; the marks that say done and your choice; what ember never says. */
@@ -141,7 +142,7 @@ private fun MenuKeys() {
         Specimen("the key: tertiary frame, secondary lines") { MenuKey() }
         Specimen("in a card's corner, on the marks' plate", Modifier.width(HlSize.poster)) {
             Box(Modifier.width(HlSize.poster).aspectRatio(HlSize.POSTER_RATIO).clip(HlShapes.artwork).background(groundStepFill())) {
-                CheckMark(Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
+                CheckMark(markCorner())
                 PlatedMenuKey({ true }, Modifier.align(Alignment.BottomEnd).padding(HlSpace.xs))
             }
         }

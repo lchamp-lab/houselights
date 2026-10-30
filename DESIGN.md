@@ -979,7 +979,8 @@ built as home's (`ResumeCase`): a picture with its words on its own dark. Closed
 year on the year's band; open, its words on their melt (see *Veils*), as the case does.
 
 - **At rest**, a faint edge (`EDGE_ARTWORK`) keeps dark artwork from dissolving into the room.
-- **One mark at most**, top right, on a dark plate: a title held while its file is missing (among many of its folder
+- **One mark at most**, top right `HlSpace.xs` in (`markCorner`), on the marks' dark plate (`MarkPlate`, `HlShapes.mark`,
+  `VEIL`, receding with the picture): a title held while its file is missing (among many of its folder
   gone at once, `MediaItem.held`) by the ring of a state that is off, white, never ember, first, so a held title shows
   no check nor dot meanwhile; else unwatched episodes, else the check of a watched title,
   else the ember dot of a new title (added in the last week, not watched; ringed in black). Progress is the

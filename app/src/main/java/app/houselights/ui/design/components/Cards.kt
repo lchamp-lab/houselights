@@ -461,7 +461,7 @@ fun PosterCard(
         onLongClickLabel = onLongClickLabel,
     ) {
         ArtworkImage(poster, item.title, Modifier.fillMaxSize(), size = decoded) { FallbackArtwork(item.title, item.year) }
-        StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
+        StatusMark(item, markCorner())
         ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressPoster)
         if (keyed) CornerKey({ focused.value }, started = item.progress > 0f, line = HlSize.progressPoster)
     }
@@ -506,7 +506,7 @@ fun LandscapeCard(
             ArtworkImage(still, item.title, Modifier.fillMaxSize()) {
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })
             }
-            StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
+            StatusMark(item, markCorner())
             ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressWide)
             if (keyed) CornerKey({ focused.value }, started = item.progress > 0f, line = HlSize.progressWide)
         }
@@ -849,21 +849,21 @@ fun PosterStrip(
  * watched check or new-title ember dot.
  */
 @Composable
-private fun StatusMark(item: MediaItem, modifier: Modifier = Modifier) {
+internal fun StatusMark(item: MediaItem, modifier: Modifier = Modifier) {
     val unplayed = item.user.unplayedCount ?: 0
     val c = Hl.colors
-    val plate = c.background.copy(alpha = HlAlpha.VEIL)
     // The card's state description says it in words, so the bare number is not read.
     val mark = modifier.clearAndSetSemantics {}
     when {
         item.held -> HeldMark(mark)
-        unplayed > 0 -> Box(
-            mark
-                .clip(HlShapes.mark)
-                .background(plate)
-                .receding(LocalArtworkRecede.current, c.background)
-                .padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV),
-        ) { Text("$unplayed", style = Hl.type.badge, color = c.content) }
+        unplayed > 0 -> MarkPlate(mark) {
+            Text(
+                "$unplayed",
+                style = Hl.type.badge,
+                color = c.content,
+                modifier = Modifier.padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV),
+            )
+        }
         item.user.played -> CheckMark(mark)
         item.wearsNewDot() -> NewDot(mark)
     }
@@ -875,16 +875,28 @@ private fun StatusMark(item: MediaItem, modifier: Modifier = Modifier) {
  */
 @Composable
 internal fun HeldMark(modifier: Modifier = Modifier) {
+    MarkPlate(modifier.size(HlSize.mark)) { StatusLight(StatusState.Off, ink = Hl.colors.content) }
+}
+
+/**
+ * The marks' dark plate over a picture, on their corners ([HlShapes.mark]), [content] centred: as large as [modifier]
+ * makes it, else as its content (a count). It recedes with the picture.
+ */
+@Composable
+internal fun MarkPlate(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val c = Hl.colors
     Box(
         modifier
-            .size(HlSize.mark)
             .clip(HlShapes.mark)
             .background(c.background.copy(alpha = HlAlpha.VEIL))
             .receding(LocalArtworkRecede.current, c.background),
         contentAlignment = Alignment.Center,
-    ) { StatusLight(StatusState.Off, ink = c.content) }
+        content = content,
+    )
 }
+
+/** Where a mark sits on its picture: its top right corner, [HlSpace.xs] in. */
+internal fun BoxScope.markCorner(): Modifier = Modifier.align(Alignment.TopEnd).padding(HlSpace.xs)
 
 /**
  * A card wears the dot of a title new to the library unless it counts unwatched episodes or is held instead; a row
@@ -911,14 +923,7 @@ internal fun NewDot(modifier: Modifier = Modifier) {
 @Composable
 internal fun CheckMark(modifier: Modifier = Modifier, choice: Boolean = false) {
     val c = Hl.colors
-    Box(
-        modifier
-            .size(HlSize.mark)
-            .clip(HlShapes.mark)
-            .background(c.background.copy(alpha = HlAlpha.VEIL))
-            .receding(LocalArtworkRecede.current, c.background),
-        contentAlignment = Alignment.Center,
-    ) {
+    MarkPlate(modifier.size(HlSize.mark)) {
         val ink = if (choice) c.ember else c.content
         Icon(HlIcons.Check, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.markIcon))
     }

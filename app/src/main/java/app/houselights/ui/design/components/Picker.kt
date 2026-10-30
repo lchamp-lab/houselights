@@ -102,7 +102,7 @@ fun ArtworkChoiceCard(
                     modifier = Modifier.align(Alignment.Center).padding(HlSpace.s),
                 )
             }
-            if (selected) SelectedMark(Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
+            if (selected) SelectedMark(markCorner())
         }
         if (name != null || detail != null) {
             Spacer(Modifier.height(HlSpace.xs))
@@ -169,7 +169,7 @@ fun ArtworkPrint(
                     ArtworkImage(layer, null, Modifier.fillMaxSize(), size = decoded, onShow = { if (layer == url) shown = face })
                 }
             }
-            if (drawn.selected) SelectedMark(Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
+            if (drawn.selected) SelectedMark(markCorner())
         }
         Spacer(Modifier.height(HlSpace.xs))
         PrintWords(drawn.name, drawn.detail)
