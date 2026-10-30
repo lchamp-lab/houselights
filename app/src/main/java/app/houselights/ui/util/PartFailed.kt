@@ -15,8 +15,7 @@ import app.houselights.ui.design.components.StatusState
 
 /**
  * A part that could not load (episodes, a wall's next page): why, titled as the screens say it ([titleText]), and the
- * fixing action, none when nothing fixes it. While [retrying], its button stays busy and focused; [actionModifier] is
- * that button's modifier.
+ * fixing action ([ErrorFixButton]), none when nothing fixes it; [actionModifier] is that button's modifier.
  */
 @Composable
 fun PartFailed(
@@ -26,20 +25,29 @@ fun PartFailed(
     modifier: Modifier = Modifier,
     actionModifier: Modifier = Modifier,
 ) {
-    val fix = LocalErrorFix.current
     Column(modifier) {
         HlStatus(StatusState.Attention, error.titleText(), detail = stringResource(error.message))
         val fixedBy = error.action ?: return@Column
         Spacer(Modifier.height(HlSpace.s))
-        HlButton(
-            stringResource(fixedBy.label),
-            onClick = { fixedBy.run(onRetry, fix) },
-            modifier = actionModifier,
-            icon = HlIcons.Refresh.takeIf { fixedBy == ErrorAction.RETRY },
-            busy = retrying && fixedBy == ErrorAction.RETRY,
-            busyLabel = stringResource(R.string.retrying),
-        )
+        ErrorFixButton(fixedBy, retrying, onRetry, actionModifier)
     }
+}
+
+/**
+ * What fixes an error, [fixedBy]: Réessayer, which runs [onRetry] and stays busy and focused while [retrying]; else
+ * where it is fixed (Se reconnecter), which the screen's [LocalErrorFix] leads to.
+ */
+@Composable
+fun ErrorFixButton(fixedBy: ErrorAction, retrying: Boolean, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    val fix = LocalErrorFix.current
+    HlButton(
+        stringResource(fixedBy.label),
+        onClick = { fixedBy.run(onRetry, fix) },
+        modifier = modifier,
+        icon = HlIcons.Refresh.takeIf { fixedBy == ErrorAction.RETRY },
+        busy = retrying && fixedBy == ErrorAction.RETRY,
+        busyLabel = stringResource(R.string.retrying),
+    )
 }
 
 /** Runs this action: the screen retries itself ([onRetry]); the others lead where it is fixed ([fix]). */

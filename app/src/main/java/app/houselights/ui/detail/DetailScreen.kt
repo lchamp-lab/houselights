@@ -122,9 +122,8 @@ import app.houselights.ui.edit.doubtText
 import app.houselights.ui.library.PosterActions
 import app.houselights.ui.library.PosterOptions
 import app.houselights.ui.library.PosterRow
-import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.ErrorFixButton
 import app.houselights.ui.util.FACT_GAP
-import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.LocalLibraryPlace
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.PartFailed
@@ -139,7 +138,6 @@ import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.jobName
 import app.houselights.ui.util.okClears
 import app.houselights.ui.util.retainedError
-import app.houselights.ui.util.run
 import app.houselights.ui.util.screenHeight
 import app.houselights.ui.util.skeletonDelayPassed
 import app.houselights.ui.util.timeLeft
@@ -970,15 +968,7 @@ private fun RowScope.PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: Fo
     val failed = actions.nextUpError
     if (series && failed != null) {
         val fixedBy = failed.action ?: return
-        val fix = LocalErrorFix.current
-        HlButton(
-            stringResource(fixedBy.label),
-            onClick = { fixedBy.run(actions.onRetry, fix) },
-            modifier = Modifier.focusKey(PLAY, memory),
-            icon = HlIcons.Refresh.takeIf { fixedBy == ErrorAction.RETRY },
-            busy = actions.retrying && fixedBy == ErrorAction.RETRY,
-            busyLabel = stringResource(R.string.retrying),
-        )
+        ErrorFixButton(fixedBy, actions.retrying, actions.onRetry, Modifier.focusKey(PLAY, memory))
         return
     }
     val trust = actions.trustPlayer

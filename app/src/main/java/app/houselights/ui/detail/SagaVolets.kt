@@ -64,16 +64,14 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.onMenuKey
 import app.houselights.ui.design.tryRequestFocus
-import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.ErrorFixButton
 import app.houselights.ui.util.FACT_GAP
-import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.okClears
 import app.houselights.ui.util.rememberSettled
-import app.houselights.ui.util.run
 import app.houselights.ui.util.timeLeft
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -378,7 +376,7 @@ private fun Predella(
                     memory.focus(PLAY)
                     links.onRetry()
                 }
-                Retry(fixedBy, state.retrying, retry, Modifier.focusKey(RETRY, memory).then(LAST))
+                ErrorFixButton(fixedBy, state.retrying, retry, Modifier.focusKey(RETRY, memory).then(LAST))
             }
             // At the row's gap from its last action, centred on its tiles, measured before Lire, whose name gives way first.
             if (options != null && links.optionsSaid) {
@@ -441,20 +439,6 @@ private fun SagaWatchedTile(item: MediaItem, onClick: () -> Unit, modifier: Modi
         stringResource(if (watched) R.string.mark_saga_unwatched else R.string.mark_saga_watched),
         onClick = onClick,
         modifier = modifier,
-    )
-}
-
-/** What fixes a saga that could not be read again, as `PartFailed`'s button: Réessayer ([onRetry]), busy while [retrying]. */
-@Composable
-private fun Retry(fixedBy: ErrorAction, retrying: Boolean, onRetry: () -> Unit, modifier: Modifier = Modifier) {
-    val fix = LocalErrorFix.current
-    HlButton(
-        stringResource(fixedBy.label),
-        onClick = { fixedBy.run(onRetry, fix) },
-        modifier = modifier,
-        icon = HlIcons.Refresh.takeIf { fixedBy == ErrorAction.RETRY },
-        busy = retrying && fixedBy == ErrorAction.RETRY,
-        busyLabel = stringResource(R.string.retrying),
     )
 }
 
