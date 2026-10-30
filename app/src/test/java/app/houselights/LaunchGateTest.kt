@@ -51,6 +51,20 @@ class LaunchGateTest {
         assertEquals(Reason.CAP, timed.reason)
     }
 
+    /**
+     * A process a receiver started a minute before its first window (after an update) counts the cap from that window:
+     * home under it still has its 1.5 s, where the launch screen left at once.
+     */
+    @Test
+    fun aProcessStartedBeforeItsWindowCountsTheCapFromIt() = runTest {
+        val late = LaunchGate(sinceStart = { testScheduler.currentTime + 60_000 }, capMs = 1_500, report = { said += it })
+        backgroundScope.launch { late.openAtCap() }
+        advanceTimeBy(1_499)
+        assertNull(late.reason)
+        advanceTimeBy(2)
+        assertEquals(Reason.CAP, late.reason)
+    }
+
     @Test
     fun itOpensOnceForTheFirstReason() {
         gate.startsElsewhere()

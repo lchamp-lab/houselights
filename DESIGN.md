@@ -61,8 +61,9 @@ Three moments carry the identity:
   each picture preloaded with `PicturesAhead` and `AwaitAhead` as soon as what shows it is read: what the rows show
   at once, the case proposed once drawn, the doors' posters once read, their counts cut ahead into the app's
   `CutPosterCache`). The launch screen leaves after
-  home's first complete frame (`drawnWhole`, `LocalLaunchScreen`), at most 1.5 s after process start, and at
-  once when the app starts elsewhere. `LaunchCue` then plays over `SLOW`: the bars go out widest first, each
+  home's first complete frame (`drawnWhole`, `LocalLaunchScreen`), at most 1.5 s after process start, or after the
+  first window when the process started before it (a receiver, after an update), and at once when the app starts
+  elsewhere. `LaunchCue` then plays over `SLOW`: the bars go out widest first, each
   over `FAST`, the last as the black starts to lift off home over `STANDARD`, every step easing out
   (`lightsOut`); from Android 12 the system draws the mark, which goes out with the last bar. What was
   prepared underneath appears without a fade. A warm start shows at once.
