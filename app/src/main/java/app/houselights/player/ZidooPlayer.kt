@@ -368,7 +368,7 @@ class ZidooPlayer(
     }
 
     private fun certificateOf(info: PackageInfo?): String? =
-        SigningCertificates.sha256(info?.signingInfo?.apkContentsSigners).takeIf { it.isNotEmpty() }?.joinToString(",")
+        SigningCertificates.of(info).signers.takeIf { it.isNotEmpty() }?.joinToString(",")
 
     /** The build an update installed: its versionCode, and when Android installed it, which an update cannot choose. */
     private fun buildOf(info: PackageInfo): String = "${info.longVersionCode}@${info.lastUpdateTime}"
