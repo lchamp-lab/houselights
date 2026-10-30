@@ -282,6 +282,8 @@ object HlLayout {
     /** The two columns of the welcome screen: the choices' holds its title on one line in French. */
     val welcomeTagline = 380.dp
     val welcomeChoices = 456.dp
+    /** A source's door on Welcome at its tallest: its picture, then a home door's band. */
+    val welcomeDoor = 288.dp
     /** A table's value column ([app.houselights.ui.design.components.SpecTable]): Affichage's frame sizes. */
     val specFormat = 136.dp
     /** Label column of a reading sheet's definitions (an NFO's), its values at 16 beside it. */

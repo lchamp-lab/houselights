@@ -418,7 +418,7 @@ keyboard's letters are `lead` (16), a step over the names.
 | `entry` | 15 / 20 | reading, Medium | a name to choose: button and menu words, a key's word, a setting, a place, a version, a value in words |
 | `code` | 15 / 24 | monospace, Regular | raw text (NFO XML) |
 | `spec` | 15 / 20 | technical, Medium | a technical value a pane or a plate states ("Ultra HD 60 Hz"), a technical sheet's marks, the panel's address |
-| `billing` / `billingJoin` | 16 and 13 / 20 | poster, Medium; Regular | the billing block's capitals and small words |
+| `billing` / `billingJoin` | 16 and 13 / 20 | poster, SemiBold; Regular | the billing block's names in white, its small words in grey |
 | `meta` | 13 / 20 | reading, Regular, tabular | facts and values: year, runtime, score, sizes, a path; what a row or a choice does, a hint, a status's reason, a note; a row's count, time left, a role under a name, a measure beside a format |
 | `group` | 13 / 20 | reading, Medium | the title over a group ("Image", "État") or a plate, a field's name, a reading plate's name: a step under the names it heads |
 | `jaquette` | 13 / 20 | technical, Medium | formats as on a case's back, never a measure but on a title's plate (`FormatLines`); a duration inside a button; a door's labels; an address under a QR code |

@@ -5,6 +5,8 @@
     <string name="source_jellyfin">Jellyfin 伺服器</string>
     <string name="source_jellyfin_desc">伺服器中的媒體庫</string>
     <string name="welcome_jellyfin_desc">您的 Jellyfin 伺服器中的電影和影集。</string>
+    <string name="welcome_local_tech">NFS · SMB · USB 硬碟</string>
+    <string name="welcome_jellyfin_tech">Jellyfin 10.9 或更新版本</string>
     <string name="welcome_title">選擇您的媒體庫</string>
 
     <!-- Libraries and sections -->

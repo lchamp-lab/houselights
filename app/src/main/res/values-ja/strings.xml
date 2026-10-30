@@ -5,6 +5,8 @@
     <string name="source_jellyfin">Jellyfinサーバー</string>
     <string name="source_jellyfin_desc">サーバーのライブラリ</string>
     <string name="welcome_jellyfin_desc">Jellyfinサーバーの映画とシリーズです。</string>
+    <string name="welcome_local_tech">NFS · SMB · USBドライブ</string>
+    <string name="welcome_jellyfin_tech">Jellyfin 10.9 以降</string>
     <string name="welcome_title">ライブラリを選択</string>
 
     <!-- Libraries and sections -->

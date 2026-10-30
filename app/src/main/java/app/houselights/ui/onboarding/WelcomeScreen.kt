@@ -38,13 +38,10 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
-import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.Lockup
-import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.PosterWall
 import app.houselights.ui.design.components.PosterWallScrim
 import app.houselights.ui.design.components.TaskTitle
-import app.houselights.ui.design.components.rememberDescriptionLines
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.UiError
@@ -138,36 +135,37 @@ internal fun Welcome(
                 }
             }
             Spacer(Modifier.width(HlSpace.xl))
-            // A focused choice's frame stays inside the safe area.
-            Column(Modifier.padding(end = HlFocus.reach).width(HlLayout.welcomeChoices)) {
+            // A focused door's frame stays inside the safe area; the column centred in it, the doors as tall as it leaves.
+            Column(
+                Modifier.padding(end = HlFocus.reach).width(HlLayout.welcomeChoices).fillMaxHeight(),
+                verticalArrangement = Arrangement.Center,
+            ) {
                 TaskTitle(stringResource(R.string.welcome_title))
                 Spacer(Modifier.height(HlSpace.m))
-                // Raised on glass over the wall, a line of words each and no mark: both reserve the lines the longer
-                // takes at the viewer's text size, so they have one height and no band is left empty.
-                val local = stringResource(R.string.source_local_desc)
-                val jellyfin = stringResource(R.string.welcome_jellyfin_desc)
-                val lines = rememberDescriptionLines(listOf(local, jellyfin), HlLayout.welcomeChoices)
-                Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    HlListItem(
-                        stringResource(R.string.source_local),
-                        local,
-                        onLocal,
-                        Modifier.focusRequester(focus),
-                        icon = HlIcons.Folder,
-                        descriptionLines = lines,
-                        level = PanelLevel.Raised,
-                    )
-                    HlListItem(
-                        stringResource(R.string.source_jellyfin),
-                        jellyfin,
-                        onJellyfin,
-                        // Its servers looked for during the gesture before its sign-in.
-                        Modifier.onFocusChanged { if (it.hasFocus) onJellyfinFocus() },
-                        icon = HlIcons.Server,
-                        descriptionLines = lines,
-                        level = PanelLevel.Raised,
-                    )
-                }
+                WelcomeDoors(
+                    listOf(
+                        SourceChoice(
+                            stringResource(R.string.source_local),
+                            HlIcons.Folder,
+                            SourceGlyph.FOLDER,
+                            stringResource(R.string.source_local_desc),
+                            stringResource(R.string.welcome_local_tech),
+                            onLocal,
+                            Modifier.focusRequester(focus),
+                        ),
+                        SourceChoice(
+                            stringResource(R.string.source_jellyfin),
+                            HlIcons.Server,
+                            SourceGlyph.SERVER,
+                            stringResource(R.string.welcome_jellyfin_desc),
+                            stringResource(R.string.welcome_jellyfin_tech),
+                            onJellyfin,
+                            // Its servers looked for during the gesture before its sign-in.
+                            Modifier.onFocusChanged { if (it.hasFocus) onJellyfinFocus() },
+                        ),
+                    ),
+                    posters,
+                )
             }
         }
     }

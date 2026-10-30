@@ -5,6 +5,8 @@
     <string name="source_jellyfin">Jellyfin-Server</string>
     <string name="source_jellyfin_desc">Die Bibliothek Ihres Servers</string>
     <string name="welcome_jellyfin_desc">Die Filme und Serien Ihres Jellyfin-Servers.</string>
+    <string name="welcome_local_tech">NFS · SMB · USB-Laufwerk</string>
+    <string name="welcome_jellyfin_tech">Jellyfin 10.9 oder neuer</string>
     <string name="welcome_title">Wählen Sie Ihre Bibliothek</string>
 
     <!-- Libraries and sections -->
