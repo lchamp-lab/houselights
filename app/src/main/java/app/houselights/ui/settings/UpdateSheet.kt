@@ -24,9 +24,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -48,9 +45,9 @@ import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.OpenSheets
 import app.houselights.ui.design.components.ReadingPlate
 import app.houselights.ui.design.components.StatusState
-import app.houselights.ui.design.isOk
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
+import app.houselights.ui.util.calmOk
 import app.houselights.ui.util.formatBytes
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.relativeTime
@@ -321,7 +318,7 @@ private fun footWords(doing: UpdateAction): String? = when (doing) {
 
 /**
  * The action row, its words and what OK does following [doing]; OK does nothing while it only says what is under way
- * (GitHub's wait is said under the head), and for a moment after its words change ([calmAfterChange]), or after the
+ * (GitHub's wait is said under the head), and for a moment after its words change ([calmOk]), or after the
  * sheet opened by itself ([calmAtFirst]). Downloading, its count follows the line.
  */
 @Composable
@@ -335,7 +332,7 @@ private fun ActionRow(
     val downloading = (state.step as? UpdateStep.Downloading)?.takeIf { doing == UpdateAction.DOWNLOADING }
     HlSettingRow(
         stringResource(doing.title),
-        modifier.calmAfterChange(doing, calmAtFirst),
+        modifier.calmOk(doing, calmAtFirst),
         description = actionWords(doing, state),
         progress = downloading?.let { it.read.toFloat() / it.total },
         onClick = { act(doing, controls) },
@@ -377,47 +374,6 @@ private fun act(doing: UpdateAction, controls: UpdateControls) {
         UpdateAction.UPDATE, UpdateAction.INSTALL -> controls.update()
         UpdateAction.REOPEN -> controls.reopen()
         UpdateAction.CHECKING, UpdateAction.WAIT, UpdateAction.DOWNLOADING, UpdateAction.VERIFYING, UpdateAction.INSTALLING -> Unit
-    }
-}
-
-/**
- * OK does nothing for [HlMotion.SETTLE] after [doing] changed under it, nor the key's repeats or release: a second press
- * given too soon, a key held, or one let go once the words changed under it never does twice what the first asked,
- * nor what the new words say, nor undoes it. [calmAtFirst]: the sheet opened by itself, under a finger that may be
- * pressing OK for the screen under it, so calm from its first moment.
- */
-@Composable
-private fun Modifier.calmAfterChange(doing: UpdateAction, calmAtFirst: Boolean): Modifier {
-    var calm by remember { mutableStateOf(calmAtFirst) }
-    var swallowed by remember { mutableStateOf(false) }
-    // What the row said when OK went down on it: let go over other words, the press does nothing.
-    var downOn by remember { mutableStateOf<UpdateAction?>(null) }
-    var shown by remember { mutableStateOf(doing.takeUnless { calmAtFirst }) }
-    LaunchedEffect(doing) {
-        if (doing == shown) return@LaunchedEffect
-        shown = doing
-        calm = true
-        delay(HlMotion.SETTLE)
-        calm = false
-    }
-    return onPreviewKeyEvent { event ->
-        if (!event.isOk()) return@onPreviewKeyEvent false
-        when {
-            event.type == KeyEventType.KeyDown && (calm || swallowed) -> {
-                swallowed = true
-                true
-            }
-            event.type == KeyEventType.KeyDown -> {
-                if (event.nativeKeyEvent.repeatCount == 0) downOn = doing
-                false
-            }
-            event.type == KeyEventType.KeyUp -> {
-                val changed = downOn != null && downOn != doing
-                downOn = null
-                (swallowed || changed).also { swallowed = false }
-            }
-            else -> false
-        }
     }
 }
 

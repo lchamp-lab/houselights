@@ -840,8 +840,8 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
   « Laisser tel quel » and « Rétablir l’automatique » do once done; after the last, Réglages, never an empty list; Back
   returns to the list, on the title the queue reached, never from title to title. OK does nothing for `HlMotion.SETTLE`
   once results come under focus, the first ones and each list a search puts in their place, nor the release of a press
-  given meanwhile (`calmAfter`): a second OK given too soon never accepts what came under it unseen (`IdentifyQueueTest`,
-  `IdentifyScreenTest`).
+  given meanwhile or before (`calmOk`): a second OK given too soon never accepts what came under it unseen
+  (`IdentifyQueueTest`, `IdentifyScreenTest`, `CalmOkTest`).
 - **Focus is never lost.** When its element disappears, it moves to a neighbour, else to the action that adds
   one ("Ajouter un dossier"): a title identified, to the one taking its place in « À identifier », a row gone from a
   plate to the plate's first row (`focusGroupKey`). A poster leaving a wall with focus (a title its options mark out of

@@ -58,7 +58,7 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.rememberFieldWidth
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
-import app.houselights.ui.util.calmAfter
+import app.houselights.ui.util.calmOk
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.titleText
 
@@ -110,7 +110,7 @@ internal fun IdentifyPage(vm: IdentifyViewModel, onDone: () -> Unit, queue: Bool
 
     // The results come under focus, the first ones and each list a search puts in their place: a second OK given too
     // soon, the last screen's or the search's, chooses none of them unseen.
-    Box(Modifier.fillMaxSize().calmAfter(state.results)) {
+    Box(Modifier.fillMaxSize().calmOk(state.results, calmAtFirst = true)) {
         HlFormScaffold(
             title = stringResource(R.string.identify),
             description = stringResource(descriptionOf(state.identity)),
