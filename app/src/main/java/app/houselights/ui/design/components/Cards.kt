@@ -1,7 +1,6 @@
 package app.houselights.ui.design.components
 
 import android.content.Context
-import android.graphics.drawable.BitmapDrawable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -40,7 +39,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -114,13 +112,10 @@ import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
-import coil.decode.DataSource
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import coil.size.Precision
 import coil.size.Scale
-import coil.transition.CrossfadeTransition
-import kotlinx.coroutines.delay
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -373,36 +368,6 @@ private fun successOf(onShow: (() -> Unit)?, whole: ((SuccessResult) -> Unit)?):
             whole?.invoke(success.result)
         }
     }
-
-/**
- * Tells [onWhole] once the picture [url] that came covers what it lies on: with no see-through part, at once from
- * memory, else once the loader's fade has run ([fadeMillis]), counted from the frame after it came, the first it is
- * drawn in. Never for a picture with see-through parts. What it returns is told what came.
- */
-@Composable
-private fun rememberWhole(url: String, onWhole: () -> Unit): (SuccessResult) -> Unit {
-    val told by rememberUpdatedState(onWhole)
-    var came by remember(url) { mutableStateOf<SuccessResult?>(null) }
-    LaunchedEffect(came) {
-        val result = came?.takeIf { it.isOpaque() } ?: return@LaunchedEffect
-        val fade = result.fadeMillis()
-        if (fade > 0L) {
-            withFrameNanos {}
-            delay(fade)
-        }
-        told()
-    }
-    return remember(url) { { result: SuccessResult -> came = result } }
-}
-
-/** Whether a picture has no see-through part (a JPEG's): drawn whole, it covers what it lies on. */
-internal fun SuccessResult.isOpaque(): Boolean = (drawable as? BitmapDrawable)?.bitmap?.hasAlpha() == false
-
-/** How long the loader fades a picture in (ms), as Coil's crossfade does: not at all from memory. */
-internal fun SuccessResult.fadeMillis(): Long = when {
-    dataSource == DataSource.MEMORY_CACHE -> 0L
-    else -> (request.transitionFactory as? CrossfadeTransition.Factory)?.durationMillis?.toLong() ?: 0L
-}
 
 /**
  * What an [ArtworkImage] asks the loader for: [url], at [size] (px) when given ([artworkRequest]); with the loader's
