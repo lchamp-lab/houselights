@@ -95,23 +95,18 @@ private const val SYNC_ROW =
         "s.reorderedAt FROM items i LEFT JOIN items s ON s.id = i.seriesId WHERE i.kind IN ('MOVIE', 'EPISODE') " +
         "AND NOT (i.kind = 'EPISODE' AND i.tmdbEpisode IS NULL AND (i.absoluteNumber IS NOT NULL OR s.episodeOrder IS NOT NULL))"
 
-/** Another copy of film :id ([ItemEntity.versionOf]). */
-private const val COPY_OF =
-    "(i.kind = 'MOVIE' AND (i.id = (SELECT versionOf FROM items WHERE id = :id) " +
-        "OR i.versionOf = (SELECT COALESCE(versionOf, id) FROM items WHERE id = :id AND kind = 'MOVIE')))"
-
 /** Values for a queued intent, numbered after every other. */
 private const val PENDING_VALUES =
     "(title, action, at, progress, seq) VALUES (:title, :action, :at, :progress, (SELECT IFNULL(MAX(seq), 0) + 1 FROM trakt_pending))"
 
 /** The library as Trakt sees it, and what waits for Trakt. */
 @Dao
-interface TraktDao {
+interface TraktDao : CopyDao {
     @Query(SYNC_ROW)
     suspend fun rows(): List<SyncRow>
 
-    /** Row [id]'s films or episodes: a film with its copies, an episode, a season's episodes or a show's. */
-    @Query("$SYNC_ROW AND (i.id = :id OR i.parentId = :id OR i.seriesId = :id OR $COPY_OF)")
+    /** Row [id]'s films or episodes: a film with its copies ([COPIES]), an episode, a season's episodes or a show's. */
+    @Query("$SYNC_ROW AND (i.id IN ($COPY_IDS) OR i.parentId = :id OR i.seriesId = :id)")
     suspend fun rowsOf(id: Long): List<SyncRow>
 
     @Query("$SYNC_ROW AND i.collectionId = :collectionId")
@@ -127,14 +122,6 @@ interface TraktDao {
     /** Trakt's pause at [at], unless the row was played since: a stop saved meanwhile stands. */
     @Query("UPDATE items SET positionMs = :positionMs, lastPlayedAt = :at WHERE id = :id AND IFNULL(lastPlayedAt, 0) < :at")
     suspend fun resumeAt(id: Long, positionMs: Long, at: Long)
-
-    /** Copies of the film with main row [titleId], that row first, without NFO text. */
-    @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND (id = :titleId OR versionOf = :titleId) ORDER BY id")
-    suspend fun copies(titleId: Long): List<ItemEntity>
-
-    /** The copy of film [titleId] that Lire plays ([VersionRank.played]); null for a single copy. */
-    @Transaction
-    suspend fun playedCopy(titleId: Long): Long? = VersionRank.played(copies(titleId))
 
     /** Queues [title]'s intent in place of any before it. */
     @Query("INSERT OR REPLACE INTO trakt_pending $PENDING_VALUES")

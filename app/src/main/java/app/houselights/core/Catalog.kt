@@ -194,12 +194,13 @@ object Editions {
         return NAMES.firstOrNull { (_, names) -> plain in names }?.first ?: find(trimmed) ?: trimmed
     }
 
-    /** Lower-cases, strips accents and apostrophes, and turns other punctuation into spaces. */
+    /**
+     * Without accents ([SortKeys.foldAccents]: a copy's edition is stored) nor apostrophes, other punctuation turned
+     * into spaces.
+     */
     private fun plain(text: String): String =
-        java.text.Normalizer.normalize(text.lowercase(), java.text.Normalizer.Form.NFD).replace(MARKS, "").replace(APOSTROPHES, "")
-            .replace(NOT_WORDS, " ").trim()
+        SortKeys.foldAccents(text).replace(APOSTROPHES, "").replace(NOT_WORDS, " ").trim()
 
-    private val MARKS = Regex("""\p{M}+""")
     private val APOSTROPHES = Regex("""['’]""")
     private val NOT_WORDS = Regex("""[^\p{L}\p{N}]+""")
 }

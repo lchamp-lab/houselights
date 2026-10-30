@@ -31,12 +31,7 @@ class PackageArchive(private val archiveInfo: (path: String, flags: Int) -> Pack
 
     override fun read(file: File): ArchiveFacts? {
         val info = archiveInfo(file.path, FLAGS) ?: return null
-        val signing = info.signingInfo
-
-        @Suppress("DEPRECATION") // The archive's signers where Android gave no signing info.
-        val signers = SigningCertificates.sha256(signing?.apkContentsSigners ?: info.signatures)
-        val history = signing?.takeUnless { it.hasMultipleSigners() }?.signingCertificateHistory.orEmpty()
-            .map { SigningCertificates.sha256(it) }
+        val (signers, history) = SigningCertificates.of(info)
         return ArchiveFacts(info.packageName, info.longVersionCode, info.versionName, signers, history)
     }
 

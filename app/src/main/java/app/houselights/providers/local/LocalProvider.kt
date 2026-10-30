@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
+import app.houselights.core.ArtworkKind
 import app.houselights.core.BadgeTokens
 import app.houselights.core.Catalog
 import app.houselights.core.Codecs
@@ -270,9 +271,8 @@ class LocalProvider(
             // Genres grouped case-insensitively, as in the genre filter: an NFO's "drame" is TMDB's "Drame".
             genres = members.flatMap { it.genres }.groupBy { it.lowercase(Locale.ROOT) }.values
                 .sortedByDescending { it.size }.take(SAGA_GENRES).map(PipeList::spellingOf),
-            poster = (chosen?.userPosterPath ?: c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })
-                ?.let { image(it, ImageType.POSTER) },
-            backdrop = (chosen?.userBackdropPath ?: c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })
+            poster = (chosen?.userPosterPath ?: SagaPictures.automatic(c, ArtworkKind.POSTER, first))?.let { image(it, ImageType.POSTER) },
+            backdrop = (chosen?.userBackdropPath ?: SagaPictures.automatic(c, ArtworkKind.BACKDROP, first))
                 ?.let { image(it, ImageType.BACKDROP) },
             // As a film's: its latest film added since its folder's first scan, the month a wall sorted by Ajout shows.
             addedAt = members.mapNotNull { it.addedLater }.maxOrNull(),
@@ -363,15 +363,13 @@ class LocalProvider(
         return PlayedTracks(firstFileMedia(entity, part).takeUnless { isDisc(file) }, tracksKey(entity))
     }
 
-    /** The row [item] plays and its part: a film in several copies plays the copy [VersionRank.played] names, at its own resume point. */
+    /** The row [item] plays and its part: a film in several copies plays the copy [CopyDao.playedCopy] names, at its own resume point. */
     private suspend fun played(item: MediaItem): Pair<Long, Int?> {
         val key = itemKey(item) ?: throw NotFoundException("Item ${item.id}")
         val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
-        val copy = if (part == null) chosenCopy(key) else null
+        val copy = if (part == null) dao.playedCopy(key) else null
         return (copy ?: key) to part
     }
-
-    private suspend fun chosenCopy(titleId: Long): Long? = VersionRank.played(dao.copies(titleId))
 
     /** Plays row [rowId] itself: [part] from its start, else the first part from the resume point. */
     internal suspend fun play(rowId: Long, part: Int?, resume: Boolean): PlaybackPlan {

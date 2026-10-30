@@ -43,10 +43,8 @@ class ThisApp(
     override val available: Boolean by lazy {
         // Read only for a build with the updater: the others never ask.
         built && run {
-            val signing = context.packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo
-            val signers = SigningCertificates.sha256(signing?.apkContentsSigners)
-            val history = signing?.takeUnless { it.hasMultipleSigners() }?.signingCertificateHistory.orEmpty()
-                .map { SigningCertificates.sha256(it) }
+            val info = context.packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+            val (signers, history) = SigningCertificates.of(info)
             UpdaterAvailability.available(built, packageName, signers, history, pinned)
         }
     }

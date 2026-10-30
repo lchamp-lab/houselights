@@ -19,9 +19,15 @@ object SortKeys {
 
     /** [text] in lower case, accents dropped and ligatures spelled out: [sortKey] without the article rule. */
     fun fold(text: String): String {
-        val bare = MARKS.replace(Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD), "")
+        val bare = foldAccents(text)
         return if (bare.none { it in LIGATURES }) bare else buildString { bare.forEach { append(LIGATURES[it] ?: it) } }
     }
+
+    /**
+     * [text] in lower case, accents dropped, ligatures kept as written: [fold] for what is stored from it (a saga's
+     * key, a copy's edition), which must not move without a migration.
+     */
+    fun foldAccents(text: String): String = MARKS.replace(Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD), "")
 
     /** The letter a title is filed under in a wall sorted by title ("B" for "The Batman"), "#" for a digit. */
     fun initial(title: String): String? =
