@@ -5,6 +5,8 @@
     <string name="source_jellyfin">Jellyfin-server</string>
     <string name="source_jellyfin_desc">De bibliotheek van uw server</string>
     <string name="welcome_jellyfin_desc">De films en series van uw Jellyfin-server.</string>
+    <string name="welcome_local_tech">NFS · SMB · USB-schijf</string>
+    <string name="welcome_jellyfin_tech">Jellyfin 10.9 of nieuwer</string>
     <string name="welcome_title">Kies uw bibliotheek</string>
 
     <!-- Libraries and sections -->

@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * DESIGN.md, Type: a title's page without a logo sets its title to the logo's box (440 × 112), on one line in its
+ * DESIGN.md, Type: a title's page without a logo sets its title to the logo's box (440 × 104), on one line in its
  * signature when it fits there, else in `display` on one line or two even ones, as tall as the box.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -73,7 +73,7 @@ class TitleArtTest {
 
     @Test
     fun aLongTitleTakesTwoEvenLines() {
-        val title = "Spider-Man\u00A0: Brand New Day"
+        val title = "Spider-Man\u00A0: Across the Spider-Verse"
         show(title)
         val set = layout(title)
         assertEquals(HouselightsType.display.fontSize, set.layoutInput.style.fontSize)

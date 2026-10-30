@@ -138,7 +138,7 @@ data class VoletPart(
     val acts: Boolean = true,
 )
 
-/** A saga's numbers, one size for the whole polyptych: the signature (72), `display` (48) or `headline` (36). */
+/** A saga's numbers, one size for the whole polyptych: the signature (72), `display` (44) or `headline` (32). */
 enum class VoletNumbers { Signature, Display, Headline }
 
 /**

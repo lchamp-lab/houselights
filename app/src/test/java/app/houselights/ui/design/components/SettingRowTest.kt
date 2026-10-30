@@ -22,7 +22,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** DESIGN.md, Secondary screens: a place is 56 tall, a row 60 in a pane's group as in a sheet, an icon included. */
+/** DESIGN.md, Secondary screens: a place is 48 tall, a row 52 in a pane's group as in a sheet, an icon included. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)

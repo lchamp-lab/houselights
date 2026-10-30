@@ -41,8 +41,8 @@ object HlFonts {
     )
 
     val condensed = archivo(70f, FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold)
-    val text = archivo(100f, FontWeight.Normal, FontWeight.SemiBold)
-    val expanded = archivo(125f, FontWeight.SemiBold, FontWeight.Bold)
+    val text = archivo(100f, FontWeight.Normal, FontWeight.Medium)
+    val expanded = archivo(125f, FontWeight.Medium, FontWeight.SemiBold)
 
     /** A count cut in posters ([HlType.figureSignature]): the poster's voice drawn tighter, its one weight. */
     val figures = archivo(62f, FontWeight.Bold)
@@ -55,8 +55,8 @@ object HlFonts {
 internal fun trackingFor(size: TextUnit): TextUnit =
     TRACKING_FROM.firstOrNull { (from, _) -> size.value >= from }?.second ?: TRACKING_SMALLEST
 
-/** From which size, in sp, each tracking holds; below the last, [TRACKING_SMALLEST]. */
-private val TRACKING_FROM = listOf(36f to (-0.01).em, 16f to 0.em, 14f to 0.01.em)
+/** From which size, in sp, each tracking holds: titles tighten, what is read opens, a mark's 12 most. */
+private val TRACKING_FROM = listOf(32f to (-0.01).em, 15f to 0.em, 13f to 0.01.em)
 private val TRACKING_SMALLEST = 0.02.em
 
 /**
@@ -130,10 +130,11 @@ private fun signature(family: FontFamily, weight: FontWeight, size: Int, line: I
     )
 
 /**
- * Type scale for a TV seen from the couch (DESIGN.md, Type): eight sizes from 12 to 48 sp and the signature 72, a line
- * height a size on the 4 sp grid (16 has a name's and a paragraph's). A floor a voice: 14 for what is read, 12 in a
- * mark's box, 18 for the poster. Poster titles fit Vietnamese: in condensed bold a stacked mark rises to 0.92 em and a
- * descender falls to 0.20 em, hence [display] and [cardTitle] lines at least 1.125 em apart.
+ * Type scale for a TV seen from the couch (DESIGN.md, Type): eight sizes from 12 to 44 sp and the signature 72, a line
+ * height a size on the 4 sp grid (15 and 16 have a name's and a paragraph's). Three weights, Regular, Medium and
+ * SemiBold; Bold is the signatures' alone. A floor a voice: 13 for what is read, 12 in a mark's box, 16 for the poster.
+ * Poster titles fit Vietnamese: in condensed a stacked mark rises to 0.92 em and a descender falls to 0.20 em, hence
+ * [display] and [cardTitle] lines at least 1.125 em apart.
  */
 @Immutable
 data class HlType(
@@ -190,30 +191,30 @@ data class HlType(
 )
 
 val HouselightsType = HlType(
-    display = scale(HlFonts.condensed, FontWeight.Bold, 48, 56, lineBreak = TITLE),
-    headline = scale(HlFonts.condensed, FontWeight.Bold, 36, 40, lineBreak = TITLE),
-    subject = scale(HlFonts.condensed, FontWeight.SemiBold, 28, 32, FIGURES, TITLE),
-    place = scale(HlFonts.condensed, FontWeight.SemiBold, 22, 28),
-    placeCurrent = scale(HlFonts.condensed, FontWeight.Bold, 22, 28),
-    rowTitle = scale(HlFonts.condensed, FontWeight.SemiBold, 22, 28, lineBreak = TITLE),
-    cardName = scale(HlFonts.condensed, FontWeight.SemiBold, 18, 24, lineBreak = TITLE),
-    cardTitle = scale(HlFonts.condensed, FontWeight.Bold, 18, 24, lineBreak = TITLE),
+    display = scale(HlFonts.condensed, FontWeight.SemiBold, 44, 52, lineBreak = TITLE),
+    headline = scale(HlFonts.condensed, FontWeight.SemiBold, 32, 40, lineBreak = TITLE),
+    subject = scale(HlFonts.condensed, FontWeight.Medium, 26, 32, FIGURES, TITLE),
+    place = scale(HlFonts.condensed, FontWeight.Medium, 20, 28),
+    placeCurrent = scale(HlFonts.condensed, FontWeight.SemiBold, 20, 28),
+    rowTitle = scale(HlFonts.condensed, FontWeight.Medium, 20, 28, lineBreak = TITLE),
+    cardName = scale(HlFonts.condensed, FontWeight.Medium, 16, 20, lineBreak = TITLE),
+    cardTitle = scale(HlFonts.condensed, FontWeight.SemiBold, 16, 20, lineBreak = TITLE),
 
-    lead = scale(HlFonts.text, FontWeight.SemiBold, 18, 24, lineBreak = TITLE),
-    body = scale(HlFonts.text, FontWeight.Normal, 16, 24, lineBreak = PROSE),
-    entry = scale(HlFonts.text, FontWeight.SemiBold, 16, 20),
-    meta = scale(HlFonts.text, FontWeight.Normal, 14, 20, FIGURES, PROSE),
-    group = scale(HlFonts.text, FontWeight.SemiBold, 14, 20),
-    code = scale(HlFonts.mono, FontWeight.Normal, 16, 24),
+    lead = scale(HlFonts.text, FontWeight.Medium, 16, 24, lineBreak = TITLE),
+    body = scale(HlFonts.text, FontWeight.Normal, 15, 24, lineBreak = PROSE),
+    entry = scale(HlFonts.text, FontWeight.Medium, 15, 20),
+    meta = scale(HlFonts.text, FontWeight.Normal, 13, 20, FIGURES, PROSE),
+    group = scale(HlFonts.text, FontWeight.Medium, 13, 20),
+    code = scale(HlFonts.mono, FontWeight.Normal, 15, 24),
 
-    spec = scale(HlFonts.expanded, FontWeight.SemiBold, 16, 20, FIGURES),
-    jaquette = scale(HlFonts.expanded, FontWeight.SemiBold, 14, 20, FIGURES),
-    badge = scale(HlFonts.expanded, FontWeight.Bold, 12, 16, FIGURES),
+    spec = scale(HlFonts.expanded, FontWeight.Medium, 15, 20, FIGURES),
+    jaquette = scale(HlFonts.expanded, FontWeight.Medium, 13, 20, FIGURES),
+    badge = scale(HlFonts.expanded, FontWeight.SemiBold, 12, 16, FIGURES),
 
     titleSignature = scale(HlFonts.condensed, FontWeight.Bold, 72, 72, lineBreak = TITLE),
-    billing = signature(HlFonts.condensed, FontWeight.Medium, 16, 20, CAPITALS_TRACKING, CAPITALS),
-    billingJoin = signature(HlFonts.condensed, FontWeight.Normal, 14, 20, BILLING_JOIN_TRACKING),
-    codeSignature = signature(HlFonts.condensed, FontWeight.Bold, 48, 56, CODE_TRACKING),
+    billing = signature(HlFonts.condensed, FontWeight.SemiBold, 16, 20, CAPITALS_TRACKING, CAPITALS),
+    billingJoin = signature(HlFonts.condensed, FontWeight.Normal, 13, 20, BILLING_JOIN_TRACKING),
+    codeSignature = signature(HlFonts.condensed, FontWeight.SemiBold, 44, 52, CODE_TRACKING),
     figureSignature = signature(HlFonts.figures, FontWeight.Bold, 120, 88, FIGURE_TRACKING, PROPORTIONAL),
 )
 

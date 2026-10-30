@@ -48,7 +48,7 @@ internal fun LazyListScope.catalogControls() {
         }
     }
     item { Group("Titles: a place's name in the ember light, a task's in white") { Titles() } }
-    item { Group("Tiles: 48 on a page, 40 in a header; a chosen state lights the glyph") { TileStates() } }
+    item { Group("Tiles: 44 on a page, 40 in a header; a chosen state lights the glyph") { TileStates() } }
     item { Group("Over a picture: plates in its own dark, edged with a hairline") { OverAPicture() } }
     item { Group("Tracks: words in the poster's voice, the place in ember; focus is white") { Tracks() } }
 }

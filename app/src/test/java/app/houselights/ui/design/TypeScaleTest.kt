@@ -69,8 +69,8 @@ class TypeScaleTest {
 
     @Test
     fun theScaleUsesThreeWeights() {
-        // Regular reads, SemiBold names, Bold announces.
-        val weights = setOf(FontWeight.Normal, FontWeight.SemiBold, FontWeight.Bold)
+        // Regular reads, Medium names, SemiBold announces; Bold is the signatures' alone.
+        val weights = setOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold)
         roles.forEach { (name, style) -> assertTrue("$name is set in ${style.fontWeight}", style.fontWeight in weights) }
     }
 
@@ -80,7 +80,7 @@ class TypeScaleTest {
     @Test
     fun nineSizes() {
         // Eight working sizes and the signature; the doors' count is sized to the doors.
-        val scale = setOf(12f, 14f, 16f, 18f, 22f, 28f, 36f, 48f)
+        val scale = setOf(12f, 13f, 15f, 16f, 20f, 26f, 32f, 44f)
         roles.forEach { (name, style) -> assertTrue("$name is ${style.fontSize}", style.fontSize.value in scale) }
         scaled.forEach { (name, style) -> assertTrue("$name is ${style.fontSize}", style.fontSize.value in scale + 72f) }
         assertEquals(listOf("titleSignature"), scaled.filterValues { it.fontSize == 72.sp }.keys.toList())
@@ -88,27 +88,27 @@ class TypeScaleTest {
 
     @Test
     fun eightLineHeights() {
-        // On the 4 dp grid, one a size, but 16's: a name's 20, a paragraph's 24.
-        val lines = setOf(16f, 20f, 24f, 28f, 32f, 40f, 56f, 72f)
+        // On the 4 dp grid, one a size, but 15's and 16's: a name's 20, a paragraph's 24.
+        val lines = setOf(16f, 20f, 24f, 28f, 32f, 40f, 52f, 72f)
         scaled.forEach { (name, style) -> assertTrue("$name: line height ${style.lineHeight}", style.lineHeight.value in lines) }
         val bySize = scaled.values.groupBy({ it.fontSize.value }, { it.lineHeight.value })
         bySize.forEach { (size, heights) ->
-            val expected = if (size == 16f) setOf(20f, 24f) else setOf(heights.first())
+            val expected = if (size == 15f || size == 16f) setOf(20f, 24f) else setOf(heights.first())
             assertEquals("lines of $size", expected, heights.toSet())
         }
     }
 
     @Test
     fun eachVoiceHasItsSizes() {
-        // A floor a voice: 14 for what is read, formats included; 12 in a mark's box alone; 18 for the poster, but
-        // the billing block's capitals (16) and small words (14).
+        // A floor a voice: 13 for what is read, formats included; 12 in a mark's box alone; 16 for the poster, the
+        // billing block's small words (13) aside.
         fun sizes(family: FontFamily, but: Set<String> = emptySet()) =
             scaled.filter { (name, style) -> style.fontFamily == family && name !in but }.values.map { it.fontSize.value }.toSet()
-        assertEquals(setOf(18f, 22f, 28f, 36f, 48f, 72f), sizes(HlFonts.condensed, but = setOf("billing", "billingJoin")))
-        assertEquals(setOf(14f, 16f, 18f), sizes(HlFonts.text))
-        assertEquals(setOf(12f, 14f, 16f), sizes(HlFonts.expanded))
-        assertEquals(setOf(16f), sizes(HlFonts.mono))
-        assertEquals(16f to 14f, HouselightsType.billing.fontSize.value to HouselightsType.billingJoin.fontSize.value)
+        assertEquals(setOf(16f, 20f, 26f, 32f, 44f, 72f), sizes(HlFonts.condensed, but = setOf("billingJoin")))
+        assertEquals(setOf(13f, 15f, 16f), sizes(HlFonts.text))
+        assertEquals(setOf(12f, 13f, 15f), sizes(HlFonts.expanded))
+        assertEquals(setOf(15f), sizes(HlFonts.mono))
+        assertEquals(16f to 13f, HouselightsType.billing.fontSize.value to HouselightsType.billingJoin.fontSize.value)
         assertEquals(listOf("badge"), scaled.filterValues { it.fontSize == 12.sp }.keys.toList())
     }
 
@@ -116,7 +116,7 @@ class TypeScaleTest {
     fun framesKeepTheirLines() {
         // Home's grid and its doors' band, a row's head and a hero are measured from these.
         with(HouselightsType) {
-            assertEquals(listOf(20f, 24f, 28f, 24f, 20f), listOf(meta, cardName, rowTitle, body, entry).map { it.lineHeight.value })
+            assertEquals(listOf(20f, 20f, 28f, 24f, 20f), listOf(meta, cardName, rowTitle, body, entry).map { it.lineHeight.value })
         }
     }
 
@@ -124,8 +124,8 @@ class TypeScaleTest {
     fun trackingFollowsSize() {
         roles.forEach { (name, style) -> assertEquals(name, trackingFor(style.fontSize), style.letterSpacing) }
         assertEquals(trackingFor(HouselightsType.titleSignature.fontSize), HouselightsType.titleSignature.letterSpacing)
-        // Tighter from 36, none from 16 to 28, more open at 14 and 12.
-        assertEquals(listOf((-0.01).em, 0.em, 0.em, 0.01.em, 0.02.em), listOf(36, 28, 16, 14, 12).map { trackingFor(it.sp) })
+        // Tighter from 32, none from 15 to 26, more open at 13 and 12.
+        assertEquals(listOf((-0.01).em, 0.em, 0.em, 0.01.em, 0.02.em), listOf(32, 26, 15, 13, 12).map { trackingFor(it.sp) })
         // Closer as it grows, more open as it shrinks.
         val sizes = roles.values.map { it.fontSize }.distinct().sortedBy { it.value }
         sizes.zipWithNext().forEach { (small, large) ->
@@ -148,16 +148,17 @@ class TypeScaleTest {
     }
 
     @Test
-    fun theCoreReadsAtSixteen() {
-        // Overviews, button words and names to choose at 16; around them, 14; a group's title a step under its names.
+    fun theCoreReadsAtFifteen() {
+        // Overviews, button words and names to choose at 15; around them, 13; a group's title a step under its names.
         with(HouselightsType) {
-            assertEquals(16f to 24f, body.fontSize.value to body.lineHeight.value)
+            assertEquals(15f to 24f, body.fontSize.value to body.lineHeight.value)
             assertEquals(FontWeight.Normal, body.fontWeight)
-            assertEquals(16f to 20f, entry.fontSize.value to entry.lineHeight.value)
-            assertEquals(14f to 20f, meta.fontSize.value to meta.lineHeight.value)
+            assertEquals(15f to 20f, entry.fontSize.value to entry.lineHeight.value)
+            assertEquals(FontWeight.Medium, entry.fontWeight)
+            assertEquals(13f to 20f, meta.fontSize.value to meta.lineHeight.value)
             assertNotSame(entry, group)
-            assertEquals(14f to FontWeight.SemiBold, group.fontSize.value to group.fontWeight)
-            assertEquals(18f to 24f, lead.fontSize.value to lead.lineHeight.value)
+            assertEquals(13f to FontWeight.Medium, group.fontSize.value to group.fontWeight)
+            assertEquals(16f to 24f, lead.fontSize.value to lead.lineHeight.value)
         }
     }
 
@@ -184,7 +185,7 @@ class TypeScaleTest {
             assertEquals(it, HlFonts.condensed, roles.getValue(it).fontFamily)
         }
         listOf("jaquette", "badge").forEach { assertEquals(it, HlFonts.expanded, roles.getValue(it).fontFamily) }
-        assertEquals(FontWeight.Bold, HouselightsType.placeCurrent.fontWeight)
+        assertEquals(FontWeight.SemiBold, HouselightsType.placeCurrent.fontWeight)
         assertEquals(HouselightsType.place.fontSize, HouselightsType.placeCurrent.fontSize)
     }
 

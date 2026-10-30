@@ -161,7 +161,7 @@ private fun posterBrush(drawn: Bitmap, digit: Rect): Brush {
 }
 
 /** A door's tint enlarged once to the size it is drawn at, with bilinear filtering: drawn point for point, it never shows its points. */
-private class ScaledTint {
+internal class ScaledTint {
     private var made: Triple<Bitmap, Int, Int>? = null
     private var scaled: Bitmap? = null
 
@@ -178,7 +178,7 @@ private class ScaledTint {
 }
 
 /** The paint of a [tint] drawn at its size: lowered and coloured as a door's dark. */
-private fun tintPaint(tint: Bitmap): Paint {
+internal fun tintPaint(tint: Bitmap): Paint {
     val shader = BitmapShader(tint, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
     val light = HlScrim.DOOR_TINT_LIGHT
     val matrix = android.graphics.ColorMatrix().apply { setSaturation(HlScrim.DOOR_TINT_SATURATION) }

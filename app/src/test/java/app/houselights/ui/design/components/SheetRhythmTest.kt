@@ -70,10 +70,10 @@ class SheetRhythmTest {
             ),
         )
         compose.setTvContent { TechSpecs(film, onDismiss = {}) }
-        assertAt("the title", 58.7f, at("Fiche technique"))
-        assertAt("its facts", 87.35f, at("The Furious"))
+        assertAt("the title", 60f, at("Fiche technique"))
+        assertAt("its facts", 84f, at("The Furious"))
         val picture = compose.onNode(block("Image")).getUnclippedBoundsInRoot()
-        assertAt("the picture's plate", 110f, picture.top.value)
+        assertAt("the picture's plate", 107f, picture.top.value)
         val sound = compose.onNode(block("Son")).getUnclippedBoundsInRoot()
         assertAt("the sound's plate, a group's gap under it", (picture.bottom.value + 16f), sound.top.value)
     }
@@ -93,10 +93,10 @@ class SheetRhythmTest {
             val read = LoadState.Ready(NfoContent("/films/Colony.nfo", info, emptyList()))
             NfoSheet(film, NfoState(read), onRetry = {}, onDismiss = {})
         }
-        assertAt("the title", 58.7f, at("Fichier NFO"))
-        assertAt("what it is", 126f, at("Écrite par votre gestionnaire de médias, elle prime sur TMDB."))
+        assertAt("the title", 60f, at("Fichier NFO"))
+        assertAt("what it is", 124f, at("Écrite par votre gestionnaire de médias, elle prime sur TMDB."))
         val title = compose.onNodeWithText("Titre").baseline()
-        assertAt("the first definition", 179f, title)
+        assertAt("the first definition", 176f, title)
         assertAt("the next, a definition's pitch under it", title + PITCH, at("Année"))
         // The year in the head first, then in its definition.
         assertAt("a label and its value, one baseline", at("Année"), compose.onAllNodesWithText("2026")[1].baseline())
@@ -113,8 +113,8 @@ class SheetRhythmTest {
             overview = "Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine.",
         )
         compose.setTvContent { SynopsisSheet(film, onDismiss = {}) }
-        assertAt("its tagline", 137f, at("Ressentez le besoin… Le besoin de vitesse."))
-        assertAt("its text", 179f, at("Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine."))
+        assertAt("its tagline", 135f, at("Ressentez le besoin… Le besoin de vitesse."))
+        assertAt("its text", 176f, at("Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine."))
     }
 
     /** The block read first as [name]. */

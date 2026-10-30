@@ -5,6 +5,8 @@
     <string name="source_jellyfin">Jellyfin 서버</string>
     <string name="source_jellyfin_desc">서버의 라이브러리</string>
     <string name="welcome_jellyfin_desc">Jellyfin 서버의 영화와 시리즈입니다.</string>
+    <string name="welcome_local_tech">NFS · SMB · USB 드라이브</string>
+    <string name="welcome_jellyfin_tech">Jellyfin 10.9 이상</string>
     <string name="welcome_title">라이브러리를 선택하세요</string>
 
     <!-- Libraries and sections -->

@@ -103,7 +103,7 @@ enum class Emphasis { Primary, Secondary }
 /** Set by [HeaderControls]: buttons and tiles take their compact sizes. */
 private val LocalInHeader = staticCompositionLocalOf { false }
 
-/** Lays [content] out as a screen's header: its buttons 44 tall, its tiles 40 square. */
+/** Lays [content] out as a screen's header: its buttons and tiles 40 tall. */
 @Composable
 fun HeaderControls(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalInHeader provides true, content = content)
@@ -372,7 +372,7 @@ private fun rememberPlate(): PlateLook {
 }
 
 /**
- * A square tile on its plate, white with focus; 40 in a header ([HeaderControls]), else 48. [chosen] lights
+ * A square tile on its plate, white with focus; 40 in a header ([HeaderControls]), else 44. [chosen] lights
  * its glyph in ember, raspberry on the white of focus.
  */
 @Composable
@@ -730,8 +730,8 @@ private fun SegmentItem(
 }
 
 /**
- * A track's word: the current one bold in the ember light, black under focus; each as wide as it is in bold and
- * set from its start, so turning bold moves neither it nor the words after it.
+ * A track's word: the current one heavier in the ember light, black under focus; each as wide as it is current and
+ * set from its start, so becoming current moves neither it nor the words after it.
  */
 @Composable
 private fun Word(text: String, current: Boolean, lit: Boolean) {
@@ -744,7 +744,7 @@ private fun Word(text: String, current: Boolean, lit: Boolean) {
         else -> here
     }
     Box(contentAlignment = Alignment.CenterStart) {
-        // Measured, never drawn: choosing a word, which turns it bold, moves none of the others.
+        // Measured, never drawn: choosing a word, which sets it heavier, moves none of the others.
         Text(text, style = t.placeCurrent, maxLines = 1, softWrap = false, modifier = Modifier.clearAndSetSemantics {}.unplaced())
         Text(text, style = style, maxLines = 1, softWrap = false)
     }

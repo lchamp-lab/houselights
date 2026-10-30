@@ -384,7 +384,8 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
                 }
                 else -> withStyle(t.billing.toSpanStyle().copy(color = c.contentTertiary)) { append(", ") }
             }
-            withStyle(t.billing.toSpanStyle().copy(color = c.contentSecondary)) { append(name.uppercase(locale).unbreakable()) }
+            // The names in white over the small words in grey, as a poster bills them.
+            withStyle(t.billing.toSpanStyle().copy(color = c.content)) { append(name.uppercase(locale).unbreakable()) }
         }
         if (directors.isNotEmpty()) {
             join(by)

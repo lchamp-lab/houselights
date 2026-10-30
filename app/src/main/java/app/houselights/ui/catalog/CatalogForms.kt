@@ -88,7 +88,7 @@ private fun ColumnScope.FormSettings() {
             }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-            Specimen("a group: its rows on one plate, 60 tall, no rule; OK does what the words say", gap = HlSpace.xs) {
+            Specimen("a group: its rows on one plate, 52 tall at least, no rule; OK does what the words say", gap = HlSpace.xs) {
                 HlSettingGroup(stringResource(R.string.section_display)) {
                     HlSettingRow(stringResource(R.string.interface_language), value = "Français", onClick = {})
                     HlSettingRow(
@@ -153,7 +153,7 @@ private fun ColumnScope.FormSettings() {
 @Composable
 private fun ColumnScope.FormTextFields() {
     Text(
-        "A field is a glass plate 60 tall edged by a hairline, its name in white over it. Focus rings it in projector " +
+        "A field is a glass plate 52 tall edged by a hairline, its name in white over it. Focus rings it in projector " +
             "white and shows, at its end, that OK types; OK opens the keyboard, and while typing the ring is the ember " +
             "light and the cursor raspberry, and only then. Every field has a name, read out even when hidden.",
         style = Hl.type.meta,
