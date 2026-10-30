@@ -380,6 +380,8 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.coil.compose)
     implementation(libs.androidx.palette)
+    // LruCache: the pictures' samples, the fields, the tints and the title forms kept by the last used.
+    implementation(libs.androidx.collection)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
