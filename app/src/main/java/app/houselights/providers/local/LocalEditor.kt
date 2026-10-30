@@ -241,7 +241,7 @@ class LocalEditor(
             }
             else -> {
                 val parsed = scanner.showQuery(e)
-                val folder = dao.episodesOfSeries(e.id).firstNotNullOfOrNull { it.filePath }?.let(FilenameParser::parseShowPath)?.dir
+                val folder = dao.firstEpisodePath(e.id)?.let(FilenameParser::parseShowPath)?.dir
                 Triple(parsed.title, parsed.year, folder?.ifEmpty { null })
             }
         }

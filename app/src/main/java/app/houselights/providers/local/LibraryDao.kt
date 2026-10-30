@@ -113,17 +113,24 @@ data class EpisodePlace(
     val matchedAt: Long?,
 )
 
-/** An episode at a place of its show, and its file ([LibraryDao.episodesAt]). */
-data class PlacedFile(val id: Long, val filePath: String?)
-
 /**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
  * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao],
- * [IgnoredFileDao], [FirstTitleDao], [SagaDao] or [CopyDao].
+ * [IgnoredFileDao], [FirstTitleDao], [SagaDao], [CopyDao] or [EpisodePathDao].
  */
 @Dao
 interface LibraryDao :
-    SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao, EpisodeOrderDao, IgnoredFileDao, FirstTitleDao, SagaDao, CopyDao {
+    SourceDao,
+    PlaybackStateDao,
+    CreditDao,
+    SearchWordDao,
+    KeptStateDao,
+    EpisodeOrderDao,
+    IgnoredFileDao,
+    FirstTitleDao,
+    SagaDao,
+    CopyDao,
+    EpisodePathDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
@@ -206,25 +213,11 @@ interface LibraryDao :
     @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey LIKE :nameKey || '${FilenameParser.YEAR_MARK}%'")
     suspend fun seriesNamed(nameKey: String): List<ItemEntity>
 
-    /** Episodes under [dir] (never ""): paths between "dir/" and "dir0", a range scan on the index. */
-    @Query(
-        "SELECT $CARD_ROW FROM items WHERE kind = 'EPISODE' AND sourceId = :sourceId " +
-            "AND filePath > :dir || '/' AND filePath < :dir || '0'",
-    )
-    suspend fun episodesUnder(sourceId: Long, dir: String): List<ItemEntity>
-
     @Query("SELECT EXISTS(SELECT 1 FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId AND id != :episodeId)")
     suspend fun hasOtherEpisodes(seriesId: Long, episodeId: Long): Boolean
 
     @Query("SELECT * FROM items WHERE kind = 'SEASON' AND parentId = :seriesId AND seasonNumber = :season LIMIT 1")
     suspend fun season(seriesId: Long, season: Int): ItemEntity?
-
-    /** Show [seriesId]'s episodes at season [season], episode [episode]: who holds a place ([EpisodeNumbering]). */
-    @Query(
-        "SELECT id, filePath FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId AND seasonNumber = :season " +
-            "AND episodeNumber = :episode",
-    )
-    suspend fun episodesAt(seriesId: Long, season: Int, episode: Int): List<PlacedFile>
 
     /** Whether show [seriesId] has episodes numbered from its start ([ItemEntity.absoluteNumber]). */
     @Query("SELECT EXISTS(SELECT 1 FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId AND absoluteNumber IS NOT NULL)")

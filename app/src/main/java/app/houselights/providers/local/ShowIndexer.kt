@@ -384,7 +384,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val id = existing?.seriesId ?: showBeside(source, path.dir, nameKey) ?: return null
         val show = dao.item(id)?.takeIf { it.kind == ItemKind.SERIES } ?: return null
         val name = show.matchKey?.substringBefore(FilenameParser.YEAR_MARK)
-        if (dao.episodesOfSeries(id).any { nameKeyOf(it.filePath) == name }) return null
+        if (dao.episodePaths(id).any { nameKeyOf(it) == name }) return null
         val named = if (show.tmdbId == null && show.nfo == null) {
             show.copy(title = path.title, sortTitle = MetadataMerge.sortKey(path.title), year = path.year)
         } else {
@@ -450,8 +450,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
      */
     private suspend fun ofAnotherYear(show: ItemEntity, nameKey: String, year: Int?): Boolean {
         val own = show.year?.takeIf { it != year } ?: return false
-        return dao.episodesOfSeries(show.id).any { episode ->
-            val path = episode.filePath?.let(FilenameParser::parseShowPath)
+        return dao.episodePaths(show.id).any { file ->
+            val path = file?.let(FilenameParser::parseShowPath)
             path != null && path.year == own && FilenameParser.showKey(path.title) == nameKey
         }
     }
@@ -526,11 +526,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
     /** A show's ids, its folder's name's ([NameIds.ofShow]), found through one of its episodes. */
     private suspend fun namesOf(series: ItemEntity): NameIds =
-        dao.episodesOfSeries(series.id).firstNotNullOfOrNull { it.filePath }?.let(NameIds::ofShow) ?: NameIds()
+        dao.firstEpisodePath(series.id)?.let(NameIds::ofShow) ?: NameIds()
 
     /** The show's name and year from its folder, found through one of its episodes. */
     suspend fun showQuery(series: ItemEntity): ParsedMovie {
-        val path = dao.episodesOfSeries(series.id).firstNotNullOfOrNull { it.filePath }?.let(FilenameParser::parseShowPath)
+        val path = dao.firstEpisodePath(series.id)?.let(FilenameParser::parseShowPath)
             ?: return ParsedMovie(series.title, series.year)
         return ParsedMovie(path.title, path.year)
     }

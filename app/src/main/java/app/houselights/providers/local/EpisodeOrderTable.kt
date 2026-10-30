@@ -51,6 +51,10 @@ interface EpisodeOrderDao {
     @Query("SELECT * FROM episode_orders WHERE showTmdbId = :show ORDER BY orderId != 'aired', rank, orderId")
     suspend fun episodeOrders(show: Int): List<EpisodeOrderEntity>
 
+    /** Show [show]'s own seasons ([EpisodeOrderEntity.AIRED]) without its groups; null until kept. */
+    @Query("SELECT * FROM episode_orders WHERE showTmdbId = :show AND orderId = 'aired'")
+    suspend fun aired(show: Int): EpisodeOrderEntity?
+
     @Upsert
     suspend fun saveEpisodeOrders(rows: List<EpisodeOrderEntity>)
 
