@@ -149,8 +149,12 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
     val listedUser: String get() = listedWith?.user ?: user
     val listedAsGuest: Boolean get() = listedWith?.guest ?: guest
 
-    /** The user and group « Compte NFS » was opened with, which Back gives back for a pair half typed ([identityBack]). */
-    private var identityBefore: Pair<String, String>? = null
+    /**
+     * The user and group « Compte NFS » was opened with, which Back gives back for a pair half typed ([identityBack]);
+     * kept as [uid] and [gid] are, so that a stopped process gives them back too.
+     */
+    private var uidBefore by saved.kept<String?>(KEPT_UID_BEFORE, null)
+    private var gidBefore by saved.kept<String?>(KEPT_GID_BEFORE, null)
 
     protected var sharePaths by saved.kept<List<String>>(KEPT_SHARE_PATHS, arrayListOf())
     protected var shareRemarks by saved.kept<List<String>>(KEPT_SHARE_REMARKS, arrayListOf())
@@ -246,7 +250,8 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
     }
 
     protected fun keepIdentity() {
-        identityBefore = uid to gid
+        uidBefore = uid
+        gidBefore = gid
     }
 
     /**
@@ -254,13 +259,14 @@ open class FlowState(saved: SavedStateHandle, val editing: Long? = null) : ViewM
      * presented ([place]), gives back the pair it was opened with, else root. Another pair clears what refused the last.
      */
     protected fun identityBack() {
-        val before = identityBefore ?: ("" to "")
+        val before = uidBefore.orEmpty() to gidBefore.orEmpty()
         if (uid.isEmpty() != gid.isEmpty()) {
             uid = before.first
             gid = before.second
         }
         if ((uid to gid) != before) identityChanged()
-        identityBefore = null
+        uidBefore = null
+        gidBefore = null
     }
 
     /** Another user and group: the shared folders that refused the last may open now. */
@@ -440,6 +446,8 @@ private const val KEPT_TYPED_PATH = "flowTypedPath"
 private const val KEPT_USER = "flowUser"
 private const val KEPT_UID = "flowUid"
 private const val KEPT_GID = "flowGid"
+private const val KEPT_UID_BEFORE = "flowUidBefore"
+private const val KEPT_GID_BEFORE = "flowGidBefore"
 private const val KEPT_GUEST = "flowGuest"
 private const val KEPT_ACCOUNT_KEPT = "flowAccountKept"
 private const val KEPT_SIGNED_IN = "flowSignedIn"

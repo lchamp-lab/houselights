@@ -362,6 +362,28 @@ class FlowAccountPathTest : FlowHarness() {
     }
 
     /**
+     * « Compte NFS » found again after a stopped process: Back with a user erased gives back the pair it was opened
+     * with, never root.
+     */
+    @Test
+    fun backFromTheNfsAccountFoundAgainGivesBackThePairItWasOpenedWith() {
+        val saved = SavedStateHandle()
+        val flow = flow(films, saved = saved)
+        ok()
+        until { flow.step == FlowStep.SHARES }
+        flow.openNfsAccount()
+        assertEquals("1026" to "100", flow.uid to flow.gid)
+
+        val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
+        until { again.ready }
+        assertEquals(FlowStep.NFS_ACCOUNT, again.step)
+        again.type(FlowKeys.FIELD_UID, "")
+        again.back {}
+        assertEquals(FlowStep.SHARES, again.step)
+        assertEquals("1026" to "100", again.uid to again.gid)
+    }
+
+    /**
      * A folder the NFS user presented may not read: said of that user, « Compte NFS » carrying it over, never of root;
      * root presented, it opens.
      */
