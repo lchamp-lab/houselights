@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,6 +59,32 @@ class NfoViewModelTest {
         assertEquals(LoadState.Ready(content), vm.state.value.document)
     }
 
+    /** An NFO with CR alone ending its lines reads in lines, as one with LF does. */
+    @Test
+    fun crAloneEndsALine() = runTest {
+        provider.nfo = NfoDocument(document.path, "\r<movie>\r  <title>Heat</title>\r</movie>\r")
+        val vm = viewModel()
+        advanceUntilIdle()
+        assertEquals(content.lines, (vm.state.value.document as LoadState.Ready).value?.lines)
+    }
+
+    /**
+     * An NFO written on one line is shown in lines of [NFO_LINE] characters at most, each cut after a tag, which the
+     * sheet lays out as they come in sight, never all of it at once.
+     */
+    @Test
+    fun aLongLineIsCutAfterItsTags() = runTest {
+        val text = "<movie>" + "<actor><name>Al Pacino</name></actor>".repeat(ACTORS) + "</movie>"
+        provider.nfo = NfoDocument(document.path, text)
+        val vm = viewModel()
+        advanceUntilIdle()
+        val lines = checkNotNull((vm.state.value.document as LoadState.Ready).value).lines
+        assertEquals("the whole text", text, lines.joinToString(""))
+        assertTrue("in several lines: ${lines.size}", lines.size > 1)
+        assertTrue("none longer than $NFO_LINE", lines.all { it.length <= NFO_LINE })
+        assertTrue("each cut after a tag", lines.all { it.endsWith('>') })
+    }
+
     @Test
     fun aTitleWithoutAnNfoIsReadyWithNone() = runTest {
         provider.nfo = null
@@ -96,5 +123,10 @@ class NfoViewModelTest {
         older.complete(Unit)
         advanceUntilIdle()
         assertEquals(LoadState.Ready(content), vm.state.value.document)
+    }
+
+    private companion object {
+        /** Actors enough to write the NFO's one line many times over [NFO_LINE]. */
+        const val ACTORS = 1_000
     }
 }
