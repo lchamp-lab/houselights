@@ -25,15 +25,17 @@ class MaskedLines internal constructor(val lines: List<String>)
 class AppLog(
     /** Starts the command and gives what it prints; logcat's own by default. */
     private val run: (List<String>) -> java.lang.Process = { ProcessBuilder(it).redirectErrorStream(true).start() },
+    /** Masks a line; [Redact.text] by default. */
+    private val mask: (String) -> String = Redact::text,
 ) {
     /** The lines, oldest first, masked; none when logcat cannot be read. */
-    suspend fun read(): MaskedLines = MaskedLines(lines(mask = true))
+    suspend fun read(): MaskedLines = MaskedLines(lines(masking = mask))
 
     /** How many lines [read] would give, counted without masking them; none when logcat cannot be read. */
-    suspend fun count(): Int = lines(mask = false).size
+    suspend fun count(): Int = lines(masking = null).size
 
-    /** The lines, oldest first, each masked if [mask]; none when logcat cannot be read. */
-    private suspend fun lines(mask: Boolean): List<String> = coroutineScope {
+    /** The lines, oldest first, each through [masking] if given; none when logcat cannot be read. */
+    private suspend fun lines(masking: ((String) -> String)?): List<String> = coroutineScope {
         val process = withContext(Dispatchers.IO) {
             try {
                 run(COMMAND)
@@ -48,7 +50,7 @@ class AppLog(
             process.destroy()
         }
         try {
-            withContext(Dispatchers.IO) { keep(process.inputStream, Process.myUid(), mask) }
+            withContext(Dispatchers.IO) { keep(process.inputStream, Process.myUid(), masking) }
         } finally {
             watchdog.cancel()
             process.destroy()
@@ -85,11 +87,11 @@ class AppLog(
         private const val PID_WIDTH = 5
 
         /**
-         * The last lines of [input] of [uid], without their uid, each masked if [mask], within [MAX_LINES] and
-         * [MAX_BYTES]; what was read if it breaks off.
+         * The last lines of [input] of [uid], without their uid, each through [masking] if given, within [MAX_LINES]
+         * and [MAX_BYTES]; what was read if it breaks off.
          */
-        private fun keep(input: InputStream, uid: Int, mask: Boolean): List<String> {
-            val kept = Tail(mask)
+        private fun keep(input: InputStream, uid: Int, masking: ((String) -> String)?): List<String> {
+            val kept = Tail(masking)
             try {
                 input.bufferedReader().useLines { lines -> lines.forEach { line -> threadtime(line, uid)?.let(kept::add) } }
             } catch (e: IOException) {
@@ -107,13 +109,13 @@ class AppLog(
         }
     }
 
-    /** The last lines added, masked if [mask], the oldest dropped past [MAX_LINES] or [MAX_BYTES]. */
-    private class Tail(private val mask: Boolean) {
+    /** The last lines added, each through [masking] if given, the oldest dropped past [MAX_LINES] or [MAX_BYTES]. */
+    private class Tail(private val masking: ((String) -> String)?) {
         val lines = ArrayDeque<String>()
         private var bytes = 0
 
         fun add(line: String) {
-            val kept = if (mask) Redact.text(line) else line
+            val kept = masking?.invoke(line) ?: line
             lines.addLast(kept)
             bytes += size(kept)
             while (lines.size > MAX_LINES || bytes > MAX_BYTES) bytes -= size(lines.removeFirst())

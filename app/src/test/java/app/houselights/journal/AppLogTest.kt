@@ -157,9 +157,15 @@ class AppLogTest {
             "$TIME $other  4400  4400 I Other   : Started",
             "$TIME $me  4321  4350 D Jellyfin: GET /Items?api_key=0123abcd",
         )
-        val log = AppLog(run = { _ -> FakeProcess(printed.joinToString("") { "$it\n" }) })
-        assertEquals(read(printed).size, runBlocking { log.count() })
+        var masked = 0
+        val log = AppLog(run = { _ -> FakeProcess(printed.joinToString("") { "$it\n" }) }) { line ->
+            masked++
+            line
+        }
         assertEquals(2, runBlocking { log.count() })
+        assertEquals("counted, none masked", 0, masked)
+        assertEquals(2, runBlocking { log.read() }.lines.size)
+        assertEquals("read, each masked once", 2, masked)
     }
 
     /** What the journal keeps of [printed], logcat's lines. */
