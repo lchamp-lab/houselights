@@ -27,21 +27,30 @@ data class JournalHead(val facts: List<String>, val time: String) {
 
 /**
  * The journal as a phone shows it ([html]) and as it is downloaded ([text]), each line masked ([Redact.text]) whatever
- * gave it. The page is dark and plain, needs nothing from elsewhere, and escapes every line; its one script copies the
- * text.
+ * gave it, but lines [AppLog] masked as it read them ([MaskedLines]), shown as they are. The page is dark and plain,
+ * needs nothing from elsewhere, and escapes every line; its one script copies the text.
  */
 object JournalPage {
     /** The downloaded text: the head's line, then the lines oldest first, as logcat wrote them but masked. */
-    fun text(head: JournalHead, lines: List<String>): String = buildString {
+    fun text(head: JournalHead, lines: List<String>): String = text(head, masked(lines))
+
+    /** [text] of lines already masked. */
+    fun text(head: JournalHead, lines: MaskedLines): String = buildString {
         append(head.line).append("\n\n")
-        lines.forEach { append(Redact.text(it)).append('\n') }
+        lines.lines.forEach { append(it).append('\n') }
     }
+
+    /** The page of [lines], each masked first: [html]. */
+    fun html(head: JournalHead, lines: List<String>, words: JournalWords, download: String, nonce: String): String =
+        html(head, masked(lines), words, download, nonce)
+
+    private fun masked(lines: List<String>) = MaskedLines(lines.map { Redact.text(it) })
 
     /**
      * The page: the head's line, Copier and Télécharger ([download], the text's address relative to the page), then the
      * lines newest first, warnings and errors in colour. [nonce] lets its style and script run, nothing else.
      */
-    fun html(head: JournalHead, lines: List<String>, words: JournalWords, download: String, nonce: String): String {
+    fun html(head: JournalHead, lines: MaskedLines, words: JournalWords, download: String, nonce: String): String {
         val facts = head.facts.mapIndexed { i, fact -> if (i == 0) "<b>${escape(fact)}</b>" else escape(fact) }
         val title = escape(words.title)
         return buildString {
@@ -55,20 +64,19 @@ object JournalPage {
             append("<div class=\"btns\"><button id=\"copy\" class=\"w\" type=\"button\" data-done=\"").append(escape(words.copied))
             append("\">").append(escape(words.copy)).append("</button><a class=\"g\" href=\"").append(escape(download))
             append("\" download>").append(escape(words.download)).append("</a></div>\n")
-            if (lines.isEmpty()) {
+            if (lines.lines.isEmpty()) {
                 append("<p class=\"sub\">").append(escape(words.empty)).append("</p>\n")
             } else {
                 append("<pre id=\"log\">")
-                lines.asReversed().forEach { append(line(it)) }
+                lines.lines.asReversed().forEach { append(shown(it)) }
                 append("</pre>\n")
             }
             append("<script nonce=\"").append(nonce).append("\">").append(SCRIPT).append("</script>\n</body>\n</html>\n")
         }
     }
 
-    /** A line as the page shows it: its time, level, tag and message, in colour from a warning up, its masks lit. */
-    internal fun line(raw: String): String {
-        val masked = Redact.text(raw)
+    /** A line already masked as the page shows it: its time, level, tag and message, in colour from a warning up, its masks lit. */
+    private fun shown(masked: String): String {
         val match = THREADTIME.matchEntire(masked)
         val shown = match?.groupValues?.let { "${it[TIME]} ${it[LEVEL]} ${it[TAG].padEnd(TAG_WIDTH)} ${it[MESSAGE]}" } ?: masked
         val escaped = escape(shown).replace(Redact.TEXT_MASK, "<span class=\"m\">${Redact.TEXT_MASK}</span>")

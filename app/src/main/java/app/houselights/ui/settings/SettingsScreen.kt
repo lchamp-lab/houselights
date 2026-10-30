@@ -119,9 +119,9 @@ internal fun SettingsScreen(
         // Lay out the panes with the stored settings, not the defaults shown before them.
         ready = s.loaded,
     ) { key -> revealRow(list, key, memory) }
-    // From the pane on the right, Back returns to its entry; from the entries, it leaves.
-    var inPane by remember { mutableStateOf(false) }
-    BackToStart(away = inPane) { memory.focus(paneKey(pane)) }
+    // Whether focus is in the pane on the right, read by PaneBack alone: crossing composes nothing else.
+    val inPane = remember { mutableStateOf(false) }
+    PaneBack({ inPane.value }, memory, pane)
     val storage by vm.storage.collectAsStateWithLifecycle()
     // About's « Mises à jour », in a build that updates itself alone.
     val updates = aboutUpdates(app.updates.state, app.updates)
@@ -141,7 +141,7 @@ internal fun SettingsScreen(
                 PaneContent(
                     pane, s, storage, onFolderForm, sources, onOpenCatalog, rows, list,
                     entry = memory.requester(paneKey(pane)),
-                    onFocusIn = { inPane = it },
+                    onFocusIn = { inPane.value = it },
                     numbers = NumbersDoors(onOpenWall, onOpenPerson),
                     updates = updates,
                     added = folderSheet?.let { NewFolder(it, sheet = true, shown = onAddedFolderShow) }
@@ -189,6 +189,15 @@ internal fun SettingsPlaces(panes: List<Pane>, open: Pane, memory: FocusMemory, 
             )
         }
     }
+}
+
+/**
+ * From the pane on the right ([inPane]), Back returns to [pane]'s entry; from the entries, it leaves. [inPane] is read
+ * here alone, so that focus going into the pane or coming out of it composes nothing else of the screen.
+ */
+@Composable
+internal fun PaneBack(inPane: () -> Boolean, memory: FocusMemory, pane: Pane) {
+    BackToStart(away = inPane()) { memory.focus(paneKey(pane)) }
 }
 
 /**

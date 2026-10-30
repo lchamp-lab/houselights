@@ -66,4 +66,28 @@ class FilmSagaTest {
         assertEquals(emptyList<String>(), catalog.calls.filter { it.startsWith("saga") })
         assertEquals(listOf("m1", "m2"), vm.state.value.collectionFilms.map { it.id })
     }
+
+    /**
+     * A saga's page shows neither titles like it nor people, and asks for neither, a server's two requests spared; a
+     * film's page still asks for both.
+     */
+    @Test
+    fun aSagaAsksForNoSimilarTitlesNorPeople() = runTest {
+        provider.items[saga.id] = saga
+        provider.capabilities = provider.capabilities.copy(similar = true)
+        val asked = mutableListOf<String>()
+        val noting = object : MediaProvider by source {
+            override suspend fun similar(item: MediaItem): List<MediaItem> = emptyList<MediaItem>().also { asked += item.id }
+        }
+        val page = DetailViewModel(saga.id, { noting }, FakeEvents(), this)
+        advanceUntilIdle()
+        assertEquals(listOf("m1", "m2"), page.state.value.collectionFilms.map { it.id })
+        assertEquals(emptyList<String>(), asked)
+        assertEquals(emptyList<String>(), catalog.calls.filter { it.startsWith("credits") })
+
+        DetailViewModel(heat.id, { noting }, FakeEvents(), this)
+        advanceUntilIdle()
+        assertEquals(listOf(heat.id), asked)
+        assertEquals(listOf("credits ${heat.id}"), catalog.calls.filter { it.startsWith("credits") })
+    }
 }
