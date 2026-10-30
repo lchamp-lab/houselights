@@ -221,6 +221,20 @@ class UpdaterTest {
         assertEquals("A day after the first", 4, f.source.lists)
     }
 
+    /** GitHub listed its releases, but the newest one's manifest did not come: no check, asked again an hour later. */
+    @Test
+    fun aManifestThatDoesNotComeIsAskedAgainAnHourLater() = runTest {
+        val f = fixture()
+        f.source.releases = listOf(release("v0.4.1"))
+        f.start()
+        wait(21_000)
+        assertEquals(1, f.source.lists)
+        assertNull("not checked", f.updater.state.value.checkedAt)
+        wait(HOUR)
+        assertEquals("Retried an hour later", 2, f.source.lists)
+        assertEquals("the list kept for GitHub's 304", "\"e1\"", f.source.etags.last())
+    }
+
     @Test
     fun githubsRateLimitWaitsUntilItsReset() = runTest {
         val f = fixture()

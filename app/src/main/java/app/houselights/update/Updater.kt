@@ -299,21 +299,27 @@ class Updater(
         _state.update { it.copy(failure = failure) }
     }
 
-    /** GitHub's list, then the manifests of its newest releases of the channel; the one offered is kept for the next start. */
+    /**
+     * GitHub's list, then the manifests of its newest releases of the channel; the one offered is kept for the next start.
+     * The list is kept at once, for the next check's 304, but checked only once its manifests are read: a manifest failing
+     * is asked again an hour later, as any failure, not a day.
+     */
     private suspend fun look(): Found {
         val saved = store.read()
         val listing = parts.releases.list(saved.etag.takeIf { saved.releases != null })
         val now = clock()
         val listed = when (listing) {
-            is Listing.Fresh -> listing.releases.also { store.answered(now, it, listing.etag) }
-            Listing.Unchanged -> saved.releases.orEmpty().also { store.answered(now) }
+            is Listing.Fresh -> listing.releases.also { store.listed(it, listing.etag) }
+            Listing.Unchanged -> saved.releases.orEmpty().also { store.listed(null) }
         }
-        _state.update { it.copy(checkedAt = now, waitUntil = null) }
+        _state.update { it.copy(waitUntil = null) }
         val read = mutableMapOf<String, String>()
         val found = parts.choice.pick(listed, beta(), app.versionCode()) { candidate ->
             parts.releases.manifest(candidate.manifest.url).also { read[candidate.release.tag] = it }
         }
         if (found is Found.Offer) read[found.offer.tag]?.let { store.manifest(found.offer.tag, it) }
+        store.answered(now)
+        _state.update { it.copy(checkedAt = now) }
         return found
     }
 
