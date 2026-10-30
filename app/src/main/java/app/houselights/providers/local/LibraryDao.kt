@@ -186,6 +186,13 @@ interface LibraryDao :
     @Query("SELECT sourceId, nfoPath, nfo FROM items WHERE id = :id")
     suspend fun nfoOf(id: Long): ItemNfo?
 
+    @Query("SELECT id, nfo FROM items WHERE id IN (:ids) AND nfo IS NOT NULL")
+    suspend fun nfosBatch(ids: List<Long>): List<RowNfo>
+
+    /** The NFO text of each row of [ids] that has one, by id: a query per [SQL_IN_LIMIT] rows. */
+    suspend fun nfosOf(ids: List<Long>): Map<Long, String> =
+        ids.chunked(SQL_IN_LIMIT).flatMap { nfosBatch(it) }.associate { it.id to it.nfo }
+
     /** A source's file rows without NFO text; used by tests to inspect a scan's result. */
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")
     suspend fun filesOf(sourceId: Long): List<ItemEntity>

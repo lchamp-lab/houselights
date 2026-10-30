@@ -695,26 +695,28 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
     /**
      * After a new match, applies the prefetched season [details], stored NFOs and local thumbs, in TMDB's seasons; an
-     * episode numbered from its show's start is read again at the next pass, to be placed in the new show's.
+     * episode numbered from its show's start is read again at the next pass, to be placed in the new show's. An episode
+     * is written where it stands and what it shows alone ([EpisodePlace]), from its row just read, a season's at once:
+     * none is read again, and nothing the user did to it is written.
      */
     private suspend fun refreshSeasons(series: ItemEntity, details: Map<Int, TmdbSeason?>, now: Long) {
         for (season in dao.children(series.id).filter { it.kind == ItemKind.SEASON }) {
             val meta = season.seasonNumber?.let { details[it] }
             dao.saveScanned(season.withSeasonDetails(meta, now))
-            for (episode in dao.children(season.id)) {
+            val places = dao.children(season.id).map { episode ->
                 if (episode.absoluteNumber != null) {
-                    dao.saveScanned(episode.copy(matchedAt = null))
-                    continue
+                    episode.copy(matchedAt = null).place()
+                } else {
+                    val episodeMeta = meta?.episodes?.firstOrNull { it.episodeNumber == episode.episodeNumber }
+                    val cleared = episode.copy(
+                        title = "", overview = null, stillPath = null, runtimeMin = null, rating = null, year = null, tmdbSeason = null,
+                        tmdbEpisode = null, tmdbLastEpisode = null,
+                    )
+                    val thumb = episode.stillPath?.takeIf { it.isCachedArtwork() }
+                    cleared.withEpisodeDetails(episode.nfoInfo(), episodeMeta, thumb, if (episodeMeta != null) now else null).place()
                 }
-                val nfo = episode.nfoInfo()
-                val episodeMeta = meta?.episodes?.firstOrNull { it.episodeNumber == episode.episodeNumber }
-                val cleared = episode.copy(
-                    title = "", overview = null, stillPath = null, runtimeMin = null, rating = null, year = null, tmdbSeason = null,
-                    tmdbEpisode = null, tmdbLastEpisode = null,
-                )
-                val thumb = episode.stillPath?.takeIf { it.isCachedArtwork() }
-                dao.saveScanned(cleared.withEpisodeDetails(nfo, episodeMeta, thumb, if (episodeMeta != null) now else null))
             }
+            if (places.isNotEmpty()) dao.placeEpisodes(places)
         }
     }
 

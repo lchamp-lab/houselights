@@ -204,6 +204,9 @@ data class SeasonCounts(val seasonId: Long, val episodes: Int, val played: Int)
 
 data class ItemNfo(val sourceId: Long, val nfoPath: String?, val nfo: String?)
 
+/** A row's NFO text, read for many rows at once ([LibraryDao.nfosOf]). */
+data class RowNfo(val id: Long, val nfo: String)
+
 data class PlayState(
     /** See [ItemEntity.parts]. */
     val parts: List<String>,
