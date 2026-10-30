@@ -17,11 +17,6 @@ internal const val SQL_IN_LIMIT = 500
 private const val SET_PLAYED =
     "UPDATE items SET played = :played, positionMs = 0, lastPlayedAt = CASE WHEN :played THEN :now ELSE NULL END"
 
-/** Row :id plus, for a film, its other copies ([ItemEntity.versionOf]), which share watched and favourite state. */
-internal const val COPIES =
-    "(id = :id OR id = (SELECT versionOf FROM items WHERE id = :id) " +
-        "OR versionOf = (SELECT COALESCE(versionOf, id) FROM items WHERE id = :id AND kind = 'MOVIE'))"
-
 /** Main row of a film's copies ([LibraryDao.groupVersions]): the lowest id with its TMDB id. */
 private const val TITLE_OF_COPY = "NULLIF((SELECT MIN(o.id) FROM items o WHERE o.kind = 'MOVIE' AND o.tmdbId = items.tmdbId), id)"
 
@@ -126,11 +121,11 @@ data class PlacedFile(val id: Long, val filePath: String?)
 /**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
  * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao],
- * [IgnoredFileDao], [FirstTitleDao] or [SagaDao].
+ * [IgnoredFileDao], [FirstTitleDao], [SagaDao] or [CopyDao].
  */
 @Dao
 interface LibraryDao :
-    SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao, EpisodeOrderDao, IgnoredFileDao, FirstTitleDao, SagaDao {
+    SourceDao, PlaybackStateDao, CreditDao, SearchWordDao, KeptStateDao, EpisodeOrderDao, IgnoredFileDao, FirstTitleDao, SagaDao, CopyDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
@@ -895,10 +890,6 @@ interface LibraryDao :
      */
     @Query(GROUP_VERSIONS)
     suspend fun groupVersions(): Int
-
-    /** Copies of the film with main row [titleId], that row first, without NFO text. */
-    @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND (id = :titleId OR versionOf = :titleId) ORDER BY id")
-    suspend fun copies(titleId: Long): List<ItemEntity>
 
     /** Films and shows whose sort title starts with [prefix] ([upper] from [SearchWords.upperBound]), in sort order. */
     @Query(

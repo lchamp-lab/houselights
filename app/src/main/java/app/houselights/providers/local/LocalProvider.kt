@@ -363,15 +363,13 @@ class LocalProvider(
         return PlayedTracks(firstFileMedia(entity, part).takeUnless { isDisc(file) }, tracksKey(entity))
     }
 
-    /** The row [item] plays and its part: a film in several copies plays the copy [VersionRank.played] names, at its own resume point. */
+    /** The row [item] plays and its part: a film in several copies plays the copy [CopyDao.playedCopy] names, at its own resume point. */
     private suspend fun played(item: MediaItem): Pair<Long, Int?> {
         val key = itemKey(item) ?: throw NotFoundException("Item ${item.id}")
         val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
-        val copy = if (part == null) chosenCopy(key) else null
+        val copy = if (part == null) dao.playedCopy(key) else null
         return (copy ?: key) to part
     }
-
-    private suspend fun chosenCopy(titleId: Long): Long? = VersionRank.played(dao.copies(titleId))
 
     /** Plays row [rowId] itself: [part] from its start, else the first part from the resume point. */
     internal suspend fun play(rowId: Long, part: Int?, resume: Boolean): PlaybackPlan {
