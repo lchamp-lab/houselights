@@ -291,7 +291,10 @@ interface LibraryDao :
     )
     suspend fun recentSeries(limit: Int): List<Recent>
 
-    /** Films of the [limit] most recently watched sagas, by saga in release order, with copies' state merged. */
+    /**
+     * Films of the [limit] most recently watched sagas, by saga in release order, with copies' state merged: watched as
+     * any copy is, at the furthest copy's resume point, which [LocalProvider] reads as the copy Lire plays.
+     */
     @Query(
         "SELECT id, collectionId, (played = 1 OR EXISTS (SELECT 1 FROM items c WHERE c.versionOf = items.id AND c.played = 1)) " +
             "AS played, (SELECT MAX(c.positionMs) FROM items c WHERE c.id = items.id OR c.versionOf = items.id) AS positionMs, " +

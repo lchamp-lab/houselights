@@ -434,10 +434,22 @@ class LocalProvider(
         val shows = dao.recentSeries(NEXT_UP_SHOWS)
         val episodes = shows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.episodeStates(it) }.groupBy { it.seriesId }
         val nextEpisodes = shows.mapNotNull { show -> episodes[show.id]?.let(::nextEpisode)?.let { Recent(it.id, show.at) } }
-        val next = (nextEpisodes + nextInSagas(dao.startedSagas(NEXT_UP_SHOWS)))
+        val next = (nextEpisodes + nextInSagas(startedAsPlayed(dao.startedSagas(NEXT_UP_SHOWS))))
             .sortedByDescending { it.at }.map { it.id }.filter { it !in exclude }.distinct().take(NEXT_UP_SHOWS)
         val rows = next.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
         return next.mapNotNull { rows[it] }
+    }
+
+    /**
+     * A saga's [films] started as the copy Lire plays is, as on their walls and the saga's page ([LocalMapper]), where
+     * [LibraryDao.startedSagas] gives the furthest copy's resume point: a film whose other copy alone was started is not.
+     * Read only for the films started and not watched, those of them in several copies.
+     */
+    private suspend fun startedAsPlayed(films: List<SagaFilmState>): List<SagaFilmState> {
+        val started = films.filter { it.positionMs > 0 && !it.played }.map { it.id }
+        if (started.isEmpty()) return films
+        val copies = LocalMapper.playedCopiesOf(dao, started.chunked(SQL_IN_LIMIT).flatMap { dao.titlesInCopies(it) })
+        return films.map { film -> copies[film.id]?.let { film.copy(positionMs = it.positionMs) } ?: film }
     }
 
     /** Regular seasons before specials, so a show starts with S01E01. */
