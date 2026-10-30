@@ -347,9 +347,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val answer = lookup?.let { tmdb.ask(it) }
         val movie = answer?.value?.value
         val nfoInfo = query.nfo
-        // For a user match with no TMDB answer, an IMDb-only NFO is set aside until TMDB can confirm it; so is one renamed.
-        val untold = userTmdbId != null && movie == null && nfoInfo?.tmdbId == null && nfoInfo?.imdbId != null ||
-            renamed && answer !is TmdbAnswer.Given
+        val untold = untold(userTmdbId, movie, nfoInfo) || renamed && answer !is TmdbAnswer.Given
         // The film the user or the name chose: an NFO naming another describes another film. Until TMDB answers, the
         // name's TMDB id stands, unless a lookup refused it.
         val chosen = userTmdbId ?: if (answer is TmdbAnswer.Given) answer.value?.byName else query.named
@@ -358,6 +356,10 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
         return Fetched(answer, nfo, plan, details, tmdb.client, askAgain = refresh || (untold && answer !is TmdbAnswer.Given))
     }
+
+    /** For a user match with no TMDB answer, an IMDb-only NFO is set aside until TMDB can confirm it ([fetch]). */
+    private fun untold(userTmdbId: Int?, movie: TmdbMovie?, nfo: NfoInfo?): Boolean =
+        userTmdbId != null && movie == null && nfo?.tmdbId == null && nfo?.imdbId != null
 
     /**
      * Saves details ([MetadataMerge]), edition, collection and credits ([CreditRules]) at once: a film matched without
