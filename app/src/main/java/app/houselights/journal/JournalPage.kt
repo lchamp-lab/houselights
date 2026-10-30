@@ -75,10 +75,7 @@ object JournalPage {
         }
     }
 
-    /** A line as the page shows it: its time, level, tag and message, in colour from a warning up, its masks lit. */
-    internal fun line(raw: String): String = shown(Redact.text(raw))
-
-    /** [line] of a line already masked. */
+    /** A line already masked as the page shows it: its time, level, tag and message, in colour from a warning up, its masks lit. */
     private fun shown(masked: String): String {
         val match = THREADTIME.matchEntire(masked)
         val shown = match?.groupValues?.let { "${it[TIME]} ${it[LEVEL]} ${it[TAG].padEnd(TAG_WIDTH)} ${it[MESSAGE]}" } ?: masked
