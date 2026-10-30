@@ -112,8 +112,6 @@ import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.request.ImageRequest
-import coil.size.Precision
-import coil.size.Scale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -334,16 +332,6 @@ fun ArtworkImage(
 }
 
 /**
- * What an [ArtworkImage] asks the loader for: [url], at [size] (px) when given ([artworkRequest]); with the loader's
- * fade, unless its caller brings the picture in itself ([fades] false).
- */
-internal fun artworkModel(context: Context, url: String, size: IntSize?, fades: Boolean): Any = when {
-    fades -> size?.let { artworkRequest(context, url, it.width, it.height) } ?: url
-    size != null -> artworkRequest(context, url, size.width, size.height).newBuilder().crossfade(false).build()
-    else -> ImageRequest.Builder(context).data(url).crossfade(false).build()
-}
-
-/**
  * What stands in for an image, or lies on it (a mark's plate), recedes with it at the same step, dimmed by the
  * room drawn over it: no layer.
  */
@@ -431,17 +419,9 @@ internal fun requestedPoster(width: Dp?): Dp = width ?: HlSize.wallPoster
 /** Still aspect ratio ([LandscapeCard]). */
 private const val STILL_SHAPE = 16f / 9f
 
-/** The request a [PosterCard] [widthPx] wide makes once laid out: its poster at that size, cropped. */
-internal fun posterRequest(context: Context, item: MediaItem, widthPx: Int): ImageRequest? =
-    item.poster?.let { artworkRequest(context, it.url(widthPx), widthPx, (widthPx / HlSize.POSTER_RATIO).roundToInt()) }
-
 /** The request a [LandscapeCard] [widthPx] wide makes once laid out: its still at that size, cropped. */
 internal fun stillRequest(context: Context, item: MediaItem, widthPx: Int): ImageRequest? =
     item.landscape?.let { artworkRequest(context, it.url(widthPx), widthPx, (widthPx / STILL_SHAPE).roundToInt()) }
-
-/** The request an [ArtworkImage] laid out [widthPx] by [heightPx] makes for [url], cropped to that shape. */
-internal fun artworkRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
-    ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).precision(Precision.INEXACT).build()
 
 /** Cards [card] wide, [spacing] apart, visible in a [MediaRow] before it scrolls, the cut one included. */
 internal fun cardsInView(card: Dp, spacing: Dp): Int =
@@ -466,7 +446,7 @@ fun PosterCard(
     val px = posterPx(width)
     val poster = item.poster?.url(px)
     // Decoded at its width, as the preloads ask for it ([posterRequest]).
-    val decoded = IntSize(px, (px / HlSize.POSTER_RATIO).roundToInt())
+    val decoded = IntSize(px, posterDecode(px))
     val focused = remember { mutableStateOf(false) }
     val keyed = onLongClick != null
     ArtworkSurface(
@@ -722,7 +702,7 @@ fun AbsentCard(
     )
     val step by remember { derivedStateOf { HlFocus.recedeStep(recede.value) } }
     val px = width.toPx()
-    val decoded = IntSize(px, (px / HlSize.POSTER_RATIO).roundToInt())
+    val decoded = IntSize(px, posterDecode(px))
     // A card of its row as the films there are: focus coming back into the row comes back to it.
     val group = LocalGroupFocus.current
     val member = rememberGroupMember(group)

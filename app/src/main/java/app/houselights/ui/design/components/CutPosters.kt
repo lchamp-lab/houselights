@@ -75,7 +75,7 @@ class CutPosters(
 internal fun cutPosterRequest(context: Context, item: MediaItem, px: (Dp) -> Int): ImageRequest? {
     val width = px(HlSize.poster)
     val url = item.poster?.url(width) ?: return null
-    return doorRequest(context, url, width, (width / HlSize.POSTER_RATIO).roundToInt()).newBuilder()
+    return artworkRequest(context, url, width, posterDecode(width)).newBuilder()
         .allowHardware(false)
         .setParameter(CUT, true)
         .build()

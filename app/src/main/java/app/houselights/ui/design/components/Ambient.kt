@@ -30,8 +30,6 @@ import coil.imageLoader
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.SuccessResult
-import coil.size.Precision
-import coil.size.Scale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -123,13 +121,6 @@ internal suspend fun prepareBackdrop(context: Context, image: ImageRef, style: B
             PreparedBackdrop(decoded, read.first, read.second, fromMemory = loaded.dataSource == DataSource.MEMORY_CACHE)
         }
     }
-
-/**
- * A backdrop request, never decoded larger than its file: a smaller one (1280 px on a 1920 px screen) is
- * upscaled once into the cached layer instead of taking twice the memory.
- */
-internal fun backdropRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
-    ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).precision(Precision.INEXACT).build()
 
 private suspend fun decodeSample(context: Context, image: ImageRef): Bitmap? =
     (context.imageLoader.execute(backdropSampleRequest(context, image)) as? SuccessResult)?.drawable?.toBitmap()

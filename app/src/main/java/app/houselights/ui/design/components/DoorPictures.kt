@@ -33,17 +33,11 @@ import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.design.colorStops
 import app.houselights.ui.util.toPx
 import coil.request.ImageRequest
-import coil.size.Precision
-import coil.size.Scale
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
 // What a door of home's grid shows (DESIGN.md, Layout): a still, a band of posters, two sagas, a wall out.
-
-/** The request of a picture laid out [widthPx] by [heightPx], cropped to that shape, as [ArtworkImage] makes it. */
-internal fun doorRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
-    ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).precision(Precision.INEXACT).build()
 
 // A backdrop's shape.
 internal const val WIDE_W = 16
@@ -81,14 +75,14 @@ fun DoorStill(item: MediaItem, span: Int, modifier: Modifier = Modifier) {
 /** The request [DoorStill] makes for [item] on a door of [span] parts, as a preload must make it. */
 internal fun stillDoorRequest(context: Context, item: MediaItem, span: Int, px: (Dp) -> Int): ImageRequest? {
     val width = px(doorWidth(span))
-    return item.backdrop?.let { doorRequest(context, it.url(width), width, width * WIDE_H / WIDE_W) }
+    return item.backdrop?.let { artworkRequest(context, it.url(width), width, width * WIDE_H / WIDE_W) }
 }
 
 /** A band of [items]' posters side by side from the door's start, as tall as its picture, the last cut by its edge. */
 @Composable
 fun DoorPosters(items: List<MediaItem>, modifier: Modifier = Modifier) {
     val width = HomeGridDefaults.stripPoster.toPx()
-    val decoded = IntSize(width, (width / HlSize.POSTER_RATIO).roundToInt())
+    val decoded = IntSize(width, posterDecode(width))
     Layout(
         content = {
             items.forEach { item ->
@@ -113,7 +107,7 @@ fun DoorPosters(items: List<MediaItem>, modifier: Modifier = Modifier) {
 @Composable
 fun DoorSagas(items: List<MediaItem>, modifier: Modifier = Modifier) {
     val width = HomeGridDefaults.sagaPoster.toPx()
-    val decoded = IntSize(width, (width / HlSize.POSTER_RATIO).roundToInt())
+    val decoded = IntSize(width, posterDecode(width))
     val shade = remember { ColorFilter.colorMatrix(ColorMatrix().apply { setToScale(SAGA, SAGA, SAGA, 1f) }) }
     Box(modifier.fillMaxSize()) {
         items.getOrNull(1)?.let { back ->
@@ -145,7 +139,7 @@ private fun SagaPoster(item: MediaItem, px: Int, decoded: IntSize, filter: Color
 @Composable
 fun DoorWall(items: List<MediaItem>, modifier: Modifier = Modifier) {
     val width = HomeGridDefaults.wallThumb.toPx()
-    val decoded = IntSize(width, (width / HlSize.POSTER_RATIO).roundToInt())
+    val decoded = IntSize(width, posterDecode(width))
     val out = remember {
         val m = ColorMatrix().apply { setToSaturation(HlScrim.WALL_THUMB_SATURATION) }
         m *= ColorMatrix().apply { setToScale(WALL, WALL, WALL, 1f) }
