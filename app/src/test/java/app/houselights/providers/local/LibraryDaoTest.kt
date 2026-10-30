@@ -22,7 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The library's writes: bulk ones stay under Android 9's 999 values per statement (counted, as Robolectric's SQLite
- * takes more), a relinked file keeps its probe only at the same size, and an insert never replaces a row.
+ * takes more), a relinked file keeps its probe only at the same size, and an insert never replaces a row; reads of one
+ * column give what the whole rows gave.
  */
 @RunWith(RobolectricTestRunner::class)
 class LibraryDaoTest {
@@ -332,6 +333,77 @@ class LibraryDaoTest {
 
     private suspend fun added(title: String, at: Long, kind: ItemKind = ItemKind.MOVIE, poster: String? = null): Long =
         dao.insert(row(kind, title).copy(addedAt = at, posterPath = poster))
+
+    /**
+     * A show's first episode path is the first of its episodes in their order that has a file, the earliest row of two
+     * at one place, as reading every episode found it; another show's never, a show without episodes none.
+     */
+    @Test
+    fun aShowsFirstEpisodePathIsTheFirstFileInItsEpisodesOrder() = runTest {
+        val show = dao.insert(row(ItemKind.SERIES, "Severance"))
+        val other = dao.insert(row(ItemKind.SERIES, "Arcane"))
+        val empty = dao.insert(row(ItemKind.SERIES, "Pluribus"))
+        suspend fun episode(series: Long, title: String, season: Int, number: Int, file: Boolean = true) = dao.insert(
+            row(ItemKind.EPISODE, title, seriesId = series)
+                .copy(seasonNumber = season, episodeNumber = number, filePath = "$title.mkv".takeIf { file }),
+        )
+        episode(show, "S02E01", season = 2, number = 1)
+        episode(show, "S01E02", season = 1, number = 2)
+        episode(show, "S01E01 without a file", season = 1, number = 1, file = false)
+        episode(show, "S01E01", season = 1, number = 1)
+        episode(show, "S01E01 again", season = 1, number = 1)
+        episode(other, "S00E00", season = 0, number = 0)
+
+        val read = dao.episodesOfSeries(show).firstNotNullOfOrNull { it.filePath }
+        assertEquals("S01E01.mkv", dao.firstEpisodePath(show))
+        assertEquals("as every episode read", read, dao.firstEpisodePath(show))
+        assertEquals(
+            dao.episodesOfSeries(show).map { it.filePath }.sortedBy { it.orEmpty() },
+            dao.episodePaths(show).sortedBy { it.orEmpty() },
+        )
+        assertNull(dao.firstEpisodePath(empty))
+        assertEquals(emptyList<String?>(), dao.episodePaths(empty))
+    }
+
+    /**
+     * A special comes before season 1, an episode without a season or a number before those with one, as reading every
+     * episode found them; a season's row with a file of the show is never one of its episodes.
+     */
+    @Test
+    fun aShowsFirstEpisodePathTakesSpecialsAndUnnumberedFirstAndOnlyEpisodes() = runTest {
+        suspend fun show(title: String) = dao.insert(row(ItemKind.SERIES, title))
+        suspend fun episode(series: Long, title: String, season: Int?, number: Int?) = dao.insert(
+            row(ItemKind.EPISODE, title, seriesId = series).copy(seasonNumber = season, episodeNumber = number),
+        )
+        suspend fun assertFirst(expected: String, series: Long) {
+            assertEquals(expected, dao.firstEpisodePath(series))
+            val read = dao.episodesOfSeries(series).firstNotNullOfOrNull { it.filePath }
+            assertEquals("as every episode read", read, dao.firstEpisodePath(series))
+        }
+        val special = show("Doctor Who")
+        episode(special, "S01E01", season = 1, number = 1)
+        episode(special, "S00E01", season = 0, number = 1)
+        assertFirst("S00E01.mkv", special)
+
+        val unseasoned = show("Arcane")
+        episode(unseasoned, "S01E01", season = 1, number = 1)
+        episode(unseasoned, "E05", season = null, number = 5)
+        assertFirst("E05.mkv", unseasoned)
+        episode(unseasoned, "Unnumbered", season = null, number = null)
+        assertFirst("Unnumbered.mkv", unseasoned)
+
+        val unnumbered = show("Shogun")
+        episode(unnumbered, "S01E01", season = 1, number = 1)
+        episode(unnumbered, "S01", season = 1, number = null)
+        assertFirst("S01.mkv", unnumbered)
+
+        val seasoned = show("Severance")
+        val season = row(ItemKind.SEASON, "Saison 0", parentId = seasoned, seriesId = seasoned)
+        dao.insert(season.copy(seasonNumber = 0, filePath = "season.mkv"))
+        episode(seasoned, "S01E01", season = 1, number = 1)
+        assertFirst("S01E01.mkv", seasoned)
+        assertEquals(listOf<String?>("S01E01.mkv"), dao.episodePaths(seasoned))
+    }
 
     @Test
     fun aRowInsertedAgainFailsRatherThanReplacingIt() = runTest {
