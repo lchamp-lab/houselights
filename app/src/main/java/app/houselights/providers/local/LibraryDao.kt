@@ -947,9 +947,14 @@ interface LibraryDao :
     )
     suspend fun collectionFilms(collectionId: Long): List<ItemEntity>
 
-    /** Card columns of the films of [collectionIds], by collection in release order: one query per page. */
+    /**
+     * Card columns of the films of [collectionIds], by collection in release order: one query per page. A film is watched
+     * as soon as any copy is, as on its walls ([LocalMapper.watchedAsAny]) and in [startedSagas].
+     */
     @Query(
-        "SELECT collectionId, year, rating, genres, played, posterPath, userPosterPath, backdropPath, userBackdropPath, " +
+        "SELECT collectionId, year, rating, genres, " +
+            "(played = 1 OR EXISTS (SELECT 1 FROM items c WHERE c.versionOf = items.id AND c.played = 1)) AS played, " +
+            "posterPath, userPosterPath, backdropPath, userBackdropPath, " +
             "CASE WHEN addedAt > (SELECT firstScanAt FROM sources WHERE sources.id = items.sourceId AND firstScanAt > 0) " +
             "THEN addedAt END AS addedLater " +
             "FROM items WHERE kind = 'MOVIE' AND versionOf IS NULL AND collectionId IN (:collectionIds) " +

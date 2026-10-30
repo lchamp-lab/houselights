@@ -512,6 +512,27 @@ class LocalCatalogTest {
         assertEquals(2_400_000L, plan.startMs)
     }
 
+    /**
+     * A saga counts a film watched as soon as any copy is, its card on the sagas wall and on the film's page alike, as
+     * its walls and its page show the film.
+     */
+    @Test
+    fun aSagaCountsAFilmWatchedOnAnyCopy() = runTest {
+        val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:1575", tmdbId = 1575, name = "Rocky", sortTitle = "rocky"))
+        film("Rocky", 1976, tmdbId = 1366, collectionId = saga, played = true)
+        // Rocky II's 4K copy was watched before its 1080p copy, found first, was known as the same film.
+        val second = film("Rocky II", 1979, tmdbId = 1367, badges = listOf("1080p"), collectionId = saga)
+        film("Rocky II", 1979, tmdbId = 1367, path = "Rocky II.2160p.mkv", badges = listOf("4K"), collectionId = saga, played = true)
+        dao.groupVersions()
+
+        val sagas = Library(LocalProvider.COLLECTIONS, LibraryKind.COLLECTIONS, null)
+        val card = provider.libraryPage(sagas, SortOption.TITLE, LibraryFilter(), 0, 10).items.single()
+        assertEquals(0, card.user.unplayedCount)
+        assertTrue(card.user.played)
+        assertEquals(0, provider.collectionOf(provider.item(second.toString()))?.user?.unplayedCount)
+        assertTrue(provider.collectionItems(card).all { it.user.played })
+    }
+
     // --- Filters and numbers ---
 
     @Test
