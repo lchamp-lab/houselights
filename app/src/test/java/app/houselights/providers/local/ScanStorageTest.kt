@@ -1,15 +1,12 @@
 package app.houselights.providers.local
 
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
@@ -19,18 +16,10 @@ import java.net.ConnectException
 @RunWith(RobolectricTestRunner::class)
 class ScanStorageTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private val nas get() = bench.nas
-
-    @Before
-    fun open() {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
-    }
-
-    @After
-    fun close() = bench.close()
 
     /** Prevents the database from growing by another page. */
     private fun fillTheDatabase(full: Boolean) {
@@ -56,8 +45,11 @@ class ScanStorageTest {
         bench.scan()
 
         assertEquals(ScanErrorKind.STORAGE_FULL, bench.error(films))
-        val read = nas.reads.size
-        assertTrue("$read files read", read < 200)
+        val written = bench.dao.filesOf(films.id).size
+        assertTrue("$written of 200 written", written < 200)
+        // A new film's row is written before its file is read, so the file refused is not read; written after, it would be.
+        assertTrue("none read past the first refused: $written written", nas.reads.size in written..written + 1)
+        assertEquals("none read twice", nas.reads.distinct(), nas.reads.toList())
         assertEquals("the next folder would fail the same way", 0, showsListed)
         assertNull(bench.error(shows))
 

@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -11,6 +12,7 @@ import app.houselights.core.NfoParser
 import app.houselights.core.Secrets
 import app.houselights.core.SubtitleChoice
 import app.houselights.core.TrackChoice
+import app.houselights.providers.local.SchemaHistory.insertAt
 import app.houselights.testing.secretsOf
 import app.houselights.testing.testSecrets
 import kotlinx.coroutines.flow.first
@@ -82,16 +84,66 @@ class MigrationTest {
             "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, '', '', 'Dune (2021).mkv', '', '', 0, 5, 600000, 1, 1, 'MATCHED', 0)",
     )
 
-    /** The app's own builder, not [migrated]'s: a library from the version before keeps what the user did. */
+    /** The version this app's library is at. */
+    private fun latestVersion() = testDatabase().run { openHelper.readableDatabase.version.also { close() } }
+
+    /**
+     * A library from each version before, opened by the app's own builder, keeps what the user did as each row held it:
+     * folders as set, titles watched, favourite, identified or left as they are, their pictures and the copy chosen, a
+     * show's order, what was kept of titles whose files left, choices of tracks and of a saga's pictures, marks waiting
+     * for Trakt. What a later version added that may be empty, a folder's user or new language say, starts empty.
+     */
     @Test
-    fun theAppsLibraryFromTheVersionBeforeKeepsWhatTheUserDid() = runTest {
-        val db = theApps(from = 23) {
-            filmsFolder(23)
-            watchedDune()
+    fun everyVersionKeepsWhatTheUserDid() = runTest {
+        val latest = latestVersion()
+        for (from in 1 until latest) {
+            val rows = USERS.filter { SchemaHistory.columns(from, it.table).isNotEmpty() }
+            val db = theApps(from) { rows.forEach { insertAt(from, it.table, mapOf(it.key) + it.given + it.kept) } }
+            for (row in rows) {
+                val had = SchemaHistory.columns(from, row.table)
+                val now = SchemaHistory.columns(latest, row.table)
+                val expected = row.kept.filterKeys { it in had || now[it]?.notNull == false }.mapValues { (column, value) ->
+                    value.takeIf { column in had }
+                }
+                assertEquals("${row.table} ${row.key.second} from $from", expected, db.read(row, expected.keys))
+            }
+            assertEquals("from $from", "s3cret", db.dao().source(1)?.password?.value)
+            if (rows.any { it.table == "track_choices" }) {
+                assertEquals("from $from", TrackChoice("ko", SubtitleChoice.Off), db.trackChoices().choice("local:1")?.choice())
+            }
+            db.close()
         }
-        assertEquals("Films", db.dao().sources().single().name)
-        val dune = checkNotNull(db.dao().item(1))
-        assertEquals(Triple(true, true, 600_000L), Triple(dune.played, dune.favorite, dune.positionMs))
+    }
+
+    /** [columns] of [row] as SQLite holds them: integers as Long, text as String, null as null. */
+    private fun LibraryDatabase.read(row: UserRow, columns: Set<String>): Map<String, Any?> = openHelper.readableDatabase.query(
+        "SELECT ${columns.joinToString { "`$it`" }} FROM `${row.table}` WHERE `${row.key.first}` = ?",
+        arrayOf(row.key.second),
+    ).use { c ->
+        check(c.moveToFirst()) { "No ${row.table} ${row.key.second}" }
+        columns.withIndex().associate { (i, name) ->
+            name to when (c.getType(i)) {
+                Cursor.FIELD_TYPE_NULL -> null
+                Cursor.FIELD_TYPE_INTEGER -> c.getLong(i)
+                else -> c.getString(i)
+            }
+        }
+    }
+
+    /**
+     * A row of [table] known by [key], [given] what makes it a row of its kind, [kept] what the user did with it (and when a
+     * folder was last read), which every migration keeps; each written where the version written in has the column. Each
+     * is columns as `name=value; …`, a value in digits an integer, `null` none, any other text.
+     */
+    private class UserRow(val table: String, key: String, given: String, kept: String) {
+        val key = columns(key).entries.single().let { (name, value) -> name to checkNotNull(value) }
+        val given = columns(given)
+        val kept = columns(kept)
+
+        private fun columns(text: String): Map<String, Any?> = text.split("; ").filter { it.isNotEmpty() }.associate { column ->
+            val (name, value) = column.split('=', limit = 2)
+            name to if (value == "null") null else value.toLongOrNull() ?: value
+        }
     }
 
     /**
@@ -100,7 +152,7 @@ class MigrationTest {
      */
     @Test
     fun theAppsLibraryNoMigrationReadsIsRefusedAndKeptAsItIs() {
-        val latest = testDatabase().run { openHelper.readableDatabase.version.also { close() } }
+        val latest = latestVersion()
         val db = theApps(from = latest, leftAt = latest + 1) {
             filmsFolder(latest)
             watchedDune()
@@ -296,11 +348,11 @@ class MigrationTest {
                     "INSERT INTO items (id, kind, sourceId, tmdbId, title, sortTitle, continuing, genres, directors, filePath, " +
                         "parts, fileSize, badges, probeVersion, userTmdbId, userPosterPath, collectionId, addedAt, matchedAt, " +
                         "positionMs, durationMs, played, favorite, lastPlayedAt) VALUES (?, 'MOVIE', 1, ?, ?, ?, 0, '', ?, ?, " +
-                        "'', 42, '', 3, ?, 'file:/p.jpg', ?, 0, 500, 600000, 9000000, ?, 1, 5)",
+                        "'', 42, '', 3, ?, 'file:/p.jpg', ?, 0, 500, 600000, 9000000, ?, ?, 5)",
                     arrayOf<Any?>(
                         id, if (id < 3) 78 else 194, if (id < 3) "Blade Runner" else "Le Fabuleux Destin d'Amélie Poulain",
                         if (id < 3) "blade runner" else "fabuleux destin d'amelie poulain", director, path, if (id == 2) 78 else null,
-                        if (id < 3) 1 else null, if (id == 2) 1 else 0,
+                        if (id < 3) 1 else null, if (id == 2) 1 else 0, if (id == 2) 1 else 0,
                     ),
                 )
             }
@@ -340,30 +392,11 @@ class MigrationTest {
     }
 
     @Test
-    fun version15KeepsTheFoldersWithNothingToReadAgain() = runTest {
-        val db = migrated(from = 14) { filmsFolder() }
-        val films = checkNotNull(db.dao().source(1))
-        assertEquals("Films" to 1000L, films.name to films.lastScanAt)
-        assertNull(films.refreshIn)
-    }
-
-    @Test
-    fun version16KeepsEachTitlesChoiceOfTracks() = runTest {
+    fun version16AddsEachTitlesChoiceOfTracksEmpty() = runTest {
         val db = migrated(from = 15) { filmsFolder() }
         assertNull(db.trackChoices().choice("local:1"))
         db.trackChoices().save(TrackChoiceEntity("local:1", "ko", SubtitleChoice.Off.stored, at = 5))
         assertEquals(TrackChoice("ko", SubtitleChoice.Off), db.trackChoices().choice("local:1")?.choice())
-    }
-
-    /** Version 17 lets an NFS folder present another user; every folder kept presents itself as root, as before. */
-    @Test
-    fun version17KeepsEveryFolderPresentingItselfAsRoot() = runTest {
-        // From the previous version, and from 0.2.0's.
-        for (from in listOf(16, 15)) {
-            val films = checkNotNull(migrated(from) { filmsFolder() }.dao().source(1))
-            assertEquals("from $from", "Films" to 1000L, films.name to films.lastScanAt)
-            assertEquals("from $from", null to null, films.uid to films.gid)
-        }
     }
 
     /**
@@ -673,12 +706,13 @@ class MigrationTest {
         val films = (1L..3L).map { checkNotNull(dao.item(it)) }
         for (film in films) {
             assertEquals(600_000L to 9_000_000L, film.positionMs to film.durationMs)
-            assertEquals(true to 5L, film.favorite to film.lastPlayedAt)
+            assertEquals(5L, film.lastPlayedAt)
             assertEquals("file:/p.jpg", film.userPosterPath)
             assertEquals("their crew comes at later passes", null, film.creditsAt)
         }
-        // Watched in one copy: the title is watched. The copy keeps its own state.
+        // Watched and a favourite in one copy alone: the title is. The copy keeps its own state.
         assertEquals(listOf(true, true, false), films.map { it.played })
+        assertEquals(listOf(true, true, false), films.map { it.favorite })
         assertEquals(listOf(null, 78, null), films.map { it.userTmdbId })
         assertEquals(listOf(null, "Final Cut", "Extended"), films.map { it.edition })
         assertEquals(listOf(null, 1L, null), films.map { it.versionOf })
@@ -705,6 +739,74 @@ class MigrationTest {
         const val FIREFLY = 1437
         const val ONE_PIECE = 37854
         const val DUNE_SAGA = "tmdb:726871"
+        const val DVD = "5b5a9ef3c3a3685a5c000c5c"
+
+        /**
+         * What the user did in each table, as a library of the latest version holds it: a folder on SMB, and one on NFS
+         * presenting another user; Dune identified by hand, its pictures and its copy chosen, watched, a favourite; its copy,
+         * stopped and never a favourite; a film left as it is; a show in the order chosen, and an episode of it watched.
+         */
+        val USERS = listOf(
+            UserRow(
+                "sources",
+                "id=1",
+                "password=s3cret",
+                "kind=MOVIES; protocol=SMB; name=Films; host=nas; share=media; path=films; username=zidoo; domain=WORKGROUP; " +
+                    "lastScanAt=1000; refreshIn=null; uid=null; gid=null; heldKept=1",
+            ),
+            UserRow(
+                "sources",
+                "id=2",
+                "password=",
+                "kind=SHOWS; protocol=NFS; name=Séries; host=nas; share=volume1/media; path=series; username=; lastScanAt=2000; " +
+                    "uid=1026; gid=100",
+            ),
+            UserRow(
+                "items",
+                "id=1",
+                "kind=MOVIE; sourceId=1; title=Dune; sortTitle=dune; filePath=Dune (1984).mkv; tmdbId=841",
+                "played=1; favorite=1; positionMs=600000; durationMs=8200000; lastPlayedAt=5; addedAt=4; userTmdbId=841; " +
+                    "userPosterPath=file:/dune.jpg; userBackdropPath=file:/dune-wide.jpg; userLogoPath=file:/dune-logo.png; " +
+                    "versionChoice=3; userNoMatch=0",
+            ),
+            UserRow(
+                "items",
+                "id=3",
+                "kind=MOVIE; sourceId=1; title=Dune; sortTitle=dune; filePath=Dune (1984) {edition-Final Cut}.mkv; tmdbId=841; versionOf=1",
+                "played=0; favorite=0; positionMs=60000; addedAt=6",
+            ),
+            UserRow(
+                "items",
+                "id=2",
+                "kind=MOVIE; sourceId=1; title=Mes vacances; sortTitle=mes vacances; filePath=Mes vacances.mkv",
+                "favorite=1; userNoMatch=1; addedAt=2",
+            ),
+            UserRow(
+                "items",
+                "id=10",
+                "kind=SERIES; sourceId=2; title=Firefly; sortTitle=firefly; tmdbId=$FIREFLY",
+                "favorite=1; userPosterPath=file:/firefly.jpg; userEpisodeOrder=$DVD; addedAt=3",
+            ),
+            UserRow(
+                "items",
+                "id=11",
+                "kind=EPISODE; sourceId=2; parentId=10; seriesId=10; title=Serenity; sortTitle=serenity; seasonNumber=1; " +
+                    "episodeNumber=1; filePath=Firefly/Season 1/Firefly - S01E01.mkv",
+                "played=1; positionMs=1200000; durationMs=5200000; lastPlayedAt=7",
+            ),
+            UserRow(
+                "kept_states",
+                "title=movie:tmdb:949",
+                "kind=MOVIE; nameKey=heat|1995; sourceId=1",
+                "tmdbId=949; played=1; positionMs=3000000; durationMs=6000000; lastPlayedAt=9; favorite=1; userTmdbId=949; " +
+                    "userPosterPath=file:/heat.jpg; userBackdropPath=file:/heat-wide.jpg; userLogoPath=file:/heat-logo.png; " +
+                    "addedAt=1; audio=fre; subtitles=${SubtitleChoice.Off.stored}; tracksAt=8; userEpisodeOrder=$DVD; userNoMatch=1",
+            ),
+            UserRow("track_choices", "title=local:1", "", "audio=ko; subtitles=${SubtitleChoice.Off.stored}; at=5"),
+            UserRow("saga_choices", "matchKey=$DUNE_SAGA", "", "userPosterPath=/fr-1.jpg; userBackdropPath=/fr-wide.jpg"),
+            UserRow("trakt_pending", "title=movie:949", "", "action=WATCHED; at=5; progress=0.5; seq=1; attempts=2; sentAt=6"),
+            UserRow("trakt_state", "id=1", "", "syncedAt=9; watched=10; inProgress=11; error=refused; activities={}"),
+        )
 
         /** A folder's row in schemas 6 and 7, before firstScanAt. */
         const val FOLDER_UP_TO_7 =

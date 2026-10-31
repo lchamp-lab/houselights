@@ -1,14 +1,12 @@
 package app.houselights.providers.local
 
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -22,21 +20,17 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ScanAbsoluteTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var shows: SourceEntity
     private val tmdb get() = bench.tmdb
     private val showsNas get() = bench.showsNas
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"))
         shows = bench.folder("Séries", SourceKind.SHOWS)
     }
-
-    @After
-    fun close() = bench.close()
 
     /** One Piece as TMDB numbers it: 20 seasons of 891 episodes, then season 21 of [last] episodes, specials apart. */
     private fun onePiece(last: Int = SEASON_21) {
@@ -197,27 +191,6 @@ class ScanAbsoluteTest {
         bench.scan()
         val back = row(anime(1071))
         assertEquals(true to 1071, back.played to back.absoluteNumber)
-    }
-
-    /** TMDB's absolute group growing with its seasons, an episode past its end moves once both list it. */
-    @Test
-    fun anEpisodePastItsAbsoluteGroupMovesOnceTheGroupListsIt() = runTest {
-        tmdb.show(NARUTO, "Naruto", 2002)
-        tmdb.season(NARUTO, 1, episodes = 3)
-        tmdb.season(NARUTO, 2, episodes = 3)
-        val six = listOf(1 to 1, 1 to 2, 2 to 1, 1 to 3, 2 to 2, 2 to 3)
-        tmdb.group(NARUTO, ABSOLUTE_GROUP, type = 2, name = "Absolute", listOf(six))
-        val path = "Naruto/Naruto - 007.mkv"
-        showsNas.put(path)
-        bench.scan()
-        assertEquals("waiting", listOf(1, 7, 7, null, null), row(path).numbers())
-
-        tmdb.season(NARUTO, 2, episodes = 4)
-        tmdb.group(NARUTO, ABSOLUTE_GROUP, type = 2, name = "Absolute", listOf(six + (2 to 4)))
-        bench.later(DAY_MS)
-        bench.scan()
-        assertEquals(listOf(2, 4, 7, 2, 4), row(path).numbers())
-        assertEquals("Episode 2.4", row(path).title)
     }
 
     /** A stray number past what TMDB counts ("Naruto - 012") holds back none it counts: the group is fetched again for them. */

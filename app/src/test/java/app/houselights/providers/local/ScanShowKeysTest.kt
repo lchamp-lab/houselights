@@ -1,7 +1,6 @@
 package app.houselights.providers.local
 
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -9,7 +8,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.text.Normalizer
@@ -18,9 +16,9 @@ import java.text.Normalizer
 @RunWith(RobolectricTestRunner::class)
 class ScanShowKeysTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var shows: SourceEntity
     private val nas get() = bench.showsNas
     private val tmdb get() = bench.tmdb
@@ -28,15 +26,11 @@ class ScanShowKeysTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"))
         shows = bench.folder("Séries", SourceKind.SHOWS)
         tmdb.show(SLOW_HORSES, "Slow Horses", 2022)
         tmdb.show(REMASTERED, "Slow Horses Remastered", 2022)
         for (id in listOf(SLOW_HORSES, REMASTERED)) (1..2).forEach { tmdb.season(id, it, episodes = 6) }
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun showOf(path: String): ItemEntity = bench.showOf(shows, path)
 

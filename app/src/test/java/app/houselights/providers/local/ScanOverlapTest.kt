@@ -4,13 +4,10 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.atomic.AtomicBoolean
@@ -18,21 +15,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** A film's header is read on the NAS while TMDB answers, and its row is then written once with both. */
 @RunWith(RobolectricTestRunner::class)
 class ScanOverlapTest {
-    @get:Rule
-    val temp = TemporaryFolder()
-
     private val log = StatementLog()
-    private lateinit var bench: ScanBench
+
+    @get:Rule
+    val scan = ScanBenchRule(onQuery = log)
+
+    private val bench get() = scan.bench
     private val nas get() = bench.nas
     private val tmdb get() = bench.tmdb
-
-    @Before
-    fun open() {
-        bench = ScanBench(temp.newFolder("artwork"), onQuery = log)
-    }
-
-    @After
-    fun close() = bench.close()
 
     /** Each side waits for the other: read one after the other, the first would give up waiting. */
     @Test

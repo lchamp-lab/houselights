@@ -2,17 +2,15 @@ package app.houselights.providers.local
 
 import app.houselights.core.Job
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * What scans write for the people, saga, copy and edition screens, and the backfill of known titles, a few
@@ -21,20 +19,12 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ScanCreditsTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private val nas get() = bench.nas
     private val tmdb get() = bench.tmdb
     private val dao get() = bench.dao
-
-    @Before
-    fun open() {
-        bench = ScanBench(temp.newFolder("artwork"))
-    }
-
-    @After
-    fun close() = bench.close()
 
     private val duneCredits = TmdbCredits(
         cast = listOf(
@@ -175,6 +165,7 @@ class ScanCreditsTest {
         dune(TmdbCollectionRef(726871, "Dune - Saga"))
         nas.put("Dune (2021).mkv")
         creditsRefusedDuring { bench.scan() }
+        assertEquals("asked once, the write refused not taken for an answer missing", 1, tmdb.requests.count { it == "movie/438631" })
         assertEquals("nothing half saved", emptyList<ItemEntity>(), dao.filesOf(films.id).filter { it.matchedAt != null })
         assertEquals("nor its saga", null, dao.collectionByKey(CollectionRules.key(726871, "Dune - Saga")))
 
@@ -197,7 +188,9 @@ class ScanCreditsTest {
         assertNull(bench.series("Severance", 2022).matchedAt)
 
         bench.tmdbBack()
+        tmdb.requests.clear()
         creditsRefusedDuring { bench.scan() }
+        assertEquals("asked once", 1, tmdb.requests.count { it == "tv/1" })
         assertNull("not matched without its credits", bench.series("Severance", 2022).matchedAt)
 
         bench.scan()
@@ -335,6 +328,58 @@ class ScanCreditsTest {
         assertEquals(1, tmdb.requests.count { it.startsWith("collection/") })
     }
 
+    /** A show's credits, and a film's edition its name gives, are filled in as a film's credits are. */
+    @Test
+    fun aShowAndAnEditionKnownBeforeGetTheirsAtTheNextPass() = runTest {
+        val films = bench.folder("Films")
+        bench.folder("Séries", SourceKind.SHOWS)
+        tmdb.movie(BLADE_RUNNER, "Blade Runner", 1982)
+        tmdb.editMovie(BLADE_RUNNER) { it.copy(credits = duneCredits) }
+        tmdb.show(1, "Severance", 2022)
+        tmdb.editShow(1) { it.copy(credits = TmdbCredits(cast = listOf(TmdbCastMember("Adam Scott", "Mark", order = 0, id = 55536)))) }
+        tmdb.season(1, 1, 1)
+        val cut = "Blade Runner (1982) - Director's Cut.mkv"
+        nas.put(cut)
+        bench.showsNas.put("Severance (2022)/Season 1/Severance.S01E01.mkv")
+        bench.scan()
+        val edition = checkNotNull(bench.item(films, cut).edition)
+        asBeforeVersion12()
+        bench.db.openHelper.writableDatabase.execSQL("UPDATE items SET edition = NULL")
+
+        bench.autoScan()
+        assertEquals("each asked once", listOf("movie/$BLADE_RUNNER", "tv/1"), tmdb.requests.sorted())
+        assertEquals(edition, bench.item(films, cut).edition)
+        assertEquals(listOf("Timothée Chalamet", "Rebecca Ferguson"), jobs(bench.item(films, cut).id)[Job.CAST])
+        assertEquals(listOf("Adam Scott"), jobs(bench.series("Severance", 2022).id)[Job.CAST])
+    }
+
+    /**
+     * Matched with another film while the backfill asks TMDB for it, its credits still to come: the answer, for the film
+     * it was, is dropped, and the title waits for a pass to ask for the film it is.
+     */
+    @Test
+    fun aTitleMatchedAnewWhileTheBackfillAsksForItGetsNoneOfTheAnswer() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(1000, "Film", 2000)
+        tmdb.editMovie(1000) { it.copy(credits = duneCredits) }
+        nas.put("Film (2000).mkv")
+        bench.scan()
+        val film = bench.item(films, "Film (2000).mkv")
+        asBeforeVersion12()
+        val matched = AtomicBoolean()
+        tmdb.onRequest = { path ->
+            if (path == "movie/1000" && matched.compareAndSet(false, true)) {
+                // As a scan or the user would leave it, its credits not yet written.
+                bench.db.openHelper.writableDatabase.execSQL("UPDATE items SET tmdbId = 2000, userTmdbId = 2000 WHERE id = ${film.id}")
+            }
+        }
+        bench.autoScan()
+
+        assertTrue("matched anew as the backfill asked", matched.get())
+        assertEquals("none of the film it was", emptyMap<Job, List<String>>(), jobs(film.id))
+        assertNull("still due", bench.item(films, "Film (2000).mkv").creditsAt)
+    }
+
     /** TMDB out of reach: the backfill waits for a pass TMDB answers; NFO titles still get theirs. */
     @Test
     fun tmdbOutOfReachLeavesTheBackfillToALaterPass() = runTest {
@@ -358,5 +403,9 @@ class ScanCreditsTest {
         bench.tmdbBack()
         bench.scan()
         assertTrue(dao.filesOf(films.id).all { it.creditsAt != null })
+    }
+
+    private companion object {
+        const val BLADE_RUNNER = 78
     }
 }

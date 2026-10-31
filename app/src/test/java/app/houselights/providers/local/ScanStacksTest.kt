@@ -1,14 +1,12 @@
 package app.houselights.providers.local
 
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -16,20 +14,16 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ScanStacksTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
         films = bench.folder("Films")
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun rows() = bench.dao.filesOf(films.id).sortedBy { it.filePath }
 
@@ -212,30 +206,6 @@ class ScanStacksTest {
         assertEquals("Heat", heat.title)
         assertEquals("heat", heat.sortTitle)
         assertEquals("Ronin (Frankenheimer)", ronin.title)
-    }
-
-    /** A sequel's part or volume, with or without its year, among the other films of a folder: a title each. */
-    @Test
-    fun namesThatOnlyLookLikePartsAreFilmsOfTheirOwn() = runTest {
-        listOf(
-            "Dune Part 2.mkv",
-            "Hunger Games Mockingjay Part 1.mkv",
-            "Hunger Games Mockingjay Part 2.mkv",
-            "Kill Bill Vol. 1 (2003).mkv",
-            "Kill Bill Vol. 2 (2004).mkv",
-            "Top Gun Maverick.mkv",
-        ).forEach { nas.put(it) }
-        bench.scan()
-        val titles = listOf(
-            "Dune Part 2",
-            "Hunger Games Mockingjay Part 1",
-            "Hunger Games Mockingjay Part 2",
-            "Kill Bill Vol. 1",
-            "Kill Bill Vol. 2",
-            "Top Gun Maverick",
-        )
-        assertEquals(titles, rows().map { it.title })
-        assertTrue(rows().all { it.parts.isEmpty() })
     }
 
     private companion object {

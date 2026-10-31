@@ -2,24 +2,22 @@ package app.houselights.providers.local
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
 import java.util.Locale
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A pass holds the library's lock only to read and write it: while it waits for TMDB or the NAS, what the user does
@@ -28,9 +26,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 @RunWith(RobolectricTestRunner::class)
 class ScanLockTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
     private val tmdb get() = bench.tmdb
@@ -38,38 +36,14 @@ class ScanLockTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"))
         films = bench.folder("Films")
         tmdb.movie(DUNE, "Dune", 2021)
         tmdb.movie(DUNE_1984, "Dune", 1984)
         tmdb.movie(HEAT, "Heat", 1995)
     }
 
-    @After
-    fun close() = bench.close()
-
-    /** Holds TMDB's searches until [Gate.open], on OkHttp's thread; identifications by id go through. */
-    private fun holdSearches(): Gate = hold { it.startsWith("search/") }
-
-    /** Holds the first TMDB request whose path [first] takes until [Gate.open], on OkHttp's thread; the others go through. */
-    private fun hold(first: (String) -> Boolean): Gate = Gate().also { gate ->
-        val taken = AtomicBoolean()
-        tmdb.onRequest = { path -> if (first(path) && taken.compareAndSet(false, true)) gate.pass() }
-    }
-
-    private class Gate {
-        private val reached = CountDownLatch(1)
-        private val opened = CountDownLatch(1)
-
-        fun pass() {
-            reached.countDown()
-            opened.await(WAIT_MS, TimeUnit.MILLISECONDS)
-        }
-
-        suspend fun reached() = withContext(Dispatchers.IO) { assertTrue("held", reached.await(WAIT_MS, TimeUnit.MILLISECONDS)) }
-
-        fun open() = opened.countDown()
-    }
+    /** Holds TMDB's searches until [FakeTmdb.Gate.open]; identifications by id go through. */
+    private fun holdSearches(): FakeTmdb.Gate = tmdb.gate { it.startsWith("search/") }
 
     /** [block], which must end while the pass waits: in real time, as the pass runs on threads of its own. */
     private suspend fun <T> meanwhile(block: suspend () -> T): T = withContext(Dispatchers.IO) { withTimeout(WAIT_MS) { block() } }
@@ -296,14 +270,12 @@ class ScanLockTest {
 
         assertEquals(pass.requests.distinct(), pass.requests)
         assertTrue(pass.requests.toString(), "collection/$DUNE_SAGA" in pass.requests)
-        val alone = FakeRemoteBrowser().apply { put(DUNE_FILE, size = DUNE_SIZE, bytes = bytes) }
-        MediaProbe.probe(films, RemoteFile(DUNE_FILE, DUNE_SIZE), alone)
         val reads = pass.reads.groupingBy { it }.eachCount()
         assertEquals(
             mapOf("Dune (2021)/Dune (2021).nfo" to 1, "Dune (2021)/poster.jpg" to 1, "Dune (2021)/fanart.jpg" to 1),
             reads - DUNE_FILE,
         )
-        assertEquals("one probe's reads", alone.reads.size, reads[DUNE_FILE])
+        assertEquals("one probe's reads", oneProbesReads(DUNE_FILE, DUNE_SIZE, bytes).size, reads[DUNE_FILE])
         val dune = bench.item(films, DUNE_FILE)
         assertEquals("Dune Collection", dune.collectionId?.let { dao.collection(it) }?.name)
         assertTrue(dune.posterPath.isCachedArtwork() && dune.backdropPath.isCachedArtwork())
@@ -340,7 +312,7 @@ class ScanLockTest {
         // Its header read once: read again, the film asks TMDB alone.
         nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
         bench.scan()
-        val gate = hold { it == "movie/$DUNE" }
+        val gate = tmdb.gate { it == "movie/$DUNE" }
         bench.scanner.scanAll(refreshMetadata = true)
         try {
             gate.reached()
@@ -372,7 +344,7 @@ class ScanLockTest {
         (1..2).forEach { bench.showsNas.put(firefly(it)) }
         bench.scan()
         bench.showsNas.put(firefly(3))
-        val gate = hold { it == "tv/$FIREFLY/season/1" }
+        val gate = tmdb.gate { it == "tv/$FIREFLY/season/1" }
         bench.scanner.scanAll()
         try {
             gate.reached()
@@ -389,8 +361,103 @@ class ScanLockTest {
         assertEquals(DVD to DVD, show.userEpisodeOrder to show.episodeOrder)
     }
 
+    /**
+     * A known film read again while the user marks it watched, Trakt's sync marks it so too, a poster is chosen and it
+     * becomes a favourite: the pass writes TMDB's answer beside what was done meanwhile, never over it. Held twice: each
+     * run reads the row again, and a scan's save keeps the user's columns as the library holds them
+     * (LibraryDaoTest.aScanKeepsEveryColumnItDoesNotOwn); [aKnownFilmIdentifiedWhileReadAgainIsReadAsIdentified]
+     * fails when runs stop reading the row.
+     */
+    @Test
+    fun whatTheUserDoesWhileAKnownFilmIsReadAgainStands() = runTest {
+        nas.put("Dune (2021).mkv")
+        bench.scan()
+        val dune = bench.item(films, "Dune (2021).mkv")
+        tmdb.editMovie(DUNE) { it.copy(overview = "Arrakis") }
+        val gate = tmdb.gate { it == "movie/$DUNE" }
+        bench.scanner.scanAll(refreshMetadata = true)
+        try {
+            gate.reached()
+            meanwhile {
+                dao.savePlayback(dune.id, positionMs = 600_000, durationMs = 9_000_000, played = false, lastPlayedAt = PLAYED_AT)
+                bench.db.trakt().apply(mapOf(PLAYED_AT to listOf(dune.id)), emptyList(), emptyMap())
+                dao.setUserPoster(dune.id, "file:/mine.jpg")
+                dao.setFavorite(dune.id, true)
+            }
+        } finally {
+            gate.open()
+        }
+        bench.awaitScans()
+
+        val after = bench.item(films, "Dune (2021).mkv")
+        assertEquals("Arrakis", after.overview)
+        assertEquals(Triple(true, true, "file:/mine.jpg"), Triple(after.played, after.favorite, after.userPosterPath))
+        assertEquals(PLAYED_AT, after.lastPlayedAt)
+    }
+
+    /**
+     * A known film identified while a pass reads it again: the pass's next run reads the row as identified, so it asks
+     * for the film chosen and writes its details, never those of the film it began with.
+     */
+    @Test
+    fun aKnownFilmIdentifiedWhileReadAgainIsReadAsIdentified() = runTest {
+        nas.put("Dune (2021).mkv")
+        bench.scan()
+        val dune = bench.item(films, "Dune (2021).mkv")
+        val gate = tmdb.gate { it == "movie/$DUNE" }
+        bench.scanner.scanAll(refreshMetadata = true)
+        try {
+            gate.reached()
+            meanwhile { bench.scanner.identify(dune.id, DUNE_1984) }
+        } finally {
+            gate.open()
+        }
+        bench.awaitScans()
+
+        val after = bench.item(films, "Dune (2021).mkv")
+        assertEquals(Triple(DUNE_1984, DUNE_1984, 1984), Triple(after.userTmdbId, after.tmdbId, after.year))
+    }
+
+    /** TMDB answering the search, then failing on the film's details: nothing of the search is written, and the next pass asks again. */
+    @Test
+    fun aFilmWhoseDetailsFailAfterItsSearchWaitsUnmatchedForTheNextPass() = runTest {
+        nas.put("Dune (2021).mkv")
+        tmdb.failingPath = "movie/"
+        bench.scan()
+
+        assertEquals("each once", listOf("search/movie", "movie/$DUNE"), tmdb.requests.toList())
+        val waiting = bench.item(films, "Dune (2021).mkv")
+        assertEquals(null to null, waiting.tmdbId to waiting.matchedAt)
+        assertEquals(null, waiting.hintKey)
+
+        bench.tmdbBack()
+        bench.scan()
+        assertEquals(DUNE, bench.item(films, "Dune (2021).mkv").tmdbId)
+    }
+
+    /** An identification cut short while it asks TMDB, the user having left the screen: the film is as it was, the lock free. */
+    @Test
+    fun anIdentificationCancelledWhileTmdbIsAskedChangesNothing() = runTest {
+        nas.put("Dune (2021).mkv")
+        bench.scan()
+        val dune = bench.item(films, "Dune (2021).mkv")
+        tmdb.hold = true
+        val identifying = launch(Dispatchers.IO) { bench.scanner.identify(dune.id, HEAT) }
+        try {
+            withContext(Dispatchers.IO) { assertTrue("held", tmdb.held.await(WAIT_MS, TimeUnit.MILLISECONDS)) }
+        } finally {
+            identifying.cancelAndJoin()
+            tmdb.hold = false
+        }
+
+        assertEquals(dune, bench.item(films, "Dune (2021).mkv"))
+        meanwhile { bench.scanner.identify(dune.id, DUNE_1984) }
+        assertEquals(DUNE_1984, bench.item(films, "Dune (2021).mkv").userTmdbId)
+    }
+
     private companion object {
         const val WAIT_MS = 5_000L
+        const val PLAYED_AT = 1_700_000_000_000L
         const val DROPPED = 11
         const val DUNE = 438631
         const val DUNE_1984 = 841

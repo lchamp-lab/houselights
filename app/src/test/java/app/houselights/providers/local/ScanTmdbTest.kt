@@ -2,15 +2,12 @@ package app.houselights.providers.local
 
 import app.houselights.core.FailureKind
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
@@ -20,19 +17,11 @@ import java.time.Duration
 @RunWith(RobolectricTestRunner::class)
 class ScanTmdbTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private val nas get() = bench.nas
     private val tmdb get() = bench.tmdb
-
-    @Before
-    fun open() {
-        bench = ScanBench(temp.newFolder("artwork"))
-    }
-
-    @After
-    fun close() = bench.close()
 
     /** A film described by tinyMediaManager: its NFO and its poster beside it. */
     private fun described(name: String, title: String) {
@@ -68,19 +57,6 @@ class ScanTmdbTest {
     }
 
     @Test
-    fun aKeyRefusedEndsTmdbForThePassAndIsSaid() = runTest {
-        val films = bench.folder("Films")
-        repeat(4) { nas.put("Film $it (2020).mkv") }
-        tmdb.status = 401
-        bench.scan()
-
-        assertEquals("asked once", 1, tmdb.requests.size)
-        assertEquals(FailureKind.TMDB_KEY_REFUSED, issue())
-        assertEquals(4, bench.dao.filesOf(films.id).size)
-        assertTrue(bench.dao.filesOf(films.id).all { it.matchedAt == null })
-    }
-
-    @Test
     fun titlesARefusedKeyLeftUnmatchedAreNotReadAgainAtTheNextPass() = runTest {
         bench.folder("Films")
         repeat(3) { described("Film $it (2020)", "Mon film $it") }
@@ -92,6 +68,7 @@ class ScanTmdbTest {
         assertEquals("still said", FailureKind.TMDB_KEY_REFUSED, issue())
     }
 
+    /** A key refused ends TMDB for the pass, said, its titles saved unmatched; they are asked for again an hour later. */
     @Test
     fun titlesLeftUnmatchedAreAskedForAgainAnHourLater() = runTest {
         val films = bench.folder("Films")
@@ -99,6 +76,10 @@ class ScanTmdbTest {
         tmdb.movie(1, "Mon film 0", 2020)
         tmdb.status = 401
         bench.scan()
+        assertEquals("asked once", 1, tmdb.requests.size)
+        assertEquals(FailureKind.TMDB_KEY_REFUSED, issue())
+        assertEquals(3, bench.dao.filesOf(films.id).size)
+        assertTrue(bench.dao.filesOf(films.id).all { it.matchedAt == null })
         ShadowSystemClock.advanceBy(Duration.ofMinutes(59))
         bench.autoScan()
         assertEquals("asked at the first pass only", 1, tmdb.requests.size)
