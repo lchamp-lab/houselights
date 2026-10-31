@@ -156,6 +156,54 @@ class CopiesMatchedAnewTest {
         assertEquals("a copy now", older.id, bench.dao.item(main.id)?.versionOf)
     }
 
+    /**
+     * Identified as Dune by hand, then as Part Two, Dune's main row leaves its copy Dune's choices but neither match by
+     * hand, said of its own file: the copy stays Dune by its own name, a full refresh included.
+     */
+    @Test
+    fun theCopyLeftIsNotMatchedByHandForTheMainRow() = runTest {
+        films = bench.folder("Films")
+        val (main, copy) = dunes()
+        bench.scanner.identify(main.id, DUNE)
+
+        bench.scanner.identify(main.id, PART_TWO)
+
+        assertEquals("/chosen-poster.jpg", bench.dao.item(copy.id)?.userPosterPath)
+        assertNull(bench.dao.item(copy.id)?.userTmdbId)
+        bench.scan(refreshMetadata = true)
+        assertEquals(DUNE, bench.dao.item(copy.id)?.tmdbId)
+    }
+
+    /** Identified as another film, a film without copies drops the poster chosen for the film it was taken for. */
+    @Test
+    fun aFilmWithoutCopiesIdentifiedAsAnotherDropsItsPoster() = runTest {
+        films = bench.folder("Films")
+        bench.nas.put(HD)
+        bench.scan()
+        val film = bench.item(films, HD)
+        bench.dao.setUserPoster(film.id, "/chosen-poster.jpg")
+
+        bench.scanner.identify(film.id, PART_TWO)
+
+        assertNull(bench.dao.item(film.id)?.userPosterPath)
+    }
+
+    /** Matched automatically when TMDB has no film for it any more, nor an NFO, Dune's main row leaves Dune to its copy. */
+    @Test
+    fun anAutomaticMatchFindingNothingLeavesTheFilmToItsCopy() = runTest {
+        films = bench.folder("Films")
+        val (main, copy) = dunes()
+        tmdb.gonePath = "movie/$DUNE"
+        tmdb.movies.remove(DUNE)
+
+        bench.scanner.identify(main.id, null)
+
+        val left = checkNotNull(bench.dao.item(main.id))
+        assertNull(left.tmdbId)
+        assertNull(left.userPosterPath)
+        assertDunesChoices(checkNotNull(bench.dao.item(copy.id)), choice = copy.id, addedAt = main.addedAt)
+    }
+
     private companion object {
         const val DUNE = 1
         const val PART_TWO = 2

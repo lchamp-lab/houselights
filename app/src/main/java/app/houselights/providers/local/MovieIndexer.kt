@@ -187,15 +187,14 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             if (tmdbId != null) Looked(client.movie(tmdbId)) else lookupMovie(client, query)
         }
         return {
+            dao.setUserTmdbId(item.id, tmdbId)
             // A choice, or automatic matching asked back, undoes « Laisser tel quel ».
             dao.setUserNoMatch(item.id, false)
             dao.item(item.id)?.let { fresh ->
-                val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year).copy(userTmdbId = tmdbId)
+                val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
                 val was = item.userTmdbId ?: item.tmdbId
                 saveMovie(cleared, nfo, fetched, LocalArt.of(fresh), clock(), was, identified = true)
             }
-            // Written once the film it leaves took the match by hand made on it ([leaveFilm]).
-            dao.setUserTmdbId(item.id, tmdbId)
         }
     }
 
@@ -379,7 +378,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
      * Saves details ([MetadataMerge]), edition, collection and credits ([CreditRules]) at once: a film matched without
      * its credits would never be read again for them; nor one named since [was], its TMDB id then, without what was kept;
      * nor a saga it joins from one known by its name without the choice made there ([SagaChoiceCarry]); nor the film it
-     * leaves or joins without what was chosen on it ([leaveFilm], [CopyHeirDao.takeTitle]). [identified]: the user asked
+     * leaves or joins without what was chosen on it ([leaveFilm], [CopyHeirDao.joinTitle]). [identified]: the user asked
      * for this match ([identify]).
      */
     @Suppress("LongParameterList") // One per source of details, the TMDB id the film had, and who asked.
@@ -410,8 +409,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             .lookedUp(base, fetched.lookup)
             .withNfoStreams(nfoInfo) // Stream details do not depend on the match.
         leaveFilm(item.id, item.tmdbId, identified)
-        // Older than the main row of the film it joins, it shows what was chosen there as that film's main row.
-        dao.takeTitle(item.id, item.tmdbId)
+        dao.joinTitle(item.id, item.tmdbId)
         dao.saveScanned(item)
         // Its saga known by its name until now, TMDB's takes the choice made under the name, as the film its kept state.
         sagaChoices.moved(left = base.collectionId, joined = collectionId)
@@ -425,15 +423,15 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
     /**
      * Row [id], about to be saved with TMDB id [tmdbId], leaves the film it was matched with when that changes: the
-     * film's copies keep what was chosen on it ([CopyHeirDao.handTitlesOf]), the row taking none of it along when it
-     * names another film or the user asked for the match ([identified]); left unmatched by a scan, it keeps its own,
-     * most likely still that film's. Runs before the match is written, while the row's TMDB id still names that film.
+     * film's copy left keeps what was chosen on it ([CopyHeirDao.handTitlesOf]), the row taking none of it along; a
+     * scan's row the last of its film keeps it, nothing being left of that film to hold it, while the user's match
+     * ([identified]) always drops it, as chosen for the previous film. Runs before the match is written, while the
+     * row's TMDB id still names that film.
      */
     private suspend fun leaveFilm(id: Long, tmdbId: Int?, identified: Boolean) {
-        val before = dao.item(id)?.tmdbId
-        if (before == tmdbId) return
-        dao.handTitlesOf(listOf(id))
-        if (identified || before != null && tmdbId != null) {
+        if (dao.tmdbIdOf(id) == tmdbId) return
+        val handed = dao.handTitlesOf(listOf(id), match = false)
+        if (identified || handed) {
             dao.clearUserArtwork(id)
             dao.setVersionChoice(id, null)
         }
