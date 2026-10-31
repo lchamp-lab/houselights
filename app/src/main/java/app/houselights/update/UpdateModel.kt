@@ -73,7 +73,7 @@ data class UpdateOffer(
     /** The room the download needs on the device: the file, its copy into Android's installer, and some to spare. */
     val spaceNeeded: Long get() = size * SPACE_FACTOR
 
-    /** What is new in [language], else in English, a line a paragraph, as the interface writes. */
+    /** What is new in [language], else in English, a line a paragraph, its `**` left for the sheet to set. */
     fun notesIn(language: String): List<String> {
         val text = notes[language] ?: notes[ENGLISH] ?: return emptyList()
         return text.lines()

@@ -9,6 +9,9 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontWeight
 import app.houselights.R
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.testing.SettleMainLooper
@@ -228,6 +231,18 @@ class UpdateSheetTest {
         compose.onNodeWithText("Mettre à jour").assertIsFocused()
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_UP)
         compose.onNodeWithText("Mettre à jour").assertIsNotFocused()
+    }
+
+    @Test
+    fun aNotesEmphasisIsSetWithoutItsMarkers() {
+        val notes = "- **Sagas.** Les volets.\n- Un ** seul."
+        show(MutableStateFlow(updates(OFFER.copy(notes = mapOf("en" to notes, "fr" to notes)))))
+        compose.onNodeWithText("Sagas. Les volets.").assertExists()
+        compose.onNodeWithText("Un ** seul.").assertExists()
+        val strong = SpanStyle(fontWeight = FontWeight.Medium)
+        val set = emphasised("**A.** text", strong)
+        assertEquals("A. text", set.text)
+        assertEquals(listOf(AnnotatedString.Range(strong, 0, 2)), set.spanStyles)
     }
 
     @Test
