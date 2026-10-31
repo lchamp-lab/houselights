@@ -36,13 +36,16 @@ class CopiesMatchedAnewTest {
     @After
     fun close() = bench.close()
 
-    /** Dune and its 4K copy, grouped under the first; the film's choices on its main row, the copy to play the 4K. */
-    private suspend fun dunes(): Pair<ItemEntity, ItemEntity> {
+    /**
+     * Dune and its 4K copy, the copy in [uhd] on [uhdNas], grouped under the first; the film's choices on its main row,
+     * the copy to play the 4K.
+     */
+    private suspend fun dunes(uhd: SourceEntity = films, uhdNas: FakeRemoteBrowser = bench.nas): Pair<ItemEntity, ItemEntity> {
         bench.nas.put(HD)
-        bench.nas.put(UHD)
+        uhdNas.put(UHD)
         bench.scan()
         val main = bench.item(films, HD)
-        val copy = bench.item(films, UHD)
+        val copy = bench.item(uhd, UHD)
         assertEquals("grouped under the first", main.id, copy.versionOf)
         bench.dao.setUserPoster(main.id, "/chosen-poster.jpg")
         bench.dao.setUserBackdrop(main.id, "/chosen-backdrop.jpg")
@@ -75,6 +78,46 @@ class CopiesMatchedAnewTest {
         assertNull(moved.versionOf)
         assertNull("Dune's poster is not Part Two's", moved.userPosterPath)
         assertNull("nor its copy to play", moved.versionChoice)
+    }
+
+    /**
+     * Named another film by its NFO, edited since, Dune's main row leaves Dune's choices to its copy in another folder
+     * and arrives in Part Two bare, as an identification does.
+     */
+    @Test
+    fun aMainRowAScanMatchesAsAnotherFilmLeavesTheFilmsChoicesToItsCopy() = runTest {
+        films = bench.folder("Films")
+        val uhdNas = FakeRemoteBrowser()
+        val uhd = bench.folder("Films 4K", on = uhdNas)
+        val (main, copy) = dunes(uhd, uhdNas)
+
+        bench.nas.putText(HD.replace(".mkv", ".nfo"), "<movie><title>Dune: Part Two</title><tmdbid>$PART_TWO</tmdbid></movie>")
+        bench.scan()
+
+        assertDunesChoices(checkNotNull(bench.dao.item(copy.id)), choice = copy.id, addedAt = main.addedAt)
+        val moved = checkNotNull(bench.dao.item(main.id))
+        assertEquals(PART_TWO, moved.tmdbId)
+        assertNull("Dune's poster is not Part Two's", moved.userPosterPath)
+        assertNull("nor its copy to play", moved.versionChoice)
+    }
+
+    /**
+     * Matched automatically when TMDB no longer has the film its NFO names, Dune's main row stays Dune by that NFO: it
+     * keeps the film's choices, none handed to a copy that would hide them.
+     */
+    @Test
+    fun anAutomaticMatchLeavingTheMainRowInItsFilmKeepsTheFilmsChoices() = runTest {
+        films = bench.folder("Films")
+        bench.nas.putText(HD.replace(".mkv", ".nfo"), "<movie><title>Dune</title><tmdbid>$DUNE</tmdbid></movie>")
+        val (main, copy) = dunes()
+        tmdb.gonePath = "movie/$DUNE"
+
+        bench.scanner.identify(main.id, null)
+
+        val kept = checkNotNull(bench.dao.item(main.id))
+        assertEquals("its NFO's", DUNE, kept.tmdbId)
+        assertDunesChoices(kept, choice = copy.id, addedAt = main.addedAt)
+        assertNull(checkNotNull(bench.dao.item(copy.id)).userPosterPath)
     }
 
     /** Identified as Dune, a row older than Dune's main row becomes its main row, showing Dune's choices, not its own. */
