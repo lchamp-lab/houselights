@@ -64,22 +64,28 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2, MIT; v6 caches through a proprietary component
 
-      # Robolectric fetches the Android its tests run on (android-all-instrumented, 100 MB) with a
-      # resolver of its own, into ~/.m2, which setup-gradle does not cache. Keyed by Robolectric's
-      # version and the Android version the tests ask for.
+      # Robolectric fetches the Android its tests run on (android-all-instrumented, 100 MB each) with a
+      # resolver of its own, into ~/.m2, which setup-gradle does not cache. The unit tests run on several
+      # (28 by default, then those named by @Config(sdk = ...) and the constants it takes), so their cache is
+      # keyed by Robolectric's version and by those lines of the tests: a test on a new Android makes a new
+      # entry, which starts from the previous one. It is this job's alone, « servers » has a key of its own:
+      # an entry is written once, by whichever job reaches it first, and with one key for both the unit tests
+      # were left with what « servers » had fetched, 28 alone.
       - name: Robolectric's key
         if: matrix.robolectric
         id: robolectric
         run: |
           version="$(sed -n 's/^robolectric = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
-          sdk="$(sed -n 's/^sdk=//p' app/src/test/resources/robolectric.properties)"
-          echo "key=robolectric-$version-sdk$sdk" >> "$GITHUB_OUTPUT"
+          androids="$( { sed -n 's/^sdk=/default /p' app/src/test/resources/robolectric.properties; grep -rhE '(\bsdk *=|SHADER_FILTERS *=)' app/src/test/java || true; } | sort -u | sha256sum | cut -c1-12)"
+          echo "prefix=robolectric-$version-tests-" >> "$GITHUB_OUTPUT"
+          echo "key=robolectric-$version-tests-$androids" >> "$GITHUB_OUTPUT"
 
       - if: matrix.robolectric
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.m2/repository/org/robolectric
           key: ${{ steps.robolectric.outputs.key }}
+          restore-keys: ${{ steps.robolectric.outputs.prefix }}
 
       # What the runner has, which the settings below count on: four processors and 16 GB for a public repository's.
       - name: The runner
@@ -144,13 +150,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2, MIT; v6 caches through a proprietary component
 
-      # The same Android for Robolectric as the unit tests, from the same cache.
+      # Its tests run on the default Android alone: a cache of its own, not the unit tests' (see « parts »).
       - name: Robolectric's key
         id: robolectric
         run: |
           version="$(sed -n 's/^robolectric = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
           sdk="$(sed -n 's/^sdk=//p' app/src/test/resources/robolectric.properties)"
-          echo "key=robolectric-$version-sdk$sdk" >> "$GITHUB_OUTPUT"
+          echo "key=robolectric-$version-servers-sdk$sdk" >> "$GITHUB_OUTPUT"
 
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
