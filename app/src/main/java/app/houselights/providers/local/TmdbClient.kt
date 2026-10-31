@@ -28,6 +28,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /** TMDB rate-limited (429) or gateway failure (502, 503, 504); retried once after [retryAfterMs]. */
 internal class TmdbBusyException(code: Int, val retryAfterMs: Long) : TmdbUnreachableException(null, "TMDB answered $code")
@@ -71,6 +72,15 @@ class TmdbClient(
         namingStrategy = JsonNamingStrategy.SnakeCase
     }
 
+    /** Requests TMDB answered, with an entry or with none (404). */
+    private val answered = AtomicLong()
+
+    /**
+     * How many requests TMDB answered so far, with an entry or with none: a question whose count did not move was
+     * answered without asking TMDB ([TmdbPass], [MovieIndexer.FilmCache]).
+     */
+    val answers: Long get() = answered.get()
+
     /** End of the pause ([pauseWhenUnreachable]) on the monotonic clock, so a clock set back cannot extend it. */
     @Volatile
     private var unreachableUntil = 0L
@@ -89,6 +99,7 @@ class TmdbClient(
      */
     private fun intercept(chain: Interceptor.Chain): Response {
         val response = answer(chain)
+        if (response.isSuccessful || response.code == HttpStatus.NOT_FOUND) answered.incrementAndGet()
         if (response.isSuccessful) return response
         val failure = when (val code = response.code) {
             HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN -> TmdbKeyRefusedException()
@@ -177,15 +188,19 @@ class TmdbClient(
     }
 
     /**
-     * The film [wanted] names among TMDB's answers to its searches, scored ([MatchPlan]), with its details; else the
-     * candidates TMDB hesitated on, [first] ahead of them (a film a name's id found, not trusted). A hit removed from
-     * TMDB since its search counts as none.
+     * The film [wanted] names among TMDB's answers to its searches, scored ([MatchPlan]), with its details ([details]);
+     * else the candidates TMDB hesitated on, [first] ahead of them (a film a name's id found, not trusted). A hit removed
+     * from TMDB since its search counts as none.
      */
-    internal suspend fun matchMovie(wanted: Wanted, first: Candidate? = null): Matched<TmdbMovie> {
+    internal suspend fun matchMovie(
+        wanted: Wanted,
+        first: Candidate? = null,
+        details: suspend (Int) -> TmdbMovie? = ::movieById,
+    ): Matched<TmdbMovie> {
         val verdict = MatchPlan.run(wanted, alsoEnglish, { searchMovies(it.title, it.year, languageOf(it)) }) {
             alternativeTitles(it, show = false)
         }
-        return Matched((verdict as? Verdict.Match)?.let { movieById(it.best.candidate.id) }, MatchScore.offered(wanted, verdict, first))
+        return Matched((verdict as? Verdict.Match)?.let { details(it.best.candidate.id) }, MatchScore.offered(wanted, verdict, first))
     }
 
     /** The show [wanted] names, as [matchMovie] finds a film. */
