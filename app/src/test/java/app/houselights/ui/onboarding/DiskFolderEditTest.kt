@@ -69,7 +69,6 @@ class DiskFolderEditTest : FlowHarness() {
 
         back()
         until { flow.path.isEmpty() }
-        compose.waitForIdle()
         focusIsOn("Films")
         assertFalse(left)
         back()
@@ -102,12 +101,10 @@ class DiskFolderEditTest : FlowHarness() {
         }
         back()
         until { flow.path.isEmpty() }
-        compose.waitForIdle()
         down()
         focusIsOn("Films 4K")
         ok()
         until { flow.path == listOf("Films 4K") }
-        compose.waitForIdle()
         focusIsOn(text(R.string.choose_folder))
         ok()
         until { done != null }
@@ -136,7 +133,6 @@ class DiskFolderEditTest : FlowHarness() {
         val flow = flow(onT7, series, editing = EDITED)
         back()
         until { flow.path.isEmpty() }
-        compose.waitForIdle()
         compose.onNode(hasText(text(R.string.folder_holds_added, "Séries"))).assertIsNotEnabled()
         compose.onNode(hasText("Séries") and hasText(text(R.string.folder_overlaps_state))).assertIsNotEnabled()
         focusIsOn("Films")
@@ -144,12 +140,10 @@ class DiskFolderEditTest : FlowHarness() {
         focusIsOn("Films 4K")
         ok()
         until { flow.path == listOf("Films 4K") }
-        compose.waitForIdle()
 
         runBlocking { db.dao().insertSource(onT7.copy(id = 0, name = "Dune (2021)", path = "Films 4K/Dune (2021)")) }
         ok()
         until { flow.message != null }
-        compose.waitForIdle()
         val overlaps = flow.message as FlowMessage.Overlaps
         assertEquals("Dune (2021)", overlaps.existing)
         assertTrue("${overlaps.standing}", overlaps.standing is Standing.Holds)
@@ -179,7 +173,6 @@ class DiskFolderEditTest : FlowHarness() {
         network.mounted = DISKS
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         assertEquals(listOf("Films"), flow.path)
         focusIsOn(text(R.string.choose_folder))
         compose.onNodeWithText("Samsung T7").assertExists()
@@ -189,7 +182,6 @@ class DiskFolderEditTest : FlowHarness() {
         focusIsOn("Alien (1979)")
         ok()
         until { flow.message != null }
-        compose.waitForIdle()
         assertEquals(FlowMessage.DiskAbsent(FlowNas(T7, "Samsung T7")), flow.message)
         compose.onNodeWithText(text(R.string.disk_absent, "Samsung T7")).assertExists()
         focusIsOn(text(R.string.server_silent))
@@ -227,7 +219,6 @@ class DiskFolderEditTest : FlowHarness() {
         folders(readable = true)
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         assertNull(flow.lost)
         assertEquals(listOf("Films"), flow.path)
         compose.onNodeWithText(text(R.string.folder_unread)).assertDoesNotExist()

@@ -1,7 +1,6 @@
 package app.houselights.ui.onboarding
 
 import android.content.Context
-import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
@@ -48,8 +47,10 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.testing.waitWithLooper
 import app.houselights.ui.util.wholePath
 import com.emc.ecs.nfsclient.mount.MountStatus
 import kotlinx.coroutines.CoroutineScope
@@ -70,7 +71,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.IOException
@@ -118,11 +118,7 @@ class FormLayoutTest {
     fun jellyfinInGerman() = jellyfinHolds()
 
     private fun library(): LocalLibrary {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        return LocalLibrary(context, db.dao(), scanner, artwork) {}
+        return idleLibrary(db.dao())
     }
 
     /** « Modifier le dossier » over an NFS folder: its first control, a field and Save where the form's frame puts them. */
@@ -143,8 +139,7 @@ class FormLayoutTest {
         }
         val vm = AddFolderViewModel(library(), id, scope, probe = { FolderLevel(emptyList(), videos = 0) })
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
-        compose.waitUntil { vm.ready }
-        compose.waitForIdle()
+        compose.waitWithLooper("the form ready") { vm.ready }
         holds(first = R.string.field_protocol, field = R.string.field_host, action = R.string.save)
     }
 
@@ -181,10 +176,9 @@ class FormLayoutTest {
                 AddFolderForm(vm, FolderField.FIRST) {}
             }
         }
-        compose.waitUntil { vm.ready }
+        compose.waitWithLooper("the form ready") { vm.ready }
         vm.test()
-        compose.waitUntil { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         fun text(id: Int) = compose.activity.getString(id)
         val refused = text(R.string.error_login_failed)
         listOf(text(R.string.edit_folder_desc), text(R.string.connection_failed), "/video/Séries", refused).forEach {
@@ -209,10 +203,9 @@ class FormLayoutTest {
                 AddFolderForm(vm, FolderField.FIRST) {}
             }
         }
-        compose.waitUntil { vm.ready }
+        compose.waitWithLooper("the form ready") { vm.ready }
         vm.test()
-        compose.waitUntil { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         fun text(id: Int) = compose.activity.getString(id)
         val unread = text(R.string.error_password_unread)
         listOf(text(R.string.connection_untested), "/video/Séries", unread).forEach { assertFalse("$it cut", cut(it)) }
@@ -227,8 +220,7 @@ class FormLayoutTest {
     fun anEditedFolderAtRestShowsItsHelpWhole() {
         val vm = series { FolderLevel(emptyList(), videos = 12) }
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
-        compose.waitUntil { vm.ready }
-        compose.waitForIdle()
+        compose.waitWithLooper("the form ready") { vm.ready }
         val help = compose.activity.getString(R.string.smb_hint)
         assertFalse("$help cut", cut(help))
         assertTrue(compose.onNodeWithText(help).getUnclippedBoundsInRoot().bottom <= SCREEN_H - HlSpace.safeV)
@@ -275,10 +267,9 @@ class FormLayoutTest {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, scale)) { AddFolderForm(vm, FolderField.FIRST) {} }
         }
-        compose.waitUntil { vm.ready }
+        compose.waitWithLooper("the form ready") { vm.ready }
         vm.test()
-        compose.waitUntil(FLOW_WAIT_MS) { vm.shared != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder's shares") { vm.shared != null }
         fun text(id: Int) = compose.activity.getString(id)
         val line = text(R.string.pick_share)
         val count = compose.activity.resources.getQuantityString(R.plurals.pick_share_desc, 3, 3)
@@ -366,8 +357,9 @@ class FormLayoutTest {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, LARGEST_TEXT)) { JellyfinLoginForm(vm) {} }
         }
-        compose.waitUntil { FourServers.servers.all { vm.checkOf(it) != ServerCheck.Checking || it.name == "Chambre" } }
-        compose.waitForIdle()
+        compose.waitWithLooper("the servers but Chambre checked") {
+            FourServers.servers.all { vm.checkOf(it) != ServerCheck.Checking || it.name == "Chambre" }
+        }
         val states = listOf(R.string.server_encrypted, R.string.server_plain, R.string.checking, R.string.server_silent)
             .map { compose.activity.getString(it) }
         val starts = states.map { compose.onNodeWithText(it, useUnmergedTree = true).getUnclippedBoundsInRoot().left }
@@ -420,21 +412,12 @@ class FormLayoutTest {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, LARGEST_TEXT)) { AddFolderFlow(flow) }
         }
-        // The flow's work on other threads comes back on the main looper, which compose's waitUntil does not run here.
-        fun until(done: () -> Boolean) {
-            val end = System.currentTimeMillis() + FLOW_WAIT_MS
-            while (!done() && System.currentTimeMillis() < end) {
-                shadowOf(Looper.getMainLooper()).idle()
-                compose.waitForIdle()
-            }
-            assertTrue("the flow went on", done())
-        }
+        fun until(done: () -> Boolean) = compose.waitWithLooper("the flow to go on", done = done)
         until { flow.ready }
         flow.chooseUsed(flow.used.single())
         until { flow.step == FlowStep.SHARES }
         flow.openShare(FlowShare("/volume1/photo"))
         until { flow.message != null }
-        compose.waitForIdle()
         val said = compose.activity.getString(R.string.error_nfs_refused, FakeFlowNetwork.PLAYER, wholePath("/volume1/photo"))
         val box = compose.onNodeWithText(said, useUnmergedTree = true).getUnclippedBoundsInRoot()
         assertTrue("the panel ends inside the safe area: $box", box.bottom + HlInset.plate <= SCREEN_H - HlSpace.safeV)
@@ -499,8 +482,5 @@ class FormLayoutTest {
 
         /** The largest text size Android TV offers. */
         const val LARGEST_TEXT = 1.3f
-
-        /** How long « Ajouter un dossier » may take to answer its fake network. */
-        const val FLOW_WAIT_MS = 5_000L
     }
 }

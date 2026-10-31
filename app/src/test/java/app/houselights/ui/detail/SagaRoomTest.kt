@@ -18,6 +18,7 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressBack
 import coil.Coil
 import coil.ImageLoader
 import coil.request.CachePolicy
@@ -143,7 +144,7 @@ class SagaRoomTest {
         press(Key.DirectionUp)
         press(Key.DirectionRight)
         assertTrue(room().hex(), room().isBlack())
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.pressBack()
         // Back is taken, then the room left to settle.
         compose.waitForIdle()
         rest()

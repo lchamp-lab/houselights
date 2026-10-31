@@ -107,33 +107,10 @@ class HomePlayFailureTest {
     }
 
     @Test
-    fun foldersOutOfReachAreTheNas() {
-        open(failed = UiError.OFFLINE)
-        said(text(R.string.error_offline_nas_title)).assertIsDisplayed()
-    }
-
-    @Test
     fun aServerOutOfReachIsTheServer() {
         place = LibraryPlace.SERVER
         open(fullHome(status = HomeStatus(StatusSource.Server("Salon"))), UiError.OFFLINE)
         said(text(R.string.error_offline_server_title)).assertIsDisplayed()
-    }
-
-    /** A disk of the player's own unplugged is its disk not found, wherever the rest of the library lies. */
-    @Test
-    fun aDiskUnpluggedIsTheDisk() {
-        open(failed = UiError.DISK_ABSENT)
-        said(text(R.string.error_disk_absent_title)).assertIsDisplayed()
-        said(text(R.string.error_offline_nas_title)).assertDoesNotExist()
-    }
-
-    /** Folders on the player's own disks alone are no NAS: the library out of reach is said as such. */
-    @Test
-    fun foldersOnThePlayersDisksAloneAreNoNas() {
-        place = null
-        open(failed = UiError.OFFLINE)
-        said(text(R.string.error_offline_title)).assertIsDisplayed()
-        said(text(R.string.error_offline_nas_title)).assertDoesNotExist()
     }
 
     /**

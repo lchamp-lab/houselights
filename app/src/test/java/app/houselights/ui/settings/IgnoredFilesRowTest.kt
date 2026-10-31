@@ -16,32 +16,24 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.SourceConfig
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.IgnoredFileRow
 import app.houselights.providers.local.IgnoredReason
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
-import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.SettingsStore
-import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.RestoreFocus
-import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
@@ -49,7 +41,6 @@ import app.houselights.ui.testing.testSettings
 import app.houselights.ui.util.FACT_GAP
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,29 +86,10 @@ class IgnoredFilesRowTest {
 
     @Before
     fun open() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
         db = testDatabase { onCallingThread() }
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+        val library = idleLibrary(db.dao())
         store = testSettings(folder.root, files)
-        val factory = viewModelFactory {
-            initializer {
-                val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> })
-                SettingsViewModel(
-                    store,
-                    library,
-                    { FakeProvider() },
-                    work,
-                    sources,
-                    images = null,
-                    toIdentifyCount = toIdentify,
-                    ignoredFiles = ignored,
-                )
-            }
-        }
-        vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
+        vm = settingsModel(screens, store, library, work, toIdentifyCount = toIdentify, ignoredFiles = ignored)
         db.dao().insertSource(nfsFolder("Shows"))
         store.setSource(SourceConfig.Local, null)
         store.state.first { it.source == SourceConfig.Local }

@@ -10,12 +10,9 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.PathMapping
 import app.houselights.core.SourceConfig
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.IgnoredFileRow
 import app.houselights.providers.local.LibraryDao
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.nfsFolder
@@ -32,6 +29,7 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.fullSettings
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.testSettings
 import app.houselights.ui.testing.waitFor
 import app.houselights.ui.util.UiError
@@ -40,7 +38,6 @@ import coil.annotation.ExperimentalCoilApi
 import coil.disk.DiskCache
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
@@ -83,14 +80,9 @@ class SettingsViewModelTest {
 
     @Before
     fun open() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
         db = testDatabase { onCallingThread() }
         dao = db.dao()
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        // No scan runs: it would go to the network.
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        library = LocalLibrary(context, dao, scanner, artwork) {}
+        library = idleLibrary(dao)
     }
 
     @After

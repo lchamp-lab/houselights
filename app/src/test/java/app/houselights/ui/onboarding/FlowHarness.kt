@@ -1,7 +1,6 @@
 package app.houselights.ui.onboarding
 
 import android.content.Context
-import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.hasText
@@ -9,11 +8,8 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.core.app.ApplicationProvider
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FoundNas
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.Secret
@@ -26,17 +22,18 @@ import app.houselights.testing.testKey
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.DS920
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.PASSWORD
 import app.houselights.ui.onboarding.FakeFlowNetwork.Companion.USER
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.waitWithLooper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Rule
-import org.robolectric.Shadows.shadowOf
 import java.security.ProviderException
 
 /**
@@ -109,34 +106,17 @@ open class FlowHarness {
             AddFolderFlow(flow, onLeave = leave, onDone = { done = it }, askDisk = askDisk, onPick = { picked = it })
         }
         until { flow.ready }
-        compose.waitForIdle()
         return flow
     }
 
     /** The [library] holding [folders], whose scans never run. */
     protected fun stock(vararg folders: SourceEntity) {
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        // The scan asked after an add never runs: it would go to the network.
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         runBlocking { folders.forEach { db.dao().insertSource(it) } }
-        library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+        library = idleLibrary(db.dao())
     }
 
-    /**
-     * Waits for [done], running the main looper as it goes: the flow's work that went to another thread (a save, this
-     * player's address) comes back there, which compose's own waitUntil does not run under Robolectric.
-     */
-    protected fun until(done: () -> Boolean) {
-        val end = System.currentTimeMillis() + WAIT_MS
-        while (!done()) {
-            shadowOf(Looper.getMainLooper()).idle()
-            compose.waitForIdle()
-            if (done()) return
-            check(System.currentTimeMillis() < end) { "Still waiting after $WAIT_MS ms" }
-            Thread.sleep(POLL_MS)
-        }
-    }
+    /** Waits for [done]: the flow's work that went to another thread (a save, this player's address) comes back on the main looper. */
+    protected fun until(done: () -> Boolean) = compose.waitWithLooper("the flow to go on", done = done)
 
     protected fun focusIsOn(words: String) = compose.onNode(isFocused() and hasText(words, substring = true)).assertExists()
 
@@ -147,8 +127,7 @@ open class FlowHarness {
     /** Back, once what the flow was told is drawn, as a remote's Back always comes after a frame. */
     protected fun back() {
         compose.waitForIdle()
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
+        compose.pressBack()
     }
 
     /** Films, NFS, on DS920: the library of a second folder. */
@@ -178,7 +157,3 @@ open class FlowHarness {
 
     protected val ds920 = FoundNas("DS920", DS920, setOf(Protocol.SMB, Protocol.NFS))
 }
-
-/** How long a test waits for the flow, and how often it looks. */
-private const val WAIT_MS = 5_000L
-private const val POLL_MS = 10L

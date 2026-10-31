@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.text.TextLayoutResult
+import app.houselights.R
 import app.houselights.settings.TextSize
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.rememberFocusMemory
@@ -24,6 +25,8 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
+import app.houselights.ui.testing.text
+import app.houselights.ui.testing.waitWithLooper
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -92,17 +95,6 @@ class TextSizeRowTest {
         return layouts.first().layoutInput.density.fontScale
     }
 
-    /** Waits for [done], running what comes back to the main thread from DataStore's meanwhile, unseen by the test. */
-    private fun waitFor(done: () -> Boolean) {
-        val until = System.currentTimeMillis() + TIMEOUT_MS
-        while (!done()) {
-            check(System.currentTimeMillis() < until) { "Still waiting after $TIMEOUT_MS ms" }
-            compose.waitForIdle()
-            Thread.sleep(POLL_MS)
-        }
-        compose.waitForIdle()
-    }
-
     @Test
     fun theRowSaysTheSizeUnderTheLanguage() {
         show()
@@ -120,7 +112,7 @@ class TextSizeRowTest {
         show()
         row().performSemanticsAction(SemanticsActions.OnClick)
         compose.waitForIdle()
-        compose.onNodeWithText("Agrandit ou réduit tous les textes de Houselights. La grille et les marges ne changent pas.").assertExists()
+        compose.onNodeWithText(text(R.string.text_size_sheet)).assertExists()
         listOf(
             "Compacte" to "Pour lire de plus près",
             "Standard" to "Recommandée",
@@ -140,7 +132,7 @@ class TextSizeRowTest {
         compose.press(Key.DirectionCenter)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_UP)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
-        waitFor { store.state.value.textSize == TextSize.COMPACT }
+        compose.waitWithLooper("Compacte saved") { store.state.value.textSize == TextSize.COMPACT }
         assertNull("the sheet has gone", sheet())
         compose.onNodeWithText("Compacte").assertExists()
         assertEquals(TextSize.COMPACT.step, scaleOf("Taille du texte"))
@@ -154,12 +146,7 @@ class TextSizeRowTest {
         show()
         row().performSemanticsAction(SemanticsActions.OnClick)
         compose.waitForIdle()
-        compose.onNode(hasText("Grande") and hasClickAction() and hasText("Déjà atteinte par le réglage d’Android")).assertExists()
+        compose.onNode(hasText("Grande") and hasClickAction() and hasText(text(R.string.text_size_large_reached))).assertExists()
         assertEquals(1.3f, scaleOf("Grande"))
-    }
-
-    private companion object {
-        const val TIMEOUT_MS = 5_000L
-        const val POLL_MS = 10L
     }
 }

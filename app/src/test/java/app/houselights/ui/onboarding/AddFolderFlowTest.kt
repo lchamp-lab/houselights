@@ -94,7 +94,6 @@ class AddFolderFlowTest : FlowHarness() {
         focusIsOn(text(R.string.nas_searching))
         network.searchEnds()
         until { compose.onAllNodes(hasText(text(R.string.nas_searching), substring = true)).fetchSemanticsNodes().isEmpty() }
-        compose.waitForIdle()
         focusIsOn("NAS du bureau")
     }
 
@@ -122,20 +121,16 @@ class AddFolderFlowTest : FlowHarness() {
         compose.onNodeWithText(DS920 + FACT_GAP + "Films", useUnmergedTree = true).assertExists()
         ok()
         until { flow.step == FlowStep.SHARES }
-        compose.waitForIdle()
         focusIsOn("video")
         assertEquals("1026" to "100", flow.uid to flow.gid)
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         focusIsOn("Séries")
         ok()
         until { flow.path == listOf("Séries") }
-        compose.waitForIdle()
         focusIsOn(text(R.string.choose_folder))
         ok()
         until { flow.step == FlowStep.KIND }
-        compose.waitForIdle()
         focusIsOn(text(R.string.library_shows))
         ok()
         until { done != null }
@@ -154,10 +149,8 @@ class AddFolderFlowTest : FlowHarness() {
         until { flow.step == FlowStep.SHARES }
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         flow.openFolder("Films2")
         until { flow.path == listOf("Films2") }
-        compose.waitForIdle()
         focusIsOn(text(R.string.choose_folder))
         back()
         assertEquals(emptyList<String>(), flow.path)
@@ -181,16 +174,13 @@ class AddFolderFlowTest : FlowHarness() {
         val flow = flow(films)
         ok()
         until { flow.step == FlowStep.SHARES }
-        compose.waitForIdle()
         compose.onNodeWithText("/volume1/video" + FACT_GAP + text(R.string.share_holds_one, "Films"), useUnmergedTree = true).assertExists()
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         compose.onNode(hasText(text(R.string.folder_holds_added, "Films"))).assertIsNotEnabled()
         compose.onNode(hasText("Films") and hasText(text(R.string.folder_overlaps_state))).assertIsNotEnabled()
         flow.openFolder("Archives 2019")
         until { flow.path == listOf("Archives 2019") }
-        compose.waitForIdle()
         focusIsOn(text(R.string.folder_empty_short))
         compose.onNode(hasText(text(R.string.folder_empty_short))).assertIsNotEnabled()
         // OK on it does nothing.
@@ -205,11 +195,9 @@ class AddFolderFlowTest : FlowHarness() {
         val two = context.resources.getQuantityString(R.plurals.share_holds_many, 2, 2)
         ok()
         until { flow.step == FlowStep.SHARES }
-        compose.waitForIdle()
         compose.onNodeWithText("/volume1/video" + FACT_GAP + two, useUnmergedTree = true).assertExists()
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         compose.onNode(hasText(two)).assertIsNotEnabled()
         compose.onNode(hasText("Séries") and hasText(text(R.string.folder_overlaps_state))).assertIsNotEnabled()
     }
@@ -220,13 +208,11 @@ class AddFolderFlowTest : FlowHarness() {
         val flow = flow()
         flow.chooseFound(ds920)
         until { flow.step == FlowStep.PROTOCOLS }
-        compose.waitForIdle()
         focusIsOn("SMB")
         flow.chooseProtocol(Protocol.NFS)
         until { flow.step == FlowStep.SHARES }
         flow.openShare(FlowShare("/volume1/media"))
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         // At an export's root, an empty library: the first subfolder named for either kind.
         focusIsOn("Films")
         compose.onNodeWithText(text(R.string.folder_holds_both), useUnmergedTree = true).assertExists()
@@ -235,7 +221,6 @@ class AddFolderFlowTest : FlowHarness() {
         until { flow.step == FlowStep.BROWSE }
         flow.openFolder("Films2")
         until { flow.path == listOf("Films2") }
-        compose.waitForIdle()
         val folders = context.resources.getQuantityString(R.plurals.folder_count, FakeFlowNetwork.FILMS2, FakeFlowNetwork.FILMS2)
         val videos = context.resources.getQuantityString(R.plurals.video_count, 2, 2)
         focusIsOn(text(R.string.folder_content, folders, videos))
@@ -250,13 +235,11 @@ class AddFolderFlowTest : FlowHarness() {
         val flow = flow(films)
         ok()
         until { flow.step == FlowStep.SHARES }
-        compose.waitForIdle()
         compose.onNodeWithText(text(R.string.not_allowed), useUnmergedTree = true).assertExists()
         down()
         focusIsOn("photo")
         ok()
         until { flow.message != null }
-        compose.waitForIdle()
         focusIsOn("photo")
         val said = text(R.string.error_nfs_refused, PLAYER, wholePath("/volume1/photo"))
         compose.onNodeWithText(said, useUnmergedTree = true).assertExists()
@@ -289,13 +272,11 @@ class AddFolderFlowTest : FlowHarness() {
     fun aNasUsedThatIsSilentSaysSoAndOkAsksItAgain() {
         val flow = flow(films.copy(host = SILENT_NAS))
         until { flow.answers[SILENT_NAS] == NasAnswer.Silent }
-        compose.waitForIdle()
         compose.onNodeWithText(text(R.string.server_silent), useUnmergedTree = true).assertExists()
         fun asked() = network.asked.count { it == "protocols $SILENT_NAS" }
         val probed = asked()
         ok()
         until { flow.message != null }
-        compose.waitForIdle()
         assertEquals(probed + 1, asked())
         assertEquals(FlowMessage.Silent(SILENT_NAS), flow.message)
         assertEquals(RowFailure.SILENT, flow.rowFailures[FlowKeys.nasKey(SILENT_NAS)])
@@ -322,7 +303,6 @@ class AddFolderFlowTest : FlowHarness() {
         flow.type(FIELD_HOST, SILENT_NAS)
         flow.continueAddress()
         until { flow.fieldError != null }
-        compose.waitForIdle()
         compose.onNodeWithText(text(R.string.error_nas_unreachable, SILENT_NAS), useUnmergedTree = true).assertExists()
         compose.onNodeWithText(text(R.string.connection_failed), useUnmergedTree = true).assertExists()
         assertNull("one mark: none in the panel", flow.message)
@@ -351,13 +331,10 @@ class AddFolderFlowTest : FlowHarness() {
         until { flow.step == FlowStep.SHARES }
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         ok()
         until { flow.path == listOf("Séries") }
-        compose.waitForIdle()
         ok()
         until { flow.step == FlowStep.KIND }
-        compose.waitForIdle()
         focusIsOn(text(R.string.library_shows))
         ok()
         until { flow.notSaved != null }
@@ -390,17 +367,13 @@ class AddFolderFlowTest : FlowHarness() {
         until { flow.step == FlowStep.SHARES }
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         ok()
         until { flow.path == listOf("Séries") }
-        compose.waitForIdle()
         ok()
         until { flow.step == FlowStep.KIND }
-        compose.waitForIdle()
         runBlocking { db.dao().insertSource(films.copy(name = "video", path = "")) }
         ok()
         until { flow.message != null }
-        compose.waitForIdle()
         val overlaps = flow.message as FlowMessage.Overlaps
         assertEquals("Video", overlaps.existing)
         assertTrue("${overlaps.standing}", overlaps.standing is Standing.Inside)
@@ -423,25 +396,20 @@ class AddFolderFlowTest : FlowHarness() {
         compose.onNode(hasText("Samsung T7") and hasText(text(R.string.disk_usb)) and hasClickAction()).requestFocus()
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         focusIsOn("Films")
         compose.onNodeWithText(text(R.string.on_this_player)).assertExists()
         compose.onNodeWithText("Samsung T7").assertExists()
 
         back()
         until { flow.step == FlowStep.WHERE }
-        compose.waitForIdle()
         focusIsOn("Samsung T7")
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         ok()
         until { flow.path == listOf("Films") }
-        compose.waitForIdle()
         focusIsOn(text(R.string.choose_folder))
         ok()
         until { flow.step == FlowStep.KIND }
-        compose.waitForIdle()
         focusIsOn(text(R.string.library_movies))
         ok()
         until { done != null }
@@ -459,7 +427,6 @@ class AddFolderFlowTest : FlowHarness() {
         until { flow.step == FlowStep.BROWSE }
         flow.chooseFolder()
         until { flow.step == FlowStep.KIND }
-        compose.waitForIdle()
         compose.onNodeWithText(text(R.string.flow_kind_desc, text(R.string.disk_internal)), useUnmergedTree = true).assertExists()
         ok()
         until { done != null }
@@ -501,7 +468,6 @@ class AddFolderFlowTest : FlowHarness() {
         network.access = DiskAccess.GRANTED
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         assertEquals(listOf(DiskAccess.TO_ASK, DiskAccess.IN_SETTINGS), asked)
         focusIsOn("Movies")
     }
@@ -570,7 +536,6 @@ class AddFolderFlowTest : FlowHarness() {
         compose.waitForIdle()
         ok()
         until { flow.step == FlowStep.SHARES }
-        compose.waitForIdle()
         val level = network.hold("level")
         ok()
         compose.waitForIdle()

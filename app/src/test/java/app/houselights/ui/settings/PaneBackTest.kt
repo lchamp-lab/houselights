@@ -20,6 +20,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -67,8 +68,7 @@ class PaneBackTest {
         compose.waitForIdle()
         assertEquals("the screen composed once, as it opened", 1, screen)
 
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
+        compose.pressBack()
         compose.onNodeWithTag(ENTRY).assertIsFocused()
         assertEquals(1, screen)
     }

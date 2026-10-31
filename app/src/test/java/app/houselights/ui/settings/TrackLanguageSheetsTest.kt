@@ -2,6 +2,7 @@ package app.houselights.ui.settings
 
 import app.houselights.core.TrackPreferences
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,15 +40,38 @@ class TrackLanguageSheetsTest {
         }
     }
 
-    /** A code saved with a region or as files tag it shows its language; one no sheet lists, the sheet's first option. */
+    /**
+     * A code saved with a region or as files tag it shows its language's option, the sheets listing nothing more:
+     * Norwegian Bokmål too, which they list under Norwegian.
+     */
     @Test
-    fun aLanguageSavedOtherwiseShowsItsOptionAndAnUnknownOneTheFirst() {
-        val french = codes.indexOf("fr")
-        for (saved in listOf("fr-CA", "fre", "FR")) {
-            assertEquals(saved, french + 2, audioOption(saved, codes))
-            assertEquals(saved, french + 1, subtitleLanguageOption(saved, codes))
+    fun aLanguageSavedOtherwiseShowsItsOption() {
+        for ((language, forms) in mapOf("fr" to listOf("fr-CA", "fre", "FR"), "no" to listOf("nb", "nb-NO", "nob"))) {
+            val at = codes.indexOf(language)
+            for (saved in forms) {
+                assertEquals(saved, codes, trackCodes(saved, codes))
+                assertEquals(saved, at + 2, audioOption(saved, codes))
+                assertEquals(saved, at + 1, subtitleLanguageOption(saved, codes))
+            }
         }
-        assertEquals("Lecteur", 0, audioOption("xx", codes))
-        assertEquals("Langue de l'interface", 0, subtitleLanguageOption("xx", codes))
+    }
+
+    /**
+     * A language saved that the sheets do not list (left by another version, with a region or as files tag it) comes
+     * first among their languages by its two letters, shown chosen in both sheets as its row names it, and chosen again
+     * it stays; the player's choice and the app's add nothing.
+     */
+    @Test
+    fun aSavedLanguageNoSheetListsIsItsOwnOptionChosen() {
+        for ((saved, code) in mapOf("xx" to "xx", "ar-EG" to "ar", "ara" to "ar", "ice" to "is")) {
+            assertFalse("$code is not listed", code in codes)
+            val listed = trackCodes(saved, codes)
+            assertEquals(saved, listOf(code) + codes, listed)
+            assertEquals(saved, 2, audioOption(saved, listed))
+            assertEquals(saved, code, audioOf(2, listed))
+            assertEquals(saved, 1, subtitleLanguageOption(saved, listed))
+            assertEquals(saved, code, subtitleLanguageOf(1, listed))
+        }
+        for (saved in listOf(null, TrackPreferences.INTERFACE)) assertEquals("$saved", codes, trackCodes(saved, codes))
     }
 }

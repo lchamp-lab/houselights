@@ -1,7 +1,6 @@
 package app.houselights.ui.home
 
 import android.app.Application
-import android.os.Looper
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.IMAGE_MEMORY_BYTES
@@ -21,6 +20,7 @@ import app.houselights.ui.design.textScaleOf
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.waitOnMainLooper
 import coil.Coil
 import coil.EventListener
 import coil.ImageLoader
@@ -38,12 +38,10 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.util.IdentityHashMap
 import kotlin.math.roundToInt
@@ -141,18 +139,8 @@ class HomePicturesAheadTest {
         return loaded to asked.toList()
     }
 
-    /**
-     * Waits for [condition], running what Coil posts to the main thread, unseen by the test looper: the launch loads
-     * ahead on threads of its own, as it does in the app. Fails, saying [what] never happened, after [TIMEOUT_MS].
-     */
-    private fun waitFor(what: String, condition: () -> Boolean) {
-        val until = System.currentTimeMillis() + TIMEOUT_MS
-        while (!synchronized(asked, condition)) {
-            if (System.currentTimeMillis() > until) fail("Not after $TIMEOUT_MS ms: $what")
-            shadowOf(Looper.getMainLooper()).idle()
-            Thread.sleep(POLL_MS)
-        }
-    }
+    /** Waits for [condition], running what Coil posts to the main thread: the launch loads ahead on threads of its own, as in the app. */
+    private fun waitFor(what: String, condition: () -> Boolean) = waitOnMainLooper(what) { synchronized(asked, condition) }
 
     @Test
     fun theLaunchLoadsWhatTheGridShows() {
@@ -308,10 +296,5 @@ class HomePicturesAheadTest {
                 assertEquals("${ahead.key}: found in memory", DataSource.MEMORY_CACHE, it.from)
             }
         }
-    }
-
-    private companion object {
-        const val TIMEOUT_MS = 5_000L
-        const val POLL_MS = 10L
     }
 }

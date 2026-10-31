@@ -39,6 +39,7 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.film
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatDuration
@@ -102,11 +103,6 @@ class SagaPageTest {
         assertEquals("closed", dunePlan.closed.value, getUnclippedBoundsInRoot().width.value, 1f)
     }
 
-    private fun back() {
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
-    }
-
     private val left get() = compose.activity.isFinishing
 
     @Test
@@ -154,12 +150,12 @@ class SagaPageTest {
     fun backFromAPanelOpensTheSagaThenLeaves() {
         page()
         compose.press(Key.DirectionUp)
-        back()
+        compose.pressBack()
         resume.assertIsFocused()
         saga.isOpen()
         second.isClosed()
         assertFalse(left)
-        back()
+        compose.pressBack()
         assertTrue(left)
     }
 
@@ -169,12 +165,12 @@ class SagaPageTest {
         compose.press(Key.DirectionUp)
         compose.press(Key.DirectionDown)
         second.isOpen()
-        back()
+        compose.pressBack()
         resume.assertIsFocused()
         saga.isOpen()
         second.isClosed()
         assertFalse(left)
-        back()
+        compose.pressBack()
         assertTrue(left)
     }
 
@@ -184,10 +180,10 @@ class SagaPageTest {
         compose.press(Key.DirectionUp)
         compose.press(Key.DirectionLeft, times = 2)
         saga.assertIsFocused().isOpen()
-        back()
+        compose.pressBack()
         resume.assertIsFocused()
         assertFalse(left)
-        back()
+        compose.pressBack()
         assertTrue(left)
     }
 
