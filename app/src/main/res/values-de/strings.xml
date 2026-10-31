@@ -374,9 +374,9 @@
     <string name="subtitles_forced">Nur erzwungene</string>
     <string name="subtitles_forced_desc">Stellen in einer anderen Sprache</string>
     <string name="subtitles_auto">Automatisch</string>
-    <string name="subtitles_auto_desc">Vollständig, wenn der Ton nicht auf %1$s ist</string>
+    <string name="subtitles_auto_desc">Komplett, wenn der Ton nicht auf %1$s ist</string>
     <string name="subtitles_always">Immer</string>
-    <string name="subtitles_always_desc">Vollständig, auf %1$s</string>
+    <string name="subtitles_always_desc">Komplett, auf %1$s</string>
     <string name="subtitle_language">Untertitelsprache</string>
     <string name="subtitle_language_interface_desc">Die der Oberfläche</string>
     <string name="subtitle_language_desc">Für die angezeigten Untertitel</string>

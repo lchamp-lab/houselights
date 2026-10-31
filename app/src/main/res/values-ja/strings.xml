@@ -355,7 +355,7 @@
     <string name="tracks_for_all">すべての映画とTV番組に適用</string>
     <string name="tracks_per_title">映画ごとの選択は、作品ページの「音声と字幕」ボタンから設定できます。</string>
     <string name="tracks_player">プレーヤーに任せる</string>
-    <string name="tracks_player_desc">プレーヤーの設定、なければ最初のトラック</string>
+    <string name="tracks_player_desc">プレーヤー設定、なければ最初のトラック</string>
     <string name="audio_language">音声の言語</string>
     <string name="audio_language_desc">作品にその音声がある場合</string>
     <string name="audio_language_player_desc">プレーヤーの言語設定</string>

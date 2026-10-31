@@ -363,7 +363,7 @@
     <string name="tracks_for_all">Voor al uw films en series</string>
     <string name="tracks_per_title">Een film kan een eigen keuze houden: knop “Audio en ondertiteling” op zijn pagina.</string>
     <string name="tracks_player">Keuze van de speler</string>
-    <string name="tracks_player_desc">Zijn eigen instelling, anders het eerste spoor</string>
+    <string name="tracks_player_desc">Eigen instelling, anders het eerste spoor</string>
     <string name="audio_language">Audiotaal</string>
     <string name="audio_language_desc">Als de film dat spoor heeft</string>
     <string name="audio_language_player_desc">Zijn eigen taalinstelling</string>

@@ -102,27 +102,10 @@ class PaneRowLineTest {
         val cut = (panes + sheets + forms).mapNotNull { line ->
             val room = compose.onAllNodesWithText(line.text, useUnmergedTree = true).fetchSemanticsNodes().minOf { it.size.width }
             val width = widths.getValue(line.text)
-            (line.name to "${line.name}: $width > $room «${line.text}»").takeIf { width > room }
+            "${line.name}: $width > $room «${line.text}»".takeIf { width > room }
         }.distinct()
-        val known = if (scale > 1f) wrapsAtTheLargest else emptySet()
-        val unknown = cut.filter { (name, _) -> name !in known }.map { it.second }
-        assertTrue("At $scale, on two lines:\n" + unknown.joinToString("\n"), unknown.isEmpty())
-        val fixed = known - cut.map { it.first }.toSet()
-        assertTrue("At $scale, on one line now, out of wrapsAtTheLargest: ${fixed.joinToString()}", fixed.isEmpty())
+        assertTrue("At $scale, on two lines:\n" + cut.joinToString("\n"), cut.isEmpty())
     }
-
-    /**
-     * « Lecture »'s track lines that take two lines at Android's largest text size, found when they were first measured:
-     * their translations to shorten; each fails here once it fits.
-     */
-    private val wrapsAtTheLargest = setOf(
-        "de: subtitles_auto_desc",
-        "it: tracks_player_desc",
-        "ja: tracks_player_desc",
-        "nl: tracks_player_desc",
-        "pt: tracks_player_desc",
-        "pt: subtitles_auto_desc",
-    )
 
     private fun name(id: Int) = ApplicationProvider.getApplicationContext<Context>().resources.getResourceEntryName(id)
 
