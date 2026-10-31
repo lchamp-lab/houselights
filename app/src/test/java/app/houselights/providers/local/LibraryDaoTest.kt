@@ -150,6 +150,50 @@ class LibraryDaoTest {
         assertEquals("unwatched, favourite still", false to true, kept.played to kept.favorite)
     }
 
+    /** Dune's main row, its artwork chosen, and two copies grouped under it, the oldest first. */
+    private suspend fun dunes(): Triple<Long, Long, Long> {
+        val (main, older, newer) = listOf("Dune (2021)", "Dune (2021) 2160p", "Dune (2021) Remux").map { title ->
+            dao.insert(row(ItemKind.MOVIE, title).copy(tmdbId = DUNE))
+        }
+        dao.groupVersions()
+        dao.setUserPoster(main, "/chosen-poster.jpg")
+        dao.setUserBackdrop(main, "/chosen-backdrop.jpg")
+        dao.setUserLogo(main, "/chosen-logo.png")
+        return Triple(main, older, newer)
+    }
+
+    private suspend fun assertHolds(main: Long, choice: Long?) {
+        val held = checkNotNull(dao.item(main))
+        assertNull("the main row", held.versionOf)
+        assertEquals(
+            listOf("/chosen-poster.jpg", "/chosen-backdrop.jpg", "/chosen-logo.png", choice),
+            listOf(held.userPosterPath, held.userBackdropPath, held.userLogoPath, held.versionChoice),
+        )
+    }
+
+    /** A film's main row whose file went, its oldest copy holds the film with what was chosen on it, the copy to play too. */
+    @Test
+    fun aMainRowWhoseFileWentHandsItsChoicesToTheCopyLeft() = runTest {
+        val (main, older, newer) = dunes()
+        dao.setVersionChoice(main, newer)
+        dao.settleMissing(emptyList(), emptyList(), emptyList(), removed = listOf(main), parts = emptyList(), now = 1)
+        assertHolds(older, choice = newer)
+        assertEquals(older, dao.item(newer)?.versionOf)
+    }
+
+    /**
+     * Held rows removed together, the copy left holds the film with its artwork; the copy chosen gone with them, it
+     * plays the copy Lire picks ([VersionRank.played]).
+     */
+    @Test
+    fun heldRowsRemovedHandTheFilmToTheCopyLeft() = runTest {
+        val (main, older, newer) = dunes()
+        dao.setVersionChoice(main, older)
+        dao.setMissingSince(listOf(main, older), 1)
+        assertEquals(2, dao.removeHeld(listOf(main, older)))
+        assertHolds(newer, choice = null)
+    }
+
     /** A show left without episodes is kept by title, unless its folder is gone: removing a folder forgets its titles. */
     @Test
     fun anEmptyShowIsKeptUnlessItsFolderIsGone() = runTest {
