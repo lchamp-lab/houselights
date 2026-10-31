@@ -298,7 +298,9 @@ class TmdbClient(
         private const val ENGLISH = "en-US"
         private const val ENGLISH_CODE = "en"
         private val GATEWAY_FAILURES = setOf(502, 503, 504)
-        private const val UNREACHABLE_PAUSE_MS = 60_000L
+
+        /** How long a scan's client stops asking once TMDB was out of reach ([pauseWhenUnreachable]). */
+        internal const val UNREACHABLE_PAUSE_MS = 60_000L
 
         /** Cap on a buffered body; a film with cast and images is well under 1 MB. */
         private const val MAX_BODY_BYTES = 8L * 1024 * 1024

@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import app.houselights.providers.local.FakeRemoteBrowser.Companion.T1
 import app.houselights.providers.local.FakeRemoteBrowser.Companion.T2
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -13,7 +12,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -21,25 +19,21 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ScanShowSidecarsTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var shows: SourceEntity
     private val nas get() = bench.showsNas
     private val tmdb get() = bench.tmdb
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"))
         shows = bench.folder("Séries", SourceKind.SHOWS)
         tmdb.show(MOBLAND, "MobLand", 2025)
         tmdb.season(MOBLAND, 1, episodes = 10)
         tmdb.season(MOBLAND, 2, episodes = 10)
         nas.put(EPISODE)
     }
-
-    @After
-    fun close() = bench.close()
 
     private fun nfo(title: String) = "<tvshow><title>$title</title><uniqueid type=\"tmdb\">$MOBLAND</uniqueid></tvshow>"
 

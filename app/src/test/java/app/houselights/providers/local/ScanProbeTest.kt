@@ -2,13 +2,10 @@ package app.houselights.providers.local
 
 import app.houselights.core.MediaInfo
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -16,19 +13,11 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ScanProbeTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private val nas get() = bench.nas
     private val tmdb get() = bench.tmdb
-
-    @Before
-    fun open() {
-        bench = ScanBench(temp.newFolder("artwork"))
-    }
-
-    @After
-    fun close() = bench.close()
 
     /** The library as the previous probe version left it; [read] is what it made of each file. */
     private suspend fun readByAnOlderProbe(read: (MediaInfo) -> MediaInfo = { it }) = readBy(MediaProbe.VERSION - 1, read)
@@ -47,7 +36,7 @@ class ScanProbeTest {
     /** Dune, matched by the user, beside an NFO naming a film by IMDb id: a full read would ask TMDB each time. */
     private suspend fun duneMatchedByTheUser(): SourceEntity {
         val films = bench.folder("Films")
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
+        nas.put("Dune (2021).mkv", size = DUNE_SIZE, bytes = Matroska.sample())
         nas.putText("Dune (2021).nfo", "<movie><title>Dune : Première partie</title><id>tt1160419</id></movie>")
         tmdb.movie(438631, "Dune", 2021, imdbId = "tt1160419")
         bench.scan()
@@ -67,7 +56,7 @@ class ScanProbeTest {
         readByAnOlderProbe()
 
         val pass = bench.pass()
-        assertEquals("the video alone", setOf("Dune (2021).mkv"), pass.reads.toSet())
+        assertEquals("the video alone, as one probe reads it", probed("Dune (2021).mkv", DUNE_SIZE), pass.reads)
         assertEquals(emptyList<String>(), pass.requests)
         assertEquals("read the same: nothing to reload", 0, pass.changes)
         val dune = bench.item(films, "Dune (2021).mkv")
@@ -84,7 +73,7 @@ class ScanProbeTest {
         val pilot = "Severance/Season 1/Severance - S01E01.mkv"
         tmdb.show(95396, "Severance", 2022)
         tmdb.season(95396, 1, episodes = 2)
-        bench.showsNas.put(pilot, size = 4_000_000_000, bytes = Matroska.sample())
+        bench.showsNas.put(pilot, size = EPISODE_SIZE, bytes = Matroska.sample())
         val episodeNfo = "<episodedetails><title>Bonne nouvelle</title></episodedetails>"
         bench.showsNas.putText("Severance/Season 1/Severance - S01E01.nfo", episodeNfo)
         bench.showsNas.putText("Severance/tvshow.nfo", "<tvshow><title>Severance</title></tvshow>")
@@ -93,7 +82,7 @@ class ScanProbeTest {
 
         val pass = bench.pass()
         assertEquals(0, pass.changes)
-        assertEquals(setOf(pilot), pass.reads.toSet())
+        assertEquals(probed(pilot, EPISODE_SIZE), pass.reads)
         assertEquals(emptyList<String>(), pass.requests)
         val episode = bench.item(shows, pilot)
         assertEquals("Bonne nouvelle" to MediaProbe.VERSION, episode.title to episode.probeVersion)
@@ -106,14 +95,14 @@ class ScanProbeTest {
         val pilot = "Severance/Season 1/Severance - S01E01.mkv"
         tmdb.show(95396, "Severance", 2022)
         tmdb.season(95396, 1, episodes = 2)
-        bench.showsNas.put(pilot, size = 4_000_000_000, bytes = Matroska.sample())
+        bench.showsNas.put(pilot, size = EPISODE_SIZE, bytes = Matroska.sample())
         val nfo = { title: String -> "<tvshow><title>$title</title><uniqueid type=\"tmdb\">95396</uniqueid></tvshow>" }
         bench.showsNas.putText("Severance/tvshow.nfo", nfo("Severance"))
         bench.scan()
         readByAnOlderProbe()
         bench.showsNas.putText("Severance/tvshow.nfo", nfo("Severance : la série"))
 
-        assertEquals("each once", listOf(pilot, "Severance/tvshow.nfo"), bench.pass().reads.sorted())
+        assertEquals("each once", (probed(pilot, EPISODE_SIZE) + "Severance/tvshow.nfo").sorted(), bench.pass().reads.sorted())
         assertEquals(MediaProbe.VERSION, bench.item(shows, pilot).probeVersion)
         assertEquals("Severance : la série", bench.showOf(shows, pilot).title)
     }
@@ -143,8 +132,8 @@ class ScanProbeTest {
     @Test
     fun aLibraryTheReleasedProbeReadIsNotReadAgainForTheTracksOrder() = runTest {
         bench.folder("Films")
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
-        nas.put("Heat (1995).mkv", size = 30_000_000_000, bytes = Matroska.sample())
+        nas.put("Dune (2021).mkv", size = DUNE_SIZE, bytes = Matroska.sample())
+        nas.put("Heat (1995).mkv", size = FILM_SIZE, bytes = Matroska.sample())
         bench.scan()
         readBy(RELEASED_PROBE) { it.copy(tracksInOrder = false) }
 
@@ -155,12 +144,12 @@ class ScanProbeTest {
     @Test
     fun tracksFoundInTheFilesOrderReloadNothing() = runTest {
         val films = bench.folder("Films")
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
+        nas.put("Dune (2021).mkv", size = DUNE_SIZE, bytes = Matroska.sample())
         bench.scan()
         readByAnOlderProbe { it.copy(tracksInOrder = false) }
 
         val pass = bench.pass()
-        assertEquals(listOf("Dune (2021).mkv"), pass.reads.distinct())
+        assertEquals(probed("Dune (2021).mkv", DUNE_SIZE), pass.reads)
         assertEquals(0, pass.changes)
         assertTrue(MediaProbe.decode(bench.item(films, "Dune (2021).mkv").mediaInfo)?.tracksInOrder == true)
     }
@@ -169,14 +158,15 @@ class ScanProbeTest {
     @Test
     fun aNewFileIsReadBeforeTheFilesReadAgain() = runTest {
         val films = bench.folder("Films")
-        nas.put("Alien (1979).mkv", size = 30_000_000_000, bytes = Matroska.sample())
-        nas.put("Blade Runner (1982).mkv", size = 30_000_000_000, bytes = Matroska.sample())
+        nas.put("Alien (1979).mkv", size = FILM_SIZE, bytes = Matroska.sample())
+        nas.put("Blade Runner (1982).mkv", size = FILM_SIZE, bytes = Matroska.sample())
         bench.scan()
         readByAnOlderProbe()
-        nas.put("Zodiac (2007).mkv", size = 30_000_000_000, bytes = Matroska.sample())
+        nas.put("Zodiac (2007).mkv", size = FILM_SIZE, bytes = Matroska.sample())
 
-        val reads = bench.pass().reads.distinct()
-        assertEquals(listOf("Zodiac (2007).mkv", "Alien (1979).mkv", "Blade Runner (1982).mkv"), reads)
+        val reads = bench.pass().reads
+        val each = listOf("Zodiac (2007).mkv", "Alien (1979).mkv", "Blade Runner (1982).mkv").flatMap { probed(it, FILM_SIZE) }
+        assertEquals(each, reads)
         assertEquals(MediaProbe.VERSION, bench.item(films, "Alien (1979).mkv").probeVersion)
     }
 
@@ -184,7 +174,7 @@ class ScanProbeTest {
     @Test
     fun aFileReadOtherwiseIsShownAnew() = runTest {
         val films = bench.folder("Films")
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
+        nas.put("Dune (2021).mkv", size = DUNE_SIZE, bytes = Matroska.sample())
         bench.scan()
         readByAnOlderProbe { it.copy(video = it.video?.copy(codec = "VC-1")) }
 
@@ -192,7 +182,14 @@ class ScanProbeTest {
         assertEquals("HEVC", MediaProbe.decode(bench.item(films, "Dune (2021).mkv").mediaInfo)?.video?.codec)
     }
 
+    /** What one probe reads of the Matroska file at [path] of [size]. */
+    private suspend fun probed(path: String, size: Long) = oneProbesReads(path, size, Matroska.sample())
+
     private companion object {
+        const val DUNE_SIZE = 80_000_000_000
+        const val EPISODE_SIZE = 4_000_000_000
+        const val FILM_SIZE = 30_000_000_000
+
         /** The probe version of the libraries a released app left. */
         const val RELEASED_PROBE = 4
     }

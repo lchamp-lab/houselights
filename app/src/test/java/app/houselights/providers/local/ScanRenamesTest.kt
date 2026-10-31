@@ -1,37 +1,32 @@
 package app.houselights.providers.local
 
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /** Files renamed, moved, upgraded or replaced on the NAS: their rows keep what the user did; a file changed is read again. */
 @RunWith(RobolectricTestRunner::class)
 class ScanRenamesTest {
-    @get:Rule
-    val temp = TemporaryFolder()
-
     private val log = StatementLog()
-    private lateinit var bench: ScanBench
+
+    @get:Rule
+    val scan = ScanBenchRule(tmdbKey = false, onQuery = log)
+
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
     private val dao get() = bench.dao
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false, onQuery = log)
         films = bench.folder("Films")
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun filePaths() = bench.paths(films)
 

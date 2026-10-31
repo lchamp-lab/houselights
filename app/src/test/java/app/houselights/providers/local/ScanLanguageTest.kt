@@ -2,14 +2,12 @@ package app.houselights.providers.local
 
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.SocketTimeoutException
@@ -22,9 +20,9 @@ import java.util.Locale
 @RunWith(RobolectricTestRunner::class)
 class ScanLanguageTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private lateinit var shows: SourceEntity
 
@@ -38,7 +36,6 @@ class ScanLanguageTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"))
         films = bench.folder("Films")
         shows = bench.folder("Séries", SourceKind.SHOWS)
         bench.tmdb.movie(DUNE, "Dune", 2021)
@@ -52,9 +49,6 @@ class ScanLanguageTest {
         bench.tmdb.editMovie(DUNE) { it.copy(overview = "Arrakis") }
         bench.tmdb.editShow(SEVERANCE) { it.copy(overview = "Lumon") }
     }
-
-    @After
-    fun close() = bench.close()
 
     /** A launch: the app follows the language its settings hold, then its passes run. */
     private suspend fun launch() {

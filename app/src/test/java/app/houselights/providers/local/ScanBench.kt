@@ -7,8 +7,13 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.rules.TemporaryFolder
+import org.junit.rules.TestRule
+import org.junit.runner.Description
+import org.junit.runners.model.Statement
 import org.robolectric.shadows.ShadowSystemClock
 import java.io.File
 import java.net.ConnectException
@@ -21,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * [onQuery] sees each statement the library runs, with its bound values, on the thread that runs it.
  */
 class ScanBench(
-    artworkDir: File,
+    val artworkDir: File,
     tmdbKey: Boolean = true,
     onQuery: ((sql: String, args: List<Any?>) -> Unit)? = null,
 ) {
@@ -161,7 +166,7 @@ class ScanBench(
         tmdb.failure = null
         tmdb.status = null
         tmdb.failingPath = null
-        ShadowSystemClock.advanceBy(Duration.ofMillis(CLIENT_PAUSE_MS + 1))
+        ShadowSystemClock.advanceBy(Duration.ofMillis(TmdbClient.UNREACHABLE_PAUSE_MS + 1))
     }
 
     fun error(source: SourceEntity) = scanner.state.value.errors[source.id]?.kind
@@ -187,10 +192,45 @@ class ScanBench(
 
     companion object {
         const val START = 1_800_000_000_000L
-
-        /** How long the scans' client stops asking TMDB after a network failure (TmdbClient's own). */
-        private const val CLIENT_PAUSE_MS = 60_000L
     }
+}
+
+/** The reads one probe makes of a file at [path] of [size] starting with [bytes]: what a pass reading it once reads. */
+suspend fun oneProbesReads(path: String, size: Long, bytes: ByteArray): List<String> {
+    val alone = FakeRemoteBrowser().apply { put(path, size = size, bytes = bytes) }
+    MediaProbe.probe(nfsFolder(), RemoteFile(path, size), alone)
+    return alone.reads.toList()
+}
+
+/**
+ * A [ScanBench] for each test, as [ScanBench]'s arguments say, its artwork in a temporary folder of the test's own
+ * ([temp], where a test may make others), its passes cut short and its library closed after the test.
+ */
+class ScanBenchRule(
+    private val tmdbKey: Boolean = true,
+    private val onQuery: ((sql: String, args: List<Any?>) -> Unit)? = null,
+) : TestRule {
+    val temp = TemporaryFolder()
+    private var current: ScanBench? = null
+
+    val bench: ScanBench get() = checkNotNull(current) { "No bench outside a test" }
+
+    override fun apply(base: Statement, description: Description): Statement = temp.apply(
+        object : Statement() {
+            override fun evaluate() {
+                val bench = ScanBench(temp.newFolder("artwork"), tmdbKey, onQuery).also { current = it }
+                try {
+                    base.evaluate()
+                } finally {
+                    // A pass the test left running would go on over a closed library.
+                    runBlocking { bench.cancelScans() }
+                    bench.close()
+                    current = null
+                }
+            }
+        },
+        description,
+    )
 }
 
 /** What the library runs, as a [ScanBench]'s query callback: values bound per statement, transactions, SQL while [recording]. */

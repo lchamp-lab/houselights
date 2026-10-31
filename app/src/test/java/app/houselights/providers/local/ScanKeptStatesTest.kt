@@ -1,16 +1,13 @@
 package app.houselights.providers.local
 
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
@@ -22,22 +19,14 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 class ScanKeptStatesTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private val nas get() = bench.nas
     private val shows get() = bench.showsNas
     private val dao get() = bench.dao
     private val tmdb get() = bench.tmdb
     private val uhdNas = FakeRemoteBrowser()
-
-    @Before
-    fun open() {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
-    }
-
-    @After
-    fun close() = bench.close()
 
     private fun cached(path: String) = File(path.removePrefix("file://"))
 
