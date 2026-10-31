@@ -28,6 +28,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /** TMDB rate-limited (429) or gateway failure (502, 503, 504); retried once after [retryAfterMs]. */
 internal class TmdbBusyException(code: Int, val retryAfterMs: Long) : TmdbUnreachableException(null, "TMDB answered $code")
@@ -71,6 +72,15 @@ class TmdbClient(
         namingStrategy = JsonNamingStrategy.SnakeCase
     }
 
+    /** Requests TMDB answered, with an entry or with none (404). */
+    private val answered = AtomicLong()
+
+    /**
+     * How many requests TMDB answered so far, with an entry or with none: a question whose count did not move was
+     * answered without asking TMDB ([TmdbPass], [MovieIndexer.FilmCache]).
+     */
+    val answers: Long get() = answered.get()
+
     /** End of the pause ([pauseWhenUnreachable]) on the monotonic clock, so a clock set back cannot extend it. */
     @Volatile
     private var unreachableUntil = 0L
@@ -89,6 +99,7 @@ class TmdbClient(
      */
     private fun intercept(chain: Interceptor.Chain): Response {
         val response = answer(chain)
+        if (response.isSuccessful || response.code == HttpStatus.NOT_FOUND) answered.incrementAndGet()
         if (response.isSuccessful) return response
         val failure = when (val code = response.code) {
             HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN -> TmdbKeyRefusedException()

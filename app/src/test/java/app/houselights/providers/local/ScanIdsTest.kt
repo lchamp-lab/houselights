@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.FailureKind
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -66,6 +67,23 @@ class ScanIdsTest {
         assertEquals(listOf(DUNE, DUNE), (dao.filesOf(hd.id) + dao.filesOf(uhd.id)).map { it.tmdbId })
         assertEquals(listOf("movie/$DUNE"), pass.requests)
         assertEquals("a refresh asks again, once", listOf("movie/$DUNE"), bench.pass(refresh = true).requests)
+    }
+
+    /** A copy read from what the pass kept asks TMDB nothing: TMDB failing before it is still said once the pass ends. */
+    @Test
+    fun aFilmKeptForThePassDoesNotSayTmdbAnswered() = runTest {
+        bench.folder("Films")
+        bench.folder("Films 4K", on = nasUhd)
+        tmdb.movie(DUNE, "Dune", 2021)
+        tmdb.movie(ZETA, "Zeta", 2020)
+        nas.put("Dune (2021) {tmdb-438631}.mkv")
+        nas.put("Zeta (2020) {tmdb-2}.mkv")
+        nasUhd.put("Dune (2021) {tmdb-438631} 2160p.mkv")
+        tmdb.failingPath = "movie/$ZETA"
+        val pass = bench.pass()
+
+        assertEquals(listOf("movie/$DUNE", "movie/$ZETA"), pass.requests)
+        assertEquals(FailureKind.TMDB_UNREACHABLE, bench.scanner.state.value.tmdbIssue)
     }
 
     /** A copy TMDB did not answer for leaves the next copy to ask again, which keeps the answer. */
@@ -516,6 +534,7 @@ class ScanIdsTest {
     private companion object {
         const val DUNE = 438631
         const val LYNCH = 841
+        const val ZETA = 2
         const val PART_TWO = 693134
         const val DUNE_DRIFTER = 777
         const val COURGETTE = 1399
