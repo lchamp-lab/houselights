@@ -14,6 +14,7 @@ import app.houselights.ui.design.LaunchScreen
 import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -54,22 +55,17 @@ class QuitAgainTest {
         compose.waitForIdle()
     }
 
-    private fun back() {
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
-    }
-
     private val quits get() = compose.activity.isFinishing
 
     @Test
     fun aFirstBackSaysASecondQuits() {
         open()
-        back()
+        compose.pressBack()
         // Read out politely as it comes.
         compose.onNodeWithText(line).assertIsDisplayed()
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
         assertFalse("one Back never quits", quits)
-        back()
+        compose.pressBack()
         assertTrue(quits)
     }
 
@@ -78,10 +74,10 @@ class QuitAgainTest {
         open()
         compose.press(Key.DirectionRight)
         compose.press(Key.DirectionDown)
-        back()
+        compose.pressBack()
         compose.onNodeWithText(line).assertIsDisplayed()
         assertFalse(quits)
-        back()
+        compose.pressBack()
         assertTrue(quits)
     }
 
@@ -89,12 +85,12 @@ class QuitAgainTest {
     fun theLineGoesWhenItsTimeIsOutAndBackAsksAgain() {
         open()
         compose.mainClock.autoAdvance = false
-        back()
+        compose.pressBack()
         compose.mainClock.advanceTimeByFrame()
         compose.onNodeWithText(line).assertIsDisplayed()
         compose.mainClock.advanceTimeBy(QUIT_WINDOW_MS + FRAME_MS)
         compose.onNodeWithText(line).assertDoesNotExist()
-        back()
+        compose.pressBack()
         compose.mainClock.advanceTimeByFrame()
         compose.onNodeWithText(line).assertIsDisplayed()
         assertFalse("the first Back was too long ago", quits)
@@ -103,12 +99,12 @@ class QuitAgainTest {
     @Test
     fun theLineGoesAsSoonAsFocusMoves() {
         open()
-        back()
+        compose.pressBack()
         compose.onNodeWithText(line).assertIsDisplayed()
         // To another door it goes, and Back asks again.
         compose.press(Key.DirectionRight)
         compose.onNodeWithText(line).assertDoesNotExist()
-        back()
+        compose.pressBack()
         assertFalse(quits)
         compose.onNodeWithText(line).assertIsDisplayed()
     }
@@ -117,10 +113,10 @@ class QuitAgainTest {
     @Test
     fun onTheFirstScanTheLineSaysTheScanWillResume() {
         open(shown = HomeState(content = HomeContent.FirstScan, firstPass = true))
-        back()
+        compose.pressBack()
         compose.onNodeWithText(waits).assertIsDisplayed()
         assertFalse(quits)
-        back()
+        compose.pressBack()
         assertTrue(quits)
     }
 
@@ -128,7 +124,7 @@ class QuitAgainTest {
     @Test
     fun onTheGridWhileTheFirstPassRunsTheLineSaysTheScanWillResume() {
         open(shown = home.copy(firstPass = true))
-        back()
+        compose.pressBack()
         compose.onNodeWithText(waits).assertIsDisplayed()
         compose.onNodeWithText(line).assertDoesNotExist()
     }
@@ -136,7 +132,7 @@ class QuitAgainTest {
     @Test
     fun underTheLaunchScreenTheFirstBackQuitsWithoutTheLine() {
         open(Cover())
-        back()
+        compose.pressBack()
         assertTrue("nothing seen yet: Back quits", quits)
         compose.onNodeWithText(line).assertDoesNotExist()
     }
@@ -147,10 +143,10 @@ class QuitAgainTest {
         open(cover)
         // It lifts without home being composed again.
         cover.covers = false
-        back()
+        compose.pressBack()
         compose.onNodeWithText(line).assertIsDisplayed()
         assertFalse(quits)
-        back()
+        compose.pressBack()
         assertTrue(quits)
     }
 

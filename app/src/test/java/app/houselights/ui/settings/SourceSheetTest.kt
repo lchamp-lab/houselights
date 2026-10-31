@@ -12,11 +12,13 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
+import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -58,8 +60,8 @@ class SourceSheetTest {
             "2 dossiers sur votre NAS",
             "Jellyfin · léa · sans vous reconnecter",
             "Un autre serveur Jellyfin",
-            "Une autre adresse ou un autre compte",
-            "Houselights s’en déconnecte ici",
+            text(R.string.source_jellyfin_another_desc),
+            text(R.string.forget_server_desc),
         )
         row("NAS du salon").assertIsFocused()
         ok("NAS du salon")
@@ -72,7 +74,7 @@ class SourceSheetTest {
         ok("Oublier «${NB}NAS du salon$NB»")
         shows(
             "Oublier «${NB}NAS du salon$NB»$NB?",
-            "Houselights se déconnectera de ce serveur sur cet appareil. Pour le retrouver, il faudra vous reconnecter.",
+            text(R.string.forget_server_consequence),
         )
         assertEquals(emptyList<SourceChoice>(), chosen)
         ok("Oublier")
@@ -83,7 +85,7 @@ class SourceSheetTest {
     @Test
     fun onTheServerTheFoldersComeAtOnce() {
         show(salon, trakt = true)
-        shows("Le serveur reste connecté si vous changez", "2 dossiers · Trakt reprend", "Jellyfin · léa")
+        shows(text(R.string.change_source_jellyfin_sheet), "2 dossiers · Trakt reprend", "Jellyfin · léa")
         row("Mes fichiers").assertIsFocused()
         ok("Mes fichiers")
         assertEquals(listOf(SourceChoice.Folders(current = false, traktResumes = true)), chosen)
@@ -122,8 +124,7 @@ class SourceSheetTest {
         ok("Se déconnecter de «${NB}NAS du salon$NB»")
         shows(
             "Se déconnecter de «${NB}NAS du salon$NB»$NB?",
-            "Houselights oubliera ce serveur sur cet appareil$NB; vos dossiers prendront sa place. " +
-                "Pour le retrouver, il faudra vous reconnecter.",
+            text(R.string.sign_out_desc),
         )
         ok("Se déconnecter")
         assertEquals(listOf(SourceChoice.Leave(salon, current = true)), chosen)
@@ -135,8 +136,7 @@ class SourceSheetTest {
         show(salon, folders = 0)
         ok("Se déconnecter de «${NB}NAS du salon$NB»")
         shows(
-            "Houselights oubliera ce serveur sur cet appareil$NB; vous choisirez de nouveau votre bibliothèque. " +
-                "Pour le retrouver, il faudra vous reconnecter.",
+            text(R.string.sign_out_no_folder_desc),
         )
         ok("Se déconnecter")
         assertEquals(listOf(SourceChoice.Leave(salon, current = true)), chosen)
@@ -146,7 +146,7 @@ class SourceSheetTest {
     @Test
     fun withoutAKeptServerAServerIsSignedInTo() {
         show(SourceConfig.Local)
-        shows("La bibliothèque de votre serveur")
+        shows(text(R.string.source_jellyfin_desc))
         compose.onNodeWithText("Un autre serveur Jellyfin").assertDoesNotExist()
         ok("Serveur Jellyfin")
         assertEquals(listOf(SourceChoice.SignIn(another = false)), chosen)

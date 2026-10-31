@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
+import app.houselights.R
 import app.houselights.core.Identity
 import app.houselights.core.MatchCandidate
 import app.houselights.core.MatchDoubt
@@ -23,6 +24,7 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressOnRemote
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import app.houselights.ui.util.LibraryPlace
 import app.houselights.ui.util.LocalLibraryPlace
 import kotlinx.coroutines.CoroutineScope
@@ -97,7 +99,7 @@ class IdentifyScreenTest {
         show(identity(MatchDoubt.NOT_FOUND))
         compose.onNodeWithText("Not found on TMDB").assertExists()
         compose.onNodeWithText(
-            "Houselights could not recognize this title with certainty. Search for it on TMDB: your choice is kept by later scans.",
+            text(R.string.identify_desc_none),
         ).assertExists()
         button("Back to automatic").assertDoesNotExist()
         button("Leave as is").requestFocus()
@@ -112,8 +114,7 @@ class IdentifyScreenTest {
         show(identity(MatchDoubt.UNSURE))
         compose.onNodeWithText("Several possible titles").assertExists()
         compose.onNodeWithText(
-            "Houselights hesitates between these titles. Choose the right one, or search for it on TMDB: " +
-                "your choice is kept by later scans.",
+            text(R.string.identify_desc_unsure),
         ).assertExists()
         button("Leave as is").assertExists()
     }
@@ -134,7 +135,7 @@ class IdentifyScreenTest {
         show(identity(current = heat))
         compose.onNodeWithText("Identified").assertExists()
         compose.onNodeWithText(
-            "Search for the exact title on TMDB. Your choice takes precedence over automatic matching and is kept by later scans.",
+            text(R.string.identify_desc),
         ).assertExists()
         button("Leave as is").assertDoesNotExist()
         button("Back to automatic").assertDoesNotExist()

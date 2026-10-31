@@ -55,11 +55,11 @@ private fun AudioRow(tracks: TrackPreferences, app: Locale, onChoose: (String?) 
         onClick = { choosing = true },
     )
     if (choosing) {
-        val codes = trackLanguages.tags
+        val codes = trackCodes(tracks.audio, trackLanguages.tags)
         val options = listOf(
             ChoiceOption(stringResource(R.string.tracks_player), stringResource(R.string.audio_language_player_desc)),
             ChoiceOption(stringResource(R.string.interface_language), ownLanguage),
-        ) + trackLanguages.options(app)
+        ) + trackOptions(codes, app)
         HlChoiceSheet(
             title,
             options,
@@ -109,10 +109,10 @@ private fun SubtitleLanguageRow(tracks: TrackPreferences, app: Locale, onChoose:
         onClick = { choosing = true },
     )
     if (choosing) {
-        val codes = trackLanguages.tags
+        val codes = trackCodes(tracks.subtitleLanguage, trackLanguages.tags)
         HlChoiceSheet(
             title,
-            listOf(ChoiceOption(stringResource(R.string.interface_language), ownLanguage)) + trackLanguages.options(app),
+            listOf(ChoiceOption(stringResource(R.string.interface_language), ownLanguage)) + trackOptions(codes, app),
             selected = subtitleLanguageOption(tracks.subtitleLanguage, codes),
             onSelect = { onChoose(subtitleLanguageOf(it, codes)) },
             onDismiss = { choosing = false },
@@ -122,13 +122,32 @@ private fun SubtitleLanguageRow(tracks: TrackPreferences, app: Locale, onChoose:
 }
 
 /**
+ * The languages a sheet lists: [tags], after [saved]'s language when none of them is it (one left by another version,
+ * or with a region), so that the sheet shows chosen the language the row names, never twice.
+ */
+internal fun trackCodes(saved: String?, tags: List<String>): List<String> {
+    val code = saved?.takeUnless { it == TrackPreferences.INTERFACE }?.let(::trackCode)
+    return if (code == null || code in tags) tags else listOf(code) + tags
+}
+
+/** [saved]'s language as the sheets list languages: its two letters, Norwegian as files tag it ([trackLanguages]). */
+private fun trackCode(saved: String): String? = Languages.code(saved)?.let { if (it == BOKMAL) NORWEGIAN else it }
+
+/** The options of [codes], as [trackCodes] lists them: the saved language they add named as the others are. */
+private fun trackOptions(codes: List<String>, app: Locale): List<ChoiceOption> =
+    codes.dropLast(trackLanguages.tags.size).map { code ->
+        val itsOwn = trackLanguageName(code, Locale.forLanguageTag(code))
+        ChoiceOption(itsOwn, trackLanguageName(code, app).takeUnless { it.equals(itsOwn, ignoreCase = true) })
+    } + trackLanguages.options(app)
+
+/**
  * The audio sheet's option for [audio]: the player's choice (null) first, then the app's language
  * ([TrackPreferences.INTERFACE]), then each of [codes]; a language not among them shows the player's choice.
  */
 internal fun audioOption(audio: String?, codes: List<String>): Int = when (audio) {
     null -> PLAYER_OPTION
     TrackPreferences.INTERFACE -> INTERFACE_OPTION
-    else -> codes.indexOf(Languages.code(audio)).let { if (it < 0) PLAYER_OPTION else it + AUDIO_LANGUAGES }
+    else -> codes.indexOf(trackCode(audio)).let { if (it < 0) PLAYER_OPTION else it + AUDIO_LANGUAGES }
 }
 
 /** The audio asked for by the audio sheet's [option], in [audioOption]'s order. */
@@ -143,10 +162,14 @@ internal fun audioOf(option: Int, codes: List<String>): String? = when (option) 
  * language not among them shows the app's.
  */
 internal fun subtitleLanguageOption(language: String?, codes: List<String>): Int =
-    language?.let { codes.indexOf(Languages.code(it)) + SUBTITLE_LANGUAGES } ?: 0
+    language?.let { codes.indexOf(trackCode(it)) + SUBTITLE_LANGUAGES } ?: 0
 
 /** The subtitles' language asked for by that sheet's [option], in [subtitleLanguageOption]'s order. */
 internal fun subtitleLanguageOf(option: Int, codes: List<String>): String? = codes.getOrNull(option - SUBTITLE_LANGUAGES)
+
+/** Norwegian Bokmål's code, which the sheets list under Norwegian's, as files tag it. */
+private const val BOKMAL = "nb"
+private const val NORWEGIAN = "no"
 
 /** The audio sheet's first two options, before its languages. */
 private const val PLAYER_OPTION = 0

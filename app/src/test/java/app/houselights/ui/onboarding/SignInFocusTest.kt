@@ -1,13 +1,11 @@
 package app.houselights.ui.onboarding
 
-import android.content.Context
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.AuthRequest
 import app.houselights.providers.jellyfin.AuthResult
@@ -15,12 +13,8 @@ import app.houselights.providers.jellyfin.DiscoveredServer
 import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.PublicSystemInfo
 import app.houselights.providers.jellyfin.ServerCheck
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
-import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.Secret
@@ -30,11 +24,11 @@ import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.emptyFlow
@@ -112,7 +106,8 @@ class SignInFocusTest {
     @Test
     fun aFirstSignInWithoutServersStartsOnTheAddressAfterASecond() {
         signIn(Offline)
-        compose.mainClock.advanceTimeBy(FIRST_SERVER_WAIT_MS)
+        compose.mainClock.advanceTimeBy(FIRST_SERVER_MS)
+        compose.mainClock.advanceTimeByFrame()
         compose.waitForIdle()
         compose.onNode(isFocused()).assert(hasContentDescription("Server address"))
     }
@@ -131,12 +126,7 @@ class SignInFocusTest {
 
     /** The form of a folder on a NAS that refused to sign [user] in, opened to type its password again. */
     private fun folderRefused(user: String) {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        // The scan asked after a save never runs: it would go to the network.
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+        val library = idleLibrary(db.dao())
         val id = runBlocking {
             db.dao().insertSource(
                 SourceEntity(
@@ -179,10 +169,5 @@ class SignInFocusTest {
     fun signingInAgainWithoutAUserAsksForTheUserFirst() {
         signInAgain(null)
         compose.onNode(isFocused()).assert(hasContentDescription("User"))
-    }
-
-    private companion object {
-        /** Past the second the first focus waits for a server. */
-        const val FIRST_SERVER_WAIT_MS = 1_100L
     }
 }

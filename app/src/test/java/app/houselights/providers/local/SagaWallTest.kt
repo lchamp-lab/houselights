@@ -1,6 +1,5 @@
 package app.houselights.providers.local
 
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.CollectionThreshold
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
@@ -11,12 +10,11 @@ import app.houselights.core.Page
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -24,25 +22,23 @@ import org.robolectric.RobolectricTestRunner
 /** The films wall with each saga's films under its poster, and the sagas alone, filtered through their films. */
 @RunWith(RobolectricTestRunner::class)
 class SagaWallTest {
-    private lateinit var db: LibraryDatabase
-    private lateinit var dao: LibraryDao
-    private lateinit var provider: LocalProvider
-    private var source = 0L
     private var collectionMin = CollectionThreshold.TWO_FILMS
+
+    @get:Rule
+    val library = TestLibrary { collectionMin }
+    private val dao get() = library.dao
+    private val provider get() = library.provider
+
+    /** The folder films are added to: the library's, unless a test adds another. */
+    private var source = 0L
+
+    @Before
+    fun folder() {
+        source = library.source
+    }
 
     private val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
     private val sagas = Library(LocalProvider.COLLECTIONS, LibraryKind.COLLECTIONS, null)
-
-    @Before
-    fun open() = runBlocking {
-        db = testDatabase { allowMainThreadQueries() }
-        dao = db.dao()
-        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor) { collectionMin }
-        source = dao.insertSource(nfsFolder())
-    }
-
-    @After
-    fun close() = db.close()
 
     private suspend fun saga(name: String): Long =
         dao.insertCollection(CollectionEntity(matchKey = "name:${name.lowercase()}", name = name, sortTitle = name.lowercase()))

@@ -11,6 +11,7 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
+import app.houselights.R
 import app.houselights.core.MatchDoubt
 import app.houselights.core.UserState
 import app.houselights.ui.testing.FakeEvents
@@ -23,6 +24,7 @@ import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.season
 import app.houselights.ui.testing.series
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import app.houselights.ui.util.PlayOrigin
 import app.houselights.ui.util.PlaybackOutcome
 import kotlinx.coroutines.CoroutineScope
@@ -258,7 +260,7 @@ class DetailHeldTest {
         const val NB = Typography.nbsp
         const val PAGE = "page"
         const val REMOVE = "Remove from the library"
-        const val FIX = "Plug the NAS’s disk back in or remove this title."
+        val FIX: String get() = text(R.string.held_gone_fix)
         const val MINUTE = 60_000L
         const val HOUR = 60 * MINUTE
     }

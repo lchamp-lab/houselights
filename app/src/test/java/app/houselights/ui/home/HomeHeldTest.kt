@@ -10,6 +10,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import app.houselights.R
 import app.houselights.providers.local.Folder
 import app.houselights.providers.local.HeldRow
 import app.houselights.providers.local.ItemKind
@@ -20,6 +21,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import app.houselights.ui.util.FACT_GAP
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -108,13 +110,13 @@ class HomeHeldTest {
         open()
         openTheSheet()
         compose.onNode(hasText("Keep") and isFocused()).assertExists()
-        compose.onNodeWithText("Deletes nothing on the NAS, nor what you saw").assertExists()
+        compose.onNodeWithText(text(R.string.held_remove_desc)).assertExists()
         compose.onNodeWithText("Film 1${FACT_GAP}2001").assertExists()
         compose.onNodeWithText("Film 1 (2001)/Film 1 (2001).mkv").assertExists()
         compose.onNodeWithText("Film 10${FACT_GAP}2010").assertExists()
         compose.onNodeWithText("Film 11${FACT_GAP}2011").assertDoesNotExist()
         compose.onNodeWithText("And 2 more").assertExists()
-        val remove = compose.onNodeWithText("Deletes nothing on the NAS, nor what you saw").fetchSemanticsNode().boundsInRoot
+        val remove = compose.onNodeWithText(text(R.string.held_remove_desc)).fetchSemanticsNode().boundsInRoot
         val first = compose.onNodeWithText("Film 1${FACT_GAP}2001").fetchSemanticsNode().boundsInRoot
         assertTrue("the answers above the list", remove.bottom <= first.top)
     }

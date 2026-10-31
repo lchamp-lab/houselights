@@ -18,6 +18,7 @@ import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.testing.waitWithLooper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -70,7 +71,7 @@ class ServerFoundTest {
             JellyfinLoginViewModel(settings, SourceSwitcher({ settings.state.value }, { _, _ -> }, scope, signOut = { _, _ -> }), network)
         }
         compose.setTvContent { JellyfinLoginForm(vm) {} }
-        compose.waitUntil { vm.discovered.isNotEmpty() }
+        compose.waitWithLooper("a server found") { vm.discovered.isNotEmpty() }
         return vm
     }
 
@@ -104,7 +105,7 @@ class ServerFoundTest {
     @Test
     fun eachServerFoundSaysHowItWillBeReached() {
         val vm = fourServers()
-        compose.waitUntil { vm.checkOf(SALON) != ServerCheck.Checking }
+        compose.waitWithLooper("Salon checked") { vm.checkOf(SALON) != ServerCheck.Checking }
         compose.onNodeWithText("192.168.1.20:8920", useUnmergedTree = true).assertExists()
         compose.onNodeWithText("192.168.1.20:8096", useUnmergedTree = true).assertDoesNotExist()
         val states = listOf("Encrypted", "Not encrypted", "Checking…", "Not responding")
@@ -116,7 +117,7 @@ class ServerFoundTest {
     @Test
     fun theServerPickedSaysItsConnection() {
         val vm = fourServers()
-        compose.waitUntil { vm.checkOf(BUREAU) != ServerCheck.Checking }
+        compose.waitWithLooper("Bureau checked") { vm.checkOf(BUREAU) != ServerCheck.Checking }
         fun start(state: String) = compose.onNodeWithText(state, useUnmergedTree = true).getUnclippedBoundsInRoot().left
         val before = start("Encrypted")
         vm.choose(SALON)

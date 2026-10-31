@@ -17,7 +17,7 @@ import java.nio.ByteOrder
 
 /** What [MkvProbe] reads of a Matroska file's headers, tracks, first frames and tags. */
 class MkvProbeTest {
-    /** Files kept out of the repository (build/probe), read when present. */
+    /** Files kept out of the repository (build/probe), read when present: on the machine that keeps them, never in CI. */
     private val realFiles = File("../build/probe").takeIf { it.isDirectory } ?: File("build/probe")
 
     @Test
@@ -111,6 +111,22 @@ class MkvProbeTest {
         assertEquals("AVC", codecs(avc).first)
         // No header to read: no name, rather than a wrong one.
         assertEquals("?", codecs(element(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MS/VFW/FOURCC"))).first)
+    }
+
+    /**
+     * A file cut anywhere is read up to its end and no further: the probe says what it read, asks for more, or stops at
+     * the end of the bytes with its reader's own refusal (an element or integer past the end, a size it cannot read),
+     * which MediaProbe takes as a file it cannot read inside; never another failure, nor a loop.
+     */
+    @Test(timeout = 10_000)
+    fun aFileCutAnywhereIsReadNoFurtherThanItsEnd() {
+        val sample = Matroska.sample()
+        for (length in 0..sample.size) {
+            val failure = runCatching { MkvProbe.probe(sample.copyOf(length)) }.exceptionOrNull()
+            val stopped = failure is IndexOutOfBoundsException || failure is IllegalArgumentException || failure is IllegalStateException
+            assertTrue("cut at byte $length: $failure", failure == null || stopped)
+        }
+        assertTrue(MkvProbe.probe(sample) is MkvProbe.Result.Found)
     }
 
     @Test

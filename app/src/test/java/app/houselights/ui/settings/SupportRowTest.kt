@@ -13,12 +13,14 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import app.houselights.R
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,7 +55,7 @@ class SupportRowTest {
     fun theRowSaysWhatItOffers() {
         show()
         compose.onNodeWithText("Soutenir Houselights").assertExists()
-        compose.onNodeWithText("Offrez un café au projet, depuis votre téléphone.").assertExists()
+        compose.onNodeWithText(text(R.string.support_desc)).assertExists()
         compose.onNodeWithText(ADDRESS).assertDoesNotExist()
     }
 
@@ -63,7 +65,7 @@ class SupportRowTest {
         compose.press(Key.DirectionCenter)
         compose.onNodeWithContentDescription("Code QR").assertExists()
         compose.onNodeWithText(ADDRESS).assertExists()
-        compose.onNodeWithText("Scannez ce code avec votre téléphone pour ouvrir la page Ko-fi du projet.").assertExists()
+        compose.onNodeWithText(text(R.string.support_scan)).assertExists()
     }
 
     @Test

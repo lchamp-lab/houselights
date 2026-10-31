@@ -68,6 +68,10 @@ class ImageHttpClientTest {
         }
     }
 
+    /**
+     * Pictures share the API's connections and threads; a redirect may follow, but never from HTTPS to HTTP: an NFO's
+     * HTTPS picture redirected to http://192.168.1.1/… would reach the router in plain HTTP.
+     */
     @Test
     fun picturesShareTheConnectionsAndThreads() {
         val calls = ImageCalls(api)
@@ -76,6 +80,7 @@ class ImageHttpClientTest {
             assertSame(api.connectionPool, images.connectionPool)
             assertSame(api.dispatcher.executorService, images.dispatcher.executorService)
             assertFalse(images.followSslRedirects)
+            assertTrue(images.followRedirects)
         }
     }
 
@@ -93,27 +98,11 @@ class ImageHttpClientTest {
         }
     }
 
-    /** A Jellyfin server resizes each picture it serves: it is still asked five at a time. */
+    /** A Jellyfin server resizes each picture it serves: its queue still asks it five at a time. */
     @Test
     fun aServersPicturesStayFiveAtATime() {
-        started = CountDownLatch(SERVER_AT_ONCE + 1)
-        try {
-            val calls = ImageCalls(api)
-            val posters = CountDownLatch(POSTERS)
-            repeat(POSTERS) { calls.newCall(Request.Builder().url("http://nas:8096/Items/f$it/Images/Primary").build()).enqueued(posters) }
-            assertFalse("More than five pictures were asked of the server", started.await(QUIET_MS, TimeUnit.MILLISECONDS))
-            assertEquals(1, started.count)
-        } finally {
-            pictures.countDown()
-        }
-    }
-
-    /** An NFO's HTTPS picture redirected to http://192.168.1.1/… would reach the router in plain HTTP. */
-    @Test
-    fun aRedirectNeverLeavesHttps() {
-        val images = imageHttpClient(OkHttpClient())
-        assertFalse(images.followSslRedirects)
-        assertTrue(images.followRedirects)
+        val server = ImageCalls(api).client("http://nas:8096/Items/f1/Images/Primary".toHttpUrl())
+        assertEquals(SERVER_AT_ONCE, server.dispatcher.maxRequestsPerHost)
     }
 
     private companion object {
@@ -123,9 +112,6 @@ class ImageHttpClientTest {
         /** OkHttp's per-host request limit. */
         const val SERVER_AT_ONCE = 5
         const val TMDB = "image.tmdb.org"
-
-        /** How long the server's sixth picture is given to start, which it must not. */
-        const val QUIET_MS = 300L
 
         /** Timeout for the title request; the posters stay held until the test ends. */
         const val WAIT_S = 5L

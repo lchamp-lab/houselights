@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.content.Context
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -10,39 +9,29 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.SourceConfig
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FolderCounts
 import app.houselights.providers.local.ItemEntity
 import app.houselights.providers.local.ItemKind
 import app.houselights.providers.local.LibraryDao
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
-import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SettingsStore
-import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.design.rememberFocusMemory
-import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
 import app.houselights.ui.util.NBSP
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
@@ -104,7 +93,6 @@ class ShowcasesReadTest {
 
     @Before
     fun open() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
         // Room answers on the main thread, as in the app (FolderRemovalTest).
         db = testDatabase { onCallingThread() }
         val films = db.dao().insertSource(nfsFolder("Films", lastScanAt = System.currentTimeMillis() - THREE_HOURS_MS))
@@ -121,22 +109,12 @@ class ShowcasesReadTest {
                 ),
             )
         }
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        // No scan runs: it would go to the network.
-        val idle = CoroutineScope(Job().apply { cancel() })
         slow = Slow(db.dao())
-        val scanner = LibraryScanner(slow, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(context, slow, scanner, artwork) {}
+        val library = idleLibrary(slow)
         store = testSettings(folder.root, files)
         store.setSource(SourceConfig.Local, null)
         store.state.first { it.source == SourceConfig.Local }
-        val factory = viewModelFactory {
-            initializer {
-                val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> })
-                SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = null)
-            }
-        }
-        vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
+        vm = settingsModel(screens, store, library, work)
     }
 
     @After

@@ -5,6 +5,7 @@ import app.houselights.core.serverJson
 import app.houselights.testing.Answer
 import app.houselights.testing.FakeServer
 import app.houselights.testing.http
+import app.houselights.testing.json
 import app.houselights.ui.testing.waitFor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -18,10 +19,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Request
-import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -80,8 +79,7 @@ class TraktAccountTest {
 
     private fun answer(code: Int, body: String = ""): () -> Answer = { Answer(code, body) }
 
-    private fun body(request: Request): JsonObject =
-        Json.parseToJsonElement(Buffer().also { request.body!!.writeTo(it) }.readUtf8()).jsonObject
+    private fun body(request: Request): JsonObject = request.json()
 
     private fun JsonObject.text(key: String) = get(key)?.jsonPrimitive?.content
 
@@ -520,8 +518,7 @@ class TraktAccountTest {
             """"expires_in":600,"interval":5}"""
         const val TOKENS_JSON = """{"access_token":"a1","token_type":"bearer","expires_in":86400,"refresh_token":"r1",""" +
             """"scope":"public","created_at":1699990000}"""
-        const val RENEWED_JSON = """{"access_token":"a2","token_type":"bearer","expires_in":86400,"refresh_token":"r2",""" +
-            """"scope":"public","created_at":1700000000}"""
+        const val RENEWED_JSON = FakeTrakt.RENEWED
         const val SETTINGS_JSON = """{"user":{"username":"lea","private":false,"name":"Léa","vip":false,"ids":{"slug":"lea"}},""" +
             """"account":{"timezone":"Europe/Paris"}}"""
     }

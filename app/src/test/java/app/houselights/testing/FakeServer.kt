@@ -1,11 +1,15 @@
 package app.houselights.testing
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
 import java.util.Collections
 
 /** What a test server says to a request: a status, a body and headers. Throw an IOException for a network failure. */
@@ -37,3 +41,9 @@ class FakeServer(private val answer: (Request) -> Answer) {
     /** The paths requested, in order, such as "/Sessions/Playing/Stopped". */
     val paths: List<String> get() = synchronized(requests) { requests.map { it.url.encodedPath } }
 }
+
+/** The request's body as sent; empty without one. */
+fun Request.bodyText(): String = Buffer().also { body?.writeTo(it) }.readUtf8()
+
+/** The request's body, a JSON object. */
+fun Request.json(): JsonObject = Json.parseToJsonElement(bodyText()).jsonObject
