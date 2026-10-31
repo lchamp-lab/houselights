@@ -1,6 +1,5 @@
 package app.houselights.ui.onboarding
 
-import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsFocused
@@ -9,14 +8,9 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
-import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SourceEntity
@@ -24,11 +18,11 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
@@ -69,11 +63,7 @@ class FolderUnreadTest {
 
     @Test
     fun aFolderThatCannotBeReadSaysSoWithRetryInsteadOfItsForm() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+        val library = idleLibrary(db.dao())
         val id = runBlocking {
             db.dao().insertSource(
                 SourceEntity(

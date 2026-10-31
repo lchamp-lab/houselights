@@ -9,12 +9,14 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import app.houselights.R
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.keyInSheet
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import app.houselights.update.PermissionScreen
 import app.houselights.update.UpdateFailure
 import app.houselights.update.UpdateState
@@ -191,13 +193,13 @@ class UpdateSheetTest {
     fun onHomeLaterClosesItAsBackDoes() {
         val state = MutableStateFlow(updates())
         val controls = show(state, UpdateOrigin.Home)
-        compose.onNodeWithText("Une nouvelle version est disponible").assertExists()
+        compose.onNodeWithText(text(R.string.update_popup_title)).assertExists()
         compose.onNodeWithText("Version 0.4.1").assertExists()
         compose.onNodeWithText("Les sous-titres forcés sont de nouveau choisis.").assertExists()
         compose.onNodeWithText("Mettre à jour").assertIsFocused()
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.onNodeWithText("Plus tard").assertIsFocused()
-        compose.onNodeWithText("Vous la retrouverez dans Réglages, À propos").assertExists()
+        compose.onNodeWithText(text(R.string.update_later_desc)).assertExists()
         ok()
         assertFalse(open)
         assertEquals(emptyList<String>(), controls.actions)
@@ -232,12 +234,12 @@ class UpdateSheetTest {
     fun androidsSettingsAreOpenedToAllowTheInstall() {
         val state = MutableStateFlow(updates().copy(step = UpdateStep.NeedsPermission(PermissionScreen.APP)))
         val controls = show(state)
-        compose.onNodeWithText("Autorisation d’installer requise").assertExists()
+        compose.onNodeWithText(text(R.string.update_permission)).assertExists()
         compose.onNodeWithText(
-            "Dans les paramètres d’Android, autorisez Houselights à installer des applications, puis appuyez sur Retour.",
+            text(R.string.update_permission_how),
         ).assertExists()
         compose.onNodeWithText("Autoriser l’installation").assertIsFocused()
-        compose.onNodeWithText("Ouvre les paramètres d’Android").assertExists()
+        compose.onNodeWithText(text(R.string.update_allow_desc)).assertExists()
         ok()
         assertEquals(listOf("allow"), controls.actions)
     }
@@ -247,7 +249,7 @@ class UpdateSheetTest {
         val state = MutableStateFlow(updates().copy(step = UpdateStep.NeedsPermission(PermissionScreen.NONE)))
         show(state)
         compose.onNodeWithText(
-            "Ce lecteur n’ouvre pas le réglage d’Android qui autorise Houselights à installer des applications.",
+            text(R.string.update_no_screen),
         ).assertExists()
         val address = compose.onNodeWithText(RELEASES, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val adb = compose.onNodeWithText(ADB, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
@@ -297,10 +299,10 @@ class UpdateSheetTest {
         val state = MutableStateFlow(updates(offer = null).copy(failure = UpdateFailure.OFFLINE))
         val controls = show(state)
         compose.onNodeWithText("GitHub ne répond pas").assertExists()
-        compose.onNodeWithText("Vérifiez la connexion Internet du lecteur, puis réessayez.").assertExists()
+        compose.onNodeWithText(text(R.string.update_offline_message)).assertExists()
         compose.onNodeWithText("Version 0.4.0").assertExists()
         compose.onNodeWithText("Réessayer").assertIsFocused()
-        compose.onNodeWithText("Demande de nouveau à github.com").assertExists()
+        compose.onNodeWithText(text(R.string.update_retry_desc)).assertExists()
         ok()
         assertEquals(listOf("retry"), controls.actions)
     }
@@ -331,12 +333,12 @@ class UpdateSheetTest {
         val state = MutableStateFlow(updates().copy(step = UpdateStep.Ready))
         show(state)
         compose.onNodeWithText(
-            "Android vous demandera de confirmer. Votre bibliothèque, votre historique et vos réglages sont conservés.",
+            text(R.string.update_kept),
         ).assertExists()
-        compose.onNodeWithText("Fichier vérifié, signé par le projet").assertExists()
+        compose.onNodeWithText(text(R.string.update_install_desc)).assertExists()
         // Android 9: the app opens again once replaced.
         state.step(UpdateStep.Installing())
-        compose.onNodeWithText("Confirmez dans la fenêtre d’Android. Houselights se fermera puis se rouvrira.").assertExists()
+        compose.onNodeWithText(text(R.string.update_confirm_reopens)).assertExists()
     }
 
     @Test
@@ -354,7 +356,7 @@ class UpdateSheetTest {
         compose.onNodeWithText("À jour").assertExists()
         compose.onNodeWithText("Version 0.4.0").assertExists()
         compose.onNodeWithText("Rechercher maintenant").assertIsFocused()
-        compose.onNodeWithText("Demande à github.com la dernière version").assertExists()
+        compose.onNodeWithText(text(R.string.update_check_now_desc)).assertExists()
         ok()
         assertEquals(listOf("checkNow"), controls.actions)
         assertEquals("opened", controls.asked.first())

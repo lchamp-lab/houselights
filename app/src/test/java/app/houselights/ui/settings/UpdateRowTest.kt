@@ -15,6 +15,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.waitWithLooper
 import app.houselights.update.PermissionScreen
 import app.houselights.update.UpdateFailure
 import app.houselights.update.UpdateState
@@ -156,7 +157,7 @@ class UpdateRowTest {
         compose.onNodeWithText("Vous chercherez dans Mises à jour").assertExists()
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
-        waitUntil { !settings.store.state.value.updateCheck }
+        compose.waitWithLooper("the checks turned off, saved") { !settings.store.state.value.updateCheck }
         assertFalse(settings.store.state.value.updateCheck)
     }
 
@@ -169,26 +170,13 @@ class UpdateRowTest {
         compose.onNodeWithText("Plus tôt, avec leurs défauts").assertExists()
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
-        waitUntil { settings.store.state.value.updatePrereleases == true }
+        compose.waitWithLooper("the test versions, saved") { settings.store.state.value.updatePrereleases == true }
         assertEquals(true, settings.store.state.value.updatePrereleases)
-    }
-
-    /** Waits for [done], running what comes back to the main thread from DataStore's meanwhile, unseen by the test. */
-    private fun waitUntil(done: () -> Boolean) {
-        val until = System.currentTimeMillis() + WAIT_MS
-        while (!done()) {
-            check(System.currentTimeMillis() < until) { "Still waiting after $WAIT_MS ms" }
-            compose.waitForIdle()
-            Thread.sleep(POLL_MS)
-        }
-        compose.waitForIdle()
     }
 
     private companion object {
         const val MINUTE_MS = 60_000L
         const val HOUR_MS = 60 * MINUTE_MS
         const val DAY_MS = 24 * HOUR_MS
-        const val WAIT_MS = 5_000L
-        const val POLL_MS = 10L
     }
 }

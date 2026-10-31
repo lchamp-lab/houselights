@@ -236,7 +236,7 @@ class UpdaterTest {
     }
 
     @Test
-    fun githubsRateLimitWaitsUntilItsReset() = runTest {
+    fun aCheckWaitsWhileGithubAsksToWait() = runTest {
         val f = fixture()
         f.settings.value = AppSettings(loaded = true, updateCheck = false)
         f.source.failure = GithubStatusException(403, START + 20 * MINUTE)
@@ -425,6 +425,7 @@ class UpdaterTest {
         assertNull(f.updater.state.value.failure)
     }
 
+    /** A file not the project's is deleted, never handed to Android nor kept: the next try downloads the release again. */
     @Test
     fun aFileNotTheProjectsIsNeverHandedToAndroid() = runTest {
         val f = fixture()
@@ -434,6 +435,76 @@ class UpdaterTest {
         runCurrent()
         assertEquals(UpdateFailure.NOT_GENUINE, f.updater.state.value.failure)
         assertTrue(f.installer.installed.isEmpty())
+        assertEquals("the file deleted", emptyList<String>(), folder.root.resolve("updates").list().orEmpty().toList())
+
+        f.genuine(offer)
+        f.updater.update()
+        runCurrent()
+        assertEquals("downloaded again", 2, f.downloads.fetched)
+        assertEquals(1, f.installer.installed.size)
+    }
+
+    /**
+     * « Installer » again while Android still holds the first session abandons it for a new one; Android's answer for the
+     * one abandoned, which may come after, changes nothing: the new session's install stands.
+     */
+    @Test
+    fun aSessionAbandonedForANewOneIsNoLongerFollowed() = runTest {
+        val f = fixture()
+        f.offered()
+        f.updater.update()
+        runCurrent()
+        f.updater.onSessionStatus(1, PackageInstaller.STATUS_PENDING_USER_ACTION, null, Intent("confirm"))
+        f.updater.update()
+        runCurrent()
+        assertEquals("the first session abandoned, after the start's", 2, f.installer.abandons)
+        assertEquals(setOf(2), f.installer.held)
+
+        f.updater.onSessionStatus(1, PackageInstaller.STATUS_FAILURE_ABORTED, null, null)
+        f.updater.onSessionStatus(1, PackageInstaller.STATUS_FAILURE, "INSTALL_FAILED_ABORTED", null)
+        runCurrent()
+        assertEquals(UpdateStep.Installing(), f.updater.state.value.step)
+        assertNull(f.updater.state.value.failure)
+        assertEquals(Pending(1010, "0.4.1", START), f.store.read().pending)
+        f.updater.onSessionStatus(2, PackageInstaller.STATUS_PENDING_USER_ACTION, null, Intent("confirm"))
+        assertEquals("the new session's confirmation", 2, f.installer.confirmed.size)
+    }
+
+    /** Android refusing the session it was handed says why, the device full or not, and leaves nothing pending. */
+    @Test
+    fun aSessionAndroidRefusesSaysWhyAndLeavesNothingPending() = runTest {
+        val refusals = mapOf(
+            IOException("write failed: ENOSPC (No space left on device)") to UpdateFailure.STORAGE,
+            SecurityException("Session 1 is not owned by the app") to UpdateFailure.INSTALL_FAILED,
+        )
+        refusals.forEach { (thrown, failure) ->
+            val f = UpdaterFixture(this, folder.newFolder())
+            f.installer.failure = thrown
+            f.offered()
+            f.updater.update()
+            runCurrent()
+            assertEquals("$thrown", failure, f.updater.state.value.failure)
+            assertEquals("$thrown", UpdateStep.Idle, f.updater.state.value.step)
+            assertNull("Not said as « not installed » at the next start", f.store.read().pending)
+        }
+    }
+
+    /** Android finding the file invalid drops it, so « Réessayer » downloads it again; after another failure it is reused. */
+    @Test
+    fun onlyAnInvalidFileIsDownloadedAgain() = runTest {
+        val downloads = mapOf(PackageInstaller.STATUS_FAILURE_INVALID to 2, PackageInstaller.STATUS_FAILURE to 1)
+        downloads.forEach { (status, fetched) ->
+            val f = UpdaterFixture(this, folder.newFolder())
+            f.offered()
+            f.updater.update()
+            runCurrent()
+            f.updater.onSessionStatus(1, status, "INSTALL_FAILED_x", null)
+            runCurrent()
+            f.updater.retry()
+            runCurrent()
+            assertEquals("Status $status", fetched, f.downloads.fetched)
+            assertEquals("Status $status: handed to Android again", 2, f.installer.installed.size)
+        }
     }
 
     @Test

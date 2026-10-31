@@ -258,7 +258,7 @@ private fun loginState(busy: Boolean, failed: Boolean, found: Boolean): Int = wh
 }
 
 /** How long the sign-in's first focus waits for the first server found before going to the address. */
-private const val FIRST_SERVER_MS = 1_000L
+internal const val FIRST_SERVER_MS = 1_000L
 
 /** The product name a Jellyfin server reports. */
 private const val JELLYFIN = "Jellyfin Server"

@@ -154,6 +154,38 @@ class LocalEditorTest {
         assertTrue(offered.all { it.origin == ArtworkOrigin.ONLINE })
     }
 
+    /**
+     * A film's poster chosen is kept, and Automatique clears it; « Sans logo » over a logo of its own is kept as such; a
+     * poster chosen that TMDB no longer lists stays offered, next to Automatique, and selected.
+     */
+    @Test
+    fun aFilmsChoiceIsKeptAutomatiqueClearingIt() = runTest {
+        bench.tmdb.movie(949, "Heat", 1995)
+        val heat = film("Heat (1995)/Heat.mkv")
+        val id = heat.id.toLong()
+        bench.tmdb.imageSets[949] = TmdbImageSet(posters = pictures("fr").take(3), logos = pictures("fr").take(1))
+        val editor = editor(french())
+
+        val posters = editor.artwork(heat, ArtworkKind.POSTER)
+        val chosen = posters.options.last()
+        editor.setArtwork(heat, ArtworkKind.POSTER, chosen)
+        assertEquals(chosen.value, bench.dao.item(id)?.userPosterPath)
+        assertEquals(chosen, editor.artwork(heat, ArtworkKind.POSTER).selected)
+        editor.setArtwork(heat, ArtworkKind.POSTER, checkNotNull(posters.automatic))
+        assertNull("Automatique clears the choice", bench.dao.item(id)?.userPosterPath)
+
+        bench.dao.update(checkNotNull(bench.dao.item(id)).copy(logoPath = "/logo-949.png"))
+        val none = editor.artwork(heat, ArtworkKind.LOGO).options.single { it.origin == ArtworkOrigin.NONE }
+        editor.setArtwork(heat, ArtworkKind.LOGO, none)
+        assertEquals("", bench.dao.item(id)?.userLogoPath)
+        assertEquals(none, editor.artwork(heat, ArtworkKind.LOGO).selected)
+
+        bench.dao.setUserPoster(id, "/gone.jpg")
+        val gone = editor.artwork(heat, ArtworkKind.POSTER)
+        assertEquals("next to Automatique", "/gone.jpg", gone.options[1].value)
+        assertEquals("/gone.jpg", gone.selected?.value)
+    }
+
     /** Backdrops are offered without text first, then in the viewer's language and English, each its 30 best. */
     @Test
     fun backdropsOfferThoseWithoutTextFirst() = runTest {

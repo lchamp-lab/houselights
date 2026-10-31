@@ -41,6 +41,7 @@ import app.houselights.ui.design.components.FirstTitle
 import app.houselights.ui.design.components.labelX
 import app.houselights.ui.detail.Speaking
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatCount
@@ -194,8 +195,7 @@ class FirstScanLayoutTest {
 
     /** A first Back in [tag]: its line whole, on two lines at most, between the lockup and the tile, over the button. */
     private fun back(tag: String): List<String> {
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
+        compose.pressBack()
         val words = said(spoken(tag, R.string.first_scan_back_waits))
         val layout = layoutOf(words)
         val box = words.getUnclippedBoundsInRoot()

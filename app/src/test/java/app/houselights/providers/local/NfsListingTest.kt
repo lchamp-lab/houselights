@@ -31,6 +31,9 @@ class NfsListingTest {
         /** Handles the NAS no longer knows, by path: each refused once, like a file replaced since its lookup. */
         val stale = mutableSetOf<String>()
 
+        /** Files whose every handle the NAS refuses, however looked up: the mount itself is at fault. */
+        val alwaysStale = mutableSetOf<String>()
+
         private fun handle(path: String) = path.toByteArray()
 
         private fun children(dir: String) = items.keys.filter { it.substringBeforeLast('/', "") == dir && it.isNotEmpty() }.sorted()
@@ -55,6 +58,12 @@ class NfsListingTest {
             }
             // A NAS that ignores the cookie it is given answers the same page, never the last, at every request.
             if (path in looping) return NfsPage(entries, cookie = 2, verifier = 7, isLast = false)
+            // One that answers a page of nothing short of the end, or pages on past any folder's size.
+            if (path in emptyPages) return NfsPage(emptyList(), cookie = cookie + 1, verifier = 7, isLast = false)
+            if (path in endless) {
+                val more = List(perAnswer) { NfsEntry("Film ${cookie + it} (2000).mkv", null, null) }
+                return NfsPage(more, cookie = cookie + perAnswer, verifier = 7, isLast = false)
+            }
             val next = cookie + answered.size
             return NfsPage(entries, next, verifier = 7, isLast = next >= all.size)
         }
@@ -72,7 +81,7 @@ class NfsListingTest {
 
         override fun read(file: ByteArray, offset: Long, length: Int): ByteArray {
             val path = String(file)
-            if (stale.remove(path)) throw NfsException(NfsStatus.NFS3ERR_STALE, "read error code: NfsStatus:70")
+            if (stale.remove(path) || path in alwaysStale) throw NfsException(NfsStatus.NFS3ERR_STALE, "read error code: NfsStatus:70")
             // An NFSv3 server reads no symbolic link.
             if (items[path]?.link != null) throw NfsException(NfsStatus.NFS3ERR_INVAL, "read error code: NfsStatus:22")
             read += "/$path"
@@ -100,6 +109,12 @@ class NfsListingTest {
 
     /** Folders whose every answer gives the same cookie, never the last ([Export.readdirplus]). */
     private val looping = mutableSetOf<String>()
+
+    /** Folders answered with a page of nothing, never the last. */
+    private val emptyPages = mutableSetOf<String>()
+
+    /** Folders whose pages never end, each with new entries. */
+    private val endless = mutableSetOf<String>()
 
     private fun folder(path: String) {
         items[path] = Item(isFolder = true)
@@ -134,10 +149,13 @@ class NfsListingTest {
         file("Sicario (2015).mp4", size = 9_000_000_000, date = 1_700_000_000_000)
     }
 
+    /** A listing gives each video and sidecar its size and date, and counts its videos as it finds them (RemoteWalkTest). */
     @Test
     fun aListingGivesWhatEachFileIsItsSizeAndItsDate() = runTest {
         library()
-        val listing = browser(Export()).list(films)
+        val counted = mutableListOf<Int>()
+        val listing = browser(Export()).list(films) { counted += it }
+        assertEquals("Arrival, Dune, Sicario", listOf(1, 2, 3), counted)
         assertEquals(
             listOf(
                 "Arrival (2016)/Arrival (2016).mkv" to 30_000_000_000L,
@@ -152,20 +170,6 @@ class NfsListingTest {
             listing.sidecars.map { it.relativePath to it.lastModified },
         )
         assertEquals(emptyList<String>(), listing.unreadable)
-    }
-
-    /** An export's listing counts its videos as it finds them, about a request a folder: a disc once, a trailer never. */
-    @Test
-    fun aListingCountsItsVideosAsItFindsThem() = runTest {
-        library()
-        file("Dune (2021)/Dune (2021)-trailer.mkv", size = 1_000_000)
-        listOf("Heat (1995)", "Heat (1995)/BDMV", "Heat (1995)/BDMV/STREAM").forEach(::folder)
-        file("Heat (1995)/BDMV/STREAM/00000.m2ts", size = 1_000_000)
-        file("Heat (1995)/BDMV/STREAM/00001.m2ts", size = 40_000_000_000)
-        val counted = mutableListOf<Int>()
-        val listing = browser(Export()).list(films) { counted += it }
-        assertEquals("Arrival, Dune, Heat's disc, Sicario", listOf(1, 2, 3, 4), counted)
-        assertEquals(6, listing.videos.size)
     }
 
     /** One request per folder, where READDIR then LOOKUP and GETATTR per entry would take about three per file. */
@@ -231,6 +235,22 @@ class NfsListingTest {
         assertEquals(listOf("Dune (2021)"), listing.unreadable)
         assertEquals(listOf("Arrival (2016)/Arrival (2016).mkv", "Sicario (2015).mp4"), listing.videos.map { it.relativePath })
         assertEquals("asked again once", 2, export.asked.count { it.startsWith("READDIRPLUS /Dune (2021)") })
+    }
+
+    /**
+     * A NAS paging a folder without end, a page of nothing short of its end or pages past any folder's size: that folder
+     * is passed over and named, the rest listed, and no more is asked of it past the most a folder may hold.
+     */
+    @Test
+    fun aFolderPagedWithoutEndIsPassedOver() = runTest {
+        library()
+        emptyPages += "Dune (2021)"
+        endless += "Arrival (2016)"
+        val export = Export(perAnswer = 1_000)
+        val listing = browser(export).list(films)
+        assertEquals(listOf("Arrival (2016)", "Dune (2021)"), listing.unreadable.sorted())
+        assertEquals(listOf("Sicario (2015).mp4"), listing.videos.map { it.relativePath })
+        assertEquals("asked past 100,000 entries, no further", 101, export.asked.count { it.startsWith("READDIRPLUS /Arrival (2016)") })
     }
 
     /**
@@ -365,6 +385,25 @@ class NfsListingTest {
         assertEquals(listOf("/Dune (2021)/movie.nfo", "/Dune (2021)/poster.jpg"), export.read)
         assertEquals(2, export.asked.count { it == "LOOKUP /Dune (2021)" })
         assertEquals(1, mounts)
+    }
+
+    /**
+     * A file refused again once looked up anew: the mount is at fault, so the read is tried once more on a mount of its
+     * own; refused there too, it fails, and neither mount is kept: the next read mounts the export again.
+     */
+    @Test
+    fun aFileRefusedAgainOnceLookedUpMountsTheExportAgain() = runTest {
+        library()
+        val export = Export()
+        val nas = browser(export)
+        nas.readPrefix(films, "Sicario (2015).mp4", 16)
+        export.alwaysStale += "Sicario (2015).mp4"
+        val refused = runCatching { nas.readPrefix(films, "Sicario (2015).mp4", 16) }.exceptionOrNull()
+        assertTrue("$refused", refused != null && NfsBrowser.isStale(refused))
+        assertEquals("tried once more on a new mount", 2, mounts)
+        export.alwaysStale.clear()
+        nas.readPrefix(films, "Sicario (2015).mp4", 16)
+        assertEquals(3, mounts)
     }
 
     /** A dropped mount (scan over, folder address changed) drops its handles: the next read looks the file up. */

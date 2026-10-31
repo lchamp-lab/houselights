@@ -142,11 +142,14 @@ internal class FakeDownloads(private val dir: File) : Downloads {
     }
 }
 
-/** Android's installer as a test sets it: allowed or not, its settings screens, the sessions it holds. */
+/** Android's installer as a test sets it: allowed or not, its settings screens, the sessions it holds, a session it refuses. */
 internal class FakeInstaller : Installer {
     var allowed = true
     var screen = PermissionScreen.APP
     var opens = true
+
+    /** Thrown once the session is written, before Android takes it, as a session Android refuses. */
+    var failure: Throwable? = null
     val opened = mutableListOf<PermissionScreen>()
     val installed = mutableListOf<File>()
     val held = mutableSetOf<Int>()
@@ -170,6 +173,7 @@ internal class FakeInstaller : Installer {
     override suspend fun install(apk: File, beforeCommit: suspend (session: Int) -> Unit): Int {
         val id = next++
         beforeCommit(id)
+        failure?.let { throw it }
         pendingAtCommit = store?.read()?.pending
         held += id
         installed += apk

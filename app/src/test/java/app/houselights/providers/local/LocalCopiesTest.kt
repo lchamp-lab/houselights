@@ -1,6 +1,5 @@
 package app.houselights.providers.local
 
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.AudioTrack
 import app.houselights.core.Catalog
 import app.houselights.core.Library
@@ -15,13 +14,11 @@ import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.VideoInfo
 import app.houselights.core.WatchStatus
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -32,47 +29,13 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class LocalCopiesTest {
-    private lateinit var db: LibraryDatabase
-    private lateinit var dao: LibraryDao
-    private lateinit var provider: LocalProvider
-    private lateinit var catalog: Catalog
-    private var source = 0L
+    @get:Rule
+    val library = TestLibrary()
+    private val dao get() = library.dao
+    private val provider get() = library.provider
+    private val catalog: Catalog get() = library.provider.catalog
 
     private val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
-
-    @Before
-    fun open() = runBlocking {
-        db = testDatabase { allowMainThreadQueries() }
-        dao = db.dao()
-        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor) { 2 }
-        catalog = provider.catalog
-        source = dao.insertSource(nfsFolder())
-    }
-
-    @After
-    fun close() = db.close()
-
-    @Suppress("LongParameterList") // One per column a test sets.
-    private suspend fun film(
-        title: String,
-        year: Int? = 2020,
-        tmdbId: Int? = null,
-        path: String = "$title.mkv",
-        badges: List<String> = emptyList(),
-        collectionId: Long? = null,
-        played: Boolean = false,
-        lastPlayedAt: Long? = null,
-        positionMs: Long = 0,
-        runtimeMin: Int? = null,
-        media: MediaInfo? = null,
-    ): Long = dao.insert(
-        ItemEntity(
-            kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = MetadataMerge.sortKey(title), year = year,
-            tmdbId = tmdbId, filePath = path, badges = badges, collectionId = collectionId, played = played,
-            lastPlayedAt = lastPlayedAt, positionMs = positionMs, runtimeMin = runtimeMin, addedAt = 0, matchedAt = 1,
-            mediaInfo = media?.let(MediaProbe::encode),
-        ),
-    )
 
     private fun item(id: Long) = MediaItem(id.toString(), MediaKind.MOVIE, "")
 
@@ -95,8 +58,8 @@ class LocalCopiesTest {
      */
     @Test
     fun aFilmInCopiesIsHeldAsTheCopyLirePlays() = runTest {
-        val first = film("Heat", 1995, tmdbId = 949, path = "Heat.1080p.mkv", badges = listOf("1080p"))
-        val uhd = film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
+        val first = library.film("Heat", 1995, tmdbId = 949, path = "Heat.1080p.mkv", badges = listOf("1080p"))
+        val uhd = library.film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
         dao.groupVersions()
         suspend fun heldSince() = provider.item(first.toString()).missingSince
         suspend fun wall() = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 10).items.map { it.missingSince }
@@ -124,10 +87,10 @@ class LocalCopiesTest {
     @Test
     fun aFilmInCopiesIsStartedAsTheCopyLirePlays() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:8091", tmdbId = 8091, name = "Alien", sortTitle = "alien"))
-        film("Alien", 1979, tmdbId = 348, collectionId = saga, played = true)
+        library.film("Alien", 1979, tmdbId = 348, collectionId = saga, played = true)
         // Found first, the 1080p copy holds the film; the 4K one, better, is the one Lire plays.
-        val first = film("Aliens", 1986, tmdbId = 679, collectionId = saga, badges = listOf("1080p"), runtimeMin = 137)
-        val best = film("Aliens", 1986, tmdbId = 679, path = "Aliens 2160p.mkv", collectionId = saga, badges = listOf("4K"))
+        val first = library.film("Aliens", 1986, tmdbId = 679, collectionId = saga, badges = listOf("1080p"), runtimeMin = 137)
+        val best = library.film("Aliens", 1986, tmdbId = 679, path = "Aliens 2160p.mkv", collectionId = saga, badges = listOf("4K"))
         dao.groupVersions()
         LocalReporter(dao, best).progress(positionMs = 2_400_000, durationMs = 9_240_000, paused = false)
 
@@ -159,10 +122,10 @@ class LocalCopiesTest {
     @Test
     fun aFilmWatchedStaysWatchedOnceABetterCopyComes() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:726871", tmdbId = 726871, name = "Dune", sortTitle = "dune"))
-        film("Dune", 2021, tmdbId = 438631, badges = listOf("1080p"), played = true, collectionId = saga)
-        val next = film("Dune Part Two", 2024, tmdbId = 693134, collectionId = saga)
+        library.film("Dune", 2021, tmdbId = 438631, badges = listOf("1080p"), played = true, collectionId = saga)
+        val next = library.film("Dune Part Two", 2024, tmdbId = 693134, collectionId = saga)
         // Added once Dune was watched, the 4K copy comes unwatched, and is the one Lire plays.
-        film("Dune", 2021, tmdbId = 438631, path = "Dune 2160p.mkv", badges = listOf("4K"), collectionId = saga)
+        library.film("Dune", 2021, tmdbId = 438631, path = "Dune 2160p.mkv", badges = listOf("4K"), collectionId = saga)
         dao.groupVersions()
 
         suspend fun page(status: WatchStatus) =
@@ -183,15 +146,15 @@ class LocalCopiesTest {
     @Test
     fun reprendreShowsAFilmInCopiesOnceAsItsWallsDo() = runTest {
         // Both copies of Heat started, the 1080p one last: Lire plays it, though the 4K one is better.
-        val heat = film("Heat", 1995, tmdbId = 949, badges = listOf("1080p"), positionMs = 600_000, lastPlayedAt = 300)
-        film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), positionMs = 2_400_000, lastPlayedAt = 200)
+        val heat = library.film("Heat", 1995, tmdbId = 949, badges = listOf("1080p"), positionMs = 600_000, lastPlayedAt = 300)
+        library.film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), positionMs = 2_400_000, lastPlayedAt = 200)
         // Ronin's 1080p copy alone started: Lire resumes it rather than its 4K one from the start.
-        film("Ronin", 1998, tmdbId = 8195, badges = listOf("1080p"), positionMs = 900_000, lastPlayedAt = 400)
-        film("Ronin", 1998, tmdbId = 8195, path = "Ronin.2160p.mkv", badges = listOf("4K"))
+        library.film("Ronin", 1998, tmdbId = 8195, badges = listOf("1080p"), positionMs = 900_000, lastPlayedAt = 400)
+        library.film("Ronin", 1998, tmdbId = 8195, path = "Ronin.2160p.mkv", badges = listOf("4K"))
         // Collateral watched in 1080p, then its 4K copy, added after, started.
-        film("Collateral", 2004, tmdbId = 1538, badges = listOf("1080p"), played = true, lastPlayedAt = 50)
-        film("Collateral", 2004, tmdbId = 1538, path = "Collateral.2160p.mkv", badges = listOf("4K"), positionMs = 1_200_000)
-        film("Thief", 1981, positionMs = 60_000, lastPlayedAt = 100)
+        library.film("Collateral", 2004, tmdbId = 1538, badges = listOf("1080p"), played = true, lastPlayedAt = 50)
+        library.film("Collateral", 2004, tmdbId = 1538, path = "Collateral.2160p.mkv", badges = listOf("4K"), positionMs = 1_200_000)
+        library.film("Thief", 1981, positionMs = 60_000, lastPlayedAt = 100)
         dao.groupVersions()
 
         val resumed = continueRow()
@@ -214,8 +177,8 @@ class LocalCopiesTest {
     @Test
     fun aFilmStartedOnItsOnlyCopyResumesItOnceABetterCopyComes() = runTest {
         // Watched 40 minutes while it was alone, the 1080p copy; then the 4K one, better, comes and is grouped with it.
-        val first = film("Heat", tmdbId = 949, badges = listOf("1080p"), positionMs = 2_400_000, lastPlayedAt = 100)
-        val uhd = film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
+        val first = library.film("Heat", tmdbId = 949, badges = listOf("1080p"), positionMs = 2_400_000, lastPlayedAt = 100)
+        val uhd = library.film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
         dao.groupVersions()
 
         assertEquals(listOf(first.toString()), continueRow().map { it.id })
@@ -240,9 +203,9 @@ class LocalCopiesTest {
     @Test
     fun ofTwoCopiesStartedTheOnePlayedLastPlays() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:8091", tmdbId = 8091, name = "Alien", sortTitle = "alien"))
-        film("Alien", 1979, tmdbId = 348, collectionId = saga, played = true, lastPlayedAt = 50)
+        library.film("Alien", 1979, tmdbId = 348, collectionId = saga, played = true, lastPlayedAt = 50)
         // The 1080p copy stopped at 10 minutes after the 4K one, better, at 40.
-        val first = film(
+        val first = library.film(
             "Aliens",
             1986,
             tmdbId = 679,
@@ -252,7 +215,7 @@ class LocalCopiesTest {
             positionMs = 600_000,
             lastPlayedAt = 300,
         )
-        val uhd = film(
+        val uhd = library.film(
             "Aliens",
             1986,
             tmdbId = 679,
@@ -286,8 +249,8 @@ class LocalCopiesTest {
     /** A copy chosen in Versions plays, from its own resume point, though another copy is started: a choice comes first. */
     @Test
     fun aCopyChosenInVersionsPlaysThoughAnotherIsStarted() = runTest {
-        val first = film("Heat", tmdbId = 949, badges = listOf("1080p"), positionMs = 2_400_000, lastPlayedAt = 100)
-        val uhd = film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
+        val first = library.film("Heat", tmdbId = 949, badges = listOf("1080p"), positionMs = 2_400_000, lastPlayedAt = 100)
+        val uhd = library.film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
         dao.groupVersions()
         // Started, the 1080p copy plays where it stopped, though the 4K one is better, until the 4K one is chosen.
         assertEquals(2_400_000L, launch(first).startMs)
@@ -316,8 +279,8 @@ class LocalCopiesTest {
     fun aFilmInCopiesShowsTheFormatsOfTheCopyLirePlays() = runTest {
         val hd = MediaInfo(video = VideoInfo("AVC", 1920, 1080), audio = listOf(AudioTrack("DTS-HD MA", 6, "fre")))
         val uhd = MediaInfo(video = VideoInfo("HEVC", 3840, 2160), audio = listOf(AudioTrack("TrueHD", 8, "eng", atmos = true)))
-        val first = film("Heat", tmdbId = 949, path = "Heat.mkv", badges = listOf("1080p"), media = hd)
-        val best = film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), media = uhd)
+        val first = library.film("Heat", tmdbId = 949, path = "Heat.mkv", badges = listOf("1080p"), media = hd)
+        val best = library.film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), media = uhd)
         dao.groupVersions()
 
         val page = provider.item(first.toString())
@@ -338,8 +301,8 @@ class LocalCopiesTest {
     @Test
     fun withNoCopyStartedTheBestPlays() = runTest {
         // The 1080p copy, opened last, was left before a resume point was kept.
-        val first = film("Heat", tmdbId = 949, badges = listOf("1080p"), lastPlayedAt = 300)
-        val uhd = film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
+        val first = library.film("Heat", tmdbId = 949, badges = listOf("1080p"), lastPlayedAt = 300)
+        val uhd = library.film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"))
         dao.groupVersions()
 
         val plan = launch(first)
@@ -354,8 +317,8 @@ class LocalCopiesTest {
     @Test
     fun aFilmWatchedOnACopyLeavesReprendreThoughAnotherIsStarted() = runTest {
         // The 1080p copy stopped at 40 minutes; the 4K one, found apart, was watched to its end before both were grouped.
-        val first = film("Heat", tmdbId = 949, badges = listOf("1080p"), positionMs = 2_400_000, lastPlayedAt = 100)
-        film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), played = true, lastPlayedAt = 200)
+        val first = library.film("Heat", tmdbId = 949, badges = listOf("1080p"), positionMs = 2_400_000, lastPlayedAt = 100)
+        library.film("Heat", tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), played = true, lastPlayedAt = 200)
         dao.groupVersions()
 
         assertEquals(emptyList<MediaItem>(), continueRow())
@@ -371,10 +334,11 @@ class LocalCopiesTest {
     @Test
     fun aSagaCountsAFilmWatchedOnAnyCopy() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:1575", tmdbId = 1575, name = "Rocky", sortTitle = "rocky"))
-        film("Rocky", 1976, tmdbId = 1366, collectionId = saga, played = true)
+        library.film("Rocky", 1976, tmdbId = 1366, collectionId = saga, played = true)
         // Rocky II's 4K copy was watched before its 1080p copy, found first, was known as the same film.
-        val second = film("Rocky II", 1979, tmdbId = 1367, badges = listOf("1080p"), collectionId = saga)
-        film("Rocky II", 1979, tmdbId = 1367, path = "Rocky II.2160p.mkv", badges = listOf("4K"), collectionId = saga, played = true)
+        val second = library.film("Rocky II", 1979, tmdbId = 1367, badges = listOf("1080p"), collectionId = saga)
+        val uhd = "Rocky II.2160p.mkv"
+        library.film("Rocky II", 1979, tmdbId = 1367, path = uhd, badges = listOf("4K"), collectionId = saga, played = true)
         dao.groupVersions()
 
         val sagas = Library(LocalProvider.COLLECTIONS, LibraryKind.COLLECTIONS, null)
@@ -392,9 +356,9 @@ class LocalCopiesTest {
     @Test
     fun upNextOffersAFilmStartedOnACopyLireDoesNotPlay() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:31562", tmdbId = 31562, name = "Bourne", sortTitle = "bourne"))
-        film("The Bourne Identity", 2002, tmdbId = 2501, collectionId = saga, played = true, lastPlayedAt = 100)
+        library.film("The Bourne Identity", 2002, tmdbId = 2501, collectionId = saga, played = true, lastPlayedAt = 100)
         // Its 1080p copy started, the second film plays in 4K, chosen in Versions, from the start.
-        val second = film(
+        val second = library.film(
             "The Bourne Supremacy",
             2004,
             tmdbId = 2502,
@@ -403,7 +367,7 @@ class LocalCopiesTest {
             positionMs = 600_000,
             lastPlayedAt = 200,
         )
-        val uhd = film(
+        val uhd = library.film(
             "The Bourne Supremacy",
             2004,
             tmdbId = 2502,
@@ -418,5 +382,76 @@ class LocalCopiesTest {
         assertEquals(listOf(second.toString()), home.single { it.type == SectionType.NEXT_UP }.items.map { it.id })
         assertEquals(second.toString(), provider.nextUp(provider.item(LocalId.ofCollection(saga)))?.id)
         assertTrue(home.none { it.type == SectionType.CONTINUE })
+    }
+
+    /**
+     * The copies of a film are one title in Versions, the best first and played unless another is chosen; neither is the
+     * other's similar title, and once its title is gone a copy is a title of its own at once.
+     */
+    @Test
+    fun theCopiesOfAFilmAreOneTitleTheBestPlayedUnlessOneIsChosen() = runTest {
+        val sf = listOf("Science-Fiction")
+        val first = library.film(
+            "Blade Runner",
+            1982,
+            tmdbId = 78,
+            path = "Blade Runner (1982).mkv",
+            badges = listOf("1080p"),
+            fileSize = 10,
+            genres = sf,
+        )
+        val final = library.film(
+            "Blade Runner",
+            1982,
+            tmdbId = 78,
+            path = "Blade Runner (1982) {edition-Final Cut}.mkv",
+            badges = listOf("4K", "Dolby Vision", "TrueHD Atmos"),
+            fileSize = 60,
+            genres = sf,
+        )
+        library.film("Blade Runner 2049", 2017, tmdbId = 335984, genres = sf)
+        dao.groupVersions()
+        assertEquals(first, dao.item(final)?.versionOf)
+
+        val page = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 10)
+        assertEquals(listOf("Blade Runner", "Blade Runner 2049"), page.items.map { it.title })
+        assertEquals(2, page.total)
+
+        val versions = catalog.versions(item(final))
+        assertEquals(listOf(final, first), versions.map { it.key.toLong() })
+        assertEquals(listOf(true, false), versions.map { it.best })
+        assertEquals(listOf(true, false), versions.map { it.chosen })
+
+        catalog.chooseVersion(item(final), versions.last())
+        val chosen = catalog.versions(item(first))
+        // Chosen, the 1080p copy stays second, and still « Copie 2 ».
+        assertEquals(listOf(final, first), chosen.map { it.key.toLong() })
+        assertEquals(listOf(false, true), chosen.map { it.chosen })
+        assertEquals(emptyList<Any>(), catalog.versions(item(dao.latest(ItemKind.MOVIE, 10).first { it.tmdbId == 335984 }.id)))
+        assertEquals(listOf("Blade Runner 2049"), provider.similar(provider.item(final.toString())).map { it.title })
+
+        dao.settleMissing(emptyList(), emptyList(), emptyList(), listOf(first), emptyList(), now = 1)
+        assertNull(dao.item(final)?.versionOf)
+        assertEquals(emptyList<Any>(), catalog.versions(item(final)))
+    }
+
+    /** Watched and favourite apply to a film, so to all its copies, whichever is played or marked. */
+    @Test
+    fun aFilmsCopiesAreWatchedAndFavouredTogether() = runTest {
+        val first = library.film("Heat", 1995, tmdbId = 949)
+        val second = library.film("Heat", 1995, tmdbId = 949, path = "Heat (1995) 2160p.mkv")
+        val other = library.film("Ronin", 1998, tmdbId = 8195)
+        dao.groupVersions()
+        provider.setPlayed(provider.item(second.toString()), true)
+        provider.setFavorite(provider.item(first.toString()), true)
+        assertEquals(listOf(true, true, false), listOf(first, second, other).map { checkNotNull(dao.item(it)).played })
+        assertEquals(listOf(true, true, false), listOf(first, second, other).map { checkNotNull(dao.item(it)).favorite })
+
+        // Watched to its end, one copy makes the other watched too, its resume point kept.
+        provider.setPlayed(provider.item(first.toString()), false)
+        dao.savePlayback(first, positionMs = 1_000_000, durationMs = null, played = false, lastPlayedAt = 1)
+        LocalReporter(dao, second).stopped(positionMs = 6_000_000, durationMs = 6_500_000)
+        assertTrue(checkNotNull(dao.item(first)).played)
+        assertEquals(1_000_000L, checkNotNull(dao.item(first)).positionMs)
     }
 }

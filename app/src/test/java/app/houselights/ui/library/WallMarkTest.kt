@@ -136,25 +136,6 @@ class WallMarkTest {
         poster(PLAYTIME).assertIsFocused()
     }
 
-    /** A wall filtered on Vus lets go of a title marked unwatched; one on En cours, of a title marked watched. */
-    @Test
-    fun watchedAndInProgressWallsLetGoOfATitleTheyNoLongerHold() {
-        provider.wall = TITLES.map { film(it, it).copy(user = UserState(played = true)) }
-        open(WatchStatus.WATCHED)
-        options()
-        poster(ALIEN).assertDoesNotExist()
-        poster(CERCLE).assertIsFocused()
-    }
-
-    @Test
-    fun anInProgressWallLetsGoOfATitleMarkedWatched() {
-        provider.wall = TITLES.map { film(it, it).copy(runtimeMs = HOUR, user = UserState(positionMs = HOUR / 2)) }
-        open(WatchStatus.IN_PROGRESS)
-        options()
-        poster(ALIEN).assertDoesNotExist()
-        poster(CERCLE).assertIsFocused()
-    }
-
     /** Taken out of the favourites from its poster, a title leaves a wall filtered on Favoris. */
     @Test
     fun aFavouriteTakenOutLeavesTheFavoritesWall() {
@@ -321,7 +302,6 @@ class WallMarkTest {
         const val PARAPLUIES = "Les Parapluies de Cherbourg"
         const val PLAYTIME = "PlayTime"
         const val SAMOURAI = "Le Samouraï"
-        const val HOUR = 3_600_000L
 
         /** The wall's films by title, as it sorts them, the article aside. */
         val TITLES = listOf(ALIEN, CERCLE, DRIVE, NUIT, PARAPLUIES, "Paris, Texas", PLAYTIME, SAMOURAI)

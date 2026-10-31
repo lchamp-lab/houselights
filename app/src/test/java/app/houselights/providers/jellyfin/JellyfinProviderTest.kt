@@ -13,6 +13,7 @@ import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.testing.Answer
 import app.houselights.testing.FakeServer
+import app.houselights.testing.bodyText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +22,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
-import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -116,52 +116,50 @@ class JellyfinProviderTest {
         assertEquals(listOf("/UserFavoriteItems/f1", "/Sessions/Playing"), server.paths)
     }
 
-    /** A 500 on Stopped, "database is locked" during a scan, would leave the film unwatched on the server. */
+    /**
+     * Stopped is sent again only when the server took nothing: a 500 ("database is locked" during a scan, which would
+     * leave the film unwatched), a connection refused, or one not opened in time (a server asleep, a Wi-Fi joining
+     * again). An answer timed out or cut off may follow a request the server took, and a refusal stands: a second
+     * Stopped would count the film twice, or be refused again.
+     */
     @Test
-    fun stoppedIsTriedAgainWhileTheServerFails() = runTest {
-        val tries = AtomicInteger()
-        val server = FakeServer {
-            when (tries.incrementAndGet()) {
-                1 -> Answer(500)
-                2 -> throw ConnectException("Connection refused")
-                else -> Answer(204)
-            }
+    fun stoppedIsSentAgainOnlyWhenItNeverReachedTheServer() = runTest {
+        // Android's message; OkHttp passes it through unchanged.
+        val notConnected = "failed to connect to /192.168.1.10 (port 8096) from /192.168.1.20 (port 41234) after 10000ms"
+        val timedOut = SocketTimeoutException("timeout")
+        val cut = IOException("Connection reset")
+        val cases = listOf(
+            Stops("a 500, then a connection refused", listOf(status(500), fails(ConnectException("Connection refused"))), 3) {
+                it == null
+            },
+            Stops("a connection not opened in time", listOf(fails(SocketTimeoutException(notConnected))), 2) { it == null },
+            Stops("an answer timed out", listOf(fails(timedOut)), 1) { it is SocketTimeoutException && it.message == timedOut.message },
+            Stops("a connection cut", listOf(fails(cut)), 1) {
+                it != null && it.javaClass == IOException::class.java && it.message == cut.message
+            },
+            Stops("a refusal", listOf(status(401)), 1) { (it as? HttpException)?.code() == 401 },
+        )
+        for (stop in cases) {
+            val tries = AtomicInteger()
+            val server = FakeServer { stop.firsts.getOrNull(tries.getAndIncrement())?.invoke() ?: Answer(204) }
+            val failure = runCatching { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }.exceptionOrNull()
+            assertEquals("${stop.case}, ended on $failure", List(stop.requests) { "/Sessions/Playing/Stopped" }, server.paths)
+            assertTrue("${stop.case}, ended on $failure", stop.ends(failure))
         }
-        provider(server).reporter("f1|s1")!!.stopped(7_000_000, null)
-        assertEquals(List(3) { "/Sessions/Playing/Stopped" }, server.paths)
     }
+
+    /** Stopped meeting [firsts] in turn, then 204: it takes [requests] requests, and [ends] says how it ends. */
+    private data class Stops(val case: String, val firsts: List<() -> Answer>, val requests: Int, val ends: (Throwable?) -> Boolean)
+
+    private fun status(code: Int): () -> Answer = { Answer(code) }
+
+    private fun fails(e: IOException): () -> Answer = { throw e }
 
     @Test
     fun stoppedIsTriedThreeTimesMoreThenFails() = runTest {
         val server = FakeServer { Answer(503) }
         assertEquals(503, httpFailure { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }?.code())
         assertEquals(4, server.paths.size)
-    }
-
-    /** An answer timed out or cut off may follow a request the server took: a second Stopped would count the film twice. */
-    @Test
-    fun aFailureThatMayHaveReachedTheServerIsNotTriedAgain() = runTest {
-        for (failure in listOf(SocketTimeoutException("timeout"), IOException("Connection reset"))) {
-            val server = FakeServer { throw failure }
-            val thrown = runCatching { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }.exceptionOrNull()
-            assertTrue("$failure, reported as $thrown", thrown is IOException)
-            assertEquals("$failure", 1, server.paths.size)
-        }
-    }
-
-    /** No connection within the timeout (a server asleep, a Wi-Fi joining again): Stopped never reached it, and is sent again. */
-    @Test
-    fun aConnectionThatTimedOutIsTriedAgain() = runTest {
-        val tries = AtomicInteger()
-        val server = FakeServer {
-            if (tries.incrementAndGet() == 1) {
-                // Android's message; OkHttp passes it through unchanged.
-                throw SocketTimeoutException("failed to connect to /192.168.1.10 (port 8096) from /192.168.1.20 (port 41234) after 10000ms")
-            }
-            Answer(204)
-        }
-        provider(server).reporter("f1|s1")!!.stopped(7_000_000, null)
-        assertEquals(List(2) { "/Sessions/Playing/Stopped" }, server.paths)
     }
 
     /** Stopped(1) failing as episode 2 starts within seconds is sent once more before Playing(2), never after. */
@@ -213,8 +211,7 @@ class JellyfinProviderTest {
     private fun Request.mediaSourceId(): String? = reported("MediaSourceId")
 
     private fun Request.reported(field: String): String? {
-        val text = Buffer().also { body?.writeTo(it) }.readUtf8()
-        return Regex(""""$field"\s*:\s*"([^"]+)"""").find(text)?.groupValues?.get(1)
+        return Regex(""""$field"\s*:\s*"([^"]+)"""").find(bodyText())?.groupValues?.get(1)
     }
 
     /** Heat in two copies, [sources] of them as the server lists them: its first, then a director's cut in 4K. */
@@ -253,6 +250,8 @@ class JellyfinProviderTest {
         val chosen = jellyfin.plan()
         assertEquals("s2", chosen.streamedSource)
         assertTrue(chosen.uri, chosen.uri.toHttpUrl().encodedPath.endsWith("/Videos/f1/stream.mp4"))
+        assertEquals("the file as it is", "true", chosen.uri.toHttpUrl().queryParameter("static"))
+        assertEquals("the player signs in with the account's token", account.accessToken, chosen.uri.toHttpUrl().queryParameter("api_key"))
         assertEquals("f1|s2", chosen.resumeKey)
         assertEquals("its own tracks", listOf("fr"), chosen.media?.audio?.map { Languages.code(it.language) })
         assertEquals("the page's tracks are the copy's", chosen.tracks, jellyfin.playedTracks(film, stream))
@@ -301,13 +300,6 @@ class JellyfinProviderTest {
         heat = heatInCopies(HEAT_1080P, """{"Id":"s3","Name":"Heat - Remaster","Path":"/films/Heat.Remaster.mkv","Container":"mkv"}""")
         assertEquals("s1", jellyfin.plan().streamedSource)
         assertEquals(listOf(true, false), jellyfin.catalog.versions(film).map { it.chosen })
-    }
-
-    @Test
-    fun aRefusedReportIsNotTriedAgain() = runTest {
-        val server = FakeServer { Answer(401) }
-        assertEquals(401, httpFailure { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }?.code())
-        assertEquals(1, server.paths.size)
     }
 
     @Test
