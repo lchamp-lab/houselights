@@ -26,7 +26,7 @@ class DesignDocTest {
     fun everyNameTheDocCitesExists() {
         assertTrue("DESIGN.md not found from ${File(".").absolutePath}", doc.isFile)
         val files = sources.flatMap(::kotlinSources)
-        val declared = declarations(files.joinToString("\n") { it.readText() }) + files.map { it.nameWithoutExtension }
+        val declared = declarations(files.joinToString("\n") { it.text }) + files.map { it.file.nameWithoutExtension }
         val cited = Regex("""`([A-Za-z][\w.]*)(?:\([^`]*\))?`""").findAll(doc.readText())
             .map { it.groupValues[1] }.filter { named.matches(it) }.toSortedSet()
         assertTrue("The doc cites names of the system", cited.size > 300)

@@ -1,5 +1,6 @@
 package app.houselights
 
+import app.houselights.testing.source
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -29,7 +30,7 @@ class BaselineProfileGuardTest {
     @Test
     fun itHoldsHomesEntryPoints() {
         val named = { (file, function): Pair<String, String> -> "$file.kt: $function" }
-        val renamed = ENTRY_POINTS.filterNot { (file, function) -> File(sources, "$file.kt").readText().contains("fun $function(") }
+        val renamed = ENTRY_POINTS.filterNot { (file, function) -> "fun $function(" in source(File(sources, "$file.kt")).code }
         assertTrue("Home's entry points moved; list them again here:\n" + renamed.joinToString("\n", transform = named), renamed.isEmpty())
         val missing = ENTRY_POINTS.filterNot { (file, function) -> lines.any { it.contains("L${file}Kt;->$function(") } }
         assertTrue("The baseline profile lacks home's entry points:\n" + missing.joinToString("\n", transform = named), missing.isEmpty())
@@ -38,9 +39,9 @@ class BaselineProfileGuardTest {
     /** The profile is generated through every journey the benchmarks know, a saga's page's (« Les volets ») among them. */
     @Test
     fun itsRunTakesEveryJourney() {
-        val declared = JOURNEY.findAll(File(journeys, "Journeys.kt").readText()).map { it.groupValues[1] }.toSortedSet()
+        val declared = JOURNEY.findAll(source(File(journeys, "Journeys.kt")).code).map { it.groupValues[1] }.toSortedSet()
         assertTrue("No journey opens a saga's page: $declared", "browseSaga" in declared)
-        val run = File(journeys, "BaselineProfileGenerator.kt").readText().substringAfter("fun journeys()").substringBefore("@Test")
+        val run = source(File(journeys, "BaselineProfileGenerator.kt")).code.substringAfter("fun journeys()").substringBefore("@Test")
         val left = declared.filterNot { Regex("""\b$it\(\)""").containsMatchIn(run) }
         assertTrue("Journeys the baseline profile's run leaves out:\n" + left.joinToString("\n"), left.isEmpty())
     }
