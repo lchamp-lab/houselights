@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import app.houselights.core.Job
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -10,6 +11,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * What scans write for the people, saga, copy and edition screens, and the backfill of known titles, a few
@@ -327,6 +329,55 @@ class ScanCreditsTest {
         assertEquals(1, tmdb.requests.count { it.startsWith("collection/") })
     }
 
+    /** A show's credits, and a film's edition its name gives, are filled in as a film's credits are. */
+    @Test
+    fun aShowAndAnEditionKnownBeforeGetTheirsAtTheNextPass() = runTest {
+        val films = bench.folder("Films")
+        bench.folder("Séries", SourceKind.SHOWS)
+        tmdb.movie(BLADE_RUNNER, "Blade Runner", 1982)
+        tmdb.editMovie(BLADE_RUNNER) { it.copy(credits = duneCredits) }
+        tmdb.show(1, "Severance", 2022)
+        tmdb.editShow(1) { it.copy(credits = TmdbCredits(cast = listOf(TmdbCastMember("Adam Scott", "Mark", order = 0, id = 55536)))) }
+        tmdb.season(1, 1, 1)
+        val cut = "Blade Runner (1982) - Director's Cut.mkv"
+        nas.put(cut)
+        bench.showsNas.put("Severance (2022)/Season 1/Severance.S01E01.mkv")
+        bench.scan()
+        val edition = checkNotNull(bench.item(films, cut).edition)
+        asBeforeVersion12()
+        bench.db.openHelper.writableDatabase.execSQL("UPDATE items SET edition = NULL")
+
+        bench.autoScan()
+        assertEquals("each asked once", listOf("movie/$BLADE_RUNNER", "tv/1"), tmdb.requests.sorted())
+        assertEquals(edition, bench.item(films, cut).edition)
+        assertEquals(listOf("Timothée Chalamet", "Rebecca Ferguson"), jobs(bench.item(films, cut).id)[Job.CAST])
+        assertEquals(listOf("Adam Scott"), jobs(bench.series("Severance", 2022).id)[Job.CAST])
+    }
+
+    /** Identified while the backfill asks TMDB for it: the answer, for the film it was, is dropped and the user's match stands. */
+    @Test
+    fun aTitleIdentifiedWhileTheBackfillAsksForItKeepsTheUsersMatch() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(1000, "Film", 2000)
+        tmdb.editMovie(1000) { it.copy(credits = duneCredits) }
+        tmdb.movie(2000, "Autre film", 2001)
+        tmdb.editMovie(2000) { it.copy(credits = TmdbCredits(cast = listOf(TmdbCastMember("Adam Scott", "Mark", order = 0, id = 55536)))) }
+        nas.put("Film (2000).mkv")
+        bench.scan()
+        val film = bench.item(films, "Film (2000).mkv")
+        asBeforeVersion12()
+        val identified = AtomicBoolean()
+        tmdb.onRequest = { path ->
+            if (path == "movie/1000" && identified.compareAndSet(false, true)) runBlocking { bench.scanner.identify(film.id, 2000) }
+        }
+        bench.autoScan()
+
+        assertTrue("identified as the backfill asked", identified.get())
+        val after = bench.item(films, "Film (2000).mkv")
+        assertEquals(2000 to 2000, after.userTmdbId to after.tmdbId)
+        assertEquals(listOf("Adam Scott"), jobs(film.id)[Job.CAST])
+    }
+
     /** TMDB out of reach: the backfill waits for a pass TMDB answers; NFO titles still get theirs. */
     @Test
     fun tmdbOutOfReachLeavesTheBackfillToALaterPass() = runTest {
@@ -350,5 +401,9 @@ class ScanCreditsTest {
         bench.tmdbBack()
         bench.scan()
         assertTrue(dao.filesOf(films.id).all { it.creditsAt != null })
+    }
+
+    private companion object {
+        const val BLADE_RUNNER = 78
     }
 }

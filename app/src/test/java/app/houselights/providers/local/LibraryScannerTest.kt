@@ -303,6 +303,33 @@ class LibraryScannerTest {
         assertEquals(listOf("Dune (2021).mkv"), filePaths())
     }
 
+    /** Scans asked twice while a pass lists, a refresh the second time: one more pass follows, and it refreshes. */
+    @Test
+    fun scansAskedDuringAPassQueueOneMoreThatRefreshesIfEitherAsked() = runTest {
+        nas.put("Dune (2021).mkv")
+        nas.putText("Dune (2021).nfo", "<movie><title>Dune</title></movie>")
+        bench.scan()
+        var listed = 0
+        val listing = CompletableDeferred<Unit>()
+        val go = CompletableDeferred<Unit>()
+        nas.onList = {
+            if (++listed == 1) {
+                listing.complete(Unit)
+                go.await()
+            }
+        }
+        nas.reads.clear()
+        bench.scanner.scanAll()
+        listing.await()
+        bench.scanner.scanAll()
+        bench.scanner.scanAll(refreshMetadata = true)
+        go.complete(Unit)
+        bench.awaitScans()
+
+        assertEquals("one more pass", 2, listed)
+        assertEquals("its NFO read again by the refresh", 1, nas.reads.count { it == "Dune (2021).nfo" })
+    }
+
     @Test
     fun aPassCutShortLetsTheNextOneStart() = runTest {
         nas.put("Dune (2021).mkv")
