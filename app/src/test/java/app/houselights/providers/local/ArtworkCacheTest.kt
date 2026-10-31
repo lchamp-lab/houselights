@@ -91,6 +91,22 @@ class ArtworkCacheTest {
         assertTrue(copied.orEmpty(), copied?.let { File(it.removePrefix("file://")).isFile } == true)
     }
 
+    /** A copy no row references yet, made for the file a scan reads, is spared by a sweep until the scan lets it go. */
+    @Test
+    fun aCopyIsSweptOnlyOnceLetGo() = runBlocking {
+        val cache = ArtworkCache(temp.newFolder("artwork"))
+        val bytes = picture(10, 15)
+        val nas = FakeRemoteBrowser().apply { put("Dune (2021)-poster.jpg", size = bytes.size.toLong(), bytes = bytes) }
+        val copied = cache.copy(source, RemoteFile("Dune (2021)-poster.jpg", bytes.size.toLong()), nas)
+        val copy = File(checkNotNull(copied).removePrefix("file://"))
+
+        assertEquals(CleanupResult(0, 0), cache.sweep(emptyList()))
+        assertTrue(copy.isFile)
+        cache.letGo()
+        assertEquals(1, cache.sweep(emptyList()).deletedFiles)
+        assertFalse(copy.exists())
+    }
+
     /**
      * Android keeps a twentieth of a small volume for itself, 500 MiB at most, and says storage is low below it: nothing is
      * copied into it, nor into the cache's own margin above it, TMDB showing the picture.

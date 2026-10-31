@@ -33,11 +33,15 @@ class ArtworkCache(
     /** Files found to be no picture, by [version], in this process: left to TMDB, not copied again until rewritten. */
     private val notPictures: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
+    /** Copies made for the piece of a scan under way, by path, which no row may reference yet: [sweep] spares them. */
+    private val held: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
     /**
      * "file://…" path of the cached copy ([version]); null when it cannot be copied, or is no picture the device reads
      * (a web page saved as poster.jpg), so TMDB is used. An unreachable NAS or full device throws, stopping the scan;
      * nothing is copied into what Android keeps for itself ([systemReserve]) and [MIN_FREE_BYTES] above it. Each copy is
-     * on the storage before it takes its name, so a power cut never leaves an empty one there.
+     * on the storage before it takes its name, so a power cut never leaves an empty one there. It is held, spared by
+     * [sweep] while it is written and until [letGo], as the row that will reference it is written afterwards.
      */
     suspend fun copy(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser): String? {
         val ext = file.relativePath.substringAfterLast('.', "jpg").lowercase().let { if (it == "tbn") "jpg" else it }
@@ -45,6 +49,7 @@ class ArtworkCache(
         if (!holds(file)) return null
         val target = File(dir, "${source.id}/${hash(version(file))}.$ext")
         val uri = "file://${target.absolutePath}"
+        held += target.absolutePath
         if (target.exists()) return uri
         if (freeSpace() < file.size + systemReserve(totalSpace()) + MIN_FREE_BYTES) {
             Log.w(TAG, "Not copying ${file.relativePath}: the device is nearly full")
@@ -151,18 +156,25 @@ class ArtworkCache(
 
     fun spaceLeft(): Long = freeSpace()
 
+    /** The copies made since the last call ([copy]) are no longer held: the rows that use them were written, or never will be. */
+    fun letGo() = held.clear()
+
     fun usage(): CacheUsage {
         val files = dir.walkTopDown().filter { it.isFile }.toList()
         return CacheUsage(files.size, files.sumOf { it.length() })
     }
 
-    /** Deletes cached files not in [referenced], then empty folders; never touches anything outside the cache. */
+    /**
+     * Deletes cached files not in [referenced], then empty folders; never touches anything outside the cache, nor a copy
+     * held ([copy]), written or being written.
+     */
     fun sweep(referenced: Collection<String>): CleanupResult {
         if (!dir.isDirectory) return CleanupResult(0, 0)
         val root = dir.canonicalFile
-        val keep = referenced.mapNotNull { path ->
-            runCatching { File(path.removePrefix("file://")).canonicalPath }.getOrNull()
-        }.toSet()
+        val keep = (referenced.map { it.removePrefix("file://") } + held.flatMap { listOf(it, "$it.part", "$it.small.part") })
+            .mapNotNull { path -> runCatching { File(path).canonicalPath }.getOrNull() }.toSet()
+        // A copy's folder, which it may be about to make again.
+        val holding = held.mapNotNull { path -> runCatching { File(path).parentFile?.canonicalPath }.getOrNull() }.toSet()
         var deleted = 0
         var freed = 0L
         root.walkBottomUp().forEach { file ->
@@ -176,7 +188,7 @@ class ArtworkCache(
                         freed += size
                     }
                 }
-                file.isDirectory && file.list().isNullOrEmpty() -> file.delete()
+                file.isDirectory && file.list().isNullOrEmpty() && file.canonicalPath !in holding -> file.delete()
             }
         }
         return CleanupResult(deleted, freed)
