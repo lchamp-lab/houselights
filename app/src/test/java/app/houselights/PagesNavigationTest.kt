@@ -121,8 +121,9 @@ class PagesNavigationTest {
 
     private fun NavHostController.wall() = checkNotNull(currentBackStackEntry).toRoute<Route.Library>()
 
+    /** OK pressed twice before a door's page shows opens it once: one Back from it lands on that door. */
     @Test
-    fun backFromEachDoorsPageLandsOnThatDoor() {
+    fun eachDoorOpensItsPageOnceAndBackLandsOnIt() {
         val nav = app()
         focusIsOn("Resume")
         // From the door before, the keys to the door, its name and the page it opens.
@@ -138,35 +139,12 @@ class PagesNavigationTest {
         doors.forEach { (keys, door, page) ->
             keys.forEach { compose.press(it) }
             focusIsOn(door)
-            compose.press(Key.DirectionCenter)
-            compose.runOnIdle { assertTrue("$door opens its page over home", nav.on(page) && nav.overHome()) }
-            back()
-            compose.runOnIdle { assertTrue("one Back from $door's page", nav.on(Route.Home::class)) }
-            focusIsOn(door)
-        }
-    }
-
-    /** OK pressed twice before a door's page shows opens it once: one Back from it is home. */
-    @Test
-    fun okTwiceOpensADoorsPageOnce() {
-        val nav = app()
-        // From the door before, the keys to the door, and the page it opens.
-        val doors = listOf(
-            Triple(listOf(Key.DirectionRight, Key.DirectionUp), "Next up", Route.Watch::class),
-            Triple(listOf(Key.DirectionDown), "Movies", Route.Library::class),
-            Triple(listOf(Key.DirectionDown), "Sagas", Route.Library::class),
-            Triple(listOf(Key.DirectionRight), "Search", Route.Search::class),
-            Triple(listOf(Key.DirectionRight), "Settings", Route.Settings::class),
-        )
-        doors.forEach { (keys, door, page) ->
-            keys.forEach { compose.press(it) }
-            focusIsOn(door)
             compose.onRoot().performKeyInput {
                 pressKey(Key.DirectionCenter)
                 pressKey(Key.DirectionCenter)
             }
             compose.waitForIdle()
-            compose.runOnIdle { assertTrue("$door opens its page", nav.on(page) && nav.overHome()) }
+            compose.runOnIdle { assertTrue("$door opens its page over home", nav.on(page) && nav.overHome()) }
             back()
             compose.runOnIdle { assertTrue("one Back from $door's page", nav.on(Route.Home::class)) }
             focusIsOn(door)

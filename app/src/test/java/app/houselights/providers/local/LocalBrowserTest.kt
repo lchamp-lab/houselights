@@ -66,7 +66,9 @@ class LocalBrowserTest {
         disk.put("Films/\$RECYCLE.BIN/Old (1990).mkv")
         disk.put("Séries/Severance/Season 1/Severance - S01E01.mkv")
 
-        val listing = list()
+        val counted = mutableListOf<Int>()
+        val listing = browser.list(diskFolder()) { counted += it }
+        assertEquals("counted as found (RemoteWalkTest)", listOf(1, 2), counted)
         assertEquals(
             listOf(RemoteFile("Dune (2021)/Dune (2021).mkv", 2048, T1), RemoteFile("Heat (1995).mkv", 16, T2)),
             listing.videos.sortedBy { it.relativePath },
@@ -271,20 +273,6 @@ class LocalBrowserTest {
         } finally {
             assertTrue(private.setReadable(true) && private.setExecutable(true) && private.setWritable(true))
         }
-    }
-
-    /** A disk's listing counts its videos as it finds them, whatever order the disk gives: a disc once, a trailer never. */
-    @Test
-    fun aListingCountsItsVideosAsItFindsThem() = runTest {
-        disk.put("Films/Dune (2021)/Dune (2021).mkv")
-        disk.put("Films/Dune (2021)/Dune (2021)-trailer.mkv")
-        disk.put("Films/Heat (1995)/BDMV/STREAM/00000.m2ts")
-        disk.put("Films/Heat (1995)/BDMV/STREAM/00001.m2ts")
-        disk.put("Films/Arrival (2016).mkv")
-        val counted = mutableListOf<Int>()
-        val listing = browser.list(diskFolder()) { counted += it }
-        assertEquals("Dune, Heat's disc, Arrival", listOf(1, 2, 3), counted)
-        assertEquals(5, listing.videos.size)
     }
 
     private companion object {

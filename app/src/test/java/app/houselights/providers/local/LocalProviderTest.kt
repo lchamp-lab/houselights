@@ -91,14 +91,6 @@ class LocalProviderTest {
     }
 
     @Test
-    fun genreMatchesAWholeEntry() = runTest {
-        movie("Heat", genres = listOf("Action", "Drame"))
-        movie("Ratatouille", genres = listOf("Animation"))
-        assertEquals(listOf("Heat"), page(LibraryFilter(genre = "Action")).items.map { it.title })
-        assertEquals(emptyList<String>(), page(LibraryFilter(genre = "Act")).items.map { it.title })
-    }
-
-    @Test
     fun similarTitlesShareAWholeGenreAsTheGridFilterMatchesIt() = runTest {
         val heat = movie("Heat", genres = listOf("Drame", "Action"))
         movie("Collateral", genres = listOf("Thriller", "Drame"))
@@ -128,6 +120,7 @@ class LocalProviderTest {
         assertEquals(listOf("Alien", "The Thing"), horror)
         assertEquals(listOf("Collateral", "Heat", "Ronin"), page(LibraryFilter(genre = "Drame")).items.map { it.title })
         assertEquals(3, page(LibraryFilter(genre = "drame")).total)
+        assertEquals("a whole genre, not a part of one", 0, page(LibraryFilter(genre = "Act")).total)
         assertEquals(listOf("Collateral", "Le Samouraï", "Ronin"), page(LibraryFilter(genre = "thriller")).items.map { it.title })
     }
 
@@ -400,8 +393,9 @@ class LocalProviderTest {
         assertEquals(listOf("Dune", "Heat"), titles(Quality.UHD_4K))
     }
 
+    /** A film launched from its file: its reporter keeps the position, and once rebuilt from its resume key marks it watched. */
     @Test
-    fun aFilmWatchedPastNinetyPercentIsPlayed() = runTest {
+    fun aFilmsReporterIsRebuiltFromItsResumeKey() = runTest {
         val id = movie("Heat", runtimeMin = 100)
         val plan = provider.playback(provider.item(id.toString()), resume = false, PlaybackOptions(emptyList(), false))
         plan as PlaybackPlan.Launch
@@ -620,24 +614,10 @@ class LocalProviderTest {
         assertEquals("eng", (plan as PlaybackPlan.Launch).titleKey?.let { db.trackChoices().choice(it) }?.audio)
     }
 
-    /** The library's cleanup deletes the choices no title keys any more: a matched film's, an unmatched one's and a show's stay. */
-    @Test
-    fun aChoiceOfTracksGoesWithItsTitle() = runTest {
-        movie("Dune") { copy(tmdbId = 438631) }
-        val heat = movie("Heat")
-        val show = show("Severance")
-        val kept = listOf("local:film:438631", "local:$heat", "local:${show.id}", "jellyfin:show1")
-        val gone = listOf("local:film:949", "local:999", "local:film:$heat")
-        for (key in kept + gone) db.trackChoices().save(TrackChoiceEntity(key, "eng", null, at = 5))
-
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val artwork = ArtworkCache(ApplicationProvider.getApplicationContext<Context>().cacheDir.resolve("artwork"))
-        LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {}).cleanup()
-        assertEquals(kept, kept.filter { db.trackChoices().choice(it) != null })
-        assertEquals(emptyList<String>(), gone.filter { db.trackChoices().choice(it) != null })
-    }
-
-    /** The cleanup keys titles as playback does ([tracksKey]): no choice saved under a row's own key is deleted. */
+    /**
+     * The library's cleanup deletes the choices of tracks no title keys any more; it keys titles as playback does
+     * ([tracksKey]), so no choice saved under a row's own key goes, whatever the row, nor a server's.
+     */
     @Test
     fun theCleanupKeepsEveryKeyPlaybackSavesUnder() = runTest {
         val first = movie("Dune", path = "Dune 1080p.mkv") { copy(tmdbId = 438631) }
@@ -650,11 +630,15 @@ class LocalProviderTest {
             .map { checkNotNull(dao.item(it)) }
         assertEquals(setOf(ItemKind.MOVIE, ItemKind.SERIES, ItemKind.SEASON, ItemKind.EPISODE), rows.map { it.kind }.toSet())
         assertNotNull("a copy", rows.firstOrNull { it.versionOf != null })
-        val keys = rows.map(::tracksKey).distinct()
-        for (key in keys) db.trackChoices().save(TrackChoiceEntity(key, "eng", null, at = 5))
+        val kept = rows.map(::tracksKey).distinct() + "jellyfin:show1"
+        val gone = listOf("local:film:949", "local:999", "local:film:$unmatched")
+        for (key in kept + gone) db.trackChoices().save(TrackChoiceEntity(key, "eng", null, at = 5))
 
-        dao.deleteOrphanTrackChoices()
-        assertEquals(keys, keys.filter { db.trackChoices().choice(it) != null })
+        val idle = CoroutineScope(Job().apply { cancel() })
+        val artwork = ArtworkCache(ApplicationProvider.getApplicationContext<Context>().cacheDir.resolve("artwork"))
+        LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {}).cleanup()
+        assertEquals(kept, kept.filter { db.trackChoices().choice(it) != null })
+        assertEquals(emptyList<String>(), gone.filter { db.trackChoices().choice(it) != null })
     }
 
     /** French AC3 alone, read by the probe in the file's order. */

@@ -383,4 +383,75 @@ class LocalCopiesTest {
         assertEquals(second.toString(), provider.nextUp(provider.item(LocalId.ofCollection(saga)))?.id)
         assertTrue(home.none { it.type == SectionType.CONTINUE })
     }
+
+    /**
+     * The copies of a film are one title in Versions, the best first and played unless another is chosen; neither is the
+     * other's similar title, and once its title is gone a copy is a title of its own at once.
+     */
+    @Test
+    fun theCopiesOfAFilmAreOneTitleTheBestPlayedUnlessOneIsChosen() = runTest {
+        val sf = listOf("Science-Fiction")
+        val first = library.film(
+            "Blade Runner",
+            1982,
+            tmdbId = 78,
+            path = "Blade Runner (1982).mkv",
+            badges = listOf("1080p"),
+            fileSize = 10,
+            genres = sf,
+        )
+        val final = library.film(
+            "Blade Runner",
+            1982,
+            tmdbId = 78,
+            path = "Blade Runner (1982) {edition-Final Cut}.mkv",
+            badges = listOf("4K", "Dolby Vision", "TrueHD Atmos"),
+            fileSize = 60,
+            genres = sf,
+        )
+        library.film("Blade Runner 2049", 2017, tmdbId = 335984, genres = sf)
+        dao.groupVersions()
+        assertEquals(first, dao.item(final)?.versionOf)
+
+        val page = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 10)
+        assertEquals(listOf("Blade Runner", "Blade Runner 2049"), page.items.map { it.title })
+        assertEquals(2, page.total)
+
+        val versions = catalog.versions(item(final))
+        assertEquals(listOf(final, first), versions.map { it.key.toLong() })
+        assertEquals(listOf(true, false), versions.map { it.best })
+        assertEquals(listOf(true, false), versions.map { it.chosen })
+
+        catalog.chooseVersion(item(final), versions.last())
+        val chosen = catalog.versions(item(first))
+        // Chosen, the 1080p copy stays second, and still « Copie 2 ».
+        assertEquals(listOf(final, first), chosen.map { it.key.toLong() })
+        assertEquals(listOf(false, true), chosen.map { it.chosen })
+        assertEquals(emptyList<Any>(), catalog.versions(item(dao.latest(ItemKind.MOVIE, 10).first { it.tmdbId == 335984 }.id)))
+        assertEquals(listOf("Blade Runner 2049"), provider.similar(provider.item(final.toString())).map { it.title })
+
+        dao.settleMissing(emptyList(), emptyList(), emptyList(), listOf(first), emptyList(), now = 1)
+        assertNull(dao.item(final)?.versionOf)
+        assertEquals(emptyList<Any>(), catalog.versions(item(final)))
+    }
+
+    /** Watched and favourite apply to a film, so to all its copies, whichever is played or marked. */
+    @Test
+    fun aFilmsCopiesAreWatchedAndFavouredTogether() = runTest {
+        val first = library.film("Heat", 1995, tmdbId = 949)
+        val second = library.film("Heat", 1995, tmdbId = 949, path = "Heat (1995) 2160p.mkv")
+        val other = library.film("Ronin", 1998, tmdbId = 8195)
+        dao.groupVersions()
+        provider.setPlayed(provider.item(second.toString()), true)
+        provider.setFavorite(provider.item(first.toString()), true)
+        assertEquals(listOf(true, true, false), listOf(first, second, other).map { checkNotNull(dao.item(it)).played })
+        assertEquals(listOf(true, true, false), listOf(first, second, other).map { checkNotNull(dao.item(it)).favorite })
+
+        // Watched to its end, one copy makes the other watched too, its resume point kept.
+        provider.setPlayed(provider.item(first.toString()), false)
+        dao.savePlayback(first, positionMs = 1_000_000, durationMs = null, played = false, lastPlayedAt = 1)
+        LocalReporter(dao, second).stopped(positionMs = 6_000_000, durationMs = 6_500_000)
+        assertTrue(checkNotNull(dao.item(first)).played)
+        assertEquals(1_000_000L, checkNotNull(dao.item(first)).positionMs)
+    }
 }

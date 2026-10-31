@@ -134,10 +134,13 @@ class NfsListingTest {
         file("Sicario (2015).mp4", size = 9_000_000_000, date = 1_700_000_000_000)
     }
 
+    /** A listing gives each video and sidecar its size and date, and counts its videos as it finds them (RemoteWalkTest). */
     @Test
     fun aListingGivesWhatEachFileIsItsSizeAndItsDate() = runTest {
         library()
-        val listing = browser(Export()).list(films)
+        val counted = mutableListOf<Int>()
+        val listing = browser(Export()).list(films) { counted += it }
+        assertEquals("Arrival, Dune, Sicario", listOf(1, 2, 3), counted)
         assertEquals(
             listOf(
                 "Arrival (2016)/Arrival (2016).mkv" to 30_000_000_000L,
@@ -152,20 +155,6 @@ class NfsListingTest {
             listing.sidecars.map { it.relativePath to it.lastModified },
         )
         assertEquals(emptyList<String>(), listing.unreadable)
-    }
-
-    /** An export's listing counts its videos as it finds them, about a request a folder: a disc once, a trailer never. */
-    @Test
-    fun aListingCountsItsVideosAsItFindsThem() = runTest {
-        library()
-        file("Dune (2021)/Dune (2021)-trailer.mkv", size = 1_000_000)
-        listOf("Heat (1995)", "Heat (1995)/BDMV", "Heat (1995)/BDMV/STREAM").forEach(::folder)
-        file("Heat (1995)/BDMV/STREAM/00000.m2ts", size = 1_000_000)
-        file("Heat (1995)/BDMV/STREAM/00001.m2ts", size = 40_000_000_000)
-        val counted = mutableListOf<Int>()
-        val listing = browser(Export()).list(films) { counted += it }
-        assertEquals("Arrival, Dune, Heat's disc, Sicario", listOf(1, 2, 3, 4), counted)
-        assertEquals(6, listing.videos.size)
     }
 
     /** One request per folder, where READDIR then LOOKUP and GETATTR per entry would take about three per file. */

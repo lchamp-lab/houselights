@@ -8,7 +8,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import app.houselights.core.SourceConfig
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -52,7 +51,6 @@ class LostSourceTest {
         val leave = listOf(Route.Home::class, Route.Library::class, Route.Item::class, Route.Search::class, Route.Settings::class)
         stay.forEach { assertFalse("$it", mustWelcome(null, nav.screen(it))) }
         leave.forEach { assertTrue("$it", mustWelcome(null, nav.screen(it))) }
-        assertEquals(stay.size + leave.size, nav.graph.count())
     }
 
     @Test

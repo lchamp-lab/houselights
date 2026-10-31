@@ -123,39 +123,31 @@ class TraktSyncTest : TraktSyncFixture() {
         waitFor("both episodes of the file watched") { dao.item(double)!!.played }
     }
 
-    @Test
-    fun aMarkOfflineWaitsAndGoesAtTheNextOccasion() = runTest {
-        val id = film(7)
-        val sync = connected()
-        val provider = provider(sync)
-
-        trakt.offline = true
-        provider.mark(id, played = true)
-        waitFor("the failure said") { sync.state.value.error == TraktSyncError.OFFLINE }
-        assertEquals(listOf("movie:7"), queue.pending().map { it.title })
-
-        trakt.offline = false
-        sync.scanned(changedLibrary = false)
-        waitFor("the mark sent") { queue.pending().isEmpty() && sync.state.value.error == null && !sync.state.value.running }
-        val sent = trakt.sent("POST /sync/history").single()
-        assertEquals(listOf(7), sent.tmdbs)
-        assertEquals(Instant.ofEpochMilli(NOW).toString(), sent.movieDate())
-    }
-
     /**
-     * A mark whose connection to Trakt was not opened in time never reached it: it waits as unsent, as one offline does,
-     * never taken for one Trakt may have taken and then found missing from a history read in part.
+     * A mark that never reached Trakt, offline or its connection not opened in time, waits as unsent, never taken for
+     * one Trakt may have taken and then found missing from a history read in part; it goes at the next occasion.
      */
     @Test
-    fun aMarkWhoseConnectionTimedOutWaitsUnsent() = runTest {
-        val id = film(7)
+    fun aMarkThatNeverReachedTraktWaitsUnsentAndGoesAtTheNextOccasion() = runTest {
         val sync = connected()
         val provider = provider(sync)
+        val unreached = listOf<(Boolean) -> Unit>({ trakt.offline = it }, { trakt.connectTimingOut = it })
 
-        trakt.connectTimingOut = true
-        provider.mark(id, played = true)
-        waitFor("the failure said") { sync.state.value.error == TraktSyncError.OFFLINE }
-        assertEquals(listOf("movie:7" to null), queue.pending().map { it.title to it.sentAt })
+        unreached.forEachIndexed { i, cut ->
+            val tmdb = 7 + i
+            val id = film(tmdb)
+            cut(true)
+            provider.mark(id, played = true)
+            waitFor("the failure said") { sync.state.value.error == TraktSyncError.OFFLINE && queue.pending().isNotEmpty() }
+            assertEquals(listOf("movie:$tmdb" to null), queue.pending().map { it.title to it.sentAt })
+
+            cut(false)
+            sync.scanned(changedLibrary = false)
+            waitFor("the mark sent") { queue.pending().isEmpty() && sync.state.value.error == null && !sync.state.value.running }
+            val sent = trakt.sent("POST /sync/history").last()
+            assertEquals(listOf(tmdb), sent.tmdbs)
+            assertEquals(Instant.ofEpochMilli(NOW).toString(), sent.movieDate())
+        }
     }
 
     /** A film marked from its poster on a wall filtered on Non vus leaves it, and reaches Trakt as a mark from its page does. */
@@ -327,17 +319,6 @@ class TraktSyncTest : TraktSyncFixture() {
 
         provider.mark(id, played = false)
         advanceUntilIdle()
-        assertTrue(queue.pending().isEmpty())
-    }
-
-    @Test
-    fun withAnotherSourceNothingIsSynced() = runTest {
-        film(1, played = true)
-        val sync = sync()
-        sync.follow(connected = true, folders = false)
-        sync.syncNow()
-        advanceUntilIdle()
-        assertEquals(emptyList<String>(), trakt.routes)
         assertTrue(queue.pending().isEmpty())
     }
 
@@ -621,10 +602,19 @@ class TraktSyncTest : TraktSyncFixture() {
         waitFor("the stop sent") { trakt.count("POST /scrobble/stop") == 1 && !sync.state.value.running }
     }
 
+    /** Under another source nothing is synced, from the start or once connected; back on the folders what waited goes. */
     @Test
     fun underAnotherSourceTraktPausesConnectedAndBackOnTheFoldersSendsWhatWaited() = runTest {
+        film(1, played = true)
         val id = film(56)
-        val sync = connected()
+        val sync = sync()
+        sync.follow(connected = true, folders = false)
+        sync.syncNow()
+        advanceUntilIdle()
+        assertEquals("nothing synced before the folders", emptyList<String>(), trakt.routes)
+        assertTrue(queue.pending().isEmpty())
+
+        connected(sync)
         trakt.offline = true
         provider(sync).mark(id, played = true)
         waitFor("the mark waiting") { queue.pending().isNotEmpty() && sync.state.value.error != null }
@@ -641,7 +631,7 @@ class TraktSyncTest : TraktSyncFixture() {
         // Synced a moment ago: the queue goes alone, Trakt's history is not read again.
         sync.follow(connected = true, folders = true)
         waitFor("what waited sent") { queue.pending().isEmpty() && !sync.state.value.running }
-        assertEquals(listOf(56), trakt.sent("POST /sync/history").single().tmdbs)
+        assertEquals(listOf(56), trakt.sent("POST /sync/history").last().tmdbs)
         assertEquals(listOf("POST /sync/history"), trakt.routes.drop(before))
         assertEquals(0, trakt.count("POST /oauth/revoke"))
     }

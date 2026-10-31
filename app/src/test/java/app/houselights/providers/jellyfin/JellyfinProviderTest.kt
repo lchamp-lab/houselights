@@ -116,19 +116,32 @@ class JellyfinProviderTest {
         assertEquals(listOf("/UserFavoriteItems/f1", "/Sessions/Playing"), server.paths)
     }
 
-    /** A 500 on Stopped, "database is locked" during a scan, would leave the film unwatched on the server. */
+    /**
+     * Stopped is sent again only when the server took nothing: a 500 ("database is locked" during a scan, which would
+     * leave the film unwatched), a connection refused, or one not opened in time (a server asleep, a Wi-Fi joining
+     * again). An answer timed out or cut off may follow a request the server took, and a refusal stands: a second
+     * Stopped would count the film twice, or be refused again.
+     */
     @Test
-    fun stoppedIsTriedAgainWhileTheServerFails() = runTest {
-        val tries = AtomicInteger()
-        val server = FakeServer {
-            when (tries.incrementAndGet()) {
-                1 -> Answer(500)
-                2 -> throw ConnectException("Connection refused")
-                else -> Answer(204)
-            }
+    fun stoppedIsSentAgainOnlyWhenItNeverReachedTheServer() = runTest {
+        // Android's message; OkHttp passes it through unchanged.
+        val notConnected = "failed to connect to /192.168.1.10 (port 8096) from /192.168.1.20 (port 41234) after 10000ms"
+        // The first answer, and whether Stopped goes again after it.
+        val firsts = listOf<Pair<() -> Answer, Boolean>>(
+            { Answer(500) } to true,
+            { throw ConnectException("Connection refused") } to true,
+            { throw SocketTimeoutException(notConnected) } to true,
+            { throw SocketTimeoutException("timeout") } to false,
+            { throw IOException("Connection reset") } to false,
+            { Answer(401) } to false,
+        )
+        firsts.forEachIndexed { row, (first, again) ->
+            val tries = AtomicInteger()
+            val server = FakeServer { if (tries.incrementAndGet() == 1) first() else Answer(204) }
+            val failure = runCatching { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }.exceptionOrNull()
+            assertEquals("row $row, ended on $failure", if (again) 2 else 1, server.paths.size)
+            assertEquals("row $row", again, failure == null)
         }
-        provider(server).reporter("f1|s1")!!.stopped(7_000_000, null)
-        assertEquals(List(3) { "/Sessions/Playing/Stopped" }, server.paths)
     }
 
     @Test
@@ -136,32 +149,6 @@ class JellyfinProviderTest {
         val server = FakeServer { Answer(503) }
         assertEquals(503, httpFailure { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }?.code())
         assertEquals(4, server.paths.size)
-    }
-
-    /** An answer timed out or cut off may follow a request the server took: a second Stopped would count the film twice. */
-    @Test
-    fun aFailureThatMayHaveReachedTheServerIsNotTriedAgain() = runTest {
-        for (failure in listOf(SocketTimeoutException("timeout"), IOException("Connection reset"))) {
-            val server = FakeServer { throw failure }
-            val thrown = runCatching { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }.exceptionOrNull()
-            assertTrue("$failure, reported as $thrown", thrown is IOException)
-            assertEquals("$failure", 1, server.paths.size)
-        }
-    }
-
-    /** No connection within the timeout (a server asleep, a Wi-Fi joining again): Stopped never reached it, and is sent again. */
-    @Test
-    fun aConnectionThatTimedOutIsTriedAgain() = runTest {
-        val tries = AtomicInteger()
-        val server = FakeServer {
-            if (tries.incrementAndGet() == 1) {
-                // Android's message; OkHttp passes it through unchanged.
-                throw SocketTimeoutException("failed to connect to /192.168.1.10 (port 8096) from /192.168.1.20 (port 41234) after 10000ms")
-            }
-            Answer(204)
-        }
-        provider(server).reporter("f1|s1")!!.stopped(7_000_000, null)
-        assertEquals(List(2) { "/Sessions/Playing/Stopped" }, server.paths)
     }
 
     /** Stopped(1) failing as episode 2 starts within seconds is sent once more before Playing(2), never after. */
@@ -252,6 +239,8 @@ class JellyfinProviderTest {
         val chosen = jellyfin.plan()
         assertEquals("s2", chosen.streamedSource)
         assertTrue(chosen.uri, chosen.uri.toHttpUrl().encodedPath.endsWith("/Videos/f1/stream.mp4"))
+        assertEquals("the file as it is", "true", chosen.uri.toHttpUrl().queryParameter("static"))
+        assertEquals("the player signs in with the account's token", account.accessToken, chosen.uri.toHttpUrl().queryParameter("api_key"))
         assertEquals("f1|s2", chosen.resumeKey)
         assertEquals("its own tracks", listOf("fr"), chosen.media?.audio?.map { Languages.code(it.language) })
         assertEquals("the page's tracks are the copy's", chosen.tracks, jellyfin.playedTracks(film, stream))
@@ -300,13 +289,6 @@ class JellyfinProviderTest {
         heat = heatInCopies(HEAT_1080P, """{"Id":"s3","Name":"Heat - Remaster","Path":"/films/Heat.Remaster.mkv","Container":"mkv"}""")
         assertEquals("s1", jellyfin.plan().streamedSource)
         assertEquals(listOf(true, false), jellyfin.catalog.versions(film).map { it.chosen })
-    }
-
-    @Test
-    fun aRefusedReportIsNotTriedAgain() = runTest {
-        val server = FakeServer { Answer(401) }
-        assertEquals(401, httpFailure { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }?.code())
-        assertEquals(1, server.paths.size)
     }
 
     @Test
