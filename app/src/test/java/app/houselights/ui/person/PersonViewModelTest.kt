@@ -5,6 +5,7 @@ import app.houselights.core.Person
 import app.houselights.core.PersonPage
 import app.houselights.core.PersonTitle
 import app.houselights.ui.library.NotSaved
+import app.houselights.ui.library.favoredAs
 import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
@@ -126,6 +127,31 @@ class PersonViewModelTest {
         advanceUntilIdle()
         val samourai = titles(vm)[1]
         vm.favorite(samourai)
+        advanceUntilIdle()
+        assertEquals(samourai, titles(vm)[1])
+        assertEquals(NotSaved(samourai.id, UiError.OFFLINE), vm.notSaved.value)
+    }
+
+    /**
+     * A mark and then a favourite, neither saved, the mark failing first: the page undoes it over the title as it shows
+     * it, the favourite still saving left showing, then shows the title as the source has it (PendingChangesTest holds
+     * the other orders).
+     */
+    @Test
+    fun aMarkNotSavedLeavesTheFavouriteStillSavingShowing() = runTest {
+        provider.fail = { if (it.startsWith("played") || it.startsWith("favorite")) IOException("NAS away") else null }
+        val vm = PersonViewModel("tmdb:1", { provider }, work = this)
+        advanceUntilIdle()
+        val samourai = titles(vm)[1]
+        val marking = provider.gate("played ${samourai.id} true")
+        val favouring = provider.gate("favorite ${samourai.id} true")
+        vm.mark(samourai)
+        vm.favorite(titles(vm)[1])
+        runCurrent()
+        marking.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("the favourite still saving shows", samourai.favoredAs(true), titles(vm)[1])
+        favouring.complete(Unit)
         advanceUntilIdle()
         assertEquals(samourai, titles(vm)[1])
         assertEquals(NotSaved(samourai.id, UiError.OFFLINE), vm.notSaved.value)
