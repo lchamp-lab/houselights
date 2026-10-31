@@ -121,7 +121,7 @@ class PagesNavigationTest {
 
     private fun NavHostController.wall() = checkNotNull(currentBackStackEntry).toRoute<Route.Library>()
 
-    /** OK pressed twice before a door's page shows opens it once: one Back from it lands on that door. */
+    /** OK opens a door's page, once even pressed twice before it shows: one Back from it lands on that door. */
     @Test
     fun eachDoorOpensItsPageOnceAndBackLandsOnIt() {
         val nav = app()
@@ -136,13 +136,11 @@ class PagesNavigationTest {
             Triple(listOf(Key.DirectionRight), "Search", Route.Search::class),
             Triple(listOf(Key.DirectionRight), "Settings", Route.Settings::class),
         )
-        doors.forEach { (keys, door, page) ->
+        doors.forEachIndexed { i, (keys, door, page) ->
             keys.forEach { compose.press(it) }
             focusIsOn(door)
-            compose.onRoot().performKeyInput {
-                pressKey(Key.DirectionCenter)
-                pressKey(Key.DirectionCenter)
-            }
+            // The first door pressed once, the others twice.
+            compose.onRoot().performKeyInput { repeat(if (i == 0) 1 else 2) { pressKey(Key.DirectionCenter) } }
             compose.waitForIdle()
             compose.runOnIdle { assertTrue("$door opens its page over home", nav.on(page) && nav.overHome()) }
             back()

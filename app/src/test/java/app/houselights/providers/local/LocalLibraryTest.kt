@@ -202,7 +202,7 @@ class LocalLibraryTest {
             assertEquals(listOf(0), counted)
             statements.clear()
 
-            repeat(10) { n ->
+            repeat(WRITES) { n ->
                 dao.insert(
                     ItemEntity(
                         kind = ItemKind.MOVIE,
@@ -223,8 +223,10 @@ class LocalLibraryTest {
             assertTrue("counts asked ${asked.count { "GROUP BY sourceId" in it }} times", asked.count { "GROUP BY sourceId" in it } <= 1)
             assertTrue("posters asked again", asked.count { "sourceId = ? AND kind IN" in it && "ORDER BY addedAt" in it } <= 1)
 
-            advanceTimeBy(PACE_MS)
-            assertEquals("the latest, once the 2 s are over", listOf(0, 10), counted)
+            advanceTimeBy(PACE_MS - WRITES * WRITE_MS - 1)
+            assertEquals("the first answers until the 2 s are over", listOf(0), counted)
+            advanceTimeBy(2)
+            assertEquals("the latest, once they are", listOf(0, 10), counted)
             assertEquals(4, posters.last().size)
         } finally {
             db.close()
@@ -240,7 +242,10 @@ class LocalLibraryTest {
         const val WRITE_MS = 50L
 
         /** How often Réglages › Bibliothèque reads its counts again, and a moment more. */
-        const val PACE_MS = 2_001L
+        const val PACE_MS = 2_000L
+
+        /** The films the scan writes meanwhile. */
+        const val WRITES = 10
 
         /** As the form gives it: its kind is not the folder's and must be ignored. */
         val EDITED = smbFolder("films-4k", SourceKind.SHOWS, host = "192.168.1.20", share = "video", password = "new")

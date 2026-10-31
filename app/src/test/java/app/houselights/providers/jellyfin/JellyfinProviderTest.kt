@@ -126,23 +126,34 @@ class JellyfinProviderTest {
     fun stoppedIsSentAgainOnlyWhenItNeverReachedTheServer() = runTest {
         // Android's message; OkHttp passes it through unchanged.
         val notConnected = "failed to connect to /192.168.1.10 (port 8096) from /192.168.1.20 (port 41234) after 10000ms"
-        // The first answer, and whether Stopped goes again after it.
-        val firsts = listOf<Pair<() -> Answer, Boolean>>(
-            { Answer(500) } to true,
-            { throw ConnectException("Connection refused") } to true,
-            { throw SocketTimeoutException(notConnected) } to true,
-            { throw SocketTimeoutException("timeout") } to false,
-            { throw IOException("Connection reset") } to false,
-            { Answer(401) } to false,
+        val timedOut = SocketTimeoutException("timeout")
+        val cut = IOException("Connection reset")
+        val cases = listOf(
+            Stops("a 500, then a connection refused", listOf(status(500), fails(ConnectException("Connection refused"))), 3) {
+                it == null
+            },
+            Stops("a connection not opened in time", listOf(fails(SocketTimeoutException(notConnected))), 2) { it == null },
+            Stops("an answer timed out", listOf(fails(timedOut)), 1) { it is SocketTimeoutException && it.message == timedOut.message },
+            Stops("a connection cut", listOf(fails(cut)), 1) {
+                it != null && it.javaClass == IOException::class.java && it.message == cut.message
+            },
+            Stops("a refusal", listOf(status(401)), 1) { (it as? HttpException)?.code() == 401 },
         )
-        firsts.forEachIndexed { row, (first, again) ->
+        for (stop in cases) {
             val tries = AtomicInteger()
-            val server = FakeServer { if (tries.incrementAndGet() == 1) first() else Answer(204) }
+            val server = FakeServer { stop.firsts.getOrNull(tries.getAndIncrement())?.invoke() ?: Answer(204) }
             val failure = runCatching { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }.exceptionOrNull()
-            assertEquals("row $row, ended on $failure", if (again) 2 else 1, server.paths.size)
-            assertEquals("row $row", again, failure == null)
+            assertEquals("${stop.case}, ended on $failure", List(stop.requests) { "/Sessions/Playing/Stopped" }, server.paths)
+            assertTrue("${stop.case}, ended on $failure", stop.ends(failure))
         }
     }
+
+    /** Stopped meeting [firsts] in turn, then 204: it takes [requests] requests, and [ends] says how it ends. */
+    private data class Stops(val case: String, val firsts: List<() -> Answer>, val requests: Int, val ends: (Throwable?) -> Boolean)
+
+    private fun status(code: Int): () -> Answer = { Answer(code) }
+
+    private fun fails(e: IOException): () -> Answer = { throw e }
 
     @Test
     fun stoppedIsTriedThreeTimesMoreThenFails() = runTest {

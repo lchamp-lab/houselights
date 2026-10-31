@@ -118,7 +118,7 @@ class MkvProbeTest {
      * the end of the bytes with its reader's own refusal (an element or integer past the end, a size it cannot read),
      * which MediaProbe takes as a file it cannot read inside; never another failure, nor a loop.
      */
-    @Test
+    @Test(timeout = 10_000)
     fun aFileCutAnywhereIsReadNoFurtherThanItsEnd() {
         val sample = Matroska.sample()
         for (length in 0..sample.size) {

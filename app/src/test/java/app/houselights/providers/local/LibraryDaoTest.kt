@@ -12,12 +12,15 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -214,29 +217,35 @@ class LibraryDaoTest {
     }
 
     /**
-     * A scan's save ([LibraryDao.saveScanned]) keeps every column the scan does not own, as it stands when the scan writes:
-     * what the user chose, where the title was left, its copies, its credits' date, its arrival, its order of episodes.
+     * A scan's save ([LibraryDao.saveScanned]) keeps every column it does not own ([SCAN_OWNED]), as it stands when the
+     * scan writes: what the user chose and did, its copies, its credits' date, its arrival, its order of episodes. Each
+     * column is found on [ItemEntity] itself, so a new one is kept unless declared the scan's.
      */
     @Test
     fun aScanKeepsEveryColumnItDoesNotOwn() = runTest {
         val heat = dao.insert(row(ItemKind.MOVIE, "Heat"))
         val uhd = dao.insert(row(ItemKind.MOVIE, "Heat 4K"))
-        val kept = checkNotNull(dao.item(heat)).copy(
-            userTmdbId = 949, userPosterPath = "/poster.jpg", userBackdropPath = "/backdrop.jpg", userLogoPath = "",
-            userNoMatch = true, positionMs = 1_000, durationMs = 6_000_000, played = true, favorite = true, lastPlayedAt = 5,
-            versionChoice = uhd, versionOf = uhd, creditsAt = 7, addedAt = 9, episodeOrder = "dvd", userEpisodeOrder = "aired",
-            reorderedAt = 11,
-        )
-        dao.update(kept)
-        dao.saveScanned(row(ItemKind.MOVIE, "Heat").copy(id = heat, matchState = MatchState.NOT_FOUND))
-        assertEquals(kept.copy(matchState = MatchState.NOT_FOUND), dao.item(heat))
+        val columns = ItemEntity::class.java.declaredFields.filterNot { Modifier.isStatic(it.modifiers) }.onEach { it.isAccessible = true }
+        assertTrue("the scan's columns are ItemEntity's", columns.map { it.name }.containsAll(SCAN_OWNED))
+        val kept = columns.filter { it.name !in SCAN_OWNED }
+        val scanned = row(ItemKind.MOVIE, "Heat").copy(id = heat)
+        // Each kept column apart from what the scan writes; a row id where a column names another row.
+        val before = checkNotNull(dao.item(heat)).also { item -> kept.forEach { it.set(item, keptValue(it, uhd)) } }
+        dao.update(before)
+        kept.forEach { assertNotEquals("${it.name} set apart from the scan's", it.get(scanned), it.get(dao.item(heat))) }
+
+        dao.saveScanned(scanned)
+        val after = checkNotNull(dao.item(heat))
+        assertEquals(kept.map { it.name to it.get(before) }, kept.map { it.name to it.get(after) })
     }
 
-    /** Every column the user sets is one a scan keeps: a new one is added to [aScanKeepsEveryColumnItDoesNotOwn]. */
-    @Test
-    fun everyColumnTheUserSetsIsKeptByAScan() {
-        val users = ItemEntity::class.java.declaredFields.map { it.name }.filter { it.startsWith("user") }.toSet()
-        assertEquals(setOf("userTmdbId", "userPosterPath", "userBackdropPath", "userLogoPath", "userNoMatch", "userEpisodeOrder"), users)
+    /** A value of [column]'s type that no scan writes: [row] where a number may name a row. */
+    private fun keptValue(column: Field, row: Long): Any = when (column.type) {
+        Long::class.javaPrimitiveType, Long::class.javaObjectType -> row
+        Int::class.javaPrimitiveType, Int::class.javaObjectType -> KEPT_NUMBER
+        Boolean::class.javaPrimitiveType, Boolean::class.javaObjectType -> true
+        String::class.java -> "kept ${column.name}"
+        else -> error("No kept value for ${column.name} (${column.type}): give it one, or name it in SCAN_OWNED")
     }
 
     /** A show left as it is, its episodes taken over by another show row (two season packs merging), leaves that one so. */
@@ -457,6 +466,19 @@ class LibraryDaoTest {
 
     private companion object {
         const val ANDROID_9_LIMIT = 999
+
+        /** What a scan writes of a title, from its files, its NAS and TMDB; the row's id names it. */
+        val SCAN_OWNED = setOf(
+            "id", "kind", "sourceId", "parentId", "seriesId", "matchKey", "tmdbId", "title", "sortTitle", "originalTitle",
+            "overview", "tagline", "year", "endYear", "continuing", "runtimeMin", "certification", "rating", "genres", "directors",
+            "posterPath", "backdropPath", "logoPath", "stillPath", "seasonNumber", "episodeNumber", "lastEpisodeNumber",
+            "absoluteNumber", "tmdbSeason", "tmdbEpisode", "tmdbLastEpisode", "filePath", "parts", "fileSize", "missingSince",
+            "badges", "mediaInfo", "probeVersion", "fileDurationMs", "nfoPath", "nfo", "sidecarKey", "collectionId", "matchedAt",
+            "edition", "votes", "matchState", "hintKey",
+        )
+
+        /** A number no scan writes in a kept column. */
+        const val KEPT_NUMBER = 7
 
         /** When a show's latest episode was found, after every title. */
         const val LATER = 99L
