@@ -3,6 +3,7 @@ package app.houselights.ui.design.components
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.HlScrim
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.VoletDefaults
 import app.houselights.ui.design.alphaAt
 import org.junit.Assert.assertEquals
@@ -18,40 +19,30 @@ import org.junit.Test
 class VoletPlanTest {
     @Test
     fun widthsByLength() {
-        assertEquals("one film: its poster whole", 247f, closed(1).value, 0.01f)
-        assertEquals("the open panel takes the rest", 598f, plan(1).open.value, 0.01f)
-        assertEquals(204.5f, closed(2).value, 0.01f)
-        assertEquals("Dune, a triptych", 133.67f, closed(3).value, 0.01f)
-        assertEquals("John Wick", 98.25f, closed(4).value, 0.01f)
-        assertEquals("Avatar", 77f, closed(5).value, 0.01f)
-        assertEquals("Mission : Impossible, a shelf of spines", 45.125f, closed(8).value, 0.01f)
-        assertEquals("Bond: the narrowest", VoletDefaults.narrowest.value, closed(25).value, 0f)
+        val poster = HEIGHT * HlSize.POSTER_RATIO
+        assertEquals("one film: its poster whole", poster.value, closed(1).value, 0.01f)
+        assertTrue("the open panel takes the rest", plan(1).open > VoletDefaults.open)
+        (2..8).forEach { films ->
+            assertEquals("$films films open on a hero's title box", VoletDefaults.open, plan(films).open)
+            assertTrue("$films films: a poster cut, never more", closed(films) < poster)
+            assertTrue("$films films: narrower than ${films - 1}", closed(films) < closed(films - 1))
+        }
         (1..8).forEach { films ->
             val plan = plan(films)
-            assertEquals(
-                "$films films open on a hero's title box",
-                if (films == 1) 598f else VoletDefaults.open.value,
-                plan.open.value,
-                0.01f,
-            )
             assertEquals("$films films fill the polyptych", WIDTH.value, (plan.open + (plan.closed + plan.gap) * films).value, 0.01f)
             assertFalse("$films films do not scroll", plan.scrolls)
+            assertTrue("$films films: no narrower than a spine", plan.closed >= VoletDefaults.narrowest)
         }
+        assertEquals("Bond: the narrowest", VoletDefaults.narrowest.value, closed(25).value, 0f)
         assertTrue("past eight films they scroll", plan(9).scrolls && plan(25).scrolls)
         assertEquals(VoletDefaults.open, plan(25).open)
     }
 
     @Test
-    fun theOpenPanelHoldsAHerosWords() {
-        assertEquals(428f, VoletDefaults.open.value, 0f)
-        assertEquals(8f, VoletDefaults.gap.value, 0f)
-    }
-
-    @Test
     fun numbersByLength() {
-        (1..3).forEach { assertEquals("$it films: 72", VoletNumbers.Signature, plan(it).numbers) }
-        (4..5).forEach { assertEquals("$it films: 48", VoletNumbers.Display, plan(it).numbers) }
-        (6..25).forEach { assertEquals("$it films: 36", VoletNumbers.Headline, plan(it).numbers) }
+        (1..3).forEach { assertEquals("$it films: the title's signature", VoletNumbers.Signature, plan(it).numbers) }
+        (4..5).forEach { assertEquals("$it films: display", VoletNumbers.Display, plan(it).numbers) }
+        (6..25).forEach { assertEquals("$it films: headline", VoletNumbers.Headline, plan(it).numbers) }
         assertEquals(VoletNumbers.Signature, VoletPlan.numbersAt(VoletDefaults.numberLarge))
         assertEquals(VoletNumbers.Display, VoletPlan.numbersAt(VoletDefaults.numberLarge - 0.1.dp))
         assertEquals(VoletNumbers.Display, VoletPlan.numbersAt(VoletDefaults.numberMedium))

@@ -34,8 +34,8 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * DESIGN.md, Secondary screens: a sheet reads at the boards' rhythm (the head and a technical sheet's blocks from
- * `board2/second.html`; an NFO's definitions and a synopsis from « Échelle de texte »), each line's baseline within
- * [CLOSE] of the board's.
+ * `board2/second.html`, [SecondBoard]; an NFO's definitions and a synopsis from « Échelle de texte », [TextBoard]),
+ * each line's baseline within [CLOSE] of the board's.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr-$TV")
@@ -70,12 +70,12 @@ class SheetRhythmTest {
             ),
         )
         compose.setTvContent { TechSpecs(film, onDismiss = {}) }
-        assertAt("the title", 60f, at("Fiche technique"))
-        assertAt("its facts", 84f, at("The Furious"))
+        assertAt("the title", SecondBoard.TITLE, at("Fiche technique"))
+        assertAt("its facts", SecondBoard.FACTS, at("The Furious"))
         val picture = compose.onNode(block("Image")).getUnclippedBoundsInRoot()
-        assertAt("the picture's plate", 107f, picture.top.value)
+        assertAt("the picture's plate", SecondBoard.FIRST_PLATE, picture.top.value)
         val sound = compose.onNode(block("Son")).getUnclippedBoundsInRoot()
-        assertAt("the sound's plate, a group's gap under it", (picture.bottom.value + 16f), sound.top.value)
+        assertAt("the sound's plate, a group's gap under it", picture.bottom.value + SecondBoard.PLATE_GAP, sound.top.value)
     }
 
     @Test
@@ -93,11 +93,11 @@ class SheetRhythmTest {
             val read = LoadState.Ready(NfoContent("/films/Colony.nfo", info, emptyList()))
             NfoSheet(film, NfoState(read), onRetry = {}, onDismiss = {})
         }
-        assertAt("the title", 60f, at("Fichier NFO"))
-        assertAt("what it is", 124f, at("Écrite par votre gestionnaire de médias, elle prime sur TMDB."))
+        assertAt("the title", SecondBoard.TITLE, at("Fichier NFO"))
+        assertAt("what it is", TextBoard.NFO_ABOUT, at("Écrite par votre gestionnaire de médias, elle prime sur TMDB."))
         val title = compose.onNodeWithText("Titre").baseline()
-        assertAt("the first definition", 176f, title)
-        assertAt("the next, a definition's pitch under it", title + PITCH, at("Année"))
+        assertAt("the first definition", TextBoard.FIRST_DEFINITION, title)
+        assertAt("the next, a definition's pitch under it", title + TextBoard.DEFINITION_PITCH, at("Année"))
         // The year in the head first, then in its definition.
         assertAt("a label and its value, one baseline", at("Année"), compose.onAllNodesWithText("2026")[1].baseline())
     }
@@ -113,8 +113,8 @@ class SheetRhythmTest {
             overview = "Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine.",
         )
         compose.setTvContent { SynopsisSheet(film, onDismiss = {}) }
-        assertAt("its tagline", 135f, at("Ressentez le besoin… Le besoin de vitesse."))
-        assertAt("its text", 176f, at("Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine."))
+        assertAt("its tagline", TextBoard.TAGLINE, at("Ressentez le besoin… Le besoin de vitesse."))
+        assertAt("its text", TextBoard.SYNOPSIS, at("Après avoir été l’un des meilleurs pilotes de chasse de l’Aéronavale américaine."))
     }
 
     /** The block read first as [name]. */
@@ -122,11 +122,27 @@ class SheetRhythmTest {
         it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()?.startsWith("$name, ") == true
     }
 
+    /** `board2/second.html`, in dp from the sheet's top: its head, a technical sheet's plates. */
+    private object SecondBoard {
+        const val TITLE = 60f
+        const val FACTS = 84f
+        const val FIRST_PLATE = 107f
+        const val PLATE_GAP = 16f
+    }
+
+    /** « Échelle de texte », in dp from the sheet's top: what an NFO is and its definitions, a synopsis. */
+    private object TextBoard {
+        const val NFO_ABOUT = 124f
+        const val FIRST_DEFINITION = 176f
+
+        /** From one definition's baseline to the next's. */
+        const val DEFINITION_PITCH = 37f
+        const val TAGLINE = 135f
+        const val SYNOPSIS = 176f
+    }
+
     private companion object {
         /** Within 3 dp of the board. */
         const val CLOSE = 3f
-
-        /** An NFO's definitions on the board: their values in `body`, 20 apart. */
-        const val PITCH = 37f
     }
 }

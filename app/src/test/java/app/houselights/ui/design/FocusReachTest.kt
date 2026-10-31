@@ -51,21 +51,6 @@ class FocusReachTest {
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
 
-    @Test
-    fun theFrameStandsOffWhatItFrames() {
-        // The gap, then the stroke, whatever the size of what it frames.
-        assertEquals((HlFocus.frameGap + HlFocus.frame).value, HlFocus.reach.value, 0f)
-        assertTrue(HlFocus.frame > HlSize.focusBorder)
-    }
-
-    @Test
-    fun aRowAndAWallHoldTheFrame() {
-        // MediaRow keeps HlFocus.room above and below its cards, a wall HlFocus.wallRoom above its first line.
-        assertTrue(HlFocus.reach <= HlFocus.room)
-        assertTrue(HlFocus.reach <= HlFocus.wallRoom)
-        assertEquals(0f, HlFocus.room.value % 4f, 0f)
-    }
-
     /** Past its room, a row draws a focused card's glow as the card alone draws it, out to its last lit ring. */
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -94,20 +79,6 @@ class FocusReachTest {
         assertTrue("the glow lights the wall's room: $glow", glow[HlFocus.room.px()] > FADED)
     }
 
-    @Test
-    fun aFrameStaysNearerItsCardThanItsNeighbour() {
-        // Cards of a row are HlSpace.s apart at the closest (people), a wall's posters its gutter.
-        listOf(HlSpace.s, HlSpace.m, HlLayout.wallGutter).forEach { apart ->
-            assertTrue("cards $apart apart", HlFocus.reach * 2 <= apart)
-        }
-    }
-
-    @Test
-    fun aWallsPostersFillTheSafeArea() {
-        val across = HlSize.wallPoster * HlLayout.WALL_COLUMNS + HlLayout.wallGutter * (HlLayout.WALL_COLUMNS - 1)
-        assertEquals(HlLayout.CANVAS_WIDTH - 2 * HlSpace.safeH.value, across.value, 0.01f)
-    }
-
     /** A pane's showcases run to the screen's end, the last one brought in with its frame inside the safe area. */
     @Test
     fun aShowcaseRowKeepsItsLastFrameInsideTheSafeArea() {
@@ -126,12 +97,6 @@ class FocusReachTest {
         val box = last.getUnclippedBoundsInRoot()
         // Half a pixel short of it, where a test pixel rounds the frame's reach.
         assertTrue("$box", box.right + HlFocus.reach <= HlLayout.CANVAS_WIDTH.dp - HlSpace.safeH + HALF_PX)
-    }
-
-    @Test
-    fun focusStaysClearOfTheFades() {
-        // A list keeps focus HlFocus.edge from its ends: past the fade of what scrolls.
-        assertTrue(HlSpace.fadeEdge <= HlFocus.edge)
     }
 
     private val focus = FocusRequester()

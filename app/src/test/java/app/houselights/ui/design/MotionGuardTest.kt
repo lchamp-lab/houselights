@@ -3,6 +3,7 @@ package app.houselights.ui.design
 import app.houselights.testing.argumentsFrom
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -80,6 +81,13 @@ class MotionGuardTest {
 
     private val named = Regex("""^([a-zA-Z]\w*)\s*=(?!=)""")
     private val specs = setOf("animationSpec", "transitionSpec")
+
+    /** What arrives comes in the focus pull, what leaves falls back (DESIGN.md, Motion): focus, a plate. */
+    @Test
+    fun whatArrivesPullsAndWhatLeavesFallsBack() {
+        assertEquals(HlMotion.focusPull, HlMotion.inOut<Float>(on = true).easing)
+        assertEquals(HlMotion.fallBack, HlMotion.inOut<Float>(on = false, HlMotion.PLATE_IN, HlMotion.PLATE_OUT).easing)
+    }
 
     @Test
     fun theGuardCatchesWhatItShould() {

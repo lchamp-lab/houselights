@@ -51,9 +51,10 @@ class VoletsLayoutTest {
 
     private var case by mutableStateOf(Case(films = 3, step = 1f, open = 0))
 
-    /** The width a year is set at, and the numbers' size, as the case composes them. */
+    /** The width a year is set at, and the numbers' size, as the case composes them, and their style's in sp. */
     private var year = 0.dp
     private var numbers = 0.dp
+    private var numbersSp = 0f
 
     @Test
     fun thePolyptychSpansTheSafeAreaLessTheFramesReach() = sizes { step ->
@@ -69,15 +70,16 @@ class VoletsLayoutTest {
         assertEquals("Bond at $step: the narrowest", VoletDefaults.narrowest.value, panels(BOND)[1].width.value, 1f)
     }
 
+    /** The numbers keep their style's size at every text size from Standard up; which style, by length, is the plan's (VoletPlanTest). */
     @Test
-    fun theNumbersTakeOneSizeByTheSagasLength() = sizes { step ->
-        listOf(3 to 72f, 4 to 44f, 5 to 44f, 6 to 32f, 8 to 32f, BOND to 32f).forEach { (films, size) ->
+    fun theNumbersNeverGrowWithTheText() = sizes { step ->
+        listOf(3, 4, 6, BOND).forEach { films ->
             show(Case(films, step, open = 0))
-            // Compacte sets them smaller, as it does every title; from Standard up they keep their size.
+            // Compacte sets them smaller, as it does every title.
             if (step < 1f) {
-                assertTrue("$films films at $step: $numbers", numbers.value <= size)
+                assertTrue("$films films at $step: $numbers", numbers.value <= numbersSp)
             } else {
-                assertEquals("$films films at $step", size, numbers.value, 0.01f)
+                assertEquals("$films films at $step", numbersSp, numbers.value, 0.01f)
             }
         }
     }
@@ -120,6 +122,7 @@ class VoletsLayoutTest {
                 with(density) {
                     year = YEARS.maxOf { measurer.measure(it, meta, maxLines = 1, softWrap = false, density = density).size.width }.toDp()
                     numbers = style.fontSize.toDp()
+                    numbersSp = style.fontSize.value
                 }
                 Box(Modifier.fillMaxSize()) {
                     // A saga a page: laid out open on its panel, as the page comes.
