@@ -194,6 +194,13 @@ class ScanBench(
     }
 }
 
+/** The reads one probe makes of a file at [path] of [size] starting with [bytes]: what a pass reading it once reads. */
+suspend fun oneProbesReads(path: String, size: Long, bytes: ByteArray): List<String> {
+    val alone = FakeRemoteBrowser().apply { put(path, size = size, bytes = bytes) }
+    MediaProbe.probe(nfsFolder(), RemoteFile(path, size), alone)
+    return alone.reads.toList()
+}
+
 /**
  * A [ScanBench] for each test, as [ScanBench]'s arguments say, its artwork in a temporary folder of the test's own
  * ([temp], where a test may make others), its library closed after the test.

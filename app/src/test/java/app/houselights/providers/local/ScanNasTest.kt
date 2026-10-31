@@ -45,19 +45,24 @@ class ScanNasTest {
         assertEquals(2, bench.closed.get())
     }
 
+    /**
+     * A film started while a folder lists: the listing stops between two folders, the NAS's sessions closed through the
+     * film before a file is read, and lists the folder anew once it ends.
+     */
     @Test
     fun aScanWaitingForTheFilmHoldsNoSessionOnTheNas() = runTest {
         nas.put("Dune (2021).mkv")
-        // The film starts while the folder is listed: the listing stops, to begin anew once the film ends.
         var listed = 0
         nas.onList = { if (++listed == 1) bench.playing.value = true }
         val closing = CompletableDeferred<Unit>().also { bench.onClose = { it.complete(Unit) } }
         bench.scanner.scanAll()
         closing.await()
+        assertEquals("stopped as the film started", 1, listed)
         assertEquals("closed before reading a file", emptyList<String>(), nas.reads)
 
         bench.playing.value = false
         bench.awaitScans()
+        assertEquals("listed anew", 2, listed)
         assertEquals(listOf("Dune (2021).mkv"), filePaths())
         assertEquals("and once the pass is over", 2, bench.closed.get())
     }

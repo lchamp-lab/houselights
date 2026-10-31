@@ -14,7 +14,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
 import java.io.IOException
-import java.net.SocketTimeoutException
 
 /**
  * A failed read is retried at the next scan, keeping what was read before; a silent NAS ends the pass. What fails at
@@ -197,19 +196,5 @@ class ScanReadsTest {
         assertEquals("Dune (2021).nfo", dune.nfoPath)
         assertTrue(dune.nfo.orEmpty().contains("Dune: Part One"))
         assertEquals("Dune: Part One", dune.title)
-    }
-
-    @Test
-    fun aNasThatStopsAnsweringWhileImagesAreCopiedEndsThePass() = runTest {
-        // Files the probe does not open, without NFO: only their posters are read.
-        repeat(5) {
-            nas.put("New $it (2024).mp4")
-            nas.putImage("New $it (2024)-poster.jpg")
-        }
-        nas.readFailure = SocketTimeoutException("timeout")
-        bench.scan()
-
-        assertEquals(ScanErrorKind.UNREACHABLE, bench.error(films))
-        assertEquals("gives up after three files, each with long timeouts", 3, nas.reads.size)
     }
 }

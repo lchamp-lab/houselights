@@ -45,8 +45,9 @@ class ScanStorageTest {
         bench.scan()
 
         assertEquals(ScanErrorKind.STORAGE_FULL, bench.error(films))
-        val read = nas.reads.size
-        assertTrue("$read files read", read < 200)
+        val written = bench.dao.filesOf(films.id).size
+        assertTrue("$written of 200 written", written < 200)
+        assertEquals("none read past the first refused", written, nas.reads.size)
         assertEquals("the next folder would fail the same way", 0, showsListed)
         assertNull(bench.error(shows))
 

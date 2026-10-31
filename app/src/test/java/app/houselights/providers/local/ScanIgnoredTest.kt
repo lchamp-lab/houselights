@@ -9,6 +9,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import java.io.IOException
 
 /**
@@ -37,8 +38,10 @@ class ScanIgnoredTest {
 
     private suspend fun ignored() = bench.dao.observeIgnored().first().map { Triple(it.folder, it.filePath, it.reason) }
 
+    /** Listed, and told in the log once a pass. */
     @Test
     fun aVideoNamingNoEpisodeIsListedWithWhy() = runTest {
+        ShadowLog.clear()
         bench.scan()
 
         // By path, as SQLite sorts them.
@@ -48,6 +51,8 @@ class ScanIgnoredTest {
         )
         assertEquals(expected, ignored())
         assertEquals(listOf("Severance/Season 1/Severance - S01E01.mkv"), bench.paths(shows))
+        val told = ShadowLog.getLogsForTag("LibraryScanner").map { it.msg }.filter { "name no episode" in it }
+        assertEquals(listOf("Séries: 2 of 3 videos name no episode, and are left out"), told)
     }
 
     @Test
@@ -77,10 +82,12 @@ class ScanIgnoredTest {
     @Test
     fun aFolderOutOfReachKeepsItsList() = runTest {
         bench.scan()
+        val before = ignored()
         showsNas.listFailure = IOException("NAS unreachable")
         bench.scan()
 
-        assertEquals(2, ignored().size)
+        assertEquals(2, before.size)
+        assertEquals(before, ignored())
     }
 
     @Test

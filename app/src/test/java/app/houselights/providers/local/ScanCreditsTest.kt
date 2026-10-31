@@ -164,6 +164,7 @@ class ScanCreditsTest {
         dune(TmdbCollectionRef(726871, "Dune - Saga"))
         nas.put("Dune (2021).mkv")
         creditsRefusedDuring { bench.scan() }
+        assertEquals("asked once, the write refused not taken for an answer missing", 1, tmdb.requests.count { it == "movie/438631" })
         assertEquals("nothing half saved", emptyList<ItemEntity>(), dao.filesOf(films.id).filter { it.matchedAt != null })
         assertEquals("nor its saga", null, dao.collectionByKey(CollectionRules.key(726871, "Dune - Saga")))
 
@@ -186,7 +187,9 @@ class ScanCreditsTest {
         assertNull(bench.series("Severance", 2022).matchedAt)
 
         bench.tmdbBack()
+        tmdb.requests.clear()
         creditsRefusedDuring { bench.scan() }
+        assertEquals("asked once", 1, tmdb.requests.count { it == "tv/1" })
         assertNull("not matched without its credits", bench.series("Severance", 2022).matchedAt)
 
         bench.scan()

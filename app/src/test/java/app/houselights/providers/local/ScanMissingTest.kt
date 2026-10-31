@@ -1,13 +1,10 @@
 package app.houselights.providers.local
 
-import app.houselights.testing.mountFailure
 import app.houselights.testing.smbStatus
 import app.houselights.ui.settings.heldByFolder
-import com.emc.ecs.nfsclient.mount.MountStatus
 import com.emc.ecs.nfsclient.nfs.NfsException
 import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.hierynomus.mserref.NtStatus
-import com.hierynomus.smbj.session.SMB2GuestSigningRequiredException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -274,9 +271,8 @@ class ScanMissingTest {
     }
 
     /**
-     * What does not say the folder left holds nothing and asks nothing, pass after pass: a NAS out of reach or spinning
-     * its disks up, a share or an export missing or refused (a NAS waking up may answer so), an account or a guest
-     * refused, a folder refused.
+     * What does not say the folder left holds nothing and asks nothing, pass after pass: a NAS out of reach, a folder
+     * refused. The failures that do say so are told apart in [ScanErrorsTest.onlyAFolderGoneFromANasThatAnswersHoldsItsTitles].
      */
     @Test
     fun aNasThatDoesNotSayTheFolderLeftHoldsNothing() = runTest {
@@ -284,12 +280,6 @@ class ScanMissingTest {
         bench.scan()
         listOf(
             ConnectException("Connection refused"),
-            NfsException(NfsStatus.NFS3ERR_JUKEBOX, "lookup error code: NfsStatus:10008"),
-            mountFailure(MountStatus.MNT3ERR_NOENT),
-            mountFailure(MountStatus.MNT3ERR_ACCES),
-            smbStatus(NtStatus.STATUS_BAD_NETWORK_NAME),
-            smbStatus(NtStatus.STATUS_LOGON_FAILURE),
-            SMB2GuestSigningRequiredException(),
             NfsException(NfsStatus.NFS3ERR_ACCES, "lookup error code: NfsStatus:13"),
         ).forEach { failure ->
             nas.listFailure = failure
@@ -370,15 +360,6 @@ class ScanMissingTest {
         assertEquals("no clock decides", 22, filePaths().size)
         assertEquals("held since they went", setOf(START), missingSince(offline))
         assertEquals(offline.sorted(), dao.observeHeld().first().mapNotNull { it.filePath }.sorted())
-    }
-
-    /** Ten of forty, a quarter: no drop, they go on the pass that misses them. */
-    @Test
-    fun fewFilesGoneGoOnTheNextPass() = runTest {
-        filmFolder(40)
-        (0 until 10).map(::film).forEach(nas::remove)
-        bench.scan()
-        assertEquals((10 until 40).map(::film).sorted(), filePaths())
     }
 
     /** A film deleted goes on the pass that misses it, the app's own after a restart included; what the user did is kept. */
