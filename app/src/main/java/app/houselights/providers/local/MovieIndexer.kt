@@ -423,15 +423,16 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
     /**
      * Row [id], about to be saved with TMDB id [tmdbId], leaves the film it was matched with when that changes: the
-     * film's copy left keeps what was chosen on it ([CopyHeirDao.handTitlesOf]), the row taking none of it along; a
-     * scan's row the last of its film keeps it, nothing being left of that film to hold it, while the user's match
-     * ([identified]) always drops it, as chosen for the previous film. Runs before the match is written, while the
-     * row's TMDB id still names that film.
+     * film's copy left keeps what was chosen on it ([CopyHeirDao.handTitlesOf]), the row taking none of it along, nor
+     * what it holds unseen as a copy; a scan's row the last of its film keeps it, nothing being left of that film to
+     * hold it, while the user's match ([identified]) always drops it, as chosen for the previous film. Runs before the
+     * match is written, while the row's TMDB id still names that film.
      */
     private suspend fun leaveFilm(id: Long, tmdbId: Int?, identified: Boolean) {
         if (dao.tmdbIdOf(id) == tmdbId) return
-        val handed = dao.handTitlesOf(listOf(id), match = false)
-        if (identified || handed) {
+        val last = dao.othersOfFilm(id) == 0
+        dao.handTitlesOf(listOf(id), match = false)
+        if (identified || !last) {
             dao.clearUserArtwork(id)
             dao.setVersionChoice(id, null)
         }

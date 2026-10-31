@@ -144,6 +144,56 @@ class CopiesRematchedInAPassTest {
         assertEquals(POSTER, row(film.id).userPosterPath)
     }
 
+    /**
+     * Arrival's former main row, a copy since an older row joined Arrival, named Dune by a scan: the Arrival poster it
+     * held unseen does not come along to Dune, which never showed it.
+     */
+    @Test
+    fun aCopysUnseenChoicesStayOutOfTheFilmItJoins() = runTest {
+        val a = bench.folder("A")
+        val b = bench.folder("B", on = nasB)
+        bench.nas.put(HD)
+        bench.nas.put(UNKNOWN)
+        nasB.put(ARRIVAL_FILE)
+        bench.scan()
+        val dune = bench.item(a, HD)
+        val older = bench.item(a, UNKNOWN)
+        val arrival = bench.item(b, ARRIVAL_FILE)
+        dao.setUserPoster(arrival.id, ARRIVAL_POSTER)
+        bench.nas.putText(nfoOf(UNKNOWN), nfo(ARRIVAL, "Arrival"))
+        bench.scan()
+        assertEquals("Arrival's main row now", older.id, row(arrival.id).versionOf)
+        assertEquals(ARRIVAL_POSTER, row(older.id).userPosterPath)
+
+        nasB.putText(nfoOf(ARRIVAL_FILE), nfo(DUNE, "Dune"))
+        bench.scan()
+
+        assertEquals(dune.id, row(arrival.id).versionOf)
+        assertNull(row(dune.id).userPosterPath)
+        assertEquals("Arrival keeps it", ARRIVAL_POSTER, row(older.id).userPosterPath)
+    }
+
+    /** A lone Arrival named Dune by a scan, Dune having chosen a backdrop: Dune shows its own choices, Arrival's none. */
+    @Test
+    fun aLoneFilmJoiningAFilmWithChoicesBringsNone() = runTest {
+        val a = bench.folder("A")
+        val b = bench.folder("B", on = nasB)
+        bench.nas.put(HD)
+        nasB.put(ARRIVAL_FILE)
+        bench.scan()
+        val dune = bench.item(a, HD)
+        val lone = bench.item(b, ARRIVAL_FILE)
+        dao.setUserPoster(lone.id, ARRIVAL_POSTER)
+        dao.setUserBackdrop(dune.id, DUNE_BACKDROP)
+
+        nasB.putText(nfoOf(ARRIVAL_FILE), nfo(DUNE, "Dune"))
+        bench.scan()
+
+        assertEquals(dune.id, row(lone.id).versionOf)
+        assertNull(row(dune.id).userPosterPath)
+        assertEquals(DUNE_BACKDROP, row(dune.id).userBackdropPath)
+    }
+
     /** Two rows older than Dune's main row named Dune in one pass: the oldest ends its main row, with Dune's choices. */
     @Test
     fun twoOlderRowsJoiningInOnePassLeaveTheFilmToTheOldest() = runTest {
@@ -254,6 +304,9 @@ class CopiesRematchedInAPassTest {
         const val ARRIVAL = 3
         const val HOLIDAYS_ID = 10
         const val POSTER = "/chosen-poster.jpg"
+        const val ARRIVAL_POSTER = "/arrival-poster.jpg"
+        const val DUNE_BACKDROP = "/dune-backdrop.jpg"
+        const val ARRIVAL_FILE = "Arrival (2016).mkv"
         const val HD = "Dune (2021).mkv"
         const val UHD = "Dune (2021) 2160p.mkv"
         const val THIRD = "Dune (2021) 1080p.mkv"

@@ -33,6 +33,10 @@ interface CopyDao {
 /** Main row of the film whose TMDB id row :id is about to take, :tmdbId, as [GROUP_VERSIONS] finds it ([CopyHeirDao.joinTitle]). */
 private const val FILM_JOINED = "(SELECT MIN(o.id) FROM items o WHERE o.kind = 'MOVIE' AND o.tmdbId = :tmdbId AND o.id != :id)"
 
+/** Nothing chosen on [FILM_JOINED]: no artwork, no copy to play. */
+private const val FILM_UNCHOSEN = "NOT EXISTS (SELECT 1 FROM items f WHERE f.id = $FILM_JOINED AND (f.userPosterPath IS NOT NULL " +
+    "OR f.userBackdropPath IS NOT NULL OR f.userLogoPath IS NOT NULL OR f.versionChoice IS NOT NULL))"
+
 /** Row [copy] taking the place of main row [title], which chose to play [choice] ([CopyHeirDao.handTitlesOf]). */
 data class TitleCopy(val title: Long, val choice: Long?, val copy: Long)
 
@@ -79,21 +83,22 @@ interface CopyHeirDao {
 
     /**
      * Joins row [id], about to be matched as film [tmdbId] it was not, to that film's main row ([FILM_JOINED]): the older
-     * of the two, the main row once [groupVersions] runs, shows the film's artwork and copy to play, else what [id]
-     * brought, kept only by the last row of a film ([MovieIndexer]), and the earlier arrival. The other keeps its own.
-     * Never the match by hand: [id]'s is its own file's, NFO's or TMDB's, which a later scan may correct. Runs in the
-     * transaction writing the match, before it.
+     * of the two, the main row once [groupVersions] runs, shows the film's artwork and copy to play, or, nothing chosen on
+     * the film, all [id] brought, kept only by the last row of a film ([MovieIndexer]); and the earlier arrival. The other
+     * keeps its own. A lone film's chosen poster so lands on a film that showed only automatic artwork: nothing is lost,
+     * and one action undoes it. Never the match by hand: [id]'s is its own file's, NFO's or TMDB's, which a later scan
+     * may correct. Runs in the transaction writing the match, before it.
      */
     @Query(
         "UPDATE items SET " +
             "userPosterPath = COALESCE((SELECT f.userPosterPath FROM items f WHERE f.id = $FILM_JOINED), " +
-            "(SELECT n.userPosterPath FROM items n WHERE n.id = :id)), " +
+            "(SELECT n.userPosterPath FROM items n WHERE n.id = :id AND $FILM_UNCHOSEN)), " +
             "userBackdropPath = COALESCE((SELECT f.userBackdropPath FROM items f WHERE f.id = $FILM_JOINED), " +
-            "(SELECT n.userBackdropPath FROM items n WHERE n.id = :id)), " +
+            "(SELECT n.userBackdropPath FROM items n WHERE n.id = :id AND $FILM_UNCHOSEN)), " +
             "userLogoPath = COALESCE((SELECT f.userLogoPath FROM items f WHERE f.id = $FILM_JOINED), " +
-            "(SELECT n.userLogoPath FROM items n WHERE n.id = :id)), " +
+            "(SELECT n.userLogoPath FROM items n WHERE n.id = :id AND $FILM_UNCHOSEN)), " +
             "versionChoice = COALESCE((SELECT f.versionChoice FROM items f WHERE f.id = $FILM_JOINED), " +
-            "(SELECT n.versionChoice FROM items n WHERE n.id = :id)), " +
+            "(SELECT n.versionChoice FROM items n WHERE n.id = :id AND $FILM_UNCHOSEN)), " +
             "addedAt = MIN((SELECT f.addedAt FROM items f WHERE f.id = $FILM_JOINED), (SELECT n.addedAt FROM items n WHERE n.id = :id)) " +
             "WHERE id = MIN(:id, $FILM_JOINED) AND (SELECT r.tmdbId FROM items r WHERE r.id = :id) IS NOT :tmdbId",
     )
@@ -106,19 +111,22 @@ interface CopyHeirDao {
      * [match], a deleted row's match by hand too, the one trace left of what the user said of the film, as kept states
      * keep it ([KeptStates]); a row matched anew keeps its own, which was said of its file. Watched and favourite are
      * every copy's already ([COPIES]). Two main rows handing to one row, the oldest wins. Runs in the transaction that
-     * deletes or matches them; true when a film was handed.
+     * deletes or matches them.
      */
-    suspend fun handTitlesOf(leaving: List<Long>, match: Boolean = true): Boolean {
-        if (leaving.isEmpty()) return false
+    suspend fun handTitlesOf(leaving: List<Long>, match: Boolean = true) {
+        if (leaving.isEmpty()) return
         val gone = leaving.toHashSet()
-        val heirs = leaving.chunked(SQL_IN_LIMIT).flatMap { copiesOfTitlesAmong(it) }.filterNot { it.copy in gone }
+        leaving.chunked(SQL_IN_LIMIT).flatMap { copiesOfTitlesAmong(it) }.filterNot { it.copy in gone }
             .groupBy { it.title }.values.map { copies -> copies.minBy { it.copy } }
             .sortedByDescending { it.title }
-        heirs.forEach { heir -> handTitle(heir.title, heir.copy, heir.choice?.takeUnless { it in gone }, match) }
-        return heirs.isNotEmpty()
+            .forEach { heir -> handTitle(heir.title, heir.copy, heir.choice?.takeUnless { it in gone }, match) }
     }
 
     /** Row [id]'s TMDB id, as its match stands before a scan or an identification writes it anew. */
     @Query("SELECT tmdbId FROM items WHERE id = :id")
     suspend fun tmdbIdOf(id: Long): Int?
+
+    /** How many other films have row [id]'s TMDB id: none when it is the last row of its film. */
+    @Query("SELECT COUNT(*) FROM items WHERE kind = 'MOVIE' AND tmdbId = (SELECT tmdbId FROM items WHERE id = :id) AND id != :id")
+    suspend fun othersOfFilm(id: Long): Int
 }
