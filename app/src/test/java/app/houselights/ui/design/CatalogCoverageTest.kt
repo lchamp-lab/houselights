@@ -1,6 +1,6 @@
 package app.houselights.ui.design
 
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Shape
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.source
 import org.junit.Assert.assertTrue
@@ -42,7 +42,7 @@ class CatalogCoverageTest {
     /** Every shape of `HlShapes` is on the catalogue's shape sheet, with its radii. */
     @Test
     fun theCatalogueShowsEveryShape() {
-        val declared = propertiesOf(HlShapes, RoundedCornerShape::class.java).keys
+        val declared = propertiesOf(HlShapes, Shape::class.java).keys
         assertTrue("No shapes found", declared.isNotEmpty())
         val sheet = source(catalog.resolve("CatalogFocus.kt")).code
         val missing = declared.filter { !Regex("""\bHlShapes\.$it\b""").containsMatchIn(sheet) }

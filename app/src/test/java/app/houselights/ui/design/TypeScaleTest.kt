@@ -147,6 +147,7 @@ class TypeScaleTest {
             // Around them a step smaller: facts, a group's title, formats; a group's title a step under the names it heads.
             listOf(meta, group, jaquette).forEach { assertTrue(it.fontSize < body.fontSize) }
             assertNotSame(entry, group)
+            assertEquals("a group's title names, as the names it heads do", entry.fontWeight, group.fontWeight)
             // A tagline, an episode's name, the keyboard's letters: a step over the names.
             assertTrue(lead.fontSize > entry.fontSize)
         }

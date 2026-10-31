@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
@@ -17,6 +18,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlType
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.design.VoletDefaults
@@ -78,6 +80,23 @@ class VoletsLayoutTest {
                 assertEquals("$films films at $step", numbersSp, numbers.value, 0.01f)
             }
         }
+    }
+
+    /** The numbers are title styles doing a figure's job (DESIGN.md, Type): the signature, then display, then headline. */
+    @Test
+    fun theNumbersAreSetInTitleStyles() {
+        val styles = mutableMapOf<VoletNumbers, TextStyle>()
+        lateinit var type: HlType
+        compose.setContent {
+            HouselightsTheme {
+                type = Hl.type
+                VoletNumbers.entries.forEach { styles[it] = it.style() }
+            }
+        }
+        compose.waitForIdle()
+        assertEquals(type.titleSignature, styles[VoletNumbers.Signature])
+        assertEquals(type.display, styles[VoletNumbers.Display])
+        assertEquals(type.headline, styles[VoletNumbers.Headline])
     }
 
     @Test
