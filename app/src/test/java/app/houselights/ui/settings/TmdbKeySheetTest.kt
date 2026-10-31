@@ -37,6 +37,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.testing.waitWithLooper
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -135,18 +136,7 @@ class TmdbKeySheetTest {
     /** TMDB answers [check], and the sheet takes it in. */
     private fun tmdbSays(check: TmdbKeyCheck) {
         tmdb.complete(check)
-        waitFor { vm.tmdbKey?.outcome != null }
-    }
-
-    /** Waits for [done], running what comes back to the main thread from DataStore's meanwhile, unseen by the test. */
-    private fun waitFor(done: () -> Boolean) {
-        val until = System.currentTimeMillis() + TIMEOUT_MS
-        while (!done()) {
-            check(System.currentTimeMillis() < until) { "Still waiting after $TIMEOUT_MS ms" }
-            compose.waitForIdle()
-            Thread.sleep(POLL_MS)
-        }
-        compose.waitForIdle()
+        compose.waitWithLooper("the sheet taking TMDB's answer in") { vm.tmdbKey?.outcome != null }
     }
 
     @Test
@@ -160,7 +150,7 @@ class TmdbKeySheetTest {
 
         tmdbSays(TmdbKeyCheck.ACCEPTED)
         assertFalse(shown)
-        waitFor { store.state.value.tmdbApiKey == "k3y" }
+        compose.waitWithLooper("the key saved") { store.state.value.tmdbApiKey == "k3y" }
     }
 
     /** Nothing is saved, the sheet says why, and focus goes back to the key to correct it. */
@@ -186,7 +176,7 @@ class TmdbKeySheetTest {
         save()
 
         tmdbSays(TmdbKeyCheck.UNCHECKED)
-        waitFor { store.state.value.tmdbApiKey == "k3y" }
+        compose.waitWithLooper("the key saved") { store.state.value.tmdbApiKey == "k3y" }
         compose.onNodeWithText("Enregistrée sans vérification", substring = true).assertExists()
         assertTrue(shown)
     }
@@ -222,6 +212,3 @@ class TmdbKeySheetTest {
         assertFalse(shown)
     }
 }
-
-private const val TIMEOUT_MS = 5_000L
-private const val POLL_MS = 10L

@@ -1,5 +1,6 @@
 package app.houselights.ui.settings
 
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import androidx.activity.ComponentActivity
@@ -39,6 +40,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowDialog
@@ -212,11 +214,12 @@ class JournalSheetTest {
         compose.onNodeWithText(ADDRESS).assertExists()
 
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
-        compose.waitForIdle()
-        compose.runOnIdle {
-            assertTrue("the page closes as the app stops", journal.cancelled)
-            assertFalse(journal.serving)
-        }
+        // Stopped, the activity draws no frame for Compose's idling to wait for: the sheet's effects are run without it.
+        shadowOf(Looper.getMainLooper()).idle()
+        compose.mainClock.advanceTimeByFrame()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue("the page closes as the app stops", journal.cancelled)
+        assertFalse(journal.serving)
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
         compose.waitForIdle()
         compose.onNodeWithText(ADDRESS).assertDoesNotExist()

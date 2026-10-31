@@ -47,6 +47,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.waitWithLooper
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.wholePath
 import com.emc.ecs.nfsclient.mount.MountStatus
@@ -203,8 +204,7 @@ class FolderFaultTest {
     fun aSubfolderNotFoundIsSaidUnderIt() {
         val vm = form(films, probe = { throw FileNotFoundException("lookup /volume1/video/Films") })
         vm.test()
-        compose.waitUntil { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         // Its path whole on its line, as every path in a sentence ([wholePath]).
         val message = "${wholePath("/volume1/video")} answers, but “Films” is not in it. Check its name, capitals included."
         saysUnder("Subfolder (optional)", message).assertIsFocused()
@@ -224,22 +224,19 @@ class FolderFaultTest {
         var vm = model(id, probe = missing, saved = saved)
         val restoration = StateRestorationTester(compose)
         restoration.setContent { HouselightsTheme { AddFolderForm(vm, FolderField.FIRST) {} } }
-        compose.waitUntil { vm.ready }
+        compose.waitWithLooper("the form ready") { vm.ready }
         vm.test()
-        compose.waitUntil(WAIT_MS) { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         compose.onNodeWithContentDescription(SUBFOLDER).assertIsFocused()
 
         // A new process: a new model from what the old one kept, the form from what it kept.
         vm = model(id, probe = missing, saved = saved.afterProcessDeath())
         restoration.emulateSavedInstanceStateRestore()
-        compose.waitUntil { vm.ready }
-        compose.waitForIdle()
+        compose.waitWithLooper("the form ready") { vm.ready }
         compose.onNodeWithContentDescription("NAS address").requestFocus()
         compose.waitForIdle()
         vm.test()
-        compose.waitUntil(WAIT_MS) { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         compose.onNodeWithContentDescription(SUBFOLDER).assertIsFocused()
     }
 
@@ -259,15 +256,13 @@ class FolderFaultTest {
             nearby = { _, _ -> FolderSuggestion("volume1/video", "Films", named = "Films") },
         )
         vm.test()
-        compose.waitUntil(WAIT_MS) { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         compose.onNode(hasText("Use “Films”") and hasClickAction()).assertIsFocused()
         compose.onNodeWithText("Suggested by the NAS").assertExists()
 
         missing = false
         compose.press(Key.DirectionCenter)
-        compose.waitUntil(WAIT_MS) { vm.check is FolderCheck.Reachable }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder reached") { vm.check is FolderCheck.Reachable }
         assertEquals("Films", vm.form.path)
         assertEquals(listOf("volume1/video Film", "volume1/video Films"), tested)
         compose.onNodeWithText("Suggested by the NAS").assertDoesNotExist()
@@ -279,8 +274,7 @@ class FolderFaultTest {
     fun aPasswordRefusedIsSaidUnderIt() {
         val vm = form(series, probe = { throw IOException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed") })
         vm.test()
-        compose.waitUntil { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         saysUnder("Password", "The NAS rejected the user name or password.").assertIsFocused()
         val help = "The password is stored on this device and passed to the Zidoo player. Prefer a dedicated read-only account."
         compose.onNodeWithText(help).assertExists()
@@ -294,8 +288,7 @@ class FolderFaultTest {
     fun aPasswordKeptButNotReadForNowIsSaidUnderItNotRefused() {
         val vm = form(series, probe = { throw SecretUnreadException() })
         vm.test()
-        compose.waitUntil { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         saysUnder("Password", UNREAD).assertIsFocused()
         compose.onNodeWithText("Connection not tested").assertExists()
         compose.onNodeWithText("Cannot connect").assertDoesNotExist()
@@ -319,16 +312,14 @@ class FolderFaultTest {
                 FolderLevel(folderNames(12), videos = 3)
             },
         )
-        compose.waitUntil(WAIT_MS) { vm.ready }
+        compose.waitWithLooper("the form ready") { vm.ready }
         vm.test()
-        compose.waitUntil(WAIT_MS) { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         saysUnder("Password", UNREAD)
 
         keystoreDown = false
         vm.test()
-        compose.waitUntil(WAIT_MS) { vm.check is FolderCheck.Reachable }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder reached") { vm.check is FolderCheck.Reachable }
         compose.onNodeWithText("Connected").assertExists()
         compose.onNodeWithContentDescription("Password").assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Error))
         assertEquals(listOf("stored"), signedIn)
@@ -338,13 +329,12 @@ class FolderFaultTest {
     @Test
     fun theTestSaysWhatItFoundAndTheHelpGoes() {
         val vm = form(films, player = "192.168.1.42", probe = { FolderLevel(folderNames(412), videos = 3) })
-        compose.waitUntil { vm.player != null }
+        compose.waitWithLooper("this player's address") { vm.player != null }
         val hint = "No password: on the NAS, allow this player (192.168.1.42) read-only, and on a Synology non-privileged ports."
         compose.onNodeWithText(hint).assertExists()
         compose.onNodeWithText("/volume1/video/Films").assertExists()
         vm.test()
-        compose.waitUntil { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         compose.onNodeWithText("412 folders and 3 videos").assertExists()
         compose.onNodeWithText("Connected").assertExists()
         compose.onNodeWithText(hint).assertDoesNotExist()
@@ -354,11 +344,10 @@ class FolderFaultTest {
     @Test
     fun aRefusalOfThePlayerIsThePanelsAndNamesIt() {
         val vm = form(films, player = "192.168.1.42", probe = { throw mountFailure(MountStatus.MNT3ERR_ACCES) })
-        compose.waitUntil { vm.player != null }
+        compose.waitWithLooper("this player's address") { vm.player != null }
         compose.onNode(hasText("Test") and hasClickAction()).requestFocus()
         vm.test()
-        compose.waitUntil { vm.check != null }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder checked") { vm.check != null }
         val message = "The NAS refuses this player. Allow 192.168.1.42 on ${wholePath("/volume1/video")}, read-only, and on a Synology " +
             "non-privileged ports."
         compose.onAllNodesWithText(message).assertCountEquals(1)
@@ -388,8 +377,7 @@ class FolderFaultTest {
         compose.onNodeWithContentDescription("Password").requestFocus()
         compose.press(Key.DirectionCenter)
         compose.onNode(isFocused() and hasSetTextAction()).performImeAction()
-        compose.waitUntil(WAIT_MS) { tested.isNotEmpty() }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder tested") { tested.isNotEmpty() }
         assertEquals(listOf("video Séries"), tested)
         // Tested, then saving in the app's scope, as Save does; a test alone never saves.
         assertTrue("saving", vm.saving || done)
@@ -402,8 +390,7 @@ class FolderFaultTest {
         compose.onNodeWithContentDescription("Subfolder (optional)").requestFocus()
         compose.press(Key.DirectionCenter)
         compose.onNode(isFocused() and hasSetTextAction()).performImeAction()
-        compose.waitUntil(WAIT_MS) { tested.isNotEmpty() }
-        compose.waitForIdle()
+        compose.waitWithLooper("the folder tested") { tested.isNotEmpty() }
         assertEquals(listOf("volume1/video Films"), tested)
         assertTrue("saving", vm.saving || done)
     }
@@ -422,9 +409,6 @@ class FolderFaultTest {
     }
 
     private companion object {
-        /** Testing reads the library first, from another thread. */
-        const val WAIT_MS = 5_000L
-
         const val SUBFOLDER = "Subfolder (optional)"
 
         const val UNREAD = "The saved password could not be read for now: it is kept. Enter it again, or try again in a moment."

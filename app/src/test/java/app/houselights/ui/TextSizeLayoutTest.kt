@@ -90,6 +90,7 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.cutTexts
 import app.houselights.ui.testing.film
+import app.houselights.ui.testing.waitWithLooper
 import app.houselights.ui.util.PlaybackOutcome
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -188,7 +189,7 @@ class TextSizeLayoutTest {
                 playerAddress = { "192.168.1.42" },
             )
             show { AddFolderForm(vm, FolderField.FIRST) {} }
-            compose.waitUntil { vm.ready && vm.player != null }
+            compose.waitWithLooper("the form ready") { vm.ready && vm.player != null }
             assertTheSmallestCutsNothingNew()
             val help = context.getString(R.string.nfs_hint_player, "192.168.1.42")
             listOf(TEXT_SCALE_MAX, 1f, TEXT_SCALE_MIN).forEach { scale ->

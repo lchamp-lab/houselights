@@ -109,7 +109,6 @@ open class FlowHarness {
             AddFolderFlow(flow, onLeave = leave, onDone = { done = it }, askDisk = askDisk, onPick = { picked = it })
         }
         until { flow.ready }
-        compose.waitForIdle()
         return flow
     }
 

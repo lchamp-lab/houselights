@@ -24,6 +24,7 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
+import app.houselights.ui.testing.waitWithLooper
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -92,17 +93,6 @@ class TextSizeRowTest {
         return layouts.first().layoutInput.density.fontScale
     }
 
-    /** Waits for [done], running what comes back to the main thread from DataStore's meanwhile, unseen by the test. */
-    private fun waitFor(done: () -> Boolean) {
-        val until = System.currentTimeMillis() + TIMEOUT_MS
-        while (!done()) {
-            check(System.currentTimeMillis() < until) { "Still waiting after $TIMEOUT_MS ms" }
-            compose.waitForIdle()
-            Thread.sleep(POLL_MS)
-        }
-        compose.waitForIdle()
-    }
-
     @Test
     fun theRowSaysTheSizeUnderTheLanguage() {
         show()
@@ -140,7 +130,7 @@ class TextSizeRowTest {
         compose.press(Key.DirectionCenter)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_UP)
         compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
-        waitFor { store.state.value.textSize == TextSize.COMPACT }
+        compose.waitWithLooper("Compacte saved") { store.state.value.textSize == TextSize.COMPACT }
         assertNull("the sheet has gone", sheet())
         compose.onNodeWithText("Compacte").assertExists()
         assertEquals(TextSize.COMPACT.step, scaleOf("Taille du texte"))
@@ -156,10 +146,5 @@ class TextSizeRowTest {
         compose.waitForIdle()
         compose.onNode(hasText("Grande") and hasClickAction() and hasText("Déjà atteinte par le réglage d’Android")).assertExists()
         assertEquals(1.3f, scaleOf("Grande"))
-    }
-
-    private companion object {
-        const val TIMEOUT_MS = 5_000L
-        const val POLL_MS = 10L
     }
 }

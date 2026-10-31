@@ -45,20 +45,17 @@ class FlowAccountPathTest : FlowHarness() {
         until { flow.step == FlowStep.PROTOCOLS }
         ok()
         until { flow.step == FlowStep.ACCOUNT }
-        compose.waitForIdle()
         compose.onNode(isFocused() and hasContentDescription(text(R.string.field_user))).assertExists()
         flow.type(FIELD_USER, USER)
         flow.type(FIELD_PASSWORD, "wrong")
         flow.signIn()
         until { flow.fieldError != null }
-        compose.waitForIdle()
         assertEquals(FieldError(FIELD_PASSWORD, FlowMessage.LoginRefused), flow.fieldError)
         compose.onNodeWithText(text(R.string.error_login_failed), useUnmergedTree = true).assertExists()
         compose.onNodeWithText(text(R.string.connection_ok), useUnmergedTree = true).assertExists()
         flow.type(FIELD_PASSWORD, PASSWORD)
         flow.signIn()
         until { flow.step == FlowStep.SHARES }
-        compose.waitForIdle()
         focusIsOn("home")
         compose.onNodeWithText(text(R.string.change_account_desc, USER), useUnmergedTree = true).assertExists()
         assertTrue("signed in as the account", flow.signedIn && !flow.guest)
@@ -79,7 +76,6 @@ class FlowAccountPathTest : FlowHarness() {
         network.guests = true
         flow.signIn(asGuest = true)
         until { flow.step == FlowStep.SHARES }
-        compose.waitForIdle()
         compose.onNodeWithText(text(R.string.change_account_guest_desc), useUnmergedTree = true).assertExists()
         // A share not open to guests says so, and where to go.
         flow.openShare(FlowShare("video"))
@@ -129,7 +125,6 @@ class FlowAccountPathTest : FlowHarness() {
         val flow = flow(smbFilms)
         ok()
         until { flow.step == FlowStep.SHARES }
-        compose.waitForIdle()
         focusIsOn("video")
         assertEquals("", flow.password)
         assertEquals(listOf("shares $USER"), network.asked.filter { it.startsWith("shares") })
@@ -146,7 +141,6 @@ class FlowAccountPathTest : FlowHarness() {
         val flow = flow(sealedBefore(smbFilms))
         ok()
         until { flow.step == FlowStep.ACCOUNT }
-        compose.waitForIdle()
         assertEquals(FieldError(FIELD_PASSWORD, FlowMessage.PasswordUnread), flow.fieldError)
         compose.onNodeWithText(text(R.string.error_password_unread), useUnmergedTree = true).assertExists()
         compose.onNodeWithText(text(R.string.error_login_failed), useUnmergedTree = true).assertDoesNotExist()
@@ -189,7 +183,6 @@ class FlowAccountPathTest : FlowHarness() {
         val flow = flow(smbFilms.copy(password = Secret("changed since on the NAS")))
         ok()
         until { flow.step == FlowStep.ACCOUNT }
-        compose.waitForIdle()
         assertEquals(FieldError(FIELD_PASSWORD, FlowMessage.LoginRefused), flow.fieldError)
         compose.onNodeWithText(text(R.string.error_login_failed), useUnmergedTree = true).assertExists()
         compose.onNodeWithText(text(R.string.error_password_unread), useUnmergedTree = true).assertDoesNotExist()
@@ -209,13 +202,11 @@ class FlowAccountPathTest : FlowHarness() {
         flow.type(FIELD_PATH, "media")
         flow.continuePath()
         until { flow.suggestion != null }
-        compose.waitForIdle()
         assertEquals("/volume1/media", flow.suggestion)
         assertEquals(FieldError(FIELD_PATH, FlowMessage.NoExport("media")), flow.fieldError)
         focusIsOn(text(R.string.use_suggestion, "/volume1/media"))
         ok()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         focusIsOn(text(R.string.choose_folder))
         assertEquals("/volume1/media" to emptyList<String>(), flow.share?.path to flow.path)
 
@@ -228,14 +219,12 @@ class FlowAccountPathTest : FlowHarness() {
         flow.type(FIELD_PATH, "/volume1/video/Films2")
         flow.continuePath()
         until { flow.step == FlowStep.BROWSE }
-        compose.waitForIdle()
         assertEquals("/volume1/video" to listOf("Films2"), flow.share?.path to flow.path)
         focusIsOn(text(R.string.choose_folder))
 
         // The level above, never read, is read on Back, focus on the folder left.
         back()
         until { flow.path.isEmpty() }
-        compose.waitForIdle()
         assertTrue(network.asked.contains("level volume1/video"))
         focusIsOn("Films2")
 
@@ -248,7 +237,6 @@ class FlowAccountPathTest : FlowHarness() {
         network.folders.remove("volume1/video")
         back()
         until { flow.step == FlowStep.SHARES }
-        compose.waitForIdle()
         focusIsOn("video")
     }
 
@@ -310,7 +298,6 @@ class FlowAccountPathTest : FlowHarness() {
         val flow = flow(films)
         ok()
         until { flow.step == FlowStep.TYPE_PATH }
-        compose.waitForIdle()
         assertTrue(flow.noList)
         compose.onNodeWithText(text(R.string.flow_path_no_list_desc), useUnmergedTree = true).assertExists()
         compose.onNodeWithText(text(R.string.nfs_identity_title), useUnmergedTree = true).assertExists()
@@ -395,7 +382,6 @@ class FlowAccountPathTest : FlowHarness() {
         until { flow.step == FlowStep.SHARES }
         flow.openShare(FlowShare("/volume1/musique"))
         until { flow.message != null }
-        compose.waitForIdle()
         assertEquals(FlowMessage.AccountRefused("1026", "/volume1/musique"), flow.message)
         val said = text(R.string.error_nfs_account_refused, "1026", wholePath("/volume1/musique"))
         compose.onNodeWithText(said, useUnmergedTree = true).assertExists()
@@ -426,7 +412,6 @@ class FlowAccountPathTest : FlowHarness() {
         until { flow.step == FlowStep.BROWSE }
         flow.openFolder("Films2")
         until { flow.path == listOf("Films2") }
-        compose.waitForIdle()
 
         val again = FolderFlow(network, library, scope, useFolders = { false }, saved = saved.afterProcessDeath())
         until { again.ready }

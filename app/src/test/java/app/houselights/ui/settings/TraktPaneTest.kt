@@ -60,6 +60,8 @@ import app.houselights.ui.util.FACT_GAP
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -90,8 +92,14 @@ class TraktPaneTest {
     }
     private val sync = FakeTraktSync()
 
+    /** The view model's scope: its code's countdown runs there, ended with each test. */
+    private val work = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    @After
+    fun stop() = work.cancel()
+
     private fun show(folders: Boolean = true) {
-        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        val vm = TraktViewModel(link, sync, work)
         compose.setTvContent {
             HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session, folders, unread) } }
         }
@@ -150,7 +158,7 @@ class TraktPaneTest {
     /** Going through the places while a code waits never jumps into the pane: arriving on it takes no focus. */
     @Test
     fun arrivingOnThePaneWhileACodeWaitsLeavesFocusOnThePlaces() {
-        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        val vm = TraktViewModel(link, sync, work)
         var open by mutableStateOf(false)
         compose.setTvContent {
             val place = Modifier.testTag(PLACE)
@@ -168,7 +176,7 @@ class TraktPaneTest {
     /** Connecting from its row, focus goes to the code, never to the places beside the pane. */
     @Test
     fun connectingTakesFocusToTheCodeNotToThePlaces() {
-        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        val vm = TraktViewModel(link, sync, work)
         var placesFocused = 0
         compose.setTvContent {
             HlTwoPane(side = { HlNavItem(HlIcons.Folder, "Bibliothèque", selected = false, onFocus = { placesFocused++ }) }) {
@@ -554,7 +562,7 @@ class TraktPaneTest {
     fun pausedANamelessAccountWaitsForTheFoldersToReadItsName() {
         session = lea.copy(username = null)
         sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis() - 5 * 60_000, watched = 412, inProgress = 1)
-        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        val vm = TraktViewModel(link, sync, work)
         var folders by mutableStateOf(false)
         compose.setTvContent {
             HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session, folders) } }
@@ -577,7 +585,7 @@ class TraktPaneTest {
     @Test
     fun disconnectedUnderAServerThePlaceAfterItTakesFocus() {
         session = lea
-        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        val vm = TraktViewModel(link, sync, work)
         var open by mutableStateOf(Pane.Trakt)
         compose.setTvContent {
             val memory = rememberFocusMemory()

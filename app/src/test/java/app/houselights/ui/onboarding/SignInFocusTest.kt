@@ -112,7 +112,8 @@ class SignInFocusTest {
     @Test
     fun aFirstSignInWithoutServersStartsOnTheAddressAfterASecond() {
         signIn(Offline)
-        compose.mainClock.advanceTimeBy(FIRST_SERVER_WAIT_MS)
+        compose.mainClock.advanceTimeBy(FIRST_SERVER_MS)
+        compose.mainClock.advanceTimeByFrame()
         compose.waitForIdle()
         compose.onNode(isFocused()).assert(hasContentDescription("Server address"))
     }
@@ -179,10 +180,5 @@ class SignInFocusTest {
     fun signingInAgainWithoutAUserAsksForTheUserFirst() {
         signInAgain(null)
         compose.onNode(isFocused()).assert(hasContentDescription("User"))
-    }
-
-    private companion object {
-        /** Past the second the first focus waits for a server. */
-        const val FIRST_SERVER_WAIT_MS = 1_100L
     }
 }

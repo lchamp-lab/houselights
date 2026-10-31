@@ -1,7 +1,6 @@
 package app.houselights.ui.settings
 
 import android.content.Context
-import android.os.Looper
 import android.view.KeyEvent
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.CompositionLocalProvider
@@ -46,6 +45,7 @@ import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.testing.waitWithLooper
 import app.houselights.ui.util.FACT_GAP
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +62,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -124,15 +123,8 @@ class FolderFromTheFlowTest {
         db.close()
     }
 
-    /** Runs the main looper, where Room answers here, until [done]. */
-    private fun until(done: () -> Boolean) {
-        val end = System.currentTimeMillis() + WAIT_MS
-        while (!done()) {
-            shadowOf(Looper.getMainLooper()).idle()
-            compose.waitForIdle()
-            check(System.currentTimeMillis() < end) { "Still waiting after $WAIT_MS ms" }
-        }
-    }
+    /** Runs the main looper, where the library's answers come back here, until [done]. */
+    private fun until(done: () -> Boolean) = compose.waitWithLooper("the settings to take the flow's folder in", done = done)
 
     /**
      * The folder added before its showcase shows, as the flow returns before the library's list has it: focus goes to
@@ -241,7 +233,6 @@ class FolderFromTheFlowTest {
             }
         }
         until { shown > 0 }
-        compose.waitForIdle()
         compose.onNodeWithText(context.getString(R.string.disk_internal) + FACT_GAP + "/Films").assertExists()
         compose.onNode(isFocused() and hasText(context.getString(R.string.edit_folder))).assertExists()
         assertEquals(1, shown)
@@ -251,6 +242,5 @@ class FolderFromTheFlowTest {
         const val FILMS = 1L
         const val SERIES = 7L
         const val DISK_FOLDER = 12L
-        const val WAIT_MS = 5_000L
     }
 }
