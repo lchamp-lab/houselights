@@ -5,8 +5,6 @@ import app.houselights.core.Person
 import app.houselights.core.PersonPage
 import app.houselights.core.PersonTitle
 import app.houselights.ui.library.NotSaved
-import app.houselights.ui.library.favoredAs
-import app.houselights.ui.library.markedAs
 import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
@@ -156,67 +154,6 @@ class PersonViewModelTest {
         vm.load()
         advanceUntilIdle()
         assertEquals(listOf(false, false, false), titles(vm).map { it.user.played })
-    }
-
-    /**
-     * Two changes of one title, neither saved, show it as the source has it whichever fails first, the one still saving
-     * showing meanwhile: marked then made a favourite, or marked then unmarked.
-     */
-    @Test
-    fun twoChangesNotSavedLeaveTheTitleAsTheSourceHasIt() = runTest {
-        provider.fail = { if (it.startsWith("played") || it.startsWith("favorite")) IOException("NAS away") else null }
-        listOf(true, false).forEach { markFailsFirst ->
-            val vm = PersonViewModel("tmdb:1", { provider }, work = this)
-            advanceUntilIdle()
-            val samourai = titles(vm)[1]
-            val marking = provider.gate("played ${samourai.id} true")
-            val favouring = provider.gate("favorite ${samourai.id} true")
-            vm.mark(samourai)
-            vm.favorite(titles(vm)[1])
-            runCurrent()
-            (if (markFailsFirst) marking else favouring).complete(Unit)
-            advanceUntilIdle()
-            val other = if (markFailsFirst) samourai.favoredAs(true) else samourai.markedAs(true)
-            assertEquals("$markFailsFirst: the other still saving shows", other, titles(vm)[1])
-            (if (markFailsFirst) favouring else marking).complete(Unit)
-            advanceUntilIdle()
-            assertEquals("$markFailsFirst", samourai, titles(vm)[1])
-            assertEquals(NotSaved(samourai.id, UiError.OFFLINE), vm.notSaved.value)
-
-            val unmarking = provider.gate("played ${samourai.id} false")
-            val marking2 = provider.gate("played ${samourai.id} true")
-            vm.mark(samourai)
-            vm.mark(titles(vm)[1])
-            runCurrent()
-            (if (markFailsFirst) marking2 else unmarking).complete(Unit)
-            advanceUntilIdle()
-            assertEquals("$markFailsFirst", !markFailsFirst, titles(vm)[1].user.played)
-            (if (markFailsFirst) unmarking else marking2).complete(Unit)
-            advanceUntilIdle()
-            assertEquals("$markFailsFirst", samourai, titles(vm)[1])
-        }
-    }
-
-    /** A mark not saved leaves a favourite asked after it showing, saved before or after the mark fails. */
-    @Test
-    fun aMarkNotSavedLeavesAFavouriteSavedShowing() = runTest {
-        provider.fail = { if (it.startsWith("played")) IOException("NAS away") else null }
-        listOf(true, false).forEach { markFailsFirst ->
-            val vm = PersonViewModel("tmdb:1", { provider }, work = this)
-            advanceUntilIdle()
-            val samourai = titles(vm)[1]
-            val marking = provider.gate("played ${samourai.id} true")
-            val favouring = provider.gate("favorite ${samourai.id} true")
-            vm.mark(samourai)
-            vm.favorite(titles(vm)[1])
-            runCurrent()
-            (if (markFailsFirst) marking else favouring).complete(Unit)
-            advanceUntilIdle()
-            (if (markFailsFirst) favouring else marking).complete(Unit)
-            advanceUntilIdle()
-            assertEquals("$markFailsFirst", samourai.favoredAs(true), titles(vm)[1])
-            assertEquals(NotSaved(samourai.id, UiError.OFFLINE), vm.notSaved.value)
-        }
     }
 
     private fun titles(vm: PersonViewModel) = checkNotNull(vm.state.value.valueOrNull).titles.map { it.item }

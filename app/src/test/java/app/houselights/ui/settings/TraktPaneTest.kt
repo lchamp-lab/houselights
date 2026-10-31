@@ -295,24 +295,17 @@ class TraktPaneTest {
         compose.onNodeWithText("Jamais").assertExists()
     }
 
+    /** The sync's failure, its note as TraktViewModelTest maps each one, is said on the sync row and under it, above Déconnecter. */
     @Test
     fun aFailedExchangeIsSaidUnderTheSyncRow() {
         session = lea
-        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis(), error = TraktSyncError.OFFLINE)
-        show()
-        compose.onNodeWithText("Trakt ne répond pas. Ce que vous regardez lui sera envoyé dès qu’il répondra.").assertExists()
-        compose.onNodeWithText("Non effectué").assertExists()
-    }
-
-    @Test
-    fun aRefusalOfTheAccountSaysWhatToDo() {
-        session = lea
         sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis(), error = TraktSyncError.REFUSED)
         show()
-        compose.onNodeWithText(
-            "Trakt refuse la synchronisation$NB: le compte est peut-être verrouillé, ou la clé de cette version refusée. " +
-                "Vérifiez votre compte sur trakt.tv.",
-        ).assertExists()
+        compose.onNodeWithText(compose.activity.getString(R.string.action_not_done)).assertExists()
+        val above = compose.onNodeWithText(SYNC).getBoundsInRoot()
+        val note = compose.onNodeWithText(compose.activity.getString(noteOf(TraktSyncError.REFUSED))).getBoundsInRoot()
+        val below = compose.onNodeWithText(DISCONNECT).getBoundsInRoot()
+        assertTrue("${above.bottom} ${note.top} ${note.bottom} ${below.top}", above.bottom <= note.top && note.bottom <= below.top)
     }
 
     @Test
