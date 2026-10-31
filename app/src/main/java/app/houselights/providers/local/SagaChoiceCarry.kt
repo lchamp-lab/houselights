@@ -25,6 +25,15 @@ internal class SagaChoiceCarry(private val dao: LibraryDao) {
 
     fun startPass() = carried.clear()
 
+    /** The choices carried so far, put back by the function returned ([PassState]). */
+    fun mark(): () -> Unit {
+        val was = carried.toMap()
+        return {
+            carried.clear()
+            carried += was
+        }
+    }
+
     /** A film has moved from saga [left] to saga [joined], in the transaction that moved it. */
     suspend fun moved(left: Long?, joined: Long?) {
         if (left == null || joined == null || left == joined) return

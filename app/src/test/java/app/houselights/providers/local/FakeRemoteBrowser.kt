@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import java.io.FileNotFoundException
 import java.nio.charset.Charset
+import java.util.Collections
 import java.util.Locale
 
 /** An in-memory NAS for scans: files with a size, first bytes and date; it counts reads and can fail on demand. */
@@ -28,8 +29,8 @@ class FakeRemoteBrowser : RemoteBrowser {
     /** Runs at each read, before its bytes are given: it may throw, to fail that read alone, or wait. */
     var onRead: (suspend (path: String, offset: Long, length: Int) -> Unit)? = null
 
-    /** Paths read, in order, failed reads included. */
-    val reads = mutableListOf<String>()
+    /** Paths read, in order, failed reads included; a header may be read as TMDB answers, on another thread. */
+    val reads: MutableList<String> = Collections.synchronizedList(mutableListOf())
 
     /** [bytes] stand for the file's start; past them, the file reads as ending there. [lastModified]: as SMB or NFS lists it. */
     fun put(path: String, size: Long = DEFAULT_SIZE, bytes: ByteArray = ByteArray(0), lastModified: Long? = null) {

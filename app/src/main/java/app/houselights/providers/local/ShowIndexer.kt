@@ -29,12 +29,19 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
      */
     private val recounted = mutableSetOf<Long>()
 
-    fun startPass() {
-        refreshedSeries.clear()
-        refreshedSeasons.clear()
-        handedOver.clear()
-        namedAnew.clear()
-        recounted.clear()
+    private val passSets get() = listOf(refreshedSeries, refreshedSeasons, handedOver, namedAnew, recounted)
+
+    fun startPass() = passSets.forEach { it.clear() }
+
+    /** This pass's state as it is, put back by the function returned ([PassState]). */
+    fun mark(): () -> Unit {
+        val was = passSets.map { it.toSet() }
+        return {
+            passSets.zip(was).forEach { (set, kept) ->
+                set.clear()
+                set += kept
+            }
+        }
     }
 
     /** Whether show [seriesId] was read this pass (sidecars, and TMDB when due). */
@@ -297,7 +304,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
      */
     private suspend fun lookedUp(pass: ScanPass, series: ItemEntity, query: Query, removed: Boolean): TmdbAnswer<Looked<TmdbTv>> {
         val known = series.tmdbId.takeIf { removed || series.matchedAt != null } ?: lent(series)
-        return pass.tmdb.ask { lookupShow(it, query.copy(known = known)) }
+        val asked = query.copy(known = known)
+        return pass.tmdb.ask(TmdbKey("show", asked)) { lookupShow(it, asked) }
     }
 
     /**
@@ -508,7 +516,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val (title, year) = showQuery(series)
         val nfo = series.nfoInfo()
         val query = Query(null, namesOf(series), nfo, title, year, known = lent(series))
-        val answer = tmdb.ask { lookupShow(it, query) } as? TmdbAnswer.Given ?: return null
+        val answer = tmdb.ask(TmdbKey("show", query)) { lookupShow(it, query) } as? TmdbAnswer.Given ?: return null
         val now = clock()
         val tv = answer.value?.value ?: return { dao.rechecked(series, answer.value?.offered.orEmpty(), now) }
         val seasons = dao.children(series.id).filter { it.kind == ItemKind.SEASON }.mapNotNull { it.seasonNumber }
@@ -742,8 +750,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
                 size > MAX_SEASONS
         }
 
-        suspend fun get(tvId: Int, season: Int): TmdbAnswer<TmdbSeason> =
-            cache[tvId to season] ?: tmdb.ask { it.season(tvId, season) }.also { if (it is TmdbAnswer.Given) cache[tvId to season] = it }
+        suspend fun get(tvId: Int, season: Int): TmdbAnswer<TmdbSeason> = cache[tvId to season]
+            ?: tmdb.ask(TmdbKey("season", tvId to season)) { it.season(tvId, season) }
+                .also { if (it is TmdbAnswer.Given) cache[tvId to season] = it }
 
         internal companion object {
             /** More than the seasons of nearly any show, so that one is never asked twice in a pass. */

@@ -3,8 +3,6 @@ package app.houselights.providers.local
 import app.houselights.core.Editions
 import app.houselights.core.NfoInfo
 import app.houselights.core.yearOf
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 
 /** Indexes films: file, NFO and artwork, TMDB match and collection. */
 internal class MovieIndexer(private val dao: LibraryDao, private val files: ScanFiles, private val clock: () -> Long) {
@@ -19,7 +17,25 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         sagaChoices.startPass()
     }
 
-    suspend fun process(pass: ScanPass, file: RemoteFile, existing: ItemEntity?) {
+    /** This pass's state as it is, put back by the function returned ([PassState]). */
+    fun mark(): () -> Unit {
+        val collections = refreshedCollections.toSet()
+        val sagas = sagaChoices.mark()
+        return {
+            refreshedCollections.clear()
+            refreshedCollections += collections
+            sagas()
+        }
+    }
+
+    /** A new film's row ([inserted]), written before the film is read so that screens show it meanwhile. */
+    suspend fun born(pass: ScanPass, file: RemoteFile): ItemEntity {
+        val stack = pass.stacks.stackAt(file.relativePath)
+        return inserted(pass, file, LibraryScanner.parseMovie(stack?.namedPath ?: file.relativePath), stack, clock())
+    }
+
+    /** Reads the film at [file]: [existing], its row before, else [born], the row it was just given ([born]), else a new one. */
+    suspend fun process(pass: ScanPass, file: RemoteFile, existing: ItemEntity?, born: ItemEntity? = null) {
         val source = pass.source
         val now = clock()
         // A multi-file film is named without the part suffix and read through its first file.
@@ -28,7 +44,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val parsed = LibraryScanner.parseMovie(named)
         val names = NameIds.ofFilm(named, pass.singleTitleFolders)
         val local = pass.sidecars.forVideo(file)
-        val row = existing ?: inserted(pass, file, parsed, stack, now)
+        val row = existing ?: born ?: inserted(pass, file, parsed, stack, now)
         // Its TMDB id before this read: one it gains gives it back what was kept under it ([giveBack]).
         val was = row.userTmdbId ?: row.tmdbId
 
@@ -37,12 +53,9 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val asked = asked(pass, row, existing, nfo, local)
         val known = row.tmdbId ?: if (asked.tmdb) lent(row) else null
         val query = Query(row.userTmdbId, names, nfo, named, known, tried = row.hintKey, searches = !row.userNoMatch)
-        // The probe reads the NAS while TMDB answers; the file's tracks and its match are then saved at once.
-        val (probed, answers) = coroutineScope {
-            val probed = async { files.withMediaInfo(source, file, row) }
-            val answers = if (asked.write) fetch(pass, row, query, asked) else null
-            probed.await() to answers
-        }
+        // TMDB first, its first request collected as the header is read ([Rounds.Aside]); both are then saved at once.
+        val answers = if (asked.write) fetch(pass, row, query, asked) else null
+        val probed = files.withMediaInfo(source, file, row)
         val fetched = answers ?: run {
             // Nothing usable (e.g. an unparsable release NFO): still record the sidecar key so scans skip it.
             val read = SidecarKey.of(local.copy(nfo = local.nfo.takeUnless { kept.stale }))
@@ -244,13 +257,13 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
      * lookup tried ([ItemEntity.hintKey]); without [searches], a film left as it is ([ItemEntity.userNoMatch]), its ids
      * alone.
      */
-    private class Query(
+    private data class Query(
         val userTmdbId: Int?,
         val names: NameIds,
         val nfo: NfoInfo?,
-        path: String,
+        val path: String,
         val known: Int?,
-        tried: String? = null,
+        val tried: String? = null,
         val searches: Boolean = true,
     ) {
         val parsed = LibraryScanner.parseMovie(path)
@@ -344,7 +357,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         renamed: Boolean = false,
         lookup: (suspend (TmdbClient) -> Looked<TmdbMovie>)?,
     ): Fetched {
-        val answer = lookup?.let { tmdb.ask(it) }
+        val answer = lookup?.let { tmdb.ask(TmdbKey("film", query to userTmdbId), it) }
         val movie = answer?.value?.value
         val nfoInfo = query.nfo
         val untold = untold(userTmdbId, movie, nfoInfo) || renamed && answer !is TmdbAnswer.Given
@@ -353,7 +366,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val chosen = userTmdbId ?: if (answer is TmdbAnswer.Given) answer.value?.byName else query.named
         val nfo = nfoInfo?.takeUnless { untold || MetadataMerge.describesOther(it, chosen, movie?.imdbId) }
         val plan = if (keepCollection) null else collectionOf(nfo, movie, refresh)
-        val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
+        val details = plan?.fetch?.let { id -> tmdb.ask(TmdbKey("collection", id)) { it.collection(id) } } ?: TmdbAnswer.Unanswered
         return Fetched(answer, nfo, plan, details, tmdb.client, askAgain = refresh || (untold && answer !is TmdbAnswer.Given))
     }
 

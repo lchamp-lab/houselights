@@ -70,7 +70,9 @@ class UnreadableFolderException(count: Int) : IllegalStateException("No video li
  * Incremental scanner: lists sources, handles missing files ([MissingFiles]) and matches new ones on TMDB, which is
  * optional ([TmdbPass]); unmatched titles are retried hourly, or at once on a requested scan, and titles TMDB found
  * nothing for or hesitated on are asked again daily, then weekly ([Reidentify]). Writes go through
- * [LibraryDao.saveScanned], so user choices and viewing state are never overwritten.
+ * [LibraryDao.saveScanned], so user choices and viewing state are never overwritten. Each file is read under the
+ * library's lock from what the NAS and TMDB answered with it released ([Rounds]): the user's actions never wait for
+ * the network, and what they changed meanwhile is read before anything is written.
  */
 class LibraryScanner(
     private val dao: LibraryDao,
@@ -116,7 +118,13 @@ class LibraryScanner(
     /** Emits at the end of each pass, true when it changed the library. */
     val passEnded: SharedFlow<Boolean> = _passEnded
 
+    /**
+     * Serialises the library's writes: a pass's and the user's. A pass holds it only to read and write the library, its
+     * NAS reads and TMDB requests collected with it released ([Rounds]), so a user action waits for no network.
+     */
     private val lock = Mutex()
+
+    private val rounds = Rounds(dao, lock)
 
     private val files = ScanFiles(artwork, browsers)
 
@@ -126,7 +134,19 @@ class LibraryScanner(
     private val shows = ShowIndexer(dao, files, clock)
     private val placing = EpisodePlacing(dao, clock)
     private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
-    private val reidentify = Reidentify(dao, lock, movies, shows, clock) { waitForThePlayer() }
+    private val reidentify = Reidentify(dao, rounds, movies, shows, clock) { waitForThePlayer() }
+
+    /** What the indexers keep in memory through a pass, with [orders], its shows' numberings: put back with a run ([Rounds]). */
+    private fun passState(orders: EpisodeOrders) = PassState {
+        val films = movies.mark()
+        val series = shows.mark()
+        val numberings = orders.mark()
+        return@PassState {
+            films()
+            series()
+            numberings()
+        }
+    }
 
     /** Scans every source; [asked] (user-initiated, unlike [scanIfStale]) retries unmatched titles on TMDB at once. */
     fun scanAll(refreshMetadata: Boolean = false, asked: Boolean = true) {
@@ -215,7 +235,8 @@ class LibraryScanner(
 
     /**
      * Matches a film or show with the user's TMDB choice, or automatic matching when [tmdbId] is null. TMDB requests
-     * run first, so a failure leaves the item unchanged; writes then run in one non-cancellable transaction.
+     * run first, so a failure leaves the item unchanged; writes then run in one non-cancellable transaction. All under
+     * the lock, as the user waits for them anyway: a pass waits for them, never the other way.
      */
     suspend fun identify(itemId: Long, tmdbId: Int?) {
         withContext(Dispatchers.IO) {
@@ -397,15 +418,15 @@ class LibraryScanner(
      * Runs [Reidentify] after the sources while TMDB answers, sooner on a scan the user [asked] for; true when a title
      * changed. A failure is retried at the next pass.
      */
-    private suspend fun reidentified(tmdb: TmdbPass, asked: Boolean): Boolean = tmdb.open &&
-        suspendRunCatching { reidentify.run(tmdb, asked) }
+    private suspend fun reidentified(shows: ShowsTmdb, asked: Boolean): Boolean = shows.pass.open &&
+        suspendRunCatching { reidentify.run(shows.pass, asked, passState(shows.orders)) }
             .onSuccess { if (it > 0) Log.i(TAG, "To identify: $it titles asked again changed") }
             .onFailure { Log.w(TAG, "Asking TMDB again for titles to identify failed; tried again at the next pass", it) }
             .getOrDefault(0) > 0
 
     /** [reidentified], then [numbered]: true when either changed the library. */
     private suspend fun askedAgain(shows: ShowsTmdb, asked: Boolean): Boolean {
-        val identified = reidentified(shows.pass, asked)
+        val identified = reidentified(shows, asked)
         return numbered(shows) || identified
     }
 
@@ -423,11 +444,11 @@ class LibraryScanner(
             for (show in dao.waitingShows(before = now - WAITING_EVERY_MS, now = now, limit = WAITING_PER_PASS)) {
                 if (!tmdb.pass.open) break
                 waitForThePlayer()
-                moved = lock.withLock { placing.placeWaiting(show, tmdb.orders, tmdb.seasons) } || moved
+                moved = rounds.run(tmdb.pass, passState(tmdb.orders)) { placing.placeWaiting(show, tmdb.orders, tmdb.seasons) } || moved
             }
             for (show in dao.groupsDue(before = now - GROUPS_EVERY_MS, now = now, limit = GROUPS_PER_PASS)) {
                 if (!tmdb.pass.open) break
-                lock.withLock { tmdb.orders.list(show) }
+                rounds.run(tmdb.pass, passState(tmdb.orders)) { tmdb.orders.list(show) }
             }
             moved
         }.onFailure { Log.w(TAG, "Placing episodes TMDB lists, or listing shows' orders, failed; tried again at the next pass", it) }
@@ -839,24 +860,55 @@ class LibraryScanner(
     private class Folder(val pass: ScanPass, val known: Map<String, KnownFile>)
 
     /**
-     * Processes one file under the lock, so user actions wait for one item, not the whole scan; the row is reloaded
-     * as it may have been edited. True when a row was added or its [shown] state changed.
+     * Processes one file: a new film's row first, so screens show it meanwhile; then the file read in one transaction
+     * under the lock, its NAS reads and TMDB requests collected with the lock released ([Rounds]), so user actions wait
+     * for the library's reads and writes, never the network. Rows are reloaded at each run, as they may have been
+     * edited. True when a row was added or its [shown] state changed.
      */
-    private suspend fun process(folder: Folder, file: RemoteFile, work: Work): Boolean = lock.withLock {
-        val source = folder.pass.source
+    private suspend fun process(folder: Folder, file: RemoteFile, work: Work): Boolean {
+        val pass = folder.pass
+        val source = pass.source
+        val known = folder.known[file.relativePath]
+        val born = if (known == null && source.kind == SourceKind.MOVIES) {
+            lock.withLock { if (dao.source(source.id) == null) null else movies.born(pass, file) } ?: return false
+        } else {
+            null
+        }
+        try {
+            val aside = header(pass, file, work, known?.let { dao.item(it.id) } ?: born)
+            return rounds.run(pass.tmdb, passState(pass.orders), aside) { read(pass, file, work, known, born) }
+        } finally {
+            artwork.letGo()
+        }
+    }
+
+    /** One run of [process], under the lock: [file] read from the rows as they are now, [born] its new film's row. */
+    private suspend fun read(pass: ScanPass, file: RemoteFile, work: Work, known: KnownFile?, born: ItemEntity?): Boolean {
+        val source = pass.source
         // The source was removed meanwhile: add nothing more to it.
-        if (dao.source(source.id) == null) return@withLock false
-        val existing = folder.known[file.relativePath]?.let { dao.item(it.id) }
+        if (dao.source(source.id) == null) return false
+        val existing = known?.let { dao.item(it.id) }
         val before = existing?.let { shown(it) }
         if (work == Work.PROBE && existing != null) {
             reprobe(source, file, existing)
         } else {
             when (source.kind) {
-                SourceKind.MOVIES -> movies.process(folder.pass, file, existing)
-                SourceKind.SHOWS -> shows.process(folder.pass, file, existing)
+                SourceKind.MOVIES -> movies.process(pass, file, existing, born?.let { dao.item(it.id) ?: return false })
+                SourceKind.SHOWS -> shows.process(pass, file, existing)
             }
         }
-        if (existing == null) dao.hasFile(source.id, file.relativePath) else dao.item(existing.id)?.let { shown(it) } != before
+        return if (existing == null) dao.hasFile(source.id, file.relativePath) else dao.item(existing.id)?.let { shown(it) } != before
+    }
+
+    /**
+     * A film's header, when reading [row] (as it is now, null for none) reads it ([ScanFiles.withMediaInfo], [reprobe]):
+     * read as TMDB answers ([Rounds.Aside]).
+     */
+    private fun header(pass: ScanPass, file: RemoteFile, work: Work, row: ItemEntity?): Rounds.Aside? {
+        val source = pass.source
+        if (source.kind != SourceKind.MOVIES) return null
+        val reads = work == Work.PROBE || row == null || MediaProbe.isStale(row.mediaInfo) || row.sizeChanged(file)
+        return if (reads) Rounds.Aside(files.probeOf(source, file)) { files.probe(source, file) } else null
     }
 
     /** Re-probes headers only ([Work.PROBE]); the stored NFO fills gaps, and neither sidecars nor TMDB are read. */
