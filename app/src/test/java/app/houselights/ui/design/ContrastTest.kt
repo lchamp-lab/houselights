@@ -232,6 +232,24 @@ class ContrastTest {
         }
     }
 
+    /** Every colour role is paired here, as an ink or a surface, or said to be neither: DESIGN.md's pair before its use. */
+    @Test
+    fun everyColourRoleIsPaired() {
+        val declared = propertyNames(HlColors::class.java)
+        assertTrue("No colour roles found", declared.isNotEmpty())
+        val paired = roles.keys + surfaces.keys
+        val unpaired = declared - paired - neither.keys
+        assertTrue("Colour roles in no pair, nor said to be in none: ${unpaired.joinToString()}", unpaired.isEmpty())
+        val stale = neither.keys.filter { it in paired || it !in declared }
+        assertTrue("Roles said to be in no pair, wrongly: ${stale.joinToString()}", stale.isEmpty())
+    }
+
+    /** The roles that are neither an ink to read nor a surface to read on, and why. */
+    private val neither = mapOf(
+        "outline" to "an edge at HlAlpha.EDGE, a badge's outline: drawn around what reads, never read",
+        "contentDecorative" to "never for text: an empty frame's rule, a skeleton",
+    )
+
     private data class Pairing(val role: String, val surface: String, val use: Use = Use.Text) {
         fun mark() = copy(use = Use.Mark)
     }
