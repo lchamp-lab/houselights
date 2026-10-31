@@ -7,6 +7,7 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.TraktSession
 import app.houselights.core.WatchStatus
 import app.houselights.providers.local.LocalProvider
+import app.houselights.providers.local.Marked
 import app.houselights.providers.local.TraktAction
 import app.houselights.providers.local.TraktPendingEntity
 import app.houselights.providers.local.TraktStateEntity
@@ -19,6 +20,8 @@ import app.houselights.providers.trakt.FakeTrakt.Companion.show
 import app.houselights.testing.Answer
 import app.houselights.ui.library.LibraryViewModel
 import app.houselights.ui.testing.waitFor
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -39,6 +42,11 @@ import java.time.Instant
 /** The sync against a test Trakt and an in-memory library: both sides joined, the latest pause, the queue, the limits. */
 @RunWith(RobolectricTestRunner::class)
 class TraktSyncTest : TraktSyncFixture() {
+    private companion object {
+        /** More syncs than a write may fail in before it is dropped. */
+        const val SYNCS = 6
+    }
+
     @Test
     fun connectingJoinsBothSidesWatchedWhereverEitherSawIt() = runTest {
         film(1, played = true, lastPlayedAt = ms(T1))
@@ -521,6 +529,59 @@ class TraktSyncTest : TraktSyncFixture() {
         waitFor("a sync without it") { trakt.count("GET /sync/last_activities") == 6 && !sync.state.value.running }
         assertEquals(5, trakt.count("POST /scrobble/stop"))
         assertNull(sync.state.value.error)
+    }
+
+    /**
+     * Trakt refusing the account (its token, its rights, a locked account, a limit too long to wait) is no fault of the
+     * titles sent: a write it refuses so, however often, is never dropped.
+     */
+    @Test
+    fun aWriteRefusedForTheAccountIsNeverDropped() = runTest {
+        val sync = connected()
+        for (code in listOf(401, 403, 423, 429)) {
+            val title = "movie:$code"
+            queue.queue(listOf(TraktPendingEntity(title, TraktAction.PROGRESS, NOW, progress = 30f)))
+            val headers = if (code == 429) mapOf("Retry-After" to "600") else emptyMap()
+            // A refused token is renewed, and the write tried once more.
+            val perSync = if (code == 401) 2 else 1
+            trakt.stage("POST /scrobble/stop", *Array(SYNCS * perSync) { Answer(code, headers = headers) })
+            repeat(SYNCS) { tried ->
+                val before = trakt.count("POST /scrobble/stop")
+                sync.scanned(changedLibrary = false)
+                waitFor("HTTP $code, sync ${tried + 1}") {
+                    trakt.count("POST /scrobble/stop") == before + perSync && !sync.state.value.running
+                }
+            }
+            assertEquals("HTTP $code", listOf(title to 0), queue.pending().map { it.title to it.attempts })
+            queue.sent(queue.pending())
+        }
+    }
+
+    /**
+     * An unmark written as its caller is cancelled (the page left, the app sent away) still waits for Trakt, and reaches
+     * it: lost, the next sync would find the title watched there and mark it watched here again.
+     */
+    @Test
+    fun anUnmarkWhoseCallerIsCancelledOnceWrittenStillReachesTrakt() = runTest {
+        val id = film(57, played = true, lastPlayedAt = ms(T1))
+        trakt.movies = "[${movie(57, T1)}]"
+        val sync = connected()
+        lateinit var caller: Job
+        caller = launch {
+            sync.mark(Marked.Row(id), played = false) {
+                dao.setPlayed(id, false, NOW)
+                caller.cancel()
+            }
+        }
+        caller.join()
+        assertTrue(caller.isCancelled)
+        assertFalse(dao.item(id)!!.played)
+        assertEquals(listOf(TraktAction.UNWATCHED), queue.pending().map { it.action })
+
+        sync.scanned(changedLibrary = false)
+        waitFor("the unmark sent") { queue.pending().isEmpty() && !sync.state.value.running }
+        assertEquals(listOf(57), trakt.sent("POST /sync/history/remove").single().tmdbs)
+        assertFalse("not marked watched again", dao.item(id)!!.played)
     }
 
     @Test

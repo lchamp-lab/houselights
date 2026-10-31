@@ -213,12 +213,30 @@ class LibraryDaoTest {
         assertEquals(gone, dao.nextToIdentify(addedAt = 3, id = half))
     }
 
-    /** A title left as it is stays so whatever a scan writes ([LibraryDao.saveScanned]). */
+    /**
+     * A scan's save ([LibraryDao.saveScanned]) keeps every column the scan does not own, as it stands when the scan writes:
+     * what the user chose, where the title was left, its copies, its credits' date, its arrival, its order of episodes.
+     */
     @Test
-    fun aTitleLeftAsItIsKeepsItThroughAScan() = runTest {
-        val home = dao.insert(row(ItemKind.MOVIE, "Vacances 2019").copy(userNoMatch = true))
-        dao.saveScanned(checkNotNull(dao.item(home)).copy(userNoMatch = false, matchState = MatchState.NOT_FOUND))
-        assertTrue(checkNotNull(dao.item(home)).userNoMatch)
+    fun aScanKeepsEveryColumnItDoesNotOwn() = runTest {
+        val heat = dao.insert(row(ItemKind.MOVIE, "Heat"))
+        val uhd = dao.insert(row(ItemKind.MOVIE, "Heat 4K"))
+        val kept = checkNotNull(dao.item(heat)).copy(
+            userTmdbId = 949, userPosterPath = "/poster.jpg", userBackdropPath = "/backdrop.jpg", userLogoPath = "",
+            userNoMatch = true, positionMs = 1_000, durationMs = 6_000_000, played = true, favorite = true, lastPlayedAt = 5,
+            versionChoice = uhd, versionOf = uhd, creditsAt = 7, addedAt = 9, episodeOrder = "dvd", userEpisodeOrder = "aired",
+            reorderedAt = 11,
+        )
+        dao.update(kept)
+        dao.saveScanned(row(ItemKind.MOVIE, "Heat").copy(id = heat, matchState = MatchState.NOT_FOUND))
+        assertEquals(kept.copy(matchState = MatchState.NOT_FOUND), dao.item(heat))
+    }
+
+    /** Every column the user sets is one a scan keeps: a new one is added to [aScanKeepsEveryColumnItDoesNotOwn]. */
+    @Test
+    fun everyColumnTheUserSetsIsKeptByAScan() {
+        val users = ItemEntity::class.java.declaredFields.map { it.name }.filter { it.startsWith("user") }.toSet()
+        assertEquals(setOf("userTmdbId", "userPosterPath", "userBackdropPath", "userLogoPath", "userNoMatch", "userEpisodeOrder"), users)
     }
 
     /** A show left as it is, its episodes taken over by another show row (two season packs merging), leaves that one so. */
