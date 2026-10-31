@@ -25,6 +25,8 @@ class ArtworkCache(
     private val dir: File,
     /** The size of the volume that holds the cache, of which Android keeps a share for itself ([systemReserve]). */
     private val totalSpace: () -> Long = { volumeOf(dir)?.totalSpace ?: 0 },
+    /** Runs as [sweep] reaches each file and folder, before it decides on it: where a test copies meanwhile. */
+    private val sweeping: (File) -> Unit = {},
     /** Usable bytes on the volume that holds the cache. */
     // What is free now, not what clearing other apps' caches would give.
     //noinspection UsableSpace
@@ -33,8 +35,11 @@ class ArtworkCache(
     /** Files found to be no picture, by [version], in this process: left to TMDB, not copied again until rewritten. */
     private val notPictures: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
-    /** Copies made for the piece of a scan under way, by path, which no row may reference yet: [sweep] spares them. */
-    private val held: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    /**
+     * Copies made for the piece of a scan under way, by canonical path, which no row may reference yet: [sweep] spares
+     * them. Its monitor makes taking one ([copy]) and deleting a file ([sweep]) one after the other, never interleaved.
+     */
+    private val held = mutableSetOf<String>()
 
     /**
      * "file://…" path of the cached copy ([version]); null when it cannot be copied, or is no picture the device reads
@@ -49,8 +54,10 @@ class ArtworkCache(
         if (!holds(file)) return null
         val target = File(dir, "${source.id}/${hash(version(file))}.$ext")
         val uri = "file://${target.absolutePath}"
-        held += target.absolutePath
-        if (target.exists()) return uri
+        synchronized(held) {
+            held += target.canonicalPath
+            if (target.exists()) return uri
+        }
         if (freeSpace() < file.size + systemReserve(totalSpace()) + MIN_FREE_BYTES) {
             Log.w(TAG, "Not copying ${file.relativePath}: the device is nearly full")
             return null
@@ -157,7 +164,7 @@ class ArtworkCache(
     fun spaceLeft(): Long = freeSpace()
 
     /** The copies made since the last call ([copy]) are no longer held: the rows that use them were written, or never will be. */
-    fun letGo() = held.clear()
+    fun letGo() = synchronized(held) { held.clear() }
 
     fun usage(): CacheUsage {
         val files = dir.walkTopDown().filter { it.isFile }.toList()
@@ -166,33 +173,39 @@ class ArtworkCache(
 
     /**
      * Deletes cached files not in [referenced], then empty folders; never touches anything outside the cache, nor a copy
-     * held ([copy]), written or being written.
+     * held ([copy]), written or being written, nor its folder: whether one is held is asked as each is deleted, so a copy
+     * begun while the sweep walks the cache is spared too.
      */
     fun sweep(referenced: Collection<String>): CleanupResult {
         if (!dir.isDirectory) return CleanupResult(0, 0)
         val root = dir.canonicalFile
-        val keep = (referenced.map { it.removePrefix("file://") } + held.flatMap { listOf(it, "$it.part", "$it.small.part") })
-            .mapNotNull { path -> runCatching { File(path).canonicalPath }.getOrNull() }.toSet()
-        // A copy's folder, which it may be about to make again.
-        val holding = held.mapNotNull { path -> runCatching { File(path).parentFile?.canonicalPath }.getOrNull() }.toSet()
+        val keep = referenced.mapNotNull { path -> runCatching { File(path.removePrefix("file://")).canonicalPath }.getOrNull() }.toSet()
         var deleted = 0
         var freed = 0L
         root.walkBottomUp().forEach { file ->
+            sweeping(file)
+            val path = file.canonicalPath
             when {
                 file == root -> Unit
-                !file.canonicalPath.startsWith(root.path + File.separator) -> Unit
-                file.isFile && file.canonicalPath !in keep -> {
+                !path.startsWith(root.path + File.separator) -> Unit
+                file.isFile && path !in keep -> {
                     val size = file.length()
-                    if (file.delete()) {
+                    if (synchronized(held) { !heldAt(path) && file.delete() }) {
                         deleted++
                         freed += size
                     }
                 }
-                file.isDirectory && file.list().isNullOrEmpty() && file.canonicalPath !in holding -> file.delete()
+                file.isDirectory -> synchronized(held) {
+                    // A copy's folder, which it may be about to make again.
+                    if (file.list().isNullOrEmpty() && held.none { it.startsWith(path + File.separator) }) file.delete()
+                }
             }
         }
         return CleanupResult(deleted, freed)
     }
+
+    /** Whether [path] is a copy held or one of its files being written ([copy]'s `.part`); under [held]'s monitor. */
+    private fun heldAt(path: String): Boolean = held.any { path == it || path.startsWith("$it.") }
 
     companion object {
         private const val TAG = "ArtworkCache"
