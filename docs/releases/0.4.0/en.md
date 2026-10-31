@@ -12,9 +12,9 @@ Updates in the app, folders picked rather than typed, titles that ask before the
 - **A saga's page is a polyptych:** a tall panel per film, the focused one opening onto it.
 - **Episodes.** Anime numbered from the start (One Piece - 1071) land in TMDB's seasons, and Edit > Episode order offers DVD or absolute order. A one-season show says its watched tile marks the season (#31).
 - **Design.** Finer type in three weights, squarer corners, denser rows; on a title page the tagline leads the overview and the credits are billed as on a poster; Welcome's two choices are doors, as on home.
-- **A film in several copies.** Resume plays the copy you played last; the page shows the formats of the copy Play plays; copies keep their numbers in Versions; removing the folder of its first copy, or identifying a copy as another film, no longer loses its chosen poster or copy. Jellyfin plays the copy chosen in Versions.
+- **A film in several copies.** Resume plays the copy you played last; the page shows the formats of the copy Play plays; copies keep their numbers in Versions; removing a copy's folder, or identifying it as another film, no longer loses its chosen poster or copy. Jellyfin plays the copy chosen in Versions.
 - **Scans.** A scan no longer makes what you do wait for TMDB or the NAS, and pauses while a film plays. NFS servers in user space (unfs3) no longer look unreachable, and a link leading nowhere counts as a deleted file. Names copied from a Mac no longer double a show. NAS unreachable is said wherever a folder is out of reach.
-- **Sturdier.** On a test-keys firmware (the Z1000 Pro's), an updated Zidoo player gets your passwords only once you trust it. A password the keystore cannot open for now is said kept, never refused. A default track language saved with a region (ar-EG) shows chosen. Launch, Settings and Trakt's sync stay responsive.
+- **Sturdier.** On a test-keys firmware (the Z1000 Pro's), an updated Zidoo player gets your passwords only once you trust it. A password the keystore cannot open for now is said kept, never refused. A default track language saved with a region (ar-EG) shows chosen.
 
 ## Beta notes
 
