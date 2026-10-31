@@ -16,7 +16,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Matroska
-import app.houselights.providers.local.ScanBench
+import app.houselights.providers.local.ScanBenchRule
 import app.houselights.providers.local.toFolder
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
@@ -38,7 +38,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.reflect.KClass
@@ -56,13 +55,13 @@ class NoLibraryTest {
     val settle = SettleMainLooper()
 
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
     private val files = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val work = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val salon = SourceConfig.Jellyfin("https://nas:8920", "NAS du salon", "u1", "léa", "token")
     private val revoked = mutableListOf<SourceConfig.Jellyfin>()
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var library: LocalLibrary
     private lateinit var store: SettingsStore
     private lateinit var sources: SourceSwitcher
@@ -72,9 +71,8 @@ class NoLibraryTest {
     @Before
     fun open() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
-        library = LocalLibrary(context, bench.dao, bench.scanner, ArtworkCache(temp.newFolder("shown"))) {}
-        store = testSettings(temp.root, files)
+        library = LocalLibrary(context, bench.dao, bench.scanner, ArtworkCache(scan.temp.newFolder("shown"))) {}
+        store = testSettings(scan.temp.root, files)
         store.setSource(SourceConfig.Local)
         sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { server, _ -> revoked += server })
     }
@@ -83,7 +81,6 @@ class NoLibraryTest {
     fun close() {
         work.cancel()
         files.cancel()
-        bench.close()
     }
 
     /** The app's screens as AppNavigation holds them, each giving way to Welcome as it does. */

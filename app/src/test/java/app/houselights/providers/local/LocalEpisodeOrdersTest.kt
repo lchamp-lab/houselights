@@ -5,7 +5,6 @@ import app.houselights.core.EpisodeOrderOption
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -13,7 +12,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -26,22 +24,18 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class LocalEpisodeOrdersTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var shows: SourceEntity
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"))
         shows = bench.folder("Séries", SourceKind.SHOWS)
         bench.tmdb.show(FIREFLY, "Firefly", 2002)
         bench.tmdb.season(FIREFLY, 1, episodes = 14)
         bench.showsNas.put(PILOT)
     }
-
-    @After
-    fun close() = bench.close()
 
     private fun editor() = LocalEditor(bench.dao, bench.scanner) { bench.tmdb.client() }
 

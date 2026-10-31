@@ -1,5 +1,7 @@
 package app.houselights.providers.local
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -15,10 +17,13 @@ import okio.BufferedSource
 import okio.Source
 import okio.Timeout
 import okio.buffer
+import org.junit.Assert.assertTrue
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** TMDB in memory behind [client]: counts requests; can fail, answer a status, break a body or hold a request. */
 class FakeTmdb : Interceptor {
@@ -101,6 +106,35 @@ class FakeTmdb : Interceptor {
     var onRequest: ((path: String) -> Unit)? = null
 
     fun client(pauseWhenUnreachable: Boolean = false) = TmdbClient("key", pauseWhenUnreachable, this)
+
+    /**
+     * Holds the first request whose path [first] takes, on OkHttp's thread, until [Gate.open]; the others go through.
+     * Set as [onRequest].
+     */
+    fun gate(first: (String) -> Boolean): Gate = Gate().also { gate ->
+        val taken = AtomicBoolean()
+        onRequest = { path -> if (first(path) && taken.compareAndSet(false, true)) gate.pass() }
+    }
+
+    /** A request held: [reached] once it is, answered once [open]; given up after [GATE_MS] either way. */
+    class Gate {
+        private val reached = CountDownLatch(1)
+        private val opened = CountDownLatch(1)
+
+        fun pass() {
+            reached.countDown()
+            opened.await(GATE_MS, TimeUnit.MILLISECONDS)
+        }
+
+        suspend fun reached() =
+            withContext(Dispatchers.IO) { assertTrue("held", reached.await(GATE_MS, TimeUnit.MILLISECONDS)) }
+
+        fun open() = opened.countDown()
+
+        companion object {
+            const val GATE_MS = 5_000L
+        }
+    }
 
     fun movie(
         id: Int,

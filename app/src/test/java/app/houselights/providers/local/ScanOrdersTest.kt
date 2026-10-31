@@ -2,7 +2,6 @@ package app.houselights.providers.local
 
 import app.houselights.core.TmdbNotFoundException
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -10,7 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
@@ -26,24 +24,23 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanOrdersTest {
-    @get:Rule
-    val temp = TemporaryFolder()
-
-    private lateinit var bench: ScanBench
-    private lateinit var shows: SourceEntity
-
     /** The statements the library runs while [recording], with their values. */
     private val statements: MutableList<Pair<String, List<Any?>>> = Collections.synchronizedList(mutableListOf())
 
     @Volatile
     private var recording = false
 
+    @get:Rule
+    val scan = ScanBenchRule { sql, args -> if (recording) statements += sql to args.toList() }
+
+    private val bench get() = scan.bench
+    private lateinit var shows: SourceEntity
+
     private val tmdb get() = bench.tmdb
     private val showsNas get() = bench.showsNas
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork")) { sql, args -> if (recording) statements += sql to args.toList() }
         shows = bench.folder("Séries", SourceKind.SHOWS)
         tmdb.show(FIREFLY, "Firefly", 2002)
         tmdb.season(FIREFLY, 1, episodes = 14)
@@ -51,9 +48,6 @@ class ScanOrdersTest {
         tmdb.group(FIREFLY, DVD, type = 3, name = "DVD Order", listOf(listOf(1 to 11, 1 to 1, 1 to 2)))
         (1..3).forEach { showsNas.put(file(it)) }
     }
-
-    @After
-    fun close() = bench.close()
 
     private fun file(n: Int) = "Firefly/Season 1/Firefly - S01E0$n.mkv"
 

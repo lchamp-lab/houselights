@@ -34,9 +34,6 @@ class MissingFilesTest {
         assertEquals("a folder whose name only starts the same is not under it", listOf(dune.id, heat.id), settle("Private").removed)
     }
 
-    private fun stacked(rows: List<KnownFile>, vararg paths: String) =
-        MissingFiles.settle(SourceKind.MOVIES, rows, Stacks.of(SourceKind.MOVIES, paths.map { RemoteFile(it, 1_000) }))
-
     /** "Kill Bill CD1" and "CD2" read as one film, but each matched its own: two films, each keeping its row. */
     @Test
     fun filesMatchedWithTwoFilmsAreNotOne() {
@@ -44,7 +41,7 @@ class MissingFilesTest {
         val first = film(1, "Kill Bill CD1.avi").copy(tmdbId = VOL_1)
         val second = film(2, "Kill Bill CD2.avi").copy(tmdbId = VOL_2)
         listOf(second, second.copy(tmdbId = VOL_1, userTmdbId = VOL_2)).forEach { other ->
-            val outcome = stacked(listOf(first, other), *files)
+            val outcome = settled(listOf(first, other), *files)
             assertEquals("not given way", emptyList<Long>(), outcome.removed + outcome.absorbed)
             assertEquals("its file is there", emptyList<Long>(), outcome.held)
             assertEquals("no part of the other", emptyList<Pair<Long, List<String>>>(), outcome.parts)
@@ -52,13 +49,13 @@ class MissingFilesTest {
 
         // The film has no row: neither stands for it.
         val third = film(3, "Kill Bill CD3.avi").copy(tmdbId = VOL_1)
-        val alone = stacked(listOf(second, third), *files, "Kill Bill CD3.avi")
+        val alone = settled(listOf(second, third), *files, "Kill Bill CD3.avi")
         assertEquals(emptyList<Pair<Long, RemoteFile>>(), alone.relinked)
         assertEquals(emptyList<Long>(), alone.removed + alone.held + alone.absorbed)
 
         // Matched with the same film, or one of them not at all: one film in two files.
         for (other in listOf(second.copy(tmdbId = VOL_1), second.copy(tmdbId = null))) {
-            val one = stacked(listOf(first, other), *files)
+            val one = settled(listOf(first, other), *files)
             assertEquals("a part of the film now, nothing of its own", listOf(2L), one.absorbed)
             assertEquals(emptyList<Long>(), one.removed)
             assertEquals(listOf(1L to listOf("Kill Bill CD2.avi")), one.parts)
@@ -73,7 +70,7 @@ class MissingFilesTest {
     fun aFilmWhoseFirstPartIsGoneIsMissingLikeAnyTitle() {
         val dir = "Heat (1995)"
         val heat = film(100, "$dir/Heat (1995) CD1.avi").copy(parts = listOf("$dir/Heat (1995) CD2.avi"))
-        val alone = stacked(listOf(heat), "$dir/Heat (1995) CD2.avi")
+        val alone = settled(listOf(heat), "$dir/Heat (1995) CD2.avi")
         assertEquals(emptyList<Pair<Long, RemoteFile>>(), alone.relinked)
         assertEquals(listOf(heat.id), alone.removed)
         assertEquals(emptyList<Pair<Long, List<String>>>(), alone.parts)
@@ -85,7 +82,7 @@ class MissingFilesTest {
         assertEquals(setOf("$dir/Heat (1995) CD2.avi"), MissingFiles.waitingParts(listOf(heat), files, drop.removed))
 
         // Its first part renamed is still the film.
-        val renamed = stacked(listOf(heat), "$dir/Heat (1995).avi")
+        val renamed = settled(listOf(heat), "$dir/Heat (1995).avi")
         assertEquals(listOf(heat.id to RemoteFile("$dir/Heat (1995).avi", 1_000)), renamed.relinked)
     }
 

@@ -4,24 +4,21 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.shadows.ShadowLog
 
 /** What a scan makes of a NAS's names and folders: discs, extras, multi-episode files, shows in shared folders. */
 @RunWith(RobolectricTestRunner::class)
 class ScanNamesTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private lateinit var shows: SourceEntity
     private val nas get() = bench.nas
@@ -29,13 +26,9 @@ class ScanNamesTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
         films = bench.folder("Films")
         shows = bench.folder("Séries", SourceKind.SHOWS)
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun episodes() = bench.dao.filesOf(shows.id).sortedBy { it.episodeNumber }
 
@@ -212,13 +205,39 @@ class ScanNamesTest {
     private suspend fun series() = bench.dao.filesOf(shows.id).mapNotNull { it.seriesId }.distinct()
         .map { checkNotNull(bench.dao.item(it)) }.sortedBy { it.matchKey }
 
+    /**
+     * Shows of one name and other years are shows of their own, however the folders hold them: side by side, under a
+     * folder of their name (another beside it), or naming more than their year. Each layout is a folder on a NAS of its
+     * own, read in one pass in that order: shows are keyed across folders, so the later layouts meet the shows the first
+     * made.
+     */
     @Test
     fun twoShowsOfOneNameAndTwoYearsAreTwoShows() = runTest {
-        showsNas.put("Doctor Who (1963)/Season 1/Doctor Who - S01E01 - An Unearthly Child.mkv")
-        showsNas.put("Doctor Who (2005)/Season 1/Doctor Who - S01E01 - Rose.mkv")
+        val layouts = listOf(
+            listOf(
+                "Doctor Who (1963)/Season 1/Doctor Who - S01E01 - An Unearthly Child.mkv",
+                "Doctor Who (2005)/Season 1/Doctor Who - S01E01 - Rose.mkv",
+            ),
+            listOf(
+                "Doctor Who/Doctor Who (1963)/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv",
+                "Doctor Who/Doctor Who (2005)/Season 01/Doctor Who - S01E01 - Rose.mkv",
+                "Doctor Who (2023)/Season 01/Doctor Who - S01E01 - Space Babies.mkv",
+            ),
+            listOf(
+                "Doctor Who/Doctor Who (1963) 1080p/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv",
+                "Doctor Who/Doctor Who (2005) - S01/Doctor Who - S01E01 - Rose.mkv",
+            ),
+        )
+        val folders = layouts.mapIndexed { i, paths ->
+            bench.folder("Séries $i", SourceKind.SHOWS, on = FakeRemoteBrowser().apply { paths.forEach { put(it) } }) to paths
+        }
         bench.scan()
 
-        assertEquals(listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005), series().map { it.matchKey to it.year })
+        for ((folder, paths) in folders) {
+            val years = paths.map { bench.showOf(folder, it) }.map { it.matchKey to it.year }
+            val expected = listOf(1963, 2005, 2023).take(paths.size).map { "doctor who|$it" to it }
+            assertEquals(paths.first(), expected, years)
+        }
     }
 
     /** French packs at the root, per season ("Saison 1") and whole ("Intégrale"), make one show. */
@@ -230,26 +249,6 @@ class ScanNamesTest {
         bench.scan()
 
         assertEquals(listOf("kaamelott" to "Kaamelott", "les revenants" to "Les Revenants"), series().map { it.matchKey to it.title })
-    }
-
-    @Test
-    fun aShowsYearsInAFolderOfItsNameAreTwoShows() = runTest {
-        showsNas.put("Doctor Who/Doctor Who (1963)/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv")
-        showsNas.put("Doctor Who/Doctor Who (2005)/Season 01/Doctor Who - S01E01 - Rose.mkv")
-        showsNas.put("Doctor Who (2023)/Season 01/Doctor Who - S01E01 - Space Babies.mkv")
-        bench.scan()
-
-        val keys = listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005, "doctor who|2023" to 2023)
-        assertEquals(keys, series().map { it.matchKey to it.year })
-    }
-
-    @Test
-    fun aShowsYearsNamingMoreThanTheirYearAreTwoShows() = runTest {
-        showsNas.put("Doctor Who/Doctor Who (1963) 1080p/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv")
-        showsNas.put("Doctor Who/Doctor Who (2005) - S01/Doctor Who - S01E01 - Rose.mkv")
-        bench.scan()
-
-        assertEquals(listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005), series().map { it.matchKey to it.year })
     }
 
     /** Season packs naming the show's year: one show, described by its folder, tvshow.nfo and season posters. */
@@ -289,18 +288,5 @@ class ScanNamesTest {
         val numbers = bench.dao.filesOf(shows.id).sortedBy { it.filePath }.map { it.seasonNumber to it.episodeNumber }
         assertEquals(listOf(1 to 1, 0 to 1), numbers)
         assertEquals(1, series().size)
-    }
-
-    @Test
-    fun videosThatNameNoEpisodeAreToldOnceAPass() = runTest {
-        showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
-        showsNas.put("Severance/Season 1/Severance - Pilot.mkv")
-        ShadowLog.clear()
-        bench.scan()
-
-        assertEquals(1, episodes().size)
-        val told = ShadowLog.getLogsForTag("LibraryScanner").filter { "name no episode" in it.msg }
-        assertEquals(1, told.size)
-        assertTrue(told.single().msg, "1 of 2 videos" in told.single().msg)
     }
 }

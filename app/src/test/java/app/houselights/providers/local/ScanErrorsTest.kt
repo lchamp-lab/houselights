@@ -25,6 +25,7 @@ import org.robolectric.RobolectricTestRunner
 import java.io.EOFException
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.net.ConnectException
 import java.net.SocketException
 import java.nio.file.NoSuchFileException
 
@@ -146,6 +147,8 @@ class ScanErrorsTest {
         assertFalse(ScanErrors.isFolderGone(Protocol.LOCAL, NoSuchFileException("/storage/1234-ABCD/Films")))
         assertFalse(ScanErrors.isFolderGone(Protocol.LOCAL, DiskAbsentException("1234-ABCD")))
         listOf(
+            ConnectException("Connection refused"),
+            NfsException(NfsStatus.NFS3ERR_JUKEBOX, "lookup error code: NfsStatus:10008"),
             mountFailure(MountStatus.MNT3ERR_NOENT),
             mountFailure(MountStatus.MNT3ERR_ACCES),
             smbStatus(NtStatus.STATUS_BAD_NETWORK_NAME),

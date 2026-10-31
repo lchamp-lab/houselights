@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import android.util.Log
 import app.houselights.core.NfoParser
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -11,12 +10,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
 import java.io.IOException
-import java.net.SocketTimeoutException
 
 /**
  * A failed read is retried at the next scan, keeping what was read before; a silent NAS ends the pass. What fails at
@@ -25,20 +22,16 @@ import java.net.SocketTimeoutException
 @RunWith(RobolectricTestRunner::class)
 class ScanReadsTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
         films = bench.folder("Films")
     }
-
-    @After
-    fun close() = bench.close()
 
     /** A lock: the file is being written, and is read again later. */
     private fun locked() = IOException("STATUS_SHARING_VIOLATION (0xc0000043)")
@@ -203,19 +196,5 @@ class ScanReadsTest {
         assertEquals("Dune (2021).nfo", dune.nfoPath)
         assertTrue(dune.nfo.orEmpty().contains("Dune: Part One"))
         assertEquals("Dune: Part One", dune.title)
-    }
-
-    @Test
-    fun aNasThatStopsAnsweringWhileImagesAreCopiedEndsThePass() = runTest {
-        // Files the probe does not open, without NFO: only their posters are read.
-        repeat(5) {
-            nas.put("New $it (2024).mp4")
-            nas.putImage("New $it (2024)-poster.jpg")
-        }
-        nas.readFailure = SocketTimeoutException("timeout")
-        bench.scan()
-
-        assertEquals(ScanErrorKind.UNREACHABLE, bench.error(films))
-        assertEquals("gives up after three files, each with long timeouts", 3, nas.reads.size)
     }
 }

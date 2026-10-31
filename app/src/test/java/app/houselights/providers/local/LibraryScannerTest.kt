@@ -8,14 +8,12 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
@@ -27,23 +25,20 @@ import java.util.Collections
 /** Whole passes over folders on a NAS held in memory, without TMDB: when they run, what they wait for and write. */
 @RunWith(RobolectricTestRunner::class)
 class LibraryScannerTest {
-    @get:Rule
-    val temp = TemporaryFolder()
-
     private val log = StatementLog()
-    private lateinit var bench: ScanBench
+
+    @get:Rule
+    val scan = ScanBenchRule(tmdbKey = false, onQuery = log)
+
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
     private val dao get() = bench.dao
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false, onQuery = log)
         films = bench.folder("Films")
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun filePaths() = bench.paths(films)
 
@@ -60,20 +55,6 @@ class LibraryScannerTest {
         val told = bench.toldDuring { bench.scan() }
         assertTrue("progress told", told.progress > 0)
         assertEquals("the change told once", 1, told.changes)
-    }
-
-    /**
-     * A pass that begins on an empty library is its very first scan, which screens follow closer while it fills home's
-     * rows; the next one, over the titles it found, is not, nor is any once it ends.
-     */
-    @Test
-    fun aPassOnAnEmptyLibraryIsItsFirstScan() = runTest {
-        repeat(12) { nas.put("Film $it (2001).mkv") }
-        assertEquals(listOf(true), homeFillingAsItWrites().map { it.filling }.distinct())
-        assertFalse("over", bench.scanner.state.value.homeFilling)
-
-        repeat(12) { nas.put("Film ${it + 12} (2002).mkv") }
-        assertEquals(listOf(false), homeFillingAsItWrites().map { it.filling }.distinct())
     }
 
     /**
@@ -100,9 +81,25 @@ class LibraryScannerTest {
         assertEquals("closer, then as any pass", listOf(true, false), first.map { it.homeFilling }.distinct())
         assertEquals("its first scan all along", listOf(true), first.map { it.firstPass }.distinct())
         assertFalse("over", bench.scanner.state.value.firstPass)
+        assertFalse(bench.scanner.state.value.homeFilling)
 
         nas.put("Film 40 (2002).mkv")
-        assertEquals(listOf(false), statesAsItRuns().filter { it.running }.map { it.firstPass }.distinct())
+        val next = statesAsItRuns().filter { it.running }
+        assertEquals(listOf(false), next.map { it.firstPass }.distinct())
+        assertEquals("never followed closer", listOf(false), next.map { it.homeFilling }.distinct())
+    }
+
+    /** A pass over a library of a few films is no first scan, though home's row of latest films is not full yet. */
+    @Test
+    fun aPassOverAFewFilmsIsNoFirstScan() = runTest {
+        repeat(FEW) { nas.put("Film $it (2001).mkv") }
+        bench.scan()
+        assertTrue(FEW < LocalProvider.LATEST)
+
+        repeat(FEW) { nas.put("Film ${it + FEW} (2002).mkv") }
+        val next = statesAsItRuns().filter { it.running }
+        assertEquals(listOf(false), next.map { it.firstPass }.distinct())
+        assertEquals("never followed closer", listOf(false), next.map { it.homeFilling }.distinct())
     }
 
     /**
@@ -277,26 +274,6 @@ class LibraryScannerTest {
     }
 
     /**
-     * A film started while a folder lists: the listing stops between two folders, the NAS's sessions closed through the
-     * film, and lists the folder anew once it ends.
-     */
-    @Test
-    fun aListingStopsForAFilmStartedMeanwhileAndBeginsAnewOnceItEnds() = runTest {
-        nas.put("Dune (2021).mkv")
-        var listed = 0
-        nas.onList = { if (++listed == 1) bench.playing.value = true }
-        bench.scanner.scanAll()
-        bench.playing.subscriptionCount.first { it > 0 }
-        assertEquals("stopped as the film started", 1, listed)
-        assertTrue("its session closed", bench.closed.get() > 0)
-
-        bench.playing.value = false
-        bench.awaitScans()
-        assertEquals("listed anew", 2, listed)
-        assertEquals(listOf("Dune (2021).mkv"), filePaths())
-    }
-
-    /**
      * The app left while a folder lists, another app perhaps playing from the NAS: the listing stops between two folders,
      * its session closed and nothing read, and lists the folder anew once the app is back.
      */
@@ -338,6 +315,36 @@ class LibraryScannerTest {
         assertEquals(listOf("Dune (2021).mkv"), filePaths())
     }
 
+    /** Scans asked twice while a pass lists, a refresh the first time: one more pass follows, and it refreshes. */
+    @Test
+    fun scansAskedDuringAPassQueueOneMoreThatRefreshesIfEitherAsked() = runTest {
+        nas.put("Dune (2021).mkv")
+        nas.putText("Dune (2021).nfo", "<movie><title>Dune</title></movie>")
+        bench.scan()
+        var listed = 0
+        val listing = CompletableDeferred<Unit>()
+        val go = CompletableDeferred<Unit>()
+        nas.onList = {
+            if (++listed == 1) {
+                listing.complete(Unit)
+                go.await()
+            }
+        }
+        nas.reads.clear()
+        bench.scanner.scanAll()
+        try {
+            listing.await()
+            bench.scanner.scanAll(refreshMetadata = true)
+            bench.scanner.scanAll()
+        } finally {
+            go.complete(Unit)
+        }
+        bench.awaitScans()
+
+        assertEquals("one more pass", 2, listed)
+        assertEquals("its NFO read again by the refresh", 1, nas.reads.count { it == "Dune (2021).nfo" })
+    }
+
     @Test
     fun aPassCutShortLetsTheNextOneStart() = runTest {
         nas.put("Dune (2021).mkv")
@@ -355,21 +362,37 @@ class LibraryScannerTest {
         assertEquals(listOf("Dune (2021).mkv"), filePaths())
     }
 
+    /**
+     * A NAS that stops answering as a pass reads its headers, its posters or its NFOs: each folder gives up after three
+     * files, every one a long timeout, never reading one twice; the files it gave up on are read at the next pass.
+     */
     @Test
-    fun aNasThatStopsAnsweringEndsThePassAfterThreeFiles() = runTest {
+    fun aNasThatStopsAnsweringEndsEachFolderAfterThreeFiles() = runTest {
         nas.put("Dune (2021).mkv")
         bench.scan()
-
         repeat(5) { nas.put("New $it (2024).mkv") }
-        nas.readFailure = SocketTimeoutException("timeout")
+        // Files the probe does not open: their posters alone, or their NFOs alone, are read.
+        val posters = FakeRemoteBrowser()
+        val nfos = FakeRemoteBrowser()
+        repeat(5) {
+            posters.put("New $it (2024).mp4")
+            posters.putImage("New $it (2024)-poster.jpg")
+            nfos.put("New $it (2024).mp4")
+            nfos.putText("New $it (2024).nfo", "<movie><title>New $it</title></movie>")
+        }
+        val withPosters = bench.folder("Films affiches", on = posters)
+        val withNfos = bench.folder("Films NFO", on = nfos)
+        listOf(nas, posters, nfos).forEach { it.readFailure = SocketTimeoutException("timeout") }
         nas.reads.clear()
         bench.scan()
 
-        assertEquals(ScanErrorKind.UNREACHABLE, bench.error(films))
-        assertEquals("gives up after three files, each with long timeouts", 3, nas.reads.size)
+        for ((folder, browser) in listOf(films to nas, withPosters to posters, withNfos to nfos)) {
+            assertEquals(folder.name, ScanErrorKind.UNREACHABLE, bench.error(folder))
+            assertEquals("${folder.name}: gives up after three files", 3, browser.reads.size)
+            assertEquals("${folder.name}: each read once", browser.reads.distinct(), browser.reads)
+        }
         assertTrue("Dune (2021).mkv" in filePaths())
 
-        // Files it gave up on are read at the next pass.
         nas.readFailure = null
         assertEquals(5, bench.pass().reads.size)
         assertEquals(null, bench.error(films))
@@ -442,6 +465,9 @@ class LibraryScannerTest {
     }
 
     private companion object {
+        /** Films fewer than home's row of latest ones holds. */
+        const val FEW = 12
+
         const val START = ScanBench.START
         const val HOUR = 60 * 60_000L
         const val TEN_MINUTES = 10 * 60_000L

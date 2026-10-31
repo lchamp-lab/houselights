@@ -2,7 +2,6 @@ package app.houselights.providers.local
 
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -10,7 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
@@ -23,9 +21,9 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 class ScanLocalDiskTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private val disks = TestDisks()
 
     /** Whether Android lets the app read the player's disks. */
@@ -36,16 +34,12 @@ class ScanLocalDiskTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
         // As the app's browsers do at the end of each pass: the next one asks Android where each disk is.
         bench.onClose = browser::closeIdle
-        disk = temp.newFolder(USB_DISK)
+        disk = scan.temp.newFolder(USB_DISK)
         disks.plug(USB_DISK, disk, "Samsung T7")
         films = bench.folder("Films", on = browser, stored = diskFolder("Films"))
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun paths() = bench.paths(films)
 
@@ -54,7 +48,7 @@ class ScanLocalDiskTest {
     /** Unplugged, as Android sees it: no longer listed, its files gone with it. */
     private fun unplug(): File {
         disks.unplug(USB_DISK)
-        return File(temp.root, "away").also { check(disk.renameTo(it)) { "The disk stayed" } }
+        return File(scan.temp.root, "away").also { check(disk.renameTo(it)) { "The disk stayed" } }
     }
 
     private fun plugBack(away: File) {
@@ -131,7 +125,7 @@ class ScanLocalDiskTest {
         titles.forEach(::film)
         bench.scan()
 
-        val away = File(temp.root, "Films away")
+        val away = File(scan.temp.root, "Films away")
         check(disk.resolve("Films").renameTo(away)) { "The folder stayed" }
         bench.scan()
         bench.scan()

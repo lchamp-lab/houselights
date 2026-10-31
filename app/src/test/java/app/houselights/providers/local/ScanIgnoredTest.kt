@@ -2,15 +2,14 @@ package app.houselights.providers.local
 
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import java.io.IOException
 
 /**
@@ -20,30 +19,29 @@ import java.io.IOException
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanIgnoredTest {
-    @get:Rule
-    val temp = TemporaryFolder()
-
     private val log = StatementLog()
-    private lateinit var bench: ScanBench
+
+    @get:Rule
+    val scan = ScanBenchRule(tmdbKey = false, onQuery = log)
+
+    private val bench get() = scan.bench
     private lateinit var shows: SourceEntity
     private val showsNas get() = bench.showsNas
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false, onQuery = log)
         shows = bench.folder("Séries", SourceKind.SHOWS)
         showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
         showsNas.put(NO_SHOW)
         showsNas.put(NO_NUMBER)
     }
 
-    @After
-    fun close() = bench.close()
-
     private suspend fun ignored() = bench.dao.observeIgnored().first().map { Triple(it.folder, it.filePath, it.reason) }
 
+    /** Listed, and told in the log once a pass. */
     @Test
     fun aVideoNamingNoEpisodeIsListedWithWhy() = runTest {
+        ShadowLog.clear()
         bench.scan()
 
         // By path, as SQLite sorts them.
@@ -53,6 +51,8 @@ class ScanIgnoredTest {
         )
         assertEquals(expected, ignored())
         assertEquals(listOf("Severance/Season 1/Severance - S01E01.mkv"), bench.paths(shows))
+        val told = ShadowLog.getLogsForTag("LibraryScanner").map { it.msg }.filter { "name no episode" in it }
+        assertEquals(listOf("Séries: 2 of 3 videos name no episode, and are left out"), told)
     }
 
     @Test
@@ -82,10 +82,12 @@ class ScanIgnoredTest {
     @Test
     fun aFolderOutOfReachKeepsItsList() = runTest {
         bench.scan()
+        val before = ignored()
         showsNas.listFailure = IOException("NAS unreachable")
         bench.scan()
 
-        assertEquals(2, ignored().size)
+        assertEquals(2, before.size)
+        assertEquals(before, ignored())
     }
 
     @Test
