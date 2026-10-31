@@ -116,7 +116,7 @@ data class EpisodePlace(
 /**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
  * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao],
- * [IgnoredFileDao], [FirstTitleDao], [SagaDao], [CopyDao] or [EpisodePathDao].
+ * [IgnoredFileDao], [FirstTitleDao], [SagaDao], [CopyDao], [CopyHeirDao] or [EpisodePathDao].
  */
 @Dao
 interface LibraryDao :
@@ -130,6 +130,7 @@ interface LibraryDao :
     FirstTitleDao,
     SagaDao,
     CopyDao,
+    CopyHeirDao,
     EpisodePathDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
@@ -539,14 +540,6 @@ interface LibraryDao :
     suspend fun titlesInCopies(ids: List<Long>): List<Long>
 
     /**
-     * The copies of the films [titles] ([titlesInCopies]), their main rows included, without NFO text, read whole as Lire
-     * ranks them ([LocalMapper.playedCopiesOf]). [titles] is bound once, so [SQL_IN_LIMIT] of them stay under Android 9's
-     * 999 arguments.
-     */
-    @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND COALESCE(versionOf, id) IN (:titles) ORDER BY id")
-    suspend fun copiesOf(titles: List<Long>): List<ItemEntity>
-
-    /**
      * The films in several copies whose copies are not all watched, nor all started, as their main row is: the walls'
      * filters read them as the copy Lire plays is, watched as any copy is ([LocalFilters]).
      */
@@ -591,6 +584,7 @@ interface LibraryDao :
         setMissingSince(back, null)
         setMissingSince(held, now)
         keepStateOf(removed, alsoLeaving = absorbed)
+        handTitlesOf(removed + absorbed)
         deleteItems(removed + absorbed)
         // If a film's main row was removed, its next copy becomes the main row.
         if (removed.isNotEmpty() || absorbed.isNotEmpty()) groupVersions()
@@ -728,12 +722,16 @@ interface LibraryDao :
     )
     suspend fun moveOrphanShows()
 
-    /** Removes a source and its items atomically, forgetting what the user did to them and the files it left out. */
+    /**
+     * Removes a source and its items atomically, forgetting what the user did to them and the files it left out; a film
+     * with a copy elsewhere stays under it, with what was chosen on it ([handTitlesOf]).
+     */
     @Transaction
     suspend fun removeSource(id: Long) {
         deleteSource(id)
         forgetKeptOf(id)
         forgetIgnoredOf(id)
+        handTitlesOf(orphanFilms())
         deleteOrphanItems()
         deleteEmptySeasons()
         deleteEmptySeries()
@@ -877,13 +875,6 @@ interface LibraryDao :
             "OR (kind = 'SAGA' AND ref NOT IN (SELECT CAST(id AS TEXT) FROM collections))",
     )
     suspend fun deleteOrphanSearchWords(): Int
-
-    /**
-     * Groups copies ([ItemEntity.versionOf]) by TMDB id under the oldest row, which keeps favourite, resume point and
-     * "recently added" position. Writes only changed rows and returns their count.
-     */
-    @Query(GROUP_VERSIONS)
-    suspend fun groupVersions(): Int
 
     /** Films and shows whose sort title starts with [prefix] ([upper] from [SearchWords.upperBound]), in sort order. */
     @Query(
