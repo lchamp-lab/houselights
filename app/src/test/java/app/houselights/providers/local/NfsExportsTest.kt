@@ -69,12 +69,18 @@ class NfsExportsTest {
         assertTrue("$failure", failure is RpcException)
     }
 
-    /** An answer cut short, or a length past its end, fails rather than read what follows it. */
+    /**
+     * An answer cut short, a length past its end or below zero, or more exports than any server holds (a list that never
+     * ends) fails rather than read what follows it.
+     */
     @Test
     fun aMalformedAnswerFails() {
         val cut = synology.copyOf(synology.size - 30)
         val tooLong = hex(*reply(), "00000001", "7fffffff", "2f766f6c")
-        listOf(cut, tooLong, hex(*reply(), "00000001")).forEach { bytes ->
+        val negative = hex(*reply(), "00000001", "ffffffff", "2f766f6c")
+        // Exports of an empty path and no group, one past the most read.
+        val endless = hex(*reply(), *Array(1_001) { arrayOf("00000001", "00000000", "00000000") }.flatten().toTypedArray(), "00000000")
+        listOf(cut, tooLong, negative, endless, hex(*reply(), "00000001")).forEach { bytes ->
             val failure = runCatching { answered(bytes) }.exceptionOrNull()
             assertTrue("$failure", failure is MalformedAnswerException)
         }

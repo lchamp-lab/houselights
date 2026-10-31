@@ -5,73 +5,35 @@ import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
-import app.houselights.core.TraktSession
 import app.houselights.player.PlaybackManager
 import app.houselights.player.PlayerAnswer
 import app.houselights.player.ZidooPlayState
 import app.houselights.providers.local.ItemEntity
 import app.houselights.providers.local.ItemKind
-import app.houselights.providers.local.LibraryDao
-import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.NoEditor
 import app.houselights.providers.local.TraktAction
-import app.houselights.providers.local.nfsFolder
-import app.houselights.providers.local.onCallingThread
-import app.houselights.providers.local.testDatabase
 import app.houselights.ui.testing.waitFor
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonPrimitive
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /** The end of a playback, from the player's result to Trakt's scrobble: at the player's length, the file's, or none. */
 @RunWith(RobolectricTestRunner::class)
-class TraktScrobbleTest {
+class TraktScrobbleTest : TraktSyncFixture() {
     private val context = ApplicationProvider.getApplicationContext<Application>()
-    private lateinit var db: LibraryDatabase
-    private lateinit var dao: LibraryDao
-    private var source = 0L
-
-    private val trakt = FakeTrakt()
-    private var session: TraktSession? = TraktSession("a1", "r1", expiresAt = Long.MAX_VALUE / 2, username = "lea")
     private val statuses = ArrayDeque<PlayerAnswer>()
-
-    @Before
-    fun open() = runBlocking {
-        db = testDatabase { onCallingThread() }
-        dao = db.dao()
-        source = dao.insertSource(nfsFolder())
-    }
-
-    @After
-    fun close() = db.close()
-
-    /** A connected sync, its first sync done; a film's progress before it is not sent again. */
-    private suspend fun TestScope.connected(): TraktSync {
-        val sync = TraktSync(
-            TraktAccount(TraktKeys("id"), session = { session }, save = { session = it }, http = trakt.server.http),
-            db.trakt(),
-            backgroundScope,
-            clock = { testScheduler.currentTime },
-        )
-        sync.follow(connected = true, folders = true)
-        waitFor("the first sync") { sync.state.value.syncedAt != null && !sync.state.value.running }
-        return sync
-    }
 
     private suspend fun film(runtimeMin: Int?, fileDurationMs: Long? = null) = dao.insert(
         ItemEntity(
-            kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", tmdbId = 949, runtimeMin = runtimeMin,
+            kind = ItemKind.MOVIE, sourceId = films, title = "Heat", sortTitle = "heat", tmdbId = 949, runtimeMin = runtimeMin,
             fileDurationMs = fileDurationMs, filePath = "Heat.mkv", addedAt = 0,
         ),
     )
@@ -124,7 +86,7 @@ class TraktScrobbleTest {
         advanceUntilIdle()
         waitFor("the position saved") { dao.item(id)!!.positionMs == 30 * MINUTE }
         assertEquals(0, trakt.count("POST /scrobble/stop"))
-        assertTrue(db.trakt().pending().isEmpty())
+        assertTrue(queue.pending().isEmpty())
     }
 
     @Test
@@ -136,7 +98,7 @@ class TraktScrobbleTest {
         waitFor("watched here") { dao.item(id)!!.played }
         advanceUntilIdle()
         assertEquals(0, trakt.count("POST /scrobble/stop"))
-        assertTrue(db.trakt().pending().isEmpty())
+        assertTrue(queue.pending().isEmpty())
     }
 
     @Test
@@ -145,16 +107,14 @@ class TraktScrobbleTest {
         val sync = connected()
         trakt.offline = true
         played(sync, id, returnedMs = 30 * MINUTE.toInt())
-        waitFor("the stop waiting") { db.trakt().pending().isNotEmpty() && sync.state.value.error != null }
-        db.trakt().pending().single().let {
+        waitFor("the stop waiting") { queue.pending().isNotEmpty() && sync.state.value.error != null }
+        queue.pending().single().let {
             assertEquals(TraktAction.PROGRESS, it.action)
             assertEquals(30f, it.progress)
         }
     }
 
     private companion object {
-        const val MINUTE = 60_000L
-
         /** When the manager first asks the player. */
         const val FIRST_POLL_MS = 4_001L
     }

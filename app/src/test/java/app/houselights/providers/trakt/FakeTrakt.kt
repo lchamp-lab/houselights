@@ -2,11 +2,9 @@ package app.houselights.providers.trakt
 
 import app.houselights.testing.Answer
 import app.houselights.testing.FakeServer
-import kotlinx.serialization.json.Json
+import app.houselights.testing.json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
 import okhttp3.Request
-import okio.Buffer
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -68,9 +66,7 @@ class FakeTrakt {
 
     /** The bodies Trakt received on [route], in order. */
     fun sent(route: String): List<JsonObject> = synchronized(answered) {
-        answered.filter { route(it) == route }.map { r ->
-            Json.parseToJsonElement(Buffer().also { r.body!!.writeTo(it) }.readUtf8()).jsonObject
-        }
+        answered.filter { route(it) == route }.map { it.json() }
     }
 
     private fun route(request: Request) = "${request.method} ${request.url.encodedPath}"

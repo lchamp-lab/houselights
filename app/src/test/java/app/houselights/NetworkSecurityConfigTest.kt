@@ -16,25 +16,16 @@ class NetworkSecurityConfigTest {
     /** What a host is allowed: cleartext, and the certificate sources it trusts. */
     private data class Policy(val cleartext: Boolean, val anchors: Set<String>)
 
+    /**
+     * TMDB, Trakt (the hosts its client calls) and GitHub (the updater's API, the pages a release's files are named at, and
+     * the CDN their downloads redirect to) trust the system's authorities only, over TLS.
+     */
     @Test
-    fun tmdbTrustsTheSystemOnly() {
-        listOf("api.themoviedb.org", "image.tmdb.org", "themoviedb.org", "www.themoviedb.org").forEach { host ->
-            assertEquals(host, Policy(cleartext = false, anchors = setOf("system")), policy(host))
-        }
-    }
-
-    @Test
-    fun traktTrustsTheSystemOnly() {
-        val called = listOf(TraktClient.API_URL, TraktClient.AUTH_URL).map { it.toHttpUrl().host }
-        (called + "trakt.tv").forEach { host ->
-            assertEquals(host, Policy(cleartext = false, anchors = setOf("system")), policy(host))
-        }
-    }
-
-    /** The updater's hosts: the API, the pages a release's files are named at, and the CDN their downloads redirect to. */
-    @Test
-    fun githubTrustsTheSystemOnly() {
-        listOf("api.github.com", "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com").forEach { host ->
+    fun internetServicesTrustTheSystemOnly() {
+        val tmdb = listOf("api.themoviedb.org", "image.tmdb.org", "themoviedb.org", "www.themoviedb.org")
+        val trakt = listOf(TraktClient.API_URL, TraktClient.AUTH_URL).map { it.toHttpUrl().host } + "trakt.tv"
+        val github = listOf("api.github.com", "github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com")
+        (tmdb + trakt + github).forEach { host ->
             assertEquals(host, Policy(cleartext = false, anchors = setOf("system")), policy(host))
         }
     }

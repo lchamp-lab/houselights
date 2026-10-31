@@ -5,18 +5,17 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ImageRef
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -52,20 +51,14 @@ class LocalLibraryTest {
         dao = db.dao()
         artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan requested after an edit never runs: it would go to the network.
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        library = LocalLibrary(context, dao, scanner, artwork) {}
+        library = LocalLibrary(context, dao, idleScanner(dao), artwork) {}
     }
 
     @After
     fun close() = db.close()
 
     private suspend fun folder() = dao.insertSource(
-        SourceEntity(
-            name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-            path = "films", username = "kodi", password = Secret("old"), domain = "WORKGROUP", lastScanAt = 2_000,
-            firstScanAt = 1_000,
-        ),
+        smbFolder("films", password = "old", domain = "WORKGROUP").copy(lastScanAt = 2_000, firstScanAt = 1_000),
     )
 
     /**
@@ -188,54 +181,74 @@ class LocalLibraryTest {
 
     /**
      * A scan writing a film every 50 ms: Réglages › Bibliothèque asks its counts and posters again every 2 s at most,
-     * not at each write, and shows the first answers alone meanwhile. In real time, as Room's queries run on its own threads.
+     * not at each write, showing the first answers alone meanwhile, then the latest. On the test's clock, Room answering
+     * on its thread.
      */
     @Test
-    fun aScansWritesAskTheFolderCountsAgainEveryTwoSecondsAtMost() = runBlocking {
-        val id = dao.insertSource(nfs("nas", "volume1/media", "films"))
-        val counted = Collections.synchronizedList(mutableListOf<Int>())
-        val posters = Collections.synchronizedList(mutableListOf<List<ImageRef>>())
-        val watch = launch(Dispatchers.Default) {
-            launch { library.folderCounts.collect { counted += it[id]?.titles ?: 0 } }
-            library.latestPosters(dao.source(id)!!.toFolder(), 4).collect { posters += it }
+    fun aScansWritesAskTheFolderCountsAgainEveryTwoSecondsAtMost() = runTest {
+        val db = testDatabase {
+            onCallingThread()
+            setQueryCallback({ sql, _ -> statements += sql }, Runnable::run)
         }
-        withTimeout(5_000) { while (counted.isEmpty() || posters.isEmpty()) delay(10) }
-        statements.clear()
-        repeat(10) { n ->
-            dao.insert(
-                ItemEntity(
-                    kind = ItemKind.MOVIE,
-                    sourceId = id,
-                    title = "Film $n",
-                    sortTitle = "film $n",
-                    filePath = "Film $n.mkv",
-                    posterPath = "/p$n.jpg",
-                    addedAt = n.toLong(),
-                ),
-            )
-            delay(50)
+        try {
+            val dao = db.dao()
+            val library = LocalLibrary(context, dao, idleScanner(dao), artwork) {}
+            val id = dao.insertSource(nfs("nas", "volume1/media", "films"))
+            val counted = mutableListOf<Int>()
+            val posters = mutableListOf<List<ImageRef>>()
+            backgroundScope.launch { library.folderCounts.collect { counted += it[id]?.titles ?: 0 } }
+            backgroundScope.launch { library.latestPosters(dao.source(id)!!.toFolder(), 4).collect { posters += it } }
+            runCurrent()
+            assertEquals(listOf(0), counted)
+            statements.clear()
+
+            repeat(WRITES) { n ->
+                dao.insert(
+                    ItemEntity(
+                        kind = ItemKind.MOVIE,
+                        sourceId = id,
+                        title = "Film $n",
+                        sortTitle = "film $n",
+                        filePath = "Film $n.mkv",
+                        posterPath = "/p$n.jpg",
+                        addedAt = n.toLong(),
+                    ),
+                )
+                advanceTimeBy(WRITE_MS)
+            }
+            // Within 2 s of the first answers, though ten films were written: those answers alone, each query asked once more.
+            assertEquals(listOf(0), counted)
+            assertEquals(listOf(emptyList<ImageRef>()), posters)
+            val asked = statements.toList()
+            assertTrue("counts asked ${asked.count { "GROUP BY sourceId" in it }} times", asked.count { "GROUP BY sourceId" in it } <= 1)
+            assertTrue("posters asked again", asked.count { "sourceId = ? AND kind IN" in it && "ORDER BY addedAt" in it } <= 1)
+
+            advanceTimeBy(PACE_MS - WRITES * WRITE_MS - 1)
+            assertEquals("the first answers until the 2 s are over", listOf(0), counted)
+            advanceTimeBy(2)
+            assertEquals("the latest, once they are", listOf(0, 10), counted)
+            assertEquals(4, posters.last().size)
+        } finally {
+            db.close()
         }
-        watch.cancel()
-        // Within 2 s of the first answers, though ten films were written: those answers alone, each query asked once more.
-        assertEquals(listOf(0), counted.toList())
-        assertEquals(listOf(emptyList<ImageRef>()), posters.toList())
-        val asked = statements.toList()
-        assertTrue("counts asked ${asked.count { "GROUP BY sourceId" in it }} times", asked.count { "GROUP BY sourceId" in it } <= 1)
-        assertTrue("posters asked again", asked.count { "sourceId = ? AND kind IN" in it && "ORDER BY addedAt" in it } <= 1)
     }
 
+    /** A scanner whose scans never run: they would go to the network. */
+    private fun idleScanner(dao: LibraryDao) =
+        LibraryScanner(dao, { null }, CoroutineScope(Job().apply { cancel() }), artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
+
     private companion object {
+        /** A scan's writes, one film each, this far apart. */
+        const val WRITE_MS = 50L
+
+        /** How often Réglages › Bibliothèque reads its counts again, and a moment more. */
+        const val PACE_MS = 2_000L
+
+        /** The films the scan writes meanwhile. */
+        const val WRITES = 10
+
         /** As the form gives it: its kind is not the folder's and must be ignored. */
-        val EDITED = SourceEntity(
-            name = "films-4k",
-            kind = SourceKind.SHOWS,
-            protocol = Protocol.SMB,
-            host = "192.168.1.20",
-            share = "video",
-            path = "films-4k",
-            username = "kodi",
-            password = Secret("new"),
-        )
+        val EDITED = smbFolder("films-4k", SourceKind.SHOWS, host = "192.168.1.20", share = "video", password = "new")
     }
 
     private fun nfs(host: String, share: String, path: String, protocol: Protocol = Protocol.NFS) = SourceEntity(
