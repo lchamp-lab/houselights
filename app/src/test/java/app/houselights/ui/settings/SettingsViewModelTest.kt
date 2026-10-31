@@ -19,6 +19,7 @@ import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.nfsFolder
+import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.providers.local.toFolder
 import app.houselights.settings.SecretSetting
@@ -83,7 +84,7 @@ class SettingsViewModelTest {
     @Before
     fun open() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        db = testDatabase { allowMainThreadQueries() }
+        db = testDatabase { onCallingThread() }
         dao = db.dao()
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // No scan runs: it would go to the network.
