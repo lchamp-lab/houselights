@@ -32,6 +32,9 @@ internal object CreditRules {
 
     private data class Credited(val name: String, val character: String? = null, val profilePath: String? = null, val tmdbId: Int? = null)
 
+    /** A film's [credits] with only what [credits] reads of them: its whole cast, its crew in the jobs it keeps. */
+    fun ofFilm(credits: TmdbCredits): TmdbCredits = credits.copy(crew = credits.crew.filter { it.job in FILM_JOBS })
+
     /** Credits from [nfo] (which must describe the title) and [tmdb]; null keeps the stored ones. */
     fun credits(itemId: Long, show: Boolean, nfo: NfoInfo?, tmdb: TmdbPeople?): List<CreditEntity>? {
         val fromNfo = nfo?.let { nfoPeople(it, show) }.orEmpty().filterValues { it.isNotEmpty() }

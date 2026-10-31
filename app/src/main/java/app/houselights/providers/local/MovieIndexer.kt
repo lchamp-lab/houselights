@@ -563,27 +563,65 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
     /**
      * Caches TMDB's films per pass, by id and language, as [ShowIndexer.SeasonCache] does seasons: copies of a film
      * (HD and 4K, in one folder or two) ask for its details once. A request that failed throws and is not kept, so the
-     * next copy asks again, which the pass's breaker keeps cheap; a film TMDB has no entry for is kept as none. The
-     * [MAX_FILMS] used last only, each holding its credits, logos and release dates: a first scan of thousands of films
-     * would otherwise hold them all until it ends. A pass asks for one film at a time.
+     * next copy asks again, which the pass's breaker counts; a film TMDB has no entry for is kept as none. A film is kept
+     * as little as a pass reads of it ([kept]), the films used last only, as long as the people they hold, their own
+     * fields counted as [FILM_SHARE] people, stay within [MAX_HELD]: about 270 bytes a person, so at most about 13 MB,
+     * which holds a folder of a thousand films of 25 actors, or of four hundred of a hundred, for its copies in another.
+     * A pass asks for one film at a time.
      */
     class FilmCache {
-        private val cache = object : LinkedHashMap<Pair<Int, String>, TmdbAnswer.Given<TmdbMovie>>(MAX_FILMS, LOAD_FACTOR, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Pair<Int, String>, TmdbAnswer.Given<TmdbMovie>>) =
-                size > MAX_FILMS
-        }
+        private val cache = LinkedHashMap<Pair<Int, String>, TmdbAnswer.Given<TmdbMovie>>(INITIAL_FILMS, LOAD_FACTOR, true)
+
+        /** The weight of the films kept ([weight]). */
+        private var held = 0
 
         /** Film [id] as [client] asks for it ([TmdbClient.movieById]): kept, else asked and kept once answered. */
         suspend fun get(client: TmdbClient, id: Int): TmdbMovie? {
             val key = id to client.language
             cache[key]?.let { return it.value }
-            return client.movieById(id).also { cache[key] = TmdbAnswer.Given(it) }
+            return client.movieById(id).also { keep(key, it?.let { movie -> kept(client, movie) }) }
+        }
+
+        /** Keeps [movie] under [key], not kept yet, letting the films used longest ago go past [MAX_HELD]. */
+        private fun keep(key: Pair<Int, String>, movie: TmdbMovie?) {
+            cache[key] = TmdbAnswer.Given(movie)
+            held += weight(movie)
+            val eldest = cache.values.iterator()
+            while (held > MAX_HELD && eldest.hasNext()) {
+                held -= weight(eldest.next().value)
+                eldest.remove()
+            }
         }
 
         internal companion object {
-            /** More films than a pass reads between two copies of one in a folder, or in two folders of a small library. */
-            const val MAX_FILMS = 64
+            /** The people films may hold in all, each about 270 bytes of a parsed film's ([weight]). */
+            const val MAX_HELD = 48_000
+
+            /** A film's own fields (titles, overview, genres), counted as this many people: about 2 KB. */
+            const val FILM_SHARE = 8
+
+            private const val INITIAL_FILMS = 256
             private const val LOAD_FACTOR = 0.75f
+
+            /** What [movie] counts for towards [MAX_HELD]: its people kept, and its own fields. */
+            fun weight(movie: TmdbMovie?): Int = FILM_SHARE + (movie?.credits?.let { it.cast.size + it.crew.size } ?: 0)
+
+            /**
+             * What a pass reads of [movie], asked by [client], from which it picks the same again: all but the crew in
+             * jobs not kept ([CreditRules.ofFilm]), the logos but the one picked ([TmdbClient.pickLogo]) and the release
+             * dates but the certification read ([TmdbClient.movieCertification]); its rows are saved the same.
+             */
+            fun kept(client: TmdbClient, movie: TmdbMovie): TmdbMovie {
+                val logo = client.pickLogo(movie.images)
+                val certification = client.movieCertification(movie)
+                return movie.copy(
+                    credits = CreditRules.ofFilm(movie.credits),
+                    images = TmdbImages(movie.images.logos.filter { it.filePath == logo }),
+                    releaseDates = TmdbReleaseDates(
+                        listOfNotNull(certification?.let { TmdbCountryReleases(client.region, listOf(TmdbReleaseDate(it))) }),
+                    ),
+                )
+            }
         }
     }
 }
