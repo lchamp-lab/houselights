@@ -29,8 +29,15 @@ internal class ScanFiles(
     /** Text files that could not be read, often again at every pass: each logged whole the first time, then counted. */
     private val unread = RepeatedFailures(TAG)
 
-    /** Decoded by [NfoParser.decode]; throws when the NAS is unreachable, else failures give [TextRead.Failed]. */
-    suspend fun readText(source: SourceEntity, file: RemoteFile): TextRead {
+    /**
+     * Decoded by [NfoParser.decode]; throws when the NAS is unreachable, else failures give [TextRead.Failed]. Each read of
+     * this class is [collected]: within a run under the scan's lock, answered from what was read before it.
+     */
+    suspend fun readText(source: SourceEntity, file: RemoteFile): TextRead = collected(NasRead(TEXT, source.id, listOf(file))) {
+        readTextNow(source, file)
+    }
+
+    private suspend fun readTextNow(source: SourceEntity, file: RemoteFile): TextRead {
         val key = "${source.id}/${file.relativePath}"
         return suspendRunCatching<TextRead> {
             val length = file.size.coerceIn(0, MAX_NFO_BYTES.toLong()).toInt().takeIf { it > 0 } ?: MAX_NFO_BYTES
@@ -58,7 +65,7 @@ internal class ScanFiles(
         if (!MediaProbe.isStale(item.mediaInfo) && !item.sizeChanged(file)) item else mediaFields(source, file, item)
 
     suspend fun mediaFields(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
-        val media = when (val probe = MediaProbe.probe(source, file, browsers(source))) {
+        val media = when (val probe = probe(source, file)) {
             is ProbeResult.Read -> probe.info
             // A failed re-probe keeps the previous media info until the next attempt.
             is ProbeResult.Failed -> MediaProbe.decode(item.mediaInfo)?.takeIf { !item.sizeChanged(file) && probe.info.video == null }
@@ -68,14 +75,35 @@ internal class ScanFiles(
         return item.withMedia(media).copy(badges = badges, fileSize = file.size)
     }
 
+    /** [file]'s header and tracks ([MediaProbe.probe]). */
+    suspend fun probe(source: SourceEntity, file: RemoteFile): ProbeResult =
+        collected(probeOf(source, file)) { MediaProbe.probe(source, file, browsers(source)) }
+
+    /** What [probe] is collected by. */
+    fun probeOf(source: SourceEntity, file: RemoteFile): Any = NasRead(HEADER, source.id, listOf(file))
+
     /** Caches a sidecar image (see [ArtworkCache.copy]). */
-    suspend fun copyArtwork(source: SourceEntity, file: RemoteFile): String? = artwork.copy(source, file, browsers(source))
+    suspend fun copyArtwork(source: SourceEntity, file: RemoteFile): String? = copyArtwork(source, listOf(file)).single()
+
+    /** Caches sidecar [images] at once, for one request, null for none ([copyArtwork]). */
+    suspend fun copyArtwork(source: SourceEntity, images: List<RemoteFile?>): List<String?> {
+        if (images.all { it == null }) return images.map { null }
+        return collected(NasRead(ART, source.id, images)) {
+            images.map { image -> image?.let { artwork.copy(source, it, browsers(source)) } }
+        }
+    }
 
     /** [image] if read for [SidecarKey] (cached, or never cacheable); null on failure so the next scan retries. */
     fun examined(image: RemoteFile?, copy: String?): RemoteFile? = image?.takeIf { copy != null || !artwork.holds(it) }
 
+    /** A read on the NAS, by which it is [collected]: [files] of folder [sourceId], read as [what]. */
+    private data class NasRead(val what: Int, val sourceId: Long, val files: List<RemoteFile?>)
+
     private companion object {
         const val TAG = "ScanFiles"
+        const val TEXT = 0
+        const val HEADER = 1
+        const val ART = 2
         const val MAX_NFO_BYTES = 1 shl 20
     }
 }

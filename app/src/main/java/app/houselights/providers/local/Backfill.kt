@@ -41,8 +41,11 @@ internal class Backfill(
     private suspend fun credits(title: ItemEntity, tmdb: TmdbPass): Boolean {
         val show = title.kind == ItemKind.SERIES
         val id = title.tmdbId
-        val answer: TmdbAnswer<Found> =
-            if (id == null || !asksTmdb(title)) TmdbAnswer.Given(null) else tmdb.ask { client -> lookUp(client, id, show) }
+        val answer: TmdbAnswer<Found> = if (id == null || !asksTmdb(title)) {
+            TmdbAnswer.Given(null)
+        } else {
+            tmdb.ask(TmdbKey("credits", id to show)) { client -> lookUp(client, id, show) }
+        }
         if (answer !is TmdbAnswer.Given) return false
         val found = answer.value
         val raw = title.nfoInfo()
@@ -78,7 +81,7 @@ internal class Backfill(
     /** False when TMDB did not answer, so a later pass retries. */
     private suspend fun parts(saga: CollectionEntity, tmdb: TmdbPass): Boolean {
         val id = saga.tmdbId ?: return false
-        val answer = tmdb.ask { it.collection(id) }
+        val answer = tmdb.ask(TmdbKey("collection", id)) { it.collection(id) }
         if (answer !is TmdbAnswer.Given) return false
         lock.withLock {
             val fresh = dao.collection(saga.id) ?: return@withLock

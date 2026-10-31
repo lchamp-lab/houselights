@@ -49,6 +49,15 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
         absolute || (series.userEpisodeOrder ?: EpisodeOrderEntity.AIRED) != EpisodeOrderEntity.AIRED ||
             nfo?.episodeGroup != null || NfoOrders.typeOf(nfo?.displayOrder) != null
 
+    /** The numberings read so far, put back by the function returned ([PassState]). */
+    fun mark(): () -> Unit {
+        val was = read.toMap()
+        return {
+            read.clear()
+            read += was
+        }
+    }
+
     /** Forgets what was read of show [seriesId] this pass: its counts or its order just changed. */
     fun forget(seriesId: Long) {
         read.keys.removeAll { it.seriesId == seriesId }
@@ -58,7 +67,7 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
     private suspend fun aired(id: Int): EpisodeOrder.Aired? {
         val row = dao.aired(id)
         OrderPlaces.aired(row?.places)?.let { return EpisodeOrder.Aired(it) }
-        val answer = tmdb.ask { it.tvById(id) } as? TmdbAnswer.Given ?: return null
+        val answer = tmdb.ask(TmdbKey("tv", id)) { it.tvById(id) } as? TmdbAnswer.Given ?: return null
         val seasons = answer.value?.seasons.orEmpty()
         saveAired(id, seasons, kept = row)
         return EpisodeOrder.Aired(OrderPlaces.aired(OrderPlaces.ofAired(seasons)).orEmpty())
@@ -69,7 +78,7 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
      * is then noted as asked about now, so it waits a day as the others do ([EpisodeOrderDao.waitingShows]).
      */
     suspend fun tv(id: Int): TmdbTv? {
-        val answer = tmdb.ask { it.tvById(id) } as? TmdbAnswer.Given ?: return null
+        val answer = tmdb.ask(TmdbKey("tv", id)) { it.tvById(id) } as? TmdbAnswer.Given ?: return null
         if (answer.value == null) askedNow(id)
         return answer.value
     }
@@ -128,7 +137,7 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
      * forgotten. Null when TMDB did not answer.
      */
     suspend fun list(id: Int): List<EpisodeOrderEntity>? {
-        val answer = tmdb.ask { it.episodeGroups(id) } as? TmdbAnswer.Given ?: return null
+        val answer = tmdb.ask(TmdbKey("groups", id)) { it.episodeGroups(id) } as? TmdbAnswer.Given ?: return null
         val rows = dao.episodeOrders(id)
         val known = rows.associateBy { it.orderId }
         val groups = answer.value.orEmpty().mapIndexed { i, ref ->
@@ -207,7 +216,8 @@ internal class EpisodeOrders(private val dao: LibraryDao, private val tmdb: Tmdb
     suspend fun group(id: Int, row: EpisodeOrderEntity): TmdbAnswer<EpisodeOrder.Group> {
         if (row.places == REFUSED) return TmdbAnswer.Given(null)
         OrderPlaces.group(row.places)?.let { return TmdbAnswer.Given(EpisodeOrder.Group(row.orderId, row.type, it)) }
-        val answer = tmdb.ask { it.episodeGroup(row.orderId) } as? TmdbAnswer.Given ?: return TmdbAnswer.Unanswered
+        val asked = tmdb.ask(TmdbKey("group", row.orderId)) { it.episodeGroup(row.orderId) }
+        val answer = asked as? TmdbAnswer.Given ?: return TmdbAnswer.Unanswered
         // Never another show's group, which a link in an NFO may name.
         val group = answer.value?.takeIf { g -> showOf(g).let { it == null || it == id } }
         val places = group?.let(OrderPlaces::ofGroup)?.takeIf { OrderPlaces.group(it) != null } ?: REFUSED
