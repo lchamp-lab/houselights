@@ -109,6 +109,34 @@ jobs:
           -Phouselights.debugSignedRelease=true
           ${{ matrix.gradle }}
 
+      # The ten slowest classes in the run's summary, whether the tests passed or not: a class that becomes slow
+      # (one took two thirds of the suite for two days) is seen on the pull request that made it so. Skipped when
+      # the build stopped before any test ran.
+      - name: Slowest test classes
+        if: matrix.robolectric && !cancelled() && hashFiles('app/build/test-results/testDebugUnitTest/*.xml') != ''
+        working-directory: app/build/test-results/testDebugUnitTest
+        run: |
+          {
+            echo "### Slowest test classes"
+            echo
+            echo "| Class | Tests | Seconds |"
+            echo "|---|--:|--:|"
+            for result in TEST-*.xml; do
+              sed -n 's/.*<testsuite name="\([^"]*\)" tests="\([0-9]*\)" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*" timestamp="[^"]*" hostname="[^"]*" time="\([0-9.]*\)".*/\3 \2 \1/p' "$result"
+            done | sort -rn | awk "NR <= 10" | while read -r seconds tests name; do
+              echo "| ${name#app.houselights.} | $tests | $seconds |"
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # The JUnit results (XML, a few MB) kept on success too, to compare the times of one run with another's.
+      - name: Test results
+        if: matrix.robolectric && !cancelled()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results
+          path: app/build/test-results/testDebugUnitTest/
+          retention-days: 30
+
       - name: Reports
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
