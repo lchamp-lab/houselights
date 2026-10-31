@@ -30,6 +30,7 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HomeGridDefaults
+import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
@@ -136,7 +137,7 @@ class MenuKeyTest {
     /** At the largest text size the key keeps its size and its place, as the state mark does. */
     @Test
     fun theKeyKeepsItsSizeAtTheLargestText() {
-        compose.setTvContent(textStep = LARGEST) {
+        compose.setTvContent(textStep = TEXT_SCALE_MAX) {
             PosterCard(STARTED, {}, Modifier.focusRequester(first).testTag(SECOND), onLongClick = {})
         }
         compose.runOnIdle { first.requestFocus() }
@@ -223,7 +224,6 @@ class MenuKeyTest {
         const val TILE = "tile"
         const val SECOND = "second"
         const val THIRD = "third"
-        const val LARGEST = 1.3f
 
         /** A film started: its progress line burns at its poster's foot. */
         val STARTED = MediaItem("m2", MediaKind.MOVIE, "Le Grand Bleu", runtimeMs = 10_080_000, user = UserState(positionMs = 5_640_000))

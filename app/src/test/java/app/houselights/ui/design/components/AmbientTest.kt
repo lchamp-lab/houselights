@@ -21,7 +21,6 @@ import coil.request.ImageRequest
 import coil.request.Options
 import coil.request.SuccessResult
 import coil.size.Dimension
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -57,11 +56,7 @@ class AmbientTest {
             }
     }
 
-    private val loader = ImageLoader.Builder(context)
-        .memoryCache { MemoryCache.Builder(context).maxSizeBytes(MEMORY).build() }
-        .dispatcher(Dispatchers.Unconfined)
-        .components { add(files) }
-        .build()
+    private val loader = testLoader(files, context) { memoryCache { MemoryCache.Builder(context).maxSizeBytes(MEMORY).build() } }
 
     private fun card(url: String) = ImageRequest.Builder(context).data(url).size(CARD_W, CARD_H).build()
 

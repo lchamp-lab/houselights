@@ -1,15 +1,9 @@
 package app.houselights.ui.design.components
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -18,11 +12,13 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.width
+import app.houselights.settings.TextSize
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouselightsTheme
+import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.design.VoletDefaults
 import app.houselights.ui.testing.TV
 import org.junit.Assert.assertEquals
@@ -102,7 +98,7 @@ class VoletsLayoutTest {
     fun theYearsOfEightFilmsStandApart() = sizes { step ->
         show(Case(EIGHT_FILMS, step, open = 0))
         val panels = panels(EIGHT_FILMS)
-        assertTrue("at $step the plan keeps the years ($year)", VoletPlan.of(EIGHT_FILMS + 1, POLYPTYCH, HEIGHT, year).years)
+        assertTrue("at $step the plan keeps the years ($year)", VoletPlan.of(EIGHT_FILMS + 1, POLYPTYCH, POLYPTYCH_HEIGHT, year).years)
         // Each year is centred on its panel: between two, their axes' distance less a year's width.
         panels.drop(1).zipWithNext().forEach { (one, next) ->
             val apart = (next.left + next.right) / 2 - (one.left + one.right) / 2 - year
@@ -124,19 +120,8 @@ class VoletsLayoutTest {
                     numbers = style.fontSize.toDp()
                     numbersSp = style.fontSize.value
                 }
-                Box(Modifier.fillMaxSize()) {
-                    // A saga a page: laid out open on its panel, as the page comes.
-                    key(now) {
-                        Volets(
-                            parts(now.films),
-                            open = now.open,
-                            shown = null,
-                            onFocus = {},
-                            onOpen = {},
-                            modifier = Modifier.padding(start = SIDE, end = SIDE, top = TOP).fillMaxWidth().height(HEIGHT),
-                        ) {}
-                    }
-                }
+                // A saga a page: laid out open on its panel, as the page comes.
+                key(now) { VoletsOnTheCanvas(parts(now.films), now.open) }
             }
         }
         STEPS.forEach(check)
@@ -149,28 +134,18 @@ class VoletsLayoutTest {
 
     /** The saga's panel, then its films', as laid out. */
     private fun panels(films: Int): List<DpRect> =
-        (0..films).map { compose.onNodeWithContentDescription(nameOf(it)).getUnclippedBoundsInRoot() }
+        (0..films).map { compose.onNodeWithContentDescription(panelName(it)).getUnclippedBoundsInRoot() }
 
-    private fun plan(films: Int) = VoletPlan.of(films + 1, POLYPTYCH, HEIGHT)
+    private fun plan(films: Int) = voletPlan(films)
 
-    private fun parts(films: Int): List<VoletPart> =
-        listOf(VoletPart("saga", null, null, null, nameOf(0), spine = "Mission : Impossible")) +
-            (1..films).map { i ->
-                VoletPart("film-$i", i, null, null, nameOf(i), mark = VoletMark.Watched, year = YEARS[(i - 1) % YEARS.size])
-            }
-
-    private fun nameOf(panel: Int) = if (panel == 0) "La saga" else "Film $panel"
+    private fun parts(films: Int) = voletParts(films, spine = "Mission : Impossible") { i ->
+        VoletFilm(year = YEARS[(i - 1) % YEARS.size], mark = VoletMark.Watched)
+    }
 
     /** A saga of [films], at text size [step], panel [open] open. */
     private data class Case(val films: Int, val step: Float, val open: Int)
 
     private companion object {
-        /** The polyptych inside the safe area by a focused frame's reach: its margins, its width and height on the canvas. */
-        val SIDE = HlLayout.voletSide
-        val TOP = HlLayout.voletTop
-        val POLYPTYCH = HlLayout.CANVAS_WIDTH.dp - SIDE * 2
-        val HEIGHT = 370.5.dp
-
         const val EIGHT_FILMS = 8
         const val BOND = 25
 
@@ -178,7 +153,7 @@ class VoletsLayoutTest {
         val HALF_PX = 0.5.dp
 
         /** The text sizes the layouts are held to: Compacte, Standard and Android's largest. */
-        val STEPS = listOf(0.85f, 1f, 1.3f)
+        val STEPS = listOf(TextSize.COMPACT.step, TextSize.STANDARD.step, TEXT_SCALE_MAX)
 
         /** Mission : Impossible's years. */
         val YEARS = listOf("1996", "2000", "2006", "2011", "2015", "2018", "2023", "2025")

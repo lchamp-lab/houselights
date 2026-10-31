@@ -19,7 +19,7 @@ import org.junit.Test
 class VoletPlanTest {
     @Test
     fun widthsByLength() {
-        val poster = HEIGHT * HlSize.POSTER_RATIO
+        val poster = POLYPTYCH_HEIGHT * HlSize.POSTER_RATIO
         assertEquals("one film: its poster whole", poster.value, closed(1).value, 0.01f)
         assertTrue("the open panel takes the rest", plan(1).open > VoletDefaults.open)
         (2..8).forEach { films ->
@@ -29,7 +29,7 @@ class VoletPlanTest {
         }
         (1..8).forEach { films ->
             val plan = plan(films)
-            assertEquals("$films films fill the polyptych", WIDTH.value, (plan.open + (plan.closed + plan.gap) * films).value, 0.01f)
+            assertEquals("$films films fill the polyptych", POLYPTYCH.value, (plan.open + (plan.closed + plan.gap) * films).value, 0.01f)
             assertFalse("$films films do not scroll", plan.scrolls)
             assertTrue("$films films: no narrower than a spine", plan.closed >= VoletDefaults.narrowest)
         }
@@ -51,27 +51,28 @@ class VoletPlanTest {
 
     @Test
     fun theYearsStayWhileTheyStandApart() {
+        fun keeps(year: Dp, films: Int = EIGHT_FILMS) = VoletPlan.of(films, POLYPTYCH, POLYPTYCH_HEIGHT, year = year).years
         // Measured on the board: a year is about 42 dp wide at text size 1.3, 11 apart under 45 dp panels.
-        assertTrue(VoletPlan.of(EIGHT_FILMS, WIDTH, HEIGHT, year = 42.dp).years)
+        assertTrue(keeps(42.dp))
         val widest = plan(8).closed + plan(8).gap - VoletDefaults.yearsApart
-        assertTrue("touching at the least room", VoletPlan.of(EIGHT_FILMS, WIDTH, HEIGHT, year = widest).years)
-        assertFalse("past it, every closed panel drops its year", VoletPlan.of(EIGHT_FILMS, WIDTH, HEIGHT, year = widest + 0.5.dp).years)
-        assertFalse(VoletPlan.of(EIGHT_FILMS, WIDTH, HEIGHT, year = 50.dp).years)
-        assertTrue("a triptych keeps years far wider", VoletPlan.of(4, WIDTH, HEIGHT, year = 120.dp).years)
+        assertTrue("touching at the least room", keeps(widest))
+        assertFalse("past it, every closed panel drops its year", keeps(widest + 0.5.dp))
+        assertFalse(keeps(50.dp))
+        assertTrue("a triptych keeps years far wider", keeps(120.dp, films = 4))
         assertFalse(VoletPlan.yearsFit(45.dp, 8.dp, 49.5.dp))
     }
 
     @Test
     fun aSagaAloneIsOnePanel() {
-        val alone = VoletPlan.of(1, WIDTH, HEIGHT)
-        assertEquals(WIDTH, alone.open)
+        val alone = VoletPlan.of(1, POLYPTYCH, POLYPTYCH_HEIGHT)
+        assertEquals(POLYPTYCH, alone.open)
         assertFalse(alone.scrolls)
     }
 
     @Test
     fun aShortPolyptychKeepsItsLeastWidth() {
         // Shorter than a poster at the narrowest: the panels keep it, never an impossible range.
-        assertEquals(VoletDefaults.narrowest, VoletPlan.of(EIGHT_FILMS, WIDTH, 40.dp).closed)
+        assertEquals(VoletDefaults.narrowest, VoletPlan.of(EIGHT_FILMS, POLYPTYCH, 40.dp).closed)
     }
 
     /**
@@ -99,15 +100,11 @@ class VoletPlanTest {
         assertEquals("a floor the veil holds", HlScrim.TOP, HlScrim.TOP.raisedOver(56f / SCREEN, 0.2f, melt / SCREEN))
     }
 
-    private fun plan(films: Int) = VoletPlan.of(films + 1, WIDTH, HEIGHT)
+    private fun plan(films: Int) = voletPlan(films)
 
     private fun closed(films: Int): Dp = plan(films).closed
 
     private companion object {
-        /** The polyptych on the canvas: the safe area less a focused frame's reach each side, above the predella. */
-        val WIDTH = 853.dp
-        val HEIGHT = 370.5.dp
-
         /** Mission : Impossible: eight films and the saga's panel. */
         const val EIGHT_FILMS = 9
 

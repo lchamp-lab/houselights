@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.width
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouselightsType
+import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
@@ -58,7 +59,7 @@ class SheetHeaderTest {
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun threePostersKeepTheirShapeBesideATitleOnTwoLines() {
-        RuntimeEnvironment.setFontScale(LARGEST)
+        RuntimeEnvironment.setFontScale(TEXT_SCALE_MAX)
         val title = "Films et séries de la médiathèque du salon"
         compose.setTvContent {
             HlSideSheet(
@@ -75,7 +76,7 @@ class SheetHeaderTest {
         }
         val words = compose.onNodeWithText(title).getUnclippedBoundsInRoot()
         val facts = compose.onNodeWithText("Films").getUnclippedBoundsInRoot()
-        val line = HouselightsType.subject.lineHeight.value * LARGEST
+        val line = HouselightsType.subject.lineHeight.value * TEXT_SCALE_MAX
         assertTrue("the title on two lines: $words", words.height.value > line)
         (0 until POSTERS).map { compose.onNodeWithTag("art$it").getUnclippedBoundsInRoot() }.forEach { art ->
             assertEquals("its foot is the facts' foot", facts.bottom.value, art.bottom.value, 1f)
@@ -85,7 +86,6 @@ class SheetHeaderTest {
     }
 
     private companion object {
-        const val LARGEST = 1.3f
         const val POSTERS = 3
     }
 }

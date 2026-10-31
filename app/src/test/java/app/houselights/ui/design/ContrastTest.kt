@@ -1,7 +1,6 @@
 package app.houselights.ui.design
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.compositeOver
 import app.houselights.ui.design.components.ImageLight
 import app.houselights.ui.design.components.deepOf
@@ -261,8 +260,6 @@ class ContrastTest {
     private fun Color.over(alpha: Float, background: Color) = copy(alpha = alpha).compositeOver(background)
 
     private fun grey(level: Float) = Color(level, level, level)
-
-    private fun srgb(luminance: Float) = ColorSpaces.Srgb.oetf(luminance.toDouble()).toFloat()
 
     private fun format(ratio: Float) = "%.2f:1".format(ratio)
 

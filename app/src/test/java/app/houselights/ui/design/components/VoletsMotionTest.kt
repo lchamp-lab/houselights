@@ -1,21 +1,13 @@
 package app.houselights.ui.design.components
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.unit.DpRect
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.width
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.VoletDefaults
@@ -43,25 +35,12 @@ class VoletsMotionTest {
     /** Dune's polyptych, or [films] of them, film [first] open, at rest; then the clock is the test's. */
     private fun show(films: Int, first: Int) {
         open = first
-        compose.setContent {
-            HouselightsTheme {
-                Box(Modifier.fillMaxSize()) {
-                    Volets(
-                        parts(films),
-                        open = open,
-                        shown = null,
-                        onFocus = {},
-                        onOpen = {},
-                        modifier = Modifier.padding(start = SIDE, end = SIDE, top = HlLayout.voletTop).fillMaxWidth().height(HEIGHT),
-                    ) {}
-                }
-            }
-        }
+        compose.setContent { HouselightsTheme { VoletsOnTheCanvas(parts(films), open) } }
         compose.waitForIdle()
         compose.mainClock.autoAdvance = false
     }
 
-    private fun panel(i: Int): DpRect = compose.onNodeWithContentDescription(nameOf(i)).getUnclippedBoundsInRoot()
+    private fun panel(i: Int): DpRect = compose.onNodeWithContentDescription(panelName(i)).getUnclippedBoundsInRoot()
 
     private fun widths(films: Int) = (0..films).map { panel(it).width.value }
 
@@ -143,21 +122,14 @@ class VoletsMotionTest {
         }
         val reached = panel(11)
         assertEquals(VOLET_OPEN, reached.width.value, 1f)
-        assertTrue("it scrolled: $reached", reached.right.value <= (SIDE + POLYPTYCH).value - step * 2 + 1f)
+        assertTrue("it scrolled: $reached", reached.right.value <= (VOLET_SIDE + POLYPTYCH).value - step * 2 + 1f)
     }
 
-    private fun closed(films: Int) = VoletPlan.of(films + 1, POLYPTYCH, HEIGHT).closed.value
+    private fun closed(films: Int) = voletPlan(films).closed.value
 
-    private fun parts(films: Int): List<VoletPart> =
-        listOf(VoletPart("saga", null, null, null, nameOf(0), spine = "Dune")) +
-            (1..films).map { i -> VoletPart("film-$i", i, null, null, nameOf(i), year = "${1990 + i}") }
-
-    private fun nameOf(panel: Int) = if (panel == 0) "La saga" else "Film $panel"
+    private fun parts(films: Int) = voletParts(films, spine = "Dune") { VoletFilm(year = "${1990 + it}") }
 
     private companion object {
-        val SIDE = HlLayout.voletSide
-        val POLYPTYCH = HlLayout.CANVAS_WIDTH.dp - SIDE * 2
-        val HEIGHT = 370.5.dp
         val VOLET_OPEN = VoletDefaults.open.value
         val GAP = VoletDefaults.gap.value
 

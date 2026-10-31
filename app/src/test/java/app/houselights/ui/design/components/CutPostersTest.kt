@@ -13,8 +13,6 @@ import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.testing.pictureServer
-import coil.Coil
-import coil.ImageLoader
 import coil.request.CachePolicy
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +20,6 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -48,8 +45,8 @@ class CutPostersTest {
 
     private fun poster(id: String) = MediaItem(id, MediaKind.MOVIE, id, poster = ImageRef("p-$id") { "https://img.test/$id?w=$it" })
 
-    @After
-    fun forgetTheLoader() = Coil.reset()
+    @get:Rule
+    val coil = CoilRule()
 
     /** A making cancelled while another waits on it, its waiter resumed before its maker is done: the waiter makes them. */
     @Test
@@ -57,7 +54,7 @@ class CutPostersTest {
         val held = CompletableDeferred<Unit>()
         // Coil's work where it is resumed: the main thread, which this test holds, is never handed a step.
         val server = pictureServer { _, _ -> held.await() }
-        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(server) }.build())
+        coil.serve(server)
         val items = listOf(MediaItem("cut-waiter", MediaKind.MOVIE, "Heat", poster = ImageRef("p-cut") { "https://img.test/cut?w=$it" }))
         val maker = launch { cuts.make(context, items, px) }
         // The maker in its load.
@@ -76,7 +73,7 @@ class CutPostersTest {
     fun theLastPostersStayUntilTheNextAreMade() {
         val held = CompletableDeferred<Unit>()
         val server = pictureServer { data, _ -> if ("next" in data.toString()) held.await() }
-        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(server) }.build())
+        coil.serve(server)
         var items by mutableStateOf(listOf(poster("cut-first")))
         var shown: CutPosters? = null
         compose.setContent { CompositionLocalProvider(LocalCutPosters provides cuts) { shown = rememberCutPosters(items) } }
@@ -96,10 +93,7 @@ class CutPostersTest {
         var hold = false
         val server = pictureServer(fill = RED) { _, _ -> if (hold) held.await() }
         // Every poster fetched again, as after Coil's memory is cleared too.
-        Coil.setImageLoader(
-            ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).memoryCachePolicy(CachePolicy.DISABLED)
-                .components { add(server) }.build(),
-        )
+        coil.serve(server) { memoryCachePolicy(CachePolicy.DISABLED) }
         val items = listOf(poster("cut-again"))
         val made = runBlocking { cuts.make(context, items, px) }
         cuts.clear()
@@ -118,7 +112,7 @@ class CutPostersTest {
     /** Let go, the cut a door on screen draws stays: the door holds its posters anyway, and would cut them again once back. */
     @Test
     fun theCutADoorOnScreenDrawsStaysWhenTheRestGo() {
-        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
+        coil.serve(pictureServer())
         val drawn = listOf(poster("cut-drawn"))
         val away = listOf(poster("cut-away"))
         runBlocking { cuts.make(context, away, px) }
@@ -138,7 +132,7 @@ class CutPostersTest {
     /** Short of memory in the background, the cuts go as Coil's own pictures do; merely hidden, they stay. */
     @Test
     fun theSystemShortOfMemoryInTheBackgroundLetsTheCutsGo() {
-        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
+        coil.serve(pictureServer())
         val items = listOf(poster("cut-trimmed"))
         val made = runBlocking { cuts.make(context, items, px) }
         cuts.trim(ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN)

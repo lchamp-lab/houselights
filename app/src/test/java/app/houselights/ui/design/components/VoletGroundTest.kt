@@ -89,7 +89,7 @@ class VoletGroundTest {
     private companion object {
         /** The screen the top veils are drawn against, a panel's height, and its numbers' band, in dp. */
         const val SCREEN = HlScrim.SCREEN_HEIGHT
-        const val PANEL = 370.5f
+        val PANEL = POLYPTYCH_HEIGHT.value
         const val NUMBERS = 96f
         const val MELT = 64f
 

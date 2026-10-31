@@ -14,6 +14,7 @@ import app.houselights.testing.children
 import app.houselights.testing.xmlRoot
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.detail.longDate
 import app.houselights.ui.settings.title
@@ -54,7 +55,7 @@ class PaneRowLineTest {
     fun everyDescriptionHoldsOnOneLine() = assertOneLine(1f)
 
     @Test
-    fun everyDescriptionHoldsOnOneLineAtTheLargestTextSize() = assertOneLine(LARGEST)
+    fun everyDescriptionHoldsOnOneLineAtTheLargestTextSize() = assertOneLine(TEXT_SCALE_MAX)
 
     /** What a row lays beside its words, as its pane or sheet does. */
     private enum class Beside { None, Icon, Check }
@@ -457,7 +458,6 @@ class PaneRowLineTest {
     }
 
     private companion object {
-        const val LARGEST = 1.3f
         const val MANY = 12
 
         /** « Ajouter un dossier »'s fixture: an account, a folder, a level, an export, a NAS used and its folders. */
