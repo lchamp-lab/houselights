@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import app.houselights.providers.local.FakeRemoteBrowser.Companion.T1
 import app.houselights.providers.local.FakeRemoteBrowser.Companion.T2
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -11,7 +10,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -19,9 +17,9 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ScanSidecarsTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private lateinit var shows: SourceEntity
     private val nas get() = bench.nas
@@ -29,13 +27,9 @@ class ScanSidecarsTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"))
         films = bench.folder("Films")
         shows = bench.folder("Séries", SourceKind.SHOWS)
     }
-
-    @After
-    fun close() = bench.close()
 
     /** Neither an unparsable NFO, an empty poster, nor a Jellyfin folder.jpg is read again at each pass. */
     @Test

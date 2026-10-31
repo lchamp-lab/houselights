@@ -10,7 +10,6 @@ import com.hierynomus.mserref.NtStatus
 import com.hierynomus.smbj.session.SMB2GuestSigningRequiredException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -18,7 +17,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
@@ -33,25 +31,20 @@ import java.net.ConnectException
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanMissingTest {
-    @get:Rule
-    val temp = TemporaryFolder()
-
     private val log = StatementLog()
-    private lateinit var artwork: File
-    private lateinit var bench: ScanBench
+
+    @get:Rule
+    val scan = ScanBenchRule(tmdbKey = false, onQuery = log)
+
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
     private val dao get() = bench.dao
 
     @Before
     fun open() = runTest {
-        artwork = temp.newFolder("artwork")
-        bench = ScanBench(artwork, tmdbKey = false, onQuery = log)
         films = bench.folder("Films")
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun filePaths() = bench.paths(films)
 
@@ -79,7 +72,7 @@ class ScanMissingTest {
      */
     @Test
     fun aPassCleansUpOnceItRemovesATitleOrADayLater() = runTest {
-        val unused = File(artwork, "${films.id}/unused.jpg")
+        val unused = File(bench.artworkDir, "${films.id}/unused.jpg")
         fun leaveAnImage() = unused.apply { checkNotNull(parentFile).mkdirs() }.writeBytes(ByteArray(8))
         leaveAnImage()
         filmFolder(2)
@@ -111,7 +104,7 @@ class ScanMissingTest {
      */
     @Test
     fun theFirstPassCleansUpOnlyOnceItChangesTheLibrary() = runTest {
-        val unused = File(artwork, "${films.id}/unused.jpg")
+        val unused = File(bench.artworkDir, "${films.id}/unused.jpg")
         unused.apply { checkNotNull(parentFile).mkdirs() }.writeBytes(ByteArray(8))
         // A folder that lists nothing and held nothing: the pass finds no file, and changes nothing.
         bench.scan()

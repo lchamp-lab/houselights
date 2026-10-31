@@ -2,13 +2,10 @@ package app.houselights.providers.local
 
 import app.houselights.core.MediaInfo
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -16,19 +13,11 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ScanProbeTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private val nas get() = bench.nas
     private val tmdb get() = bench.tmdb
-
-    @Before
-    fun open() {
-        bench = ScanBench(temp.newFolder("artwork"))
-    }
-
-    @After
-    fun close() = bench.close()
 
     /** The library as the previous probe version left it; [read] is what it made of each file. */
     private suspend fun readByAnOlderProbe(read: (MediaInfo) -> MediaInfo = { it }) = readBy(MediaProbe.VERSION - 1, read)

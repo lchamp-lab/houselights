@@ -8,14 +8,12 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
@@ -27,23 +25,20 @@ import java.util.Collections
 /** Whole passes over folders on a NAS held in memory, without TMDB: when they run, what they wait for and write. */
 @RunWith(RobolectricTestRunner::class)
 class LibraryScannerTest {
-    @get:Rule
-    val temp = TemporaryFolder()
-
     private val log = StatementLog()
-    private lateinit var bench: ScanBench
+
+    @get:Rule
+    val scan = ScanBenchRule(tmdbKey = false, onQuery = log)
+
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
     private val dao get() = bench.dao
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false, onQuery = log)
         films = bench.folder("Films")
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun filePaths() = bench.paths(films)
 

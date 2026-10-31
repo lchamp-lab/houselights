@@ -1,15 +1,12 @@
 package app.houselights.providers.local
 
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
@@ -19,18 +16,10 @@ import java.net.ConnectException
 @RunWith(RobolectricTestRunner::class)
 class ScanStorageTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private val nas get() = bench.nas
-
-    @Before
-    fun open() {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
-    }
-
-    @After
-    fun close() = bench.close()
 
     /** Prevents the database from growing by another page. */
     private fun fillTheDatabase(full: Boolean) {

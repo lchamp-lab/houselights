@@ -4,13 +4,11 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
@@ -19,9 +17,9 @@ import org.robolectric.shadows.ShadowLog
 @RunWith(RobolectricTestRunner::class)
 class ScanNamesTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private lateinit var shows: SourceEntity
     private val nas get() = bench.nas
@@ -29,13 +27,9 @@ class ScanNamesTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
         films = bench.folder("Films")
         shows = bench.folder("Séries", SourceKind.SHOWS)
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun episodes() = bench.dao.filesOf(shows.id).sortedBy { it.episodeNumber }
 

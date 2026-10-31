@@ -5,14 +5,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
@@ -28,9 +26,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 @RunWith(RobolectricTestRunner::class)
 class ScanLockTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
     private val tmdb get() = bench.tmdb
@@ -38,15 +36,11 @@ class ScanLockTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"))
         films = bench.folder("Films")
         tmdb.movie(DUNE, "Dune", 2021)
         tmdb.movie(DUNE_1984, "Dune", 1984)
         tmdb.movie(HEAT, "Heat", 1995)
     }
-
-    @After
-    fun close() = bench.close()
 
     /** Holds TMDB's searches until [Gate.open], on OkHttp's thread; identifications by id go through. */
     private fun holdSearches(): Gate = hold { it.startsWith("search/") }

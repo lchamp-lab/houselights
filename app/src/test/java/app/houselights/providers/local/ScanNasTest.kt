@@ -3,14 +3,12 @@ package app.houselights.providers.local
 import app.houselights.core.SecretUnreadException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
@@ -22,20 +20,16 @@ import java.net.ConnectException
 @RunWith(RobolectricTestRunner::class)
 class ScanNasTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
         films = bench.folder("Films")
     }
-
-    @After
-    fun close() = bench.close()
 
     private suspend fun filePaths() = bench.paths(films)
 

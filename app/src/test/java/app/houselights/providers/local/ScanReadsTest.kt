@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import android.util.Log
 import app.houselights.core.NfoParser
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -11,7 +10,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
@@ -25,20 +23,16 @@ import java.net.SocketTimeoutException
 @RunWith(RobolectricTestRunner::class)
 class ScanReadsTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule(tmdbKey = false)
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private lateinit var films: SourceEntity
     private val nas get() = bench.nas
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
         films = bench.folder("Films")
     }
-
-    @After
-    fun close() = bench.close()
 
     /** A lock: the file is being written, and is read again later. */
     private fun locked() = IOException("STATUS_SHARING_VIOLATION (0xc0000043)")

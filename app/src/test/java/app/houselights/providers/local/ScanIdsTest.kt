@@ -1,14 +1,11 @@
 package app.houselights.providers.local
 
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -19,21 +16,13 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ScanIdsTest {
     @get:Rule
-    val temp = TemporaryFolder()
+    val scan = ScanBenchRule()
 
-    private lateinit var bench: ScanBench
+    private val bench get() = scan.bench
     private val nas get() = bench.nas
     private val showsNas get() = bench.showsNas
     private val tmdb get() = bench.tmdb
     private val dao get() = bench.dao
-
-    @Before
-    fun open() {
-        bench = ScanBench(temp.newFolder("artwork"))
-    }
-
-    @After
-    fun close() = bench.close()
 
     @Test
     fun aTmdbIdInTheFileNameIdentifiesTheFilm() = runTest {
