@@ -61,11 +61,7 @@ class LocalLibraryTest {
     fun close() = db.close()
 
     private suspend fun folder() = dao.insertSource(
-        SourceEntity(
-            name = "films", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "192.168.1.10", share = "media",
-            path = "films", username = "kodi", password = Secret("old"), domain = "WORKGROUP", lastScanAt = 2_000,
-            firstScanAt = 1_000,
-        ),
+        smbFolder("films", password = "old", domain = "WORKGROUP").copy(lastScanAt = 2_000, firstScanAt = 1_000),
     )
 
     /**
@@ -226,16 +222,7 @@ class LocalLibraryTest {
 
     private companion object {
         /** As the form gives it: its kind is not the folder's and must be ignored. */
-        val EDITED = SourceEntity(
-            name = "films-4k",
-            kind = SourceKind.SHOWS,
-            protocol = Protocol.SMB,
-            host = "192.168.1.20",
-            share = "video",
-            path = "films-4k",
-            username = "kodi",
-            password = Secret("new"),
-        )
+        val EDITED = smbFolder("films-4k", SourceKind.SHOWS, host = "192.168.1.20", share = "video", password = "new")
     }
 
     private fun nfs(host: String, share: String, path: String, protocol: Protocol = Protocol.NFS) = SourceEntity(

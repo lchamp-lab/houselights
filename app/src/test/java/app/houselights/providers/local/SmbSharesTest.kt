@@ -202,16 +202,7 @@ class SmbSharesTest {
             asked += source
             expected
         }
-        val nas = SourceEntity(
-            name = "",
-            kind = SourceKind.MOVIES,
-            protocol = Protocol.SMB,
-            host = "192.168.1.20",
-            share = "",
-            path = "",
-            username = "kodi",
-            password = Secret("secret"),
-        )
+        val nas = smbFolder(name = "", host = "192.168.1.20", share = "", path = "")
         assertEquals(expected, RemoteBrowsers(smb, NfsBrowser()).shares(nas))
         assertEquals(listOf(nas), asked)
         assertFalse(SmbShares.Listed("IPC$", Int.MIN_VALUE or 3, "").isDisk)

@@ -19,15 +19,13 @@ import app.houselights.core.WatchStatus
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -35,25 +33,17 @@ import org.robolectric.RobolectricTestRunner
 /** The local library's queries and rules, on an in-memory database. */
 @RunWith(RobolectricTestRunner::class)
 class LocalProviderTest {
-    private lateinit var db: LibraryDatabase
-    private lateinit var dao: LibraryDao
-    private lateinit var provider: LocalProvider
-    private var source = 0L
     private var collectionMin = 2
+
+    @get:Rule
+    val library = TestLibrary { collectionMin }
+    private val db get() = library.db
+    private val dao get() = library.dao
+    private val provider get() = library.provider
+    private val source get() = library.source
 
     private val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
     private val collections = Library(LocalProvider.COLLECTIONS, LibraryKind.COLLECTIONS, null)
-
-    @Before
-    fun open() = runBlocking {
-        db = testDatabase { allowMainThreadQueries() }
-        dao = db.dao()
-        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor) { collectionMin }
-        source = dao.insertSource(nfsFolder())
-    }
-
-    @After
-    fun close() = db.close()
 
     /** A film in the library; [more] sets what else a test needs of its row. */
     private suspend fun movie(

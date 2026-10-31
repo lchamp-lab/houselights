@@ -1,6 +1,5 @@
 package app.houselights.providers.local
 
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Catalog
 import app.houselights.core.FileTypes
 import app.houselights.core.Job
@@ -13,14 +12,12 @@ import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -32,51 +29,14 @@ import java.time.LocalDate
  */
 @RunWith(RobolectricTestRunner::class)
 class LocalCatalogTest {
-    private lateinit var db: LibraryDatabase
-    private lateinit var dao: LibraryDao
-    private lateinit var provider: LocalProvider
-    private lateinit var catalog: Catalog
-    private var source = 0L
+    @get:Rule
+    val library = TestLibrary()
+    private val dao get() = library.dao
+    private val provider get() = library.provider
+    private val catalog: Catalog get() = library.provider.catalog
+    private val source get() = library.source
 
     private val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
-
-    @Before
-    fun open() = runBlocking {
-        db = testDatabase { allowMainThreadQueries() }
-        dao = db.dao()
-        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor) { 2 }
-        catalog = provider.catalog
-        source = dao.insertSource(nfsFolder())
-    }
-
-    @After
-    fun close() = db.close()
-
-    @Suppress("LongParameterList") // One per column a test sets.
-    private suspend fun film(
-        title: String,
-        year: Int? = 2020,
-        tmdbId: Int? = null,
-        path: String = "$title.mkv",
-        badges: List<String> = emptyList(),
-        rating: Double? = null,
-        votes: Int? = null,
-        collectionId: Long? = null,
-        played: Boolean = false,
-        lastPlayedAt: Long? = null,
-        positionMs: Long = 0,
-        fileSize: Long? = null,
-        runtimeMin: Int? = null,
-        originalTitle: String? = null,
-        genres: List<String> = emptyList(),
-    ): Long = dao.insert(
-        ItemEntity(
-            kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = MetadataMerge.sortKey(title), year = year,
-            tmdbId = tmdbId, filePath = path, badges = badges, rating = rating, votes = votes, collectionId = collectionId,
-            played = played, lastPlayedAt = lastPlayedAt, positionMs = positionMs, fileSize = fileSize, runtimeMin = runtimeMin,
-            originalTitle = originalTitle, addedAt = 0, matchedAt = 1, genres = genres,
-        ),
-    )
 
     private suspend fun show(title: String): Long = dao.insert(
         ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = title, sortTitle = title.lowercase(), addedAt = 0),
@@ -97,8 +57,8 @@ class LocalCatalogTest {
     /** Villeneuve directs two films and Deakins shoots one: Villeneuve's page opens, Deakins's does not. */
     @Test
     fun aTitlesCreditsGoByJobEachWithItsTitles() = runTest {
-        val arrival = film("Arrival", 2016)
-        val dune = film("Dune", 2021)
+        val arrival = library.film("Arrival", 2016)
+        val dune = library.film("Dune", 2021)
         credits(
             arrival,
             credit(arrival, Job.DIRECTOR, 0, "Denis Villeneuve", 137427),
@@ -125,9 +85,9 @@ class LocalCatalogTest {
 
     @Test
     fun aPersonsPageHoldsTheirTitlesInTheOrderOfTheirYearsBeforeAndBehindTheCamera() = runTest {
-        val unforgiven = film("Unforgiven", 1992)
-        val mystic = film("Mystic River", 2003)
-        val gran = film("Gran Torino", 2008)
+        val unforgiven = library.film("Unforgiven", 1992)
+        val mystic = library.film("Mystic River", 2003)
+        val gran = library.film("Gran Torino", 2008)
         val eastwood = 190
         credits(
             unforgiven,
@@ -155,14 +115,14 @@ class LocalCatalogTest {
     /** Met by name alone on one NFO, then through TMDB on another title: one person, who takes TMDB's key. */
     @Test
     fun aPersonNamedByNameAloneTakesTheKeyTmdbGivesThem() = runTest {
-        val heat = film("Heat", 1995)
-        val collateral = film("Collateral", 2004)
+        val heat = library.film("Heat", 1995)
+        val collateral = library.film("Collateral", 2004)
         credits(heat, credit(heat, Job.DIRECTOR, 0, "Michael Mann"))
         credits(collateral, credit(collateral, Job.DIRECTOR, 0, "Michael Mann", 638))
         assertEquals(PersonKeys.tmdb(638), dao.creditsOf(heat).single().personKey)
 
         // A person later met by name alone takes the key at once.
-        val thief = film("Thief", 1981)
+        val thief = library.film("Thief", 1981)
         credits(thief, credit(thief, Job.DIRECTOR, 0, "Michael MANN"))
         assertEquals(PersonKeys.tmdb(638), dao.creditsOf(thief).single().personKey)
         assertEquals(3, checkNotNull(catalog.person(PersonKeys.tmdb(638))).titles.size)
@@ -170,9 +130,9 @@ class LocalCatalogTest {
 
     @Test
     fun theDirectorsOfTheMostFilmsWriteHomesRows() = runTest {
-        repeat(3) { i -> film("Nolan $i").let { credits(it, credit(it, Job.DIRECTOR, 0, "Christopher Nolan", 525)) } }
-        repeat(2) { i -> film("Mann $i").let { credits(it, credit(it, Job.DIRECTOR, 0, "Michael Mann", 638)) } }
-        film("Alone").let { credits(it, credit(it, Job.DIRECTOR, 0, "Someone Once", 1)) }
+        repeat(3) { i -> library.film("Nolan $i").let { credits(it, credit(it, Job.DIRECTOR, 0, "Christopher Nolan", 525)) } }
+        repeat(2) { i -> library.film("Mann $i").let { credits(it, credit(it, Job.DIRECTOR, 0, "Michael Mann", 638)) } }
+        library.film("Alone").let { credits(it, credit(it, Job.DIRECTOR, 0, "Someone Once", 1)) }
         val series = show("The Pitt")
         credits(series, credit(series, Job.DIRECTOR, 0, "Michael Mann", 638))
 
@@ -186,11 +146,11 @@ class LocalCatalogTest {
 
     @Test
     fun theBestRatedHaveEnoughVotesWhereTheirNumberIsKnown() = runTest {
-        film("Obscure", rating = 9.5, votes = 12)
-        film("Parasite", rating = 8.5, votes = 18_000)
-        film("From an NFO", rating = 8.0)
-        film("Average", rating = 6.0, votes = 4_000)
-        film("Unrated")
+        library.film("Obscure", rating = 9.5, votes = 12)
+        library.film("Parasite", rating = 8.5, votes = 18_000)
+        library.film("From an NFO", rating = 8.0)
+        library.film("Average", rating = 6.0, votes = 4_000)
+        library.film("Unrated")
         assertEquals(listOf("Parasite", "From an NFO", "Average"), catalog.bestRated().map { it.title })
     }
 
@@ -199,12 +159,12 @@ class LocalCatalogTest {
     @Test
     fun aSagaHoldsTheFilmsTheLibraryLacksInTheOrderTheyCameOut() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:10", tmdbId = 10, name = "Mad Max - Saga", sortTitle = "mad max"))
-        film("Mad Max", 1979, tmdbId = 9659, collectionId = saga)
-        film("Fury Road", 2015, tmdbId = 76341, collectionId = saga)
+        library.film("Mad Max", 1979, tmdbId = 9659, collectionId = saga)
+        library.film("Fury Road", 2015, tmdbId = 76341, collectionId = saga)
         // In the library, but in another set of the user's own.
-        film("Mad Max 2", 1981, tmdbId = 8810)
+        library.film("Mad Max 2", 1981, tmdbId = 8810)
         // In the saga by its NFO's set alone.
-        film("Mad Max: The Making Of", 1985, collectionId = saga)
+        library.film("Mad Max: The Making Of", 1985, collectionId = saga)
         dao.replaceSagaParts(
             saga,
             CollectionRules.parts(
@@ -239,8 +199,8 @@ class LocalCatalogTest {
     @Test
     fun aSagaTmdbDoesNotKnowIsItsFilms() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "name:marvel", name = "Marvel", sortTitle = "marvel"))
-        film("Iron Man", 2008, collectionId = saga)
-        film("Thor", 2011, collectionId = saga)
+        library.film("Iron Man", 2008, collectionId = saga)
+        library.film("Thor", 2011, collectionId = saga)
         val whole = checkNotNull(catalog.saga(MediaItem(LocalId.ofCollection(saga), MediaKind.COLLECTION, "")))
         assertEquals(listOf("Iron Man", "Thor"), whole.parts.map { it.title })
         assertTrue(whole.parts.all { it.owned })
@@ -252,7 +212,7 @@ class LocalCatalogTest {
         val saga = dao.insertCollection(
             CollectionEntity(matchKey = "tmdb:726871", tmdbId = 726871, name = "Dune Collection", sortTitle = "dune"),
         )
-        film("Dune", 2021, tmdbId = 438631, collectionId = saga)
+        library.film("Dune", 2021, tmdbId = 438631, collectionId = saga)
         dao.replaceSagaParts(
             saga,
             CollectionRules.parts(
@@ -288,8 +248,8 @@ class LocalCatalogTest {
         val own = dao.insertCollection(
             CollectionEntity(matchKey = "name:criterion", name = "The Criterion Collection", sortTitle = "criterion"),
         )
-        film("Le Samouraï", 1967, collectionId = own)
-        film("Playtime", 1967, collectionId = own)
+        library.film("Le Samouraï", 1967, collectionId = own)
+        library.film("Playtime", 1967, collectionId = own)
         val whole = checkNotNull(catalog.saga(MediaItem(LocalId.ofCollection(own), MediaKind.COLLECTION, "")))
         assertEquals("The Criterion Collection", whole.collection.title)
     }
@@ -298,24 +258,24 @@ class LocalCatalogTest {
     @Test
     fun theNextFilmOfAStartedSagaIsUpNext() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "name:alien", name = "Alien", sortTitle = "alien"))
-        film("Alien", 1979, collectionId = saga, played = true, lastPlayedAt = 100)
-        film("Aliens", 1986, collectionId = saga)
-        film("Alien 3", 1992, collectionId = saga)
+        library.film("Alien", 1979, collectionId = saga, played = true, lastPlayedAt = 100)
+        library.film("Aliens", 1986, collectionId = saga)
+        library.film("Alien 3", 1992, collectionId = saga)
         val ended = dao.insertCollection(CollectionEntity(matchKey = "name:matrix", name = "Matrix", sortTitle = "matrix"))
-        film("The Matrix", 1999, collectionId = ended, played = true, lastPlayedAt = 200)
+        library.film("The Matrix", 1999, collectionId = ended, played = true, lastPlayedAt = 200)
         val inProgress = dao.insertCollection(CollectionEntity(matchKey = "name:dune", name = "Dune", sortTitle = "dune"))
-        film("Dune", 2021, collectionId = inProgress, played = true, lastPlayedAt = 300)
-        film("Dune Part Two", 2024, collectionId = inProgress, positionMs = 60_000, lastPlayedAt = 300)
+        library.film("Dune", 2021, collectionId = inProgress, played = true, lastPlayedAt = 300)
+        library.film("Dune Part Two", 2024, collectionId = inProgress, positionMs = 60_000, lastPlayedAt = 300)
 
         val next = provider.home().single { it.type == SectionType.NEXT_UP }.items
         assertEquals("the next of Dune plays in Continue", listOf("Aliens"), next.map { it.title })
 
         // Watched on a copy of its title, a film counts as watched; started on the copy Lire plays, it is in Continue.
         val heat = dao.insertCollection(CollectionEntity(matchKey = "name:heat", name = "Heat", sortTitle = "heat"))
-        film("Heat", 1995, tmdbId = 949, collectionId = heat)
-        film("Heat", 1995, tmdbId = 949, path = "Heat 4K.mkv", collectionId = heat, played = true, lastPlayedAt = 400)
-        film("Heat 2", 2026, tmdbId = 1, collectionId = heat)
-        film(
+        library.film("Heat", 1995, tmdbId = 949, collectionId = heat)
+        library.film("Heat", 1995, tmdbId = 949, path = "Heat 4K.mkv", collectionId = heat, played = true, lastPlayedAt = 400)
+        library.film("Heat 2", 2026, tmdbId = 1, collectionId = heat)
+        library.film(
             "Heat 2",
             2026,
             tmdbId = 1,
@@ -335,8 +295,8 @@ class LocalCatalogTest {
 
     @Test
     fun theCopiesOfAFilmAreOneTitleTheBestPlayedUnlessOneIsChosen() = runTest {
-        val first = film("Blade Runner", 1982, tmdbId = 78, path = "Blade Runner (1982).mkv", badges = listOf("1080p"), fileSize = 10)
-        val final = film(
+        val first = library.film("Blade Runner", 1982, tmdbId = 78, path = "Blade Runner (1982).mkv", badges = listOf("1080p"), fileSize = 10)
+        val final = library.film(
             "Blade Runner",
             1982,
             tmdbId = 78,
@@ -344,7 +304,7 @@ class LocalCatalogTest {
             badges = listOf("4K", "Dolby Vision", "TrueHD Atmos"),
             fileSize = 60,
         )
-        film("Blade Runner 2049", 2017, tmdbId = 335984)
+        library.film("Blade Runner 2049", 2017, tmdbId = 335984)
         dao.groupVersions()
         assertEquals(first, dao.item(final)?.versionOf)
 
@@ -368,9 +328,9 @@ class LocalCatalogTest {
     /** Lire plays the chosen copy, else the best. */
     @Test
     fun aTitlePlaysItsChosenCopyElseItsBest() = runTest {
-        val first = film("Heat", 1995, tmdbId = 949, path = "Heat.1080p.mkv", badges = listOf("1080p"), genres = listOf("Policier"))
-        val uhd = film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), genres = listOf("Policier"))
-        film("Ronin", 1998, tmdbId = 8195, genres = listOf("Policier"))
+        val first = library.film("Heat", 1995, tmdbId = 949, path = "Heat.1080p.mkv", badges = listOf("1080p"), genres = listOf("Policier"))
+        val uhd = library.film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), genres = listOf("Policier"))
+        library.film("Ronin", 1998, tmdbId = 8195, genres = listOf("Policier"))
         dao.groupVersions()
         val options = PlaybackOptions(emptyList(), forceHttp = false)
         suspend fun played(item: MediaItem) = (provider.playback(item, resume = false, options) as PlaybackPlan.Launch).uri
@@ -390,9 +350,9 @@ class LocalCatalogTest {
     /** Watched and favourite apply to a film, so to all its copies, whichever is played or marked. */
     @Test
     fun aFilmsCopiesAreWatchedAndFavouredTogether() = runTest {
-        val first = film("Heat", 1995, tmdbId = 949)
-        val second = film("Heat", 1995, tmdbId = 949, path = "Heat (1995) 2160p.mkv")
-        val other = film("Ronin", 1998, tmdbId = 8195)
+        val first = library.film("Heat", 1995, tmdbId = 949)
+        val second = library.film("Heat", 1995, tmdbId = 949, path = "Heat (1995) 2160p.mkv")
+        val other = library.film("Ronin", 1998, tmdbId = 8195)
         dao.groupVersions()
         provider.setPlayed(provider.item(second.toString()), true)
         provider.setFavorite(provider.item(first.toString()), true)
@@ -411,10 +371,10 @@ class LocalCatalogTest {
 
     @Test
     fun wallsFilterByPictureSoundKindOfFileAndPersonOnAnyCopy() = runTest {
-        val dune = film("Dune", tmdbId = 1, badges = listOf("1080p", "DTS-HD MA"))
-        film("Dune", tmdbId = 1, path = "Dune (2021) 2160p.mkv", badges = listOf("4K", "HDR10+", "TrueHD Atmos"))
-        film("Disc", path = "Disc (2020)/BDMV/STREAM/00800.m2ts", badges = listOf("1080p"))
-        film("Old", path = "Old.avi", badges = listOf("SD", "AC3"))
+        val dune = library.film("Dune", tmdbId = 1, badges = listOf("1080p", "DTS-HD MA"))
+        library.film("Dune", tmdbId = 1, path = "Dune (2021) 2160p.mkv", badges = listOf("4K", "HDR10+", "TrueHD Atmos"))
+        library.film("Disc", path = "Disc (2020)/BDMV/STREAM/00800.m2ts", badges = listOf("1080p"))
+        library.film("Old", path = "Old.avi", badges = listOf("SD", "AC3"))
         credits(dune, credit(dune, Job.DIRECTOR, 0, "Denis Villeneuve", 137427))
         dao.groupVersions()
 
@@ -436,11 +396,11 @@ class LocalCatalogTest {
 
     @Test
     fun theLibraryInNumbersCountsEachFilmOnceAndEveryCopysRoom() = runTest {
-        val dune = film("Dune", tmdbId = 1, badges = listOf("1080p", "DTS-HD MA"), fileSize = 20, runtimeMin = 155)
+        val dune = library.film("Dune", tmdbId = 1, badges = listOf("1080p", "DTS-HD MA"), fileSize = 20, runtimeMin = 155)
         val uhd = listOf("4K", "Dolby Vision", "TrueHD Atmos")
-        film("Dune", tmdbId = 1, path = "Dune 2160p.mkv", badges = uhd, fileSize = 60, runtimeMin = 155)
-        val heat = film("Heat", badges = listOf("1080p", "DTS-HD MA"), fileSize = 30, runtimeMin = 170)
-        repeat(2) { i -> film("Nolan $i", fileSize = 1).let { credits(it, credit(it, Job.DIRECTOR, 0, "Christopher Nolan", 525)) } }
+        library.film("Dune", tmdbId = 1, path = "Dune 2160p.mkv", badges = uhd, fileSize = 60, runtimeMin = 155)
+        val heat = library.film("Heat", badges = listOf("1080p", "DTS-HD MA"), fileSize = 30, runtimeMin = 170)
+        repeat(2) { i -> library.film("Nolan $i", fileSize = 1).let { credits(it, credit(it, Job.DIRECTOR, 0, "Christopher Nolan", 525)) } }
         credits(dune, credit(dune, Job.DIRECTOR, 0, "Denis Villeneuve", 137427))
         credits(heat, credit(heat, Job.DIRECTOR, 0, "Michael Mann", 638))
         dao.groupVersions()
@@ -461,13 +421,13 @@ class LocalCatalogTest {
 
     @Test
     fun aSearchReadsTheStartOfWordsWhateverTheirAccentsAndCase() = runTest {
-        val amelie = film("Le Fabuleux Destin d’Amélie Poulain", 2001)
-        film("Amadeus", 1984, rating = 8.0)
-        film("La La Land", 2016, originalTitle = "La La Land")
-        film("Spider-Man", 2002)
-        film("Mother", 2009, originalTitle = "마더")
-        film("Blade Runner", 1982, tmdbId = 78)
-        film("Blade Runner", 1982, tmdbId = 78, path = "Blade Runner 4K.mkv")
+        val amelie = library.film("Le Fabuleux Destin d’Amélie Poulain", 2001)
+        library.film("Amadeus", 1984, rating = 8.0)
+        library.film("La La Land", 2016, originalTitle = "La La Land")
+        library.film("Spider-Man", 2002)
+        library.film("Mother", 2009, originalTitle = "마더")
+        library.film("Blade Runner", 1982, tmdbId = 78)
+        library.film("Blade Runner", 1982, tmdbId = 78, path = "Blade Runner 4K.mkv")
         dao.groupVersions()
         credits(amelie, credit(amelie, Job.CAST, 0, "Audrey Tautou", 2405), credit(amelie, Job.DIRECTOR, 0, "Jean-Pierre Jeunet", 2419))
 
@@ -481,8 +441,8 @@ class LocalCatalogTest {
         assertEquals("one title for a film's copies", listOf("Blade Runner"), titles("blade"))
         assertEquals(emptyList<String>(), titles("amelie zzz"))
         // A word as common as an article does not fill the result cap before the titles starting with it.
-        repeat(450) { film("Le Film $it") }
-        film("Léon", 1994)
+        repeat(450) { library.film("Le Film $it") }
+        library.film("Léon", 1994)
         assertEquals("Léon", catalog.search("léon").titles.first().title)
         assertTrue(catalog.search("le", limit = 500).titles.any { it.title == "Léon" })
         assertTrue(catalog.search("  -  ").isEmpty())
@@ -497,14 +457,14 @@ class LocalCatalogTest {
         val saga = dao.insertCollection(
             CollectionEntity(matchKey = "name:seigneur", name = "Le Seigneur des Anneaux", sortTitle = "seigneur"),
         )
-        film("La Communauté de l'anneau", 2001, collectionId = saga)
-        film("Les Deux Tours", 2002, collectionId = saga)
+        library.film("La Communauté de l'anneau", 2001, collectionId = saga)
+        library.film("Les Deux Tours", 2002, collectionId = saga)
         val alone = dao.insertCollection(CollectionEntity(matchKey = "name:anneaux", name = "Anneaux seuls", sortTitle = "anneaux seuls"))
-        film("Un seul", collectionId = alone)
+        library.film("Un seul", collectionId = alone)
         assertEquals(listOf("Le Seigneur des Anneaux"), catalog.search("anneau").sagas.map { it.title })
 
         // A title renamed by a scan is found by its new name only.
-        val id = film("Old Name")
+        val id = library.film("Old Name")
         dao.saveScanned(checkNotNull(dao.item(id)).copy(title = "Nouveau Nom", sortTitle = "nouveau nom"))
         assertEquals(listOf("Nouveau Nom"), catalog.search("nouv").titles.map { it.title })
         assertEquals(emptyList<String>(), catalog.search("old name").titles.map { it.title })
@@ -513,8 +473,8 @@ class LocalCatalogTest {
     @Test
     fun aSagasTmdbSuffixIsNotShown() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:1", tmdbId = 1, name = "Top Gun - Saga", sortTitle = "top gun"))
-        film("Top Gun", 1986, collectionId = saga)
-        film("Top Gun: Maverick", 2022, collectionId = saga)
+        library.film("Top Gun", 1986, collectionId = saga)
+        library.film("Top Gun: Maverick", 2022, collectionId = saga)
         assertEquals("Top Gun", provider.collectionOf(provider.item(dao.latest(ItemKind.MOVIE, 1).single().id.toString()))?.title)
         assertFalse(CollectionRules.shownName("Saga", known = true).isEmpty())
     }

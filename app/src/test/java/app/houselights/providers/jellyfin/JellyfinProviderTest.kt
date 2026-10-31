@@ -13,6 +13,7 @@ import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.testing.Answer
 import app.houselights.testing.FakeServer
+import app.houselights.testing.bodyText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +22,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
-import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -213,8 +213,7 @@ class JellyfinProviderTest {
     private fun Request.mediaSourceId(): String? = reported("MediaSourceId")
 
     private fun Request.reported(field: String): String? {
-        val text = Buffer().also { body?.writeTo(it) }.readUtf8()
-        return Regex(""""$field"\s*:\s*"([^"]+)"""").find(text)?.groupValues?.get(1)
+        return Regex(""""$field"\s*:\s*"([^"]+)"""").find(bodyText())?.groupValues?.get(1)
     }
 
     /** Heat in two copies, [sources] of them as the server lists them: its first, then a director's cut in 4K. */

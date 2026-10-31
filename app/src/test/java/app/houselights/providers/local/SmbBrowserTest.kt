@@ -69,16 +69,8 @@ class SmbBrowserTest {
         },
     )
 
-    private fun folder(share: String = "films", user: String = "kodi") = SourceEntity(
-        name = share,
-        kind = SourceKind.MOVIES,
-        protocol = Protocol.SMB,
-        host = "192.168.1.10",
-        share = share,
-        path = "",
-        username = user,
-        password = Secret(PASSWORD),
-    )
+    private fun folder(share: String = "films", user: String = "kodi") =
+        smbFolder(name = share, share = share, path = "", username = user, password = PASSWORD)
 
     /** The listing on a session of its own, signed off once listed; the reads that follow on one kept session. */
     @Test
