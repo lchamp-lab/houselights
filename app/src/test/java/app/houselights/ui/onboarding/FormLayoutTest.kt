@@ -47,6 +47,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
 import app.houselights.ui.testing.waitWithLooper
@@ -117,11 +118,7 @@ class FormLayoutTest {
     fun jellyfinInGerman() = jellyfinHolds()
 
     private fun library(): LocalLibrary {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        return LocalLibrary(context, db.dao(), scanner, artwork) {}
+        return idleLibrary(db.dao())
     }
 
     /** « Modifier le dossier » over an NFS folder: its first control, a field and Save where the form's frame puts them. */

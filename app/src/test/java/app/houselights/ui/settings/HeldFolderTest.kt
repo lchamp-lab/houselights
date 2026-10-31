@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.content.Context
 import android.view.KeyEvent
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.CompositionLocalProvider
@@ -13,36 +12,27 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.SourceConfig
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.ItemEntity
 import app.houselights.providers.local.ItemKind
 import app.houselights.providers.local.LibraryDao
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SettingsStore
-import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.design.rememberFocusMemory
-import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
@@ -116,7 +106,6 @@ class HeldFolderTest {
 
     @Before
     fun open() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
         // Room answers on one thread of its own: answering on the calling thread, a flow the pane follows would be read
         // again inside the transaction removing the titles, which Room refuses.
         db = testDatabase {
@@ -124,12 +113,7 @@ class HeldFolderTest {
             setQueryExecutor(room)
             setTransactionExecutor(room)
         }
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        // No scan runs: it would go to the network.
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val dao = Answers(db.dao()) { refused }
-        val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        library = LocalLibrary(context, dao, scanner, artwork) {}
+        library = idleLibrary(Answers(db.dao()) { refused })
         store = testSettings(folder.root, files)
     }
 
@@ -166,13 +150,7 @@ class HeldFolderTest {
             store.state.first { it.source == SourceConfig.Local }
         }
         // Settings opened on them: it reads the titles held as it opens, then follows a scan's writes at its pace.
-        val factory = viewModelFactory {
-            initializer {
-                val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> })
-                SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = null)
-            }
-        }
-        vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
+        vm = settingsModel(screens, store, library, work)
         compose.setTvContent {
             CompositionLocalProvider(LocalSettingsViewModel provides vm) {
                 val s by vm.settings.collectAsStateWithLifecycle()

@@ -59,6 +59,12 @@ fun ComposeContentTestRule.holdOk() {
     waitForIdle()
 }
 
+/** Back, as Android hands it to the activity: through its dispatcher, the screen's own handler first; then settled. */
+fun AndroidComposeTestRule<*, out ComponentActivity>.pressBack() {
+    runOnUiThread { activity.onBackPressedDispatcher.onBackPressed() }
+    waitForIdle()
+}
+
 /** Longer than a remote's repeat delay, so held OK repeats several times. */
 private const val HELD_MS = 800L
 

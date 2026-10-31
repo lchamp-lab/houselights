@@ -46,11 +46,7 @@ import app.houselights.core.Person
 import app.houselights.core.SourceConfig
 import app.houselights.core.SubtitleTrack
 import app.houselights.core.VideoInfo
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FolderLevel
-import app.houselights.providers.local.LibraryScanner
-import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SourceEntity
@@ -90,11 +86,11 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.cutTexts
 import app.houselights.ui.testing.film
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.waitWithLooper
 import app.houselights.ui.util.PlaybackOutcome
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -163,10 +159,7 @@ class TextSizeLayoutTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val db = testDatabase { onCallingThread() }
         try {
-            val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-            val idle = CoroutineScope(Job().apply { cancel() })
-            val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-            val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+            val library = idleLibrary(db.dao())
             val id = runBlocking {
                 db.dao().insertSource(
                     SourceEntity(

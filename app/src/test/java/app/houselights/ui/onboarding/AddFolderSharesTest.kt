@@ -1,19 +1,14 @@
 package app.houselights.ui.onboarding
 
-import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.test.core.app.ApplicationProvider
-import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.ExportedFolder
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDao
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.Secret
@@ -26,9 +21,9 @@ import app.houselights.testing.mountFailure
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.afterProcessDeath
+import app.houselights.ui.testing.idleLibrary
 import com.emc.ecs.nfsclient.mount.MountStatus
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
@@ -72,14 +67,9 @@ class AddFolderSharesTest {
 
     @Before
     fun open() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
         db = testDatabase { onCallingThread() }
         dao = db.dao()
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        // The scan asked after a save never runs: it would go to the network.
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        library = LocalLibrary(context, dao, scanner, artwork) {}
+        library = idleLibrary(dao)
     }
 
     @After

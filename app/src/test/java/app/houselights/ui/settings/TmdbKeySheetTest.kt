@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.content.Context
 import android.view.KeyEvent
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -16,24 +15,15 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.requestFocus
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.test.core.app.ApplicationProvider
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
-import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SettingsStore
-import app.houselights.settings.SourceSwitcher
-import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
@@ -41,7 +31,6 @@ import app.houselights.ui.testing.waitWithLooper
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
@@ -83,21 +72,10 @@ class TmdbKeySheetTest {
     /** The settings' ViewModel as SettingsViewModelTest makes it, TMDB answering when told. */
     @Before
     fun open() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
         db = testDatabase { onCallingThread() }
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        // No scan runs: it would go to the network.
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+        val library = idleLibrary(db.dao())
         store = testSettings(folder.root, files)
-        val factory = viewModelFactory {
-            initializer {
-                val sources = SourceSwitcher({ store.state.value }, store::setSource, work, signOut = { _, _ -> }, check = { _, _ -> })
-                SettingsViewModel(store, library, { FakeProvider() }, work, sources, images = null, checkTmdbKey = { tmdb.await() })
-            }
-        }
-        vm = ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
+        vm = settingsModel(screens, store, library, work, checkTmdbKey = { tmdb.await() })
     }
 
     @After

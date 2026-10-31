@@ -54,6 +54,7 @@ import app.houselights.ui.testing.FakeTraktSync
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.assertSetIn
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.FACT_GAP
@@ -103,12 +104,6 @@ class TraktPaneTest {
         compose.setTvContent {
             HlTwoPane(side = {}) { LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session, folders, unread) } }
         }
-    }
-
-    /** Back, as the remote sends it to the screen. */
-    private fun back() {
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
     }
 
     /** Focus on the row that says [name], then OK, as the remote does it. */
@@ -189,7 +184,7 @@ class TraktPaneTest {
         compose.onNode(hasAnyDescendant(hasText(CODE)) and isFocused()).assertExists()
         compose.onNodeWithText(CONNECT).assertDoesNotExist()
         // And back: the row takes focus as the code goes.
-        back()
+        compose.pressBack()
         compose.onNodeWithText(CONNECT).assertIsFocused()
         compose.runOnIdle { assertEquals("the places never took focus", 0, placesFocused) }
     }
@@ -200,7 +195,7 @@ class TraktPaneTest {
         ok(CONNECT)
         compose.onNodeWithText(CODE).assertExists()
 
-        back()
+        compose.pressBack()
         compose.onNodeWithText(CODE).assertDoesNotExist()
         assertEquals(1, link.cancelled)
         compose.onNodeWithText(CONNECT).assertIsFocused()

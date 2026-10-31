@@ -39,6 +39,7 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.film
 import app.houselights.ui.testing.pictureServer
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.pressOnRemote
 import app.houselights.ui.testing.setTvContent
 import coil.Coil
@@ -337,8 +338,7 @@ class ArtworkScreenTest {
     fun backLeavesWithoutChoosing() {
         show()
         press(Key.DirectionDown)
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
+        compose.pressBack()
         assertEquals("the screen gone", false, open)
         assertNull("nothing chosen", provider.chosen)
         assertTrue(provider.calls.none { it.startsWith("setArtwork") })

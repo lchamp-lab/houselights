@@ -23,6 +23,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.film
 import app.houselights.ui.testing.longClickNamed
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.UiError
@@ -85,11 +86,6 @@ class ToIdentifyScreenTest {
     private fun reload(change: (List<ToIdentify>) -> List<ToIdentify>) {
         provider.toIdentify = change(provider.toIdentify)
         compose.runOnIdle { vm.load() }
-        compose.waitForIdle()
-    }
-
-    private fun back() {
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.waitForIdle()
     }
 
@@ -163,10 +159,10 @@ class ToIdentifyScreenTest {
         show()
         compose.press(Key.DirectionDown, times = 5)
         focusIsOn("Film 6")
-        back()
+        compose.pressBack()
         focusIsOn("Film 1")
         assertEquals(0, left)
-        back()
+        compose.pressBack()
         assertEquals(1, left)
     }
 
@@ -178,7 +174,7 @@ class ToIdentifyScreenTest {
         focusIsOn("Film 2")
         reload { emptyList() }
         compose.onNodeWithText("Nothing to identify").assertExists()
-        back()
+        compose.pressBack()
         assertEquals(1, left)
     }
 

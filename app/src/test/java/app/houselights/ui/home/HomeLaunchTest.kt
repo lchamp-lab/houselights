@@ -1,17 +1,11 @@
 package app.houselights.ui.home
 
-import android.content.Context
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.LaunchGate
 import app.houselights.LaunchGate.Reason
 import app.houselights.core.HomeSection
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.Folder
-import app.houselights.providers.local.LibraryScanner
-import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
@@ -20,10 +14,9 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -193,10 +186,7 @@ class HomeLaunchTest {
     @Test
     fun foldersThatCannotBeReadOpenHomeWithItsError() = runTest {
         val db = testDatabase { onCallingThread() }
-        val artwork = ArtworkCache(ApplicationProvider.getApplicationContext<Context>().cacheDir.resolve("artwork"))
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(ApplicationProvider.getApplicationContext(), db.dao(), scanner, artwork) {}
+        val library = idleLibrary(db.dao())
         db.openHelper.writableDatabase.execSQL("DROP TABLE sources")
         hasFolders = { library.anyFolder.first() }
         provider.fail = { IOException("disk I/O error") }

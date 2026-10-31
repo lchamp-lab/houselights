@@ -1,6 +1,5 @@
 package app.houselights.ui.onboarding
 
-import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -21,14 +20,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.requestFocus
 import androidx.lifecycle.SavedStateHandle
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.SecretUnreadException
-import app.houselights.providers.local.ArtworkCache
-import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
-import app.houselights.providers.local.LibraryScanner
-import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
@@ -45,7 +39,9 @@ import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.afterProcessDeath
+import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.waitWithLooper
 import app.houselights.ui.util.UiError
@@ -53,7 +49,6 @@ import app.houselights.ui.util.wholePath
 import com.emc.ecs.nfsclient.mount.MountStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
@@ -130,12 +125,7 @@ class FolderFaultTest {
         nearby: suspend (SourceEntity, FolderTrouble) -> FolderSuggestion? = { _, _ -> null },
         saved: SavedStateHandle = SavedStateHandle(),
     ): AddFolderViewModel {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        // The scan asked after a save never runs: it would go to the network.
-        val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(db.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
-        val library = LocalLibrary(context, db.dao(), scanner, artwork) {}
+        val library = idleLibrary(db.dao())
         return AddFolderViewModel(
             library,
             id,
@@ -178,11 +168,6 @@ class FolderFaultTest {
 
     private fun saysUnder(field: String, message: String) = compose.onNodeWithContentDescription(field)
         .assert(SemanticsMatcher.expectValue(SemanticsProperties.Error, message))
-
-    private fun back() {
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
-    }
 
     @Test
     fun whatIsMissingIsSaidUnderItsFieldWhichTakesFocus() {
@@ -401,10 +386,10 @@ class FolderFaultTest {
         form(films)
         compose.onNodeWithContentDescription("NAS address").requestFocus()
         compose.waitForIdle()
-        back()
+        compose.pressBack()
         assertFalse("one Back never leaves from a field", compose.activity.isFinishing)
         compose.onNode(isFocused()).assert(hasText("NFS") or hasAnyDescendant(hasText("NFS")))
-        back()
+        compose.pressBack()
         assertTrue(compose.activity.isFinishing)
     }
 
