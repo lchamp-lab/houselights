@@ -14,7 +14,7 @@ class GroundTest {
     @Test
     fun groundsAreProvidedInFewPlaces() {
         val providers = kotlinSources(ui)
-            .filter { Regex("""LocalGround provides""").containsMatchIn(it.readText()) }
+            .filter { "LocalGround provides" in it.code }
             .map { it.name }.toSortedSet()
         assertEquals(sortedSetOf("Cards.kt", "Color.kt", "Panel.kt", "Sheet.kt", "Showcase.kt"), providers)
     }
@@ -31,7 +31,7 @@ class GroundTest {
     @Test
     fun noComponentIsToldItIsOnArtwork() {
         val told = kotlinSources(ui)
-            .filter { Regex("""\bonArtwork\s*[:=]\s*(Boolean|true)""").containsMatchIn(it.readText()) }
+            .filter { Regex("""\bonArtwork\s*[:=]\s*(Boolean|true)""").containsMatchIn(it.code) }
             .map { it.name }
         assertTrue("Read the ground (OnArtwork, groundPlate) instead of a flag: $told", told.isEmpty())
     }

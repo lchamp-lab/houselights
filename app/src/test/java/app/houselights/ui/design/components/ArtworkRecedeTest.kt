@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -23,14 +22,9 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.setTvContent
-import coil.Coil
-import coil.ImageLoader
-import kotlinx.coroutines.Dispatchers
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
@@ -52,14 +46,12 @@ class ArtworkRecedeTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val context = ApplicationProvider.getApplicationContext<Application>()
-
-    @After
-    fun forgetTheLoader() = Coil.reset()
+    @get:Rule
+    val coil = CoilRule()
 
     @Test
     fun aPictureNeverComposesAgainAsItStepsBack() {
-        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
+        coil.serve(pictureServer())
         val recede = mutableFloatStateOf(0f)
         var shown = false
         var composed = 0

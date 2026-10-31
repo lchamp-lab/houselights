@@ -1,9 +1,9 @@
 package app.houselights.ui.design
 
 import app.houselights.testing.callFrom
-import app.houselights.testing.inCommentAt
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
+import app.houselights.testing.source
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -41,7 +41,7 @@ class FocusStyleGuardTest {
     fun noScreenDrawsFocus() {
         val ui = File("src/main/java/app/houselights/ui")
         val design = ui.resolve("design")
-        val found = kotlinSources(ui).filter { !it.startsWith(design) }
+        val found = kotlinSources(ui).filter { !it.file.startsWith(design) }
             .linesWhere(ui) { "FocusStyle." in it || "HlFocusSurface(" in it }
         assertTrue("Focus is drawn by the design system's components:\n" + found.joinToString("\n"), found.isEmpty())
     }
@@ -51,11 +51,10 @@ class FocusStyleGuardTest {
         // A surface's arguments run to the opening of its content lambda: `) {`.
         val surface = Regex("""(?<![A-Za-z]|fun )HlFocusSurface\(""")
         val calls = sources().flatMap { file ->
-            val text = file.readText()
+            val text = file.code
             surface.findAll(text).map { match ->
                 val end = text.indexOf(") {", match.range.last).takeIf { it > 0 } ?: text.length
-                val line = text.substring(0, match.range.first).count { it == '\n' } + 1
-                "${file.name}:$line" to text.substring(match.range.first, end)
+                "${file.name}:${file.lineOf(match.range.first)}" to text.substring(match.range.first, end)
             }.toList()
         }
         assertTrue("No HlFocusSurface found", calls.isNotEmpty())
@@ -80,7 +79,7 @@ class FocusStyleGuardTest {
         )
         val control = Regex("""\b(${controls.joinToString("|")})\(""")
         val found = kotlinSources(ui).flatMap { file ->
-            val text = file.readText()
+            val text = file.code
             row.findAll(text).mapNotNull { call ->
                 control.find(text.callFrom(call.range.last))?.let { "${file.name}: ${it.value} in a MediaRow" }
             }.toList()
@@ -98,26 +97,27 @@ class FocusStyleGuardTest {
      */
     @Test
     fun nothingGrows() {
-        val dimens = File("src/main/java/app/houselights/ui/design/Dimens.kt").readText()
+        val dimens = source(File("src/main/java/app/houselights/ui/design/Dimens.kt")).code
         val focus = dimens.substring(dimens.indexOf("object HlFocus {")).substringBefore("\n}")
+        assertTrue("HlFocus not found in Dimens.kt", "val frame" in focus)
         assertTrue("HlFocus scales:\n$focus", !Regex("(?i)scale").containsMatchIn(focus))
         val surfaces = kotlinSources(components).filter { it.name in home }
-        val layered = surfaces.linesWhere(components) { !comment(it) && layer.containsMatchIn(it) }
+        val layered = surfaces.linesWhere(components) { layer.containsMatchIn(it) }
         assertTrue("A surface's light is drawn, never in a layer of its own:\n" + layered.joinToString("\n"), layered.isEmpty())
         val ui = File("src/main/java/app/houselights/ui")
         val found = kotlinSources(ui).flatMap { file ->
-            val allowed = scales[file.relativeTo(ui).path].orEmpty()
-            listOf(file).linesWhere(ui) { !comment(it) && scaling.containsMatchIn(it) && it.trim() !in allowed }
+            val allowed = scales[file.pathFrom(ui)].orEmpty()
+            listOf(file).linesWhere(ui) { scaling.containsMatchIn(it) && it.trim() !in allowed }
         }
         assertTrue("Focus never scales what it shows:\n" + found.joinToString("\n"), found.isEmpty())
         val stale = scales.flatMap { (path, lines) ->
-            val code = ui.resolve(path).takeIf { it.isFile }?.readLines()?.map { it.trim() }.orEmpty()
+            val code = ui.resolve(path).takeIf { it.isFile }?.let(::source)?.codeLines()?.map { it.text.trim() }.orEmpty()
             lines.filter { it !in code }.map { "$path: $it" }
         }
         assertTrue("Exceptions for lines that are gone: ${stale.joinToString()}", stale.isEmpty())
-        val grown = kotlinSources(ui).filter { growing(it.readText()) }.map { it.relativeTo(ui).path }.filter { it !in opensWithFocus }
+        val grown = kotlinSources(ui).filter { growing(it.code) }.map { it.pathFrom(ui) }.filter { it !in opensWithFocus }
         assertTrue("Nothing opens wider with focus but a saga's panel:\n" + grown.joinToString("\n"), grown.isEmpty())
-        val shut = opensWithFocus.keys.filter { path -> ui.resolve(path).let { !it.isFile || !growing(it.readText()) } }
+        val shut = opensWithFocus.keys.filter { path -> ui.resolve(path).let { !it.isFile || !growing(source(it).code) } }
         assertTrue("Exceptions for files that no longer grow: ${shut.joinToString()}", shut.isEmpty())
     }
 
@@ -186,7 +186,7 @@ class FocusStyleGuardTest {
     /** OK clicks on its release, through `HlFocusSurface`: no other way to click, select or show a press. */
     @Test
     fun okClicksThroughTheSurface() {
-        val found = kotlinSources(main).linesWhere(main) { line -> !comment(line) && click.containsMatchIn(line) }
+        val found = kotlinSources(main).linesWhere(main) { click.containsMatchIn(it) }
         assertTrue("A click of its own, use a component on HlFocusSurface:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
@@ -198,13 +198,11 @@ class FocusStyleGuardTest {
         val ui = File("src/main/java/app/houselights/ui")
         val focusable = Regex("""\.focusable\(""")
         val found = kotlinSources(ui).filter { file ->
-            val text = file.readText()
-            val path = file.relativeTo(ui).path
-            path !in unseen && focusable.findAll(text).any { !text.inCommentAt(it.range.first) } &&
-                (!file.startsWith(components) || "FocusStyle." !in text)
-        }.map { it.relativeTo(ui).path }
+            file.pathFrom(ui) !in unseen && focusable.containsMatchIn(file.code) &&
+                (!file.file.startsWith(components) || "FocusStyle." !in file.code)
+        }.map { it.pathFrom(ui) }
         assertTrue("Focusable without showing focus:\n" + found.joinToString("\n"), found.isEmpty())
-        val stale = unseen.keys.filter { path -> ui.resolve(path).let { !it.isFile || !focusable.containsMatchIn(it.readText()) } }
+        val stale = unseen.keys.filter { path -> ui.resolve(path).let { !it.isFile || !focusable.containsMatchIn(source(it).code) } }
         assertTrue("Exceptions for files that take no focus: ${stale.joinToString()}", stale.isEmpty())
     }
 
@@ -220,11 +218,9 @@ class FocusStyleGuardTest {
     @Test
     fun neverFocusRestorer() {
         val restorer = Regex("""\b(focusRestorer|restoreFocusedChild|saveFocusedChild)\b""")
-        val found = kotlinSources(main).linesWhere(main) { line -> !comment(line) && restorer.containsMatchIn(line) }
+        val found = kotlinSources(main).linesWhere(main) { restorer.containsMatchIn(it) }
         assertTrue("Restore focus with keepChildFocus:\n" + found.joinToString("\n"), found.isEmpty())
     }
-
-    private fun comment(line: String) = line.trimStart().let { it.startsWith("//") || it.startsWith("*") }
 
     @Test
     fun theGuardsCatchWhatTheyShould() {

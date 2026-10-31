@@ -38,6 +38,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -141,12 +142,13 @@ class HomePicturesAheadTest {
     }
 
     /**
-     * Waits a while for [condition], running what Coil posts to the main thread, unseen by the test looper:
-     * the launch loads ahead on threads of its own, as it does in the app.
+     * Waits for [condition], running what Coil posts to the main thread, unseen by the test looper: the launch loads
+     * ahead on threads of its own, as it does in the app. Fails, saying [what] never happened, after [TIMEOUT_MS].
      */
-    private fun waitFor(condition: () -> Boolean) {
+    private fun waitFor(what: String, condition: () -> Boolean) {
         val until = System.currentTimeMillis() + TIMEOUT_MS
-        while (!synchronized(asked, condition) && System.currentTimeMillis() < until) {
+        while (!synchronized(asked, condition)) {
+            if (System.currentTimeMillis() > until) fail("Not after $TIMEOUT_MS ms: $what")
             shadowOf(Looper.getMainLooper()).idle()
             Thread.sleep(POLL_MS)
         }
@@ -277,14 +279,14 @@ class HomePicturesAheadTest {
         val launch = CoroutineScope(Dispatchers.Default)
         try {
             launch.launch { LoadingAhead.load(waiting, ahead) }
-            waitFor { synchronized(fetched) { fetched.size } >= ahead.size }
+            waitFor("every picture ahead fetched") { synchronized(fetched) { fetched.size } >= ahead.size }
             compose.setTvContent { HomeGrid(state) }
             // Home laid out: its case and its doors have asked for their pictures, which are on their way.
-            waitFor { sizes.size >= 2 * ahead.size }
+            waitFor("home asking for each picture ahead") { sizes.size >= 2 * ahead.size }
             assertEquals("home waits for what is on its way", fetched.distinct(), synchronized(fetched) { fetched.toList() })
 
             sent.complete(Unit)
-            waitFor { asked.count { it.from == DataSource.MEMORY_CACHE } >= ahead.size }
+            waitFor("home finding each picture ahead in memory") { asked.count { it.from == DataSource.MEMORY_CACHE } >= ahead.size }
             compose.waitForIdle()
             assertEquals("each fetched once", fetched.distinct(), synchronized(fetched) { fetched.toList() })
             val fromMemory = synchronized(asked) { asked.filter { it.from == DataSource.MEMORY_CACHE }.map { it.key }.toSet() }

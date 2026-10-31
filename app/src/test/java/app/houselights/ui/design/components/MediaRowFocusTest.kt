@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -30,25 +31,31 @@ class MediaRowFocusTest {
     @get:Rule
     val compose = createComposeRule()
 
-    @Test
-    fun comingBackIntoARowFindsTheCardLeft() {
-        val start = FocusRequester()
+    private val start = FocusRequester()
+
+    /** Rows a and b of eight cards each, a0 to b7, focus on a0; the card a2 drawn by [third]. */
+    private fun twoRows(third: @Composable (String) -> Unit = { Card(it) }) {
         compose.setTvContent {
             Column {
                 listOf("a", "b").forEach { row ->
                     MediaRow(header = row) {
-                        items((0 until 8).map { "$row$it" }) { card ->
-                            val first = if (card == "a0") Modifier.focusRequester(start) else Modifier
-                            ArtworkSurface(
-                                onClick = {},
-                                modifier = first.testTag(card).width(HlSize.poster).aspectRatio(2f / 3f),
-                            ) {}
-                        }
+                        items((0 until CARDS).map { "$row$it" }) { card -> if (card == "a2") third(card) else Card(card) }
                     }
                 }
             }
         }
         compose.runOnIdle { start.requestFocus() }
+    }
+
+    @Composable
+    private fun Card(card: String) {
+        val first = if (card == "a0") Modifier.focusRequester(start) else Modifier
+        ArtworkSurface(onClick = {}, modifier = first.testTag(card).width(HlSize.poster).aspectRatio(HlSize.POSTER_RATIO)) {}
+    }
+
+    @Test
+    fun comingBackIntoARowFindsTheCardLeft() {
+        twoRows()
         compose.press(Key.DirectionRight, times = 2)
         compose.onNodeWithTag("a2").assertIsFocused()
 
@@ -64,27 +71,7 @@ class MediaRowFocusTest {
     /** A saga's film not in the library ([AbsentCard]) is a card of its row as the others: focus comes back to it. */
     @Test
     fun comingBackIntoARowFindsTheAbsentFilmLeft() {
-        val start = FocusRequester()
-        compose.setTvContent {
-            Column {
-                listOf("a", "b").forEach { row ->
-                    MediaRow(header = row) {
-                        items((0 until 8).map { "$row$it" }) { card ->
-                            val first = if (card == "a0") Modifier.focusRequester(start) else Modifier
-                            if (card == "a2") {
-                                AbsentCard(card, null)
-                            } else {
-                                ArtworkSurface(
-                                    onClick = {},
-                                    modifier = first.testTag(card).width(HlSize.poster).aspectRatio(2f / 3f),
-                                ) {}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        compose.runOnIdle { start.requestFocus() }
+        twoRows { AbsentCard(it, null) }
         compose.press(Key.DirectionRight, times = 2)
         val absent = compose.onNodeWithContentDescription("a2, Not in your library")
         absent.assertIsFocused()
@@ -95,5 +82,9 @@ class MediaRowFocusTest {
         compose.onNodeWithTag("b4").assertIsFocused()
         compose.press(Key.DirectionUp)
         absent.assertIsFocused()
+    }
+
+    private companion object {
+        const val CARDS = 8
     }
 }

@@ -91,6 +91,46 @@ class ArtworkCacheTest {
         assertTrue(copied.orEmpty(), copied?.let { File(it.removePrefix("file://")).isFile } == true)
     }
 
+    /** A copy no row references yet, made for the file a scan reads, is spared by a sweep until the scan lets it go. */
+    @Test
+    fun aCopyIsSweptOnlyOnceLetGo() = runBlocking {
+        val cache = ArtworkCache(temp.newFolder("artwork"))
+        val bytes = picture(10, 15)
+        val nas = FakeRemoteBrowser().apply { put("Dune (2021)-poster.jpg", size = bytes.size.toLong(), bytes = bytes) }
+        val copied = cache.copy(source, RemoteFile("Dune (2021)-poster.jpg", bytes.size.toLong()), nas)
+        val copy = File(checkNotNull(copied).removePrefix("file://"))
+
+        assertEquals(CleanupResult(0, 0), cache.sweep(emptyList()))
+        assertTrue(copy.isFile)
+        cache.letGo()
+        assertEquals(1, cache.sweep(emptyList()).deletedFiles)
+        assertFalse(copy.exists())
+    }
+
+    /**
+     * A copy taken while a sweep walks the cache, of an image copied before and let go: the sweep, reaching it then, spares
+     * it, as whether a copy is held is asked as each file is deleted, not once as the sweep starts.
+     */
+    @Test
+    fun aCopyTakenWhileASweepWalksIsSpared() {
+        val bytes = picture(10, 15)
+        val image = RemoteFile("Dune (2021)-poster.jpg", bytes.size.toLong())
+        val nas = FakeRemoteBrowser().apply { put(image.relativePath, size = image.size, bytes = bytes) }
+        var during: String? = null
+        lateinit var cache: ArtworkCache
+        val copyingThere: (File) -> Unit = { file ->
+            if (during == null && file.isFile) during = runBlocking { cache.copy(source, image, nas) }
+        }
+        cache = ArtworkCache(temp.newFolder("artwork"), sweeping = copyingThere)
+        runBlocking { cache.copy(source, image, nas) }
+        cache.letGo()
+
+        cache.sweep(emptyList())
+
+        val copy = File(checkNotNull(during).removePrefix("file://"))
+        assertArrayEquals(bytes, copy.readBytes())
+    }
+
     /**
      * Android keeps a twentieth of a small volume for itself, 500 MiB at most, and says storage is low below it: nothing is
      * copied into it, nor into the cache's own margin above it, TMDB showing the picture.

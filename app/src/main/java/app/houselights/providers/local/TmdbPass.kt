@@ -10,6 +10,9 @@ import retrofit2.HttpException
 /** TMDB answered with a 5xx or an unparsable body; reported as unreachable, the closest UI message. */
 internal class TmdbFailedException(cause: Throwable) : TmdbUnreachableException(cause, "TMDB failed")
 
+/** What a TMDB request asks ([TmdbPass.ask]), by which it is collected ([Collected]): [what], a season say, and its [terms]. */
+internal data class TmdbKey(val what: String, val terms: Any?)
+
 /** A TMDB result: [Given] (null value when TMDB has no such entry) or [Unanswered]. */
 internal sealed interface TmdbAnswer<out T> {
     data class Given<out T>(val value: T?) : TmdbAnswer<T>
@@ -49,8 +52,8 @@ internal class TmdbPass(
     @Volatile
     private var stopped = false
 
-    /** True while there is a client and the pass has not stopped. */
-    val open: Boolean get() = client != null && !stopped
+    /** True while there is a client and the pass has not stopped, as far as a run under the lock replays it ([replayed]). */
+    val open: Boolean get() = client != null && !(replayed()?.tmdbStopped ?: stopped)
 
     /**
      * [issue] when the pass ends on it: stopped, or TMDB not answering since its last failure. Null once TMDB answered
@@ -58,7 +61,30 @@ internal class TmdbPass(
      */
     val endIssue: Throwable? get() = issue?.takeIf { stopped || failures > 0 }
 
-    suspend fun <T : Any> ask(question: suspend (TmdbClient) -> T?): TmdbAnswer<T> {
+    /**
+     * TMDB's answer to [question], [key] saying what it asks: within a run under the scan's lock ([Rounds]), the answer
+     * collected for that key, the pass stopping or not as it did once it was asked; none collected, [Uncollected]. A
+     * request without a key is never asked there.
+     */
+    suspend fun <T : Any> ask(key: TmdbKey? = null, question: suspend (TmdbClient) -> T?): TmdbAnswer<T> {
+        val run = replayed() ?: return asked(question)
+        checkNotNull(key) { "TMDB asked under the lock" }
+        if (key in run.collected) {
+            val asked = run.collected.answer<Asked<T>>(key)
+            run.tmdbStopped = asked.stopped
+            return asked.answer
+        }
+        if (client == null || run.tmdbStopped) return TmdbAnswer.Unanswered
+        throw Uncollected(key, overTmdb = true) { Asked(asked(question), stopped) }
+    }
+
+    /** An answer collected ([ask]), and whether the pass had stopped once it came. */
+    private class Asked<T>(val answer: TmdbAnswer<T>, val stopped: Boolean)
+
+    /** The run under the lock this pass's requests are answered in; never another pass's, which would ask under the lock. */
+    private fun replayed(): Applying? = Applying.current()?.also { check(it.tmdb === this) { "TMDB asked under the lock" } }
+
+    private suspend fun <T : Any> asked(question: suspend (TmdbClient) -> T?): TmdbAnswer<T> {
         val tmdb = client?.takeIf { !stopped } ?: return TmdbAnswer.Unanswered
         if (strict) return TmdbAnswer.Given(question(tmdb)).also { answered = true }
         return suspendRunCatching { question(tmdb) }.fold(

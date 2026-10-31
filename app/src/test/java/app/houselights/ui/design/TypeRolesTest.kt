@@ -35,7 +35,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * DESIGN.md, Type: every name to choose is an `entry` (16), a field's name a `group` a step under what is typed in it,
+ * DESIGN.md, Type: every name to choose is an `entry` (15), a field's name a `group` a step under what is typed in it,
  * the query and the keyboard's letters a `lead`; an icon beside words is `HlSize.icon`.
  */
 @RunWith(RobolectricTestRunner::class)

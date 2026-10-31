@@ -10,6 +10,7 @@ import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
+import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
@@ -28,7 +29,7 @@ internal class SettingsFixture(folder: File) {
     private val files = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val work = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val screens = ViewModelStore()
-    private val db = testDatabase { allowMainThreadQueries() }
+    private val db = testDatabase { onCallingThread() }
 
     val store: SettingsStore = runBlocking { testSettings(folder, files) }
 

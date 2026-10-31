@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
 import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -10,7 +9,6 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.printToString
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.FirstScanDefaults
 import app.houselights.ui.testing.TV
@@ -18,13 +16,9 @@ import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatCount
-import coil.Coil
-import coil.ImageLoader
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -47,10 +41,8 @@ class FirstWallTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val context = ApplicationProvider.getApplicationContext<Application>()
-
-    @After
-    fun forgetTheLoader() = Coil.reset()
+    @get:Rule
+    val coil = CoilRule()
 
     private fun title(n: Int, poster: Boolean = true) =
         FirstTitle(n.toLong(), "Film $n", YEAR + n, ImageRef("first-$n") { "https://img.test/first-$n?w=$it" }.takeIf { poster })
@@ -195,7 +187,7 @@ class FirstWallTest {
     fun aFrameKeepsItsPosterUntilTheOneComingIsDecoded() {
         val held = CompletableDeferred<Unit>()
         val server = pictureServer { data, _ -> if ("first-9?" in data.toString()) held.await() }
-        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(server) }.build())
+        coil.serve(server)
         val wall = FirstWallState()
         var titles by mutableStateOf(found(FRAMES))
         compose.setTvContent { FirstWall(titles, titles.size, state = wall) }
@@ -218,7 +210,7 @@ class FirstWallTest {
     /** A title without a poster comes in as its one-sheet, never leaving its frame empty. */
     @Test
     fun aTitleWithoutPosterComesAsItsOneSheet() {
-        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
+        coil.serve(pictureServer())
         val wall = FirstWallState()
         var titles by mutableStateOf(found(FRAMES))
         compose.setTvContent { FirstWall(titles, titles.size, state = wall) }
@@ -232,7 +224,7 @@ class FirstWallTest {
     /** The wall reads as how many titles were found, its thousands grouped, never as its posters. */
     @Test
     fun itReadsAsHowManyTitlesWereFound() {
-        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }.build())
+        coil.serve(pictureServer())
         compose.setTvContent { FirstWall(found(FRAMES), found = THOUSANDS) }
         compose.waitForIdle()
         val read = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ContentDescription)).fetchSemanticsNodes()

@@ -11,14 +11,13 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.VeilStop
-import coil.ImageLoader
+import app.houselights.ui.design.noise
 import coil.decode.DataSource
 import coil.fetch.DrawableResult
 import coil.fetch.Fetcher
 import coil.memory.MemoryCache
 import coil.request.SuccessResult
 import coil.size.Dimension
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -28,7 +27,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import kotlin.math.abs
-import kotlin.math.sin
 
 /**
  * A wall's diffuse field is a small, blurred copy of its backdrop's sample, never brighter than the cap its text
@@ -44,7 +42,7 @@ class DiffuseTest {
         "red" to picture { _, _ -> 0xFFE02020.toInt() },
         "a light disc" to picture { x, y -> if ((x - 48) * (x - 48) + (y - 27) * (y - 27) < 200) WHITE else 0xFF102030.toInt() },
         "noise" to picture { x, y ->
-            val v = ((sin(x * 12.9898f + y * 78.233f) * 43758.547f).let { it - kotlin.math.floor(it) } * 255).toInt()
+            val v = (noise(x, y) * 255).toInt()
             0xFF000000.toInt() or (v shl 16) or ((255 - v) shl 8) or (v / 2)
         },
     )
@@ -182,11 +180,7 @@ class DiffuseTest {
 
     @Test
     fun aFieldIsCachedUnderItsOwnKeyBesideItsSample() = runTest {
-        val loader = ImageLoader.Builder(context)
-            .memoryCache { MemoryCache.Builder(context).maxSizeBytes(MEMORY).build() }
-            .dispatcher(Dispatchers.Unconfined)
-            .components { add(files) }
-            .build()
+        val loader = testLoader(files, context) { memoryCache { MemoryCache.Builder(context).maxSizeBytes(MEMORY).build() } }
         val image = ImageRef(BACKDROP) { BACKDROP }
         val field = loader.execute(diffuseRequest(context, image)) as SuccessResult
         assertEquals(FIELD_W, (field.drawable as BitmapDrawable).bitmap.width)

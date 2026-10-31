@@ -20,7 +20,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.Collections
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -32,8 +32,12 @@ class LargeLibraryTest {
     private lateinit var provider: LocalProvider
     private val queries = AtomicInteger()
 
-    /** The statements run and their arguments, as Room's query callback tells them, for [planOf]. */
-    private val ran = CopyOnWriteArrayList<Pair<String, List<Any?>>>()
+    /** The statements run and their arguments while [planOf] [records], as Room's query callback tells them. */
+    private val ran = Collections.synchronizedList(ArrayList<Pair<String, List<Any?>>>())
+
+    /** Whether [planOf] is measuring: the fill's hundred thousand statements are not kept. */
+    @Volatile
+    private var records = false
 
     /** Room's query executor, where the invalidation tracker runs after each write: [measure] waits for it. */
     private lateinit var roomWork: ExecutorService
@@ -45,7 +49,7 @@ class LargeLibraryTest {
             setQueryCallback(
                 { sql, args ->
                     queries.incrementAndGet()
-                    ran += sql to args.toList()
+                    if (records) ran += sql to args.toList()
                 },
                 Runnable::run,
             )
@@ -139,7 +143,12 @@ class LargeLibraryTest {
     private suspend fun planOf(sql: String, block: suspend () -> Unit): List<String> {
         roomWork.submit {}.get()
         ran.clear()
-        block()
+        records = true
+        try {
+            block()
+        } finally {
+            records = false
+        }
         val (statement, args) = ran.first { sql in it.first }
         return db.openHelper.readableDatabase.query(SimpleSQLiteQuery("EXPLAIN QUERY PLAN $statement", args.toTypedArray())).use { c ->
             val detail = c.getColumnIndexOrThrow("detail")
@@ -284,8 +293,10 @@ class LargeLibraryTest {
         const val SHOWS = 100
         const val SEASONS = 3
         const val EPISODES_PER_SEASON = 10
-        const val NFO_BYTES = 20_000
         const val PAGE = 120
+
+        /** Each film's and episode's NFO text; ItemRowTest guards that no list reads it, so its size asserts nothing here. */
+        const val NFO_BYTES = 200
 
         /** A wall's page by title, its count aside. */
         const val WALL_ORDER = "ORDER BY sortTitle ASC, id"

@@ -29,7 +29,7 @@ class TextRoomTest {
     fun theRoomOfALineGrowsWithTheTextSize() {
         val rooms = mutableMapOf<Float, Rooms>()
         compose.setContent {
-            listOf(1f, LARGEST).forEach { scale ->
+            listOf(1f, TEXT_SCALE_MAX).forEach { scale ->
                 CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
                     HouselightsTheme {
                         val tile = HlIconButtonDefaults
@@ -40,14 +40,11 @@ class TextRoomTest {
         }
         compose.waitForIdle()
         val default = rooms.getValue(1f)
-        val large = rooms.getValue(LARGEST)
-        // At the default text size, the rooms the layout was drawn for.
-        assertEquals(452f, default.heroMin.value, 0.01f)
-        assertEquals(28f, default.infoLine.value, 0.01f)
-        assertEquals(36f, default.labelRoom.value, 0.01f)
-        assertEquals(20f, default.hintRoom.value, 0.01f)
+        val large = rooms.getValue(TEXT_SCALE_MAX)
+        // A poster wall's title line, written in dp, is a line of rowTitle at the default text size.
+        assertEquals(HouselightsType.rowTitle.lineHeight.value, default.infoLine.value, 0.01f)
         // How much taller a line of [height] at the default text size is at the largest.
-        fun growth(height: Float) = with(Density(1f, LARGEST)) { height.sp.toDp().value } - height
+        fun growth(height: Float) = with(Density(1f, TEXT_SCALE_MAX)) { height.sp.toDp().value } - height
         val header = growth(HouselightsType.rowTitle.lineHeight.value)
         assertTrue(header > 0f)
         assertEquals("the hero makes room for its header", default.heroMin.value - header, large.heroMin.value, 0.01f)
@@ -55,10 +52,5 @@ class TextRoomTest {
         val label = growth(HouselightsType.meta.lineHeight.value)
         assertEquals("a button's label", default.labelRoom.value + label, large.labelRoom.value, 0.01f)
         assertEquals("a tile's hint", default.hintRoom.value + label, large.hintRoom.value, 0.01f)
-    }
-
-    private companion object {
-        /** Android's largest text size. */
-        const val LARGEST = 1.3f
     }
 }
