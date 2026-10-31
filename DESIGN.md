@@ -1348,8 +1348,8 @@ is to measure.
 Settings' janky frames are its pane, recomposed whole when its entry changes (120 to 150 ms in `draw`), as before
 the identity; places crossed now open no pane, only the one focus settles on (to measure again). Home's slowest
 frames on a row wait on the main thread for a picture (40 to 48 ms); a row's hold draws at 12 to 15 ms of GPU per
-frame, as a wall's scroll does. The room is painted twice, by the window and the screen: the only overdraw left at
-rest.
+frame, as a wall's scroll does. The room is painted once, by the window (`@color/room`): no screen paints a black of
+its own under its content; a field or a backdrop covers it whole.
 
 ## Guard
 

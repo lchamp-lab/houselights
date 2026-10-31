@@ -1,7 +1,6 @@
 package app.houselights.ui.onboarding
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -96,9 +95,8 @@ internal fun Welcome(
     val focus = remember { FocusRequester() }
     val retry = remember { FocusRequester() }
     LaunchedEffect(Unit) { (if (readAgain != null) retry else focus).tryRequestFocus() }
-    val black = Hl.colors.background
-
-    Box(Modifier.fillMaxSize().background(black)) {
+    // On the window's room (@color/room): no black of its own under the wall.
+    Box(Modifier.fillMaxSize()) {
         PosterWall(posters)
         PosterWallScrim()
         Row(
