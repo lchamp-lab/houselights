@@ -207,7 +207,9 @@ class ScanNamesTest {
 
     /**
      * Shows of one name and other years are shows of their own, however the folders hold them: side by side, under a
-     * folder of their name (another beside it), or naming more than their year. Each layout is a folder on a NAS of its own.
+     * folder of their name (another beside it), or naming more than their year. Each layout is a folder on a NAS of its
+     * own, read in one pass in that order: shows are keyed across folders, so the later layouts meet the shows the first
+     * made.
      */
     @Test
     fun twoShowsOfOneNameAndTwoYearsAreTwoShows() = runTest {

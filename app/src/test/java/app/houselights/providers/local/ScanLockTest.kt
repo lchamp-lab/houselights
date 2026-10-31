@@ -363,7 +363,10 @@ class ScanLockTest {
 
     /**
      * A known film read again while the user marks it watched, Trakt's sync marks it so too, a poster is chosen and it
-     * becomes a favourite: the pass writes TMDB's answer beside what was done meanwhile, never over it.
+     * becomes a favourite: the pass writes TMDB's answer beside what was done meanwhile, never over it. Held twice: each
+     * run reads the row again, and a scan's save keeps the user's columns as the library holds them
+     * (LibraryDaoTest.aScanKeepsEveryColumnItDoesNotOwn); [aKnownFilmIdentifiedWhileReadAgainIsReadAsIdentified]
+     * fails when runs stop reading the row.
      */
     @Test
     fun whatTheUserDoesWhileAKnownFilmIsReadAgainStands() = runTest {
@@ -392,6 +395,29 @@ class ScanLockTest {
         assertEquals(PLAYED_AT, after.lastPlayedAt)
     }
 
+    /**
+     * A known film identified while a pass reads it again: the pass's next run reads the row as identified, so it asks
+     * for the film chosen and writes its details, never those of the film it began with.
+     */
+    @Test
+    fun aKnownFilmIdentifiedWhileReadAgainIsReadAsIdentified() = runTest {
+        nas.put("Dune (2021).mkv")
+        bench.scan()
+        val dune = bench.item(films, "Dune (2021).mkv")
+        val gate = tmdb.gate { it == "movie/$DUNE" }
+        bench.scanner.scanAll(refreshMetadata = true)
+        try {
+            gate.reached()
+            meanwhile { bench.scanner.identify(dune.id, DUNE_1984) }
+        } finally {
+            gate.open()
+        }
+        bench.awaitScans()
+
+        val after = bench.item(films, "Dune (2021).mkv")
+        assertEquals(Triple(DUNE_1984, DUNE_1984, 1984), Triple(after.userTmdbId, after.tmdbId, after.year))
+    }
+
     /** TMDB answering the search, then failing on the film's details: nothing of the search is written, and the next pass asks again. */
     @Test
     fun aFilmWhoseDetailsFailAfterItsSearchWaitsUnmatchedForTheNextPass() = runTest {
@@ -417,9 +443,12 @@ class ScanLockTest {
         val dune = bench.item(films, "Dune (2021).mkv")
         tmdb.hold = true
         val identifying = launch(Dispatchers.IO) { bench.scanner.identify(dune.id, HEAT) }
-        withContext(Dispatchers.IO) { assertTrue("held", tmdb.held.await(WAIT_MS, TimeUnit.MILLISECONDS)) }
-        identifying.cancelAndJoin()
-        tmdb.hold = false
+        try {
+            withContext(Dispatchers.IO) { assertTrue("held", tmdb.held.await(WAIT_MS, TimeUnit.MILLISECONDS)) }
+        } finally {
+            identifying.cancelAndJoin()
+            tmdb.hold = false
+        }
 
         assertEquals(dune, bench.item(films, "Dune (2021).mkv"))
         meanwhile { bench.scanner.identify(dune.id, DUNE_1984) }

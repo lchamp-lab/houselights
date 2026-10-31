@@ -81,10 +81,22 @@ class LibraryScannerTest {
         assertEquals("closer, then as any pass", listOf(true, false), first.map { it.homeFilling }.distinct())
         assertEquals("its first scan all along", listOf(true), first.map { it.firstPass }.distinct())
         assertFalse("over", bench.scanner.state.value.firstPass)
-
         assertFalse(bench.scanner.state.value.homeFilling)
 
         nas.put("Film 40 (2002).mkv")
+        val next = statesAsItRuns().filter { it.running }
+        assertEquals(listOf(false), next.map { it.firstPass }.distinct())
+        assertEquals("never followed closer", listOf(false), next.map { it.homeFilling }.distinct())
+    }
+
+    /** A pass over a library of a few films is no first scan, though home's row of latest films is not full yet. */
+    @Test
+    fun aPassOverAFewFilmsIsNoFirstScan() = runTest {
+        repeat(FEW) { nas.put("Film $it (2001).mkv") }
+        bench.scan()
+        assertTrue(FEW < LocalProvider.LATEST)
+
+        repeat(FEW) { nas.put("Film ${it + FEW} (2002).mkv") }
         val next = statesAsItRuns().filter { it.running }
         assertEquals(listOf(false), next.map { it.firstPass }.distinct())
         assertEquals("never followed closer", listOf(false), next.map { it.homeFilling }.distinct())
@@ -303,7 +315,7 @@ class LibraryScannerTest {
         assertEquals(listOf("Dune (2021).mkv"), filePaths())
     }
 
-    /** Scans asked twice while a pass lists, a refresh the second time: one more pass follows, and it refreshes. */
+    /** Scans asked twice while a pass lists, a refresh the first time: one more pass follows, and it refreshes. */
     @Test
     fun scansAskedDuringAPassQueueOneMoreThatRefreshesIfEitherAsked() = runTest {
         nas.put("Dune (2021).mkv")
@@ -320,10 +332,13 @@ class LibraryScannerTest {
         }
         nas.reads.clear()
         bench.scanner.scanAll()
-        listing.await()
-        bench.scanner.scanAll()
-        bench.scanner.scanAll(refreshMetadata = true)
-        go.complete(Unit)
+        try {
+            listing.await()
+            bench.scanner.scanAll(refreshMetadata = true)
+            bench.scanner.scanAll()
+        } finally {
+            go.complete(Unit)
+        }
         bench.awaitScans()
 
         assertEquals("one more pass", 2, listed)
@@ -352,7 +367,7 @@ class LibraryScannerTest {
      * files, every one a long timeout, never reading one twice; the files it gave up on are read at the next pass.
      */
     @Test
-    fun aNasThatStopsAnsweringEndsThePassAfterThreeFiles() = runTest {
+    fun aNasThatStopsAnsweringEndsEachFolderAfterThreeFiles() = runTest {
         nas.put("Dune (2021).mkv")
         bench.scan()
         repeat(5) { nas.put("New $it (2024).mkv") }
@@ -450,6 +465,9 @@ class LibraryScannerTest {
     }
 
     private companion object {
+        /** Films fewer than home's row of latest ones holds. */
+        const val FEW = 12
+
         const val START = ScanBench.START
         const val HOUR = 60 * 60_000L
         const val TEN_MINUTES = 10 * 60_000L

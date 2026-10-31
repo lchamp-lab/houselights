@@ -1,7 +1,6 @@
 package app.houselights.providers.local
 
 import app.houselights.core.Job
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -354,28 +353,31 @@ class ScanCreditsTest {
         assertEquals(listOf("Adam Scott"), jobs(bench.series("Severance", 2022).id)[Job.CAST])
     }
 
-    /** Identified while the backfill asks TMDB for it: the answer, for the film it was, is dropped and the user's match stands. */
+    /**
+     * Matched with another film while the backfill asks TMDB for it, its credits still to come: the answer, for the film
+     * it was, is dropped, and the title waits for a pass to ask for the film it is.
+     */
     @Test
-    fun aTitleIdentifiedWhileTheBackfillAsksForItKeepsTheUsersMatch() = runTest {
+    fun aTitleMatchedAnewWhileTheBackfillAsksForItGetsNoneOfTheAnswer() = runTest {
         val films = bench.folder("Films")
         tmdb.movie(1000, "Film", 2000)
         tmdb.editMovie(1000) { it.copy(credits = duneCredits) }
-        tmdb.movie(2000, "Autre film", 2001)
-        tmdb.editMovie(2000) { it.copy(credits = TmdbCredits(cast = listOf(TmdbCastMember("Adam Scott", "Mark", order = 0, id = 55536)))) }
         nas.put("Film (2000).mkv")
         bench.scan()
         val film = bench.item(films, "Film (2000).mkv")
         asBeforeVersion12()
-        val identified = AtomicBoolean()
+        val matched = AtomicBoolean()
         tmdb.onRequest = { path ->
-            if (path == "movie/1000" && identified.compareAndSet(false, true)) runBlocking { bench.scanner.identify(film.id, 2000) }
+            if (path == "movie/1000" && matched.compareAndSet(false, true)) {
+                // As a scan or the user would leave it, its credits not yet written.
+                bench.db.openHelper.writableDatabase.execSQL("UPDATE items SET tmdbId = 2000, userTmdbId = 2000 WHERE id = ${film.id}")
+            }
         }
         bench.autoScan()
 
-        assertTrue("identified as the backfill asked", identified.get())
-        val after = bench.item(films, "Film (2000).mkv")
-        assertEquals(2000 to 2000, after.userTmdbId to after.tmdbId)
-        assertEquals(listOf("Adam Scott"), jobs(film.id)[Job.CAST])
+        assertTrue("matched anew as the backfill asked", matched.get())
+        assertEquals("none of the film it was", emptyMap<Job, List<String>>(), jobs(film.id))
+        assertNull("still due", bench.item(films, "Film (2000).mkv").creditsAt)
     }
 
     /** TMDB out of reach: the backfill waits for a pass TMDB answers; NFO titles still get theirs. */

@@ -7,6 +7,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.rules.TemporaryFolder
@@ -203,7 +204,7 @@ suspend fun oneProbesReads(path: String, size: Long, bytes: ByteArray): List<Str
 
 /**
  * A [ScanBench] for each test, as [ScanBench]'s arguments say, its artwork in a temporary folder of the test's own
- * ([temp], where a test may make others), its library closed after the test.
+ * ([temp], where a test may make others), its passes cut short and its library closed after the test.
  */
 class ScanBenchRule(
     private val tmdbKey: Boolean = true,
@@ -221,6 +222,8 @@ class ScanBenchRule(
                 try {
                     base.evaluate()
                 } finally {
+                    // A pass the test left running would go on over a closed library.
+                    runBlocking { bench.cancelScans() }
                     bench.close()
                     current = null
                 }

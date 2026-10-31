@@ -750,15 +750,16 @@ class MigrationTest {
             UserRow(
                 "sources",
                 "id=1",
-                "kind=MOVIES; protocol=SMB; password=s3cret",
-                "name=Films; host=nas; share=media; path=films; username=zidoo; domain=WORKGROUP; lastScanAt=1000; refreshIn=null; " +
-                    "uid=null; gid=null; heldKept=1",
+                "password=s3cret",
+                "kind=MOVIES; protocol=SMB; name=Films; host=nas; share=media; path=films; username=zidoo; domain=WORKGROUP; " +
+                    "lastScanAt=1000; refreshIn=null; uid=null; gid=null; heldKept=1",
             ),
             UserRow(
                 "sources",
                 "id=2",
-                "kind=SHOWS; protocol=NFS; password=",
-                "name=Séries; host=nas; share=volume1/media; path=series; username=; lastScanAt=2000; uid=1026; gid=100",
+                "password=",
+                "kind=SHOWS; protocol=NFS; name=Séries; host=nas; share=volume1/media; path=series; username=; lastScanAt=2000; " +
+                    "uid=1026; gid=100",
             ),
             UserRow(
                 "items",
@@ -797,12 +798,14 @@ class MigrationTest {
                 "kept_states",
                 "title=movie:tmdb:949",
                 "kind=MOVIE; nameKey=heat|1995; sourceId=1",
-                "tmdbId=949; played=1; positionMs=3000000; favorite=1; userPosterPath=file:/heat.jpg; addedAt=1; audio=fre; " +
-                    "subtitles=${SubtitleChoice.Off.stored}; tracksAt=8",
+                "tmdbId=949; played=1; positionMs=3000000; durationMs=6000000; lastPlayedAt=9; favorite=1; userTmdbId=949; " +
+                    "userPosterPath=file:/heat.jpg; userBackdropPath=file:/heat-wide.jpg; userLogoPath=file:/heat-logo.png; " +
+                    "addedAt=1; audio=fre; subtitles=${SubtitleChoice.Off.stored}; tracksAt=8; userEpisodeOrder=$DVD; userNoMatch=1",
             ),
             UserRow("track_choices", "title=local:1", "", "audio=ko; subtitles=${SubtitleChoice.Off.stored}; at=5"),
             UserRow("saga_choices", "matchKey=$DUNE_SAGA", "", "userPosterPath=/fr-1.jpg; userBackdropPath=/fr-wide.jpg"),
-            UserRow("trakt_pending", "title=movie:949", "", "action=WATCHED; at=5; seq=1"),
+            UserRow("trakt_pending", "title=movie:949", "", "action=WATCHED; at=5; progress=0.5; seq=1; attempts=2; sentAt=6"),
+            UserRow("trakt_state", "id=1", "", "syncedAt=9; watched=10; inProgress=11; error=refused; activities={}"),
         )
 
         /** A folder's row in schemas 6 and 7, before firstScanAt. */

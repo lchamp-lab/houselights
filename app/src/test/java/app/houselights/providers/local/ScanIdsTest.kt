@@ -49,7 +49,9 @@ class ScanIdsTest {
 
         val copies = dao.filesOf(films.id)
         assertEquals("both copies", listOf(DUNE, DUNE), copies.map { it.tmdbId })
-        assertEquals("asked once a copy, never searched", listOf("movie/$DUNE", "movie/$DUNE"), pass.requests)
+        // Once would do: each copy asks today, as a film's details are not kept for the pass (a season's are).
+        assertTrue("never searched: ${pass.requests}", pass.requests.all { it == "movie/$DUNE" })
+        assertTrue("at most once a copy: ${pass.requests}", pass.requests.size in 1..2)
     }
 
     @Test
