@@ -63,12 +63,8 @@ private fun AudioRow(tracks: TrackPreferences, app: Locale, onChoose: (String?) 
         HlChoiceSheet(
             title,
             options,
-            selected = when (val audio = tracks.audio) {
-                null -> 0
-                TrackPreferences.INTERFACE -> 1
-                else -> codes.indexOf(Languages.code(audio)).let { if (it < 0) 0 else it + 2 }
-            },
-            onSelect = { i -> onChoose(if (i == 0) null else if (i == 1) TrackPreferences.INTERFACE else codes[i - 2]) },
+            selected = audioOption(tracks.audio, codes),
+            onSelect = { onChoose(audioOf(it, codes)) },
             onDismiss = { choosing = false },
             description = stringResource(R.string.tracks_for_all),
         )
@@ -117,13 +113,50 @@ private fun SubtitleLanguageRow(tracks: TrackPreferences, app: Locale, onChoose:
         HlChoiceSheet(
             title,
             listOf(ChoiceOption(stringResource(R.string.interface_language), ownLanguage)) + trackLanguages.options(app),
-            selected = tracks.subtitleLanguage?.let { codes.indexOf(Languages.code(it)) + 1 } ?: 0,
-            onSelect = { i -> onChoose(codes.getOrNull(i - 1)) },
+            selected = subtitleLanguageOption(tracks.subtitleLanguage, codes),
+            onSelect = { onChoose(subtitleLanguageOf(it, codes)) },
             onDismiss = { choosing = false },
             description = stringResource(R.string.tracks_for_all),
         )
     }
 }
+
+/**
+ * The audio sheet's option for [audio]: the player's choice (null) first, then the app's language
+ * ([TrackPreferences.INTERFACE]), then each of [codes]; a language not among them shows the player's choice.
+ */
+internal fun audioOption(audio: String?, codes: List<String>): Int = when (audio) {
+    null -> PLAYER_OPTION
+    TrackPreferences.INTERFACE -> INTERFACE_OPTION
+    else -> codes.indexOf(Languages.code(audio)).let { if (it < 0) PLAYER_OPTION else it + AUDIO_LANGUAGES }
+}
+
+/** The audio asked for by the audio sheet's [option], in [audioOption]'s order. */
+internal fun audioOf(option: Int, codes: List<String>): String? = when (option) {
+    PLAYER_OPTION -> null
+    INTERFACE_OPTION -> TrackPreferences.INTERFACE
+    else -> codes[option - AUDIO_LANGUAGES]
+}
+
+/**
+ * The subtitles' language sheet's option for [language]: the app's language (null) first, then each of [codes]; a
+ * language not among them shows the app's.
+ */
+internal fun subtitleLanguageOption(language: String?, codes: List<String>): Int =
+    language?.let { codes.indexOf(Languages.code(it)) + SUBTITLE_LANGUAGES } ?: 0
+
+/** The subtitles' language asked for by that sheet's [option], in [subtitleLanguageOption]'s order. */
+internal fun subtitleLanguageOf(option: Int, codes: List<String>): String? = codes.getOrNull(option - SUBTITLE_LANGUAGES)
+
+/** The audio sheet's first two options, before its languages. */
+private const val PLAYER_OPTION = 0
+private const val INTERFACE_OPTION = 1
+
+/** Where the languages begin in the audio sheet, after the player's choice and the app's language. */
+private const val AUDIO_LANGUAGES = 2
+
+/** Where the languages begin in the subtitles' language sheet, after the app's language. */
+private const val SUBTITLE_LANGUAGES = 1
 
 private fun modeName(mode: SubtitleMode): Int = when (mode) {
     SubtitleMode.PLAYER -> R.string.tracks_player
