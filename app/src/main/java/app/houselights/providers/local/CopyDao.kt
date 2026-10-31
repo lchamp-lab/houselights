@@ -30,7 +30,7 @@ interface CopyDao {
     suspend fun playedCopy(titleId: Long): Long? = VersionRank.played(copies(titleId))
 }
 
-/** Row [copy] of the film whose main row is [title], which chose to play [choice] ([CopyHeirDao.handTitlesOf]). */
+/** Row [copy] taking the place of main row [title], which chose to play [choice] ([CopyHeirDao.handTitlesOf]). */
 data class TitleCopy(val title: Long, val choice: Long?, val copy: Long)
 
 /** A film's copies grouped under its main row, and the copy taking that row's place as it leaves ([LibraryDao] extends it). */
@@ -71,6 +71,26 @@ interface CopyHeirDao {
             "versionChoice = :choice WHERE id = :heir",
     )
     suspend fun handTitle(title: Long, heir: Long, choice: Long?)
+
+    /**
+     * The main row of film [tmdbId], as [groupVersions] finds it, with its choice of copy, when row [id], older and not
+     * yet matched to that film, is to take its place; null otherwise.
+     */
+    @Query(
+        "SELECT t.id AS title, t.versionChoice AS choice, r.id AS copy FROM items r JOIN items t ON t.id = " +
+            "(SELECT MIN(o.id) FROM items o WHERE o.kind = 'MOVIE' AND o.tmdbId = :tmdbId AND o.id != r.id) " +
+            "WHERE r.id = :id AND r.kind = 'MOVIE' AND r.tmdbId IS NOT :tmdbId AND r.id < t.id",
+    )
+    suspend fun titleTakenBy(id: Long, tmdbId: Int): TitleCopy?
+
+    /**
+     * Gives row [id], about to be matched as film [tmdbId], what that film's main row shows of it ([handTitle]) when
+     * [id] is the older, which [groupVersions] then makes the main row; the former main row, a copy, keeps its own.
+     * Runs in the transaction writing the match, before it.
+     */
+    suspend fun takeTitle(id: Long, tmdbId: Int?) {
+        titleTakenBy(id, tmdbId ?: return)?.let { handTitle(it.title, it.copy, it.choice) }
+    }
 
     /**
      * Hands the films whose main rows are among [leaving], about to be deleted, to the row that stays to hold each, the

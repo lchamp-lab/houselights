@@ -187,10 +187,15 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             if (tmdbId != null) Looked(client.movie(tmdbId)) else lookupMovie(client, query)
         }
         return {
+            // Matched as another film, it leaves that film what was chosen on it ([CopyHeirDao.handTitlesOf]), taking none along.
+            if (fetched.movie?.id != item.tmdbId) {
+                dao.handTitlesOf(listOf(item.id))
+                dao.clearUserArtwork(item.id)
+                dao.setVersionChoice(item.id, null)
+            }
             dao.setUserTmdbId(item.id, tmdbId)
             // A choice, or automatic matching asked back, undoes « Laisser tel quel ».
             dao.setUserNoMatch(item.id, false)
-            if (fetched.movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
             dao.item(item.id)?.let { fresh ->
                 val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
                 saveMovie(cleared, nfo, fetched, LocalArt.of(fresh), clock(), was = item.userTmdbId ?: item.tmdbId)
@@ -405,6 +410,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             .copy(collectionId = collectionId, matchedAt = matchedAt, edition = editionOf(base, nfoInfo))
             .lookedUp(base, fetched.lookup)
             .withNfoStreams(nfoInfo) // Stream details do not depend on the match.
+        // Older than the main row of the film it joins, it shows what was chosen there as that film's main row.
+        dao.takeTitle(item.id, item.tmdbId)
         dao.saveScanned(item)
         // Its saga known by its name until now, TMDB's takes the choice made under the name, as the film its kept state.
         sagaChoices.moved(left = base.collectionId, joined = collectionId)
