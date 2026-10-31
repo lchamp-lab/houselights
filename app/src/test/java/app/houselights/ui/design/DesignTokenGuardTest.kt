@@ -185,6 +185,20 @@ class DesignTokenGuardTest {
 
     private val glass = Regex("""\.(shadow|blur)\(|\b(RenderEffect|BlurMaskFilter|BlurEffect)\b""")
 
+    /** The window paints the room (`@color/room`): a screen painting it again under its content draws it twice. */
+    @Test
+    fun theRoomIsPaintedOnce() {
+        // The catalogue shows the room as a swatch and a ground.
+        val elsewhere = listOf(ui.resolve("design"), ui.resolve("catalog"))
+        val screens = kotlinSources(ui).filter { file -> elsewhere.none { file.startsWith(it) } }
+        val found = screens.linesWhere(ui) { room.containsMatchIn(it) }
+        assertTrue("A screen paints the room:\n" + found.joinToString("\n"), found.isEmpty())
+        assertTrue(room.containsMatchIn("val black = Hl.colors.background"))
+        assertTrue(room.containsMatchIn("Box(Modifier.background(c.background))"))
+    }
+
+    private val room = Regex("""\b(colors|c)\.background\b""")
+
     /** A Material icon, used or imported. */
     private val materialIcon = Regex("""\bIcons\.(Filled|Default|Outlined|Rounded|Sharp|TwoTone|AutoMirrored)\.|\bmaterial\.icons\b""")
 
