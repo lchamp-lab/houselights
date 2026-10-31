@@ -30,7 +30,7 @@ interface CopyDao {
     suspend fun playedCopy(titleId: Long): Long? = VersionRank.played(copies(titleId))
 }
 
-/** Copy [copy] of a film whose main row is [title], which chose to play [choice] ([CopyHeirDao.handTitlesOf]). */
+/** Row [copy] of the film whose main row is [title], which chose to play [choice] ([CopyHeirDao.handTitlesOf]). */
 data class TitleCopy(val title: Long, val choice: Long?, val copy: Long)
 
 /** A film's copies grouped under its main row, and the copy taking that row's place as it leaves ([LibraryDao] extends it). */
@@ -46,36 +46,44 @@ interface CopyHeirDao {
     @Query("SELECT id FROM items WHERE kind = 'MOVIE' AND sourceId NOT IN (SELECT id FROM sources)")
     suspend fun orphanFilms(): List<Long>
 
-    /** The copies of the main rows among [ids] ([ItemEntity.versionOf]), each with its main row's choice of copy. */
+    /**
+     * The other films of the main rows among [ids]'s TMDB ids, each with its main row's choice of copy: by TMDB id, as
+     * [groupVersions] groups them, since a copy matched anew keeps its versionOf until then.
+     */
     @Query(
-        "SELECT t.id AS title, t.versionChoice AS choice, c.id AS copy FROM items t JOIN items c ON c.versionOf = t.id " +
-            "WHERE t.id IN (:ids)",
+        "SELECT t.id AS title, t.versionChoice AS choice, c.id AS copy FROM items t " +
+            "JOIN items c ON c.kind = 'MOVIE' AND c.tmdbId = t.tmdbId AND c.id != t.id " +
+            "WHERE t.id IN (:ids) AND t.kind = 'MOVIE' AND t.versionOf IS NULL",
     )
     suspend fun copiesOfTitlesAmong(ids: List<Long>): List<TitleCopy>
 
     /**
-     * Gives copy [heir] main row [title]'s chosen artwork where it has none, and [choice] as the copy to play
-     * ([ItemEntity.versionChoice]).
+     * Gives copy [heir] what main row [title] shows of the film: its artwork, chosen or not, over the copy's own from
+     * before it was a copy; its match by hand; the earlier arrival, its place in "recently added"; and [choice] as the
+     * copy to play ([ItemEntity.versionChoice]).
      */
     @Query(
-        "UPDATE items SET userPosterPath = COALESCE(userPosterPath, (SELECT t.userPosterPath FROM items t WHERE t.id = :title)), " +
-            "userBackdropPath = COALESCE(userBackdropPath, (SELECT t.userBackdropPath FROM items t WHERE t.id = :title)), " +
-            "userLogoPath = COALESCE(userLogoPath, (SELECT t.userLogoPath FROM items t WHERE t.id = :title)), " +
+        "UPDATE items SET userPosterPath = (SELECT t.userPosterPath FROM items t WHERE t.id = :title), " +
+            "userBackdropPath = (SELECT t.userBackdropPath FROM items t WHERE t.id = :title), " +
+            "userLogoPath = (SELECT t.userLogoPath FROM items t WHERE t.id = :title), " +
+            "userTmdbId = COALESCE((SELECT t.userTmdbId FROM items t WHERE t.id = :title), userTmdbId), " +
+            "addedAt = MIN(addedAt, (SELECT t.addedAt FROM items t WHERE t.id = :title)), " +
             "versionChoice = :choice WHERE id = :heir",
     )
     suspend fun handTitle(title: Long, heir: Long, choice: Long?)
 
     /**
-     * Hands what was chosen on the films whose main rows are among [leaving], about to be deleted, to the copy that
-     * stays to hold each ([groupVersions] makes it the main row, the oldest): chosen artwork where it has none, and the
-     * copy to play unless that one leaves too, the film then playing the copy Lire picks ([VersionRank.played]). Watched
-     * and favourite are every copy's already ([COPIES]). Runs in the deleting transaction.
+     * Hands the films whose main rows are among [leaving], about to be deleted, to the row that stays to hold each, the
+     * oldest of its TMDB id, which [groupVersions] makes the main row ([handTitle]): the copy to play stays unless it
+     * leaves too, the film then playing the copy Lire picks ([VersionRank.played]). Watched and favourite are every
+     * copy's already ([COPIES]). Two main rows handing to one row, the oldest wins. Runs in the deleting transaction.
      */
     suspend fun handTitlesOf(leaving: List<Long>) {
         if (leaving.isEmpty()) return
         val gone = leaving.toHashSet()
         leaving.chunked(SQL_IN_LIMIT).flatMap { copiesOfTitlesAmong(it) }.filterNot { it.copy in gone }
             .groupBy { it.title }.values.map { copies -> copies.minBy { it.copy } }
+            .sortedByDescending { it.title }
             .forEach { heir -> handTitle(heir.title, heir.copy, heir.choice?.takeUnless { it in gone }) }
     }
 }

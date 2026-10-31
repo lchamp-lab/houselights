@@ -125,6 +125,8 @@ class RemoveFolderTest {
         bench.dao.setUserBackdrop(main.id, "/chosen-backdrop.jpg")
         bench.dao.setUserLogo(main.id, "/chosen-logo.png")
         bench.dao.setVersionChoice(main.id, copy.id)
+        bench.dao.setUserTmdbId(main.id, DUNE_TMDB)
+        bench.dao.setAddedAt(copy.id, main.addedAt + ARRIVED_LATER)
         bench.dao.setPlayed(main.id, played = true, now = bench.now)
         bench.dao.setFavorite(main.id, true)
 
@@ -137,16 +139,22 @@ class RemoveFolderTest {
         assertEquals("/chosen-backdrop.jpg", left.userBackdropPath)
         assertEquals("/chosen-logo.png", left.userLogoPath)
         assertEquals("the copy chosen is still the one to play", copy.id, left.versionChoice)
+        assertEquals("the match by hand", DUNE_TMDB, left.userTmdbId)
+        assertEquals("its place in recently added", main.addedAt, left.addedAt)
         assertTrue("watched, as every copy is", left.played)
         assertTrue("favourite, as every copy is", left.favorite)
     }
 
-    /** The copy chosen gone with its folder, the film plays the copy Lire would choose ([VersionRank.played]). */
+    /**
+     * The copy chosen gone with its folder, the film plays the copy Lire would choose ([VersionRank.played]), not one the
+     * copy left chose before it was a copy.
+     */
     @Test
     fun aChoiceOfACopyRemovedWithItsFolderBecomesAutomatic() = runTest {
         val hd = bench.folder("Films")
         val uhd = bench.folder("Films 4K", on = uhdNas)
         val (main, copy) = twoDunes(hd, uhd)
+        bench.dao.setVersionChoice(copy.id, copy.id)
         bench.dao.setVersionChoice(main.id, main.id)
 
         bench.scanner.removeSource(hd)
@@ -179,5 +187,6 @@ class RemoveFolderTest {
         const val DUNE = "Dune (2021).mkv"
         const val DUNE_UHD = "Dune (2021) 2160p.mkv"
         const val DUNE_TMDB = 438631
+        const val ARRIVED_LATER = 60_000L
     }
 }

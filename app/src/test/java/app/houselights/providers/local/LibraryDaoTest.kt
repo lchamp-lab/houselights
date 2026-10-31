@@ -150,48 +150,64 @@ class LibraryDaoTest {
         assertEquals("unwatched, favourite still", false to true, kept.played to kept.favorite)
     }
 
-    /** Dune's main row, its artwork chosen, and two copies grouped under it, the oldest first. */
+    /** Dune's main row, its poster chosen, and two copies grouped under it, the oldest first. */
     private suspend fun dunes(): Triple<Long, Long, Long> {
         val (main, older, newer) = listOf("Dune (2021)", "Dune (2021) 2160p", "Dune (2021) Remux").map { title ->
             dao.insert(row(ItemKind.MOVIE, title).copy(tmdbId = DUNE))
         }
         dao.groupVersions()
-        dao.setUserPoster(main, "/chosen-poster.jpg")
-        dao.setUserBackdrop(main, "/chosen-backdrop.jpg")
-        dao.setUserLogo(main, "/chosen-logo.png")
+        dao.setUserPoster(main, CHOSEN)
         return Triple(main, older, newer)
     }
 
-    private suspend fun assertHolds(main: Long, choice: Long?) {
-        val held = checkNotNull(dao.item(main))
-        assertNull("the main row", held.versionOf)
-        assertEquals(
-            listOf("/chosen-poster.jpg", "/chosen-backdrop.jpg", "/chosen-logo.png", choice),
-            listOf(held.userPosterPath, held.userBackdropPath, held.userLogoPath, held.versionChoice),
-        )
-    }
+    /** Row [id], which holds its film now. */
+    private suspend fun mainRow(id: Long): ItemEntity = checkNotNull(dao.item(id)).also { assertNull("the main row", it.versionOf) }
 
-    /** A film's main row whose file went, its oldest copy holds the film with what was chosen on it, the copy to play too. */
+    /**
+     * A film's main row whose file went, its oldest copy holds the film as it was shown: the poster chosen on it, over
+     * one the copy kept from before it was a copy, and the copy to play.
+     */
     @Test
     fun aMainRowWhoseFileWentHandsItsChoicesToTheCopyLeft() = runTest {
         val (main, older, newer) = dunes()
+        dao.setUserPoster(older, "/its-own-poster.jpg")
         dao.setVersionChoice(main, newer)
         dao.settleMissing(emptyList(), emptyList(), emptyList(), removed = listOf(main), parts = emptyList(), now = 1)
-        assertHolds(older, choice = newer)
+        val held = mainRow(older)
+        assertEquals(CHOSEN to newer, held.userPosterPath to held.versionChoice)
         assertEquals(older, dao.item(newer)?.versionOf)
     }
 
-    /**
-     * Held rows removed together, the copy left holds the film with its artwork; the copy chosen gone with them, it
-     * plays the copy Lire picks ([VersionRank.played]).
-     */
+    /** Held rows removed together, the copy left holds the film and still plays the copy chosen, itself. */
     @Test
-    fun heldRowsRemovedHandTheFilmToTheCopyLeft() = runTest {
+    fun heldRowsRemovedLeaveTheCopyChosenToPlay() = runTest {
         val (main, older, newer) = dunes()
-        dao.setVersionChoice(main, older)
+        dao.setVersionChoice(main, newer)
         dao.setMissingSince(listOf(main, older), 1)
         assertEquals(2, dao.removeHeld(listOf(main, older)))
-        assertHolds(newer, choice = null)
+        assertEquals(newer, mainRow(newer).versionChoice)
+    }
+
+    /**
+     * A copy matched anew before its films are grouped again ([LibraryDao.groupVersions]) still says it is a copy of
+     * its former film; the main row's folder removed, what was chosen goes to the copy that holds that film, never to
+     * the one now another film.
+     */
+    @Test
+    fun aCopyMatchedAnewTakesNothingOfTheFilmItLeft() = runTest {
+        val (main, older, newer) = dunes()
+        val films = dao.insertSource(nfsFolder("Films"))
+        dao.update(checkNotNull(dao.item(main)).copy(sourceId = films))
+        dao.setVersionChoice(main, newer)
+        dao.update(checkNotNull(dao.item(older)).copy(tmdbId = ARRIVAL))
+        assertEquals("not grouped again yet", main, dao.item(older)?.versionOf)
+
+        dao.removeSource(films)
+
+        val dune = mainRow(newer)
+        assertEquals(CHOSEN to newer, dune.userPosterPath to dune.versionChoice)
+        val arrival = mainRow(older)
+        assertEquals(null to null, arrival.userPosterPath to arrival.versionChoice)
     }
 
     /** A show left without episodes is kept by title, unless its folder is gone: removing a folder forgets its titles. */
@@ -487,6 +503,8 @@ class LibraryDaoTest {
         /** When a show's latest episode was found, after every title. */
         const val LATER = 99L
         const val DUNE = 438631
+        const val ARRIVAL = 329865
+        const val CHOSEN = "/chosen-poster.jpg"
         const val ARCANE = 94605
         const val SEVERANCE = 95396
         const val PLURIBUS = 225171
