@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,8 +56,11 @@ class FieldFadeTest {
         }
         val middle = shot.getPixel(WIDTH / 2, HEIGHT / 2)
         assertNotEquals("the rows were not drawn", 0, middle)
-        assertNotEquals("the top end did not fade", middle, shot.getPixel(WIDTH / 2, 0))
-        assertNotEquals("the bottom end did not fade", middle, shot.getPixel(WIDTH / 2, HEIGHT - 1))
+        // White rows fading into the black room: the ends darker than the middle.
+        listOf("top" to 0, "bottom" to HEIGHT - 1).forEach { (end, y) ->
+            val level = android.graphics.Color.red(shot.getPixel(WIDTH / 2, y))
+            assertTrue("the $end end did not fade: $level", level < android.graphics.Color.red(middle))
+        }
     }
 
     private companion object {

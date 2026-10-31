@@ -52,6 +52,6 @@ class UpdaterGuardTest {
         assertTrue(build.contains("""providers.gradleProperty("houselights.releaseCertSha256")"""))
         assertFalse("No copy of it in the build", build.contains(pinned))
         val sources = File("src/main/java")
-        assertTrue("Nor in the code", kotlinSources(sources).linesWhere(sources) { pinned in it }.isEmpty())
+        assertTrue("Nor in the code", kotlinSources(sources).none { pinned in it.text })
     }
 }

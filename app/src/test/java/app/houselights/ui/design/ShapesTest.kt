@@ -2,6 +2,7 @@ package app.houselights.ui.design
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
@@ -50,17 +51,20 @@ class ShapesTest {
     @Test
     fun noPillNorDisc() {
         // Every radius is in dp: a share of the size would round a short control into a pill.
-        listOf(
-            HlShapes.thumb, HlShapes.badge, HlShapes.mark, HlShapes.control, HlShapes.field,
-            HlShapes.row, HlShapes.artwork, HlShapes.wide, HlShapes.panel, HlShapes.sheet,
-        ).forEach { assertEquals(it.radius(), it.topStart.toPx(Size(SMALL, SMALL), density), 0f) }
+        // Every shape a token, whatever it is declared as: rounded corners, measured as such.
+        val shapes = propertiesOf(HlShapes, Shape::class.java)
+        assertTrue("No shapes found", shapes.isNotEmpty())
+        shapes.forEach { (name, shape) ->
+            assertTrue("$name is a ${shape::class.simpleName}, not rounded corners", shape is RoundedCornerShape)
+            val rounded = shape as RoundedCornerShape
+            assertEquals(name, rounded.radius(), rounded.topStart.toPx(Size(SMALL, SMALL), density), 0f)
+        }
         val ui = File("src/main/java/app/houselights/ui")
         val found = kotlinSources(ui).flatMap { file ->
             // A file may name its dot once (`val dot = Modifier.size(HlSize.dot)`) and round it where it draws it.
-            val namesItsDot = namedDot.containsMatchIn(file.readText())
-            listOf(file).linesWhere(ui) { line ->
-                !line.trimStart().startsWith("import ") && round.containsMatchIn(line) &&
-                    !dot.containsMatchIn(line) && !(namesItsDot && localDot.containsMatchIn(line))
+            val namesItsDot = namedDot.containsMatchIn(file.code)
+            listOf(file).linesWhere(ui, imports = false) { line ->
+                round.containsMatchIn(line) && !dot.containsMatchIn(line) && !(namesItsDot && localDot.containsMatchIn(line))
             }
         }
         assertTrue("Round, and not a status dot:\n" + found.joinToString("\n"), found.isEmpty())

@@ -6,19 +6,17 @@ import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ImageRef
-import coil.Coil
-import coil.ImageLoader
 import coil.decode.DataSource
 import coil.decode.ImageSource
 import coil.fetch.Fetcher
 import coil.fetch.SourceResult
 import coil.request.SuccessResult
 import coil.size.Dimension
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -29,6 +27,9 @@ import java.io.ByteArrayOutputStream
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class BackdropTest {
+    @get:Rule
+    val coil = CoilRule()
+
     private val context: Context = ApplicationProvider.getApplicationContext()
 
     /** Serves, for any test:// address, a PNG file of [width] by [height], as a disk would; [asked] gets each width asked for. */
@@ -47,11 +48,8 @@ class BackdropTest {
     }
 
     /** A loader of [files], working on the thread that asks. */
-    private fun loader(width: Int, height: Int, asked: MutableList<Int?> = mutableListOf()) = ImageLoader.Builder(context)
-        .dispatcher(Dispatchers.Unconfined)
-        .allowHardware(false)
-        .components { add(files(width, height, asked)) }
-        .build()
+    private fun loader(width: Int, height: Int, asked: MutableList<Int?> = mutableListOf()) =
+        testLoader(files(width, height, asked), context) { allowHardware(false) }
 
     /** The backdrop of a screen of [SCREEN_W] by [SCREEN_H], as decoded from a file of [width] by [height]. */
     private fun decoded(width: Int, height: Int): Bitmap {
@@ -77,36 +75,28 @@ class BackdropTest {
 
     @Test
     fun aBackdropKnowsWhetherItCameFromMemory() {
-        Coil.setImageLoader(loader(1280, 720))
+        coil.serve(loader(1280, 720))
         val image = ImageRef("backdrop42") { "test://backdrop/42?w=$it" }
-        try {
-            runTest {
-                val first = prepareBackdrop(context, image, BackdropStyle.Hero, SCREEN_W)
-                val again = prepareBackdrop(context, image, BackdropStyle.Hero, SCREEN_W)
-                assertEquals("read from the file", false, first?.fromMemory)
-                assertEquals("found in memory", true, again?.fromMemory)
-            }
-        } finally {
-            Coil.reset()
+        runTest {
+            val first = prepareBackdrop(context, image, BackdropStyle.Hero, SCREEN_W)
+            val again = prepareBackdrop(context, image, BackdropStyle.Hero, SCREEN_W)
+            assertEquals("read from the file", false, first?.fromMemory)
+            assertEquals("found in memory", true, again?.fromMemory)
         }
     }
 
     @Test
     fun aWallPreparesItsDiffuseFieldNeverItsPicture() {
         val asked = mutableListOf<Int?>()
-        Coil.setImageLoader(loader(1280, 720, asked))
+        coil.serve(loader(1280, 720, asked))
         val image = ImageRef("backdrop42") { "test://backdrop/42?w=$it" }
-        try {
-            runTest {
-                val first = prepareBackdrop(context, image, BackdropStyle.Diffuse, SCREEN_W)
-                val again = prepareBackdrop(context, image, BackdropStyle.Diffuse, SCREEN_W)
-                assertEquals(FIELD_W to FIELD_H, first?.picture?.let { it.width to it.height })
-                assertEquals("read from the file", false, first?.fromMemory)
-                assertEquals("found in memory", true, again?.fromMemory)
-                assertTrue("widths asked: $asked", asked.isNotEmpty() && asked.all { it != null && it <= SAMPLE_PX })
-            }
-        } finally {
-            Coil.reset()
+        runTest {
+            val first = prepareBackdrop(context, image, BackdropStyle.Diffuse, SCREEN_W)
+            val again = prepareBackdrop(context, image, BackdropStyle.Diffuse, SCREEN_W)
+            assertEquals(FIELD_W to FIELD_H, first?.picture?.let { it.width to it.height })
+            assertEquals("read from the file", false, first?.fromMemory)
+            assertEquals("found in memory", true, again?.fromMemory)
+            assertTrue("widths asked: $asked", asked.isNotEmpty() && asked.all { it != null && it <= SAMPLE_PX })
         }
     }
 

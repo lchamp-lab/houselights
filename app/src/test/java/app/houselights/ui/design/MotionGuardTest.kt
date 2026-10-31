@@ -1,9 +1,9 @@
 package app.houselights.ui.design
 
 import app.houselights.testing.argumentsFrom
-import app.houselights.testing.inCommentAt
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -30,29 +30,27 @@ class MotionGuardTest {
     /** A value animation: a state's (`animateFloatAsState`), a transition's (`transition.animateFloat`). */
     private val animation = Regex("""(?<!fun )\banimate\w*AsState\(|\.animate(Float|Color|Dp|Int|Offset|Size|Rect|Value)\(""")
 
-    private fun code(line: String) = !line.trimStart().let { it.startsWith("//") || it.startsWith("*") }
-
     @Test
     fun noMaterialCurve() {
-        val found = kotlinSources(main).linesWhere(main) { code(it) && material.containsMatchIn(it) }
+        val found = kotlinSources(main).linesWhere(main) { material.containsMatchIn(it) }
         assertTrue("Material curves, use HlMotion's:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
     @Test
     fun curvesAreDrawnInMotionOnly() {
-        val found = kotlinSources(main).filter { it.name != motion }.linesWhere(main) { code(it) && curve.containsMatchIn(it) }
+        val found = kotlinSources(main).filter { it.name != motion }.linesWhere(main) { curve.containsMatchIn(it) }
         assertTrue("A curve of its own, name it in HlMotion:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
     @Test
     fun everyTweenNamesItsEasing() {
-        val found = kotlinSources(main).linesWhere(main) { code(it) && tween.containsMatchIn(it) && "easing" !in it }
+        val found = kotlinSources(main).linesWhere(main) { tween.containsMatchIn(it) && "easing" !in it }
         assertTrue("A tween on Material's default curve:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
     @Test
     fun nothingMovesOnADefault() {
-        val found = kotlinSources(main).linesWhere(main) { code(it) && defaulted.containsMatchIn(it) }
+        val found = kotlinSources(main).linesWhere(main) { defaulted.containsMatchIn(it) }
         assertTrue("A motion of its own, use a tween of HlMotion:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
@@ -60,10 +58,8 @@ class MotionGuardTest {
     @Test
     fun everyAnimationNamesItsSpec() {
         val found = kotlinSources(main).flatMap { file ->
-            val text = file.readText()
-            animation.findAll(text).filter { !text.inCommentAt(it.range.first) && !namesItsSpec(text, it) }
-                .map { "${file.relativeTo(main).path}:${text.substring(0, it.range.first).count { c -> c == '\n' } + 1}" }
-                .toList()
+            animation.findAll(file.code).filter { !namesItsSpec(file.code, it) }
+                .map { "${file.pathFrom(main)}:${file.lineOf(it.range.first)}" }.toList()
         }
         assertTrue("An animation on a default spring:\n" + found.joinToString("\n"), found.isEmpty())
     }
@@ -85,6 +81,13 @@ class MotionGuardTest {
 
     private val named = Regex("""^([a-zA-Z]\w*)\s*=(?!=)""")
     private val specs = setOf("animationSpec", "transitionSpec")
+
+    /** What arrives comes in the focus pull, what leaves falls back (DESIGN.md, Motion): focus, a plate. */
+    @Test
+    fun whatArrivesPullsAndWhatLeavesFallsBack() {
+        assertEquals(HlMotion.focusPull, HlMotion.inOut<Float>(on = true).easing)
+        assertEquals(HlMotion.fallBack, HlMotion.inOut<Float>(on = false, HlMotion.PLATE_IN, HlMotion.PLATE_OUT).easing)
+    }
 
     @Test
     fun theGuardCatchesWhatItShould() {

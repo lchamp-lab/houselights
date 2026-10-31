@@ -11,13 +11,9 @@ import app.houselights.core.ImageRef
 import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.design.canvasDensityOf
 import app.houselights.ui.testing.setTvContent
-import coil.Coil
-import coil.ImageLoader
 import coil.decode.DataSource
 import coil.fetch.DrawableResult
 import coil.fetch.Fetcher
-import kotlinx.coroutines.Dispatchers
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -48,12 +44,10 @@ class LogoSizeTest {
     }
 
     @Before
-    fun serveLogos() = Coil.setImageLoader(
-        ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(logos) }.build(),
-    )
+    fun serveLogos() = coil.serve(logos)
 
-    @After
-    fun forgetTheLoader() = Coil.reset()
+    @get:Rule
+    val coil = CoilRule()
 
     /** The case's logo as drawn, in px. */
     private fun drawn(): IntSize {

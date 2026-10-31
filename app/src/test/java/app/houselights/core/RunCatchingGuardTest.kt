@@ -1,6 +1,7 @@
 package app.houselights.core
 
 import app.houselights.testing.kotlinSources
+import app.houselights.testing.withoutComments
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,8 +23,8 @@ class RunCatchingGuardTest {
     @Test
     fun noRunCatchingAroundSuspendingCodeOrFocus() {
         val found = kotlinSources(sources).flatMap { file ->
-            val path = file.relativeTo(sources).path
-            violations(file.readLines()).filterNot { (_, line) ->
+            val path = file.pathFrom(sources)
+            violations(file.code.lines()).filterNot { (_, line) ->
                 allowed.any { it.substringBefore(':') == path && line.contains(it.substringAfter(':')) }
             }.map { (i, line) -> "$path:${i + 1}: ${line.trim()}" }
         }
@@ -34,7 +35,7 @@ class RunCatchingGuardTest {
     }
 
     /** The lines, from 1, where the guard stops [source]. */
-    private fun flagged(source: String) = violations(source.trimIndent().lines()).map { it.first + 1 }
+    private fun flagged(source: String) = violations(source.trimIndent().withoutComments().lines()).map { it.first + 1 }
 
     /** In a suspend fun's body, a multi-line signature included, and in a withContext block. */
     @Test
@@ -115,35 +116,27 @@ class RunCatchingGuardTest {
         )
     }
 
-    /** The lines (index, text) of [lines] where a `runCatching` hides a cancellation or a focus mistake. */
-    private fun violations(lines: List<String>): List<Pair<Int, String>> {
-        val code = lines.map(::code)
-        val suspending = suspendingLines(lines, code)
+    /** The lines (index, text) of [code], comments blanked, where a `runCatching` hides a cancellation or a focus mistake. */
+    private fun violations(code: List<String>): List<Pair<Int, String>> {
+        val suspending = suspendingLines(code)
         return code.indices.filter { i ->
             runCatching.containsMatchIn(code[i]) &&
                 (i in suspending || aroundFocus.containsMatchIn(code[i] + " " + code.getOrElse(i + 1) { "" }))
-        }.map { it to lines[it] }
+        }.map { it to code[it] }
     }
 
     /** Lines of a suspending body: from `suspend fun` or `withContext(` to its closing line, by indentation. */
-    private fun suspendingLines(lines: List<String>, code: List<String>): Set<Int> {
+    private fun suspendingLines(code: List<String>): Set<Int> {
         val inside = HashSet<Int>()
         code.forEachIndexed { i, line ->
             val opening = suspendingStart.find(line) ?: return@forEachIndexed
             if (runCatching.containsMatchIn(line.substring(opening.range.last + 1))) inside += i
-            val indent = indentOf(lines[i])
-            inside += (i + 1 until lines.size)
+            val indent = indentOf(line)
+            inside += (i + 1 until code.size)
                 .filter { code[it].isNotBlank() }
-                .takeWhile { indentOf(lines[it]) > indent || code[it].trimStart().startsWith(")") }
+                .takeWhile { indentOf(code[it]) > indent || code[it].trimStart().startsWith(")") }
         }
         return inside
-    }
-
-    /** [line] without its comment: nothing of a comment line, nothing after a `//` that follows a space. */
-    private fun code(line: String): String {
-        val trimmed = line.trimStart()
-        if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return ""
-        return line.replace(Regex("""\s//.*$"""), "")
     }
 
     private fun indentOf(line: String) = line.length - line.trimStart().length
