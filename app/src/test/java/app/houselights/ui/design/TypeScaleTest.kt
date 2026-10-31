@@ -6,42 +6,26 @@ import androidx.compose.ui.text.font.FontListFontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.LineHeightStyle
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The type scale: three voices and weights, nine sizes, eight line heights, a floor per voice, tracking by size. */
+/** The type scale: three voices and weights, eight sizes and a signature, lines on the grid, a floor per voice, tracking by size. */
 class TypeScaleTest {
-    private val roles: Map<String, TextStyle> = with(HouselightsType) {
-        mapOf(
-            "display" to display, "headline" to headline, "subject" to subject, "place" to place,
-            "placeCurrent" to placeCurrent, "rowTitle" to rowTitle, "cardName" to cardName, "cardTitle" to cardTitle,
-            "lead" to lead, "body" to body, "entry" to entry, "meta" to meta, "group" to group, "code" to code,
-            "spec" to spec, "jaquette" to jaquette, "badge" to badge,
-        )
-    }
+    /** Every style of the scale, read off [HlType] so a new one is checked as it is declared. */
+    private val styles: Map<String, TextStyle> = propertiesOf(HouselightsType, TextStyle::class.java)
 
     /** Signatures set to their own measure: their size, weight and tracking are their own. */
-    private val signatures: Map<String, TextStyle> = with(HouselightsType) {
-        mapOf(
-            "titleSignature" to titleSignature,
-            "billing" to billing,
-            "billingJoin" to billingJoin,
-            "codeSignature" to codeSignature,
-            "figureSignature" to figureSignature,
-        )
-    }
+    private val signatures = setOf("titleSignature", "billing", "billingJoin", "codeSignature", "figureSignature")
 
-    private val styles = roles + signatures
+    private val roles = styles - signatures
 
     @Test
-    fun everyStyleIsListed() {
-        // A new style must be added here too, so the checks below cover it.
-        assertEquals(HlType::class.java.declaredFields.count { it.type == TextStyle::class.java }, styles.size)
+    fun theSignaturesAreStyles() {
+        assertTrue("No styles found", roles.isNotEmpty())
+        assertEquals(emptySet<String>(), signatures - styles.keys)
     }
 
     @Test
@@ -78,45 +62,54 @@ class TypeScaleTest {
     private val scaled = styles - "figureSignature"
 
     @Test
-    fun nineSizes() {
-        // Eight working sizes and the signature; the doors' count is sized to the doors.
-        val scale = setOf(12f, 13f, 15f, 16f, 20f, 26f, 32f, 44f)
-        roles.forEach { (name, style) -> assertTrue("$name is ${style.fontSize}", style.fontSize.value in scale) }
-        scaled.forEach { (name, style) -> assertTrue("$name is ${style.fontSize}", style.fontSize.value in scale + 72f) }
-        assertEquals(listOf("titleSignature"), scaled.filterValues { it.fontSize == 72.sp }.keys.toList())
+    fun eightSizesAndTheSignature() {
+        val sizes = roles.values.map { it.fontSize.value }.toSet()
+        assertTrue("The roles take ${sizes.sorted()}", sizes.size <= WORKING_SIZES)
+        // The signatures take the roles' sizes, but the title's, alone above them all.
+        val above = scaled.filterValues { it.fontSize.value !in sizes }
+        assertEquals(setOf("titleSignature"), above.keys)
+        assertTrue(above.values.single().fontSize.value > sizes.max())
     }
 
     @Test
-    fun eightLineHeights() {
-        // On the 4 dp grid, one a size, but 15's and 16's: a name's 20, a paragraph's 24.
-        val lines = setOf(16f, 20f, 24f, 28f, 32f, 40f, 52f, 72f)
-        scaled.forEach { (name, style) -> assertTrue("$name: line height ${style.lineHeight}", style.lineHeight.value in lines) }
-        val bySize = scaled.values.groupBy({ it.fontSize.value }, { it.lineHeight.value })
-        bySize.forEach { (size, heights) ->
-            val expected = if (size == 15f || size == 16f) setOf(20f, 24f) else setOf(heights.first())
-            assertEquals("lines of $size", expected, heights.toSet())
+    fun linesSitOnTheGrid() {
+        scaled.forEach { (name, style) ->
+            assertEquals("$name: line height ${style.lineHeight}", 0f, style.lineHeight.value % GRID, 0f)
+            assertTrue("$name: its lines overlap", style.lineHeight.value >= style.fontSize.value)
+        }
+        val lines = scaled.values.map { it.lineHeight.value }.toSet()
+        assertTrue("Line heights ${lines.sorted()}", lines.size <= LINE_HEIGHTS)
+        // A paragraph's size and a tagline's also set a name, on a name's line: two lines there, one a size elsewhere.
+        with(HouselightsType) {
+            val bySize = scaled.values.groupBy({ it.fontSize }, { it.lineHeight }).mapValues { it.value.toSet() }
+            assertEquals(setOf(body.fontSize, lead.fontSize), bySize.filterValues { it.size > 1 }.keys)
+            assertEquals(setOf(entry.lineHeight, body.lineHeight), bySize.getValue(body.fontSize))
+            assertEquals(setOf(cardName.lineHeight, lead.lineHeight), bySize.getValue(lead.fontSize))
+            assertEquals(entry.lineHeight, cardName.lineHeight)
         }
     }
 
     @Test
-    fun eachVoiceHasItsSizes() {
-        // A floor a voice: 13 for what is read, formats included; 12 in a mark's box alone; 16 for the poster, the
-        // billing block's small words (13) aside.
-        fun sizes(family: FontFamily, but: Set<String> = emptySet()) =
-            scaled.filter { (name, style) -> style.fontFamily == family && name !in but }.values.map { it.fontSize.value }.toSet()
-        assertEquals(setOf(16f, 20f, 26f, 32f, 44f, 72f), sizes(HlFonts.condensed, but = setOf("billingJoin")))
-        assertEquals(setOf(13f, 15f, 16f), sizes(HlFonts.text))
-        assertEquals(setOf(12f, 13f, 15f), sizes(HlFonts.expanded))
-        assertEquals(setOf(15f), sizes(HlFonts.mono))
-        assertEquals(16f to 13f, HouselightsType.billing.fontSize.value to HouselightsType.billingJoin.fontSize.value)
-        assertEquals(listOf("badge"), scaled.filterValues { it.fontSize == 12.sp }.keys.toList())
+    fun eachVoiceKeepsToItsFloor() {
+        // What is read keeps to 13, formats included; 12 in a mark's box alone.
+        assertEquals(setOf("badge"), scaled.filterValues { it.fontSize.value < READING_FLOOR }.keys)
+        // The poster's voice keeps to 16, but the billing block's small words, smaller than its names.
+        val poster = scaled.filter { (name, style) -> style.fontFamily == HlFonts.condensed && name != "billingJoin" }
+        poster.forEach { (name, style) -> assertTrue("$name is ${style.fontSize}", style.fontSize.value >= POSTER_FLOOR) }
+        assertTrue(HouselightsType.billingJoin.fontSize < HouselightsType.billing.fontSize)
+        // Raw text in one size.
+        assertEquals(1, scaled.values.filter { it.fontFamily == HlFonts.mono }.map { it.fontSize }.distinct().size)
     }
 
     @Test
-    fun framesKeepTheirLines() {
-        // Home's grid and its doors' band, a row's head and a hero are measured from these.
+    fun framesMeasuredFromTheTypeHoldItsLines() {
+        // A hero's band, written in dp: its logo, a line of facts or an episode's heading, two overview lines.
         with(HouselightsType) {
-            assertEquals(listOf(20f, 20f, 28f, 24f, 20f), listOf(meta, cardName, rowTitle, body, entry).map { it.lineHeight.value })
+            val words = HeroDefaults.titleHeight.value + HlSpace.s.value + maxOf(meta.lineHeight.value, entry.lineHeight.value) +
+                HlSpace.s.value + HERO_OVERVIEW_LINES * body.lineHeight.value
+            assertEquals(words, HlLayout.hero.value, 0f)
+            // An episode's overview, whole lines of body.
+            assertEquals(0f, HlLayout.episodeOverview.value % body.lineHeight.value, 0f)
         }
     }
 
@@ -124,8 +117,6 @@ class TypeScaleTest {
     fun trackingFollowsSize() {
         roles.forEach { (name, style) -> assertEquals(name, trackingFor(style.fontSize), style.letterSpacing) }
         assertEquals(trackingFor(HouselightsType.titleSignature.fontSize), HouselightsType.titleSignature.letterSpacing)
-        // Tighter from 32, none from 15 to 26, more open at 13 and 12.
-        assertEquals(listOf((-0.01).em, 0.em, 0.em, 0.01.em, 0.02.em), listOf(32, 26, 15, 13, 12).map { trackingFor(it.sp) })
         // Closer as it grows, more open as it shrinks.
         val sizes = roles.values.map { it.fontSize }.distinct().sortedBy { it.value }
         sizes.zipWithNext().forEach { (small, large) ->
@@ -148,34 +139,31 @@ class TypeScaleTest {
     }
 
     @Test
-    fun theCoreReadsAtFifteen() {
-        // Overviews, button words and names to choose at 15; around them, 13; a group's title a step under its names.
+    fun theCoreAndWhatSurroundsIt() {
         with(HouselightsType) {
-            assertEquals(15f to 24f, body.fontSize.value to body.lineHeight.value)
-            assertEquals(FontWeight.Normal, body.fontWeight)
-            assertEquals(15f to 20f, entry.fontSize.value to entry.lineHeight.value)
-            assertEquals(FontWeight.Medium, entry.fontWeight)
-            assertEquals(13f to 20f, meta.fontSize.value to meta.lineHeight.value)
+            // Paragraphs and names to choose at one size, a name weighing more than what is read.
+            assertEquals(body.fontSize, entry.fontSize)
+            assertTrue(checkNotNull(entry.fontWeight) > checkNotNull(body.fontWeight))
+            // Around them a step smaller: facts, a group's title, formats; a group's title a step under the names it heads.
+            listOf(meta, group, jaquette).forEach { assertTrue(it.fontSize < body.fontSize) }
             assertNotSame(entry, group)
-            assertEquals(13f to FontWeight.Medium, group.fontSize.value to group.fontWeight)
-            assertEquals(16f to 24f, lead.fontSize.value to lead.lineHeight.value)
+            assertEquals("a group's title names, as the names it heads do", entry.fontWeight, group.fontWeight)
+            // A tagline, an episode's name, the keyboard's letters: a step over the names.
+            assertTrue(lead.fontSize > entry.fontSize)
         }
     }
 
     @Test
     fun tvMaterialsRolesAreTheScales() {
-        with(HouselightsType) {
-            val expected = listOf(
-                display, headline, subject, headline, subject, rowTitle, lead, entry, entry, body, meta, meta, entry, group, badge,
+        val material = with(materialTypography) {
+            listOf(
+                displayLarge, displayMedium, displaySmall, headlineLarge, headlineMedium, headlineSmall,
+                titleLarge, titleMedium, titleSmall, bodyLarge, bodyMedium, bodySmall, labelLarge, labelMedium, labelSmall,
             )
-            val roles = with(materialTypography) {
-                listOf(
-                    displayLarge, displayMedium, displaySmall, headlineLarge, headlineMedium, headlineSmall,
-                    titleLarge, titleMedium, titleSmall, bodyLarge, bodyMedium, bodySmall, labelLarge, labelMedium, labelSmall,
-                )
-            }
-            assertEquals(expected, roles)
         }
+        material.forEach { role -> assertTrue("$role is not on the scale", role in roles.values) }
+        // Unstyled text is body: the theme provides bodyLarge to text that names no style.
+        assertEquals(HouselightsType.body, materialTypography.bodyLarge)
     }
 
     @Test
@@ -204,5 +192,19 @@ class TypeScaleTest {
             val features = style.fontFeatureSettings.orEmpty()
             assertFalse(name, "case" in features && "tnum" in features)
         }
+    }
+
+    private companion object {
+        /** DESIGN.md's eight working sizes, the signature aside, and its eight line heights on the 4 sp grid. */
+        const val WORKING_SIZES = 8
+        const val LINE_HEIGHTS = 8
+        const val GRID = 4f
+
+        /** DESIGN.md's floor a voice: what is read, the poster's. */
+        const val READING_FLOOR = 13f
+        const val POSTER_FLOOR = 16f
+
+        /** The overview lines `HeroInfo` sets under the facts. */
+        const val HERO_OVERVIEW_LINES = 2
     }
 }

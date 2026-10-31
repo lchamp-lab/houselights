@@ -11,14 +11,9 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
 import app.houselights.ui.testing.setTvContent
-import coil.Coil
-import coil.ImageLoader
-import coil.fetch.Fetcher
 import coil.request.ImageRequest
 import coil.transition.Transition
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
@@ -39,8 +34,8 @@ class ArtworkShownTest {
 
     private val context = ApplicationProvider.getApplicationContext<Application>()
 
-    @After
-    fun forgetTheLoader() = Coil.reset()
+    @get:Rule
+    val coil = CoilRule()
 
     /** Without `onShow`, a picture is asked as before: its address, or its request at its size, the loader's fade under it. */
     @Test
@@ -65,7 +60,7 @@ class ArtworkShownTest {
     @Test
     fun onShowIsToldOnceThePictureIsDecoded() {
         val held = CompletableDeferred<Unit>()
-        Coil.setImageLoader(loader(pictureServer { _, _ -> held.await() }))
+        coil.serve(pictureServer { _, _ -> held.await() })
         var told = 0
         compose.setTvContent { ArtworkImage(URL, "Dune", Modifier.size(SIDE.dp), size = SIZE, onShow = { told++ }) }
         compose.waitForIdle()
@@ -77,7 +72,7 @@ class ArtworkShownTest {
     /** The fallback in the picture's place, missing or failing, `onShow` is told too: what waits for it never waits for nothing. */
     @Test
     fun onShowIsToldOfTheFallback() {
-        Coil.setImageLoader(loader(pictureServer { data, _ -> check("broken" !in data.toString()) { "No picture" } }))
+        coil.serve(pictureServer { data, _ -> check("broken" !in data.toString()) { "No picture" } })
         var missing = 0
         var failed = 0
         compose.setTvContent {
@@ -88,9 +83,6 @@ class ArtworkShownTest {
         }
         compose.waitUntil(TIMEOUT_MS) { missing == 1 && failed == 1 }
     }
-
-    private fun loader(server: Fetcher.Factory<Any>) =
-        ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(server) }.build()
 
     private companion object {
         const val URL = "https://img.test/dune?w=224"

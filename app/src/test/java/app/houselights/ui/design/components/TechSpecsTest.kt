@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import android.content.Context
 import android.view.KeyEvent
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -7,8 +8,11 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.test.core.app.ApplicationProvider
+import app.houselights.R
 import app.houselights.core.AudioTrack
 import app.houselights.core.BaseRange
 import app.houselights.core.Codecs
@@ -23,6 +27,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.util.formatBytes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -78,11 +83,9 @@ class TechSpecsTest {
     @Test
     fun theFileIsAFactOfTheHead() {
         compose.setTvContent { TechSpecs(film, onDismiss = {}) }
-        compose.onAllNodes(
-            SemanticsMatcher("MKV, 8.67 GB") { node ->
-                node.config.getOrNull(SemanticsProperties.Text)?.any { it.text.startsWith("MKV, ") } == true
-            },
-        ).assertCountEquals(1)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val fact = context.getString(R.string.tech_file_fact, "MKV", formatBytes(context, checkNotNull(film.media?.sizeBytes)))
+        compose.onAllNodes(hasText(fact)).assertCountEquals(1)
     }
 
     /** Formats as on a case's back, measures and what qualifies them alike, a video's bitrate as an audio track's. */

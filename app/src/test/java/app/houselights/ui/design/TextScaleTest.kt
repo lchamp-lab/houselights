@@ -3,8 +3,8 @@ package app.houselights.ui.design
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.sp
 import app.houselights.settings.TextSize
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
@@ -47,9 +47,13 @@ class TextScaleTest {
         var canvas: Density? = null
         compose.setTvContent(TextSize.COMPACT.step) { canvas = LocalDensity.current }
         compose.waitForIdle()
-        assertEquals(canvasDensityOf(CANVAS_PX, 0.85f), canvas)
-        assertEquals("body, 16 sp", 13.6f, with(checkNotNull(canvas)) { 16.sp.toDp().value }, EPSILON)
-        assertEquals("the signature, 72 sp", 61.2f, with(checkNotNull(canvas)) { 72.sp.toDp().value }, EPSILON)
+        val step = TextSize.COMPACT.step
+        assertEquals(canvasDensityOf(CANVAS_PX, step), canvas)
+        // In a straight line: every size, a title's too, times the step.
+        listOf(HouselightsType.body, HouselightsType.titleSignature).forEach { style ->
+            val size = style.fontSize
+            assertEquals("$size", size.value * step, with(checkNotNull(canvas)) { size.toDp().value }, EPSILON)
+        }
     }
 
     /** With Android at its largest, Grande lays the canvas out as Standard does: at 1.3, never past it. */
@@ -74,11 +78,14 @@ class TextScaleTest {
         var canvas: Density? = null
         compose.setTvContent(TextSize.LARGE.step) { canvas = LocalDensity.current }
         compose.waitForIdle()
-        fun growth(sp: Int) = with(checkNotNull(canvas)) { sp.sp.toDp().value } / sp - 1
-        assertTrue("meta, 14: ${growth(14)}", growth(14) >= 0.15f)
-        assertTrue("body, 16: ${growth(16)}", growth(16) in 0.12f..0.14f)
-        assertTrue("headline, 36: ${growth(36)}", growth(36) < 0.01f)
-        assertEquals("the signature, 72", 0f, growth(72), EPSILON)
+        fun growth(style: TextStyle) = with(checkNotNull(canvas)) { style.fontSize.toDp().value } / style.fontSize.value - 1
+        with(HouselightsType) {
+            // Android's curve: 12 to 15 sp grow 15 to 16 %, 16 sp 13 %, 30 sp and up keep their size.
+            listOf(meta, body).forEach { assertTrue("${it.fontSize}: ${growth(it)}", growth(it) >= 0.15f - EPSILON) }
+            assertTrue("${lead.fontSize}: ${growth(lead)}", growth(lead) in 0.12f..0.14f)
+            assertTrue("${headline.fontSize}: ${growth(headline)}", growth(headline) < 0.01f)
+            assertEquals("${titleSignature.fontSize}", 0f, growth(titleSignature), EPSILON)
+        }
     }
 
     private companion object {

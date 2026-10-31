@@ -2,7 +2,6 @@ package app.houselights.ui.design
 
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.luminance
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.deepOf
@@ -12,7 +11,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.hypot
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /**
  * The left veil keeps a column's quietest text at its band's contrast over the lightest image, counting only
@@ -137,7 +135,7 @@ class ScrimTest {
             "light at the top" to { _, y -> 1f - y / 53f },
             "stripes" to { x, _ -> if (x / 4 % 2 == 0) 0.9f else 0.2f },
             "a light disc" to { x, y -> if (hypot(x - 30f, y - 24f) < 12f) 1f else 0.15f },
-            "noise" to { x, y -> (sin(x * 12.9898f + y * 78.233f) * 43758.547f).let { it - kotlin.math.floor(it) } },
+            "noise" to ::noise,
         )
         listOf("home" to home, "detail" to detail).forEach { (style, veils) ->
             pictures.forEach { (name, grey) ->
@@ -276,7 +274,7 @@ class ScrimTest {
             { _, _ -> 1f },
             { x, _ -> x / 95f },
             { _, y -> 1f - y / 53f },
-            { x, y -> (sin(x * 12.9898f + y * 78.233f) * 43758.547f).let { it - kotlin.math.floor(it) } },
+            ::noise,
         )
         val samples = pictures.flatMap { grey ->
             listOf(96 to 54, 192 to 54, 96 to 40).map { (w, h) -> Triple(w, h, FloatArray(w * h) { grey(it % w, it / w) }) }
@@ -390,10 +388,6 @@ class ScrimTest {
 
     private fun sample(width: Int, height: Int, grey: (x: Int, y: Int) -> Float) =
         ArtworkSample(width, height, FloatArray(width * height) { grey(it % width, it / width) })
-
-    private fun srgb(luminance: Float) = ColorSpaces.Srgb.oetf(luminance.toDouble()).toFloat()
-
-    private fun linear(grey: Float) = ColorSpaces.Srgb.eotf(grey.toDouble()).toFloat()
 
     /** The luminance of red, green and blue each [blended] first, in sRGB. */
     private fun luminanceOf(red: Float, green: Float, blue: Float, blended: (Float) -> Float) =

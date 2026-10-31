@@ -27,6 +27,7 @@ import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.TmdbKeyCheck
+import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
@@ -82,7 +83,7 @@ class TmdbKeySheetTest {
     @Before
     fun open() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        db = testDatabase { allowMainThreadQueries() }
+        db = testDatabase { onCallingThread() }
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // No scan runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })

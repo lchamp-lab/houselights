@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import app.houselights.R
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertFalse
@@ -75,7 +76,7 @@ class DeviceCodeTest {
     fun aWideCodeHoldsWhole() = holds("WMWM 0000", 1f)
 
     @Test
-    fun aWideCodeHoldsWholeAtTheLargestTextSize() = holds("WMWM 0000", LARGEST)
+    fun aWideCodeHoldsWholeAtTheLargestTextSize() = holds("WMWM 0000", TEXT_SCALE_MAX)
 
     @Test
     fun aCodeSitsBesideItsQrCodeWhereItFits() {
@@ -86,7 +87,6 @@ class DeviceCodeTest {
     }
 
     private companion object {
-        const val LARGEST = 1.3f
 
         /** The pane's end: the safe area's. */
         val PANE_END = 960.dp - HlSpace.safeH

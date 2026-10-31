@@ -1,7 +1,9 @@
 package app.houselights.ui.design
 
+import app.houselights.testing.Source
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
+import app.houselights.testing.source
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -74,7 +76,7 @@ class DesignTokenGuardTest {
     @Test
     fun screensUseTheDesignSystem() {
         val design = ui.resolve("design")
-        val violations = breaches(kotlinSources(ui).filter { !it.startsWith(design) }, rules, allowed)
+        val violations = breaches(kotlinSources(ui).filter { !it.file.startsWith(design) }, rules, allowed)
         assertTrue("Screens go around the design system:\n" + violations.joinToString("\n"), violations.isEmpty())
         val stale = stale(allowed, rules)
         assertTrue("Exceptions for lines that no longer break a rule: ${stale.joinToString()}", stale.isEmpty())
@@ -88,15 +90,13 @@ class DesignTokenGuardTest {
         assertTrue("Exceptions for lines that no longer break a rule: ${stale.joinToString()}", stale.isEmpty())
     }
 
-    /** The lines of [files] that break one of [rules], unless [exceptions] allow them; comments and imports aside. */
-    private fun breaches(files: List<File>, rules: List<Pair<Regex, String>>, exceptions: List<String>) = files.flatMap { file ->
-        val path = file.relativeTo(ui).path
-        file.readLines().mapIndexedNotNull { i, line ->
-            val code = line.trimStart()
-            if (code.startsWith("import ") || code.startsWith("//") || code.startsWith("*")) return@mapIndexedNotNull null
-            val rule = rules.firstOrNull { (pattern, _) -> pattern.containsMatchIn(line) } ?: return@mapIndexedNotNull null
-            if (exceptions.any { it.allows(path, line) }) return@mapIndexedNotNull null
-            "$path:${i + 1}: ${rule.second}\n    ${line.trim()}"
+    /** The code lines of [files] that break one of [rules], unless [exceptions] allow them; imports aside. */
+    private fun breaches(files: List<Source>, rules: List<Pair<Regex, String>>, exceptions: List<String>) = files.flatMap { file ->
+        val path = file.pathFrom(ui)
+        file.codeLines(imports = false).mapNotNull { (number, line) ->
+            val rule = rules.firstOrNull { (pattern, _) -> pattern.containsMatchIn(line) } ?: return@mapNotNull null
+            if (exceptions.any { it.allows(path, line) }) return@mapNotNull null
+            "$path:$number: ${rule.second}\n    ${line.trim()}"
         }
     }
 
@@ -104,7 +104,8 @@ class DesignTokenGuardTest {
     private fun stale(exceptions: List<String>, rules: List<Pair<Regex, String>>) = exceptions.filter { exception ->
         val path = exception.substringBefore(':')
         val file = ui.resolve(path)
-        !file.isFile || file.readLines().none { line -> exception.allows(path, line) && rules.any { it.first.containsMatchIn(line) } }
+        !file.isFile ||
+            source(file).codeLines().none { (_, line) -> exception.allows(path, line) && rules.any { it.first.containsMatchIn(line) } }
     }
 
     /** Where 12 sp is set outside the catalogue, each time in a mark's box (DESIGN.md, Type). */
@@ -118,9 +119,9 @@ class DesignTokenGuardTest {
     fun whatIsReadKeepsToTheFloor() {
         val badge = Regex("""\btype\.badge\b""")
         val catalogue = ui.resolve("catalog")
-        val set = kotlinSources(ui).filter { !it.startsWith(catalogue) }
-            .filter { file -> file.readLines().any { badge.containsMatchIn(it) } }
-            .map { it.relativeTo(ui).path }.toSortedSet()
+        val set = kotlinSources(ui).filter { !it.file.startsWith(catalogue) }
+            .filter { badge.containsMatchIn(it.code) }
+            .map { it.pathFrom(ui) }.toSortedSet()
         assertEquals("Files setting text in badge", marks.keys.toSortedSet(), set)
     }
 
@@ -139,16 +140,16 @@ class DesignTokenGuardTest {
         val lit = Regex("""(?<!fun )\bScreenTitle\(""")
         // The catalogue shows both titles.
         val elsewhere = listOf(ui.resolve("design"), ui.resolve("catalog"))
-        val titled = kotlinSources(ui).filter { file -> elsewhere.none { file.startsWith(it) } }
-            .filter { file -> file.readLines().any { !it.trimStart().startsWith("import ") && lit.containsMatchIn(it) } }
-            .map { it.relativeTo(ui).path }.toSortedSet()
+        val titled = kotlinSources(ui).filter { file -> elsewhere.none { file.file.startsWith(it) } }
+            .filter { lit.containsMatchIn(it.code) }
+            .map { it.pathFrom(ui) }.toSortedSet()
         assertEquals("Screens titled as a place", places.keys.toSortedSet(), titled)
         // One place per screen, a wall's whatever it shows.
-        val twice = titled.filter { path -> lit.findAll(ui.resolve(path).readText()).count() > 1 }
+        val twice = titled.filter { path -> lit.findAll(source(ui.resolve(path)).code).count() > 1 }
         assertTrue("A screen titled as more than one place: ${twice.joinToString()}", twice.isEmpty())
         // The design system lights no title of its own.
         val components = ui.resolve("design/components")
-        val lighting = kotlinSources(components).filter { file -> file.readLines().any { lit.containsMatchIn(it) } }.map { it.name }
+        val lighting = kotlinSources(components).filter { lit.containsMatchIn(it.code) }.map { it.name }
         assertEquals(emptyList<String>(), lighting)
     }
 
@@ -159,7 +160,7 @@ class DesignTokenGuardTest {
     @Test
     fun noToast() {
         val toast = Regex("""\bandroid\.widget\.Toast\b""")
-        val found = kotlinSources(sources).filter { toast.containsMatchIn(it.readText()) }.map { it.relativeTo(sources).path }
+        val found = kotlinSources(sources).filter { toast.containsMatchIn(it.code) }.map { it.pathFrom(sources) }
         assertTrue("Toast in: ${found.joinToString()}", found.isEmpty())
     }
 
@@ -177,13 +178,25 @@ class DesignTokenGuardTest {
     /** What the room is not: frosted glass, a drop shadow (DESIGN.md, Principles). */
     @Test
     fun noShadowNorFrostedGlass() {
-        val found = kotlinSources(sources).linesWhere(sources) { line ->
-            !line.trimStart().let { it.startsWith("//") || it.startsWith("*") } && glass.containsMatchIn(line)
-        }
+        val found = kotlinSources(sources).linesWhere(sources) { glass.containsMatchIn(it) }
         assertTrue("A shadow or a blur:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
     private val glass = Regex("""\.(shadow|blur)\(|\b(RenderEffect|BlurMaskFilter|BlurEffect)\b""")
+
+    /** The window paints the room (`@color/room`): a screen painting it again under its content draws it twice. */
+    @Test
+    fun theRoomIsPaintedOnce() {
+        // The catalogue shows the room as a swatch and a ground.
+        val elsewhere = listOf(ui.resolve("design"), ui.resolve("catalog"))
+        val screens = kotlinSources(ui).filter { file -> elsewhere.none { file.file.startsWith(it) } }
+        val found = screens.linesWhere(ui) { room.containsMatchIn(it) }
+        assertTrue("A screen paints the room:\n" + found.joinToString("\n"), found.isEmpty())
+        assertTrue(room.containsMatchIn("val black = Hl.colors.background"))
+        assertTrue(room.containsMatchIn("Box(Modifier.background(c.background))"))
+    }
+
+    private val room = Regex("""\b(colors|c)\.background\b""")
 
     /** A Material icon, used or imported. */
     private val materialIcon = Regex("""\bIcons\.(Filled|Default|Outlined|Rounded|Sharp|TwoTone|AutoMirrored)\.|\bmaterial\.icons\b""")

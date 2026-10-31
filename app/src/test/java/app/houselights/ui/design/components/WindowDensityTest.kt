@@ -18,6 +18,7 @@ import app.houselights.settings.TextSize
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSideSheetDefaults
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.design.canvasDensityOf
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
@@ -60,12 +61,12 @@ class WindowDensityTest {
     fun aSheetTakesTheTextSizeItOpensAt() {
         var inside: Density? = null
         compose.setTvContent {
-            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, LARGER)) {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, TEXT_SCALE_MAX)) {
                 HlSideSheet("Modifier", onDismiss = {}) { inside = LocalDensity.current }
             }
         }
         compose.waitForIdle()
-        assertEquals(Density(canvas.density, LARGER), inside)
+        assertEquals(Density(canvas.density, TEXT_SCALE_MAX), inside)
     }
 
     /** « Taille du texte » reaches a sheet's window: it opens at the step its screen is at. */
@@ -108,7 +109,6 @@ class WindowDensityTest {
         const val SCREEN_PX = 1920
         const val INSIDE = "inside"
         const val SHEET = "sheet"
-        const val LARGER = 1.3f
     }
 }
 

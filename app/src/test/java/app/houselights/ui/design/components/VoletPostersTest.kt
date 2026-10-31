@@ -1,29 +1,15 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.unit.dp
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ImageRef
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.pictureServer
-import coil.Coil
-import coil.ImageLoader
-import kotlinx.coroutines.Dispatchers
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -46,15 +32,13 @@ class VoletPostersTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val context = ApplicationProvider.getApplicationContext<Application>()
-
     /** The films whose posters were asked for, by their number. */
     private val asked: MutableSet<Int> = Collections.synchronizedSet(mutableSetOf())
 
     private var open by mutableIntStateOf(0)
 
-    @After
-    fun forgetTheLoader() = Coil.reset()
+    @get:Rule
+    val coil = CoilRule()
 
     /** Eight films, all in view: every poster is asked for at once, as before. */
     @Test
@@ -151,8 +135,8 @@ class VoletPostersTest {
      */
     private fun checkNearViewAsked(at: Int, among: Set<Int> = asked) {
         val inView = (1..BOND).filter { film ->
-            val bounds = compose.onNodeWithContentDescription(nameOf(film)).getUnclippedBoundsInRoot()
-            bounds.right > SIDE && bounds.left < SIDE + POLYPTYCH
+            val bounds = compose.onNodeWithContentDescription(panelName(film)).getUnclippedBoundsInRoot()
+            bounds.right > VOLET_SIDE && bounds.left < VOLET_SIDE + POLYPTYCH
         }
         val near = (inView.first() - 2).coerceAtLeast(1)..(inView.last() + 2).coerceAtMost(BOND)
         val missing = near.filterNot { it in among }
@@ -165,41 +149,19 @@ class VoletPostersTest {
      */
     private fun show(films: Int, first: Int, enter: Int? = null) {
         val server = pictureServer { data, _ -> FILM.find(data.toString())?.let { asked += it.groupValues[1].toInt() } }
-        Coil.setImageLoader(ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(server) }.build())
+        coil.serve(server)
         open = first
-        compose.setContent {
-            HouselightsTheme {
-                Box(Modifier.fillMaxSize()) {
-                    Volets(
-                        parts(films),
-                        open = open,
-                        shown = null,
-                        onFocus = {},
-                        onOpen = {},
-                        enter = enter,
-                        modifier = Modifier.padding(start = SIDE, end = SIDE, top = HlLayout.voletTop).fillMaxWidth().height(HEIGHT),
-                    ) {}
-                }
-            }
-        }
+        compose.setContent { HouselightsTheme { VoletsOnTheCanvas(parts(films), open, enter = enter) } }
         compose.waitForIdle()
     }
 
-    private fun plan(films: Int) = VoletPlan.of(films + 1, POLYPTYCH, HEIGHT)
+    private fun plan(films: Int) = voletPlan(films)
 
-    private fun parts(films: Int): List<VoletPart> =
-        listOf(VoletPart("saga", null, null, null, nameOf(0), spine = "James Bond")) +
-            (1..films).map { i ->
-                VoletPart("film-$i", i, ImageRef("film-$i") { w -> "https://img.test/film-$i?w=$w" }, null, nameOf(i), year = "${1961 + i}")
-            }
-
-    private fun nameOf(panel: Int) = if (panel == 0) "La saga" else "Film $panel"
+    private fun parts(films: Int) = voletParts(films, spine = "James Bond") { i ->
+        VoletFilm(year = "${1961 + i}", poster = ImageRef("film-$i") { w -> "https://img.test/film-$i?w=$w" })
+    }
 
     private companion object {
-        val SIDE = HlLayout.voletSide
-        val POLYPTYCH = HlLayout.CANVAS_WIDTH.dp - SIDE * 2
-        val HEIGHT = 370.5.dp
-
         const val EIGHT = 8
         const val BOND = 25
 

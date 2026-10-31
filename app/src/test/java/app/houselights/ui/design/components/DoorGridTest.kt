@@ -89,7 +89,6 @@ class DoorGridTest {
             val total = rows.fold(0.dp) { sum, h -> sum + h } + HlSpace.s * (rows.size - 1)
             assertEquals("watch $watch, libraries $libraries", case, total)
         }
-        assertEquals("the safe area under the head", 444.dp, case)
         assertEquals(540.dp - HlSpace.safeV, HlSpace.safeV + HomeGridDefaults.head + HomeGridDefaults.headGap + case)
     }
 

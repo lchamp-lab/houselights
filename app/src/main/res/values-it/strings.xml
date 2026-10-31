@@ -372,7 +372,7 @@
     <string name="tracks_for_all">Per tutti i film e le serie</string>
     <string name="tracks_per_title">Un film può avere una scelta propria: pulsante «Audio e sottotitoli» nella sua scheda.</string>
     <string name="tracks_player">Scelta del lettore</string>
-    <string name="tracks_player_desc">La sua impostazione, altrimenti la prima traccia</string>
+    <string name="tracks_player_desc">La sua impostazione, o la prima traccia</string>
     <string name="audio_language">Lingua dell’audio</string>
     <string name="audio_language_desc">Se il film ha quella traccia</string>
     <string name="audio_language_player_desc">La sua impostazione della lingua</string>

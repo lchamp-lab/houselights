@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
@@ -17,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,6 +58,59 @@ class MigrationTest {
             "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt$kept) " +
                 "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000$notKept)",
         )
+    }
+
+    /**
+     * A library at schema [from] where the app keeps it, filled by [fill] and marked as version [leftAt], as
+     * [LibraryDatabase.create] opens it; closed after the test.
+     */
+    private fun theApps(from: Int, leftAt: Int = from, fill: SupportSQLiteDatabase.() -> Unit): LibraryDatabase {
+        context.deleteDatabase(LibraryDatabase.NAME)
+        SchemaHistory.create(context, LibraryDatabase.NAME, from, fill)
+        if (leftAt != from) {
+            SQLiteDatabase.openDatabase(appsFile, null, SQLiteDatabase.OPEN_READWRITE).use { it.version = leftAt }
+        }
+        return LibraryDatabase.create(context, secrets).also { opened += LibraryDatabase.NAME to it }
+    }
+
+    private val appsFile get() = context.getDatabasePath(LibraryDatabase.NAME).path
+
+    /** Dune in folder 1, watched, a favourite, and stopped at ten minutes, as schemas 22 on hold it. */
+    private fun SupportSQLiteDatabase.watchedDune() = execSQL(
+        "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
+            "badges, probeVersion, addedAt, positionMs, played, favorite, matchState, userNoMatch) " +
+            "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, '', '', 'Dune (2021).mkv', '', '', 0, 5, 600000, 1, 1, 'MATCHED', 0)",
+    )
+
+    /** The app's own builder, not [migrated]'s: a library from the version before keeps what the user did. */
+    @Test
+    fun theAppsLibraryFromTheVersionBeforeKeepsWhatTheUserDid() = runTest {
+        val db = theApps(from = 23) {
+            filmsFolder(23)
+            watchedDune()
+        }
+        assertEquals("Films", db.dao().sources().single().name)
+        val dune = checkNotNull(db.dao().item(1))
+        assertEquals(Triple(true, true, 600_000L), Triple(dune.played, dune.favorite, dune.positionMs))
+    }
+
+    /**
+     * A library left by a later version (the app installed again older), which no migration reads, is refused and kept as
+     * it is: the app's builder never falls back to emptying it, as it would at the next schema mistake.
+     */
+    @Test
+    fun theAppsLibraryNoMigrationReadsIsRefusedAndKeptAsItIs() {
+        val latest = testDatabase().run { openHelper.readableDatabase.version.also { close() } }
+        val db = theApps(from = latest, leftAt = latest + 1) {
+            filmsFolder(latest)
+            watchedDune()
+        }
+        assertThrows(IllegalStateException::class.java) { db.openHelper.writableDatabase }
+        db.close()
+        val titles = SQLiteDatabase.openDatabase(appsFile, null, SQLiteDatabase.OPEN_READONLY).use { raw ->
+            raw.rawQuery("SELECT title FROM items", null).use { c -> buildList { while (c.moveToNext()) add(c.getString(0)) } }
+        }
+        assertEquals(listOf("Dune"), titles)
     }
 
     /** Schemas 1 to 5 predate Room's schema export and were rebuilt (app/schemas); Room checks them on open. */
