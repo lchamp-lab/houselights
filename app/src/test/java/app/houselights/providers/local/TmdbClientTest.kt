@@ -1,7 +1,6 @@
 package app.houselights.providers.local
 
 import app.houselights.core.FailureKind
-import app.houselights.core.Http
 import app.houselights.core.TmdbKeyRefusedException
 import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
@@ -32,6 +31,7 @@ import java.net.UnknownHostException
 import java.security.cert.CertificateNotYetValidException
 import java.time.Duration
 import java.util.Locale
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLHandshakeException
 
@@ -98,18 +98,25 @@ class TmdbClientTest {
     }
 
     @Test
-    @Suppress("SleepInsteadOfDelay") // OkHttp's own threads end the call: virtual time cannot wait for them.
     fun aRequestGivenUpOnLeavesTmdbToTheNextOne() = runTest {
-        val client = tmdb.client(pauseWhenUnreachable = true)
+        // The call held ends on OkHttp's threads, after the coroutine: the test waits until it has.
+        val heldEnded = CountDownLatch(1)
+        val transport = Interceptor { chain ->
+            val holding = tmdb.hold
+            try {
+                tmdb.intercept(chain)
+            } finally {
+                if (holding) heldEnded.countDown()
+            }
+        }
+        val client = TmdbClient("key", pauseWhenUnreachable = true, transport)
         tmdb.hold = true
         // A search superseded by a newer one, or a screen left, while TMDB answers.
         val search = launch(Dispatchers.IO) { client.matchMovie(Wanted.of("Dune", 2021)) }
         assertTrue(tmdb.held.await(5, TimeUnit.SECONDS))
         search.cancel()
         search.join()
-        // The call ends on OkHttp's threads, after the coroutine: wait until it has.
-        val until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-        while (Http.client.dispatcher.runningCallsCount() > 0 && System.nanoTime() < until) Thread.sleep(5)
+        assertTrue("the call given up ended", heldEnded.await(5, TimeUnit.SECONDS))
 
         tmdb.hold = false
         assertEquals(438631, client.matchMovie(Wanted.of("Dune", 2021)).found?.id)
