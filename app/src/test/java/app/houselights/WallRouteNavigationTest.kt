@@ -21,6 +21,7 @@ import app.houselights.core.Quality
 import app.houselights.ui.library.LibraryViewModel
 import app.houselights.ui.library.WallView
 import app.houselights.ui.testing.FakeProvider
+import app.houselights.ui.testing.afterProcessDeath
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -29,9 +30,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * A wall opened through navigation, its ViewModel made as the wall's factory makes it from its route and its saved
- * state: it opens on the route's filter and view, and a ViewModel made again on that saved state, as after a stopped
- * process, reads them back.
+ * A wall opened through navigation, its ViewModel made from its route and the saved state navigation gives it, with
+ * the arguments the wall's factory passes: it opens on the route's filter and view, and a ViewModel made on what that
+ * saved state keeps for a new process reads the filter back.
  */
 @RunWith(RobolectricTestRunner::class)
 class WallRouteNavigationTest {
@@ -71,7 +72,7 @@ class WallRouteNavigationTest {
         return checkNotNull(read) to checkNotNull(saved)
     }
 
-    /** The wall's ViewModel as its factory makes it, on [saved]; [opensOn] null, as a wall read back from it. */
+    /** The wall's ViewModel on [saved], with the arguments its factory passes; [opensOn] null, as a wall read back from it. */
     private fun wall(route: Route.Library, saved: SavedStateHandle, opensOn: LibraryFilter? = route.filter): LibraryViewModel {
         val factory = viewModelFactory {
             initializer { LibraryViewModel({ provider }, route.wallLibrary, saved, opensOn = opensOn, sagas = route.sagasLibrary) }
@@ -87,7 +88,7 @@ class WallRouteNavigationTest {
         val (route, saved) = open(start)
         assertEquals("Denis Villeneuve", route.personName)
         assertEquals(filter, wall(route, saved).state.value.filter)
-        assertEquals("after a stopped process", filter, wall(route, saved, opensOn = null).state.value.filter)
+        assertEquals("after a stopped process", filter, wall(route, saved.afterProcessDeath(), opensOn = null).state.value.filter)
     }
 
     /** The sagas alone, as a films wall's route asks: its saved state starts with that view. */

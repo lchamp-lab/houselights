@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
@@ -26,6 +27,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -79,7 +81,7 @@ class DetailBackTest {
     @Test
     fun backFromTheCastReturnsToLireAtThePagesTopThenLeaves() {
         page()
-        play().assertIsFocused()
+        val top = play().assertIsFocused().getUnclippedBoundsInRoot().top
         val onTheCast = isFocused() and (hasText("Actor 1", substring = true) or hasContentDescription("Actor 1", substring = true))
         var downs = 0
         while (compose.onAllNodes(onTheCast).fetchSemanticsNodes().isEmpty()) {
@@ -88,7 +90,7 @@ class DetailBackTest {
         }
 
         compose.pressBack()
-        play().assertIsFocused().assertIsDisplayed()
+        assertEquals("Lire where the page opened it", top, play().assertIsFocused().assertIsDisplayed().getUnclippedBoundsInRoot().top)
         assertFalse("the first Back stays on the page", left)
         compose.pressBack()
         assertTrue(left)
