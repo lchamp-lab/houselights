@@ -207,7 +207,10 @@ class LibraryScanner(
     @Volatile
     private var lastScanEnd: Long? = null
 
-    /** Removes unreferenced cached artwork, credits and search words; never while an item is being processed. */
+    /**
+     * Removes unreferenced cached artwork, credits and search words, between two runs of a pass's work ([Rounds]); the
+     * copies a file being read holds are spared ([ArtworkCache.sweep]).
+     */
     suspend fun cleanup(): CleanupResult = withContext(Dispatchers.IO) {
         lock.withLock { cleanupLocked() }
     }
@@ -712,8 +715,8 @@ class LibraryScanner(
                     if (wrote) written++
                 }.onFailure { e ->
                     failures.failed(key, "Failed on ${file.relativePath}", e)
-                    // A new file may have been inserted before failing.
-                    if (folder.known[file.relativePath] == null) written++
+                    // A new film's row is written before it is read.
+                    if (folder.known[file.relativePath] == null && dao.hasFile(source.id, file.relativePath)) written++
                     if (ScanErrors.isUnreachable(e)) unreachable++
                     // Device full or NAS unreachable: every remaining file would fail the same way, after long timeouts.
                     if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) {

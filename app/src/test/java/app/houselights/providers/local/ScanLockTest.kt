@@ -19,6 +19,7 @@ import java.io.File
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A pass holds the library's lock only to read and write it: while it waits for TMDB or the NAS, what the user does
@@ -48,8 +49,12 @@ class ScanLockTest {
     fun close() = bench.close()
 
     /** Holds TMDB's searches until [Gate.open], on OkHttp's thread; identifications by id go through. */
-    private fun holdSearches(): Gate = Gate().also { gate ->
-        tmdb.onRequest = { path -> if (path.startsWith("search/")) gate.pass() }
+    private fun holdSearches(): Gate = hold { it.startsWith("search/") }
+
+    /** Holds the first TMDB request whose path [first] takes until [Gate.open], on OkHttp's thread; the others go through. */
+    private fun hold(first: (String) -> Boolean): Gate = Gate().also { gate ->
+        val taken = AtomicBoolean()
+        tmdb.onRequest = { path -> if (first(path) && taken.compareAndSet(false, true)) gate.pass() }
     }
 
     private class Gate {
@@ -178,7 +183,7 @@ class ScanLockTest {
         tmdb.season(SEVERANCE, 1, episodes = 9)
         bench.showsNas.put(EPISODE)
         bench.showsNas.putText(EPISODE.replace(".mkv", ".nfo"), "<episodedetails><title>Good News About Hell</title></episodedetails>")
-        bench.showsNas.putImage("Severance/season01-poster.jpg")
+        bench.showsNas.putImage("Severance/season01-poster.jpg", size = POSTER_BYTES.toInt())
         val reading = CompletableDeferred<Unit>()
         val read = CompletableDeferred<Unit>()
         bench.showsNas.onRead = { path, _, _ ->
@@ -200,7 +205,8 @@ class ScanLockTest {
 
         val season = checkNotNull(dao.season(bench.showOf(shows, EPISODE).id, 1))
         val poster = checkNotNull(season.posterPath)
-        assertTrue(poster, poster.isCachedArtwork() && File(poster.removePrefix("file://")).isFile)
+        assertTrue(poster, poster.isCachedArtwork())
+        assertEquals("the image whole", POSTER_BYTES, File(poster.removePrefix("file://")).length())
         assertEquals("Good News About Hell", bench.item(shows, EPISODE).title)
     }
 
@@ -208,7 +214,7 @@ class ScanLockTest {
     @Test
     fun aCleanupWhileAPosterIsCopiedLeavesIt() = runTest {
         nas.put("Dune (2021)/Dune (2021).mkv")
-        nas.putImage("Dune (2021)/poster.jpg")
+        nas.putImage("Dune (2021)/poster.jpg", size = POSTER_BYTES.toInt())
         val copying = CompletableDeferred<Unit>()
         val copied = CompletableDeferred<Unit>()
         nas.onRead = { path, _, _ ->
@@ -229,7 +235,8 @@ class ScanLockTest {
         bench.awaitScans()
 
         val poster = checkNotNull(bench.item(films, "Dune (2021)/Dune (2021).mkv").posterPath)
-        assertTrue(poster, poster.isCachedArtwork() && File(poster.removePrefix("file://")).isFile)
+        assertTrue(poster, poster.isCachedArtwork())
+        assertEquals("the image whole", POSTER_BYTES, File(poster.removePrefix("file://")).length())
     }
 
     /** Left as it is and marked a favourite while TMDB was searched for it: the search's answer is not written. */
@@ -324,6 +331,64 @@ class ScanLockTest {
         assertEquals(DOCTOR_WHO, bench.showOf(shows, episodes.last()).tmdbId)
     }
 
+    /**
+     * A film known before, read again, its folder removed while TMDB is asked for it: its run then writes nothing, a row
+     * born again under the folder gone included, and asks nothing more.
+     */
+    @Test
+    fun aKnownFilmReadAgainWhileItsFolderIsRemovedGetsNothingWritten() = runTest {
+        // Its header read once: read again, the film asks TMDB alone.
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
+        bench.scan()
+        val gate = hold { it == "movie/$DUNE" }
+        bench.scanner.scanAll(refreshMetadata = true)
+        try {
+            gate.reached()
+            meanwhile { bench.scanner.removeSource(films) }
+            tmdb.requests.clear()
+            nas.reads.clear()
+        } finally {
+            gate.open()
+        }
+        bench.awaitScans()
+
+        assertEquals("nothing asked once it went", emptyList<String>(), tmdb.requests.toList())
+        assertEquals("nothing read once it went", emptyList<String>(), nas.reads.toList())
+        assertEquals(emptyList<KnownFile>(), dao.knownFiles(films.id))
+    }
+
+    /**
+     * An order chosen for a show while the scan asks TMDB about a new episode of it: the episode is placed in the order
+     * chosen, beside those the choice placed, never in the one the scan began with.
+     */
+    @Test
+    fun anOrderChosenWhileTheScanReadsAnEpisodeOfTheShowPlacesItThere() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        tmdb.show(FIREFLY, "Firefly", 2002)
+        tmdb.season(FIREFLY, 1, episodes = 14)
+        // On DVD, Serenity (TMDB's 11th) first, then The Train Job and Bushwhacked.
+        tmdb.group(FIREFLY, DVD, type = 3, name = "DVD Order", listOf(listOf(1 to 11, 1 to 1, 1 to 2)))
+        fun firefly(n: Int) = "Firefly/Season 1/Firefly - S01E0$n.mkv"
+        (1..2).forEach { bench.showsNas.put(firefly(it)) }
+        bench.scan()
+        bench.showsNas.put(firefly(3))
+        val gate = hold { it == "tv/$FIREFLY/season/1" }
+        bench.scanner.scanAll()
+        try {
+            gate.reached()
+            meanwhile { bench.scanner.chooseOrder(bench.showOf(shows, firefly(1)).id, DVD) }
+        } finally {
+            gate.open()
+        }
+        bench.awaitScans()
+
+        val episodes = (1..3).map { bench.item(shows, firefly(it)) }
+        assertEquals(listOf("Episode 1.11", "Episode 1.1", "Episode 1.2"), episodes.map { it.title })
+        assertEquals(listOf(1 to 11, 1 to 1, 1 to 2), episodes.map { it.tmdbNumber()?.let { n -> n.season to n.episode } })
+        val show = bench.showOf(shows, firefly(3))
+        assertEquals(DVD to DVD, show.userEpisodeOrder to show.episodeOrder)
+    }
+
     private companion object {
         const val WAIT_MS = 5_000L
         const val DROPPED = 11
@@ -336,6 +401,9 @@ class ScanLockTest {
         const val DUNE_SIZE = 80_000_000_000
         const val DOCTOR_WHO = 57243
         const val SEASONS = 40
+        const val POSTER_BYTES = 100L
+        const val FIREFLY = 1437
+        const val DVD = "5b5a9ef3c3a3685a5c000c5c"
         const val ASKED_AGAIN_MS = Reidentify.ASKED_EVERY_MS + 1
         const val EPISODE = "Severance/Season 1/Severance - S01E01.mkv"
     }

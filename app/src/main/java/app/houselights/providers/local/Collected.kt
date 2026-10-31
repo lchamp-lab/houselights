@@ -1,5 +1,7 @@
 package app.houselights.providers.local
 
+import android.util.Log
+import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.asContextElement
 import kotlinx.coroutines.async
@@ -84,7 +86,9 @@ internal class Rounds(private val dao: LibraryDao, private val lock: Mutex) {
     suspend fun <T> run(tmdb: TmdbPass?, state: PassState, aside: Aside? = null, work: suspend () -> T): T = coroutineScope {
         val stopped = tmdb?.client != null && !tmdb.open
         var collected = Collected()
-        var reading: Deferred<Any?>? = null
+        var last: Any? = null
+        // Its failure fails the work only once the work needs it.
+        var reading: Deferred<Result<Any?>>? = null
         try {
             repeat(MAX_ROUNDS) {
                 val missing = lock.withLock {
@@ -106,14 +110,16 @@ internal class Rounds(private val dao: LibraryDao, private val lock: Mutex) {
                 }
                 val read = reading
                 val answer = when {
-                    aside != null && missing.key == aside.key -> if (read != null) read.await() else aside.ask()
+                    aside != null && missing.key == aside.key -> if (read != null) read.await().getOrThrow() else aside.ask()
                     else -> {
-                        if (aside != null && missing.overTmdb && read == null) reading = async { aside.ask() }
+                        if (aside != null && missing.overTmdb && read == null) reading = async { suspendRunCatching { aside.ask() } }
                         missing.ask()
                     }
                 }
                 collected += missing.key to answer
+                last = missing.key
             }
+            Log.w(TAG, "Still asking the NAS or TMDB after $MAX_ROUNDS requests, the last $last: left for the next pass")
             error("Still asking after $MAX_ROUNDS requests")
         } finally {
             reading?.cancel()
@@ -121,6 +127,8 @@ internal class Rounds(private val dao: LibraryDao, private val lock: Mutex) {
     }
 
     private companion object {
+        const val TAG = "Rounds"
+
         /** More requests than a piece of work makes: a show's every season and orders, its first episode's. */
         const val MAX_ROUNDS = 256
     }
