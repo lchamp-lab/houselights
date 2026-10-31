@@ -27,6 +27,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -381,14 +385,28 @@ private fun act(doing: UpdateAction, controls: UpdateControls) {
 @Composable
 private fun WhatsNew(offer: UpdateOffer, scroll: ScrollState) {
     val language = LocalConfiguration.current.locales[0].language
-    val notes = remember(offer, language) { offer.notesIn(language) }
-    if (notes.isEmpty()) return
     val c = Hl.colors
+    val strong = Hl.type.entry.toSpanStyle().copy(color = c.content)
+    val notes = remember(offer, language, strong) { offer.notesIn(language).map { emphasised(it, strong) } }
+    if (notes.isEmpty()) return
     ReadingPlate(Modifier.fillMaxWidth().focusProperties { canFocus = scroll.maxValue > 0 }.readsThrough(scroll)) {
         Text(stringResource(R.string.update_notes), style = Hl.type.group, color = c.contentSecondary)
         Spacer(Modifier.height(HlSpace.m))
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             notes.forEach { Text(it, style = Hl.type.body, color = c.contentSecondary) }
+        }
+    }
+}
+
+/** A note's `**words**` set in [strong], their markers gone; a `**` left without its pair stays as written. */
+internal fun emphasised(note: String, strong: SpanStyle): AnnotatedString = buildAnnotatedString {
+    val parts = note.split(EMPHASIS)
+    val paired = parts.size % 2 == 1
+    parts.forEachIndexed { i, part ->
+        when {
+            i % 2 == 0 -> append(part)
+            paired || i < parts.lastIndex -> withStyle(strong) { append(part) }
+            else -> append(EMPHASIS + part)
         }
     }
 }
@@ -469,6 +487,9 @@ internal fun updateSaid(ui: UpdateUi?): Pair<String, StatusState>? {
 }
 
 private const val UPDATES_ROW = "updates"
+
+/** Markdown's emphasis in the release notes (« **Sagas.** Les volets… »). */
+private const val EMPHASIS = "**"
 
 /** Between a value's parts (« Bêta · 6,4 Mo »). */
 private const val PARTS = " · "
