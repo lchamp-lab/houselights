@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.nfsFolder
@@ -26,6 +27,7 @@ import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.testing.text
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -111,7 +113,7 @@ class FolderRemovalTest {
     fun aFolderAmongOthersSaysOnlyWhatLeaves() {
         show("Films", "Séries")
         askToRemove("Séries")
-        compose.onNodeWithText("Ses titres quittent la bibliothèque$NB; rien n’est supprimé sur le NAS.").assertExists()
+        compose.onNodeWithText(text(R.string.remove_folder_desc)).assertExists()
     }
 
     @Test
@@ -119,8 +121,7 @@ class FolderRemovalTest {
         show("Films")
         askToRemove("Films")
         compose.onNodeWithText(
-            "Ses titres quittent la bibliothèque$NB; rien n’est supprimé sur le NAS. " +
-                "C’est votre dernier dossier$NB: vous reviendrez à l’écran de bienvenue.",
+            text(R.string.remove_last_folder_desc),
         ).assertExists()
     }
 

@@ -21,6 +21,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.lifecycle.Lifecycle
+import app.houselights.R
 import app.houselights.journal.JournalAccess
 import app.houselights.journal.JournalOpener
 import app.houselights.ui.design.HlSpace
@@ -30,6 +31,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
@@ -103,7 +105,7 @@ class JournalSheetTest {
         val journal = FakeJournal(OPEN)
         show(journal)
         compose.onNodeWithText("Envoyer le journal").assertExists()
-        compose.onNodeWithText("Pour signaler un problème, depuis votre téléphone").assertExists()
+        compose.onNodeWithText(text(R.string.journal_desc)).assertExists()
         compose.onNodeWithText(ADDRESS).assertDoesNotExist()
         assertEquals(0, journal.served)
     }
@@ -264,15 +266,14 @@ class JournalSheetTest {
         const val SCREEN_HEIGHT = 540f
         const val LARGEST = 1.3f
         const val PRESSES = 12
-        const val SCAN = "Scannez ce code avec votre téléphone$NB: il ouvre le journal de Houselights, à joindre à votre message."
+        val SCAN: String get() = text(R.string.journal_scan)
         const val ADDRESS = "http://192.168.1.53:8642/journal/k7f2m4q9x3w8r5t6y2zb"
         const val LONGEST = "http://192.168.100.200:65535/journal/k7f2m4q9x3w8r5t6y2zb"
         val OPEN = JournalAccess.Open(ADDRESS, few = false)
-        const val MASKED = "Mots de passe et jetons y sont masqués$NB; les noms de vos fichiers, partages et du NAS y restent$NB: " +
-            "relisez-le avant de le publier."
+        val MASKED: String get() = text(R.string.journal_masked)
         const val CLOSES = "La page se ferme avec ce panneau, au plus tard dans 10${NB}min."
-        const val FEW = "Scannez ce code pour ouvrir le journal, presque vide$NB: revenez ici juste après le problème."
-        const val OFFLINE = "Le lecteur n’est relié à aucun réseau local$NB: reliez-le à votre box, puis ouvrez à nouveau ce panneau."
-        const val FAILED = "La page n’a pas pu s’ouvrir sur ce lecteur$NB: fermez ce panneau, puis ouvrez-le à nouveau."
+        val FEW: String get() = text(R.string.journal_few)
+        val OFFLINE: String get() = text(R.string.journal_offline)
+        val FAILED: String get() = text(R.string.journal_failed)
     }
 }

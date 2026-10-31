@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import app.houselights.R
 import app.houselights.player.PlayerFacts
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.testing.SettleMainLooper
@@ -14,6 +15,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.keyInSheet
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import app.houselights.ui.util.ErrorAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -68,14 +70,14 @@ class PlayerTrustSheetTest {
     @Test
     fun theSheetNamesThePlayerAndFocusesTheAnswerThatChangesNothing() {
         show(FakeTrust(UPDATED))
-        compose.onNodeWithText("Faire confiance au nouveau lecteur").assertExists()
+        compose.onNodeWithText(text(R.string.trust_player)).assertExists()
         said("Lecteur vidéo").assertExists()
         said("6.4.42").assertExists()
         // The day Android installed the update, in the sentence, held to its « le ».
         said("lecteur le${NB}12${NB}octobre${NB}2026$NB: jusqu’à sa prochaine mise à jour").assertExists()
         said("les mots de passe de vos dossiers. Sinon, désinstallez les mises à jour du lecteur.").assertExists()
         compose.onNodeWithText("Ne pas lui faire confiance").assertIsFocused()
-        said("Il ne recevra aucun mot de passe").assertExists()
+        said(text(R.string.trust_player_no_desc)).assertExists()
         compose.onNodeWithText("Faire confiance à ce lecteur").assertExists()
         said("Il recevra vos mots de passe").assertExists()
         said("Autre signature").assertDoesNotExist()

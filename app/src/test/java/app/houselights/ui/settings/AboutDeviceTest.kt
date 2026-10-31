@@ -12,6 +12,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
+import app.houselights.R
 import app.houselights.player.PlayerFacts
 import app.houselights.player.PlayerStatus
 import app.houselights.player.ZidooPlayer.Decision
@@ -21,6 +22,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Rule
@@ -66,7 +68,7 @@ class AboutDeviceTest {
     fun elsewhereThePlayerIsNotRecognisedAndWhyIsSaid() {
         show(PlayerStatus.Unrecognized("com.android.gallery3d", Decision.NOT_A_ZIDOO))
         compose.onNodeWithText("Détecté, non reconnu").assertExists()
-        compose.onNodeWithText("Cet appareil n’est pas une Zidoo", substring = true).assertExists()
+        compose.onNodeWithText(text(R.string.player_not_a_zidoo), substring = true).assertExists()
         compose.onNodeWithText("com.android.gallery3d", substring = true).assertExists()
     }
 
@@ -74,7 +76,7 @@ class AboutDeviceTest {
     fun aPlayerThatChangedIsNotRecognised() {
         show(PlayerStatus.Unrecognized("com.zidoo.player", Decision.CHANGED))
         compose.onNodeWithText("Détecté, non reconnu").assertExists()
-        compose.onNodeWithText("A changé depuis la dernière lecture", substring = true).assertExists()
+        compose.onNodeWithText(text(R.string.player_changed_since), substring = true).assertExists()
     }
 
     @Test
@@ -209,7 +211,7 @@ class AboutDeviceTest {
         const val FRAME_MS = 32L
         const val NB = "\u00a0"
         const val GALLERY = "com.android.gallery3d"
-        const val TRUST = "Faire confiance au nouveau lecteur"
+        val TRUST: String get() = text(R.string.trust_player)
 
         /** The Z1000 Pro's player, updated on 12 October 2026 since passwords went to it. */
         val UPDATED = PlayerFacts(

@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.requestFocus
 import androidx.lifecycle.SavedStateHandle
+import app.houselights.R
 import app.houselights.core.SecretUnreadException
 import app.houselights.providers.local.FolderLevel
 import app.houselights.providers.local.LibraryDatabase
@@ -43,6 +44,7 @@ import app.houselights.ui.testing.idleLibrary
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import app.houselights.ui.testing.waitWithLooper
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.wholePath
@@ -175,7 +177,7 @@ class FolderFaultTest {
         vm.edit { copy(share = "") }
         vm.submit { throw AssertionError("saved without its mount path") }
         compose.waitForIdle()
-        val message = "Enter the mount path, for example /volume1/video."
+        val message = text(R.string.error_export_missing)
         saysUnder("Mount path", message).assertIsFocused()
         compose.onAllNodesWithText(message).assertCountEquals(1)
         compose.onNodeWithText("Connection not tested").assertExists()
@@ -260,8 +262,8 @@ class FolderFaultTest {
         val vm = form(series, probe = { throw IOException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed") })
         vm.test()
         compose.waitWithLooper("the folder checked") { vm.check != null }
-        saysUnder("Password", "The NAS rejected the user name or password.").assertIsFocused()
-        val help = "The password is stored on this device and passed to the Zidoo player. Prefer a dedicated read-only account."
+        saysUnder("Password", text(R.string.error_login_failed)).assertIsFocused()
+        val help = text(R.string.smb_hint)
         compose.onNodeWithText(help).assertExists()
     }
 
@@ -277,7 +279,7 @@ class FolderFaultTest {
         saysUnder("Password", UNREAD).assertIsFocused()
         compose.onNodeWithText("Connection not tested").assertExists()
         compose.onNodeWithText("Cannot connect").assertDoesNotExist()
-        compose.onNodeWithText("The NAS rejected the user name or password.").assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.error_login_failed)).assertDoesNotExist()
         compose.onNodeWithText("The folder could not be read", substring = true).assertDoesNotExist()
     }
 
@@ -396,6 +398,6 @@ class FolderFaultTest {
     private companion object {
         const val SUBFOLDER = "Subfolder (optional)"
 
-        const val UNREAD = "The saved password could not be read for now: it is kept. Enter it again, or try again in a moment."
+        val UNREAD: String get() = text(R.string.error_password_unread)
     }
 }

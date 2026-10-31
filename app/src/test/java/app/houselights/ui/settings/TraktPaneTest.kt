@@ -57,6 +57,7 @@ import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import app.houselights.ui.util.FACT_GAP
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -119,7 +120,7 @@ class TraktPaneTest {
         compose.onNodeWithText(DESCRIPTION).assertExists()
         compose.onNodeWithText("Non connecté").assertExists()
         compose.onNodeWithText(CONNECT).assertExists()
-        compose.onNodeWithText("Avec un code à saisir sur téléphone ou ordinateur").assertExists()
+        compose.onNodeWithText(text(R.string.trakt_connect_desc)).assertExists()
     }
 
     @Test
@@ -133,7 +134,7 @@ class TraktPaneTest {
         compose.onNodeWithText("En attente de votre accord").assertExists()
         compose.onNodeWithText("Ce code expire dans 10${NB}min").assertExists()
         compose.onNodeWithText(
-            "Scannez le code QR avec votre téléphone, ou ouvrez son adresse sur un ordinateur, puis saisissez ce code.",
+            text(R.string.trakt_code_desc),
         ).assertExists()
     }
 
@@ -221,7 +222,7 @@ class TraktPaneTest {
         compose.runOnIdle { link.end(DeviceCodeEnd.DENIED) }
         compose.waitForIdle()
         compose.onNodeWithText(CODE).assertDoesNotExist()
-        compose.onNodeWithText("L’accès a été refusé sur Trakt. Connectez votre compte à nouveau pour l’autoriser.").assertExists()
+        compose.onNodeWithText(text(R.string.trakt_denied)).assertExists()
         compose.onNodeWithText("Non effectué").assertExists()
         compose.onNodeWithText(CONNECT).assertIsFocused()
     }
@@ -249,7 +250,7 @@ class TraktPaneTest {
     fun aConnectionTraktEndedIsSaidAboveConnect() {
         session = lea.copy(ended = true)
         show()
-        compose.onNodeWithText("Trakt a mis fin à cette connexion. Connectez votre compte à nouveau.").assertExists()
+        compose.onNodeWithText(text(R.string.trakt_ended)).assertExists()
         compose.onNodeWithText(CONNECT).assertExists()
     }
 
@@ -273,7 +274,7 @@ class TraktPaneTest {
         compose.onNodeWithText("412").assertExists()
         compose.onNodeWithText("En cours").assertExists()
         compose.onNodeWithText("1").assertExists()
-        compose.onNodeWithText("Réunit ce que vous avez vu ici et sur Trakt").assertExists()
+        compose.onNodeWithText(text(R.string.trakt_sync_now_desc)).assertExists()
         compose.onNodeWithText(SYNC).assertIsEnabled()
 
         ok(SYNC)
@@ -334,8 +335,7 @@ class TraktPaneTest {
         show()
         ok("2 éléments ignorés")
         compose.onNodeWithText(
-            "Trakt les envoie sous une forme que cette version ne sait pas lire, souvent une lecture en pause laissée par une " +
-                "autre application. Le reste est synchronisé, et vos marquages partent normalement.",
+            text(R.string.trakt_skipped_text),
         ).assertExists()
         compose.onNodeWithText("Breaking Bad").assertExists()
         compose.onNodeWithText("Historique des épisodes").assertExists()
@@ -344,8 +344,7 @@ class TraktPaneTest {
         compose.onNodeWithText(EPISODES_HELD).assertExists()
         compose.onNodeWithText(MOVIES_HELD).assertDoesNotExist()
         compose.onNodeWithText(
-            "Pour régler$NB: supprimez-les sur trakt.tv, dans Progression ou Historique, ou mettez Houselights à jour quand une " +
-                "version saura les lire.",
+            text(R.string.trakt_skipped_fix),
         ).assertExists()
     }
 
@@ -364,8 +363,7 @@ class TraktPaneTest {
 
         skipped = listOf(SHOW, SkippedEntry(SkippedKind.MOVIE_HISTORY))
         compose.onNodeWithText(
-            "Tant que l’historique des films et celui des épisodes ne se lisent pas en entier, Houselights n’envoie pas à Trakt " +
-                "les films et les épisodes vus ici qui lui manquent, pour ne pas créer de doublons.",
+            text(R.string.trakt_skipped_partial_both),
         ).assertExists()
     }
 
@@ -612,7 +610,7 @@ class TraktPaneTest {
     fun aBuildWithoutKeysSaysSoAndOffersNothing() {
         link = FakeTraktLink(available = false)
         show()
-        compose.onNodeWithText("Cette version de Houselights n’a pas de clé Trakt.").assertExists()
+        compose.onNodeWithText(text(R.string.trakt_no_keys)).assertExists()
         compose.onNodeWithText(CONNECT).assertDoesNotExist()
     }
 
@@ -623,18 +621,13 @@ class TraktPaneTest {
         const val SYNC = "Synchroniser maintenant"
         const val CONNECT = "Connecter votre compte"
         const val DISCONNECT = "Déconnecter votre compte"
-        const val DESCRIPTION =
-            "Votre compte Trakt garde ce que vous regardez$NB: les films et les épisodes vus, et où vous en êtes. " +
-                "Sur cet appareil comme ailleurs."
-        const val PAUSED = "Trakt suit vos dossiers$NB; il reprend quand vous y revenez."
-        const val UNREAD = "Votre connexion à Trakt est conservée sur ce lecteur, mais n’a pas pu être relue pour l’instant. " +
-            "Réessayez dans un moment, ou déconnectez votre compte si vous le souhaitez."
-        const val SKIPPED_DESC = "Trakt les envoie sous une forme que l’app ne sait pas lire"
+        val DESCRIPTION: String get() = text(R.string.trakt_desc)
+        val PAUSED: String get() = text(R.string.trakt_paused_desc)
+        val UNREAD: String get() = text(R.string.trakt_unread_desc)
+        val SKIPPED_DESC: String get() = text(R.string.trakt_skipped_desc)
         const val FIX = "Pour régler"
-        const val MOVIES_HELD = "Tant que l’historique des films ne se lit pas en entier, Houselights n’envoie pas à Trakt les films vus " +
-            "ici qui lui manquent, pour ne pas créer de doublons."
-        const val EPISODES_HELD = "Tant que l’historique des épisodes ne se lit pas en entier, Houselights n’envoie pas à Trakt les " +
-            "épisodes vus ici qui lui manquent, pour ne pas créer de doublons."
+        val MOVIES_HELD: String get() = text(R.string.trakt_skipped_partial_movies)
+        val EPISODES_HELD: String get() = text(R.string.trakt_skipped_partial_episodes)
         val SHOW = SkippedEntry(SkippedKind.EPISODE_HISTORY, "Breaking Bad")
         val PAUSED_FILM = SkippedEntry(SkippedKind.PAUSED, "The Matrix", 1999)
         val TV_WIDTH = 960.dp

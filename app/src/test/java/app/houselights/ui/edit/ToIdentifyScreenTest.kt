@@ -13,6 +13,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import app.houselights.R
 import app.houselights.core.MatchCandidate
 import app.houselights.core.MatchDoubt
 import app.houselights.core.ToIdentify
@@ -26,6 +27,7 @@ import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
+import app.houselights.ui.testing.text
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -151,7 +153,7 @@ class ToIdentifyScreenTest {
         provider.toIdentify = emptyList()
         show()
         compose.onNodeWithText("Nothing to identify").assertExists()
-        compose.onNodeWithText("Titles Houselights did not recognize with certainty will show here.").assertExists()
+        compose.onNodeWithText(text(R.string.to_identify_none_hint)).assertExists()
     }
 
     @Test

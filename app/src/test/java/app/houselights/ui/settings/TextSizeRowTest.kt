@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.text.TextLayoutResult
+import app.houselights.R
 import app.houselights.settings.TextSize
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.rememberFocusMemory
@@ -24,6 +25,7 @@ import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
+import app.houselights.ui.testing.text
 import app.houselights.ui.testing.waitWithLooper
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -110,7 +112,7 @@ class TextSizeRowTest {
         show()
         row().performSemanticsAction(SemanticsActions.OnClick)
         compose.waitForIdle()
-        compose.onNodeWithText("Agrandit ou réduit tous les textes de Houselights. La grille et les marges ne changent pas.").assertExists()
+        compose.onNodeWithText(text(R.string.text_size_sheet)).assertExists()
         listOf(
             "Compacte" to "Pour lire de plus près",
             "Standard" to "Recommandée",
@@ -144,7 +146,7 @@ class TextSizeRowTest {
         show()
         row().performSemanticsAction(SemanticsActions.OnClick)
         compose.waitForIdle()
-        compose.onNode(hasText("Grande") and hasClickAction() and hasText("Déjà atteinte par le réglage d’Android")).assertExists()
+        compose.onNode(hasText("Grande") and hasClickAction() and hasText(text(R.string.text_size_large_reached))).assertExists()
         assertEquals(1.3f, scaleOf("Grande"))
     }
 }
