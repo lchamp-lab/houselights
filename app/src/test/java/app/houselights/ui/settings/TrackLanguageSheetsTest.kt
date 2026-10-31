@@ -39,15 +39,29 @@ class TrackLanguageSheetsTest {
         }
     }
 
-    /** A code saved with a region or as files tag it shows its language; one no sheet lists, the sheet's first option. */
+    /** A code saved with a region or as files tag it shows its language's option, the sheets listing nothing more. */
     @Test
-    fun aLanguageSavedOtherwiseShowsItsOptionAndAnUnknownOneTheFirst() {
+    fun aLanguageSavedOtherwiseShowsItsOption() {
         val french = codes.indexOf("fr")
         for (saved in listOf("fr-CA", "fre", "FR")) {
+            assertEquals(saved, codes, trackCodes(saved, codes))
             assertEquals(saved, french + 2, audioOption(saved, codes))
             assertEquals(saved, french + 1, subtitleLanguageOption(saved, codes))
         }
-        assertEquals("Lecteur", 0, audioOption("xx", codes))
-        assertEquals("Langue de l'interface", 0, subtitleLanguageOption("xx", codes))
+    }
+
+    /**
+     * A language saved that the sheets do not list (one left by another version) comes first among their languages,
+     * shown chosen as its row names it, and chosen again it stays; the player's choice and the app's add nothing.
+     */
+    @Test
+    fun aSavedLanguageNoSheetListsIsItsOwnOptionChosen() {
+        val listed = trackCodes("xx", codes)
+        assertEquals(listOf("xx") + codes, listed)
+        assertEquals(2, audioOption("xx", listed))
+        assertEquals("xx", audioOf(2, listed))
+        assertEquals(1, subtitleLanguageOption("xx", listed))
+        assertEquals("xx", subtitleLanguageOf(1, listed))
+        for (saved in listOf(null, TrackPreferences.INTERFACE)) assertEquals("$saved", codes, trackCodes(saved, codes))
     }
 }

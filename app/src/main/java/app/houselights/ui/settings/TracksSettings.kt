@@ -55,11 +55,11 @@ private fun AudioRow(tracks: TrackPreferences, app: Locale, onChoose: (String?) 
         onClick = { choosing = true },
     )
     if (choosing) {
-        val codes = trackLanguages.tags
+        val codes = trackCodes(tracks.audio, trackLanguages.tags)
         val options = listOf(
             ChoiceOption(stringResource(R.string.tracks_player), stringResource(R.string.audio_language_player_desc)),
             ChoiceOption(stringResource(R.string.interface_language), ownLanguage),
-        ) + trackLanguages.options(app)
+        ) + trackOptions(codes, app)
         HlChoiceSheet(
             title,
             options,
@@ -109,10 +109,10 @@ private fun SubtitleLanguageRow(tracks: TrackPreferences, app: Locale, onChoose:
         onClick = { choosing = true },
     )
     if (choosing) {
-        val codes = trackLanguages.tags
+        val codes = trackCodes(tracks.subtitleLanguage, trackLanguages.tags)
         HlChoiceSheet(
             title,
-            listOf(ChoiceOption(stringResource(R.string.interface_language), ownLanguage)) + trackLanguages.options(app),
+            listOf(ChoiceOption(stringResource(R.string.interface_language), ownLanguage)) + trackOptions(codes, app),
             selected = subtitleLanguageOption(tracks.subtitleLanguage, codes),
             onSelect = { onChoose(subtitleLanguageOf(it, codes)) },
             onDismiss = { choosing = false },
@@ -120,6 +120,20 @@ private fun SubtitleLanguageRow(tracks: TrackPreferences, app: Locale, onChoose:
         )
     }
 }
+
+/**
+ * The languages a sheet lists: [tags], after [saved] when it is a language none of them is (one left by another
+ * version), so that the sheet shows chosen the language the row names.
+ */
+internal fun trackCodes(saved: String?, tags: List<String>): List<String> =
+    if (saved == null || saved == TrackPreferences.INTERFACE || Languages.code(saved) in tags) tags else listOf(saved) + tags
+
+/** The options of [codes], as [trackCodes] lists them: the saved language they add named as the others are. */
+private fun trackOptions(codes: List<String>, app: Locale): List<ChoiceOption> =
+    codes.dropLast(trackLanguages.tags.size).map { code ->
+        val itsOwn = trackLanguageName(code, Locale.forLanguageTag(code))
+        ChoiceOption(itsOwn, trackLanguageName(code, app).takeUnless { it.equals(itsOwn, ignoreCase = true) })
+    } + trackLanguages.options(app)
 
 /**
  * The audio sheet's option for [audio]: the player's choice (null) first, then the app's language
