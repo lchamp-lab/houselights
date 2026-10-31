@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.SerializationException
+import okhttp3.Call
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import org.junit.Assert.assertEquals
@@ -32,6 +33,7 @@ import java.net.UnknownHostException
 import java.security.cert.CertificateNotYetValidException
 import java.time.Duration
 import java.util.Locale
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLHandshakeException
 
@@ -97,21 +99,32 @@ class TmdbClientTest {
         assertEquals("none for an entry TMDB has not", emptyList<String>(), client.alternativeTitles(1, show = false))
     }
 
+    /**
+     * A search given up while TMDB answers (superseded by a newer one, a screen left) fails as its socket closed by the
+     * cancel does, a network failure were it not given up: it says nothing of TMDB, which a scan's client asks next.
+     */
     @Test
-    @Suppress("SleepInsteadOfDelay") // OkHttp's own threads end the call: virtual time cannot wait for them.
+    @Suppress("SleepInsteadOfDelay") // OkHttp's own thread ends the call given up: virtual time cannot wait for it.
     fun aRequestGivenUpOnLeavesTmdbToTheNextOne() = runTest {
-        val client = tmdb.client(pauseWhenUnreachable = true)
-        tmdb.hold = true
-        // A search superseded by a newer one, or a screen left, while TMDB answers.
+        val held = CompletableFuture<Call>()
+        val transport = Interceptor { chain ->
+            if (held.isDone) return@Interceptor tmdb.intercept(chain)
+            held.complete(chain.call())
+            while (!chain.call().isCanceled()) Thread.sleep(POLL_MS)
+            throw SocketException("Socket closed")
+        }
+        val client = TmdbClient("key", pauseWhenUnreachable = true, transport)
         val search = launch(Dispatchers.IO) { client.matchMovie(Wanted.of("Dune", 2021)) }
-        assertTrue(tmdb.held.await(5, TimeUnit.SECONDS))
+        val call = held.get(5, TimeUnit.SECONDS)
         search.cancel()
         search.join()
-        // The call ends on OkHttp's threads, after the coroutine: wait until it has.
+        // The call ends on OkHttp's thread after the coroutine, its failure handled by then.
         val until = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-        while (Http.client.dispatcher.runningCallsCount() > 0 && System.nanoTime() < until) Thread.sleep(5)
+        while (call in Http.client.dispatcher.runningCalls()) {
+            assertTrue("the call given up never ended", System.nanoTime() < until)
+            Thread.sleep(POLL_MS)
+        }
 
-        tmdb.hold = false
         assertEquals(438631, client.matchMovie(Wanted.of("Dune", 2021)).found?.id)
     }
 
@@ -323,5 +336,10 @@ class TmdbClientTest {
     fun otherFailuresStayHttpFailures() = runTest {
         tmdb.status = 500
         failure<HttpException> { tmdb.client().movieById(438631) }
+    }
+
+    private companion object {
+        /** How often a wait on OkHttp's thread looks again. */
+        const val POLL_MS = 5L
     }
 }

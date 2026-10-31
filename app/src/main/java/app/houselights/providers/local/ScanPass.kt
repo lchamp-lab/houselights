@@ -75,12 +75,11 @@ internal fun suggestionRows(item: Long, offered: List<Scored>): List<SuggestionE
 internal fun ItemEntity.nfoInfo(): NfoInfo? = nfo?.let(NfoParser::parse)
 
 /** Caches [local]'s images ([ScanFiles.copyArtwork]); null where missing or the copy failed. */
-internal suspend fun ScanFiles.copyArt(source: SourceEntity, local: VideoSidecars): LocalArt = LocalArt(
-    poster = local.poster?.let { copyArtwork(source, it) },
-    fanart = local.fanart?.let { copyArtwork(source, it) },
-    logo = local.logo?.let { copyArtwork(source, it) },
-    thumb = local.thumb?.let { copyArtwork(source, it) },
-)
+internal suspend fun ScanFiles.copyArt(source: SourceEntity, local: VideoSidecars): LocalArt {
+    // In the order asked, one request for all.
+    val copies = copyArtwork(source, listOf(local.poster, local.fanart, local.logo, local.thumb)).iterator()
+    return LocalArt(poster = copies.next(), fanart = copies.next(), logo = copies.next(), thumb = copies.next())
+}
 
 /** The sidecars actually read, for [SidecarKey]; a failed NFO or image is left out so the next pass retries it. */
 internal fun ScanFiles.sidecarsRead(local: VideoSidecars, nfo: KeptNfo, art: LocalArt): VideoSidecars = VideoSidecars(

@@ -10,9 +10,13 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.settings.InterfaceLanguage
+import app.houselights.testing.children
+import app.houselights.testing.xmlRoot
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.design.TwoPaneDefaults
+import app.houselights.ui.detail.longDate
 import app.houselights.ui.settings.title
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
@@ -28,7 +32,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.io.File
 import java.text.NumberFormat
+import java.time.LocalDate
 import java.util.Locale
 import app.houselights.ui.util.formatBytes as bytes
 
@@ -49,7 +55,7 @@ class PaneRowLineTest {
     fun everyDescriptionHoldsOnOneLine() = assertOneLine(1f)
 
     @Test
-    fun everyDescriptionHoldsOnOneLineAtTheLargestTextSize() = assertOneLine(LARGEST)
+    fun everyDescriptionHoldsOnOneLineAtTheLargestTextSize() = assertOneLine(TEXT_SCALE_MAX)
 
     /** What a row lays beside its words, as its pane or sheet does. */
     private enum class Beside { None, Icon, Check }
@@ -105,8 +111,8 @@ class PaneRowLineTest {
 
     /** A language's words: its resources, its tag and its locale. */
     private inner class Words(val local: Context, val tag: String, val locale: Locale) {
-        fun line(id: Int, beside: Beside = Beside.None, value: String? = null, jaquette: Boolean = false) =
-            Line(local.getString(id), "$tag: ${name(id)}", beside, value, jaquette)
+        fun line(id: Int, beside: Beside = Beside.None, value: String? = null, jaquette: Boolean = false, args: Array<Any>? = null) =
+            Line(args?.let { local.getString(id, *it) } ?: local.getString(id), "$tag: ${name(id)}", beside, value, jaquette)
 
         /** The language's own name, as a language row shows it. */
         val language: String get() = locale.getDisplayName(locale).replaceFirstChar { it.titlecase(locale) }
@@ -139,8 +145,8 @@ class PaneRowLineTest {
             line(R.string.trakt_connect_desc),
             line(R.string.trakt_disconnect_desc),
             line(R.string.trakt_sync_now_desc),
-            Line(local.resources.getString(R.string.trakt_skipped_desc_one), "$tag: trakt_skipped_desc (1)", Beside.None),
-            Line(local.resources.getString(R.string.trakt_skipped_desc), "$tag: trakt_skipped_desc", Beside.None),
+            line(R.string.trakt_skipped_desc_one),
+            line(R.string.trakt_skipped_desc),
             line(R.string.ui_resolution_desc, value = longest(R.string.ui_4k, R.string.ui_system)),
             line(R.string.interface_language_desc, value = language),
             line(
@@ -154,7 +160,26 @@ class PaneRowLineTest {
             line(R.string.network_path_desc, Beside.Check),
             line(R.string.http_stream_desc, Beside.Check),
             line(R.string.add_mapping_desc),
-        ) + updateLines(w)
+            line(R.string.trust_player_desc, value = null, args = arrayOf(PLAYER, longDate(UPDATED, locale))),
+            line(R.string.trust_player_desc_app, value = null, args = arrayOf(PLAYER, longDate(UPDATED, locale))),
+        ) + updateLines(w) + trackLines(w)
+    }
+
+    /** « Lecture »'s tracks: the audio's and the subtitles' rows beside what they choose, each subtitle mode's line. */
+    private fun trackLines(w: Words): List<Line> = with(w) {
+        val player = local.getString(R.string.tracks_player)
+        val wanted = locale.getDisplayLanguage(locale)
+        listOf(
+            line(R.string.audio_language_desc, value = language),
+            line(R.string.audio_language_player_desc, value = player),
+            line(R.string.subtitle_language_desc, value = language),
+            line(R.string.subtitle_language_interface_desc, value = language),
+            line(R.string.tracks_player_desc, value = player),
+            line(R.string.subtitles_off_desc, value = local.getString(R.string.subtitles_off)),
+            line(R.string.subtitles_forced_desc, value = local.getString(R.string.subtitles_forced)),
+            line(R.string.subtitles_auto_desc, value = local.getString(R.string.subtitles_auto), args = arrayOf(wanted)),
+            line(R.string.subtitles_always_desc, value = local.getString(R.string.subtitles_always), args = arrayOf(wanted)),
+        )
     }
 
     /** About's « Mises à jour »: its two settings beside their longest choice, and every state its row says. */
@@ -235,6 +260,13 @@ class PaneRowLineTest {
             line(R.string.update_check_never_desc, Beside.Check),
             line(R.string.update_stable_desc, Beside.Check),
             line(R.string.update_beta_desc, Beside.Check),
+            // « Lecture »'s choices of a track, the player's own setting and each subtitle mode by its line.
+            line(R.string.audio_language_player_desc, Beside.Check),
+            line(R.string.tracks_player_desc, Beside.Check),
+            line(R.string.subtitles_off_desc, Beside.Check),
+            line(R.string.subtitles_forced_desc, Beside.Check),
+            line(R.string.subtitles_auto_desc, Beside.Check, args = arrayOf(locale.getDisplayLanguage(locale))),
+            line(R.string.subtitles_always_desc, Beside.Check, args = arrayOf(locale.getDisplayLanguage(locale))),
         ) + orderLines(w) + answerLines(w) + posterLines(w)
     }
 
@@ -303,6 +335,7 @@ class PaneRowLineTest {
             said(R.string.folder_inside_added, FOLDER, beside = Beside.Icon),
             said(R.string.share_holds_one, FOLDER, beside = Beside.Icon),
             Line(plural(R.plurals.share_holds_many, MANY), "$tag: share_holds_many", Beside.Icon),
+            Line(plural(R.plurals.pick_share_desc, MANY), "$tag: pick_share_desc", Beside.None),
             Line(
                 EXPORT + FACT_GAP + local.getString(R.string.share_holds_one, FOLDER),
                 "$tag: an export's line",
@@ -336,6 +369,64 @@ class PaneRowLineTest {
         }
     }
 
+    /** Every string named as a description (`…_desc…`) is a row's measured above, or said here not to be one's. */
+    @Test
+    fun everyDescriptionIsMeasured() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val words = Words(context, "en", Locale.ENGLISH)
+        val measured = (paneLines(words) + sheetLines(words) + flowLines(words))
+            .flatMap { it.name.substringAfter(": ").split(", ") }.toSet()
+        val values = File("src/main/res/values")
+        val strings = values.listFiles { file -> file.name.startsWith("strings") && file.extension == "xml" }.orEmpty()
+        assertTrue("No strings found in ${values.path}", strings.isNotEmpty())
+        val descriptions = strings.flatMap { xmlRoot(it).children("string", "plurals") }.map { it.getAttribute("name") }
+            .filter { description.containsMatchIn(it) }.toSet()
+        val unmeasured = descriptions - measured - notARow.keys
+        assertTrue("Descriptions no row of this test measures, or name in notARow:\n" + unmeasured.joinToString("\n"), unmeasured.isEmpty())
+        val stale = notARow.keys.filter { it !in descriptions || it in measured }
+        assertTrue("Not rows' descriptions, said wrongly: ${stale.joinToString()}", stale.isEmpty())
+    }
+
+    private val description = Regex("""(^|_)desc(_|$)""")
+
+    /** Descriptions that are no row's, and what says them instead: a head's paragraph, a form's, a question's consequence. */
+    private val notARow = mapOf(
+        "display_desc_player" to "Affichage's paragraph",
+        "display_desc_system" to "Affichage's paragraph",
+        "playback_desc" to "Lecture's paragraph",
+        "playback_desc_folders" to "Lecture's paragraph",
+        "playback_desc_server" to "Lecture's paragraph",
+        "storage_desc" to "Stockage's paragraph",
+        "trakt_desc" to "Trakt's pane head",
+        "trakt_paused_desc" to "Trakt's pane head",
+        "trakt_unread_desc" to "Trakt's pane head",
+        "trakt_code_desc" to "the code to type's instruction",
+        "edit_folder_desc" to "a folder's form, its head",
+        "identify_desc" to "Identifier's head",
+        "identify_desc_none" to "Identifier's head",
+        "identify_desc_unsure" to "Identifier's head",
+        "jellyfin_desc" to "the Jellyfin form's head",
+        "jellyfin_desc_found" to "the Jellyfin form's head",
+        "to_identify_desc" to "À identifier's paragraph",
+        "nfo_desc" to "the NFO sheet's head (SheetRhythmTest)",
+        "tmdb_desc" to "the TMDB key sheet's head",
+        "tmdb_key_none_desc" to "a status plate's detail",
+        "trust_player_sheet_desc" to "the trust sheet's head",
+        "trust_player_sheet_desc_app" to "the trust sheet's head",
+        "trust_player_sheet_desc_jellyfin" to "the trust sheet's head",
+        "trust_player_sheet_desc_app_jellyfin" to "the trust sheet's head",
+        "remove_folder_desc" to "a removal's consequence, under its question",
+        "remove_last_folder_desc" to "a removal's consequence, under its question",
+        "remove_last_folder_kept_desc" to "a removal's consequence, under its question",
+        "sign_out_desc" to "a sign out's consequence, under its question",
+        "sign_out_no_folder_desc" to "a sign out's consequence, under its question",
+        "source_local_desc" to "a welcome door's words",
+        "welcome_jellyfin_desc" to "a welcome door's words",
+    ) + listOf(
+        "flow_where_desc", "type_address_flow_desc", "flow_protocol_desc", "flow_account_desc", "flow_share_desc",
+        "flow_path_desc", "flow_path_no_list_desc", "flow_nfs_identity_desc", "flow_browse_desc", "flow_kind_desc", "flow_edit_desc",
+    ).associateWith { "« Ajouter un dossier »'s step, its paragraph beside the form" }
+
     @Composable
     private fun Row(line: Line) {
         HlSettingRow(
@@ -350,7 +441,6 @@ class PaneRowLineTest {
     }
 
     private companion object {
-        const val LARGEST = 1.3f
         const val MANY = 12
 
         /** « Ajouter un dossier »'s fixture: an account, a folder, a level, an export, a NAS used and its folders. */
@@ -389,6 +479,10 @@ class PaneRowLineTest {
 
         /** How many titles are to identify, as many as a large library may leave. */
         const val TO_IDENTIFY = "1 234"
+
+        /** A player as About names it, and the day it was last updated, as long as a month's name gets. */
+        const val PLAYER = "Lecteur vidéo 6.4.42"
+        val UPDATED: LocalDate = LocalDate.of(2026, 9, 30)
 
         /** An update as long as its version names get: a beta's, its APK and what of it was received. */
         const val BETA = "0.4.1-beta.2"

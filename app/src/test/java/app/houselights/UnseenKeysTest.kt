@@ -37,7 +37,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowDialog
 
-/** The remote's keys on a show's page while the lights go down for the player, or under the launch screen. */
+/** The remote's keys on a show's page while the lights go down for the player; each key's way is in DispatchUnseenTest. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class UnseenKeysTest {
@@ -54,7 +54,6 @@ class UnseenKeysTest {
         episodes = mapOf("s1" to (1..2).map { episode("s1e$it", "s1", it) })
     }
 
-    private var covered = false
     private var dimming = false
     private var cancelled = 0
 
@@ -90,7 +89,7 @@ class UnseenKeysTest {
                 if (sheet != null) {
                     sheet.decorView.dispatchKeyEvent(event)
                 } else {
-                    dispatchUnseen(event, covered, dimming, cancel = { cancelled++ }, pass = compose.activity::dispatchKeyEvent)
+                    dispatchUnseen(event, covered = false, dimming, cancel = { cancelled++ }, pass = compose.activity::dispatchKeyEvent)
                 }
             }
         }
@@ -123,16 +122,5 @@ class UnseenKeysTest {
         remote(KeyEvent.KEYCODE_BACK)
         assertEquals(1, cancelled)
         assertTrue(provider.calls.none { it.startsWith("played") })
-    }
-
-    @Test
-    fun underTheLaunchScreenMenuOpensNothing() {
-        onAnEpisode()
-        covered = true
-
-        remote(KeyEvent.KEYCODE_MENU)
-        remote(KeyEvent.KEYCODE_F12)
-        markWatched().assertDoesNotExist()
-        assertNull(sheet())
     }
 }

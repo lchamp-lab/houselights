@@ -3,8 +3,6 @@ package app.houselights.providers.local
 import android.util.Log
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -13,11 +11,12 @@ import kotlinx.coroutines.withContext
  * weekly; an hour after the last time on a scan the user asks for; never while TMDB is out of reach. Reads nothing on
  * the NAS: a title is asked by what its row holds (its name, its NFO, its artwork). A title found at last is saved as
  * an identification saves it, a show with its seasons, then placed in the order it follows; one still not found keeps all
- * it has but its state, its candidates and when it was asked.
+ * it has but its state, its candidates and when it was asked. Each title is a run of its own ([Rounds]): TMDB is asked
+ * with the scan's lock released.
  */
 internal class Reidentify(
     private val dao: LibraryDao,
-    private val lock: Mutex,
+    private val rounds: Rounds,
     private val movies: MovieIndexer,
     private val shows: ShowIndexer,
     private val clock: () -> Long,
@@ -26,8 +25,8 @@ internal class Reidentify(
 ) {
     private val placing = EpisodePlacing(dao, clock)
 
-    /** Returns how many titles changed: found, or found otherwise (another state, other candidates). */
-    suspend fun run(tmdb: TmdbPass, asked: Boolean): Int {
+    /** Returns how many titles changed: found, or found otherwise (another state, other candidates); [state], the pass's. */
+    suspend fun run(tmdb: TmdbPass, asked: Boolean, state: PassState): Int {
         val now = clock()
         val newDue = now - (if (asked) ASKED_EVERY_MS else NEW_EVERY_MS)
         val due = now - (if (asked) ASKED_EVERY_MS else EVERY_MS)
@@ -38,7 +37,7 @@ internal class Reidentify(
         for (title in films + series) {
             // TMDB closed during the pass: the others wait for a later one.
             if (!tmdb.open) break
-            if (recheck(title, tmdb)) changed++
+            if (recheck(title, tmdb, state)) changed++
         }
         return changed
     }
@@ -59,18 +58,18 @@ internal class Reidentify(
     }
 
     /** False when nothing changed, or TMDB did not answer: a later pass asks again. */
-    private suspend fun recheck(title: ItemEntity, tmdb: TmdbPass): Boolean {
+    private suspend fun recheck(title: ItemEntity, tmdb: TmdbPass, state: PassState): Boolean {
         waitForThePlayer()
-        return lock.withLock {
+        return rounds.run(tmdb, state) {
             // Identified, left as it is, re-read by a scan or gone meanwhile: nothing to ask.
-            val fresh = dao.item(title.id)?.takeIf { stillDue(it, title) } ?: return@withLock false
+            val fresh = dao.item(title.id)?.takeIf { stillDue(it, title) } ?: return@run false
             // The seasons asked for a show found are those its placing reads: each asked once.
             val seasons = ShowIndexer.SeasonCache(tmdb)
             val writes = when (fresh.kind) {
                 ItemKind.MOVIE -> movies.recheck(fresh, tmdb)
                 ItemKind.SERIES -> shows.recheck(fresh, tmdb, seasons)
                 else -> null
-            } ?: return@withLock false
+            } ?: return@run false
             var changed = false
             withContext(NonCancellable) {
                 dao.inTransaction {
@@ -90,7 +89,7 @@ internal class Reidentify(
      */
     private suspend fun placed(seriesId: Long, tmdb: TmdbPass, seasons: ShowIndexer.SeasonCache) {
         if (dao.item(seriesId)?.tmdbId == null) return
-        val placed = suspendRunCatching { placing.reorder(seriesId, tmdb, seasons = seasons) }
+        val placed = suspendRunCatching { placing.reorder(seriesId, tmdb, seasons = seasons) }.uncollectedThrown()
             .onFailure { Log.w(TAG, "Episodes of show $seriesId wait for the next pass to be placed", it) }
         if (placed.getOrNull() == null) dao.readAgain(seriesId)
     }

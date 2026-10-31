@@ -35,12 +35,11 @@ class JellyfinMapperTest {
     }
 
     /**
-     * A box set shows without the word that marks it a saga, as a set of the library's own: TMDB's French « - Saga »
-     * always, its « Collection » once TMDB knows it; the user's own keeps it.
+     * A box set shows as a set of the library's own (CollectionRulesTest holds the words): its « Collection » dropped once
+     * TMDB knows it, the user's own keeping it; a film keeps its title.
      */
     @Test
     fun aBoxSetShowsWithoutTheWordThatMarksItASaga() {
-        assertEquals("John Wick", JellyfinMapper.shownTitle("John Wick - Saga", MediaKind.COLLECTION, known = false))
         assertEquals("John Wick", JellyfinMapper.shownTitle("John Wick Collection", MediaKind.COLLECTION, known = true))
         assertEquals(
             "The Criterion Collection",

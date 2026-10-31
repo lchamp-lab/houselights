@@ -20,8 +20,10 @@ class SuppressionGuardTest {
 
     @Test
     fun everySuppressionSaysWhy() {
-        val found = (roots.flatMap(::kotlinSources) + scripts.map(::File)).flatMap { file ->
-            val lines = file.readLines()
+        // Their text as written: a reason is a comment.
+        val texts = roots.flatMap(::kotlinSources).map { it.file to it.text } + scripts.map(::File).map { it to it.readText() }
+        val found = texts.flatMap { (file, text) ->
+            val lines = text.lines()
             bare(lines).map { "${file.path}:${it + 1}: ${lines[it].trim()}" }
         }
         assertTrue("A @Suppress with no reason in a line (CONTRIBUTING, Checks):\n" + found.joinToString("\n"), found.isEmpty())

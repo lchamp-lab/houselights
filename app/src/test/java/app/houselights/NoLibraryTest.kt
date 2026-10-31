@@ -145,9 +145,9 @@ class NoLibraryTest {
         assertEquals("derived, never stored", SourceConfig.Local, store.state.value.source)
     }
 
-    /** The removal waits for the file a scan reads in the folder; home, shown meanwhile, gives way once it is done. */
+    /** The removal does not wait for the file a scan reads in the folder: Welcome comes at once, and the scan writes nothing there. */
     @Test
-    fun theLastFolderRemovedWhileAScanReadsItOpensWelcomeFromHome() {
+    fun theLastFolderRemovedWhileAScanReadsItOpensWelcomeAtOnce() {
         val films = runBlocking { bench.folder("Films") }
         bench.nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
         val reading = CompletableDeferred<Unit>()
@@ -160,18 +160,15 @@ class NoLibraryTest {
         openSettings()
         bench.scanner.scanAll()
         waitFor { reading.isCompleted }
-        settings.removeFolder(films.toFolder(), last = true)
-        compose.runOnUiThread { nav.popBackStack() }
-        waitFor { on(Route.Home::class) }
-        Thread.sleep(SETTLE_MS)
-        compose.waitForIdle()
-        assertTrue("home stays while the scan reads", on(Route.Home::class))
-        assertTrue(runBlocking { bench.dao.source(films.id) } != null)
-
-        read.complete(Unit)
-        assertWelcomeAlone()
+        try {
+            settings.removeFolder(films.toFolder(), last = true)
+            assertWelcomeAlone()
+            assertTrue("removed while the file is read", runBlocking { bench.dao.sources().isEmpty() })
+        } finally {
+            read.complete(Unit)
+        }
         runBlocking {
-            assertTrue(bench.dao.sources().isEmpty())
+            bench.awaitScans()
             assertTrue("nothing written in the folder removed", bench.dao.filesOf(films.id).isEmpty())
         }
     }
@@ -214,8 +211,5 @@ class NoLibraryTest {
     private companion object {
         const val TIMEOUT_MS = 10_000L
         const val POLL_MS = 10L
-
-        /** Long enough for a removal that did not wait to be done. */
-        const val SETTLE_MS = 300L
     }
 }

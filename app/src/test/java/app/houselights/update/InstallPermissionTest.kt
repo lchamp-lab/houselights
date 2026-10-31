@@ -182,7 +182,9 @@ class InstallPermissionTest {
         runCurrent()
         f.updater.allow()
         runCurrent()
+        assertEquals(UpdateStep.NeedsPermission(PermissionScreen.APP, refused = true), f.updater.state.value.step)
         assertTrue((f.updater.state.value.step as UpdateStep.NeedsPermission).stuck)
+        assertNull("no trip kept to take up at the next start", f.store.read().trip)
     }
 
     /** Android may close the app while the user is in its settings: the sheet opens again on home where it stood. */

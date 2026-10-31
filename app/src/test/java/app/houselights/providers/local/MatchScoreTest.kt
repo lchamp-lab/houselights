@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -38,6 +39,17 @@ class MatchScoreTest {
         val shield = sim("Marvels.Agents.of.S.H.I.E.L.D", "Marvel's Agents of S.H.I.E.L.D.")
         assertEquals("an apostrophe read both ways", 1.0, shield, 0.0)
         assertEquals("fast and furious", MatchScore.key("Fast & Furious"))
+    }
+
+    /** A title's words are read once, however often it is compared: by every candidate, every verdict. */
+    @Test
+    fun aTitlesWordsAreReadOnceForEveryComparison() {
+        val title = "Rogue One : A Star Wars Story"
+        val key = MatchScore.key(title)
+        assertEquals("rogue 1 a star wars story", key)
+        assertSame("the words read before", key, MatchScore.key(title))
+        assertEquals("its part before the colon", 0.9, sim("Rogue One", title), 1e-9)
+        assertSame("still, once compared", key, MatchScore.key(title))
     }
 
     @Test

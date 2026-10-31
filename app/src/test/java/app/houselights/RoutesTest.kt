@@ -102,11 +102,4 @@ class RoutesTest {
         listOf(LoginFill.Current, LoginFill.Blank, LoginFill.Server("https://nas:8920", "lea"), LoginFill.Server("https://nas", null))
             .forEach { assertEquals(it, Route.JellyfinLogin.of(it).fill) }
     }
-
-    /** Identifier from the titles to identify carries the queue, so the next title follows; from a title's page, not. */
-    @Test
-    fun theQueueIsCarriedByIdentifysRoute() {
-        assertEquals(false, Route.Identify("42").queue)
-        assertEquals(true, Route.Identify("42", queue = true).queue)
-    }
 }

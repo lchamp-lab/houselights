@@ -373,7 +373,7 @@
     <string name="tracks_for_all">Para todos os seus filmes e séries</string>
     <string name="tracks_per_title">Um filme pode manter sua própria escolha: botão “Áudio e legendas” na página dele.</string>
     <string name="tracks_player">Escolha do player</string>
-    <string name="tracks_player_desc">A própria configuração, senão a primeira faixa</string>
+    <string name="tracks_player_desc">Configuração própria, senão a primeira faixa</string>
     <string name="audio_language">Idioma do áudio</string>
     <string name="audio_language_desc">Quando o filme tem essa faixa</string>
     <string name="audio_language_player_desc">A própria configuração de idioma</string>
@@ -383,7 +383,7 @@
     <string name="subtitles_forced">Só forçadas</string>
     <string name="subtitles_forced_desc">Trechos em outro idioma</string>
     <string name="subtitles_auto">Automáticas</string>
-    <string name="subtitles_auto_desc">Completas quando o áudio não está em %1$s</string>
+    <string name="subtitles_auto_desc">Completas se o áudio não for em %1$s</string>
     <string name="subtitles_always">Sempre</string>
     <string name="subtitles_always_desc">Completas, em %1$s</string>
     <string name="subtitle_language">Idioma das legendas</string>

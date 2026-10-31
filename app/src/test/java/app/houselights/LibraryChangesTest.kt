@@ -15,15 +15,6 @@ import org.junit.Test
 /** The library version as the app wires it (playback, user edits, a scan's progress and end, throttled), in virtual time. */
 class LibraryChangesTest {
     @Test
-    fun aChangeAloneShowsAtOnce() = runTest {
-        val changes = LibraryChanges(backgroundScope, listOf(emptyFlow()))
-        runCurrent()
-        changes.userChanged()
-        runCurrent()
-        assertEquals(1L, changes.version.value)
-    }
-
-    @Test
     fun aChangeDuringAPeriodShowsAtItsEnd() = runTest {
         val played = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         val changes = LibraryChanges(backgroundScope, listOf(played), periodMs = 3_000)

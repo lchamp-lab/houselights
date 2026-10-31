@@ -36,15 +36,7 @@ class LibraryDatabaseTest {
     @After
     fun close() = db.close()
 
-    private fun source(name: String, password: String) = SourceEntity(
-        name = name,
-        kind = SourceKind.MOVIES,
-        host = "nas",
-        share = "media",
-        path = name.lowercase(),
-        username = "zidoo",
-        password = Secret(password),
-    )
+    private fun source(name: String, password: String) = smbFolder(name, host = "nas", username = "zidoo", password = password)
 
     /** The passwords as stored, by folder id. */
     private fun raw(): Map<Long, String> = db.openHelper.readableDatabase.query("SELECT id, password FROM sources").use {

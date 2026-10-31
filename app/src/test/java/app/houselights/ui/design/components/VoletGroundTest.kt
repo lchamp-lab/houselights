@@ -5,6 +5,7 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.VeilStop
 import app.houselights.ui.design.colorStops
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -16,22 +17,39 @@ class VoletGroundTest {
     /** The top veil is drawn down to where it clears, raised over the numbers or not; above, from the panel's edge. */
     @Test
     fun theTopVeilIsDrawnDownToWhereItClears() {
-        val band = HlScrim.TOP.inkedBand(0f, SCREEN)
-        assertEquals(Float.NEGATIVE_INFINITY, band.start, 0f)
-        assertEquals("gone at 164 dp", 164f, band.endInclusive, 0.01f)
-        val raised = HlScrim.TOP.raisedOver(NUMBERS / SCREEN, 0.8f, MELT / SCREEN).inkedBand(0f, SCREEN)
-        assertEquals("melted back onto the top veil, gone where it goes", 164f, raised.endInclusive, 0.01f)
+        val raised = HlScrim.TOP.raisedOver(NUMBERS / SCREEN, 0.8f, MELT / SCREEN)
+        listOf(HlScrim.TOP, raised).forEach { veil ->
+            val band = veil.inkedBand(0f, SCREEN)
+            assertEquals("$veil from the edge", Float.NEGATIVE_INFINITY, band.start, 0f)
+            assertEquals("$veil down to where it clears", veil.clearBand(0f, SCREEN), band)
+        }
+        val gone = HlScrim.TOP.inkedBand(0f, SCREEN).endInclusive
+        assertEquals("melted back onto the top veil, gone where it goes", gone, raised.inkedBand(0f, SCREEN).endInclusive, 0.01f)
     }
 
-    /** A closed panel's foot is drawn from where its melt begins, 72 % down, to its foot; open, its words' from their clear stop. */
+    /** A closed panel's foot is drawn from where its melt begins down to its foot; open, its words' from their clear stop. */
     @Test
     fun theFeetAreDrawnFromWhereTheyBegin() {
-        val foot = (HlScrim.VOLET_FOOT + VeilStop(0.9f, HlScrim.VOLET_YEAR) + VeilStop(1f, HlScrim.VOLET_YEAR_FLOOR)).inkedBand(0f, PANEL)
-        assertEquals(0.72f * PANEL, foot.start, 0.01f)
-        assertEquals(Float.POSITIVE_INFINITY, foot.endInclusive, 0f)
-        val words = HlScrim.CASE_FOOT.inkedBand(100f, 300f)
-        assertEquals("a third of the way, clear", 172f, words.start, 0.01f)
-        assertEquals(Float.POSITIVE_INFINITY, words.endInclusive, 0f)
+        val foot = HlScrim.VOLET_FOOT + VeilStop(0.9f, HlScrim.VOLET_YEAR) + VeilStop(1f, HlScrim.VOLET_YEAR_FLOOR)
+        listOf(foot to (0f to PANEL), HlScrim.CASE_FOOT to (WORDS_TOP to WORDS_FOOT)).forEach { (veil, span) ->
+            val band = veil.inkedBand(span.first, span.second)
+            assertEquals("$veil to its foot", Float.POSITIVE_INFINITY, band.endInclusive, 0f)
+            assertEquals("$veil from where it begins", veil.clearBand(span.first, span.second), band)
+            assertTrue("$veil begins inside its span", band.start > span.first)
+        }
+    }
+
+    /**
+     * The band a veil drawn from [startY] to [endY] inks, read off its stops: from the last clear stop before its first
+     * inked one, to the first clear stop after its last; unbounded on a side whose end stop is inked.
+     */
+    private fun List<VeilStop>.clearBand(startY: Float, endY: Float): ClosedFloatingPointRange<Float> {
+        val first = indexOfFirst { it.alpha > 0f }
+        val last = indexOfLast { it.alpha > 0f }
+        fun y(stop: VeilStop) = startY + stop.at * (endY - startY)
+        val from = if (first > 0) y(this[first - 1]) else Float.NEGATIVE_INFINITY
+        val to = if (last < lastIndex) y(this[last + 1]) else Float.POSITIVE_INFINITY
+        return from..to
     }
 
     /** Past its band a veil inks nothing: its stops there are clear, and so is the colour its gradient holds past its ends. */
@@ -71,9 +89,13 @@ class VoletGroundTest {
     private companion object {
         /** The screen the top veils are drawn against, a panel's height, and its numbers' band, in dp. */
         const val SCREEN = HlScrim.SCREEN_HEIGHT
-        const val PANEL = 370.5f
+        val PANEL = POLYPTYCH_HEIGHT.value
         const val NUMBERS = 96f
         const val MELT = 64f
+
+        /** An open panel's words, laid in a band of its height. */
+        const val WORDS_TOP = 100f
+        const val WORDS_FOOT = 300f
 
         /** Clear: under a level of 8 bits. */
         const val CLEAR = 1f / 512

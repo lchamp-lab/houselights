@@ -12,12 +12,15 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -150,6 +153,66 @@ class LibraryDaoTest {
         assertEquals("unwatched, favourite still", false to true, kept.played to kept.favorite)
     }
 
+    /** Dune's main row, its poster chosen, and two copies grouped under it, the oldest first. */
+    private suspend fun dunes(): Triple<Long, Long, Long> {
+        val (main, older, newer) = listOf("Dune (2021)", "Dune (2021) 2160p", "Dune (2021) Remux").map { title ->
+            dao.insert(row(ItemKind.MOVIE, title).copy(tmdbId = DUNE))
+        }
+        dao.groupVersions()
+        dao.setUserPoster(main, CHOSEN)
+        return Triple(main, older, newer)
+    }
+
+    /** Row [id], which holds its film now. */
+    private suspend fun mainRow(id: Long): ItemEntity = checkNotNull(dao.item(id)).also { assertNull("the main row", it.versionOf) }
+
+    /**
+     * A film's main row whose file went, its oldest copy holds the film as it was shown: the poster chosen on it, over
+     * one the copy kept from before it was a copy, and the copy to play.
+     */
+    @Test
+    fun aMainRowWhoseFileWentHandsItsChoicesToTheCopyLeft() = runTest {
+        val (main, older, newer) = dunes()
+        dao.setUserPoster(older, "/its-own-poster.jpg")
+        dao.setVersionChoice(main, newer)
+        dao.settleMissing(emptyList(), emptyList(), emptyList(), removed = listOf(main), parts = emptyList(), now = 1)
+        val held = mainRow(older)
+        assertEquals(CHOSEN to newer, held.userPosterPath to held.versionChoice)
+        assertEquals(older, dao.item(newer)?.versionOf)
+    }
+
+    /** Held rows removed together, the copy left holds the film and still plays the copy chosen, itself. */
+    @Test
+    fun heldRowsRemovedLeaveTheCopyChosenToPlay() = runTest {
+        val (main, older, newer) = dunes()
+        dao.setVersionChoice(main, newer)
+        dao.setMissingSince(listOf(main, older), 1)
+        assertEquals(2, dao.removeHeld(listOf(main, older)))
+        assertEquals(newer, mainRow(newer).versionChoice)
+    }
+
+    /**
+     * A copy matched anew before its films are grouped again ([LibraryDao.groupVersions]) still says it is a copy of
+     * its former film; the main row's folder removed, what was chosen goes to the copy that holds that film, never to
+     * the one now another film.
+     */
+    @Test
+    fun aCopyMatchedAnewTakesNothingOfTheFilmItLeft() = runTest {
+        val (main, older, newer) = dunes()
+        val films = dao.insertSource(nfsFolder("Films"))
+        dao.update(checkNotNull(dao.item(main)).copy(sourceId = films))
+        dao.setVersionChoice(main, newer)
+        dao.update(checkNotNull(dao.item(older)).copy(tmdbId = ARRIVAL))
+        assertEquals("not grouped again yet", main, dao.item(older)?.versionOf)
+
+        dao.removeSource(films)
+
+        val dune = mainRow(newer)
+        assertEquals(CHOSEN to newer, dune.userPosterPath to dune.versionChoice)
+        val arrival = mainRow(older)
+        assertEquals(null to null, arrival.userPosterPath to arrival.versionChoice)
+    }
+
     /** A show left without episodes is kept by title, unless its folder is gone: removing a folder forgets its titles. */
     @Test
     fun anEmptyShowIsKeptUnlessItsFolderIsGone() = runTest {
@@ -213,12 +276,36 @@ class LibraryDaoTest {
         assertEquals(gone, dao.nextToIdentify(addedAt = 3, id = half))
     }
 
-    /** A title left as it is stays so whatever a scan writes ([LibraryDao.saveScanned]). */
+    /**
+     * A scan's save ([LibraryDao.saveScanned]) keeps every column it does not own ([SCAN_OWNED]), as it stands when the
+     * scan writes: what the user chose and did, its copies, its credits' date, its arrival, its order of episodes. Each
+     * column is found on [ItemEntity] itself, so a new one is kept unless declared the scan's.
+     */
     @Test
-    fun aTitleLeftAsItIsKeepsItThroughAScan() = runTest {
-        val home = dao.insert(row(ItemKind.MOVIE, "Vacances 2019").copy(userNoMatch = true))
-        dao.saveScanned(checkNotNull(dao.item(home)).copy(userNoMatch = false, matchState = MatchState.NOT_FOUND))
-        assertTrue(checkNotNull(dao.item(home)).userNoMatch)
+    fun aScanKeepsEveryColumnItDoesNotOwn() = runTest {
+        val heat = dao.insert(row(ItemKind.MOVIE, "Heat"))
+        val uhd = dao.insert(row(ItemKind.MOVIE, "Heat 4K"))
+        val columns = ItemEntity::class.java.declaredFields.filterNot { Modifier.isStatic(it.modifiers) }.onEach { it.isAccessible = true }
+        assertTrue("the scan's columns are ItemEntity's", columns.map { it.name }.containsAll(SCAN_OWNED))
+        val kept = columns.filter { it.name !in SCAN_OWNED }
+        val scanned = row(ItemKind.MOVIE, "Heat").copy(id = heat)
+        // Each kept column apart from what the scan writes; a row id where a column names another row.
+        val before = checkNotNull(dao.item(heat)).also { item -> kept.forEach { it.set(item, keptValue(it, uhd)) } }
+        dao.update(before)
+        kept.forEach { assertNotEquals("${it.name} set apart from the scan's", it.get(scanned), it.get(dao.item(heat))) }
+
+        dao.saveScanned(scanned)
+        val after = checkNotNull(dao.item(heat))
+        assertEquals(kept.map { it.name to it.get(before) }, kept.map { it.name to it.get(after) })
+    }
+
+    /** A value of [column]'s type that no scan writes: [row] where a number may name a row. */
+    private fun keptValue(column: Field, row: Long): Any = when (column.type) {
+        Long::class.javaPrimitiveType, Long::class.javaObjectType -> row
+        Int::class.javaPrimitiveType, Int::class.javaObjectType -> KEPT_NUMBER
+        Boolean::class.javaPrimitiveType, Boolean::class.javaObjectType -> true
+        String::class.java -> "kept ${column.name}"
+        else -> error("No kept value for ${column.name} (${column.type}): give it one, or name it in SCAN_OWNED")
     }
 
     /** A show left as it is, its episodes taken over by another show row (two season packs merging), leaves that one so. */
@@ -440,9 +527,24 @@ class LibraryDaoTest {
     private companion object {
         const val ANDROID_9_LIMIT = 999
 
+        /** What a scan writes of a title, from its files, its NAS and TMDB; the row's id names it. */
+        val SCAN_OWNED = setOf(
+            "id", "kind", "sourceId", "parentId", "seriesId", "matchKey", "tmdbId", "title", "sortTitle", "originalTitle",
+            "overview", "tagline", "year", "endYear", "continuing", "runtimeMin", "certification", "rating", "genres", "directors",
+            "posterPath", "backdropPath", "logoPath", "stillPath", "seasonNumber", "episodeNumber", "lastEpisodeNumber",
+            "absoluteNumber", "tmdbSeason", "tmdbEpisode", "tmdbLastEpisode", "filePath", "parts", "fileSize", "missingSince",
+            "badges", "mediaInfo", "probeVersion", "fileDurationMs", "nfoPath", "nfo", "sidecarKey", "collectionId", "matchedAt",
+            "edition", "votes", "matchState", "hintKey",
+        )
+
+        /** A number no scan writes in a kept column. */
+        const val KEPT_NUMBER = 7
+
         /** When a show's latest episode was found, after every title. */
         const val LATER = 99L
         const val DUNE = 438631
+        const val ARRIVAL = 329865
+        const val CHOSEN = "/chosen-poster.jpg"
         const val ARCANE = 94605
         const val SEVERANCE = 95396
         const val PLURIBUS = 225171

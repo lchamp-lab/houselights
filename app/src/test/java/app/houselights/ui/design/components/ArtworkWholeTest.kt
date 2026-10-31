@@ -18,7 +18,6 @@ import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
-import coil.Coil
 import coil.EventListener
 import coil.ImageLoader
 import coil.decode.DataSource
@@ -27,7 +26,6 @@ import coil.fetch.Fetcher
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -59,8 +57,8 @@ class ArtworkWholeTest {
         }
     }
 
-    @After
-    fun forgetTheLoader() = Coil.reset()
+    @get:Rule
+    val coil = CoilRule()
 
     /** A JPEG's picture covers what it lies on; one with see-through parts, or that is no picture, does not. */
     @Test
@@ -84,7 +82,7 @@ class ArtworkWholeTest {
     /** `onWhole` is told once a picture with no see-through part is decoded, never of one with some. */
     @Test
     fun onWholeIsToldOfAPictureWithNoSeeThroughPart() {
-        Coil.setImageLoader(loader())
+        coil.serve(loader())
         var shown = 0
         var whole = 0
         var clear = 0
@@ -105,7 +103,7 @@ class ArtworkWholeTest {
      */
     @Test
     fun onWholeWaitsForTheLoadersFade() {
-        Coil.setImageLoader(loader())
+        coil.serve(loader())
         var shows by mutableStateOf(true)
         var whole = 0
         compose.mainClock.autoAdvance = false
