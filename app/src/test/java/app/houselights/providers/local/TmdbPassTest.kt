@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import app.houselights.core.TmdbUnreachableException
+import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.test.runTest
@@ -17,6 +18,7 @@ import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.time.Duration
+import java.util.Locale
 
 /** When a pass stops and resumes asking TMDB, on the scans' client (paused a minute after a network failure). */
 @RunWith(RobolectricTestRunner::class)
@@ -58,6 +60,34 @@ class TmdbPassTest {
         assertEquals("kept", count, tmdb.requests.size)
         assertEquals(2, seasons.get(1_000, 1).value?.episodes?.size)
         assertEquals("asked again", count + 1, tmdb.requests.size)
+    }
+
+    /** A film TMDB did not answer is asked again for the next copy; once answered, never again that pass. */
+    @Test
+    fun aFilmIsKeptOnceAnswered() = runTest {
+        tmdb.movie(DUNE, "Dune", 2021)
+        tmdb.nextStatuses += 500
+        val films = MovieIndexer.FilmCache()
+
+        assertTrue("not kept", suspendRunCatching { films.get(client, DUNE) }.isFailure)
+        assertEquals("Dune", films.get(client, DUNE)?.title)
+        assertEquals("Dune", films.get(client, DUNE)?.title)
+        assertEquals("asked twice, then kept", listOf("movie/$DUNE", "movie/$DUNE"), tmdb.requests)
+    }
+
+    /** A film TMDB has no entry for is kept as none; one asked in another language is asked again. */
+    @Test
+    fun aFilmIsKeptByItsIdAndLanguage() = runTest {
+        tmdb.movie(DUNE, "Dune", 2021)
+        val films = MovieIndexer.FilmCache()
+        val english = TmdbClient("key", transport = tmdb, locale = Locale.US)
+        val french = TmdbClient("key", transport = tmdb, locale = Locale.FRANCE)
+
+        assertNull(films.get(french, MISSING))
+        assertNull(films.get(french, MISSING))
+        repeat(2) { films.get(french, DUNE) }
+        repeat(2) { films.get(english, DUNE) }
+        assertEquals(listOf("movie/$MISSING", "movie/$DUNE", "movie/$DUNE"), tmdb.requests)
     }
 
     /** First scan of a large library: one timeout on the third film, and TMDB answers again. */
@@ -152,5 +182,7 @@ class TmdbPassTest {
 
     private companion object {
         const val FILMS = 40
+        const val DUNE = 438631
+        const val MISSING = 1
     }
 }

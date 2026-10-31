@@ -17,14 +17,17 @@ internal class Backfill(
 ) {
     private class Found(val people: TmdbPeople, val votes: Int?, val imdbId: String?, val tvdbId: Int? = null)
 
-    /** Returns how many items were written; [askTmdb] is false after a recent TMDB failure. */
-    suspend fun run(tmdb: TmdbPass, askTmdb: Boolean): Int {
+    /**
+     * Returns how many items were written; [askTmdb] is false after a recent TMDB failure. Films already asked this
+     * pass are read from [films].
+     */
+    suspend fun run(tmdb: TmdbPass, films: MovieIndexer.FilmCache, askTmdb: Boolean): Int {
         var written = 0
         for (title in dao.creditsDue(withTmdb = askTmdb && tmdb.open, limit = TITLES_PER_PASS)) {
             // TMDB closed during the pass: titles that need it wait for a later one.
             if (asksTmdb(title) && !tmdb.open) continue
             waitForThePlayer()
-            if (credits(title, tmdb)) written++
+            if (credits(title, tmdb, films)) written++
         }
         if (!askTmdb) return written
         for (saga in dao.sagasDue(SAGAS_PER_PASS)) {
@@ -38,13 +41,13 @@ internal class Backfill(
     private fun asksTmdb(title: ItemEntity) = title.tmdbId != null
 
     /** False when TMDB did not answer, so a later pass retries. */
-    private suspend fun credits(title: ItemEntity, tmdb: TmdbPass): Boolean {
+    private suspend fun credits(title: ItemEntity, tmdb: TmdbPass, films: MovieIndexer.FilmCache): Boolean {
         val show = title.kind == ItemKind.SERIES
         val id = title.tmdbId
         val answer: TmdbAnswer<Found> = if (id == null || !asksTmdb(title)) {
             TmdbAnswer.Given(null)
         } else {
-            tmdb.ask(TmdbKey("credits", id to show)) { client -> lookUp(client, id, show) }
+            tmdb.ask(TmdbKey("credits", id to show)) { client -> lookUp(client, id, show, films) }
         }
         if (answer !is TmdbAnswer.Given) return false
         val found = answer.value
@@ -72,10 +75,10 @@ internal class Backfill(
         return fresh.tmdbId == title.tmdbId && fresh.userTmdbId == title.userTmdbId && fresh.creditsAt == null
     }
 
-    private suspend fun lookUp(client: TmdbClient, id: Int, show: Boolean): Found? = if (show) {
+    private suspend fun lookUp(client: TmdbClient, id: Int, show: Boolean, films: MovieIndexer.FilmCache): Found? = if (show) {
         client.tvById(id)?.let { Found(TmdbPeople(it.credits, it.createdBy), it.voteCount, it.externalIds.imdbId, it.externalIds.tvdbId) }
     } else {
-        client.movieById(id)?.let { Found(TmdbPeople(it.credits), it.voteCount, it.imdbId) }
+        films.get(client, id)?.let { Found(TmdbPeople(it.credits), it.voteCount, it.imdbId) }
     }
 
     /** False when TMDB did not answer, so a later pass retries. */

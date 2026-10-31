@@ -23,6 +23,7 @@ class ScanIdsTest {
     private val showsNas get() = bench.showsNas
     private val tmdb get() = bench.tmdb
     private val dao get() = bench.dao
+    private val nasUhd = FakeRemoteBrowser()
 
     @Test
     fun aTmdbIdInTheFileNameIdentifiesTheFilm() = runTest {
@@ -49,9 +50,38 @@ class ScanIdsTest {
 
         val copies = dao.filesOf(films.id)
         assertEquals("both copies", listOf(DUNE, DUNE), copies.map { it.tmdbId })
-        // Once would do: each copy asks today, as a film's details are not kept for the pass (a season's are).
-        assertTrue("never searched: ${pass.requests}", pass.requests.all { it == "movie/$DUNE" })
-        assertTrue("at most once a copy: ${pass.requests}", pass.requests.size in 1..2)
+        assertEquals("never searched, asked once for both", listOf("movie/$DUNE"), pass.requests)
+    }
+
+    /** A film kept in two folders (HD, 4K) is asked once a pass for both, again by a full refresh. */
+    @Test
+    fun aFilmInTwoFoldersIsAskedOnceAPass() = runTest {
+        val hd = bench.folder("Films")
+        val uhd = bench.folder("Films 4K", on = nasUhd)
+        tmdb.movie(DUNE, "Dune", 2021)
+        nas.put("Dune (2021) {tmdb-438631}.mkv")
+        nasUhd.put("Dune (2021) {tmdb-438631} 2160p.mkv")
+        val pass = bench.pass()
+
+        assertEquals(listOf(DUNE, DUNE), (dao.filesOf(hd.id) + dao.filesOf(uhd.id)).map { it.tmdbId })
+        assertEquals(listOf("movie/$DUNE"), pass.requests)
+        assertEquals("a refresh asks again, once", listOf("movie/$DUNE"), bench.pass(refresh = true).requests)
+    }
+
+    /** A copy TMDB did not answer for leaves the next copy to ask again, which keeps the answer. */
+    @Test
+    fun aFilmTmdbDidNotAnswerForIsAskedAgainByTheNextCopy() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(DUNE, "Dune", 2021)
+        nas.put("Dune (2021) {tmdb-438631}/Dune.2021.2160p.UHD.BluRay.mkv")
+        nas.put("Dune (2021) {tmdb-438631}/Dune (2021) 1080p.mkv")
+        nas.put("Dune (2021) {tmdb-438631}/Dune (2021) 720p.mkv")
+        tmdb.nextStatuses += 500
+        val pass = bench.pass()
+
+        val copies = dao.filesOf(films.id)
+        assertEquals("one left for the next pass", 2, copies.count { it.tmdbId == DUNE && it.matchedAt != null })
+        assertEquals(listOf("movie/$DUNE", "movie/$DUNE"), pass.requests)
     }
 
     @Test

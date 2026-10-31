@@ -177,15 +177,19 @@ class TmdbClient(
     }
 
     /**
-     * The film [wanted] names among TMDB's answers to its searches, scored ([MatchPlan]), with its details; else the
-     * candidates TMDB hesitated on, [first] ahead of them (a film a name's id found, not trusted). A hit removed from
-     * TMDB since its search counts as none.
+     * The film [wanted] names among TMDB's answers to its searches, scored ([MatchPlan]), with its details ([details]);
+     * else the candidates TMDB hesitated on, [first] ahead of them (a film a name's id found, not trusted). A hit removed
+     * from TMDB since its search counts as none.
      */
-    internal suspend fun matchMovie(wanted: Wanted, first: Candidate? = null): Matched<TmdbMovie> {
+    internal suspend fun matchMovie(
+        wanted: Wanted,
+        first: Candidate? = null,
+        details: suspend (Int) -> TmdbMovie? = ::movieById,
+    ): Matched<TmdbMovie> {
         val verdict = MatchPlan.run(wanted, alsoEnglish, { searchMovies(it.title, it.year, languageOf(it)) }) {
             alternativeTitles(it, show = false)
         }
-        return Matched((verdict as? Verdict.Match)?.let { movieById(it.best.candidate.id) }, MatchScore.offered(wanted, verdict, first))
+        return Matched((verdict as? Verdict.Match)?.let { details(it.best.candidate.id) }, MatchScore.offered(wanted, verdict, first))
     }
 
     /** The show [wanted] names, as [matchMovie] finds a film. */

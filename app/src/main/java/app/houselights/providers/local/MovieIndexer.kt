@@ -184,7 +184,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val nfo = item.nfoInfo()
         val query = Query(null, namesOf(item), nfo, path, known = null)
         val fetched = fetch(TmdbPass(tmdb, strict = true), tmdbId, query, refresh = false) { client ->
-            if (tmdbId != null) Looked(client.movie(tmdbId)) else lookupMovie(client, query)
+            if (tmdbId != null) Looked(client.movie(tmdbId)) else lookupMovie(client, query, FilmCache())
         }
         return {
             dao.setUserTmdbId(item.id, tmdbId)
@@ -202,13 +202,14 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
      * Asks TMDB again for a film to identify ([Reidentify]) by what its row holds, never reading the NAS; null when
      * TMDB did not answer. Its writes, true when the film changed: found at last, it is saved as an identification
      * saves it, given back what was kept of it; still not found, only its state, its candidates and when it was asked.
+     * Films already asked this pass are read from [films].
      */
-    suspend fun recheck(item: ItemEntity, tmdb: TmdbPass): (suspend () -> Boolean)? {
+    suspend fun recheck(item: ItemEntity, tmdb: TmdbPass, films: FilmCache): (suspend () -> Boolean)? {
         val path = item.namedPath() ?: return null
         val parsed = LibraryScanner.parseMovie(path)
         val nfo = item.nfoInfo()
         val query = Query(null, namesOf(item), nfo, path, known = lent(item))
-        val fetched = fetch(tmdb, null, query, refresh = false) { client -> lookupMovie(client, query) }
+        val fetched = fetch(tmdb, null, query, refresh = false) { client -> lookupMovie(client, query, films) }
         val lookup = fetched.lookup as? TmdbAnswer.Given ?: return null
         val now = clock()
         if (fetched.movie == null) return { dao.rechecked(item, lookup.value?.offered.orEmpty(), now) }
@@ -283,10 +284,11 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
      * match ([Query.known]); then a scored search ([TmdbClient.matchMovie]), a film a name's id found but did not trust
      * offered first, unless the film is left as it is ([Query.searches]). An id TMDB has no film for gives way to the
      * next, as does a name's id not trusted ([NameIds.trusts]). The name's ids are tried first, so the lookup carries the
-     * name's id it tried.
+     * name's id it tried. A film's details are read from [films] once asked this pass.
      */
-    private suspend fun lookupMovie(tmdb: TmdbClient, query: Query): Looked<TmdbMovie> {
-        query.userTmdbId?.let { return Looked(tmdb.movieById(it)) }
+    private suspend fun lookupMovie(tmdb: TmdbClient, query: Query, films: FilmCache): Looked<TmdbMovie> {
+        val film: suspend (Int) -> TmdbMovie? = { films.get(tmdb, it) }
+        query.userTmdbId?.let { return Looked(film(it)) }
         val names = query.names
         val nfo = query.nfo
         val hint = names.key(show = false)
@@ -297,11 +299,11 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             IdStep(null) { nfo?.imdbId?.let { tmdb.findByImdb(it).first } },
             IdStep(null) { query.known },
         )
-        val byIds = lookUp(hint, steps, tmdb::movieById, TmdbMovie::id) { movie, by -> trusted(tmdb, movie, by, query) }
+        val byIds = lookUp(hint, steps, film, TmdbMovie::id) { movie, by -> trusted(tmdb, movie, by, query) }
         byIds.found?.let { return it }
         // Left as it is: never searched for by its name.
         if (!query.searches) return Looked(null, hint)
-        val matched = tmdb.matchMovie(query.wanted, first = byIds.untrusted?.let(Candidate::of))
+        val matched = tmdb.matchMovie(query.wanted, first = byIds.untrusted?.let(Candidate::of), details = film)
         return Looked(matched.found, hint, offered = matched.offered)
     }
 
@@ -337,7 +339,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
     /** TMDB's answers for [item] as [asked] needs them. */
     private suspend fun fetch(pass: ScanPass, item: ItemEntity, query: Query, asked: Asked): Fetched {
-        val lookup: (suspend (TmdbClient) -> Looked<TmdbMovie>)? = if (asked.tmdb) { client -> lookupMovie(client, query) } else null
+        val lookup: (suspend (TmdbClient) -> Looked<TmdbMovie>)? =
+            if (asked.tmdb) { client -> lookupMovie(client, query, pass.films) } else null
         // No TMDB request and unchanged NFO ids: keep the collection; a film without one gets it from its NFO.
         val keepCollection = lookup == null && !asked.newIds && item.collectionId != null
         return fetch(pass.tmdb, item.userTmdbId, query, pass.refreshMetadata, keepCollection, asked.renamed, lookup)
@@ -555,5 +558,32 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         /** This copy's edition: the NFO's (which belongs to the file, whatever it describes), else the file name's. */
         fun editionOf(item: ItemEntity, nfo: NfoInfo?): String? =
             nfo?.edition?.let(Editions::of) ?: item.filePath?.let(FilenameParser::edition)
+    }
+
+    /**
+     * Caches TMDB's films per pass, by id and language, as [ShowIndexer.SeasonCache] does seasons: copies of a film
+     * (HD and 4K, in one folder or two) ask for its details once. A request that failed throws and is not kept, so the
+     * next copy asks again, which the pass's breaker keeps cheap; a film TMDB has no entry for is kept as none. The
+     * [MAX_FILMS] used last only, each holding its credits, logos and release dates: a first scan of thousands of films
+     * would otherwise hold them all until it ends. A pass asks for one film at a time.
+     */
+    class FilmCache {
+        private val cache = object : LinkedHashMap<Pair<Int, String>, TmdbAnswer.Given<TmdbMovie>>(MAX_FILMS, LOAD_FACTOR, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Pair<Int, String>, TmdbAnswer.Given<TmdbMovie>>) =
+                size > MAX_FILMS
+        }
+
+        /** Film [id] as [client] asks for it ([TmdbClient.movieById]): kept, else asked and kept once answered. */
+        suspend fun get(client: TmdbClient, id: Int): TmdbMovie? {
+            val key = id to client.language
+            cache[key]?.let { return it.value }
+            return client.movieById(id).also { cache[key] = TmdbAnswer.Given(it) }
+        }
+
+        internal companion object {
+            /** More films than a pass reads between two copies of one in a folder, or in two folders of a small library. */
+            const val MAX_FILMS = 64
+            private const val LOAD_FACTOR = 0.75f
+        }
     }
 }
