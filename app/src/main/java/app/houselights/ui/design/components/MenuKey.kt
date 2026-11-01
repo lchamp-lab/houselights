@@ -6,10 +6,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -29,6 +30,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
@@ -68,44 +70,47 @@ fun PlatedMenuKey(shown: () -> Boolean, modifier: Modifier = Modifier) {
 }
 
 /**
- * The remote's OK key, drawn as [MenuKey] is and as large: « OK » as printed on it in the technical voice
- * ([Hl.type.badge]), in secondary ink in a frame of tertiary ink; on a plate, both in its [ink].
+ * The remote's OK key, as small as a hint's line ([HlIconButtonDefaults.hintRoom]): « OK » as printed on it in the
+ * technical voice ([Hl.type.badge]), in secondary ink in a frame of tertiary ink, on the marks' dark plate, quiet beside
+ * the words it leads.
  */
 @Composable
-fun OkKey(modifier: Modifier = Modifier, ink: Color? = null) {
+fun OkKey(modifier: Modifier = Modifier) {
     val c = Hl.colors
     Box(
         modifier
-            .sizeIn(minWidth = HlSize.menuKeyWidth, minHeight = HlSize.menuKeyHeight)
-            .border(HlSize.keyEdge, ink ?: c.contentTertiary, HlShapes.mark)
-            .padding(horizontal = HlSize.keyEdge),
+            .height(HlIconButtonDefaults.hintRoom)
+            .widthIn(min = HlSize.menuKeyWidth)
+            .clip(HlShapes.mark)
+            .background(c.background.copy(alpha = HlAlpha.VEIL))
+            .border(HlSize.keyEdge, c.contentTertiary, HlShapes.mark)
+            .padding(horizontal = HlSpace.xxs),
         contentAlignment = Alignment.Center,
     ) {
-        Text(stringResource(R.string.key_ok), style = Hl.type.badge, color = ink ?: c.contentSecondary, maxLines = 1, softWrap = false)
+        Text(stringResource(R.string.key_ok), style = Hl.type.badge, color = c.contentSecondary, maxLines = 1, softWrap = false)
     }
 }
 
 /**
- * What OK does on what has focus, while [shown] says and no sheet is open: the OK key ([OkKey]), white on the marks'
- * dark plate as the Menu key is on a card, then its [words] in tertiary `meta` on one line, coming and going as a tile's
- * label. Read after what it concerns, never focused: an open saga panel's, at the end of its actions ([VoletActions]).
+ * What OK does on what has focus, while [shown] says and no sheet is open: the OK key ([OkKey]), then its [words] in a
+ * hint's tertiary `meta`, on one line a hint's height, coming and going as a tile's label. A hint, never a control: read
+ * after what it concerns, never focused; an open saga panel's, in its corner on the line of its neighbours' years.
  */
 @Composable
 fun OkHint(words: String, shown: Boolean, modifier: Modifier = Modifier) {
     val alpha = rememberPlateAlpha(shown)
     val fading by remember { derivedStateOf { alpha.value > 0f } }
     if (shown && OpenSheets.count == 0 || fading) {
-        val c = Hl.colors
         Row(
-            modifier.testTag(OK_HINT).graphicsLayer {
+            modifier.testTag(OK_HINT).height(HlIconButtonDefaults.hintRoom).graphicsLayer {
                 this.alpha = alpha.value
                 compositingStrategy = CompositingStrategy.ModulateAlpha
             },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OkKey(Modifier.clearAndSetSemantics {}.clip(HlShapes.mark).background(c.background.copy(alpha = HlAlpha.VEIL)), ink = c.content)
+            OkKey(Modifier.clearAndSetSemantics {})
             Spacer(Modifier.width(HlSpace.xs))
-            Text(words, style = Hl.type.meta, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(words, style = Hl.type.meta, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

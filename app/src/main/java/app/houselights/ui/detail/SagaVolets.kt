@@ -49,15 +49,15 @@ import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Emphasis
+import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.SagaVoletWords
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.SynopsisSheet
-import app.houselights.ui.design.components.VoletActions
-import app.houselights.ui.design.components.VoletHint
 import app.houselights.ui.design.components.VoletMark
 import app.houselights.ui.design.components.VoletPart
+import app.houselights.ui.design.components.VoletSides
 import app.houselights.ui.design.components.VoletState
 import app.houselights.ui.design.components.VoletWords
 import app.houselights.ui.design.components.Volets
@@ -106,10 +106,13 @@ internal class SagaLinks(
  * focus, kept as focus goes down to its actions and laid out open from the first frame back from its page. Each open
  * panel has its actions under its words, which Down enters: the saga's Lire or Reprendre the film it plays next, named
  * on the line above, its check and Modifier ([SagaActions]); a film held, its own Lire, its check and its page
- * ([FilmActions]); a film the library lacks, none. Focus arrives on the saga's Lire ([actionRow]); Up from a panel's
- * actions goes back to it; Back opens the saga's panel again, focus on its Lire, then leaves. OK opens a film held, the
- * synopsis of one the library lacks, and the saga's own once cut, what it does said while the panel has focus. The Menu
- * key does nothing here. [sheets] are its sheets, over the page in its light.
+ * ([FilmActions]); a film the library lacks, none. What failed on the page, a play, a change not saved, is said over
+ * the open panel's actions, whichever panel it is. Focus arrives on the saga's Lire ([actionRow]), on its panel when
+ * it has no action; Up from a panel's actions goes back to it, Left from their first and Right from their last on to
+ * the panel beside; Back opens the saga's panel again, focus on its Lire,
+ * then leaves. OK opens a film held, the synopsis of one the library lacks, and the saga's own once cut, what it does
+ * said in the panel's corner while it has focus. The Menu key does nothing here. [sheets] are its sheets, over the page
+ * in its light.
  */
 @Composable
 internal fun SagaVolets(
@@ -136,9 +139,9 @@ internal fun SagaVolets(
     val shown by rememberSettled(initial = open) { open }
     var sagaShown by remember { mutableStateOf(false) }
     var partShown by remember { mutableStateOf<SagaPart?>(null) }
-    // Focus on the saga's first action, Lire: Back from it leaves the page.
+    // Focus on the saga's first action, Lire: Back from it leaves the page, as from anywhere on a saga with no action.
     var home by remember { mutableStateOf(false) }
-    val homing = rememberBackToLire(away = open != 0 || !home, home = { home }, memory, actionRow) { opened = null }
+    val homing = rememberBackToLire(away = open != 0 || acts.any && !home, home = { home }, memory, actionRow) { opened = null }
     // Réessayer gone with the failure it said while it had focus: focus goes to Lire.
     FocusOnPlayAfter(swap = state.error != null, held = RETRY, memory, actionRow)
     // The player changed (#58): what fixes it and the open panel's Lire swap places, focus following.
@@ -163,19 +166,19 @@ internal fun SagaVolets(
                 .houseLit(LocalHouseLights.current)
                 .padding(horizontal = HlLayout.voletSide, vertical = HlLayout.voletTop)
                 .focusGroupKey(FocusKey.row(FILMS), memory)
+                .arrivingOn(actionRow, unless = acts.any)
                 .semantics {
                     contentDescription = films
                     isTraversalGroup = true
                 },
-            // The film open, once the page was left (its last panel forgotten), else the film Lire plays.
-            enter = open.takeIf { it > 0 } ?: (parts.indexOf(tally.nextPart) + 1).takeIf { it > 0 },
             keyed = { at -> parts.getOrNull(at - 1)?.item?.let { Modifier.focusKey(voletKey(it), memory) } ?: Modifier },
-            row = { at, hint ->
+            row = { at, sides ->
                 val film = parts.getOrNull(at - 1)?.item
+                val needs = PanelPlay(memory, problem, links, trust, sides)
                 if (at == 0) {
-                    SagaActions(item, state, acts, hint, PanelPlay(memory, problem, links, trust), actionRow, onHome = { home = it })
+                    SagaActions(item, state, acts, needs, actionRow, onHome = { home = it })
                 } else if (film != null) {
-                    FilmActions(film, state, hint, PanelPlay(memory, problem, links, trust))
+                    FilmActions(film, state, needs)
                 }
             },
         ) { at -> PanelWords(item, parts.getOrNull(at - 1), tally, onCut = { cut = it }) }
@@ -207,10 +210,13 @@ private class SagaActs(state: DetailState, links: SagaLinks) {
     /** Whether there is any: the saga's panel has actions under its words. */
     val any = shown.isNotEmpty()
 
-    /** [act] in its place: the first takes [lead], nothing before it; nothing after the last. */
-    fun placed(act: SagaAct, lead: Modifier): Modifier =
-        (if (act == shown.firstOrNull()) lead else Modifier).then(if (act == shown.lastOrNull()) LAST else Modifier)
+    /** [act] in its place: the first takes [lead], Left leading out of the row; the last [last], Right leading out. */
+    fun placed(act: SagaAct, lead: Modifier, last: Modifier): Modifier =
+        (if (act == shown.firstOrNull()) lead else Modifier).then(if (act == shown.lastOrNull()) last else Modifier)
 }
+
+/** Focus arriving on the page lands here, through [requester], [unless] the saga's actions take it. */
+private fun Modifier.arrivingOn(requester: FocusRequester, unless: Boolean): Modifier = if (unless) this else focusRequester(requester)
 
 /**
  * Back from anywhere but the saga's Lire ([away]): [toSaga] opens its panel again, then focus goes to Lire once its
@@ -242,9 +248,21 @@ private fun rememberBackToLire(
     return homing
 }
 
-/** What an open panel's Lire needs: the page's focus memory, the play that failed, the page's links, the player's remedy. */
+/**
+ * What an open panel's actions need: the page's focus memory, the play that failed, the page's links, the player's
+ * remedy, and the panels beside, which Left from the first and Right from the last lead to ([lead], [last]).
+ */
 @Immutable
-private class PanelPlay(val memory: FocusMemory, val problem: UiError?, val links: SagaLinks, val trust: RemedyHold?)
+private class PanelPlay(
+    val memory: FocusMemory,
+    val problem: UiError?,
+    val links: SagaLinks,
+    val trust: RemedyHold?,
+    sides: VoletSides,
+) {
+    val lead = Modifier.focusProperties { left = sides.before }
+    val last = Modifier.focusProperties { right = sides.after }
+}
 
 /**
  * What an open panel says: the saga's own ([part] null) its name, its facts on one line and its overview, [onCut] told
@@ -394,7 +412,7 @@ private fun partState(part: SagaPart, tally: SagaTally): VoletState? {
  * The saga's actions, under its open panel's words: the line naming the film Lire plays (« À suivre »), else what failed
  * to play or to save, or why the saga could not be read again; then Lire or Reprendre that film ([acts]' target) with
  * its length or what is left of it, Depuis le début once started, « Marquer la saga comme vue », Modifier, and once the
- * saga could not be read again, what fixes it (Réessayer); what OK does on the panel at their end ([hint]). Focus
+ * saga could not be read again, what fixes it (Réessayer). Focus
  * arrives on the first ([actionRow]), [onHome] told while it holds it. The player changed, « Faire confiance au nouveau
  * lecteur » takes Lire's place, Depuis le début gone with it.
  */
@@ -403,27 +421,27 @@ private fun SagaActions(
     item: MediaItem,
     state: DetailState,
     acts: SagaActs,
-    hint: VoletHint?,
     play: PanelPlay,
     actionRow: FocusRequester,
     onHome: (Boolean) -> Unit,
 ) {
     val memory = play.memory
-    val lead = Modifier.focusProperties { left = FocusRequester.Cancel }.onFocusChanged { onHome(it.isFocused) }
+    val lead = play.lead.onFocusChanged { onHome(it.isFocused) }
+    val last = play.last
     Column(Modifier.okClears(play.links.onClearActionError)) {
         ActionsHead(play.problem, state.actionError, state.error, acts.target?.title)
         OnArtwork {
-            VoletActions(hint, Modifier.focusRequester(actionRow)) {
+            HlActionRow(Modifier.focusRequester(actionRow)) {
                 acts.target?.let { PlayActions(it, SAGA_KEYS, ends = acts.shown.last() == SagaAct.Play, play, lead) }
                 if (acts.marks) {
-                    SagaWatchedTile(item, { play.links.onMark(item) }, acts.placed(SagaAct.Watched, lead).focusKey(WATCHED, memory))
+                    SagaWatchedTile(item, { play.links.onMark(item) }, acts.placed(SagaAct.Watched, lead, last).focusKey(WATCHED, memory))
                 }
                 acts.edit?.let { edit ->
                     HlIconButton(
                         HlIcons.Edit,
                         stringResource(R.string.edit),
                         onClick = edit,
-                        modifier = acts.placed(SagaAct.Edit, lead).focusKey(EDIT, memory),
+                        modifier = acts.placed(SagaAct.Edit, lead, last).focusKey(EDIT, memory),
                     )
                 }
                 acts.fixedBy?.let { fixedBy ->
@@ -432,7 +450,7 @@ private fun SagaActions(
                         memory.focus(PLAY)
                         play.links.onRetry()
                     }
-                    ErrorFixButton(fixedBy, state.retrying, retry, acts.placed(SagaAct.Retry, lead).focusKey(RETRY, memory))
+                    ErrorFixButton(fixedBy, state.retrying, retry, acts.placed(SagaAct.Retry, lead, last).focusKey(RETRY, memory))
                 }
             }
         }
@@ -442,17 +460,17 @@ private fun SagaActions(
 /**
  * A film held's actions, under its open panel's words: what failed to play or to save, over them; Lire or Reprendre it
  * with its length or what is left of it, Depuis le début once started, its check marking it alone, and its page; what
- * OK does on the panel at their end ([hint]). The player changed, what fixes it in Lire's place.
+ * The player changed, what fixes it in Lire's place.
  */
 @Composable
-private fun FilmActions(film: MediaItem, state: DetailState, hint: VoletHint?, play: PanelPlay) {
+private fun FilmActions(film: MediaItem, state: DetailState, play: PanelPlay) {
     val memory = play.memory
     Column(Modifier.okClears(play.links.onClearActionError)) {
         ActionsHead(play.problem, state.actionError, nextUpError = null, next = null)
         OnArtwork {
-            VoletActions(hint) {
+            HlActionRow {
                 val keys = RowKeys(filmKey(film, PLAY_NAME), filmKey(film, RESTART_NAME), filmKey(film, WATCHED_NAME))
-                PlayActions(film, keys, ends = false, play, Modifier.focusProperties { left = FocusRequester.Cancel })
+                PlayActions(film, keys, ends = false, play, play.lead)
                 if (state.capabilities?.markPlayed == true) {
                     val watched = film.user.played
                     HlIconButton(
@@ -466,7 +484,7 @@ private fun FilmActions(film: MediaItem, state: DetailState, hint: VoletHint?, p
                     HlIcons.Info,
                     stringResource(R.string.saga_film_page),
                     onClick = { play.links.onOpenItem(film.id) },
-                    modifier = Modifier.focusKey(filmKey(film, PAGE_NAME), memory).then(LAST),
+                    modifier = Modifier.focusKey(filmKey(film, PAGE_NAME), memory).then(play.last),
                 )
             }
         }
@@ -503,17 +521,19 @@ private class RowKeys(val play: String, val restart: String, val watched: String
 private val SAGA_KEYS = RowKeys(PLAY, RESTART, WATCHED)
 
 /**
- * Lire, or Reprendre once [target] is started, with its length or what is left of it, then Depuis le début: the row's last
- * actions when nothing [ends] after them. Lire takes what the tiles leave, its detail going whole before a tile gives way;
- * [modifier] is the row's first action's. The player changed, what fixes it alone in their place.
+ * Lire, or Reprendre once [target] is started, with its length or what is left of it, then Depuis le début: the row's
+ * last actions, Right from them leading out, when nothing [ends] after them. Lire fills what the tiles leave, its
+ * words at its start, its detail going whole before a tile gives way; [modifier] is the row's first action's. The
+ * player changed, what fixes it alone in their place.
  */
 @Composable
 private fun RowScope.PlayActions(target: MediaItem, keys: RowKeys, ends: Boolean, play: PanelPlay, modifier: Modifier = Modifier) {
+    val last = play.last.takeIf { ends }
     val memory = play.memory
     val trust = play.trust
     if (trust != null) {
         // The player changed (#58): what fixes it in Lire's place, keyed as Lire; Depuis le début would start it too.
-        TrustPlayerButton(trust, modifier.focusKey(keys.play, memory).then(if (ends) LAST else Modifier))
+        TrustPlayerButton(trust, modifier.focusKey(keys.play, memory).then(last ?: Modifier))
         return
     }
     val resume = target.user.positionMs > 0
@@ -522,19 +542,20 @@ private fun RowScope.PlayActions(target: MediaItem, keys: RowKeys, ends: Boolean
         onClick = { play.links.onPlay(target, resume) },
         modifier = modifier
             .focusKey(keys.play, memory)
-            .weight(1f, fill = false)
-            .then(if (ends && !resume) LAST else Modifier),
+            .weight(1f)
+            .then(last?.takeUnless { resume } ?: Modifier),
         icon = HlIcons.Play,
         detail = playLength(target, resume),
         emphasis = Emphasis.Primary,
         detailWhole = true,
+        wordsAtStart = true,
     )
     if (resume) {
         HlIconButton(
             HlIcons.Restart,
             stringResource(R.string.from_start),
             onClick = { play.links.onPlay(target, false) },
-            modifier = Modifier.focusKey(keys.restart, memory).then(if (ends) LAST else Modifier),
+            modifier = Modifier.focusKey(keys.restart, memory).then(last ?: Modifier),
         )
     }
 }
@@ -633,8 +654,6 @@ private const val RESTART_NAME = "restart"
 private const val WATCHED_NAME = "watched"
 private const val PAGE_NAME = "page"
 
-/** A row's last action: Right from it would reach the panel beside. */
-private val LAST = Modifier.focusProperties { right = FocusRequester.Cancel }
 private const val FILMS = "films"
 private const val SAGA_VOLET = "saga"
 private const val MINUTE_MS = 60_000L

@@ -758,7 +758,7 @@
     </plurals>
     <string name="mark_saga_watched">Saga markeren als bekeken</string>
     <string name="mark_saga_unwatched">Saga markeren als niet bekeken</string>
-    <string name="saga_film_page">Naar de film</string>
+    <string name="saga_film_page">Naar filmpagina</string>
     <string name="saga_hint_synopsis">Synopsis lezen</string>
     <string name="saga_hint_overview">Hele synopsis lezen</string>
     <string name="saga_place">%1$d van %2$d</string>

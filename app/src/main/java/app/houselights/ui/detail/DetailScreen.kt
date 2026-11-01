@@ -194,9 +194,9 @@ internal fun DetailPage(
     RestoreFocus(memory, actionRow, ready = item != null && !state.partial)
     // Modifier open on a saga's poster and backdrop (#48).
     var sagaEditing by remember { mutableStateOf(false) }
-    // A film started over is resumed next: back from the player, focus is on the play button.
+    // A film started over is resumed next: back from the player, focus is on its play button, a saga's film's too.
     LaunchedEffect(Unit) {
-        playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
+        playback.playbackEnded.collect { memory.last?.let(::playAfterRestart)?.let(memory::focus) }
     }
     val page = rememberLazyListState()
     val directing = jobName(Job.DIRECTOR)
@@ -1230,6 +1230,16 @@ private fun FocusMemory.card(row: String, item: MediaItem) =
     Modifier.focusKey(FocusKey.within(FocusKey.row(row), FocusKey.item(item.id)), this)
 
 internal val PLAY = FocusKey.action("play")
+
+/**
+ * Where focus goes back from the player once Depuis le début keyed [key] started a title: its Lire, the page's or that
+ * of the row it is in (a saga's film's); null for any other key.
+ */
+internal fun playAfterRestart(key: String): String? = when {
+    key == RESTART -> PLAY
+    key.endsWith("/$RESTART") -> key.removeSuffix(RESTART) + PLAY
+    else -> null
+}
 private val VERSIONS = FocusKey.action("versions")
 private val TRACKS = FocusKey.action("tracks")
 internal val RESTART = FocusKey.action("restart")

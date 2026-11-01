@@ -22,9 +22,8 @@ import java.util.Collections
 
 /**
  * A long saga's polyptych asks for the posters of the panels in its view and of a few past it alone (#55), a poster
- * asked for before its panel comes into view as focus goes along, further ahead while a held arrow runs, and before
- * focus enters, those of the view Up will enter on; one asked for staying asked while its panel is near; four films or
- * fewer, in view whole, all of them.
+ * asked for before its panel comes into view as focus goes along, further ahead while a held arrow runs, none far from
+ * the view on arrival; one asked for staying asked while its panel is near; four films or fewer, all of them.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -79,7 +78,7 @@ class VoletPostersTest {
     }
 
     /**
-     * A jump across the saga, as Up enters on the film Lire plays from the saga's panel, keeps the posters of the view
+     * A jump across the saga, as focus coming back to a film far along it, keeps the posters of the view
      * it leaves and asks for those of every panel it slides by, as well as the view it reaches.
      */
     @Test
@@ -91,17 +90,11 @@ class VoletPostersTest {
         assertTrue("from the saga's panel to film 20, then two past it: $jumped", 0 in jumped && 22 in jumped)
     }
 
-    /**
-     * On arrival, the saga's panel open and focus on Lire, which plays film 20: before Up, nothing moving, the posters
-     * of the view Up enters on, and of two panels past it, have been asked for, so that none comes late.
-     */
+    /** On arrival, the saga's panel open: no poster far from the view is asked for, not even the film Lire plays. */
     @Test
-    fun beforeUpThePostersOfThePanelsItEntersOnAreAskedFor() {
-        show(BOND, first = 0, enter = 20)
-        val before = asked.toSet()
-        open = 20
-        compose.waitForIdle()
-        checkNearViewAsked(at = 20, among = before)
+    fun onArrivalNoPosterFarFromTheViewIsAskedFor() {
+        show(BOND, first = 0)
+        assertFalse("film 20, far from the view: $asked", 20 in asked)
     }
 
     /**
@@ -144,14 +137,13 @@ class VoletPostersTest {
     }
 
     /**
-     * [films] and the saga's panel, film [first] open, focus to enter on [enter], its posters asked for from a server
-     * that counts them.
+     * [films] and the saga's panel, film [first] open, its posters asked for from a server that counts them.
      */
-    private fun show(films: Int, first: Int, enter: Int? = null) {
+    private fun show(films: Int, first: Int) {
         val server = pictureServer { data, _ -> FILM.find(data.toString())?.let { asked += it.groupValues[1].toInt() } }
         coil.serve(server)
         open = first
-        compose.setContent { HouselightsTheme { VoletsOnTheCanvas(parts(films), open, enter = enter) } }
+        compose.setContent { HouselightsTheme { VoletsOnTheCanvas(parts(films), open) } }
         compose.waitForIdle()
     }
 

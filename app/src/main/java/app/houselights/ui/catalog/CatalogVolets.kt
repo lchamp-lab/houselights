@@ -17,12 +17,11 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.components.Emphasis
+import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.SagaVoletWords
 import app.houselights.ui.design.components.StatusState
-import app.houselights.ui.design.components.VoletActions
-import app.houselights.ui.design.components.VoletHint
 import app.houselights.ui.design.components.VoletMark
 import app.houselights.ui.design.components.VoletPart
 import app.houselights.ui.design.components.VoletState
@@ -103,7 +102,7 @@ private fun Polyptych(films: List<SampleFilm>) {
         onFocus = { at -> if (at != null) open = at },
         onOpen = {},
         modifier = Modifier.fillMaxWidth().aspectRatio(POLYPTYCH_SHAPE),
-        row = { i, hint -> SampleActions(saga = i == 0, hint) },
+        row = { i, _ -> SampleActions(saga = i == 0) },
     ) { i ->
         val film = films.getOrNull(i - 1)
         if (film == null) {
@@ -120,19 +119,20 @@ private fun Polyptych(films: List<SampleFilm>) {
     }
 }
 
-/** An open panel's actions: Lire and its length, the check, then the saga's Modifier or a film's page; [hint] at their end. */
+/** An open panel's actions: Lire filling what the tiles leave, the check, then the saga's Modifier or a film's page. */
 @Composable
-private fun SampleActions(saga: Boolean, hint: VoletHint?) {
+private fun SampleActions(saga: Boolean) {
     OnArtwork {
-        VoletActions(hint) {
+        HlActionRow {
             HlButton(
                 stringResource(R.string.play),
                 onClick = {},
-                Modifier.weight(1f, fill = false),
+                Modifier.weight(1f),
                 icon = HlIcons.Play,
                 detail = "2 h 16",
                 emphasis = Emphasis.Primary,
                 detailWhole = true,
+                wordsAtStart = true,
             )
             HlIconButton(HlIcons.Check, stringResource(R.string.mark_watched), onClick = {})
             if (saga) {

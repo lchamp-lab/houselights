@@ -5,13 +5,11 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -84,7 +82,6 @@ import app.houselights.ui.design.GroupFocus
 import app.houselights.ui.design.HeroDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
@@ -230,13 +227,13 @@ private class VoletMotion(initial: Int) {
  * A saga's polyptych: its [parts] side by side, [open] the one open (the last one focused, kept as focus leaves them),
  * laid out open from the first frame; its picture and words shown once [shown] settles on it ([words]), the others
  * closed, wordless, receding while a panel has focus. A move opens the panel reached as the one left closes over
- * [HlMotion.FOCUS_IN], the total kept; a held arrow, or [VoletDefaults.opensAtOnce], jumps. Focus enters on [enter]
- * the first time (the film Lire plays), then on the panel it left; Up from a panel goes nowhere, Down into its actions
- * ([row], for a part [VoletPart.rowed], given what OK does on it to say at their end), Up from them back to it;
- * [onFocus] says which panel has focus, null once focus leaves the polyptych; OK does [onOpen]. [keyed] keys a panel's
- * focus. A long saga scrolls its films, the saga's spine pinned at the start; the panels far from the view keep their
- * dark, their posters asked for as they come near, those of the view focus will enter on before it does
- * ([PosterWindow]).
+ * [HlMotion.FOCUS_IN], the total kept; a held arrow, or [VoletDefaults.opensAtOnce], jumps. Focus comes back to the
+ * panel it left; Up from a panel goes nowhere, Down into its actions ([row], for a part [VoletPart.rowed]), Up from them
+ * back to it, Left from their first and Right from their last on to the panel beside ([VoletSides]); while the open
+ * panel itself has focus, what OK does on it ([VoletPart.hint]) shows in its corner, on the
+ * line of its neighbours' years. [onFocus] says which panel has focus, null once focus leaves the polyptych; OK does
+ * [onOpen]. [keyed] keys a panel's focus. A long saga scrolls its films, the saga's spine pinned at the start; the
+ * panels far from the view keep their dark, their posters asked for as they come near ([PosterWindow]).
  */
 @Composable
 fun Volets(
@@ -246,9 +243,8 @@ fun Volets(
     onFocus: (Int?) -> Unit,
     onOpen: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    enter: Int? = null,
     keyed: (Int) -> Modifier = { Modifier },
-    row: @Composable (Int, VoletHint?) -> Unit = { _, _ -> },
+    row: @Composable (Int, VoletSides) -> Unit = { _, _ -> },
     words: @Composable (Int) -> Unit,
 ) {
     BoxWithConstraints(modifier) {
@@ -262,8 +258,7 @@ fun Volets(
         var focusedPanel by remember { mutableStateOf<Int?>(null) }
         val motion = rememberVoletMotion(open)
         val policy = remember(plan, motion, edges) { voletsPolicy(plan, motion, edges) }
-        // Before focus enters, the posters of the panels Up will find too.
-        val posters = rememberPosters(plan, maxWidth, open, enter.takeUnless { within })
+        val posters = rememberPosters(plan, maxWidth, open)
         CompositionLocalProvider(LocalGroupFocused provides (focusedPanel != null), LocalGroupFocus provides group) {
             Layout(
                 content = {
@@ -290,7 +285,7 @@ fun Volets(
                                     }
                                 },
                                 surfaceModifier = keyed(i).focusRequester(requesters[i]),
-                                row = { hint -> row(i, hint) },
+                                row = { row(i, sidesOf(requesters, i)) },
                             ) { words(i) }
                         }
                     }
@@ -301,12 +296,23 @@ fun Volets(
                         if (within && !it.hasFocus) onFocus(null)
                         within = it.hasFocus
                     }
-                    .keepChildFocus(group, enter?.let(requesters::getOrNull)),
+                    .keepChildFocus(group),
                 measurePolicy = policy,
             )
         }
     }
 }
+
+/**
+ * The panels beside an open one, which its actions' ends lead to, Left from the first ([before]) and Right from the
+ * last ([after]): focus lands on the panel itself, opening it; [FocusRequester.Cancel] past the polyptych's ends.
+ */
+@Immutable
+class VoletSides(val before: FocusRequester, val after: FocusRequester)
+
+/** The panels beside panel [i], by their [requesters]. */
+private fun sidesOf(requesters: List<FocusRequester>, i: Int) =
+    VoletSides(requesters.getOrNull(i - 1) ?: FocusRequester.Cancel, requesters.getOrNull(i + 1) ?: FocusRequester.Cancel)
 
 /**
  * The type a polyptych sets: its numbers' one size (`display`), the [band] at the top they stand in (px), the [spine]'s
@@ -442,10 +448,8 @@ internal fun keptInView(from: Float, left: Float, wide: Float, margin: Float, ro
  * The panels a long saga asks its posters for (#55): those in view once its films have scrolled to the panel open, as
  * [voletsPolicy] scrolls them, those it passes by on its way from the view it leaves, and [POSTERS_AHEAD] more on
  * either side, [POSTERS_KEPT] on the side a held arrow runs to, so that a poster is there before its panel comes into
- * view; a poster asked stays asked while its panel is within [POSTERS_KEPT] of them. Before focus enters on a panel
- * other than the one open, the view it will enter on too, and [POSTERS_AHEAD] past it, so that Up finds its posters
- * there. A saga in view whole asks them all. The saga's own spine, pinned, has no poster. In dp, the polyptych [room]
- * wide.
+ * view; a poster asked stays asked while its panel is within [POSTERS_KEPT] of them. A saga in view whole asks them
+ * all. The saga's own spine, pinned, has no poster. In dp, the polyptych [room] wide.
  */
 internal class PosterWindow(private val plan: VoletPlan, private val room: Float) {
     private val all = (0 until plan.count).toSet()
@@ -455,14 +459,13 @@ internal class PosterWindow(private val plan: VoletPlan, private val room: Float
     private var asked = IntRange.EMPTY
 
     /**
-     * The panels whose posters are asked for, panel [to] open, focus to enter on [enter] (null once within), a held
-     * arrow running focus while [runs]; asked again for the same panel, the same.
+     * The panels whose posters are asked for, panel [to] open, a held arrow running focus while [runs]; asked again for
+     * the same panel, the same.
      */
-    fun moveTo(to: Int, enter: Int? = null, runs: Boolean = false): Set<Int> {
+    fun moveTo(to: Int, runs: Boolean = false): Set<Int> {
         if (!plan.scrolls) return all
         if (to != open) go(to, runs)
-        val entering = enter?.takeIf { it != to }?.let { near(viewAt(it), POSTERS_AHEAD, POSTERS_AHEAD) }
-        return if (entering == null) asked.toSet() else asked.toSet() + entering
+        return asked.toSet()
     }
 
     /** The panels in view were panel [at] to open now, the films scrolling from where they are; they stay there. */
@@ -508,14 +511,14 @@ internal class PosterWindow(private val plan: VoletPlan, private val room: Float
 }
 
 /**
- * The panels of [plan] whose posters are asked for, panel [open] open, in a polyptych [room] wide ([PosterWindow]):
- * with those of the view focus will enter on, [enter], before it does; further ahead while a held arrow runs focus.
+ * The panels of [plan] whose posters are asked for, panel [open] open, in a polyptych [room] wide ([PosterWindow]);
+ * further ahead while a held arrow runs focus.
  */
 @Composable
-private fun rememberPosters(plan: VoletPlan, room: Dp, open: Int, enter: Int?): Set<Int> {
+private fun rememberPosters(plan: VoletPlan, room: Dp, open: Int): Set<Int> {
     val window = remember(plan, room) { PosterWindow(plan, room.value) }
     val runs = Scrub.active
-    return remember(window, open, enter, runs) { window.moveTo(open, enter, runs) }
+    return remember(window, open, runs) { window.moveTo(open, runs) }
 }
 
 /** A panel's pictures at the panel's height: its poster at 2:3 and its backdrop at 16:9, in dp and as asked for (px). */
@@ -619,16 +622,16 @@ private fun rememberNumberFloor(
 }
 
 /**
- * One panel: a case's recipe (a picture with words on its own dark), not a card. Closed, its poster at its natural size
- * cut by its width, its number at the top on its axis, its [VoletPart.mark] and year at its foot while it stands
- * [whole] in the polyptych; open and [settled], its backdrop rising over the poster once drawn, with its [words] at its
- * foot in one cut ([HlMotion.HOLD] at most after it settled), its number at its start, as far as it is [opened]; the
- * backdrop leaving it fades out, or goes at once when it jumps. Open, its actions ([row], [VoletPart.rowed]) stand under
- * its words, there from the moment it opens so Down finds them, shown with the words or as soon as they take focus;
- * while the panel itself has focus, what OK does ([VoletPart.hint]) at their end. Nothing draws [edge] px into it from
- * its start (a film under the pinned spine). The saga's closed panel is its spine, its backdrop receding and its name
- * upright. Framed with focus, glowing in its film's light; a greyed film framed without a glow, as [AbsentCard] is,
- * even while the room still holds the light of the film before it.
+ * One panel: a case's recipe (a picture with words on its own dark), not a card. Closed, its poster at its natural
+ * size cut by its width, its number at the top on its axis, its [VoletPart.mark] and year at its foot while it stands
+ * [whole] in the polyptych; open and [settled], its backdrop rising over the poster once drawn, with its [words] at
+ * its foot in one cut ([HlMotion.HOLD] at most after it settled), its number at its start, as far as it is [opened];
+ * the backdrop leaving it fades out, or goes at once when it jumps. Open, its actions ([row], [VoletPart.rowed]) stand
+ * under its words, there from the moment it opens so Down finds them, shown with the words or as soon as they take
+ * focus; while the panel itself has focus, what OK does ([VoletPart.hint]) in its bottom corner, on its neighbours'
+ * years. Nothing draws [edge] px into it from its start (a film under the pinned spine). The saga's closed panel is
+ * its spine, its backdrop receding and its name upright. Framed with focus, glowing in its film's light; a greyed film
+ * framed without a glow, as [AbsentCard] is, even while the room still holds the light of the film before it.
  */
 @Composable
 private fun Volet(
@@ -645,7 +648,7 @@ private fun Volet(
     onFocus: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     surfaceModifier: Modifier = Modifier,
-    row: @Composable (VoletHint?) -> Unit = {},
+    row: @Composable () -> Unit = {},
     words: @Composable () -> Unit,
 ) {
     val pictures = rememberVoletPictures(part, plan, settled)
@@ -680,14 +683,22 @@ private fun Volet(
         }
         if (wide || rowed) {
             VoletOverlay(
-                part,
-                hint = part.hint?.let { VoletHint(it, shown = focused) },
                 rowed = rowed,
                 wide = wide,
+                foot = with(LocalDensity.current) { type.yearRise.toDp() } + HlSpace.xs,
                 focus = VoletRowFocus(actions, self) { acting = it },
                 onTop = { wordsTop = it },
                 row = row,
                 words = words,
+            )
+        }
+        // What OK does, in its corner on the line of its neighbours' years, while it has focus itself.
+        val hint = part.hint
+        if (wide && hint != null) {
+            OkHint(
+                hint,
+                shown = focused,
+                Modifier.align(Alignment.BottomEnd).padding(end = HlInset.card, bottom = HlSpace.m),
             )
         }
     }
@@ -773,34 +784,34 @@ private fun VoletSurface(
 private class VoletRowFocus(val requester: FocusRequester, val panel: FocusRequester, val onFocus: (Boolean) -> Unit)
 
 /**
- * An open panel's words at its foot, its title's width, then its actions ([row], when [rowed]) with what OK does at
- * their end ([hint]), else that hint alone where they would be; laid out before its words show ([wide]), unseen, so Down
- * finds the actions; [onTop] told where the words begin (px from the panel's top).
+ * An open panel's words at its foot, its title's width, then its actions ([row], when [rowed]) over a tile's label
+ * room, down to the foot, so a focused tile's label lies on the band of its neighbours' years; without them, the words
+ * over the [foot] band its neighbours' marks and years stand in. Laid out before its words show ([wide]), unseen, so
+ * Down finds the actions; [onTop] told where the words begin (px from the panel's top).
  */
 @Composable
 private fun BoxScope.VoletOverlay(
-    part: VoletPart,
-    hint: VoletHint?,
     rowed: Boolean,
     wide: Boolean,
+    foot: Dp,
     focus: VoletRowFocus,
     onTop: (Float) -> Unit,
-    row: @Composable (VoletHint?) -> Unit,
+    row: @Composable () -> Unit,
     words: @Composable () -> Unit,
 ) {
-    val acts = rowed || wide && hint != null
     Column(
         Modifier
             .align(Alignment.BottomStart)
             .fillMaxWidth()
             .padding(start = HlInset.card, end = HlInset.card)
-            .padding(bottom = if (part.rowed || hint != null) VoletDefaults.actionsFoot else HlInset.card)
+            // Actions over a tile's label room alone ([HlActionRow]): a focused tile's label lies on the years' band.
+            .padding(bottom = if (rowed) HlSpace.none else foot)
             .onPlaced { onTop(it.positionInParent().y) }
             .drawWithContent { if (wide) drawContent() },
     ) {
         // Read as the panel: its words are what it says.
         if (wide) Box(Modifier.width(HeroDefaults.titleWidth).clearAndSetSemantics {}) { words() }
-        if (acts) {
+        if (rowed) {
             Spacer(Modifier.height(HlSpace.l))
             Box(
                 Modifier
@@ -810,7 +821,7 @@ private fun BoxScope.VoletOverlay(
                         down = FocusRequester.Cancel
                     }
                     .onFocusChanged { focus.onFocus(it.hasFocus) },
-            ) { if (rowed) row(hint) else VoletActions(hint) {} }
+            ) { row() }
         }
     }
 }
@@ -832,45 +843,6 @@ private fun Modifier.clipStart(edge: () -> Float): Modifier = drawWithContent {
                 right = size.width + reach,
                 bottom = size.height + reach,
             ) { this@drawWithContent.drawContent() }
-        }
-    }
-}
-
-/** What OK does on a panel, in [words], said while it has focus ([shown]): [VoletActions] sets it at their end. */
-@Immutable
-class VoletHint(val words: String, val shown: Boolean)
-
-/**
- * An open panel's actions on one row, an action row's gap apart and its label room kept under them ([HlActionRow]);
- * then what OK does on the panel ([hint]) at the row's end, centred on its tiles, where the row leaves it room whole:
- * it never pushes an action, and goes rather than lie over one.
- */
-@Composable
-fun VoletActions(hint: VoletHint?, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
-    // Where the actions end, a gap after the last: a row holding a weight is as wide as it is given.
-    var end by remember { mutableIntStateOf(-1) }
-    Layout(
-        contents = listOf(
-            {
-                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
-                    content()
-                    Spacer(Modifier.onPlaced { end = it.positionInParent().x.roundToInt() })
-                }
-            },
-            { if (hint != null) OkHint(hint.words, hint.shown) },
-        ),
-        modifier = modifier.fillMaxWidth().padding(bottom = HlIconButtonDefaults.labelRoom),
-    ) { (actions, hints), constraints ->
-        val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val row = actions.first().measure(loose)
-        val said = hints.firstOrNull()?.measure(Constraints())
-        val tile = HlSize.tile.roundToPx()
-        layout(loose.maxWidth, maxOf(row.height, tile)) {
-            row.place(0, 0)
-            // Read while placing: the hint comes once the actions are placed, where it fits whole.
-            if (said != null && end >= 0 && end + said.width <= loose.maxWidth) {
-                said.place(loose.maxWidth - said.width, (tile - said.height) / 2)
-            }
         }
     }
 }

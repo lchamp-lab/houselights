@@ -811,10 +811,10 @@
     <string name="saga_hint_overview">Przeczytaj cały opis</string>
     <string name="saga_place">%1$d z %2$d</string>
     <plurals name="saga_watched">
-        <item quantity="one">Obejrzano %d</item>
-        <item quantity="few">Obejrzano %d</item>
-        <item quantity="many">Obejrzano %d</item>
-        <item quantity="other">Obejrzano %d</item>
+        <item quantity="one">%d obejrzany</item>
+        <item quantity="few">%d obejrzane</item>
+        <item quantity="many">%d obejrzanych</item>
+        <item quantity="other">%d obejrzanego</item>
     </plurals>
     <string name="saga_release_on">Premiera %s</string>
     <string name="saga_announced">Zapowiedziany</string>

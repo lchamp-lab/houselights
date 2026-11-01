@@ -35,9 +35,9 @@ fun voletParts(films: Int, spine: String, film: (Int) -> VoletFilm): List<VoletP
 /** What a film's panel shows of it: its year, its poster, its mark. */
 data class VoletFilm(val year: String, val poster: ImageRef? = null, val mark: VoletMark = VoletMark.None)
 
-/** [parts] laid out as a saga's page lays them, panel [open] open, focus entering on [enter]; no words under them. */
+/** [parts] laid out as a saga's page lays them, panel [open] open; no words under them. */
 @Composable
-fun VoletsOnTheCanvas(parts: List<VoletPart>, open: Int, modifier: Modifier = Modifier, enter: Int? = null) {
+fun VoletsOnTheCanvas(parts: List<VoletPart>, open: Int, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize()) {
         Volets(
             parts,
@@ -45,7 +45,6 @@ fun VoletsOnTheCanvas(parts: List<VoletPart>, open: Int, modifier: Modifier = Mo
             shown = null,
             onFocus = {},
             onOpen = {},
-            enter = enter,
             modifier = Modifier.padding(start = VOLET_SIDE, end = VOLET_SIDE, top = HlLayout.voletTop).fillMaxWidth()
                 .height(POLYPTYCH_HEIGHT),
         ) {}

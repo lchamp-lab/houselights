@@ -435,9 +435,6 @@ internal object VoletDefaults {
     /** A panel's number under its top edge. */
     val numberTop = HlSpace.m
 
-    /** An open panel's actions above its foot: a tile's label room under them, and a gap. */
-    val actionsFoot = HlSpace.xs
-
     /**
      * The panels jump instead of opening (« greffe 3 »): every press does what a held arrow does, both widths at once,
      * then the picture, the words and the room once settled. Decided on the Zidoo before 0.4.0, never a setting.

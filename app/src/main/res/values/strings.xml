@@ -785,7 +785,7 @@
     <string name="mark_saga_watched">Mark saga as watched</string>
     <string name="mark_saga_unwatched">Mark saga as unwatched</string>
     <!-- A saga's page: what OK does on an open panel, the film's page its tile opens, where focus is among its films, the films watched -->
-    <string name="saga_film_page">View film</string>
+    <string name="saga_film_page">Film page</string>
     <string name="saga_hint_synopsis">Read the synopsis</string>
     <string name="saga_hint_overview">Read the whole synopsis</string>
     <string name="saga_place">%1$d of %2$d</string>

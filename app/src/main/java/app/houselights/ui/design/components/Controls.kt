@@ -114,7 +114,8 @@ fun HeaderControls(content: @Composable () -> Unit) {
  * [busyLabel] and ignores OK. A button with a busy label of its own takes from the start the width of the wider of
  * its words at rest and busy, [reserveFor] included (another busy label it shows in turn), so nothing beside it moves
  * as they change. [detailLit] lights the detail for a state it names (an active filter, the sort chosen); a detail
- * [detailWhole] goes whole where the button has less room than it needs, never cut (a length).
+ * [detailWhole] goes whole where the button has less room than it needs, never cut (a length). Given more room than
+ * its words need, they stand in its middle, or at its start ([wordsAtStart]).
  */
 @Composable
 fun HlButton(
@@ -131,6 +132,7 @@ fun HlButton(
     busyLabel: String = text,
     reserveFor: String? = null,
     detailWhole: Boolean = false,
+    wordsAtStart: Boolean = false,
 ) = ButtonPlate(
     text,
     onClick,
@@ -144,6 +146,7 @@ fun HlButton(
     busyLabel,
     reserveFor = reserveFor,
     detailWhole = detailWhole,
+    wordsAtStart = wordsAtStart,
 )
 
 /** The plate of [HlButton]; [caution] sets the label in ember for an irreversible action ([SheetConfirm]). */
@@ -162,12 +165,13 @@ internal fun ButtonPlate(
     caution: Boolean = false,
     reserveFor: String? = null,
     detailWhole: Boolean = false,
+    wordsAtStart: Boolean = false,
 ) {
     val c = Hl.colors
     val busyState = stringResource(R.string.control_busy)
     val height = if (LocalInHeader.current) HlSize.controlCompact else HlSize.control
     val surface = modifier.height(height).semantics { if (busy) stateDescription = busyState }
-    val words = ButtonWords(text, icon, detail?.let { DetailWords(it, detailLit, detailWhole) }, busy, busyLabel)
+    val words = ButtonWords(text, icon, detail?.let { DetailWords(it, detailLit, detailWhole) }, busy, busyLabel, wordsAtStart)
     val reserved = reservedWidth(words, reserveFor)
     if (emphasis == Emphasis.Primary) {
         val light = remember(c) { c.emberLight() }
@@ -213,6 +217,7 @@ private class ButtonWords(
     val detail: DetailWords?,
     val busy: Boolean,
     val busyLabel: String,
+    val atStart: Boolean,
 )
 
 /** A button's detail: its [text], [lit] for a state it names, going [whole] where the button has no room for it. */
@@ -223,7 +228,7 @@ private class DetailWords(val text: String, val lit: Boolean, val whole: Boolean
 private fun BoxScope.ButtonRow(words: ButtonWords, reserved: Dp, primary: Boolean, lit: Boolean, enabled: Boolean) {
     Row(
         Modifier
-            .align(Alignment.Center)
+            .align(if (words.atStart) Alignment.CenterStart else Alignment.Center)
             .keepWidthWhile(words.busy)
             .widthIn(min = reserved)
             .padding(

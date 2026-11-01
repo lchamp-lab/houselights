@@ -33,13 +33,15 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.MediaProvider
+import app.houselights.core.MetadataEditor
 import app.houselights.core.UserState
+import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.VoletDefaults
 import app.houselights.ui.design.components.MENU_KEY
 import app.houselights.ui.design.components.VoletPlan
 import app.houselights.ui.testing.FakeCatalog
@@ -125,7 +127,10 @@ class SagaPageTest {
         listOf(first, second, third).forEach { it.isClosed() }
     }
 
-    /** Up from Lire goes to the saga's panel, Down back to its Lire; Right opens film 1, Down enters its actions. */
+    /**
+     * Up from Lire goes to the saga's panel, Down back to its Lire; Right opens film 1, Down enters its actions, Right
+     * from the last opening film 2, Left from the first the saga's panel.
+     */
     @Test
     fun upGoesToTheSagasPanelRightOpensFilmOneDownEntersItsActions() {
         page()
@@ -148,20 +153,39 @@ class SagaPageTest {
         compose.press(Key.DirectionRight)
         tile(R.string.saga_film_page).assertIsFocused()
         compose.press(Key.DirectionRight)
-        tile(R.string.saga_film_page).assertIsFocused()
-        first.isOpen()
-        second.isClosed()
-        compose.press(Key.DirectionLeft, times = 3)
+        second.assertIsFocused().isOpen()
+        first.isClosed()
+        compose.press(Key.DirectionLeft)
+        first.assertIsFocused().isOpen()
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight, times = 2)
+        compose.press(Key.DirectionLeft, times = 2)
         lire.assertIsFocused()
         first.isOpen()
         saga.isClosed()
         compose.press(Key.DirectionDown)
         lire.assertIsFocused()
-        compose.press(Key.DirectionUp)
-        first.assertIsFocused().isOpen()
+        compose.press(Key.DirectionLeft)
+        saga.assertIsFocused().isOpen()
+        first.isClosed()
     }
 
-    /** The saga's actions: Lire, Depuis le début, the check, Modifier; nothing before the first nor after the last. */
+    /** The last film's last action leads nowhere: Right stays on it. */
+    @Test
+    fun theLastFilmsLastActionLeadsNowhere() {
+        page(duneSource(third = duneThree.copy(item = MediaItem("dune3", MediaKind.MOVIE, duneThree.title, year = 2026), released = true)))
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight, times = 3)
+        third.assertIsFocused()
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight, times = 2)
+        tile(R.string.saga_film_page).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        tile(R.string.saga_film_page).assertIsFocused()
+        third.isOpen()
+    }
+
+    /** The saga's actions: Lire, Depuis le début, the check, Modifier; nothing before the first, film 1 after the last. */
     @Test
     fun theSagasActionsRunFromLireToModifier() {
         page()
@@ -173,13 +197,16 @@ class SagaPageTest {
         tile(R.string.mark_saga_watched).assertIsFocused()
         compose.press(Key.DirectionRight)
         tile(R.string.edit).assertIsFocused()
-        compose.press(Key.DirectionRight)
-        tile(R.string.edit).assertIsFocused()
         compose.press(Key.DirectionDown)
         tile(R.string.edit).assertIsFocused()
         saga.isOpen()
-        compose.press(Key.DirectionUp)
-        saga.assertIsFocused()
+        compose.press(Key.DirectionRight)
+        first.assertIsFocused().isOpen()
+        saga.isClosed()
+        compose.press(Key.DirectionLeft)
+        saga.assertIsFocused().isOpen()
+        compose.press(Key.DirectionDown)
+        resume.assertIsFocused()
     }
 
     @Test
@@ -552,13 +579,58 @@ class SagaPageTest {
         val retry = compose.onNode(hasText(text(R.string.retry)) and hasClickAction())
         compose.press(Key.DirectionRight, times = 4)
         retry.assertIsFocused()
+        // The last of the saga's actions: Right on to film 1, Down back to its actions.
         compose.press(Key.DirectionRight)
+        first.assertIsFocused()
+        compose.press(Key.DirectionLeft)
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight, times = 4)
         retry.assertIsFocused()
         source.away = false
         compose.press(Key.DirectionCenter)
         retry.assertDoesNotExist()
         resume.assertIsFocused()
         saga.isOpen()
+    }
+
+    /** A saga with no action, nothing held, marked or edited: focus on its panel, Back leaves at once. */
+    @Test
+    fun aSagaWithNoActionLeavesOnBack() {
+        val absent = duneWhole().let { whole -> whole.copy(parts = whole.parts.map { it.copy(item = null, released = true) }) }
+        val provider = FakeProvider().apply {
+            items[duneSaga.id] = duneSaga
+            catalog = FakeCatalog().apply { sagas = mapOf(duneSaga.id to absent) }
+            capabilities = capabilities.copy(sagaParts = true, markPlayed = false)
+        }
+        val source = object : MediaProvider by SagaSource(provider, duneSaga, emptyList()) {
+            override val editor: MetadataEditor? = null
+        }
+        SagaPage(compose, source, work).open(duneSaga.id)
+        saga.assertIsFocused()
+        assertTrue("no action", compose.onAllNodes(hasClickAction() and hasText(text(R.string.play))).fetchSemanticsNodes().isEmpty())
+        compose.pressBack()
+        assertTrue(left)
+    }
+
+    /** Lire fills the saga's row up to its tiles, the last at the panel's inset from its side. */
+    @Test
+    fun lireFillsTheRowUpToItsTiles() {
+        page()
+        val panel = saga.getUnclippedBoundsInRoot()
+        val reprendre = resume.getUnclippedBoundsInRoot()
+        val restart = tile(R.string.from_start).getUnclippedBoundsInRoot()
+        val edit = tile(R.string.edit).getUnclippedBoundsInRoot()
+        assertEquals("up to Depuis le début", (restart.left - HlSpace.s).value, reprendre.right.value, HALF)
+        assertEquals("Modifier at the inset", (panel.right - HlInset.card).value, edit.right.value, HALF)
+    }
+
+    /** Back from the player once Depuis le début started a film, focus is on that film's Lire, as on the saga's and a film's page. */
+    @Test
+    fun focusGoesBackToLireAfterAFromTheStart() {
+        assertEquals(PLAY, playAfterRestart(RESTART))
+        val film = FocusKey.within(FocusKey.within(FocusKey.row("films"), FocusKey.item("dune2")), RESTART)
+        assertEquals(FocusKey.within(FocusKey.within(FocusKey.row("films"), FocusKey.item("dune2")), PLAY), playAfterRestart(film))
+        assertEquals(null, playAfterRestart(WATCHED))
     }
 
     /** The Menu key does nothing on the page: no sheet, from Lire as from a panel. */
@@ -627,7 +699,7 @@ class SagaPageTest {
             assertTrue("at $step: ${panel.left}", (panel.left - HlFocus.reach).value >= HlSpace.safeH.value - HALF)
             assertEquals(
                 "at $step: Lire over the label room",
-                (panel.bottom - VoletDefaults.actionsFoot - page.labelRoom).value,
+                (panel.bottom - page.labelRoom).value,
                 reprendre.bottom.value,
                 HALF,
             )

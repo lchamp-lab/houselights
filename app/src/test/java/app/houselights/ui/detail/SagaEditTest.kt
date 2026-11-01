@@ -11,6 +11,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
 import app.houselights.core.ArtworkKind
@@ -81,13 +82,16 @@ class SagaEditTest {
         tile(R.string.edit).assertIsFocused()
     }
 
-    /** A Jellyfin box set has no Modifier: its check ends the saga's actions. */
+    /** A Jellyfin box set has no Modifier: its check ends the saga's actions, Right from it opening film 1. */
     @Test
     fun aJellyfinBoxSetHasNoModifier() {
         page(jellyfin(duneSource()))
         tile(R.string.edit).assertDoesNotExist()
-        compose.press(Key.DirectionRight, times = 3)
+        compose.press(Key.DirectionRight, times = 2)
         tile(R.string.mark_saga_watched).assertIsFocused()
+        // The last of its actions: Right on to film 1.
+        compose.press(Key.DirectionRight)
+        compose.onNodeWithContentDescription(context.getString(R.string.saga_card_name, dune.title, 1) + ", 2021").assertIsFocused()
         assertTrue(compose.onAllNodes(isDialog()).fetchSemanticsNodes().isEmpty())
     }
 
