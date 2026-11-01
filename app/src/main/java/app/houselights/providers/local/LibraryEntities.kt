@@ -150,17 +150,17 @@ private const val ROW_BODY =
         "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, " +
         "absoluteNumber, tmdbSeason, tmdbEpisode, tmdbLastEpisode, filePath, parts, fileSize, missingSince, badges, "
 
-/** Item columns after [ItemEntity.mediaInfo], with the NFO text left out; see [ITEM_ROW]. */
+/** Item columns after [ItemEntity.mediaInfo]; see [ITEM_ROW]. */
 private const val ROW_TAIL =
-    ", probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
+    ", probeVersion, fileDurationMs, nfoPath, sidecarKey, userTmdbId, userPosterPath, " +
         "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
         "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt, matchState, hintKey, userNoMatch, episodeOrder, " +
         "userEpisodeOrder, reorderedAt"
 
-/** Every item column except the NFO text, which can reach 1 MB; such rows must never be written back. */
+/** Every item column, as `SELECT *` reads them; a title's NFO text is in its own table ([NfoEntity]). */
 const val ITEM_ROW = ROW_HEAD + "overview, tagline, " + ROW_BODY + "mediaInfo" + ROW_TAIL
 
-/** [ITEM_ROW] without [ItemEntity.mediaInfo] (kilobytes of JSON per card), for lists; never written back either. */
+/** [ITEM_ROW] without [ItemEntity.mediaInfo] (kilobytes of JSON per card), for lists; never written back. */
 const val CARD_ROW = ROW_HEAD + "overview, tagline, " + ROW_BODY + "NULL AS mediaInfo" + ROW_TAIL
 
 /** [CARD_ROW] without the overview and tagline, which walls and home's doors never show: neither read nor typeset. */
@@ -201,11 +201,6 @@ data class SeriesCounts(
 )
 
 data class SeasonCounts(val seasonId: Long, val episodes: Int, val played: Int)
-
-data class ItemNfo(val sourceId: Long, val nfoPath: String?, val nfo: String?)
-
-/** A row's NFO text, read for many rows at once ([LibraryDao.nfosOf]). */
-data class RowNfo(val id: Long, val nfo: String)
 
 data class PlayState(
     /** See [ItemEntity.parts]. */
@@ -330,9 +325,8 @@ data class ItemEntity(
     val probeVersion: Int = 0,
     /** Duration from [mediaInfo], in its own column so cards show it without decoding the JSON. */
     val fileDurationMs: Long? = null,
-    /** The NFO next to the video (or the show's), and its raw content. */
+    /** The NFO next to the video (or the show's); its text is kept apart ([NfoEntity]). */
     val nfoPath: String? = null,
-    val nfo: String? = null,
     /** Sidecar fingerprint at the last read ([SidecarKey]); null until read. */
     val sidecarKey: String? = null,
     /** Choices made by the user; scans never override them. */

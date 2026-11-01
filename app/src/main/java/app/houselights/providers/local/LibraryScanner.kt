@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import android.os.SystemClock
 import android.util.Log
 import app.houselights.core.FailureKind
-import app.houselights.core.NfoParser
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.RepeatedFailures
 import app.houselights.core.TmdbUnreachableException
@@ -96,6 +95,8 @@ class LibraryScanner(
      * over another app is not the app's: that app may play from the NAS again once woken.
      */
     private val dreaming: Flow<Boolean> = flowOf(false),
+    /** The matching rules the titles to identify were last asked by, kept between starts ([Reidentify.newRules]). */
+    private val rules: RulesMark = RulesMark.Kept(),
 ) {
     /** What the scan goes on for, playback aside: the app on screen, or Android's screensaver over it ([dreaming]). */
     private val present: Flow<Boolean> = combine(started, dreaming) { onScreen, dream -> onScreen || dream }
@@ -319,6 +320,7 @@ class LibraryScanner(
             dao.deleteOrphanSearchWords()
             dao.deleteOrphanTrackChoices()
             dao.deleteOrphanSuggestions()
+            dao.deleteOrphanNfos()
             dao.deleteOrphanEpisodeOrders()
             dao.deleteOrphanIgnored()
         }
@@ -355,6 +357,8 @@ class LibraryScanner(
         lock.withLock {
             movies.startPass()
             shows.startPass()
+            // Before any title is asked: those to identify by older rules are asked again at the pass's end.
+            suspendRunCatching { reidentify.newRules(rules) }.onFailure { Log.w(TAG, "Titles to identify wait for the next pass", it) }
         }
         val before = _state.value.errors
         val errors = mutableMapOf<Long, ScanError>()
@@ -924,7 +928,7 @@ class LibraryScanner(
 
     /** Re-probes headers only ([Work.PROBE]); the stored NFO fills gaps, and neither sidecars nor TMDB are read. */
     private suspend fun reprobe(source: SourceEntity, file: RemoteFile, existing: ItemEntity) {
-        val nfo = existing.nfo?.let(NfoParser::parse)
+        val nfo = dao.nfoInfo(existing.id)
         dao.saveScanned(files.mediaFields(source, file, existing).withNfoStreams(nfo))
     }
 

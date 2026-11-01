@@ -29,6 +29,9 @@ fun testDatabase(
     .apply(configure)
     .build()
 
+/** Inserts [item] ([LibraryDao.insert]) with [nfo] as its NFO text ([NfoDao.setNfo]); its id. */
+suspend fun LibraryDao.insertWithNfo(item: ItemEntity, nfo: String?): Long = insert(item).also { setNfo(it, nfo) }
+
 /** Queries and transactions run on the calling thread, so that a test's scheduler sees every step. */
 fun RoomDatabase.Builder<LibraryDatabase>.onCallingThread() {
     allowMainThreadQueries()

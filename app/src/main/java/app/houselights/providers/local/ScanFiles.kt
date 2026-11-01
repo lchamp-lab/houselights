@@ -52,12 +52,15 @@ internal class ScanFiles(
     /** One line for [source]'s text files that could not be read again in this pass, if any. */
     fun summarize(source: SourceEntity) = unread.summarize { "${source.name}: files unreadable again, each logged before: $it" }
 
-    /** Reads [file] as [item]'s NFO, falling back to the stored one on failure; a path is never kept without text. */
-    suspend fun nfo(source: SourceEntity, file: RemoteFile?, item: ItemEntity): KeptNfo =
+    /**
+     * Reads [file] as [item]'s NFO, falling back to [stored], its stored text ([NfoDao.nfoText]), on failure; a path
+     * is never kept without text.
+     */
+    suspend fun nfo(source: SourceEntity, file: RemoteFile?, item: ItemEntity, stored: String?): KeptNfo =
         when (val read = file?.let { readText(source, it) }) {
             null -> KeptNfo(null, null)
             is TextRead.Text -> KeptNfo(file.relativePath, read.text)
-            is TextRead.Failed -> KeptNfo(item.nfoPath.takeIf { item.nfo != null }, item.nfo, stale = true)
+            is TextRead.Failed -> KeptNfo(item.nfoPath.takeIf { stored != null }, stored, stale = true)
         }
 
     /** [item] with media info and badges, probed when unprobed, probed by an older version, or changed; not saved. */

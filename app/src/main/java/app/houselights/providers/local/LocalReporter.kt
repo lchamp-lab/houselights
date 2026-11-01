@@ -27,7 +27,7 @@ internal class LocalReporter(
     }
 
     private suspend fun save(positionMs: Long, durationMs: Long?, finished: Boolean) {
-        // Called every ten seconds during playback: read a few columns, never the row's NFO text.
+        // Called every ten seconds during playback: read a few columns, not the whole row.
         val state = dao.playState(itemId) ?: return
         val length = durationMs ?: lengthOf(state)
         val watched = finished && part > state.parts.size && pastTheEnd(positionMs, length)

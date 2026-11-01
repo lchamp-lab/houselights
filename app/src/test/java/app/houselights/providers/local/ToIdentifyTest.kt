@@ -269,11 +269,55 @@ class ToIdentifyTest {
 
         bench.later(DAY_MS)
         bench.pass(auto = true)
-        val perShow = MatchPlan.MAX_SEARCHES + 1 + 3
+        val perShow = MatchPlan.MAX_CALLS + 1 + 3
         assertEquals(Reidentify.SHOW_CALLS_PER_PASS / perShow, asked())
         bench.later(1)
         bench.pass(auto = true)
         assertEquals("the others at the next pass", 30 - Reidentify.SHOW_CALLS_PER_PASS / perShow, asked())
+    }
+
+    /**
+     * The app updated to matching rules newer than those its titles to identify were asked by: its first pass asks them
+     * all again, an hour after they were asked, once; a title found is saved, a show with its seasons, the others asked
+     * as before. Never a title left as it is or matched by hand; a file new to that pass asked once.
+     */
+    @Test
+    fun newMatchingRulesAskTitlesToIdentifyAgainOnce() = runTest {
+        val films = bench.folder("Films")
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        listOf(HOLIDAYS, HEAT, "Film de famille (2012).mkv", "Mon film (2010).mkv").forEach { nas.put(it) }
+        bench.showsNas.put(KAAMELOTT)
+        bench.scan()
+        dao.setUserNoMatch(bench.item(films, "Film de famille (2012).mkv").id, true)
+        tmdb.movie(2, "Le Film", 2010)
+        bench.scanner.identify(bench.item(films, "Mon film (2010).mkv").id, 2)
+
+        tmdb.movie(1, "Vacances à Biarritz", 2019)
+        tmdb.show(KAAMELOTT_ID, "Kaamelott", 2005)
+        tmdb.season(KAAMELOTT_ID, 1, episodes = 1)
+        nas.put("Nouveau film (2024).mkv")
+        bench.rules.write(0)
+        bench.later(HOUR_MS)
+        tmdb.searched.clear()
+        val pass = bench.pass(auto = true)
+
+        val holidays = bench.item(films, HOLIDAYS)
+        assertEquals(1 to MatchState.MATCHED, holidays.tmdbId to holidays.matchState)
+        val kaamelott = bench.showOf(shows, KAAMELOTT)
+        assertEquals(KAAMELOTT_ID, kaamelott.tmdbId)
+        assertEquals("Episode 1.1", bench.item(shows, KAAMELOTT).title)
+        assertEquals(MatchState.NOT_FOUND, bench.item(films, HEAT).matchState)
+        val names = tmdb.searched.map { it.substringBefore(" (") }.toSet()
+        assertEquals(setOf("Vacances à Biarritz", "Heat", "Kaamelott", "Nouveau film"), names)
+        assertEquals("the new file once", 1, tmdb.searched.count { it == "Nouveau film (2024)" })
+        assertEquals("never the NAS for those asked again", listOf("Nouveau film (2024).mkv"), pass.reads.distinct())
+        assertEquals(2, bench.item(films, "Mon film (2010).mkv").tmdbId)
+        assertEquals(MatchPlan.RULES, bench.rules.read())
+
+        bench.later(HOUR_MS)
+        tmdb.searched.clear()
+        bench.pass(auto = true)
+        assertEquals("then as before, a day later", emptyList<String>(), tmdb.searched)
     }
 
     /**

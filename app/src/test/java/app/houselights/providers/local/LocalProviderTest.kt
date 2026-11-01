@@ -498,9 +498,8 @@ class LocalProviderTest {
                 logoPath = "/tmdbLogo.png",
                 userLogoPath = "file:///data/artwork/heat-logo.png",
                 nfoPath = "Heat.nfo",
-                nfo = nfo,
             )
-        }
+        }.also { dao.setNfo(it, nfo) }
         val item = provider.item(id.toString())
         // Screens still show the files the app keeps.
         assertEquals("file:///data/artwork/heat-fanart.jpg", item.backdrop?.url(1920))

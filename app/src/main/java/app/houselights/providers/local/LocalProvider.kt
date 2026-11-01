@@ -373,7 +373,6 @@ class LocalProvider(
 
     /** Plays row [rowId] itself: [part] from its start, else the first part from the resume point. */
     internal suspend fun play(rowId: Long, part: Int?, resume: Boolean): PlaybackPlan {
-        // Full row with NFO, whose artwork URLs may be the only web ones (see LocalMapper.forPlayer).
         val entity = dao.item(rowId) ?: throw NotFoundException("Item $rowId")
         val files = filesOf(entity)
         val file = fileOf(entity, part)

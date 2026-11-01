@@ -12,7 +12,8 @@ import kotlinx.coroutines.withContext
  * the NAS: a title is asked by what its row holds (its name, its NFO, its artwork). A title found at last is saved as
  * an identification saves it, a show with its seasons, then placed in the order it follows; one still not found keeps all
  * it has but its state, its candidates and when it was asked. Each title is a run of its own ([Rounds]): TMDB is asked
- * with the scan's lock released.
+ * with the scan's lock released. After an update whose matching rules ([MatchPlan.RULES]) may find them, every title to
+ * identify is asked again, once ([newRules]).
  */
 internal class Reidentify(
     private val dao: LibraryDao,
@@ -46,14 +47,26 @@ internal class Reidentify(
     }
 
     /**
+     * Makes every title to identify due at once ([RecheckDao.recheckAllNow]) when the rules in use are newer than those
+     * [rules] keeps, then keeps them: called as a pass starts, under its lock, so that titles it asks are left alone. The
+     * titles are then asked [TITLES_PER_PASS] a pass, in no set order, each once before any is asked again.
+     */
+    suspend fun newRules(rules: RulesMark) {
+        if (rules.read() >= MatchPlan.RULES) return
+        val due = dao.recheckAllNow()
+        if (due > 0) Log.i(TAG, "Matching rules ${MatchPlan.RULES}: $due titles to identify asked again")
+        rules.write(MatchPlan.RULES)
+    }
+
+    /**
      * The first of [series] whose TMDB calls fit [SHOW_CALLS_PER_PASS], the first at least: a show found is fetched
-     * with each of its seasons, its searches, its details and a call per season.
+     * with each of its seasons, its searches and alternative titles, its details and a call per season.
      */
     private suspend fun withinCalls(series: List<ItemEntity>): List<ItemEntity> {
         val fitting = mutableListOf<ItemEntity>()
         var calls = 0
         for (show in series) {
-            calls += MatchPlan.MAX_SEARCHES + 1 + dao.seasonCount(show.id)
+            calls += MatchPlan.MAX_CALLS + 1 + dao.seasonCount(show.id)
             if (fitting.isNotEmpty() && calls > SHOW_CALLS_PER_PASS) break
             fitting += show
         }
@@ -106,8 +119,8 @@ internal class Reidentify(
         /** Films asked again per pass at most, as many shows; shows are counted by their calls too ([SHOW_CALLS_PER_PASS]). */
         const val TITLES_PER_PASS = 40
 
-        /** TMDB calls shows asked again may take per pass, as many as films take at most ([MatchPlan.MAX_SEARCHES]). */
-        const val SHOW_CALLS_PER_PASS = TITLES_PER_PASS * (MatchPlan.MAX_SEARCHES + 1)
+        /** TMDB calls shows asked again may take per pass, as many as films take at most ([MatchPlan.MAX_CALLS] and their details). */
+        const val SHOW_CALLS_PER_PASS = TITLES_PER_PASS * (MatchPlan.MAX_CALLS + 1)
 
         private const val HOUR_MS = 60 * 60_000L
         private const val DAY_MS = 24 * HOUR_MS
