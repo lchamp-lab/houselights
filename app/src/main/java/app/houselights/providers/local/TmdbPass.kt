@@ -87,10 +87,14 @@ internal class TmdbPass(
     private suspend fun <T : Any> asked(question: suspend (TmdbClient) -> T?): TmdbAnswer<T> {
         val tmdb = client?.takeIf { !stopped } ?: return TmdbAnswer.Unanswered
         if (strict) return TmdbAnswer.Given(question(tmdb)).also { answered = true }
+        val before = tmdb.answers
         return suspendRunCatching { question(tmdb) }.fold(
             onSuccess = {
-                failures = 0
-                answered = true
+                // Answered from what the pass kept ([MovieIndexer.FilmCache]), TMDB not asked: it says nothing of TMDB.
+                if (tmdb.answers != before) {
+                    failures = 0
+                    answered = true
+                }
                 TmdbAnswer.Given(it)
             },
             onFailure = { e ->

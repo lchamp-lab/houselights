@@ -25,19 +25,22 @@ internal class Reidentify(
 ) {
     private val placing = EpisodePlacing(dao, clock)
 
-    /** Returns how many titles changed: found, or found otherwise (another state, other candidates); [state], the pass's. */
-    suspend fun run(tmdb: TmdbPass, asked: Boolean, state: PassState): Int {
+    /**
+     * Returns how many titles changed: found, or found otherwise (another state, other candidates); [films] and [state],
+     * the pass's.
+     */
+    suspend fun run(tmdb: TmdbPass, films: MovieIndexer.FilmCache, asked: Boolean, state: PassState): Int {
         val now = clock()
         val newDue = now - (if (asked) ASKED_EVERY_MS else NEW_EVERY_MS)
         val due = now - (if (asked) ASKED_EVERY_MS else EVERY_MS)
         val newSince = now - NEW_FOR_MS
-        val films = dao.recheckDue(ItemKind.MOVIE, newSince, newDue, due, TITLES_PER_PASS)
+        val dueFilms = dao.recheckDue(ItemKind.MOVIE, newSince, newDue, due, TITLES_PER_PASS)
         val series = withinCalls(dao.recheckDue(ItemKind.SERIES, newSince, newDue, due, TITLES_PER_PASS))
         var changed = 0
-        for (title in films + series) {
+        for (title in dueFilms + series) {
             // TMDB closed during the pass: the others wait for a later one.
             if (!tmdb.open) break
-            if (recheck(title, tmdb, state)) changed++
+            if (recheck(title, tmdb, films, state)) changed++
         }
         return changed
     }
@@ -58,7 +61,7 @@ internal class Reidentify(
     }
 
     /** False when nothing changed, or TMDB did not answer: a later pass asks again. */
-    private suspend fun recheck(title: ItemEntity, tmdb: TmdbPass, state: PassState): Boolean {
+    private suspend fun recheck(title: ItemEntity, tmdb: TmdbPass, films: MovieIndexer.FilmCache, state: PassState): Boolean {
         waitForThePlayer()
         return rounds.run(tmdb, state) {
             // Identified, left as it is, re-read by a scan or gone meanwhile: nothing to ask.
@@ -66,7 +69,7 @@ internal class Reidentify(
             // The seasons asked for a show found are those its placing reads: each asked once.
             val seasons = ShowIndexer.SeasonCache(tmdb)
             val writes = when (fresh.kind) {
-                ItemKind.MOVIE -> movies.recheck(fresh, tmdb)
+                ItemKind.MOVIE -> movies.recheck(fresh, tmdb, films)
                 ItemKind.SERIES -> shows.recheck(fresh, tmdb, seasons)
                 else -> null
             } ?: return@run false

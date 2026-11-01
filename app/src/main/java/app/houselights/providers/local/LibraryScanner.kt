@@ -361,8 +361,10 @@ class LibraryScanner(
         var changed = false
         val client = client()
         val tmdb = TmdbPass(client) { e -> _state.update { it.copy(tmdbIssue = e.failureKind()) } }
+        val films = MovieIndexer.FilmCache()
         val seasons = ShowIndexer.SeasonCache(tmdb)
         val orders = EpisodeOrders(dao, tmdb, clock)
+        val asks = PassTmdb(tmdb, films, seasons, orders)
         val down = tmdbDown?.takeIf { it.client === client }
         val asked = askTmdbAgain.getAndSet(false)
         val askUnmatched = askUnmatched(down, asked)
@@ -374,7 +376,7 @@ class LibraryScanner(
             for (source in sources) {
                 reached += source.id
                 val failure = suspendRunCatching {
-                    changed = scanFolder(source, refreshMetadata, ShowsTmdb(tmdb, seasons, orders), askUnmatched) || changed
+                    changed = scanFolder(source, refreshMetadata, asks, askUnmatched) || changed
                 }.exceptionOrNull()
                 val error = failure?.let { errorOf(source, it) }
                 error?.let { errors[source.id] = it }
@@ -386,7 +388,7 @@ class LibraryScanner(
             // Sources the pass did not reach keep their last error.
             errors += before.filterKeys { id -> id !in reached && sources.any { it.id == id } }
             // Titles to identify are asked again while TMDB answers, as titles waiting for it are, and episodes placed.
-            val identified = askUnmatched && askedAgain(ShowsTmdb(tmdb, seasons, orders), asked)
+            val identified = askUnmatched && askedAgain(asks, asked)
             changed = identified || changed
             lock.withLock {
                 suspendRunCatching {
@@ -400,7 +402,7 @@ class LibraryScanner(
                     if (cleanupDue(identified, changed)) cleanupLocked()
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
-            backfill(tmdb, askTmdb = askUnmatched)
+            backfill(tmdb, films, askTmdb = askUnmatched)
         } finally {
             tmdbDown = tmdbDownAfter(tmdb, down, askUnmatched)
             // Always reset the state, so the settings never show a scan running forever.
@@ -421,16 +423,16 @@ class LibraryScanner(
      * Runs [Reidentify] after the sources while TMDB answers, sooner on a scan the user [asked] for; true when a title
      * changed. A failure is retried at the next pass.
      */
-    private suspend fun reidentified(shows: ShowsTmdb, asked: Boolean): Boolean = shows.pass.open &&
-        suspendRunCatching { reidentify.run(shows.pass, asked, passState(shows.orders)) }
+    private suspend fun reidentified(tmdb: PassTmdb, asked: Boolean): Boolean = tmdb.pass.open &&
+        suspendRunCatching { reidentify.run(tmdb.pass, tmdb.films, asked, passState(tmdb.orders)) }
             .onSuccess { if (it > 0) Log.i(TAG, "To identify: $it titles asked again changed") }
             .onFailure { Log.w(TAG, "Asking TMDB again for titles to identify failed; tried again at the next pass", it) }
             .getOrDefault(0) > 0
 
     /** [reidentified], then [numbered]: true when either changed the library. */
-    private suspend fun askedAgain(shows: ShowsTmdb, asked: Boolean): Boolean {
-        val identified = reidentified(shows, asked)
-        return numbered(shows) || identified
+    private suspend fun askedAgain(tmdb: PassTmdb, asked: Boolean): Boolean {
+        val identified = reidentified(tmdb, asked)
+        return numbered(tmdb) || identified
     }
 
     /**
@@ -439,7 +441,7 @@ class LibraryScanner(
      * ([GROUPS_PER_PASS], every [GROUPS_EVERY_MS]), so a show matched before they were kept offers its orders; true when
      * an episode moved. A failure is retried at the next pass.
      */
-    private suspend fun numbered(tmdb: ShowsTmdb): Boolean {
+    private suspend fun numbered(tmdb: PassTmdb): Boolean {
         if (!tmdb.pass.open) return false
         val now = clock()
         return suspendRunCatching {
@@ -458,13 +460,18 @@ class LibraryScanner(
             .getOrDefault(false)
     }
 
-    /** What a pass asks TMDB through, for shows: its [pass], the seasons it read and how it numbers each show. */
-    private class ShowsTmdb(val pass: TmdbPass, val seasons: ShowIndexer.SeasonCache, val orders: EpisodeOrders)
+    /** What a pass asks TMDB through: its [pass], the films and seasons it read and how it numbers each show. */
+    private class PassTmdb(
+        val pass: TmdbPass,
+        val films: MovieIndexer.FilmCache,
+        val seasons: ShowIndexer.SeasonCache,
+        val orders: EpisodeOrders,
+    )
 
     /** Runs the [Backfill] after the sources; a failure is retried at the next pass. */
-    private suspend fun backfill(tmdb: TmdbPass, askTmdb: Boolean) {
+    private suspend fun backfill(tmdb: TmdbPass, films: MovieIndexer.FilmCache, askTmdb: Boolean) {
         suspendRunCatching {
-            backfill.run(tmdb, askTmdb).also { written ->
+            backfill.run(tmdb, films, askTmdb).also { written ->
                 // Rekeyed people leave search words under their former keys.
                 if (written > 0) lock.withLock { dao.deleteOrphanSearchWords() }
             }
@@ -534,17 +541,17 @@ class LibraryScanner(
     }
 
     /** [scan], whole for a folder due in this pass's language ([refreshAllIn]), which is then no longer due. */
-    private suspend fun scanFolder(source: SourceEntity, refreshMetadata: Boolean, shows: ShowsTmdb, askUnmatched: Boolean): Boolean {
+    private suspend fun scanFolder(source: SourceEntity, refreshMetadata: Boolean, asks: PassTmdb, askUnmatched: Boolean): Boolean {
         // Due in another language than this pass's TMDB speaks: a later pass reads it.
-        val due = source.refreshIn?.takeIf { it == shows.pass.client?.locale?.toLanguageTag() }
-        val changed = scan(source, refreshMetadata || due != null, shows, askUnmatched)
+        val due = source.refreshIn?.takeIf { it == asks.pass.client?.locale?.toLanguageTag() }
+        val changed = scan(source, refreshMetadata || due != null, asks, askUnmatched)
         if (due != null) dao.refreshedIn(source.id, due)
         return changed
     }
 
     /** Scans one source; true when the library changed. [askUnmatched] retries titles only waiting for TMDB. */
-    private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean, shows: ShowsTmdb, askUnmatched: Boolean): Boolean {
-        val tmdb = shows.pass
+    private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean, asks: PassTmdb, askUnmatched: Boolean): Boolean {
+        val tmdb = asks.pass
         waitForThePlayer()
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null, listed = 0) }
         val found = suspendRunCatching { listing(source) }.onFailure { e -> notListed(source, e) }.getOrThrow()
@@ -591,7 +598,8 @@ class LibraryScanner(
         noteIgnored(source, files)
 
         val pass = ScanPass(
-            source, sidecars, stacks, tmdb, shows.seasons, shows.orders, refreshMetadata, names.single, films.values.toSet() + hintedShows,
+            source, sidecars, stacks, tmdb, asks.films, asks.seasons, asks.orders, refreshMetadata, names.single,
+            films.values.toSet() + hintedShows,
         )
         val folder = Folder(pass, known)
         val written = processAll(folder, todo, stillDue(::work, forShows))

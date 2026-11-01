@@ -10,6 +10,8 @@ internal class ScanPass(
     val sidecars: Sidecars,
     val stacks: Stacks,
     val tmdb: TmdbPass,
+    /** TMDB films, each fetched once per pass. */
+    val films: MovieIndexer.FilmCache,
     /** TMDB seasons, each fetched once per pass. */
     val seasons: ShowIndexer.SeasonCache,
     /** How TMDB numbers each show, read once per pass ([EpisodeOrders]). */
