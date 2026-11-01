@@ -95,10 +95,10 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.RowScroll
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.emberLit
 import app.houselights.ui.design.plate
-import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.roomStep
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.screenWidthPx
@@ -390,7 +390,7 @@ private fun rememberPlate(): PlateLook {
         when (ground) {
             Ground.Artwork -> {
                 val plate = ColorProducer { c.plate(light) }
-                PlateLook(plate, plate, BorderStroke(HlSize.hairline, c.plateEdge))
+                PlateLook(plate, plate, BorderStroke(HlSize.hairline, c.edge))
             }
             Ground.Glass -> {
                 val step = c.content.copy(alpha = HlAlpha.FILL)
@@ -598,7 +598,7 @@ internal fun Modifier.labelPlate(c: HlColors, light: AmbientLight): Modifier = d
     val hairline = Stroke(HlSize.hairline.toPx())
     onDrawBehind {
         drawOutline(outline, c.plate(light))
-        drawOutline(outline, c.plateEdge, style = hairline)
+        drawOutline(outline, c.edge, style = hairline)
     }
 }
 

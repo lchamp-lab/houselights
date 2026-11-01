@@ -100,6 +100,7 @@ import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.LocalGroupFocus
 import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.Scrub
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.fadeOutsideSafeArea
 import app.houselights.ui.design.groundPlate
@@ -425,7 +426,7 @@ internal class RecedingPainter(private val painter: Painter, private val recede:
 /** The faint edge of artwork at rest, so a dark picture keeps its outline on black. */
 internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier = border(artworkEdge(colors), shape)
 
-private fun artworkEdge(colors: HlColors) = BorderStroke(HlSize.hairline, colors.content.copy(alpha = HlAlpha.EDGE_ARTWORK))
+private fun artworkEdge(colors: HlColors) = BorderStroke(HlSize.hairline, colors.edge)
 
 /** Requested poster width in px: [requestedPoster]. */
 @Composable

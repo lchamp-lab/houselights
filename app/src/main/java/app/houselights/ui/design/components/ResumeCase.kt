@@ -44,7 +44,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.design.Scrub
 import app.houselights.ui.design.colorStops
-import app.houselights.ui.design.plateEdge
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.timeLeft
@@ -80,7 +80,7 @@ fun ResumeCase(
     val glow = rememberGlowColor(picture, focused && !Scrub.active)
     HlFocusSurface(
         onClick = onClick,
-        look = FocusStyle.frame(rest = c.ambientDeep, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.plateEdge)),
+        look = FocusStyle.frame(rest = c.ambientDeep, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.edge)),
         shape = HlShapes.control,
         modifier = modifier,
         onLongClick = onLongClick,
@@ -184,7 +184,7 @@ private fun CaseAction(action: String, lit: Boolean, icon: ImageVector?, menu: B
             .fillMaxWidth()
             .heightIn(min = HomeGridDefaults.action)
             .background(FocusStyle.heldPlate(lit, c.content.copy(alpha = HlAlpha.FILL)), HlShapes.control)
-            .then(if (lit) Modifier else Modifier.border(HlSize.hairline, c.plateEdge, HlShapes.control)),
+            .then(if (lit) Modifier else Modifier.border(HlSize.hairline, c.edge, HlShapes.control)),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

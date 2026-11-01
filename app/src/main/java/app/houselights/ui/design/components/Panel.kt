@@ -69,7 +69,6 @@ import app.houselights.ui.design.glassPlate
 import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.groundWell
 import app.houselights.ui.design.plate
-import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.roomStep
 import app.houselights.ui.design.tryRequestFocus
 
@@ -175,7 +174,7 @@ internal fun HlRowSurface(
 }
 
 /**
- * A plate holding a group (DESIGN.md, Secondary screens), [HlShapes.panel] edged by `plateEdge`, read while drawing:
+ * A plate holding a group (DESIGN.md, Secondary screens), [HlShapes.panel] edged by `edge`, read while drawing:
  * on a field of posters ([PosterField]) its dark, as a plate over a picture; in a sheet the film's [glassPlate]; the
  * room's one step ([roomStep]) on the bare room. What it holds lies on glass, its words [HlInset.plate] from its
  * sides and [HlInset.card] from its top and foot.
@@ -186,7 +185,7 @@ fun HlPlate(
     padding: PaddingValues = PaddingValues(horizontal = HlInset.plate, vertical = HlInset.card),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier.plate(BorderStroke(HlSize.hairline, Hl.colors.plateEdge)).padding(padding)) {
+    Column(modifier.plate(BorderStroke(HlSize.hairline, Hl.colors.edge)).padding(padding)) {
         CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
     }
 }
@@ -222,7 +221,7 @@ internal fun PlateSlice(first: Boolean, last: Boolean, content: @Composable Colu
     val inSheet = LocalGround.current == Ground.Glass
     val onField = LocalRoomField.current != null
     val light = LocalAmbient.current
-    val edge = c.plateEdge
+    val edge = c.edge
     val slice = Modifier.fillMaxWidth().drawWithCache {
         val stroke = HlSize.hairline.toPx()
         val radius = HlShapes.panel.topStart.toPx(size, this)
@@ -267,7 +266,7 @@ fun ReadingPlate(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, Hl.colors.plateEdge)
+    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, Hl.colors.edge)
     val reading = if (readAs != null) {
         Modifier.clearAndSetSemantics {
             contentDescription = readAs
@@ -288,10 +287,10 @@ fun ReadingPlate(
     }
 }
 
-/** A hairline between a menu's sections or a panel's parts; never between a pane's or a sheet's groups. */
+/** A hairline in [edge] between a menu's sections or a panel's parts; never between a pane's or a sheet's groups. */
 @Composable
 fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
-    val color = Hl.colors.contentDecorative
+    val color = Hl.colors.edge
     if (vertical) {
         Box(modifier.width(HlSize.hairline).fillMaxHeight().background(color))
     } else {

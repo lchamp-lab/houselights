@@ -53,8 +53,8 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.PaneDefaults
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.plate
-import app.houselights.ui.design.plateEdge
 
 /** The screen title's baseline from its top, at the viewer's text size: where a pane's and a sheet's head set their own. */
 @Composable
@@ -214,7 +214,7 @@ fun JaquetteLine(facts: List<Pair<String, String>>, modifier: Modifier = Modifie
     Row(
         modifier
             .drawBehind { drawRoundRect(c.plate(light), cornerRadius = CornerRadius(HlShapes.control.topStart.toPx(size, this))) }
-            .border(HlSize.hairline, c.plateEdge, HlShapes.control)
+            .border(HlSize.hairline, c.edge, HlShapes.control)
             .padding(horizontal = HlSpace.s, vertical = HlSpace.xxs),
     ) {
         facts.forEachIndexed { i, (label, value) ->

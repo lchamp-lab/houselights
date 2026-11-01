@@ -45,7 +45,7 @@ import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.ShowcaseDefaults
 import app.houselights.ui.design.VeilStop
 import app.houselights.ui.design.colorStops
-import app.houselights.ui.design.plateEdge
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.tintedGlass
 
 /**
@@ -79,7 +79,7 @@ fun Showcase(
     val covered = remember(band) { { band.intValue.toFloat() } }
     HlFocusSurface(
         onClick = onClick,
-        look = FocusStyle.frame(rest = glass, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.plateEdge)),
+        look = FocusStyle.frame(rest = glass, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.edge)),
         shape = HlShapes.panel,
         modifier = modifier.width(HlSize.showcase).onFocusChanged { if (it.isFocused) onFocus() },
         covered = covered.takeIf { full },

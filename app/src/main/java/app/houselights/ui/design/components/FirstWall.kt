@@ -40,6 +40,7 @@ import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.util.titleCount
 import kotlinx.coroutines.delay
@@ -227,7 +228,7 @@ private fun WallFrameView(frame: WallFrame, modifier: Modifier = Modifier) {
     val shape = HlShapes.artwork
     val ground = groundFill(HlAlpha.FILL)
     val rule = c.contentDecorative
-    val edge = c.content.copy(alpha = HlAlpha.EDGE_ARTWORK)
+    val edge = c.edge
     val scope = rememberCoroutineScope()
     Box(
         modifier

@@ -37,7 +37,7 @@ data class HlColors(
     val background: Color,
     /** Glass: side sheets and menus, opaque over the dimmed room. */
     val glass: Color,
-    /** Outlined badges, and every edge at `HlAlpha.EDGE`. */
+    /** A badge's border and a field's at rest, whole; never an edge ([edge]). */
     val outline: Color,
     /** Primary text: projector white. */
     val content: Color,
@@ -47,7 +47,7 @@ data class HlColors(
      * library lacks; never a fact (`DesignTokenGuardTest`). 5.56:1 on [glass], never on `FILL_STRONG` (`ContrastTest`).
      */
     val contentTertiary: Color,
-    /** Never for text: the rule of an empty frame, a skeleton. */
+    /** Never for text: the rule of an empty frame, a skeleton; never an edge or a divider ([edge]). */
     val contentDecorative: Color,
     /**
      * The house light, a closed list of six states (in use, your choice, needs attention, new, where you are,
@@ -96,17 +96,17 @@ val LocalHlColors = staticCompositionLocalOf { HouselightsColors }
 fun HlColors.emberLight(alpha: Float = 1f, across: Float = Float.POSITIVE_INFINITY): Brush =
     Brush.horizontalGradient(listOf(emberFrom.copy(alpha = alpha), emberTo.copy(alpha = alpha)), endX = across)
 
-/** Every edge and divider of a container: [HlColors.outline] at `HlAlpha.EDGE`. */
-val HlColors.edge: Color get() = outline.copy(alpha = HlAlpha.EDGE)
+/**
+ * The one edge: every panel, plate, door, picture at rest and scrolling area, and every divider, `content` at
+ * `HlAlpha.EDGE`; white seen through, it reads the same on the room, on glass and on a picture.
+ */
+val HlColors.edge: Color get() = content.copy(alpha = HlAlpha.EDGE)
 
-/** A plate over a picture: its own dark at [alpha], set off by [plateEdge]. */
+/** A plate over a picture: its own dark at [alpha], set off by [edge]. */
 fun HlColors.plate(deep: Color = ambientDeep, alpha: Float = HlAlpha.PLATE): Color = deep.copy(alpha = alpha)
 
 /** A plate over the picture [light] comes from, read while drawing: as opaque as its quietest text needs there. */
 fun HlColors.plate(light: AmbientLight): Color = plate(light.deep(), light.plateAlpha())
-
-/** The hairline around a [plate]. */
-val HlColors.plateEdge: Color get() = content.copy(alpha = HlAlpha.PLATE_EDGE)
 
 /** Glass in a picture's [glow] at `GLASS_GLOW`: a showcase in its posters' light. */
 fun HlColors.tintedGlass(glow: Color): Color = glow.copy(alpha = glow.alpha * HlAlpha.GLASS_GLOW).compositeOver(glass)
@@ -198,11 +198,10 @@ object HlAlpha {
     const val VEIL = 0.8f
     /**
      * A [plate] in the picture's own dark, raised up to [PLATE_MAX] over a light picture so its quietest text
-     * keeps 4.5:1 (`ArtworkSample.plateFloor`), and the hairline (`content`) that sets it off.
+     * keeps 4.5:1 (`ArtworkSample.plateFloor`).
      */
     const val PLATE = 0.74f
     const val PLATE_MAX = 0.92f
-    const val PLATE_EDGE = 0.11f
 
     /**
      * A plate on glass ([glassPlate]): `content` a step over it, under `FILL_FAINT` so the quietest text keeps
@@ -214,10 +213,8 @@ object HlAlpha {
     /** A sheet's glass: the picture's dark over it ([sheetGlass]). */
     const val GLASS_DEEP = 0.5f
 
-    /** Every edge and divider of a container: `outline` at this opacity. */
-    const val EDGE = 0.6f
-    /** The edge of artwork at rest, so a dark poster keeps its outline on the black room: `content`. */
-    const val EDGE_ARTWORK = 0.12f
+    /** The one edge ([edge]): `content` at this opacity; a dark poster keeps its outline on the black room. */
+    const val EDGE = 0.12f
 
     /** The ink edge of a digit cut in a poster, so a dark poster keeps the figure's shape: `content`. */
     const val FIGURE_EDGE = 0.3f

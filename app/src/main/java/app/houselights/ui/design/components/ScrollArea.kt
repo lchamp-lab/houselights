@@ -50,7 +50,6 @@ import app.houselights.ui.design.glassPlate
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.groundStepFill
-import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.scrollEdges
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -118,7 +117,7 @@ fun HlScrollArea(lines: List<String>, modifier: Modifier = Modifier, alwaysFocus
 private fun Modifier.readingArea(focused: Boolean): Modifier {
     val c = Hl.colors
     val onGlass = LocalGround.current == Ground.Glass
-    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, if (onGlass) c.plateEdge else c.edge)
+    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, c.edge)
     return if (onGlass) clip(HlShapes.panel).plate(edge) else panel(HlShapes.panel, groundStepFill(), edge)
 }
 

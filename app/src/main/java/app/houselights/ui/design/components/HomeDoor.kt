@@ -36,8 +36,8 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HomeGridDefaults
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
-import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.textRoom
 
 // A door of home's grid (DESIGN.md, Layout): its frame, its band and what the band says.
@@ -83,7 +83,7 @@ fun HomeDoor(
     val c = Hl.colors
     HlFocusSurface(
         onClick = onClick,
-        look = FocusStyle.frame(rest = c.glass, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.plateEdge)),
+        look = FocusStyle.frame(rest = c.glass, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.edge)),
         shape = HlShapes.control,
         modifier = modifier,
         glow = glow,
@@ -105,7 +105,7 @@ private fun DoorBand(name: String, icon: ImageVector, note: DoorNote?, progress:
             .fillMaxWidth()
             .height(textRoom(HomeGridDefaults.band))
             .background(c.glass)
-            .drawBehind { drawRect(c.plateEdge, size = Size(size.width, HlSize.hairline.toPx())) },
+            .drawBehind { drawRect(c.edge, size = Size(size.width, HlSize.hairline.toPx())) },
     ) {
         BandLine(Modifier.align(Alignment.CenterStart).padding(horizontal = HlSpace.s)) {
             Icon(icon, contentDescription = null, tint = c.content, modifier = Modifier.size(HomeGridDefaults.bandIcon))

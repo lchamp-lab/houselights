@@ -245,7 +245,7 @@ class ContrastTest {
 
     /** The roles that are neither an ink to read nor a surface to read on, and why. */
     private val neither = mapOf(
-        "outline" to "an edge at HlAlpha.EDGE, a badge's outline: drawn around what reads, never read",
+        "outline" to "a badge's and a field's border: drawn around what reads, never read",
         "contentDecorative" to "never for text: an empty frame's rule, a skeleton",
     )
 
