@@ -46,6 +46,7 @@ import app.houselights.ui.design.Scrub
 import app.houselights.ui.design.colorStops
 import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.textRoom
+import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.toPx
 import coil.request.ImageRequest
@@ -125,7 +126,7 @@ private fun CaseFacts(item: MediaItem) {
     val c = Hl.colors
     Column {
         if (item.kind == MediaKind.EPISODE) {
-            EpisodeHeading(item.episodeLabel, item.title, style = Hl.type.entry)
+            EpisodeHeading(item.episodeCode(), item.title, style = Hl.type.entry)
         } else {
             // Closer than a page's facts: the case's column is narrow, and its score stays.
             MetaLine(item, showGenres = false, spacing = HlSpace.s)

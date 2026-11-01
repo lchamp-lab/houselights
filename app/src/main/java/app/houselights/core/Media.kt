@@ -102,7 +102,7 @@ data class MediaItem(
             return if (user.positionMs > 0 && total > 0) (user.positionMs.toFloat() / total).coerceIn(0f, 1f) else 0f
         }
 
-    /** "S1 E3" for an episode, "S1 E1-E2" for a file holding two. */
+    /** "S1 E3" for an episode, "S1 E1-E2" for a file holding two: the player's title; the screens write `episodeCode`. */
     val episodeLabel: String?
         get() = episodeNumbers("E")?.let { "S${seasonNumber ?: 0} E$it" }
 

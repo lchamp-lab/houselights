@@ -28,6 +28,7 @@ import app.houselights.ui.detail.OptionsSheet
 import app.houselights.ui.detail.SheetOption
 import app.houselights.ui.detail.orderInUse
 import app.houselights.ui.edit.EditMenu
+import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.titleText
@@ -186,13 +187,13 @@ private fun favoriteRow(item: MediaItem, actions: PosterActions): SheetOption {
 
 /**
  * Where a title stands, under its name: « 1988   2 h 48   Il reste 1 h 14 », « 2 saisons   6 épisodes non vus »,
- * « 2021 – 2024   2 films   1 film vu sur 2 », « S1 E4   52 min ».
+ * « 2021 – 2024   2 films   1 film vu sur 2 », « S1 É4   52 min ».
  */
 @Composable
 internal fun posterFacts(item: MediaItem): List<String?> = when (item.kind) {
     MediaKind.SERIES -> showFacts(item)
     MediaKind.COLLECTION -> sagaFacts(item)
-    MediaKind.EPISODE -> listOf(item.episodeLabel, item.runtimeMs?.let(::formatDuration), timeLeft(item))
+    MediaKind.EPISODE -> listOf(item.episodeCode(), item.runtimeMs?.let(::formatDuration), timeLeft(item))
     else -> listOf(item.year?.toString(), item.runtimeMs?.let(::formatDuration), timeLeft(item))
 }
 

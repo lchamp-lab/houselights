@@ -106,6 +106,17 @@ class StringsTest {
         }
     }
 
+    /** An episode is written one way in each language, its season and number apart, never joined as two facts. */
+    @Test
+    fun anEpisodeIsWrittenOneWay() {
+        assertEquals("S%1\$d É%2\$s", string(french, "episode_code"))
+        assertEquals("S%1\$d E%2\$s", string(english, "episode_code"))
+        (listOf(english) + translations).forEach { folder ->
+            val text = string(folder, "episode_code")
+            assertTrue("${folder.name}: $text", "%1\$d " in text && text.endsWith("%2\$s") && '·' !in text)
+        }
+    }
+
     private fun string(file: File, name: String) =
         resources(file).single { it.tagName == "string" && it.getAttribute("name") == name }.textContent
 

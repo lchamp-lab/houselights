@@ -96,6 +96,7 @@ import app.houselights.ui.util.LocalLibraryPlace
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.libraryName
@@ -637,12 +638,9 @@ private fun countOf(door: Door): Int? = when (door) {
     else -> null
 }
 
-/** "S1 · É4" for an episode; nothing for a film. */
+/** "S1 É4" for an episode; nothing for a film. */
 @Composable
-private fun episodeMark(item: MediaItem): String? {
-    val number = item.episodeNumbers?.takeIf { item.kind == MediaKind.EPISODE } ?: return null
-    return stringResource(R.string.home_episode, item.seasonNumber ?: 0, number)
-}
+private fun episodeMark(item: MediaItem): String? = item.episodeCode()
 
 /** The settings door's state; only it reads a running scan's progress, file by file. */
 @Composable
@@ -742,7 +740,7 @@ private fun CaseOptions(case: CaseShows, actions: HomeActions, problem: UiError?
     HlSideSheet(
         title,
         onDismiss,
-        facts = listOf(item.episodeLabel ?: item.year?.toString()),
+        facts = listOf(item.episodeCode() ?: item.year?.toString()),
         stateText = problem?.let { stringResource(R.string.play_failed) },
         state = StatusState.Attention,
         description = problem?.let { stringResource(it.message) },

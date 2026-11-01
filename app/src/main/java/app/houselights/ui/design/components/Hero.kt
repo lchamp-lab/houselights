@@ -37,6 +37,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.timeLeft
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -64,7 +65,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? 
             Spacer(Modifier.height(HlGap.inBlock))
             when {
                 notSaved != null && shown.id == item?.id -> HlStatus(StatusState.Attention, notSaved, maxLines = 1)
-                episode -> EpisodeHeading(shown.episodeLabel, shown.title, style = Hl.type.entry)
+                episode -> EpisodeHeading(shown.episodeCode(), shown.title, style = Hl.type.entry)
                 else -> MetaLine(shown, showGenres = false)
             }
             Spacer(Modifier.height(HlGap.inBlock))
@@ -140,7 +141,7 @@ private fun rememberNamed(item: MediaItem?): MediaItem? {
     return if (item != null && item.id == named?.id) item else named
 }
 
-/** "S1 E3" then the episode's name, aligned on their baseline; the name in [style]. */
+/** "S1 É3" then the episode's name, aligned on their baseline; the name in [style]. */
 @Composable
 fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.lead) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {

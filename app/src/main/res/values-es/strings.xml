@@ -107,7 +107,7 @@
     <string name="home_state_tmdb_refused">Clave rechazada</string>
     <string name="home_state_tmdb_offline">Inaccesible</string>
     <string name="home_scan_running">En curso…</string>
-    <string name="home_episode">T%1$d · E%2$s</string>
+    <string name="episode_code">T%1$d E%2$s</string>
     <string name="home_open_title">Abrir la ficha</string>
     <plurals name="home_news_week">
         <item quantity="one">%d esta semana</item>

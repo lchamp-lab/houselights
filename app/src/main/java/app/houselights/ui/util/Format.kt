@@ -27,6 +27,7 @@ import app.houselights.core.Job
 import app.houselights.core.Languages
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
 import app.houselights.providers.local.Folder
 import app.houselights.providers.local.ScanError
@@ -310,3 +311,10 @@ private const val MONTH_IN_MILLIS = 30 * DateUtils.DAY_IN_MILLIS
 
 /** A year of 365 days: DateUtils.YEAR_IN_MILLIS, deprecated, counts 52 weeks (364 days). */
 private const val YEAR_IN_MILLIS = 365 * DateUtils.DAY_IN_MILLIS
+
+/** An episode's code as the screens write it, « S1 É4 » (« S1 É1-2 » for a file holding two); nothing for a film. */
+@Composable
+fun MediaItem.episodeCode(): String? {
+    val number = episodeNumbers?.takeIf { kind == MediaKind.EPISODE } ?: return null
+    return stringResource(R.string.episode_code, seasonNumber ?: 0, number)
+}

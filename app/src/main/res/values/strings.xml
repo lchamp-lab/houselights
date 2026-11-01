@@ -113,7 +113,7 @@
     <string name="home_state_tmdb_refused">Key refused</string>
     <string name="home_state_tmdb_offline">Unreachable</string>
     <string name="home_scan_running">In progress…</string>
-    <string name="home_episode">S%1$d · E%2$s</string>
+    <string name="episode_code">S%1$d E%2$s</string>
     <string name="home_open_title">Open page</string>
     <string name="home_state_trakt" translatable="false">Trakt</string>
     <string name="home_state_tmdb" translatable="false">TMDB</string>

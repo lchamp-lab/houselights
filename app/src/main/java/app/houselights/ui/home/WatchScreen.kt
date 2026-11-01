@@ -62,6 +62,7 @@ import app.houselights.ui.library.RefocusNotSaved
 import app.houselights.ui.library.actions
 import app.houselights.ui.library.saidFor
 import app.houselights.ui.util.ReloadOnLibraryChange
+import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.sectionTitle
 import app.houselights.ui.util.skeletonDelayPassed
@@ -215,7 +216,7 @@ private fun Sections(
                                     onClick = { onOpen(item) },
                                     modifier = mod,
                                     title = item.headTitle,
-                                    facts = listOf(item.episodeLabel, timeLeft(item)),
+                                    facts = listOf(item.episodeCode(), timeLeft(item)),
                                     onFocus = focus,
                                     onLongClick = open,
                                     onLongClickLabel = moreOptions,

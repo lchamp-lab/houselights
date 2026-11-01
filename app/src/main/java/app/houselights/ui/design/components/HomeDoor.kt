@@ -51,7 +51,7 @@ sealed interface DoorNote {
     /** New titles, after the ember dot ("4 nouveaux"). */
     data class News(val text: String) : DoorNote
 
-    /** A mark printed as on a case's back ("S1 · É4", a count). */
+    /** A mark printed as on a case's back ("S1 É4", a count). */
     data class Mark(val text: String) : DoorNote
 }
 

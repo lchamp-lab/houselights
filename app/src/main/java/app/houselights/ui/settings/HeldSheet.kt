@@ -138,7 +138,7 @@ private fun HeldItem(line: HeldLine) {
         Text(pluralStringResource(R.plurals.held_more, line.more, line.more), style = Hl.type.entry, color = c.content)
         return
     }
-    val number = line.episode?.let { stringResource(R.string.home_episode, line.season ?: 0, it.toString()) }
+    val number = line.episode?.let { stringResource(R.string.episode_code, line.season ?: 0, it.toString()) }
     Column {
         Text(
             listOfNotNull(title, line.year?.toString(), number).joinToString(FACT_GAP),

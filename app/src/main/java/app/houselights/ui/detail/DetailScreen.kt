@@ -131,6 +131,7 @@ import app.houselights.ui.util.PlaybackProblem
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.heldSince
 import app.houselights.ui.util.jobName
@@ -762,7 +763,7 @@ private fun Hero(
             )
             Spacer(Modifier.height(HlSpace.l))
             if (isEpisode) {
-                EpisodeHeading(item.episodeLabel, item.title)
+                EpisodeHeading(item.episodeCode(), item.title)
                 Spacer(Modifier.height(HlSpace.xs))
             }
             MetaLine(item)
@@ -1044,7 +1045,7 @@ private fun RowScope.PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: Fo
 /** What Lire names: the episode, the saga's film, or the edition of a film in copies. */
 @Composable
 private fun whatLirePlays(item: MediaItem, target: MediaItem, copy: Version?, copyIndex: Int): String? = when {
-    item.kind == MediaKind.SERIES -> target.episodeLabel
+    item.kind == MediaKind.SERIES -> target.episodeCode()
     item.kind == MediaKind.COLLECTION -> target.title
     copy != null -> versionName(copy.edition, copy.label, copyIndex)
     else -> null
