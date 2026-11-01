@@ -21,6 +21,9 @@ internal object MatchPlan {
     /** Searches a title takes at most; a clean name takes one. */
     const val MAX_SEARCHES = 5
 
+    /** TMDB calls a title's matching takes at most: its searches, and one for alternative titles. */
+    const val MAX_CALLS = MAX_SEARCHES + 1
+
     /**
      * The version of the matching rules ([MatchScore], this plan), raised by a change of them that may find titles they
      * left to identify: those are asked again at the next pass ([Reidentify.newRules]).
@@ -55,7 +58,7 @@ internal object MatchPlan {
             verdict = MatchScore.verdict(wanted, pool.values)
             if (verdict is Verdict.Match) return verdict
             // TMDB's first answer, named otherwise: its alternative titles may be the name's.
-            val top = results.firstOrNull()?.let { pool[it.id] }?.takeIf { !asked && worthAsking(wanted, next, results, it) }
+            val top = results.firstOrNull()?.let { pool[it.id] }?.takeIf { !asked && worthAsking(wanted, next, results, it, pool.values) }
             if (top != null) {
                 asked = true
                 pool[top.id] = top.copy(titles = (top.titles + alternatives(top.id)).distinct())
@@ -67,12 +70,19 @@ internal object MatchPlan {
     }
 
     /**
-     * Whether [top], TMDB's first answer to [search] ([results]), is asked its alternative titles: when none of its titles
-     * names the name ([MatchScore.named]), and it is of the year asked; or, the name giving no year at all, when it is
-     * the only answer or has 20 times the votes of each other ("Star Wars Episode IV A New Hope", TMDB's "Star Wars").
+     * Whether [top], TMDB's first answer to [search] ([results]), is asked its alternative titles: never while one of the
+     * [pool]'s titles names the name ([MatchScore.named]), alternative titles being every country's, weak against a
+     * title named so; else when it is of the year asked; or, the name giving no year at all, when it is the only answer
+     * or has 20 times the votes of each other ("Star Wars Episode IV A New Hope", TMDB's "Star Wars").
      */
-    private fun worthAsking(wanted: Wanted, search: Search, results: List<TmdbSearchResult>, top: Candidate): Boolean = when {
-        MatchScore.named(wanted, top) -> false
+    private fun worthAsking(
+        wanted: Wanted,
+        search: Search,
+        results: List<TmdbSearchResult>,
+        top: Candidate,
+        pool: Collection<Candidate>,
+    ): Boolean = when {
+        pool.any { MatchScore.named(wanted, it) } -> false
         search.year != null -> top.year == search.year
         else -> wanted.readings.all { it.year == null } &&
             results.drop(1).all { top.votes >= MatchScore.DOMINANCE * max(1, it.voteCount) }

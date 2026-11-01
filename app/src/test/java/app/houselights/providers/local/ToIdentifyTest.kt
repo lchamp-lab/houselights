@@ -269,7 +269,7 @@ class ToIdentifyTest {
 
         bench.later(DAY_MS)
         bench.pass(auto = true)
-        val perShow = MatchPlan.MAX_SEARCHES + 1 + 3
+        val perShow = MatchPlan.MAX_CALLS + 1 + 3
         assertEquals(Reidentify.SHOW_CALLS_PER_PASS / perShow, asked())
         bench.later(1)
         bench.pass(auto = true)

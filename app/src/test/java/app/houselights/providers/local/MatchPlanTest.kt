@@ -165,6 +165,20 @@ class MatchPlanTest {
     }
 
     /**
+     * "Le Grand Voyage", a film TMDB has by that very title beside another whose alternative titles, every country's,
+     * hold it: the first is not asked them, so the name stays to identify, the film titled so offered, as before.
+     */
+    @Test
+    fun aFirstAnswerIsNotAskedItsAlternativeTitlesWhileAnotherIsNamed() {
+        val wanted = Wanted.of("Le Grand Voyage", null)
+        answers[Search("Le Grand Voyage", null)] = listOf(film(1, "The Long Journey", 2004, 500), film(2, "Le Grand Voyage", 2004, 0))
+        alternatives[1] = listOf("Le Grand Voyage")
+        val verdict = run(wanted)
+        assertEquals(listOf(2), (verdict as Verdict.Unsure).top.map { it.candidate.id })
+        assertEquals(emptyList<Int>(), asked)
+    }
+
+    /**
      * The nine episodes of Star Wars named without a year, as TMDB answers each in French: one answer, its English title
      * the original. Episodes I to III by their titles; VII to IX by theirs, the episode being no other number; IV to VI by
      * their alternative titles, the only ones asked; Rogue One and Solo as before.

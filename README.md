@@ -74,7 +74,7 @@ gratuite, l’application est entièrement en français. [Installer](#install)
   - Without an id, TMDB's results are weighed (titles, original and alternative ones included, year, votes and
     TMDB's order), never taken first come: a title no result is clearly ahead for is left unidentified with its
     three best candidates rather than matched wrongly, and one TMDB does not know is searched again, daily in its
-    first week, then weekly, and at the first scan after an update that changes how titles are matched.
+    first week, then weekly, and over the first scans after an update that changes how titles are matched.
   - Settings > Library > To identify lists those titles, the latest added first, each with why, what it may be and
     where it lies; a title's page says it is to identify, beside an Identify button. Identify shows its suggestions at
     once, the best ready for OK, and from the list the titles follow one another (Skip passes one); Menu on a title of
