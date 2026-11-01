@@ -558,14 +558,15 @@ class TraktSyncTest : TraktSyncFixture() {
     }
 
     /**
-     * An unmark written as its caller is cancelled (the page left, the app sent away) still waits for Trakt, and reaches
-     * it: lost, the next sync would find the title watched there and mark it watched here again.
+     * An unmark written as its caller is cancelled (the page left, the app sent away) still goes to Trakt at once, with
+     * no sync: lost, the next sync would find the title watched there and mark it watched here again.
      */
     @Test
     fun anUnmarkWhoseCallerIsCancelledOnceWrittenStillReachesTrakt() = runTest {
         val id = film(57, played = true, lastPlayedAt = ms(T1))
         trakt.movies = "[${movie(57, T1)}]"
         val sync = connected()
+        val before = trakt.routes.size
         lateinit var caller: Job
         caller = launch {
             sync.mark(Marked.Row(id), played = false) {
@@ -576,12 +577,38 @@ class TraktSyncTest : TraktSyncFixture() {
         caller.join()
         assertTrue(caller.isCancelled)
         assertFalse(dao.item(id)!!.played)
-        assertEquals(listOf(TraktAction.UNWATCHED), queue.pending().map { it.action })
+
+        waitFor("the unmark sent") { queue.pending().isEmpty() }
+        assertEquals(listOf("GET /sync/playback", "POST /sync/history/remove"), trakt.routes.drop(before))
+        assertEquals(listOf(57), trakt.sent("POST /sync/history/remove").single().tmdbs)
 
         sync.scanned(changedLibrary = false)
-        waitFor("the unmark sent") { queue.pending().isEmpty() && !sync.state.value.running }
-        assertEquals(listOf(57), trakt.sent("POST /sync/history/remove").single().tmdbs)
+        waitFor("the next sync") { !sync.state.value.running }
         assertFalse("not marked watched again", dao.item(id)!!.played)
+    }
+
+    /** A stop told as its caller is cancelled (the player closed) goes to Trakt at once too, with no sync. */
+    @Test
+    fun aStopWhoseCallerIsCancelledOnceQueuedStillReachesTrakt() = runTest {
+        val id = film(59)
+        lateinit var caller: Job
+        // Read as the stop is queued: its caller is cancelled right then.
+        val sync = connected(
+            sync(
+                following = {
+                    caller.cancel()
+                    true
+                },
+            ),
+        )
+        val before = trakt.routes.size
+        caller = launch { sync.stopped(id, 30f) }
+        caller.join()
+        assertTrue(caller.isCancelled)
+
+        waitFor("the stop sent") { queue.pending().isEmpty() }
+        assertEquals(listOf("POST /scrobble/stop"), trakt.routes.drop(before))
+        assertEquals(59, trakt.sent("POST /scrobble/stop").single().movieTmdb)
     }
 
     @Test
