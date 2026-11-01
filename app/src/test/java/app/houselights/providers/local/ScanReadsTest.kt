@@ -185,6 +185,47 @@ class ScanReadsTest {
         assertEquals("Dune: Part One", read.title)
     }
 
+    /**
+     * A pass reading nothing of a film, then one reading its header again alone, probed by an older version
+     * ([MediaProbe.VERSION]), its sidecars unchanged and not read, keep the NFO text read before.
+     */
+    @Test
+    fun aPassNotReadingTheSidecarsAgainKeepsTheNfoText() = runTest {
+        filmWithItsNfo()
+        nas.put("Dune (2021).mkv", size = 42, bytes = Matroska.sample())
+        bench.scan()
+        val id = bench.item(films, "Dune (2021).mkv").id
+        val text = bench.dao.nfoText(id)
+        assertTrue("$text", text.orEmpty().contains("Dune: Part One"))
+
+        assertEquals(emptyList<String>(), bench.pass().reads)
+        assertEquals(text, bench.dao.nfoText(id))
+
+        bench.db.openHelper.writableDatabase.execSQL("UPDATE items SET probeVersion = 0 WHERE id = $id")
+        assertEquals("its header alone", listOf("Dune (2021).mkv"), bench.pass().reads)
+        val dune = bench.item(films, "Dune (2021).mkv")
+        assertEquals(MediaProbe.VERSION, dune.probeVersion)
+        assertEquals(text, bench.dao.nfoText(id))
+        assertEquals("Dune: Part One", dune.title)
+    }
+
+    /** A film's NFO rewritten is kept as it now reads; removed, its text goes with it, the film staying. */
+    @Test
+    fun anNfoRewrittenOrRemovedIsKeptAsItNowIs() = runTest {
+        filmWithItsNfo()
+        bench.scan()
+        val id = bench.item(films, "Dune (2021).mkv").id
+        val rewritten = "<movie><title>Dune : Première partie</title><year>2021</year></movie>"
+        nas.putText("Dune (2021).nfo", rewritten)
+        bench.scan()
+        assertEquals(rewritten, bench.dao.nfoText(id))
+
+        nas.remove("Dune (2021).nfo")
+        bench.scan()
+        assertNull(bench.dao.nfoText(id))
+        assertEquals(id, bench.item(films, "Dune (2021).mkv").id)
+    }
+
     @Test
     fun anNfoReadBeforeKeepsItsTextWhenReadingItAgainFails() = runTest {
         filmWithItsNfo()
