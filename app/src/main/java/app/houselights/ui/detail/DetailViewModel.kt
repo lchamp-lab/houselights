@@ -473,6 +473,18 @@ class DetailViewModel(
         markPlayed(shown, !shown.user.played, onRow = true)
     }
 
+    /**
+     * Marks [title] watched, or unwatched once it is: the page's own, or a film of the saga shown, the saga read again
+     * after.
+     */
+    fun togglePlayed(title: MediaItem) {
+        val state = _state.value
+        if (title.id == state.item?.id) return togglePlayed()
+        val films = state.saga?.parts?.mapNotNull { it.item }.orEmpty() + state.collectionFilms
+        val shown = films.firstOrNull { it.id == title.id } ?: return
+        markPlayed(shown, !shown.user.played)
+    }
+
     private fun markPlayed(target: MediaItem, played: Boolean, onRow: Boolean = false) =
         change("Watched of ${target.id}", onRow, { provider().setPlayed(target, played) }) { it.marked(target, played) }
 
@@ -698,6 +710,8 @@ internal fun DetailState.marked(target: MediaItem, played: Boolean): DetailState
         target.id == title.id -> markedTitle(title, played)
         target.kind == MediaKind.SEASON -> markedSeason(target, played)
         target.kind == MediaKind.EPISODE -> markedEpisode(target, played)
+        // A film of the saga shown: that film alone, the saga's own mark read again after.
+        title.kind == MediaKind.COLLECTION -> this
         else -> return this
     }
     val touched = touchedBy(title, target)

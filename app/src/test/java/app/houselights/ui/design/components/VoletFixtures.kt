@@ -15,8 +15,8 @@ import app.houselights.ui.design.HlLayout
 val VOLET_SIDE = HlLayout.voletSide
 val POLYPTYCH = HlLayout.CANVAS_WIDTH.dp - VOLET_SIDE * 2
 
-/** The polyptych's height on the canvas at the default text size, above its predella, as a saga's page leaves it. */
-val POLYPTYCH_HEIGHT = 370.5.dp
+/** The polyptych's height on the canvas, from the safe area's top to its foot less a frame's reach each side, at every text size. */
+val POLYPTYCH_HEIGHT = 473.dp
 
 /** The plan of a saga of [films] and its own panel on the canvas. */
 fun voletPlan(films: Int) = VoletPlan.of(films + 1, POLYPTYCH, POLYPTYCH_HEIGHT)
@@ -35,9 +35,9 @@ fun voletParts(films: Int, spine: String, film: (Int) -> VoletFilm): List<VoletP
 /** What a film's panel shows of it: its year, its poster, its mark. */
 data class VoletFilm(val year: String, val poster: ImageRef? = null, val mark: VoletMark = VoletMark.None)
 
-/** [parts] laid out as a saga's page lays them, panel [open] open, focus entering on [enter]; no words under them. */
+/** [parts] laid out as a saga's page lays them, panel [open] open; no words under them. */
 @Composable
-fun VoletsOnTheCanvas(parts: List<VoletPart>, open: Int, modifier: Modifier = Modifier, enter: Int? = null) {
+fun VoletsOnTheCanvas(parts: List<VoletPart>, open: Int, modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize()) {
         Volets(
             parts,
@@ -45,7 +45,6 @@ fun VoletsOnTheCanvas(parts: List<VoletPart>, open: Int, modifier: Modifier = Mo
             shown = null,
             onFocus = {},
             onOpen = {},
-            enter = enter,
             modifier = Modifier.padding(start = VOLET_SIDE, end = VOLET_SIDE, top = HlLayout.voletTop).fillMaxWidth()
                 .height(POLYPTYCH_HEIGHT),
         ) {}

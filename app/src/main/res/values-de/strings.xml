@@ -759,6 +759,14 @@
     </plurals>
     <string name="mark_saga_watched">Filmreihe als gesehen markieren</string>
     <string name="mark_saga_unwatched">Filmreihe als ungesehen markieren</string>
+    <string name="saga_film_page">Zur Filmseite</string>
+    <string name="saga_hint_synopsis">Inhalt lesen</string>
+    <string name="saga_hint_overview">Ganzen Inhalt lesen</string>
+    <string name="saga_place">%1$d von %2$d</string>
+    <plurals name="saga_watched">
+        <item quantity="one">%d gesehen</item>
+        <item quantity="other">%d gesehen</item>
+    </plurals>
     <string name="saga_release_on">Erscheint am %s</string>
     <string name="saga_announced">Angekündigt</string>
     <!-- Die Felder einer Filmreihe, wie ein Screenreader sie liest: der Titel zuerst -->

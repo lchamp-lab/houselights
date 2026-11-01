@@ -146,6 +146,10 @@ internal class SagaPage(private val compose: ComposeContentTestRule, private val
     var labelRoom = 0.dp
         private set
 
+    /** The height of a hint's line, at the text size shown. */
+    var hintRoom = 0.dp
+        private set
+
     /** The page's view model, as a library change reaches it. */
     lateinit var vm: DetailViewModel
         private set
@@ -157,6 +161,7 @@ internal class SagaPage(private val compose: ComposeContentTestRule, private val
                 CompositionLocalProvider(LocalCutPosters provides remember { CutPosterCache() }) {
                     HouselightsTheme(step) {
                         labelRoom = HlIconButtonDefaults.labelRoom
+                        hintRoom = HlIconButtonDefaults.hintRoom
                         val pages = rememberSaveableStateHolder()
                         if (shown) {
                             pages.SaveableStateProvider(id) {
@@ -197,5 +202,5 @@ internal fun Speaking(tag: String?, content: @Composable () -> Unit) {
     )
 }
 
-/** Dune's polyptych on the canvas, the saga's panel and three films', at the default text size. */
-internal val dunePlan = VoletPlan.of(4, HlLayout.CANVAS_WIDTH.dp - HlLayout.voletSide * 2, 370.5.dp)
+/** Dune's polyptych on the canvas, the saga's panel and three films'. */
+internal val dunePlan = VoletPlan.of(4, HlLayout.CANVAS_WIDTH.dp - HlLayout.voletSide * 2, 473.dp)

@@ -731,6 +731,13 @@
     </plurals>
     <string name="mark_saga_watched">시리즈를 시청 완료로 표시</string>
     <string name="mark_saga_unwatched">시리즈를 미시청으로 표시</string>
+    <string name="saga_film_page">작품 페이지 보기</string>
+    <string name="saga_hint_synopsis">줄거리 읽기</string>
+    <string name="saga_hint_overview">줄거리 전체 읽기</string>
+    <string name="saga_place">%1$d / %2$d</string>
+    <plurals name="saga_watched">
+        <item quantity="other">%d편 시청</item>
+    </plurals>
     <string name="saga_release_on">%s 개봉</string>
     <string name="saga_announced">개봉 예정</string>
     <!-- 화면 낭독기가 읽는 시리즈 패널: 제목이 먼저 -->

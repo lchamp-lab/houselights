@@ -731,6 +731,13 @@
     </plurals>
     <string name="mark_saga_watched">シリーズを視聴済みにする</string>
     <string name="mark_saga_unwatched">シリーズを未視聴にする</string>
+    <string name="saga_film_page">作品ページを表示</string>
+    <string name="saga_hint_synopsis">あらすじを読む</string>
+    <string name="saga_hint_overview">あらすじを全文読む</string>
+    <string name="saga_place">%1$d / %2$d</string>
+    <plurals name="saga_watched">
+        <item quantity="other">%d作視聴済み</item>
+    </plurals>
     <string name="saga_release_on">%s公開</string>
     <string name="saga_announced">公開予定</string>
     <!-- スクリーンリーダーが読むシリーズのパネル：タイトルが先 -->

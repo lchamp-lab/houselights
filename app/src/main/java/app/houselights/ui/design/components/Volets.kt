@@ -24,7 +24,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
@@ -96,7 +95,6 @@ import app.houselights.ui.design.VeilStop
 import app.houselights.ui.design.VoletDefaults
 import app.houselights.ui.design.alphaAt
 import app.houselights.ui.design.colorStops
-import app.houselights.ui.design.fadeOutsideSafeArea
 import app.houselights.ui.design.greyOf
 import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.textRoom
@@ -114,9 +112,10 @@ enum class VoletMark { None, Watched, New, Held, Absent, Upcoming }
 /**
  * What one of a saga's panels (« volet ») shows: a film's [number] in release order (null: the saga's own panel, its
  * box), its [poster] (closed) and [backdrop] (open), [grey] for a film the library lacks or not out yet, its [mark] and
- * [year] at its foot, the share of it seen ([progress]); read as [readAs] then [state], then what its words [say] open.
- * The saga's panel sets its [spine] name upright when closed. OK on it [acts] or does nothing. Equal when it shows the
- * same, so a step along the polyptych recomposes the two panels it concerns alone.
+ * [year] at its foot (the saga's spine: where focus is among its films), the share of it seen ([progress]); read as
+ * [readAs] then [state], then what its words [say] open. The saga's panel sets its [spine] name upright when closed. OK
+ * on it [acts] or does nothing, [hint] saying what it does while it has focus. Open, it has actions under its words when
+ * [rowed]. Equal when it shows the same, so a step along the polyptych recomposes the panels it concerns alone.
  */
 @Immutable
 data class VoletPart(
@@ -133,16 +132,15 @@ data class VoletPart(
     val spine: String? = null,
     val say: String? = null,
     val acts: Boolean = true,
+    val rowed: Boolean = false,
+    val hint: String? = null,
 )
 
-/** A saga's numbers, one size for the whole polyptych: the signature (72), `display` (44) or `headline` (32). */
-enum class VoletNumbers { Signature, Display, Headline }
-
 /**
- * A saga's panels across a width and a height: [count] of them, one [open] wide, the others [closed] wide, [gap] apart,
- * their numbers in [numbers]; the closed panels show their [years] while two of them stand [VoletDefaults.yearsApart]
- * apart at least (« greffe 2 »), else none does; past eight films they [scrolls]. Pure: the board's numbers, at every
- * text size.
+ * A saga's panels across a width and a height: [count] of them, the closed ones [closed] wide whatever the saga's
+ * length, [gap] apart, the open one taking what they leave, [open] wide, never narrower than [VoletDefaults.open]; past
+ * that, they [scrolls]: the films alone, the saga's spine pinned at the start once a film is open. Pure: the board's
+ * numbers, at every text size.
  */
 @Immutable
 data class VoletPlan(
@@ -151,53 +149,48 @@ data class VoletPlan(
     val closed: Dp,
     val gap: Dp,
     val height: Dp,
-    val numbers: VoletNumbers,
-    val years: Boolean,
     val scrolls: Boolean,
 ) {
+    /**
+     * Where panel [i] starts (dp), panel [at] open and the others closed, the films scrolled [by]: the saga's panel at
+     * the start, pinned, its films after it.
+     */
+    fun left(i: Int, at: Int, by: Float = 0f): Float {
+        if (i == 0) return 0f
+        val step = (closed + gap).value
+        val first = (if (at == 0) open else closed).value + gap.value
+        val wider = if (at in 1 until i) (open - closed).value else 0f
+        return first + step * (i - 1) + wider - if (at > 0) by else 0f
+    }
+
+    /**
+     * How far a long saga's films scroll from [from] as panel [at] opens, the polyptych [room] wide (dp): none with the
+     * saga's own panel open; else the open film kept [KEPT_CLOSED] closed panels from either end of the films' room (the
+     * polyptych less the pinned spine) as far as it can, by whole panels, never further than shows the last film whole.
+     */
+    fun scrollTo(at: Int, from: Float, room: Float): Float {
+        if (at <= 0) return 0f
+        val step = (closed + gap).value
+        val films = room - step
+        // The last film may end short of the polyptych's end: a step is a whole panel.
+        val end = ceil((open.value + step * (count - 2) - films).coerceAtLeast(0f) / step) * step
+        return keptInView(from, step * (at - 1), open.value, step * KEPT_CLOSED, films).coerceIn(0f, end)
+    }
+
     companion object {
-        /**
-         * The plan of [count] panels in [width] × [height], the closed ones sharing what the open one leaves, between
-         * [VoletDefaults.narrowest] and their poster whole (the open one then takes the rest); their years [year] wide
-         * at most, as measured.
-         */
-        fun of(count: Int, width: Dp, height: Dp, year: Dp = 0.dp): VoletPlan {
+        /** The plan of [count] panels in [width] × [height]. */
+        fun of(count: Int, width: Dp, height: Dp): VoletPlan {
             val gap = VoletDefaults.gap
-            val others = count - 1
-            if (others <= 0) return VoletPlan(count, width, width, gap, height, numbersAt(width), yearsFit(width, gap, year), false)
-            // A closed panel shows its poster whole at most, never more: past that, the open one takes the rest.
-            val poster = (height * HlSize.POSTER_RATIO).coerceAtLeast(VoletDefaults.narrowest)
-            val closed = ((width - VoletDefaults.open - gap * others) / others).coerceIn(VoletDefaults.narrowest, poster)
-            val open = if (closed >= poster) width - (closed + gap) * others else VoletDefaults.open
+            val closed = VoletDefaults.closed
+            val others = (count - 1).coerceAtLeast(0)
+            val open = maxOf(VoletDefaults.open, width - (closed + gap) * others)
             val scrolls = (open + (closed + gap) * others - width).value > SLACK
-            return VoletPlan(count, open, closed, gap, height, numbersAt(closed), yearsFit(closed, gap, year), scrolls)
-        }
-
-        /**
-         * Whether years [year] wide, centred on neighbouring panels [closed] wide and [gap] apart, keep
-         * [VoletDefaults.yearsApart] between them: the room left on each side of a year, twice, and the gap.
-         */
-        fun yearsFit(closed: Dp, gap: Dp, year: Dp): Boolean = closed - year + gap >= VoletDefaults.yearsApart
-
-        /** The numbers' size by the closed panels' width: the signature to three films, `display` for four and five. */
-        fun numbersAt(closed: Dp): VoletNumbers = when {
-            closed >= VoletDefaults.numberLarge -> VoletNumbers.Signature
-            closed >= VoletDefaults.numberMedium -> VoletNumbers.Display
-            else -> VoletNumbers.Headline
+            return VoletPlan(count, open, closed, gap, height, scrolls)
         }
 
         /** A sum of widths within this of the width fits: a dp's rounding is no scroll. */
         private const val SLACK = 0.5f
     }
-}
-
-/** The style of [VoletNumbers], from the type scale: title styles doing a figure's job. */
-@Composable
-@ReadOnlyComposable
-internal fun VoletNumbers.style(): TextStyle = when (this) {
-    VoletNumbers.Signature -> Hl.type.titleSignature
-    VoletNumbers.Display -> Hl.type.display
-    VoletNumbers.Headline -> Hl.type.headline
 }
 
 /**
@@ -233,12 +226,14 @@ private class VoletMotion(initial: Int) {
 /**
  * A saga's polyptych: its [parts] side by side, [open] the one open (the last one focused, kept as focus leaves them),
  * laid out open from the first frame; its picture and words shown once [shown] settles on it ([words]), the others
- * closed, wordless, receding while one has focus. A move opens the panel reached as the one left closes over
- * [HlMotion.FOCUS_IN], the total kept; a held arrow, or [VoletDefaults.opensAtOnce], jumps. Focus enters on [enter]
- * the first time (the film Lire plays), then on the panel it left; Up goes to [upTo] (else nowhere), Down to [downTo];
- * [onFocus] says which has focus, null when none; OK does [onOpen]. [keyed] keys a panel's focus. Past eight films, the
- * panels far from the view keep their dark, their posters asked for as they come near, those of the view focus will
- * enter on before it does ([PosterWindow]).
+ * closed, wordless, receding while a panel has focus. A move opens the panel reached as the one left closes over
+ * [HlMotion.FOCUS_IN], the total kept; a held arrow, or [VoletDefaults.opensAtOnce], jumps. Focus comes back to the
+ * panel it left; Up from a panel goes nowhere, Down into its actions ([row], for a part [VoletPart.rowed]), Up from them
+ * back to it, Left from their first and Right from their last on to the panel beside ([VoletSides]); while the open
+ * panel itself has focus, what OK does on it ([VoletPart.hint]) shows in its corner, on the
+ * line of its neighbours' years. [onFocus] says which panel has focus, null once focus leaves the polyptych; OK does
+ * [onOpen]. [keyed] keys a panel's focus. A long saga scrolls its films, the saga's spine pinned at the start; the
+ * panels far from the view keep their dark, their posters asked for as they come near ([PosterWindow]).
  */
 @Composable
 fun Volets(
@@ -248,23 +243,23 @@ fun Volets(
     onFocus: (Int?) -> Unit,
     onOpen: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    enter: Int? = null,
-    upTo: FocusRequester? = null,
-    downTo: FocusRequester? = null,
     keyed: (Int) -> Modifier = { Modifier },
+    row: @Composable (Int, VoletSides) -> Unit = { _, _ -> },
     words: @Composable (Int) -> Unit,
 ) {
     BoxWithConstraints(modifier) {
-        val plan = VoletPlan.of(parts.size, maxWidth, maxHeight, rememberYearWidth(parts.mapNotNull { it.year }))
+        val plan = VoletPlan.of(parts.size, maxWidth, maxHeight)
         val type = rememberVoletType(plan, parts.firstNotNullOfOrNull { it.spine })
         val group = remember { GroupFocus() }
         val requesters = remember(parts.size) { List(parts.size) { FocusRequester() } }
+        val edges = remember(parts.size) { VoletEdges(parts.size) }
         var within by remember { mutableStateOf(false) }
+        // A panel itself, not its actions: the others recede.
+        var focusedPanel by remember { mutableStateOf<Int?>(null) }
         val motion = rememberVoletMotion(open)
-        val policy = remember(plan, motion) { voletsPolicy(plan, motion) }
-        // Before focus enters, the posters of the panels Up will find too.
-        val posters = rememberPosters(plan, maxWidth, open, enter.takeUnless { within })
-        CompositionLocalProvider(LocalGroupFocused provides within, LocalGroupFocus provides group) {
+        val policy = remember(plan, motion, edges) { voletsPolicy(plan, motion, edges) }
+        val posters = rememberPosters(plan, maxWidth, open)
+        CompositionLocalProvider(LocalGroupFocused provides (focusedPanel != null), LocalGroupFocus provides group) {
             Layout(
                 content = {
                     parts.forEachIndexed { i, part ->
@@ -277,14 +272,20 @@ fun Volets(
                                 opens = i == open,
                                 opened = { motion.openness(i) },
                                 settled = i == open && i == shown,
+                                self = requesters[i],
+                                edge = { edges.clip[i].floatValue },
+                                whole = { edges.whole[i].value },
                                 onClick = { onOpen(i) },
-                                onFocus = { onFocus(i) },
-                                modifier = keyed(i)
-                                    .focusRequester(requesters[i])
-                                    .focusProperties {
-                                        up = upTo ?: FocusRequester.Cancel
-                                        if (downTo != null) down = downTo
-                                    },
+                                onFocus = { focused ->
+                                    if (focused) {
+                                        focusedPanel = i
+                                        onFocus(i)
+                                    } else if (focusedPanel == i) {
+                                        focusedPanel = null
+                                    }
+                                },
+                                surfaceModifier = keyed(i).focusRequester(requesters[i]),
+                                row = { row(i, sidesOf(requesters, i)) },
                             ) { words(i) }
                         }
                     }
@@ -295,57 +296,59 @@ fun Volets(
                         if (within && !it.hasFocus) onFocus(null)
                         within = it.hasFocus
                     }
-                    .keepChildFocus(group, enter?.let(requesters::getOrNull)),
+                    .keepChildFocus(group),
                 measurePolicy = policy,
             )
         }
     }
 }
 
-/** The widest of [years] as set in `meta`: the plan keeps the closed panels' years only while they stand apart. */
-@Composable
-private fun rememberYearWidth(years: List<String>): Dp {
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val meta = Hl.type.meta
-    return remember(years, meta, density) {
-        val widest = years.maxOfOrNull { measurer.oneLine(it, meta, density).width }
-        with(density) { widest?.toDp() } ?: 0.dp
-    }
-}
+/**
+ * The panels beside an open one, which its actions' ends lead to, Left from the first ([before]) and Right from the
+ * last ([after]): focus lands on the panel itself, opening it; [FocusRequester.Cancel] past the polyptych's ends.
+ */
+@Immutable
+class VoletSides(val before: FocusRequester, val after: FocusRequester)
 
-/** [text] as set in [style] on one line, as wide as it runs. */
-private fun TextMeasurer.oneLine(text: String, style: TextStyle, density: Density): IntSize =
-    measure(text, style, maxLines = 1, softWrap = false, density = density).size
+/** The panels beside panel [i], by their [requesters]. */
+private fun sidesOf(requesters: List<FocusRequester>, i: Int) =
+    VoletSides(requesters.getOrNull(i - 1) ?: FocusRequester.Cancel, requesters.getOrNull(i + 1) ?: FocusRequester.Cancel)
 
 /**
- * The type a polyptych sets: its [numbers]' one size, the [band] at the top they stand in (px), the [spine]'s name's
- * style, and how high every closed panel's year rises from the foot ([yearRise], px), so their bands make one line.
+ * The type a polyptych sets: its numbers' one size (`display`), the [band] at the top they stand in (px), the [spine]'s
+ * name's style, and how high every closed panel's year rises from the foot ([yearRise], px), so their bands make one line.
  */
 @Immutable
 private class VoletType(val numbers: TextStyle, val band: Float, val spine: TextStyle, val yearRise: Float)
 
-/** [plan]'s type: its numbers by its width, its [spine]'s name in them while it fits on one line from `display`, else `rowTitle`. */
+/** [plan]'s type: its numbers in `display`, its [spine]'s name in them while it fits on one line, else `rowTitle`. */
 @Composable
 private fun rememberVoletType(plan: VoletPlan, spine: String?): VoletType {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val meta = Hl.type.meta
     val rowTitle = Hl.type.rowTitle
-    val numbers = plan.numbers.style()
+    val numbers = Hl.type.display
     return remember(plan, spine, numbers, meta, rowTitle, density) {
         with(density) {
-            val fits = spine == null || measurer.oneLine(spine, numbers, density).width <= (plan.height - HlSpace.l * 2).toPx()
             val tall = measurer.oneLine(YEAR_SAMPLE, meta, density).height
+            val yearRise = HlSpace.m.toPx() + tall
+            // Its foot over its band, as the closed films' marks stand over their years.
+            val room = plan.height.toPx() - HlSpace.l.toPx() - yearRise - HlSpace.xs.toPx()
+            val fits = spine == null || measurer.oneLine(spine, numbers, density).width <= room
             VoletType(
                 numbers = numbers,
                 band = VoletDefaults.numberTop.toPx() + numbers.lineHeight.toPx(),
-                spine = if (plan.closed >= VoletDefaults.numberMedium && fits) numbers else rowTitle,
-                yearRise = HlSpace.m.toPx() + tall,
+                spine = if (fits) numbers else rowTitle,
+                yearRise = yearRise,
             )
         }
     }
 }
+
+/** [text] as set in [style] on one line, as wide as it runs. */
+private fun TextMeasurer.oneLine(text: String, style: TextStyle, density: Density): IntSize =
+    measure(text, style, maxLines = 1, softWrap = false, density = density).size
 
 /**
  * The polyptych's motion: [open] laid out open from the start, then the panel reached opening as the one left closes,
@@ -375,41 +378,64 @@ private fun rememberVoletMotion(open: Int): VoletMotion {
 }
 
 /**
- * The panels as wide as [motion] has them open, read while placing: the opening relays them out, it never recomposes
- * them. A long saga scrolls panel by panel, the open one kept [KEPT_CLOSED] closed panels from either end, the scroll
- * moving with the widths.
+ * Where each panel stands against the polyptych's ends, written as it is placed and read while drawing: how far into it
+ * from its start nothing draws ([clip], px: a film gone under the pinned spine), and whether it stands [whole] inside the
+ * polyptych, its number and year shown; a panel past the end shows its picture alone, no text cut by the screen's edge.
  */
-private fun voletsPolicy(plan: VoletPlan, motion: VoletMotion) = MeasurePolicy { measurables, constraints ->
+@Stable
+private class VoletEdges(count: Int) {
+    val clip = Array(count) { mutableFloatStateOf(0f) }
+    val whole = Array(count) { mutableStateOf(true) }
+}
+
+/**
+ * The panels as wide as [motion] has them open, read while placing: the opening relays them out, it never recomposes
+ * them. The saga's panel stands at the start; a long saga's films scroll panel by panel after it ([VoletPlan.scrollTo]), the
+ * scroll moving with the widths, each film's [edges] told where it stands.
+ */
+private fun voletsPolicy(plan: VoletPlan, motion: VoletMotion, edges: VoletEdges) = MeasurePolicy { measurables, constraints ->
     val height = constraints.maxHeight
     val gap = plan.gap.toPx()
     val closed = plan.closed.toPx()
     val wide = plan.open.toPx()
-    val widths = FloatArray(measurables.size) { i -> closed + (wide - closed) * motion.openness(i) }
+    val count = measurables.size
+    val widths = FloatArray(count) { i -> closed + (wide - closed) * motion.openness(i) }
     val room = constraints.maxWidth.toFloat()
-    val total = widths.sum() + gap * (measurables.size - 1).coerceAtLeast(0)
-    motion.scroll = if (total > room + 1f) {
-        // Where the move ends: the panel reached open, those before it closed.
-        val left = (closed + gap) * motion.open
-        val margin = (closed + gap) * KEPT_CLOSED
+    motion.scroll = if (plan.scrolls) {
+        // Where the move ends, from where it began; the plan reckons in dp.
         val from = motion.scrollFrom
-        val to = keptInView(from, left, wide, margin, room).coerceIn(0f, total - room)
+        val to = plan.scrollTo(motion.open, from / density, room / density) * density
         from + (to - from) * motion.t.value
     } else {
         0f
     }
     val placeables = measurables.mapIndexed { i, child ->
-        child.measure(
-            Constraints.fixed(widths[i].roundToInt().coerceAtLeast(0), height),
-        )
+        child.measure(Constraints.fixed(widths[i].roundToInt().coerceAtLeast(0), height))
+    }
+    // The films' start: past the saga's panel, under which a film scrolled away goes.
+    val films = (widths.firstOrNull() ?: 0f) + gap
+    val xs = FloatArray(count)
+    var x = films - motion.scroll
+    for (i in 1 until count) {
+        xs[i] = x
+        x += widths[i] + gap
+    }
+    for (i in 1 until count) {
+        edges.clip[i].floatValue = (films - xs[i]).coerceAtLeast(0f)
+        edges.whole[i].value = standsWhole(xs[i], widths[i], films, room)
     }
     layout(constraints.maxWidth, height) {
-        var x = -motion.scroll
-        placeables.forEachIndexed { i, placeable ->
-            placeable.place(x.roundToInt(), 0)
-            x += widths[i] + gap
-        }
+        placeables.forEachIndexed { i, placeable -> placeable.place(xs[i].roundToInt(), 0) }
     }
 }
+
+/**
+ * Whether a film's panel [x] from the polyptych's start and [width] wide stands whole between the films' [start] (past
+ * the pinned spine) and the polyptych's end, [room] from its start, within half a pixel: else it shows its picture alone,
+ * no number or year cut by the screen's edge. In px.
+ */
+internal fun standsWhole(x: Float, width: Float, start: Float, room: Float): Boolean =
+    x >= start - EDGE_SLACK && x + width <= room + EDGE_SLACK
 
 /**
  * Where a long saga's polyptych scrolls to from [from] as a panel opens, [left] from its start and [wide]: no further
@@ -419,17 +445,13 @@ internal fun keptInView(from: Float, left: Float, wide: Float, margin: Float, ro
     from.coerceIn(minOf(left + wide - (room - margin), left - margin), left - margin)
 
 /**
- * The panels a long saga asks its posters for (#55): those in view once its polyptych has scrolled to the panel open,
- * as [voletsPolicy] scrolls it, those it passes by on its way from the view it leaves, and [POSTERS_AHEAD] more on
+ * The panels a long saga asks its posters for (#55): those in view once its films have scrolled to the panel open, as
+ * [voletsPolicy] scrolls them, those it passes by on its way from the view it leaves, and [POSTERS_AHEAD] more on
  * either side, [POSTERS_KEPT] on the side a held arrow runs to, so that a poster is there before its panel comes into
- * view; a poster asked stays asked while its panel is within [POSTERS_KEPT] of them. Before focus enters on a panel
- * other than the one open, the view it will enter on too, and [POSTERS_AHEAD] past it, so that Up finds its posters
- * there. A saga in view whole asks them all. In dp, the polyptych [room] wide.
+ * view; a poster asked stays asked while its panel is within [POSTERS_KEPT] of them. A saga in view whole asks them
+ * all. The saga's own spine, pinned, has no poster. In dp, the polyptych [room] wide.
  */
 internal class PosterWindow(private val plan: VoletPlan, private val room: Float) {
-    private val step = (plan.closed + plan.gap).value
-    private val wide = plan.open.value
-    private val total = wide + step * (plan.count - 1)
     private val all = (0 until plan.count).toSet()
     private var scroll = 0f
     private var open = -1
@@ -437,29 +459,28 @@ internal class PosterWindow(private val plan: VoletPlan, private val room: Float
     private var asked = IntRange.EMPTY
 
     /**
-     * The panels whose posters are asked for, panel [to] open, focus to enter on [enter] (null once within), a held
-     * arrow running focus while [runs]; asked again for the same panel, the same.
+     * The panels whose posters are asked for, panel [to] open, a held arrow running focus while [runs]; asked again for
+     * the same panel, the same.
      */
-    fun moveTo(to: Int, enter: Int? = null, runs: Boolean = false): Set<Int> {
+    fun moveTo(to: Int, runs: Boolean = false): Set<Int> {
         if (!plan.scrolls) return all
         if (to != open) go(to, runs)
-        val entering = enter?.takeIf { it != to }?.let { near(viewAt(it), POSTERS_AHEAD, POSTERS_AHEAD) }
-        return if (entering == null) asked.toSet() else asked.toSet() + entering
+        return asked.toSet()
     }
 
-    /** The panels in view were panel [at] to open now, the polyptych scrolling from where it is; it stays there. */
+    /** The panels in view were panel [at] to open now, the films scrolling from where they are; they stay there. */
     fun viewAt(at: Int): IntRange {
         if (!plan.scrolls) return 0 until plan.count
-        val to = scrollTo(at)
-        val shown = (0 until plan.count).filter { inView(it, at, to) }
+        val by = plan.scrollTo(at, scroll, room)
+        val shown = (0 until plan.count).filter { inView(it, at, by) }
         return (shown.firstOrNull() ?: at)..(shown.lastOrNull() ?: at)
     }
 
-    /** Panel [to] opened, the polyptych scrolled to it; a held arrow that [runs] asks further on the side it goes. */
+    /** Panel [to] opened, its films scrolled to it; a held arrow that [runs] asks further on the side it goes. */
     private fun go(to: Int, runs: Boolean) {
         val heading = if (runs && open >= 0) to.compareTo(open) else 0
         val now = viewAt(to)
-        scroll = scrollTo(to)
+        scroll = plan.scrollTo(to, scroll, room)
         open = to
         // The view it leaves, the one it reaches, and what it passes by between them, whatever the jump.
         val passed = view?.let { minOf(it.first, now.first)..maxOf(it.last, now.last) } ?: now
@@ -473,30 +494,31 @@ internal class PosterWindow(private val plan: VoletPlan, private val room: Float
         asked = if (asked.isEmpty() || kept.isEmpty()) near else minOf(near.first, kept.first)..maxOf(near.last, kept.last)
     }
 
-    /** Where the polyptych scrolls to from where it is as panel [at] opens, as [voletsPolicy] scrolls it. */
-    private fun scrollTo(at: Int): Float = keptInView(scroll, step * at, wide, step * KEPT_CLOSED, room).coerceIn(0f, total - room)
-
     /** [panels] and [before] more before them, [after] more after them, within the polyptych. */
     private fun near(panels: IntRange, before: Int, after: Int): IntRange =
         (panels.first - before).coerceAtLeast(0)..(panels.last + after).coerceAtMost(plan.count - 1)
 
-    /** Whether panel [i] shows in the room, panel [at] open and the others closed, the polyptych scrolled [by]. */
+    /**
+     * Whether panel [i] shows, panel [at] open, the films scrolled [by]: a film past the pinned spine and inside the
+     * room; the saga's panel in the view's run while its first film is.
+     */
     private fun inView(i: Int, at: Int, by: Float): Boolean {
-        val x = step * i + (if (i > at) (plan.open - plan.closed).value else 0f) - by
+        if (i == 0) return plan.count < 2 || inView(1, at, by)
+        val x = plan.left(i, at, by)
         val width = if (i == at) plan.open.value else plan.closed.value
-        return x < room && x + width > 0f
+        return x + width > plan.left(1, at) && x < room
     }
 }
 
 /**
- * The panels of [plan] whose posters are asked for, panel [open] open, in a polyptych [room] wide ([PosterWindow]):
- * with those of the view focus will enter on, [enter], before it does; further ahead while a held arrow runs focus.
+ * The panels of [plan] whose posters are asked for, panel [open] open, in a polyptych [room] wide ([PosterWindow]);
+ * further ahead while a held arrow runs focus.
  */
 @Composable
-private fun rememberPosters(plan: VoletPlan, room: Dp, open: Int, enter: Int?): Set<Int> {
+private fun rememberPosters(plan: VoletPlan, room: Dp, open: Int): Set<Int> {
     val window = remember(plan, room) { PosterWindow(plan, room.value) }
     val runs = Scrub.active
-    return remember(window, open, enter, runs) { window.moveTo(open, enter, runs) }
+    return remember(window, open, runs) { window.moveTo(open, runs) }
 }
 
 /** A panel's pictures at the panel's height: its poster at 2:3 and its backdrop at 16:9, in dp and as asked for (px). */
@@ -600,13 +622,16 @@ private fun rememberNumberFloor(
 }
 
 /**
- * One panel: a case's recipe (a picture with words on its own dark), not a card. Closed, its poster at its natural size
- * cut by its width, its number at the top on its axis, its [VoletPart.mark] and year at its foot (the year while the
- * [plan] keeps them); open and [settled], its backdrop rising over the poster once drawn, with its [words] at its foot
- * in one cut ([HlMotion.HOLD] at most after it settled), its number at its start, as far as it is [opened]; the
- * backdrop leaving it fades out, or goes at once when it jumps. The saga's closed panel is its spine, its backdrop
- * receding and its name upright. Framed with focus, glowing in its film's light; a greyed film framed without a glow, as
- * [AbsentCard] is, even while the room still holds the light of the film before it.
+ * One panel: a case's recipe (a picture with words on its own dark), not a card. Closed, its poster at its natural
+ * size cut by its width, its number at the top on its axis, its [VoletPart.mark] and year at its foot while it stands
+ * [whole] in the polyptych; open and [settled], its backdrop rising over the poster once drawn, with its [words] at
+ * its foot in one cut ([HlMotion.HOLD] at most after it settled), its number at its start, as far as it is [opened];
+ * the backdrop leaving it fades out, or goes at once when it jumps. Open, its actions ([row], [VoletPart.rowed]) stand
+ * under its words, there from the moment it opens so Down finds them, shown with the words or as soon as they take
+ * focus; while the panel itself has focus, what OK does ([VoletPart.hint]) in its bottom corner, on its neighbours'
+ * years. Nothing draws [edge] px into it from its start (a film under the pinned spine). The saga's closed panel is
+ * its spine, its backdrop receding and its name upright. Framed with focus, glowing in its film's light; a greyed film
+ * framed without a glow, as [AbsentCard] is, even while the room still holds the light of the film before it.
  */
 @Composable
 private fun Volet(
@@ -616,56 +641,208 @@ private fun Volet(
     opens: Boolean,
     opened: () -> Float,
     settled: Boolean,
+    self: FocusRequester,
+    edge: () -> Float,
+    whole: () -> Boolean,
     onClick: () -> Unit,
-    onFocus: () -> Unit,
+    onFocus: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    surfaceModifier: Modifier = Modifier,
+    row: @Composable () -> Unit = {},
     words: @Composable () -> Unit,
+) {
+    val pictures = rememberVoletPictures(part, plan, settled)
+    val actions = remember { FocusRequester() }
+    var focused by remember { mutableStateOf(false) }
+    // Focus in its actions shows its words at once, the picture or not.
+    var acting by remember { mutableStateOf(false) }
+    val rowed = opens && part.rowed
+    val wide = pictures.wait.shows(settled, pictureless = pictures.backdrop == null) || rowed && acting
+    var wordsTop by remember { mutableFloatStateOf(Float.NaN) }
+    // Raised over its neighbours as its surface would be, its words and actions over the surface.
+    val raise = remember { Raise() }
+    Box(modifier.fillMaxSize().raisedBy { raise.level() }.clipStart(edge)) {
+        CompositionLocalProvider(LocalRaise provides raise) {
+            VoletSurface(
+                part,
+                plan,
+                type,
+                pictures,
+                VoletShown(opens, settled, wide, opened, whole) { wordsTop },
+                onClick,
+                surfaceModifier
+                    .focusProperties {
+                        up = FocusRequester.Cancel
+                        down = if (rowed) actions else FocusRequester.Cancel
+                    }
+                    .onFocusChanged {
+                        focused = it.isFocused
+                        onFocus(it.isFocused)
+                    },
+            )
+        }
+        if (wide || rowed) {
+            VoletOverlay(
+                rowed = rowed,
+                wide = wide,
+                foot = with(LocalDensity.current) { type.yearRise.toDp() } + HlSpace.xs,
+                focus = VoletRowFocus(actions, self) { acting = it },
+                onTop = { wordsTop = it },
+                row = row,
+                words = words,
+            )
+        }
+        // What OK does, in its corner on the line of its neighbours' years, while it has focus itself.
+        val hint = part.hint
+        if (wide && hint != null) {
+            OkHint(
+                hint,
+                shown = focused,
+                Modifier.align(Alignment.BottomEnd).padding(end = HlInset.card, bottom = HlSpace.m),
+            )
+        }
+    }
+}
+
+/** A panel's pictures at its height ([frame]), its poster's and its backdrop's addresses, and its wait for the backdrop. */
+@Immutable
+private class VoletPictureSet(val frame: VoletFrame, val poster: String?, val backdrop: String?, val wait: VoletWait)
+
+/** [part]'s pictures in [plan]: the saga's spine has no poster, which prints its name; the wait starts once [settled]. */
+@Composable
+private fun rememberVoletPictures(part: VoletPart, plan: VoletPlan, settled: Boolean): VoletPictureSet {
+    val frame = rememberVoletFrame(plan.height)
+    val poster = part.poster?.url(frame.posterPx.width)?.takeUnless { part.number == null }
+    val backdrop = part.backdrop?.url(frame.backdropPx.width)
+    return VoletPictureSet(frame, poster, backdrop, rememberVoletWait(backdrop, settled))
+}
+
+/**
+ * How a panel shows: it [opens], is [settled] on, shows its words ([wide]), as far [opened] as its move has gone,
+ * [whole] in the polyptych, its words starting [wordsTop] px from its top (read while drawing).
+ */
+@Immutable
+private class VoletShown(
+    val opens: Boolean,
+    val settled: Boolean,
+    val wide: Boolean,
+    val opened: () -> Float,
+    val whole: () -> Boolean,
+    val wordsTop: () -> Float,
+)
+
+/**
+ * A panel's surface: its ground, its melts and its marks, framed and glowing with focus; read as one element, [onClick]
+ * on OK. Its own dark from its pictures, its backdrop rising once settled (in one cut back from its page).
+ */
+@Composable
+private fun VoletSurface(
+    part: VoletPart,
+    plan: VoletPlan,
+    type: VoletType,
+    pictures: VoletPictureSet,
+    shown: VoletShown,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val c = Hl.colors
     val saga = part.number == null
-    val frame = rememberVoletFrame(plan.height)
-    val poster = part.poster?.url(frame.posterPx.width)?.takeUnless { saga }
-    val backdrop = part.backdrop?.url(frame.backdropPx.width)
-    val wait = rememberVoletWait(backdrop, settled)
-    val wide = wait.shows(settled, pictureless = backdrop == null)
+    val settled = shown.settled
     // A picture's own dark, read once each from its sample.
     val posterRead by rememberPictureRead(part.poster.takeUnless { saga })
     val backdropRead by rememberPictureRead(part.backdrop.takeIf { settled || saga })
-    val dark = darkOf(part.grey, wide || saga, posterRead, backdropRead) ?: c.ambientDeep
+    val dark = darkOf(part.grey, shown.wide || saga, posterRead, backdropRead) ?: c.ambientDeep
     // Settled from its first frame (back from its page), its picture comes in one cut, as the screen does; then it rises.
     var cuts by remember { mutableStateOf(settled) }
     LaunchedEffect(settled) { if (!settled) cuts = false }
     // The backdrop comes up over the poster once settled and drawn; the saga's spine keeps it.
-    val up = rememberRise(saga || settled && wait.pictured, cut = cuts)
+    val rise = rememberRise(saga || settled && pictures.wait.pictured, cut = cuts)
     val ink = if (part.grey) c.contentSecondary else c.content
-    val floor = rememberNumberFloor(plan, frame, type, opens, ink, dark, part.grey, posterRead, backdropRead)
-    var wordsTop by remember { mutableFloatStateOf(Float.NaN) }
+    val floor = rememberNumberFloor(plan, pictures.frame, type, shown.opens, ink, dark, part.grey, posterRead, backdropRead)
     ArtworkSurface(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.fillMaxSize(),
         shape = HlShapes.wide,
-        onFocus = onFocus,
         // Its state, then what it says open: a panel has focus only open.
         stateDescription = listOfNotNull(part.state, part.say).joinToString(", ").ifEmpty { null },
         readAs = part.readAs,
         acts = part.acts,
-        light = if (part.grey) null else backdrop ?: poster,
+        light = if (part.grey) null else pictures.backdrop ?: pictures.poster,
         glows = !part.grey,
         // Its ground covers it whole, its dark or a picture over it: no plate under them.
         covered = GroundCovers,
     ) {
-        VoletPictures(dark, poster, backdrop, part.grey, frame, shows = saga || settled, up, wait)
+        VoletPictures(dark, pictures.poster, pictures.backdrop, part.grey, pictures.frame, shows = saga || settled, rise, pictures.wait)
         if (!saga) TopMelt(dark, floor, type.band)
-        if (wide) WordsMelt(dark) { wordsTop } else FootMelt(dark, type.yearRise)
-        VoletMarks(part, plan, type, ink, closed = !wide, opens = opens, opened = opened)
-        if (wide) {
+        if (shown.wide) WordsMelt(dark, shown.wordsTop) else FootMelt(dark, type.yearRise)
+        VoletMarks(part, type, ink, closed = !shown.wide, opens = shown.opens, opened = shown.opened, whole = shown.whole)
+    }
+}
+
+/** The focus of a panel's actions: their [requester], Up back to their panel ([panel]), [onFocus] told whether they hold it. */
+@Immutable
+private class VoletRowFocus(val requester: FocusRequester, val panel: FocusRequester, val onFocus: (Boolean) -> Unit)
+
+/**
+ * An open panel's words at its foot, its title's width, then its actions ([row], when [rowed]) over a tile's label
+ * room, down to the foot, so a focused tile's label lies on the band of its neighbours' years; without them, the words
+ * over the [foot] band its neighbours' marks and years stand in. Laid out before its words show ([wide]), unseen, so
+ * Down finds the actions; [onTop] told where the words begin (px from the panel's top).
+ */
+@Composable
+private fun BoxScope.VoletOverlay(
+    rowed: Boolean,
+    wide: Boolean,
+    foot: Dp,
+    focus: VoletRowFocus,
+    onTop: (Float) -> Unit,
+    row: @Composable () -> Unit,
+    words: @Composable () -> Unit,
+) {
+    Column(
+        Modifier
+            .align(Alignment.BottomStart)
+            .fillMaxWidth()
+            .padding(start = HlInset.card, end = HlInset.card)
+            // Actions over a tile's label room alone ([HlActionRow]): a focused tile's label lies on the years' band.
+            .padding(bottom = if (rowed) HlSpace.none else foot)
+            .onPlaced { onTop(it.positionInParent().y) }
+            .drawWithContent { if (wide) drawContent() },
+    ) {
+        // Read as the panel: its words are what it says.
+        if (wide) Box(Modifier.width(HeroDefaults.titleWidth).clearAndSetSemantics {}) { words() }
+        if (rowed) {
+            Spacer(Modifier.height(HlSpace.l))
             Box(
                 Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = HlInset.card, bottom = HlInset.card)
-                    .width(HeroDefaults.titleWidth)
-                    .onPlaced { wordsTop = it.positionInParent().y },
-            ) { words() }
+                    .focusRequester(focus.requester)
+                    .focusProperties {
+                        up = focus.panel
+                        down = FocusRequester.Cancel
+                    }
+                    .onFocusChanged { focus.onFocus(it.hasFocus) },
+            ) { row() }
+        }
+    }
+}
+
+/**
+ * Nothing drawn [edge] px into this from its start (read while drawing), its focus frame and glow kept on every other
+ * side; nothing at all once it is wholly under it, what it draws past its edge included.
+ */
+private fun Modifier.clipStart(edge: () -> Float): Modifier = drawWithContent {
+    val at = edge()
+    when {
+        at <= 0f -> drawContent()
+        at >= size.width -> Unit
+        else -> {
+            val reach = size.height
+            clipRect(
+                left = at,
+                top = -reach,
+                right = size.width + reach,
+                bottom = size.height + reach,
+            ) { this@drawWithContent.drawContent() }
         }
     }
 }
@@ -756,37 +933,41 @@ internal fun voletCover(width: Float, poster: Int?, backdrop: Int?): VoletCover 
 
 /**
  * What a panel shows of itself over its pictures: its number, as far as it is [opened]; [closed], its mark and year at
- * its foot; the saga's, unless it [opens], its spine's name upright; the share of a film seen at its very foot.
+ * its foot, and the share of a film seen at its very foot; the saga's, unless it [opens], its spine's name upright over
+ * its band. Its words only while it stands [whole] in the polyptych.
  */
 @Composable
 private fun BoxScope.VoletMarks(
     part: VoletPart,
-    plan: VoletPlan,
     type: VoletType,
     ink: Color,
     closed: Boolean,
     opens: Boolean,
     opened: () -> Float,
+    whole: () -> Boolean,
 ) {
     val number = part.number
+    val shown = Modifier.drawWithContent { if (whole()) drawContent() }
     if (number != null) {
-        VoletNumber(number, type.numbers, ink, opened)
-        if (closed) VoletFoot(part, plan, Modifier.align(Alignment.BottomCenter))
+        VoletNumber(number, type.numbers, ink, opened, shown)
+        if (closed) VoletFoot(part, shown.align(Alignment.BottomCenter))
     } else if (!opens) {
-        part.spine?.let { VerticalName(it, type.spine, Modifier.align(Alignment.BottomCenter).padding(vertical = HlSpace.l)) }
+        part.spine?.let {
+            // Its foot where the films' marks stand, over its band.
+            val foot = with(LocalDensity.current) { type.yearRise.toDp() } + HlSpace.xs
+            VerticalName(it, type.spine, Modifier.align(Alignment.BottomCenter).padding(top = HlSpace.l, bottom = foot))
+        }
+        if (closed) VoletFoot(part, shown.align(Alignment.BottomCenter))
     }
-    if (part.progress > 0f) ProgressLine(part.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressWide)
+    // Open, its words say what is left.
+    if (closed && part.progress > 0f) ProgressLine(part.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressWide)
 }
 
-/**
- * A closed film's foot: its mark, then its year, [HlSpace.m] from the foot; the years go for the whole polyptych when
- * they would touch (« greffe 2 »), the open panel saying its own, and fade over the safe margin when a long saga runs
- * past it.
- */
+/** A closed panel's foot: its mark, then its year (the spine's: where focus is among the films), [HlSpace.m] from the foot. */
 @Composable
-private fun VoletFoot(part: VoletPart, plan: VoletPlan, modifier: Modifier = Modifier) {
+private fun VoletFoot(part: VoletPart, modifier: Modifier = Modifier) {
     val c = Hl.colors
-    val year = part.year?.takeIf { plan.years }
+    val year = part.year
     Column(modifier.padding(bottom = HlSpace.m), horizontalAlignment = Alignment.CenterHorizontally) {
         FootMark(part.mark)
         if (part.mark != VoletMark.None && year != null) Spacer(Modifier.height(HlSpace.xs))
@@ -797,7 +978,7 @@ private fun VoletFoot(part: VoletPart, plan: VoletPlan, modifier: Modifier = Mod
                 color = if (part.grey) c.contentTertiary else c.contentSecondary,
                 maxLines = 1,
                 softWrap = false,
-                modifier = Modifier.clearAndSetSemantics {}.then(if (plan.scrolls) Modifier.fadeOutsideSafeArea() else Modifier),
+                modifier = Modifier.clearAndSetSemantics {},
             )
         }
     }
@@ -850,14 +1031,14 @@ private fun DrawScope.drawCropped(painter: Painter, alpha: Float, filter: ColorF
 
 /** The number at the panel's top: on its axis closed, at its start open, as far as it is [opened], read while placing. */
 @Composable
-private fun VoletNumber(number: Int, style: TextStyle, color: Color, opened: () -> Float) {
+private fun VoletNumber(number: Int, style: TextStyle, color: Color, opened: () -> Float, modifier: Modifier = Modifier) {
     Text(
         "$number",
         style = style,
         color = color,
         maxLines = 1,
         softWrap = false,
-        modifier = Modifier.clearAndSetSemantics {}.layout { measurable, constraints ->
+        modifier = modifier.clearAndSetSemantics {}.layout { measurable, constraints ->
             val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity))
             val width = if (constraints.hasBoundedWidth) constraints.maxWidth else placeable.width
             val top = VoletDefaults.numberTop.roundToPx()
@@ -1016,8 +1197,9 @@ class VoletState(val words: String, val light: StatusState? = null, val lit: Boo
 
 /**
  * An open film's words, bottom-anchored in a hero's band ([HlLayout.hero]) and its title's width: its logo or its name
- * in `headline` on one line ([title], [logo]), its facts ([film]'s, as [MetaLine] gives them without genres, else its
- * [year]) and its [state] last, never dropped first, then two lines of [overview], their room kept without one.
+ * in `headline` on two lines at most, broken at its separator ([titleLines]) ([title], [logo]), its facts
+ * ([film]'s, as [MetaLine] gives them without genres, else its [year]) and its [state] last, never dropped first, then
+ * two lines of [overview], their room kept without one.
  */
 @Composable
 fun VoletWords(
@@ -1032,7 +1214,14 @@ fun VoletWords(
     val c = Hl.colors
     Box(modifier.fillMaxWidth().heightIn(min = textRoom(HlLayout.hero)), contentAlignment = Alignment.BottomStart) {
         Column {
-            TitleArt(title, logo, HeroDefaults.titleWidth, HeroDefaults.titleHeight, style = Hl.type.headline, maxLines = 1)
+            TitleArt(
+                rememberTitleLines(title),
+                logo,
+                HeroDefaults.titleWidth,
+                HeroDefaults.titleHeight,
+                style = Hl.type.headline,
+                maxLines = TITLE_LINES,
+            )
             Spacer(Modifier.height(HlSpace.s))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when {
@@ -1057,6 +1246,33 @@ fun VoletWords(
     }
 }
 
+/**
+ * [title] as an open panel sets it, [fits] saying whether a line holds on one line in its measure: whole when it fits;
+ * else broken at a separator (a dash, a French colon), dropped there, where each side fits (« Star Wars, épisode II »
+ * / « L'Attaque des clones »); else its separator held to the words around it, so no line ends or begins with it.
+ */
+internal fun titleLines(title: String, fits: (String) -> Boolean): String {
+    if (fits(title)) return title
+    for (mark in SPACED_MARK.findAll(title)) {
+        val before = title.substring(0, mark.range.first)
+        val after = title.substring(mark.range.last + 1)
+        if (fits(before) && fits(after)) return "$before\n$after"
+    }
+    return title.replace(SPACED_MARK) { "$NO_BREAK${it.groupValues[1]}$NO_BREAK" }
+}
+
+/** [title] in `headline` as [titleLines] breaks it in a hero's title width, at the viewer's text size. */
+@Composable
+private fun rememberTitleLines(title: String): String {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = Hl.type.headline
+    return remember(title, style, density) {
+        val width = with(density) { HeroDefaults.titleWidth.roundToPx() }
+        titleLines(title) { line -> measurer.oneLine(line, style, density).width <= width }
+    }
+}
+
 /** A film's state on its facts' line: by its light ([HlStatus]), else its words, white when lit (« À suivre »). */
 @Composable
 private fun VoletStateWords(state: VoletState) {
@@ -1070,15 +1286,14 @@ private fun VoletStateWords(state: VoletState) {
 
 /**
  * The saga's open panel's words, bottom-anchored in its title's width: its [name] (a server's [logo], else set to its
- * measure: the signature on one line, else `display`), its [facts] (the first white), its [progress] in words, then two
- * lines of [overview], [onCut] told whether they cut it (OK then opens it whole).
+ * measure: the signature on one line, else `display`), its [facts] on one line (the first white, the last giving way
+ * first), then two lines of [overview], [onCut] told whether they cut it (OK then opens it whole).
  */
 @Composable
 fun SagaVoletWords(
     name: String,
     logo: ImageRef?,
     facts: List<String>,
-    progress: List<String>,
     overview: String?,
     onCut: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -1088,12 +1303,6 @@ fun SagaVoletWords(
         TitleArt(name, logo, HeroDefaults.titleWidth, HlLayout.titleArtHeight, measured = true)
         Spacer(Modifier.height(HlSpace.s))
         FactRow(facts, lead = c.content)
-        if (progress.isNotEmpty()) {
-            Spacer(Modifier.height(HlSpace.xs))
-            OneLine {
-                progress.forEach { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1) }
-            }
-        }
         if (!overview.isNullOrBlank()) {
             Spacer(Modifier.height(HlSpace.s))
             Text(
@@ -1111,7 +1320,7 @@ fun SagaVoletWords(
 /** A panel's ground, its dark or a picture over it, covers it whole: it takes no plate (DESIGN.md, Performance). */
 private val GroundCovers: () -> Float = { Float.POSITIVE_INFINITY }
 
-/** Closed panels kept between the open one and either end of a long saga's polyptych as it scrolls. */
+/** Closed panels kept between the open one and either end of a long saga's films as they scroll. */
 private const val KEPT_CLOSED = 2
 
 /** Panels past a long saga's view asked for their posters on either side, a few steps before they come into it. */
@@ -1125,6 +1334,16 @@ internal const val POSTERS_KEPT = 8
 
 /** Overview lines in an open panel, as in a hero. */
 private const val OVERVIEW_LINES = 2
+
+/** An open film's title lines without its logo. */
+private const val TITLE_LINES = 2
+
+/** A dash or a French colon set between two words; and the space that holds it to them. */
+private val SPACED_MARK = Regex(""" ([-–—:]) """)
+private const val NO_BREAK = '\u00A0'
+
+/** Half a pixel, which a panel's edge may pass the polyptych's by in rounding. */
+private const val EDGE_SLACK = 0.5f
 
 /** A spine's name turned to read from the foot up. */
 private const val QUARTER_TURN = -90f

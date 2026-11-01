@@ -65,7 +65,7 @@ class VoletsMotionTest {
         val before = widths(DUNE)
         assertTrue(
             "halfway: $before",
-            before[1] in closed(DUNE) + 20f..VOLET_OPEN - 20f && before[2] in closed(DUNE) + 20f..VOLET_OPEN - 20f,
+            before[1] in closed(DUNE) + 20f..open(DUNE) - 20f && before[2] in closed(DUNE) + 20f..open(DUNE) - 20f,
         )
         opens(1)
         var last = before
@@ -74,7 +74,7 @@ class VoletsMotionTest {
             val now = widths(DUNE)
             // The frame the move is turned in, it goes on as it went; from the next, it turns.
             assertTrue("frame $it: film 1 never shut, at ${now[1]}", now[1] > closed(DUNE) + 20f)
-            assertTrue("frame $it: film 2 never whole at once, at ${now[2]}", now[2] < VOLET_OPEN - 20f)
+            assertTrue("frame $it: film 2 never whole at once, at ${now[2]}", now[2] < open(DUNE) - 20f)
             if (it > 0) {
                 assertTrue("frame $it: film 1 reopens from ${last[1]}, at ${now[1]}", now[1] >= last[1] - 1f)
                 assertTrue("frame $it: film 2 closes from ${last[2]}, at ${now[2]}", now[2] <= last[2] + 1f)
@@ -83,7 +83,7 @@ class VoletsMotionTest {
             last = now
         }
         forward(HlMotion.FOCUS_IN.toLong())
-        assertEquals(VOLET_OPEN, panel(1).width.value, 1f)
+        assertEquals(open(DUNE), panel(1).width.value, 1f)
         assertEquals(closed(DUNE), panel(2).width.value, 1f)
     }
 
@@ -94,7 +94,7 @@ class VoletsMotionTest {
         opens(2)
         forward(CUT_MS)
         val closing = panel(1).width.value
-        assertTrue("film 1 halfway closed: $closing", closing in closed(DUNE) + 20f..VOLET_OPEN - 20f)
+        assertTrue("film 1 halfway closed: $closing", closing in closed(DUNE) + 20f..open(DUNE) - 20f)
         opens(3)
         repeat(FRAMES) {
             compose.mainClock.advanceTimeByFrame()
@@ -104,10 +104,10 @@ class VoletsMotionTest {
         forward(HlMotion.FOCUS_IN.toLong())
         assertEquals(closed(DUNE), panel(1).width.value, 1f)
         assertEquals(closed(DUNE), panel(2).width.value, 1f)
-        assertEquals(VOLET_OPEN, panel(3).width.value, 1f)
+        assertEquals(open(DUNE), panel(3).width.value, 1f)
     }
 
-    /** Past eight films the polyptych scrolls as the widths move, a little each frame, never a panel's step at once. */
+    /** From five films the films scroll as the widths move, a little each frame, never a panel's step at once. */
     @Test
     fun aLongSagaScrollsWithTheWidths() {
         show(BOND, first = 10)
@@ -121,16 +121,18 @@ class VoletsMotionTest {
             left = now
         }
         val reached = panel(11)
-        assertEquals(VOLET_OPEN, reached.width.value, 1f)
-        assertTrue("it scrolled: $reached", reached.right.value <= (VOLET_SIDE + POLYPTYCH).value - step * 2 + 1f)
+        assertEquals(open(BOND), reached.width.value, 1f)
+        assertTrue("it scrolled: $reached", reached.left.value >= VOLET_SIDE.value + step * 3 - 1f)
+        assertTrue("a closed panel whole after it: $reached", reached.right.value <= (VOLET_SIDE + POLYPTYCH).value - step + 1f)
     }
 
     private fun closed(films: Int) = voletPlan(films).closed.value
 
+    private fun open(films: Int) = voletPlan(films).open.value
+
     private fun parts(films: Int) = voletParts(films, spine = "Dune") { VoletFilm(year = "${1990 + it}") }
 
     private companion object {
-        val VOLET_OPEN = VoletDefaults.open.value
         val GAP = VoletDefaults.gap.value
 
         const val DUNE = 3

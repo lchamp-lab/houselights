@@ -776,6 +776,15 @@
     </plurals>
     <string name="mark_saga_watched">Marquer la saga comme vue</string>
     <string name="mark_saga_unwatched">Marquer la saga comme non vue</string>
+    <string name="saga_film_page">Voir la fiche</string>
+    <string name="saga_hint_synopsis">Lire le synopsis</string>
+    <string name="saga_hint_overview">Lire le résumé entier</string>
+    <string name="saga_place">%1$d sur %2$d</string>
+    <plurals name="saga_watched">
+        <item quantity="one">%d vu</item>
+        <item quantity="other">%d vus</item>
+        <item quantity="many">%d vus</item>
+    </plurals>
     <string name="saga_release_on">Sortie le %s</string>
     <string name="saga_announced">Annoncé</string>
     <!-- Les volets d’une saga lus par un lecteur d’écran, le titre d’abord -->

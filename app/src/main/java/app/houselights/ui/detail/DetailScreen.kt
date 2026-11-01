@@ -119,9 +119,6 @@ import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.edit.doubtText
-import app.houselights.ui.library.PosterActions
-import app.houselights.ui.library.PosterOptions
-import app.houselights.ui.library.PosterRow
 import app.houselights.ui.util.ErrorFixButton
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.LocalLibraryPlace
@@ -195,9 +192,11 @@ internal fun DetailPage(
     val actionRow = remember { FocusRequester() }
     // Wait for the rows: returning focus may target one of their cards.
     RestoreFocus(memory, actionRow, ready = item != null && !state.partial)
-    // A film started over is resumed next: back from the player, focus is on the play button.
+    // Modifier open on a saga's poster and backdrop (#48).
+    var sagaEditing by remember { mutableStateOf(false) }
+    // A film started over is resumed next: back from the player, focus is on its play button, a saga's film's too.
     LaunchedEffect(Unit) {
-        playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
+        playback.playbackEnded.collect { memory.last?.let(::playAfterRestart)?.let(memory::focus) }
     }
     val page = rememberLazyListState()
     val directing = jobName(Job.DIRECTOR)
@@ -211,30 +210,16 @@ internal fun DetailPage(
 
     // A saga is a polyptych, a tall panel a film beside its own (« Les volets »), on a page of its own that never scrolls.
     if (item.kind == MediaKind.COLLECTION) {
-        // Menu on its predella (#48): the sheet of its poster on a wall, the saga marked with its films, then Modifier
-        // where its source keeps its pictures; a Jellyfin box set's, its mark alone, said by no key.
-        var options by remember { mutableStateOf(false) }
-        val sheet = PosterActions(
-            onMark = { _: MediaItem -> vm.togglePlayed() }.takeIf { state.capabilities?.markPlayed == true },
-            onFavorite = null,
-            canEdit = { state.canEdit },
-            onEditArtwork = onEditArtwork,
-            onIdentify = onIdentify,
-        )
-        val rows = sheet.rows(item)
         val links = SagaLinks(
             onPlay = { title, resume -> onPlay(title, resume, PlayOrigin(screen)) },
-            onTogglePlayed = vm::togglePlayed,
+            onMark = vm::togglePlayed,
             onOpenItem = onOpenItem,
             onRetry = vm::retry,
             onClearProblem = playback::clearProblem,
             onClearActionError = vm::clearActionError,
-            onOptions = { options = true }.takeIf { rows.isNotEmpty() },
-            optionsSaid = PosterRow.EDIT in rows,
+            onEdit = { sagaEditing = true }.takeIf { state.canEdit },
         )
-        SagaVolets(item, state, memory, actionRow, problem, links) {
-            PosterOptions(item.takeIf { options }, sheet, onDismiss = { options = false })
-        }
+        SagaPage(item, state, memory, actionRow, problem, links, SagaEdit(sagaEditing, { sagaEditing = it }, onEditArtwork))
         return
     }
 
@@ -390,6 +375,36 @@ internal fun DetailPage(
             onIdentify = onIdentify,
             onChooseOrder = vm::chooseEpisodeOrder,
         )
+    }
+}
+
+/** Modifier on a saga's poster and backdrop: open while [editing], closed by [onEditing], each image opening its choice. */
+@Immutable
+private class SagaEdit(val editing: Boolean, val onEditing: (Boolean) -> Unit, val onEditArtwork: (String, ArtworkKind) -> Unit)
+
+/** A saga's page ([SagaVolets]): what it does ([links]), Modifier on its poster and its backdrop ([edit]). */
+@Composable
+private fun SagaPage(
+    item: MediaItem,
+    state: DetailState,
+    memory: FocusMemory,
+    actionRow: FocusRequester,
+    problem: UiError?,
+    links: SagaLinks,
+    edit: SagaEdit,
+) {
+    SagaVolets(item, state, memory, actionRow, problem, links) {
+        if (edit.editing) {
+            EditMenu(
+                item = item,
+                onDismiss = { edit.onEditing(false) },
+                onArtwork = { kind ->
+                    edit.onEditing(false)
+                    edit.onEditArtwork(item.id, kind)
+                },
+                onIdentify = null,
+            )
+        }
     }
 }
 
@@ -610,15 +625,18 @@ private fun NoTitleYet(error: UiError?, onRetry: () -> Unit) {
     }
 }
 
-/** Focuses Lire, else the actions ([fallback]), once [swap] changes while the element keyed [held] had focus. */
+/**
+ * Focuses Lire ([play], the page's own by default), else the actions ([fallback]), once [swap] changes while the
+ * element keyed [held] had focus.
+ */
 @Composable
-internal fun FocusOnPlayAfter(swap: Boolean, held: String, memory: FocusMemory, fallback: FocusRequester) {
+internal fun FocusOnPlayAfter(swap: Boolean, held: String, memory: FocusMemory, fallback: FocusRequester, play: String = PLAY) {
     // Read as the change composes: the element it removes still has focus, focus moved elsewhere is left there.
     val had = remember(swap) { memory.hasFocus(held) }
     LaunchedEffect(swap) {
         if (had) {
             withFrameNanos { }
-            if (!memory.focus(PLAY)) fallback.tryRequestFocus()
+            if (!memory.focus(play)) fallback.tryRequestFocus()
         }
     }
 }
@@ -910,8 +928,25 @@ internal fun RowScope.ActionFailure(
     doubt: MatchDoubt? = null,
 ) {
     val at = Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false)
+    FailureStatus(problem, actionError, nextUpError, at, heldSince, doubt)
+}
+
+/** Whether [ActionFailure] has a failure to say: a play, a change not saved, what Lire starts unread. */
+internal fun failing(problem: UiError?, actionError: UiError?, nextUpError: UiError?): Boolean =
+    problem != null || actionError != null || nextUpError != null
+
+/** What [ActionFailure] says, wherever it stands: a saga's panel says it over its actions. */
+@Composable
+internal fun FailureStatus(
+    problem: UiError?,
+    actionError: UiError?,
+    nextUpError: UiError?,
+    modifier: Modifier = Modifier,
+    heldSince: Long? = null,
+    doubt: MatchDoubt? = null,
+) {
     if (problem == UiError.HELD) {
-        HlStatus(StatusState.Off, stringResource(problem.title), at, detail = stringResource(problem.message))
+        HlStatus(StatusState.Off, stringResource(problem.title), modifier, detail = stringResource(problem.message))
         return
     }
     val failure = problem?.let { R.string.play_failed to it }
@@ -920,10 +955,15 @@ internal fun RowScope.ActionFailure(
     when {
         failure != null -> {
             val (title, error) = failure
-            HlStatus(StatusState.Attention, stringResource(title), at, detail = stringResource(error.message))
+            HlStatus(StatusState.Attention, stringResource(title), modifier, detail = stringResource(error.message))
         }
-        heldSince != null -> HeldState(heldSince, at)
-        doubt != null -> HlStatus(StatusState.Off, stringResource(R.string.to_identify), at, detail = stringResource(doubtText(doubt)))
+        heldSince != null -> HeldState(heldSince, modifier)
+        doubt != null -> HlStatus(
+            StatusState.Off,
+            stringResource(R.string.to_identify),
+            modifier,
+            detail = stringResource(doubtText(doubt)),
+        )
     }
 }
 
@@ -1190,6 +1230,16 @@ private fun FocusMemory.card(row: String, item: MediaItem) =
     Modifier.focusKey(FocusKey.within(FocusKey.row(row), FocusKey.item(item.id)), this)
 
 internal val PLAY = FocusKey.action("play")
+
+/**
+ * Where focus goes back from the player once Depuis le début keyed [key] started a title: its Lire, the page's or that
+ * of the row it is in (a saga's film's); null for any other key.
+ */
+internal fun playAfterRestart(key: String): String? = when {
+    key == RESTART -> PLAY
+    key.endsWith("/$RESTART") -> key.removeSuffix(RESTART) + PLAY
+    else -> null
+}
 private val VERSIONS = FocusKey.action("versions")
 private val TRACKS = FocusKey.action("tracks")
 internal val RESTART = FocusKey.action("restart")

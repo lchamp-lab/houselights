@@ -10,9 +10,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.ImageRef
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.OnArtwork
+import app.houselights.ui.design.components.Emphasis
+import app.houselights.ui.design.components.HlActionRow
+import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.SagaVoletWords
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.VoletMark
@@ -24,21 +31,23 @@ import kotlinx.coroutines.delay
 
 // A saga's polyptych on the app's own pictures: the banner as every poster and backdrop, a missing file as a failed one.
 
-/** A saga's page as a polyptych (« Les volets »): three, five and nine panels, each opening as focus reaches it. */
+/** A saga's page as a polyptych (« Les volets »): three, five and eight films, each panel opening as focus reaches it. */
 internal fun LazyListScope.catalogVolets() {
     item {
-        Group("Volets: a trilogy, the saga's panel open, numbers in 72; a film watched, one in progress, one announced and grey") {
-            Specimen("focus a panel: it opens, the one left closes; held, they jump") { Polyptych(TRILOGY) }
+        Group("Volets: a trilogy, closed panels 96, the saga's open on 541 with its actions; watched, in progress, announced") {
+            Specimen("focus a panel: it opens, the one left closes; held, they jump; Down enters its actions") { Polyptych(TRILOGY) }
         }
     }
     item {
-        Group("Volets: five films, numbers in 44; one missing, grey with its ring, two announced with the quiet dot") {
-            Specimen("the saga closes into its spine, its name upright in the numbers' size") { Polyptych(FIVE) }
+        Group("Volets: five films, the open panel at its narrowest (428); one missing, grey with its ring, two announced") {
+            Specimen(
+                "the saga closes into its spine, pinned, its band where focus is; the films scroll by whole panels",
+            ) { Polyptych(FIVE) }
         }
     }
     item {
-        Group("Volets: eight films at the narrowest, numbers in 32, the spine in rowTitle; a picture failed shows its dark") {
-            Specimen("the years on one line, at least 4 apart; past eight films the panels scroll") { Polyptych(EIGHT) }
+        Group("Volets: eight films, numbers in display at every length; a picture failed shows its dark") {
+            Specimen("the panel past the edge shows its picture alone, its number and year gone") { Polyptych(EIGHT) }
         }
     }
 }
@@ -67,7 +76,9 @@ private fun Polyptych(films: List<SampleFilm>) {
         shown = open
     }
     val picture = { film: SampleFilm? -> if (film?.broken == true) brokenPicture else art }
-    val parts = listOf(VoletPart("saga", null, null, art, "Saga, saga", spine = "Saga")) +
+    val saga =
+        VoletPart("saga", null, null, art, "Saga, saga", year = "$open of ${films.size}".takeIf { open > 0 }, spine = "Saga", rowed = true)
+    val parts = listOf(saga) +
         films.mapIndexed { i, film ->
             VoletPart(
                 key = film.title,
@@ -80,6 +91,8 @@ private fun Polyptych(films: List<SampleFilm>) {
                 year = "${film.year}",
                 progress = film.progress,
                 state = film.state?.words,
+                rowed = !film.grey,
+                hint = stringResource(if (film.grey) R.string.saga_hint_synopsis else R.string.saga_film_page),
             )
         }
     Volets(
@@ -89,14 +102,14 @@ private fun Polyptych(films: List<SampleFilm>) {
         onFocus = { at -> if (at != null) open = at },
         onOpen = {},
         modifier = Modifier.fillMaxWidth().aspectRatio(POLYPTYCH_SHAPE),
+        row = { i, _ -> SampleActions(saga = i == 0) },
     ) { i ->
         val film = films.getOrNull(i - 1)
         if (film == null) {
             SagaVoletWords(
                 "Saga",
                 null,
-                listOf("${films.first().year} – ${films.last().year}", "${films.size} films", "5 h 21"),
-                listOf("1 film watched of 2", "1 h 14 left"),
+                listOf("${films.first().year} – ${films.last().year}", "${films.size} films", "1 watched", "1 h 14 left"),
                 OVERVIEW,
                 onCut = {},
             )
@@ -106,13 +119,37 @@ private fun Polyptych(films: List<SampleFilm>) {
     }
 }
 
+/** An open panel's actions: Lire as wide as its words, the check, then the saga's Modifier or a film's page. */
+@Composable
+private fun SampleActions(saga: Boolean) {
+    OnArtwork {
+        HlActionRow {
+            HlButton(
+                stringResource(R.string.play),
+                onClick = {},
+                Modifier.weight(1f, fill = false),
+                icon = HlIcons.Play,
+                detail = "2 h 16",
+                emphasis = Emphasis.Primary,
+                detailWhole = true,
+            )
+            HlIconButton(HlIcons.Check, stringResource(R.string.mark_watched), onClick = {})
+            if (saga) {
+                HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = {})
+            } else {
+                HlIconButton(HlIcons.Info, stringResource(R.string.saga_film_page), onClick = {})
+            }
+        }
+    }
+}
+
 /** No panel settled: focus is on its way. */
 private const val MOVING = -1
 
 private val brokenPicture = ImageRef("catalog-volet-broken") { "file:///nonexistent/volet.jpg" }
 
-/** The polyptych on the canvas: 853 across the safe area less a focused frame's reach, 374.5 above the predella. */
-private const val POLYPTYCH_SHAPE = 853f / 374.5f
+/** The polyptych on the canvas: 853 across the safe area less a focused frame's reach, 473 down it. */
+private const val POLYPTYCH_SHAPE = 853f / 473f
 
 private const val OVERVIEW = "A desert world, a family at war for it, and a son who sees what is to come: two lines at most, " +
     "cut with an ellipsis, OK opening the whole."
