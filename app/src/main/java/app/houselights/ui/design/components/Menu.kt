@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -50,7 +49,6 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlMenuDefaults
-import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -93,7 +91,7 @@ fun HlMenuButton(
             ) {
                 // The popup's window would bring the system's density: the canvas's is handed in.
                 CompositionLocalProvider(LocalDensity provides density) {
-                    MenuPanel(sections, maxHeight = with(density) { room.toDp() }, motion, position, closeOnSelect)
+                    MenuPanel(sections, maxHeight = with(density) { room.toDp() }, motion, closeOnSelect)
                 }
             }
         }
@@ -105,10 +103,6 @@ private class MenuPosition(density: Density) : PopupPositionProvider {
     private val gap = with(density) { HlSpace.xs.roundToPx() }
     private val safeH = with(density) { HlSpace.safeH.roundToPx() }
     private val safeV = with(density) { HlSpace.safeV.roundToPx() }
-
-    /** The button corner the menu grows from: the end corner, at the bottom or the top. */
-    var origin by mutableStateOf(TransformOrigin(1f, 0f))
-        private set
 
     /** The larger of the spaces above and below the button within the safe area, in px. */
     fun room(button: LayoutCoordinates): Int {
@@ -129,8 +123,6 @@ private class MenuPosition(density: Density) : PopupPositionProvider {
         val y = if (opensBelow) anchorBounds.bottom + gap else anchorBounds.top - gap - popupContentSize.height
         val ltr = layoutDirection == LayoutDirection.Ltr
         val x = if (ltr) anchorBounds.right - popupContentSize.width else anchorBounds.left
-        val corner = TransformOrigin(if (ltr) 1f else 0f, if (opensBelow) 0f else 1f)
-        if (corner != origin) origin = corner
         return IntOffset(
             x.coerceIn(safeH, maxOf(safeH, windowSize.width - safeH - popupContentSize.width)),
             y.coerceIn(safeV, maxOf(safeV, windowSize.height - safeV - popupContentSize.height)),
@@ -139,7 +131,7 @@ private class MenuPosition(density: Density) : PopupPositionProvider {
 }
 
 @Composable
-private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetMotion, position: MenuPosition, closeOnSelect: Boolean) {
+private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetMotion, closeOnSelect: Boolean) {
     val c = Hl.colors
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.tryRequestFocus() }
@@ -148,12 +140,9 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
             .width(HlMenuDefaults.width)
             .heightIn(max = maxHeight)
             .stillWhileLeaving(motion)
+            // It appears in place, its opacity alone moving: nothing grows.
             .graphicsLayer {
-                val scale = HlMotion.ENTER_SCALE + (1f - HlMotion.ENTER_SCALE) * motion.travel
                 alpha = motion.opacity
-                scaleX = scale
-                scaleY = scale
-                transformOrigin = position.origin
                 // Each drawing fades on its own: no offscreen pass.
                 compositingStrategy = CompositingStrategy.ModulateAlpha
             },

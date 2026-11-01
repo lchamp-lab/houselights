@@ -115,6 +115,7 @@ import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.scrollHome
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.tryRequestFocus
@@ -229,7 +230,7 @@ internal fun DetailPage(
         derivedStateOf { backReturnsToActions(page.firstVisibleItemIndex, page.firstVisibleItemScrollOffset) }
     }
     BackToStart(away = scrolled) {
-        page.animateScrollToItem(0)
+        page.scrollHome()
         actionRow.tryRequestFocus()
     }
 

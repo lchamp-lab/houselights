@@ -47,8 +47,8 @@ object HouseLightCue {
 }
 
 /**
- * Cold-start launch: the mark's bars go out widest first, each over `FAST`, [NEXT] apart, then the black
- * lifts off home over `STANDARD`. [t] runs 0 to 1 over [DURATION], every step easing out ([HlMotion.lightsOut]).
+ * Cold-start launch: the mark's bars go out widest first, each over [BAR], [NEXT] apart, then the black
+ * lifts off home over [LIFT]. [t] runs 0 to 1 over [DURATION], every step easing out ([HlMotion.lightsOut]).
  */
 object LaunchCue {
     const val DURATION = HlMotion.SLOW
@@ -64,9 +64,11 @@ object LaunchCue {
     private fun step(fromMs: Int, toMs: Int, t: Float) =
         HlMotion.lightsOut.transform(((t * DURATION - fromMs) / (toMs - fromMs)).coerceIn(0f, 1f))
 
-    private const val BAR = HlMotion.FAST
+    private const val BAR = 150
 
-    private const val LIFT_FROM = DURATION - HlMotion.STANDARD
+    private const val LIFT = 250
+
+    private const val LIFT_FROM = DURATION - LIFT
 
     /** Delay between two bars, so that the last is out as the black starts to lift. */
     private val NEXT = (LIFT_FROM - BAR) / (bars - 1)

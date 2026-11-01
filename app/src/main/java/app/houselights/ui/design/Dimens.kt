@@ -637,8 +637,11 @@ object HlFocus {
     /** The focused card's siblings dim and lose colour through their image's filter: partly, so the wall stays inviting. */
     const val SIBLING_BRIGHTNESS = 0.64f
     const val SIBLING_SATURATION = 0.65f
-    /** Colour steps of a receding card, bounding how often its image draws again as it steps back. */
-    const val RECEDE_STEPS = 3
+    /**
+     * Steps of a receding card's colour and light, bounding how often its image draws again as it steps back: five, under
+     * 8 % of light each; a layer's alpha would let a wall's field or a backdrop show through the card.
+     */
+    const val RECEDE_STEPS = 5
 
     /** The colour step for how far a card has stepped back: 0 in front, [RECEDE_STEPS] behind. */
     fun recedeStep(recede: Float): Int = (recede.coerceIn(0f, 1f) * RECEDE_STEPS).roundToInt()

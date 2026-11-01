@@ -39,6 +39,7 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -140,7 +141,7 @@ private fun readingFill(): () -> Color {
 }
 
 /**
- * Up and down scroll one step per press; a held key adds steps to the target and keeps the velocity
+ * Up and down scroll one step per press, on [HlMotion.scroll]; a held key adds steps to the target and keeps the velocity
  * instead of restarting from rest, and targets are clamped so the motion eases into the ends.
  */
 private abstract class KeyScroll(private val state: ScrollableState, private val scope: CoroutineScope) {
@@ -173,7 +174,7 @@ private abstract class KeyScroll(private val state: ScrollableState, private val
         val velocity = position.velocity
         motion = scope.launch {
             if (!moving) position.snapTo(at)
-            position.animateTo(to, initialVelocity = velocity) { moveTo(value) }
+            position.animateTo(to, HlMotion.scroll, initialVelocity = velocity) { moveTo(value) }
         }
         return true
     }

@@ -1,7 +1,6 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -91,8 +90,9 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? 
 
 /**
  * Shows [content] for [item] once the backdrop settles on its picture ([LocalBackdropSettled]), at most
- * [HlMotion.HOLD] later, so text never shows over the previous picture; one crossfade, no re-measure. Each title
- * stands at [alignment] in [modifier]'s box.
+ * [HlMotion.HOLD] later, so text never shows over the previous picture; one crossfade, no re-measure, the words coming
+ * in as a plate does ([HlMotion.PLATE_IN]) and leaving as one ([HlMotion.PLATE_OUT]). Each title stands at [alignment]
+ * in [modifier]'s box.
  */
 @Composable
 fun WithItsPicture(
@@ -113,7 +113,7 @@ fun WithItsPicture(
         laid.forEach { id ->
             key(id) {
                 val alpha = transition.animateFloat(
-                    transitionSpec = { tween(if (targetState == id) HlMotion.STANDARD else HlMotion.FAST, easing = HlMotion.fallBack) },
+                    transitionSpec = { HlMotion.inOut(targetState == id, HlMotion.PLATE_IN, HlMotion.PLATE_OUT) },
                     label = "namedAlpha",
                 ) { if (it == id) 1f else 0f }
                 // Only the target title is exposed to accessibility; the others are fading in or out.

@@ -61,6 +61,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.OwnScroll
@@ -525,7 +526,7 @@ private fun Choices(
                                 actions = actions,
                                 onFocus = { cards ->
                                     val top = list.coordinates?.localPositionOf(cards, Offset.Zero)?.y
-                                    if (top != null) scope.launch { state.animateScrollBy(top - room) }
+                                    if (top != null) scope.launch { state.animateScrollBy(top - room, HlMotion.scroll) }
                                 },
                                 modifier = Modifier.padding(top = gap),
                             )

@@ -43,6 +43,7 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
@@ -255,7 +256,7 @@ private fun backToFirst(vm: AddFolderViewModel, focus: FormFocus, scroll: Scroll
     var atStart by remember { mutableStateOf(false) }
     val scrolled by remember { derivedStateOf { scroll.value > 0 } }
     BackToStart(away = !vm.unread && (!atStart || scrolled)) {
-        scroll.animateScrollTo(0)
+        scroll.animateScrollTo(0, HlMotion.scroll)
         focus.first.tryRequestFocus()
         atStart = true
     }

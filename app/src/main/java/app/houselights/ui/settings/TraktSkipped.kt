@@ -34,6 +34,7 @@ import app.houselights.providers.trakt.SkippedEntry
 import app.houselights.providers.trakt.SkippedKind
 import app.houselights.providers.trakt.readInPart
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.HlSettingRow
@@ -93,7 +94,7 @@ internal fun Modifier.readsThrough(scroll: ScrollState): Modifier {
             else -> return@onPreviewKeyEvent false
         }
         val more = if (by > 0) scroll.canScrollForward else scroll.canScrollBackward
-        if (more && event.type == KeyEventType.KeyDown) scope.launch { scroll.animateScrollBy(by) }
+        if (more && event.type == KeyEventType.KeyDown) scope.launch { scroll.animateScrollBy(by, HlMotion.scroll) }
         more
     }
 }

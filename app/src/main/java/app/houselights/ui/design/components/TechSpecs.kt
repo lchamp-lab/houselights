@@ -48,6 +48,7 @@ import app.houselights.core.TechSheet
 import app.houselights.core.TechTopic
 import app.houselights.core.TechValue
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.TechSpecsDefaults
@@ -117,7 +118,7 @@ private fun Modifier.readThrough(scroll: ScrollState): Modifier {
         val top = at.positionInRoot().y
         val hidden = if (down) top + at.size.height - shown.bottom else shown.top - top
         if (hidden < 1f) return@onPreviewKeyEvent false
-        scope.launch { scroll.animateScrollBy(if (down) min(step, hidden) else -min(step, hidden)) }
+        scope.launch { scroll.animateScrollBy(if (down) min(step, hidden) else -min(step, hidden), HlMotion.scroll) }
         true
     }
 }
