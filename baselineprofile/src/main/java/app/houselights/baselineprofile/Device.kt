@@ -2,7 +2,10 @@ package app.houselights.baselineprofile
 
 import android.graphics.Rect
 import android.os.SystemClock
+import android.view.InputDevice
+import android.view.KeyCharacterMap
 import android.view.KeyEvent
+import android.view.ViewConfiguration
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -36,6 +39,38 @@ internal fun MacrobenchmarkScope.press(key: Int, times: Int = 1) {
         device.pressKeyCode(key)
         SystemClock.sleep(PRESS_MS)
     }
+}
+
+/**
+ * Holds [key] as a remote does, [repeats] repeats at the system's key repeat rate, then waits for the run to end:
+ * the repeat count is what tells the app the arrow is held, which [press] cannot send.
+ */
+internal fun hold(key: Int, repeats: Int) {
+    val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+    val down = SystemClock.uptimeMillis()
+    fun send(action: Int, repeat: Int) {
+        val event = KeyEvent(
+            down,
+            SystemClock.uptimeMillis(),
+            action,
+            key,
+            repeat,
+            0,
+            KeyCharacterMap.VIRTUAL_KEYBOARD,
+            0,
+            0,
+            InputDevice.SOURCE_KEYBOARD,
+        )
+        check(automation.injectInputEvent(event, true)) { "Key $key not injected" }
+    }
+    send(KeyEvent.ACTION_DOWN, 0)
+    SystemClock.sleep(ViewConfiguration.getKeyRepeatTimeout().toLong())
+    for (repeat in 1..repeats) {
+        send(KeyEvent.ACTION_DOWN, repeat)
+        SystemClock.sleep(ViewConfiguration.getKeyRepeatDelay().toLong())
+    }
+    send(KeyEvent.ACTION_UP, 0)
+    SystemClock.sleep(PRESS_MS)
 }
 
 internal fun MacrobenchmarkScope.right(times: Int = 1) = press(KeyEvent.KEYCODE_DPAD_RIGHT, times)
@@ -83,7 +118,7 @@ internal fun MacrobenchmarkScope.focusTo(text: String, max: Int = 12) {
         val target = checkNotNull(find(text)) { "Nothing on screen says \"$text\"" }.visibleBounds
         // None while a screen is still covered or settling: waited for, not pressed.
         val from = device.findObject(By.focused(true))?.visibleBounds
-        val key = from?.let { towards(it, target) }
+        val key = from?.let { box -> towards(box, target) }
         if (key == null) SystemClock.sleep(PRESS_MS) else press(key)
     }
     check(focusSays(text)) { "Focus never reached \"$text\"" }
