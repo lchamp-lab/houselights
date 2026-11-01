@@ -159,9 +159,13 @@ object HlScrim {
     /** How much a tone counts by its area alone, before its saturation adds to it. */
     const val GLOW_AREA_WEIGHT = 0.35f
 
-    /** The glow is rings out to `HlFocus.glow`, each at [GLOW_LAYER]: a shadow cannot light the black room. */
-    const val GLOW_STEPS = 16
-    const val GLOW_LAYER = 0.06f
+    /**
+     * The glow is rings out to `HlFocus.glow`, each at [GLOW_LAYER]: a shadow cannot light the black room. 28 rings of
+     * 1 dp, 2 whole pixels at 1080p, steps of 5 levels at most; their sum 0.363 next to the picture, as 16 of 1.75 dp at
+     * 0.06 gave (0.368).
+     */
+    const val GLOW_STEPS = 28
+    const val GLOW_LAYER = 0.033f
 
     /** Opacity of the welcome wall's posters. */
     const val WALL = 0.3f

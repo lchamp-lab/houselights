@@ -188,9 +188,10 @@ internal fun Modifier.meltsInto(plate: ColorProducer, foot: List<VeilStop>): Mod
         val mask = Brush.verticalGradient(*foot.colorStops(Color.White), startY = 0f, endY = size.height)
         val from = foot.first().at * size.height
         val band = Size(size.width, size.height - from)
+        val veil = DitheredVeil()
         onDrawWithContent {
             drawContent()
-            drawRect(mask, Offset(0f, from), band, colorFilter = PlateTints.of(plate()))
+            veil.draw(this, mask, Offset(0f, from), band, colorFilter = PlateTints.of(plate()))
         }
     }
 

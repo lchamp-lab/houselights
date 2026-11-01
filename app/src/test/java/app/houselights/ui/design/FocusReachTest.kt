@@ -60,8 +60,13 @@ class FocusReachTest {
         val row = glowAbove()
         compose.runOnIdle { inRow = false }
         val free = glowAbove()
-        // The glow fades to clear over its last ring: the ring before it is the last to light.
-        val lastLit = HlFocus.glow * (HlScrim.GLOW_STEPS - 2) / HlScrim.GLOW_STEPS + HALF_PX
+        // The glow fades to clear over its last rings, the outermost under a level: the last lit to two is measured.
+        val steps = HlScrim.GLOW_STEPS
+        val lit = (steps - 1 downTo 1).first { k ->
+            val through = (k until steps).fold(1f) { t, j -> t * (1f - HlScrim.GLOW_LAYER * (1f - j / steps.toFloat())) }
+            (1f - through) * LEVELS >= 2f
+        }
+        val lastLit = HlFocus.glow * (lit - 1) / steps + HALF_PX
         assertTrue("the glow lights to its last ring: $free", free[lastLit.px()] > 0)
         val past = HlFocus.room.px()..HlFocus.glow.px() + 2
         assertEquals("a row cuts no glow past its room", past.map { free[it] }, past.map { row[it] })
@@ -151,5 +156,8 @@ class FocusReachTest {
 
         /** About 1 % of a white glow: no edge on the wall's field. */
         const val FADED = 4
+
+        /** A channel's levels. */
+        const val LEVELS = 255f
     }
 }

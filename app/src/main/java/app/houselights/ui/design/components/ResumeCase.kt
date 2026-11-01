@@ -168,7 +168,7 @@ private fun BoxScope.CasePicture(item: MediaItem, picture: String?) {
         alignment = Alignment.TopCenter,
     ) { FallbackArtwork(item.title, item.year) }
     // The picture melts into the case's dark under its words.
-    Box(Modifier.matchParentSize().background(Brush.verticalGradient(*HlScrim.CASE_FOOT.colorStops(c.ambientDeep))))
+    Box(Modifier.matchParentSize().veil(Brush.verticalGradient(*HlScrim.CASE_FOOT.colorStops(c.ambientDeep))))
 }
 
 /**

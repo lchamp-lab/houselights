@@ -204,6 +204,15 @@ class DesignTokenGuardTest {
         assertTrue("Places of the quietest ink not drawn: ${stale.joinToString()}", stale.isEmpty())
     }
 
+    /** A gradient laid on a picture is dithered (`DitheredVeil`, `veil`): never a bare background brush in a component. */
+    @Test
+    fun veilsAreDithered() {
+        val bare = Regex("""\.background\(\s*Brush\.""")
+        val found = kotlinSources(ui.resolve("design")).linesWhere(ui) { bare.containsMatchIn(it) }
+        assertTrue("A gradient drawn undithered, use Modifier.veil:\n" + found.joinToString("\n"), found.isEmpty())
+        assertTrue(bare.containsMatchIn("Box(Modifier.background(Brush.verticalGradient(stops)))"))
+    }
+
     /** Whether this exception, "path:fragment", covers [line] of the file at [path]. */
     private fun String.allows(path: String, line: String) = substringBefore(':') == path && line.contains(substringAfter(':'))
 
