@@ -533,7 +533,7 @@ class LibraryDaoTest {
             "overview", "tagline", "year", "endYear", "continuing", "runtimeMin", "certification", "rating", "genres", "directors",
             "posterPath", "backdropPath", "logoPath", "stillPath", "seasonNumber", "episodeNumber", "lastEpisodeNumber",
             "absoluteNumber", "tmdbSeason", "tmdbEpisode", "tmdbLastEpisode", "filePath", "parts", "fileSize", "missingSince",
-            "badges", "mediaInfo", "probeVersion", "fileDurationMs", "nfoPath", "nfo", "sidecarKey", "collectionId", "matchedAt",
+            "badges", "mediaInfo", "probeVersion", "fileDurationMs", "nfoPath", "sidecarKey", "collectionId", "matchedAt",
             "edition", "votes", "matchState", "hintKey",
         )
 

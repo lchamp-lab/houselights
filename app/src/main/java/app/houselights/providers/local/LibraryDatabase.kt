@@ -23,9 +23,9 @@ import java.text.Normalizer
         SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
         SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class, TrackChoiceEntity::class,
         KeptStateEntity::class, SuggestionEntity::class, EpisodeOrderEntity::class, IgnoredFileEntity::class,
-        SagaChoiceEntity::class,
+        SagaChoiceEntity::class, NfoEntity::class,
     ],
-    version = 24,
+    version = 25,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
@@ -376,6 +376,30 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
+         * v24 → v25: each title's NFO text in its own table ([NfoEntity]), none for a title without one or with an empty
+         * one, so that writing a row (a resume point, a watched mark) never rewrites the text. Android 9's SQLite (3.22)
+         * cannot drop a column: `items` is made anew without it, as in Room's exported schema, every other column, id and
+         * id sequence kept, then its indexes.
+         */
+        private val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `item_nfos` (`itemId` INTEGER NOT NULL, `nfo` TEXT NOT NULL, PRIMARY KEY(`itemId`))")
+                db.execSQL("INSERT INTO item_nfos (itemId, nfo) SELECT id, nfo FROM items WHERE nfo IS NOT NULL AND nfo != ''")
+                db.execSQL(ITEMS_25.replace("`items`", "`items_25`"))
+                db.execSQL("INSERT INTO items_25 ($ITEM_COLUMNS_25) SELECT $ITEM_COLUMNS_25 FROM items")
+                // Ids of titles deleted are never given again, as their credits and choices of tracks wait for the sweep.
+                db.execSQL("DELETE FROM sqlite_sequence WHERE name = 'items_25'")
+                db.execSQL("INSERT INTO sqlite_sequence (name, seq) SELECT 'items_25', seq FROM sqlite_sequence WHERE name = 'items'")
+                db.execSQL("DROP TABLE items")
+                db.execSQL("ALTER TABLE items_25 RENAME TO items")
+                for (index in ITEM_INDICES_25) {
+                    val name = index.joinToString("_", prefix = "index_items_")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS `$name` ON `items` (${index.joinToString { "`$it`" }})")
+                }
+            }
+        }
+
+        /**
          * Episodes whose path is not composed (NFC) read whole at the next pass: their sidecars' key is set to one no
          * listing gives ([SidecarKey.of] is never empty), so their show is keyed by their name read composed, in place
          * or joining the show written composed, and its folder's sidecars and ids are read again. Tested in Kotlin, as
@@ -556,7 +580,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
             MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
             MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20,
-            MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24,
+            MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
@@ -585,6 +609,40 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         private const val TAG = "Library"
+
+        /** `items` as Room makes it at v25 (app/schemas). */
+        private const val ITEMS_25 =
+            "CREATE TABLE IF NOT EXISTS `items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `kind` TEXT NOT NULL, " +
+                "`sourceId` INTEGER NOT NULL, `parentId` INTEGER, `seriesId` INTEGER, `matchKey` TEXT, `tmdbId` INTEGER, " +
+                "`title` TEXT NOT NULL, `sortTitle` TEXT NOT NULL, `originalTitle` TEXT, `overview` TEXT, `tagline` TEXT, " +
+                "`year` INTEGER, `endYear` INTEGER, `continuing` INTEGER NOT NULL, `runtimeMin` INTEGER, `certification` TEXT, " +
+                "`rating` REAL, `genres` TEXT NOT NULL, `directors` TEXT NOT NULL, `posterPath` TEXT, `backdropPath` TEXT, " +
+                "`logoPath` TEXT, `stillPath` TEXT, `seasonNumber` INTEGER, `episodeNumber` INTEGER, `lastEpisodeNumber` INTEGER, " +
+                "`absoluteNumber` INTEGER, `tmdbSeason` INTEGER, `tmdbEpisode` INTEGER, `tmdbLastEpisode` INTEGER, `filePath` TEXT, " +
+                "`parts` TEXT NOT NULL, `fileSize` INTEGER, `missingSince` INTEGER, `badges` TEXT NOT NULL, `mediaInfo` TEXT, " +
+                "`probeVersion` INTEGER NOT NULL, `fileDurationMs` INTEGER, `nfoPath` TEXT, `sidecarKey` TEXT, `userTmdbId` INTEGER, " +
+                "`userPosterPath` TEXT, `userBackdropPath` TEXT, `userLogoPath` TEXT, `collectionId` INTEGER, " +
+                "`addedAt` INTEGER NOT NULL, `matchedAt` INTEGER, `positionMs` INTEGER NOT NULL, `durationMs` INTEGER, " +
+                "`played` INTEGER NOT NULL, `favorite` INTEGER NOT NULL, `lastPlayedAt` INTEGER, `edition` TEXT, " +
+                "`versionOf` INTEGER, `versionChoice` INTEGER, `votes` INTEGER, `creditsAt` INTEGER, `matchState` TEXT, " +
+                "`hintKey` TEXT, `userNoMatch` INTEGER NOT NULL, `episodeOrder` TEXT, `userEpisodeOrder` TEXT, `reorderedAt` INTEGER)"
+
+        /** The columns of [ITEMS_25], in its order. */
+        private const val ITEM_COLUMNS_25 =
+            "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, overview, tagline, year, " +
+                "endYear, continuing, runtimeMin, certification, rating, genres, directors, posterPath, backdropPath, logoPath, " +
+                "stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, absoluteNumber, tmdbSeason, tmdbEpisode, " +
+                "tmdbLastEpisode, filePath, parts, fileSize, missingSince, badges, mediaInfo, probeVersion, fileDurationMs, nfoPath, " +
+                "sidecarKey, userTmdbId, userPosterPath, userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, " +
+                "positionMs, durationMs, played, favorite, lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt, " +
+                "matchState, hintKey, userNoMatch, episodeOrder, userEpisodeOrder, reorderedAt"
+
+        /** The indexes of [ITEMS_25], by their columns, named as Room names them (index_items_kind_sortTitle). */
+        private val ITEM_INDICES_25 = listOf(
+            listOf("parentId"), listOf("seriesId"), listOf("sourceId", "filePath"), listOf("matchKey"), listOf("collectionId"),
+            listOf("kind", "sortTitle"), listOf("kind", "addedAt"), listOf("kind", "lastPlayedAt"), listOf("kind", "tmdbId"),
+            listOf("versionOf"), listOf("matchState"), listOf("missingSince"),
+        )
 
         /** Rows decoded at a time by [markTracksInOrder]. */
         private const val MARK_BATCH = 500

@@ -13,14 +13,14 @@ internal const val COPY_IDS = "SELECT id FROM items WHERE $COPIES"
 
 /** A film's copies, as the library and Trakt read them ([LibraryDao] and [TraktDao] extend it). */
 interface CopyDao {
-    /** Copies of the film with main row [titleId], that row first, without NFO text. */
+    /** Copies of the film with main row [titleId], that row first. */
     @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND (id = :titleId OR versionOf = :titleId) ORDER BY id")
     suspend fun copies(titleId: Long): List<ItemEntity>
 
     /**
-     * The copies of the films [titles] ([LibraryDao.titlesInCopies]), their main rows included, without NFO text, read
-     * whole as Lire ranks them ([LocalMapper.playedCopiesOf]). [titles] is bound once, so [SQL_IN_LIMIT] of them stay
-     * under Android 9's 999 arguments.
+     * The copies of the films [titles] ([LibraryDao.titlesInCopies]), their main rows included, read whole as
+     * Lire ranks them ([LocalMapper.playedCopiesOf]). [titles] is bound once, so [SQL_IN_LIMIT] of them stay under
+     * Android 9's 999 arguments.
      */
     @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND COALESCE(versionOf, id) IN (:titles) ORDER BY id")
     suspend fun copiesOf(titles: List<Long>): List<ItemEntity>

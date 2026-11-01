@@ -110,7 +110,7 @@ class ScanReadsTest {
         val amelie = bench.item(films, "Amélie (2001).mkv")
         assertEquals("Amélie", amelie.title)
         assertEquals("Une serveuse à Montmartre.", amelie.overview)
-        assertEquals("kept as text, read again as it is", "Amélie", amelie.nfo?.let(NfoParser::parse)?.title)
+        assertEquals("kept as text, read again as it is", "Amélie", bench.dao.nfoText(amelie.id)?.let(NfoParser::parse)?.title)
     }
 
     @Test
@@ -194,7 +194,7 @@ class ScanReadsTest {
         bench.scan(refreshMetadata = true)
         val dune = bench.item(films, "Dune (2021).mkv")
         assertEquals("Dune (2021).nfo", dune.nfoPath)
-        assertTrue(dune.nfo.orEmpty().contains("Dune: Part One"))
+        assertTrue(bench.dao.nfoText(dune.id).orEmpty().contains("Dune: Part One"))
         assertEquals("Dune: Part One", dune.title)
     }
 }
