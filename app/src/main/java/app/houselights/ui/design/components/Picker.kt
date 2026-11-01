@@ -321,7 +321,7 @@ fun HlResultItem(
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.Top) {
                         Text(
                             title,
-                            style = Hl.type.cardTitle,
+                            style = Hl.type.cardName,
                             color = c.content,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,

@@ -1160,11 +1160,21 @@ private fun Episodes(
                 .fadeOutsideSafeArea(),
         ) {
             if (playError == UiError.HELD) {
-                HlStatus(StatusState.Off, stringResource(playError.title), detail = stringResource(playError.message))
+                HlStatus(StatusState.Off, stringResource(playError.title), detail = stringResource(playError.message), reads = true)
             } else if (playError != null) {
-                HlStatus(StatusState.Attention, stringResource(R.string.play_failed), detail = stringResource(playError.message))
+                HlStatus(
+                    StatusState.Attention,
+                    stringResource(R.string.play_failed),
+                    detail = stringResource(playError.message),
+                    reads = true,
+                )
             } else if (markError != null) {
-                HlStatus(StatusState.Attention, stringResource(R.string.action_not_saved), detail = stringResource(markError.message))
+                HlStatus(
+                    StatusState.Attention,
+                    stringResource(R.string.action_not_saved),
+                    detail = stringResource(markError.message),
+                    reads = true,
+                )
             } else {
                 Text(
                     shown?.overview.orEmpty(),

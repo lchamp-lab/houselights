@@ -517,13 +517,26 @@ private fun ActionsHead(problem: UiError?, actionError: UiError?, nextUpError: U
     }
 }
 
-/** « À suivre », then the film the saga's Lire plays, its name cut at the line's end. */
+/** « À suivre » in secondary `meta`, then the film the saga's Lire plays in white `entry` on its baseline, cut at the line's end. */
 @Composable
 private fun NextLine(title: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.section_next_up), style = Hl.type.group, color = Hl.colors.content, maxLines = 1)
+    Row {
+        Text(
+            stringResource(R.string.section_next_up),
+            style = Hl.type.meta,
+            color = Hl.colors.contentSecondary,
+            maxLines = 1,
+            modifier = Modifier.alignByBaseline(),
+        )
         Spacer(Modifier.width(HlSpace.s))
-        Text(title, style = Hl.type.meta, color = Hl.colors.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            title,
+            style = Hl.type.entry,
+            color = Hl.colors.content,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.alignByBaseline(),
+        )
     }
 }
 

@@ -147,7 +147,7 @@ private fun HeldItem(line: HeldLine) {
             overflow = TextOverflow.Ellipsis,
         )
         line.path?.let {
-            Spacer(Modifier.height(HlSpace.xxs))
+            Spacer(Modifier.height(HlSpace.xs))
             Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }

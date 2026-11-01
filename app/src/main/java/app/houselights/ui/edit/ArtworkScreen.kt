@@ -188,7 +188,7 @@ private fun PosterSheet(sheet: Sheet, preview: ArtworkOption?, body: @Composable
         Row(Modifier.zIndex(1f), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.width(HlLayout.choicePrint)) {
                 TaskTitle(stringResource(ArtworkKind.POSTER.title))
-                Spacer(Modifier.height(HlSpace.xxs))
+                Spacer(Modifier.height(HlSpace.xs))
                 Text(
                     sheet.item?.title.orEmpty(),
                     style = Hl.type.meta,

@@ -532,7 +532,7 @@ private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows, onOpenToIden
             description = stringResource(R.string.scan_now_desc),
             // The counter's notation, as on the scanning folder's showcase.
             value = if (scan.running) scanCount(scan.processed, scan.total) else null,
-            valueStyle = Hl.type.jaquette,
+            valueStyle = Hl.type.spec,
             onClick = { vm.library.scan() },
         )
         HlSettingRow(
@@ -552,7 +552,7 @@ private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows, onOpenToIden
                 rows.focus(TO_IDENTIFY, ACTIONS),
                 value = formatCount(toIdentify?.toLong() ?: 0),
                 description = stringResource(R.string.to_identify_row_desc),
-                valueStyle = Hl.type.jaquette,
+                valueStyle = Hl.type.spec,
                 onClick = onOpenToIdentify,
             )
         }

@@ -91,7 +91,7 @@ fun ResumeCase(
             CasePicture(item, picture)
             Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(HlSpace.m)) {
                 label?.let {
-                    Text(it, style = Hl.type.jaquette, color = c.contentSecondary, maxLines = 1)
+                    Text(it, style = Hl.type.lead, color = c.contentSecondary, maxLines = 1)
                     Spacer(Modifier.height(HlSpace.xs))
                 }
                 TitleArt(
@@ -191,7 +191,7 @@ private fun CaseAction(action: String, lit: Boolean, icon: ImageVector?, menu: B
                 Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HomeGridDefaults.actionIcon))
                 Spacer(Modifier.width(HlSpace.xs))
             }
-            Text(action, style = Hl.type.cardName, color = ink, maxLines = 1)
+            Text(action, style = Hl.type.entry, color = ink, maxLines = 1)
         }
         if (menu && lit) MenuKey(Modifier.align(Alignment.CenterEnd).padding(end = HlSpace.xs), ink = ink)
     }

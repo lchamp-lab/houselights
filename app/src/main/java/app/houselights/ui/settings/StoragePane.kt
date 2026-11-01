@@ -159,7 +159,7 @@ private fun StorageActions(storage: StorageStats?) {
                 ?: if (cleared) stringResource(R.string.image_cache_cleared) else storage?.let { formatBytes(it.imageCacheBytes) },
             valueAttention = cacheFailure != null,
             // What it frees is a figure; what it did, words.
-            valueStyle = if (cacheFailure == null && !cleared) Hl.type.jaquette else Hl.type.meta,
+            valueStyle = if (cacheFailure == null && !cleared) Hl.type.spec else Hl.type.body,
             onClick = {
                 scope.launch { cleared = vm.clearImageCache() }
             },

@@ -36,7 +36,7 @@ fun DeviceCodePlate(
     HlPlate(modifier.fillMaxWidth().focusable(), padding = PaddingValues(DeviceCodeDefaults.inset)) {
         Layout(
             contents = listOf(
-                { Text(instructions, style = Hl.type.meta, color = c.contentSecondary) },
+                { Text(instructions, style = Hl.type.body, color = c.contentSecondary) },
                 {
                     if (code != null) {
                         Text(

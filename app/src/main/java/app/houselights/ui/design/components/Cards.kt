@@ -729,7 +729,7 @@ private fun BoxScope.AbsentFrame(title: String, year: Int?, said: String?) {
         Text(title, style = Hl.type.cardTitle, color = c.contentTertiary, maxLines = 4, overflow = TextOverflow.Ellipsis)
         if (year != null) {
             Spacer(Modifier.height(HlSpace.xxs))
-            Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
+            Text(year.toString(), style = Hl.type.meta, color = c.contentTertiary)
         }
         // Shown on focus only; at rest the grey conveys it.
         if (said != null) {
@@ -762,7 +762,7 @@ internal fun BoxScope.FallbackArtwork(title: String, year: Int?) {
         Text(title, style = Hl.type.cardTitle, color = c.content, maxLines = 4, overflow = TextOverflow.Ellipsis)
         if (year != null) {
             Spacer(Modifier.height(HlSpace.xxs))
-            Text(year.toString(), style = Hl.type.badge, color = c.contentSecondary)
+            Text(year.toString(), style = Hl.type.meta, color = c.contentSecondary)
         }
     }
 }

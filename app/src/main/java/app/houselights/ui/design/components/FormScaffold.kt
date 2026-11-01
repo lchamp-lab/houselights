@@ -200,14 +200,14 @@ fun StatusPanel(
         Spacer(Modifier.height(HlSpace.fact))
         if (name != null) {
             Text(name, style = Hl.type.entry, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(HlSpace.xxs))
+            Spacer(Modifier.height(HlSpace.xs))
         } else {
             Text(label, style = Hl.type.meta, color = c.contentSecondary)
             Spacer(Modifier.height(HlSpace.xs))
         }
         Text(value, style = valueStyle, color = c.content, maxLines = 3, overflow = TextOverflow.Ellipsis)
         if (detail != null) {
-            Spacer(Modifier.height(HlSpace.xxs))
+            Spacer(Modifier.height(HlSpace.xs))
             Text(detail, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         if (badges.isNotEmpty() || facts.any { !it.isNullOrBlank() }) {
@@ -229,8 +229,8 @@ fun StatusPanel(
     }
 }
 
-/** The name of a group of choices above them (a form's track), in `group`. */
+/** The name of a group of choices above them (a form's track), in white `group`. */
 @Composable
 fun FieldLabel(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Hl.type.group, color = Hl.colors.contentSecondary, modifier = modifier.padding(bottom = HlSpace.xxs))
+    Text(text, style = Hl.type.group, color = Hl.colors.content, modifier = modifier.padding(bottom = HlSpace.xxs))
 }

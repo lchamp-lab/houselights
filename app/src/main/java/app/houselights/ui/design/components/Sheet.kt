@@ -346,7 +346,7 @@ private fun ColumnScope.SheetHeader(
     }
     if (head.description != null) {
         Spacer(Modifier.height(HlSpace.l))
-        Text(head.description, style = Hl.type.meta, color = c.contentSecondary)
+        Text(head.description, style = Hl.type.body, color = c.contentSecondary)
     }
 }
 

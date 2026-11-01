@@ -382,7 +382,7 @@ private fun NfsIdentity(
                 Modifier.focusRequester(focus.identity),
                 description = stringResource(R.string.nfs_identity_desc),
                 value = identity ?: stringResource(R.string.nfs_identity_root),
-                valueStyle = if (identity != null) Hl.type.jaquette else Hl.type.meta,
+                valueStyle = if (identity != null) Hl.type.spec else Hl.type.body,
                 onClick = onToggle,
                 // At the largest text size, or with long numbers, the user over the group.
                 valueBreaks = true,

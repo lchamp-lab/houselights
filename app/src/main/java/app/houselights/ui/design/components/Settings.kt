@@ -107,7 +107,7 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
 
 /**
  * One setting, at least [HlSize.row] tall: its name in `entry` and its [description] in secondary `meta` on one line, its
- * value on the right, in `meta` or, for a format or a figure, `jaquette` ([valueStyle]); with [onClick] a control,
+ * value on the right, in secondary `body` at its name's size or, for a format or a figure, `spec` ([valueStyle]); with [onClick] a control,
  * white with focus, else a value it only states. [valueLit] (a user choice) and [valueAttention] set the value in
  * ember; [trailing] replaces the value. Disabled, it sits in a well, in a pane's plate only: sheets omit
  * unavailable actions. With [valueBreaks], a value of parts (" · ") takes a line each where on one line it would cut
@@ -125,7 +125,7 @@ fun HlSettingRow(
     icon: ImageVector? = null,
     valueLit: Boolean = false,
     valueAttention: Boolean = false,
-    valueStyle: TextStyle = Hl.type.meta,
+    valueStyle: TextStyle = Hl.type.body,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
@@ -391,15 +391,15 @@ private val ConnectionSecurity.words: Int
     }
 
 /**
- * A group's [title] in `group`, set from its baseline: [HlSpace.m] under what is above it (a block [HlSpace.l] away),
- * its plate [HlSpace.s] under it.
+ * A group's [title] in white `group`, set from its baseline: [HlSpace.s] under the top of its box, its plate [HlSpace.s]
+ * under it; the list sets it [HlSpace.l] under what is above it.
  */
 @Composable
 internal fun GroupTitle(title: String) {
     Text(
         title,
         style = Hl.type.group,
-        color = Hl.colors.contentSecondary,
+        color = Hl.colors.content,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.paddingFromBaseline(top = HlSpace.s, bottom = HlSpace.s),

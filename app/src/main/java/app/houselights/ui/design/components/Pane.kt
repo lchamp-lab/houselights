@@ -242,7 +242,7 @@ fun PlateDefinition(label: String, modifier: Modifier = Modifier, note: String? 
                 note,
                 style = Hl.type.meta,
                 color = c.contentSecondary,
-                modifier = Modifier.padding(start = PaneDefaults.plateLabel, top = HlSpace.xxs),
+                modifier = Modifier.padding(start = PaneDefaults.plateLabel, top = HlSpace.xs),
             )
         }
     }

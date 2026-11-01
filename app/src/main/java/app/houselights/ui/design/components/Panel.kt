@@ -385,11 +385,19 @@ fun HlEmptyState(
 enum class StatusState { On, Done, Off, Pending, Attention }
 
 /**
- * A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words. Each
- * holds on [maxLines] at most, ending in an ellipsis.
+ * A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words, closer on
+ * one line than on several. Each holds on [maxLines] at most, ending in an ellipsis. Said in the place of text to read
+ * ([reads]: an episode's overview), its state is an `entry` and its reason `body`, as the text it replaces; else `meta`.
  */
 @Composable
-fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null, maxLines: Int = Int.MAX_VALUE) {
+fun HlStatus(
+    state: StatusState,
+    text: String,
+    modifier: Modifier = Modifier,
+    detail: String? = null,
+    maxLines: Int = Int.MAX_VALUE,
+    reads: Boolean = false,
+) {
     val c = Hl.colors
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -398,17 +406,17 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
             val strong = state != StatusState.Off && state != StatusState.Pending
             Text(
                 text,
-                style = Hl.type.meta,
+                style = if (reads) Hl.type.entry else Hl.type.meta,
                 color = if (strong) c.content else c.contentSecondary,
                 maxLines = maxLines,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         if (detail != null) {
-            Spacer(Modifier.height(HlSpace.xxs))
+            Spacer(Modifier.height(if (maxLines == 1) HlSpace.xxs else HlSpace.xs))
             Text(
                 detail,
-                style = Hl.type.meta,
+                style = if (reads) Hl.type.body else Hl.type.meta,
                 color = c.contentSecondary,
                 maxLines = maxLines,
                 overflow = TextOverflow.Ellipsis,

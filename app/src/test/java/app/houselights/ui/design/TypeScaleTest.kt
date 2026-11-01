@@ -79,12 +79,11 @@ class TypeScaleTest {
         }
         val lines = scaled.values.map { it.lineHeight.value }.toSet()
         assertTrue("Line heights ${lines.sorted()}", lines.size <= LINE_HEIGHTS)
-        // A paragraph's size and a tagline's also set a name, on a name's line: two lines there, one a size elsewhere.
+        // A paragraph's size also sets a name, on a name's line: two lines there, one a size elsewhere.
         with(HouselightsType) {
             val bySize = scaled.values.groupBy({ it.fontSize }, { it.lineHeight }).mapValues { it.value.toSet() }
-            assertEquals(setOf(body.fontSize, lead.fontSize), bySize.filterValues { it.size > 1 }.keys)
+            assertEquals(setOf(body.fontSize), bySize.filterValues { it.size > 1 }.keys)
             assertEquals(setOf(entry.lineHeight, body.lineHeight), bySize.getValue(body.fontSize))
-            assertEquals(setOf(cardName.lineHeight, lead.lineHeight), bySize.getValue(lead.fontSize))
             assertEquals(entry.lineHeight, cardName.lineHeight)
         }
     }
@@ -148,8 +147,10 @@ class TypeScaleTest {
             listOf(meta, group, jaquette).forEach { assertTrue(it.fontSize < body.fontSize) }
             assertNotSame(entry, group)
             assertEquals("a group's title names, as the names it heads do", entry.fontWeight, group.fontWeight)
-            // A tagline, an episode's name, the keyboard's letters: a step over the names.
-            assertTrue(lead.fontSize > entry.fontSize)
+            // A tagline, an episode's name, the keyboard's letters: a name's size and weight on a paragraph's line.
+            assertEquals(entry.fontSize, lead.fontSize)
+            assertEquals(entry.fontWeight, lead.fontWeight)
+            assertEquals(body.lineHeight, lead.lineHeight)
         }
     }
 
@@ -169,12 +170,14 @@ class TypeScaleTest {
     @Test
     fun theVoicesKeepTheirWidths() {
         // The poster's voice names places, rows and cards; the technical one, formats and printed marks.
-        listOf("place", "placeCurrent", "rowTitle", "cardName").forEach {
+        listOf("placeCurrent", "rowTitle", "cardName").forEach {
             assertEquals(it, HlFonts.condensed, roles.getValue(it).fontFamily)
         }
         listOf("jaquette", "badge").forEach { assertEquals(it, HlFonts.expanded, roles.getValue(it).fontFamily) }
         assertEquals(FontWeight.SemiBold, HouselightsType.placeCurrent.fontWeight)
-        assertEquals(HouselightsType.place.fontSize, HouselightsType.placeCurrent.fontSize)
+        // A track's words are row titles, the current one heavier at their size and on their line.
+        assertEquals(HouselightsType.rowTitle.fontSize, HouselightsType.placeCurrent.fontSize)
+        assertEquals(HouselightsType.rowTitle.lineHeight, HouselightsType.placeCurrent.lineHeight)
     }
 
     @Test

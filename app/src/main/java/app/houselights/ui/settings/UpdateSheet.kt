@@ -385,7 +385,7 @@ private fun WhatsNew(offer: UpdateOffer, scroll: ScrollState) {
     if (notes.isEmpty()) return
     val c = Hl.colors
     ReadingPlate(Modifier.fillMaxWidth().focusProperties { canFocus = scroll.maxValue > 0 }.readsThrough(scroll)) {
-        Text(stringResource(R.string.update_notes), style = Hl.type.group, color = c.contentSecondary)
+        Text(stringResource(R.string.update_notes), style = Hl.type.group, color = c.content)
         Spacer(Modifier.height(HlSpace.m))
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             notes.forEach { Text(it, style = Hl.type.body, color = c.contentSecondary) }
@@ -401,12 +401,12 @@ private fun WhatsNew(offer: UpdateOffer, scroll: ScrollState) {
 private fun ByHand(adb: Boolean, scroll: ScrollState) {
     val c = Hl.colors
     ReadingPlate(Modifier.fillMaxWidth().focusProperties { canFocus = scroll.maxValue > 0 }.readsThrough(scroll)) {
-        Text(stringResource(R.string.update_by_hand), style = Hl.type.meta, color = c.contentSecondary)
+        Text(stringResource(R.string.update_by_hand), style = Hl.type.body, color = c.contentSecondary)
         Spacer(Modifier.height(HlSpace.xs))
         Text(RELEASES, style = Hl.type.jaquette, color = c.content)
         if (adb) {
             Spacer(Modifier.height(HlSpace.l))
-            Text(stringResource(R.string.update_by_adb), style = Hl.type.meta, color = c.contentSecondary)
+            Text(stringResource(R.string.update_by_adb), style = Hl.type.body, color = c.contentSecondary)
             Spacer(Modifier.height(HlSpace.xs))
             Text(stringResource(R.string.update_adb_line), style = Hl.type.code, color = c.content)
         }

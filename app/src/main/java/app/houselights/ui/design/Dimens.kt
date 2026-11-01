@@ -462,12 +462,12 @@ internal object HlIconButtonDefaults {
     val labelWidth = 280.dp
 
     /**
-     * Room below a row of tiles for the focused label (gap, plate, one `meta` line): 36 at the default text size.
+     * Room below a row of tiles for the focused label (gap, plate, one `entry` line): 36 at the default text size.
      * The label takes none of its own; [HlActionRow] keeps it.
      */
     val labelRoom: Dp
         @Composable @ReadOnlyComposable
-        get() = HlSpace.xs + HlControl.labelPaddingV * 2 + textRoom(Hl.type.meta)
+        get() = HlSpace.xs + HlControl.labelPaddingV * 2 + textRoom(Hl.type.entry)
 
     /** What [labelRoom] adds for a label's second line, a tile's hint: 20 at the default text size. */
     val hintRoom: Dp

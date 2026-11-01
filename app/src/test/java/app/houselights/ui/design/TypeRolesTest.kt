@@ -47,11 +47,11 @@ class TypeRolesTest {
     private val t = HouselightsType
 
     @Test
-    fun aSettingIsNamedInEntryAndSaysWhatItDoesInMeta() {
+    fun aSettingIsNamedInEntryAndSaysWhatItDoesInMetaItsValueInBody() {
         compose.setTvContent { HlSettingRow("Dossiers", value = "3 dossiers", description = "Où sont vos films") }
         compose.assertSetIn(t.entry, "Dossiers")
         compose.assertSetIn(t.meta, "Où sont vos films")
-        compose.assertSetIn(t.meta, "3 dossiers")
+        compose.assertSetIn(t.body, "3 dossiers")
     }
 
     @Test

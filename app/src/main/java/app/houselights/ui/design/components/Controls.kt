@@ -250,10 +250,13 @@ private fun BoxScope.ButtonRow(words: ButtonWords, reserved: Dp, primary: Boolea
                 Icon(it, contentDescription = null, modifier = Modifier.size(HlSize.icon))
                 Spacer(Modifier.width(HlControl.iconGap))
             }
-            ButtonLabel(words.text)
-            words.detail?.let {
-                Spacer(Modifier.width(HlControl.iconGap))
-                ButtonDetail(it, primary, lit, enabled)
+            // Words of two sizes on one baseline, centred as one; the icon centred beside them.
+            Row {
+                Box(Modifier.alignByBaseline()) { ButtonLabel(words.text) }
+                words.detail?.let {
+                    Spacer(Modifier.width(HlControl.iconGap))
+                    Box(Modifier.alignByBaseline()) { ButtonDetail(it, primary, lit, enabled) }
+                }
             }
         }
     }
@@ -520,7 +523,7 @@ fun HlIconButton(
                     .labelPlate(c, light)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             ) {
-                Text(label, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(label, style = Hl.type.entry, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (onLongClick != null) {
                     // On a hint's line, as tall as it, at its end.
                     MenuKey(Modifier.align(Alignment.End).height(HlIconButtonDefaults.hintRoom).wrapContentHeight(unbounded = true))
@@ -809,7 +812,7 @@ private fun Word(text: String, current: Boolean, lit: Boolean) {
     val t = Hl.type
     val here = remember(c, t.placeCurrent) { t.placeCurrent.emberLit(c) }
     val style = when {
-        !current -> t.place
+        !current -> t.rowTitle
         lit -> t.placeCurrent
         else -> here
     }

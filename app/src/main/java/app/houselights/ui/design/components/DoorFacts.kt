@@ -44,8 +44,8 @@ data class StateFact(
 )
 
 /**
- * The app's state as a case's back (DESIGN.md, Gestures), in a door: each label in the technical voice over its
- * value, two short ones side by side while they fit, a [StateFact.wide] one on its own line; centred down the door's
+ * The app's state as a case's back (DESIGN.md, Gestures), in a door: each label in secondary `meta` over its value in
+ * `entry`, as on a plate; two short ones side by side while they fit, a [StateFact.wide] one on its own line; centred down the door's
  * picture. What the picture has no room for (a long name, the largest text) goes by rank ([keptFacts]).
  */
 @Composable
@@ -143,7 +143,7 @@ internal fun factLines(wide: List<Boolean>, widths: List<Int>, gap: Int, room: I
 private fun Fact(fact: StateFact, modifier: Modifier = Modifier) {
     val c = Hl.colors
     Column(modifier) {
-        Text(fact.label, style = Hl.type.jaquette, color = c.contentTertiary, maxLines = 1)
+        Text(fact.label, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
         Spacer(Modifier.height(HlSpace.xxs))
         Row(verticalAlignment = Alignment.CenterVertically) {
             when {
@@ -152,11 +152,11 @@ private fun Fact(fact: StateFact, modifier: Modifier = Modifier) {
             }
             if (fact.attention || fact.done) Spacer(Modifier.width(HlSpace.xs))
             val ink = if (fact.attention) c.ember else c.content
-            Text(fact.value, style = Hl.type.meta, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(fact.value, style = Hl.type.entry, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             fact.detail?.let {
-                Text(DETAIL_JOIN, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
+                Text(DETAIL_JOIN, style = Hl.type.entry, color = c.contentSecondary, maxLines = 1)
                 val detailInk = if (fact.quietDetail) c.contentSecondary else ink
-                Text(it, style = Hl.type.meta, color = detailInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(it, style = Hl.type.entry, color = detailInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
