@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -38,6 +40,7 @@ import app.houselights.core.ImageRef
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -61,6 +64,7 @@ import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.PosterThumb
+import app.houselights.ui.design.components.PosterWallGrid
 import app.houselights.ui.design.components.ProgressLine
 import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.edit.ArtworkSheet
@@ -71,6 +75,11 @@ import app.houselights.ui.util.formatDuration
 /** Cards, artwork and the parts of the pickers, each in every state it has. */
 internal fun LazyListScope.catalogCards() {
     item { Group("Media row: its title, its new titles; one frame travels from card to card, the others step back") { PosterRow() } }
+    item {
+        Group("Poster wall: two lines of seven, one frame travelling from card to card across its lines, the others stepping back") {
+            Wall()
+        }
+    }
     item { Group("Ambient backdrop: a screen on its picture, whose light the focused card glows with") { AmbientBackdrops() } }
     item { Group("Artwork surface and image") { Surfaces() } }
     item { Group("Landscape card: its name, then its facts beside it when both fit, else under it") { LandscapeRow() } }
@@ -148,6 +157,36 @@ private fun PosterRow() {
     )
     MediaRow("Ajoutés récemment", news = 1) {
         items(cards) { (state, media) -> Specimen(state, width = HlSize.poster) { PosterCard(media, {}) } }
+    }
+}
+
+/** A library's wall across the screen's whole width, the catalogue's margins included, two lines tall. */
+@Composable
+private fun Wall() {
+    val art = shippedImage(R.drawable.banner)
+    val now = System.currentTimeMillis()
+    val cards = listOf(
+        sample("Le Samouraï", 1967).copy(poster = art),
+        sample("Playtime", 1967, played = true).copy(poster = art),
+        sample("La Nuit américaine", 1973, positionMs = 1_440_000).copy(poster = art),
+        sample("Drive My Car", 2021, addedAt = now),
+        sample("Pierrot le Fou", 1965),
+        sample("Les Aventures extraordinaires d’Adèle Blanc-Sec et le secret de la momie", 2010),
+        sample("Paterson", 2016).copy(poster = art),
+        sample("Aftersun", 2022),
+        sample("Tár", 2022).copy(poster = art),
+        sample("Heat", 1995),
+        sample("Ran", 1985).copy(poster = art),
+        sample("Sicario", 2015),
+        sample("Arrival", 2016),
+        sample("Alien", 1979).copy(poster = art),
+    )
+    // Two lines, their gap, the wall's room above them and its edge below.
+    val tall = HlFocus.wallRoom + HlSize.wallPoster / HlSize.POSTER_RATIO * 2 + HlSpace.l + HlFocus.edge
+    Box(Modifier.requiredWidth(HlLayout.CANVAS_WIDTH.dp).height(tall)) {
+        PosterWallGrid(rememberLazyGridState()) {
+            items(cards) { media -> PosterCard(media, {}, width = null) }
+        }
     }
 }
 

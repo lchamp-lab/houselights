@@ -799,7 +799,8 @@ card left is gone from the composition. It is lit while the card reached has foc
 fall back when focus leaves it or a sheet opens; it lights again as the sheet goes. While an arrow is held, it
 jumps. It is drawn above the cards' glow and a raised card, and cut where the group cuts its cards. It is read
 while drawing; nothing recomposes (`RowFrameTest`, `GridFrameTest`, `CardRaiseTest`). **A row holds framed cards
-only**: a control there would show focus twice (`FocusStyleGuardTest`).
+only** (`FocusStyleGuardTest`); a wall's foot may hold a control (« Réessayer »), the frame going out as its card
+loses focus.
 
 **Above its neighbours.** The focused picture draws on top, so its glow lies over its neighbours, the one it left
 above the rest until its light is out, read while placing; a card whose picture is not its root raises its whole
@@ -1413,7 +1414,7 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogControls` | buttons in their states, a place's title and a task's, tiles, controls on a picture's plates, and the seasons |
 | `CatalogSecondary` | the settings' room of posters with its places, a group, a plate of facts and states; a pane's heads, the lockup, printed pairs, definitions, a meter that states, a code to type; showcases in their row; a gallery whose images step back; a plate in a film's light and the sheets that hold them, a reading plate, one wide to read, an NFO's |
 | `CatalogForms` | settings in their group and in a sheet, servers found by their connection, text fields, status panels, panel buttons, dividers, menus, choice sheets and settings, scroll areas |
-| `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, their posters in grey or without one, people; progress lines, skeletons, a contact sheet of each form (a poster's beside its print, a backdrop's band behind it, a logo's) and a saga's TMDB does not know, its films' alone, its choices and prints in their states, results (with a note, with options), thumbnails |
+| `CatalogCards` | a media row whose frame travels, with its new titles; a wall of two lines whose frame travels across them; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, their posters in grey or without one, people; progress lines, skeletons, a contact sheet of each form (a poster's beside its print, a backdrop's band behind it, a logo's) and a saga's TMDB does not know, its films' alone, its choices and prints in their states, results (with a note, with options), thumbnails |
 | `CatalogVolets` | a saga's polyptych on three, five and eight films, closed panels 96 wide, numbers in `display` at every length: the saga's panel open on arrival (541 for three films, 428 from five, which scroll), its actions under its words, closed panels with their marks and years, a film watched, in progress, held, missing in grey with its ring, announced in grey with the quiet dot, a picture failed, the spine pinned once a film opens with its band, the panel past the edge without its number and year; focus opens a panel as the one left closes, a held arrow jumps |
 | `CatalogDoors` | home's head, its case resuming and proposing, then after a failed play by each remedy, and each door at its size: a still and its season, a band of posters, counts cut in posters and in ink at one size, sagas, a wall out, the app's state |
 | `CatalogReading` | title art, episode headings, meta and title lines, formats, a row's billing, the billing block, hero info, the technical sheet, search and its keys, the synopsis, versions |
