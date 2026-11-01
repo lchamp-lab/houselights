@@ -40,6 +40,7 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.NasDiscovery
 import app.houselights.providers.local.RemoteBrowsers
+import app.houselights.providers.local.RulesMark
 import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TrackChoiceEntity
 import app.houselights.providers.local.Volumes
@@ -317,6 +318,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         closeIdle = remoteBrowsers::closeIdle,
         started = onScreen,
         dreaming = screensaverShows(app) { ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) },
+        rules = RulesMark.Saved(app),
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 

@@ -446,6 +446,62 @@ class ScanTmdbTest {
         assertEquals(WW84, bench.item(films, "Wonder Woman 1984.mkv").tmdbId)
     }
 
+    /**
+     * Star Wars' nine episodes named without a year, which TMDB answers by one film each: all matched, IV to VI by their
+     * alternative titles, the others by their own; Rogue One and Solo too, no alternative titles asked for them.
+     */
+    @Test
+    fun aSagasEpisodesNamedWithoutAYearAreMatched() = runTest {
+        val films = bench.folder("Films")
+        val saga = mapOf(
+            "Star Wars Episode I The Phantom Menace" to tmdb.movie(1893, "Star Wars, épisode I : La Menace fantôme", 1999),
+            "Star Wars Episode II Attack of the Clones" to tmdb.movie(1894, "Star Wars, épisode II : L'Attaque des clones", 2002),
+            "Star Wars Episode III Revenge of the Sith" to tmdb.movie(1895, "Star Wars, épisode III : La Revanche des Sith", 2005),
+            "Star Wars Episode IV A New Hope" to tmdb.movie(11, "La Guerre des étoiles", 1977),
+            "Star Wars Episode V The Empire Strikes Back" to tmdb.movie(1891, "L'Empire contre-attaque", 1980),
+            "Star Wars Episode VI Return of the Jedi" to tmdb.movie(1892, "Le Retour du Jedi", 1983),
+            "Star Wars Episode VII The Force Awakens" to tmdb.movie(140607, "Star Wars : Le Réveil de la Force", 2015),
+            "Star Wars Episode VIII The Last Jedi" to tmdb.movie(181808, "Star Wars : Les Derniers Jedi", 2017),
+            "Star Wars Episode IX The Rise of Skywalker" to tmdb.movie(181812, "Star Wars : L'Ascension de Skywalker", 2019),
+            "Rogue One A Star Wars Story" to tmdb.movie(330459, "Rogue One : A Star Wars Story", 2016),
+            "Solo A Star Wars Story" to tmdb.movie(348350, "Solo : A Star Wars Story", 2018),
+        )
+        val english = mapOf(
+            1893 to "Star Wars: Episode I - The Phantom Menace",
+            1894 to "Star Wars: Episode II - Attack of the Clones",
+            1895 to "Star Wars: Episode III - Revenge of the Sith",
+            11 to "Star Wars",
+            1891 to "The Empire Strikes Back",
+            1892 to "Return of the Jedi",
+            140607 to "Star Wars: The Force Awakens",
+            181808 to "Star Wars: The Last Jedi",
+            181812 to "Star Wars: The Rise of Skywalker",
+            330459 to "Rogue One: A Star Wars Story",
+            348350 to "Solo: A Star Wars Story",
+        )
+        for ((name, film) in saga) {
+            // TMDB's French titles take a no-break space before their colon; its originals are the English titles.
+            val original = english.getValue(film.id)
+            tmdb.editMovie(film.id) { it.copy(title = it.title?.replace(" :", "\u00a0:"), originalTitle = original, voteCount = 10_000) }
+            tmdb.englishTitles[film.id] = original
+            tmdb.searches[name.lowercase()] = listOf(film.id)
+            nas.put("$name.mkv")
+        }
+        tmdb.movieAlternatives[11] = listOf("Star Wars: Episode IV - A New Hope", "Star Wars Episode IV – A New Hope")
+        tmdb.movieAlternatives[1891] = listOf("Star Wars: Episode V - The Empire Strikes Back")
+        tmdb.movieAlternatives[1892] = listOf("Star Wars: Episode VI - Return of the Jedi")
+        tmdb.movieAlternatives[181808] = listOf("Star Wars - Episode VIII - Les Derniers Jedi")
+        bench.scan()
+
+        for ((name, film) in saga) {
+            val item = bench.item(films, "$name.mkv")
+            assertEquals(name, film.id to MatchState.MATCHED, item.tmdbId to item.matchState)
+        }
+        assertEquals(emptyList<ItemEntity>(), bench.dao.toIdentify())
+        val asked = tmdb.requests.filter { it.endsWith("/alternative_titles") }.sorted()
+        assertEquals(listOf("movie/11/alternative_titles", "movie/1891/alternative_titles", "movie/1892/alternative_titles"), asked)
+    }
+
     private companion object {
         const val DUNE = 438631
         const val LYNCH = 841

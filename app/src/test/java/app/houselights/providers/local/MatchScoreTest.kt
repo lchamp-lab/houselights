@@ -181,6 +181,81 @@ class MatchScoreTest {
         assertEquals(11, matched(wanted, starWars.copy(titles = starWars.titles + "Star Wars: Episode IV - A New Hope")))
     }
 
+    /** "Star Wars Episode VIII The Last Jedi.mkv": the saga's episode is no other number for TMDB's "Star Wars: The Last Jedi". */
+    @Test
+    fun aSagasEpisodeIsNoOtherNumberForATitleWithoutOne() {
+        val lastJedi = "Star Wars Episode VIII The Last Jedi"
+        assertEquals(0.99, sim(lastJedi, "Star Wars: The Last Jedi"), 1e-9)
+        assertEquals("both ways", 0.99, sim("Star Wars The Last Jedi", "Star Wars: Episode VIII - The Last Jedi"), 1e-9)
+        assertEquals("folded", 0.99, sim("Star Wars Épisode VIII Les Derniers Jedi", "Star Wars\u00a0: Les Derniers Jedi"), 1e-9)
+        assertEquals(0.99, sim("Star Wars Episodio VIII Los últimos Jedi", "Star Wars: Los últimos Jedi"), 1e-9)
+        assertEquals("its key the same", "star wars 8 the last jedi", MatchScore.key(lastJedi))
+        val film = film(181808, "Star Wars\u00a0: Les Derniers Jedi", 2017, 15_000, original = "Star Wars: The Last Jedi")
+        assertEquals(181808, matched(Wanted.of(lastJedi, null), film))
+    }
+
+    /** A saga's episode is still a number against a title that has one, and only a saga's episode followed by its own title. */
+    @Test
+    fun aSagasEpisodeIsANumberAgainstATitleWithOne() {
+        val otherNumbers = 0.55
+        assertTrue(sim("Star Wars Episode IV", "Star Wars: Episode V - The Empire Strikes Back") <= otherNumbers)
+        assertTrue(sim("Star Wars Episode VIII The Last Jedi", "Star Wars: Episode VII - The Force Awakens") <= otherNumbers)
+        assertTrue("an episode with no title of its own", sim("Mon film Episode 2", "Mon film") <= otherNumbers)
+        assertTrue("never a show's episode", sim("Tatort Folge 2 Der Tod", "Tatort: Der Tod") <= otherNumbers)
+        assertTrue("nor a part", sim("Dune Part Two The Return", "Dune: The Return") <= otherNumbers)
+        assertTrue(sim("Saw IV", "Saw V") <= otherNumbers)
+        assertTrue(sim("Rocky II", "Rocky") <= otherNumbers)
+        assertTrue(sim("Alien 3", "Alien") <= otherNumbers)
+        assertTrue(sim("Part 1", "Part 2") <= otherNumbers)
+        val hallows = "Harry Potter and the Deathly Hallows: Part 2"
+        assertTrue(sim("Harry Potter and the Deathly Hallows Part 1", hallows) <= otherNumbers)
+        val newHope = Wanted.of("Star Wars Episode IV A New Hope", null)
+        val empire = film(1891, "L'Empire contre-attaque", 1980, 17_000, original = "Star Wars: Episode V - The Empire Strikes Back")
+        assertEquals(null, matched(newHope, empire))
+    }
+
+    /** A saga's episode comes after the saga's name: "Episode 3 The Wedding", a show's, is no saga's "The Wedding". */
+    @Test
+    fun aSagasEpisodeComesAfterTheSagasName() {
+        val otherNumbers = 0.55
+        assertTrue(sim("Episode 3 The Wedding", "The Wedding") <= otherNumbers)
+        assertTrue(sim("Episode 1 Pilot", "Pilot") <= otherNumbers)
+        assertTrue("an article alone is no saga's name", sim("The Episode 3 Wedding", "The Wedding") <= otherNumbers)
+        assertTrue(sim("L'Episode 3 Mariage", "Le Mariage") <= otherNumbers)
+        assertEquals("the part after its dash, as any name's", 0.9, sim("Episode 1 - Pilot", "Pilot"), 0.0)
+        assertEquals(null, matched(Wanted.of("Episode 3 The Wedding", null), film(1, "The Wedding", 1998, 120)))
+        assertEquals(null, matched(Wanted.of("Episode 1 - Pilot", null), film(2, "Pilot", 2012, 4)))
+    }
+
+    /**
+     * A saga's episode is never near alike another of the saga: a sequel's id in its name would be trusted by its title
+     * (0.6), and the other films would be rivals.
+     */
+    @Test
+    fun aSagasEpisodeIsNeverNearAlikeAnotherOfTheSaga() {
+        val otherNumbers = 0.55
+        val forceAwakens = "Star Wars Episode VII The Force Awakens"
+        assertTrue(sim(forceAwakens, "Star Wars: The Last Jedi") <= otherNumbers)
+        assertTrue("both ways", sim("Star Wars: The Last Jedi", forceAwakens) <= otherNumbers)
+        val alike = MatchScore.alike(listOf(forceAwakens), listOf("Star Wars: The Last Jedi"))
+        assertEquals("not alike enough for a sequel's id to be trusted by its title", false, alike)
+        assertTrue(sim("Episode III Revenge of the Sith", "LEGO Star Wars: Revenge of the Brick") <= otherNumbers)
+        assertTrue(sim("Star Wars Episode III Revenge of the Sith", "LEGO Star Wars: Revenge of the Brick") <= otherNumbers)
+    }
+
+    /** A saga's episode is one of the saga's films by its own title, never the saga's name alone with another word. */
+    @Test
+    fun aSagasEpisodeIsNotTheSagasFirstFilmByItsName() {
+        val otherNumbers = 0.55
+        val extended = "The Lord of the Rings Episode II Extended"
+        assertTrue(sim(extended, "The Lord of the Rings") <= otherNumbers)
+        assertTrue(sim("Pirates of the Caribbean Episode 5 Remastered", "Pirates of the Caribbean") <= otherNumbers)
+        val rings = sim("The Lord of the Rings Episode I Rings", "The Lord of the Rings")
+        assertTrue("an own title of the saga's words", rings <= otherNumbers)
+        assertEquals(null, matched(Wanted.of(extended, null), film(123, "The Lord of the Rings", 1978, 1_000)))
+        assertEquals("by its own title still", 0.99, sim("Star Wars Episode VIII The Last Jedi", "Star Wars: The Last Jedi"), 1e-9)
+    }
+
     /** Folders rarely give a show's year: a show far more voted than its namesake is ahead, two as known are not. */
     @Test
     fun aShowWithoutAYearIsTheOneFarMoreKnown() {
