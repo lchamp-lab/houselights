@@ -100,6 +100,7 @@ class RowFrameTest {
                     MediaRow(header = null) {
                         if (control && row == rows.first()) {
                             item {
+                                @SuppressLint("RememberInComposition") // The test's own map keeps it across compositions.
                                 val requester = requesters.getOrPut(CONTROL) { FocusRequester() }
                                 HlButton("Réessayer", {}, Modifier.focusRequester(requester).testTag(CONTROL))
                             }
