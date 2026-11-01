@@ -49,6 +49,7 @@ import app.houselights.ui.design.groundStepFill
 /** Every glyph of the app; the marks that say done and your choice; what ember never says. */
 internal fun LazyListScope.catalogIcons() {
     item { Group("Icons: Lucide, stroke 2 on a 24 grid, at 24 and 20; Play filled as on a remote", still = true) { IconSheet() } }
+    item { Group("Icon sizes: five, and an icon takes its word's ink", still = true) { IconScale() } }
     item { Group("Done and your choice: one check, two inks; in words, a light") { Marks() } }
     item { Group("Ember, states only: a score is a fact; attention sits beside what it concerns", still = true) { Facts() } }
     item { Group("The Menu key: what has focus has options, Menu opens them", still = true) { MenuKeys() } }
@@ -61,7 +62,8 @@ private fun IconSheet() {
         HlIcons.Folder, HlIcons.Server, HlIcons.SignOut, HlIcons.Display, HlIcons.Playback, HlIcons.Play, HlIcons.Versions,
         HlIcons.Captions, HlIcons.Sound, HlIcons.Sort, HlIcons.Filter, HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers,
         HlIcons.Edit, HlIcons.Search, HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Erase,
-        HlIcons.Clear, HlIcons.Settings, HlIcons.Next, HlIcons.Sparkles, HlIcons.Film, HlIcons.Tv, HlIcons.Layers, HlIcons.Library,
+        HlIcons.Clear, HlIcons.Settings, HlIcons.Next, HlIcons.Continue, HlIcons.Latest, HlIcons.Film, HlIcons.Tv, HlIcons.Layers,
+        HlIcons.Library,
         HlIcons.Add, HlIcons.Remove, HlIcons.Refresh, HlIcons.Test, HlIcons.Lock, HlIcons.LockOpen, HlIcons.Heart, HlIcons.HeartFilled,
         HlIcons.Star, HlIcons.Attention, HlIcons.History, HlIcons.Menu,
     )
@@ -94,6 +96,26 @@ private fun Sizes(icon: ImageVector, ink: Color, modifier: Modifier = Modifier) 
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.largeIcon))
         Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.icon))
+    }
+}
+
+/** The scale's five sizes, each where it is drawn, on the room. */
+@Composable
+private fun IconScale() {
+    val c = Hl.colors
+    val sizes = listOf(
+        "markIcon 14, on a mark" to HlSize.markIcon,
+        "inlineIcon 16, in a line" to HlSize.inlineIcon,
+        "icon 20, beside words" to HlSize.icon,
+        "tileIcon 22, on a tile" to HlSize.tileIcon,
+        "largeIcon 24, alone" to HlSize.largeIcon,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Bottom) {
+        sizes.forEach { (name, size) ->
+            Specimen(name, gap = HlSpace.xs) {
+                Icon(HlIcons.Film, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(size))
+            }
+        }
     }
 }
 

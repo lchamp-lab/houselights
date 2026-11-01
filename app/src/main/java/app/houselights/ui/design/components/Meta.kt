@@ -46,6 +46,7 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.plate
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
@@ -97,7 +98,7 @@ fun MetaLine(
                 Text(
                     if (i == 0) genre else ", $genre",
                     style = Hl.type.meta,
-                    color = c.contentTertiary,
+                    color = c.contentSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = if (i == 0) Modifier else Modifier.layoutId(Continued),
@@ -154,7 +155,7 @@ fun Badge(text: String, modifier: Modifier = Modifier, ink: Color? = null) {
         style = Hl.type.badge,
         color = ink ?: c.contentSecondary,
         modifier = modifier
-            .border(HlSize.hairline, ink ?: c.outline, HlShapes.badge)
+            .border(HlStroke.hair, ink ?: c.outline, HlShapes.badge)
             .padding(horizontal = HlControl.badgePaddingH, vertical = HlControl.badgePaddingV),
     )
 }

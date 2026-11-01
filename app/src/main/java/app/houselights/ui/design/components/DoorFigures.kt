@@ -43,8 +43,8 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlScrim
-import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.design.figureAt
 import app.houselights.ui.design.textRoom
@@ -78,7 +78,7 @@ fun DoorFigures(count: String, posters: CutPosters, size: TextUnit, lit: Boolean
             .drawWithCache {
                 val start = HomeGridDefaults.figureStart.toPx()
                 val origin = figure?.let { Offset(start, (this.size.height - it.layout.size.height) / 2) } ?: Offset.Zero
-                val edge = Stroke(HlSize.hairline.toPx())
+                val edge = Stroke(HlStroke.hair.toPx())
                 val ink = SolidColor(c.content)
                 val line = SolidColor(c.content.copy(alpha = HlAlpha.FIGURE_EDGE))
                 val tintPaint = posters.tint?.let { tintPaint(tints.at(it, this.size)) }

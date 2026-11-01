@@ -39,9 +39,11 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.TextLines
@@ -50,7 +52,6 @@ import app.houselights.ui.design.glassPlate
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.groundStepFill
-import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.scrollEdges
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -118,7 +119,7 @@ fun HlScrollArea(lines: List<String>, modifier: Modifier = Modifier, alwaysFocus
 private fun Modifier.readingArea(focused: Boolean): Modifier {
     val c = Hl.colors
     val onGlass = LocalGround.current == Ground.Glass
-    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, if (onGlass) c.plateEdge else c.edge)
+    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlStroke.hair, c.edge)
     return if (onGlass) clip(HlShapes.panel).plate(edge) else panel(HlShapes.panel, groundStepFill(), edge)
 }
 
@@ -140,7 +141,7 @@ private fun readingFill(): () -> Color {
 }
 
 /**
- * Up and down scroll one step per press; a held key adds steps to the target and keeps the velocity
+ * Up and down scroll one step per press, on [HlMotion.scroll]; a held key adds steps to the target and keeps the velocity
  * instead of restarting from rest, and targets are clamped so the motion eases into the ends.
  */
 private abstract class KeyScroll(private val state: ScrollableState, private val scope: CoroutineScope) {
@@ -173,7 +174,7 @@ private abstract class KeyScroll(private val state: ScrollableState, private val
         val velocity = position.velocity
         motion = scope.launch {
             if (!moving) position.snapTo(at)
-            position.animateTo(to, initialVelocity = velocity) { moveTo(value) }
+            position.animateTo(to, HlMotion.scroll, initialVelocity = velocity) { moveTo(value) }
         }
         return true
     }

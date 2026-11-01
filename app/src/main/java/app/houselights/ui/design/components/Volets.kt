@@ -89,6 +89,7 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalGroupFocus
 import app.houselights.ui.design.Scrub
 import app.houselights.ui.design.VeilStop
@@ -960,7 +961,7 @@ private fun BoxScope.VoletMarks(
         if (closed) VoletFoot(part, shown.align(Alignment.BottomCenter))
     }
     // Open, its words say what is left.
-    if (closed && part.progress > 0f) ProgressLine(part.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressWide)
+    if (closed && part.progress > 0f) ProgressLine(part.progress, Modifier.align(Alignment.BottomCenter), HlStroke.bold)
 }
 
 /** A closed panel's foot: its mark, then its year (the spine's: where focus is among the films), [HlSpace.m] from the foot. */
@@ -1063,7 +1064,8 @@ private fun TopMelt(dark: Color, floor: Float, band: Float) {
             val screen = HlScrim.SCREEN_HEIGHT.dp.toPx()
             val stops = HlScrim.TOP.raisedOver(band / screen, floor, VoletDefaults.melt.toPx() / screen)
             val brush = Brush.verticalGradient(*stops.colorStops(dark), startY = 0f, endY = screen)
-            onDrawBehind { drawVeil(brush, stops, 0f, screen) }
+            val veil = DitheredVeil()
+            onDrawBehind { drawVeil(veil, brush, stops, 0f, screen) }
         },
     )
 }
@@ -1101,7 +1103,8 @@ private fun FootMelt(dark: Color, yearRise: Float) {
                 VeilStop(1f, HlScrim.VOLET_YEAR_FLOOR),
             )
             val brush = Brush.verticalGradient(*stops.colorStops(dark), startY = 0f, endY = size.height)
-            onDrawBehind { drawVeil(brush, stops, 0f, size.height) }
+            val veil = DitheredVeil()
+            onDrawBehind { drawVeil(veil, brush, stops, 0f, size.height) }
         },
     )
 }
@@ -1119,20 +1122,21 @@ private fun WordsMelt(dark: Color, top: () -> Float) {
             val span = melt * 2f / (MELT_END - MELT_START)
             val from = at - melt - MELT_START * span
             val brush = Brush.verticalGradient(*HlScrim.CASE_FOOT.colorStops(dark), startY = from, endY = from + span)
-            onDrawBehind { drawVeil(brush, HlScrim.CASE_FOOT, from, from + span) }
+            val veil = DitheredVeil()
+            onDrawBehind { drawVeil(veil, brush, HlScrim.CASE_FOOT, from, from + span) }
         },
     )
 }
 
 /**
- * [brush], the veil [stops] drawn from [startY] to [endY] (px), over the band it is not clear in alone: a transparent
- * rectangle costs the player's GPU a pass all the same (DESIGN.md, Performance). The same pixels, whole ones.
+ * [brush], the veil [stops] drawn from [startY] to [endY] (px) by [veil], over the band it is not clear in alone: a
+ * transparent rectangle costs the player's GPU a pass all the same (DESIGN.md, Performance). The same pixels, whole ones.
  */
-private fun DrawScope.drawVeil(brush: Brush, stops: List<VeilStop>, startY: Float, endY: Float) {
+private fun DrawScope.drawVeil(veil: DitheredVeil, brush: Brush, stops: List<VeilStop>, startY: Float, endY: Float) {
     val band = stops.inkedBand(startY, endY)
     val top = floor(band.start).coerceIn(0f, size.height)
     val bottom = ceil(band.endInclusive).coerceIn(top, size.height)
-    if (bottom > top) drawRect(brush, Offset(0f, top), Size(size.width, bottom - top))
+    if (bottom > top) veil.draw(this, brush, Offset(0f, top), Size(size.width, bottom - top))
 }
 
 /**

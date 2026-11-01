@@ -1,6 +1,7 @@
 package app.houselights.ui.design
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -9,8 +10,10 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.gestures.ScrollableState
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -74,6 +77,10 @@ class EdgeScroll(
     private val trailing: Float,
     private val toTop: Boolean = false,
 ) : BringIntoViewSpec {
+    // Deprecated in Compose, yet what focus scrolls on as it brings an element into view.
+    @Suppress("OVERRIDE_DEPRECATION")
+    override val scrollAnimationSpec: AnimationSpec<Float> get() = HlMotion.scroll
+
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
         val start = leading
         val end = containerSize - trailing
@@ -95,6 +102,10 @@ class EdgeScroll(
 @OptIn(ExperimentalFoundationApi::class)
 class SheetScroll(private val scroll: ScrollState, edge: Float, private val near: Float) : BringIntoViewSpec {
     private val list = EdgeScroll(edge, edge)
+
+    // Deprecated in Compose, yet what focus scrolls on as it brings an element into view.
+    @Suppress("OVERRIDE_DEPRECATION")
+    override val scrollAnimationSpec: AnimationSpec<Float> get() = HlMotion.scroll
 
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
         val fromStart = scroll.value + offset
@@ -141,6 +152,10 @@ fun OwnScroll(content: @Composable () -> Unit) {
 /** Brings nothing into view: what is asked to be shown is taken as shown. */
 @OptIn(ExperimentalFoundationApi::class)
 private object StillScroll : BringIntoViewSpec {
+    // Deprecated in Compose, yet what focus scrolls on as it brings an element into view.
+    @Suppress("OVERRIDE_DEPRECATION")
+    override val scrollAnimationSpec: AnimationSpec<Float> get() = HlMotion.scroll
+
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }
 
@@ -209,7 +224,7 @@ private class ScrollEdgesNode(state: ScrollableState, var color: () -> Color) : 
 }
 
 /**
- * Whether [state] has more before ([top]) and after ([bottom]) it, each going from 0 to 1 over [HlMotion.FAST] in the
+ * Whether [state] has more before ([top]) and after ([bottom]) it, each going from 0 to 1 over [HlMotion.PLATE_OUT] in the
  * fall back as there comes to be more beyond that end, and back as there no longer is, read while drawing. They start
  * where the state stands, as an animated state does.
  */
@@ -257,7 +272,7 @@ private sealed class EdgeFadeNode(private var state: ScrollableState) : Modifier
 }
 
 /** How a fade at a scrolled end comes and goes. */
-private val EDGE_FADE = tween<Float>(HlMotion.FAST, easing = HlMotion.fallBack)
+private val EDGE_FADE = tween<Float>(HlMotion.PLATE_OUT, easing = HlMotion.fallBack)
 
 /**
  * Fades the content itself out into what lies under it, a field of posters, over [HlSpace.fadeEdge] at an end with
@@ -520,4 +535,22 @@ fun rememberRowState(keys: List<Any>): LazyListState {
         shownFirst = first
     }
     return state
+}
+
+/**
+ * Back to the top of a vertical list on [HlMotion.scroll], where `animateScrollToItem` moves on Compose's own spring:
+ * from within a screen's height, the whole way; from further, the last screen's height, the rest at once.
+ */
+suspend fun LazyListState.scrollHome() = home(layoutInfo.viewportSize.height) { scrollToItem(0, it) }
+
+/** A vertical grid back to its top, as a list ([LazyListState.scrollHome]). */
+suspend fun LazyGridState.scrollHome() = home(layoutInfo.viewportSize.height) { scrollToItem(0, it) }
+
+private suspend fun ScrollableState.home(reach: Int, jump: suspend (Int) -> Unit) {
+    // How far the top is, up to [reach]: gone to and back within one frame, so nothing shows.
+    var near = 0f
+    scroll { near = -scrollBy(-reach.toFloat()).also { scrollBy(-it) } }
+    if (near <= 0f) return
+    if (near >= reach) jump(reach)
+    animateScrollBy(-near, HlMotion.scroll)
 }

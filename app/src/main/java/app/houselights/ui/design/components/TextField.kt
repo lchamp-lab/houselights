@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -82,8 +83,11 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.HlType
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.groundFill
+import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.isOk
 import java.text.BreakIterator
 
@@ -201,7 +205,7 @@ private fun FieldBox(
                 .openOnOk(state) { state.startTyping(latest) }
                 .focusable()
                 .clip(shape)
-                .background(c.glass)
+                .background(fieldFill())
                 .border(fieldEdge(state.editing, state.boxFocused), shape)
                 // The text, its example and « OK saisir » end before the cross.
                 .padding(start = HlSpace.m, top = HlSpace.s, end = endRoom(crossed), bottom = HlSpace.s),
@@ -544,14 +548,22 @@ private fun Modifier.openOnOk(state: FieldState, open: () -> Unit): Modifier = o
     }
 }
 
+/**
+ * A field's plate, opaque: its ground's step ([groundStep]), `FILL_FAINT` on glass, `FILL` on the room, so it reads as
+ * a field and not as words laid on the sheet; what covers its text at its end takes it too.
+ */
+@Composable
+@ReadOnlyComposable
+private fun fieldFill(): Color = groundFill(groundStep())
+
 /** A field's edge: a hairline at rest, projector white with focus, ember while typing. */
 @Composable
 private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
     val c = Hl.colors
     return when {
-        editing -> BorderStroke(HlSize.focusBorder, c.emberLight())
+        editing -> BorderStroke(HlStroke.ring, c.emberLight())
         focused -> FocusStyle.ring()
-        else -> BorderStroke(HlSize.hairline, c.outline)
+        else -> BorderStroke(HlStroke.hair, c.outline)
     }
 }
 
@@ -585,7 +597,7 @@ private fun BoxScope.EndHint(shown: Boolean) {
         KeyHint(
             Modifier
                 .wrapContentHeight(unbounded = true)
-                .background(Hl.colors.glass)
+                .background(fieldFill())
                 .padding(start = HlSpace.s),
         )
     }

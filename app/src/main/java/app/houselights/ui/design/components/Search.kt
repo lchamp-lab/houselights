@@ -41,6 +41,7 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.plate
@@ -70,7 +71,7 @@ fun SearchQuery(query: String, hint: String, modifier: Modifier = Modifier) {
                     val area = HlShapes.field.createOutline(size, layoutDirection, this)
                     onDrawBehind { drawOutline(area, fill()) }
                 }
-                .border(BorderStroke(HlSize.focusBorder, c.emberLight()), HlShapes.field)
+                .border(BorderStroke(HlStroke.ring, c.emberLight()), HlShapes.field)
                 .padding(horizontal = HlSpace.m),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -86,7 +87,7 @@ fun SearchQuery(query: String, hint: String, modifier: Modifier = Modifier) {
             )
             // As tall as the words, and still.
             val cursor = with(LocalDensity.current) { Hl.type.lead.fontSize.toDp() }
-            Box(Modifier.width(HlSize.focusBorder).height(cursor).background(c.emberTo))
+            Box(Modifier.width(HlStroke.ring).height(cursor).background(c.emberTo))
         }
         Spacer(Modifier.height(HlSpace.s))
         Text(hint, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)

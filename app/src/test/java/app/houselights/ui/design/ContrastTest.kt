@@ -94,6 +94,10 @@ class ContrastTest {
         "a sheet's glass in the lightest dark" to c.sheetGlass(lightestDark),
         // A pane's plate on the settings' field: the field's dark over its brightest.
         "a plate on the settings' field" to c.plate(lightestDark).compositeOver(fieldBrightest),
+        // A mark's plate (a check, a count, a key, the new dot's ring) in the lightest dark a picture lends, over white.
+        "a mark's plate on a white image" to c.markPlate(lightestDark).compositeOver(Color.White),
+        // A focused progress line's part to come, on focus's white plate.
+        "the part to come on focus" to c.onFocus.over(HlAlpha.FILL, c.focus),
     )
 
     /** Every pair the system draws, as role, surface, use. */
@@ -198,6 +202,13 @@ class ContrastTest {
         "content" on "a plate on the settings' field", "contentSecondary" on "a plate on the settings' field",
         "contentTertiary" on "a plate on the settings' field", "ember" on "a plate on the settings' field",
         ("focus" on "a plate on the settings' field").mark(),
+        // On a mark's plate: a count and the watched check, the OK key's letters and the Menu key's lines, the keys'
+        // frame (a hint), the chosen check and the new dot, a progress line's raspberry end beside it.
+        "content" on "a mark's plate on a white image", "contentSecondary" on "a mark's plate on a white image",
+        ("contentTertiary" on "a mark's plate on a white image").mark(), ("ember" on "a mark's plate on a white image").mark(),
+        ("emberTo" on "a mark's plate on a white image").mark(),
+        // Focus's ring around a control on its plate over a picture.
+        ("focus" on "plate on the veil's floor on a white image").mark(), ("focus" on "plate at its ceiling on a white image").mark(),
     )
 
     private val forbidden = listOf(
@@ -214,6 +225,9 @@ class ContrastTest {
         "contentTertiary" on "the diffuse field's brightest",
         // Raspberry words on a sheet's plate: a mark only there.
         "emberTo" on "glassPlate in the lightest glow",
+        // A focused line's seen part against its part to come, 2.7:1: no edge to read there, the line reads against its
+        // plate (emberOnLight on focus).
+        ("emberOnLight" on "the part to come on focus").mark(),
     )
 
     @Test
@@ -245,7 +259,7 @@ class ContrastTest {
 
     /** The roles that are neither an ink to read nor a surface to read on, and why. */
     private val neither = mapOf(
-        "outline" to "an edge at HlAlpha.EDGE, a badge's outline: drawn around what reads, never read",
+        "outline" to "a badge's and a field's border: drawn around what reads, never read",
         "contentDecorative" to "never for text: an empty frame's rule, a skeleton",
     )
 

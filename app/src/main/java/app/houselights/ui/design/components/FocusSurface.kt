@@ -337,6 +337,13 @@ private fun DrawScope.drawGlow(strength: Float, ring: Stroke, corner: Float, ton
     }
 }
 
+/** The glow of a picture in [shape] at full strength in [tone], as focus lights it, without its frame: a still specimen. */
+internal fun Modifier.stillGlow(tone: Color, shape: Shape): Modifier = drawWithCache {
+    val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
+    val band = Stroke(HlFocus.glow.toPx() / HlScrim.GLOW_STEPS)
+    onDrawBehind { drawGlow(tone.alpha, band, corner, tone = tone) }
+}
+
 /** A stroke along an outline, inside the surface's edge as a border is. */
 private class Inside(private val outline: Outline, private val inset: Float, private val brush: Brush, private val stroke: Stroke) {
     fun draw(scope: DrawScope, alpha: Float) = with(scope) {

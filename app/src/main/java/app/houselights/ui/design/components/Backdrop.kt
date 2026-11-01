@@ -34,18 +34,15 @@ import androidx.compose.ui.draw.CacheDrawScope
 import androidx.compose.ui.draw.DrawResult
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.toRect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.nativePaint
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -417,19 +414,11 @@ private fun BackdropPicture(
                 val top = if (veils.tinted) deep else black
                 val topEnd = veils.top.last().at
                 val down = Brush.verticalGradient(*veils.down.colorStops { if (it <= topEnd) top else black })
-                // Dithered where the GPU does it.
-                val paint = Paint().apply { nativePaint.isDither = true }
-                val whole = size.toRect()
+                val dithered = DitheredVeil()
                 onDrawBehind {
                     val lift = scrims.value
-                    drawIntoCanvas { canvas ->
-                        if (across != null) {
-                            across.applyTo(size, paint, lift)
-                            canvas.drawRect(whole, paint)
-                        }
-                        down.applyTo(size, paint, lift)
-                        canvas.drawRect(whole, paint)
-                    }
+                    if (across != null) dithered.draw(this, across, alpha = lift)
+                    dithered.draw(this, down, alpha = lift)
                 }
             },
         )

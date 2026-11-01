@@ -1,17 +1,18 @@
 package app.houselights.ui.design
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 
 /**
  * Durations (ms) and the system's own curves (DESIGN.md, Motion). Two moments are orchestrated: the house
- * lights ([LaunchCue], [DIM]) and the welcome wall's drift ([WALL_DRIFT]). No other file draws a curve
+ * lights ([LaunchCue], [DIM]) and the welcome wall's drift ([WALL_DRIFT]). No other file draws a curve or a spring
  * (`MotionGuardTest`).
  */
 object HlMotion {
-    const val FAST = 150
-    const val STANDARD = 250
     /** The launch cue, a picture going out on black, a page's backdrop stepping back. */
     const val SLOW = 600
     /** House lights: room, then screen, then black before the player starts; backwards after. */
@@ -20,7 +21,7 @@ object HlMotion {
     const val FOCUS_IN = 220
     /** Focus leaving it, the same undone ([fallBack]). */
     const val FOCUS_OUT = 260
-    /** A plate turning white with focus, and back. */
+    /** A plate turning white with focus, and back; a hero's words, a menu's opacity, a scrolled end's fade. */
     const val PLATE_IN = 120
     const val PLATE_OUT = 180
     /** One backdrop picture crossfading to the next, with its veils and the plates' dark, once settled ([SETTLE]); linear. */
@@ -37,8 +38,14 @@ object HlMotion {
     const val HOLD = 400L
     /** One loop of the welcome poster wall: slow enough to be felt more than seen. */
     const val WALL_DRIFT = 140_000
-    /** Menus grow from this scale as they appear. */
-    const val ENTER_SCALE = 0.96f
+
+    /**
+     * Every scroll: lists, rows, walls and texts, by focus or by a held key. A spring without bounce, so a held key
+     * keeps its speed; it comes within 1 % of its target in about 270 ms.
+     */
+    val scroll: SpringSpec<Float> = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = SCROLL_STIFFNESS)
+
+    private const val SCROLL_STIFFNESS = 600f
 
     /** "Mise au point": off at once, then long to settle, as a lens finding focus. What arrives. */
     val focusPull = CubicBezierEasing(0.20f, 0.75f, 0.25f, 1f)

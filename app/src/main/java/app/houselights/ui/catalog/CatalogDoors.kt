@@ -146,7 +146,7 @@ private fun WatchDoors() {
         ) { DoorStill(episode, span = 2) }
         HomeDoor(
             stringResource(R.string.home_news),
-            HlIcons.Sparkles,
+            HlIcons.Latest,
             {},
             Modifier.size(doorWidth(2), HomeGridDefaults.watchRow),
             note = DoorNote.News("7 cette semaine"),

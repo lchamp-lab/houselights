@@ -45,10 +45,10 @@ object HlScrim {
     )
 
     /**
-     * Quietest text's contrast per band: 4.5:1 over the left half, where lines start; then less, so the
-     * veil eases out before the column ends (the last quarter holds only line ends: overview 4:1, quietest 3:1).
+     * Quietest text's contrast per band: 4.5:1 over the left half, where lines start; then 3.5:1, so the veil
+     * eases out before the column ends while the facts at a line's end keep 4.6:1 in secondary ink.
      */
-    val LEFT_CONTRAST = listOf(4.5f, 4.5f, 3.5f, 3f)
+    val LEFT_CONTRAST = listOf(4.5f, 4.5f, 3.5f, 3.5f)
 
     /** A hero's top veil: 0.74 at the edge, 0.44 at 72 dp, gone at 164 dp. */
     val TOP = listOf(
@@ -159,9 +159,13 @@ object HlScrim {
     /** How much a tone counts by its area alone, before its saturation adds to it. */
     const val GLOW_AREA_WEIGHT = 0.35f
 
-    /** The glow is rings out to `HlFocus.glow`, each at [GLOW_LAYER]: a shadow cannot light the black room. */
-    const val GLOW_STEPS = 16
-    const val GLOW_LAYER = 0.06f
+    /**
+     * The glow is rings out to `HlFocus.glow`, each at [GLOW_LAYER]: a shadow cannot light the black room. 28 rings of
+     * 1 dp, 2 whole pixels at 1080p, steps of 5 levels at most; their sum 0.363 next to the picture, as 16 of 1.75 dp at
+     * 0.06 gave (0.368).
+     */
+    const val GLOW_STEPS = 28
+    const val GLOW_LAYER = 0.033f
 
     /** Opacity of the welcome wall's posters. */
     const val WALL = 0.3f

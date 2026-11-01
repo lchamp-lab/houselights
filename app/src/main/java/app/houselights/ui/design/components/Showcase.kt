@@ -41,11 +41,12 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.ShowcaseDefaults
 import app.houselights.ui.design.VeilStop
 import app.houselights.ui.design.colorStops
-import app.houselights.ui.design.plateEdge
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.tintedGlass
 
 /**
@@ -79,7 +80,7 @@ fun Showcase(
     val covered = remember(band) { { band.intValue.toFloat() } }
     HlFocusSurface(
         onClick = onClick,
-        look = FocusStyle.frame(rest = glass, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.plateEdge)),
+        look = FocusStyle.frame(rest = glass, restInk = c.content, edge = BorderStroke(HlStroke.hair, c.edge)),
         shape = HlShapes.panel,
         modifier = modifier.width(HlSize.showcase).onFocusChanged { if (it.isFocused) onFocus() },
         covered = covered.takeIf { full },
@@ -157,7 +158,7 @@ internal fun ShowcaseSpace(modifier: Modifier = Modifier) {
                 layout(room.width, room.height) {}
             },
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSize.hairline)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlStroke.hair)) {
             repeat(SHOWCASE_SLOTS) { Spacer(Modifier.weight(1f).aspectRatio(HlSize.POSTER_RATIO)) }
         }
         Column(
@@ -188,9 +189,10 @@ internal fun Modifier.meltsInto(plate: ColorProducer, foot: List<VeilStop>): Mod
         val mask = Brush.verticalGradient(*foot.colorStops(Color.White), startY = 0f, endY = size.height)
         val from = foot.first().at * size.height
         val band = Size(size.width, size.height - from)
+        val veil = DitheredVeil()
         onDrawWithContent {
             drawContent()
-            drawRect(mask, Offset(0f, from), band, colorFilter = PlateTints.of(plate()))
+            veil.draw(this, mask, Offset(0f, from), band, colorFilter = PlateTints.of(plate()))
         }
     }
 

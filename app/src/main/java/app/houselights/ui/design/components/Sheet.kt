@@ -78,6 +78,7 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSideSheetDefaults
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.SheetScroll
@@ -276,7 +277,7 @@ fun HlSideSheet(
 private fun Modifier.sheetGlass(glass: () -> Color, edge: Color): Modifier = drawWithCache {
     val outline = HlShapes.sheet.createOutline(size, layoutDirection, this)
     val corner = HlShapes.sheet.topStart.toPx(size, this)
-    val hairline = Stroke(HlSize.hairline.toPx())
+    val hairline = Stroke(HlStroke.hair.toPx())
     onDrawBehind {
         drawOutline(outline, glass())
         clipRect(left = -hairline.width, right = corner) { drawOutline(outline, edge, style = hairline) }

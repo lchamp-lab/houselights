@@ -69,7 +69,7 @@ class WithItsPictureTest {
         said("Heat")
         compose.onNodeWithText("Ran").assertDoesNotExist()
         bringUp(item.backdrop)
-        compose.mainClock.advanceTimeBy(HlMotion.STANDARD.toLong() * 2)
+        compose.mainClock.advanceTimeBy(HlMotion.PLATE_IN.toLong() * 2)
         said("Ran")
     }
 
@@ -77,7 +77,7 @@ class WithItsPictureTest {
     fun aPictureSlowToComeWaitsNoLongerThanHold() {
         show()
         select(film("2", "Ran"))
-        compose.mainClock.advanceTimeBy(HlMotion.HOLD + HlMotion.STANDARD * 2)
+        compose.mainClock.advanceTimeBy(HlMotion.HOLD + HlMotion.PLATE_IN * 2)
         said("Ran")
     }
 

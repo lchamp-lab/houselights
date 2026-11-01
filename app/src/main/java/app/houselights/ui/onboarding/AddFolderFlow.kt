@@ -529,7 +529,7 @@ private fun continuePart(flow: FolderFlow, focus: FlowFocus, onClick: () -> Unit
         stringResource(R.string.continue_),
         onClick,
         Modifier.padding(top = HlSpace.xs).focusRequester(focus[CONTINUE]),
-        icon = HlIcons.Next,
+        icon = HlIcons.Continue,
         busy = flow.pressed?.key == CONTINUE,
         busyLabel = stringResource(R.string.signing_in),
     )

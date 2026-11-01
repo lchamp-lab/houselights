@@ -1,6 +1,7 @@
 package app.houselights.ui.design
 
 import app.houselights.testing.Source
+import app.houselights.testing.argumentsFrom
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
 import app.houselights.testing.source
@@ -39,8 +40,8 @@ class DesignTokenGuardTest {
         // Veils and lights are drawn by the design system, over what they lie on.
         Regex("""\bBrush\.\w*Gradient\(""") to "a gradient: use a veil (HlScrim) or a component's light",
         // A sum of tokens is an alignment worked out in a screen: it gets a name in the design system.
-        Regex("""\bHl(Space|Size|Layout|Inset)\.[a-z]\w*\s*[-+*/](?!>)""") to "arithmetic on a token: name the measure in Dimens.kt",
-        Regex("""[\w)]\s*[-+*/]\s*Hl(Space|Size|Layout|Inset)\.[a-z]""") to "arithmetic on a token: name the measure in Dimens.kt",
+        Regex("""\bHl(Space|Size|Layout|Inset|Stroke)\.[a-z]\w*\s*[-+*/](?!>)""") to "arithmetic on a token: name the measure in Dimens.kt",
+        Regex("""[\w)]\s*[-+*/]\s*Hl(Space|Size|Layout|Inset|Stroke)\.[a-z]""") to "arithmetic on a token: name the measure in Dimens.kt",
         // A raw image is left blank when it fails: the design system's show the title or an empty frame.
         Regex("""\bAsyncImage\(""") to "an image: use ArtworkImage or PosterThumb",
         // Ember is a closed list of states: a screen says the state, the component lights it.
@@ -154,6 +155,65 @@ class DesignTokenGuardTest {
         assertEquals(emptyList<String>(), lighting)
     }
 
+    /**
+     * Where the quietest ink is drawn, as "path:fragment of the line": what is guessed or missing, never a fact
+     * (DESIGN.md, Colour). The catalogue, the palette and the veils' ceilings aside.
+     */
+    private val tertiary = mapOf(
+        "design/components/Meta.kt:billingJoin.toSpanStyle().copy(color = c.contentTertiary)" to "the billing block's joins",
+        "design/components/Meta.kt:t.billing.toSpanStyle().copy(color = c.contentTertiary)) { append(\", \") }" to
+            "the billing block's commas",
+        "design/components/FocusStyle.kt:else Hl.colors.contentTertiary" to "a hint at rest (hintInk)",
+        "design/components/FocusStyle.kt:!enabled -> c.contentTertiary" to "a summary that cannot act (quietInk)",
+        "design/components/Controls.kt:disabledInk = c.contentTertiary" to "a button or a tile that cannot act",
+        "design/components/Controls.kt:Text(hint, style = Hl.type.meta, color = c.contentTertiary" to "a tile's hint",
+        "design/components/Panel.kt:disabledInk = c.contentTertiary" to "a panel that cannot act",
+        "design/components/Panel.kt:StatusState.Pending -> dot.background(ink ?: c.contentTertiary)" to "a state not known yet",
+        "design/components/Panel.kt:MeterInk.Tertiary -> Hl.colors.contentTertiary" to "a meter's third part, a mark",
+        "design/components/Settings.kt:disabledContent = c.contentTertiary" to "a row that cannot act",
+        "design/components/TextField.kt:color = Hl.colors.contentTertiary," to "a field's example",
+        "design/components/TextField.kt:Text(stringResource(R.string.key_hint_type)" to "« OK saisir », a hint",
+        "design/components/MenuKey.kt:ink ?: c.contentTertiary" to "the Menu key's frame, a hint",
+        "design/components/MenuKey.kt:.border(HlSize.keyEdge, c.contentTertiary" to "the OK key's frame, a hint",
+        "design/components/MenuKey.kt:Text(words, style = Hl.type.meta, color = Hl.colors.contentTertiary" to "a key hint's words",
+        "design/components/Sheet.kt:Icon(HlIcons.Back, contentDescription = null, tint = c.contentTertiary" to "Back's hint",
+        "design/components/Sheet.kt:Text(stringResource(R.string.sheet_back_hint)" to "Back's hint",
+        "design/components/Cards.kt:restInk = c.contentTertiary" to "a film the library lacks",
+        "design/components/Cards.kt:Text(title, style = Hl.type.cardTitle, color = c.contentTertiary" to "a film the library lacks",
+        "design/components/Cards.kt:Text(year.toString(), style = Hl.type.meta, color = c.contentTertiary)" to "a film the library lacks",
+        "design/components/Volets.kt:if (part.grey) c.contentTertiary" to "the year of a film the library lacks",
+        "design/components/Volets.kt:StatusLight(state, ink = Hl.colors.contentTertiary)" to "a film absent or not out yet",
+    )
+
+    /** The quietest ink is a closed list, as ember is: what is guessed or missing; a fact takes secondary ink. */
+    @Test
+    fun theQuietestInkIsForWhatIsGuessedOrMissing() {
+        val ink = Regex("""\bcontentTertiary\b""")
+        val apart = listOf(ui.resolve("catalog"), ui.resolve("design/Color.kt"), ui.resolve("design/Scrim.kt"))
+        val found = kotlinSources(ui).filter { file -> apart.none { file.file.startsWith(it) } }.flatMap { file ->
+            val path = file.pathFrom(ui)
+            file.codeLines(imports = false).filter { (_, line) -> ink.containsMatchIn(line) }
+                .filter { (_, line) -> tertiary.keys.none { it.allows(path, line) } }
+                .map { (number, line) -> "$path:$number: ${line.trim()}" }
+        }
+        assertTrue("Tertiary ink on a fact, or a new place for it (say why here):\n" + found.joinToString("\n"), found.isEmpty())
+        val stale = tertiary.keys.filter { place ->
+            val path = place.substringBefore(':')
+            val file = ui.resolve(path)
+            !file.isFile || source(file).codeLines().none { (_, line) -> place.allows(path, line) && ink.containsMatchIn(line) }
+        }
+        assertTrue("Places of the quietest ink not drawn: ${stale.joinToString()}", stale.isEmpty())
+    }
+
+    /** A gradient laid on a picture is dithered (`DitheredVeil`, `veil`): never a bare background brush in a component. */
+    @Test
+    fun veilsAreDithered() {
+        val bare = Regex("""\.background\(\s*Brush\.""")
+        val found = kotlinSources(ui.resolve("design")).linesWhere(ui) { bare.containsMatchIn(it) }
+        assertTrue("A gradient drawn undithered, use Modifier.veil:\n" + found.joinToString("\n"), found.isEmpty())
+        assertTrue(bare.containsMatchIn("Box(Modifier.background(Brush.verticalGradient(stops)))"))
+    }
+
     /** Whether this exception, "path:fragment", covers [line] of the file at [path]. */
     private fun String.allows(path: String, line: String) = substringBefore(':') == path && line.contains(substringAfter(':'))
 
@@ -175,6 +235,40 @@ class DesignTokenGuardTest {
         val declared = builds.filter { "material-icons" in it.readText() || "material.icons" in it.readText() }
         assertTrue("Material icons declared in ${declared.joinToString()}", declared.isEmpty())
     }
+
+    /**
+     * An icon is drawn at a size of the scale (DESIGN.md, Space and size): 14 on a mark, 16 in a line, 20 beside words,
+     * 22 on a tile, 24 alone; the attention mark fills its light's box, 16.
+     */
+    @Test
+    fun iconsKeepToTheScale() {
+        val scale = mapOf(
+            "markIcon" to HlSize.markIcon,
+            "inlineIcon" to HlSize.inlineIcon,
+            "icon" to HlSize.icon,
+            "tileIcon" to HlSize.tileIcon,
+            "largeIcon" to HlSize.largeIcon,
+        )
+        assertEquals(listOf(14, 16, 20, 22, 24), scale.values.map { it.value.toInt() })
+        val sized = (scale.keys + "statusLight").map { "HlSize.$it" }.toSet()
+        // The catalogue shows the scale itself.
+        val catalog = ui.resolve("catalog")
+        val found = kotlinSources(ui).filter { !it.file.startsWith(catalog) }.flatMap { file ->
+            iconCall.findAll(file.code).flatMap { call ->
+                size.findAll(file.code.argumentsFrom(call.range.last).joinToString(", ")).map { it.groupValues[1].trim() }
+                    .filter { it !in sized }.map { "${file.pathFrom(ui)}:${file.lineOf(call.range.first)}: $it" }
+            }.toList()
+        }
+        assertTrue("An icon off the scale, use one of HlSize's icon sizes:\n" + found.joinToString("\n"), found.isEmpty())
+        assertTrue(iconCall.containsMatchIn("Icon(HlIcons.Play, null, Modifier.size(HlSize.icon))"))
+        assertTrue(!iconCall.containsMatchIn("fun HlIcon(") && !iconCall.containsMatchIn("HlIconButton("))
+    }
+
+    /** A call to tv-material's `Icon`. */
+    private val iconCall = Regex("""(?<![\w.])(?<!fun )Icon\(""")
+
+    /** A size set on it, square or not. */
+    private val size = Regex("""\b(?:size|requiredSize)\(([^()]*)\)""")
 
     /** What the room is not: frosted glass, a drop shadow (DESIGN.md, Principles). */
     @Test

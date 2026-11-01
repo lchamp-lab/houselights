@@ -57,7 +57,7 @@ fun DoorStill(item: MediaItem, span: Int, modifier: Modifier = Modifier) {
             Modifier.fillMaxSize(),
             size = IntSize(width, width * WIDE_H / WIDE_W),
         ) { FallbackArtwork(item.headTitle, null) }
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(*HlScrim.STILL_FOOT.colorStops(c.background))))
+        Box(Modifier.matchParentSize().veil(Brush.verticalGradient(*HlScrim.STILL_FOOT.colorStops(c.ambientDeep))))
         TitleArt(
             title = item.headTitle,
             logo = item.logo,
@@ -148,7 +148,7 @@ fun DoorWall(items: List<MediaItem>, modifier: Modifier = Modifier) {
         val shown = remember(items, maxWidth, maxHeight) { items.cycledTo(wallThumbs(maxWidth, maxHeight)) }
         WallThumbs(shown, width, decoded, out)
         // The wall fades into the door's glass towards its band.
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(*HlScrim.WALL_FOOT.colorStops(c.glass))))
+        Box(Modifier.matchParentSize().veil(Brush.verticalGradient(*HlScrim.WALL_FOOT.colorStops(c.glass))))
     }
 }
 

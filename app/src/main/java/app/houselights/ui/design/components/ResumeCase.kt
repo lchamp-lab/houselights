@@ -41,10 +41,11 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.design.Scrub
 import app.houselights.ui.design.colorStops
-import app.houselights.ui.design.plateEdge
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.timeLeft
@@ -80,7 +81,7 @@ fun ResumeCase(
     val glow = rememberGlowColor(picture, focused && !Scrub.active)
     HlFocusSurface(
         onClick = onClick,
-        look = FocusStyle.frame(rest = c.ambientDeep, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.plateEdge)),
+        look = FocusStyle.frame(rest = c.ambientDeep, restInk = c.content, edge = BorderStroke(HlStroke.hair, c.edge)),
         shape = HlShapes.control,
         modifier = modifier,
         onLongClick = onLongClick,
@@ -135,7 +136,7 @@ private fun CaseFacts(item: MediaItem) {
         if (item.progress > 0f) {
             Spacer(Modifier.height(HlSpace.s))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ProgressLine(item.progress, Modifier.weight(1f), thickness = HlSize.heroProgressWeight)
+                ProgressLine(item.progress, Modifier.weight(1f), thickness = HlStroke.bold)
                 left?.let {
                     Spacer(Modifier.width(HlSpace.s))
                     Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
@@ -168,7 +169,7 @@ private fun BoxScope.CasePicture(item: MediaItem, picture: String?) {
         alignment = Alignment.TopCenter,
     ) { FallbackArtwork(item.title, item.year) }
     // The picture melts into the case's dark under its words.
-    Box(Modifier.matchParentSize().background(Brush.verticalGradient(*HlScrim.CASE_FOOT.colorStops(c.ambientDeep))))
+    Box(Modifier.matchParentSize().veil(Brush.verticalGradient(*HlScrim.CASE_FOOT.colorStops(c.ambientDeep))))
 }
 
 /**
@@ -184,12 +185,12 @@ private fun CaseAction(action: String, lit: Boolean, icon: ImageVector?, menu: B
             .fillMaxWidth()
             .heightIn(min = HomeGridDefaults.action)
             .background(FocusStyle.heldPlate(lit, c.content.copy(alpha = HlAlpha.FILL)), HlShapes.control)
-            .then(if (lit) Modifier else Modifier.border(HlSize.hairline, c.plateEdge, HlShapes.control)),
+            .then(if (lit) Modifier else Modifier.border(HlStroke.hair, c.edge, HlShapes.control)),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
-                Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HomeGridDefaults.actionIcon))
+                Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.inlineIcon))
                 Spacer(Modifier.width(HlSpace.xs))
             }
             Text(action, style = Hl.type.entry, color = ink, maxLines = 1)

@@ -54,7 +54,6 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
@@ -62,14 +61,16 @@ import app.houselights.ui.design.HlSettingGroupDefaults
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.glassPlate
 import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.groundWell
 import app.houselights.ui.design.plate
-import app.houselights.ui.design.plateEdge
+import app.houselights.ui.design.roomStep
 import app.houselights.ui.design.tryRequestFocus
 
 /** How far a panel stands out from the room. */
@@ -98,7 +99,7 @@ fun HlPanel(
             .panel(
                 shape,
                 fill = if (raised) c.glass else groundStepFill(),
-                edge = if (lit) BorderStroke(HlSize.hairline, c.emberLight()) else BorderStroke(HlSize.hairline, c.edge),
+                edge = if (lit) BorderStroke(HlStroke.hair, c.emberLight()) else BorderStroke(HlStroke.hair, c.edge),
             )
             .padding(padding),
     ) {
@@ -134,8 +135,8 @@ fun HlPanelButton(
         look = FocusStyle.frame(
             rest = if (raised) c.glass else groundStepFill(),
             restInk = c.content,
-            edge = BorderStroke(HlSize.hairline, if (lit && enabled) c.emberLight() else SolidColor(c.edge)),
-            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            edge = BorderStroke(HlStroke.hair, if (lit && enabled) c.emberLight() else SolidColor(c.edge)),
+            disabled = groundWell(),
             disabledInk = c.contentTertiary,
         ),
         shape = HlShapes.panel,
@@ -174,10 +175,10 @@ internal fun HlRowSurface(
 }
 
 /**
- * A plate holding a group (DESIGN.md, Secondary screens), [HlShapes.panel] edged by `plateEdge`, read while drawing:
- * on a field of posters ([PosterField]) its dark, as a plate over a picture; in a sheet the film's [glassPlate]; glass
- * on the bare room. What it holds lies on glass, its words [HlInset.plate] from its sides and [HlInset.card] from its
- * top and foot.
+ * A plate holding a group (DESIGN.md, Secondary screens), [HlShapes.panel] edged by `edge`, read while drawing:
+ * on a field of posters ([PosterField]) its dark, as a plate over a picture; in a sheet the film's [glassPlate]; the
+ * room's one step ([roomStep]) on the bare room. What it holds lies on glass, its words [HlInset.plate] from its
+ * sides and [HlInset.card] from its top and foot.
  */
 @Composable
 fun HlPlate(
@@ -185,7 +186,7 @@ fun HlPlate(
     padding: PaddingValues = PaddingValues(horizontal = HlInset.plate, vertical = HlInset.card),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier.plate(BorderStroke(HlSize.hairline, Hl.colors.plateEdge)).padding(padding)) {
+    Column(modifier.plate(BorderStroke(HlStroke.hair, Hl.colors.edge)).padding(padding)) {
         CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
     }
 }
@@ -203,7 +204,7 @@ internal fun Modifier.plate(edge: BorderStroke): Modifier {
             val fill = when {
                 inSheet -> c.glassPlate(light)
                 onField -> c.plate(light)
-                else -> c.glass
+                else -> c.roomStep
             }
             drawOutline(area, fill)
         }
@@ -221,9 +222,9 @@ internal fun PlateSlice(first: Boolean, last: Boolean, content: @Composable Colu
     val inSheet = LocalGround.current == Ground.Glass
     val onField = LocalRoomField.current != null
     val light = LocalAmbient.current
-    val edge = c.plateEdge
+    val edge = c.edge
     val slice = Modifier.fillMaxWidth().drawWithCache {
-        val stroke = HlSize.hairline.toPx()
+        val stroke = HlStroke.hair.toPx()
         val radius = HlShapes.panel.topStart.toPx(size, this)
         // The whole plate the row is part of, running past the row's ends far enough to round them out of sight.
         val above = if (first) 0f else radius + stroke
@@ -233,7 +234,7 @@ internal fun PlateSlice(first: Boolean, last: Boolean, content: @Composable Colu
             val fill = when {
                 inSheet -> c.glassPlate(light)
                 onField -> c.plate(light)
-                else -> c.glass
+                else -> c.roomStep
             }
             clipRect {
                 translate(left = stroke / 2, top = stroke / 2 - above) {
@@ -266,7 +267,7 @@ fun ReadingPlate(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, Hl.colors.plateEdge)
+    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlStroke.hair, Hl.colors.edge)
     val reading = if (readAs != null) {
         Modifier.clearAndSetSemantics {
             contentDescription = readAs
@@ -287,14 +288,14 @@ fun ReadingPlate(
     }
 }
 
-/** A hairline between a menu's sections or a panel's parts; never between a pane's or a sheet's groups. */
+/** A hairline in [edge] between a menu's sections or a panel's parts; never between a pane's or a sheet's groups. */
 @Composable
 fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
-    val color = Hl.colors.contentDecorative
+    val color = Hl.colors.edge
     if (vertical) {
-        Box(modifier.width(HlSize.hairline).fillMaxHeight().background(color))
+        Box(modifier.width(HlStroke.hair).fillMaxHeight().background(color))
     } else {
-        Box(modifier.fillMaxWidth().height(HlSize.hairline).background(color))
+        Box(modifier.fillMaxWidth().height(HlStroke.hair).background(color))
     }
 }
 
@@ -505,7 +506,7 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier, height:
             .fillMaxWidth()
             .height(height)
             .clip(HlShapes.badge)
-            .background(c.content.copy(alpha = HlAlpha.FILL_FAINT)),
+            .background(groundStepFill()),
         horizontalArrangement = Arrangement.spacedBy(HlSize.meterGap),
     ) {
         segments.filter { it.fraction > 0f }.forEach { s ->

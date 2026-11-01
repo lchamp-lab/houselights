@@ -91,6 +91,7 @@ import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.scrollHome
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.PartFailed
@@ -202,7 +203,7 @@ internal fun Wall(
     DetailAhead(shown.value)
     AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse) {
         BackToFirstPoster(grid.focusedIndex) {
-            grid.state.animateScrollToItem(0)
+            grid.state.scrollHome()
             grid.first.tryRequestFocus()
         }
         Column(Modifier.fillMaxSize()) {
@@ -404,7 +405,7 @@ private fun Posters(
                         grid.place.intValue = index
                         posters.onFocusTitle(item.id)
                         // The first line sits under the padding: show it all.
-                        if (index < HlLayout.WALL_COLUMNS) scope.launch { grid.state.animateScrollToItem(0) }
+                        if (index < HlLayout.WALL_COLUMNS) scope.launch { grid.state.scrollHome() }
                         if (index > state.items.size - HlLayout.WALL_COLUMNS * 3) loads.onMore()
                     },
                     onLongClick = { posters.onOptions(item) }.takeIf { posters.actions.hasOptions(item) },

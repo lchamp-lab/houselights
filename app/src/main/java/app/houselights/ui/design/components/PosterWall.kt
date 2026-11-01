@@ -113,7 +113,7 @@ fun PosterWallScrim(modifier: Modifier = Modifier) {
     Box(
         modifier
             .fillMaxSize()
-            .background(Brush.horizontalGradient(*HlScrim.WALL_ACROSS.colorStops(black)))
-            .background(Brush.verticalGradient(*HlScrim.WALL_DOWN.colorStops(black))),
+            .veil(Brush.horizontalGradient(*HlScrim.WALL_ACROSS.colorStops(black)))
+            .veil(Brush.verticalGradient(*HlScrim.WALL_DOWN.colorStops(black))),
     )
 }

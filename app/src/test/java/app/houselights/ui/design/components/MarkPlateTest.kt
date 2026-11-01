@@ -75,7 +75,7 @@ class MarkPlateTest {
         val height = number.height + HlControl.badgePaddingV * 2
         compose.onNodeWithTag(COUNT).assertWidthIsEqualTo(width).assertHeightIsEqualTo(height)
         val plate = compose.onNodeWithTag(COUNT, useUnmergedTree = true).onChild().fetchSemanticsNode()
-        val veil = plate.layoutInfo.getModifierInfo().first { "Background" in it.modifier.javaClass.simpleName }
+        val veil = plate.layoutInfo.getModifierInfo().first { "DrawBehind" in it.modifier.javaClass.simpleName }
         val expected = with(compose.density) { IntSize(width.roundToPx(), height.roundToPx()) }
         assertEquals("the veil under the number and its padding", expected, veil.coordinates.size)
     }

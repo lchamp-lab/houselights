@@ -1,7 +1,6 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -29,7 +28,6 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlMotion
@@ -52,7 +50,7 @@ fun MenuKey(modifier: Modifier = Modifier, ink: Color? = null) {
             .border(HlSize.keyEdge, ink ?: c.contentTertiary, HlShapes.mark),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(HlIcons.Menu, contentDescription = null, tint = ink ?: c.contentSecondary, modifier = Modifier.size(HlSize.keyGlyph))
+        Icon(HlIcons.Menu, contentDescription = null, tint = ink ?: c.contentSecondary, modifier = Modifier.size(HlSize.inlineIcon))
     }
 }
 
@@ -82,7 +80,7 @@ fun OkKey(modifier: Modifier = Modifier) {
             .height(HlIconButtonDefaults.hintRoom)
             .widthIn(min = HlSize.menuKeyWidth)
             .clip(HlShapes.mark)
-            .background(c.background.copy(alpha = HlAlpha.VEIL))
+            .markPlate()
             .border(HlSize.keyEdge, c.contentTertiary, HlShapes.mark)
             .padding(horizontal = HlSpace.xxs),
         contentAlignment = Alignment.Center,
@@ -128,7 +126,7 @@ private fun Modifier.keyPlate(alpha: () -> Float): Modifier = graphicsLayer {
     compositingStrategy = CompositingStrategy.ModulateAlpha
 }
     .clip(HlShapes.mark)
-    .background(Hl.colors.background.copy(alpha = HlAlpha.VEIL))
+    .markPlate()
 
 /** Finds the keys in tests: they are read by no one. */
 internal const val MENU_KEY = "menu-key"

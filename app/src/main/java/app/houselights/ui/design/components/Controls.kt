@@ -92,13 +92,15 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.RowScroll
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.emberLit
 import app.houselights.ui.design.plate
-import app.houselights.ui.design.plateEdge
+import app.houselights.ui.design.roomStep
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.screenWidthPx
 import kotlin.math.roundToInt
@@ -175,26 +177,26 @@ internal fun ButtonPlate(
     val surface = modifier.height(height).semantics { if (busy) stateDescription = busyState }
     val words = ButtonWords(text, icon, detail?.let { DetailWords(it, detailLit, detailWhole) }, busy, busyLabel)
     val reserved = reservedWidth(words, reserveFor)
+    val plate = rememberPlate()
     if (emphasis == Emphasis.Primary) {
         val light = remember(c) { c.emberLight() }
         HlFocusSurface(
             onClick = { if (!busy) onClick() },
             look = FocusStyle.frame(
-                rest = Color.Transparent,
+                rest = Clear,
                 restInk = c.onEmber,
-                disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+                disabled = plate.disabled,
                 disabledInk = c.contentTertiary,
             ),
             shape = HlShapes.control,
             modifier = surface,
             enabled = enabled,
         ) { lit ->
-            // A disabled action keeps its well: the light is for what OK starts.
+            // A disabled action takes a secondary one's well: the light is for what OK starts.
             if (enabled) Box(Modifier.matchParentSize().background(light))
             ButtonRow(words, reserved, primary = true, lit = lit, enabled = enabled)
         }
     } else {
-        val plate = rememberPlate()
         HlFocusSurface(
             onClick = { if (!busy) onClick() },
             look = FocusStyle.fill(
@@ -368,13 +370,17 @@ private fun ButtonLabel(text: String) {
     )
 }
 
-/** A plate under a secondary control, read while drawing, its edge, and its well when it cannot act. */
+/** No fill: the main action's plate under its light, a control's well where the room is its ground. */
+private val Clear = ColorProducer { Color.Transparent }
+
+/** A plate under a control, read while drawing, its edge, and its well when it cannot act. */
 @Immutable
 private class PlateLook(val fill: ColorProducer, val disabled: ColorProducer, val edge: BorderStroke?)
 
 /**
- * By ground: on artwork, the picture's own dark ([plate]) set off by its hairline; on the room, glass; on glass,
- * a step up. A control that cannot act sits in a faint well, but keeps its plate over a picture.
+ * By ground: on artwork, the picture's own dark ([plate]) set off by its hairline; on the room, its one step
+ * ([roomStep]); on glass, a step up. A control that cannot act sits in a faint well on glass, in none on the room
+ * (its ink and focus's ring say it), and keeps its plate over a picture.
  */
 @Composable
 private fun rememberPlate(): PlateLook {
@@ -382,19 +388,19 @@ private fun rememberPlate(): PlateLook {
     val ground = LocalGround.current
     val light = LocalAmbient.current
     return remember(c, ground, light) {
-        val well = c.content.copy(alpha = HlAlpha.FILL_FAINT)
         when (ground) {
             Ground.Artwork -> {
                 val plate = ColorProducer { c.plate(light) }
-                PlateLook(plate, plate, BorderStroke(HlSize.hairline, c.plateEdge))
+                PlateLook(plate, plate, BorderStroke(HlStroke.hair, c.edge))
             }
             Ground.Glass -> {
                 val step = c.content.copy(alpha = HlAlpha.FILL)
+                val well = c.content.copy(alpha = HlAlpha.FILL_FAINT)
                 PlateLook({ step }, { well }, null)
             }
             Ground.Room -> {
-                val glass = c.glass
-                PlateLook({ glass }, { well }, null)
+                val step = c.roomStep
+                PlateLook({ step }, Clear, null)
             }
         }
     }
@@ -590,10 +596,10 @@ internal const val TILE_LABEL = "tile-label"
 /** A tile's label plate over the picture [light] comes from, and its hairline, read while drawing. */
 internal fun Modifier.labelPlate(c: HlColors, light: AmbientLight): Modifier = drawWithCache {
     val outline = HlShapes.mark.createOutline(size, layoutDirection, this)
-    val hairline = Stroke(HlSize.hairline.toPx())
+    val hairline = Stroke(HlStroke.hair.toPx())
     onDrawBehind {
         drawOutline(outline, c.plate(light))
-        drawOutline(outline, c.plateEdge, style = hairline)
+        drawOutline(outline, c.edge, style = hairline)
     }
 }
 
@@ -729,7 +735,7 @@ fun HlSegmented(
 }
 
 /** Room before the current word for its dot. */
-private val DotRoom: Dp = HlSize.wordDot + HlControl.iconGap
+private val DotRoom: Dp = HlSize.dot + HlControl.iconGap
 
 /** How far a track's plates may hang before its first word: a plate's padding and the current word's dot. */
 private val TrackHang: Dp = HlControl.tabPaddingH + DotRoom
@@ -778,7 +784,7 @@ private fun SegmentItem(
             if (current) {
                 Box(Modifier.width(DotRoom), contentAlignment = Alignment.CenterStart) {
                     // On the white of focus, the place stays marked: a raspberry dot.
-                    val dot = Modifier.size(HlSize.wordDot)
+                    val dot = Modifier.size(HlSize.dot)
                     if (lit) Box(dot.background(c.emberOnLight, CircleShape))
                 }
             }

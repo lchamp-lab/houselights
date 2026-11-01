@@ -48,6 +48,7 @@ import app.houselights.core.TechSheet
 import app.houselights.core.TechTopic
 import app.houselights.core.TechValue
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.TechSpecsDefaults
@@ -117,7 +118,7 @@ private fun Modifier.readThrough(scroll: ScrollState): Modifier {
         val top = at.positionInRoot().y
         val hidden = if (down) top + at.size.height - shown.bottom else shown.top - top
         if (hidden < 1f) return@onPreviewKeyEvent false
-        scope.launch { scroll.animateScrollBy(if (down) min(step, hidden) else -min(step, hidden)) }
+        scope.launch { scroll.animateScrollBy(if (down) min(step, hidden) else -min(step, hidden), HlMotion.scroll) }
         true
     }
 }
@@ -135,7 +136,7 @@ private fun ColumnScope.BlockName(name: String, count: String? = null) {
         Text(name, style = Hl.type.group, color = c.content, modifier = Modifier.alignByBaseline())
         count?.let {
             Spacer(Modifier.width(HlSpace.s))
-            Text(it, style = Hl.type.meta, color = c.contentTertiary, modifier = Modifier.alignByBaseline())
+            Text(it, style = Hl.type.meta, color = c.contentSecondary, modifier = Modifier.alignByBaseline())
         }
     }
     Spacer(Modifier.height(HlSpace.m))

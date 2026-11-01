@@ -35,6 +35,7 @@ import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlGap
 import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import kotlinx.coroutines.launch
 
@@ -125,7 +126,7 @@ fun SynopsisSheet(facts: List<String?>, tagline: String?, overview: String, onDi
                             Key.DirectionUp -> -step
                             else -> return@onPreviewKeyEvent false
                         }
-                        if (e.type == KeyEventType.KeyDown) scope.launch { scroll.animateScrollBy(by) }
+                        if (e.type == KeyEventType.KeyDown) scope.launch { scroll.animateScrollBy(by, HlMotion.scroll) }
                         true
                     }
                     .focusable(),

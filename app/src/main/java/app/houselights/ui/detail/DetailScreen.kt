@@ -115,6 +115,7 @@ import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.scrollHome
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.tryRequestFocus
@@ -229,7 +230,7 @@ internal fun DetailPage(
         derivedStateOf { backReturnsToActions(page.firstVisibleItemIndex, page.firstVisibleItemScrollOffset) }
     }
     BackToStart(away = scrolled) {
-        page.animateScrollToItem(0)
+        page.scrollHome()
         actionRow.tryRequestFocus()
     }
 
@@ -840,7 +841,12 @@ private fun Actions(
                 )
             }
             if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
-                HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
+                HlButton(
+                    stringResource(R.string.view_series),
+                    onClick = actions.onOpenSeries,
+                    modifier = Modifier.focusKey(SERIES, memory),
+                    icon = HlIcons.Tv,
+                )
             }
             if (capabilities?.markPlayed == true) WatchedTile(item, actions, Modifier.focusKey(WATCHED, memory))
             // A button bears the name of what it opens.
@@ -1079,6 +1085,7 @@ private fun Parts(item: MediaItem, memory: FocusMemory, onPlay: (MediaItem, Bool
             stringResource(R.string.part_of, i + 1, item.parts.size),
             onClick = { onPlay(part, false) },
             modifier = Modifier.focusKey(FocusKey.action("part-${i + 1}"), memory),
+            icon = HlIcons.Playback,
         )
     }
 }

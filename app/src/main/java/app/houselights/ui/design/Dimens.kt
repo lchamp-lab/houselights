@@ -31,11 +31,11 @@ object HlSpace {
  * parallel: outer = inner + gap (a menu: 6 + 6 = 12; a focus frame: the picture's + its gap).
  */
 object HlShapes {
-    /** Images up to 48 dp: thumbnails, row previews. */
+    /** Images up to 64 dp: thumbnails, row previews, a saga's posters on its door. */
     val thumb = RoundedCornerShape(2.dp)
     val badge = RoundedCornerShape(2.dp)
-    /** A mark over a picture, a tile's label. */
-    val mark = RoundedCornerShape(3.dp)
+    /** A mark over a picture, a tile's label: in a wide image [HlSpace.xs] in, parallel to its corner (4 + 8 = 12). */
+    val mark = RoundedCornerShape(4.dp)
     /** Buttons, tiles, a tab's plate, menu options. */
     val control = RoundedCornerShape(6.dp)
     val field = RoundedCornerShape(6.dp)
@@ -43,8 +43,8 @@ object HlShapes {
     val row = RoundedCornerShape(8.dp)
     /** Posters and portraits. */
     val artwork = RoundedCornerShape(8.dp)
-    /** Wide images: stills, a backdrop to choose. */
-    val wide = RoundedCornerShape(11.dp)
+    /** Wide images: stills, a backdrop to choose; a panel's radius. */
+    val wide = RoundedCornerShape(12.dp)
     /** Menus, source cards, panels. */
     val panel = RoundedCornerShape(12.dp)
     /** A side sheet: its free corners rounded, square against the screen's edge. */
@@ -159,7 +159,7 @@ object HlSize {
     /** A square icon button; [tileCompact] in a screen's header. */
     val tile = 44.dp
     val tileCompact = 40.dp
-    /** An icon beside words: a place's, the search field's. */
+    /** Icons, on one scale (14 · 16 · 20 · 22 · 24): beside words, a place's, the search field's, a door's band's. */
     val icon = 20.dp
     /** An icon on a [tile]. */
     val tileIcon = 22.dp
@@ -168,20 +168,18 @@ object HlSize {
     /** A mark over a picture (watched, chosen), on its plate. */
     val mark = 22.dp
     val markIcon = 14.dp
-    /** The remote's Menu key, drawn where it opens options ([MenuKey]): its frame [keyEdge] wide, its lines [keyGlyph]. */
+    /** The remote's Menu key, drawn where it opens options ([MenuKey]): its frame [keyEdge] wide, its lines [inlineIcon]. */
     val menuKeyWidth = 24.dp
     val menuKeyHeight = 22.dp
     val keyEdge = 1.5.dp
-    val keyGlyph = 18.dp
-    /** Status dot (default track, online); a state that is off is its ring, [dotRing] wide. */
+    /**
+     * Dots, two: [dot] for a state (default track, online), the ember of new titles before a count, a door's, the current
+     * place's word; a state that is off is its ring, [dotRing] wide (3 whole pixels at 1080p).
+     */
     val dot = 8.dp
-    val dotRing = 1.75.dp
-    /** The dot of a title new to the library, ringed in black ([newDotRing]) to stand off any picture. */
+    val dotRing = 1.5.dp
+    /** The dot of a title new to the library on its picture, ringed in black (`HlStroke.ring`) to stand off any picture. */
     val newDot = 10.dp
-    val newDotRing = 2.5.dp
-    /** The ember dot before a row's count of new titles; [doorDot] before a door's, a size up. */
-    val newsDot = 7.dp
-    val doorDot = 8.dp
     /** The box a state's light sits in, so text lines up after a dot or the attention mark. */
     val statusLight = 16.dp
     /** An icon in a line of text (rating star). */
@@ -203,25 +201,17 @@ object HlSize {
     val navRow = 48.dp
     /** A backdrop at its use, a gallery's wide image: 16:9. */
     const val PREVIEW_RATIO = 16f / 9f
-    /** Progress shown beside text (time left). */
+    /** Progress shown beside text (time left), `HlStroke.line`. */
     val progressShort = 120.dp
-    /** The progress in a hero (« À regarder », a person's page), before its time left; [heroProgressWeight] on home's case too. */
+    /** The progress in a hero (« À regarder », a person's page), before its time left, `HlStroke.bold` over its picture. */
     val heroProgress = 220.dp
-    val heroProgressWeight = 4.dp
     /** Placeholder rules for a title and its facts while a page loads. */
     val skeletonTitle = 48.dp
     val skeletonFacts = 24.dp
-    val progress = 3.dp
-    /** Progress burning at the foot of a poster, of a wide image. */
-    val progressPoster = 4.dp
-    val progressWide = 5.dp
-    /** The short rule heading every intertitle. */
+    /** The short rule heading every intertitle, `HlStroke.ring`. */
     val intertitleRule = 24.dp
-    val intertitleRuleWeight = 2.dp
     /** A word of a track (`HlSegmented`) on its plate: as tall as a compact tile. */
     val segment = 40.dp
-    /** The dot before the current place's word when it has focus. */
-    val wordDot = 7.dp
     /** A folder's [Showcase]: four posters across, full height. */
     val showcase = 416.dp
     /**
@@ -230,12 +220,23 @@ object HlSize {
      */
     val galleryWide = 244.dp
     const val LOGO_BOX_RATIO = 244f / 85f
-    /** The ring of focus on a field, a read-only area, a control that cannot act. */
-    val focusBorder = 2.dp
-    val hairline = 1.dp
-    /** The lockup's cap height: at the head of About, on the screen title's baseline, and over the welcome wall (364 wide). */
+    /** The lockup's cap height, one size: at the head of About, on the screen title's baseline, and over the welcome wall (364 wide). */
     val wordmark = 26.dp
-    val wordmarkHero = 26.dp
+}
+
+/**
+ * Strokes, four weights in whole pixels at 1080p (DESIGN.md, Space and size); focus's frame keeps its own
+ * ([HlFocus.frame]), a dot's ring its own ([HlSize.dotRing]).
+ */
+object HlStroke {
+    /** An edge, a divider, a rule. */
+    val hair = 1.dp
+    /** A ring: focus's on a field, a read-only area or what cannot act; typing's; a new dot's; an intertitle's rule. */
+    val ring = 2.dp
+    /** A line beside words: progress there, a season's episodes along a door's band. */
+    val line = 3.dp
+    /** A line on a picture: progress at a poster's, a still's, a hero's and home's case's foot. */
+    val bold = 4.dp
 }
 
 /** Layout measures of screens (DESIGN.md, Layout). */
@@ -403,7 +404,6 @@ internal object HomeGridDefaults {
 
     /** A door's band, under its picture: its icon, its name and what it says, at the default text size; on one part, closer. */
     val band = 38.dp
-    val bandIcon = 18.dp
     val bandGapNarrow = 6.dp
 
     /** The case's logo, and the next episode's over its still. */
@@ -412,12 +412,10 @@ internal object HomeGridDefaults {
     val stillLogoWidth = 108.dp
     val stillLogoHeight = 40.dp
 
-    /** The case's action, a plate the case's focus fills. */
+    /** The case's action, a plate the case's focus fills, its icon `HlSize.inlineIcon`. */
     val action = 40.dp
-    val actionIcon = 17.dp
 
-    /** The episodes of a season along a band's top edge, and between two. */
-    val segment = 3.dp
+    /** Between two episodes of a season along a band's top edge (`HlStroke.line`). */
     val segmentGap = 2.dp
 
     /** A count cut in posters: the air its longest keeps across and down, from the picture's start. */
@@ -639,8 +637,11 @@ object HlFocus {
     /** The focused card's siblings dim and lose colour through their image's filter: partly, so the wall stays inviting. */
     const val SIBLING_BRIGHTNESS = 0.64f
     const val SIBLING_SATURATION = 0.65f
-    /** Colour steps of a receding card, bounding how often its image draws again as it steps back. */
-    const val RECEDE_STEPS = 3
+    /**
+     * Steps of a receding card's colour and light, bounding how often its image draws again as it steps back: five, under
+     * 8 % of light each; a layer's alpha would let a wall's field or a backdrop show through the card.
+     */
+    const val RECEDE_STEPS = 5
 
     /** The colour step for how far a card has stepped back: 0 in front, [RECEDE_STEPS] behind. */
     fun recedeStep(recede: Float): Int = (recede.coerceIn(0f, 1f) * RECEDE_STEPS).roundToInt()

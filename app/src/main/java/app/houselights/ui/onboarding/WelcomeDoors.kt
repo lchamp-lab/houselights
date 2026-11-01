@@ -49,8 +49,8 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
-import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.components.CutPosters
 import app.houselights.ui.design.components.HomeDoor
 import app.houselights.ui.design.components.ScaledTint
@@ -106,7 +106,7 @@ internal fun ColumnScope.WelcomeDoors(choices: List<SourceChoice>, posters: List
         choices.forEachIndexed { i, choice ->
             Column(Modifier.alpha(if (i == focused) 1f else 0f), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                 Text(choice.says, style = Hl.type.body, color = Hl.colors.contentSecondary)
-                Text(choice.tech, style = Hl.type.jaquette, color = Hl.colors.contentTertiary)
+                Text(choice.tech, style = Hl.type.jaquette, color = Hl.colors.contentSecondary)
             }
         }
     }
@@ -158,7 +158,7 @@ private fun GlyphCut(glyph: SourceGlyph, posters: CutPosters, lit: Boolean) {
             val drawn = Size(bounds.width * scale, bounds.height * scale)
             val left = (size.width - drawn.width) / 2 - bounds.left * scale
             val top = (size.height - drawn.height) / 2 - bounds.top * scale
-            val edge = Stroke(HlSize.hairline.toPx())
+            val edge = Stroke(HlStroke.hair.toPx())
             val line = c.content.copy(alpha = HlAlpha.FIGURE_EDGE)
             val tintPaint = posters.tint?.let { tintPaint(tints.at(it, size)) }
             val fill = poster?.let { posterPaint(it, drawn, Offset(left + bounds.left * scale, top + bounds.top * scale)) }

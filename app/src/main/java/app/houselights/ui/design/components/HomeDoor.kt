@@ -35,9 +35,10 @@ import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.HomeGridDefaults
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
-import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.textRoom
 
 // A door of home's grid (DESIGN.md, Layout): its frame, its band and what the band says.
@@ -83,7 +84,7 @@ fun HomeDoor(
     val c = Hl.colors
     HlFocusSurface(
         onClick = onClick,
-        look = FocusStyle.frame(rest = c.glass, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.plateEdge)),
+        look = FocusStyle.frame(rest = c.glass, restInk = c.content, edge = BorderStroke(HlStroke.hair, c.edge)),
         shape = HlShapes.control,
         modifier = modifier,
         glow = glow,
@@ -104,11 +105,11 @@ private fun DoorBand(name: String, icon: ImageVector, note: DoorNote?, progress:
         Modifier
             .fillMaxWidth()
             .height(textRoom(HomeGridDefaults.band))
-            .background(c.ambientDeep)
-            .drawBehind { drawRect(c.plateEdge, size = Size(size.width, HlSize.hairline.toPx())) },
+            .background(c.glass)
+            .drawBehind { drawRect(c.edge, size = Size(size.width, HlStroke.hair.toPx())) },
     ) {
         BandLine(Modifier.align(Alignment.CenterStart).padding(horizontal = HlSpace.s)) {
-            Icon(icon, contentDescription = null, tint = c.content, modifier = Modifier.size(HomeGridDefaults.bandIcon))
+            Icon(icon, contentDescription = null, tint = c.content, modifier = Modifier.size(HlSize.icon))
             Text(name, style = Hl.type.cardName, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
             note?.let { NoteWords(it) }
         }
@@ -164,7 +165,7 @@ private fun NoteWords(note: DoorNote) {
         is DoorNote.Mark -> Text(note.text, style = Hl.type.jaquette, color = c.contentSecondary, maxLines = 1)
         is DoorNote.News -> Row(verticalAlignment = Alignment.CenterVertically) {
             // The ember dot says new; the words say how many.
-            Box(Modifier.size(HlSize.doorDot).background(c.ember, CircleShape))
+            Box(Modifier.size(HlSize.dot).background(c.ember, CircleShape))
             Spacer(Modifier.width(HlSpace.xs))
             Text(note.text, style = Hl.type.meta, color = c.content, maxLines = 1)
         }
@@ -176,7 +177,7 @@ private fun NoteWords(note: DoorNote) {
 private fun BoxScope.BandEdge(progress: DoorProgress) {
     val c = Hl.colors
     Spacer(
-        Modifier.align(Alignment.TopStart).fillMaxWidth().height(HomeGridDefaults.segment).drawWithCache {
+        Modifier.align(Alignment.TopStart).fillMaxWidth().height(HlStroke.line).drawWithCache {
             val light = c.emberLight(across = size.width)
             val track = c.content.copy(alpha = HlAlpha.FILL_STRONG)
             onDrawBehind {

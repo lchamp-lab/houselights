@@ -29,6 +29,7 @@ import app.houselights.core.UserState
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.HomeGridDefaults
 import app.houselights.ui.design.TEXT_SCALE_MAX
 import app.houselights.ui.testing.TV
@@ -123,7 +124,7 @@ class MenuKeyTest {
 
         compose.press(Key.DirectionRight)
         // Above the line, which stays whole at the poster's foot.
-        assertInCorner(keys().single(), bounds(compose.onNodeWithTag(SECOND)), HlSize.progressPoster.value)
+        assertInCorner(keys().single(), bounds(compose.onNodeWithTag(SECOND)), HlStroke.bold.value)
 
         compose.press(Key.DirectionRight)
         assertEquals("no options, no key", emptyList<Rect>(), keys())
@@ -145,7 +146,7 @@ class MenuKeyTest {
         val key = keys().single()
         assertEquals(HlSize.menuKeyWidth.value, key.width, 0.5f)
         assertEquals(HlSize.menuKeyHeight.value, key.height, 0.5f)
-        assertInCorner(key, bounds(compose.onNodeWithTag(SECOND)), HlSize.progressPoster.value)
+        assertInCorner(key, bounds(compose.onNodeWithTag(SECOND)), HlStroke.bold.value)
     }
 
     private fun bounds(node: SemanticsNodeInteraction): Rect = node.fetchSemanticsNode().boundsInRoot

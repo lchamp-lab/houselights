@@ -7,7 +7,7 @@ import org.junit.Test
 class FocusRoomTest {
     @Test
     fun theFrameIsBolderThanABorder() {
-        assertTrue(HlFocus.frame > HlSize.focusBorder)
+        assertTrue(HlFocus.frame > HlStroke.ring)
     }
 
     @Test

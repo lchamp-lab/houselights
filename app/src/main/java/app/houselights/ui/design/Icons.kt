@@ -186,14 +186,18 @@ object HlIcons {
     /** What follows: play to a bar, the next episode (`skip-forward`). */
     val Next = icon("Next", "M5 4L15 12L5 20L5 4Z", "M19 5L19 19")
 
-    /** What is new: three sparks (`sparkles`). */
-    val Sparkles = icon(
-        "Sparkles",
-        "M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135" +
-            "a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063" +
-            "a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z",
-        "M20 3v4",
-        "M22 5h-4",
+    /** On to the next step of a form: an arrow (`arrow-right`); never a transport key. */
+    val Continue = icon("Continue", "M5 12h14", "m12 5 7 7-7 7")
+
+    /** What is new to the library: a day added (`calendar-plus`); its ember dot says new. */
+    val Latest = icon(
+        "Latest",
+        "M16 19h6",
+        "M16 2v4",
+        "M19 16v6",
+        "M21 12.598V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8.5",
+        "M3 10h18",
+        "M8 2v4",
     )
 
     /** A library of films: a strip of film (`film`). */

@@ -16,7 +16,7 @@ object HlPalette {
     val N8 = Color(0xFF131316)
     val N21 = Color(0xFF33333A)
     val N28 = Color(0xFF45454C)
-    val N36 = Color(0xFF5D5D5D)
+    val N36 = Color(0xFF5D5D63)
     val N57 = Color(0xFF8C8C95)
     val N65 = Color(0xFFA3A3AB)
     val N96 = Color(0xFFF4F4F5)
@@ -37,14 +37,17 @@ data class HlColors(
     val background: Color,
     /** Glass: side sheets and menus, opaque over the dimmed room. */
     val glass: Color,
-    /** Outlined badges, and every edge at `HlAlpha.EDGE`. */
+    /** A badge's border and a field's at rest, whole; never an edge ([edge]). */
     val outline: Color,
     /** Primary text: projector white. */
     val content: Color,
     val contentSecondary: Color,
-    /** The quietest text: 5.56:1 on [glass], never on `FILL_STRONG` (`ContrastTest`). */
+    /**
+     * The quietest text, for what is guessed or missing only: joins, placeholders, hints, what cannot act, a film the
+     * library lacks; never a fact (`DesignTokenGuardTest`). 5.56:1 on [glass], never on `FILL_STRONG` (`ContrastTest`).
+     */
     val contentTertiary: Color,
-    /** Never for text: the rule of an empty frame, a skeleton. */
+    /** Never for text: the rule of an empty frame, a skeleton; never an edge or a divider ([edge]). */
     val contentDecorative: Color,
     /**
      * The house light, a closed list of six states (in use, your choice, needs attention, new, where you are,
@@ -93,17 +96,25 @@ val LocalHlColors = staticCompositionLocalOf { HouselightsColors }
 fun HlColors.emberLight(alpha: Float = 1f, across: Float = Float.POSITIVE_INFINITY): Brush =
     Brush.horizontalGradient(listOf(emberFrom.copy(alpha = alpha), emberTo.copy(alpha = alpha)), endX = across)
 
-/** Every edge and divider of a container: [HlColors.outline] at `HlAlpha.EDGE`. */
-val HlColors.edge: Color get() = outline.copy(alpha = HlAlpha.EDGE)
+/**
+ * The one edge: every panel, plate, door, picture at rest and scrolling area, and every divider, `content` at
+ * `HlAlpha.EDGE`; white seen through, it reads the same on the room, on glass and on a picture.
+ */
+val HlColors.edge: Color get() = content.copy(alpha = HlAlpha.EDGE)
 
-/** A plate over a picture: its own dark at [alpha], set off by [plateEdge]. */
+/** A plate over a picture: its own dark at [alpha], set off by [edge]. */
 fun HlColors.plate(deep: Color = ambientDeep, alpha: Float = HlAlpha.PLATE): Color = deep.copy(alpha = alpha)
+
+/**
+ * The plate of a mark on a picture (a check, a count, a key, the new dot's ring): the picture's own dark, as a
+ * control's plate takes it, at a plate's ceiling, since a mark sits on any part of its picture unmeasured: in the
+ * lightest dark over white, the OK key's letters keep 6.2:1 and a progress line's raspberry end 4.3:1 beside it (at
+ * `VEIL` they would fall to 4.1 and 2.8). Read while drawing.
+ */
+fun HlColors.markPlate(light: AmbientLight): Color = plate(light.deep(), HlAlpha.PLATE_MAX)
 
 /** A plate over the picture [light] comes from, read while drawing: as opaque as its quietest text needs there. */
 fun HlColors.plate(light: AmbientLight): Color = plate(light.deep(), light.plateAlpha())
-
-/** The hairline around a [plate]. */
-val HlColors.plateEdge: Color get() = content.copy(alpha = HlAlpha.PLATE_EDGE)
 
 /** Glass in a picture's [glow] at `GLASS_GLOW`: a showcase in its posters' light. */
 fun HlColors.tintedGlass(glow: Color): Color = glow.copy(alpha = glow.alpha * HlAlpha.GLASS_GLOW).compositeOver(glass)
@@ -143,6 +154,9 @@ fun OnArtwork(content: @Composable () -> Unit) {
 @ReadOnlyComposable
 fun groundColor(): Color = if (LocalGround.current == Ground.Glass) Hl.colors.glass else Hl.colors.background
 
+/** The one step over the room, opaque: whatever lies on it, a control at rest, a group's plate, at `FILL` (#161616). */
+val HlColors.roomStep: Color get() = content.copy(alpha = HlAlpha.FILL).compositeOver(background)
+
 /** Fill one step up: `FILL` on the room; `FILL_FAINT` on glass, keeping the quietest text at 4.5:1 there. */
 @Composable
 @ReadOnlyComposable
@@ -152,6 +166,14 @@ fun groundStep(): Float = if (LocalGround.current == Ground.Glass) HlAlpha.FILL_
 @Composable
 @ReadOnlyComposable
 fun groundStepFill(): Color = Hl.colors.content.copy(alpha = groundStep())
+
+/**
+ * The well of what cannot act or is missing: `FILL_FAINT` on glass; none on the room, where a step that faint falls
+ * under video black and would read darker than what can act. Its ink and focus's ring say it.
+ */
+@Composable
+@ReadOnlyComposable
+fun groundWell(): Color = if (LocalGround.current == Ground.Glass) Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT) else Color.Transparent
 
 /** `content` at [alpha] composited over the ground: a fill as it shows, opaque. */
 @Composable
@@ -165,24 +187,29 @@ fun groundPlate(): Color? = if (LocalGround.current == Ground.Artwork) Hl.colors
 
 /** Opacities by role: fills of `content`, veils of `background`, edges; every translucent layer uses one. */
 object HlAlpha {
-    /** Faint wells: a meter's track, a disabled control, an absent film's card. */
+    /**
+     * The step on glass ([groundStep]): a well there, a meter's track, a field; never on the room, where it falls to 15,
+     * under video black.
+     */
     const val FILL_FAINT = 0.06f
-    /** Fill of a thing on its ground (a placeholder, a control on glass): #161616 on the room, a step a TV still shows. */
+    /**
+     * The one step on the room ([roomStep]): whatever lies on it, a placeholder, a control at rest, a plate, #161616,
+     * a step a TV still shows; a control on glass.
+     */
     const val FILL = 0.09f
     /** A progress line's track beside text. */
     const val FILL_STRONG = 0.2f
 
     /** The room beside a side sheet, which stays readable. */
     const val VEIL_SIDE = 0.6f
-    /** Card marks and their progress track on artwork: at 80 % a progress line's raspberry end keeps 3.5:1 on white. */
+    /** A progress line's track on artwork ([groundPlate]): at 80 % its raspberry end keeps 3.5:1 on white. */
     const val VEIL = 0.8f
     /**
      * A [plate] in the picture's own dark, raised up to [PLATE_MAX] over a light picture so its quietest text
-     * keeps 4.5:1 (`ArtworkSample.plateFloor`), and the hairline (`content`) that sets it off.
+     * keeps 4.5:1 (`ArtworkSample.plateFloor`).
      */
     const val PLATE = 0.74f
     const val PLATE_MAX = 0.92f
-    const val PLATE_EDGE = 0.11f
 
     /**
      * A plate on glass ([glassPlate]): `content` a step over it, under `FILL_FAINT` so the quietest text keeps
@@ -194,10 +221,8 @@ object HlAlpha {
     /** A sheet's glass: the picture's dark over it ([sheetGlass]). */
     const val GLASS_DEEP = 0.5f
 
-    /** Every edge and divider of a container: `outline` at this opacity. */
-    const val EDGE = 0.6f
-    /** The edge of artwork at rest, so a dark poster keeps its outline on the black room: `content`. */
-    const val EDGE_ARTWORK = 0.12f
+    /** The one edge ([edge]): `content` at this opacity; a dark poster keeps its outline on the black room. */
+    const val EDGE = 0.12f
 
     /** The ink edge of a digit cut in a poster, so a dark poster keeps the figure's shape: `content`. */
     const val FIGURE_EDGE = 0.3f

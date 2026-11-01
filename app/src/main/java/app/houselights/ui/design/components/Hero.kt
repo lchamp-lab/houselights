@@ -1,7 +1,6 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +36,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.timeLeft
 import kotlinx.coroutines.flow.first
@@ -71,7 +71,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? 
             Spacer(Modifier.height(HlGap.inBlock))
             if (shown.progress > 0f) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    ProgressLine(shown.progress, Modifier.width(HlSize.heroProgress), thickness = HlSize.heroProgressWeight)
+                    ProgressLine(shown.progress, Modifier.width(HlSize.heroProgress), thickness = HlStroke.bold)
                     Spacer(Modifier.width(HlSpace.s))
                     timeLeft(shown)?.let { Text(it, style = Hl.type.meta, color = Hl.colors.contentSecondary) }
                 }
@@ -90,8 +90,9 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? 
 
 /**
  * Shows [content] for [item] once the backdrop settles on its picture ([LocalBackdropSettled]), at most
- * [HlMotion.HOLD] later, so text never shows over the previous picture; one crossfade, no re-measure. Each title
- * stands at [alignment] in [modifier]'s box.
+ * [HlMotion.HOLD] later, so text never shows over the previous picture; one crossfade, no re-measure, the words coming
+ * in as a plate does ([HlMotion.PLATE_IN]) and leaving as one ([HlMotion.PLATE_OUT]). Each title stands at [alignment]
+ * in [modifier]'s box.
  */
 @Composable
 fun WithItsPicture(
@@ -112,7 +113,7 @@ fun WithItsPicture(
         laid.forEach { id ->
             key(id) {
                 val alpha = transition.animateFloat(
-                    transitionSpec = { tween(if (targetState == id) HlMotion.STANDARD else HlMotion.FAST, easing = HlMotion.fallBack) },
+                    transitionSpec = { HlMotion.inOut(targetState == id, HlMotion.PLATE_IN, HlMotion.PLATE_OUT) },
                     label = "namedAlpha",
                 ) { if (it == id) 1f else 0f }
                 // Only the target title is exposed to accessibility; the others are fading in or out.
@@ -162,8 +163,8 @@ fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier,
 fun HeroSkeleton(modifier: Modifier = Modifier) {
     val rule = Hl.colors.contentDecorative
     Column(modifier) {
-        Box(Modifier.width(HlSize.skeletonTitle).height(HlSize.hairline).background(rule))
+        Box(Modifier.width(HlSize.skeletonTitle).height(HlStroke.hair).background(rule))
         Spacer(Modifier.height(HlSpace.l))
-        Box(Modifier.width(HlSize.skeletonFacts).height(HlSize.hairline).background(rule))
+        Box(Modifier.width(HlSize.skeletonFacts).height(HlStroke.hair).background(rule))
     }
 }
