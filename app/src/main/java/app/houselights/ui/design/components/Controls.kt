@@ -471,8 +471,8 @@ fun HlActionRow(
  * [HlActionRow] reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden
  * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit]. Menu or a long OK
  * opens its options ([onLongClick], which [onLongClickLabel] names to accessibility services), the Menu key saying so
- * on the label's second line; without options, that line is its [hint], quieter. Within a [labelRoom], the label keeps
- * to its edges as it does to the screen's.
+ * on the label's second line; without options, that line is its [hint], quieter. Within a [labelRoom] (a saga panel's
+ * actions), the label stays centred under its tile when it fits, else slides under it to the room's edge, never past.
  */
 @Composable
 fun HlIconButton(
@@ -544,7 +544,7 @@ fun HlIconButton(
                 // Within what holds it, its edges then the edges, else within the screen's.
                 when (room) {
                     null -> labelX(button.width, text.width, left, screen.size.width, edge)
-                    else -> labelX(button.width, text.width, left - room.start, room.width, 0)
+                    else -> labelWithin(button.width, text.width, left - room.start, room.width)
                 }
             } ?: ((button.width - text.width) / 2)
             text.place(x, button.height + gap)
@@ -596,6 +596,13 @@ internal fun Density.tileLabelWidth(screen: Int): Int {
     val edges = 2 * HlIconButtonDefaults.labelEdge.roundToPx()
     return (HlIconButtonDefaults.labelWidth * fontScale).roundToPx().coerceAtMost(screen - edges)
 }
+
+/**
+ * The label's x offset from the button, [left] px into a room [room] px wide: centred under it, else slid towards the
+ * room's middle until it ends at the room's end or starts at its start.
+ */
+internal fun labelWithin(button: Int, label: Int, left: Int, room: Int): Int =
+    ((button - label) / 2).coerceAtMost(room - left - label).coerceAtLeast(-left)
 
 /** The label's x offset from the button: centred, else aligned to the side nearing [edge], never past it. */
 internal fun labelX(button: Int, label: Int, left: Int, screen: Int, edge: Int): Int {

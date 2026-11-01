@@ -61,6 +61,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.LocalDate
 import java.util.Locale
+import kotlin.math.abs
 
 /**
  * DESIGN.md, Saga page: its words in each of the app's languages at the largest text size (1.3), on the saga that says
@@ -173,28 +174,46 @@ class SagaWordsTest {
     }
 
     /**
-     * Every tile's label of the saga's actions and of a film's (Reprendre, Depuis le début, its check and its page) stays
-     * inside its panel in every language at 1.3, the last tile's sliding left under it rather than past the edge.
+     * Every tile's label of the saga's actions and of a film's (Reprendre, Depuis le début, its check and its page) keeps
+     * within its panel's actions in every language at 1.3: centred under its tile when it fits, else slid under it to
+     * their edge; here in a panel at its narrowest (428, five films).
      */
     @Test
-    fun theTilesLabelsStayInsideTheirPanelInEveryLanguage() {
-        val page = SagaPage(compose, source(), work)
+    fun theTilesLabelsKeepWithinANarrowPanelInEveryLanguage() {
+        val wrong = labelsAcross(source(), mission.id) { words ->
+            val saga = words.labelsMisplaced(words.sagaPanel, SAGA_TILES, "the saga's actions, 428")
+            compose.press(Key.DirectionUp)
+            compose.press(Key.DirectionRight, times = 3)
+            saga + words.labelsMisplaced(words.reckoningPanel, FILM_TILES, "a film's actions, 428")
+        }
+        assertTrue("At $LARGEST:\n" + wrong.joinToString("\n"), wrong.isEmpty())
+    }
+
+    /** The same in a wider panel (541, three films), where a label has room to stay centred. */
+    @Test
+    fun theTilesLabelsKeepWithinAWidePanelInEveryLanguage() {
+        val wrong = labelsAcross(duneSource(), duneSaga.id) { words ->
+            val saga = words.labelsMisplaced(words.dunePanel, SAGA_TILES, "the saga's actions, 541")
+            compose.press(Key.DirectionUp)
+            compose.press(Key.DirectionRight, times = 2)
+            saga + words.labelsMisplaced(words.duneTwoPanel, FILM_TILES, "a film's actions, 541")
+        }
+        assertTrue("At $LARGEST:\n" + wrong.joinToString("\n"), wrong.isEmpty())
+    }
+
+    /** What [check] finds wrong on the page of [id] from [source] in each language at 1.3, back on the saga after each. */
+    private fun labelsAcross(source: SagaSource, id: String, check: (Words) -> List<String>): List<String> {
+        val page = SagaPage(compose, source, work)
         page.step = LARGEST
         page.language = InterfaceLanguage.LANGUAGES.first()
-        page.open(mission.id)
-        val wrong = InterfaceLanguage.LANGUAGES.flatMap { tag ->
+        page.open(id)
+        return InterfaceLanguage.LANGUAGES.flatMap { tag ->
             val words = Words(tag)
             Locale.setDefault(words.locale)
             compose.runOnIdle { page.language = tag }
             compose.waitForIdle()
-            val saga = words.labelsOutside(words.sagaPanel, "the saga's actions")
-            compose.press(Key.DirectionUp)
-            compose.press(Key.DirectionRight, times = 3)
-            val film = words.labelsOutside(words.reckoningPanel, "a film's actions")
-            compose.pressBack()
-            saga + film
+            check(words).also { compose.pressBack() }
         }
-        assertTrue("At $LARGEST:\n" + wrong.joinToString("\n"), wrong.isEmpty())
     }
 
     /** What the page says in [tag], and where it says it wrong. */
@@ -207,22 +226,36 @@ class SagaWordsTest {
         private val wrong = mutableListOf<String>()
         private val timeLeft = res.getString(R.string.time_left, formatDuration(reckoning.runtimeMs!! - reckoning.user.positionMs))
 
-        /** The saga's panel, and the film half seen's, as read in this language. */
+        /** The panels whose actions are measured, as read in this language: Mission : Impossible's and Dune's. */
         val sagaPanel: String = res.getString(R.string.saga_volet_saga, mission.title)
         val reckoningPanel: String = res.getString(R.string.saga_card_name, reckoning.title, 3) + ", 2023"
+        val dunePanel: String = res.getString(R.string.saga_volet_saga, duneSaga.title)
+        val duneTwoPanel: String = res.getString(R.string.saga_card_name, duneTwo.title, 2) + ", 2024"
 
-        /** The tiles' labels now laid out that pass the edges of the panel read as [panel]. */
-        fun labelsOutside(panel: String, where: String): List<String> {
+        /**
+         * The labels now laid out of the tiles named [tiles], in their order, that are not where they belong in the
+         * panel read as [panel]: centred under their tile, else slid to the edge of its actions (its words' inset).
+         */
+        fun labelsMisplaced(panel: String, tiles: List<Int>, where: String): List<String> {
             val bounds = compose.onNode(hasContentDescription(panel)).getUnclippedBoundsInRoot()
+            val start = (bounds.left + HlInset.card).value
+            val end = (bounds.right - HlInset.card).value
             val labels = compose.onAllNodes(hasTestTag(TILE_LABEL), useUnmergedTree = true).fetchSemanticsNodes()
                 .filter { it.layoutInfo.isPlaced }
-            if (labels.isEmpty()) return listOf("$tag, $where: no tile")
+            val buttons = tiles.map {
+                compose.onNode(
+                    hasContentDescription(res.getString(it)) and hasClickAction(),
+                ).getUnclippedBoundsInRoot()
+            }
+            if (labels.size != buttons.size) return listOf("$tag, $where: ${labels.size} labels for ${buttons.size} tiles")
             val density = compose.density.density
-            return labels.mapNotNull { node ->
+            return labels.zip(buttons).mapNotNull { (node, tile) ->
                 val left = node.boundsInRoot.left / density
-                val right = node.boundsInRoot.right / density
-                "$tag, $where: a label from $left to $right, past ${bounds.left}..${bounds.right}"
-                    .takeIf { left < bounds.left.value - HALF || right > bounds.right.value + HALF }
+                val width = node.boundsInRoot.width / density
+                val centred = (tile.left + tile.right).value / 2 - width / 2
+                val expected = centred.coerceAtMost(end - width).coerceAtLeast(start)
+                "$tag, $where: a label from $left, $width wide, where $expected (actions $start..$end)"
+                    .takeIf { abs(left - expected) > 1f }
             }
         }
 
@@ -289,6 +322,10 @@ class SagaWordsTest {
 
     private companion object {
         const val LARGEST = 1.3f
+
+        /** The tiles of the saga's actions and of a film's, by their labels, in their order. */
+        val SAGA_TILES = listOf(R.string.from_start, R.string.mark_saga_watched, R.string.edit)
+        val FILM_TILES = listOf(R.string.from_start, R.string.mark_watched, R.string.saga_film_page)
         const val HALF = 0.5f
 
         val mission = MediaItem(

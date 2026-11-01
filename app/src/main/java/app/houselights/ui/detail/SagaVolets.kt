@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -432,7 +433,7 @@ private fun SagaActions(
     val last = play.last
     // The panel's actions' width, which their tiles' labels keep within.
     val labels = remember { LabelRoom() }
-    Column(Modifier.okClears(play.links.onClearActionError).labelRoom(labels)) {
+    Column(Modifier.okClears(play.links.onClearActionError).fillMaxWidth().labelRoom(labels)) {
         ActionsHead(play.problem, state.actionError, state.error, acts.target?.title)
         OnArtwork {
             HlActionRow(Modifier.focusRequester(actionRow)) {
@@ -476,7 +477,7 @@ private fun SagaActions(
 private fun FilmActions(film: MediaItem, state: DetailState, play: PanelPlay) {
     val memory = play.memory
     val labels = remember { LabelRoom() }
-    Column(Modifier.okClears(play.links.onClearActionError).labelRoom(labels)) {
+    Column(Modifier.okClears(play.links.onClearActionError).fillMaxWidth().labelRoom(labels)) {
         ActionsHead(play.problem, state.actionError, nextUpError = null, next = null)
         OnArtwork {
             HlActionRow {
