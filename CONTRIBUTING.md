@@ -216,7 +216,9 @@ run it (see below): a debug or freshly installed build runs interpreted and show
 The baseline profile lists the code of the main journeys (start-up, home's doors, a library wall, the
 sagas, a saga's page, a detail page from To watch, a series, the search, settings) so Android compiles it ahead of
 time. It is checked in (`app/src/main/generated/baselineProfiles/`); `BaselineProfileGuardTest` fails once it
-names files since removed or lacks home's grid, or once its run leaves out a journey.
+names files since removed or lacks home's grid, or once its run leaves out a journey. The wall's journey holds an
+arrow down its lines and back, so the benchmark's `library` measures a wall under a held arrow, its frame jumping:
+measure it on the Zidoo, with a wall of some thousands of titles.
 
 - **Installed with `scripts/install.sh`** (APK and `.dm` in one session): compiled at install.
 - **APK alone**: `profileinstaller` hands the profile to Android, which compiles it only while the device is
