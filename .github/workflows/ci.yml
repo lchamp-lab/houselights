@@ -1,7 +1,8 @@
-# Checks every push and pull request in four parts side by side, each on a runner of its own: the unit tests, Android
-# Lint, detekt (with and without the compiler's types), and a minified release build, signed with the runner's debug key
-# and never published, with the baseline profile's journeys compiled; every compilation and Lint failing on a warning.
-# « check » passes once all four have: the check a merge to main waits for (the repository's ruleset on main).
+# Checks every push and pull request in five parts side by side, each on a runner of its own: the unit tests, Android
+# Lint, detekt (with and without the compiler's types) on the app, detekt with the compiler's types on its unit tests,
+# and a minified release build, signed with the runner's debug key and never published, with the baseline profile's
+# journeys compiled; every compilation and Lint failing on a warning.
+# « check » passes once all five have: the check a merge to main waits for (the repository's ruleset on main).
 # TMDB_API_KEY is optional (a repository secret): without it the app builds and users enter their own key.
 # TRAKT_CLIENT_ID is optional too, and TRAKT_CLIENT_SECRET only for a Trakt app that has one: without them,
 # the app builds and says it has no Trakt. Only the unit tests and the release build, whose code is built with them,
@@ -22,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The same checks as scripts/check.sh, in four parts: each compiles what it checks, so that none waits for another.
+  # The same checks as scripts/check.sh, in five parts: each compiles what it checks, so that none waits for another.
   parts:
     name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
@@ -41,9 +42,18 @@ jobs:
           - name: lint
             id: lint
             gradle: lintDebug
+          # Each of detekt's tasks reads the code for a minute and a half to two minutes; detektDebug and
+          # detektDebugUnitTest resolve its types with detekt's own compiler, from the classes Gradle compiled. Gradle
+          # runs one task of a project at a time (detekt's Worker API option would fork each into a JVM of 512 MB,
+          # too small for the types), so in one part, with both compilations between them, the three took ten
+          # minutes. In two, the app's and its unit tests', each is shorter than the unit tests' part, where either
+          # would add its two minutes.
           - name: detekt
             id: detekt
-            gradle: detekt detektDebug detektDebugUnitTest
+            gradle: detekt detektDebug
+          - name: detekt, unit tests
+            id: detekt-tests
+            gradle: detektDebugUnitTest
           - name: release build
             id: release
             gradle: assembleRelease :baselineprofile:compileNonMinifiedReleaseKotlin
@@ -156,7 +166,7 @@ jobs:
         env:
           PARTS: ${{ needs.parts.result }}
         run: |
-          echo "Unit tests, lint, detekt and the release build: $PARTS"
+          echo "Unit tests, lint, detekt, detekt on the unit tests and the release build: $PARTS"
           [ "$PARTS" = success ]
 
   # The app against real servers (tools/test-servers/README.md): a Samba NAS, an unfs3 NAS, the same one sending its
