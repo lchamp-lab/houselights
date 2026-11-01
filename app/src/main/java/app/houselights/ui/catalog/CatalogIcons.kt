@@ -37,6 +37,8 @@ import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.MenuKey
+import app.houselights.ui.design.components.OkHint
+import app.houselights.ui.design.components.OkKey
 import app.houselights.ui.design.components.PlatedMenuKey
 import app.houselights.ui.design.components.Score
 import app.houselights.ui.design.components.SelectedMark
@@ -133,8 +135,8 @@ private fun ColumnScope.Marks() {
 
 /**
  * The key alone, then where it shows: in a card's bottom right corner while it has focus, white on the marks' plate,
- * the state mark's opposite (a poster's, a still's, an episode's); at a saga's predella's end, on the same plate,
- * centred on its tiles.
+ * the state mark's opposite (a poster's, a still's, an episode's); then the OK key, drawn as the Menu key is, and what
+ * OK does on an open saga panel, the key on the same plate, its words after it.
  */
 @Composable
 private fun MenuKeys() {
@@ -146,8 +148,12 @@ private fun MenuKeys() {
                 PlatedMenuKey({ true }, Modifier.align(Alignment.BottomEnd).padding(HlSpace.xs))
             }
         }
-        Specimen("at a saga's predella's end, centred on its tiles") {
-            Box(Modifier.height(HlSize.tile), contentAlignment = Alignment.Center) { PlatedMenuKey({ true }) }
+        Specimen("the OK key, as large") { OkKey() }
+        Specimen("what OK does on an open saga panel, at its actions' end") {
+            Box(
+                Modifier.height(HlSize.tile),
+                contentAlignment = Alignment.Center,
+            ) { OkHint(stringResource(R.string.saga_film_page), shown = true) }
         }
     }
 }

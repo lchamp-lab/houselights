@@ -113,7 +113,8 @@ fun HeaderControls(content: @Composable () -> Unit) {
  * a plate turning white. Disabled, it keeps focus, ringed, and ignores OK; [busy] shows the pending dot and
  * [busyLabel] and ignores OK. A button with a busy label of its own takes from the start the width of the wider of
  * its words at rest and busy, [reserveFor] included (another busy label it shows in turn), so nothing beside it moves
- * as they change. [detailLit] lights the detail for a state it names (an active filter, the sort chosen).
+ * as they change. [detailLit] lights the detail for a state it names (an active filter, the sort chosen); a detail
+ * [detailWhole] goes whole where the button has less room than it needs, never cut (a length).
  */
 @Composable
 fun HlButton(
@@ -129,7 +130,21 @@ fun HlButton(
     busy: Boolean = false,
     busyLabel: String = text,
     reserveFor: String? = null,
-) = ButtonPlate(text, onClick, modifier, icon, detail, emphasis, detailLit, enabled, busy, busyLabel, reserveFor = reserveFor)
+    detailWhole: Boolean = false,
+) = ButtonPlate(
+    text,
+    onClick,
+    modifier,
+    icon,
+    detail,
+    emphasis,
+    detailLit,
+    enabled,
+    busy,
+    busyLabel,
+    reserveFor = reserveFor,
+    detailWhole = detailWhole,
+)
 
 /** The plate of [HlButton]; [caution] sets the label in ember for an irreversible action ([SheetConfirm]). */
 @Composable
@@ -146,12 +161,13 @@ internal fun ButtonPlate(
     busyLabel: String = text,
     caution: Boolean = false,
     reserveFor: String? = null,
+    detailWhole: Boolean = false,
 ) {
     val c = Hl.colors
     val busyState = stringResource(R.string.control_busy)
     val height = if (LocalInHeader.current) HlSize.controlCompact else HlSize.control
     val surface = modifier.height(height).semantics { if (busy) stateDescription = busyState }
-    val words = ButtonWords(text, icon, detail, detailLit, busy, busyLabel)
+    val words = ButtonWords(text, icon, detail?.let { DetailWords(it, detailLit, detailWhole) }, busy, busyLabel)
     val reserved = reservedWidth(words, reserveFor)
     if (emphasis == Emphasis.Primary) {
         val light = remember(c) { c.emberLight() }
@@ -194,11 +210,14 @@ internal fun ButtonPlate(
 private class ButtonWords(
     val text: String,
     val icon: ImageVector?,
-    val detail: String?,
-    val detailLit: Boolean,
+    val detail: DetailWords?,
     val busy: Boolean,
     val busyLabel: String,
 )
+
+/** A button's detail: its [text], [lit] for a state it names, going [whole] where the button has no room for it. */
+@Immutable
+private class DetailWords(val text: String, val lit: Boolean, val whole: Boolean)
 
 @Composable
 private fun BoxScope.ButtonRow(words: ButtonWords, reserved: Dp, primary: Boolean, lit: Boolean, enabled: Boolean) {
@@ -228,7 +247,7 @@ private fun BoxScope.ButtonRow(words: ButtonWords, reserved: Dp, primary: Boolea
             ButtonLabel(words.text)
             words.detail?.let {
                 Spacer(Modifier.width(HlControl.iconGap))
-                ButtonDetail(it, primary, lit, enabled, words.detailLit)
+                ButtonDetail(it, primary, lit, enabled)
             }
         }
     }
@@ -238,24 +257,26 @@ private fun BoxScope.ButtonRow(words: ButtonWords, reserved: Dp, primary: Boolea
  * A button's detail: on the main action, a duration in the technical voice and its black ink; on a plate,
  * a value, quiet, lit in ember when it names a state (a disabled button keeps it quiet: no ember on a well).
  * Facts [FACT_GAP] apart (a film, then its time left) drop whole from the end where the button has less room than
- * they need, as a line of facts does; the first alone ends in an ellipsis.
+ * they need, as a line of facts does; the first alone ends in an ellipsis, unless the detail goes whole: then it does.
  */
 @Composable
-private fun ButtonDetail(text: String, primary: Boolean, lit: Boolean, enabled: Boolean, detailLit: Boolean) {
+private fun ButtonDetail(detail: DetailWords, primary: Boolean, lit: Boolean, enabled: Boolean) {
+    val text = detail.text
+    val whole = detail.whole
     val c = Hl.colors
     val t = Hl.type
     val chosen = remember(c, t.entry) { t.entry.emberLit(c) }
     val style = when {
         primary -> t.jaquette
-        detailLit && enabled && !lit -> chosen
+        detail.lit && enabled && !lit -> chosen
         else -> t.entry
     }
     val color = if (primary) Color.Unspecified else FocusStyle.quietInk(lit && enabled, enabled, lit = false)
     val facts = remember(text) { text.split(FACT_GAP) }
-    if (facts.size == 1) {
+    if (facts.size == 1 && !whole) {
         Text(text, style = style, color = color, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
     } else {
-        OneLine {
+        OneLine(squeezeFirst = !whole) {
             facts.forEachIndexed { i, fact ->
                 Text(
                     if (i == 0) fact else FACT_GAP + fact,

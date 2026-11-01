@@ -734,6 +734,13 @@
     </plurals>
     <string name="mark_saga_watched">将系列标记为已观看</string>
     <string name="mark_saga_unwatched">将系列标记为未观看</string>
+    <string name="saga_film_page">查看影片页面</string>
+    <string name="saga_hint_synopsis">阅读简介</string>
+    <string name="saga_hint_overview">阅读完整简介</string>
+    <string name="saga_place">%1$d / %2$d</string>
+    <plurals name="saga_watched">
+        <item quantity="other">已看 %d 部</item>
+    </plurals>
     <string name="saga_release_on">%s 上映</string>
     <string name="saga_announced">已宣布</string>
     <!-- 屏幕阅读器读出的系列面板：标题在前 -->

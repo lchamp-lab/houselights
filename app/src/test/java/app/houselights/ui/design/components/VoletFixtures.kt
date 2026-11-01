@@ -15,8 +15,8 @@ import app.houselights.ui.design.HlLayout
 val VOLET_SIDE = HlLayout.voletSide
 val POLYPTYCH = HlLayout.CANVAS_WIDTH.dp - VOLET_SIDE * 2
 
-/** The polyptych's height on the canvas at the default text size, above its predella, as a saga's page leaves it. */
-val POLYPTYCH_HEIGHT = 370.5.dp
+/** The polyptych's height on the canvas, from the safe area's top to its foot less a frame's reach each side, at every text size. */
+val POLYPTYCH_HEIGHT = 473.dp
 
 /** The plan of a saga of [films] and its own panel on the canvas. */
 fun voletPlan(films: Int) = VoletPlan.of(films + 1, POLYPTYCH, POLYPTYCH_HEIGHT)

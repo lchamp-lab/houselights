@@ -39,7 +39,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * DESIGN.md, Saga page: the room is the open panel's diffuse light once focus settled, the house lights down on a film
- * the library lacks; focus going down to Lire changes nothing in it, and Back brings the saga's light back; back from a
+ * the library lacks; focus going down into its actions changes nothing in it, and Back brings the saga's light back; back from a
  * film's page, its panel shows its picture whole at once. Read from the screen as drawn, each picture in its own colour,
  * served at once and none kept in memory.
  */
@@ -128,21 +128,23 @@ class SagaRoomTest {
         rest()
         assertLit("on arrival, the saga's") { isBlue() }
         press(Key.DirectionUp)
-        assertLit("on the film Lire plays") { isOrange() }
+        press(Key.DirectionRight)
+        press(Key.DirectionRight)
+        assertLit("on film 2") { isOrange() }
         press(Key.DirectionDown)
-        assertTrue("focus gone down to Lire, its light kept: ${room().hex()}", room().isOrange())
+        assertTrue("focus gone down into its actions, its light kept: ${room().hex()}", room().isOrange())
         press(Key.DirectionUp)
         press(Key.DirectionRight)
         assertTrue("a film the library lacks: the house lights down, ${room().hex()}", room().isBlack())
         press(Key.DirectionDown)
-        assertTrue("down to Lire, still down: ${room().hex()}", room().isBlack())
+        assertTrue("down, nothing under it, still down: ${room().hex()}", room().isBlack())
     }
 
     @Test
     fun backBringsTheSagasLightBack() {
         SagaPage(compose, duneSource(), work).open(duneSaga.id)
         press(Key.DirectionUp)
-        press(Key.DirectionRight)
+        repeat(3) { press(Key.DirectionRight) }
         assertTrue(room().hex(), room().isBlack())
         compose.pressBack()
         // Back is taken, then the room left to settle.
@@ -156,6 +158,7 @@ class SagaRoomTest {
     fun backFromAFilmsPageItsPictureIsWholeAtOnce() {
         val page = SagaPage(compose, duneSource(), work).also { it.open(duneSaga.id) }
         press(Key.DirectionUp)
+        repeat(2) { press(Key.DirectionRight) }
         compose.press(Key.DirectionCenter)
         assertEquals(listOf(duneTwo.id), page.opened)
         compose.runOnIdle { page.shown = false }

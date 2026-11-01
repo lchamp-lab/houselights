@@ -53,11 +53,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.ContentScale
@@ -547,34 +545,6 @@ fun LandscapeCard(
 private fun BoxScope.CornerKey(focused: () -> Boolean, started: Boolean, line: Dp) {
     val bottom = HlSpace.xs + if (started) line else HlSpace.none
     PlatedMenuKey(focused, Modifier.align(Alignment.BottomEnd).padding(end = HlSpace.xs, bottom = bottom))
-}
-
-/**
- * The Menu key on the marks' dark plate, white, while [shown] says and no sheet is open, coming and going as a tile's
- * label: a card's in its corner ([CornerKey]), and a saga's predella's at its end, after its last action (#48).
- */
-@Composable
-fun PlatedMenuKey(shown: () -> Boolean, modifier: Modifier = Modifier) {
-    val showing = shown() && OpenSheets.count == 0
-    val alpha = animateFloatAsState(
-        if (showing) 1f else 0f,
-        HlMotion.inOut(showing, HlMotion.PLATE_IN, HlMotion.PLATE_OUT),
-        label = "menuKey",
-    )
-    val fading by remember { derivedStateOf { alpha.value > 0f } }
-    if (showing || fading) {
-        val c = Hl.colors
-        MenuKey(
-            modifier
-                .graphicsLayer {
-                    this.alpha = alpha.value
-                    compositingStrategy = CompositingStrategy.ModulateAlpha
-                }
-                .clip(HlShapes.mark)
-                .background(c.background.copy(alpha = HlAlpha.VEIL)),
-            ink = c.content,
-        )
-    }
 }
 
 /** A wide card's name in the poster's voice, after its episode [number]. */

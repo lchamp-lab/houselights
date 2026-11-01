@@ -23,8 +23,8 @@ import java.util.Collections
 /**
  * A long saga's polyptych asks for the posters of the panels in its view and of a few past it alone (#55), a poster
  * asked for before its panel comes into view as focus goes along, further ahead while a held arrow runs, and before
- * focus enters, those of the view Up will enter on; one asked for staying asked while its panel is near; eight films
- * or fewer, all of them, as before.
+ * focus enters, those of the view Up will enter on; one asked for staying asked while its panel is near; four films or
+ * fewer, in view whole, all of them.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -40,12 +40,12 @@ class VoletPostersTest {
     @get:Rule
     val coil = CoilRule()
 
-    /** Eight films, all in view: every poster is asked for at once, as before. */
+    /** Four films, all in view: every poster is asked for at once. */
     @Test
-    fun eightFilmsAskForEveryPoster() {
-        show(EIGHT, first = 0)
-        assertEquals((1..EIGHT).toSet(), asked.toSet())
-        assertEquals((0..EIGHT).toSet(), PosterWindow(plan(EIGHT), POLYPTYCH.value).moveTo(3))
+    fun fourFilmsAskForEveryPoster() {
+        show(FOUR, first = 0)
+        assertEquals((1..FOUR).toSet(), asked.toSet())
+        assertEquals((0..FOUR).toSet(), PosterWindow(plan(FOUR), POLYPTYCH.value).moveTo(3))
     }
 
     /**
@@ -162,7 +162,7 @@ class VoletPostersTest {
     }
 
     private companion object {
-        const val EIGHT = 8
+        const val FOUR = 4
         const val BOND = 25
 
         /** A film's number in its poster's address. */

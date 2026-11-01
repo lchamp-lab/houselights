@@ -8,7 +8,9 @@ import androidx.compose.runtime.CompositionTracer
 import androidx.compose.runtime.InternalComposeTracingApi
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
@@ -17,10 +19,14 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.width
 import androidx.test.core.app.ApplicationProvider
@@ -29,10 +35,12 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.UserState
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.VoletDefaults
+import app.houselights.ui.design.components.MENU_KEY
 import app.houselights.ui.design.components.VoletPlan
 import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeProvider
@@ -41,6 +49,7 @@ import app.houselights.ui.testing.film
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressBack
 import app.houselights.ui.testing.pressInSheet
+import app.houselights.ui.testing.pressOnRemote
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatDuration
 import kotlinx.coroutines.CoroutineScope
@@ -59,11 +68,12 @@ import org.robolectric.annotation.Config
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * DESIGN.md, Saga page: a saga's polyptych with the remote. It opens on the saga's panel, Lire focused; Up enters on
- * the film Lire plays, then on the panel left; Down keeps the film open, a grey one too; Back opens the saga's panel
- * again, then leaves; OK opens a film's page, a film the library lacks its synopsis; back from a film's page, its panel
- * is open from the first frame; a screen reader hears each panel by its title, then its state; a box set's panels are
- * its films; a saga read again in vain says why, with Réessayer.
+ * DESIGN.md, Saga page: a saga's polyptych with the remote, as the board's navigation table has it. It opens on the
+ * saga's panel, its Lire focused; Up goes to the saga's panel, Left and Right open the panel reached, Down enters the
+ * open panel's actions and Up comes back to it, nothing past their ends; Back opens the saga's panel again, focus on its
+ * Lire, then leaves; OK opens a film's page, a film the library lacks its synopsis, which has no actions; back from a
+ * film's page, its panel is open from the first frame; a screen reader hears each panel by its title, then its state,
+ * its actions after it; a box set's panels are its films; a saga read again in vain says why, with Réessayer.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -94,9 +104,11 @@ class SagaPageTest {
     private val second get() = compose.onNodeWithContentDescription(secondName)
     private val third get() = volet(duneThree.title, 3, 2026)
     private val resume get() = compose.onNode(hasText(text(R.string.resume)) and hasClickAction())
+    private val lire get() = compose.onNode(hasText(text(R.string.play)) and hasClickAction())
+    private fun tile(id: Int) = compose.onNode(hasContentDescription(text(id)) and hasClickAction())
 
     private fun SemanticsNodeInteraction.isOpen() = apply {
-        assertEquals("open", VoletDefaults.open.value, getUnclippedBoundsInRoot().width.value, 1f)
+        assertEquals("open", dunePlan.open.value, getUnclippedBoundsInRoot().width.value, 1f)
     }
 
     private fun SemanticsNodeInteraction.isClosed() = apply {
@@ -113,43 +125,84 @@ class SagaPageTest {
         listOf(first, second, third).forEach { it.isClosed() }
     }
 
+    /** Up from Lire goes to the saga's panel, Down back to its Lire; Right opens film 1, Down enters its actions. */
     @Test
-    fun upEntersOnTheFilmLirePlaysThenOnThePanelLeft() {
+    fun upGoesToTheSagasPanelRightOpensFilmOneDownEntersItsActions() {
         page()
         compose.press(Key.DirectionUp)
-        second.assertIsFocused().isOpen()
-        saga.isClosed()
-        compose.press(Key.DirectionLeft)
-        first.assertIsFocused().isOpen()
-        second.isClosed()
+        saga.assertIsFocused().isOpen()
+        compose.press(Key.DirectionUp)
+        saga.assertIsFocused()
         compose.press(Key.DirectionDown)
         resume.assertIsFocused()
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight)
+        first.assertIsFocused().isOpen()
+        saga.isClosed()
+        compose.press(Key.DirectionDown)
+        // Dune, watched: its own Lire, then its check, then its page.
+        lire.assertIsFocused()
+        first.isOpen()
+        compose.press(Key.DirectionRight)
+        tile(R.string.mark_unwatched).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        tile(R.string.saga_film_page).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        tile(R.string.saga_film_page).assertIsFocused()
+        first.isOpen()
+        second.isClosed()
+        compose.press(Key.DirectionLeft, times = 3)
+        lire.assertIsFocused()
+        first.isOpen()
+        saga.isClosed()
+        compose.press(Key.DirectionDown)
+        lire.assertIsFocused()
         compose.press(Key.DirectionUp)
         first.assertIsFocused().isOpen()
     }
 
-    /** « Greffe 1 »: down to Lire, the film stays open, one the library lacks too, and Lire still names its own. */
+    /** The saga's actions: Lire, Depuis le début, the check, Modifier; nothing before the first nor after the last. */
     @Test
-    fun downKeepsTheFilmOpenAGreyOneToo() {
+    fun theSagasActionsRunFromLireToModifier() {
+        page()
+        compose.press(Key.DirectionLeft)
+        resume.assertIsFocused()
+        compose.press(Key.DirectionRight)
+        tile(R.string.from_start).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        tile(R.string.mark_saga_watched).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        tile(R.string.edit).assertIsFocused()
+        compose.press(Key.DirectionRight)
+        tile(R.string.edit).assertIsFocused()
+        compose.press(Key.DirectionDown)
+        tile(R.string.edit).assertIsFocused()
+        saga.isOpen()
+        compose.press(Key.DirectionUp)
+        saga.assertIsFocused()
+    }
+
+    @Test
+    fun backFromAFilmsActionsOpensTheSagaFocusOnLireThenLeaves() {
         page()
         compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight, times = 2)
         compose.press(Key.DirectionDown)
-        resume.assertIsFocused()
         second.isOpen()
-        saga.isClosed()
-        compose.press(Key.DirectionUp)
-        compose.press(Key.DirectionRight)
-        third.assertIsFocused().isOpen()
-        compose.press(Key.DirectionDown)
-        resume.assertIsFocused().assert(hasText(duneTwo.title, substring = true))
-        third.isOpen()
+        compose.pressBack()
+        resume.assertIsFocused()
+        saga.isOpen()
         second.isClosed()
+        assertFalse(left)
+        compose.pressBack()
+        assertTrue(left)
     }
 
     @Test
     fun backFromAPanelOpensTheSagaThenLeaves() {
         page()
         compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight, times = 2)
         compose.pressBack()
         resume.assertIsFocused()
         saga.isOpen()
@@ -160,26 +213,14 @@ class SagaPageTest {
     }
 
     @Test
-    fun backFromLireUnderAFilmOpenOpensTheSagaThenLeaves() {
+    fun backFromTheSagasPanelOrItsCheckGoesToLireThenLeaves() {
         page()
         compose.press(Key.DirectionUp)
-        compose.press(Key.DirectionDown)
-        second.isOpen()
+        saga.assertIsFocused()
         compose.pressBack()
         resume.assertIsFocused()
-        saga.isOpen()
-        second.isClosed()
-        assertFalse(left)
-        compose.pressBack()
-        assertTrue(left)
-    }
-
-    @Test
-    fun backFromTheSagasOwnPanelGoesToLireThenLeaves() {
-        page()
-        compose.press(Key.DirectionUp)
-        compose.press(Key.DirectionLeft, times = 2)
-        saga.assertIsFocused().isOpen()
+        compose.press(Key.DirectionRight, times = 2)
+        tile(R.string.mark_saga_watched).assertIsFocused()
         compose.pressBack()
         resume.assertIsFocused()
         assertFalse(left)
@@ -192,6 +233,7 @@ class SagaPageTest {
     fun backFromAFilmsPageItsPanelIsOpenWithoutMotion() {
         val page = page()
         compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight, times = 2)
         compose.press(Key.DirectionCenter)
         assertEquals(listOf(duneTwo.id), page.opened)
         compose.runOnIdle { page.shown = false }
@@ -214,20 +256,45 @@ class SagaPageTest {
         second.assertIsFocused().isOpen()
     }
 
+    /** Back from a film's page opened by its tile, focus is on that tile, the film open. */
+    @Test
+    fun aFilmsPageTileOpensItsPageFocusBackOnIt() {
+        val page = page()
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionRight, times = 2)
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf(dune.id), page.opened)
+        compose.runOnIdle { page.shown = false }
+        compose.waitForIdle()
+        compose.runOnIdle { page.shown = true }
+        compose.waitForIdle()
+        tile(R.string.saga_film_page).assertIsFocused()
+        first.isOpen()
+    }
+
     @Test
     fun okOnAFilmHeldOpensItsPage() {
         val page = page()
         compose.press(Key.DirectionUp)
-        compose.press(Key.DirectionLeft)
+        compose.press(Key.DirectionRight)
         compose.press(Key.DirectionCenter)
         assertEquals(listOf(dune.id), page.opened)
     }
 
+    /** A film the library lacks has no actions: Down leaves focus on it, OK opens its synopsis. */
     @Test
-    fun okOnAFilmTheLibraryLacksOpensItsSynopsis() {
+    fun aFilmTheLibraryLacksHasNoActionsOkOpensItsSynopsis() {
         val page = page()
         compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight, times = 3)
+        third.assertIsFocused().isOpen()
+        compose.press(Key.DirectionDown)
+        third.assertIsFocused()
         compose.press(Key.DirectionRight)
+        third.assertIsFocused()
+        assertTrue("no Lire", compose.onAllNodes(hasText(text(R.string.play)) and hasClickAction()).fetchSemanticsNodes().isEmpty())
         compose.press(Key.DirectionCenter)
         compose.onNodeWithText(duneThree.overview.orEmpty()).assertExists()
         compose.onNodeWithText(text(R.string.saga_release_on, out())).assertExists()
@@ -237,10 +304,55 @@ class SagaPageTest {
         third.assertIsFocused().isOpen()
     }
 
+    /** Dune's source, and the fake under it, which says what the page asked of it. */
+    private fun duneProvider(): Pair<FakeProvider, SagaSource> {
+        val provider = FakeProvider().apply {
+            items[duneSaga.id] = duneSaga
+            items[dune.id] = dune
+            items[duneTwo.id] = duneTwo
+            catalog = FakeCatalog().apply { sagas = mapOf(duneSaga.id to duneWhole()) }
+            capabilities = capabilities.copy(sagaParts = true)
+        }
+        return provider to SagaSource(provider, duneSaga, listOf(dune, duneTwo))
+    }
+
+    /** What the page marked, film by film. */
+    private fun FakeProvider.marked() = calls.filter { it.startsWith("played ") }
+
+    /** A film's check marks that film alone, shown at once; its Lire plays it, from where it was left. */
+    @Test
+    fun aFilmsActionsMarkAndPlayThatFilmAlone() {
+        val (provider, source) = duneProvider()
+        val page = page(source)
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight, times = 2)
+        compose.press(Key.DirectionDown)
+        resume.assertIsFocused().assert(hasText(formatDuration(74 * MIN), substring = true))
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf("${duneTwo.id} true"), page.played)
+        compose.press(Key.DirectionRight, times = 2)
+        tile(R.string.mark_watched).assertIsFocused()
+        compose.press(Key.DirectionCenter)
+        compose.waitForIdle()
+        assertEquals("film 2 alone", listOf("played ${duneTwo.id} true"), provider.marked())
+    }
+
+    /** The saga's check marks the saga, its films held with it. */
+    @Test
+    fun theSagasCheckMarksTheSaga() {
+        val (provider, source) = duneProvider()
+        page(source)
+        compose.press(Key.DirectionRight, times = 2)
+        tile(R.string.mark_saga_watched).assertIsFocused()
+        compose.press(Key.DirectionCenter)
+        compose.waitForIdle()
+        assertEquals(listOf("played ${duneSaga.id} true"), provider.marked())
+    }
+
     /**
      * Each panel is one element, read by its title, its number and year, then its state and what it says open: the
-     * saga's as « Dune, saga », its facts, its progress and its overview, which OK opens only once cut; a film's its
-     * length, what is left of it and its overview.
+     * saga's as « Dune, saga », its facts and its overview, which OK opens only once cut; a film's its length, what is
+     * left of it and its overview; the open panel's actions read after it.
      */
     @Test
     fun theScreenReaderHearsEachPanelByItsTitle() {
@@ -249,10 +361,9 @@ class SagaPageTest {
         val sagaSays = listOf(
             "2021 – 2024",
             plural(R.plurals.film_count, 2),
-            formatDuration((155 + 166) * MIN),
-            plural(R.plurals.saga_upcoming_count, 1),
-            context.resources.getQuantityString(R.plurals.saga_watched_of, 1, 1, 2),
+            plural(R.plurals.saga_watched, 1),
             text(R.string.time_left, formatDuration(74 * MIN)),
+            plural(R.plurals.saga_upcoming_count, 1),
             duneSaga.overview,
         )
         compose.onNode(hasContentDescription(text(R.string.saga_volet_saga, "Dune")) and films)
@@ -274,6 +385,16 @@ class SagaPageTest {
                 .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, says.joinToString(", ")))
                 .assert(hasClickAction())
         }
+        // Its words are the panel's: read once, as it; its actions after it.
+        assertTrue(compose.onAllNodesWithText(duneSaga.overview.orEmpty()).fetchSemanticsNodes().isEmpty())
+        val order = readingOrder()
+        val panel = order.indexOfFirst {
+            it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull() == text(R.string.saga_volet_saga, "Dune")
+        }
+        val reprendre = order.indexOfFirst { node ->
+            node.config.getOrNull(SemanticsProperties.Text)?.any { it.text == text(R.string.resume) } == true
+        }
+        assertTrue("the panel, then its actions: $panel, $reprendre", panel in 0 until reprendre)
     }
 
     /** A panel OK does nothing on, a film the library lacks without an overview, offers no action to a screen reader. */
@@ -284,23 +405,22 @@ class SagaPageTest {
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, text(R.string.saga_card_release, out())))
     }
 
-    /** Left and back with a film open, its frame gone to Lire, Up enters on it: nothing opens or closes but the frame. */
+    /** Left and back with focus in a film's actions: they have it again, the film open. */
     @Test
-    fun upAfterThePageWasLeftEntersOnThePanelStillOpen() {
+    fun backOnThePageFocusIsInTheFilmsActionsLeft() {
         val page = page()
         compose.press(Key.DirectionUp)
-        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionRight, times = 2)
         compose.press(Key.DirectionDown)
-        resume.assertIsFocused()
+        compose.press(Key.DirectionRight)
+        tile(R.string.from_start).assertIsFocused()
         compose.runOnIdle { page.shown = false }
         compose.waitForIdle()
         compose.runOnIdle { page.shown = true }
         compose.waitForIdle()
-        resume.assertIsFocused()
-        third.isOpen()
-        compose.press(Key.DirectionUp)
-        third.assertIsFocused().isOpen()
-        second.isClosed()
+        tile(R.string.from_start).assertIsFocused()
+        second.isOpen()
+        saga.isClosed()
     }
 
     /** A scan bringing the film the library lacked while its panel is open and focused: it stays so, in colour. */
@@ -309,7 +429,7 @@ class SagaPageTest {
         val source = duneSource()
         val page = page(source)
         compose.press(Key.DirectionUp)
-        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionRight, times = 3)
         third.assertIsFocused().isOpen()
         val held = MediaItem("dune3", MediaKind.MOVIE, duneThree.title, year = 2026, runtimeMs = 150 * MIN)
         (source.catalog as FakeCatalog).sagas = mapOf(duneSaga.id to duneWhole(third = duneThree.copy(item = held, released = true)))
@@ -326,8 +446,8 @@ class SagaPageTest {
     }
 
     /**
-     * A step along a long saga recomposes the panels it concerns, the one left and the one reached, never the others:
-     * a panel's body runs fewer times in a step than the saga has panels.
+     * A step along a long saga recomposes the panels it concerns, the one left, the one reached and the spine saying
+     * where focus is, never the others: a panel's body runs fewer times in a step than the saga has panels.
      */
     @OptIn(InternalComposeTracingApi::class)
     @Test
@@ -360,24 +480,25 @@ class SagaPageTest {
         assertTrue("${panels.get()} runs of a panel's body for ${BOND + 1} panels", panels.get() < BOND + 1)
     }
 
-    /** Reprendre names the film it plays and what is left of it, beside Depuis le début; OK resumes it. */
+    /** The line over Reprendre names the film it plays, Reprendre says what is left of it, beside Depuis le début; OK resumes it. */
     @Test
-    fun reprendreNamesTheFilmItPlays() {
+    fun theLineOverReprendreNamesTheFilmItPlays() {
         val page = page()
-        resume.assert(hasText(duneTwo.title, substring = true))
-            .assert(hasText(text(R.string.time_left, formatDuration(74 * MIN)), substring = true))
+        compose.onNodeWithText(text(R.string.section_next_up)).assertExists()
+        compose.onNodeWithText(duneTwo.title).assertExists()
+        resume.assert(hasText(formatDuration(74 * MIN), substring = true))
         compose.onNodeWithContentDescription(text(R.string.from_start)).assertExists()
         compose.press(Key.DirectionCenter)
         assertEquals(listOf("${duneTwo.id} true"), page.played)
     }
 
-    /** Once a film is watched, the next one not started is « à suivre », and Lire names it, from its start. */
+    /** Once a film is watched, the next one not started is « à suivre », named over Lire, which says its length. */
     @Test
-    fun lireNamesTheFilmToFollow() {
+    fun lireSaysTheLengthOfTheFilmToFollow() {
         val next = duneTwo.copy(user = UserState())
         val page = page(duneSource(second = next))
-        val lire = compose.onNode(hasText(text(R.string.play)) and hasClickAction())
-        lire.assertIsFocused().assert(hasText(next.title, substring = true))
+        lire.assertIsFocused().assert(hasText(formatDuration(166 * MIN), substring = true))
+        compose.onNodeWithText(next.title).assertExists()
         compose.onNodeWithContentDescription(text(R.string.from_start)).assertDoesNotExist()
         second.assert(
             SemanticsMatcher.expectValue(
@@ -400,8 +521,14 @@ class SagaPageTest {
             films.forEach { items[it.id] = it }
         }
         page(SagaSource(provider, box, films), box.id)
-        compose.onNode(hasText(text(R.string.play)) and hasClickAction()).assertIsFocused().assert(hasText("John Wick", substring = true))
-        compose.onNodeWithContentDescription(text(R.string.saga_volet_saga, box.title)).isOpen()
+        lire.assertIsFocused()
+        compose.onNodeWithText("John Wick").assertExists()
+        assertEquals(
+            "open",
+            437f,
+            compose.onNodeWithContentDescription(text(R.string.saga_volet_saga, box.title)).getUnclippedBoundsInRoot().width.value,
+            1f,
+        )
         films.forEachIndexed { i, film ->
             compose.onNodeWithContentDescription(text(R.string.saga_card_name, film.title, i + 1) + ", ${film.year}")
                 // No state: nothing watched, none missing; its length alone.
@@ -410,8 +537,8 @@ class SagaPageTest {
     }
 
     /**
-     * Read again in vain, the saga keeps its panels and says why at the predella's end, Réessayer after its actions; OK
-     * there puts focus on Lire, where it stays once the saga is read, the saga's panel open.
+     * Read again in vain, the saga keeps its panels and says why over its actions, Réessayer after them; OK there puts
+     * focus on Lire, where it stays once the saga is read, the saga's panel open.
      */
     @Test
     fun aSagaReadAgainInVainSaysWhyWithRetry() {
@@ -421,8 +548,9 @@ class SagaPageTest {
         compose.runOnIdle { page.vm.load() }
         compose.waitForIdle()
         compose.onNodeWithText(text(UiError.OFFLINE.title)).assertExists()
+        compose.onNodeWithText(text(R.string.section_next_up)).assertDoesNotExist()
         val retry = compose.onNode(hasText(text(R.string.retry)) and hasClickAction())
-        compose.press(Key.DirectionRight, times = 3)
+        compose.press(Key.DirectionRight, times = 4)
         retry.assertIsFocused()
         compose.press(Key.DirectionRight)
         retry.assertIsFocused()
@@ -431,6 +559,20 @@ class SagaPageTest {
         retry.assertDoesNotExist()
         resume.assertIsFocused()
         saga.isOpen()
+    }
+
+    /** The Menu key does nothing on the page: no sheet, from Lire as from a panel. */
+    @Test
+    fun theMenuKeyDoesNothing() {
+        page()
+        compose.pressOnRemote(Key.Menu)
+        assertTrue(compose.onAllNodes(isDialog()).fetchSemanticsNodes().isEmpty())
+        resume.assertIsFocused()
+        compose.press(Key.DirectionUp)
+        compose.pressOnRemote(Key.Menu)
+        assertTrue(compose.onAllNodes(isDialog()).fetchSemanticsNodes().isEmpty())
+        saga.assertIsFocused()
+        assertTrue("no Menu key", compose.onAllNodes(hasTestTag(MENU_KEY), useUnmergedTree = true).fetchSemanticsNodes().isEmpty())
     }
 
     private val bond = MediaItem(BOND_ID, MediaKind.COLLECTION, "James Bond", backdrop = picture("bond"))
@@ -446,48 +588,62 @@ class SagaPageTest {
     }
 
     /**
-     * Past eight films the panels scroll at their narrowest, the open one two closed panels from either end of the
-     * polyptych, but at its ends; Up from Lire lands on the film it plays.
+     * From five films the films scroll, the open one two closed panels after the saga's spine, pinned at the start, a
+     * closed panel whole after it, but at the ends.
      */
     @Test
     fun aLongSagaScrollsTheOpenPanelKeptInView() {
         val films = bondFilms
         page(bondSource(), bond.id)
-        val plan = VoletPlan.of(BOND + 1, HlLayout.CANVAS_WIDTH.dp - HlLayout.voletSide * 2, 370.5.dp)
-        val kept = (plan.closed + plan.gap) * 2
+        val plan = VoletPlan.of(BOND + 1, HlLayout.CANVAS_WIDTH.dp - HlLayout.voletSide * 2, 473.dp)
+        val step = plan.closed + plan.gap
         val start = HlLayout.voletSide
         val end = HlLayout.CANVAS_WIDTH.dp - HlLayout.voletSide
         compose.press(Key.DirectionUp)
+        val spine = compose.onNodeWithContentDescription(text(R.string.saga_volet_saga, bond.title))
         films.forEachIndexed { i, film ->
-            if (i > 0) compose.press(Key.DirectionRight)
+            compose.press(Key.DirectionRight)
             val panel = compose.onNodeWithContentDescription(text(R.string.saga_card_name, film.title, i + 1) + ", ${film.year}")
                 .assertIsFocused()
-                .isOpen()
                 .getUnclippedBoundsInRoot()
-            // Panel i + 1 of the polyptych, the saga's first.
-            if (i + 1 >= 2) assertTrue("${film.title}: ${panel.left}", panel.left >= start + kept - HALF.dp)
-            if (i + 1 <= BOND - 2) assertTrue("${film.title}: ${panel.right}", panel.right <= end - kept + HALF.dp)
+            assertEquals("${film.title} open", plan.open.value, panel.width.value, 1f)
+            assertEquals("${film.title}: the spine pinned", start.value, spine.getUnclippedBoundsInRoot().left.value, HALF)
+            if (i + 1 >= 3) assertTrue("${film.title}: ${panel.left}", panel.left >= start + step * 3 - HALF.dp)
+            if (i + 1 < BOND) assertTrue("${film.title}: ${panel.right}", panel.right + step <= end + HALF.dp)
         }
     }
 
-    /**
-     * The predella stands on the safe area's foot at every text size, a tile's label room under it, the polyptych taking
-     * what is left above it; the first panel's frame inside the safe area.
-     */
+    /** The panels run from the safe area's top to its foot at every text size, a frame's reach inside it; Lire over its label room. */
     @Test
-    fun thePredellaStandsOnTheSafeFoot() {
+    fun thePanelsStandOnTheSafeArea() {
         val page = page()
         listOf(0.85f, 1f, 1.3f).forEach { step ->
             compose.runOnIdle { page.step = step }
             compose.waitForIdle()
             val panel = saga.getUnclippedBoundsInRoot()
-            val lire = resume.getUnclippedBoundsInRoot()
-            val room = page.labelRoom
+            val reprendre = resume.getUnclippedBoundsInRoot()
             assertEquals("at $step: the polyptych's top", HlLayout.voletTop.value, panel.top.value, HALF)
+            assertEquals("at $step: the polyptych's foot", (SAFE_FOOT - HlFocus.reach).value, panel.bottom.value, HALF)
             assertTrue("at $step: ${panel.left}", (panel.left - HlFocus.reach).value >= HlSpace.safeH.value - HALF)
-            assertEquals("at $step: Lire under the polyptych", (panel.bottom + HlSpace.l).value, lire.top.value, HALF)
-            assertEquals("at $step: the predella's foot", (SAFE_FOOT - room).value, lire.bottom.value, HALF)
+            assertEquals(
+                "at $step: Lire over the label room",
+                (panel.bottom - VoletDefaults.actionsFoot - page.labelRoom).value,
+                reprendre.bottom.value,
+                HALF,
+            )
+            assertEquals("at $step: Lire at the words' start", (panel.left + HlInset.card).value, reprendre.left.value, HALF)
         }
+    }
+
+    /** The page's semantics nodes in reading order: the tree walked depth first, as a screen reader goes. */
+    private fun readingOrder(): List<SemanticsNode> {
+        val nodes = mutableListOf<SemanticsNode>()
+        fun walk(node: SemanticsNode) {
+            nodes += node
+            node.children.forEach(::walk)
+        }
+        walk(compose.onRoot().fetchSemanticsNode())
+        return nodes
     }
 
     /** The release date in full, as the page writes it in the viewer's language. */
@@ -516,7 +672,7 @@ class SagaPageTest {
             override fun isTraceInProgress() = false
         }
 
-        /** The safe area's foot: 512 on the canvas. */
+        /** The safe area's foot: 512 on the canvas, the polyptych's 506.5. */
         val SAFE_FOOT = 540.dp - HlSpace.safeV
     }
 }

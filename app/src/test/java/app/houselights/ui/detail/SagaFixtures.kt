@@ -197,5 +197,5 @@ internal fun Speaking(tag: String?, content: @Composable () -> Unit) {
     )
 }
 
-/** Dune's polyptych on the canvas, the saga's panel and three films', at the default text size. */
-internal val dunePlan = VoletPlan.of(4, HlLayout.CANVAS_WIDTH.dp - HlLayout.voletSide * 2, 370.5.dp)
+/** Dune's polyptych on the canvas, the saga's panel and three films'. */
+internal val dunePlan = VoletPlan.of(4, HlLayout.CANVAS_WIDTH.dp - HlLayout.voletSide * 2, 473.dp)

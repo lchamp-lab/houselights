@@ -112,6 +112,7 @@ class DesignTokenGuardTest {
     private val marks = mapOf(
         "design/components/Cards.kt" to "a one-sheet's year, the count of a card's unwatched episodes",
         "design/components/Meta.kt" to "a printed mark: an age rating, a protocol",
+        "design/components/MenuKey.kt" to "the OK key's letters in its frame, as printed on the remote",
     )
 
     /** What is read keeps to 14 sp: `badge` only where [marks] says. */
