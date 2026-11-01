@@ -143,7 +143,7 @@ internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
 /** Keys go nowhere while a sheet or a menu leaves. */
 internal fun Modifier.stillWhileLeaving(motion: SheetMotion): Modifier = onPreviewKeyEvent { motion.leaving }
 
-/** How many sheets are open: under one, the screen shows no focus ([HlFocusSurface], a row's frame [RowFrame]). */
+/** How many sheets are open: under one, the screen shows no focus ([HlFocusSurface], a group's frame [GroupFrame]). */
 internal object OpenSheets {
     var count by mutableIntStateOf(0)
 }

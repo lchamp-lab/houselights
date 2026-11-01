@@ -10,7 +10,7 @@ import java.io.File
 
 /**
  * Focus is said in one place, `FocusStyle`, in two gestures (frame, fill) and the ring, and drawn by one
- * surface, `HlFocusSurface`, whose frame a row of cards takes over (`RowFrame`), so a row holds framed cards only:
+ * surface, `HlFocusSurface`, whose frame a group of cards takes over (`GroupFrame`), so a row holds framed cards only:
  * no component builds its own white or frame, nothing grows with focus but a saga's panel, which opens with it,
  * tv-material's focus (its scale, glow and Material timing) is never drawn, OK clicks through the surface, what takes
  * focus shows it, and `focusRestorer` is never used.
@@ -18,7 +18,7 @@ import java.io.File
 class FocusStyleGuardTest {
     private val main = File("src/main/java/app/houselights")
     private val components = File("src/main/java/app/houselights/ui/design/components")
-    private val home = setOf("FocusStyle.kt", "FocusSurface.kt", "RowFrame.kt")
+    private val home = setOf("FocusStyle.kt", "FocusSurface.kt", "GroupFrame.kt")
 
     /** What only FocusStyle and its surface may write. */
     private val rules = listOf(

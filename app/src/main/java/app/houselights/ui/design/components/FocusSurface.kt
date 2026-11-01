@@ -75,7 +75,7 @@ import kotlinx.coroutines.launch
  * long-clicks instead. Focus reaches it when it cannot act ([enabled] false, or no [onClick]), and OK then does
  * nothing. It is one element to accessibility services, a [role] with its clicks, the long one named by
  * [onLongClickLabel]. [content], clipped to [shape], is told when it is [lit]: when its ink is focus's. Framed in
- * a [row], it leaves its frame to the row ([RowFrame]). What its content covers from the top ([covered], in px,
+ * a [group], it leaves its frame to the group ([GroupFrame]). What its content covers from the top ([covered], in px,
  * read while drawing) takes no plate under it, content covering its whole height none at all. A picture made of
  * several ([glowTones], left to right) glows in their tones across it rather than in [glow]'s one.
  */
@@ -92,7 +92,7 @@ internal fun HlFocusSurface(
     selected: Boolean? = null,
     glow: (() -> Color)? = null,
     interactionSource: MutableInteractionSource? = null,
-    row: RowFrame? = null,
+    group: GroupFrame? = null,
     covered: (() -> Float)? = null,
     glowTones: (() -> List<Color>)? = null,
     content: @Composable BoxScope.(lit: Boolean) -> Unit,
@@ -110,13 +110,13 @@ internal fun HlFocusSurface(
     val lights = rememberLights(focused, framed, glows)
     val lit = if (framed) focused else lights.halfLit
     val ring = FocusStyle.ring()
-    val inRow = row?.takeIf { framed && enabled }?.let { rememberRowCard(it, shape) }
-    val frame = ring.brush.takeIf { enabled && inRow == null }
+    val inGroup = group?.takeIf { framed && enabled }?.let { rememberFramedCard(it, shape) }
+    val frame = ring.brush.takeIf { enabled && inGroup == null }
     val light = remember(look, shape, frame, tones, lights) { framedLight(look, shape, frame, tones, lights) }
     val plate = remember(look, enabled, lights) { ColorProducer { look.plateAt(enabled, lights.on.value) } }
     Box(
         modifier
-            .then(inRow ?: Modifier)
+            .then(inGroup ?: Modifier)
             .then(rememberRaise(framed && (glows || frame != null), focus, lights))
             .pressWithOk(interaction, onClick.takeIf { enabled }, onLongClick.takeIf { enabled })
             .onMenuKey(onLongClick.takeIf { enabled }, held = { it.isFocused })
@@ -281,7 +281,7 @@ private fun DrawScope.fillPlate(area: Outline, rest: Color, look: FocusLook, whi
 
 /**
  * A framed picture's glow under it and its [frame] over it, [HlFocus.frameGap] off its edge, the frame's corners
- * parallel to the picture's ([shape]'s first corner). Without [frame], its row draws it ([RowFrame]), or,
+ * parallel to the picture's ([shape]'s first corner). Without [frame], its group draws it ([GroupFrame]), or,
  * disabled, its ring shows focus.
  */
 private fun CacheDrawScope.drawLight(shape: Shape, frame: Brush?, tones: (() -> List<Color>)?, lights: Lights): DrawResult {

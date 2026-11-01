@@ -146,16 +146,13 @@ fun MediaRow(
         }
         val group = remember { GroupFocus() }
         val frame = rememberRowFrame(state)
-        CompositionLocalProvider(LocalGroupFocused provides rowFocused, LocalGroupFocus provides group, LocalRowFrame provides frame) {
+        CompositionLocalProvider(LocalGroupFocused provides rowFocused, LocalGroupFocus provides group, LocalGroupFrame provides frame) {
             RowScroll {
                 LazyRow(
                     state = state,
                     // Observe the row's focus group itself, so hasFocus covers every card.
                     modifier = Modifier
-                        .onFocusChanged {
-                            rowFocused = it.hasFocus
-                            frame.rowFocused(it.hasFocus)
-                        }
+                        .onFocusChanged { rowFocused = it.hasFocus }
                         .keepChildFocus(group)
                         .then(frame.drawn),
                     // Room for a focused card's frame and glow ([HlFocus.room]).
@@ -206,7 +203,7 @@ private fun RowHeading(notes: RowNotes, modifier: Modifier = Modifier, title: @C
 
 /**
  * The focus treatment of all artwork (DESIGN.md, Cards): framed, it glows in its own tone ([light], else the
- * ambient light) while its siblings recede; in a [MediaRow], the row draws its frame. Without [glows], framed alone,
+ * ambient light) while its siblings recede; in a group of cards ([GroupFrame]), the group draws its frame. Without [glows], framed alone,
  * as [AbsentCard] is: a film the library lacks has no light of its own to give.
  * Read as one element with [stateDescription]; with [readAs], that text then its state, its click only if [acts].
  * A long OK does [onLongClick], named by [onLongClickLabel]. What its content covers from its top ([covered], px, read
@@ -252,7 +249,7 @@ fun ArtworkSurface(
         onLongClickLabel = onLongClickLabel,
         glow = if (glows) ({ if (light != null) own.value else ambient.glow() }) else null,
         interactionSource = card.interaction,
-        row = LocalRowFrame.current,
+        group = LocalGroupFrame.current,
         covered = covered,
     ) {
         // Recede is read while drawing, never recomposing the row; content sits on the artwork ground.
@@ -710,7 +707,7 @@ fun AbsentCard(
             },
         role = null,
         interactionSource = card.interaction,
-        row = LocalRowFrame.current,
+        group = LocalGroupFrame.current,
     ) {
         // Artwork carries no text: the poster is the film's, its grey says it is not there.
         ArtworkImage(poster?.url(px), null, Modifier.fillMaxSize(), size = decoded, filter = absentFilters[step]) {

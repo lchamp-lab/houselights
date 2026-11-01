@@ -56,7 +56,7 @@ class RowFrameTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val frames = mutableMapOf<String, RowFrame>()
+    private val frames = mutableMapOf<String, GroupFrame>()
     private val requesters = mutableMapOf<String, FocusRequester>()
 
     /** Scopes recomposed anywhere in the screen, the rows' cards and their surfaces included. */
@@ -82,9 +82,12 @@ class RowFrameTest {
     /** A sheet over the rows, which OK on a card opens. */
     private var sheetOpen by mutableStateOf(false)
 
-    /** Rows of eight posters named by [rows], focus on the first poster of the first; OK on one opens a sheet. */
+    /**
+     * Rows of eight posters named by [rows], focus on the first poster of the first; OK on one opens a sheet. With a
+     * [control], the first row starts with a button, which a row never holds but a wall's foot may.
+     */
     @OptIn(InternalComposeApi::class)
-    private fun show(vararg rows: String) {
+    private fun show(vararg rows: String, control: Boolean = false) {
         compose.setTvContent {
             // Observing the screen's composition observes the rows' items, composed apart, too.
             val composition = currentComposer.composition
@@ -95,8 +98,14 @@ class RowFrameTest {
             Column {
                 rows.forEach { row ->
                     MediaRow(header = null) {
+                        if (control && row == rows.first()) {
+                            item {
+                                val requester = requesters.getOrPut(CONTROL) { FocusRequester() }
+                                HlButton("Réessayer", {}, Modifier.focusRequester(requester).testTag(CONTROL))
+                            }
+                        }
                         items((0 until 8).map { "$row$it" }) { card ->
-                            frames[row] = checkNotNull(LocalRowFrame.current)
+                            frames[row] = checkNotNull(LocalGroupFrame.current)
                             @SuppressLint("RememberInComposition") // The test's own map keeps it across compositions.
                             val requester = requesters.getOrPut(card) { FocusRequester() }
                             ArtworkSurface(
@@ -210,6 +219,20 @@ class RowFrameTest {
         assertEquals(frameWidth, frame().width, 0.5f)
     }
 
+    /** A control in the group shows its own focus: the frame left on the card it came from goes out there. */
+    @Test
+    fun theFrameGoesOutWhenFocusMovesToAControlInTheGroup() {
+        show("a", control = true)
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { requesters.getValue(CONTROL).requestFocus() }
+        repeat(3) { compose.mainClock.advanceTimeByFrame() }
+        compose.onNodeWithTag(CONTROL).assertIsFocused()
+        assertTrue("it is going out", checkNotNull(frames["a"]).shown < 1f)
+        compose.mainClock.advanceTimeBy(HlMotion.FOCUS_OUT.toLong() + HlMotion.FOCUS_IN)
+        assertEquals("out", 0f, checkNotNull(frames["a"]).shown, 0f)
+        assertEquals("on the card it stood on", centre("a0").x, frame().center.x, 0.5f)
+    }
+
     @Test
     fun aHeldArrowMovesTheFrameAtOnce() {
         show("a")
@@ -220,5 +243,9 @@ class RowFrameTest {
         compose.mainClock.advanceTimeByFrame()
         assertEquals(centre("a1").x, frame().center.x, 0.5f)
         assertEquals(frameWidth, frame().width, 0.5f)
+    }
+
+    private companion object {
+        const val CONTROL = "control"
     }
 }
