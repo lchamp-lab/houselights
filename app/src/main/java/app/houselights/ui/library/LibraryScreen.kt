@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableIntState
@@ -81,7 +80,6 @@ import app.houselights.ui.design.components.HeaderControls
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlMenuButton
-import app.houselights.ui.design.components.LocalGroupFocused
 import app.houselights.ui.design.components.MenuOption
 import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.PosterCard
@@ -381,50 +379,44 @@ private fun Posters(
     onOpenItem: (MediaItem) -> Unit,
     posters: WallPosters,
 ) {
-    var gridHasFocus by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val moreOptions = stringResource(R.string.more_options)
-    CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
-        PosterWallGrid(
-            grid.state,
-            Modifier.onFocusChanged {
-                gridHasFocus = it.hasFocus
-                // Leaving for the buttons above keeps the selected title.
-                if (!it.hasFocus) grid.focusedIndex.value = null
-            },
-        ) {
-            itemsIndexed(state.items, key = { _, item -> item.id }) { index, item ->
-                PosterCard(
-                    item = item,
-                    onClick = { onOpenItem(item) },
-                    width = null,
-                    onFocus = {
-                        grid.selectedId.value = item.id
-                        grid.focusedIndex.value = index
-                        grid.place.intValue = index
-                        posters.onFocusTitle(item.id)
-                        // The first line sits under the padding: show it all.
-                        if (index < HlLayout.WALL_COLUMNS) scope.launch { grid.state.animateScrollToItem(0) }
-                        if (index > state.items.size - HlLayout.WALL_COLUMNS * 3) loads.onMore()
-                    },
-                    onLongClick = { posters.onOptions(item) }.takeIf { posters.actions.hasOptions(item) },
-                    onLongClickLabel = moreOptions,
-                    modifier = Modifier
-                        .focusKey(FocusKey.item(item.id), memory)
-                        .then(if (index == 0) Modifier.focusRequester(grid.first) else Modifier),
+    PosterWallGrid(
+        grid.state,
+        // Leaving for the buttons above keeps the selected title.
+        Modifier.onFocusChanged { if (!it.hasFocus) grid.focusedIndex.value = null },
+    ) {
+        itemsIndexed(state.items, key = { _, item -> item.id }) { index, item ->
+            PosterCard(
+                item = item,
+                onClick = { onOpenItem(item) },
+                width = null,
+                onFocus = {
+                    grid.selectedId.value = item.id
+                    grid.focusedIndex.value = index
+                    grid.place.intValue = index
+                    posters.onFocusTitle(item.id)
+                    // The first line sits under the padding: show it all.
+                    if (index < HlLayout.WALL_COLUMNS) scope.launch { grid.state.animateScrollToItem(0) }
+                    if (index > state.items.size - HlLayout.WALL_COLUMNS * 3) loads.onMore()
+                },
+                onLongClick = { posters.onOptions(item) }.takeIf { posters.actions.hasOptions(item) },
+                onLongClickLabel = moreOptions,
+                modifier = Modifier
+                    .focusKey(FocusKey.item(item.id), memory)
+                    .then(if (index == 0) Modifier.focusRequester(grid.first) else Modifier),
+            )
+        }
+        // The next page's error and its fix, at the wall's foot.
+        state.pageError?.let { error ->
+            item(key = PAGE_FAILED, span = { GridItemSpan(maxLineSpan) }) {
+                PartFailed(
+                    error,
+                    retrying = state.pageRetrying,
+                    onRetry = loads.onRetryPage,
+                    modifier = Modifier.padding(top = HlSpace.m),
+                    actionModifier = Modifier.focusKey(RETRY_PAGE, memory),
                 )
-            }
-            // The next page's error and its fix, at the wall's foot.
-            state.pageError?.let { error ->
-                item(key = PAGE_FAILED, span = { GridItemSpan(maxLineSpan) }) {
-                    PartFailed(
-                        error,
-                        retrying = state.pageRetrying,
-                        onRetry = loads.onRetryPage,
-                        modifier = Modifier.padding(top = HlSpace.m),
-                        actionModifier = Modifier.focusKey(RETRY_PAGE, memory),
-                    )
-                }
             }
         }
     }

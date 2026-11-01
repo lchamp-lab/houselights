@@ -59,6 +59,8 @@ class DesignTokenGuardTest {
         "catalog/CatalogScreen.kt:\"ember on light\" to c.emberOnLight",
         // The catalogue's own frames (swatches, a mark's white ground): a size no screen uses.
         "catalog/CatalogParts.kt:val CatalogSwatch = 52.dp",
+        // The catalogue's wall specimen, two lines tall, where a screen's wall fills the screen.
+        "catalog/CatalogCards.kt:val tall = HlFocus.wallRoom + HlSize.wallPoster / HlSize.POSTER_RATIO * 2",
         // The catalogue's swatch of the ember light, and the type specimen of the place you are in.
         "catalog/CatalogScreen.kt:Swatch(\"ember light\", c.emberLight())",
         "catalog/CatalogScreen.kt:t.placeCurrent.emberLit(c)",

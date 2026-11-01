@@ -262,12 +262,20 @@ fun GalleryTile(
     }
 }
 
-/** A title's images side by side ([GalleryTile]), [HlSpace.m] apart: while one has focus, the others step back. */
+/**
+ * A title's images side by side ([GalleryTile]), [HlSpace.m] apart: while one has focus, the others step back, and one
+ * frame travels from tile to tile ([GroupFrame]).
+ */
 @Composable
 fun Gallery(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    CompositionLocalProvider(LocalGroupFocused provides focused) {
-        Row(modifier.onFocusChanged { focused = it.hasFocus }, horizontalArrangement = Arrangement.spacedBy(HlSpace.m), content = content)
+    val frame = rememberGroupFrame()
+    CompositionLocalProvider(LocalGroupFocused provides focused, LocalGroupFrame provides frame) {
+        Row(
+            modifier.onFocusChanged { focused = it.hasFocus }.then(frame.drawn),
+            horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
+            content = content,
+        )
     }
 }
 

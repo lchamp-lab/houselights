@@ -72,10 +72,12 @@ import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.LocalGroupFocused
+import app.houselights.ui.design.components.LocalGroupFrame
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.ResultsHeading
 import app.houselights.ui.design.components.TaskTitle
 import app.houselights.ui.design.components.TitleArt
+import app.houselights.ui.design.components.rememberRowFrame
 import app.houselights.ui.design.fadeOutsideSafeArea
 import app.houselights.ui.design.keepHorizontalFocus
 import app.houselights.ui.design.textRoom
@@ -465,7 +467,7 @@ private fun sectionName(kind: ArtworkKind, name: SectionName): String? = when (n
  * The sheet's items, the line with focus always brought to its top under the wall's room for its glow, its section's
  * name held over it, whatever is over the line in the list: the sheet scrolls itself there ([OwnScroll]); the note of
  * TMDB's missing pictures after the head, in their place; and room under the last line, so it too comes to the top.
- * While a choice has focus, the others step back, as on a wall.
+ * While a choice has focus, the others step back, as on a wall, and one frame travels from choice to choice.
  */
 @Composable
 private fun Choices(
@@ -496,12 +498,17 @@ private fun Choices(
     val room = with(LocalDensity.current) { HlFocus.wallRoom.toPx() }
     val list = remember { Placed() }
     var within by remember { mutableStateOf(false) }
-    CompositionLocalProvider(LocalGroupFocused provides within) {
+    val frame = rememberRowFrame(state)
+    CompositionLocalProvider(LocalGroupFocused provides within, LocalGroupFrame provides frame) {
         OwnScroll {
             LazyColumn(
                 state = state,
                 contentPadding = PaddingValues(top = HlFocus.wallRoom),
-                modifier = Modifier.fillMaxSize().onPlaced { list.coordinates = it }.onFocusChanged { within = it.hasFocus },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onPlaced { list.coordinates = it }
+                    .onFocusChanged { within = it.hasFocus }
+                    .then(frame.drawn),
             ) {
                 entries.forEach { entry ->
                     item(key = entry.key, contentType = entry.type) {

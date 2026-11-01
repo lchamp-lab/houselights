@@ -80,7 +80,7 @@ Compose:
       - LocalBackdropRelay
       - LocalGroupFocus
       - LocalGroupFocused
-      - LocalRowFrame
+      - LocalGroupFrame
       - LocalRaise
       - LocalArtworkRecede
       - LocalCutPosters

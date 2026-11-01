@@ -1,5 +1,6 @@
 package app.houselights.baselineprofile
 
+import android.view.KeyEvent
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Until
@@ -41,13 +42,15 @@ internal fun MacrobenchmarkScope.browseHome() {
     left(3)
 }
 
-/** The films' wall from its door: along and down its posters, then back to the first and home. */
+/** The films' wall from its door: along and down its posters, an arrow held down its lines and up, then home. */
 internal fun MacrobenchmarkScope.browseLibrary() {
     openWall("library_movies")
     right(4)
     down()
     left(2)
     down()
+    hold(KeyEvent.KEYCODE_DPAD_DOWN, 12)
+    hold(KeyEvent.KEYCODE_DPAD_UP, 12)
     back(2)
 }
 
