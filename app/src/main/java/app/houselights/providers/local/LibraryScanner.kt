@@ -96,6 +96,8 @@ class LibraryScanner(
      * over another app is not the app's: that app may play from the NAS again once woken.
      */
     private val dreaming: Flow<Boolean> = flowOf(false),
+    /** The matching rules the titles to identify were last asked by, kept between starts ([Reidentify.newRules]). */
+    private val rules: RulesMark = RulesMark.Kept(),
 ) {
     /** What the scan goes on for, playback aside: the app on screen, or Android's screensaver over it ([dreaming]). */
     private val present: Flow<Boolean> = combine(started, dreaming) { onScreen, dream -> onScreen || dream }
@@ -355,6 +357,8 @@ class LibraryScanner(
         lock.withLock {
             movies.startPass()
             shows.startPass()
+            // Before any title is asked: those to identify by older rules are asked again at the pass's end.
+            suspendRunCatching { reidentify.newRules(rules) }.onFailure { Log.w(TAG, "Titles to identify wait for the next pass", it) }
         }
         val before = _state.value.errors
         val errors = mutableMapOf<Long, ScanError>()

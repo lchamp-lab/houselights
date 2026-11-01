@@ -59,6 +59,9 @@ class ScanBench(
     val closed = AtomicInteger()
     var onClose: () -> Unit = {}
 
+    /** The matching rules the library's titles to identify were asked by: those in use unless a test says otherwise. */
+    val rules = RulesMark.Kept()
+
     /** On [now] and on Robolectric's time since boot, which [ShadowSystemClock.advanceBy] moves. */
     val scanner = LibraryScanner(
         dao = dao,
@@ -75,6 +78,7 @@ class ScanBench(
         interactiveTmdb = { tmdb.client().takeIf { withTmdb } },
         started = started,
         dreaming = dreaming,
+        rules = rules,
     )
 
     fun close() = db.close()

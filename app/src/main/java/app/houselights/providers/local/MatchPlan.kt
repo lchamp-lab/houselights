@@ -21,6 +21,12 @@ internal object MatchPlan {
     /** Searches a title takes at most; a clean name takes one. */
     const val MAX_SEARCHES = 5
 
+    /**
+     * The version of the matching rules ([MatchScore], this plan), raised by a change of them that may find titles they
+     * left to identify: those are asked again at the next pass ([Reidentify.newRules]).
+     */
+    const val RULES = 1
+
     private const val DASH = " - "
     private val AND = Regex("""(?i)\band\b""")
 

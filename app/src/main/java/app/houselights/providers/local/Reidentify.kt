@@ -12,7 +12,8 @@ import kotlinx.coroutines.withContext
  * the NAS: a title is asked by what its row holds (its name, its NFO, its artwork). A title found at last is saved as
  * an identification saves it, a show with its seasons, then placed in the order it follows; one still not found keeps all
  * it has but its state, its candidates and when it was asked. Each title is a run of its own ([Rounds]): TMDB is asked
- * with the scan's lock released.
+ * with the scan's lock released. After an update whose matching rules ([MatchPlan.RULES]) may find them, every title to
+ * identify is asked again, once ([newRules]).
  */
 internal class Reidentify(
     private val dao: LibraryDao,
@@ -43,6 +44,18 @@ internal class Reidentify(
             if (recheck(title, tmdb, films, state)) changed++
         }
         return changed
+    }
+
+    /**
+     * Makes every title to identify due at once ([RecheckDao.recheckAllNow]) when the rules in use are newer than those
+     * [rules] keeps, then keeps them: called as a pass starts, under its lock, so that titles it asks are left alone. The
+     * titles are then asked [TITLES_PER_PASS] at a time, those waiting longest first.
+     */
+    suspend fun newRules(rules: RulesMark) {
+        if (rules.read() >= MatchPlan.RULES) return
+        val due = dao.recheckAllNow()
+        if (due > 0) Log.i(TAG, "Matching rules ${MatchPlan.RULES}: $due titles to identify asked again")
+        rules.write(MatchPlan.RULES)
     }
 
     /**

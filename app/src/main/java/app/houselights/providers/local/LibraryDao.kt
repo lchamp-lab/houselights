@@ -116,7 +116,7 @@ data class EpisodePlace(
 /**
  * The library's one DAO, which Room implements. A class that owns only part of it takes the narrower view it
  * extends: [SourceDao], [PlaybackStateDao], [CreditDao], [SearchWordDao], [KeptStateDao], [EpisodeOrderDao],
- * [IgnoredFileDao], [FirstTitleDao], [SagaDao], [CopyDao], [CopyHeirDao] or [EpisodePathDao].
+ * [IgnoredFileDao], [FirstTitleDao], [SagaDao], [CopyDao], [CopyHeirDao], [EpisodePathDao] or [RecheckDao].
  */
 @Dao
 interface LibraryDao :
@@ -131,7 +131,8 @@ interface LibraryDao :
     SagaDao,
     CopyDao,
     CopyHeirDao,
-    EpisodePathDao {
+    EpisodePathDao,
+    RecheckDao {
     // User changes are written column by column so they never overwrite a scan's work.
     // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
@@ -362,21 +363,6 @@ interface LibraryDao :
             "ORDER BY addedAt DESC, id DESC LIMIT 1",
     )
     suspend fun nextToIdentify(addedAt: Long, id: Long): Long?
-
-    /**
-     * Films or shows ([kind]) to identify that TMDB is to be asked about again ([Reidentify]), the longest waiting
-     * first, at most [limit]: those come after [newSince] last asked by [newDue], the others by [due]; never a title
-     * matched by hand.
-     */
-    @Query(
-        "SELECT $CARD_ROW FROM items WHERE $TO_IDENTIFY AND kind = :kind AND userTmdbId IS NULL AND matchedAt IS NOT NULL " +
-            "AND matchedAt <= (CASE WHEN addedAt > :newSince THEN :newDue ELSE :due END) ORDER BY matchedAt LIMIT :limit",
-    )
-    suspend fun recheckDue(kind: ItemKind, newSince: Long, newDue: Long, due: Long, limit: Int): List<ItemEntity>
-
-    /** A title still to identify once TMDB was asked again ([Reidentify]): what it made of it, and when. */
-    @Query("UPDATE items SET matchState = :state, matchedAt = :at WHERE id = :id")
-    suspend fun setMatchState(id: Long, state: MatchState, at: Long)
 
     @Query("SELECT COUNT(*) FROM items WHERE kind = 'SEASON' AND parentId = :seriesId")
     suspend fun seasonCount(seriesId: Long): Int
