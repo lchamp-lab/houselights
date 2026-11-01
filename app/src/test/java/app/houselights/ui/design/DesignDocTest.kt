@@ -27,7 +27,7 @@ class DesignDocTest {
     private val platform = setOf(
         "Modifier", "CircleShape", "ColorProducer", "LineBreak", "Heading", "Paragraph", "LineHeightStyle", "Trim", "Both",
         "contentPadding", "drawBehind", "drawWithCache", "focusProperties", "enter", "focusRestorer", "graphicsLayer", "heightIn",
-        "runCatching",
+        "runCatching", "BringIntoViewSpec", "animateScrollBy", "animateScrollToItem",
     )
 
     @Test

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -23,11 +24,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
@@ -46,13 +49,18 @@ import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.ImageLight
 import app.houselights.ui.design.components.MediaRow
+import app.houselights.ui.design.components.rememberGlowColor
+import app.houselights.ui.design.components.stillGlow
 import app.houselights.ui.design.edge
 import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.roomStep
 
 /** Every shape at a size it takes, then focus in its two gestures and its ring, live with the remote. */
 internal fun LazyListScope.catalogFocus() {
-    item { Group("Shapes: radii by hierarchy, no pill, no disc", still = true) { Shapes() } }
+    item { Group("Shapes: radii by hierarchy on one scale, 2 · 4 · 6 · 8 · 12 · 16; no pill, no disc", still = true) { Shapes() } }
+    item { Group("The glow: 28 rings of 1 dp, whole pixels at 1080p, no step past 5 levels; judge it on the TV", still = true) { Glows() } }
     item { Group("Focus, frame: what carries its own light is framed 3 dp off; only a picture glows; nothing grows") { Frames() } }
     item { Group("Focus, fill: a plate turns white, ink black; the ring where nothing acts") { Fills() } }
 }
@@ -82,6 +90,29 @@ private fun radii(shape: RoundedCornerShape): String {
     val unit = Size(density.density * CatalogSwatch.value, density.density * CatalogSwatch.value)
     return listOf(shape.topStart, shape.topEnd).map { (it.toPx(unit, density) / density.density).toInt() }
         .distinct().joinToString(" / ")
+}
+
+/** The glow held at full strength around a poster and a wide image, in a picture's tone and in a grey picture's. */
+@Composable
+private fun Glows() {
+    val c = Hl.colors
+    val art = shippedImage(R.drawable.banner)
+    val url = art.url(0)
+    val tone by rememberGlowColor(url, active = true)
+    // Each with the room its glow spreads into.
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+        Specimen("a poster in its picture's tone", Modifier.padding(HlFocus.glow), width = HlSize.poster) {
+            Box(Modifier.width(HlSize.poster).aspectRatio(HlSize.POSTER_RATIO).stillGlow(tone, HlShapes.artwork)) {
+                ArtworkImage(url, null, Modifier.fillMaxSize().clip(HlShapes.artwork))
+            }
+        }
+        Specimen("a wide image of a grey picture", Modifier.padding(HlFocus.glow), width = HlSize.landscape) {
+            Box(
+                Modifier.width(HlSize.landscape).aspectRatio(HlSize.PREVIEW_RATIO).stillGlow(ImageLight.Grey.glow, HlShapes.wide)
+                    .background(c.roomStep, HlShapes.wide),
+            )
+        }
+    }
 }
 
 @Composable

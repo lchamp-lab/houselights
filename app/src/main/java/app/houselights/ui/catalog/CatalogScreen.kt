@@ -1,6 +1,7 @@
 package app.houselights.ui.catalog
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,7 @@ import app.houselights.ui.design.HlPalette
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.PaneDefaults
 import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.Backdrop
@@ -81,9 +83,11 @@ import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.emberLit
 import app.houselights.ui.design.plate
+import app.houselights.ui.design.roomStep
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.settings.JournalSheet
@@ -114,7 +118,9 @@ fun CatalogScreen(modifier: Modifier = Modifier) {
                 Group("Colour", Modifier.focusRequester(first), still = true) { Colours() }
             }
 
-            item { Group("Black levels: the room's steps, then the darks a picture lends", still = true) { BlackLevels() } }
+            item {
+                Group("Black levels, then the room's one step and glass's, then the darks a picture lends", still = true) { BlackLevels() }
+            }
             catalogContrast()
 
             item {
@@ -430,6 +436,7 @@ private fun BlackLevels() {
                 modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
             )
         }
+        RoomSteps()
         // The darks a picture lends: its veils in its own dark, and a wall's diffuse field.
         val art = shippedImage(R.drawable.banner)
         CompositionLocalProvider(LocalBackdropRelay provides null) {
@@ -442,6 +449,27 @@ private fun BlackLevels() {
                         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, style) }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * What lies on the room: its one step and nothing under it, then glass, the doors' and the sheets', and glass's own
+ * step; every one set off by the one edge.
+ */
+@Composable
+private fun RoomSteps() {
+    val c = Hl.colors
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
+        listOf(
+            "the room's one step, FILL" to c.roomStep,
+            "nothing under what cannot act" to c.background,
+            "glass" to c.glass,
+            "glass's step, FILL_FAINT" to c.content.copy(alpha = HlAlpha.FILL_FAINT).compositeOver(c.glass),
+        ).forEach { (name, ground) ->
+            Specimen(name, width = CatalogSwatch * 2, gap = HlSpace.xxs) {
+                Box(Modifier.size(CatalogSwatch).background(ground, HlShapes.panel).border(HlStroke.hair, c.edge, HlShapes.panel))
             }
         }
     }
