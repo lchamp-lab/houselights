@@ -82,6 +82,7 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.HlType
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.isOk
@@ -549,9 +550,9 @@ private fun Modifier.openOnOk(state: FieldState, open: () -> Unit): Modifier = o
 private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
     val c = Hl.colors
     return when {
-        editing -> BorderStroke(HlSize.focusBorder, c.emberLight())
+        editing -> BorderStroke(HlStroke.ring, c.emberLight())
         focused -> FocusStyle.ring()
-        else -> BorderStroke(HlSize.hairline, c.outline)
+        else -> BorderStroke(HlStroke.hair, c.outline)
     }
 }
 

@@ -21,11 +21,13 @@ class ShapesTest {
     @Test
     fun radiiFollowHierarchy() {
         with(HlShapes) {
-            val ladder = listOf(thumb, mark, control, row, wide, panel, sheet).map { it.radius() }
-            assertEquals(ladder.sorted(), ladder)
-            assertEquals(ladder.distinct(), ladder)
+            // Six radii a TV tells apart: 2 · 4 · 6 · 8 · 12 · 16.
+            val ladder = listOf(thumb, mark, control, row, panel, sheet).map { it.radius() }
+            assertEquals(listOf(2f, 4f, 6f, 8f, 12f, 16f), ladder)
+            assertEquals(thumb.radius(), badge.radius(), 0f)
             assertEquals(control.radius(), field.radius(), 0f)
             assertEquals(row.radius(), artwork.radius(), 0f)
+            assertEquals(panel.radius(), wide.radius(), 0f)
         }
     }
 
@@ -73,9 +75,9 @@ class ShapesTest {
     /** A disc or a pill: a circle, or a radius given as a share of the size. */
     private val round = Regex("""\bCircleShape\b|RoundedCornerShape\(\s*(percent\s*=\s*)?\d+\s*[,)]""")
 
-    /** The sizes of a status dot: a state, a new title, a row's or a door's new titles, the current place's word. */
-    private val dot = Regex("""\bHlSize\.(dot|newDot|newsDot|doorDot|wordDot)\b""")
-    private val namedDot = Regex("""\bval dot = Modifier\.size\(HlSize\.(dot|newDot|newsDot|doorDot|wordDot)\)""")
+    /** The two sizes of a dot: a state, new titles, a door's, the current place's word; a new title on its picture. */
+    private val dot = Regex("""\bHlSize\.(dot|newDot)\b""")
+    private val namedDot = Regex("""\bval dot = Modifier\.size\(HlSize\.(dot|newDot)\)""")
     private val localDot = Regex("""\bdot\.\w+\(""")
 
     @Test
@@ -83,7 +85,7 @@ class ShapesTest {
         listOf("Modifier.clip(CircleShape)", "RoundedCornerShape(50)", "RoundedCornerShape(percent = 50)")
             .forEach { assertTrue(it, round.containsMatchIn(it)) }
         assertTrue(!round.containsMatchIn("RoundedCornerShape(4.dp)"))
-        assertTrue(dot.containsMatchIn("Modifier.size(HlSize.newsDot).background(c.ember, CircleShape)"))
+        assertTrue(dot.containsMatchIn("Modifier.size(HlSize.dot).background(c.ember, CircleShape)"))
         assertTrue(!dot.containsMatchIn("Modifier.size(HlSize.tile).clip(CircleShape) // a dot."))
     }
 

@@ -33,6 +33,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.AbsentCard
 import app.houselights.ui.design.components.ArtworkImage
@@ -68,7 +69,7 @@ private fun Shapes() {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
         shapes.forEach { (name, shape) ->
             Specimen("$name ${radii(shape)}", gap = HlSpace.xs) {
-                Box(Modifier.size(CatalogSwatch).background(groundStepFill(), shape).border(HlSize.hairline, c.edge, shape))
+                Box(Modifier.size(CatalogSwatch).background(groundStepFill(), shape).border(HlStroke.hair, c.edge, shape))
             }
         }
     }

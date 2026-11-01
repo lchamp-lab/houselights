@@ -1,6 +1,7 @@
 package app.houselights.ui.design
 
 import app.houselights.testing.Source
+import app.houselights.testing.argumentsFrom
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
 import app.houselights.testing.source
@@ -39,8 +40,8 @@ class DesignTokenGuardTest {
         // Veils and lights are drawn by the design system, over what they lie on.
         Regex("""\bBrush\.\w*Gradient\(""") to "a gradient: use a veil (HlScrim) or a component's light",
         // A sum of tokens is an alignment worked out in a screen: it gets a name in the design system.
-        Regex("""\bHl(Space|Size|Layout|Inset)\.[a-z]\w*\s*[-+*/](?!>)""") to "arithmetic on a token: name the measure in Dimens.kt",
-        Regex("""[\w)]\s*[-+*/]\s*Hl(Space|Size|Layout|Inset)\.[a-z]""") to "arithmetic on a token: name the measure in Dimens.kt",
+        Regex("""\bHl(Space|Size|Layout|Inset|Stroke)\.[a-z]\w*\s*[-+*/](?!>)""") to "arithmetic on a token: name the measure in Dimens.kt",
+        Regex("""[\w)]\s*[-+*/]\s*Hl(Space|Size|Layout|Inset|Stroke)\.[a-z]""") to "arithmetic on a token: name the measure in Dimens.kt",
         // A raw image is left blank when it fails: the design system's show the title or an empty frame.
         Regex("""\bAsyncImage\(""") to "an image: use ArtworkImage or PosterThumb",
         // Ember is a closed list of states: a screen says the state, the component lights it.
@@ -234,6 +235,40 @@ class DesignTokenGuardTest {
         val declared = builds.filter { "material-icons" in it.readText() || "material.icons" in it.readText() }
         assertTrue("Material icons declared in ${declared.joinToString()}", declared.isEmpty())
     }
+
+    /**
+     * An icon is drawn at a size of the scale (DESIGN.md, Space and size): 14 on a mark, 16 in a line, 20 beside words,
+     * 22 on a tile, 24 alone; the attention mark fills its light's box, 16.
+     */
+    @Test
+    fun iconsKeepToTheScale() {
+        val scale = mapOf(
+            "markIcon" to HlSize.markIcon,
+            "inlineIcon" to HlSize.inlineIcon,
+            "icon" to HlSize.icon,
+            "tileIcon" to HlSize.tileIcon,
+            "largeIcon" to HlSize.largeIcon,
+        )
+        assertEquals(listOf(14, 16, 20, 22, 24), scale.values.map { it.value.toInt() })
+        val sized = (scale.keys + "statusLight").map { "HlSize.$it" }.toSet()
+        // The catalogue shows the scale itself.
+        val catalog = ui.resolve("catalog")
+        val found = kotlinSources(ui).filter { !it.file.startsWith(catalog) }.flatMap { file ->
+            iconCall.findAll(file.code).flatMap { call ->
+                size.findAll(file.code.argumentsFrom(call.range.last).joinToString(", ")).map { it.groupValues[1].trim() }
+                    .filter { it !in sized }.map { "${file.pathFrom(ui)}:${file.lineOf(call.range.first)}: $it" }
+            }.toList()
+        }
+        assertTrue("An icon off the scale, use one of HlSize's icon sizes:\n" + found.joinToString("\n"), found.isEmpty())
+        assertTrue(iconCall.containsMatchIn("Icon(HlIcons.Play, null, Modifier.size(HlSize.icon))"))
+        assertTrue(!iconCall.containsMatchIn("fun HlIcon(") && !iconCall.containsMatchIn("HlIconButton("))
+    }
+
+    /** A call to tv-material's `Icon`. */
+    private val iconCall = Regex("""(?<![\w.])(?<!fun )Icon\(""")
+
+    /** A size set on it, square or not. */
+    private val size = Regex("""\b(?:size|requiredSize)\(([^()]*)\)""")
 
     /** What the room is not: frosted glass, a drop shadow (DESIGN.md, Principles). */
     @Test

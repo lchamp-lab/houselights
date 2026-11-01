@@ -41,6 +41,7 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.ShowcaseDefaults
 import app.houselights.ui.design.VeilStop
@@ -79,7 +80,7 @@ fun Showcase(
     val covered = remember(band) { { band.intValue.toFloat() } }
     HlFocusSurface(
         onClick = onClick,
-        look = FocusStyle.frame(rest = glass, restInk = c.content, edge = BorderStroke(HlSize.hairline, c.edge)),
+        look = FocusStyle.frame(rest = glass, restInk = c.content, edge = BorderStroke(HlStroke.hair, c.edge)),
         shape = HlShapes.panel,
         modifier = modifier.width(HlSize.showcase).onFocusChanged { if (it.isFocused) onFocus() },
         covered = covered.takeIf { full },
@@ -157,7 +158,7 @@ internal fun ShowcaseSpace(modifier: Modifier = Modifier) {
                 layout(room.width, room.height) {}
             },
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSize.hairline)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlStroke.hair)) {
             repeat(SHOWCASE_SLOTS) { Spacer(Modifier.weight(1f).aspectRatio(HlSize.POSTER_RATIO)) }
         }
         Column(

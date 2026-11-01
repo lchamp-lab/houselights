@@ -15,6 +15,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.emberLight
 
 /**
@@ -57,7 +58,7 @@ private fun IntertitleRule(attention: Boolean) {
     Box(
         Modifier
             .width(HlSize.intertitleRule)
-            .height(HlSize.intertitleRuleWeight)
+            .height(HlStroke.ring)
             .then(if (attention) Modifier.background(c.emberLight()) else Modifier.background(c.contentSecondary)),
     )
 }

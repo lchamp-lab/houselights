@@ -42,6 +42,7 @@ import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.TextLines
@@ -117,7 +118,7 @@ fun HlScrollArea(lines: List<String>, modifier: Modifier = Modifier, alwaysFocus
 private fun Modifier.readingArea(focused: Boolean): Modifier {
     val c = Hl.colors
     val onGlass = LocalGround.current == Ground.Glass
-    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, c.edge)
+    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlStroke.hair, c.edge)
     return if (onGlass) clip(HlShapes.panel).plate(edge) else panel(HlShapes.panel, groundStepFill(), edge)
 }
 

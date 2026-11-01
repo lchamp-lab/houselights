@@ -42,6 +42,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.AbsentCard
@@ -343,13 +344,13 @@ private fun ProgressLines() {
             listOf(0f to "0%: not drawn", 0.4f to "40%", 1f to "100%").forEach { (progress, label) ->
                 Specimen("poster, $ground, $label", width = HlSize.poster) {
                     Box(Modifier.width(HlSize.poster).height(HlSpace.l).clip(HlShapes.artwork).background(color)) {
-                        OnArtwork { ProgressLine(progress, Modifier.align(Alignment.BottomCenter), HlSize.progressPoster) }
+                        OnArtwork { ProgressLine(progress, Modifier.align(Alignment.BottomCenter), HlStroke.bold) }
                     }
                 }
             }
             Specimen("still, $ground, 40%", width = HlSize.landscape) {
                 Box(Modifier.width(HlSize.landscape).height(HlSpace.l).clip(HlShapes.wide).background(color)) {
-                    OnArtwork { ProgressLine(0.4f, Modifier.align(Alignment.BottomCenter), HlSize.progressWide) }
+                    OnArtwork { ProgressLine(0.4f, Modifier.align(Alignment.BottomCenter), HlStroke.bold) }
                 }
             }
         }

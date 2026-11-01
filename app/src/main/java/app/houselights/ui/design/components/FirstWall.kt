@@ -40,6 +40,7 @@ import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.edge
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.util.titleCount
@@ -236,7 +237,7 @@ private fun WallFrameView(frame: WallFrame, modifier: Modifier = Modifier) {
             .clip(shape)
             .drawWithCache {
                 // The picture's edge, under the ground, drawn over it too while the frame is empty, inside as a border is.
-                val stroke = Stroke(HlSize.hairline.toPx())
+                val stroke = Stroke(HlStroke.hair.toPx())
                 val inset = stroke.width / 2
                 val outline = shape.createOutline(Size(size.width - stroke.width, size.height - stroke.width), layoutDirection, this)
                 onDrawWithContent {

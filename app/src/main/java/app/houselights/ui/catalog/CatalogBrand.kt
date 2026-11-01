@@ -35,6 +35,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.components.Lockup
 import kotlin.math.roundToInt
 
@@ -60,7 +61,7 @@ internal fun LazyListScope.catalogBrand() {
         Group("Brand: the lockup, Gradation in its light beside the name, white and flat", still = true) {
             // The mark hangs past the name's box: a wider gap keeps it off the caption.
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Bottom) {
-                Specimen("over the welcome wall", gap = HlSpace.m) { Lockup(HlSize.wordmarkHero) }
+                Specimen("over the welcome wall", gap = HlSpace.m) { Lockup(HlSize.wordmark) }
                 Specimen("in About", gap = HlSpace.m) { Lockup(HlSize.wordmark) }
             }
         }
@@ -124,7 +125,7 @@ private fun LaunchMark(@DrawableRes launch: Int) {
         DrawableBox(drawable, DpSize(size, size))
         Canvas(Modifier.size(size)) {
             val radius = this.size.width / 2 * Gradation.LAUNCH_CIRCLE / Gradation.LAYER
-            drawCircle(ring, radius, style = Stroke(HlSize.hairline.toPx()))
+            drawCircle(ring, radius, style = Stroke(HlStroke.hair.toPx()))
         }
     }
 }

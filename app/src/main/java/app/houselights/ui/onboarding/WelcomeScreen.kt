@@ -107,7 +107,7 @@ internal fun Welcome(
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 // The lockup and tagline in the middle, what went wrong under them: nothing moves as a note comes.
                 Spacer(Modifier.weight(1f))
-                Lockup(HlSize.wordmarkHero)
+                Lockup(HlSize.wordmark)
                 Spacer(Modifier.height(HlSpace.l))
                 Text(
                     stringResource(R.string.welcome_tagline),

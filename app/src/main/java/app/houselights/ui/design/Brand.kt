@@ -3,6 +3,7 @@ package app.houselights.ui.design
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import kotlin.math.round
 
 /**
  * Gradation, the mark (DESIGN.md, Brand): three bars halving in width (4:2:1), together as wide as tall, in
@@ -51,10 +52,14 @@ object Gradation {
         }
     }
 
-    /** The lockup's bars from x = 0, centred on [capitals] whose middle is at [y]; beside a name, they take no pull. */
-    fun lockupBars(capitals: Float, y: Float): List<Rect> {
+    /**
+     * The lockup's bars from x = 0, centred on [capitals] whose middle is at [y]; beside a name, they take no pull. On
+     * screen ([whole], px), each edge falls on a whole pixel, so a small lockup's thin bar keeps sharp sides.
+     */
+    fun lockupBars(capitals: Float, y: Float, whole: Boolean = false): List<Rect> {
         val height = capitals * LOCKUP_MARK
-        return bars(height / 2, y, height, pull = 0f)
+        val bars = bars(height / 2, y, height, pull = 0f)
+        return if (whole) bars.map { Rect(round(it.left), round(it.top), round(it.right), round(it.bottom)) } else bars
     }
 
     /** The mark's light: `emberFrom` at the left edge of [bars] to `emberTo` at their right, shared by every bar. */

@@ -61,6 +61,7 @@ import app.houselights.ui.design.HlSettingGroupDefaults
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.edge
@@ -98,7 +99,7 @@ fun HlPanel(
             .panel(
                 shape,
                 fill = if (raised) c.glass else groundStepFill(),
-                edge = if (lit) BorderStroke(HlSize.hairline, c.emberLight()) else BorderStroke(HlSize.hairline, c.edge),
+                edge = if (lit) BorderStroke(HlStroke.hair, c.emberLight()) else BorderStroke(HlStroke.hair, c.edge),
             )
             .padding(padding),
     ) {
@@ -134,7 +135,7 @@ fun HlPanelButton(
         look = FocusStyle.frame(
             rest = if (raised) c.glass else groundStepFill(),
             restInk = c.content,
-            edge = BorderStroke(HlSize.hairline, if (lit && enabled) c.emberLight() else SolidColor(c.edge)),
+            edge = BorderStroke(HlStroke.hair, if (lit && enabled) c.emberLight() else SolidColor(c.edge)),
             disabled = groundWell(),
             disabledInk = c.contentTertiary,
         ),
@@ -185,7 +186,7 @@ fun HlPlate(
     padding: PaddingValues = PaddingValues(horizontal = HlInset.plate, vertical = HlInset.card),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier.plate(BorderStroke(HlSize.hairline, Hl.colors.edge)).padding(padding)) {
+    Column(modifier.plate(BorderStroke(HlStroke.hair, Hl.colors.edge)).padding(padding)) {
         CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
     }
 }
@@ -223,7 +224,7 @@ internal fun PlateSlice(first: Boolean, last: Boolean, content: @Composable Colu
     val light = LocalAmbient.current
     val edge = c.edge
     val slice = Modifier.fillMaxWidth().drawWithCache {
-        val stroke = HlSize.hairline.toPx()
+        val stroke = HlStroke.hair.toPx()
         val radius = HlShapes.panel.topStart.toPx(size, this)
         // The whole plate the row is part of, running past the row's ends far enough to round them out of sight.
         val above = if (first) 0f else radius + stroke
@@ -266,7 +267,7 @@ fun ReadingPlate(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, Hl.colors.edge)
+    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlStroke.hair, Hl.colors.edge)
     val reading = if (readAs != null) {
         Modifier.clearAndSetSemantics {
             contentDescription = readAs
@@ -292,9 +293,9 @@ fun ReadingPlate(
 fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
     val color = Hl.colors.edge
     if (vertical) {
-        Box(modifier.width(HlSize.hairline).fillMaxHeight().background(color))
+        Box(modifier.width(HlStroke.hair).fillMaxHeight().background(color))
     } else {
-        Box(modifier.fillMaxWidth().height(HlSize.hairline).background(color))
+        Box(modifier.fillMaxWidth().height(HlStroke.hair).background(color))
     }
 }
 

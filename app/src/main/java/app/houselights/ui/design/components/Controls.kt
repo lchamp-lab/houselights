@@ -92,6 +92,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.RowScroll
@@ -390,7 +391,7 @@ private fun rememberPlate(): PlateLook {
         when (ground) {
             Ground.Artwork -> {
                 val plate = ColorProducer { c.plate(light) }
-                PlateLook(plate, plate, BorderStroke(HlSize.hairline, c.edge))
+                PlateLook(plate, plate, BorderStroke(HlStroke.hair, c.edge))
             }
             Ground.Glass -> {
                 val step = c.content.copy(alpha = HlAlpha.FILL)
@@ -595,7 +596,7 @@ internal const val TILE_LABEL = "tile-label"
 /** A tile's label plate over the picture [light] comes from, and its hairline, read while drawing. */
 internal fun Modifier.labelPlate(c: HlColors, light: AmbientLight): Modifier = drawWithCache {
     val outline = HlShapes.mark.createOutline(size, layoutDirection, this)
-    val hairline = Stroke(HlSize.hairline.toPx())
+    val hairline = Stroke(HlStroke.hair.toPx())
     onDrawBehind {
         drawOutline(outline, c.plate(light))
         drawOutline(outline, c.edge, style = hairline)
@@ -734,7 +735,7 @@ fun HlSegmented(
 }
 
 /** Room before the current word for its dot. */
-private val DotRoom: Dp = HlSize.wordDot + HlControl.iconGap
+private val DotRoom: Dp = HlSize.dot + HlControl.iconGap
 
 /** How far a track's plates may hang before its first word: a plate's padding and the current word's dot. */
 private val TrackHang: Dp = HlControl.tabPaddingH + DotRoom
@@ -783,7 +784,7 @@ private fun SegmentItem(
             if (current) {
                 Box(Modifier.width(DotRoom), contentAlignment = Alignment.CenterStart) {
                     // On the white of focus, the place stays marked: a raspberry dot.
-                    val dot = Modifier.size(HlSize.wordDot)
+                    val dot = Modifier.size(HlSize.dot)
                     if (lit) Box(dot.background(c.emberOnLight, CircleShape))
                 }
             }

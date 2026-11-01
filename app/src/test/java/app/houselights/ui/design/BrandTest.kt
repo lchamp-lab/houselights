@@ -14,7 +14,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
 import java.io.File
+import kotlin.math.abs
 import kotlin.math.hypot
+import kotlin.math.round
 
 /** The icon, banner and launch mark are vectors in Gradation's geometry and light, inside their circle; the lockup sets it by the name. */
 class BrandTest {
@@ -70,6 +72,19 @@ class BrandTest {
         assertEquals(LOCKUP_WIDTH - LOCKUP_NAME, name.getAttribute("android:viewportWidth").toFloat(), EXACT)
         val baseline = name.children("group").single().getAttribute("android:translateY").toFloat()
         assertEquals(baseline - CAPITALS / 2, name.getAttribute("android:viewportHeight").toFloat() / 2, ROUND_OVERSHOOT)
+    }
+
+    /** On screen, home's lockup (11.5 dp capitals, 23 px at 1080p) has every edge on a whole pixel, within one of its line. */
+    @Test
+    fun onScreenTheLockupsBarsFallOnWholePixels() {
+        val capitals = HOME_CAPITALS_PX
+        val drawn = Gradation.lockupBars(capitals, capitals / 2)
+        val whole = Gradation.lockupBars(capitals, capitals / 2, whole = true)
+        whole.flatMap { listOf(it.left, it.top, it.right, it.bottom) }.forEach { assertEquals(it, round(it), 0f) }
+        whole.zip(drawn).forEach { (bar, line) ->
+            listOf(bar.left - line.left, bar.right - line.right, bar.top - line.top).forEach { assertTrue(abs(it) <= HALF_PIXEL) }
+        }
+        whole.zipWithNext().forEach { (a, b) -> assertTrue("${a.width} then ${b.width}", a.width > b.width && b.left > a.right) }
     }
 
     @Test
@@ -192,5 +207,9 @@ class BrandTest {
 
         /** How far the name's box sits from its capitals' middle: its round letters overshoot alike above and below. */
         const val ROUND_OVERSHOOT = 0.2f
+
+        /** Home's lockup capitals at 1080p (`HomeGridDefaults.lockup` 11.5 dp), and how far a rounded edge may move. */
+        const val HOME_CAPITALS_PX = 23f
+        const val HALF_PIXEL = 0.5f
     }
 }

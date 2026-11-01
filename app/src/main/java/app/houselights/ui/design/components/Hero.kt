@@ -37,6 +37,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.util.episodeCode
 import app.houselights.ui.util.timeLeft
 import kotlinx.coroutines.flow.first
@@ -71,7 +72,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, notSaved: String? 
             Spacer(Modifier.height(HlGap.inBlock))
             if (shown.progress > 0f) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    ProgressLine(shown.progress, Modifier.width(HlSize.heroProgress), thickness = HlSize.heroProgressWeight)
+                    ProgressLine(shown.progress, Modifier.width(HlSize.heroProgress), thickness = HlStroke.bold)
                     Spacer(Modifier.width(HlSpace.s))
                     timeLeft(shown)?.let { Text(it, style = Hl.type.meta, color = Hl.colors.contentSecondary) }
                 }
@@ -162,8 +163,8 @@ fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier,
 fun HeroSkeleton(modifier: Modifier = Modifier) {
     val rule = Hl.colors.contentDecorative
     Column(modifier) {
-        Box(Modifier.width(HlSize.skeletonTitle).height(HlSize.hairline).background(rule))
+        Box(Modifier.width(HlSize.skeletonTitle).height(HlStroke.hair).background(rule))
         Spacer(Modifier.height(HlSpace.l))
-        Box(Modifier.width(HlSize.skeletonFacts).height(HlSize.hairline).background(rule))
+        Box(Modifier.width(HlSize.skeletonFacts).height(HlStroke.hair).background(rule))
     }
 }

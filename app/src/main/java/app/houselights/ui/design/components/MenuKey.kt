@@ -52,7 +52,7 @@ fun MenuKey(modifier: Modifier = Modifier, ink: Color? = null) {
             .border(HlSize.keyEdge, ink ?: c.contentTertiary, HlShapes.mark),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(HlIcons.Menu, contentDescription = null, tint = ink ?: c.contentSecondary, modifier = Modifier.size(HlSize.keyGlyph))
+        Icon(HlIcons.Menu, contentDescription = null, tint = ink ?: c.contentSecondary, modifier = Modifier.size(HlSize.inlineIcon))
     }
 }
 

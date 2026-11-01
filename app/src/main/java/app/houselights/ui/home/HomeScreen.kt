@@ -528,7 +528,7 @@ private fun WatchDoor(door: Door, span: Int, actions: HomeActions, modifier: Mod
     if (door is Door.News) {
         HomeDoor(
             stringResource(R.string.home_news),
-            HlIcons.Sparkles,
+            HlIcons.Latest,
             onClick = { actions.onOpenWatch(WatchRow.LATEST) },
             modifier = modifier,
             note = door.thisWeek.takeIf { it > 0 }?.let { DoorNote.News(pluralStringResource(R.plurals.home_news_week, it, it)) },

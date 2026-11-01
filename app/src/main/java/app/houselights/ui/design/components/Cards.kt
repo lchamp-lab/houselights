@@ -95,6 +95,7 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.LocalGroupFocus
@@ -189,7 +190,7 @@ private fun RowHeading(notes: RowNotes, modifier: Modifier = Modifier, title: @C
             Spacer(Modifier.width(HlSpace.s))
             Row(Modifier.alignByBaseline(), verticalAlignment = Alignment.CenterVertically) {
                 // The ember dot says new; the words say how many.
-                Box(Modifier.size(HlSize.newsDot).background(c.ember, CircleShape))
+                Box(Modifier.size(HlSize.dot).background(c.ember, CircleShape))
                 Spacer(Modifier.width(HlSpace.xs))
                 val words = pluralStringResource(R.plurals.row_news, news, news)
                 Text(words, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
@@ -426,7 +427,7 @@ internal class RecedingPainter(private val painter: Painter, private val recede:
 /** The faint edge of artwork at rest, so a dark picture keeps its outline on black. */
 internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier = border(artworkEdge(colors), shape)
 
-private fun artworkEdge(colors: HlColors) = BorderStroke(HlSize.hairline, colors.edge)
+private fun artworkEdge(colors: HlColors) = BorderStroke(HlStroke.hair, colors.edge)
 
 /** Requested poster width in px: [requestedPoster]. */
 @Composable
@@ -481,8 +482,8 @@ fun PosterCard(
     ) {
         ArtworkImage(poster, item.title, Modifier.fillMaxSize(), size = decoded) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, markCorner())
-        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressPoster)
-        if (keyed) CornerKey({ focused.value }, started = item.progress > 0f, line = HlSize.progressPoster)
+        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlStroke.bold)
+        if (keyed) CornerKey({ focused.value }, started = item.progress > 0f, line = HlStroke.bold)
     }
 }
 
@@ -526,8 +527,8 @@ fun LandscapeCard(
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })
             }
             StatusMark(item, markCorner())
-            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressWide)
-            if (keyed) CornerKey({ focused.value }, started = item.progress > 0f, line = HlSize.progressWide)
+            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlStroke.bold)
+            if (keyed) CornerKey({ focused.value }, started = item.progress > 0f, line = HlStroke.bold)
         }
         val said = facts.any { !it.isNullOrBlank() }
         if (title != null || said) {
@@ -728,7 +729,7 @@ fun AbsentCard(
 private fun BoxScope.AbsentFrame(title: String, year: Int?, said: String?) {
     val c = Hl.colors
     Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
-        Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentDecorative))
+        Box(Modifier.width(HlSpace.l).height(HlStroke.hair).background(c.contentDecorative))
         Spacer(Modifier.height(HlSpace.xs))
         Text(title, style = Hl.type.cardTitle, color = c.contentTertiary, maxLines = 4, overflow = TextOverflow.Ellipsis)
         if (year != null) {
@@ -761,7 +762,7 @@ internal val absentFilters: List<ColorFilter> by lazy {
 internal fun BoxScope.FallbackArtwork(title: String, year: Int?) {
     val c = Hl.colors
     Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
-        Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentSecondary))
+        Box(Modifier.width(HlSpace.l).height(HlStroke.hair).background(c.contentSecondary))
         Spacer(Modifier.height(HlSpace.xs))
         Text(title, style = Hl.type.cardTitle, color = c.content, maxLines = 4, overflow = TextOverflow.Ellipsis)
         if (year != null) {
@@ -790,7 +791,7 @@ internal fun DrawScope.emptyFrameRule(rule: Color, alpha: Float = 1f) {
     val inset = HlSpace.s.toPx()
     val length = HlSpace.l.toPx()
     if (size.width >= length + 2 * inset && size.height >= length + 2 * inset) {
-        val weight = HlSize.hairline.toPx()
+        val weight = HlStroke.hair.toPx()
         drawRect(rule, Offset(inset, size.height - inset - weight), Size(length, weight), alpha = alpha)
     }
 }
@@ -806,7 +807,7 @@ fun PosterStrip(
     modifier: Modifier = Modifier,
     name: String? = null,
     slotWidth: Dp? = null,
-    gap: Dp = HlSize.hairline,
+    gap: Dp = HlStroke.hair,
     shape: Shape = RectangleShape,
 ) {
     val c = Hl.colors
@@ -897,7 +898,7 @@ internal fun NewDot(modifier: Modifier = Modifier) {
     // A status dot is the one round thing; its ring is drawn around it, outside its size.
     Spacer(
         modifier.size(HlSize.newDot).drawBehind {
-            drawCircle(ring, radius = size.minDimension / 2 + HlSize.newDotRing.toPx())
+            drawCircle(ring, radius = size.minDimension / 2 + HlStroke.ring.toPx())
             drawCircle(c.ember, colorFilter = recedeFilterAt(recede()))
         },
     )
@@ -937,7 +938,7 @@ private const val PERCENT = 100
  * would hold it under 3:1; the part to come is pale there, so a count at the line's end reads as a whole gauge's.
  */
 @Composable
-fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlSize.progress, focused: Boolean = false) {
+fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlStroke.line, focused: Boolean = false) {
     if (progress <= 0f) return
     val c = Hl.colors
     val under = if (focused) null else groundPlate() ?: c.content.copy(alpha = HlAlpha.FILL_STRONG)

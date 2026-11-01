@@ -89,6 +89,7 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalGroupFocus
 import app.houselights.ui.design.Scrub
 import app.houselights.ui.design.VeilStop
@@ -960,7 +961,7 @@ private fun BoxScope.VoletMarks(
         if (closed) VoletFoot(part, shown.align(Alignment.BottomCenter))
     }
     // Open, its words say what is left.
-    if (closed && part.progress > 0f) ProgressLine(part.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressWide)
+    if (closed && part.progress > 0f) ProgressLine(part.progress, Modifier.align(Alignment.BottomCenter), HlStroke.bold)
 }
 
 /** A closed panel's foot: its mark, then its year (the spine's: where focus is among the films), [HlSpace.m] from the foot. */

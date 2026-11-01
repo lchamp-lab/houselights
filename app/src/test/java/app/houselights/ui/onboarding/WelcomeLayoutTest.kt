@@ -116,7 +116,7 @@ class WelcomeLayoutTest {
         }
         fun bounds(id: Int) = compose.onNodeWithText(compose.activity.getString(id)).getUnclippedBoundsInRoot()
         val name = compose.onNodeWithContentDescription(compose.activity.getString(R.string.wordmark)).getUnclippedBoundsInRoot()
-        val caps = HlSize.wordmarkHero
+        val caps = HlSize.wordmark
         // The mark from the safe area's edge, centred on the name's capitals and hanging past its box.
         val mark = caps * Gradation.LOCKUP_MARK
         val middle = (name.top + name.bottom) / 2

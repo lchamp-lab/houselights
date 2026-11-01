@@ -82,7 +82,7 @@ fun Lockup(capitals: Dp, modifier: Modifier = Modifier) {
         modifier
             .drawWithCache {
                 // The name's box has its capitals in the middle: round letters overshoot alike above and below.
-                val bars = Gradation.lockupBars(capitals.toPx(), size.height / 2)
+                val bars = Gradation.lockupBars(capitals.toPx(), size.height / 2, whole = true)
                 val lights = Gradation.lights(bars, colors)
                 onDrawBehind { drawGradation(bars, lights) }
             }

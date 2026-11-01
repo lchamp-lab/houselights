@@ -46,6 +46,7 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.plate
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
@@ -154,7 +155,7 @@ fun Badge(text: String, modifier: Modifier = Modifier, ink: Color? = null) {
         style = Hl.type.badge,
         color = ink ?: c.contentSecondary,
         modifier = modifier
-            .border(HlSize.hairline, ink ?: c.outline, HlShapes.badge)
+            .border(HlStroke.hair, ink ?: c.outline, HlShapes.badge)
             .padding(horizontal = HlControl.badgePaddingH, vertical = HlControl.badgePaddingV),
     )
 }

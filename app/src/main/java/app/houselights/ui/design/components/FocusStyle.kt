@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorProducer
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlStroke
 
 /** The two gestures a surface takes focus with; a field draws [FocusStyle.ring] itself. */
 internal enum class Gesture {
@@ -106,7 +106,7 @@ internal object FocusStyle {
     /** The ring of focus in projector white, inside the edge: a field, a read-only area, what cannot act. */
     @Composable
     @ReadOnlyComposable
-    fun ring(): BorderStroke = BorderStroke(HlSize.focusBorder, Hl.colors.focus)
+    fun ring(): BorderStroke = BorderStroke(HlStroke.ring, Hl.colors.focus)
 
     /** What a plate holds by state, words or a mark: [rest] at rest, focus's ink on its white. */
     @Composable

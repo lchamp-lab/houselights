@@ -51,6 +51,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.HlStroke
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.PaneDefaults
 import app.houselights.ui.design.edge
@@ -214,7 +215,7 @@ fun JaquetteLine(facts: List<Pair<String, String>>, modifier: Modifier = Modifie
     Row(
         modifier
             .drawBehind { drawRoundRect(c.plate(light), cornerRadius = CornerRadius(HlShapes.control.topStart.toPx(size, this))) }
-            .border(HlSize.hairline, c.edge, HlShapes.control)
+            .border(HlStroke.hair, c.edge, HlShapes.control)
             .padding(horizontal = HlSpace.s, vertical = HlSpace.xxs),
     ) {
         facts.forEachIndexed { i, (label, value) ->
